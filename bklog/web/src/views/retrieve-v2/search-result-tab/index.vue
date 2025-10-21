@@ -22,10 +22,11 @@
   const bkBizId = computed(() => store.state.bkBizId);
 
   const indexSetItem = computed(() =>
-    store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
+    store.state.retrieve.flatIndexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
   );
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
+  const requestAddition = computed(() => store.getters.requestAddition);
 
   const isAiopsToggle = computed(() => {
       // 日志聚类总开关
@@ -81,15 +82,15 @@
       dimension: [], // 监控维度
       condition: [], // 监控条件
     };
-    const indexSet = (store.state.retrieve.indexSetList ?? []).find(item => item.index_set_id === indexSetId);
+    const indexSet = (store.state.retrieve.flatIndexSetList ?? []).find(item => item.index_set_id === indexSetId);
     if (indexSet) {
       params.scenarioId = indexSet.category_id;
     }
 
-    if (retrieveParams.value.addition.length) {
+    if (requestAddition.value.length) {
       const resp = await $http.request('retrieve/generateQueryString', {
         data: {
-          addition: retrieveParams.value.addition,
+          addition: requestAddition.value,
         },
       });
 

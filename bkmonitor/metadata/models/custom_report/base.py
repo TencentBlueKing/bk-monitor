@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -16,7 +16,6 @@ from django.db import models
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
-from constants.common import DEFAULT_TENANT_ID
 from metadata import config
 from metadata.models.common import Label
 from metadata.models.data_source import DataSourceOption, DataSourceResultTable
@@ -84,7 +83,7 @@ class CustomGroupBase(models.Model):
         return {}
 
     @staticmethod
-    def make_table_id(bk_biz_id, bk_data_id, table_name: str = None, bk_tenant_id=DEFAULT_TENANT_ID) -> str:
+    def make_table_id(bk_biz_id, bk_data_id, bk_tenant_id: str, table_name: str = None) -> str:
         raise NotImplementedError
 
     def update_metrics(self, metric_info):
@@ -107,9 +106,7 @@ class CustomGroupBase(models.Model):
         pass
 
     @classmethod
-    def pre_check(
-        cls, label: str, bk_data_id: int, custom_group_name: str, bk_biz_id: int, bk_tenant_id=DEFAULT_TENANT_ID
-    ) -> dict:
+    def pre_check(cls, label: str, bk_data_id: int, custom_group_name: str, bk_biz_id: int, bk_tenant_id: str) -> dict:
         """
         pre check name, label, bk_data_id
         """
@@ -132,9 +129,7 @@ class CustomGroupBase(models.Model):
             bk_biz_id=bk_biz_id, bk_tenant_id=bk_tenant_id, is_delete=False, **filter_kwargs
         ).exists():
             logger.error(
-                "biz_id->[{}] of bk_tenant_id->[{}] already has {}->[{}], should change {} and try again.".format(
-                    bk_biz_id, bk_tenant_id, cls.__name__, cls.GROUP_NAME_FIELD, custom_group_name
-                )
+                f"biz_id->[{bk_biz_id}] of bk_tenant_id->[{bk_tenant_id}] already has {cls.__name__}->[{cls.GROUP_NAME_FIELD}], should change {custom_group_name} and try again."
             )
             raise ValueError(_("自定义组名称已存在，请确认后重试"))
 
@@ -150,8 +145,8 @@ class CustomGroupBase(models.Model):
         label: str,
         operator: str,
         is_split_measurement: bool,
+        bk_tenant_id: str,
         max_rate: int = -1,
-        bk_tenant_id=DEFAULT_TENANT_ID,
         **filter_kwargs,
     ) -> (str, "CustomGroupBase"):
         """
@@ -160,7 +155,7 @@ class CustomGroupBase(models.Model):
 
         if table_id is None:
             # 如果是公共结果表记录，则需要创建公共结果表ID，否则填充None
-            table_id = cls.make_table_id(bk_biz_id, bk_data_id, custom_group_name, bk_tenant_id=bk_tenant_id)
+            table_id = cls.make_table_id(bk_biz_id, bk_data_id, bk_tenant_id=bk_tenant_id, table_name=custom_group_name)
 
         custom_group = cls.objects.create(
             bk_data_id=bk_data_id,
@@ -177,9 +172,7 @@ class CustomGroupBase(models.Model):
             **filter_kwargs,
         )
         logger.info(
-            "{}->[{}] now is created from data_id->[{}] by operator->[{}],bk_tenant_id->[{}]".format(
-                cls.__name__, custom_group.custom_group_id, bk_data_id, operator, bk_tenant_id
-            )
+            f"{cls.__name__}->[{custom_group.custom_group_id}] now is created from data_id->[{bk_data_id}] by operator->[{operator}],bk_tenant_id->[{bk_tenant_id}]"
         )
 
         return table_id, custom_group
@@ -192,6 +185,7 @@ class CustomGroupBase(models.Model):
         custom_group_name,
         label,
         operator,
+        bk_tenant_id: str,
         metric_info_list=None,
         table_id=None,
         is_builtin=False,
@@ -199,7 +193,6 @@ class CustomGroupBase(models.Model):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         """
         创建一个新的自定义分组记录
@@ -259,9 +252,7 @@ class CustomGroupBase(models.Model):
         final_metric_info_list = metric_info_list
         if metric_info_list is None:
             logger.info(
-                "{}->[{}] is created with none metric_info_list are set.".format(
-                    cls.__name__, custom_group.custom_group_id
-                )
+                f"{cls.__name__}->[{custom_group.custom_group_id}] is created with none metric_info_list are set."
             )
             final_metric_info_list = []
 
@@ -349,9 +340,7 @@ class CustomGroupBase(models.Model):
         # 不可修改已删除的事件组
         if self.is_delete:
             logger.error(
-                "op->[{}] try to update the deleted {}->[{}], but nothing will do.".format(
-                    self.__class__.__name__, operator, self.custom_group_id
-                )
+                f"op->[{self.__class__.__name__}] try to update the deleted {operator}->[{self.custom_group_id}], but nothing will do."
             )
             raise ValueError(_("自定义组已删除，请确认后重试"))
 
@@ -362,9 +351,7 @@ class CustomGroupBase(models.Model):
             self.custom_group_name = custom_group_name
             is_change = True
             logger.info(
-                "{}->[{}] name is changed to->[{}]".format(
-                    self.__class__.__name__, self.custom_group_id, custom_group_name
-                )
+                f"{self.__class__.__name__}->[{self.custom_group_id}] name is changed to->[{custom_group_name}]"
             )
 
         # 给分组打新的标签
@@ -389,9 +376,7 @@ class CustomGroupBase(models.Model):
             self.update_metrics(metric_info_list)
             is_change = True
             logger.info(
-                "{}->[{}] has create now metric list->[{}]".format(
-                    self.__class__.__name__, self.custom_group_id, len(metric_info_list)
-                )
+                f"{self.__class__.__name__}->[{self.custom_group_id}] has create now metric list->[{len(metric_info_list)}]"
             )
 
         # 判断是否修改速率
@@ -470,9 +455,7 @@ class CustomGroupBase(models.Model):
         # 不可修改已删除的事件组
         if self.is_delete:
             logger.error(
-                "op->[{}] try to update the deleted {}->[{}], but nothing will do.".format(
-                    self.__class__.__name__, operator, self.custom_group_id
-                )
+                f"op->[{self.__class__.__name__}] try to update the deleted {operator}->[{self.custom_group_id}], but nothing will do."
             )
             raise ValueError(_("自定义组已删除，请确认后重试"))
 
@@ -486,9 +469,7 @@ class CustomGroupBase(models.Model):
         # 需要标记对应的结果表也是清除的状态
         self.set_table_id_disable()
         logger.info(
-            "{}->[{}] set result_table->[{}] and mark it delete.".format(
-                self.__class__.__name__, self.custom_group_id, self.table_id
-            )
+            f"{self.__class__.__name__}->[{self.custom_group_id}] set result_table->[{self.table_id}] and mark it delete."
         )
 
         logger.info(f"{self.__class__.__name__}->[{self.custom_group_id}] now is delete.")

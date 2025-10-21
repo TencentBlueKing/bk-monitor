@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -22,7 +22,7 @@ from bkmonitor.utils import time_tools
 from bkmonitor.utils.model_manager import AbstractRecordModel
 from bkmonitor.utils.range.period import TimeMatchByDay
 from bkmonitor.utils.request import get_source_app
-from constants.action import NoticeWay
+from constants.action import NoticeWay, UserGroupType
 from constants.common import DutyGroupType, SourceApp
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
@@ -53,6 +53,7 @@ __all__ = [
     "DefaultStrategyBizAccessModel",
     "AlgorithmChoiceConfig",
     "AlgorithmChoiceConfigAdmin",
+    "NoticeSubscribe",
 ]
 
 
@@ -391,6 +392,7 @@ class StrategyModel(Model):
 
     priority = models.IntegerField("优先级", null=True)
     # 在配置优先级的情况下，去除条件，根据查询配置生成优先级分组key
+    # 自动算的是16位uuid，用户指定带固定前缀 PGK:
     priority_group_key = models.CharField("优先级分组", max_length=64, default=None, blank=True, null=True)
 
     class Meta:
@@ -968,3 +970,26 @@ class AlgorithmChoiceConfig(Model):
         verbose_name = "算法类型配置"
         verbose_name_plural = "算法类型配置"
         db_table = "algorithm_choice_config"
+
+
+class NoticeSubscribe(Model):
+    """
+    告警策略订阅表
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    username = models.CharField("用户名", max_length=64, db_index=True)
+    bk_biz_id = models.IntegerField("业务ID", db_index=True)
+    conditions = models.JSONField("条件组", default=list)
+    notice_ways = models.JSONField("通知方式", default=list)
+    user_type = models.CharField(
+        "人员类型", default=UserGroupType.FOLLOWER, choices=UserGroupType.CHOICE, max_length=32
+    )
+    is_enable = models.BooleanField("是否启用", default=True)
+    priority = models.IntegerField("优先级", default=-1)
+    update_time = models.DateTimeField("修改时间", auto_now=True)
+
+    class Meta:
+        verbose_name = "告警策略订阅"
+        verbose_name_plural = "告警策略订阅"
+        db_table = "notice_subscribe"

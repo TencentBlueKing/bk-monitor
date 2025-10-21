@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -31,8 +31,8 @@ import AppAddForm from './add-app-form';
 import './add-app-side.scss';
 
 interface IEvent {
-  onShowChange?: (val: boolean) => void;
-  onSuccess?: (val: string) => void;
+  onShowChange?: (show: boolean) => void;
+  onSuccess?: (appName: string, appId: string) => void;
 }
 
 interface IProps {
@@ -42,16 +42,20 @@ interface IProps {
 @Component
 export default class AddApplication extends tsc<IProps, IEvent> {
   @Prop({ default: false, type: Boolean }) isShow: boolean;
+  // 指南页面首次新建应用
 
   @Emit('showChange')
-  handleShowChange(v) {
+  handleShowChange(v: boolean) {
     return v;
   }
 
-  @Emit('success')
-  handleSuccess(v) {
+  handleSuccess(v: string, appId: string) {
     this.handleShowChange(false);
-    return v;
+    this.$emit('success', v, appId);
+  }
+
+  handleMoreClick() {
+    window.open('', '_blank');
   }
 
   render() {
@@ -69,6 +73,23 @@ export default class AddApplication extends tsc<IProps, IEvent> {
           class='content-main'
           slot='content'
         >
+          <div class='content-tip-wrap'>
+            <i class='icon-monitor icon-hint' />
+            <span class='content-tip'>
+              {this.$t(
+                '应用一般是拥有独立的站点，由多个 Service 共同组成，提供完整的产品功能，拥有独立的软件架构。从技术方面来说应用是 Trace 数据的存储隔离，在同一个应用内的数据将进行统计和观测。'
+              )}
+              <div class='more'>
+                {this.$t('更多请')}
+                <span
+                  class='more-link'
+                  onClick={this.handleMoreClick}
+                >
+                  {this.$t('查看产品文档')}
+                </span>
+              </div>
+            </span>
+          </div>
           <AppAddForm
             onCancel={() => this.handleShowChange(false)}
             onSuccess={this.handleSuccess}

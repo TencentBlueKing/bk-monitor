@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -15,11 +15,14 @@ import time
 from collections import defaultdict
 from functools import wraps
 
+import settings
 from bkmonitor.utils.local import local
 
 logger = logging.getLogger(__name__)
 
 backend_db_apps = ["monitor_api", "metadata", "bkmonitor", "apm", "calendars"]
+
+backend_alert_models = ["ActionInstance", "ConvergeInstance", "ConvergeRelation"]
 
 
 def is_backend(app_label):
@@ -27,6 +30,11 @@ def is_backend(app_label):
 
 
 backend_router = "monitor_api"
+if settings.BACKEND_DATABASE_NAME == "default":
+    backend_alert_router = "default"
+else:
+    backend_alert_router = "backend_alert"
+
 
 BK_MONITOR_MODULE = os.getenv("BK_MONITOR_MODULE", "default")
 
@@ -39,22 +47,24 @@ class BackendRouter:
         # 动态路由判断
         if getattr(local, "DB_FOR_READ_OVERRIDE", []):
             return local.DB_FOR_READ_OVERRIDE[-1]
-
+        if model._meta.object_name in backend_alert_models:
+            return backend_alert_router
         if is_backend(model._meta.app_label):
             return backend_router
         if model._meta.app_label == "django_cache":
-            return "monitor_api"
+            return backend_router
         return None
 
     def db_for_write(self, model, **hints):
         # 动态路由判断
         if getattr(local, "DB_FOR_WRITE_OVERRIDE", []):
             return local.DB_FOR_WRITE_OVERRIDE[-1]
-
+        if model._meta.object_name in backend_alert_models:
+            return backend_alert_router
         if is_backend(model._meta.app_label):
             return backend_router
         if model._meta.app_label == "django_cache":
-            return "monitor_api"
+            return backend_router
         return None
 
     def allow_relation(self, obj1, obj2, **hints):
@@ -63,14 +73,28 @@ class BackendRouter:
         return None
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):
+        # django_cache 应用总是允许迁移
         if app_label == "django_cache":
             return True
+
+        # 防止后端应用在默认数据库中迁移
         if db == "default" and is_backend(app_label):
             return False
+
+        # 后端告警路由数据库只允许告警相关模型迁移
+        if db == backend_alert_router and model_name in backend_alert_models:
+            return True
+
+        # 后端路由数据库只允许后端应用迁移
         if db == backend_router:
             return is_backend(app_label)
+
+        # 禁止在nodeman数据库中进行迁移
         if db in ["nodeman"]:
             return False
+
+        # 对于其他情况，返回None让Django使用默认行为
+        return None
 
 
 class TableVisitCountRouter:

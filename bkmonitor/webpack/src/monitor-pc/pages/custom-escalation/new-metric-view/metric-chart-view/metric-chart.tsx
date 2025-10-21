@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -51,7 +51,13 @@ import { getSeriesMaxInterval, getTimeSeriesXInterval } from 'monitor-ui/chart-p
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import { handleGetMinPrecision, handleSetFormatterFunc, handleYAxisLabelFormatter, timeToDayNum } from './utils';
+import {
+  convertTimestamp,
+  handleGetMinPrecision,
+  handleSetFormatterFunc,
+  handleYAxisLabelFormatter,
+  timeToDayNum,
+} from './utils';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import type { IMetricAnalysisConfig } from '../type';
@@ -397,7 +403,7 @@ class NewMetricChart extends CommonSimpleChart {
       return `${number}小时前`;
     }
   }
-  handleSeriesName(item: DataQuery, set, isFull = false) {
+  handleSeriesName(item: DataQuery, set) {
     const { dimensions = {}, dimensions_translation = {}, time_offset } = set;
     const { metric = {} } = item;
     const timeOffset = time_offset ? `${this.formatTimeStr(time_offset)}` : '';
@@ -416,7 +422,9 @@ class NewMetricChart extends CommonSimpleChart {
       const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       return [startTime, endTime];
     }
-    return [startTime, endTime];
+    const startTimeStr = convertTimestamp(startTime);
+    const endTimeStr = convertTimestamp(endTime);
+    return [startTimeStr, endTimeStr];
   }
   /* 粒度计算 */
   downSampleRangeComputed(downSampleRange: string, timeRange: number[]) {
@@ -485,6 +493,7 @@ class NewMetricChart extends CommonSimpleChart {
         if (primaryKey) {
           paramsArr.push(primaryKey);
         }
+
         paramsArr.push({
           ...newParams,
           unify_query_param: {
@@ -517,6 +526,9 @@ class NewMetricChart extends CommonSimpleChart {
                   };
                 })
               );
+            if (res.query_config) {
+              this.panel.setRawQueryConfigs(item, res.query_config);
+            }
             this.clearErrorMsg();
             return true;
           })
@@ -651,7 +663,7 @@ class NewMetricChart extends CommonSimpleChart {
           this.handleResize();
         }, 100);
       } else {
-        this.initialized = this.metrics.length > 0;
+        this.initialized = true;
         this.emptyText = window.i18n.tc('暂无数据');
         this.empty = true;
       }
@@ -713,7 +725,10 @@ class NewMetricChart extends CommonSimpleChart {
       api: 'grafana.graphUnifyQuery',
       data: {
         expression: item.expression,
-        query_configs: item.query_configs,
+        query_configs: item.query_configs.map(config => ({
+          ...config,
+          interval: this.viewOptions?.interval || 'auto',
+        })),
       },
     }));
 

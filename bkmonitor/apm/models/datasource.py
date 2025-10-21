@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -39,7 +39,14 @@ from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
-from constants.apm import TRACE_RESULT_TABLE_OPTION, FlowType, OtlpKey, SpanKind, TraceDataSourceConfig
+from constants.apm import (
+    FlowType,
+    OtlpKey,
+    SpanKind,
+    TRACE_RESULT_TABLE_OPTION,
+    TraceDataSourceConfig,
+    DEFAULT_DATA_LABEL,
+)
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
@@ -115,19 +122,22 @@ class ApmDataSourceConfigBase(models.Model):
             instance.switch_result_table(False)
 
     def switch_result_table(self, is_enable=True):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         resource.metadata.modify_result_table(
             {
                 "table_id": self.result_table_id,
                 "is_enable": is_enable,
-                "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+                "bk_tenant_id": bk_tenant_id,
+                "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             }
         )
 
     def create_data_id(self):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         if self.bk_data_id != -1:
             return self.bk_data_id
         try:
-            data_id_info = resource.metadata.query_data_source({"data_name": self.data_name})
+            data_id_info = resource.metadata.query_data_source(bk_tenant_id=bk_tenant_id, data_name=self.data_name)
         except metadata_models.DataSource.DoesNotExist:
             # 临时支持数据链路
             data_link = DataLink.get_data_link(self.bk_biz_id)
@@ -142,9 +152,10 @@ class ApmDataSourceConfigBase(models.Model):
                         data_link_param["transfer_cluster"] = data_link.trace_transfer_cluster_id
             data_id_info = resource.metadata.create_data_id(
                 {
+                    "bk_tenant_id": bk_tenant_id,
                     "bk_biz_id": self.bk_biz_id,
                     "data_name": self.data_name,
-                    "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+                    "operator": get_global_user(bk_tenant_id=bk_tenant_id),
                     "data_description": self.data_name,
                     **self.DATA_ID_PARAM,
                     **data_link_param,
@@ -182,8 +193,6 @@ class MetricDataSource(ApmDataSourceConfigBase):
     DATASOURCE_TYPE = ApmDataSourceConfigBase.METRIC_DATASOURCE
 
     DEFAULT_MEASUREMENT = "__default__"
-
-    DEFAULT_DATA_LABEL = "APM"  # 数据标签，用来查询数据时三段式前缀(注意：不能随意更改)
 
     DATA_ID_PARAM = {
         "etl_config": "bk_standard_v2_time_series",
@@ -228,16 +237,18 @@ class MetricDataSource(ApmDataSourceConfigBase):
         if self.result_table_id != "":
             return
 
-        global_user = get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id))
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        global_user = get_global_user(bk_tenant_id=bk_tenant_id)
         params = {
             "operator": global_user,
             "bk_data_id": self.bk_data_id,
             # 平台级接入，ts_group 业务id对应为0
             "bk_biz_id": self.bk_biz_id,
+            "bk_tenant_id": bk_tenant_id,
             "time_series_group_name": self.event_group_name,
             "label": "application_check",
             "table_id": self.table_id,
-            "data_label": self.DEFAULT_DATA_LABEL,
+            "data_label": DEFAULT_DATA_LABEL,
             "is_split_measurement": True,
         }
         datalink = DataLink.get_data_link(self.bk_biz_id)
@@ -251,6 +262,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
         group_info = resource.metadata.create_time_series_group(params)
         resource.metadata.modify_time_series_group(
             {
+                "bk_tenant_id": bk_tenant_id,
                 "time_series_group_id": group_info["time_series_group_id"],
                 "field_list": [
                     {
@@ -270,11 +282,13 @@ class MetricDataSource(ApmDataSourceConfigBase):
         self.save()
 
     def update_fields(self, field_list):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         return resource.metadata.modify_time_series_group(
             {
+                "bk_tenant_id": bk_tenant_id,
                 "time_series_group_id": self.time_series_group_id,
                 "field_list": field_list,
-                "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+                "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             }
         )
 
@@ -548,6 +562,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
     index_set_id = models.IntegerField("索引集id", null=True)
     index_set_name = models.CharField("索引集名称", max_length=512, null=True)
 
+    def to_json(self):
+        return {**super().to_json(), "index_set_id": self.index_set_id}
+
     @property
     def table_id(self) -> str:
         return self.get_table_id(int(self.bk_biz_id), self.app_name)
@@ -564,11 +581,13 @@ class TraceDataSource(ApmDataSourceConfigBase):
         if self.result_table_id:
             table_id = self.result_table_id
 
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         params = {
             "bk_data_id": self.bk_data_id,
             # 必须为 库名.表名
             "table_id": table_id,
-            "operator": get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id)),
+            "bk_tenant_id": bk_tenant_id,
+            "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             "is_enable": True,
             "table_name_zh": self.app_name,
             "is_custom_table": True,
@@ -606,7 +625,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
         # 获取集群信息
         try:
             cluster_info_list = api.metadata.query_cluster_info(
-                {"cluster_id": option["es_storage_cluster"], "cluster_type": "elasticsearch"}
+                bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id),
+                cluster_id=option["es_storage_cluster"],
+                cluster_type="elasticsearch",
             )
             cluster_info = cluster_info_list[0]
             custom_option = json.loads(cluster_info["cluster_config"].get("custom_option"))
@@ -725,22 +746,23 @@ class TraceDataSource(ApmDataSourceConfigBase):
     @classmethod
     def _filter_and_sort_valid_index_names(cls, app_name, index_names):
         date_index_pairs = []
-        pattern = re.compile(rf".*_bkapm_trace_{re.escape(app_name)}_(\d{{8}})_\d+$")
+        pattern = re.compile(rf".*_bkapm_trace_{re.escape(app_name)}_(\d{{8}})_(\d+)$")
 
         for name in index_names:
             match = pattern.search(name)
             if match:
                 date_str = match.group(1)
+                num = int(match.group(2))
                 # 检查 app_name 之后的格式是否是日期类型
                 try:
                     date = datetime.datetime.strptime(date_str, "%Y%m%d")
-                    date_index_pairs.append((date, name))
+                    date_index_pairs.append((date, num, name))
                 except ValueError:
                     logger.warning(f"[FilterValidIndexName] filter invalid indexName: {name} with wrong dateString")
                     continue
 
         # 按照时间排序 便于快捷获取最新的索引
-        date_index_pairs.sort(reverse=True, key=lambda x: x[0])
+        date_index_pairs.sort(reverse=True, key=lambda x: (x[0], x[1]))
 
         return [i[-1] for i in date_index_pairs]
 

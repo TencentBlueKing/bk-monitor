@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -9,11 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import os
 import shutil
 import uuid
 import zipfile
+from pathlib import Path
 
 import yaml
 from django.conf import settings
@@ -48,7 +47,7 @@ class DataDogPluginManager(PluginManager):
 
     def make_package(self, **kwargs):
         kwargs.update(dict(add_dirs=self.fetch_lib_dirs()))
-        return super(DataDogPluginManager, self).make_package(**kwargs)
+        return super().make_package(**kwargs)
 
     def _get_debug_config_context(self, config_version, info_version, param, target_nodes):
         collector_data = param["collector"]
@@ -70,10 +69,8 @@ class DataDogPluginManager(PluginManager):
         if collector_params.get("python_path"):
             plugin_params["python_path"] = collector_params["python_path"]
 
-        collector_params[
-            "command"
-        ] = "{{{{ step_data.{}.control_info.setup_path }}}}/{{{{ step_data.{}.control_info.start_cmd }}}}".format(
-            self.plugin.plugin_id, self.plugin.plugin_id
+        collector_params["command"] = (
+            f"{{{{ step_data.{self.plugin.plugin_id}.control_info.setup_path }}}}/{{{{ step_data.{self.plugin.plugin_id}.control_info.start_cmd }}}}"
         )
 
         deploy_steps = [
@@ -94,8 +91,8 @@ class DataDogPluginManager(PluginManager):
         ]
         return deploy_steps
 
-    def _get_collector_json(self, plugin_params):
-        meta_dict = yaml.load(plugin_params["meta.yaml"], Loader=yaml.FullLoader)
+    def _get_collector_json(self, plugin_params: dict[str, bytes]):
+        meta_dict = yaml.load(self._decode_file(plugin_params["meta.yaml"]), Loader=yaml.FullLoader)
 
         if not meta_dict.get("datadog_check_name"):
             raise PluginParseError({"msg": _("meta.yaml 缺少 datadog_check_name")})
@@ -104,28 +101,30 @@ class DataDogPluginManager(PluginManager):
 
         for sys_name, sys_dir in list(OS_TYPE_TO_DIRNAME.items()):
             # 获取不同操作系统下的文件名
-            tmp_sys_plugin_path = os.path.join(self.tmp_path, sys_dir, self.plugin.plugin_id)
-            if not os.path.exists(tmp_sys_plugin_path):
-                continue
+            tmp_sys_plugin_path = Path(self.plugin.plugin_id, sys_dir, self.plugin.plugin_id)
+            lib_path = tmp_sys_plugin_path / "lib"
+            config_yaml_path = tmp_sys_plugin_path / "etc" / "conf.yaml.tpl"
 
-            lib_path = os.path.join(tmp_sys_plugin_path, "lib")
-            if not os.path.exists(lib_path):
-                raise PluginParseError({"msg": _("缺少 lib 文件夹")})
+            if config_yaml_path not in self.filename_list:
+                raise PluginParseError({"msg": _("缺少 conf.yaml.tpl 配置模板文件")})
 
-            lib_tar_name = "{}-lib-{}".format(self.plugin.plugin_id, sys_name)
+            file_dict: dict[Path, bytes] = {}
+            for filename in self.filename_list:
+                if str(filename).startswith(str(lib_path)):
+                    file_dict[filename] = self.plugin_configs[filename]
 
-            file_manager = PluginFileManager.save_dir(dir_path=lib_path, dir_name=lib_tar_name)
+            if not file_dict:
+                raise PluginParseError({"msg": _(f"缺少 lib 文件夹,path:{tmp_sys_plugin_path}/lib")})
+
+            lib_tar_name = f"{self.plugin.plugin_id}-lib-{sys_name}"
+            file_manager = PluginFileManager.save_from_memory(file_dict=file_dict, dir_name=lib_tar_name)
             collector_json[sys_name] = {
                 "file_id": file_manager.file_obj.id,
                 "file_name": file_manager.file_obj.actual_filename,
                 "md5": file_manager.file_obj.file_md5,
             }
 
-            config_yaml_path = os.path.join(tmp_sys_plugin_path, "etc", "conf.yaml.tpl")
-            if not os.path.exists(config_yaml_path):
-                raise PluginParseError({"msg": _("缺少 conf.yaml.tpl 配置模板文件")})
-
-            config_template_content = self._read_file(config_yaml_path)
+            config_template_content = self._decode_file(self.plugin_configs[config_yaml_path])
             collector_json["config_yaml"] = config_template_content
 
         return collector_json
@@ -163,7 +162,7 @@ class DataDogPluginFileManager(PluginFileManager):
         lib_path = os.path.join(plugin_os_path, os.listdir(plugin_os_path)[0], "lib")
         if not os.path.exists(lib_path):
             raise PluginParseError({"msg": _("缺少 lib 文件夹")})
-        lib_tar_name = "{}-lib-{}".format(check_name, os_type)
+        lib_tar_name = f"{check_name}-lib-{os_type}"
         file_manager = cls.save_dir(dir_path=lib_path, dir_name=lib_tar_name, plugin_id=plugin_id)
         ret = {
             "file_id": file_manager.file_obj.id,
@@ -201,7 +200,7 @@ class DataDogPluginFileManager(PluginFileManager):
             conf_yaml_path = os.path.join(plugin_base, os.listdir(plugin_base)[0], "etc", "conf.yaml.example")
             if not os.path.exists(conf_yaml_path):
                 raise PluginParseError({"msg": _("缺少 conf.yaml.example 配置模板文件")})
-        with open(conf_yaml_path, "r", encoding="utf-8") as fp:
+        with open(conf_yaml_path, encoding="utf-8") as fp:
             conf_content = fp.read()
         return conf_content
 
@@ -210,7 +209,7 @@ class DataDogPluginFileManager(PluginFileManager):
         meta_yaml_path = os.path.join(plugin_base, os.listdir(plugin_base)[0], "info", "meta.yaml")
         if not os.path.exists(meta_yaml_path):
             raise PluginParseError({"msg": _("缺少 meta.yaml 配置模板文件")})
-        with open(meta_yaml_path, "r", encoding="utf-8") as fp:
+        with open(meta_yaml_path, encoding="utf-8") as fp:
             datadog_check_name = ""
             for line in fp.readlines():
                 if "datadog_check_name" in line:

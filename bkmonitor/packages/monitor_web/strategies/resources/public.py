@@ -1,16 +1,16 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import six
 from django.utils.translation import gettext as _
@@ -246,12 +246,19 @@ class FetchItemStatus(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         metric_ids = serializers.ListField(required=True, label="指标ID")
         target = serializers.DictField(required=False, default={}, label="当前目标")
+        labels = serializers.ListField(
+            required=False,
+            default=[],
+            label="标签过滤",
+            child=serializers.CharField(allow_blank=False),
+        )
 
     @classmethod
-    def get_alarm_event_num(cls, validated_request_data: Dict) -> Dict:
+    def get_alarm_event_num(cls, validated_request_data: dict) -> dict:
         """获得告警事件数量 ."""
         bk_biz_id = validated_request_data["bk_biz_id"]
         target = validated_request_data["target"]
+        labels = validated_request_data.get("labels", [])
         ip = target.get("bk_target_ip")
         bk_cloud_id = target.get("bk_target_cloud_id", 0)
         bk_service_instance_id = target.get("bk_service_instance_id")
@@ -269,6 +276,8 @@ class FetchItemStatus(Resource):
             search_object = search_object.filter("term", **{"event.bk_service_instance_id": bk_service_instance_id})
         # 添加event.tags查询
         search_object = cls.add_event_tags_query(search_object, target)
+        # 添加策略标签过滤
+        search_object = cls.add_labels_query(search_object, labels)
         # 获得告警策略关联的告警事件的数量
         search_object = search_object[:0]
         search_object.aggs.bucket("strategy_id", "terms", field="strategy_id", size=10000)
@@ -293,7 +302,7 @@ class FetchItemStatus(Resource):
         return search_object
 
     @classmethod
-    def transform_target_to_dsl(cls, target: Dict) -> Optional[Q]:
+    def transform_target_to_dsl(cls, target: dict) -> Optional[Q]:  # noqa
         """将target转换为es dsl ."""
         if not target:
             return None
@@ -311,8 +320,8 @@ class FetchItemStatus(Resource):
                     query=Q(
                         "bool",
                         must=[
-                            Q("term", **{"event.tags.key": {'value': key}}),
-                            Q("match_phrase", **{"event.tags.value": {'query': value}}),
+                            Q("term", **{"event.tags.key": {"value": key}}),
+                            Q("match_phrase", **{"event.tags.value": {"query": value}}),
                         ],
                     ),
                 )
@@ -324,17 +333,60 @@ class FetchItemStatus(Resource):
 
         return query
 
+    @classmethod
+    def add_labels_query(cls, search_object, labels: list[str]):
+        """基于策略标签过滤告警"""
+        if not labels:
+            return search_object
+
+        # 直接使用策略标签进行过滤，如 ["APM-APP(trpc_demo)", "APM-SERVICE(example.greeter)"]
+        search_object = search_object.filter("terms", labels=labels)
+        return search_object
+
     @staticmethod
-    def get_strategy_numbers(bk_biz_id: int, metric_ids: List) -> Dict:
+    def get_strategy_numbers(bk_biz_id: int, metric_ids: list[str], labels: list[str]) -> dict[str, list[int]]:
         """获得指标关联的告警策略 ."""
-        # 获得业务下的Item
-        strategy_ids = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True).distinct()
+
+        # 获得业务下的 Item
+        all_strategy_ids: list[int] = list(
+            StrategyModel.objects.filter(bk_biz_id=bk_biz_id).values_list("id", flat=True).distinct()
+        )
+
         # 获得指标关联的告警策略
-        query_configs = QueryConfigModel.objects.filter(strategy_id__in=strategy_ids, metric_id__in=metric_ids)
+        strategy_ids: set[int] = set()
         strategy_numbers = defaultdict(list)
-        for query_config in query_configs:
-            strategy_numbers[query_config.metric_id].append(query_config.strategy_id)
-        return strategy_numbers
+        for metric_id, strategy_id in QueryConfigModel.objects.filter(
+            strategy_id__in=all_strategy_ids, metric_id__in=metric_ids
+        ).values_list("metric_id", "strategy_id"):
+            strategy_ids.add(strategy_id)
+            strategy_numbers[metric_id].append(strategy_id)
+
+        if not labels or not strategy_ids:
+            # 如果没有标签过滤条件，或者没有找到任何策略，直接返回结果。
+            return strategy_numbers
+
+        # 找到配置所有 labels 的策略 ID
+        labels = [StrategyLabelResource.gen_label_name(label) for label in labels]
+
+        # 必须给定初始值，避免仅存在部分的场景误判为存在全部标签的策略。
+        strategy_ids_gby_label: dict[str, list[int]] = {label: [] for label in labels}
+        for strategy_id, label in StrategyLabel.objects.filter(
+            bk_biz_id=bk_biz_id, strategy_id__in=strategy_ids, label_name__in=labels
+        ).values_list("strategy_id", "label_name"):
+            strategy_ids_gby_label[label].append(strategy_id)
+
+        for label, partial_strategy_ids in strategy_ids_gby_label.items():
+            strategy_ids = strategy_ids & set(partial_strategy_ids)
+
+        if not strategy_ids:
+            # 没有任何策略包含这些标签，直接返回空结果。
+            return {}
+
+        # 基于标签过滤策略
+        return {
+            metric_id: list(set(partial_strategy_ids) & strategy_ids)
+            for metric_id, partial_strategy_ids in strategy_numbers.items()
+        }
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -342,7 +394,7 @@ class FetchItemStatus(Resource):
         # 获得当前目标下未恢复告警事件，若无当前目标则获取所有未恢复告警事件
         strategy_alert_num = self.get_alarm_event_num(validated_request_data)
         # 获得指标关联的告警策略
-        strategy_numbers = self.get_strategy_numbers(bk_biz_id, metric_ids)
+        strategy_numbers = self.get_strategy_numbers(bk_biz_id, metric_ids, validated_request_data.get("labels", []))
         # 返回结果
         # strategy_number：已设置的告警数
         # alarm_num：告警数
@@ -462,7 +514,7 @@ class DashboardPanelToQueryConfig(Resource):
         ref_id = serializers.CharField(label="图表RefID")
         variables = serializers.DictField(label="变量", child=serializers.ListField(label="变量值"), allow_empty=True)
 
-    def perform_request(self, params: Dict[str, Any]):
+    def perform_request(self, params: dict[str, Any]):
         panel_query = get_grafana_panel_query(
             params["bk_biz_id"], params["dashboard_uid"], params["panel_id"], params["ref_id"]
         )

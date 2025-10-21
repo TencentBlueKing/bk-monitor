@@ -23,28 +23,58 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export {};
+
+import VueType from 'vue';
 
 declare global {
   interface Window {
     mainComponent: any;
+    bus: VueType;
     timezone: string;
     MONITOR_URL: string;
+    BK_LOGIN_URL: string;
     BK_SHARED_RES_URL: string;
     VERSION: string;
     AJAX_URL_PREFIX: string;
-    FEATURE_TOGGLE_WHITE_LIST: Record<string, (string | number)[]>;
-    FEATURE_TOGGLE: Record<string, 'on' | 'debug'>;
+    FEATURE_TOGGLE_WHITE_LIST: Record<string, (number | string)[]>;
+    FEATURE_TOGGLE: Record<string, 'debug' | 'off' | 'on'>;
     __IS_MONITOR_COMPONENT__?: boolean; // 是否是监控组件
     __IS_MONITOR_TRACE__?: boolean; // 是否是监控Trace组件
     __IS_MONITOR_APM__?: boolean; // 是否是监控APM组件
+    IS_EXTERNAL: boolean | string; // 开发环境是 'false'，生产环境是 boolean
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: boolean;
+    bk_log_search_url: string;
+    BKDATA_URL: string;
     $t: (key: string, params?: Record<string, any>) => string;
+    scheduler?: Scheduler;
+    RUN_VER: string;
+    REAL_TIME_LOG_MAX_LENGTH: number | string; // 实时日志最大长度
+    REAL_TIME_LOG_SHIFT_LENGTH: number | string; // 实时日志超过此长度删除部分日志
+  }
+
+  interface Scheduler {
+    postTask(callback: () => void, options?: SchedulerPostTaskOptions): SchedulerTask;
+  }
+
+  interface SchedulerPostTaskOptions {
+    priority?: 'background' | 'user-blocking' | 'user-visible';
+    delay?: number;
+    signal?: AbortSignal;
+  }
+
+  interface SchedulerTask {
+    readonly priority: 'background' | 'user-blocking' | 'user-visible';
+    abort(): void;
+  }
+
+  interface WorkerGlobalScope {
+    scheduler?: Scheduler;
   }
 }
 
 declare module 'vue/types/vue' {
   interface Vue {
     $bkMessage?: (p: Partial<object>) => void;
-    $bkPopover?: (...Object) => void;
+    $bkPopover?: (...args: any[]) => void;
   }
 }

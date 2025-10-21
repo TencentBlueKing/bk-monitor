@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -38,35 +38,26 @@ logger = logging.getLogger("metadata")
 RECOMMENDED_VERSION = {"bk-collector": "0.16.1061"}
 
 
-def update_event_by_cluster(cluster_id_with_table_ids: dict | None = None, data_ids: list | None = None):
+def update_event_by_cluster(cluster_id_with_table_ids: dict[tuple[str, int], list[str]]):
     """
     按照ES集群更新event维度等信息
     :param cluster_id_with_table_ids: ES集群id与table_id_list的字典
     {
-        3:["table_id_1", "table_id2"],
-        4:["table_id_3", "table_id4"],
+        ("system", 3):["table_id_1", "table_id2"],
+        ("test", 4):["table_id_3", "table_id4"],
     }
     :param data_ids: 按照data_id进行更新
     """
     s_time = time.time()
-    if data_ids is not None:
-        for event_group in models.EventGroup.objects.filter(bk_data_id__in=data_ids).iterator():
-            event_group.update_event_dimensions_from_es()
-        e_time = time.time()
-        logger.info("check_event_update:update data_ids[%s], cost:%s s", data_ids, e_time - s_time)
-
-    if cluster_id_with_table_ids is None:
-        return
-
-    for cluster_id, table_ids in cluster_id_with_table_ids.items():
+    for (bk_tenant_id, cluster_id), table_ids in cluster_id_with_table_ids.items():
         try:
-            client = es_tools.get_client(cluster_id)
+            client = es_tools.get_client(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
         except Exception:
             logger.error("check_event_update:get es_client->[%s] failed for->[%s]", cluster_id, traceback.format_exc())
             continue
 
         for event_group in models.EventGroup.objects.filter(
-            is_enable=True, is_delete=False, table_id__in=table_ids
+            bk_tenant_id=bk_tenant_id, is_enable=True, is_delete=False, table_id__in=table_ids
         ).iterator():
             try:
                 logger.info("check_event_update:update_event[%s]", event_group.event_group_name)
@@ -104,14 +95,18 @@ def check_event_update():
     table_ids = set(
         models.EventGroup.objects.filter(is_enable=True, is_delete=False).values_list("table_id", flat=True)
     )
-    storage_cluster_table_ids = {}
+    storage_cluster_table_ids: dict[tuple[str, int], list[str]] = {}
     for storage in (
-        models.ESStorage.objects.filter(table_id__in=table_ids).values("storage_cluster_id", "table_id").iterator()
+        models.ESStorage.objects.filter(table_id__in=table_ids)
+        .values("storage_cluster_id", "table_id", "bk_tenant_id")
+        .iterator()
     ):
-        storage_cluster_table_ids.setdefault(storage["storage_cluster_id"], []).append(storage["table_id"])
-
+        storage_cluster_table_ids.setdefault((storage["bk_tenant_id"], storage["storage_cluster_id"]), []).append(
+            storage["table_id"]
+        )
     if not storage_cluster_table_ids:
         return
+
     # 将ES集群按照并行进程数量分组处理
     max_worker = getattr(settings, "MAX_TASK_PROCESS_NUM", 1)
     items = list(storage_cluster_table_ids.items())
@@ -193,6 +188,23 @@ def refresh_all_log_config():
 
 
 @share_lock()
+def refresh_all_log_config_to_k8s():
+    """
+    刷新所有自定义日志的 K8s 配置（获取全部数据进行批量调度）
+    """
+    # 获取所有启用的日志组
+    log_groups = list(models.LogGroup.objects.filter(is_enable=True))
+    if not log_groups:
+        return
+
+    try:
+        models.LogSubscriptionConfig.refresh_k8s(log_groups)
+        logger.info(f"[refresh_all_log_config_to_k8s]: batch publish k8s config for {len(log_groups)} log groups")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(f"[RefreshCustomLogK8sConfigFailed] Err => {str(e)}; LogGroup => {log_groups}")
+
+
+@share_lock()
 def refresh_custom_log_config(log_group_id=None):
     """
     下发单个自定义日志配置
@@ -207,7 +219,6 @@ def refresh_custom_log_config(log_group_id=None):
 
     try:
         models.LogSubscriptionConfig.refresh(log_group)
-        models.LogSubscriptionConfig.refresh_k8s(log_group)
     except Exception as err:  # pylint: disable=broad-except
         logger.exception("[RefreshCustomLogConfigFailed] Err => %s; LogGroup => %s", str(err), log_group.log_group_id)
 

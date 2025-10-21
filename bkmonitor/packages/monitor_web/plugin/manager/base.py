@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -20,7 +19,7 @@ import stat
 import tarfile
 import time
 from functools import partial
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from uuid import uuid4
 
 import yaml
@@ -76,13 +75,14 @@ def check_skip_debug(need_debug):
 
 
 class BasePluginManager:
-    def __init__(self, plugin: CollectorPluginMeta, operator: str, tmp_path=None):
+    def __init__(self, plugin: CollectorPluginMeta, operator: str, tmp_path=None, plugin_configs=None):
         self.plugin = plugin
         self.operator = operator
         self.tmp_path = tmp_path
-        self.version: Optional[PluginVersionHistory] = PluginVersionHistory.objects.filter(
+        self.version: PluginVersionHistory | None = PluginVersionHistory.objects.filter(
             bk_tenant_id=self.plugin.bk_tenant_id, plugin_id=self.plugin.plugin_id
         ).last()
+        self.plugin_configs: dict[str, bytes] | None = plugin_configs
 
     def _update_version_params(
         self, data, version: PluginVersionHistory, current_version: PluginVersionHistory, stag=None
@@ -110,7 +110,7 @@ class BasePluginManager:
         version.save()
 
     @classmethod
-    def _update_config(cls, update_config_data: Dict[str, Any], version: PluginVersionHistory):
+    def _update_config(cls, update_config_data: dict[str, Any], version: PluginVersionHistory):
         """
         更新插件config字段
         """
@@ -153,7 +153,7 @@ class BasePluginManager:
         version.stage = "unregister"
         return version
 
-    def validate_config_info(self, collector_info: Dict[str, Any], config_info: List[Dict[str, Any]]) -> None:
+    def validate_config_info(self, collector_info: dict[str, Any], config_info: list[dict[str, Any]]) -> None:
         """
         配置检查
         """
@@ -170,10 +170,10 @@ class BasePluginManager:
         self,
         config_version: int,
         info_version: int,
-        param: Dict[str, Any],
-        host_info: Dict[str, Any],
+        param: dict[str, Any],
+        host_info: dict[str, Any],
         target_nodes=None,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         开始插件调试
         """
@@ -183,7 +183,7 @@ class BasePluginManager:
         停止插件调试
         """
 
-    def query_debug(self, task_id: str) -> Dict[str, Any]:
+    def query_debug(self, task_id: str) -> dict[str, Any]:
         """
         获取调试信息
         """
@@ -199,7 +199,7 @@ class BasePluginManager:
             # 接入数据源
             PluginDataAccessor(current_version, self.operator).access()
         except Exception as err:
-            logger.exception("[plugin] data_access error, msg is %s" % str(err))
+            logger.exception(f"[plugin] data_access error, msg is {str(err)}")
             current_version.stage = "unregister"
             current_version.save()
             raise err
@@ -212,9 +212,9 @@ class BasePluginManager:
             ]
             append_metric_list_cache.delay(self.plugin.bk_tenant_id, result_table_id_list)
         except Exception as err:
-            logger.error("[update_plugin_metric_cache] error, msg is {}".format(err))
+            logger.error(f"[update_plugin_metric_cache] error, msg is {err}")
 
-    def update_metric(self, data: Dict[str, Any]) -> Tuple[int, int, bool, bool]:
+    def update_metric(self, data: dict[str, Any]) -> tuple[int, int, bool, bool]:
         """
         更新插件指标维度信息
         """
@@ -270,7 +270,7 @@ class BasePluginManager:
         self,
         config_version: int,
         info_version: int,
-        token: List[str] = None,
+        token: list[str] = None,
         debug: bool = True,
     ) -> PluginVersionHistory:
         """
@@ -281,7 +281,7 @@ class BasePluginManager:
         :param debug: 是否为调试模式
         """
 
-    def create_version(self, data) -> Tuple[PluginVersionHistory, bool]:
+    def create_version(self, data) -> tuple[PluginVersionHistory, bool]:
         version = self.plugin.generate_version(data["config_version"], data["info_version"])
         version.version_log = data.get("version_log", "")
         version.save()
@@ -391,10 +391,10 @@ class BasePluginManager:
     @abc.abstractmethod
     def make_package(
         self,
-        add_files: Dict[str, List[Dict[str, str]]] = None,
-        add_dirs: Dict[str, List[Dict[str, str]]] = None,
+        add_files: dict[str, list[dict[str, str]]] = None,
+        add_dirs: dict[str, list[dict[str, str]]] = None,
         need_tar: bool = True,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         制作插件包，在tmp_path下制作插件包
         :param add_files: 是否有额外文件
@@ -439,17 +439,21 @@ class PluginManager(BasePluginManager):
     # 插件数据校验类
     serializer_class = None
 
-    def __init__(self, plugin, operator, tmp_path=None):
+    def __init__(self, plugin, operator, tmp_path=None, plugin_configs=None):
         """
         :param plugin: CollectorPluginMeta Instance
         """
-        super(PluginManager, self).__init__(plugin, operator, tmp_path)
+        super().__init__(plugin, operator, tmp_path)
 
         self.tmp_path: str = os.path.join(settings.MEDIA_ROOT, "plugin", str(uuid4())) if not tmp_path else tmp_path
+        self.plugin_configs = plugin_configs
         self.filename_list = []
-        for dir_path, _, filename_list in os.walk(self.tmp_path):
-            for filename in filename_list:
-                self.filename_list.append(os.path.join(dir_path, filename))
+        if plugin_configs:
+            self.filename_list = list(self.plugin_configs.keys())
+        else:
+            for dir_path, _, filename_list in os.walk(self.tmp_path):
+                for filename in filename_list:
+                    self.filename_list.append(os.path.join(dir_path, filename))
 
     def _render_config(self, config_version, config_name, context):
         """
@@ -473,7 +477,7 @@ class PluginManager(BasePluginManager):
         debug_version = self.plugin.get_debug_version(config_version)
         param = {
             "plugin_name": self.plugin.plugin_id,
-            "version": "{}.{}".format(debug_version.config_version, debug_version.info_version),
+            "version": f"{debug_version.config_version}.{debug_version.info_version}",
             "config_ids": config_ids,
             "host_info": host,
         }
@@ -658,7 +662,7 @@ class PluginManager(BasePluginManager):
         """
         param = {
             "plugin_name": self.plugin.plugin_id,
-            "plugin_version": "{}_{}".format(config_version, info_version),
+            "plugin_version": f"{config_version}_{info_version}",
             "name": name,
             "version": config_version,
         }
@@ -710,40 +714,51 @@ class PluginManager(BasePluginManager):
             try:
                 default_port = [x for x in self.version.config.config_json if x["name"] == "port"][0]["default"]
                 if default_port:
-                    context["port_range"] = "%s,10000-65535" % default_port
+                    context["port_range"] = f"{default_port},10000-65535"
             except Exception:
                 pass
 
         return context
 
     @classmethod
-    def _read_file(cls, filename):
+    def _read_file(cls, filename) -> str | bytes:
         try:
             with open(filename, "rb") as f:
                 file_content = f.read()
-        except IOError:
+        except OSError:
             raise PluginParseError({"msg": gettext("%s文件读取失败") % filename})
 
+        return cls._decode_file(file_content)
+
+    @classmethod
+    def _decode_file(cls, file_content) -> str | bytes:
         try:
             file_content = file_content.decode("utf-8")
         except UnicodeDecodeError:
             pass
         return file_content
 
-    def _parse_info_path(self):
-        read_filename_list = []
-        for dir_path, dirname, filename_list in os.walk(self.tmp_path):
-            if dir_path.endswith(os.path.join(self.plugin.plugin_id, "info")) and len(dirname) == 0:
-                plugin_info_path = dir_path
-                read_filename_list = [os.path.join(plugin_info_path, filename) for filename in filename_list]
-                break
+    def _parse_info_path(
+        self,
+        info_path: dict[str, bytes] = None,
+    ):
+        """
+        解析info目录下所有文件配置内容
+        """
+        if info_path:
+            plugin_params = info_path
+        else:
+            read_filename_list = []
+            for filename in self.filename_list:
+                if str(filename.parent).endswith("info"):
+                    read_filename_list.append(filename)
 
-        if not read_filename_list:
-            raise PluginParseError({"msg": gettext("不存在info文件夹，无法解析插件包")})
+            if not read_filename_list:
+                raise PluginParseError({"msg": gettext("不存在info文件夹，无法解析插件包")})
 
-        plugin_params = {}
-        for file_instance in read_filename_list:
-            plugin_params[os.path.basename(file_instance)] = self._read_file(file_instance)
+            plugin_params = {}
+            for file_instance in read_filename_list:
+                plugin_params[os.path.basename(file_instance)] = self.plugin_configs[file_instance]
 
         self._get_meta_info(plugin_params)
         self._get_config_mes(plugin_params)
@@ -751,7 +766,7 @@ class PluginManager(BasePluginManager):
         self._get_version_mes(plugin_params)
         self._parse_plugin_version_str()
 
-    def _get_meta_info(self, plugin_params):
+    def _get_meta_info(self, plugin_params: dict[str, bytes]):
         meta_dict = yaml.load(plugin_params["meta.yaml"], Loader=yaml.FullLoader)
         self.plugin.tag = meta_dict.get("tag") if meta_dict.get("tag") else ""
         self.plugin.label = meta_dict.get("label", "other_rt")
@@ -764,10 +779,10 @@ class PluginManager(BasePluginManager):
         return False
 
     @abc.abstractmethod
-    def _get_collector_json(self, plugin_params):
+    def _get_collector_json(self, plugin_params: dict[str, bytes]) -> dict:
         pass
 
-    def _get_config_mes(self, plugin_params):
+    def _get_config_mes(self, plugin_params: dict[str, bytes]):
         # load config_json
         try:
             self.version.config.config_json = json.loads(plugin_params["config.json"])
@@ -778,25 +793,30 @@ class PluginManager(BasePluginManager):
         self.version.config.collector_json = self._get_collector_json(plugin_params)
 
     def _parse_plugin_version_str(self):
+        """获取插件版本号"""
         version_path = ""
         for filename in self.filename_list:
-            if filename.endswith("VERSION"):
+            if str(filename).endswith("VERSION"):
                 version_path = filename
                 break
 
         try:
-            version_str = self._read_file(os.path.join(self.tmp_path, version_path))
+            if self.plugin_configs:
+                version_str = self._decode_file(self.plugin_configs[version_path])
+            else:
+                version_str = self._read_file(os.path.join(self.tmp_path, str(version_path)))
+
             version_split = version_str.split(".")
             config_version = int(version_split[0])
             info_version = int(version_split[1])
         except Exception as e:
-            logger.exception("[ImportPlugin] {} - parse version error: {}".format(self.plugin.plugin_id, e))
+            logger.exception(f"[ImportPlugin] {self.plugin.plugin_id} - parse version error: {e}")
             config_version = info_version = 1
 
         self.version.config_version = config_version
         self.version.info_version = info_version
 
-    def _get_info_msg(self, plugin_params):
+    def _get_info_msg(self, plugin_params: dict[str, bytes]):
         # load metric_json
         try:
             metric_json = json.loads(plugin_params["metrics.json"])
@@ -804,9 +824,7 @@ class PluginManager(BasePluginManager):
             if serializer.is_valid():
                 self.version.info.metric_json = serializer.validated_data
             else:
-                logger.warning(
-                    "[ImportPlugin] {} - metric_json invalid: {}".format(self.plugin.plugin_id, serializer.errors)
-                )
+                logger.warning(f"[ImportPlugin] {self.plugin.plugin_id} - metric_json invalid: {serializer.errors}")
                 self.version.info.metric_json = []
         except (ValueError, TypeError):
             self.version.info.metric_json = []
@@ -815,15 +833,17 @@ class PluginManager(BasePluginManager):
         if plugin_params.get("logo.png", ""):
             self.version.info.logo.save(
                 self.plugin.plugin_id + ".png",
-                SimpleUploadedFile("%s.png" % self.plugin.plugin_id, plugin_params["logo.png"]),
+                SimpleUploadedFile(f"{self.plugin.plugin_id}.png", plugin_params["logo.png"]),
             )
 
-    def _get_version_mes(self, plugin_params):
+    def _get_version_mes(self, plugin_params: dict[str, bytes]):
         # load signature
         try:
-            self.version.signature = Signature().load_from_yaml(plugin_params.get("signature.yaml")).dumps2python()
+            self.version.signature = (
+                Signature().load_from_yaml(self._decode_file(plugin_params.get("signature.yaml"))).dumps2python()
+            )
         except Exception as e:
-            logger.exception("[ImportPlugin] {} - signature error: {}".format(self.plugin.plugin_id, e))
+            logger.exception(f"[ImportPlugin] {self.plugin.plugin_id} - signature error: {e}")
             self.version.signature = ""
 
         # load version_log
@@ -879,7 +899,7 @@ class PluginManager(BasePluginManager):
 
         return {"status": task_status, "log_content": log_content, "metric_json": metric_json, "last_time": last_time}
 
-    def get_tmp_version(self, config_version=None, info_version=None):
+    def get_tmp_version(self, config_version=None, info_version=None, info_path: dict[str, bytes] = None):
         """
         通过已上传的包创建一个临时版本
         """
@@ -888,7 +908,8 @@ class PluginManager(BasePluginManager):
         self.version = PluginVersionHistory(
             bk_tenant_id=self.plugin.bk_tenant_id, plugin_id=self.plugin.plugin_id, config=config, info=info
         )
-        self._parse_info_path()
+        self.version.tmp_plugin = self.plugin
+        self._parse_info_path(info_path)
         self.version.update_diff_fields()
 
         if config_version is not None:
@@ -920,7 +941,7 @@ class PluginManager(BasePluginManager):
             api.node_man.release_plugin(
                 {
                     "name": self.plugin.plugin_id,
-                    "version": "{}.{}".format(release_version.config_version, release_version.info_version),
+                    "version": f"{release_version.config_version}.{release_version.info_version}",
                     "md5_list": token,
                 }
             )
@@ -932,7 +953,7 @@ class PluginManager(BasePluginManager):
                 current_version.stage = "release"
                 current_version.save()
         except Exception as err:
-            logger.error("[plugin] release plugin {} error, msg is {}".format(self.plugin.plugin_id, str(err)))
+            logger.error(f"[plugin] release plugin {self.plugin.plugin_id} error, msg is {str(err)}")
             self.plugin.rollback_version_status(config_version)
             raise err
         return current_version
@@ -983,7 +1004,7 @@ class PluginManager(BasePluginManager):
                     new_path = os.path.join(target_dir, filename)
 
                     try:
-                        with open(old_path, "r", encoding="utf-8") as template_file:
+                        with open(old_path, encoding="utf-8") as template_file:
                             content = template_file.read()
                         template = engines["django"].from_string(content)
                         content = template.render(context)

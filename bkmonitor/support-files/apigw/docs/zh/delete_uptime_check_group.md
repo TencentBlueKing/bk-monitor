@@ -3,18 +3,15 @@
 删除拨测任务组
 
 
-#### 接口参数
+### 请求参数
 
 | 字段   | 类型  | 必选 | 描述               |
 | ---- |-----|----|------------------|
 | group_id | int | 是  | 拨测任务组ID          |
 
-#### 示例数据
+### 请求参数示例
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "group_id": 10001
 }
 ```
@@ -33,7 +30,7 @@
 | group_id     | int | 拨测任务组ID |
 | result       | str | 描述信息    |
 
-#### 示例数据
+### 响应参数示例
 ```json
 {
     "result": true,

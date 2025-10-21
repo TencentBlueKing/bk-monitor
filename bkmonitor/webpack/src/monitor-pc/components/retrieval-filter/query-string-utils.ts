@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -424,7 +424,7 @@ export function parseQueryString(query: string): IStrItem[] {
   const tokenRegex = /(\s+)|([(){}[\]])|(AND\s+NOT|AND|OR)|(<=|>=|:|>|<)|(".*?")|(\S+)/gi;
 
   let match: null | RegExpExecArray;
-  while ((match = tokenRegex.exec(query)) !== null) {
+  for (match = tokenRegex.exec(query); match !== null; match = tokenRegex.exec(query)) {
     const [_full, space, bracket, condition, method, quoted, word] = match;
     if (space) {
       tokens.push({ value: space, type: EQueryStringTokenType.split });
@@ -502,6 +502,35 @@ export function parseQueryString(query: string): IStrItem[] {
   return tokens;
 }
 
+/**
+ * @description 替换编辑器内容的同时保持聚焦状态
+ * @param editor
+ * @param content
+ * @param isLast
+ */
+export function replaceContent(editor, content: string, isLast = false) {
+  // 保存原始偏移量
+  const originalOffset = getGlobalOffset(editor);
+  // 生成新内容（示例：随机长度的新文本）
+  const newText = content;
+  editor.innerHTML = newText;
+  // 计算新内容总长度
+  let newContentLength = 0;
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
+  let node: Node;
+  for (node = walker.nextNode(); node; node = walker.nextNode()) {
+    newContentLength += node.textContent.length;
+  }
+  let adjustedOffset = Math.min(originalOffset, newContentLength);
+  if (isLast) {
+    adjustedOffset = newContentLength; // 将光标移动到最后
+  }
+  // 恢复光标
+  setGlobalOffset(editor, adjustedOffset);
+  // 保持聚焦
+  editor.focus();
+}
+
 // 获取光标全局字符偏移量
 function getGlobalOffset(editor) {
   const selection = window.getSelection();
@@ -529,35 +558,6 @@ function getGlobalOffset(editor) {
   }
   return offset;
 }
-
-/**
- * @description 替换编辑器内容的同时保持聚焦状态
- * @param editor
- * @param content
- * @param isLast
- */
-function replaceContent(editor, content: string, isLast = false) {
-  // 保存原始偏移量
-  const originalOffset = getGlobalOffset(editor);
-  // 生成新内容（示例：随机长度的新文本）
-  const newText = content;
-  editor.innerHTML = newText;
-  // 计算新内容总长度
-  let newContentLength = 0;
-  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
-  let node: Node;
-  while ((node = walker.nextNode())) {
-    newContentLength += node.textContent.length;
-  }
-  let adjustedOffset = Math.min(originalOffset, newContentLength);
-  if (isLast) {
-    adjustedOffset = newContentLength; // 将光标移动到最后
-  }
-  // 恢复光标
-  setGlobalOffset(editor, adjustedOffset);
-  // 保持聚焦
-  editor.focus();
-}
 // 设置光标到指定偏移量
 function setGlobalOffset(editor, targetOffset) {
   let currentOffset = 0;
@@ -566,7 +566,7 @@ function setGlobalOffset(editor, targetOffset) {
   // 遍历所有文本节点
   const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
   let node: Node;
-  while ((node = walker.nextNode())) {
+  for (node = walker.nextNode(); node; node = walker.nextNode()) {
     const nodeLength = node.textContent.length;
     if (currentOffset + nodeLength > targetOffset) {
       targetNode = node;

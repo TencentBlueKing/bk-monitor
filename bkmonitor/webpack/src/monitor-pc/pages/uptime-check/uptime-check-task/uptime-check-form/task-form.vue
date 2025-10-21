@@ -2,7 +2,7 @@
 * Tencent is pleased to support the open source community by making
 * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
 *
-* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* Copyright (C) 2017-2025 Tencent.  All rights reserved.
 *
 * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
 *
@@ -281,6 +281,10 @@
               <bk-select
                 ref="taskNodeSelect"
                 v-model="task.nodes"
+                v-bk-tooltips="{
+                  content: $t('应安全需求，公共拨测节点需经过审核方可使用'),
+                  placement: 'right',
+                }"
                 class="reset-width"
                 :clearable="false"
                 :loading="nodeListLoading"
@@ -291,10 +295,23 @@
                   v-for="item in node[task.business]"
                   :id="item.id"
                   :key="item.id"
-                  :disabled="Boolean(item.status === '-1')"
+                  v-authority="{ active: isAuthorityIconShown(item) }"
+                  v-bk-tooltips="{
+                    content: $t('点击申请业务权限'),
+                    placement: 'right',
+                    disabled: isTooltipHidden(item),
+                  }"
+                  :class="[
+                    'node-option-style',
+                    { 'permission-style': item.status !== '-1' && isPermissionRequestable(item) },
+                  ]"
+                  :disabled="Boolean(item.status === '-1') || isPermissionRequestable(item)"
                   :name="item.name + ' ' + item.ip"
                 >
-                  <div class="node-option">
+                  <div
+                    class="node-option"
+                    @click="() => handleRequestPermission(item)"
+                  >
                     <span>{{ item.name + ' ' + item.ip }}</span>
                     <span v-if="!!item.version">v{{ item.version }}</span>
                   </div>
@@ -482,10 +499,10 @@ export default {
       } else if (vm.id) {
         vm.updateNav(`${vm.$t('编辑')} - ${vm.task.name}`);
       }
-      if (from.name === 'uptime-check-node-add' || from.name === 'uptime-check') {
-        vm.isLoading = true;
-        vm.getNodeList();
-      }
+      // if (from.name === 'uptime-check-node-add' || from.name === 'uptime-check') {
+      vm.isLoading = true;
+      vm.getNodeList();
+      // }
     });
   },
   beforeRouteLeave(to, from, next) {
@@ -737,7 +754,7 @@ export default {
     },
     // 获取拨测节点信息
     getNodeList() {
-      if (this.previousBizId === Number(this.task.business)) return Promise.resolve();
+      // if (this.previousBizId === Number(this.task.business)) return Promise.resolve();
       this.previousBizId = Number(this.task.business);
       this.nodeListLoading = true;
       listUptimeCheckNode({ bk_biz_id: this.task.business })
@@ -1268,6 +1285,24 @@ export default {
       // 无论参数是否变更，都走一样的流程
       this.handleCreateTaskSubmit(params, true);
     },
+    // 展示拨测节点权限锁
+    isAuthorityIconShown(item) {
+      return item.is_common && item.status !== '-1' && !this.authority.USE_PUBLIC_NODE_AUTH;
+    },
+    // 隐藏拨测节点的提示
+    isTooltipHidden(item) {
+      return item.status === '-1' || !item.is_common || this.authority.USE_PUBLIC_NODE_AUTH;
+    },
+    // 拨测节点是否可申请使用权限
+    isPermissionRequestable(item) {
+      return item.is_common && !this.authority.USE_PUBLIC_NODE_AUTH;
+    },
+    handleRequestPermission(item) {
+      if (item.is_common && !this.authority.USE_PUBLIC_NODE_AUTH) {
+        this.$refs.taskNodeSelect?.close();
+        this.handleShowAuthorityDetail(uptimeAuth.USE_PUBLIC_NODE_AUTH);
+      }
+    },
   },
 };
 </script>
@@ -1327,8 +1362,8 @@ export default {
 
       :deep(.ip-select-right) {
         background-image:
-          linear-gradient(-90deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%),
-          linear-gradient(0deg, #dcdee5 1px, rgba(0, 0, 0, 0) 1px, rgba(0, 0, 0, 0) 100%);
+          linear-gradient(-90deg, #dcdee5 1px, rgb(0 0 0 / 0%) 1px, rgb(0 0 0 / 0%) 100%),
+          linear-gradient(0deg, #dcdee5 1px, rgb(0 0 0 / 0%) 1px, rgb(0 0 0 / 0%) 100%);
         border-top: 1px solid #dcdee5;
 
         .right-wrap {
@@ -1412,7 +1447,7 @@ export default {
         min-width: 170px;
       }
 
-      &.item-required:after {
+      &.item-required::after {
         position: relative;
         left: 5px;
         font-size: 12px;
@@ -1430,7 +1465,7 @@ export default {
       width: 100%;
 
       :deep(.ip-select) {
-        /* stylelint-disable-next-line declaration-no-important*/
+        /* stylelint-disable-next-line declaration-no-important */
         height: 340px !important;
       }
 
@@ -1596,5 +1631,20 @@ export default {
 .node-option {
   display: flex;
   justify-content: space-between;
+}
+
+.node-option-style {
+  // 公共拨测节点无权限可申请时的样式
+  &.permission-style.is-disabled {
+    cursor: pointer;
+  }
+
+  :deep(.bk-option-content) {
+    padding: 0;
+  }
+
+  .node-option {
+    padding: 0 16px;
+  }
 }
 </style>

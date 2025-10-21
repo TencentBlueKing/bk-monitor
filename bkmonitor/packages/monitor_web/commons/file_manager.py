@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -9,11 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import hashlib
+import io
 import os
 import shutil
 import tarfile
+import zipfile
 
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import UploadedFile
@@ -24,7 +24,7 @@ from monitor_web.models.file import UploadedFileInfo
 from monitor_web.models.plugin import CollectorPluginMeta
 
 
-class BaseFileManager(object):
+class BaseFileManager:
     TYPE = ""
 
     def __init__(self, file):
@@ -81,6 +81,30 @@ class BaseFileManager(object):
             file_content = f.read()
 
         return cls.save_file(file_data=file_content, file_name=tar_name, is_dir=True)
+
+    @classmethod
+    def save_from_memory(cls, file_dict: dict, dir_name: str):
+        """
+        从内存中的文件字典创建压缩包
+        :param file_dict: {Path: bytes} 文件路径和内容的字典
+        :param dir_name: 目录名称
+        :return: 文件管理器实例
+        """
+
+        # 创建内存中的zip文件
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for path, content in file_dict.items():
+                # 确保路径使用正斜杠
+                zip_path = str(path).replace("\\", "/")
+                zipf.writestr(zip_path, content)
+
+        # 获取zip文件内容
+        zip_buffer.seek(0)
+        zip_content = zip_buffer.getvalue()
+        zip_name = f"{dir_name}.zip"
+
+        return cls.save_file(file_data=zip_content, file_name=zip_name, is_dir=True)
 
     @classmethod
     def save_file(cls, file_data, file_name=None, is_dir=False, *args, **kwargs):
@@ -164,13 +188,13 @@ class PluginFileManager(BaseFileManager):
         if plugin_id:
             try:
                 plugin_meta = CollectorPluginMeta.objects.get(bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id)
-                return super(PluginFileManager, cls).save_file(
+                return super().save_file(
                     file_data=file_data, file_name=file_name, is_dir=False, plugin_id=plugin_meta.plugin_id
                 )
             except CollectorPluginMeta.DoesNotExist:
                 raise FileManagerException(_("非法的plugin_id"))
 
-        return super(PluginFileManager, cls).save_file(file_data, file_name, False)
+        return super().save_file(file_data, file_name, False)
 
     @classmethod
     def save_plugin(cls, file_data, file_path):
@@ -181,7 +205,24 @@ class PluginFileManager(BaseFileManager):
     @classmethod
     def extract_file(cls, file_data, file_path):
         with tarfile.open(fileobj=file_data, mode="r:gz") as tar:
-            tar.extractall(file_path, filter='data')
+            for member in tar.getmembers():
+                # 只处理普通文件，避免符号链接等特殊文件类型带来的安全风险
+                if not member.isreg():
+                    continue
+                # 规范化路径并检查安全性，防止路径遍历攻击
+                member_path = os.path.normpath(member.name)
+                if member_path.startswith("..") or member_path.startswith("/"):
+                    continue
+                # 通过TarInfo对象安全地提取文件内容
+                with tar.extractfile(member) as f:
+                    target_path = os.path.join(file_path, member_path)
+                    # 确保解压路径在预期的临时目录内
+                    if not os.path.realpath(target_path).startswith(os.path.realpath(file_path)):
+                        continue
+                    # 确保目标目录存在
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    with open(target_path, "wb") as target_file:
+                        target_file.write(f.read())
         return file_path
 
     @classmethod
@@ -202,7 +243,7 @@ class FileManagerException(Exception):
     def __init__(self, error=None):
         if error is None:
             error = _("文件操作异常")
-        super(FileManagerException, self).__init__(error)
+        super().__init__(error)
 
 
 def walk(storage, top="/", topdown=False, onerror=None):
@@ -210,7 +251,7 @@ def walk(storage, top="/", topdown=False, onerror=None):
     listing directories."""
     try:
         dirs, nondirs = storage.listdir(top)
-    except os.error as err:
+    except OSError as err:
         if onerror is not None:
             onerror(err)
         return
@@ -219,7 +260,6 @@ def walk(storage, top="/", topdown=False, onerror=None):
         yield top, dirs, nondirs
     for name in dirs:
         new_path = os.path.join(top, name)
-        for x in walk(storage, new_path):
-            yield x
+        yield from walk(storage, new_path)
     if not topdown:
         yield top, dirs, nondirs

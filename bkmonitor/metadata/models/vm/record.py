@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -116,7 +116,7 @@ class SpaceVMInfo(BaseModel):
     vm_retention_time = models.CharField("保存时间", max_length=16, null=True, blank=True, default=VM_RETENTION_TIME)
     status = models.CharField("状态", max_length=16, null=True, blank=True)
 
-    objects = SpaceVMInfoManager()
+    objects: SpaceVMInfoManager = SpaceVMInfoManager()
 
     class Meta:
         verbose_name = "空间接入 VM 信息"

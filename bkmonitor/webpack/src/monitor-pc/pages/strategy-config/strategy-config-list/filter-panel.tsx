@@ -4,7 +4,7 @@ import type { VNode } from 'vue';
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -106,8 +106,12 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
         <section
           class='filter-panel'
           v-show={this.show}
-          onMouseenter={() => (this.isShowScrollbar = true)}
-          onMouseleave={() => (this.isShowScrollbar = false)}
+          onMouseenter={() => {
+            this.isShowScrollbar = true;
+          }}
+          onMouseleave={() => {
+            this.isShowScrollbar = false;
+          }}
         >
           {this.$slots.header || (
             <div class='filter-panel-header mb20'>
@@ -160,6 +164,8 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
           default: ({ data }) => (
             <span class='check-label-content'>
               {data.icon && <i class={['icon-monitor', 'pre-icon', data.icon]} />}
+              {/* cssIcon：apm新版首页更新，数据状态不使用iconfont的图标，css直接画出 */}
+              {data.cssIcon && <i class={['icon-monitor', 'css-icon', data.cssIcon]} />}
               <span
                 class='label-text'
                 v-bk-overflow-tips
@@ -190,7 +196,7 @@ export default class FilterPanel extends tsc<FilterPanelProps, FilterPanelEvents
    * @param ids
    * @param item
    */
-  handleTreeCheckChange(ids: string[], node: ITreeNode, item: IGroupData) {
+  handleTreeCheckChange(_ids: string[], node: ITreeNode, item: IGroupData) {
     if (node.data.children) {
       const { children } = node.data;
       const childrenIds = children.map(item => item.id);

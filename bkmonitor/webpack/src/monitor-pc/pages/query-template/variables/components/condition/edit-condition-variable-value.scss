@@ -1,0 +1,23 @@
+.edit-variable-value {
+  &.condition-value {
+    width: 100%;
+
+    .template-condition-creator-component {
+      line-height: normal;
+    }
+
+    .variable-value {
+      min-height: 50px;
+
+      .variable-value-label {
+        display: flex;
+        align-items: center;
+        height: 100%;
+      }
+
+      .variable-value-input {
+        display: flex;
+      }
+    }
+  }
+}

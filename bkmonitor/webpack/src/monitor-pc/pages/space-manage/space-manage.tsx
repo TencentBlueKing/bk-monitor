@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -381,10 +381,10 @@ export default class SpaceManage extends tsc<object> {
   handleShowChange(v: boolean) {
     this.showAdd = v;
   }
-  handleSaveSuccess() {
-    this.handleChangeSpace(this.spaceType);
-    this.showAdd = false;
-  }
+  // handleSaveSuccess() {
+  //   this.handleChangeSpace(this.spaceType);
+  //   this.showAdd = false;
+  // }
   // 判断是否有权限
   getHasAuthority(spaceUid: string) {
     return this.$store.getters.spaceUidMap.has(spaceUid);
@@ -570,7 +570,7 @@ export default class SpaceManage extends tsc<object> {
         </div>
         <SpaceAddList
           show={this.showAdd}
-          onSaveSuccess={this.handleSaveSuccess}
+          // onSaveSuccess={this.handleSaveSuccess}
           onShowChange={this.handleShowChange}
         />
       </div>

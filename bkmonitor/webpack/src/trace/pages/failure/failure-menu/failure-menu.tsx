@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -47,10 +47,6 @@ export default defineComponent({
       type: String,
       default: '100%',
     },
-    top: {
-      type: Number,
-      default: -15,
-    },
   },
   emits: ['change'],
   setup(props, { emit }) {
@@ -80,7 +76,7 @@ export default defineComponent({
       <div class='failure-menu'>
         {this.playLoading && (
           <div
-            style={{ width: this.$props.width, top: `${this.$props.top}px` }}
+            style={{ width: this.$props.width }}
             class='loading-mask'
           />
         )}

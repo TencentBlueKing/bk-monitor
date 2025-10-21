@@ -65,7 +65,7 @@
   }
 
   .list-item {
-    @include list-item();
+    @include list-item;
   }
 
   .link-list {
@@ -80,10 +80,10 @@
     display: inline-flex;
     align-items: center;
     height: 22px;
-    padding: 0px;
+    padding: 0;
     line-height: 22px;
 
-    @include list-item();
+    @include list-item;
   }
 
   .collect-item {
@@ -129,7 +129,7 @@
         margin-right: 4px;
         white-space: nowrap;
         background: #fafbfd;
-        border: 1px solid rgba(151, 155, 165, 0.3);
+        border: 1px solid rgb(151 155 165 / 30%);
         border-radius: 2px;
       }
 
@@ -192,8 +192,8 @@
       max-width: 100%;
       height: 20px;
       overflow: hidden;
-      line-height: 20px;
       text-overflow: ellipsis;
+      line-height: 20px;
       white-space: nowrap;
     }
   }
@@ -201,7 +201,7 @@
 
 @mixin common-theme {
   .tag-item {
-    @include list-item();
+    @include list-item;
 
     &.set-item {
       display: inline-flex;
@@ -213,7 +213,7 @@
   }
 
   .list-item {
-    @include list-item();
+    @include list-item;
 
     &.set-item {
       display: inline-flex;
@@ -222,8 +222,8 @@
       min-height: 26px;
       margin: 2px;
       overflow: visible;
-      line-height: 18px;
       text-overflow: inherit;
+      line-height: 18px;
       word-break: break-all;
       white-space: pre-wrap;
     }
@@ -243,7 +243,7 @@
   min-width: 100%;
 
   @include common-progress-color;
-  @include common-item();
+  @include common-item;
 
   .bk-table {
     th {
@@ -390,7 +390,7 @@
     }
   }
 
-  &.bk-table:before {
+  &.bk-table::before {
     background-color: white;
   }
 
@@ -622,7 +622,7 @@
 }
 
 .common-table-theme {
-  @include common-theme();
+  @include common-theme;
 }
 
 // 阻止 进度条 超过 100% 时会溢出容器

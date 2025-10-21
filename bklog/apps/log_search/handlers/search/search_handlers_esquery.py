@@ -97,6 +97,7 @@ from apps.log_search.exceptions import (
     UnionSearchErrorException,
     UnionSearchFieldsFailException,
     UserIndexSetSearchHistoryNotExistException,
+    GetAllFieldsException,
 )
 from apps.log_search.handlers.es.dsl_bkdata_builder import (
     DslCreateSearchContextBodyCustomField,
@@ -253,7 +254,7 @@ class SearchHandler:
         self.time_range: str = search_dict.get("time_range")
         self.start_time: str = search_dict.get("start_time")
         self.end_time: str = search_dict.get("end_time")
-        self.time_zone: str = get_local_param("time_zone", settings.TIME_ZONE)
+        self.time_zone: str = search_dict.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE)
 
         # 透传query string
         self.query_string: str = search_dict.get("keyword")
@@ -384,21 +385,58 @@ class SearchHandler:
             self._index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
         return self._index_set
 
+    def get_all_fields_by_index_id(self, scope=SearchScopeEnum.DEFAULT.value, is_union_search=False, need_merge=True):
+        """
+        :param scope: 搜索类型
+        :param is_union_search: 联合查询
+        :param need_merge: 是否需要合并字段信息
+        """
+        multi_execute_func = MultiExecuteFunc()
+        index_set_data_obj_list: list = self.index_set.get_indexes(has_applied=True)
+        for index_set_data in index_set_data_obj_list:
+            _result_table_id = index_set_data["result_table_id"]
+            _mapping_handlers = MappingHandlers(
+                _result_table_id,
+                self.index_set_id,
+                index_set_data["scenario_id"] or self.origin_scenario_id,
+                index_set_data["storage_cluster_id"] or self.storage_cluster_id,
+                self.time_field,
+                start_time=self.start_time,
+                end_time=self.end_time,
+                time_zone=self.time_zone,
+            )
+            multi_execute_func.append(
+                result_key=f"{_result_table_id}",
+                func=_mapping_handlers.get_all_fields_by_index_id,
+                params={"scope": scope, "is_union_search": is_union_search},
+                multi_func_params=True,
+            )
+        multi_result = multi_execute_func.run(return_exception=True)
+        for key, ret in multi_result.items():
+            if isinstance(ret, Exception):
+                # 子查询异常
+                logger.exception("get all fields by index_set_id: %s, reason：%s", self.index_set_id, ret)
+                multi_result.pop(key)
+                if not multi_result:
+                    raise GetAllFieldsException(
+                        GetAllFieldsException.MESSAGE.format(index_set_id=self.index_set.index_set_id, e=ret)
+                    )
+
+        if need_merge:
+            added_records = []
+            field_result_list = []
+            for key, (field_result, display_fields) in multi_result.items():
+                for item in field_result:
+                    field_name = item["field_name"]
+                    if field_name not in added_records:
+                        field_result_list.append(item)
+                        added_records.append(field_name)
+            return field_result_list, display_fields
+        return multi_result
+
     def fields(self, scope="default"):
         is_union_search = self.search_dict.get("is_union_search", False)
-        mapping_handlers = MappingHandlers(
-            self.origin_indices,
-            self.index_set_id,
-            self.origin_scenario_id,
-            self.storage_cluster_id,
-            self.time_field,
-            start_time=self.start_time,
-            end_time=self.end_time,
-            time_zone=self.time_zone,
-        )
-        field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
-            scope=scope, is_union_search=is_union_search
-        )
+        field_result, display_fields = self.get_all_fields_by_index_id(scope=scope, is_union_search=is_union_search)
 
         if not is_union_search:
             sort_list: list = MappingHandlers.get_sort_list_by_index_id(index_set_id=self.index_set_id, scope=scope)
@@ -2709,6 +2747,7 @@ class UnionSearchHandler:
             "start_time": self.search_dict.get("start_time"),
             "end_time": self.search_dict.get("end_time"),
             "time_range": self.search_dict.get("time_range"),
+            "timezone": self.search_dict.get("time_zone"),
             "keyword": self.search_dict.get("keyword"),
             "size": self.search_dict.get("size"),
             "is_union_search": True,
@@ -2876,6 +2915,7 @@ class UnionSearchHandler:
             "start_time": self.search_dict.get("start_time"),
             "end_time": self.search_dict.get("end_time"),
             "time_range": self.search_dict.get("time_range"),
+            "timezone": self.search_dict.get("time_zone"),
             "keyword": self.search_dict.get("keyword"),
             "size": self.search_dict.get("size"),
             "is_union_search": True,

@@ -3,7 +3,7 @@
 拨测任务配置导出
 
 
-#### 接口参数
+### 请求参数
 
 | 字段   | 类型   | 必选 | 描述                                                         |
 | ------ | ------ | ---- | ------------------------------------------------------------ |
@@ -12,20 +12,17 @@
 | task_ids | str | 否 | 任务ID，多个任务以逗号分隔 |
 | node_conf_needed | int | 否 | 是否导出任务相关的节点配置信息，0或1,默认为1 |
 
-#### 请求参数示例
+### 请求参数示例
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "biz_id": 2,
     "task_ids": "60",
     "protocol": "TCP"
 }
 ```
 
-### 返回参数
+### 响应参数
 
 | 字段    | 类型   | 描述                                |
 | ------- | ------ | ----------------------------------- |
@@ -34,11 +31,11 @@
 | message | string | 错误信息                            |
 | data    | list   | 结果                                |
 
-## data
+#### data
 
 里面有多个配置列表(conf_list)
 
-### 配置列表--conf_list
+#### 配置列表--conf_list
 
 | 字段           | 类型 | 描述           |
 | -------------- | ---- | -------------- |
@@ -56,7 +53,7 @@
 | protocol | str | 拨测任务协议类型 |
 | config | dict | 拨测任务详细配置 |
 
-##### 拨测任务基础配置详细配置(TCP)--data.conf_list.collector_conf.config(TCP、UDP)
+#### 拨测任务基础配置详细配置(TCP)--data.conf_list.collector_conf.config(TCP、UDP)
 
 | 字段        | 类型   | 描述         |
 | ----------- | ------ | ------------ |
@@ -68,7 +65,7 @@
 | response | str | 期望响应内容 |
 | response_code | str | 期望响应码 |
 
-###### http任务返回的config示例
+#### http任务返回的config示例
 
 ```json
 {
@@ -86,7 +83,7 @@
     }
 }
 ```
-##### 拨测任务基础配置详细配置(HTTP)--data.conf_list.collector_conf.config(HTTP)
+#### 拨测任务基础配置详细配置(HTTP)--data.conf_list.collector_conf.config(HTTP)
 
 | 字段        | 类型   | 描述         |
 | ----------- | ------ | ------------ |
@@ -100,7 +97,7 @@
 | response | str | 期望响应内容 |
 | response_code | str | 期望响应码 |
 
-##### 拨测任务基础配置详细配置(ICMP)--data.conf_list.collector_conf.config(ICMP)
+#### 拨测任务基础配置详细配置(ICMP)--data.conf_list.collector_conf.config(ICMP)
 
 | 字段        | 类型   | 描述         |
 | ----------- | ------ | ------------ |
@@ -112,7 +109,7 @@
 | response | str | 期望响应内容 |
 | timeout | int | 期望响应时间 |
 
-##### 拨测目标所在地址--data.conf_list.collector_conf.location
+#### 拨测目标所在地址--data.conf_list.collector_conf.location
 
 | 字段        | 类型   | 描述         |
 | ----------- | ------ | ------------ |
@@ -126,14 +123,14 @@
 | bk_biz_id | int | 业务ID |
 | node_list | list | 任务关联的节点信息 |
 
-##### 任务关联的节点信息--data.conf_list.target_conf.node_list
+#### 任务关联的节点信息--data.conf_list.target_conf.node_list
 
 | 字段        | 类型   | 描述         |
 | ----------- | ------ | ------------ |
 | node_conf | dict | 节点配置信息 |
 | target_conf | dict | 节点下发信息 |
 
-###### 节点下发信息--data.conf_list.target_conf.node_list.target_conf
+#### 节点下发信息--data.conf_list.target_conf.node_list.target_conf
 
 | 字段        | 类型   | 描述         |
 | ----------- | ------ | ------------ |
@@ -141,7 +138,7 @@
 | ip | str | 节点IP |
 | bk_cloud_id | int | 节点云区域ID |
 
-###### 节点配置信息--data.conf_list.target_conf.node_list.node_conf
+#### 节点配置信息--data.conf_list.target_conf.node_list.node_conf
 
 | 字段        | 类型   | 描述         |
 | ----------- | ------ | ------------ |
@@ -150,7 +147,7 @@
 | is_common | bool | 是否为通用节点 |
 | location | dict | 节点所在区域 |
 
-###### 节点所在区域--data.conf_list.target_conf.node_list.node_conf.location
+#### 节点所在区域--data.conf_list.target_conf.node_list.node_conf.location
 
 | 字段        | 类型   | 描述         |
 | ----------- | ------ | ------------ |
@@ -178,7 +175,7 @@
 | alarm_strategy_id | int | 监控策略ID |
 | is_recovery | bool | 自动恢复 |
 
-##### 告警收敛配置--data.conf_list.monitor_conf.rules
+#### 告警收敛配置--data.conf_list.monitor_conf.rules
 
 | 字段  | 类型  | 描述  |
 | ------|-------|-------|
@@ -186,7 +183,7 @@
 | check_window | int | 检测窗口 |
 | count | int | 数量 |
 
-##### 监控触发条件配置--data.conf_list.monitor_conf.alarm_level_config
+#### 监控触发条件配置--data.conf_list.monitor_conf.alarm_level_config
 
 字段  | 类型  |描述  |
 ------|-------|-------|
@@ -194,7 +191,7 @@
 2 | dict |告警级别对应的告警触发配置，表现为预警告警 |
 3 | dict |告警级别对应的告警触发配置，表现为提醒告警 |
 
-###### 告警级别对应的告警触发配置--data.conf_list.monitor_conf.alarm_level_config.1
+#### 告警级别对应的告警触发配置--data.conf_list.monitor_conf.alarm_level_config.1
 
 字段  | 类型  | 描述  |
 ------|-------|-------|
@@ -208,14 +205,14 @@ phone_receiver | list | 电话通知对象，账号名 |
 responsible | list | 其他通知人列表 |
 role_list | list |  通知人分组，在业务管理中配置 |
 
-###### 检测算法配置--data.conf_list.monitor_conf.alarm_level_config.1.detect_algorithm
+#### 检测算法配置--data.conf_list.monitor_conf.alarm_level_config.1.detect_algorithm
 
 |字段  | 类型  |描述  |
 |------|-------|-------|
 | config | dict |检测算法详细配置 |
 | algorithm_id | int | 检测算法ID，静态阈值 1000、同比策略(简易) 1001、环比策略(简易)1002 |
 
-###### 检测算法详细配置(静态阈值)--data.conf_list.monitor_conf.alarm_level_config.1.detect_algorithm.config
+#### 检测算法详细配置(静态阈值)--data.conf_list.monitor_conf.alarm_level_config.1.detect_algorithm.config
 
 |字段  | 类型  | 描述  |
 |------|-------|-------|
@@ -223,7 +220,7 @@ threshold | int | 比较值 |
 method | str | 比较方式 |
 message | str | 说明 |
 
-###### 检测算法详细配置(同比、环比)--data.conf_list.monitor_conf.alarm_level_config.1.detect_algorithm.config
+#### 检测算法详细配置(同比、环比)--data.conf_list.monitor_conf.alarm_level_config.1.detect_algorithm.config
 
 |字段  | 类型  | 描述  |
 |------|-------|-------|
@@ -231,7 +228,7 @@ ceil | int | 大于设定值告警 |
 floor | str | 低于设定值告警 |
 message | str | 说明 |
 
-#### 返回参数示例
+### 响应参数示例
 
 ```json
 {

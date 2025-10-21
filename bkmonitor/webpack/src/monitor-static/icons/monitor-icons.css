@@ -1,8 +1,8 @@
 @font-face {
   font-family: "icon-monitor"; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1751447220734') format('woff2'),
-       url('monitor-icons.woff?t=1751447220734') format('woff'),
-       url('monitor-icons.ttf?t=1751447220734') format('truetype');
+  src: url('monitor-icons.woff2?t=1758269257363') format('woff2'),
+       url('monitor-icons.woff?t=1758269257363') format('woff'),
+       url('monitor-icons.ttf?t=1758269257363') format('truetype');
 }
 
 .icon-monitor {
@@ -13,6 +13,94 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-a-99haoshi:before {
+  content: "\e84b";
+}
+
+.icon-pingjunhaoshi:before {
+  content: "\e84c";
+}
+
+.icon-qingqiu:before {
+  content: "\e84d";
+}
+
+.icon-weikaiqi:before {
+  content: "\e849";
+}
+
+.icon-wushuju:before {
+  content: "\e84a";
+}
+
+.icon-youshuju:before {
+  content: "\e848";
+}
+
+.icon-neizhi:before {
+  content: "\e845";
+}
+
+.icon-kelong:before {
+  content: "\e847";
+}
+
+.icon-mc-decode:before {
+  content: "\e846";
+}
+
+.icon-beizhu1:before {
+  content: "\e844";
+}
+
+.icon-zhongdingyi:before {
+  content: "\e843";
+}
+
+.icon-File:before {
+  content: "\e842";
+}
+
+.icon-auto-decode:before {
+  content: "\e841";
+}
+
+.icon-icon-query-template:before {
+  content: "\e840";
+}
+
+.icon-a-useryonghu:before {
+  content: "\e833";
+}
+
+.icon-gengduo1:before {
+  content: "\e835";
+}
+
+.icon-neizhiDashboard:before {
+  content: "\e83b";
+}
+
+.icon-Setting:before {
+  content: "\e83c";
+}
+
+.icon-File-Close1:before {
+  content: "\e83d";
+}
+
+.icon-Tag:before {
+  content: "\e83e";
+}
+
+.icon-zidingyiDashboard:before {
+  content: "\e83f";
+}
+
+.icon-chakan1:before {
+  content: "\e83a";
+}
+
 .icon-a-Contentmulu:before {
   content: "\e839";
 }
@@ -21,7 +109,7 @@
   content: "\e838";
 }
 
-.icon-zhibiaomoban:before {
+.icon-query-template:before {
   content: "\e837";
 }
 
@@ -31,14 +119,6 @@
 
 .icon-Home:before {
   content: "\e834";
-}
-
-.icon-File-Close:before {
-  content: "\e835";
-}
-
-.icon-File-Open:before {
-  content: "\e833";
 }
 
 .icon-chakan:before {

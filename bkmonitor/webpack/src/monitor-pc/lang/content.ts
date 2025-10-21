@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -187,7 +187,8 @@ export default {
   均值: 'Avg',
   瞬间值: 'Last',
   '来源：{0}': 'Source: {0}',
-  内部通知人: 'Internal Notifier',
+  // 内部通知人: 'Internal Notifier',
+  告警接收人: 'Alarm Receiver',
   '支持{0}等文件格式': 'File formats such as {0} are supported',
   通知人员类型: 'Notification person type',
   到底了: 'In the end',
@@ -299,6 +300,8 @@ export default {
   '点击前往：主机详情页': 'Click to go to: Host details page/Host details page',
   '点击前往：服务详情页': 'Click to go to: Host details page/Service details page',
   '点击前往：pod详情页': 'Click to go to: Host details page/Pod details page',
+  '点击前往：容器场景页': 'Click to go to: Container scene page',
+  '共 {0} 个事件，展示 {1}': '{0} events in total, display {1}',
   '共 {0} 个事件，展示 Top{1}': '{0} events in total, display Top{1}',
   '共 {0} 个事件，已按事件名汇总': '{0} events in total, aggregated by event name',
   某一值: 'A certain value',
@@ -338,4 +341,34 @@ export default {
   链路排障: 'Link troubleshooting',
   数据源ID: 'Data source ID',
   请输入数据源ID: 'Please enter the data source ID',
+  '重定义为 {0}': 'Redefined as {0}',
+  超时: 'Timeout',
+  解码结果: 'Decode result',
+  解码: 'Decode',
+  上报类型: 'Report type',
+  查询参数: 'Query parameters',
+  '请输入Profiling 查询参数': 'Please enter the Profiling query parameters',
+  'Profiling 助手': 'Profiling assistant',
+  'Profiling 查询参数': 'Profiling query parameters',
+  调用拓扑: 'Call topology',
+  查看指引: 'View guide',
+  '共{0}个': '{0} items in total',
+  '{0}个周期内累积满足{1}次检测算法': '{0} periods of time, cumulative {1} times of detection algorithm',
+  启停: 'Start/Stop',
+  调用分析: 'Call analysis',
+  调用分析模板: 'Call analysis template',
+  一键添加策略: 'Add policy in one click',
+  一键生成: 'Generate in one click',
+  编辑模板: 'Edit template',
+  差异对比: 'Difference comparison',
+  当前策略: 'Current strategy',
+  已关联策略: 'Associated strategies',
+  下发对象预览: 'Push object preview',
+  新关联: 'New relation',
+  暂无差异: 'No difference',
+  '再次下发已关联的服务，相当于“同步”操作。':
+    'Pushing again associated services is equivalent to "synchronization" operation.',
+  当前已关联其他模版: 'Current associated other templates',
+  下发将被覆盖: 'Pushing will override the existing association',
+  查看策略: 'View strategy',
 };

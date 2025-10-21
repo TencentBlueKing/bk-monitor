@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -28,7 +27,7 @@ class GrafanaViewSet(ResourceViewSet):
     """
 
     def get_authenticators(self):
-        authenticators = super(GrafanaViewSet, self).get_authenticators()
+        authenticators = super().get_authenticators()
         authenticators = [
             authenticator for authenticator in authenticators if not isinstance(authenticator, SessionAuthentication)
         ]
@@ -111,7 +110,6 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.grafana.migrate_old_panels, endpoint="migrate_old_panels"),
         ResourceRoute("POST", resource.grafana.migrate_old_panels_by_biz, endpoint="migrate_old_panels_by_biz"),
         ResourceRoute("POST", resource.grafana.migrate_panels_info, endpoint="migrate_panels_info"),
-        # 视图保存
         ResourceRoute("POST", resource.data_explorer.save_to_dashboard, endpoint="save_to_dashboard"),
         # 统一数据查询
         ResourceRoute("GET", resource.grafana.get_functions, endpoint="time_series/functions"),

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -371,7 +371,8 @@ class ReportHandler:
         # 渲染邮件模板
         render_args = {}
         render_args["is_link_enabled"] = is_link_enabled
-        render_args["is_external"] = bool(channel_name == ReportItems.Channel.EMAIL)
+        # 是否是外部邮件
+        render_args["external_email"] = bool(channel_name == ReportItems.Channel.EMAIL)
         render_args["sensitive_message"] = _("请遵守公司规范，切勿泄露敏感信息，后果自负!")
         render_args["redirect_url"] = settings.MAIL_REPORT_URL if is_link_enabled else ""
         render_args["mail_title"] = mail_title
@@ -486,6 +487,7 @@ class ReportHandler:
                 if "*" in render_args["contents"][0]["graphs"][0][0]["graph_tag"]:
                     content_template_path = "report/report_full.jinja"
             sender = Sender(
+                bk_tenant_id=self.bk_tenant_id,
                 title_template_path="report/report_title.jinja",
                 content_template_path=content_template_path,
                 context=render_args,

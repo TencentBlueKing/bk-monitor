@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -123,8 +123,9 @@ export default defineComponent({
         details: [
           {
             severity: 1,
-            dimension: '',
+            dimension: [],
             trigger: '',
+            alertId: '',
             strategy: {
               id: '',
               name: '',
@@ -181,8 +182,9 @@ export default defineComponent({
       dialog.quickShield.details = [
         {
           severity: v.severity,
-          dimension: v.dimension_message,
+          dimension: v.dimensions,
           trigger: v.description,
+          alertId: v.id,
           strategy: {
             id: v?.strategy_id as unknown as string,
             name: v?.strategy_name,
@@ -335,10 +337,12 @@ export default defineComponent({
     });
     const style = 'color: #c4c6cc;cursor: not-allowed;';
     const getDisabled = (item: any) => {
-      const { is_root } = currentData.value;
+      const { is_root, is_shielded } = currentData.value;
+
       const isFeedDisabled = item.id === 'feedback_new_root_cause' && is_root;
       const isConfirmDis = item.id === 'alert_confirm' && isConfirmDisabled.value;
-      return isFeedDisabled || isConfirmDis;
+      const isQuickShieldDis = item.id === 'quick_block' && is_shielded;
+      return isFeedDisabled || isConfirmDis || isQuickShieldDis;
     };
     return () => (
       <div>

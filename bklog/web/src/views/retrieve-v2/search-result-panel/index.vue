@@ -2,7 +2,7 @@
   import { computed, ref } from 'vue';
 
   import useStore from '@/hooks/use-store';
-  import { throttle } from 'lodash';
+  import { throttle } from 'lodash-es';
   import { getCommonFilterAdditionWithValues } from '@/store/helper'
 
   import RetrieveHelper from '../../retrieve-helper';
@@ -41,7 +41,8 @@
   const isSearchRersultLoading = computed(() => store.state.indexSetQueryResult.is_loading);
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
-  const isNoIndexSet = computed(() => !store.state.retrieve.indexSetList.length);
+  const requestAddition = computed(() => store.getters.requestAddition);
+  const isNoIndexSet = computed(() => !store.state.retrieve.flatIndexSetList.length);
   const isOriginShow = computed(() => props.activeTab === 'origin');
   const pageLoading = computed(
     () => isFilterLoading.value || isSearchRersultLoading.value || store.state.retrieve.isIndexSetLoading,
@@ -63,7 +64,7 @@
   const retrieveParamsWithCommonAddition = computed(() => {
     return {
       ...retrieveParams.value,
-      addition: [...retrieveParams.value.addition, ...getCommonFilterAdditionWithValues(store.state)]
+      addition: [...requestAddition.value, ...getCommonFilterAdditionWithValues(store.state)]
     }
   })
 

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -27,6 +27,11 @@ class StrategiesViewSet(ResourceViewSet):
             "strategy_label",
             "strategy_label_list",
             "delete_strategy_label",
+            # 策略订阅暂时不设置权限
+            "subscribe/save",
+            "subscribe/delete",
+            "subscribe/list",
+            "subscribe/detail",
         ]:
             return []
         if self.action in [
@@ -148,4 +153,16 @@ class StrategiesViewSet(ResourceViewSet):
         ),
         # 返回简易版本的策略列表
         ResourceRoute("GET", resource.strategies.get_devops_strategy_list, endpoint="get_devops_strategy_list"),
+        # 新增/保存策略订阅
+        ResourceRoute("POST", resource.strategies.save_strategy_subscribe, endpoint="subscribe/save"),
+        # 删除策略订阅
+        ResourceRoute("POST", resource.strategies.delete_strategy_subscribe, endpoint="subscribe/delete"),
+        # 获取策略订阅列表
+        ResourceRoute("GET", resource.strategies.list_strategy_subscribe, endpoint="subscribe/list"),
+        # 获取策略订阅详情
+        ResourceRoute("GET", resource.strategies.detail_strategy_subscribe, endpoint="subscribe/detail"),
+        # 批量新增/保存策略订阅
+        ResourceRoute("POST", resource.strategies.bulk_save_strategy_subscribe, endpoint="subscribe/bulk_save"),
+        # 批量删除策略订阅
+        ResourceRoute("POST", resource.strategies.bulk_delete_strategy_subscribe, endpoint="subscribe/bulk_delete"),
     ]

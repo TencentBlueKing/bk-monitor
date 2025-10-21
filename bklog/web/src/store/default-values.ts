@@ -25,12 +25,12 @@
  */
 import VueRouter from 'vue-router';
 
-import { TimeRangeType } from '@/components/time-range/time-range';
-// @ts-ignore
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
-import { type RouteParams, BK_LOG_STORAGE } from './store.type';
+import { type RouteParams, BK_LOG_STORAGE, FieldInfoItemArgs } from './store.type';
 import RouteUrlResolver from './url-resolver';
+
+import type { TimeRangeType } from '@/components/time-range/time-range';
 
 const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -91,9 +91,18 @@ const updateLocalstorage = (val: any) => {
 };
 
 const getUrlArgs = (_route?) => {
-  let urlResolver: RouteUrlResolver = null;
+  let urlResolver: RouteUrlResolver | null = null;
 
-  if (!_route) {
+  if (_route) {
+    urlResolver = new RouteUrlResolver({ route: _route });
+    urlResolver.setResolver('index_id', () => {
+      // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+      return _route.params.indexId ? `${_route.params.indexId}` : '';
+      // #else
+      // #code return _route.query.indexId ? `${_route.query.indexId}` : '';
+      // #endif
+    });
+  } else {
     const router = new VueRouter({
       routes: [
         {
@@ -119,15 +128,6 @@ const getUrlArgs = (_route?) => {
       return route.resolved.params.indexId ? `${route.resolved.params.indexId}` : '';
       // #else
       // #code return route.resolved.query.indexId ? `${route.resolved.query.indexId}` : '';
-      // #endif
-    });
-  } else {
-    urlResolver = new RouteUrlResolver({ route: _route });
-    urlResolver.setResolver('index_id', () => {
-      // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-      return _route.params.indexId ? `${_route.params.indexId}` : '';
-      // #else
-      // #code return _route.query.indexId ? `${_route.query.indexId}` : '';
       // #endif
     });
   }
@@ -160,20 +160,22 @@ const update_URL_ARGS = route => {
 export { URL_ARGS, update_URL_ARGS };
 
 export const getDefaultRetrieveParams = (defaultValue?) => {
-  return {
-    keyword: '',
-    host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
-    ip_chooser: {},
-    addition: [],
-    sort_list: [],
-    begin: 0,
-    size: 50,
-    interval: 'auto',
-    timezone: 'Asia/Shanghai',
-    search_mode: 'ui',
-    ...(defaultValue ?? {}),
-    ...URL_ARGS,
-  };
+  return Object.assign(
+    {
+      keyword: '',
+      host_scopes: { modules: [], ips: '', target_nodes: [], target_node_type: '' },
+      ip_chooser: {},
+      addition: [],
+      sort_list: [],
+      begin: 0,
+      size: 50,
+      interval: 'auto',
+      timezone: 'Asia/Shanghai',
+      search_mode: 'ui',
+    },
+    defaultValue,
+    URL_ARGS,
+  );
 };
 
 export const getDefaultDatePickerValue = () => {
@@ -229,6 +231,9 @@ export const IndexFieldInfo = {
     fieldsWidth: {},
     filterAddition: [],
   },
+  // 重复别名扩展字段
+  // 当有多个字段别名一致的时候，自动生成一个单独字段
+  alias_field_list: [],
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
@@ -256,6 +261,32 @@ export const IndexItem = {
 };
 
 /**
+ * 创建字段项
+ */
+export const createFieldItem = (fieldName: string, fieldType = 'object', args: FieldInfoItemArgs = {}) => {
+  return {
+    field_type: fieldType,
+    field_name: fieldName,
+    field_alias: '',
+    is_display: false,
+    is_editable: true,
+    tag: '',
+    origin_field: '',
+    es_doc_values: true,
+    is_analyzed: true,
+    is_virtual_obj_node: true,
+    field_operator: [],
+    is_built_in: true,
+    is_case_sensitive: false,
+    tokenize_on_chars: '',
+    description: '',
+    filterVisible: true,
+    is_virtual_alias_field: false,
+    ...args,
+  };
+};
+
+/**
  * 获取缓存配置
  * @param values 默认填充值
  * @returns
@@ -277,16 +308,16 @@ export const getStorageOptions = (values?: any) => {
         delete values[BK_LOG_STORAGE.BK_BIZ_ID];
       }
 
-      Object.keys(values ?? {}).forEach(key => {
+      for (const key of Object.keys(values ?? {})) {
         if (values[key] !== undefined && values[key] !== null) {
           update = true;
           Object.assign(storage, { [key]: values[key] });
         }
-      });
+      }
 
       // 对旧版缓存进行还原操作
       // 映射旧版配置到新版key，同时移除旧版key
-      [
+      const OLD_TO_NEW = [
         ['fieldSetting', BK_LOG_STORAGE.FIELD_SETTING],
         ['indexSetActiveTab', BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB],
         ['isLimitExpandView', BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
@@ -298,27 +329,29 @@ export const getStorageOptions = (values?: any) => {
         ['tableLineIsWrap', BK_LOG_STORAGE.TABLE_LINE_IS_WRAP],
         ['tableShowRowIndex', BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX],
         ['textEllipsisDir', BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR],
-      ].forEach(([k1, k2]) => {
+      ];
+      for (const [k1, k2] of OLD_TO_NEW) {
         if (storage[k1] !== undefined) {
           storage[k2] = storage[k1];
           delete storage[k1];
           update = true;
         }
-      });
+      }
 
-      [
+      const BIZ_SPACE_ID = [
         ['space_uid', BK_LOG_STORAGE.BK_SPACE_UID],
         ['bk_biz_id', BK_LOG_STORAGE.BK_BIZ_ID],
-      ].forEach(([k1, k2]) => {
+      ];
+      for (const [k1, k2] of BIZ_SPACE_ID) {
         const oldVal = localStorage.getItem(k1);
         if (oldVal !== undefined && oldVal !== null) {
           storage[k2] = oldVal;
           localStorage.removeItem(k1);
           update = true;
         }
-      });
+      }
 
-      if (update) {
+      if (update === true) {
         window.localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(storage));
       }
     } catch (e) {
@@ -336,28 +369,26 @@ export const getStorageOptions = (values?: any) => {
     activeTab = 'history';
   }
 
-  return Object.assign(
-    {
-      [BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]: false,
-      [BK_LOG_STORAGE.TABLE_JSON_FORMAT]: false,
-      [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: 1,
-      [BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]: false,
-      [BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD]: false,
-      [BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]: false,
-      [BK_LOG_STORAGE.SHOW_FIELD_ALIAS]: true,
-      [BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR]: 'end',
-      [BK_LOG_STORAGE.SEARCH_TYPE]: 0,
-      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
-      [BK_LOG_STORAGE.FAVORITE_ID]: URL_ARGS[BK_LOG_STORAGE.FAVORITE_ID],
-      [BK_LOG_STORAGE.HISTORY_ID]: URL_ARGS[BK_LOG_STORAGE.HISTORY_ID],
-      [BK_LOG_STORAGE.FIELD_SETTING]: {
-        show: true,
-        width: DEFAULT_FIELDS_WIDTH,
-      },
-      [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
-      [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
-      [BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]: false,
+  return {
+    [BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]: false,
+    [BK_LOG_STORAGE.TABLE_JSON_FORMAT]: false,
+    [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: 1,
+    [BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]: false,
+    [BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD]: false,
+    [BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]: false,
+    [BK_LOG_STORAGE.SHOW_FIELD_ALIAS]: true,
+    [BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR]: 'end',
+    [BK_LOG_STORAGE.SEARCH_TYPE]: 0,
+    [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
+    [BK_LOG_STORAGE.FAVORITE_ID]: URL_ARGS[BK_LOG_STORAGE.FAVORITE_ID],
+    [BK_LOG_STORAGE.HISTORY_ID]: URL_ARGS[BK_LOG_STORAGE.HISTORY_ID],
+    [BK_LOG_STORAGE.FIELD_SETTING]: {
+      show: true,
+      width: DEFAULT_FIELDS_WIDTH,
     },
-    storage,
-  );
+    [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
+    [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
+    [BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]: false,
+    ...storage,
+  };
 };

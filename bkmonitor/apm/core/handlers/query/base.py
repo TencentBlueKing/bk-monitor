@@ -1,7 +1,7 @@
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
-Copyright (C) 2022 THL A29 Limited,
+Copyright (C) 2017-2025 Tencent,
 a Tencent company. All rights reserved.
 Licensed under the MIT License (the "License");
 you may not use this file except in compliance with the License.
@@ -203,7 +203,9 @@ class BaseQuery:
         using_scope: bool = True,
     ) -> UnifyQuerySet:
         start_time, end_time = self._get_time_range(self.retention, start_time, end_time)
-        queryset: UnifyQuerySet = UnifyQuerySet().start_time(start_time).end_time(end_time)
+        # Q：为什么设置 time_align=False？
+        # A：Tracing 检索场景对实时性要求高，时间对齐会导致结束时间戳前移，此处和事件检索保持一致，默认不对齐时间。
+        queryset: UnifyQuerySet = UnifyQuerySet().start_time(start_time).end_time(end_time).time_align(False)
         if using_scope:
             # 默认仅查询本业务下的数据
             return queryset.scope(self.bk_biz_id)
@@ -293,13 +295,22 @@ class BaseQuery:
         cls, retention: int, start_time: int | None = None, end_time: int | None = None
     ) -> tuple[int, int]:
         now: int = int(datetime.datetime.now().timestamp())
-        # 最早可查询时间
-        earliest_start_time: int = now - int(datetime.timedelta(days=retention).total_seconds())
 
-        # 开始时间不能小于 earliest_start_time
-        start_time = max(earliest_start_time, start_time or earliest_start_time)
+        retention_seconds: int = int(datetime.timedelta(days=retention).total_seconds())
+        # 最早可查询时间
+        earliest_start_time: int = now - retention_seconds
+
+        end_time: int = end_time or now
+        start_time: int = start_time or earliest_start_time
+        if end_time < earliest_start_time:
+            # 情况 1 - 查询返回不在有效查询时间内：-<start_time>-----<end_time>-----<earliest_start_time>----<now>--
+            start_time = max(end_time - retention_seconds, start_time)
+        else:
+            # 情况 2 - 查询时间部分或全部在有效查询时间内：-<start_time>---<earliest_start_time>---<end_time>----<now>--
+            start_time = max(earliest_start_time, start_time)
+
         # 结束时间不能大于 now
-        end_time = min(now, end_time or now)
+        end_time = min(now, end_time)
 
         # 通常我们会在页面拿到 TraceID 后便进行查询，「查询请求时间」可能 Trace 还未完成，前后补一个填充时间
         start_time = (start_time - cls.TIME_PADDING) * cls.TIME_FIELD_ACCURACY

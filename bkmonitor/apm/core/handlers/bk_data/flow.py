@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import logging
@@ -22,6 +22,7 @@ from apm.core.handlers.bk_data.constants import FlowStatus
 from apm.models import ApmApplication, BkdataFlowConfig
 from bkmonitor.dataflow.auth import check_has_permission
 from bkmonitor.utils.common_utils import count_md5
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api, resource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
@@ -74,6 +75,7 @@ class ApmFlow:
         self.bk_biz_id = bk_biz_id
         self.app_name = app_name
         self.config = config
+        self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
 
         if self.bk_biz_id > 0:
             self.bkdata_bk_biz_id = self.bk_biz_id
@@ -150,7 +152,7 @@ class ApmFlow:
         """返回Flow的实例"""
         if not self.flow.databus_clean_result_table_id:
             self._raise_exc(
-                f"failed to create flow instance, cleans result table id not found", FlowStatus.CONFIG_FLOW_FAILED.value
+                "failed to create flow instance, cleans result table id not found", FlowStatus.CONFIG_FLOW_FAILED.value
             )
         return self._FLOW(
             self.flow.databus_clean_result_table_id,
@@ -233,13 +235,13 @@ class ApmFlow:
                             "master": f"{access_conf['mq_config']['cluster_config']['domain_name']}"
                             f":{access_conf['mq_config']['cluster_config']['port']}",
                             "group": f"{access_conf['mq_config']['storage_config']['topic']}_0000",
-                            "topic": access_conf['mq_config']["storage_config"]["topic"],
-                            "tasks": access_conf['mq_config']["storage_config"]["partition"],
-                            "use_sasl": access_conf['mq_config']["cluster_config"]["is_ssl_verify"],
+                            "topic": access_conf["mq_config"]["storage_config"]["topic"],
+                            "tasks": access_conf["mq_config"]["storage_config"]["partition"],
+                            "use_sasl": access_conf["mq_config"]["cluster_config"]["is_ssl_verify"],
                             "security_protocol": "SASL_PLAINTEXT",
                             "sasl_mechanism": "SCRAM-SHA-512",
-                            "user": access_conf['mq_config']["auth_info"]["username"],
-                            "password": access_conf['mq_config']["auth_info"]["password"],
+                            "user": access_conf["mq_config"]["auth_info"]["username"],
+                            "password": access_conf["mq_config"]["auth_info"]["password"],
                         }
                     ],
                 },
@@ -260,7 +262,7 @@ class ApmFlow:
         try:
             if self.flow.deploy_data_id:
                 if self._is_diff(self.flow.deploy_config, params):
-                    self.logger.info(f"datasource configuration updates!")
+                    self.logger.info("datasource configuration updates!")
                     api.bkdata.update_deploy_plan(raw_data_id=self.flow.deploy_data_id, **params)
                     self._update_field({"deploy_config": params})
                     self.logger.info(
@@ -291,7 +293,7 @@ class ApmFlow:
     def _config_cleans(self):
         """配置清洗"""
         if not self.flow.deploy_data_id:
-            self._raise_exc(f"deploy data id not found", FlowStatus.CONFIG_CLEANS_FAILED.value)
+            self._raise_exc("deploy data id not found", FlowStatus.CONFIG_CLEANS_FAILED.value)
 
         params = {
             "bk_biz_id": self.bkdata_bk_biz_id,
@@ -308,9 +310,9 @@ class ApmFlow:
         try:
             if self.flow.databus_clean_id:
                 if self._is_diff(self.flow.databus_clean_config, params, exclude_fields=["result_table_name"]):
-                    self.logger.info(f"databus cleans configuration updates!")
+                    self.logger.info("databus cleans configuration updates!")
                     api.bkdata.update_databus_cleans(processing_id=self.flow.databus_clean_id, **params)
-                    self.logger.info(f"databus cleans configuration update successfully")
+                    self.logger.info("databus cleans configuration update successfully")
                     self._update_field({"databus_clean_config": params})
             else:
                 result = api.bkdata.databus_cleans(**params)
@@ -329,7 +331,7 @@ class ApmFlow:
         """启动清洗"""
 
         if not self.flow.databus_clean_result_table_id:
-            self._raise_exc(f"cleans table id not found", FlowStatus.CONFIG_CLEANS_START_FAILED.value)
+            self._raise_exc("cleans table id not found", FlowStatus.CONFIG_CLEANS_START_FAILED.value)
 
         etl_status = self._get_etl_status(FlowStatus.CONFIG_CLEANS_START_FAILED.value)
         for i in range(self.flow_fetch_status_threshold):
@@ -351,14 +353,14 @@ class ApmFlow:
 
         if etl_status != DataBusStatus.RUNNING:
             self._raise_exc(
-                f"failed to start databus cleans, status is not running", FlowStatus.CONFIG_CLEANS_START_FAILED.value
+                "failed to start databus cleans, status is not running", FlowStatus.CONFIG_CLEANS_START_FAILED.value
             )
 
     def _get_etl_status(self, status):
         """获取某个清洗规则的状态"""
 
         if not self.flow.deploy_data_id:
-            self._raise_exc(f"get etl status failed: deploy data id not found", status)
+            self._raise_exc("get etl status failed: deploy data id not found", status)
 
         return next(
             (

@@ -24,14 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import ItemSkeleton from '@/skeleton/item-skeleton';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
-import { escape as _escape } from 'lodash';
+import DOMPurify from 'dompurify';
+import { escape as _escape } from 'lodash-es';
 
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 import $http from '@/api';
 import store from '@/store';
 
@@ -92,12 +94,12 @@ export default class AggChart extends tsc<object> {
         .filter(([key]) => !['__validCount', '__totalCount'].includes(key))
         .sort((a, b) => Number(b[1]) - Number(a[1]));
 
-      totalList.forEach(item => {
+      for (const item of totalList) {
         const markList = item[0].toString().match(/(<mark>).*?(<\/mark>)/g) || [];
         if (markList.length) {
           item[0] = markList.map(m => m.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(',');
         }
-      });
+      }
 
       this.cachedTopFiveList = this.showAllList ? totalList : totalList.slice(0, 5);
     }
@@ -134,9 +136,18 @@ export default class AggChart extends tsc<object> {
     return { datePickerValue, ip_chooser, addition, timezone, keyword };
   }
 
+  /**
+   * 当前查询模式 0：ui，1:sql
+   */
+  get searchMode() {
+    return store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
+  }
+
   @Watch('watchQueryParams', { deep: true })
   watchPicker() {
-    if (this.isFrontStatistics) return;
+    if (this.isFrontStatistics) {
+      return;
+    }
     this.queryFieldFetchTopList(this.limitSize);
   }
 
@@ -159,9 +170,20 @@ export default class AggChart extends tsc<object> {
     };
   }
 
+  getPercentValue(count: number) {
+    if (!this.showTotalCount) {
+      return '0%';
+    }
+    // 当百分比 大于1 的时候 不显示后面的小数点， 若小于1% 则展示0.xx 保留两位小数
+    const percentage = (count / this.showTotalCount) * 100;
+    return `${percentage}%`;
+  }
+
   // 优化百分比计算
   computePercent(count: number) {
-    if (!this.showTotalCount) return '0%';
+    if (!this.showTotalCount) {
+      return '0%';
+    }
     // 当百分比 大于1 的时候 不显示后面的小数点， 若小于1% 则展示0.xx 保留两位小数
     const percentage = (count / this.showTotalCount) * 100;
     return percentage >= 1 ? `${Math.round(percentage)}%` : '<1%';
@@ -169,7 +191,9 @@ export default class AggChart extends tsc<object> {
 
   // 添加查询条件
   addCondition = (operator: string, value: any, fieldName: string) => {
-    if (this.fieldType === '__virtual__') return;
+    if (this.fieldType === '__virtual__') {
+      return;
+    }
 
     const router = this.$router;
     const route = this.$route;
@@ -196,35 +220,83 @@ export default class AggChart extends tsc<object> {
           })
           .then(() => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+            RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
           });
       });
   };
 
   // 获取工具提示内容
   getIconPopover = (operator: string, value: any, fieldName: string) => {
-    if (this.fieldType === '__virtual__') return this.t('该字段为平台补充 不可检索');
-    if (this.filterIsExist(operator, value, fieldName)) return this.t('已添加过滤条件');
+    if (this.fieldType === '__virtual__') {
+      return this.t('该字段为平台补充 不可检索');
+    }
+    if (this.filterIsExist(operator, value, fieldName)) {
+      return this.t('已添加过滤条件');
+    }
     return `${fieldName} ${operator} ${_escape(value)}`;
   };
 
   // 检查过滤条件是否已存在
   filterIsExist = (operator: string, value: any, fieldName: string) => {
-    if (this.fieldType === '__virtual__') return true;
+    if (this.fieldType === '__virtual__') {
+      return true;
+    }
 
-    const mappedOperator = OPERATOR_MAPPING[operator] || operator;
-    return (
-      store.getters.retrieveParams?.addition?.some(addition => {
+    if (this.searchMode === 0) {
+      const mappedOperator = OPERATOR_MAPPING[operator] || operator;
+      return store.getters.retrieveParams?.addition?.some(addition => {
         return (
           addition.field === fieldName &&
           addition.operator === mappedOperator &&
           addition.value.toString() === value.toString()
         );
-      }) || false
-    );
+      });
+    }
+
+    const formatJsonString = formatResult => {
+      if (typeof formatResult === 'string') {
+        return DOMPurify.sanitize(formatResult);
+      }
+
+      return formatResult;
+    };
+
+    // biome-ignore lint/nursery/noShadow: reason
+    const getSqlAdditionMappingOperator = ({ operator, field }) => {
+      const textType = this.fieldType;
+
+      // biome-ignore lint/nursery/noShadow: reason
+      const formatValue = value => {
+        let formatResult = value;
+        if (['text', 'string', 'keyword'].includes(textType)) {
+          if (Array.isArray(formatResult)) {
+            formatResult = formatResult.map(formatJsonString);
+          } else {
+            formatResult = formatJsonString(formatResult);
+          }
+        }
+
+        return formatResult;
+      };
+
+      const mappingKey = {
+        // is is not 值映射
+        is: val => `${field}: "${formatValue(val)}"`,
+        'is not': val => `NOT ${field}: "${formatValue(val)}"`,
+        '=': val => `${field}: "${formatValue(val)}"`,
+        '!=': val => `NOT ${field}: "${formatValue(val)}"`,
+      };
+
+      return mappingKey[operator] ?? operator; // is is not 值映射
+    };
+    const keyword = getSqlAdditionMappingOperator({ operator, field: fieldName })?.(value) ?? value;
+    return store.getters.retrieveParams?.keyword.indexOf(keyword) >= 0;
   };
   // 查询字段数据
   async queryFieldFetchTopList(limit = 5) {
-    if (this.listLoading) return;
+    if (this.listLoading) {
+      return;
+    }
     this.limitSize = limit;
     this.listLoading = true;
     this.resetCache();
@@ -278,12 +350,13 @@ export default class AggChart extends tsc<object> {
             {this.showFiveList.map((item, index) => {
               const [value, count] = item;
               const percent = this.computePercent(count);
+              const percentValue = this.getPercentValue(count);
               const isFiltered = this.filterIsExist('is', value, this.fieldName);
               const isNotFiltered = this.filterIsExist('is not', value, this.fieldName);
 
               return (
                 <li
-                  key={`${value}-${index}`}
+                  key={`${index}-${value}`}
                   style={this.getCssVar(index)}
                   class='chart-item'
                 >
@@ -292,12 +365,12 @@ export default class AggChart extends tsc<object> {
                       class={['bk-icon icon-enlarge-line', { disable: isFiltered }]}
                       v-bk-tooltips={this.getIconPopover('=', value, this.fieldName)}
                       onClick={() => !isFiltered && this.addCondition('is', value, this.fieldName)}
-                    ></span>
+                    />
                     <span
                       class={['bk-icon icon-narrow-line', { disable: isNotFiltered }]}
                       v-bk-tooltips={this.getIconPopover('!=', value, this.fieldName)}
                       onClick={() => !isNotFiltered && this.addCondition('is not', value, this.fieldName)}
-                    ></span>
+                    />
                   </div>
                   <div class='chart-content'>
                     <div class='text-container'>
@@ -317,9 +390,9 @@ export default class AggChart extends tsc<object> {
                     </div>
                     <div class='percent-bar-container'>
                       <div
-                        style={{ width: percent }}
+                        style={{ width: percentValue }}
                         class='percent-bar'
-                      ></div>
+                      />
                     </div>
                   </div>
                 </li>

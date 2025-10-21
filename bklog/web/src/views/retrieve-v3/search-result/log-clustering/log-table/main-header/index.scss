@@ -1,0 +1,58 @@
+.log-table-header-main-wraper {
+  width: 100%;
+  overflow-x: hidden;
+  box-shadow: 0 2px 4px 0 #00000014;
+  z-index: 1;
+
+  .log-table-header-main {
+    width: 100%;
+    background-color: #f5f7fa;
+    table-layout: fixed;
+    border-collapse: collapse;
+    scrollbar-gutter: stable;
+    position: relative;
+
+    tr {
+      height: 36px;
+      text-align: left;
+      font-size: 12px;
+      color: #383134;
+
+      th {
+        cursor: pointer;
+        padding-left: 12px;
+        font-family: PingFangSC;
+        font-weight: 600;
+
+        &:hover {
+          background: #f0f1f5;
+        }
+      }
+
+      .sort-column {
+        display: flex;
+        align-items: center;
+
+        .tip-main {
+          margin-left: 4px;
+          cursor: pointer;
+        }
+      }
+    }
+  }
+}
+
+.resize-guide-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 10;
+  display: none;
+  width: 2px;
+  height: 100%;
+  background-color: #3a84ff;
+}
+
+.no-user-select {
+  user-select: none;
+}

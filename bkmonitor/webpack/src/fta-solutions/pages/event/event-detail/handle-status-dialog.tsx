@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -192,7 +192,14 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
       default: ({ row }) => row.operateTargetString,
     };
     const operatorSlot = {
-      default: ({ row }) => row.operator?.join(';'),
+      default: ({ row }) =>
+        row.operator?.map?.((id, index) => [
+          <bk-user-display-name
+            key={id}
+            user-id={id}
+          />,
+          index < row?.operator?.length - 1 ? ';' : '',
+        ]),
     };
     const checkSlot = {
       default: ({ row }) => (

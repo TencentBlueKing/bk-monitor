@@ -4,13 +4,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { copyText } from 'monitor-common/utils';
+import { xssFilter } from 'monitor-common/utils/xss';
 import { ETagsType } from 'monitor-pc/components/biz-select/list';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -270,7 +271,7 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
       extCls: 'event-relation-dialog',
       title: this.$t('关联日志'),
       subHeader: h(
-        'div', // 使用 div 元素包装整个内容
+        'div',
         { class: 'json-view-content' },
         [
           h('i', {
@@ -293,8 +294,18 @@ export default class MyComponent extends tsc<IBasicInfoProps, IEvents> {
               data: relationInfo,
               deep: 5,
               showIcon: true,
-              // showLine: false
             },
+            scopedSlots: {
+              nodeValue: ({node, defaultValue}) => {
+                // value是url时 增加跳转功能
+                if (node.content?.startsWith('http')) {
+                  return (
+                    <a class='vjs-value vjs-value-string' href={xssFilter(node.content)} target='_blank' rel='noopener noreferrer'>"{xssFilter(node.content)}"</a>
+                  );
+                }
+                return defaultValue;
+              },
+            }
           }),
         ]
       ),

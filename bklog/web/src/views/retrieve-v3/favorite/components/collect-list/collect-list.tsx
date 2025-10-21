@@ -29,10 +29,9 @@ import { defineComponent, ref, watch, computed } from 'vue';
 import BklogPopover from '@/components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { useRoute } from 'vue-router/composables';
 
 import { utcFormatDate } from '../../../../../common/util';
-import { useFavorite } from '../../hooks/useFavorite';
+import { useFavorite } from '../../hooks/use-favorite';
 import { IFavoriteItem, IGroupItem, IMenuItem } from '../../types';
 import { getGroupNameRules } from '../../utils';
 import AddGroup from './add-group';

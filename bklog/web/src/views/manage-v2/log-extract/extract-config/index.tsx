@@ -24,14 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, reactive, computed, onMounted } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import http from '@/api';
+import { defineComponent, ref, computed, onMounted } from 'vue';
+
 import * as authorityMap from '@/common/authority-map';
 import EmptyStatus from '@/components/empty-status/index.vue';
-import ConfigSlider from './config-slider.tsx';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import { Message, InfoBox } from 'bk-magic-vue';
+
+import ConfigSlider from './config-slider.tsx';
+import http from '@/api';
 
 import './index.scss';
 
@@ -48,7 +50,7 @@ export default defineComponent({
 
     const isLoading = ref(true); // 页面加载状态
     const strategyList = ref<any[]>([]); // 策略列表
-    const pagination = reactive({
+    const pagination = ref({
       // 分页配置
       count: 0,
       current: 1,
@@ -107,9 +109,9 @@ export default defineComponent({
         });
         // 分页处理
         const allList = res.data;
-        pagination.count = allList.length;
-        const start = (pagination.current - 1) * pagination.limit;
-        const end = start + pagination.limit;
+        pagination.value.count = allList.length;
+        const start = (pagination.value.current - 1) * pagination.value.limit;
+        const end = start + pagination.value.limit;
         strategyList.value = allList.slice(start, end);
       } catch (e) {
         console.warn(e);
@@ -117,20 +119,20 @@ export default defineComponent({
       } finally {
         isLoading.value = false;
       }
-    }
+    };
 
     // 处理分页变化
     const handlePageChange = (page: number) => {
-      if (pagination.current !== page) {
-        pagination.current = page;
+      if (pagination.value.current !== page) {
+        pagination.value.current = page;
         initStrategyList();
       }
     };
 
     // 处理每页数量变化
     const handleLimitChange = (limit: number) => {
-      pagination.limit = limit;
-      pagination.current = 1;
+      pagination.value.limit = limit;
+      pagination.value.current = 1;
       initStrategyList();
     };
 
@@ -148,7 +150,7 @@ export default defineComponent({
               },
             ],
           });
-          store.commit('updateAuthDialogData', res.data);
+          store.commit('updateState', { authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {
@@ -207,9 +209,9 @@ export default defineComponent({
     };
 
     // 确认创建或编辑
-    const handleUpdatedTable = async (strategyData: any) => {
+    const handleUpdatedTable = async (newStrategyData: any) => {
       isSliderLoading.value = true;
-      const data = Object.assign(strategyData, {
+      const data = Object.assign(newStrategyData, {
         bk_biz_id: bkBizId.value,
       });
 
@@ -252,10 +254,10 @@ export default defineComponent({
     };
 
     // 处理操作
-    const handleOperation = (type: string) => {
-      if (type === 'refresh') {
+    const handleOperation = (newType: string) => {
+      if (newType === 'refresh') {
         emptyType.value = 'empty';
-        pagination.current = 1;
+        pagination.value.current = 1;
         initStrategyList();
         return;
       }
@@ -304,9 +306,9 @@ export default defineComponent({
                 },
               ],
             }}
+            data-test-id='extractAuthManageBox_button_addNewExtractAuthManage'
             disabled={isAllowedManage.value === null || isLoading.value}
             loading={isButtonLoading.value}
-            data-test-id='extractAuthManageBox_button_addNewExtractAuthManage'
             theme='primary'
             onClick={handleCreateStrategy}
           >
@@ -317,11 +319,6 @@ export default defineComponent({
         {/* 策略列表表格 */}
         <bk-table
           class='king-table'
-          data={strategyList.value}
-          row-key='strategy_id'
-          pagination={pagination}
-          onPage-change={handlePageChange}
-          onPage-limit-change={handleLimitChange}
           scopedSlots={{
             empty: () => (
               <div>
@@ -332,12 +329,14 @@ export default defineComponent({
               </div>
             ),
           }}
+          data={strategyList.value}
+          pagination={pagination.value}
+          row-key='strategy_id'
+          onPage-change={handlePageChange}
+          onPage-limit-change={handleLimitChange}
         >
           {/* 名称列 */}
           <bk-table-column
-            label={t('名称')}
-            min-width='100'
-            renderHeader={renderHeader}
             scopedSlots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
@@ -345,13 +344,13 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('名称')}
+            min-width='100'
+            renderHeader={renderHeader}
           />
 
           {/* 授权目标列 */}
           <bk-table-column
-            label={t('授权目标')}
-            min-width='100'
-            renderHeader={renderHeader}
             scopedSlots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
@@ -359,13 +358,13 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('授权目标')}
+            min-width='100'
+            renderHeader={renderHeader}
           />
 
           {/* 文件目录列 */}
           <bk-table-column
-            label={t('文件目录')}
-            min-width='100'
-            renderHeader={renderHeader}
             scopedSlots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
@@ -373,13 +372,13 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('文件目录')}
+            min-width='100'
+            renderHeader={renderHeader}
           />
 
           {/* 文件后缀列 */}
           <bk-table-column
-            label={t('文件后缀')}
-            min-width='100'
-            renderHeader={renderHeader}
             scopedSlots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
@@ -387,13 +386,13 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('文件后缀')}
+            min-width='100'
+            renderHeader={renderHeader}
           />
 
           {/* 执行人列 */}
           <bk-table-column
-            label={t('执行人')}
-            min-width='100'
-            renderHeader={renderHeader}
             scopedSlots={{
               default: ({ row }: any) => (
                 <div class='table-ceil-container'>
@@ -401,6 +400,9 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('执行人')}
+            min-width='100'
+            renderHeader={renderHeader}
           />
 
           {/* 创建时间列 */}
@@ -421,9 +423,6 @@ export default defineComponent({
 
           {/* 操作列 */}
           <bk-table-column
-            label={t('操作')}
-            min-width='80'
-            renderHeader={renderHeader}
             scopedSlots={{
               default: ({ row }: any) => (
                 <div class='task-operation-container'>
@@ -442,6 +441,9 @@ export default defineComponent({
                 </div>
               ),
             }}
+            label={t('操作')}
+            min-width='80'
+            renderHeader={renderHeader}
           />
         </bk-table>
 
@@ -463,8 +465,8 @@ export default defineComponent({
               allowCreate={allowCreate.value}
               strategyData={strategyData.value}
               userApi={userApi.value}
-              onHandleUpdatedTable={handleUpdatedTable}
               onHandleCancelSlider={handleCloseSidebar}
+              onHandleUpdatedTable={handleUpdatedTable}
             />
           </template>
         </bk-sideslider>

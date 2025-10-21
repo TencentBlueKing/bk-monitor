@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -183,7 +183,7 @@ export default class ServiceApply extends tsc<
       .then(list => {
         return (list || []).map(item => ({
           id: item.push_url,
-          name: `${this.$t('管控区域')} ${item.bk_cloud_id} ${item.push_url}`,
+          name: `${item.bk_cloud_alias || this.$t('管控区域')} ${item.push_url}`,
         }));
       })
       .catch(() => []);
@@ -224,7 +224,7 @@ export default class ServiceApply extends tsc<
     return (
       <span class='service-add-info'>
         <i class='icon-monitor icon-hint' />
-        {this.$t('需先填写「服务名」，生成上报示例')}
+        {this.$t('将根据「服务名」自动生成上报示例代码，你可以直接运行')}
       </span>
     );
   }
@@ -251,7 +251,7 @@ export default class ServiceApply extends tsc<
       >
         <div class='row-content-wrap'>
           {rowContent(
-            this.$tc('上报配置'),
+            this.$tc('上报Demo'),
             1,
             <div class='select-config-wrap'>
               <bk-form

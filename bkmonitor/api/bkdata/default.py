@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -1487,6 +1487,6 @@ class DataBusCleanDebug(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     method = "POST"
 
     class RequestSerializer(CommonRequestSerializer):
-        input = serializers.JSONField(required=True, label="输入数据")
-        rules = serializers.JSONField(required=True, label="清洗规则")
-        filter_rules = serializers.ListField(required=False, label="过滤规则")
+        input = serializers.CharField(required=True, label="输入数据")
+        rules = serializers.ListField(required=True, label="清洗规则")
+        filter_rules = serializers.CharField(label="过滤规则", default="True")

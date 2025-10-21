@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -407,6 +407,8 @@ export default {
   '是否删除{name}?': 'Delete {name}?',
   '是否删除当前规则?': 'Delete the current rule?',
   '是否删除该分组?': 'Do you want to delete this group?',
+  '确认删除该查询模板？': 'Delete this query template?',
+  '确认删除该告警模板？': 'Delete this alarm template?',
 
   '你确认要启用？': 'Are you sure you want to enable ?',
   '你确认要停用？': 'Are you sure you want to disable ?',
@@ -529,4 +531,10 @@ export default {
   '维度：': 'Dimension:',
   快速定位: 'Quick location',
   操作失败: 'Operation failed',
+  创建查询模板成功: 'Created metric template successfully',
+  编辑查询模板成功: 'Edited metric template successfully',
+  '有未生效的变量，是否清空？': 'There are variables that are not in effect, do you want to clear them?',
+
+  修改备注成功: 'Remark modified successfully',
+  克隆模板成功: 'Cloned template successfully',
 };

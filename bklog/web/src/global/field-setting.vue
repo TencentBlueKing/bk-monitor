@@ -242,7 +242,6 @@
 <script setup lang="ts">
   import { computed, ref, nextTick } from 'vue';
 
-  import { deepClone } from '@/common/util';
   import { builtInInitHiddenList } from '@/const/index.js';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
@@ -251,7 +250,8 @@
   import * as authorityMap from '../common/authority-map';
   import settingTable from './setting-table.vue';
   import http from '@/api';
-  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper'
+  import { RetrieveEvent } from '@/views/retrieve-helper'
+  import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
   const { t } = useLocale();
   const store = useStore();
@@ -413,7 +413,7 @@
     });
   const indexfieldTable = ref(null);
   const addNewField = () => {
-    const fields = deepClone(indexfieldTable.value.getData());
+    const fields = structuredClone(indexfieldTable.value.getData());
     const newBaseFieldObj = {
       ...baseFieldObj.value,
       field_index: tableField.value.length + 1,
@@ -421,26 +421,29 @@
     // 获取table表格编辑的数据 新增新的字段对象
     tableField.value.splice(0, fields.length, ...[...indexfieldTable.value.getData(), newBaseFieldObj]);
   };
-  RetrieveHelper.on(RetrieveEvent.INDEX_CONFIG_OPEN, val => {
+
+  const { addEvent } = useRetrieveEvent();
+  addEvent(RetrieveEvent.INDEX_CONFIG_OPEN, () => {
     hideSingleConfigInput();
     handleOpenSidebar();
     nextTick(() => {
       handleEdit()
     });
   });
+  
   function formLableFormatter(label) {
     return `${label} :`;
   }
 
   const handleEdit = () => {
-    formDataCopy.value = deepClone(formData.value);
-    fieldsCopy.value = deepClone(indexfieldTable.value.getData());
+    formDataCopy.value = structuredClone(formData.value);
+    fieldsCopy.value = structuredClone(indexfieldTable.value.getData());
     isEdit.value = true;
   };
 
   const handleCancel = async() => {
-    formData.value = deepClone(formDataCopy.value);
-    tableField.value = deepClone(fieldsCopy.value);
+    formData.value = structuredClone(formDataCopy.value);
+    tableField.value = structuredClone(fieldsCopy.value);
     nextTick(() => {
       isEdit.value = false;
     });
@@ -456,7 +459,7 @@
   const indexBuiltField = ref([]);
 
   const initFormData = async () => {
-    const indexSetList = store.state.retrieve.indexSetList;
+    const indexSetList = store.state.retrieve.flatIndexSetList;
     const indexSetId = route.params?.indexId;
     const currentIndexSet = indexSetList.find(item => item.index_set_id === `${indexSetId}`);
     if (!currentIndexSet?.collector_config_id) return;

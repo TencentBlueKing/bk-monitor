@@ -1,22 +1,22 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import hashlib
 import logging
 from functools import reduce
-from typing import Any, Dict, List, Union
+from typing import Any
 
 logger = logging.getLogger("metadata")
 
 
-def getitems(obj: Dict, items: Union[List, str], default: Any = None) -> Any:
+def getitems(obj: dict, items: list | str, default: Any = None) -> Any:
     """
     递归获取数据
     注意：使用字符串作为键路径时，须确保 Key 值均为字符串
@@ -36,7 +36,7 @@ def getitems(obj: Dict, items: Union[List, str], default: Any = None) -> Any:
         return default
 
 
-def get_biz_id_by_space_uid(space_uid):
+def get_biz_id_by_space_uid(bk_tenant_id: str, space_uid: str):
     """
     根据space_uid查询归属的业务ID
     """
@@ -47,19 +47,15 @@ def get_biz_id_by_space_uid(space_uid):
         space_type, space_id = space_uid.split("__")
         if space_type == SpaceTypes.BKCC.value:
             return int(space_id)
-        bk_biz_id = (
-            SpaceResource.objects.filter(
-                space_type_id=space_type, space_id=space_id, resource_type=SpaceTypes.BKCC.value
-            )
-            .first()
-            .resource_id
-        )
+        bk_biz_id = SpaceResource.objects.get(
+            bk_tenant_id=bk_tenant_id, space_type_id=space_type, space_id=space_id, resource_type=SpaceTypes.BKCC.value
+        ).resource_id
         return int(bk_biz_id)
     except Exception:  # pylint: disable=broad-except
         return 0
 
 
-def get_space_uid_and_bk_biz_id_by_bk_data_id(bk_data_id: int):
+def get_space_uid_and_bk_biz_id_by_bk_data_id(bk_tenant_id: str, bk_data_id: int):
     """
     根据data_id，查询对应的space_uid和bk_biz_id
     @param bk_data_id: 数据ID
@@ -76,8 +72,8 @@ def get_space_uid_and_bk_biz_id_by_bk_data_id(bk_data_id: int):
                 bk_data_id,
             )
             return 0, ""
-        space_uid = related_space_info.space_type_id + '__' + related_space_info.space_id
-        bk_biz_id = get_biz_id_by_space_uid(space_uid=space_uid)
+        space_uid = related_space_info.space_type_id + "__" + related_space_info.space_id
+        bk_biz_id = get_biz_id_by_space_uid(bk_tenant_id=bk_tenant_id, space_uid=space_uid)
 
         if bk_biz_id < 0:
             # NOTE：可能存在SpaceDataSource中绑定了错误的元信息的情况，这里ID为负数的话，则去Space中取真实的space_uid
@@ -89,7 +85,7 @@ def get_space_uid_and_bk_biz_id_by_bk_data_id(bk_data_id: int):
             )
             space = Space.objects.get(id=abs(bk_biz_id))
             space_uid = space.space_uid
-            bk_biz_id = get_biz_id_by_space_uid(space_uid=space_uid)
+            bk_biz_id = get_biz_id_by_space_uid(bk_tenant_id=bk_tenant_id, space_uid=space_uid)
 
         return bk_biz_id, space_uid
     except Exception as e:  # pylint: disable=broad-except

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -19,6 +19,7 @@ from django.views.generic import View
 
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.request import is_ajax_request
+from bkmonitor.utils.user import get_user_display_name
 
 from .api import (
     get_or_create_org,
@@ -71,7 +72,9 @@ class ProxyBaseView(View):
         self.perform_authentication(request)
 
         # 同步用户
-        self.user = get_or_create_user(self.get_username(request))
+        username = self.get_username(request)
+        display_name = get_user_display_name(username)
+        self.user = get_or_create_user(username=username, display_name=display_name)
 
         # 同步权限
         self.sync_permissions(request)

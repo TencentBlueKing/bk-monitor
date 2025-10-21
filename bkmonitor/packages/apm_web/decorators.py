@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -30,7 +30,8 @@ def user_visit_record(func):
         app_name = request.data.get("app_name", "") or request.query_params.get("app_name", "")
 
         # 必须是访问了应用，才能算在请求记录里 (后续的统计需要关联应用的创建者)
-        if app_name:
+        # 必须是用户访问，通过 api 访问不做记录
+        if app_name and not request_path.startswith("/api/"):
             try:
                 UserVisitRecord.objects.create(
                     bk_biz_id=bk_biz_id,

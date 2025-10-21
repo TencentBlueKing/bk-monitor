@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { fetchBusinessInfo, listSpaces } from 'monitor-api/modules/commons';
+import { fetchBusinessInfo } from 'monitor-api/modules/commons';
 import { skipToDocsLink } from 'monitor-common/utils/docs';
 
-import ResearchForm from '../research-form/research-form';
+// import ResearchForm from '../research-form/research-form';
 import SpaceAddItem from '../space-add-item/space-add-item';
 
 import './space-add-list.scss';
@@ -46,6 +46,7 @@ export interface IAddItemData {
   icon: string;
   id: SpaceAddType;
   name: string;
+  disabled?: boolean;
 }
 
 interface IProps {
@@ -68,6 +69,7 @@ export default class SpaceAddList extends tsc<IProps> {
       desc: window.i18n.tc(
         '研发项目主要是满足日常的研发代码提交和构建， 在研发项目中提供了构建机监控、APM、自定义指标上报等功能。 研发项目与蓝盾项目直接建立绑定关系，新建研发项目会同步到蓝盾项目。'
       ),
+      disabled: !window.bk_ci_url, // bk_ci_url可能没有值时禁用
     },
     {
       id: SpaceAddType.container,
@@ -94,51 +96,51 @@ export default class SpaceAddList extends tsc<IProps> {
         (window.monitor_managers?.length ? ':' : '') +
         (window.monitor_managers || []).join(',')
       }。`,
+      disabled: true,
     },
   ];
 
-  hasSaveSuccess = false;
+  // hasSaveSuccess = false;
   newBusinessUrl = '';
-  bkciSpaceList = [];
+  // bkciSpaceList = [];
   async created() {
     const data = await fetchBusinessInfo().catch(() => false);
     this.newBusinessUrl = data?.new_biz_apply;
   }
-  @Watch('show')
-  handleShow(v: boolean) {
-    if (v) {
-      this.hasSaveSuccess = false;
-      this.handleGetSpaceList();
-    }
-  }
+  // @Watch('show')
+  // handleShow(v: boolean) {
+  //   if (v) {
+  //     this.hasSaveSuccess = false;
+  //     this.handleGetSpaceList();
+  //   }
+  // }
 
-  async handleGetSpaceList() {
-    const list = await listSpaces({ show_all: true, show_detail: false }).catch(() => []);
-    this.bkciSpaceList = list.filter(item => item.space_type_id === 'bkci');
-  }
+  // async handleGetSpaceList() {
+  //   const list = await listSpaces({ show_all: true, show_detail: false }).catch(() => []);
+  //   this.bkciSpaceList = list.filter(item => item.space_type_id === 'bkci');
+  // }
 
   handleCancel() {
     this.$emit('showChange', false);
-    if (this.hasSaveSuccess) {
-      this.$emit('saveSuccess');
-    }
+    // if (this.hasSaveSuccess) {
+    //   this.$emit('saveSuccess');
+    // }
   }
 
   handleChecked(id: SpaceAddType) {
-    if (id === SpaceAddType.other) return;
     this.acitveType = this.acitveType === id ? null : id;
   }
 
   /* 保存成功 */
-  handleResearchFormSuccess() {
-    this.hasSaveSuccess = true;
-    this.handleGetSpaceList();
-    this.handleResearchFormCancel();
-    this.$emit('saveSuccess');
-  }
-  handleResearchFormCancel() {
-    this.acitveType = null;
-  }
+  // handleResearchFormSuccess() {
+  //   this.hasSaveSuccess = true;
+  //   this.handleGetSpaceList();
+  //   this.handleResearchFormCancel();
+  //   this.$emit('saveSuccess');
+  // }
+  // handleResearchFormCancel() {
+  //   this.acitveType = null;
+  // }
   handleGotoLink(urlOrName: string) {
     if (urlOrName.match(/^http/)) {
       window.open(urlOrName, '_blank');
@@ -150,6 +152,10 @@ export default class SpaceAddList extends tsc<IProps> {
     /** 容器项目、业务 */
     const commonTpl = (type: SpaceAddType) => {
       const map: Record<string, any> = {
+        [SpaceAddType.research]: {
+          title: this.$tc('新建研发项目'),
+          href: `${window.bk_ci_url?.replace(/\/$/, '')}/console/manage/apply`,
+        },
         [SpaceAddType.container]: {
           title: this.$tc('新建容器项目'),
           doc: 'addClusterMd',
@@ -166,13 +172,15 @@ export default class SpaceAddList extends tsc<IProps> {
         <div class='common-link-guide'>
           <div class='common-link-title'>{data.title}</div>
           <div class='common-link'>
-            <a
-              class='common-link-item doc'
-              onClick={() => this.handleGotoLink(data.doc)}
-            >
-              <i class='icon-monitor icon-mc-detail' />
-              {this.$tc('文档说明')}
-            </a>
+            {data.doc && (
+              <a
+                class='common-link-item doc'
+                onClick={() => this.handleGotoLink(data.doc)}
+              >
+                <i class='icon-monitor icon-mc-detail' />
+                {this.$tc('文档说明')}
+              </a>
+            )}
             {data.href && (
               <a
                 class='common-link-item href'
@@ -191,13 +199,13 @@ export default class SpaceAddList extends tsc<IProps> {
     const contentTpl = (type: SpaceAddType) => {
       switch (type) {
         case SpaceAddType.research:
-          return (
-            <ResearchForm
-              spaceList={this.bkciSpaceList}
-              onCancel={this.handleResearchFormCancel}
-              onSuccess={this.handleResearchFormSuccess}
-            />
-          );
+          // return (
+          //   <ResearchForm
+          //     spaceList={this.bkciSpaceList}
+          //     onCancel={this.handleResearchFormCancel}
+          //     onSuccess={this.handleResearchFormSuccess}
+          //   />
+          // );
         case SpaceAddType.container:
         case SpaceAddType.business:
           return commonTpl(type);
@@ -221,7 +229,7 @@ export default class SpaceAddList extends tsc<IProps> {
               key={item.id}
               checked={item.id === this.acitveType}
               data={item}
-              disabled={item.id === SpaceAddType.other}
+              disabled={item.disabled || false}
               onChecked={() => this.handleChecked(item.id)}
             >
               {contentTpl(this.acitveType)}

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -8,9 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import collections
 import os
-import traceback
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -19,7 +17,6 @@ from django.utils.translation import gettext as _
 from bkmonitor.documents.tasks import rollover_indices
 from bkmonitor.models import EventPluginInstance, EventPluginV2
 from constants.action import GLOBAL_BIZ_ID
-from constants.common import DEFAULT_TENANT_ID
 from fta_web.event_plugin.handler import PackageHandler
 from fta_web.event_plugin.resources import (
     CreateEventPluginInstanceResource,
@@ -45,6 +42,9 @@ def register_builtin_plugins(sender, **kwargs):
     with open(initial_file, encoding="utf-8") as f:
         plugins = json.loads(f.read())
         for plugin in plugins:
+            # 多租户情况下禁用itsmv3插件
+            if plugin["plugin_key"] == "itsm" and settings.ENABLE_MULTI_TENANT_MODE:
+                continue
             instance, created = ActionPlugin.origin_objects.update_or_create(
                 id=plugin.pop("id"), is_builtin=True, defaults=plugin
             )
@@ -298,96 +298,6 @@ def register_global_event_plugin(sender, **kwargs):
     register_event_plugin(builtin_params)
 
 
-def migrate_event_plugin():
-    """
-    告警源事件注册
-    """
-
-    from fta_web.models.old_fta import AlarmApplication, AlarmType
-    from monitor_web.strategies.metric_list_cache import BkFtaAlertCacheManager
-
-    plugin_mapping = {
-        "ZABBIX": "zabbix",
-        "REST-API": "rest_api",
-        "CUSTOM": "rest_pull",
-    }
-    all_alarm_types = collections.defaultdict(list)
-    for alarm_type in AlarmType.objects.filter(source_type__in=plugin_mapping.keys()).using("fta"):
-        if alarm_type.pattern == "api_default":
-            continue
-        all_alarm_types[plugin_mapping[alarm_type.source_type]].append(
-            {
-                "name": alarm_type.description,
-                "rules": [
-                    {
-                        "key": "alarm_type",
-                        "value": [alarm_type.pattern],
-                        "method": "eq" if alarm_type.match_mode == 0 else "reg",
-                        "condition": "",
-                    }
-                ],
-            }
-        )
-
-    try:
-        rest_pull_source = AlarmApplication.objects.using("fta").get(source_type="CUSTOM")
-        pull_config_params = [
-            {
-                "field": "url",
-                "value": "",
-                "name": _("请求url"),
-                "is_required": True,
-                "default_value": f"{rest_pull_source.app_url}",
-            },
-            {
-                "field": "method",
-                "value": "",
-                "name": _("请求方法"),
-                "is_required": True,
-                "default_value": f"{rest_pull_source.app_method.upper()}",
-            },
-            {
-                "field": "begin_time",
-                "name": _("开始时间"),
-                "value": "{{begin_time}}",
-                "is_required": True,
-                "is_hidden": True,
-                "default_value": "{{begin_time}}",
-            },
-            {
-                "field": "end_time",
-                "name": _("结束时间"),
-                "value": "{{end_time}}",
-                "is_required": True,
-                "is_hidden": True,
-                "default_value": "{{end_time}}",
-            },
-        ]
-    except AlarmApplication.DoesNotExist:
-        pull_config_params = []
-
-    need_install_plugins = [
-        plugin_mapping[source_type]
-        for source_type in list(
-            AlarmApplication.objects.using("fta").filter(is_enabled=True).values_list("source_type", flat=True)
-        )
-        if source_type in plugin_mapping
-    ]
-
-    # step 1 注册插件
-    plugins = register_event_plugin(pull_config_params, all_alarm_types)
-
-    # step 2 安装全局插件
-    for plugin_id in need_install_plugins:
-        install_global_event_plugin(plugins[plugin_id])
-
-    # step 3最后一步，同步自愈指标
-    try:
-        BkFtaAlertCacheManager(DEFAULT_TENANT_ID, 0).run()
-    except Exception as e:
-        print(f"[event plugin initial] BkFtaAlertCacheManager error:{e}")
-
-
 def register_event_plugin(config_params=None, all_alarm_types=None):
     from fta_web.event_plugin.resources import CreateEventPluginResource
 
@@ -488,66 +398,4 @@ def install_global_event_plugin(plugin):
         "[fta migration] install global plugin success, plugin_id({}), version({}), instance_data_id({})".format(
             plugin["plugin_id"], plugin["version"], inst_data["data_id"]
         )
-    )
-
-
-def migrate_fta_strategy(sender, **kwargs):
-    """
-    故障自愈的套餐迁移
-    """
-    print(f"[fta migrate] start to migrate fta from sender({sender})")
-    try:
-        migrate_event_plugin()
-        migrate_actions_and_strategies(**kwargs)
-    except BaseException:
-        print(f"[fta migrate] migrate error, {traceback.format_exc()}")
-
-
-def migrate_actions_and_strategies(**kwargs):
-    from django.conf import settings
-
-    from fta_web.fta_migrate.strategy import MigrateFTAStrategy
-    from fta_web.models.old_fta import AlarmDef, Solution
-
-    bk_biz_ids = kwargs.pop("bk_biz_ids", [])
-    if not bk_biz_ids:
-        bk_biz_ids = set(Solution.objects.using("fta").values_list("cc_biz_id", flat=True)).union(
-            set(AlarmDef.objects.all().using("fta").values_list("cc_biz_id", flat=True))
-        )
-    skipped_bizs = []
-    success_bizs = []
-    failed_bizs = []
-    migreate_bizs = settings.FTA_MIGRATE_BIZS
-
-    for bk_biz_id in bk_biz_ids:
-        if bk_biz_id == 0:
-            continue
-        if bk_biz_id in migreate_bizs:
-            skipped_bizs.append(bk_biz_id)
-            continue
-
-        print(f"[fta migrate] start to migrate strategies for biz({bk_biz_id})")
-        try:
-            MigrateFTAStrategy(bk_biz_id).migrate_fta_strategy()
-        except BaseException as error:
-            print(f"[fta migrate] failed to migrate strategies for biz({bk_biz_id}), error({str(error)})")
-            failed_bizs.append(bk_biz_id)
-            continue
-        migreate_bizs.append(bk_biz_id)
-        success_bizs.append(bk_biz_id)
-        print(f"[fta migrate] end to migrate strategies for biz({bk_biz_id})")
-
-    settings.FTA_MIGRATE_BIZS = migreate_bizs
-
-    alarm_def_ids = set(
-        AlarmDef.objects.using("fta")
-        .filter(cc_biz_id__in=settings.FTA_MIGRATE_BIZS, is_enabled=True)
-        .values_list("id", flat=True)
-    )
-    if alarm_def_ids:
-        print(f"[fta migrate] close old fta alarm defs({alarm_def_ids}) ")
-        AlarmDef.objects.using("fta").filter(id__in=alarm_def_ids).update(is_enabled=False)
-
-    print(
-        f"[fta migrate] result success({len(success_bizs)}), failed({len(failed_bizs)}), skipped({len(skipped_bizs)}) "
     )

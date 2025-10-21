@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from collections import defaultdict
+import logging
 
 from django.utils import translation
 from django.utils.functional import cached_property
@@ -17,6 +18,8 @@ from bkmonitor.models import DutyArrange, UserGroup
 from constants.alert import EVENT_SEVERITY_DICT
 from core.statistics.metric import Metric, register
 from monitor_web.statistics.v2.base import BaseCollector
+
+logger = logging.getLogger(__name__)
 
 
 class UserGroupCollector(BaseCollector):
@@ -63,17 +66,22 @@ class UserGroupCollector(BaseCollector):
         """
         language = translation.get_language()
         translation.activate("en")
-        for group in self.user_groups:
-            for time_config in group.alert_notice:
-                for notify_config in time_config["notify_config"]:
-                    UserGroup.translate_notice_ways(notify_config)
-                    for notice_way in notify_config["type"]:
-                        metric.labels(
-                            bk_biz_id=group.bk_biz_id,
-                            bk_biz_name=self.get_biz_name(group.bk_biz_id),
-                            notice_way=notice_way,
-                            level=EVENT_SEVERITY_DICT.get(notify_config["level"], notify_config["level"]),
-                        ).inc()
+
+        try:
+            for group in self.user_groups:
+                for time_config in group.alert_notice:
+                    for notify_config in time_config["notify_config"]:
+                        UserGroup.translate_notice_ways(notify_config)
+                        for notice_way in notify_config["type"]:
+                            metric.labels(
+                                bk_biz_id=group.bk_biz_id,
+                                bk_biz_name=self.get_biz_name(group.bk_biz_id),
+                                notice_way=notice_way,
+                                level=EVENT_SEVERITY_DICT.get(notify_config["level"], notify_config["level"]),
+                            ).inc()
+        except Exception as e:
+            logger.exception(f"user_group_alert_notice_count error: {e}")
+
         translation.activate(language)
 
     @register(labelnames=("bk_biz_id", "bk_biz_name", "notice_way", "phase"))

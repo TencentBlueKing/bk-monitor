@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -62,6 +62,12 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
   // 组件创建时调用，初始化用户配置和路由数据
   async created() {
     // 初始化平面路由列表
+    if (window.bk_tenant_id !== 'system') {
+      const globalFeatureRoute = COMMON_ROUTE_LIST.find(item => item.id === 'global-feature');
+      globalFeatureRoute.children = globalFeatureRoute.children?.filter(
+        item => !['healthz', 'global-config'].includes(item.id)
+      );
+    }
     this.flatRoutes = COMMON_ROUTE_LIST;
   }
 

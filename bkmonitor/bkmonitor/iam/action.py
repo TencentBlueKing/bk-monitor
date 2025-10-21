@@ -1,15 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
-from typing import Dict, List, Union
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -35,7 +32,7 @@ class ActionMeta(Action):
         description: str = "",
         description_en: str = "",
     ):
-        super(ActionMeta, self).__init__(id)
+        super().__init__(id)
         self.name = name
         self.name_en = name_en
         self.type = type
@@ -125,6 +122,16 @@ class ActionEnum:
         name_en="Manage Synthetic",
         type="manage",
         related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_SYNTHETIC.id],
+        version=1,
+    )
+
+    USE_PUBLIC_SYNTHETIC_LOCATION = ActionMeta(
+        id="use_public_synthetic_location",
+        name=_("拨测公共节点使用"),
+        name_en="Use Public Synthetic Location",
+        type="view",
+        related_resource_types=[],
         related_actions=[VIEW_SYNTHETIC.id],
         version=1,
     )
@@ -508,7 +515,7 @@ class ActionEnum:
 _all_actions = {action.id: action for action in ActionEnum.__dict__.values() if isinstance(action, ActionMeta)}
 
 
-def get_action_by_id(action_id: Union[str, ActionMeta]) -> ActionMeta:
+def get_action_by_id(action_id: str | ActionMeta) -> ActionMeta:
     """
     根据动作ID获取动作实例
     """
@@ -522,7 +529,7 @@ def get_action_by_id(action_id: Union[str, ActionMeta]) -> ActionMeta:
     return _all_actions[action_id]
 
 
-def fetch_related_actions(actions: List[Union[ActionMeta, str]]) -> Dict[str, ActionMeta]:
+def fetch_related_actions(actions: list[ActionMeta | str]) -> dict[str, ActionMeta]:
     """
     递归获取 action 动作依赖列表
     """
@@ -550,7 +557,7 @@ def fetch_related_actions(actions: List[Union[ActionMeta, str]]) -> Dict[str, Ac
     return related_actions
 
 
-def generate_all_actions_json() -> List:
+def generate_all_actions_json() -> list:
     """
     生成migrations的json配置
     """
@@ -587,6 +594,7 @@ MINI_ACTION_IDS = [
     ActionEnum.MANAGE_APM_APPLICATION.id,
     ActionEnum.VIEW_INCIDENT.id,
     ActionEnum.MANAGE_INCIDENT.id,
+    ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION.id,
 ]
 # CMDB（主机依赖）权限
 CMDB_REQUIRE_ACTION_IDS = [

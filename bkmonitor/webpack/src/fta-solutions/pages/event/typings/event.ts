@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -57,6 +57,11 @@ export type eventPanelType = 'analyze' | 'list';
 
 export type FilterInputStatus = 'error' | 'success';
 
+export interface IBkTopoNodeItem {
+  bk_inst_id: string;
+  bk_obj_id: string;
+  node_name?: string;
+}
 export interface IChatGroupDialogOptions {
   alertCount?: number;
   alertIds?: string[];
@@ -68,6 +73,7 @@ export interface IChatGroupDialogOptions {
 export interface ICommonItem {
   id: string;
   name: string | TranslateResult;
+  needSearch?: boolean;
 }
 export interface ICommonTreeItem {
   children?: ICommonTreeItem[];
@@ -75,6 +81,7 @@ export interface ICommonTreeItem {
   id: SearchType | string;
   name: string;
 }
+
 export interface IDimensionItem {
   display_key: string;
   display_value: string;
@@ -89,11 +96,13 @@ export interface IEventItem {
   alert_name: string;
   appointee?: string[];
   assignee: string[];
+  assignees?: string[];
   begin_time: number;
   bizName: string;
-  bk_biz_id: number;
+  bk_biz_id: string;
   bk_biz_name: string;
   bk_cloud_id: number;
+  bk_host_id: number | string;
   bk_service_instance_id: string;
   category: string;
   content: any;
@@ -118,7 +127,7 @@ export interface IEventItem {
   is_ack: boolean;
   is_handled: boolean;
   is_shielded: boolean;
-  labels?: string[];
+  labels?: string[] | { key: string; value: string }[];
   latest_time: number;
   metric: string;
   metric_display: { id: string; name: string }[];
@@ -140,4 +149,12 @@ export interface IPagination {
   current: number;
   limit: number;
 }
+export interface ITopoNodeDataItem {
+  bk_inst_id: number;
+  bk_inst_name: string;
+  bk_obj_id: string;
+  bk_obj_name: string;
+  child?: ITopoNodeDataItem[];
+}
+
 export type SearchType = 'action' | 'alert' | 'event' | 'incident';

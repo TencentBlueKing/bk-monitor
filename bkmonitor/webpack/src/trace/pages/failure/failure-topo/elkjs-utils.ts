@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -451,9 +451,9 @@ const OptimizeLayout = (layouted, data, edges: Edge[]) => {
 };
 
 /** 兼容动态combo数量 */
-const setRootComboStyle = (combos: Array<any>, width) => {
+const setRootComboStyle = (combos: Array<any>, width, diffWidth = true) => {
   const rootCombos = getRootCombos({ combos });
-  const maxWidth = Math.max(...rootCombos.map(combo => combo.width ?? 0), width);
+  const maxWidth = diffWidth ? Math.max(...rootCombos.map(combo => combo.width ?? 0), width) : width;
   rootCombos.forEach((combo, index) => {
     const prevCombo = rootCombos[index - 1];
     const diffHeight = prevCombo ? (prevCombo?.fixSize?.[1] || 0) - (combo.fixSize[1] + 30) : 0;

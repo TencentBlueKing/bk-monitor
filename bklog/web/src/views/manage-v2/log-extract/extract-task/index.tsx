@@ -25,9 +25,10 @@
  */
 
 import { defineComponent, ref, computed, watch, onMounted } from 'vue';
-import useStore from '@/hooks/use-store';
-import useRouter from '@/hooks/use-router';
+
 import useRoute from '@/hooks/use-route';
+import useRouter from '@/hooks/use-router';
+import useStore from '@/hooks/use-store';
 
 import './index.scss';
 
@@ -48,20 +49,18 @@ export default defineComponent({
       isRender.value = false;
       setTimeout(() => {
         isRender.value = true;
-        if (route.query.create) {
-          isLoading.value = false;
-        }
+        isLoading.value = false;
       }, 400);
     });
 
     onMounted(() => {
-      const bkBizId = store.state.bkBizId;
+      const newBkBizId = store.state.bkBizId;
       const spaceUid = store.state.spaceUid;
 
       router.replace({
         query: {
-          bizId: bkBizId,
-          spaceUid: spaceUid,
+          bizId: newBkBizId,
+          spaceUid,
           ...route.query,
         },
       });
@@ -69,10 +68,10 @@ export default defineComponent({
 
     return () => (
       <div
-        class="log-extract-container"
+        class='log-extract-container'
         v-bkloading={{ isLoading: isLoading.value }}
       >
-        <router-view></router-view>
+        <router-view />
       </div>
     );
   },

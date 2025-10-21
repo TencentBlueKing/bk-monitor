@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -45,7 +45,7 @@ from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
 from common.context_processors import Platform
 from constants.alert import IGNORED_TAGS, EventTargetType
-from constants.apm import ApmMetrics
+from constants.apm import APM_TRACE_TABLE_REGEX, ApmMetricProcessor
 from constants.data_source import (
     DataSourceLabel,
     DataTypeLabel,
@@ -192,17 +192,6 @@ UPTIMECHECK_MAP = {
 }
 
 METRIC_POOL_KEYS = ["id", "metric_md5", "bk_biz_id", "result_table_id", "metric_field", "related_id", "readable_name"]
-
-APM_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
-
-APM_METRICS_INFO = {
-    name: {
-        "field_name": name,
-        "description": alias,
-        "unit": unit,
-    }
-    for name, alias, unit in ApmMetrics.all()
-}
 
 
 class BaseMetricCacheManager:
@@ -403,7 +392,7 @@ class BaseMetricCacheManager:
         """
         if self._label_names_map is None:
             try:
-                result = api.metadata.get_label(include_admin_only=True)
+                result = api.metadata.get_label(bk_tenant_id=self.bk_tenant_id, include_admin_only=True)
                 self._label_names_map = {
                     label["label_id"]: label["label_name"] for label in result["result_table_label"]
                 }
@@ -471,13 +460,19 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         # 自定义指标，补上进程采集相关(映射到了，bkmonitor + timeseries[业务id为0])
         # 这里不filter 业务id 是因为基类 _run 方法已有兜底过滤
         queryset = super().get_metric_pool()
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return queryset
+
         return queryset | MetricListCache.objects.filter(
             result_table_id__in=BuildInProcessMetric.result_table_list(),
             bk_tenant_id=self.bk_tenant_id,
         )
 
     def get_tables(self):
-        custom_ts_result = api.metadata.query_time_series_group(bk_biz_id=self.bk_biz_id)
+        custom_ts_result = api.metadata.query_time_series_group(
+            bk_biz_id=self.bk_biz_id, bk_tenant_id=self.bk_tenant_id
+        )
         # 过滤插件数据，且已知插件的bk_biz_id都为 0，所以可以仅对 0 的数据做过滤，减少不必要的查询
         if self.bk_biz_id == 0:
             plugin_data = (
@@ -490,6 +485,9 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
             # 通过 time_series_group_name 的生成规则过滤掉插件类型的数据
             custom_ts_result = [i for i in custom_ts_result if i["time_series_group_name"] not in db_name_list]
 
+        # 补充 APM 虚拟指标
+        custom_ts_result = self.get_apm_extra_tables(custom_ts_result) + custom_ts_result
+
         # 不在监控创建的策略配置均展示，除了全局data id， 该过滤在get_metrics_by_table中生效
         for result in custom_ts_result:
             self.process_logbeat_table(result)
@@ -498,14 +496,61 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
 
     @classmethod
     def process_apm_table(cls, table: dict):
-        if APM_TABLE_REGEX.match(table["table_id"]):
-            table["label"] = "apm"
-            for metric in table.get("metric_info_list", []):
-                metric_name = metric["field_name"]
-                if metric_name in APM_METRICS_INFO:
-                    metric_info = APM_METRICS_INFO[metric_name]
-                    metric["unit"] = metric_info["unit"]
-                    metric["description"] = metric_info["description"]
+        ApmMetricProcessor.process(table)
+
+    def get_apm_extra_tables(self, tables: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """获取 APM 相关的虚拟指标表
+        - 找出 table_id & data_label 同时满足 APM 规则的表。
+        - 对同个业务，多个应用的指标表进行合并，生成 custom:${data_label}:${field} 的同名指标。
+        - 基于上述步骤生成的统一虚拟指标，可以同时在多个业务下使用，便于策略、仪表盘的迁移。
+        """
+
+        def _to_tags(_metric_info: dict[str, Any]) -> dict[str, Any]:
+            return {tag["field_name"]: tag for tag in _metric_info.get("tag_list", [])}
+
+        field_name_to_tags: dict[str, dict[str, Any]] = {}
+        field_name_to_metric_info: dict[str, dict[str, Any]] = {}
+        for table in tables:
+            # data_label 和 table_id 必须同时满足。
+            if not (ApmMetricProcessor.is_match_data_label(table) and ApmMetricProcessor.is_match_table_id(table)):
+                continue
+
+            # 虚拟指标由 data_label 和 field_name 组成，如果没有 data_label 则跳过。
+            # Q：为什么删除（pop）原始表的 data_label？
+            # A：存在 data_label 时，每个 table 都会额外展示一条 data_label.xxx 的记录，非常冗余。
+            data_label: str = table.pop("data_label")
+
+            for metric_info in table.get("metric_info_list") or []:
+                field_name: str = metric_info["field_name"]
+                if field_name in field_name_to_metric_info:
+                    # 指标已存在，合并标签
+                    field_name_to_tags[field_name].update(_to_tags(metric_info))
+                    continue
+
+                copy_metric_info: dict[str, Any] = copy.deepcopy(metric_info)
+                copy_metric_info["data_label"] = data_label
+                copy_metric_info["table_id"] = data_label
+                field_name_to_metric_info[field_name] = copy_metric_info
+                field_name_to_tags[field_name] = _to_tags(copy_metric_info)
+
+        apm_extra_tables: list[dict[str, Any]] = []
+        for field_name, metric_info in field_name_to_metric_info.items():
+            metric_info["tag_list"] = list(field_name_to_tags.get(field_name, []).values())
+            apm_extra_tables.append(
+                {
+                    "is_enable": True,
+                    "bk_data_id": 0,
+                    "time_series_group_id": 0,
+                    "time_series_group_name": "",
+                    "bk_biz_id": self.bk_biz_id,
+                    "table_id": metric_info["table_id"],
+                    "label": "apm",
+                    "data_label": metric_info.pop("data_label", ""),
+                    "metric_info_list": [metric_info],
+                }
+            )
+
+        return apm_extra_tables
 
     @staticmethod
     def process_logbeat_table(table: dict):
@@ -697,7 +742,9 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
             return
         else:
             yield from api.bkdata.list_result_table(
-                bk_biz_id=self.bk_biz_id, storages=["mysql", "tspider", "databus_tspider"]
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id=self.bk_biz_id,
+                storages=["mysql", "tspider", "databus_tspider"],
             )
 
     def get_metrics_by_table(self, table):
@@ -796,11 +843,11 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
 
         self.cluster_id_to_name = {
             cluster["cluster_config"]["cluster_id"]: cluster["cluster_config"]["cluster_name"]
-            for cluster in api.metadata.query_cluster_info(cluster_type="elasticsearch")
+            for cluster in api.metadata.query_cluster_info(bk_tenant_id=self.bk_tenant_id, cluster_type="elasticsearch")
         }
 
     def get_tables(self):
-        index_list = api.log_search.search_index_set(bk_biz_id=self.bk_biz_id)
+        index_list = api.log_search.search_index_set(bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id)
         for index_set_msg in index_list:
             index_set_msg["bk_biz_id"] = self.bk_biz_id
             if not index_set_msg["category_id"]:
@@ -849,7 +896,7 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
 
         try:
             fields_response = api.log_search.search_index_fields(
-                bk_biz_id=table["bk_biz_id"], index_set_id=table["index_set_id"]
+                bk_tenant_id=self.bk_tenant_id, bk_biz_id=table["bk_biz_id"], index_set_id=table["index_set_id"]
             )
         except BKAPIError:
             self.has_exception = True
@@ -867,7 +914,6 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
 
         # apm索引集仅同步日志关键字指标
         name = table["index_set_name"]
-        apm_index_set_prefix = [f"{self.bk_biz_id}_bkapm_trace_", f"bkapm_{self.bk_biz_id}_trace_"]
 
         # 获取维度列表
         dimension_list = []
@@ -885,7 +931,7 @@ class BkLogSearchCacheManager(BaseMetricCacheManager):
                 fields_msg["es_doc_values"]
                 and fields_msg.get("field_type") in TIME_SERIES_FIELD_TYPE
                 and fields_msg.get("field_name") not in LOG_SEARCH_DIMENSION_LIST
-            ) and not any([name.startswith(i) for i in apm_index_set_prefix]):
+            ) and APM_TRACE_TABLE_REGEX.match(name) is None:
                 create_data = {
                     "default_dimensions": [],
                     "default_condition": [],
@@ -1025,7 +1071,9 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         # 1.系统事件(biz_id为0)
         yield from self.get_system_event_tables(self.bk_tenant_id, self.bk_biz_id)
         # # 2.自定义事件[查询CustomEventGroup表]
-        custom_event_result = api.metadata.query_event_group.request.refresh(bk_biz_id=self.bk_biz_id)
+        custom_event_result = api.metadata.query_event_group.request.refresh(
+            bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id
+        )
         event_group_ids = [
             custom_event.bk_event_group_id
             for custom_event in CustomEventGroup.objects.filter(type="custom_event").only("bk_event_group_id")
@@ -1038,7 +1086,9 @@ class CustomEventCacheManager(BaseMetricCacheManager):
             space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
             if space_uid.startswith(SpaceTypeEnum.BKCI.value):
                 space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
-                custom_event_result += api.metadata.query_event_group.request.refresh(bk_biz_id=space.bk_biz_id)
+                custom_event_result += api.metadata.query_event_group.request.refresh(
+                    bk_tenant_id=self.bk_tenant_id, bk_biz_id=space.bk_biz_id
+                )
         # 3.k8s 事件
         # 1. 先拿业务下的集群列表
         # 区分 custom_event 和 k8s_event (来自metadata的设计)
@@ -1054,7 +1104,9 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         if not bcs_clusters:
             return
         # 启动监控的集群id 列表
-        alert_ids = api.kubernetes.fetch_bcs_cluster_alert_enabled_id_list(bk_biz_id=self.bk_biz_id)
+        alert_ids = api.kubernetes.fetch_bcs_cluster_alert_enabled_id_list(
+            bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id
+        )
         cluster_map = {bcs_cluster["cluster_id"]: bcs_cluster for bcs_cluster in bcs_clusters}
         for cluster_id in cluster_map:
             for result in custom_event_result:
@@ -1162,15 +1214,34 @@ class CustomEventCacheManager(BaseMetricCacheManager):
 
         # 新增整个事件源
         if table["event_group_id"] != 0:
+            dimensions_set = set()
+            dimensions_set.add("event_name")
+            dimensions_list = []
+            for event_info in table["event_info_list"]:
+                # 处理维度字段
+                if event_info.get("dimension_list"):
+                    dimensions_list.extend(event_info["dimension_list"])
+                # 处理条件字段
+                if event_info.get("condition_field_list"):
+                    dimensions_list.extend(event_info["condition_field_list"])
+
+            for dimension in dimensions_list:
+                # 限制最多100个唯一维度字段
+                if len(dimensions_set) >= 100:
+                    break
+                dimensions_set.add(dimension)
+
+            dimensions = [{"id": dimension, "name": dimension} for dimension in dimensions_set]
+
             metric_detail = {
                 "default_dimensions": [],
                 "default_condition": [],
                 # "__INDEX__" 表示整个事件源索引
                 "metric_field": "__INDEX__",
                 "metric_field_name": f"{table_display_name}({table['bk_data_id']})",
-                "dimensions": [{"id": "event_name", "name": "event_name"}],
+                "dimensions": dimensions,
                 "extend_fields": {
-                    # 全局自定义事件指标， 不预定义事件名称
+                    # 全局自定义事件指标，不预定义事件名称
                     "custom_event_name": "",
                     "bk_data_id": table["bk_data_id"],
                     "bk_event_group_id": table["event_group_id"],
@@ -1224,7 +1295,7 @@ class BkMonitorLogCacheManager(BaseMetricCacheManager):
     data_sources = ((DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),)
 
     def get_tables(self):
-        custom_event_result = api.metadata.query_event_group.request.refresh()
+        custom_event_result = api.metadata.query_event_group.request.refresh(bk_tenant_id=self.bk_tenant_id)
         logger.info(f"[QUERY_EVENT_GROUP] event_group_list length is {len(custom_event_result)}")
 
         self.event_group_id_to_event_info = {}
@@ -1440,15 +1511,15 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
     def get_metric_pool(self):
         # 去掉进程采集相关,因为实际是自定义指标上报上来的。
-        return (
-            MetricListCache.objects.filter(
-                data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
-                data_type_label=DataTypeLabel.TIME_SERIES,
-                bk_tenant_id=self.bk_tenant_id,
-            )
-            .exclude(result_table_id="")
-            .exclude(result_table_id__in=BuildInProcessMetric.result_table_list())
-        )
+        metric_queryset = MetricListCache.objects.filter(
+            data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
+            data_type_label=DataTypeLabel.TIME_SERIES,
+            bk_tenant_id=self.bk_tenant_id,
+        ).exclude(result_table_id="")
+
+        if not settings.ENABLE_MULTI_TENANT_MODE:
+            metric_queryset = metric_queryset.exclude(result_table_id__in=BuildInProcessMetric.result_table_list())
+        return metric_queryset
 
     def get_tables(self):
         """
@@ -1459,9 +1530,11 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
             yield {}
             return
         if self.bk_biz_id is None:
-            yield from api.metadata.list_monitor_result_table(with_option=False)
+            yield from api.metadata.list_monitor_result_table(bk_tenant_id=self.bk_tenant_id, with_option=False)
         else:
-            yield from api.metadata.list_monitor_result_table(bk_biz_id=self.bk_biz_id, with_option=False)
+            yield from api.metadata.list_monitor_result_table(
+                bk_biz_id=self.bk_biz_id, bk_tenant_id=self.bk_tenant_id, with_option=False
+            )
 
         plugin_data = (
             CollectorPluginMeta.objects.filter(bk_tenant_id=self.bk_tenant_id)
@@ -1474,8 +1547,13 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
             db_name_list = [f"{plugin[0]}_{plugin[1]}".lower() for plugin in plugin_data]
             for name in db_name_list:
                 # 插件默认都是全局数据
-                group_list = api.metadata.query_time_series_group.request.refresh(
+                group_list: list[dict[str, Any]] = api.metadata.query_time_series_group.request.refresh(
                     bk_tenant_id=self.bk_tenant_id, bk_biz_id=0, time_series_group_name=name
+                )
+                group_list.extend(
+                    api.metadata.query_time_series_group.request.refresh(
+                        bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id, time_series_group_name=name
+                    )
                 )
                 if not group_list:
                     continue
@@ -1706,7 +1784,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
                 for metric_info in metric_infos:
                     yield {
-                        "bk_biz_id": 0,
+                        "bk_biz_id": self.bk_biz_id,
                         "result_table_id": PluginVersionHistory.get_result_table_id(
                             plugin, table["table_name"]
                         ).lower(),
@@ -1938,7 +2016,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         """
         spaces: list[Space] = SpaceApi.list_spaces(bk_tenant_id=bk_tenant_id)
         # 默认只刷新bkcc业务，其他业务引导用户自行触发刷新
-        return [space.bk_biz_id for space in spaces if space.bk_biz_id > 0]
+        return [space.bk_biz_id for space in spaces if space.bk_biz_id > 0] + [0]
 
 
 class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
@@ -1982,7 +2060,8 @@ class BkmonitorK8sMetricCacheManager(BkmonitorMetricCacheManager):
             logger.exception("get k8s metrics error, bk_biz_id is None.")
         else:
             yield from self.get_k8s_metric(
-                api.metadata.query_bcs_metrics(bk_biz_ids=[self.bk_biz_id]), bk_biz_id=self.bk_biz_id
+                api.metadata.query_bcs_metrics(bk_biz_ids=[self.bk_biz_id], bk_tenant_id=self.bk_tenant_id),
+                bk_biz_id=self.bk_biz_id,
             )
 
     def get_k8s_metric(self, metrics, bk_biz_id):

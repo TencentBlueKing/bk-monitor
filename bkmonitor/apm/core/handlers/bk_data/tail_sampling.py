@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import os
 from json import JSONDecodeError
@@ -39,9 +39,7 @@ class TailSamplingFlow(ApmFlow):
     _STORAGE_REGISTRY_AREA_CODE = settings.APM_APP_BKDATA_STORAGE_REGISTRY_AREA_CODE
 
     def __init__(self, trace_datasource, config):
-        super(TailSamplingFlow, self).__init__(
-            trace_datasource.bk_biz_id, trace_datasource.app_name, trace_datasource.bk_data_id, config
-        )
+        super().__init__(trace_datasource.bk_biz_id, trace_datasource.app_name, trace_datasource.bk_data_id, config)
 
     @property
     def bkbase_project_id(self):
@@ -61,7 +59,7 @@ class TailSamplingFlow(ApmFlow):
 
     @property
     def cleans_names(self):
-        return f"bkapm_tail"
+        return "bkapm_tail"
 
     @property
     def cleans_fields(self):
@@ -209,7 +207,7 @@ class TailSamplingFlow(ApmFlow):
         获取尾部采样的ES存储信息 Flow中入库存储需要和应用绑定的APM存储一致
         """
         es_extra_data = {}
-        instance = TraceDataSource.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).first()
+        instance = TraceDataSource.objects.get(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
 
         # Step1: 获取应用的ES配置并对接入Bkbase
         # Res1: 获取Trace数据表名称
@@ -217,13 +215,16 @@ class TailSamplingFlow(ApmFlow):
         self.logger.info(f"es_extra_data collect, table_name: {es_extra_data['table_name']}")
 
         storage = instance.storage
+        if not storage:
+            raise ValueError(f"trace datasource {self.bk_biz_id} {self.app_name} not found storage")
+
         # Res2: 获取过期时间
         es_extra_data["retention"] = storage.retention
         self.logger.info(f"es_extra_data collect, retention: {es_extra_data['retention']}")
 
         # Res3: 获取bkdata集群
         all_resources = api.bkdata.query_resource_list()
-        cluster_info = ClusterInfo.objects.filter(cluster_id=storage.storage_cluster_id).first()
+        cluster_info = ClusterInfo.objects.get(bk_tenant_id=self.bk_tenant_id, cluster_id=storage.storage_cluster_id)
         bkdata_cluster_name = self._BKDATA_ES_CLUSTER_NAME_FORMAT.format(cluster_name=cluster_info.cluster_name)
         bkdata_cluster_id = self._BKDATA_ES_CLUSTER_ID_FORMAT.format(cluster_id=cluster_info.cluster_id)
 
@@ -248,7 +249,7 @@ class TailSamplingFlow(ApmFlow):
                 "geog_area_code": self._STORAGE_REGISTRY_AREA_CODE,
                 "category": "es",
                 "provider": "user",
-                "purpose": f"此集群由APM创建",
+                "purpose": "此集群由APM创建",
                 "share": False,
                 "admin": [settings.APM_APP_BKDATA_OPERATOR],
                 "tag": [],
@@ -305,7 +306,7 @@ class TailSamplingFlow(ApmFlow):
         self.logger.info(f"es_extra_data collect, cluster_name: {es_extra_data['cluster_name']}")
 
         # Step2: 获取计算节点代码
-        with open(self._FLINK_CODE_FILENAME, "r", encoding="utf-8") as f:
+        with open(self._FLINK_CODE_FILENAME, encoding="utf-8") as f:
             content = f.read()
 
-        return super(TailSamplingFlow, self).flow_instance(es_extra_data=es_extra_data, flink_code=content)
+        return super().flow_instance(es_extra_data=es_extra_data, flink_code=content)

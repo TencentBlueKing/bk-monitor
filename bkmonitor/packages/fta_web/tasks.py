@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import time
 
@@ -45,7 +45,7 @@ def run_init_builtin_action_config(bk_biz_id):
             QuickSolutionsConfig.QUICK_SOLUTIONS_TEMPLATE,
             QuickSolutionsConfig.IDLE_TEMPLATE,
         ]:
-            api.sops.import_project_template(project_id=bk_biz_id, template_data=template_data)
+            api.sops.import_project_template(bk_biz_id=bk_biz_id, project_id=bk_biz_id, template_data=template_data)
     except BaseException as error:
         logger.exception("[init_builtin_action_config(%s)] error: %s", bk_biz_id, str(error))
         return
@@ -93,9 +93,9 @@ def run_init_builtin_assign_group(bk_biz_id):
         user_groups=[user_group_id],
         actions=[
             {
-                'is_enabled': True,
-                'action_type': 'notice',
-                'upgrade_config': {'is_enabled': False, 'user_groups': [], 'upgrade_interval': 0},
+                "is_enabled": True,
+                "action_type": "notice",
+                "upgrade_config": {"is_enabled": False, "user_groups": [], "upgrade_interval": 0},
             }
         ],
         bk_biz_id=bk_biz_id,
@@ -110,7 +110,7 @@ def run_init_builtin_assign_group(bk_biz_id):
 
     third_alert_rule = {
         "assign_group_id": assign_group.id,
-        "conditions": [{'field': 'alert.event_source', 'value': ['bkmonitor'], 'method': 'neq', 'condition': 'and'}],
+        "conditions": [{"field": "alert.event_source", "value": ["bkmonitor"], "method": "neq", "condition": "and"}],
     }
     third_alert_rule.update(public_rule_info)
     AlertAssignRule.objects.create(**third_alert_rule)
@@ -121,8 +121,8 @@ def run_init_builtin_assign_group(bk_biz_id):
     empty_user_assign_rule = {
         "assign_group_id": empty_user_assign_group.id,
         "conditions": [
-            {'field': 'alert.event_source', 'value': ['bkmonitor'], 'method': 'eq', 'condition': 'and'},
-            {'field': 'is_empty_users', 'value': ['true'], 'method': 'eq', 'condition': 'and'},
+            {"field": "alert.event_source", "value": ["bkmonitor"], "method": "eq", "condition": "and"},
+            {"field": "is_empty_users", "value": ["true"], "method": "eq", "condition": "and"},
         ],
     }
     empty_user_assign_rule.update(public_rule_info)

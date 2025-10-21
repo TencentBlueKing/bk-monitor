@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -8,12 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import time
+from datetime import datetime, timedelta
 from enum import Enum
 
 from celery import shared_task
 from django.conf import settings
-from django.core.cache import caches
+from django.core.cache import caches, cache
 from django.db.models import Q
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
@@ -24,6 +26,9 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
 from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
+from apm_web.strategy.builtin.registry import BuiltinStrategyTemplateRegistry
+from apm_web.strategy.handler import StrategyTemplateHandler
+from monitor.models import GlobalConfig
 from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip, deserialize_and_decompress
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.tenant import set_local_tenant_id
@@ -259,3 +264,80 @@ def cache_application_scope_name():
             )
 
     logger.info("[CACHE_APPLICATION_SCOPE_NAME] task finished")
+
+
+@shared_task(ignore_result=True)
+def refresh_apm_app_state_snapshot():
+    all_data_status = {}
+    for application in Application.objects.filter(is_enabled=True).values(
+        "application_id",
+        "bk_biz_id",
+        "app_name",
+        "app_alias",
+        "trace_data_status",
+        "metric_data_status",
+        "log_data_status",
+        "profiling_data_status",
+    ):
+        data_status = {
+            "bk_biz_id": application["bk_biz_id"],
+            "app_name": application["app_name"],
+            "app_alias": application["app_alias"],
+            TelemetryDataType.TRACE.value: application["trace_data_status"],
+            TelemetryDataType.METRIC.value: application["metric_data_status"],
+            TelemetryDataType.LOG.value: application["log_data_status"],
+            TelemetryDataType.PROFILING.value: application["profiling_data_status"],
+        }
+        all_data_status[application["application_id"]] = data_status
+    key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=(datetime.now() - timedelta(days=1)).strftime("%Y%m%d"))
+    cache.set(key, json.dumps(all_data_status), 7 * 24 * 60 * 60)
+
+
+@shared_task(ignore_result=True)
+def auto_register_apm_builtin_strategy_template():
+    logger.info("[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] task start")
+
+    config_obj, _ = GlobalConfig.objects.get_or_create(key="apm_register_builtin_strategy_template_version")
+    current_version_map: dict[str, str] = config_obj.value if isinstance(config_obj.value, dict) else {}
+    applied_version_map: dict[str, str] = {}
+    for app in Application.objects.filter(is_enabled=True):
+        map_key = f"{app.bk_biz_id}-{app.app_name}"
+        current_version = current_version_map.get(map_key, "")
+        applied_version_map[map_key] = current_version
+        try:
+            if not BuiltinStrategyTemplateRegistry.is_need_register(current_version):
+                continue
+            BuiltinStrategyTemplateRegistry(app).register()
+            applied_version_map[map_key] = BuiltinStrategyTemplateRegistry.BUILTIN_STRATEGY_TEMPLATE_VERSION
+        except Exception as e:
+            logger.exception(
+                f"[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] apply failed: "
+                f"bk_biz_id={app.bk_biz_id}, app_name={app.app_name}, "
+                f"current_version={current_version}, "
+                f"expect_version={BuiltinStrategyTemplateRegistry.BUILTIN_STRATEGY_TEMPLATE_VERSION}, "
+                f"error_info => {e}"
+            )
+
+    config_obj.value = applied_version_map
+    config_obj.save()
+
+    logger.info("[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] task finished")
+
+
+@shared_task(ignore_result=True)
+def auto_apply_strategy_template():
+    logger.info("[AUTO_APPLY_STRATEGY_TEMPLATE] task start")
+
+    for application in Application.objects.filter(is_enabled=True).values("bk_biz_id", "app_name"):
+        bk_biz_id: int = application["bk_biz_id"]
+        app_name: str = application["app_name"]
+
+        try:
+            StrategyTemplateHandler.handle_auto_apply(bk_biz_id, app_name)
+        except Exception as e:
+            logger.exception(
+                f"[AUTO_APPLY_STRATEGY_TEMPLATE] auto apply strategy template failed: "
+                f"bk_biz_id={bk_biz_id}, app_name={app_name}, error_info => {e}"
+            )
+
+    logger.info("[AUTO_APPLY_STRATEGY_TEMPLATE] task finished")

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -27,6 +27,7 @@
 import { Component, Emit, Inject, InjectReactive, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import QuickAddStrategy from 'apm/pages/alarm-template/quick-add-strategy/quick-add-strategy';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
@@ -48,6 +49,7 @@ import { downFile, fitPosition, handleRelateAlert, reviewInterval } from '../../
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
+import CodeRedefineSlider from '../apm-service-caller-callee/components/code/code-redefine-slider';
 import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
@@ -98,6 +100,7 @@ class CallerLineChart extends CommonSimpleChart {
   @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
+  @InjectReactive({ from: 'variablesData', default: () => ({}) }) readonly variablesData!: Record<string, any>;
 
   @Ref('eventAnalyze') eventAnalyzeRef: HTMLDivElement;
 
@@ -135,6 +138,12 @@ class CallerLineChart extends CommonSimpleChart {
   eventColumns: Partial<EventTagColumn>[] = [];
   cacheEventConfig: Partial<EventTagConfig> = {};
 
+  codeRedefineShow = false;
+
+  quickAddStrategyObj = {
+    show: false,
+  };
+
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
   }
@@ -156,6 +165,11 @@ class CallerLineChart extends CommonSimpleChart {
   // title是否需要展示下拉框
   get enablePanelsSelector() {
     return !!this.panel.options?.enable_panels_selector;
+  }
+
+  // 是否需要返回码重定义功能
+  get isCodeRedefine() {
+    return this.panel.options?.is_code_redefine;
   }
 
   get curSelectPanel() {
@@ -980,13 +994,7 @@ class CallerLineChart extends CommonSimpleChart {
    * @return {*}
    */
   handleAllMetricClick() {
-    const configs = this.panel.toStrategy(null);
-    if (configs) {
-      this.handleAddStrategy(this.panel, null, {});
-      return;
-    }
-    const copyPanel = this.getCopyPanel();
-    this.handleAddStrategy(copyPanel as any, null, {}, true);
+    this.quickAddStrategyObj.show = true;
   }
 
   getTimeShiftCompareValue() {
@@ -1096,17 +1104,39 @@ class CallerLineChart extends CommonSimpleChart {
     const metricIds = this.metrics.map(item => item.metric_id);
     switch (alarmStatus.status) {
       case 0:
-        this.handleAddStrategy(this.panel, null, this.viewOptions, true);
+        this.handleAllMetricClick();
         break;
       case 1:
-        window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
+        window.open(
+          location.href.replace(
+            location.hash,
+            `#/strategy-config?filters=${encodeURIComponent(
+              JSON.stringify([
+                {
+                  key: 'metric_id',
+                  value: Array.from(new Set(metricIds)),
+                },
+                {
+                  key: 'label_name',
+                  value: this.getFetchItemStatusParams()
+                    ?.labels?.filter(item => item.includes('APM-SERVICE'))
+                    .map(item => `/${item}/`),
+                },
+              ])
+            )}`
+          )
+        );
         break;
       case 2: {
         const eventTargetStr = alarmStatus.targetStr;
         window.open(
           location.href.replace(
             location.hash,
-            `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
+            `#/event-center?queryString=${Array.from(new Set(metricIds))
+              .map(item => `metric : "${item}"`)
+              .join(' AND ')} AND ${this.getFetchItemStatusParams()
+              ?.labels?.map(item => `策略标签 : "${item}"`)
+              .join(' AND ')}${
               eventTargetStr ? ` AND ${eventTargetStr}` : ''
             }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
           )
@@ -1203,6 +1233,20 @@ class CallerLineChart extends CommonSimpleChart {
       message: success ? this.$t('保存成功') : this.$t('保存失败'),
     });
   }
+
+  handleQuickAddStrategyShowChange(v: boolean) {
+    this.quickAddStrategyObj.show = v;
+  }
+  /** 获取告警数据参数 */
+  getFetchItemStatusParams() {
+    return {
+      labels: [
+        `APM-APP(${this.viewOptions.filters?.app_name})`,
+        `APM-SERVICE(${this.viewOptions.filters?.service_name})`,
+      ],
+    };
+  }
+
   render() {
     return (
       <div
@@ -1215,6 +1259,7 @@ class CallerLineChart extends CommonSimpleChart {
           customArea={true}
           description={this.panel.description}
           dragging={this.panel.dragging}
+          getFetchItemStatusParams={this.getFetchItemStatusParams}
           isInstant={this.panel.instant}
           menuList={this.menuList as any}
           metrics={this.metrics}
@@ -1250,7 +1295,18 @@ class CallerLineChart extends CommonSimpleChart {
               <span>{this.panel.title}</span>
             )}
           </div>
-          <div>
+          <div style='display: flex;'>
+            {this.isCodeRedefine && (
+              <div
+                class='event-analyze tips-icon'
+                v-bk-tooltips={{ content: this.$t('返回码重定义') }}
+                onClick={() => {
+                  this.codeRedefineShow = true;
+                }}
+              >
+                <i class='icon-monitor icon-zhongdingyi' />
+              </div>
+            )}
             {typeof this.eventConfig.is_enabled_metric_tags !== 'undefined' && (
               <bk-popover
                 ref='eventAnalyze'
@@ -1392,6 +1448,27 @@ class CallerLineChart extends CommonSimpleChart {
           <CustomEventMenu
             eventItem={this.clickEventItem}
             position={this.customMenuPosition}
+          />
+        )}
+        <QuickAddStrategy
+          params={{
+            app_name: this.viewOptions.filters?.app_name,
+            service_name: this.viewOptions.filters?.service_name,
+          }}
+          show={this.quickAddStrategyObj.show}
+          onShowChange={this.handleQuickAddStrategyShowChange}
+        />
+        {this.isCodeRedefine && (
+          <CodeRedefineSlider
+            appName={this.viewOptions?.app_name}
+            callOptions={this.callOptions}
+            isShow={this.codeRedefineShow}
+            service={this.viewOptions?.service_name}
+            type={this.callOptions.kind}
+            variablesData={this.variablesData}
+            onShowChange={show => {
+              this.codeRedefineShow = show;
+            }}
           />
         )}
       </div>

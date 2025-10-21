@@ -48,7 +48,7 @@
   //   return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
   // });
   const indexSetName = computed(() => {
-    const indexSetList = store.state.retrieve.indexSetList || [];
+    const indexSetList = store.state.retrieve.flatIndexSetList || [];
     const indexSetId = store.state.indexId;
     const indexSet = indexSetList.find(item => item.index_set_id == indexSetId);
     return indexSet ? indexSet.index_set_name : ''; // 提供一个默认名称或处理
@@ -256,6 +256,7 @@
       index_set_ids: [],
       index_set_names: [],
       space_uid: spaceUid.value,
+      pid: store.state.indexItem.pid,
       ...searchParams,
     };
     if (indexSetItem.value.isUnionIndex) {
@@ -314,7 +315,7 @@
     verifyData.value.groupName = '';
     emit('instanceShow',false);
     nextTick(() => {
-      popoverContentRef.value?.clearError();
+      popoverContentRef.value?.clearError?.();
     });
   };
   // popover组件Ref

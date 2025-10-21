@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import os
 import shutil
@@ -34,7 +32,7 @@ class Command(BaseCommand):
     """
 
     def add_arguments(self, parser):
-        super(Command, self).add_arguments(parser)
+        super().add_arguments(parser)
         parser.add_argument("--bk_tenant_id", dest="bk_tenant_id", default=DEFAULT_TENANT_ID, help="bk_tenant_id")
         parser.add_argument("src_path", type=str, help="the source package path")
         parser.add_argument("--dest", dest="dest_path", default=".", help="package dest path")
@@ -60,9 +58,27 @@ class Command(BaseCommand):
         print("1/4 unzip package")
         with open(src_path, "rb") as tar_obj:
             with tarfile.open(fileobj=tar_obj, mode="r:gz") as tar:
-                print("Package unzip in tmp path: {}".format(tmp_dir))
-                tar.extractall(tmp_dir, filter='data')
-                filename_list = tar.getnames()
+                print(f"Package unzip in tmp path: {tmp_dir}")
+                filename_list = []
+                for member in tar.getmembers():
+                    # 只处理普通文件，避免符号链接等特殊文件类型带来的安全风险
+                    if not member.isreg():
+                        continue
+                    # 规范化路径并检查安全性，防止路径遍历攻击
+                    member_path = os.path.normpath(member.name)
+                    if member_path.startswith("..") or member_path.startswith("/"):
+                        continue
+                    # 通过TarInfo对象安全地提取文件内容
+                    with tar.extractfile(member) as f:
+                        target_path = os.path.join(tmp_dir, member_path)
+                        # 确保解压路径在预期的临时目录内
+                        if not os.path.realpath(target_path).startswith(os.path.realpath(tmp_dir)):
+                            continue
+                        # 确保目标目录存在
+                        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                        with open(target_path, "wb") as target_file:
+                            target_file.write(f.read())
+                    filename_list.append(member.name)
 
         # 2. 解析 meta.yaml
         print("2/4 parse meta.yaml")
@@ -82,7 +98,7 @@ class Command(BaseCommand):
         try:
             with open(meta_yaml_path) as f:
                 meta_content = f.read()
-        except IOError:
+        except OSError:
             raise PluginParseError({"msg": _("meta.yaml不存在，无法解析")})
 
         meta_dict = yaml.load(meta_content, Loader=yaml.FullLoader)
@@ -95,7 +111,7 @@ class Command(BaseCommand):
         else:
             raise PluginParseError({"msg": _("无法解析插件类型")})
 
-        print("Parse success. Plugin ID: {}, Plugin Type: {}".format(plugin_id, plugin_type))
+        print(f"Parse success. Plugin ID: {plugin_id}, Plugin Type: {plugin_type}")
 
         print("3/4 sign package")
         # 3. 根据插件包构造 db 条目，并执行签名
@@ -109,14 +125,12 @@ class Command(BaseCommand):
 
         # 4. 重新打包
         print(
-            "4/4 finish sign and make package: {}({}), version: {}.{}".format(
-                plugin_id, plugin_type, tmp_version.config_version, tmp_version.info_version
-            )
+            f"4/4 finish sign and make package: {plugin_id}({plugin_type}), version: {tmp_version.config_version}.{tmp_version.info_version}"
         )
         import_manager.make_package()
         package_path = os.path.join(import_manager.tmp_path, plugin_id + ".tgz")
-        dest = os.path.join(dest_path, "%s-official.tgz" % tmp_version)
+        dest = os.path.join(dest_path, f"{tmp_version}-official.tgz")
         shutil.copyfile(package_path, dest)
-        print("Package is saved in {}".format(dest))
+        print(f"Package is saved in {dest}")
         shutil.rmtree(import_manager.tmp_path)
         print("done!")

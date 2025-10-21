@@ -1,20 +1,19 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import copy
 import hashlib
 import json
 import logging
 from os import path
-from typing import Dict
 
 import requests
 from django.conf import settings
@@ -42,7 +41,7 @@ except Exception:
 logger = logging.getLogger("fta_action.run")
 
 
-class BaseSender(object):
+class BaseSender:
     """
     通知发送器
     """
@@ -60,7 +59,12 @@ class BaseSender(object):
     Utf8Encoding = "utf-8"
 
     def __init__(
-        self, context=None, title_template_path="", content_template_path="", notice_type=NoticeType.ALERT_NOTICE
+        self,
+        context=None,
+        title_template_path="",
+        content_template_path="",
+        notice_type=NoticeType.ALERT_NOTICE,
+        bk_tenant_id=None,
     ):
         """
         :param context: EventContext or dict
@@ -68,6 +72,7 @@ class BaseSender(object):
         :param content_template_path: 通知content的模板路径
         """
         self.context = context
+        self.bk_tenant_id = bk_tenant_id
         try:
             self.bk_biz_id = int(self.context.get("target").business.bk_biz_id)
         except Exception as error:
@@ -136,9 +141,9 @@ class BaseSender(object):
         try:
             get_template(lang_template_path)
         except TemplateDoesNotExist:
-            logger.info("use default template because language template file %s load fail" % lang_template_path)
+            logger.info(f"use default template because language template file {lang_template_path} load fail")
             return template_path
-        logger.info("use special language template %s for notice" % lang_template_path)
+        logger.info(f"use special language template {lang_template_path} for notice")
         return lang_template_path
 
     def get_context_dict(self):
@@ -161,7 +166,7 @@ class BaseSender(object):
         notice_result = {}
         message: str = api_result.get("message", "")
         msg_id = api_result.get("data", {}).get("msg_id")
-        message_details: Dict[str, str] = api_result.get("message_detail", {})
+        message_details: dict[str, str] = api_result.get("message_detail", {})
         if msg_id:
             # 记录msg_id信息
             message = f"{message} msg_id: {msg_id}"
@@ -202,11 +207,9 @@ class BaseSender(object):
         content_length = get_content_length(content, encoding)
         if content_limit and content_length > content_limit:
             content = cut_str_by_max_bytes(content, content_limit, encoding=encoding)
-            content = f"{content[:len(content) - 3]}..."
+            content = f"{content[: len(content) - 3]}..."
             logger.info(
-                "send.{}: \n actual content: {} \norigin content length({}) is bigger than ({})  ".format(
-                    notice_way, content, content_length, content_limit
-                )
+                f"send.{notice_way}: \n actual content: {content} \norigin content length({content_length}) is bigger than ({content_limit})  "
             )
         return content
 
@@ -311,6 +314,8 @@ class Sender(BaseSender):
             # 用白名单控制
             # 需要判断是否有通知人员，才进行通知发送
             api_result = api.cmsi.send_wecom_app(
+                bk_tenant_id=self.bk_tenant_id,
+                # 这里receiver 也是用户名
                 receiver=notice_receivers,
                 sender=sender_name,
                 content=self.content,
@@ -323,6 +328,7 @@ class Sender(BaseSender):
                 )
             )
             api_result = api.cmsi.send_weixin(
+                bk_tenant_id=self.bk_tenant_id,
                 receiver__username=",".join(notice_receivers),
                 heading=self.title,
                 message=self.content,
@@ -345,10 +351,15 @@ class Sender(BaseSender):
             "content": self.content,
             "is_content_base64": True,
         }
-        if self.context.get("is_external"):
+        # external_email: 邮件订阅支持直接外部邮件发送
+        # receiver 对应邮箱地址
+        # receiver__username 对应用户名, 使用这个字段，不需要关注用户敏感信息, 邮箱地址由邮件发送网关处理(esb[cmsi]/apigw[bk-cmsi])
+        if self.context.get("external_email"):
             params["receiver"] = ",".join(notice_receivers)
+            params.pop("receiver__username", None)
         else:
             params["receiver__username"] = ",".join(notice_receivers)
+            params.pop("receiver", None)
 
         # 添加附件参数
         if self.context.get("attachments"):
@@ -358,7 +369,7 @@ class Sender(BaseSender):
 
         logger.info("send.mail({}): \ntitle: {}".format(",".join(notice_receivers), self.title))
 
-        api_result = api.cmsi.send_mail(**params)
+        api_result = api.cmsi.send_mail(bk_tenant_id=self.bk_tenant_id, **params)
         return self.handle_api_result(api_result, notice_receivers)
 
     def send_sms(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
@@ -377,6 +388,7 @@ class Sender(BaseSender):
         )
         self.content = self.get_notice_content(NoticeWay.SMS, self.content)
         api_result = api.cmsi.send_sms(
+            bk_tenant_id=self.bk_tenant_id,
             receiver__username=",".join(notice_receivers),
             content=self.content,
             is_content_base64=True,
@@ -397,12 +409,11 @@ class Sender(BaseSender):
         message = _("发送成功")
         notice_receivers = ",".join(notice_receivers)
 
-        logger.info(
-            "send.voice({}): \ncontent: {}, \n action_plugin {}".format(notice_receivers, self.content, action_plugin)
-        )
+        logger.info(f"send.voice({notice_receivers}): \ncontent: {self.content}, \n action_plugin {action_plugin}")
 
         try:
             msg_result = api.cmsi.send_voice(
+                bk_tenant_id=self.bk_tenant_id,
                 receiver__username=notice_receivers,
                 auto_read_message=self.content,
             )
@@ -413,7 +424,7 @@ class Sender(BaseSender):
         except Exception as e:
             result = False
             message = str(e)
-            logger.exception("send.voice failed, {}".format(e))
+            logger.exception(f"send.voice failed, {e}")
 
         notice_result[notice_receivers] = {"message": message, "result": result}
         return notice_result
@@ -546,7 +557,7 @@ class Sender(BaseSender):
         except Exception as e:
             result = False
             message = str(e)
-            logger.exception("send.wxwork_group failed, {}".format(e))
+            logger.exception(f"send.wxwork_group failed, {e}")
 
         if action_plugin == ActionPluginType.NOTICE and settings.WXWORK_BOT_SEND_IMAGE:
             # 只有告警通知才发送图片，执行不做图片发送
@@ -564,7 +575,7 @@ class Sender(BaseSender):
                         )
                     )
             except Exception as e:
-                logger.exception("send.wxwork_group image failed, {}".format(e))
+                logger.exception(f"send.wxwork_group image failed, {e}")
 
         return finish_send_wxork_bot(message, result)
 
@@ -607,7 +618,7 @@ class Sender(BaseSender):
         if sender:
             msg_data.update({"sender": sender})
 
-        api_result = api.cmsi.send_msg(**msg_data)
+        api_result = api.cmsi.send_msg(bk_tenant_id=self.bk_tenant_id, **msg_data)
         return self.handle_api_result(api_result, notice_receivers)
 
 
@@ -643,7 +654,7 @@ class ChannelBkchatSender(BaseSender):
 
     def send_mail(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
         """
-        发送邮件通知
+        通过 bkchat 发送邮件通知
         :return: {
             "1": {"result": true, "message": "OK"},
             "2": {"result": false, "message": "发送失败"}
@@ -703,7 +714,7 @@ class ChannelBkchatSender(BaseSender):
 
         msg_param = {
             "keyword1": {
-                "value": "{level_name}({alert_id})".format(level_name=_(alarm.level_name), alert_id=alarm.id),
+                "value": f"{_(alarm.level_name)}({alarm.id})",
                 "color": "#7092ed",
             },
             "keyword2": {"value": alarm.description, "color": "#173177"},

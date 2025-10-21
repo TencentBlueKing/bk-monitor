@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -17,13 +17,16 @@ import os
 import shutil
 import tarfile
 import uuid
+import zipfile
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from uuid import uuid4
 
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db.models import Q
+from django.db.models.fields.files import FieldFile
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
@@ -48,6 +51,7 @@ from monitor_web.commons.file_manager import ExportImportManager
 from monitor_web.commons.report.resources import send_frontend_report_event
 from monitor_web.export_import.constant import (
     DIRECTORY_LIST,
+    ConfigDirectoryName,
     ConfigType,
     ImportDetailStatus,
     ImportHistoryStatus,
@@ -686,36 +690,12 @@ class UploadPackageResource(Resource):
     class RequestSerializer(serializers.Serializer):
         file_data = serializers.FileField(required=True, label="文件内容")
 
-    def un_tar_package(self):
-        file_instance = self.file_manager.file_obj
-        t = None
-        try:
-            t = tarfile.open(fileobj=file_instance.file_data.file)
-            t.extractall(path=self.parse_path, filter="data")
-        except Exception as e:
-            logger.exception(f"压缩包解压失败: {e}")
-            raise UploadPackageError(
-                {"msg": _("导入文件格式不正确，需要是.tar.gz/.tgz/.tar.bz2/.tbz2等后缀(gzip或bzip2压缩)")}
+    def parse_collect_config(self, collect_configs: dict[Path, dict], plugin_configs: dict[Path, bytes]):
+        for file_path, file_content in collect_configs.items():
+            parse_manager = CollectConfigParse(
+                file_path=file_path, file_content=file_content, plugin_configs=plugin_configs
             )
-        finally:
-            if t is not None:
-                t.close()
-        if not any(list([x in os.listdir(self.parse_path) for x in DIRECTORY_LIST])):
-            raise UploadPackageError({"msg": _("导入包目录结构不对")})
-
-    def parse_collect_config(self):
-        collect_config_dir = os.path.join(self.parse_path, "collect_config_directory")
-        if not os.path.exists(collect_config_dir):
-            return
-
-        collect_filenames = os.listdir(collect_config_dir)
-        for filename in collect_filenames:
-            # 避免用户通过ide编辑配置，遗留ide缓存文件
-            if filename.startswith("."):
-                logger.info(f"collect_config parse ignore: {filename}")
-                continue
-            parse_manager = CollectConfigParse(file_path=os.path.join(collect_config_dir, filename))
-            parse_result = parse_manager.parse_msg()
+            parse_result = parse_manager.check_msg()
 
             if parse_result["file_status"] == ImportDetailStatus.SUCCESS:
                 ImportParse.objects.create(
@@ -757,23 +737,19 @@ class UploadPackageResource(Resource):
                     file_id=self.file_id,
                 )
 
-    def parse_strategy_config(self):
-        strategy_config_dir = os.path.join(self.parse_path, "strategy_config_directory")
-        if not os.path.exists(strategy_config_dir):
-            return
+    def parse_strategy_config(self, strategy_configs: dict):
+        for file_path, file_content in strategy_configs.items():
+            import_collect_configs = ImportParse.objects.filter(
+                type=ConfigType.COLLECT, file_id=self.file_id, file_status=ImportDetailStatus.SUCCESS
+            )
+            import_collect_config_ids = [
+                collect_config_msg.config["id"] for collect_config_msg in import_collect_configs
+            ]
 
-        strategy_filenames = os.listdir(strategy_config_dir)
-        import_collect_configs = ImportParse.objects.filter(
-            type=ConfigType.COLLECT, file_id=self.file_id, file_status=ImportDetailStatus.SUCCESS
-        )
-        import_collect_config_ids = [collect_config_msg.config["id"] for collect_config_msg in import_collect_configs]
-        for filename in strategy_filenames:
-            # 避免用户通过ide编辑配置，遗留ide缓存文件
-            if filename.startswith("."):
-                logger.info(f"strategy parse ignore: {filename}")
-                continue
-            parse_manager = StrategyConfigParse(file_path=os.path.join(strategy_config_dir, filename))
-            parse_result, bk_collect_config_ids = parse_manager.parse_msg()
+            # 常规对单个文件的处理
+            parse_manager = StrategyConfigParse(file_path=file_path)
+            parse_manager.file_content = file_content
+            parse_result, bk_collect_config_ids = parse_manager.check_msg()
 
             if not set(bk_collect_config_ids).issubset(set(import_collect_config_ids)):
                 parse_result.update({"file_status": ImportDetailStatus.FAILED, "error_msg": _("关联采集配置未发现")})
@@ -789,19 +765,10 @@ class UploadPackageResource(Resource):
                 file_id=self.file_id,
             )
 
-    def parse_view_config(self):
-        view_config_dir = os.path.join(self.parse_path, "view_config_directory")
-        if not os.path.exists(view_config_dir):
-            return
-
-        dashboard_filenames = os.listdir(view_config_dir)
-        for filename in dashboard_filenames:
-            # 避免用户通过ide编辑配置，遗留ide缓存文件
-            if filename.startswith("."):
-                logger.info(f"view parse ignore: {filename}")
-                continue
-            parse_manager = ViewConfigParse(file_path=os.path.join(view_config_dir, filename))
-            parse_result = parse_manager.parse_msg()
+    def parse_view_config(self, view_configs: dict):
+        for file_path, file_content in view_configs.items():
+            parse_manager = ViewConfigParse(file_path=file_path, file_content=file_content)
+            parse_result = parse_manager.check_msg()
 
             ImportParse.objects.create(
                 name=parse_result["name"],
@@ -814,10 +781,75 @@ class UploadPackageResource(Resource):
                 file_id=self.file_id,
             )
 
-    def parse_package(self):
-        self.parse_collect_config()
-        self.parse_strategy_config()
-        self.parse_view_config()
+    def parse_package(self, file_path_content_map: dict[str, bytes]):
+        # 区分成四个配置目录
+        # 并且去掉最外层配置类型的文件夹
+        collect_configs: dict[Path, dict] = {}
+        plugin_configs: dict[Path, bytes] = {}
+        strategy_configs: dict[Path, dict] = {}
+        view_configs: dict[Path, dict] = {}
+        for file_path, content in file_path_content_map.items():
+            config_directory_name = Path(file_path).parts[0]
+            file_path = Path(Path(file_path).relative_to(config_directory_name))
+
+            # 过滤 dotfiles
+            if file_path.name.startswith("."):
+                continue
+            match config_directory_name:
+                case ConfigDirectoryName.collect:
+                    if file_path.name.endswith(".json"):
+                        collect_configs[file_path] = json.loads(content.decode("utf-8"))
+                case ConfigDirectoryName.strategy:
+                    if file_path.name.endswith(".json"):
+                        strategy_configs[file_path] = json.loads(content.decode("utf-8"))
+                case ConfigDirectoryName.view:
+                    if file_path.name.endswith(".json"):
+                        view_configs[file_path] = json.loads(content.decode("utf-8"))
+                case ConfigDirectoryName.plugin:
+                    # 因为插件文件含更多不同类型的文件，
+                    # 所以不做特定类型解析
+                    plugin_configs[file_path] = content
+                case _:
+                    pass
+
+        self.parse_collect_config(collect_configs, plugin_configs)
+        self.parse_strategy_config(strategy_configs)
+        self.parse_view_config(view_configs)
+
+    @classmethod
+    def parse_package_without_decompress(cls, file: FieldFile) -> dict[str, bytes]:
+        """
+        针对zip 和tar相关的压缩包进行处理
+        """
+
+        # 解压到内存中，获取文件的路径已经对应的内容
+        file_path_content_map: dict[str, bytes] = {}
+        if file.name.endswith(".zip"):
+            with zipfile.ZipFile(file.file, "r") as package_file:
+                for file_info in package_file.infolist():
+                    with package_file.open(file_info) as f:
+                        file_path_content_map[file_info.filename] = f.read()
+        else:
+            with tarfile.open(fileobj=file.file) as package_file:
+                for member in package_file.getmembers():
+                    # 取代 tarfile.extractall 的 filter="data"
+                    if not member.isreg():
+                        continue
+                    with package_file.extractfile(member) as f:
+                        file_path_content_map[member.name] = f.read()
+
+        # 校验包目录结构
+        if not any(
+            list(
+                [
+                    x in list(set(filepath.split("/")[0] for filepath in file_path_content_map.keys()))
+                    for x in DIRECTORY_LIST
+                ]
+            )
+        ):
+            raise UploadPackageError({"msg": _("导入包目录结构不对")})
+
+        return file_path_content_map
 
     def handle_return_data(self, model_obj):
         if model_obj.type == ConfigType.VIEW:
@@ -857,11 +889,11 @@ class UploadPackageResource(Resource):
             validated_request_data.setdefault("file_name", file_name)
             self.file_manager = ExportImportManager.save_file(**validated_request_data)
             self.file_id = self.file_manager.file_obj.id
+
             if self.file_id not in upload_file_ids:
-                # 解压导入的文件包
-                self.un_tar_package()
-                # 解析插件包
-                self.parse_package()
+                file = self.file_manager.file_obj.file_data
+                file_path_content_map: dict[str, bytes] = self.parse_package_without_decompress(file)
+                self.parse_package(file_path_content_map)
 
             config_list = list(map(self.handle_return_data, ImportParse.objects.filter(file_id=self.file_id)))
             return {
@@ -903,6 +935,7 @@ class ImportConfigResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         uuid_list = serializers.ListField(required=True, label="配置的uuid")
         import_history_id = serializers.IntegerField(required=False, label="导入历史ID")
+        folder_id = serializers.IntegerField(required=False, label="目标目录ID", default=0)
         # 覆盖模式下，如果存在同名的策略、告警组、处理套餐将会被覆盖。
         # 非覆盖模式下，如果存在同名的策略、告警组、处理套餐，将会给名称加上"_clone"后缀，然后新建。
         is_overwrite_mode = serializers.BooleanField(
@@ -971,7 +1004,8 @@ class ImportConfigResource(Resource):
                 collect_config_list,
                 strategy_config_list,
                 view_config_list,
-                validated_request_data["is_overwrite_mode"],
+                folder_id=validated_request_data["folder_id"],
+                is_overwrite_mode=validated_request_data["is_overwrite_mode"],
             )
 
             # 执行导入的配置和导入历史状态置为importing

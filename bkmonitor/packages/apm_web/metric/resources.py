@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -94,7 +94,7 @@ from bkmonitor.utils.time_tools import (
     parse_time_compare_abbreviation,
 )
 from constants.apm import (
-    ApmMetrics,
+    TraceMetric,
     MetricTemporality,
     OtlpKey,
     SpanKindCachedEnum,
@@ -519,6 +519,9 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
             query_config["table"] = result["table_id"]
             query_config["metrics"][0]["field"] = result["metric"]
 
+            # 去掉可能存在的 data_label
+            query_config.pop("data_label", None)
+
         if is_pre_cal_hit and not is_time_shift_exists:
             query_params["start_time"], query_params["end_time"] = helper.adjust_time_range(
                 query_params["start_time"], query_params["end_time"]
@@ -704,24 +707,25 @@ class ServiceListResource(PageListResource):
                 asyncable=True,
                 min_width=160,
             ),
-            NumberTableFormat(
-                id="p50",
-                name=_lazy("P50"),
-                checked=True,
-                unit="ns",
-                decimal=2,
-                asyncable=True,
-                width=80,
-            ),
-            NumberTableFormat(
-                id="p90",
-                name=_lazy("P90"),
-                checked=True,
-                unit="ns",
-                decimal=2,
-                asyncable=True,
-                width=80,
-            ),
+            # 2025-10-13 临时去掉 bk_apm_duration_bucket 指标，以及页面对应的pXX展示，待新方案上线后再放开，预计半年后
+            # NumberTableFormat(
+            #     id="p50",
+            #     name=_lazy("P50"),
+            #     checked=True,
+            #     unit="ns",
+            #     decimal=2,
+            #     asyncable=True,
+            #     width=80,
+            # ),
+            # NumberTableFormat(
+            #     id="p90",
+            #     name=_lazy("P90"),
+            #     checked=True,
+            #     unit="ns",
+            #     decimal=2,
+            #     asyncable=True,
+            #     width=80,
+            # ),
             # 四个数据状态 ↓
             DataStatusTableFormat(
                 id="metric_data_status",
@@ -1330,7 +1334,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             "conditions": [
                 {
                     "key": "metric_id",
-                    "value": [f"custom.{application.metric_result_table_id}.{m}" for m, _, _ in ApmMetrics.all()],
+                    "value": [f"custom.{application.metric_result_table_id}.{m}" for m in TraceMetric.all()],
                 }
             ],
             "page": 0,
@@ -3447,9 +3451,6 @@ class CalculateByRangeResource(Resource, RecordHelperMixin, PreCalculateHelperMi
                 temporality = serializers.ChoiceField(
                     label="时间性", required=True, choices=MetricTemporality.choices()
                 )
-                ret_code_as_exception = serializers.BooleanField(
-                    label="非 0 返回码是否当成异常", required=False, default=False
-                )
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)
 
@@ -3630,9 +3631,6 @@ class QueryDimensionsByLimitResource(Resource, RecordHelperMixin, PreCalculateHe
                 )
                 temporality = serializers.ChoiceField(
                     label="时间性", required=True, choices=MetricTemporality.choices()
-                )
-                ret_code_as_exception = serializers.BooleanField(
-                    label="非 0 返回码是否当成异常", required=False, default=False
                 )
 
             trpc = TrpcSerializer(label="tRPC 配置", required=False)

@@ -24,9 +24,16 @@
  * IN THE SOFTWARE.
  */
 export default class StaticUtil {
-  static getRegExp(reg: RegExp | boolean | number | string, defaultFlags = '', fullMatch = false): RegExp {
+  static getRegExp(
+    reg: RegExp | boolean | number | string,
+    defaultFlags = '',
+    fullMatch = false,
+    formatRegStr = true,
+  ): RegExp {
     // 如果已经是 RegExp 对象，直接返回
-    if (reg instanceof RegExp) return reg;
+    if (reg instanceof RegExp) {
+      return reg;
+    }
 
     const regString = String(reg).trim();
 
@@ -39,7 +46,7 @@ export default class StaticUtil {
 
       // 如果 flags 中包含非法字符，直接将整个字符串作为普通字符串处理
       if (!/^[gimsuy]*$/.test(flags)) {
-        const formatRegString = regString.replace(/([.*+?^${}()|[\]\\])/g, '\\$1');
+        const formatRegString = formatRegStr ? regString.replace(/([.*+?^${}()|[\]\\])/g, '\\$1') : regString;
         const wrapperReg = fullMatch ? `^${formatRegString}$` : formatRegString;
         return new RegExp(wrapperReg, defaultFlags); // 转义特殊字符
       }
@@ -54,7 +61,7 @@ export default class StaticUtil {
 
     // 如果不是标准正则表达式字符串，将字符串作为整体处理
     try {
-      const formatRegString = regString.replace(/([.*+?^${}()|[\]\\])/g, '\\$1');
+      const formatRegString = formatRegStr ? regString.replace(/([.*+?^${}()|[\]\\])/g, '\\$1') : regString;
       const wrapperReg = fullMatch ? `^${formatRegString}$` : formatRegString;
       return new RegExp(wrapperReg, defaultFlags); // 转义特殊字符
     } catch (error) {
