@@ -1,0 +1,122 @@
+.dashboard-dialog {
+  height: 500px;
+  padding-bottom: 28px;
+  overflow-y: auto;
+
+  :deep(.bk-dialog-wrapper .bk-dialog-header) {
+    padding: 3px 24px 14px;
+  }
+q
+  :deep(.bk-dialog-wrapper) {
+    .bk-dialog-body {
+      max-height: calc(100vh - 400px);
+      overflow-y: auto;
+    }
+  }
+
+  .dashboard-group {
+    display: flex;
+    flex-direction: column;
+    min-height: 42px;
+    color: #313238;
+    border-bottom: 1px solid #f0f1f5;
+
+    &-title {
+      display: flex;
+      align-items: center;
+      height: 42px;
+      cursor: pointer;
+
+      .file-icon {
+        margin: 0 12px 0 2px;
+        font-size: 18px;
+        color: #a3c5fd;
+      }
+    }
+
+    &-child {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding: 0 10px;
+      margin: 0 0 2px 32px;
+      color: #63656e;
+      background: #f5f6fa;
+      border-radius: 2px;
+
+      .group-child-name {
+        flex: 1;
+      }
+
+      .icon-check-1 {
+        font-size: 24px;
+        color: #3a84ff;
+      }
+
+      &:nth-last-child(1) {
+        margin-bottom: 11px;
+      }
+
+      &:hover {
+        cursor: pointer;
+        background: #e1ecff;
+      }
+    }
+
+    .dashboard-active {
+      background: #e1ecff;
+    }
+  }
+
+  .add-new {
+    display: flex;
+    align-items: center;
+    padding-left: 4px;
+    color: #3a84ff;
+    border-bottom: 1px solid #f0f1f5;
+
+    .icon-mc-add {
+      font-size: 24px;
+    }
+  }
+
+  .add-row-input {
+    display: flex;
+    align-items: center;
+
+    .input-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 32px;
+      height: 32px;
+      margin-left: 2px;
+      font-size: 24px;
+      background: #fff;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+
+      &:hover {
+        color: #3a84ff;
+        cursor: pointer;
+        background: rgba(58, 132, 255, 0.06);
+        border-color: #3a84ff;
+      }
+    }
+  }
+
+  .group-input {
+    height: 42px;
+    border-bottom: 1px solid #f0f1f5;
+
+    :deep(.bk-form-control) .control-icon {
+      color: #979ba5;
+    }
+  }
+
+  .dashboard-input {
+    margin-bottom: 2px;
+    margin-left: 32px;
+    background: #f5f6fa;
+  }
+}
