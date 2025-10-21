@@ -373,7 +373,7 @@ export default defineComponent({
             <bk-table-column
               label={t('创建人')}
               renderHeader={renderHeader}
-              scopedSlots={{ default: (props: any) => props.row.creator }}
+              scopedSlots={{ default: (props: any) => <bk-user-display-name user-id={props.row.creator}></bk-user-display-name> }}
             />
             <bk-table-column
               label={t('创建时间')}

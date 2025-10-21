@@ -117,6 +117,9 @@
         min-width="80"
         prop="created_by"
       >
+      <template #default="{ row }">
+        <bk-user-display-name :user-id="row.created_by"></bk-user-display-name>
+      </template>
       </bk-table-column>
       <bk-table-column
         :label="$t('操作')"

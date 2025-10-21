@@ -59,7 +59,9 @@
             {{ categoryMap[indexSetData.category_id] || '--' }}
           </dd>
           <dt class="description-term">{{ $t('创建人') }}</dt>
-          <dd class="description-definition">{{ indexSetData.created_by || '--' }}</dd>
+          <dd class="description-definition">
+            <bk-user-display-name :user-id="indexSetData.created_by"></bk-user-display-name>
+          </dd>
         </div>
         <div class="description-row">
           <dt class="description-term">{{ $t('数据源') }}</dt>

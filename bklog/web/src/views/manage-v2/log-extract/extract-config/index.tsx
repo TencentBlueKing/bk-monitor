@@ -419,6 +419,7 @@ export default defineComponent({
             min-width='80'
             prop='created_by'
             renderHeader={renderHeader}
+            scopedSlots={{ default: (props: any) => <bk-user-display-name user-id={props.row.created_by}></bk-user-display-name> }}
           />
 
           {/* 操作列 */}
