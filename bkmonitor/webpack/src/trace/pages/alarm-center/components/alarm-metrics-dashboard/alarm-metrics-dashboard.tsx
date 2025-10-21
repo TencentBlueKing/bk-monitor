@@ -25,32 +25,51 @@
  */
 import { type PropType, computed, defineComponent } from 'vue';
 
-import AIFavicon from '../../../../static/img/failure/AI.png';
+import ChartCollapse from '../../../trace-explore/components/explore-chart/chart-collapse';
+import ExploreChart from '../../../trace-explore/components/explore-chart/explore-chart';
 
-import './ai-highlight-card.scss';
+import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
+
+import './alarm-metrics-dashboard.scss';
 
 export default defineComponent({
-  name: 'AiHighlightCard',
+  name: 'AlarmMetricsDashboard',
   props: {
-    /** Ai 高亮提示块组件标题 */
-    title: {
+    /** 仪表板标题 */
+    dashboardTitle: {
       type: String,
     },
-    /** Ai 高亮提示块组件内容 */
-    content: {
-      type: [String, Object] as PropType<string | unknown>,
+    /** 仪表板面板内图表配置列表 */
+    panelModels: {
+      type: Array as PropType<PanelModel[]>,
+      default: () => [],
     },
-    /** Ai 高亮提示块组件图标大小 */
-    faviconSize: {
+    /** 请求图表数据时参数 */
+    params: {
+      type: Object as PropType<Record<string, any>>,
+      default: () => ({}),
+    },
+    /** 仪表板面板每行显示的图表列数 */
+    gridCol: {
       type: Number,
-      default: 20,
+      default: 2,
+    },
+    /** 初始化时折叠面板默认是否展开状态 */
+    defaultIsExpand: {
+      type: Boolean,
+      default: true,
+    },
+    /** 折叠收起时需要展示内容的高度 */
+    collapseShowHeight: {
+      type: Number,
+      default: 36,
     },
   },
   setup(props) {
     /** css 变量 */
     const cssVars = computed(() => ({
-      /** Ai 高亮提示块组件图标大小 */
-      '--ai-favicon-size': `${props.faviconSize}px`,
+      /** 仪表板面板每行显示的图表列数 */
+      '--dashboard-grid-col': props.gridCol,
     }));
     return {
       cssVars,
@@ -60,18 +79,27 @@ export default defineComponent({
     return (
       <div
         style={this.cssVars}
-        class='ai-highlight-card'
+        class='alarm-metrics-dashboard'
       >
-        <div class='ai-highlight-card-header'>
-          <div class='ai-favicon'>
-            <img
-              alt='ai-favicon'
-              src={AIFavicon}
-            />
+        <ChartCollapse
+          class='alarm-metrics-dashboard-collapse'
+          collapseShowHeight={24}
+          defaultHeight={0}
+          description={`(${this.panelModels?.length})`}
+          hasResize={false}
+          title={this.dashboardTitle}
+        >
+          <div class='alarm-metrics-chart-container'>
+            {this.panelModels.map(panel => (
+              <ExploreChart
+                key={panel.id}
+                panel={panel}
+                params={this.params}
+                // onDataZoomChange={this.handleDataZoomChange}
+              />
+            ))}
           </div>
-          <div class='ai-highlight-card-header-title'>{this.$slots?.title?.(this.title) ?? this.title}</div>
-        </div>
-        <div class='ai-highlight-card-main'>{this.$slots?.content?.(this.content) ?? this.content}</div>
+        </ChartCollapse>
       </div>
     );
   },

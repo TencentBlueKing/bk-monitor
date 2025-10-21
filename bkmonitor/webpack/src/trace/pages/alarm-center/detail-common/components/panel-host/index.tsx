@@ -25,7 +25,8 @@
  */
 import { type PropType, defineComponent } from 'vue';
 
-import AiHighlightCard from '@/pages/alarm-center/components/ai-highlight-card/ai-highlight-card';
+import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
+import PanelHostDashboard from './components/host-dashboard/panel-host-dashboard';
 
 import './index.scss';
 
@@ -53,7 +54,9 @@ export default defineComponent({
             title={`${window.i18n.t('AI 分析结论')}：`}
           />
         </div>
-        <div class='panel-host-chart-warp'>chart-wrapper</div>
+        <div class='panel-host-chart-wrap'>
+          <PanelHostDashboard />
+        </div>
       </div>
     );
   },
