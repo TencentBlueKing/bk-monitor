@@ -37,12 +37,11 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFor
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { useChartTooltips } from './use-chart-tooltips';
-import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import { useTraceExploreStore } from '@/store/modules/explore';
 
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
 import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { random } from 'monitor-common/utils';
 
 export const useEcharts = (
   panel: MaybeRef<PanelModel>,
@@ -51,6 +50,8 @@ export const useEcharts = (
   params: MaybeRef<Record<string, any>>,
   formatterSeriesData = res => res
 ) => {
+  /** 图表id，每次重新请求会修改该值 */
+  const chartId = shallowRef(random(8))
   const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
   const refreshImmediate = inject('refreshImmediate');
 
@@ -79,18 +80,18 @@ export const useEcharts = (
     const [startTime, endTime] = handleTransformToTimestamp(get(timeRange));
     const promiseList = get(panel).targets.map(target => {
       return $api[target.apiModule]
-        [target.apiFunc](
-          {
-            ...target.data,
-            ...get(params),
-            start_time: startTime,
-            end_time: endTime,
-          },
-          {
-            cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
-            needMessage: false,
-          }
-        )
+      [target.apiFunc](
+        {
+          ...target.data,
+          ...get(params),
+          start_time: startTime,
+          end_time: endTime,
+        },
+        {
+          cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
+          needMessage: false,
+        }
+      )
         .then(res => {
           const { series, metrics, query_config } = formatterSeriesData(res);
           for (const metric of metrics) {
@@ -101,11 +102,11 @@ export const useEcharts = (
           targets.value.push({ ...target, data: query_config });
           return series?.length
             ? series.map(item => ({
-                ...item,
-                alias: target.alias || item.alias,
-                type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
-                stack: target.data?.stack || item.stack,
-              }))
+              ...item,
+              alias: target.alias || item.alias,
+              type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
+              stack: target.data?.stack || item.stack,
+            }))
             : [];
         })
         .catch(() => []);
@@ -404,6 +405,7 @@ export const useEcharts = (
     async () => {
       loading.value = true;
       options.value = await getEchartOptions();
+      chartId.value = random(8);
       loading.value = false;
     },
     {
@@ -418,6 +420,7 @@ export const useEcharts = (
     queryConfigs,
     duration,
     series,
+    chartId,
     getEchartOptions,
   };
 };

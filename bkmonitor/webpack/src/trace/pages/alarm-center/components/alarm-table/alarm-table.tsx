@@ -98,8 +98,10 @@ export default defineComponent({
     displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
+    showAlertDetail: (item: string) => typeof item === 'string',
+    showActionDetail: (item: string) =>  typeof item === 'string',
   },
-  setup(props) {
+  setup(props, { emit }) {
     // const alarmStore = useAlarmCenterStore();
     const router = useRouter();
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
@@ -211,14 +213,14 @@ export default defineComponent({
      * @description: 展示 告警 详情抽屉
      */
     function handleAlertSliderShowDetail(id: string) {
-      alert(`展示 告警 ${id}的详情抽屉窗`);
+      emit('showAlertDetail', id);
     }
 
     /**
      * @description: 展示 处理记录 详情抽屉
      */
-    function handleActionSliderShowDetail(id: number | string) {
-      alert(`展示 处理记录 ${id}的详情抽屉窗`);
+    function handleActionSliderShowDetail(id: string) {
+      emit('showActionDetail', id);
     }
 
     /**

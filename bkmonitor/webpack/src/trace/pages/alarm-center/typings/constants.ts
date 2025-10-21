@@ -51,22 +51,27 @@ export const AlarmStatusIconMap = {
   ABNORMAL: {
     icon: 'icon-mind-fill',
     iconColor: '#F59789',
+    name: window.i18n.t('未恢复'),
   },
   NOT_SHIELDED_ABNORMAL: {
     icon: 'icon-mind-fill',
     iconColor: '#F59789',
+    name: window.i18n.t('未恢复（未屏蔽）'),
   },
   SHIELDED_ABNORMAL: {
     icon: 'icon-menu-shield',
     iconColor: '#F8B64F',
+    name: window.i18n.t('未恢复（已屏蔽）'),
   },
   RECOVERED: {
     icon: 'icon-mc-check-fill',
     iconColor: '#6FC5BF',
+    name: window.i18n.t('已恢复')
   },
   CLOSED: {
     icon: '',
     iconColor: '#DCDEE5',
+    name: window.i18n.t('已失效')
   },
 };
 

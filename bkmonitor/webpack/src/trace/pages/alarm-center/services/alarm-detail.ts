@@ -23,3 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { alertDetail, listAlertFeedback } from "monitor-api/modules/alert";
+
+export const fetchAlarmDetail = (id: string) => {
+  return alertDetail({
+    id
+  }).catch(() => null) 
+};
+
+export const fetchListAlertFeedback = (id: string, bizId: number) => {
+  return listAlertFeedback({ alert_id: id, bk_biz_id: bizId })
+    .catch(() => []);
+}
