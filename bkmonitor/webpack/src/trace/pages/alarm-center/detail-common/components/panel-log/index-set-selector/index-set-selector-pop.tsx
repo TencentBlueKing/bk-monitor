@@ -99,9 +99,28 @@ export default defineComponent({
       return (
         <div
           key={item.id}
-          class='options-item'
+          class='index-set-item'
         >
-          {item.name}
+          <span class='item-left'>
+            <span class='favorite-icon'>
+              <i class='icon-monitor icon-mc-collect' />
+            </span>
+            <span class='node-open-arrow'>
+              <span class='icon-monitor icon-mc-arrow-right' />
+            </span>
+            <span class='index-set-name'>
+              <Checkbox />
+              <span class='empty-icon' />
+              <span class='group-icon'>
+                <span class='icon-monitor icon-FileFold-Close' />
+              </span>
+              <span class='name'>{item.name}</span>
+            </span>
+          </span>
+
+          <span class='index-set-tags'>
+            <span class='index-set-tag-item'>BCS-K8S-00000</span>
+          </span>
         </div>
       );
     }
@@ -121,6 +140,7 @@ export default defineComponent({
         </div>
         <div class='search-wrap'>
           <Input
+            class='search-input'
             modelValue={this.searchValue}
             placeholder={this.t('搜索')}
           />
@@ -144,7 +164,7 @@ export default defineComponent({
             ))}
           </div>
         </div>
-        <div class='options-wrap'>{this.filterList.map(item => renderOption(item))}</div>
+        <div class='index-set-list'>{this.filterList.map(item => renderOption(item))}</div>
       </div>
     );
   },
