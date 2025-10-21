@@ -181,7 +181,7 @@ def init_tenant(bk_tenant_id: str):
     _init_bkbase_cluster(bk_tenant_id)
 
     logger.info(f"start sync bkcc space for tenant({bk_tenant_id})")
-    sync_bkcc_space(bk_tenant_id=bk_tenant_id)
+    sync_bkcc_space(bk_tenant_id=bk_tenant_id, create_builtin_data_link_delay=False)
     logger.info(f"init cluster for tenant({bk_tenant_id}) done.")
 
     # 标记已初始化的租户
