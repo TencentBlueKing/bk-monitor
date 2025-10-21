@@ -419,7 +419,7 @@ class ApplicationConfig(BkCollectorConfig):
                     "destination": "resource.net.host.ip",
                 }
             ],
-            "from_cache": {"key": "request.client.ip", "cache_name": "k8s_cache"},
+            "from_cache": {"key": "resource.net.host.ip", "cache_name": "k8s_cache"},
         }
 
     def get_sub_configs(self, unique_key: str, config_level):
