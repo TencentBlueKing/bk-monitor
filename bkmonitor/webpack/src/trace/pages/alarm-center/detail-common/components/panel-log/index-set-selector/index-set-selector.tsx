@@ -72,7 +72,7 @@ export default defineComponent({
         arrow: false,
         appendTo: document.body,
         zIndex: 998,
-        maxWidth: 800,
+        maxWidth: 700,
         offset: [0, 6],
         interactive: true,
         onHidden: () => {
