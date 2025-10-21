@@ -643,9 +643,10 @@ class CreateActionProcessor:
                 # 告警升级
                 supervisors = assignee_manager.get_supervisors()
                 followers = assignee_manager.get_supervisors(user_type=UserGroupType.FOLLOWER)
+                # 这里不再做判定，由于可能 action 执行队列堵塞， 导致这里获取到的 supervisor 为空，引起升级告警 action 未创建
+                # 仅记录日志
                 if not supervisors:
-                    logger.info("ignore to send supervise notice for alert(%s) due to empty supervisor", alert.id)
-                    continue
+                    logger.warning("notice for alert(%s) get empty supervisor", alert.id)
                 is_qos, current_qos_count = self.alert_objs[alert.id].qos_calc(self.signal)
                 if is_qos:
                     qos_alerts.append(alert.id)
