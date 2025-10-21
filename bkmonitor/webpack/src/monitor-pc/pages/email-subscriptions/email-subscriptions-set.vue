@@ -1595,10 +1595,10 @@ export default class SubscriptionsSet extends Vue {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 0;
+    padding: 5px 0 6px;
 
     &.entry {
-      padding: 0;
+      padding: 3px 0 4px;
       color: #4d4f56;
       cursor: pointer;
 
