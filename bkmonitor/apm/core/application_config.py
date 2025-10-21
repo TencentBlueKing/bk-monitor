@@ -152,7 +152,9 @@ class ApplicationConfig(BkCollectorConfig):
         config["bk_data_token"] = self._application.get_bk_data_token()
         config["resource_filter_config"] = self.get_resource_filter_config()
         config["resource_filter_config_logs"] = self.get_resource_filter_config_logs()
-        config["resource_filter_config_metrics"] = self.get_resource_filter_config_metrics()
+        config["resource_filter_config_metrics"] = self.get_resource_filter_config_metrics(
+            bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
+        )
 
         apdex_config = self.get_apdex_config(ApdexConfig.APP_LEVEL)
         sampler_config = self.get_random_sampler_config(ApdexConfig.APP_LEVEL)
@@ -386,7 +388,7 @@ class ApplicationConfig(BkCollectorConfig):
         }
 
     @classmethod
-    def get_resource_filter_config_metrics(cls, bcs_cluster_id=None):
+    def get_resource_filter_config_metrics(cls, bcs_cluster_id=None, bk_biz_id=None, app_name=None):
         """
         维度补充配置
         """
@@ -396,6 +398,16 @@ class ApplicationConfig(BkCollectorConfig):
         if bcs_cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             # 中心化集群，可以接收到所有的数据，不对中心化集群做维度补充逻辑
             return {}
+
+        # 检查应用白名单
+        if bk_biz_id is not None and app_name is not None:
+            enabled_apps = settings.APM_RESOURCE_FILTER_METRICS_ENABLED_APPS
+
+            # 如果白名单不为空，则只有在白名单中的应用才启用该功能
+            if enabled_apps:
+                biz_apps = enabled_apps.get(str(bk_biz_id), [])
+                if app_name not in biz_apps:
+                    return {}
 
         return {
             "name": "resource_filter/metrics",
