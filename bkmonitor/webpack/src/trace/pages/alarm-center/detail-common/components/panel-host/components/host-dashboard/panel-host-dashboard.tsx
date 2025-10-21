@@ -26,14 +26,15 @@
 
 import { type PropType, defineComponent, onMounted, provide, shallowRef, watch } from 'vue';
 
-import { getSceneView } from 'monitor-api/modules/scene_view';
+import { random } from 'monitor-common/utils';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
 import { createAutoTimeRange } from '../../../../../../../plugins/charts/failure-chart/failure-alarm-chart';
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
+import { getHostSceneView } from '../../../../../services/alarm-detail';
 
 import type { IDetail } from 'fta-solutions/pages/event/event-detail/type';
-import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './panel-host-dashboard.scss';
 
@@ -46,14 +47,16 @@ export default defineComponent({
     },
   },
   setup(props) {
-    /** 指标仪表盘数据数组 */
-    const dashboardPanels = shallowRef<PanelModel>(null);
+    /** host 场景指标视图配置信息 */
+    const hostSceneView = shallowRef<PanelModel>(null);
     /** 数据时间间隔 */
     const timeRange = shallowRef(DEFAULT_TIME_RANGE);
     /** 是否立即刷新图表数据 */
-    const refreshImmediate = '';
+    const refreshImmediate = shallowRef('');
     /** 图表请求参数变量 */
     const viewOptions = shallowRef({});
+    /** 图表联动Id */
+    const dashboardId = random(10);
 
     provide('timeRange', timeRange);
     provide('refreshImmediate', refreshImmediate);
@@ -103,6 +106,7 @@ export default defineComponent({
       const { startTime, endTime } = createAutoTimeRange(props.detail.begin_time, props.detail.end_time, interval);
 
       timeRange.value = [startTime, endTime];
+      timeRange.value = DEFAULT_TIME_RANGE;
       viewOptions.value = {
         method: 'AVG',
         variables,
@@ -116,20 +120,26 @@ export default defineComponent({
      * @description 获取仪表盘数据数组
      */
     async function getDashboardPanels() {
-      const panels = await getSceneView({
-        bk_biz_id: props.detail?.bk_biz_id ?? 2,
-        scene_id: 'host',
-        type: 'detail',
-        id: 'host',
-      }).catch(() => ({ id: '', panels: [], name: '' }));
-      dashboardPanels.value = panels;
+      const sceneView = await getHostSceneView(props.detail?.bk_biz_id ?? 2);
+
+      for (const dashboard of sceneView.panels) {
+        if (!dashboard?.panels?.length) continue;
+        dashboard.panels = dashboard.panels.map(
+          item =>
+            new PanelModel({
+              ...item,
+              dashboardId,
+            })
+        );
+      }
+      hostSceneView.value = sceneView;
     }
-    return { dashboardPanels };
+    return { hostSceneView };
   },
   render() {
     return (
       <div class='panel-host-dashboard'>
-        {this.dashboardPanels?.panels?.map?.(dashboard => (
+        {this.hostSceneView?.panels?.map?.(dashboard => (
           <AlarmMetricsDashboard
             key={dashboard.id}
             dashboardTitle={dashboard?.title}

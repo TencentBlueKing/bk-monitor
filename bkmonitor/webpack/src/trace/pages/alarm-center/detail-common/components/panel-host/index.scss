@@ -1,7 +1,10 @@
 .alarm-center-detail-panel-host {
+  display: flex;
+  flex-direction: column;
   background: #f5f7fa;
 
   .panel-host-white-bg-container {
+    flex-shrink: 0;
     padding: 12px 24px 8px;
     background: #fff;
     box-shadow: 0 0 12px 0 #00000014;
@@ -37,6 +40,7 @@
   }
 
   .panel-host-chart-wrap {
+    flex: 1;
     padding: 12px 24px;
   }
 }
