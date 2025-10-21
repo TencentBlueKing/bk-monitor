@@ -114,7 +114,7 @@
         v-if="typeValue === 2"
         v-model="includeWeekend"
         v-en-style="'width: 160px; margin-left: -168px; transform: translate3d(168px, 0, 0)'"
-        style="flex-shrink: 0; margin-left: -86px; font-size: 12px; transform: translate3d(86px, 0, 0)"
+        class="weekend-checkbox"
         @change="getValue"
         >{{ $t('包含周末') }}</bk-checkbox
       >
@@ -310,6 +310,13 @@ export default class TimePeriod extends Vue {
     & > :not(:last-child) {
       margin-right: 8px;
     }
+  }
+
+  .weekend-checkbox {
+    flex-shrink: 0;
+    margin-left: -86px;
+    font-size: 12px;
+    transform: translate3d(86px, 0, 0);
   }
 }
 </style>
