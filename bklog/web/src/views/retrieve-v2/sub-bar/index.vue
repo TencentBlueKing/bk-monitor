@@ -23,7 +23,7 @@ import BarGlobalSetting from './bar-global-setting.tsx';
 import MoreSetting from './more-setting.vue';
 import TimeSetting from './time-setting';
 import WarningSetting from './warning-setting.vue';
-import AutoRefresh from './auto-refresh.vue';
+// import AutoRefresh from './auto-refresh.vue';
 // #else
 // #code const TimeSetting = () => null;
 // #code const FieldSetting = () => null;
@@ -360,9 +360,9 @@ function handleIndexConfigSliderOpen() {
     </div>
 
     <div v-if="!isMonitorComponent" class="box-right-option">
-      <TimeSetting></TimeSetting>
-      <span class="custom-border"></span>
-      <AutoRefresh class="custom-border-right"></AutoRefresh>
+      <TimeSetting class="custom-border-right"></TimeSetting>
+      <!-- <span class="custom-border"></span> -->
+      <!-- <AutoRefresh class="custom-border-right"></AutoRefresh> -->
       <ShareLink v-if="!isExternal"></ShareLink>
       <FieldSetting v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId" ref="fieldSettingRef"
         class="custom-border-right" />

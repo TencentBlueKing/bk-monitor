@@ -392,3 +392,58 @@ def check_health(
         raise ValueError(f"不支持的场景: {scene}")
 
     return result
+
+
+def check_datalink_health(
+    *,
+    bk_tenant_id: str,
+    scene: str | DataScene,
+    bk_biz_id: int,
+    bk_data_id: int | None = None,
+    bcs_cluster_id: str | None = None,
+    with_detail: bool = False,
+) -> str:
+    """
+    检查数据链路健康状态
+    """
+    from monitor_web.models.uptime_check import UptimeCheckTask
+
+    if isinstance(scene, str):
+        try:
+            scene = DataScene(scene)
+        except ValueError as e:
+            raise ValueError(f"不支持的场景: {scene}") from e
+
+    messages: list[str] = []
+
+    # 获取数据链路状态
+    data_link_statuses = get_datalink_status_by_scene(
+        bk_tenant_id=bk_tenant_id,
+        scene=scene,
+        bk_biz_id=bk_biz_id,
+        with_detail=with_detail,
+        bk_data_id=bk_data_id,
+        bcs_cluster_id=bcs_cluster_id,
+    )
+
+    # 服务拨测
+    if scene == DataScene.UPTIMECHECK:
+        messages.append(
+            "服务拨测的数据链路是按业务进行创建，只有在对应类型的拨测任务第一次创建时才会创建数据链路，分为tcp、udp、http、icmp四种类型"
+        )
+
+        # 获取服务拨测任务类型
+        protocols: list[str] = list(
+            UptimeCheckTask.objects.filter(bk_biz_id=bk_biz_id).values_list("protocol", flat=True).distinct()
+        )
+        protocols = [protocol.lower() for protocol in protocols]
+        messages.append(f"当前业务 {bk_biz_id} 已创建了 {'、'.join(protocols)} 四种类型的拨测任务")
+    elif scene == DataScene.HOST:
+        messages.append("主机的数据链路是按业务进行创建，包括系统基础指标、进程端口和进程性能指标")
+    elif scene == DataScene.K8S:
+        messages.append("k8s监控的数据链路是按集群进行创建，包括k8s指标和自定义指标")
+
+    for data_link_status in data_link_statuses:
+        messages.append(explain_datalink_status(data_link_status))
+
+    return "\n".join(messages)

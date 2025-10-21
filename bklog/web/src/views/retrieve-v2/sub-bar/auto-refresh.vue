@@ -9,14 +9,16 @@ const selectedValue = ref('off');
 let refreshTimer = null;
 
 const datasource = ref([
-  { label: 'off', value: 'off' },
-  { label: '1m', value: '1m' }, // 1分钟
-  { label: '5m', value: '5m' }, // 5分钟
-  { label: '15m', value: '15m' }, // 15分钟
-  { label: '30m', value: '30m' }, // 30分钟
-  { label: '1h', value: '1h' }, // 1小时
-  { label: '2h', value: '2h' }, // 2小时
-  { label: '1d', value: '1d' }, // 1天
+  { label: '关闭(off)', value: 'off' },
+  { label: '10s', value: '10s' }, 
+  { label: '30s', value: '30s' }, 
+  { label: '1m', value: '1m' }, 
+  { label: '5m', value: '5m' }, 
+  { label: '15m', value: '15m' }, 
+  { label: '30m', value: '30m' }, 
+  { label: '1h', value: '1h' }, 
+  { label: '2h', value: '2h' }, 
+  { label: '1d', value: '1d' }, 
 ]);
 
 /**
@@ -73,7 +75,6 @@ const setRefreshTimer = (timeValue) => {
   }
 };
 
-// 监听选择值变化
 watch(
   selectedValue,
   (newVal) => {
@@ -82,7 +83,6 @@ watch(
   { immediate: true }
 );
 
-// 组件销毁时清理定时器
 onUnmounted(() => {
   clearRefreshTimer();
 });
@@ -107,7 +107,7 @@ const triggerHandler = (item) => {
       <div class="dropdown-trigger-text" :class="{ 'active': isDropdownShow }" slot="dropdown-trigger"
         v-bk-tooltips="{ content: $t('自动刷新设置'), placement: 'bottom' }">
         <i class="bklog-icon bklog-auto-refresh"></i>
-        <span>{{datasource.find(item => item.value === selectedValue)?.label || 'off'}}</span>
+        <span>{{datasource.find(item => item.value === selectedValue)?.value || 'off'}}</span>
       </div>
       <ul class="bk-dropdown-list" slot="dropdown-content">
         <li v-for="item in datasource" :key="item.value">
@@ -115,8 +115,8 @@ const triggerHandler = (item) => {
         </li>
       </ul>
     </bk-dropdown-menu>
-     <span class="custom-border"></span>
-    <i class="bklog-icon bklog-refresh-icon" v-bk-tooltips="{ content: $t('刷新'), placement: 'bottom' }" @click="handleRefresh()" :class="{ 'refresh-active': isRefreshActive }"></i>
+     <!-- <span class="custom-border"></span> -->
+    <!-- <i class="bklog-icon bklog-refresh-icon" v-bk-tooltips="{ content: $t('刷新'), placement: 'bottom' }" @click="handleRefresh()" :class="{ 'refresh-active': isRefreshActive }"></i> -->
   </div>
 
 </template>
