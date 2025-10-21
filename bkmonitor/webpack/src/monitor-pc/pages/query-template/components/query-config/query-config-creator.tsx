@@ -47,6 +47,7 @@ import type {
 import './query-config-creator.scss';
 
 interface IProps {
+  hasVariableOperate?: boolean;
   metricFunctions?: IFunctionOptionsItem[];
   queryConfig?: QueryConfig;
   variables?: IVariablesItem[];
@@ -68,7 +69,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
   @Prop({ required: true, type: Function }) getMetricList: (
     params: IGetMetricListParams
   ) => Promise<IGetMetricListData>;
-
+  @Prop({ default: false }) hasVariableOperate: boolean;
   get getMethodVariables() {
     return this.variables.filter(item => item.type === VariableTypeEnum.METHOD);
   }
@@ -175,7 +176,7 @@ export default class QueryConfigCreator extends tsc<IProps> {
                   key={'method'}
                   allVariables={this.allVariables}
                   options={this.getAggMethodList}
-                  showVariables={true}
+                  showVariables={this.hasVariableOperate}
                   value={this.queryConfig.agg_method}
                   variables={this.getMethodVariables}
                   onChange={this.handleChangeMethod}

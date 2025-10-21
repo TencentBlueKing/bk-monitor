@@ -647,8 +647,8 @@ importers:
         specifier: 2.0.6
         version: 2.0.6
       '@blueking/monitor-vue2-components':
-        specifier: 0.0.0-beta.6
-        version: 0.0.0-beta.6
+        specifier: 0.0.0-beta.8
+        version: 0.0.0-beta.8
       '@blueking/tdesign-ui':
         specifier: 0.0.1-beta.87
         version: 0.0.1-beta.87(vue@3.5.22(typescript@5.9.3))
@@ -1637,8 +1637,8 @@ packages:
   '@blueking/monitor-trace-log@2.0.6':
     resolution: {integrity: sha512-sxAyBABKHwgrnnfX3nYjDCn5eJJffrxDZ3N23vw49KnE7etcNTCfZa8d/Olik/1X4AGXZl/WT7Rya9HBUHyQ/Q==}
 
-  '@blueking/monitor-vue2-components@0.0.0-beta.6':
-    resolution: {integrity: sha512-eanT2klV4pXMUEckVoDRhORp4HFqSyF2zR4nG80Be4635g/JtfeUh8wpioSJ7gfCOSZkPfzlbGsfgu6/rI1lsg==}
+  '@blueking/monitor-vue2-components@0.0.0-beta.8':
+    resolution: {integrity: sha512-sEbhCszh8f5SXREBygdw2Lu+q8KBUQJz7zmfaZJMjbWAiF0ZrQF6D9zz2ptPi1tuz0nCx0IYg4pm4sgIPt3wiQ==}
 
   '@blueking/notice-component-vue2@2.0.7':
     resolution: {integrity: sha512-DUMedO1/Z1VHz0elcaY6riAPbXi5oCFSg4x8MvwIkT2MFl21K8xkbg65OgXuB5ePa3Bsij2+IKvTTByYMLLd3g==}
@@ -10410,8 +10410,10 @@ snapshots:
 
   '@blueking/monitor-trace-log@2.0.6': {}
 
-  '@blueking/monitor-vue2-components@0.0.0-beta.6':
+  '@blueking/monitor-vue2-components@0.0.0-beta.8':
     dependencies:
+      '@babel/runtime': 7.28.4
+      core-js: 3.46.0
       dayjs: 1.11.18
 
   '@blueking/notice-component-vue2@2.0.7(dompurify@3.2.6)':

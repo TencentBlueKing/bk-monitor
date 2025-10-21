@@ -259,6 +259,7 @@ export default class QueryTemplateSet extends tsc<QueryConfigSetProps, QueryConf
                       getMetricList={this.getMetricList}
                       hasAdd={index === this.queryConfigs.length - 1}
                       hasDelete={this.queryConfigs.length >= 2}
+                      hasVariableOperate={true}
                       metricFunctions={this.metricFunctions}
                       queryConfig={item}
                       variables={this.variablesList}

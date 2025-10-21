@@ -210,6 +210,10 @@ export default class MetricSelector extends tsc<IMetricSelectorProps, IMetricSel
     this.hidePopover();
     this.$emit('confirm', metrics);
   }
+  /** 生成自定义指标 */
+  handleCreateCustomMetric(value: string) {
+    this.$emit('createCustomMetric', value);
+  }
   render() {
     return (
       <div class='metric-selector'>
@@ -243,9 +247,11 @@ export default class MetricSelector extends tsc<IMetricSelectorProps, IMetricSel
           >
             {this.show && (
               <MetricContainer
-                loading={this.loadingNextPage}
+                loading={this.loading}
+                loadingNextPage={this.loadingNextPage}
                 metricList={this.metricList}
                 onConfirm={this.handleConfirm}
+                onCreateCustomMetric={this.handleCreateCustomMetric}
                 onQueryChange={this.handleQueryChange}
                 onScrollEnd={this.handleScrollEnd}
               />

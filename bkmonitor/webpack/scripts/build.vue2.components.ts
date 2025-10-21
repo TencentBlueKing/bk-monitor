@@ -33,9 +33,12 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 const outputDir = resolve(__dirname, '../monitor-vue2-components');
 export default defineConfig({
   resolve: {
-    alias: {
-      '@': resolve(__dirname, '../src/monitor-pc'),
-    },
+    alias: [
+      {
+        find: '@',
+        replacement: resolve(__dirname, '../src/monitor-pc'),
+      },
+    ],
   },
   plugins: [
     vueTsx({
@@ -65,9 +68,14 @@ export default defineConfig({
     outDir: outputDir,
     minify: false,
     lib: {
-      entry: resolve(__dirname, '../src/monitor-pc/components.ts'),
+      entry: {
+        index: resolve(__dirname, '../src/monitor-pc/components.ts'),
+        'monitor-vue2': resolve(__dirname, '../src/trace/pages/trace-explore/monitor-vue2.tsx'),
+      },
       name: 'monitor-vue2-components',
-      fileName: 'index',
+      fileName: (_format, entryName) => {
+        return `${entryName}.mjs`;
+      },
       formats: ['es'],
     },
     rollupOptions: {
@@ -100,7 +108,25 @@ export default defineConfig({
           plugins: ['@babel/plugin-transform-runtime'],
         }),
       ],
-      external: [/^dayjs[/]?\w*/],
+      output: {
+        assetFileNames: 'index.css',
+      },
+      external: (source: string, importer: string | undefined) => {
+        if (
+          /^dayjs[/]?\w*/.test(source) ||
+          /^@blueking\/monitor-vue2-components/.test(source) ||
+          /@blueking\/bkui-library/.test(source)
+        ) {
+          return true;
+        }
+        if (/^vue$/.test(source)) {
+          if (importer?.includes('monitor-vue2.tsx')) {
+            return true;
+          }
+          return false;
+        }
+        return false;
+      },
     },
   },
 });

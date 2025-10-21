@@ -40,6 +40,7 @@ import './query-panel.scss';
 interface IProps {
   hasAdd?: boolean;
   hasDelete?: boolean;
+  hasVariableOperate?: boolean;
   metricFunctions?: IFunctionOptionsItem[];
   queryConfig?: QueryConfig;
   variables?: VariableModelType[];
@@ -76,7 +77,7 @@ export default class QueryPanel extends tsc<IProps> {
   @Prop({ required: true, type: Function }) getMetricList: (
     params: IGetMetricListParams
   ) => Promise<IGetMetricListData>;
-
+  @Prop({ default: false }) hasVariableOperate: boolean;
   handleCreateVariable(val: IVariableModel) {
     this.$emit('createVariable', val);
   }

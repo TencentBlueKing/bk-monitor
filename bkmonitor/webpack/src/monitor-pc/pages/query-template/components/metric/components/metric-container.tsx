@@ -28,7 +28,9 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getMetricTip } from '../../utils/metric-tip';
 import { type MetricSearchTagMode, MetricSearchTagModeMap, MetricSearchTags } from './types';
+import EmptyStatus from '@/components/empty-status/empty-status';
 
+import type { EmptyStatusOperationType } from '@/components/empty-status/types';
 import type { MetricDetailV2 } from '@/pages/query-template/typings/metric';
 
 import './metric-container.scss';
@@ -36,6 +38,8 @@ import './metric-container.scss';
 export interface IMetricSelectorContainerEvents {
   /** 确认选择指标 */
   onConfirm: (metrics: MetricDetailV2[]) => void;
+  /** 生成自定义指标 */
+  onCreateCustomMetric: (v: string) => void;
   /** 查询指标 */
   onQueryChange: (v: string) => void;
   /** 滚动加载指标 */
@@ -45,6 +49,8 @@ export interface IMetricSelectorContainerEvents {
 export interface IMetricSelectorContainerProps {
   /** 是否loading */
   loading?: boolean;
+  /** 是否loading下一页 */
+  loadingNextPage?: boolean;
   /** 指标列表 */
   metricList: MetricDetailV2[];
   /** 选中的指标 */
@@ -60,6 +66,7 @@ export default class MetricSelectorContainer extends tsc<
 
   @Prop({ type: Array, default: () => [] }) metricList: MetricDetailV2[];
   @Prop({ type: Boolean, default: false }) loading: boolean;
+  @Prop({ type: Boolean, default: false }) loadingNextPage: boolean;
   @Prop({ type: Object }) selectedMetric: MetricDetailV2;
 
   /** 数据类型 */
@@ -88,6 +95,17 @@ export default class MetricSelectorContainer extends tsc<
   /** 是否显示左侧标签搜索栏 */
   get showLeftTags() {
     return this.dataType !== 'all' || this.monitorScenes !== 'all';
+  }
+  /** 是否显示创建自定义指标按钮 */
+  get showCreateCustomMetricButton() {
+    if (this.searchValue.length > 0 && this.metricList.length === 0 && !this.loading && !this.loadingNextPage) {
+      const [resultTableId, metricField] = this.searchValue.split('.');
+      if (!resultTableId || !metricField || !/^[_a-zA-Z][a-zA-Z0-9_]*$/.test(metricField)) {
+        return false;
+      }
+      return true;
+    }
+    return false;
   }
   mounted() {
     this.initFocus();
@@ -213,6 +231,14 @@ export default class MetricSelectorContainer extends tsc<
     }
     this.isScrollEnd = !!isEnd;
   }
+  handleClearFilter() {
+    this.handleSearchValueChange('');
+  }
+  handleEmptyOperation(type: EmptyStatusOperationType) {
+    if (type === 'clear-filter') {
+      this.handleClearFilter();
+    }
+  }
   /** 获取搜索值对应高亮节点 */
   getSearchNode(str: string) {
     if (!str) return str;
@@ -308,6 +334,22 @@ export default class MetricSelectorContainer extends tsc<
       </div>
     );
   }
+  createSkeletonItem(index: number) {
+    return (
+      <div
+        key={index}
+        class='metric-list-item'
+      >
+        <div class='item-title'>
+          <div class='skeleton-element skeleton-title-icon' />
+          <div class='skeleton-element skeleton-title' />
+        </div>
+        <div class='item-subtitle'>
+          <div class='skeleton-element skeleton-subtitle' />
+        </div>
+      </div>
+    );
+  }
   render() {
     return (
       <div class='metric-selector-container'>
@@ -321,6 +363,7 @@ export default class MetricSelectorContainer extends tsc<
             class='search-input'
             right-icon='bk-icon icon-search'
             value={this.searchValue}
+            clearable
             onChange={this.handleSearchValueChange}
           />
           <div class='search-refresh'>
@@ -345,11 +388,42 @@ export default class MetricSelectorContainer extends tsc<
               tabindex={0}
               onScroll={this.handleMetricListScroll}
             >
-              {this.metricList.map((item, index) => this.createMetricItem(item, index))}
-              {this.loading && (
+              {this.loading
+                ? [...Array(10)].map((_, index) => this.createSkeletonItem(index))
+                : this.metricList.map((item, index) => this.createMetricItem(item, index))}
+              {!this.metricList.length && !this.loading && !this.loadingNextPage && (
+                <div class='metric-list-empty'>
+                  <EmptyStatus
+                    type={this.searchValue.length > 0 ? 'search-empty' : 'empty'}
+                    onOperation={this.handleEmptyOperation}
+                  >
+                    {this.showCreateCustomMetricButton && (
+                      <div class='search-empty-msg'>
+                        <p class='tip-text'>{this.$t('你可以将该搜索内容直接自定义为指标选项')}</p>
+                        <bk-button
+                          style='margin-right: 10px'
+                          title='primary'
+                          text
+                          onClick={this.$emit('createCustomMetric')}
+                        >
+                          {this.$t('生成自定义指标')}
+                        </bk-button>
+                        <bk-button
+                          title='primary'
+                          text
+                          onClick={this.handleClearFilter}
+                        >
+                          {this.$t('清空筛选条件')}
+                        </bk-button>
+                      </div>
+                    )}
+                  </EmptyStatus>
+                </div>
+              )}
+              {this.loadingNextPage && (
                 <div class='metric-list-loading'>
                   <bk-loading
-                    isLoading={this.loading}
+                    isLoading={this.loadingNextPage}
                     mode='spin'
                     size='mini'
                     theme='primary'
