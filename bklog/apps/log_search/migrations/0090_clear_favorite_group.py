@@ -22,13 +22,17 @@ def forwards_func(apps, schema_editor):
             # 如果已经存在相同的分组，检查是否有数据，有则将数据转移到第一个遇到的分组
             items = favorite_model.objects.filter(group_id=group.id)
             if items:
-                print(f"group: {group.name} has data, moving to group_id: {checked_groups[key]}")
+                target_group_id = checked_groups[key]
+                print(f"group: {group.name} has data, moving to group_id: {target_group_id}")
+
+                existing_favorites = favorite_model.objects.filter(group_id=target_group_id)
+                existing_favorite_names = set(existing_favorites.values_list("name", flat=True))
                 for item in items:
-                    target_group_id = checked_groups[key]
                     # 数据库唯一约束，需要生成唯一的收藏名称
-                    unique_name = get_unique_favorite_name(item, target_group_id, favorite_model)
+                    unique_name = get_unique_favorite_name(item.name, existing_favorite_names)
                     if unique_name != item.name:
                         print(f"Renaming favorite {item.name} (id: {item.id}) to {unique_name}")
+                        existing_favorite_names.add(unique_name)
                     item.name = unique_name
                     item.group_id = target_group_id
                     item.save(update_fields=["name", "group_id"])
@@ -40,23 +44,13 @@ def forwards_func(apps, schema_editor):
     print(f"Deleted {len(groups_to_delete)} groups\n")
 
 
-def get_unique_favorite_name(favorite, target_group_id, favorite_model):
+def get_unique_favorite_name(base_name, favorite_names):
     """
     生成唯一的收藏名称，名称重复时添加后缀，否则保持不变
     """
-    base_name = favorite.name
     candidate_name = base_name
     suffix_num = 1
-    query_kwargs = {
-        "space_uid": favorite.space_uid,
-        "group_id": target_group_id,
-        "source_app_code": favorite.source_app_code,
-        "created_by": favorite.created_by,
-        "name__startswith": f"{base_name}",  # 匹配带后缀的名称（如 test_1, test_2）
-    }
-    existing_favorite_names = set(favorite_model.objects.filter(**query_kwargs).values_list("name", flat=True))
-
-    while candidate_name in existing_favorite_names:
+    while candidate_name in favorite_names:
         candidate_name = f"{base_name}_{suffix_num}"
         suffix_num += 1
     return candidate_name
