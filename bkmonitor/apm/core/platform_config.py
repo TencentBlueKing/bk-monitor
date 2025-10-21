@@ -377,6 +377,7 @@ class PlatformConfig(BkCollectorConfig):
                     "timeout": "60s",
                     "interval": cache_interval,
                 },
+                "cache_name": "k8s_cache",
             },
         }
 
