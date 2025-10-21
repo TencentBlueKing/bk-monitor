@@ -35,6 +35,7 @@ import {
   watch,
 } from 'vue';
 
+import MonitorVue2 from '@blueking/monitor-vue2-components';
 import { Message } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import { listTraceViewConfig, traceGenerateQueryString } from 'monitor-api/modules/apm_trace';
@@ -76,7 +77,6 @@ import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
 import { useCandidateValue } from './hooks/use-candidate-value';
-import MonitorVue2 from './monitor-vue2';
 import { getFilterByCheckboxFilter, safeParseJsonValueForWhere, tryURLDecodeParse } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
@@ -88,9 +88,15 @@ const TRACE_EXPLORE_APPLICATION_ID_THUMBTACK = 'trace_explore_application_id_thu
 
 updateTimezone(window.timezone);
 
-import { type MetricDetailV2, QueryConfig } from '@blueking/monitor-vue2-components';
+import { type MetricDetailV2, QueryConfig } from '@blueking/monitor-vue2-components/index.mjs';
+import { getMetricListV2 } from 'monitor-api/modules/strategies';
 
 import { useFavoriteFieldsState } from './components/trace-explore-table/utils/favorite-fields';
+
+import type {
+  IGetMetricListData,
+  IGetMetricListParams,
+} from 'monitor-pc/pages/query-template/components/metric/components/types';
 
 import './trace-explore.scss';
 export default defineComponent({
@@ -820,7 +826,33 @@ export default defineComponent({
       queryConfig.value = new QueryConfig(val);
       console.log(val);
     };
-
+    let abortController: AbortController | null = null;
+    const getMetricList = async (params: IGetMetricListParams) => {
+      if (abortController) {
+        abortController.abort();
+        abortController = null;
+      }
+      abortController = new AbortController();
+      const data = await getMetricListV2<IGetMetricListData>(
+        {
+          conditions: [
+            {
+              key: 'query',
+              value: '',
+            },
+          ],
+          data_type_label: 'time_series',
+          tag: '',
+          page: 1,
+          page_size: 20,
+          ...params,
+        },
+        {
+          signal: abortController.signal,
+        }
+      );
+      return data;
+    };
     return {
       queryConfig,
       t,
@@ -881,12 +913,14 @@ export default defineComponent({
       handleCopyWhereQueryString,
       handleSetCommonWhereToFavoriteCache,
       handleSelectMetric,
+      getMetricList,
     };
   },
   render() {
     return (
       <div class='trace-explore'>
         <MonitorVue2
+          getMetricList={this.getMetricList}
           queryConfig={this.queryConfig}
           onSelectMetric={this.handleSelectMetric}
         />

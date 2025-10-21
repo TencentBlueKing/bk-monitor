@@ -26,8 +26,12 @@
 
 import { type PropType, defineComponent, onBeforeUnmount, onMounted, onUpdated, useTemplateRef } from 'vue';
 
-import { i18n, QueryPanel, QueryPanelEmits, Vue2 } from '@blueking/monitor-vue2-components';
+import { i18n, QueryPanel, QueryPanelEmits, Vue2 } from '@blueking/monitor-vue2-components/index.mjs';
 
+import type {
+  IGetMetricListData,
+  IGetMetricListParams,
+} from 'monitor-pc/pages/query-template/components/metric/components/types';
 import type { IFunctionOptionsItem } from 'monitor-pc/pages/query-template/components/type/query-config';
 import type {
   AggCondition,
@@ -61,6 +65,13 @@ export default defineComponent({
     hasDelete: {
       type: Boolean,
       default: false,
+    },
+    hasVariableOperate: {
+      type: Boolean,
+      default: false,
+    },
+    getMetricList: {
+      type: Function as PropType<(params: IGetMetricListParams) => Promise<IGetMetricListData>>,
     },
     onChangeCondition: {
       type: Function as PropType<(val: AggCondition[]) => void>,
@@ -98,6 +109,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const componentWrapperRef = useTemplateRef<InstanceType<typeof QueryPanel>>('componentWrapperRef');
     Vue2.prototype.$t = (key: string) => key;
+    console.log(props);
     let app = new Vue2({
       render: h => {
         return h(QueryPanel, {

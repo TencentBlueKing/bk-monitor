@@ -146,6 +146,32 @@
             color: #a3b1cc;
           }
 
+          .skeleton-title {
+            display: flex;
+            align-items: center;
+            width: calc(100% - 200px);
+            height: 16px;
+            border-radius: 2px;
+          }
+
+          .skeleton-title-icon {
+            display: flex;
+            align-items: center;
+            width: 16px;
+            height: 16px;
+            margin-right: 7px;
+            border-radius: 50%;
+          }
+
+          .skeleton-subtitle {
+            display: flex;
+            align-items: center;
+            width: 30%;
+            height: 16px;
+            margin-top: 3px;
+            border-radius: 2px;
+          }
+
           .is-keyword {
             color: #3a84ff;
           }
