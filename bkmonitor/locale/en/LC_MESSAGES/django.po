@@ -12323,3 +12323,78 @@ msgstr "Query item"
 
 msgid "对比项"
 msgstr "Compare item"
+
+msgid "告警模板"
+msgstr "Alarm template"
+
+msgid "服务组件"
+msgstr "Service component"
+
+msgid "调用分析"
+msgstr "Call analysis"
+
+msgid "事件等级"
+msgstr "Event level"
+
+msgid "事件来源"
+msgstr "Event source"
+
+msgid "用户环境"
+msgstr "Environment"
+
+msgid "主调 Service"
+msgstr "Caller Service"
+
+msgid "主调接口"
+msgstr "Caller Method"
+
+msgid "主调 IP"
+msgstr "Caller IP"
+
+msgid "主调容器"
+msgstr "Caller Container"
+
+msgid "主调 SetID"
+msgstr "Caller SetID"
+
+msgid "主调流量组"
+msgstr "Caller Group"
+
+msgid "被调服务"
+msgstr "Callee Server"
+
+msgid "被调 Service"
+msgstr "Callee Service"
+
+msgid "被调接口"
+msgstr "Callee Method"
+
+msgid "被调 IP"
+msgstr "Callee IP"
+
+msgid "被调容器"
+msgstr "Callee Container"
+
+msgid "被调 SetID"
+msgstr "Callee SetID"
+
+msgid "返回码"
+msgstr "Return Code"
+
+msgid "地域"
+msgstr "Region"
+
+msgid "金丝雀"
+msgstr "Canary"
+
+msgid "预留字段1"
+msgstr "Reserved Field 1"
+
+msgid "预留字段2"
+msgstr "Reserved Field 2"
+
+msgid "预留字段3"
+msgstr "Reserved Field 3"
+
+msgid "主调服务"
+msgstr "Caller Server"
