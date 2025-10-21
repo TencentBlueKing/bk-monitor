@@ -112,7 +112,7 @@ class PlatformConfig(BkCollectorConfig):
             "attribute_config": cls.get_attribute_config(),
         }
 
-        if settings.APM_IS_DISTRIBUTE_FIELD_NORMALIZER_CONFIG:
+        if settings.APM_FIELD_NORMALIZER_ENABLED:
             plat_config["field_normalizer_config"] = cls.get_field_normalizer_config()
 
         if bcs_cluster_id and bcs_cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:

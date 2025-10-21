@@ -546,7 +546,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_SAMPLING_PERCENTAGE", slz.IntegerField(label=_("APM中默认采样比例"), default=100)),
         ("APM_APP_QPS", slz.IntegerField(label=_("APM中应用默认QPS"), default=500)),
         (
-            "APM_IS_DISTRIBUTE_FIELD_NORMALIZER_CONFIG",
+            "APM_FIELD_NORMALIZER_ENABLED",
             slz.BooleanField(label=_("是否下发平台级别字段标准化配置"), default=True),
         ),
         ("APM_CUSTOM_EVENT_REPORT_CONFIG", slz.DictField(label=_("APM事件上报配置"), default={})),
