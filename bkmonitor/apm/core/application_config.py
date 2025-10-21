@@ -413,6 +413,12 @@ class ApplicationConfig(BkCollectorConfig):
             "name": "resource_filter/metrics",
             "drop": {"keys": ["resource.bk.data.token", "resource.process.pid", "resource.tps.tenant.id"]},
             "from_token": {"keys": ["app_name"]},
+            "from_record": [
+                {
+                    "source": "request.client.ip",
+                    "destination": "resource.net.host.ip",
+                }
+            ],
             "from_cache": {"key": "request.client.ip", "cache_name": "k8s_cache"},
         }
 
