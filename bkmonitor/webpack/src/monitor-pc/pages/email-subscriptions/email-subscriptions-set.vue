@@ -1608,6 +1608,10 @@ export default class SubscriptionsSet extends Vue {
       }
     }
 
+    .control-prepend-group {
+      background-color: #fafbfd;
+    }
+
     .bk-input-small,
     .group-box,
     .group-text {
@@ -1636,6 +1640,12 @@ export default class SubscriptionsSet extends Vue {
       align-items: center;
       justify-content: center;
       cursor: pointer;
+
+      .bk-icon {
+        margin-left: 2px;
+        font-size: 20px;
+        color: #979ba5;
+      }
     }
 
     .bk-dropdown-list {
@@ -1647,6 +1657,7 @@ export default class SubscriptionsSet extends Vue {
       font-size: 12px;
       line-height: 32px;
       color: #4d4f56;
+      cursor: pointer;
       background-color: #fff;
 
       &:hover {
