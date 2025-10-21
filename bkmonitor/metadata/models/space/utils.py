@@ -818,20 +818,15 @@ def create_bkcc_spaces(biz_list: list[dict], create_builtin_data_link_delay: boo
     # 初始化空间内置数据链路
     if settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK:
         for biz in biz_list:
+            bk_biz_id = int(biz["bk_biz_id"])
             if create_builtin_data_link_delay:
-                create_basereport_datalink_for_bkcc.delay(
-                    bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=int(biz["bk_biz_id"])
-                )
-                create_base_event_datalink_for_bkcc.delay(
-                    bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=int(biz["bk_biz_id"])
-                )
-                create_system_proc_datalink_for_bkcc.delay(
-                    bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=int(biz["bk_biz_id"])
-                )
+                create_basereport_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
+                create_base_event_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
+                create_system_proc_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
             else:
-                create_basereport_datalink_for_bkcc(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=int(biz["bk_biz_id"]))
-                create_base_event_datalink_for_bkcc(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=int(biz["bk_biz_id"]))
-                create_system_proc_datalink_for_bkcc(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=int(biz["bk_biz_id"]))
+                create_basereport_datalink_for_bkcc(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
+                create_base_event_datalink_for_bkcc(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
+                create_system_proc_datalink_for_bkcc(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
 
     logger.info("bulk create bkcc space successfully, space: %s", json.dumps(biz_list))
 
