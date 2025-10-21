@@ -19,11 +19,12 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
+
 from django.conf import settings
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import update_clustering_clean
 from apps.log_databus.exceptions import CollectorActiveException
@@ -60,6 +61,7 @@ class TransferEtlHandler(EtlHandler):
         **kwargs,
     ):
         etl_params = etl_params or {}
+        user_fields = copy.deepcopy(fields)
         # 停止状态下不能编辑
         if self.data and not self.data.is_active:
             raise CollectorActiveException()
@@ -68,10 +70,6 @@ class TransferEtlHandler(EtlHandler):
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
         self.check_es_storage_capacity(cluster_info, storage_cluster_id)
         is_add = False if self.data.table_id else True
-
-        if FeatureToggleObject.switch("etl_record_parse_failure", self.data.bk_biz_id):
-            # 增加清洗结果字段记录
-            etl_params["record_parse_failure"] = True
 
         if self.data.is_clustering:
             clustering_config = ClusteringConfig.objects.get(collector_config_id=self.data.collector_config_id)
@@ -126,7 +124,6 @@ class TransferEtlHandler(EtlHandler):
                     instance=self.data,
                     table_id=clustering_config.signature_pattern_rt,
                     storage_cluster_id=storage_cluster_id,
-                    retention=retention,
                     allocation_min_days=allocation_min_days,
                     storage_replies=storage_replies,
                     es_version=cluster_info["cluster_config"]["version"],
@@ -204,7 +201,7 @@ class TransferEtlHandler(EtlHandler):
             {
                 "clean_type": etl_config,
                 "etl_params": etl_params,
-                "etl_fields": fields,
+                "etl_fields": user_fields,
                 "bk_biz_id": self.data.bk_biz_id,
             }
         )
@@ -219,3 +216,56 @@ class TransferEtlHandler(EtlHandler):
             "retention": retention,
             "es_shards": es_shards,
         }
+
+    def patch_update(
+        self,
+        storage_cluster_id=None,
+        retention=None,
+        allocation_min_days=None,
+        storage_replies=None,
+        es_shards=None,
+    ):
+        from apps.log_databus.handlers.collector import CollectorHandler
+
+        handler = CollectorHandler(self.collector_config_id)
+        collect_config = handler.retrieve()
+        clean_stash = handler.get_clean_stash()
+
+        etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]
+        etl_fields = (
+            clean_stash["etl_fields"]
+            if clean_stash
+            else [field for field in collect_config["fields"] if not field["is_built_in"]]
+        )
+
+        storage_cluster_id = (
+            storage_cluster_id if storage_cluster_id is not None else collect_config["storage_cluster_id"]
+        )
+        retention = retention if retention is not None else collect_config["retention"]
+        allocation_min_days = (
+            allocation_min_days if allocation_min_days is not None else collect_config["allocation_min_days"]
+        )
+        storage_replies = storage_replies if storage_replies is not None else collect_config["storage_replies"]
+        es_shards = es_shards if es_shards is not None else collect_config["storage_shards_nums"]
+
+        if storage_cluster_id:
+            cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
+            hot_warm_enabled = (
+                cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config", {}).get("is_enabled")
+            )
+        else:
+            hot_warm_enabled = False
+
+        etl_params = {
+            "table_id": self.data.collector_config_name_en,
+            "storage_cluster_id": storage_cluster_id,
+            "retention": retention,
+            "allocation_min_days": allocation_min_days if hot_warm_enabled else 0,
+            "storage_replies": storage_replies,
+            "es_shards": es_shards,
+            "etl_params": etl_params,
+            "etl_config": collect_config["etl_config"],
+            "fields": etl_fields,
+        }
+
+        return self.update_or_create(**etl_params)

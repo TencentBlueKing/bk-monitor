@@ -7,6 +7,7 @@ from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
+from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import LogIndexSet
 from apps.models import model_to_dict
@@ -119,3 +120,4 @@ class MiniLinkAccessHandler:
         CollectorScenario.update_or_create_data_id(bk_data_id=self.collector_config.bk_data_id)
 
         # 更新结果表
+        TransferEtlHandler(self.collector_config.collector_config_id).patch_update()

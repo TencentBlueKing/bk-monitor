@@ -199,18 +199,18 @@ class CollectorScenario:
 
             # 聚类小型化链路配置更新
             clustering_config = ClusteringConfig.objects.filter(log_bk_data_id=bk_data_id).first()
-            if clustering_config and clustering_config.use_mini_link:
-                if clustering_config.signature_enable:
-                    params["option"].update(
-                        {
-                            "is_log_cluster": True,
-                            "log_cluster_config": CollectorScenario.gen_clustering_datasource_options(
-                                clustering_config
-                            ),
-                        }
-                    )
-                else:
-                    params["option"].update({"is_log_cluster": False})
+            if clustering_config and clustering_config.use_mini_link and clustering_config.signature_enable:
+                params["option"].update(
+                    {
+                        "is_log_cluster": True,
+                        "log_cluster_config": CollectorScenario.gen_clustering_datasource_options(clustering_config),
+                    }
+                )
+                # TODO: etl_config 在接口中不支持修改，需要 metadata 支持
+                params["etl_config"] = "bk_flat_batch_cluster"
+            else:
+                params["option"].update({"is_log_cluster": False})
+                params["etl_config"] = "bk_flat_batch"
 
             # 更新数据源
             TransferApi.modify_data_id(params)
