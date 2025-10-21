@@ -64,12 +64,7 @@
     height: 100%;
   }
 
-  .exception-wrap {
-    position: absolute;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -40%);
-
+  .resource-graph-exception {
     .exception-desc {
       display: inline-block;
       max-width: 410px !important;

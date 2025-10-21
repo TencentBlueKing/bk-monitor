@@ -195,20 +195,23 @@
 
   .tree-empty {
     .bk-exception-img {
-      height: 180px;
+      width: auto;
+      height: 160px;
     }
 
     .bk-exception-footer {
       margin-top: 0;
 
-      .text-tips {
+      .exception-title {
         font-size: 14px;
-        color: #63656e;
+        color: #313238;
       }
 
-      .text-wrap {
+      .exception-desc {
+        padding: 0 20px;
         margin-top: 8px;
         color: #979ba5;
+        overflow-wrap: break-word;
       }
     }
   }

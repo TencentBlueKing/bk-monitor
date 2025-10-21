@@ -1,36 +1,3 @@
-.metric-view-exception {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  .bk-exception-img {
-    width: 100% !important;
-    height: 100px !important;
-
-    .custom-icon {
-      width: 220px;
-    }
-  }
-
-  .bk-exception-footer {
-    width: 100%;
-    margin-top: 12px;
-
-    .exception-title {
-      font-size: 14px;
-    }
-
-    .exception-desc {
-      width: 100%;
-      display: inline-block;
-      padding: 0px 20px;
-      margin-top: 8px;
-      overflow-wrap: break-word;
-    }
-  }
-}
-
 .metric-view-loading {
   width: 100%;
   height: 100%;
@@ -92,6 +59,14 @@
 
   .legend-name {
     color: #979ba5 !important;
+  }
+
+  .no-data {
+    width: 316px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
   }
 }
 
