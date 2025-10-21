@@ -433,7 +433,7 @@ ADVANCED_OPTIONS = OrderedDict(
         # RUM 配置
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
-        ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[])),
+        ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
     ]
 )
 

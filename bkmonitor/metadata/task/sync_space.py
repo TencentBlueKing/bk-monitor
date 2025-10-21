@@ -60,7 +60,7 @@ logger = logging.getLogger("metadata")
 
 
 @share_lock(identify="metadata__sync_bkcc_space")
-def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False):
+def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create_builtin_data_link_delay=True):
     """同步 bkcc 的业务，自动创建对应的空间
 
     TODO: 是否由服务方调用接口创建或者服务方可以被 watch
@@ -134,7 +134,7 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False):
 
         # 创建空间
         try:
-            create_bkcc_spaces(diff_biz_list)
+            create_bkcc_spaces(diff_biz_list, create_builtin_data_link_delay=create_builtin_data_link_delay)
         except Exception:
             logger.exception("create bkcc biz space error")
             return
