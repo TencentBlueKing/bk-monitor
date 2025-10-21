@@ -23,15 +23,15 @@ from rest_framework.serializers import Serializer, ValidationError
 
 from core.drf_resource import resource
 from bkmonitor.documents import AlertDocument
-from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam import ActionEnum, ResourceEnum
+from bkmonitor.iam.drf import InstanceActionForDataPermission
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.query_template.constants import VariableType
 from constants.alert import EventStatus
 from utils import count_md5
 
-from apm_web.models import StrategyTemplate, StrategyInstance
+from apm_web.models import StrategyTemplate, StrategyInstance, Application
 from apm_web.decorators import user_visit_record
 from . import serializers, handler, dispatch, helper, query_template, constants
 
@@ -54,8 +54,24 @@ class StrategyTemplateViewSet(GenericViewSet):
         self._query_data = serializer_inst.validated_data
         return self._query_data
 
-    def get_permissions(self) -> list[BusinessActionPermission]:
-        return [BusinessActionPermission([ActionEnum.MANAGE_APM_APPLICATION])]
+    def get_permissions(self) -> list[InstanceActionForDataPermission]:
+        if self.action in ["update", "destroy", "apply", "clone", "batch_partial_update"]:
+            return [
+                InstanceActionForDataPermission(
+                    "app_name",
+                    [ActionEnum.MANAGE_APM_APPLICATION],
+                    ResourceEnum.APM_APPLICATION,
+                    get_instance_id=Application.get_application_id_by_app_name,
+                )
+            ]
+        return [
+            InstanceActionForDataPermission(
+                "app_name",
+                [ActionEnum.VIEW_APM_APPLICATION],
+                ResourceEnum.APM_APPLICATION,
+                get_instance_id=Application.get_application_id_by_app_name,
+            )
+        ]
 
     def get_serializer_class(self) -> type[Serializer]:
         action_serializer_map = {
