@@ -401,10 +401,10 @@ class K8SEnricher(BaseEnricher):
 
             # 关联 Workload
             kind_pod_reg_map: dict[str, Any] = {
-                "Job": f"{name}-[a-z0-9]{{5,10}}",
-                "Deployment": f"{name}(-[a-z0-9]{{5,10}}){{1,2}}",
-                "DaemonSet": f"{name}-[a-z0-9]{{5}}",
-                "StatefulSet": f"{name}-[0-9]+",
+                "Job": f"^{name}-[a-z0-9]{{5,10}}$",
+                "Deployment": f"^{name}(-[a-z0-9]{{5,10}}){{1,2}}$",
+                "DaemonSet": f"^{name}-[a-z0-9]{{5}}$",
+                "StatefulSet": f"^{name}-[0-9]+$",
             }
             for workload_kind, pod_reg in kind_pod_reg_map.items():
                 # 为什么采取模糊匹配？因为有类似 xxxDeployment 的 CRD 存在。
