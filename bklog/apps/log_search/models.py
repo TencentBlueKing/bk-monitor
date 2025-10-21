@@ -961,7 +961,7 @@ class FavoriteGroup(OperateRecordModel):
             space_uid=space_uid,
             created_by=username,
             source_app_code=source_app_code,
-            name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value)),
+            defaults={"name": FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value))},
         )
         return obj
 
@@ -972,7 +972,7 @@ class FavoriteGroup(OperateRecordModel):
             group_type=FavoriteGroupType.UNGROUPED.value,
             space_uid=space_uid,
             source_app_code=source_app_code,
-            name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value)),
+            defaults={"name": FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value))},
         )
         return obj
 

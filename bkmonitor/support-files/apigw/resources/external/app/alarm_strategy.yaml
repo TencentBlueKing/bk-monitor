@@ -125,3 +125,75 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: search alarm strategy without biz
+  /app/alarm_strategy/save/v3/:
+    post:
+      operationId: save_alarm_strategy_v3
+      description: 保存告警策略(迁移)
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alarm_strategy_v3/save/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: save alarm strategy (migrated)
+  /app/alarm_strategy/delete/v3/:
+    post:
+      operationId: delete_alarm_strategy_v3
+      description: 删除告警策略(迁移)
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alarm_strategy_v3/delete/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete alarm strategy (migrated)
+  /app/alarm_strategy/update_bulk/v3/:
+    post:
+      operationId: update_partial_strategy_v3
+      description: 批量更新策略局部配置(迁移)
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alarm_strategy_v3/update_bulk/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: update partial strategy (migrated)
+  /app/alarm_strategy/search/v3/:
+    post:
+      operationId: search_alarm_strategy_v3
+      description: 查询告警策略(迁移)
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/alarm_strategy_v3/search/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: search alarm strategy (migrated)

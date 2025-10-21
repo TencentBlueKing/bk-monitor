@@ -137,7 +137,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
 
   @Watch('data')
   handleDataChange(val: EditTemplateFormData) {
-    this.algorithmsUnit = val.algorithms[0]?.unit_prefix;
+    this.algorithmsUnit = val.algorithms?.[0]?.unit_prefix;
   }
 
   /** 校验告警组 */

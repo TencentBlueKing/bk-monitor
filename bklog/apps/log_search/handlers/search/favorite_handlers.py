@@ -224,23 +224,26 @@ class FavoriteHandler:
         space_uid = self.space_uid if self.space_uid else self.data.space_uid
         search_mode = search_mode if search_mode else self.data.search_mode
 
-        # 可见为个人时归类到个人组
-        if visible_type == FavoriteVisibleType.PRIVATE.value:
-            group_id = FavoriteGroup.get_or_create_private_group(space_uid=space_uid, username=self.username).id
-
+        # 如果传入了收藏组ID，则根据收藏组判断可见类型
+        if group_id:
+            favorite_group = FavoriteGroup.objects.get(id=group_id)
+            if favorite_group.group_type == FavoriteGroupType.PRIVATE.value:
+                visible_type = FavoriteVisibleType.PRIVATE.value
+            else:
+                visible_type = FavoriteVisibleType.PUBLIC.value
         # 未传组ID的时候, 可见为个人的时候设置为个人组，可见为公开的时候将组置为未分组
-        if not group_id:
-            group_id = FavoriteGroup.get_or_create_ungrouped_group(space_uid=space_uid).id
+        else:
+            if visible_type == FavoriteVisibleType.PRIVATE.value:
+                favorite_group = FavoriteGroup.get_or_create_private_group(space_uid=space_uid, username=self.username)
+            else:
+                favorite_group = FavoriteGroup.get_or_create_ungrouped_group(space_uid=space_uid)
+            group_id = favorite_group.id
 
         if self.data:
             # 公开收藏转个人收藏仅限于自己创建的
-            favorite_group = FavoriteGroup.objects.get(id=group_id)
-            # 当前传入的收藏组ID是个人收藏
             if favorite_group.group_type == FavoriteGroupType.PRIVATE.value:
                 if self.data.created_by != self.username:
                     raise FavoriteVisibleTypeNotAllowedModifyException()
-                else:
-                    visible_type = FavoriteVisibleType.PRIVATE.value
             # 名称检查
             if (self.data.name != name or self.data.group_id != group_id) and Favorite.objects.filter(
                 name=name,

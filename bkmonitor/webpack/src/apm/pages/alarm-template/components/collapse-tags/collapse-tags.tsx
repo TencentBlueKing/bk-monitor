@@ -60,6 +60,8 @@ export default class CollapseTags extends tsc<CollapseTagsProps> {
   @Prop({ type: Boolean, default: true }) enableEllipsis: boolean;
   /** 标签溢出时溢出标签hover显示的提示内容 */
   @Prop({ type: Function }) ellipsisTip: (ellipsisList: string[] | unknown[]) => Element;
+  /** 占位符 */
+  @Prop({ type: String, default: '--' }) placeholder: string;
 
   /** 尺寸监听器实例 */
   resizeObserverInstance = null;
@@ -231,7 +233,19 @@ export default class CollapseTags extends tsc<CollapseTagsProps> {
     /** 数据总长度 */
     const dataLen = (this.data || []).length;
     if (dataLen === 0) {
-      return;
+      return (
+        <div class='bk-common-v2-tag-empty-placeholder'>
+          {(this.$scopedSlots as any)?.placeholder?.() || this.placeholder}
+          {(this.$scopedSlots as any)?.after ? (
+            <span
+              ref='afterSlotContainerRef'
+              class='after-slot-container'
+            >
+              {(this.$scopedSlots as any)?.after([], [])}
+            </span>
+          ) : null}
+        </div>
+      );
     }
     /** 折叠个数 */
     const collapseCount = dataLen - this.calculateTagCount;
