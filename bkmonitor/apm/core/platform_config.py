@@ -112,6 +112,9 @@ class PlatformConfig(BkCollectorConfig):
             "attribute_config": cls.get_attribute_config(),
         }
 
+        if settings.APM_FIELD_NORMALIZER_ENABLED:
+            plat_config["field_normalizer_config"] = cls.get_field_normalizer_config()
+
         if bcs_cluster_id and bcs_cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             resource_fill_dimensions_config = cls.get_resource_fill_dimensions_config(bcs_cluster_id)
             if resource_fill_dimensions_config:
@@ -257,6 +260,19 @@ class PlatformConfig(BkCollectorConfig):
     @classmethod
     def get_license_config(cls):
         return {"name": "license_checker/common", **DEFAULT_PLATFORM_LICENSE_CONFIG}
+
+    @classmethod
+    def get_field_normalizer_config(cls):
+        """
+        获取字段标准化配置
+        从 FieldNormalizerConfig 表中读取配置
+        """
+        from apm.models.config import FieldNormalizerConfig
+
+        # 将数据库配置转换为所需格式
+        fields = [config.to_json() for config in FieldNormalizerConfig.objects.all()]
+
+        return {"name": "field_normalizer/otel_mapping", "fields": fields}
 
     @classmethod
     def get_token_checker_config(cls, bcs_cluster_id=None):

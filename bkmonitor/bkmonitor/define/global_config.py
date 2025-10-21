@@ -544,6 +544,10 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_APDEX_T_VALUE", slz.IntegerField(label=_("APM平台apdex_t默认配置"), default=800)),
         ("APM_SAMPLING_PERCENTAGE", slz.IntegerField(label=_("APM中默认采样比例"), default=100)),
         ("APM_APP_QPS", slz.IntegerField(label=_("APM中应用默认QPS"), default=500)),
+        (
+            "APM_FIELD_NORMALIZER_ENABLED",
+            slz.BooleanField(label=_("是否下发平台级别字段标准化配置"), default=True),
+        ),
         ("APM_CUSTOM_EVENT_REPORT_CONFIG", slz.DictField(label=_("APM事件上报配置"), default={})),
         ("APM_TRACE_DIAGRAM_CONFIG", slz.DictField(label=_("APM Trace 检索图表配置"), default={})),
         ("APM_DORIS_STORAGE_CONFIG", slz.DictField(label=_("APM Doris 存储配置"), default={})),
