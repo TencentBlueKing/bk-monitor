@@ -304,7 +304,7 @@ def auto_register_apm_builtin_strategy_template():
         map_key = f"{app.bk_biz_id}-{app.app_name}"
         current = current_map.get(map_key, "-")
         try:
-            current_version, current_system_str = current.split("-") if "-" in current else ("", "")
+            current_version, current_system_str = current.rsplit("-", 1) if "-" in current else ("", "")
             current_systems: list[str] = current_system_str.split("|") if current_system_str else []
             applied_map[map_key] = current
             registry = BuiltinStrategyTemplateRegistry(app)
