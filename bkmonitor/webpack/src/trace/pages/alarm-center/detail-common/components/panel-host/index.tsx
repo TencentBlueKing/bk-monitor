@@ -23,9 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, onMounted, shallowRef } from 'vue';
+
+import { random } from 'monitor-common/utils';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
+import { getHostSceneView } from '../../../services/alarm-detail';
 import PanelHostDashboard from './components/host-dashboard/panel-host-dashboard';
 
 import './index.scss';
@@ -33,10 +38,48 @@ import './index.scss';
 export default defineComponent({
   name: 'PanelHost',
   props: {
-    id: String as PropType<string>,
+    id: {
+      type: String,
+    },
+    detail: {
+      // TODO 类型需补充完善
+      type: Object as PropType<any>,
+      default: () => ({}),
+    },
   },
-  setup(_props) {
-    return {};
+  setup(props) {
+    /** host 场景指标视图配置信息 */
+    const hostSceneView = shallowRef<PanelModel>(null);
+    /** 是否处于请求加载状态 */
+    const loading = shallowRef(false);
+    /** 图表联动Id */
+    const dashboardId = random(10);
+
+    onMounted(() => {
+      getDashboardPanels();
+    });
+    /**
+     * @description 获取仪表盘数据数组
+     */
+    async function getDashboardPanels() {
+      loading.value = true;
+      const sceneView = await getHostSceneView(props.detail?.bk_biz_id ?? 2);
+
+      for (const dashboard of sceneView.panels) {
+        if (!dashboard?.panels?.length) continue;
+        dashboard.panels = dashboard.panels.map(
+          item =>
+            new PanelModel({
+              ...item,
+              dashboardId,
+            })
+        );
+      }
+      hostSceneView.value = sceneView;
+      echartsConnect(dashboardId);
+      loading.value = false;
+    }
+    return { hostSceneView };
   },
   render() {
     return (
@@ -55,7 +98,7 @@ export default defineComponent({
           />
         </div>
         <div class='panel-host-chart-wrap'>
-          <PanelHostDashboard />
+          <PanelHostDashboard sceneView={this.hostSceneView} />
         </div>
       </div>
     );

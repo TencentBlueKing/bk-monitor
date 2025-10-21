@@ -26,37 +26,33 @@
 
 import { type PropType, defineComponent, onMounted, provide, shallowRef, watch } from 'vue';
 
-import { random } from 'monitor-common/utils';
-import { PanelModel } from 'monitor-ui/chart-plugins/typings';
-
 import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
 import { createAutoTimeRange } from '../../../../../../../plugins/charts/failure-chart/failure-alarm-chart';
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
-import { getHostSceneView } from '../../../../../services/alarm-detail';
 
-import type { IDetail } from 'fta-solutions/pages/event/event-detail/type';
+import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './panel-host-dashboard.scss';
 
 export default defineComponent({
   name: 'PanelHostDashboard',
   props: {
+    sceneView: {
+      type: Object as PropType<PanelModel>,
+    },
     detail: {
-      type: Object as PropType<IDetail>,
+      // TODO 类型需补充完善
+      type: Object as PropType<any>,
       default: () => ({}),
     },
   },
   setup(props) {
-    /** host 场景指标视图配置信息 */
-    const hostSceneView = shallowRef<PanelModel>(null);
     /** 数据时间间隔 */
     const timeRange = shallowRef(DEFAULT_TIME_RANGE);
     /** 是否立即刷新图表数据 */
     const refreshImmediate = shallowRef('');
     /** 图表请求参数变量 */
     const viewOptions = shallowRef({});
-    /** 图表联动Id */
-    const dashboardId = random(10);
 
     provide('timeRange', timeRange);
     provide('refreshImmediate', refreshImmediate);
@@ -69,7 +65,6 @@ export default defineComponent({
     );
     onMounted(() => {
       init();
-      getDashboardPanels();
     });
 
     /**
@@ -86,6 +81,7 @@ export default defineComponent({
         ip: '0.0.0.0',
         bk_cloud_id: '0',
       };
+
       for (const item of props.detail?.dimensions ?? []) {
         if (item.key === 'bk_host_id') {
           variables.bk_host_id = item.value;
@@ -102,6 +98,7 @@ export default defineComponent({
           currentTarget.bk_target_cloud_id = item.value;
         }
       }
+
       const interval = props.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
       const { startTime, endTime } = createAutoTimeRange(props.detail.begin_time, props.detail.end_time, interval);
 
@@ -116,34 +113,17 @@ export default defineComponent({
       };
     }
 
-    /**
-     * @description 获取仪表盘数据数组
-     */
-    async function getDashboardPanels() {
-      const sceneView = await getHostSceneView(props.detail?.bk_biz_id ?? 2);
-
-      for (const dashboard of sceneView.panels) {
-        if (!dashboard?.panels?.length) continue;
-        dashboard.panels = dashboard.panels.map(
-          item =>
-            new PanelModel({
-              ...item,
-              dashboardId,
-            })
-        );
-      }
-      hostSceneView.value = sceneView;
-    }
-    return { hostSceneView };
+    return { viewOptions };
   },
   render() {
     return (
       <div class='panel-host-dashboard'>
-        {this.hostSceneView?.panels?.map?.(dashboard => (
+        {this.sceneView?.panels?.map?.(dashboard => (
           <AlarmMetricsDashboard
             key={dashboard.id}
             dashboardTitle={dashboard?.title}
             panelModels={dashboard?.panels}
+            viewOptions={this.viewOptions}
           />
         ))}
       </div>

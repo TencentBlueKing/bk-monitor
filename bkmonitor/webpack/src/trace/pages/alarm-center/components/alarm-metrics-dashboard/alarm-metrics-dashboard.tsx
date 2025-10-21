@@ -44,9 +44,14 @@ export default defineComponent({
       type: Array as PropType<PanelModel[]>,
       default: () => [],
     },
-    /** 请求图表数据时参数 */
+    /** panelModel 配置 - 图表请求接口配置(targets) - 传参配置(data)中的占位变量($xxx)的数据 */
+    viewOptions: {
+      type: Object as PropType<Record<string, unknown>>,
+      default: () => ({}),
+    },
+    /** 请求图表数据时所需要额外携带的参数 */
     params: {
-      type: Object as PropType<Record<string, any>>,
+      type: Object as PropType<Record<string, unknown>>,
       default: () => ({}),
     },
     /** 仪表板面板每行显示的图表列数 */
