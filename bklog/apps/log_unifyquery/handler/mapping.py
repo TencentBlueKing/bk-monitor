@@ -400,10 +400,6 @@ class UnifyQueryMappingHandler:
         result = UnifyQueryApi.query_field_map(params)
         return result.get("data", [])
 
-    @staticmethod
-    def _is_analyzed(field_type: str):
-        return field_type == "text"
-
     def _combine_description_field(self, fields_list=None, scope=None):
         if fields_list is None:
             return []
@@ -433,12 +429,6 @@ class UnifyQueryMappingHandler:
             if _field_name:
                 schema_dict.update({_field_name: temp_dict})
 
-        alias_dict = {}
-        if query_alias_settings := self.index_set.query_alias_settings:
-            for item in query_alias_settings:
-                alias_dict[item["field_name"]] = item["query_alias"]
-
-        remove_field_list = list()
         # 增加description别名字段
         for _field in fields_list:
             a_field_name = _field.get("field_name", "")
@@ -472,19 +462,6 @@ class UnifyQueryMappingHandler:
                         }
                     )
 
-                # 添加别名信息
-                if a_field_name in alias_dict:
-                    _field["query_alias"] = alias_dict[a_field_name]
-
-                # 别名字段
-                if _field.get("field_type") == "alias":
-                    remove_field_list.append(_field)
-
-        # 移除不展示的别名字段
-        for field in remove_field_list:
-            if field in fields_list:
-                fields_list.remove(field)
-
         return fields_list
 
     def get_bkdata_schema(self, index: str) -> list:
@@ -492,7 +469,7 @@ class UnifyQueryMappingHandler:
         return self._inner_get_bkdata_schema(index=index)
 
     @staticmethod
-    @cache_ten_minute("{index}_schema")
+    @cache_ten_minute("{index}_schema_uq")
     def _inner_get_bkdata_schema(*, index):
         try:
             data: dict = BkDataStorekitApi.get_schema_and_sql({"result_table_id": index})
@@ -502,7 +479,7 @@ class UnifyQueryMappingHandler:
             return []
 
     @staticmethod
-    @cache_one_minute("{indices}_meta_schema")
+    @cache_one_minute("{indices}_meta_schema_uq")
     def get_meta_schema(*, indices):
         indices = indices.split(",")
         try:
