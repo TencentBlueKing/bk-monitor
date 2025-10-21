@@ -52,6 +52,7 @@ from metadata.models.vm.constants import (
     QUERY_VM_SPACE_UID_CHANNEL_KEY,
     QUERY_VM_SPACE_UID_LIST_KEY,
 )
+from metadata.task.tasks import check_bkcc_space_builtin_datalink
 from metadata.task.utils import bulk_handle
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
@@ -93,6 +94,9 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
     if not biz_list:
         logger.info("query cmdb api resp is null")
         return
+
+    # 检查空间下内置数据链路
+    check_bkcc_space_builtin_datalink(biz_list=[(b.bk_tenant_id, b.bk_biz_id) for b in biz_list])
 
     biz_id_name_dict = {str(b.bk_biz_id): (b.bk_biz_name, b.bk_tenant_id) for b in biz_list}
     # 过滤已经创建空间的业务
@@ -143,6 +147,8 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
         RedisTools.publish(QUERY_VM_SPACE_UID_CHANNEL_KEY, [json.dumps({"time": time.time()})])
 
         logger.info("create bkcc space successfully, space: %s", json.dumps(diff_biz_list))
+
+    # 额外检查V4链路配置
 
     cost_time = time.time() - start_time
 
