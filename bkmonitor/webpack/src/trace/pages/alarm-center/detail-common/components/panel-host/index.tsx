@@ -26,12 +26,13 @@
 import { type PropType, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { random } from 'monitor-common/utils';
-import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import { getHostSceneView } from '../../../services/alarm-detail';
 import PanelHostDashboard from './components/host-dashboard/panel-host-dashboard';
+
+import type { IBookMark } from 'monitor-ui/chart-plugins/typings';
 
 import './index.scss';
 
@@ -49,7 +50,7 @@ export default defineComponent({
   },
   setup(props) {
     /** host 场景指标视图配置信息 */
-    const hostSceneView = shallowRef<PanelModel>(null);
+    const hostSceneData = shallowRef<IBookMark>(null);
     /** 是否处于请求加载状态 */
     const loading = shallowRef(false);
     /** 图表联动Id */
@@ -65,21 +66,21 @@ export default defineComponent({
       loading.value = true;
       const sceneView = await getHostSceneView(props.detail?.bk_biz_id ?? 2);
 
-      for (const dashboard of sceneView.panels) {
-        if (!dashboard?.panels?.length) continue;
-        dashboard.panels = dashboard.panels.map(
-          item =>
-            new PanelModel({
-              ...item,
-              dashboardId,
-            })
-        );
-      }
-      hostSceneView.value = sceneView;
+      // for (const dashboard of sceneView.panels) {
+      //   if (!dashboard?.panels?.length) continue;
+      //   dashboard.panels = dashboard.panels.map(
+      //     item =>
+      //       new PanelModel({
+      //         ...item,
+      //         dashboardId,
+      //       })
+      //   );
+      // }
+      hostSceneData.value = sceneView;
       echartsConnect(dashboardId);
       loading.value = false;
     }
-    return { hostSceneView };
+    return { hostSceneData, dashboardId };
   },
   render() {
     return (
@@ -98,7 +99,10 @@ export default defineComponent({
           />
         </div>
         <div class='panel-host-chart-wrap'>
-          <PanelHostDashboard sceneView={this.hostSceneView} />
+          <PanelHostDashboard
+            dashboardId={this.dashboardId}
+            sceneData={this.hostSceneData}
+          />
         </div>
       </div>
     );

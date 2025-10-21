@@ -25,23 +25,27 @@
  */
 import { type PropType, computed, defineComponent } from 'vue';
 
+import { type IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
+
 import ChartCollapse from '../../../trace-explore/components/explore-chart/chart-collapse';
 import ExploreChart from '../../../trace-explore/components/explore-chart/explore-chart';
-
-import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './alarm-metrics-dashboard.scss';
 
 export default defineComponent({
   name: 'AlarmMetricsDashboard',
   props: {
+    /** 图表联动Id */
+    dashboardId: {
+      type: String,
+    },
     /** 仪表板标题 */
     dashboardTitle: {
       type: String,
     },
     /** 仪表板面板内图表配置列表 */
     panelModels: {
-      type: Array as PropType<PanelModel[]>,
+      type: Array as PropType<IPanelModel[]>,
       default: () => [],
     },
     /** panelModel 配置 - 图表请求接口配置(targets) - 传参配置(data)中的占位变量($xxx)的数据 */
@@ -76,8 +80,13 @@ export default defineComponent({
       /** 仪表板面板每行显示的图表列数 */
       '--dashboard-grid-col': props.gridCol,
     }));
+
+    const panels = computed(() => {
+      return props.panelModels.map(e => new PanelModel(e));
+    });
     return {
       cssVars,
+      panels,
     };
   },
   render() {
@@ -95,7 +104,7 @@ export default defineComponent({
           title={this.dashboardTitle}
         >
           <div class='alarm-metrics-chart-container'>
-            {this.panelModels.map(panel => (
+            {this.panels.map(panel => (
               <ExploreChart
                 key={panel.id}
                 panel={panel}

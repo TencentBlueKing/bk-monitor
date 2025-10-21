@@ -24,21 +24,26 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onMounted, provide, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, provide, shallowRef, watch } from 'vue';
+
+import { type IBookMark, BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
 import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
 import { createAutoTimeRange } from '../../../../../../../plugins/charts/failure-chart/failure-alarm-chart';
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
-
-import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './panel-host-dashboard.scss';
 
 export default defineComponent({
   name: 'PanelHostDashboard',
   props: {
-    sceneView: {
-      type: Object as PropType<PanelModel>,
+    /** 图表联动Id */
+    dashboardId: {
+      type: String,
+    },
+    sceneData: {
+      type: Object as PropType<IBookMark>,
+      default: () => ({ id: '', panels: [], name: '' }),
     },
     detail: {
       // TODO 类型需补充完善
@@ -53,10 +58,33 @@ export default defineComponent({
     const refreshImmediate = shallowRef('');
     /** 图表请求参数变量 */
     const viewOptions = shallowRef({});
+    /** 需要渲染的仪表盘面板配置数组 */
+    const sceneView = computed(() => {
+      const transformData = new BookMarkModel(props.sceneData);
+      const unGroupKey = '__UNGROUP__';
+      const panels = transformData.panels;
+      /** 处理只有一个分组且为未分组时则不显示组名 */
+      const rowPanels = panels.filter(item => item.type === 'row');
+      let resultPanels = panels;
+      if (rowPanels.length === 1 && rowPanels[0]?.id === unGroupKey) {
+        resultPanels = panels.reduce((prev, curr) => {
+          if (curr.type === 'row') {
+            prev.push(...curr.panels);
+          } else {
+            prev.push(curr);
+          }
+          return prev;
+        }, []);
+      } else if (panels.length > 1 && panels.some(item => item.id === unGroupKey)) {
+        /* 当有多个分组且未分组为空的情况则不显示未分组 */
+        resultPanels = panels.filter(item => (item.id === unGroupKey ? !!item.panels?.length : true));
+      }
+      transformData.panels = resultPanels;
+      return transformData;
+    });
 
     provide('timeRange', timeRange);
     provide('refreshImmediate', refreshImmediate);
-
     watch(
       () => props.detail,
       () => {
@@ -113,7 +141,7 @@ export default defineComponent({
       };
     }
 
-    return { viewOptions };
+    return { sceneView, viewOptions };
   },
   render() {
     return (
@@ -121,6 +149,7 @@ export default defineComponent({
         {this.sceneView?.panels?.map?.(dashboard => (
           <AlarmMetricsDashboard
             key={dashboard.id}
+            dashboardId={this.dashboardId}
             dashboardTitle={dashboard?.title}
             panelModels={dashboard?.panels}
             viewOptions={this.viewOptions}
