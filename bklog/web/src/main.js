@@ -58,7 +58,7 @@ import './static/font-face/index.css';
 import './static/style.css';
 import '@blueking/bk-user-selector/vue2/vue2.css';
 
-import { localSettings } from './local.po';
+// import { localSettings } from './local.po';
 
 Vue.prototype.$renderHeader = renderHeader;
 Vue.prototype.$xss = xssFilter;
@@ -84,7 +84,7 @@ Vue.use(VueVirtualScroller);
 window.bus = bus;
 
 const mountedVueInstance = () => {
-  Object.assign(window, localSettings);
+  // Object.assign(window, localSettings);
 
   window.mainComponent = {
     $t(key, params) {

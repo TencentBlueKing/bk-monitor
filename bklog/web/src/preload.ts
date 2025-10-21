@@ -205,7 +205,7 @@ export default ({
       // 必填，租户 ID
       tenantId: resp.data.bk_tenant_id,
       // 必填，网关地址
-      apiBaseUrl: process.env.NODE_ENV === 'development' ? 'http://appdev.woa.com:8001' : window.BK_LOGIN_URL,
+      apiBaseUrl: process.env.NODE_ENV === 'development' ? '' : window.BK_LOGIN_URL,
       // 可选，缓存时间，单位为毫秒, 默认 5 分钟, 只对单一值生效
       cacheDuration: 1000 * 60 * 5,
       // 可选，当输入为空时，显示的文本，默认为 '--'
