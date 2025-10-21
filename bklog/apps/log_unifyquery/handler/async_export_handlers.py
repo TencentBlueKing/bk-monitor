@@ -39,13 +39,12 @@ from apps.log_search.constants import (
     IndexSetType,
 )
 from apps.log_search.exceptions import (
-    BKBaseExportException,
     MissAsyncExportException,
     PreCheckAsyncExportException,
     DuplicateUnifyQueryExportException,
 )
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
-from apps.log_search.models import AsyncTask, LogIndexSet, Scenario
+from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.models import model_to_dict
 from apps.utils.db import array_chunk
@@ -94,9 +93,6 @@ class UnifyQueryAsyncExportHandlers:
                 export_status=ExportStatus.DOWNLOAD_LOG,
             ).exists():
                 raise DuplicateUnifyQueryExportException()
-        # 计算平台暂不支持快速下载
-        if is_quick_export and self.unify_query_handler.index_info_list[0]["scenario_id"] == Scenario.BKDATA:
-            raise BKBaseExportException()
         # 判断fields是否支持
         fields = self._pre_check_fields()
         # 获取排序字段
@@ -328,10 +324,7 @@ class UnifyQueryUnionAsyncExportHandlers:
                 raise DuplicateUnifyQueryExportException()
         sort_fields_flag = []
         sort_fields_list = []
-        # 计算平台暂不支持快速下载
         for index_info in self.unify_query_handler.index_info_list:
-            if is_quick_export and index_info["scenario_id"] == Scenario.BKDATA:
-                raise BKBaseExportException()
             index_set_id = index_info["index_set_id"]
             search_handler = SearchHandler(
                 index_set_id=index_set_id,

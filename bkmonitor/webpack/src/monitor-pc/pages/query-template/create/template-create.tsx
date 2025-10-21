@@ -283,16 +283,19 @@ export default class TemplateCreate extends tsc<object> {
     this.expressionConfig.functions = val;
   }
 
+  /** 修改变量名 */
   handleVariableNameChange(val: string, index: number) {
     const currVariable = this.variablesList[index];
     const oldName = currVariable.name;
     currVariable.name = val;
+    /** 替换所有老的变量名 */
     if (currVariable.type === VariableTypeEnum.CONSTANTS) {
       this.expressionConfig.expression = this.expressionConfig.expression.replaceAll(oldName, val);
     } else if (currVariable.type === VariableTypeEnum.FUNCTIONS) {
       for (const queryConfig of this.queryConfigs) {
         queryConfig.functions = JSON.parse(JSON.stringify(queryConfig.functions).replaceAll(oldName, val));
       }
+    } else if (currVariable.type === VariableTypeEnum.EXPRESSION_FUNCTIONS) {
       this.expressionConfig.functions = JSON.parse(
         JSON.stringify(this.expressionConfig.functions).replaceAll(oldName, val)
       );

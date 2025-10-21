@@ -51,7 +51,7 @@ class MetricInfoSerializer(serializers.Serializer):
 
 
 class VariableConfigSerializer(serializers.Serializer):
-    default = serializers.JSONField(label=_("默认值"), required=False, default=None)
+    default = serializers.JSONField(label=_("默认值"), required=False, default=None, allow_null=True)
     related_tag = serializers.CharField(label=_("关联维度"), required=False)
     related_metrics = serializers.ListField(
         label=_("关联指标"), required=False, min_length=1, child=MetricInfoSerializer()
@@ -131,12 +131,14 @@ class QueryConfigSerializer(serializers.Serializer):
     data_type_label = serializers.CharField(label=_("数据类型标签"))
     data_source_label = serializers.CharField(label=_("数据源标签"))
     interval = serializers.IntegerField(label=_("汇聚周期（秒）"), required=False)
+    index_set_id = serializers.CharField(label=_("索引集 ID"), required=False)
     metric_id = serializers.CharField(label=_("指标 ID"), required=False)
     promql = serializers.CharField(label=_("PromQL 查询语句"), required=False, allow_blank=True, default="")
     metrics = serializers.ListField(label=_("指标"), required=False, default=[], child=MetricSerializer())
     where = MixedTypeListField(label=_("过滤条件"), required=False, default=[], allowed_types=[dict, str])
     functions = MixedTypeListField(label=_("函数"), required=False, default=[], allowed_types=[dict, str])
     group_by = serializers.ListField(label=_("聚合字段"), required=False, default=[], child=serializers.CharField())
+    query_string = serializers.CharField(label=_("查询语句"), required=False, allow_blank=True, default="")
 
     def validate(self, attrs: dict[str, Any]):
         metric_field: str = ""
@@ -178,6 +180,7 @@ class QueryTemplateSerializer(serializers.Serializer):
     )
     functions = MixedTypeListField(label=_("函数"), required=False, default=[], allowed_types=[dict, str])
     variables = serializers.ListField(label=_("查询模板变量"), required=False, default=[], child=VariableSerializer())
+    unit = serializers.CharField(label=_("单位"), allow_blank=True, default="")
 
     @staticmethod
     def validate_variables(variables: list[dict[str, Any]]) -> list[dict[str, Any]]:

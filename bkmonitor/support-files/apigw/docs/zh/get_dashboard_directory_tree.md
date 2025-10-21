@@ -37,7 +37,7 @@
 | isStarred | bool   | 仪表盘是否已收藏 |
 | editable  | bool   | 仪表盘是否可编辑 |
 
-### 请求参数示例
+### 响应参数示例
 
 ```json
 {

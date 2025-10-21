@@ -42,7 +42,9 @@ class EventServiceRelation(ServiceBase):
     options = models.JSONField(verbose_name="事件选项", default=dict)
 
     @classmethod
-    def fetch_relations(cls, bk_biz_id: int, app_name: str, service_name: str | None = None) -> list[dict[str, Any]]:
+    def fetch_relations(
+        cls, bk_biz_id: int, app_name: str, service_names: list[str]
+    ) -> dict[str, list[dict[str, Any]]]:
         """获取事件关联配置
         [
             {
@@ -74,25 +76,30 @@ class EventServiceRelation(ServiceBase):
             },
         ]
         """
-        filter_kwargs: dict[str, Any] = {"bk_biz_id": bk_biz_id, "app_name": app_name}
-        if service_name:
-            filter_kwargs["service_name"] = service_name
-
-        table_options_map: dict[str, dict[str, Any]] = {}
-        table_relations_map: dict[str, list[dict[str, Any]]] = {EventCategory.SYSTEM_EVENT.value: []}
-        for relation in EventServiceRelation.objects.filter(**filter_kwargs).values("table", "relations", "options"):
-            table_options_map[relation["table"]] = relation["options"]
-            table_relations_map.setdefault(relation["table"], []).extend(relation["relations"])
+        service_table_options_map: dict[str, dict[str, Any]] = {}
+        service_table_relations_map: dict[str, list[dict[str, Any]]] = {
+            f"{service_name}:{EventCategory.SYSTEM_EVENT.value}": [] for service_name in service_names
+        }
+        for relation in EventServiceRelation.objects.filter(
+            bk_biz_id=bk_biz_id, app_name=app_name, service_name__in=service_names
+        ).values("service_name", "table", "relations", "options"):
+            key: str = f"{relation['service_name']}:{relation['table']}"
+            service_table_options_map[key] = relation["options"]
+            service_table_relations_map.setdefault(key, []).extend(relation["relations"])
 
         # 去重
-        for table in table_relations_map:
-            duplicate_relation_tuples: set[frozenset] = {frozenset(r.items()) for r in table_relations_map[table]}
-            table_relations_map[table] = [dict(relation_tuple) for relation_tuple in duplicate_relation_tuples]
+        for key in service_table_relations_map:
+            duplicate_relation_tuples: set[frozenset] = {frozenset(r.items()) for r in service_table_relations_map[key]}
+            service_table_relations_map[key] = [dict(relation_tuple) for relation_tuple in duplicate_relation_tuples]
 
-        return [
-            {"table": table, "relations": relations, "options": table_options_map.get(table) or {}}
-            for table, relations in table_relations_map.items()
-        ]
+        service_relations: dict[str, list[dict[str, Any]]] = {}
+        for key, relations in service_table_relations_map.items():
+            service_name, table = key.split(":", 1)
+            service_relations.setdefault(service_name, []).append(
+                {"table": table, "relations": relations, "options": service_table_options_map.get(key) or {}}
+            )
+
+        return service_relations
 
 
 class LogServiceRelation(ServiceBase):

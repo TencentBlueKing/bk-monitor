@@ -40,7 +40,6 @@ from metadata.models.data_link.data_link_configs import (
     VMStorageBindingConfig,
 )
 from metadata.models.data_link.utils import generate_result_table_field_list, get_bkbase_raw_data_id_name
-from metadata.models.result_table import LogV4DataLinkOption
 from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage
 
 if TYPE_CHECKING:
@@ -265,6 +264,7 @@ class DataLink(models.Model):
             storage_cluster_name: 存储集群名称
         """
         from metadata.models import ResultTableOption
+        from metadata.models.result_table import LogV4DataLinkOption
 
         logger.info(
             "compose_log_configs: data_link_name->[%s],bk_biz_id->[%s],data_source->[%s],table_id->[%s]",
