@@ -23,12 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, watch } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 import { shallowRef } from 'vue';
 import { computed } from 'vue';
 
 import { Loading, Tab } from 'bkui-vue';
-import { alertDetail } from 'monitor-api/modules/alert';
 import { useI18n } from 'vue-i18n';
 
 import AlarmAlert from './components/alarm-alert';
@@ -49,7 +48,7 @@ import './index.scss';
 export default defineComponent({
   name: 'DetailCommon',
   props: {
-    id: String as PropType<string>,
+    data: Object as PropType<IAlert>,
   },
   setup(props) {
     const { t } = useI18n();
@@ -107,30 +106,6 @@ export default defineComponent({
 
       return comMap[currentPanel.value];
     });
-
-    const fetchDetail = () => {
-      isLoading.value = true;
-      alertDetail({
-        id: props.id,
-      })
-        .then(data => {
-          console.log('data = ', data);
-          alterDetailData.value = data;
-        })
-        .finally(() => {
-          isLoading.value = false;
-        });
-    };
-
-    watch(
-      () => props.id,
-      () => {
-        fetchDetail();
-      },
-      {
-        immediate: true,
-      }
-    );
 
     return () => (
       <Loading loading={isLoading.value}>

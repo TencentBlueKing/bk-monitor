@@ -72,7 +72,7 @@ export default defineComponent({
     const panel = computed(() => props.panel);
     const params = computed(() => props.params);
 
-    const { options, loading, metricList, targets, series, duration } = useEcharts(
+    const { options, loading, metricList, targets, series, duration, chartId } = useEcharts(
       panel,
       chartRef,
       instance.appContext.config.globalProperties.$api,
@@ -86,7 +86,7 @@ export default defineComponent({
       series,
       chartRef
     );
-    const { legendData, handleSelectLegend } = useChartLegend(options);
+    const { legendData, handleSelectLegend } = useChartLegend(options, chartId);
     const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
       if (!mouseIn.value) return;
       const xAxisData = echartOptions.xAxis[0]?.data;

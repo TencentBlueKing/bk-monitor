@@ -3,5 +3,85 @@
   align-items: center;
   height: 36px;
   padding: 0 8px 0 25px;
-  background: #ffebeb;
+  border-left: 4px solid transparent;
+
+  .status-icon {
+    display: flex;
+    align-items: center;
+    line-height: 36px;
+
+    .icon-monitor {
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    .status-text {
+      margin-left: 5px;
+      font-size: 13px;
+      vertical-align: middle;
+    }
+  }
+
+  .separator {
+    width: 1px;
+    height: 12px;
+    margin: 0 8px;
+    background-color: #C4C6CC;
+  }
+
+  .alert-content {
+    flex: 1;
+  }
+
+  .tools {
+    color: #3A84FF;
+
+    .bk-button {
+      margin-left: 12px;
+    }
+
+    .icon-mc-notice-shield {
+      font-size: 12px;
+    }
+
+    .icon-fenxiang {
+      font-size: 10px;
+    }
+
+    .btn-text {
+      margin-left: 5px;
+    }
+  }
+
+  &.ABNORMAL {
+    border-left-color: #e71818;
+    background: #ffebeb;
+
+    .status-icon {
+      color: #EA3636;
+    }
+  }
+
+  &.SHIELDED_ABNORMAL {
+    border-left-color: #F59500;
+    background: #FDEED8;
+
+    .status-icon {
+      color: #F59500;
+    }
+
+    .status-text {
+      color: #E38B02;
+    }
+  }
+
+  &.RECOVERED {
+    border-left-color: #2CAF5E;
+    background: #DAF6E5;
+
+    .status-icon {
+      color: #2CAF5E;
+    }
+  }
+
 }

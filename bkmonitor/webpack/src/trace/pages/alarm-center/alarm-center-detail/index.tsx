@@ -23,20 +23,142 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
-
-import { useRoute } from 'vue-router';
+import { computed, defineComponent, PropType } from 'vue';
 
 import DetailCommon from '../detail-common';
+import { Message, Sideslider } from 'bkui-vue';
+import type { IAlert } from '../detail-common/typeing';
+import EventDetailHead from './components/event-detail-head';
+import { AlarmType } from '../typings';
+import { useI18n } from 'vue-i18n';
+import { copyText } from 'monitor-common/utils';
+import { useAppStore } from '@/store/modules/app';
 
 export default defineComponent({
   name: 'AlarmCenterDetail',
-  setup() {
-    const route = useRoute();
-    const id = String(route.params.id);
+  props: {
+    data: {
+      type: Object as PropType<IAlert>,
+    },
+    detailType: {
+      type: String as PropType<AlarmType>,
+      default: AlarmType.ALERT,
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+    show: {
+      type: Boolean,
+      default: false,
+    },
+    isFeedback: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: ['update:show'],
+  setup(props, { emit }) {
+    const { t } = useI18n();
+    const store = useAppStore();
+    const bizId = computed(() => store.bizId);
 
-    return () => {
-      return <DetailCommon id={id} />;
+    // 复制事件详情连接
+    const handleToEventDetail = (type: 'action-detail' | 'detail', isNewPage = false) => {
+      let url = location.href.replace(location.hash, `#/event-center/${type}/${props.data?.id}`);
+      url = url.replace(location.search, `?bizId=${props.data?.bk_biz_id || bizId}`);
+      if (isNewPage) {
+        window.open(url);
+        return;
+      }
+      let success = true;
+      copyText(url, msg => {
+        Message({
+          message: msg,
+          theme: 'error',
+        });
+        success = false;
+      });
+      if (success) {
+        Message({
+          message: t('复制成功'),
+          theme: 'success',
+        });
+      }
     };
+
+    // 作为新页面打开
+    const newPageBtn = (type: 'action-detail' | 'detail') => {
+      return (
+        <span
+          class='new-page-btn'
+          onClick={() => handleToEventDetail(type, true)}
+        >
+          <span class='btn-text'>{t('新开页')}</span>
+          <span class='icon-monitor icon-fenxiang' />
+        </span>
+      );
+    };
+
+    const handleShowChange = (isShow: boolean) => {
+      emit('update:show', isShow);
+    };
+
+    const renderDetailHeader = () => {
+      switch (props.detailType) {
+        case AlarmType.ALERT:
+          return (
+            <EventDetailHead
+              basicInfo={props.data}
+              bizId={props.data?.bk_biz_id}
+              eventId={props.data?.id}
+              isFeedback={props.isFeedback}
+            />
+          );
+        case AlarmType.ACTION:
+          return (
+            <div class='title-wrap'>
+              <span>{t('处理记录详情')}</span>
+              <i
+                class='icon-monitor icon-copy-link'
+                onClick={() => handleToEventDetail('action-detail')}
+              />
+              {newPageBtn('action-detail')}
+            </div>
+          );
+        default:
+          return null;
+      }
+    };
+
+    const renderDetailContent = () => {
+      switch (props.detailType) {
+        case AlarmType.ALERT:
+          return <DetailCommon data={props.data} />;
+        case AlarmType.ACTION:
+          return null;
+        default:
+          return null;
+      }
+    };
+
+    return {
+      handleShowChange,
+      renderDetailHeader,
+      renderDetailContent,
+    };
+  },
+  render() {
+    return (
+      <Sideslider
+        width={1280}
+        isShow={this.show}
+        onUpdate:isShow={this.handleShowChange}
+        v-slots={{
+          header: this.renderDetailHeader,
+          default: this.renderDetailContent,
+        }}
+      />
+    );
   },
 });

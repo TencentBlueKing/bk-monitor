@@ -54,7 +54,7 @@ export class ActionScenario extends BaseScenario {
   constructor(
     private readonly context: {
       [methodName: string]: any;
-      handleActionSliderShowDetail: (id: number | string) => void;
+      handleActionSliderShowDetail: (id: string) => void;
       hoverPopoverTools: IUsePopoverTools;
     }
   ) {

@@ -48,6 +48,8 @@ import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
 
 import './alarm-center.scss';
+import AlarmCenterDetail from './alarm-center-detail';
+import { useAlarmDetail } from './composables/use-alarm-detail';
 export default defineComponent({
   name: 'AlarmCenter',
   setup() {
@@ -67,6 +69,8 @@ export default defineComponent({
       allTableFields,
       lockedTableFields,
     } = useAlarmTableColumns();
+
+    const { detailShow, detailData, detailType, detailLoading, currentDetailId, isFeedback } = useAlarmDetail();
     const isCollapsed = shallowRef(false);
 
     /**
@@ -259,7 +263,26 @@ export default defineComponent({
     function handleSortChange(sort: string) {
       ordering.value = sort;
       handleCurrentPageChange(1);
-      // setUrlParams();
+    }
+
+    /**
+     * 展示告警详情
+     */
+    function handleShowAlertDetail(id: string) {
+      currentDetailId.value = id;
+      detailType.value = AlarmType.ALERT;
+      handleDetailShowChange(true);
+    }
+
+    /**  展示处理记录详情  */
+    function handleShowActionDetail(id: string) {
+      currentDetailId.value = id;
+      detailType.value = AlarmType.ACTION;
+      handleDetailShowChange(true);
+    }
+
+    function handleDetailShowChange(show: boolean) {
+      detailShow.value = show;
     }
 
     onBeforeMount(() => {
@@ -286,6 +309,10 @@ export default defineComponent({
       retrievalFilterFields,
       favoriteList,
       residentSettingOnlyId,
+      detailData,
+      detailShow,
+      detailLoading,
+      isFeedback,
       handleFilterValueChange,
       updateIsCollapsed,
       handleAddCondition,
@@ -300,11 +327,14 @@ export default defineComponent({
       handleSortChange,
       handleGetResidentSettingUserConfig,
       handleSetResidentSettingUserConfig,
+      handleShowAlertDetail,
+      handleShowActionDetail,
       ...useAlarmFilter({
         alarmType: alarmStore.alarmType,
         commonFilterParams: alarmStore.commonFilterParams,
         filterMode: alarmStore.filterMode,
       }),
+      handleDetailShowChange,
     };
   },
   render() {
@@ -381,6 +411,8 @@ export default defineComponent({
                         }}
                         onPageSizeChange={this.handlePageSizeChange}
                         onSortChange={sort => this.handleSortChange(sort as string)}
+                        onShowAlertDetail={this.handleShowAlertDetail}
+                        onShowActionDetail={this.handleShowActionDetail}
                       />
                     </div>
                   </div>
@@ -394,6 +426,14 @@ export default defineComponent({
             onUpdate:isCollapsed={this.updateIsCollapsed}
           />
         </div>
+
+        <AlarmCenterDetail
+          isFeedback={this.isFeedback}
+          data={this.detailData}
+          loading={this.detailLoading}
+          show={this.detailShow}
+          onUpdate:show={this.handleDetailShowChange}
+        />
       </div>
     );
   },

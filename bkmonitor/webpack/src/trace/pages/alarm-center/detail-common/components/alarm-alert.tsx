@@ -28,13 +28,96 @@ import { defineComponent, type PropType } from 'vue';
 import type { IAlert } from '../typeing';
 
 import './alarm-alert.scss';
+import { AlarmStatusIconMap } from '../../typings';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { Button } from 'bkui-vue';
 
 export default defineComponent({
+  name: 'AlarmAlert',
   props: {
     data: Object as PropType<IAlert>,
   },
-  setup(props) {
-    console.log(props.data);
-    return () => <div class='alarm-center-detail-alarm-alert'>主调成功率：65% 80%, 持续时间：30d 22h</div>;
+  emits: ['alarmConfirm', 'quickShield'],
+  setup(props, { emit }) {
+    const { t } = useI18n();
+    const status = computed(() => {
+      if (props.data?.is_shielded && props.data?.status === 'ABNORMAL') return 'SHIELDED_ABNORMAL';
+      return props.data?.status || 'ABNORMAL';
+    });
+
+    const statusIcon = computed(() => {
+      return AlarmStatusIconMap[status.value];
+    });
+
+    /** 告警确认 */
+    const handleAlarmConfirm = () => {
+      emit('alarmConfirm');
+    };
+
+    /** 告警屏蔽 */
+    const handleQuickShield = () => {
+      emit('quickShield');
+    };
+
+    const handleToShield = () => {
+      if (!props.data.shield_id?.[0]) return;
+      window.open(
+        `${location.origin}${location.pathname}?bizId=${props.data.bk_biz_id}/#/trace/alarm-shield/edit/${props.data.shield_id[0]}`
+      );
+    };
+
+    return {
+      t,
+      status,
+      statusIcon,
+      handleAlarmConfirm,
+      handleQuickShield,
+      handleToShield
+    };
+  },
+  render() {
+    return (
+      <div class={['alarm-center-detail-alarm-alert', this.status]}>
+        <span class='status-icon'>
+          <i class={['icon-monitor', this.statusIcon.icon]} />
+          <span class='status-text'>{this.statusIcon.name}</span>
+        </span>
+        <div class='separator' />
+        <div class='alert-content'>{'主调成功率：65% < 80%,  持续时间：30d 22h'}</div>
+        <div class='tools'>
+          {this.status === 'ABNORMAL' && [
+            <Button
+              key='shield'
+              text
+              theme='primary'
+              onClick={this.handleQuickShield}
+            >
+              <i class='icon-monitor icon-mc-notice-shield' />
+              <span class='btn-text'>{this.t('快捷屏蔽')}</span>
+            </Button>,
+            <Button
+              key='confirm'
+              theme='primary'
+              size='small'
+              onClick={this.handleAlarmConfirm}
+            >
+              {this.t('告警确认')}
+            </Button>,
+          ]}
+
+          {this.status === 'SHIELDED_ABNORMAL' && (
+            <Button
+              text
+              theme='primary'
+              onClick={this.handleToShield}
+            >
+              <i class='icon-monitor icon-fenxiang' />
+              <span class='btn-text'>{this.t('屏蔽策略')}</span>
+            </Button>
+          )}
+        </div>
+      </div>
+    );
   },
 });
