@@ -368,7 +368,7 @@ export type PanelOption = {
   legend?: ILegendOption;
   need_zr_click_event?: boolean; // 是否需要zrender click 事件
   precision?: number; // 单位精度
-  strategy_template_codes?: string[]; // 策略模板编码
+  strategy_template_codes?: { callee: string[]; caller: string[] }; // 策略模板编码
   unit?: string; // 单位
 } & IApdexChartOption &
   IApmRelationGraphOption &

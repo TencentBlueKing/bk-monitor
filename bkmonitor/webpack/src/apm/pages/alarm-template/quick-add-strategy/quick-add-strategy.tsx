@@ -418,18 +418,23 @@ class QuickAddStrategy extends Mixins(
     if (this.templateList.length) {
       // strategy_template_codes 包含 code 时，默认选中这一个 优先选中 type=builtin
       let id = null;
+      const checkIds = new Set();
       let needCheck = true;
       for (const temp of this.templateList) {
         if (temp?.type === 'builtin' && this.params?.strategy_template_codes?.includes(temp?.code)) {
-          id = temp.id;
-          break;
+          if (!id) {
+            id = temp.id;
+          }
+          checkIds.add(temp.id);
         }
       }
       if (!id) {
         for (const temp of this.templateList) {
           if (this.params?.strategy_template_codes?.includes(temp?.code)) {
-            id = temp.id;
-            break;
+            if (!id) {
+              id = temp.id;
+            }
+            checkIds.add(temp.id);
           }
         }
         if (!id) {
@@ -439,7 +444,7 @@ class QuickAddStrategy extends Mixins(
       }
       this.handleCursorChange(id);
       if (needCheck) {
-        this.handleCheckedChange([id]);
+        this.handleCheckedChange(Array.from(checkIds));
       }
     }
     this.templateListLoading = false;
