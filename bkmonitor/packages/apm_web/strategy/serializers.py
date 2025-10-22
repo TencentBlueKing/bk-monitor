@@ -217,7 +217,7 @@ class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSeri
     page = serializers.IntegerField(label=_("页码"), min_value=1, default=1)
     page_size = serializers.IntegerField(label=_("分页大小"), min_value=1, default=50)
     order_by = serializers.ListField(
-        label="排序字段",
+        label=_("排序字段"),
         child=serializers.ChoiceField(choices=["update_time", "-update_time", "create_time", "-create_time"]),
         default=["-update_time"],
         allow_empty=True,
