@@ -383,37 +383,33 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         base_qs: QuerySet[StrategyTemplate] = StrategyTemplate.objects.filter(
             bk_biz_id=data["bk_biz_id"], app_name=data["app_name"]
         )
-
         if strategy_template_objs is None:
             other_same_origin_qs: QuerySet[StrategyTemplate] = StrategyTemplate.filter_same_origin_templates(
                 qs=base_qs, ids=[], root_ids=[data["root_id"]]
             )
         else:
-            template_ids: list[int] = []
+            tmpl_ids: list[int] = []
             root_ids: list[int] = []
-            root_template_id_objs_map: dict[int, list[StrategyTemplate]] = defaultdict(list)
-            for template_obj in strategy_template_objs:
-                template_ids.append(template_obj.pk)
-                root_ids.append(template_obj.root_id)
-                root_template_id = (
-                    template_obj.root_id if template_obj.root_id != constants.DEFAULT_ROOT_ID else template_obj.pk
-                )
-                root_template_id_objs_map[root_template_id].append(template_obj)
+            root_tmpl_id_tmpl_names: dict[int, list[str]] = defaultdict(list)
+            for tmpl_obj in strategy_template_objs:
+                tmpl_ids.append(tmpl_obj.pk)
+                root_ids.append(tmpl_obj.root_id)
+                # 获取根模板的 ID
+                root_tmpl_id = tmpl_obj.root_id if tmpl_obj.root_id != constants.DEFAULT_ROOT_ID else tmpl_obj.pk
+                root_tmpl_id_tmpl_names[root_tmpl_id].append(tmpl_obj.name)
 
-            same_origin_strs: list[str] = []
-            for root_template_id, template_objs in root_template_id_objs_map.items():
-                if len(template_objs) > 1:
-                    same_origin_strs.append(
-                        "[" + "、".join([template_obj.name for template_obj in template_objs]) + "]"
-                    )
-            if same_origin_strs:
+            same_origin_tmpl_names_str: list[str] = []
+            for tmpl_names in root_tmpl_id_tmpl_names.values():
+                if len(tmpl_names) > 1:
+                    same_origin_tmpl_names_str.append("[" + "、".join(tmpl_names) + "]")
+            if same_origin_tmpl_names_str:
                 raise serializers.ValidationError(
-                    _("同类别的模板不能同时启用「自动下发」：{}").format(", ".join(same_origin_strs))
+                    _("同类别的模板不能同时启用「自动下发」：{}").format(", ".join(same_origin_tmpl_names_str))
                 )
 
             other_same_origin_qs: QuerySet[StrategyTemplate] = StrategyTemplate.filter_same_origin_templates(
-                qs=base_qs, ids=template_ids, root_ids=root_ids
-            ).exclude(id__in=template_ids)
+                qs=base_qs, ids=tmpl_ids, root_ids=root_ids
+            ).exclude(id__in=tmpl_ids)
 
         if other_same_origin_qs.filter(is_auto_apply=True).exists():
             raise serializers.ValidationError(_("同类别的模板间只允许设置一个自动下发"))
