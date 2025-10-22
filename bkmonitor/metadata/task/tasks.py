@@ -1795,6 +1795,10 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
     检查业务内置数据链路
     """
 
+    # 如果未开启新版数据链路或空间内置数据链路，则不检查
+    if not (settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK):
+        return
+
     logger.info("check_bkcc_space_builtin_datalink: start to check bkcc space builtin datalink")
 
     # 获取已存在的数据源名称
