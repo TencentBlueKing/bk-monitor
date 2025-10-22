@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, defineComponent, inject, onMounted, provide, ref, watch } from 'vue';
+import { type Ref, defineComponent, inject, onMounted, provide, ref, shallowRef, watch } from 'vue';
 
-import { Exception, Loading } from 'bkui-vue';
+import { Loading } from 'bkui-vue';
 import { incidentAlertView } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
 
+import ExceptionComp from '../../../components/exception';
 import DashboardPanel from '../../../plugins/components/flex-dashboard-panel';
 import { useIncidentInject } from '../utils';
 import MetricsCollapse from './metrics-collapse';
@@ -65,6 +66,12 @@ export default defineComponent({
     const loading = ref(false);
     const dataZoomTimeRange = ref({ timeRange: [] });
     provide('dataZoomTimeRange', dataZoomTimeRange);
+    // 错误状态/空状态
+    const exceptionData = shallowRef({
+      isError: false,
+      title: '',
+      errorMsg: '',
+    });
     /** 指标加载全部 */
     const handleLoadPanels = panel => {
       panel.showMore = false;
@@ -80,19 +87,29 @@ export default defineComponent({
     );
     const getIncidentAlertView = () => {
       loading.value = true;
+      // 重置异常状态
+      exceptionData.value.isError = false;
+      exceptionData.value.errorMsg = '';
+
       const queryString =
         typeof props.alertIdsObject === 'object' ? props.alertIdsObject?.ids || '' : props.alertIdsObject;
-      incidentAlertView({
-        bk_biz_ids: bkzIds.value,
-        id: incidentId.value,
-        query_string: queryString,
-      })
+      incidentAlertView(
+        {
+          bk_biz_ids: bkzIds.value,
+          id: incidentId.value,
+          query_string: queryString,
+        },
+        { needMessage: false }
+      )
         .then(res => {
           loading.value = false;
           recommendedMetricPanels.value = (res || []).filter(item => item.alerts?.length > 0);
         })
         .catch(err => {
           loading.value = false;
+          // 异常状态赋值
+          exceptionData.value.isError = true;
+          exceptionData.value.errorMsg = err.message || '';
           console.log(err);
         });
     };
@@ -174,6 +191,7 @@ export default defineComponent({
       renderMetricsCollapse,
       recommendedMetricPanels,
       loading,
+      exceptionData,
     };
   },
   render() {
@@ -186,11 +204,11 @@ export default defineComponent({
         {len > 0 ? (
           this.recommendedMetricPanels.map((item, index) => this.renderMetricsCollapse(item, index))
         ) : (
-          <Exception
-            class='failure-view-empty'
-            description={this.t('暂无告警视图')}
-            scene='part'
-            type='empty'
+          <ExceptionComp
+            errorMsg={this.exceptionData.errorMsg}
+            imgHeight={160}
+            isError={this.exceptionData.isError}
+            title={this.exceptionData.isError ? this.t('查询异常') : this.t('暂无告警视图')}
           />
         )}
       </Loading>

@@ -148,7 +148,10 @@
           text-overflow: ellipsis;
           color: #3a84ff;
           white-space: nowrap;
-          cursor: pointer;
+
+          & > span {
+            cursor: pointer;
+          }
         }
 
         .strategy-link {
@@ -159,11 +162,24 @@
           cursor: pointer;
         }
       }
-
+      .bk-table-row {
+        &.expanded {
+          background-color: #fafbfd;
+          & > td {
+            background-color: #fafbfd;
+          }
+        }
+      }
+      .bk-table-expanded-cell {
+        background: #fafbfd;
+        &:hover {
+          background: #fafbfd;
+        }
+      }
       .table-expand-content {
         position: relative;
         display: flex;
-        min-height: 167px;
+        min-height: 50px;
 
         .left-content,
         .right-content {

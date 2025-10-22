@@ -1,0 +1,30 @@
+.exception-wrap {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -40%);
+
+  .bk-exception-img {
+    width: auto !important;
+    height: var(--height) !important;
+
+    .exception-img {
+      width: 220px;
+    }
+  }
+
+  .bk-exception-footer {
+    margin-top: var(--marginTop) !important;
+  }
+
+  .exception-title {
+    font-size: 14px;
+  }
+
+  .exception-desc {
+    max-width: 480px;
+    padding: 0 20px;
+    margin-top: 8px;
+    overflow-wrap: break-word;
+  }
+}

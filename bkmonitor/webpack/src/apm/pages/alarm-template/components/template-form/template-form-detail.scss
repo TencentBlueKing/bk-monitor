@@ -10,7 +10,7 @@
 
       .tooltips-label {
         cursor: pointer;
-        border-bottom: 1px dashed #979ba5;
+        border-bottom: 1px dashed #c4c6cc;
       }
     }
 
@@ -23,15 +23,15 @@
         display: inline-block;
         line-height: 20px;
         cursor: pointer;
-        border-bottom: 1px dashed #979ba5;
+        border-bottom: 1px dashed #c4c6cc;
       }
 
       .detect-text {
-        font-weight: 700;
         color: #313238;
-
+        
         .value {
           margin: 0 2px;
+          font-weight: 700;
           color: #3a84ff;
         }
       }

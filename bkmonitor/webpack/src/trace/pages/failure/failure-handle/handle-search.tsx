@@ -74,6 +74,11 @@ export default defineComponent({
     const bkBizIds = deepRef<number[]>([]);
     const queryString = deepRef('');
     const treeRef = deepRef(null);
+    // 错误状态/空状态
+    const exceptionData = deepRef({
+      isError: false,
+      msg: '',
+    });
     provide('alertAggregateDataList', alertAggregateData);
     const aggregateBysList = [
       {
@@ -149,6 +154,10 @@ export default defineComponent({
     };
     const getIncidentAlertAggregate = () => {
       listLoading.value = true;
+      // 重置异常状态
+      exceptionData.value.isError = false;
+      exceptionData.value.msg = '';
+
       const params = {
         id: incidentId.value,
         aggregate_bys: aggregateBys.value,
@@ -156,7 +165,7 @@ export default defineComponent({
         query_string: queryString.value,
       };
       props.username.id !== 'all' && Object.assign(params, { username: props.username.id });
-      incidentAlertAggregate(params)
+      incidentAlertAggregate(params, { needMessage: false })
         .then(res => {
           const list: IAggregationRoot[] = Object.values(res);
           alertAggregateData.value = list.filter(item => item.count !== 0);
@@ -172,6 +181,9 @@ export default defineComponent({
         })
         .catch(err => {
           console.log(err);
+          // 异常状态赋值
+          exceptionData.value.isError = true;
+          exceptionData.value.msg = err.message || '';
         })
         .finally(() => {
           listLoading.value = false;
@@ -273,11 +285,11 @@ export default defineComponent({
         return (
           <Exception
             class='tree-empty'
-            type='search-empty'
+            type={exceptionData.value.isError ? '500' : 'search-empty'}
           >
-            <span class='text-tips'>{t('搜索结果为空')}</span>
-            <div class='text-wrap'>
-              <span class='text-row'>{t('请调整筛选条件')}</span>
+            <div class='exception-title'>{exceptionData.value.isError ? t('查询异常') : t('搜索结果为空')}</div>
+            <div class='exception-desc'>
+              {exceptionData.value.isError ? exceptionData.value.msg : t('请调整筛选条件')}
             </div>
           </Exception>
         );

@@ -528,6 +528,9 @@ APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG = (
     os.getenv("BKAPP_APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG", "false").lower() == "true"
 )
 
+# 是否下发平台级别字段标准化配置
+APM_FIELD_NORMALIZER_ENABLED = True
+
 APM_APP_DEFAULT_ES_STORAGE_CLUSTER = -1
 APM_APP_DEFAULT_ES_RETENTION = 7
 APM_APP_DEFAULT_ES_SLICE_LIMIT = 100
@@ -554,6 +557,8 @@ APM_DORIS_STORAGE_CONFIG = {}
 APM_PROFILING_ENABLED_APPS = {}
 # dis/enable profiling for all apps
 APM_PROFILING_ENABLED = False
+# APM metrics维度补充功能应用白名单 {2:["app1", "app2"], 3:["app3"]}
+APM_RESOURCE_FILTER_METRICS_ENABLED_APPS = {}
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
 # {2:["app1", "app2"], 3:["app_name"]}
@@ -1045,7 +1050,7 @@ LINUX_UPTIME_CHECK_COLLECTOR_CONF_NAME = "uptimecheckbeat.conf"
 LINUX_GSE_AGENT_IPC_PATH = "/var/run/ipc.state.report"
 
 # 采集配置升级，使用订阅更新模式的业务列表
-COLLECTING_UPGRADE_WITH_UPDATE_BIZ = []
+COLLECTING_UPGRADE_WITH_UPDATE_BIZ = [0]
 
 # aix系统配置
 AIX_SCRIPT_EXT = "sh"
