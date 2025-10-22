@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import datetime
+from collections import defaultdict
 from typing import Any
 from collections.abc import Iterable
 
@@ -24,7 +25,6 @@ from bkmonitor.strategy.serializers import allowed_threshold_method
 from . import constants
 from apm_web.models import StrategyTemplate, StrategyInstance
 from apm_web.strategy.helper import get_user_groups
-from .constants import DEFAULT_ROOT_ID
 
 
 class DetectSerializer(serializers.Serializer):
@@ -145,7 +145,7 @@ class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSeria
         for strategy_template in strategy_templates:
             root_template_id = (
                 strategy_template["id"]
-                if strategy_template["root_id"] == DEFAULT_ROOT_ID
+                if strategy_template["root_id"] == constants.DEFAULT_ROOT_ID
                 else strategy_template["root_id"]
             )
             if root_template_id in root_template_ids:
@@ -251,8 +251,12 @@ class StrategyTemplateBatchPartialUpdateRequestSerializer(BaseAppStrategyTemplat
     ]
 
     class EditDataSerializer(BaseEditDataSerializer):
-        user_group_list = serializers.ListField(label=_("用户组列表"), child=UserGroupSerializer(), required=False)
-        algorithms = serializers.ListField(label=_("检测算法列表"), child=AlgorithmSerializer(), required=False)
+        user_group_list = serializers.ListField(
+            label=_("用户组列表"), child=UserGroupSerializer(), required=False, allow_empty=False
+        )
+        algorithms = serializers.ListField(
+            label=_("检测算法列表"), child=AlgorithmSerializer(), required=False, allow_empty=False
+        )
         is_enabled = serializers.BooleanField(label=_("是否启用"), required=False)
         is_auto_apply = serializers.BooleanField(label=_("是否自动下发"), required=False)
 
@@ -367,10 +371,52 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         ]
 
     @staticmethod
-    def _validate_name(qs: QuerySet[StrategyTemplate], validated_data: dict[str, Any]) -> None:
-        if qs.filter(
-            bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"], name=validated_data["name"]
-        ).exists():
+    def validate_auto_apply(strategy_template_objs: list[StrategyTemplate] | None, data: dict[str, Any]):
+        """限制同源模板间只能有一个自动下发模板
+
+        :param strategy_template_objs: 要更新的策略模板对象列表，为None表示创建新模板
+        :param data: 数据字典
+        """
+        if not data.get("is_auto_apply"):
+            return
+
+        base_qs: QuerySet[StrategyTemplate] = StrategyTemplate.objects.filter(
+            bk_biz_id=data["bk_biz_id"], app_name=data["app_name"]
+        )
+        if strategy_template_objs is None:
+            other_same_origin_qs: QuerySet[StrategyTemplate] = StrategyTemplate.filter_same_origin_templates(
+                qs=base_qs, ids=[], root_ids=[data["root_id"]]
+            )
+        else:
+            tmpl_ids: list[int] = []
+            root_ids: list[int] = []
+            root_tmpl_id_tmpl_names: dict[int, list[str]] = defaultdict(list)
+            for tmpl_obj in strategy_template_objs:
+                tmpl_ids.append(tmpl_obj.pk)
+                root_ids.append(tmpl_obj.root_id)
+                # 获取根模板的 ID
+                root_tmpl_id = tmpl_obj.root_id if tmpl_obj.root_id != constants.DEFAULT_ROOT_ID else tmpl_obj.pk
+                root_tmpl_id_tmpl_names[root_tmpl_id].append(tmpl_obj.name)
+
+            same_origin_tmpl_names_str: list[str] = []
+            for tmpl_names in root_tmpl_id_tmpl_names.values():
+                if len(tmpl_names) > 1:
+                    same_origin_tmpl_names_str.append("[" + "、".join(tmpl_names) + "]")
+            if same_origin_tmpl_names_str:
+                raise serializers.ValidationError(
+                    _("同类别的模板不能同时启用「自动下发」：{}").format(", ".join(same_origin_tmpl_names_str))
+                )
+
+            other_same_origin_qs: QuerySet[StrategyTemplate] = StrategyTemplate.filter_same_origin_templates(
+                qs=base_qs, ids=tmpl_ids, root_ids=root_ids
+            ).exclude(id__in=tmpl_ids)
+
+        if other_same_origin_qs.filter(is_auto_apply=True).exists():
+            raise serializers.ValidationError(_("同类别的模板间只允许设置一个自动下发"))
+
+    @staticmethod
+    def _validate_name(qs: QuerySet[StrategyTemplate], data: dict[str, Any]) -> None:
+        if qs.filter(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"], name=data["name"]).exists():
             raise serializers.ValidationError(_("同一应用下策略模板名称不能重复"))
 
     @classmethod
@@ -384,12 +430,17 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
 
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
         self._validate_name(StrategyTemplate.origin_objects.exclude(pk=instance.pk), validated_data)
+        self.validate_auto_apply([instance], validated_data)
         self.set_auto_apply(validated_data, instance)
         return super().update(instance, validated_data)
 
     def create(self, validated_data: dict[str, Any]) -> StrategyTemplate:
         self._validate_name(StrategyTemplate.origin_objects.all(), validated_data)
-        return super().create(validated_data)
+        self.validate_auto_apply(None, validated_data)
+        instance: StrategyTemplate = super().create(validated_data)
+        if instance.is_auto_apply:
+            StrategyTemplate.objects.filter(id=instance.pk).update(auto_applied_at=instance.create_time)
+        return instance
 
 
 class StrategyTemplateSearchModelSerializer(StrategyTemplateBaseModelSerializer):

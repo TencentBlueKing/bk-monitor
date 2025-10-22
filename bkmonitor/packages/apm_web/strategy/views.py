@@ -337,25 +337,35 @@ class StrategyTemplateViewSet(GenericViewSet):
         if not update_user:
             raise ValueError(_("未获取到用户信息"))
 
-        edit_data: dict[str, Any] = self.query_data["edit_data"]
-        edit_data["update_user"] = update_user
-        edit_data["update_time"] = timezone.now()
+        edit_data: dict[str, Any] = {
+            **self.query_data["edit_data"],
+            "bk_biz_id": self.query_data["bk_biz_id"],
+            "app_name": self.query_data["app_name"],
+            "update_user": update_user,
+            "update_time": timezone.now(),
+        }
 
         editable_fields: list[str] = serializers.StrategyTemplateBatchPartialUpdateRequestSerializer.EDITABLE_FIELDS
         strategy_template_objs: list[StrategyTemplate] = list(
-            self.get_queryset().filter(id__in=self.query_data["ids"]).only(*editable_fields, "id", "auto_applied_at")
+            self.get_queryset()
+            .filter(id__in=self.query_data["ids"])
+            .only(*editable_fields, "id", "root_id", "auto_applied_at")
         )
+        model_serializer = serializers.StrategyTemplateModelSerializer
+        model_serializer.validate_auto_apply(strategy_template_objs, edit_data)
         for obj in strategy_template_objs:
-            serializers.StrategyTemplateModelSerializer.set_auto_apply(edit_data, obj, edit_data["update_time"])
+            model_serializer.set_auto_apply(edit_data, obj, edit_data["update_time"])
 
             # 设置更新字段。
             for field_name in edit_data:
                 setattr(obj, field_name, edit_data[field_name])
+            edit_data.pop("auto_applied_at", None)
 
         StrategyTemplate.objects.bulk_update(
             strategy_template_objs, fields=editable_fields + ["auto_applied_at"], batch_size=500
         )
-        return Response({"ids": [obj.id for obj in strategy_template_objs]})
+
+        return Response({"ids": [obj.pk for obj in strategy_template_objs]})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCompareRequestSerializer)
     def compare(self, *args, **kwargs) -> Response:
