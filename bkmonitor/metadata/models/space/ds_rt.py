@@ -397,13 +397,6 @@ def get_table_id_cluster_id(table_id_list: list | set, bk_tenant_id: str | None 
                 table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
             ).values("bk_data_id", "table_id")
         }
-    else:
-        table_id_data_id = {
-            data["table_id"]: data["bk_data_id"]
-            for data in models.DataSourceResultTable.objects.filter(table_id__in=table_id_list).values(
-                "bk_data_id", "table_id"
-            )
-        }
 
     data_ids = table_id_data_id.values()
     # 过滤到集群的数据源，仅包含两类，集群内置和集群自定义
