@@ -90,7 +90,6 @@ export default defineComponent({
 
     const isLoading = shallowRef(false);
     const currentPanel = shallowRef(panelTabList[0].name);
-    const alterDetailData = shallowRef<IAlert>();
 
     const panelCom = computed(() => {
       const comMap = {
@@ -107,11 +106,19 @@ export default defineComponent({
       return comMap[currentPanel.value];
     });
 
+    const handleAlarmConfirm = () => {};
+
+    const handleQuickShield = () => {};
+
     return () => (
       <Loading loading={isLoading.value}>
         <div class='alarm-center-detail-box'>
-          <AlarmAlert data={alterDetailData.value} />
-          <AlarmInfo data={alterDetailData.value} />
+          <AlarmAlert
+            data={props.data}
+            onAlarmConfirm={handleAlarmConfirm}
+            onQuickShield={handleQuickShield}
+          />
+          <AlarmInfo data={props.data} />
           <Tab
             class='panel-tab'
             v-model:active={currentPanel.value}

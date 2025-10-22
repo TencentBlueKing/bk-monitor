@@ -43,15 +43,43 @@ export interface IAlert {
   dedupe_md5: string;
   description: string;
   dimension_message: string;
+  duration: string;
+  end_time: number;
+  event_id: string;
+  first_anomaly_time: number;
+  follower?: string[];
+  id: string;
+  ip?: string;
+  ipv6?: string;
+  is_ack: boolean;
+  is_blocked: boolean;
+  is_handled: boolean;
+  is_shielded: boolean;
+  labels: string[];
+  latest_time: number;
+  metric: string[];
+  plugin_display_name: string;
+  plugin_id: string;
+  relation_info: string;
+  seq_id: number;
+  severity: number;
+  shield_id?: string;
+  shield_left_time: string;
+  stage_display: string;
+  status: 'ABNORMAL' | 'CLOSED' | 'RECOVERED'; // 示例状态值
+  strategy_id: number;
+  strategy_name: string;
+  supervisor?: string;
+  target?: string;
+  target_key: string;
+  target_type: string;
+  update_time: number;
   dimensions: {
     display_key: string;
     display_value: string;
     key: string;
-    value: string;
+    value: number | string;
   }[];
-  duration: string;
-  end_time: number;
-  event_id: string;
   extend_info: {
     data_label: string;
     result_table_id: string;
@@ -74,8 +102,6 @@ export interface IAlert {
     recovery_value: number;
     strategy: Record<string, any>;
   };
-  first_anomaly_time: number;
-  follower?: string[];
   graph_panel: {
     id: string;
     subTitle: string;
@@ -83,38 +109,12 @@ export interface IAlert {
     title: string;
     type: string;
   };
-  id: string;
-  ip?: string;
-  ipv6?: string;
-  is_ack: boolean;
-  is_blocked: boolean;
-  is_handled: boolean;
-  is_shielded: boolean;
-  labels: string[];
-  latest_time: number;
-  metric: string[];
   metric_display: {
     id: string;
     name: string;
   }[];
-  plugin_display_name: string;
-  plugin_id: string;
-  relation_info: string;
-  seq_id: number;
-  severity: number;
-  shield_id?: string;
-  shield_left_time: string;
-  stage_display: string;
-  status: 'ABNORMAL' | 'CLOSED' | 'RECOVERED'; // 示例状态值
-  strategy_id: number;
-  strategy_name: string;
-  supervisor?: string;
   tags: {
     key: string;
     value: string;
   }[];
-  target?: string;
-  target_key: string;
-  target_type: string;
-  update_time: number;
 }
