@@ -24,15 +24,30 @@
  * IN THE SOFTWARE.
  */
 
-import { alertDetail, listAlertFeedback } from "monitor-api/modules/alert";
+import { alertDetail, listAlertFeedback } from 'monitor-api/modules/alert';
+import { getSceneView } from 'monitor-api/modules/scene_view';
 
 export const fetchAlarmDetail = (id: string) => {
   return alertDetail({
-    id
-  }).catch(() => null) 
+    id,
+  }).catch(() => null);
 };
 
 export const fetchListAlertFeedback = (id: string, bizId: number) => {
-  return listAlertFeedback({ alert_id: id, bk_biz_id: bizId })
-    .catch(() => []);
-}
+  return listAlertFeedback({ alert_id: id, bk_biz_id: bizId }).catch(() => []);
+};
+
+/**
+ * @description host 场景指标视图配置信息
+ * @param bizId 业务ID
+ */
+export const getHostSceneView = async (bizId: number) => {
+  const sceneView = await getSceneView({
+    bk_biz_id: bizId,
+    scene_id: 'host',
+    type: 'detail',
+    id: 'host',
+  }).catch(() => ({ id: '', panels: [], name: '' }));
+
+  return sceneView;
+};
