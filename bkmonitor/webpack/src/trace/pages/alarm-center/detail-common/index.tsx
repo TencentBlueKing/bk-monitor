@@ -132,7 +132,7 @@ export default defineComponent({
               />
             ))}
           </Tab>
-          <panelCom.value />
+          <panelCom.value detail={props.data} />
         </div>
       </Loading>
     );

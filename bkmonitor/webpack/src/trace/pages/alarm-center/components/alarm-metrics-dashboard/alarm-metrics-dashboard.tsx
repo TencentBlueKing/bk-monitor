@@ -26,6 +26,7 @@
 import { type PropType, computed, defineComponent } from 'vue';
 
 import { type IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { getVariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import ChartCollapse from '../../../trace-explore/components/explore-chart/chart-collapse';
 import ExploreChart from '../../../trace-explore/components/explore-chart/explore-chart';
@@ -82,7 +83,19 @@ export default defineComponent({
     }));
 
     const panels = computed(() => {
-      return props.panelModels.map(e => new PanelModel(e));
+      return props.panelModels.map(e => {
+        let transformTargets = e?.targets;
+        if (transformTargets?.length) {
+          transformTargets = transformTargets.map(item => ({
+            ...item,
+            data: getVariablesService().transformVariables(item.data, props.viewOptions),
+          }));
+        }
+        return new PanelModel({
+          ...e,
+          targets: transformTargets,
+        });
+      });
     });
     return {
       cssVars,
