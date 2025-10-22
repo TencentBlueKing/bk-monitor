@@ -32,6 +32,8 @@ import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/u
 import { createAutoTimeRange } from '../../../../../../../plugins/charts/failure-chart/failure-alarm-chart';
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
 
+import type { IAlert } from '../../../../typeing';
+
 import './panel-host-dashboard.scss';
 
 export default defineComponent({
@@ -46,8 +48,7 @@ export default defineComponent({
       default: () => ({ id: '', panels: [], name: '' }),
     },
     detail: {
-      // TODO 类型需补充完善
-      type: Object as PropType<any>,
+      type: Object as PropType<IAlert>,
       default: () => ({}),
     },
   },
@@ -57,10 +58,10 @@ export default defineComponent({
     /** 是否立即刷新图表数据 */
     const refreshImmediate = shallowRef('');
     /** 图表请求参数变量 */
-    const viewOptions = shallowRef({});
+    const viewOptions = shallowRef<Record<string, unknown>>({});
     /** 需要渲染的仪表盘面板配置数组 */
     const sceneView = computed(() => {
-      const transformData = new BookMarkModel(props.sceneData);
+      const transformData = new BookMarkModel(props.sceneData || { id: '', panels: [], name: '' });
       const unGroupKey = '__UNGROUP__';
       const panels = transformData.panels;
       /** 处理只有一个分组且为未分组时则不显示组名 */

@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, onMounted, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { random } from 'monitor-common/utils';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import { getHostSceneView } from '../../../services/alarm-detail';
+import { type IAlert } from '../../typeing';
 import PanelHostDashboard from './components/host-dashboard/panel-host-dashboard';
 
 import type { IBookMark } from 'monitor-ui/chart-plugins/typings';
@@ -43,44 +44,62 @@ export default defineComponent({
       type: String,
     },
     detail: {
-      // TODO 类型需补充完善
-      type: Object as PropType<any>,
+      type: Object as PropType<IAlert>,
       default: () => ({}),
     },
   },
   setup(props) {
     /** host 场景指标视图配置信息 */
-    const hostSceneData = shallowRef<IBookMark>(null);
+    const hostSceneData = shallowRef<IBookMark>({ id: '', panels: [], name: '' });
     /** 是否处于请求加载状态 */
     const loading = shallowRef(false);
     /** 图表联动Id */
     const dashboardId = random(10);
+    /** 跳转至容器监控时的详情Id */
+    const detailId = computed(() => {
+      let ip: number | string = '0.0.0.0';
+      let cloudId: number | string = '0';
+      let bkHostId: number | string = 0;
+
+      for (const item of props.detail?.dimensions || []) {
+        if (item.key === 'bk_host_id') {
+          bkHostId = item.value;
+        }
+        if (['bk_target_ip', 'ip', 'bk_host_id'].includes(item.key)) {
+          ip = item.value;
+        }
+        if (['bk_cloud_id', 'bk_target_cloud_id', 'bk_host_id'].includes(item.key)) {
+          cloudId = item.value;
+        }
+      }
+      return bkHostId ? bkHostId : `${ip}-${cloudId}`;
+    });
 
     onMounted(() => {
       getDashboardPanels();
     });
+
     /**
      * @description 获取仪表盘数据数组
      */
     async function getDashboardPanels() {
       loading.value = true;
-      const sceneView = await getHostSceneView(props.detail?.bk_biz_id ?? 2);
+      const sceneView = await getHostSceneView(props.detail?.bk_biz_id);
 
-      // for (const dashboard of sceneView.panels) {
-      //   if (!dashboard?.panels?.length) continue;
-      //   dashboard.panels = dashboard.panels.map(
-      //     item =>
-      //       new PanelModel({
-      //         ...item,
-      //         dashboardId,
-      //       })
-      //   );
-      // }
       hostSceneData.value = sceneView;
       echartsConnect(dashboardId);
       loading.value = false;
     }
-    return { hostSceneData, dashboardId };
+
+    /**
+     * @description 跳转主机检索页面
+     */
+    function handleToPerformance() {
+      window.open(
+        `${location.origin}${location.pathname}?bizId=${props.detail.bk_biz_id}#/performance/detail/${detailId.value}`
+      );
+    }
+    return { hostSceneData, dashboardId, handleToPerformance };
   },
   render() {
     return (
@@ -88,7 +107,10 @@ export default defineComponent({
         <div class='panel-host-white-bg-container'>
           <div class='host-selector-wrap'>
             <div class='host-selector'>host-selector</div>
-            <div class='host-explore-link-btn'>
+            <div
+              class='host-explore-link-btn'
+              onClick={this.handleToPerformance}
+            >
               <span class='link-text'>{window.i18n.t('主机检索')}</span>
               <i class='icon-monitor icon-mc-goto' />
             </div>
