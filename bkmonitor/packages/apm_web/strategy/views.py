@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import itertools
 from collections import defaultdict
+from threading import Lock
 from typing import Any
 from collections.abc import Iterable
 
@@ -197,22 +198,29 @@ class StrategyTemplateViewSet(GenericViewSet):
         )
 
         def _apply(_obj: StrategyTemplate) -> dict[str, int | dict[str, int]]:
-            _dispatcher = dispatch.StrategyDispatcher(
-                _obj, handler.StrategyTemplateHandler.get_query_template_or_none(_obj, query_template_map)
-            )
-            return {
-                "strategy_template_id": _obj.pk,
-                "service_strategy_id_map": _dispatcher.dispatch(
+            try:
+                _dispatcher = dispatch.StrategyDispatcher(
+                    _obj, handler.StrategyTemplateHandler.get_query_template_or_none(_obj, query_template_map)
+                )
+                _service_strategy_id_map: dict[str, int] = _dispatcher.dispatch(
                     entity_set, global_config, extra_configs_map.get(_obj.pk, [])
-                ),
-            }
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                # 由于异常会中断其他线程的下发，这里捕获所有异常，最后统一抛出，避免中断带来的不一致问题。
+                with lock:
+                    error_msgs.append(_("模板【{}】下发失败, {}").format(_obj.name, str(e)))
+                return {"strategy_template_id": _obj.pk, "service_strategy_id_map": {}}
+
+            return {"strategy_template_id": _obj.pk, "service_strategy_id_map": _service_strategy_id_map}
 
         query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = (
             handler.StrategyTemplateHandler.get_query_template_map(strategy_templates)
         )
         global_config = dispatch.DispatchGlobalConfig(**self.query_data["global_config"])
 
-        # 批量进行模板下发检查
+        # 批量进行模板下发
+        lock: Lock = Lock()
+        error_msgs: list[str] = []
         pool = ThreadPool(8)
         dispatch_results_iter: Iterable[dict[str, int | dict[str, int]]] = pool.imap_unordered(
             lambda _obj: _apply(_obj), strategy_templates
@@ -225,6 +233,9 @@ class StrategyTemplateViewSet(GenericViewSet):
             service_strategy_id_map: dict[str, int] = dispatch_result["service_strategy_id_map"]
             strategy_ids.extend(list(service_strategy_id_map.values()))
             template_dispatch_map[dispatch_result["strategy_template_id"]] = service_strategy_id_map
+
+        if error_msgs:
+            raise ValueError("\n".join(error_msgs))
 
         apply_data: list[dict[str, Any]] = []
         id_strategy_map = self._get_id_strategy_map(strategy_ids)

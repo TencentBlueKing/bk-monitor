@@ -189,7 +189,7 @@ class StrategyDispatcher:
                 # 没有策略 ID，说明下发失败。
                 invalid_service_names.append(strategy_instance_obj.service_name)
 
-        # 仅对策略下发成功的服务进行实例记录的创建或更新。
+        # 仅对策略下发成功的服务进行实例记录的创建或更新，尽可能记录成功下发的策略，而不是遇到异常即刻抛出，减少脏数据的产生。
         to_be_created_strategy_instance_objs = [
             obj for obj in to_be_created_strategy_instance_objs if obj.service_name not in invalid_service_names
         ]
@@ -205,16 +205,12 @@ class StrategyDispatcher:
             if to_be_updated_strategy_instance_objs:
                 StrategyInstance.objects.bulk_update(
                     to_be_updated_strategy_instance_objs,
-                    fields=["detect", "algorithms", "user_group_ids", "context", "md5"],
+                    fields=["detect", "algorithms", "user_group_ids", "context", "md5", "strategy_id"],
                     batch_size=500,
                 )
 
         if invalid_service_names:
-            raise ValueError(
-                _("模板【{}】创建部分服务策略失败：{}").format(
-                    self.strategy_template.name, "，".join(invalid_service_names)
-                )
-            )
+            raise ValueError(_("创建部分服务策略失败：{}").format("，".join(invalid_service_names)))
 
         return service_strategy_id_map
 
