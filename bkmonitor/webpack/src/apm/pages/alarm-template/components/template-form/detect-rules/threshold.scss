@@ -25,18 +25,21 @@
       }
 
       .text {
+        font-size: 12px;
         vertical-align: middle;
       }
     }
 
     .method {
+      display: flex;
+      align-items: center;
+      justify-content: center;
       width: 24px;
       height: 24px;
       margin-right: 10px;
+      font-size: 12px;
       font-weight: 700;
-      line-height: 24px;
       color: #3a84ff;
-      text-align: center;
       cursor: pointer;
       background: #e1ecff;
       border-radius: 2px;

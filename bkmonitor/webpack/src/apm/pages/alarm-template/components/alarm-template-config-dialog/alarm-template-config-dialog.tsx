@@ -274,6 +274,7 @@ export default class AlarmTemplateConfigDialog extends tsc<
               rules: this.rules,
             },
           }}
+          label-width={0}
         >
           <bk-form-item
             error-display-type='normal'

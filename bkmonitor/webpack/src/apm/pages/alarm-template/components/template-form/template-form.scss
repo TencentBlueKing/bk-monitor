@@ -3,6 +3,12 @@
     .bk-label {
       font-size: 12px;
       color: #4d4f56;
+
+      &.has-desc {
+        & > span {
+          border-bottom-color: #c4c6cc;
+        }
+      }
     }
 
     .text {
@@ -54,16 +60,16 @@
   .mt24 {
     margin-top: 24px;
   }
-}
 
-.template-form-skeleton-wrap {
-  padding-left: 40px;
+  .template-form-skeleton-wrap {
+    padding-left: 40px;
 
-  .skeleton-element {
-    height: 20px;
+    .skeleton-element {
+      height: 32px;
 
-    & + .skeleton-element {
-      margin-top: 16px;
+      &.algorithm-item {
+        height: 96px;
+      }
     }
   }
 }
