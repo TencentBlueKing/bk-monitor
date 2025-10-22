@@ -435,6 +435,7 @@ export default class AlarmTemplate extends tsc<object> {
             loading={this.tableLoading}
             pageSize={this.pageSize}
             searchKeyword={this.searchKeyword}
+            selectedRowKeys={this.selectedRowKeys}
             selectOptionMap={this.selectOptionsMap}
             tableData={this.tableData}
             total={this.total}

@@ -105,6 +105,8 @@ interface AlarmTemplateTableProps {
   pageSize: number;
   /** 搜索关键字 */
   searchKeyword: AlarmTemplateConditionParamItem[];
+  /** 表格已勾选的数据行id */
+  selectedRowKeys: AlarmTemplateListItem['id'][];
   /** 候选值映射表 */
   selectOptionMap: Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>;
   /** 表格数据 */
@@ -133,6 +135,8 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   @Prop({ type: String, default: 'empty' }) emptyType: 'empty' | 'search-empty';
   /** 搜索关键字 */
   @Prop({ type: Array, default: () => [] }) searchKeyword!: AlarmTemplateConditionParamItem[];
+  /** 表格已勾选的数据行id */
+  @Prop({ type: Array, default: () => [] }) selectedRowKeys: AlarmTemplateListItem['id'][];
   /** 候选值映射表 */
   @Prop({ type: Object, default: () => {} }) selectOptionMap: Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>;
 
@@ -830,7 +834,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   }
   render() {
     return (
-      <div class='alarm-template-container'>
+      <div class={`alarm-template-container ${!this.selectedRowKeys?.length ? 'not-selected' : 'has-selected'} `}>
         <bk-table
           key={this.refreshKey}
           height='100%'
