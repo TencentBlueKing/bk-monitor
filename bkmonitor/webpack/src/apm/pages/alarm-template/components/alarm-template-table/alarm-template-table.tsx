@@ -55,6 +55,7 @@ import type {
   AlarmTemplateField,
   AlarmTemplateListItem,
   AlarmTemplateOptionsItem,
+  ITableSort,
 } from '../../typing';
 import type { IPagination } from 'monitor-pc/pages/query-template/typings';
 
@@ -90,6 +91,8 @@ interface AlarmTemplateTableEmits {
     id: AlarmTemplateListItem['id'];
     sliderActiveTab: AlarmTemplateDetailTabEnumType;
   }) => void;
+  /** 表格排序变化后回调 */
+  onSortChange: (sort: `-${string}` | string) => void;
 }
 
 interface AlarmTemplateTableProps {
@@ -109,6 +112,8 @@ interface AlarmTemplateTableProps {
   selectedRowKeys: AlarmTemplateListItem['id'][];
   /** 候选值映射表 */
   selectOptionMap: Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>;
+  /** 排序 */
+  sort: `-${string}` | string;
   /** 表格数据 */
   tableData: AlarmTemplateListItem[];
   /** 总数 */
@@ -139,6 +144,8 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   @Prop({ type: Array, default: () => [] }) selectedRowKeys: AlarmTemplateListItem['id'][];
   /** 候选值映射表 */
   @Prop({ type: Object, default: () => {} }) selectOptionMap: Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>;
+  /** 排序 */
+  @Prop({ type: String }) sort: `-${string}` | string;
 
   /** 强制刷新表格(主要处理表格表头筛选没有响应式问题) */
   refreshKey = random(8);
@@ -177,6 +184,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       label: this.$t('最近更新'),
       minWidth: 210,
       showOverflowTooltip: false,
+      sortable: true,
       formatter: this.updateTimeColRenderer,
     },
     applied_service_names: {
@@ -257,6 +265,22 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
       }
       return columnItem;
     });
+  }
+  /** 表格排序，将字符串形式转换为 ITableSort 形式  */
+  get tableSort(): ITableSort {
+    if (!this.sort) {
+      return {
+        prop: '',
+        order: null,
+      };
+    }
+    // 解析排序规则字符串
+    const isDescending = this.sort.startsWith('-');
+    const sortField = isDescending ? this.sort.slice(1) : this.sort;
+    return {
+      prop: sortField,
+      order: isDescending ? 'descending' : 'ascending',
+    };
   }
 
   /** 表格分页器配置 */
@@ -366,6 +390,15 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   @Emit('clearSearch')
   clearSearch() {
     return;
+  }
+
+  /**
+   * @description: 表格排序变化后回调
+   */
+  @Emit('sortChange')
+  handleSortChange(sortEvent: ITableSort) {
+    if (!sortEvent?.prop) return '';
+    return sortEvent.order === 'descending' ? `-${sortEvent.prop}` : sortEvent.prop;
   }
 
   /**
@@ -842,12 +875,14 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
           auto-scroll-to-top={true}
           border={false}
           data={this.tableData}
+          default-sort={this.tableSort}
           outer-border={false}
           pagination={this.pagination}
           on-filter-change={this.handleFilterChange}
           on-page-change={this.handleCurrentPageChange}
           on-page-limit-change={this.handlePageSizeChange}
           on-selection-change={this.handleSelectedChange}
+          on-sort-change={this.handleSortChange}
         >
           <bk-table-column
             selectable={row => row?.is_enabled}
