@@ -30,7 +30,8 @@ def user_visit_record(func):
         app_name = request.data.get("app_name", "") or request.query_params.get("app_name", "")
 
         # 必须是访问了应用，才能算在请求记录里 (后续的统计需要关联应用的创建者)
-        if app_name:
+        # 必须是用户访问，通过 api 访问不做记录
+        if app_name and not request_path.startswith("/api/"):
             try:
                 UserVisitRecord.objects.create(
                     bk_biz_id=bk_biz_id,

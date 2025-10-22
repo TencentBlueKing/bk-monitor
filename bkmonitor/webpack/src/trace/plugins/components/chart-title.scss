@@ -8,6 +8,7 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 }
 
 .title-wrapper {
+  z-index: 1;
   width: 100%;
 
   .chart-title {
@@ -36,11 +37,11 @@ $alarmColor: #dcdee5 #63656e #ea3636;
 
       .alarm-icon {
         z-index: 9;
+
         // display: none;
         align-items: center;
         justify-content: center;
         height: 14px;
-        margin-right: 8px;
         margin-right: 8px;
         font-size: 12px;
         color: #dcdee5;

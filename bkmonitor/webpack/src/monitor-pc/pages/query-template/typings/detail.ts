@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import type { AggCondition } from '.';
 import type { QueryVariablesTransformResult } from '../components/utils/query-variable-tool';
+import type { AggCondition, AggFunction, IVariableSubmitParams } from './index';
 
 export type ConditionDetailTagItem = Omit<AggCondition, 'value'> & { value: QueryVariablesTransformResult<string>[] };
 export interface IDetailEvents {
@@ -34,4 +34,30 @@ export interface IDetailEvents {
 
 export interface IDetailProps {
   visible: boolean;
+}
+
+export interface IQueryConfig {
+  data_source_label: string;
+  data_type_label: string;
+  functions: (AggFunction | string)[];
+  group_by: string[];
+  metric_id: string;
+  metrics: { alias: string; field: string; method: string }[];
+  table: string;
+  where: (AggCondition | string)[];
+}
+
+export interface QueryTemplateDetail {
+  alias: string;
+  can_delete: boolean;
+  can_edit: boolean;
+  description: string;
+  expression: string;
+  functions: (AggFunction | string)[];
+  id: number;
+  name: string;
+  query_configs: IQueryConfig[];
+  space_scope: number[];
+  unit: string;
+  variables: IVariableSubmitParams[];
 }

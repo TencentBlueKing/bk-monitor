@@ -7,14 +7,16 @@
     display: flex;
     width: 100%;
     padding: 16px 12px 8px;
-    
+
     .head-input {
       // width: calc(100% - 40px);
       border: 0;
       background: #f0f1f5;
+
       .bk-input--text {
         background: #f0f1f5;
         color: #313238;
+
         &::placeholder {
           color: #979ba5;
         }
@@ -35,6 +37,7 @@
       border: 1px solid #3a84ff;
       box-shadow: none !important;
       background: #fff;
+
       .bk-input--text {
         background: #fff;
       }
@@ -59,10 +62,33 @@
     width: 100%;
     height: calc(100% - 58px);
 
-    .clear-btn {
-      margin: 0px 2px;
-      color: #3a84ff;
-      cursor: pointer;
+    .search-exception {
+      .bk-exception-img {
+        width: auto;
+        height: 160px;
+      }
+
+      .bk-exception-footer {
+        margin-top: 0;
+
+        .exception-title {
+          font-size: 14px;
+          color: #313238;
+        }
+
+        .exception-desc {
+          padding: 0 20px;
+          margin-top: 8px;
+          color: #979ba5;
+          overflow-wrap: break-word;
+        }
+      }
+
+      .clear-btn {
+        margin: 8px 2px 0px;
+        color: #3a84ff;
+        cursor: pointer;
+      }
     }
 
     .list-item {

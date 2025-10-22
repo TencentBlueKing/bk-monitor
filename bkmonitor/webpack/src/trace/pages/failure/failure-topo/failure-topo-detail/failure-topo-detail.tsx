@@ -25,14 +25,13 @@
  */
 import { type PropType, computed, defineComponent, ref, watch } from 'vue';
 
-import { Exception } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import NoDataImg from '../../../../static/img/no-data.svg';
+import ExceptionComp from '../../../../components/exception';
 import EdgeInfo from './components/edge-info';
 import NodeInfo from './components/node-info';
 
-import type { IEdge, ActiveTab } from '../types';
+import type { ActiveTab, IEdge } from '../types';
 
 import './failure-topo-detail.scss';
 
@@ -140,22 +139,12 @@ export default defineComponent({
 
     const handleException = () => {
       return (
-        <Exception
-          class='exception-wrap'
-          v-slots={{
-            type: () => (
-              <img
-                class='custom-icon'
-                alt=''
-                src={NoDataImg}
-              />
-            ),
-          }}
-        >
-          <div style={{ color: '#979BA5' }}>
-            <div class='exception-title'>{t('暂无数据')}</div>
-          </div>
-        </Exception>
+        <ExceptionComp
+          imgHeight={100}
+          isDarkTheme={true}
+          isError={false}
+          title={t('暂无数据')}
+        />
       );
     };
 

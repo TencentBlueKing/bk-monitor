@@ -110,9 +110,6 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "category":"strategy",
     "begin_time":"2019-11-21 00:00:00",
     "end_time":"2019-11-23 23:59:59",
