@@ -145,8 +145,10 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
 
         logger.info("create bkcc space successfully, space: %s", json.dumps(diff_biz_list))
 
-    # 检查V4链路配置
-    check_bkcc_space_builtin_datalink(biz_list=[(b.bk_tenant_id, b.bk_biz_id) for b in biz_list])
+    # 检查V4链路配置，需要排除新增的业务
+    check_bkcc_space_builtin_datalink(
+        biz_list=[(b.bk_tenant_id, b.bk_biz_id) for b in biz_list if str(b.bk_biz_id) in diff]
+    )
 
     cost_time = time.time() - start_time
 
