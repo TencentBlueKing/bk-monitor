@@ -23,15 +23,15 @@ from rest_framework.serializers import Serializer, ValidationError
 
 from core.drf_resource import resource
 from bkmonitor.documents import AlertDocument
-from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam import ActionEnum, ResourceEnum
+from bkmonitor.iam.drf import InstanceActionForDataPermission
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.query_template.constants import VariableType
 from constants.alert import EventStatus
 from utils import count_md5
 
-from apm_web.models import StrategyTemplate, StrategyInstance
+from apm_web.models import StrategyTemplate, StrategyInstance, Application
 from apm_web.decorators import user_visit_record
 from . import serializers, handler, dispatch, helper, query_template, constants
 
@@ -54,8 +54,24 @@ class StrategyTemplateViewSet(GenericViewSet):
         self._query_data = serializer_inst.validated_data
         return self._query_data
 
-    def get_permissions(self) -> list[BusinessActionPermission]:
-        return [BusinessActionPermission([ActionEnum.MANAGE_APM_APPLICATION])]
+    def get_permissions(self) -> list[InstanceActionForDataPermission]:
+        if self.action in ["update", "destroy", "apply", "clone", "batch_partial_update"]:
+            return [
+                InstanceActionForDataPermission(
+                    "app_name",
+                    [ActionEnum.MANAGE_APM_APPLICATION],
+                    ResourceEnum.APM_APPLICATION,
+                    get_instance_id=Application.get_application_id_by_app_name,
+                )
+            ]
+        return [
+            InstanceActionForDataPermission(
+                "app_name",
+                [ActionEnum.VIEW_APM_APPLICATION],
+                ResourceEnum.APM_APPLICATION,
+                get_instance_id=Application.get_application_id_by_app_name,
+            )
+        ]
 
     def get_serializer_class(self) -> type[Serializer]:
         action_serializer_map = {
@@ -126,7 +142,9 @@ class StrategyTemplateViewSet(GenericViewSet):
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateSearchRequestSerializer)
     @user_visit_record
     def search(self, *args, **kwargs) -> Response:
-        queryset = self._filter_by_conditions(self.get_queryset(), self.query_data["conditions"])
+        queryset = self._filter_by_conditions(self.get_queryset(), self.query_data["conditions"]).order_by(
+            *self.query_data["order_by"]
+        )
         total = queryset.count()
         if self.query_data["simple"]:
             strategy_template_list = serializers.StrategyTemplateSimpleSearchModelSerializer(queryset, many=True).data
@@ -321,25 +339,35 @@ class StrategyTemplateViewSet(GenericViewSet):
         if not update_user:
             raise ValueError(_("未获取到用户信息"))
 
-        edit_data: dict[str, Any] = self.query_data["edit_data"]
-        edit_data["update_user"] = update_user
-        edit_data["update_time"] = timezone.now()
+        edit_data: dict[str, Any] = {
+            **self.query_data["edit_data"],
+            "bk_biz_id": self.query_data["bk_biz_id"],
+            "app_name": self.query_data["app_name"],
+            "update_user": update_user,
+            "update_time": timezone.now(),
+        }
 
         editable_fields: list[str] = serializers.StrategyTemplateBatchPartialUpdateRequestSerializer.EDITABLE_FIELDS
         strategy_template_objs: list[StrategyTemplate] = list(
-            self.get_queryset().filter(id__in=self.query_data["ids"]).only(*editable_fields, "id", "auto_applied_at")
+            self.get_queryset()
+            .filter(id__in=self.query_data["ids"])
+            .only(*editable_fields, "id", "root_id", "auto_applied_at")
         )
+        model_serializer = serializers.StrategyTemplateModelSerializer
+        model_serializer.validate_auto_apply(strategy_template_objs, edit_data)
         for obj in strategy_template_objs:
-            serializers.StrategyTemplateModelSerializer.set_auto_apply(edit_data, obj, edit_data["update_time"])
+            model_serializer.set_auto_apply(edit_data, obj, edit_data["update_time"])
 
             # 设置更新字段。
             for field_name in edit_data:
                 setattr(obj, field_name, edit_data[field_name])
+            edit_data.pop("auto_applied_at", None)
 
         StrategyTemplate.objects.bulk_update(
             strategy_template_objs, fields=editable_fields + ["auto_applied_at"], batch_size=500
         )
-        return Response({"ids": [obj.id for obj in strategy_template_objs]})
+
+        return Response({"ids": [obj.pk for obj in strategy_template_objs]})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCompareRequestSerializer)
     def compare(self, *args, **kwargs) -> Response:

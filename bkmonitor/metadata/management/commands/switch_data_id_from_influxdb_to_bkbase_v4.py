@@ -50,7 +50,11 @@ class Command(BaseCommand):
             raise CommandError("only support bk_standard_v2_time_series type datasource!")
 
         # Step2. 更改数据源来源为bkdata，并删除Consul+停用Transfer
-        modify_data_id_source(data_id_list=[bk_data_id], source_type=DataIdCreatedFromSystem.BKDATA.value)
+        modify_data_id_source(
+            bk_tenant_id=datasource.bk_tenant_id,
+            data_id_list=[bk_data_id],
+            source_type=DataIdCreatedFromSystem.BKDATA.value,
+        )
 
         # Step3. 将数据源信息同步至BkBase，组装配置
         bkbase_data_name = utils.compose_bkdata_data_id_name(datasource.data_name)
