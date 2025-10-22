@@ -1364,11 +1364,14 @@ class DataSourceResultTable(models.Model):
 
         with atomic(config.DATABASE_CONNECTION_NAME):
             # 解除老的关联关系
-            if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
-                if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).count() != 1:
-                    raise ValueError(_("结果表有多个关联数据源"))
-                target = cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)[0]
-                logger.info("table_id => [%s] do not relation bk_data_id => [%s]", table_id, target.bk_data_id)
+            try:
+                target = cls.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+            except cls.MultipleObjectsReturned:
+                raise ValueError(_("结果表有多个关联数据源"))
+            except cls.DoesNotExist:
+                pass
+            else:
+                logger.info("table_id->[%s] do not relation bk_data_id->[%s]", table_id, target.bk_data_id)
                 target.delete()
                 refresh_consul_config_data_ids.append(target.bk_data_id)
 
