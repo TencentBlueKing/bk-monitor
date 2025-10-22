@@ -4,26 +4,23 @@
 给定一个事件分组ID，删除之
 
 
-#### 接口参数
+### 请求参数
 
 | 字段             | 类型     | 必选 | 描述     |
 |----------------|--------|----|--------|
 | event_group_id | int    | 是  | 事件分组ID |
 | operator       | string | 是  | 操作者    |
 
-#### 请求示例
+### 请求参数示例
 
 ```json
 {
-  "bk_app_code": "xxx",
-  "bk_app_secret": "xxxxx",
-  "bk_token": "xxxx",
   "event_group_id": 123,
   "operator": "admin"
 }
 ```
 
-### 返回结果
+### 响应参数
 
 | 字段         | 类型     | 描述     |
 |------------|--------|--------|
@@ -33,7 +30,7 @@
 | data       | dict   | 数据     |
 | request_id | string | 请求ID   |
 
-#### 结果示例
+### 响应参数示例
 
 ```json
 {

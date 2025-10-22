@@ -38,12 +38,14 @@ interface DimensionValueEvents {
 }
 
 interface DimensionValueProps {
+  showLabel?: boolean;
   variable: DimensionVariableModel;
 }
 
 @Component
 export default class EditDimensionVariableValue extends tsc<DimensionValueProps, DimensionValueEvents> {
   @Prop({ type: Object, required: true }) variable!: DimensionVariableModel;
+  @Prop({ default: true }) showLabel!: boolean;
 
   @Emit('valueChange')
   handleValueChange(value: string[]) {
@@ -60,7 +62,10 @@ export default class EditDimensionVariableValue extends tsc<DimensionValueProps,
 
   render() {
     return (
-      <EditVariableValue data={this.variable.data}>
+      <EditVariableValue
+        data={this.variable.data}
+        showLabel={this.showLabel}
+      >
         <bk-select
           clearable={false}
           value={this.variable.data.value}

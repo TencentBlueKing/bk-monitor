@@ -24,26 +24,26 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, isRef, ref, type PropType } from "vue";
-import TextHighlight from "vue-text-highlight";
+import { computed, defineComponent, isRef, ref, type PropType } from 'vue';
+import TextHighlight from 'vue-text-highlight';
 
-import useLocale from "@/hooks/use-locale";
-import useStore from "@/hooks/use-store";
-import { BK_LOG_STORAGE } from "@/store/store.type";
-import BkUserSelector from "@blueking/user-selector";
-import { bkMessage } from "bk-magic-vue";
-import tippy from "tippy.js";
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import { BK_LOG_STORAGE } from '@/store/store.type';
+import BkUserSelector from '@blueking/user-selector';
+import { bkMessage } from 'bk-magic-vue';
+import tippy from 'tippy.js';
 
-import ClusterEventPopover from "./cluster-popover";
-import RemarkEditTip from "./remark-edit-tip";
-import { getConditionRouterParams } from "./utils";
-import $http from "@/api";
+import ClusterEventPopover from './cluster-popover';
+import RemarkEditTip from './remark-edit-tip';
+import { getConditionRouterParams } from './utils';
+import $http from '@/api';
 
-import type { ITableItem } from "../index";
-import type { LogPattern } from "@/services/log-clustering";
+import type { ITableItem } from '../index';
+import type { LogPattern } from '@/services/log-clustering';
 
-import RetrieveHelper from "@/views/retrieve-helper";
-import "./index.scss";
+import RetrieveHelper from '@/views/retrieve-helper';
+import './index.scss';
 
 export interface GroupListState {
   [key: string]: {
@@ -72,7 +72,7 @@ export interface IPagination {
 }
 
 export default defineComponent({
-  name: "ContentTable",
+  name: 'ContentTable',
   components: {
     TextHighlight,
     ClusterEventPopover,
@@ -103,7 +103,7 @@ export default defineComponent({
     },
     displayMode: {
       type: String,
-      default: "group",
+      default: 'group',
     },
     groupListState: {
       type: Object as PropType<GroupListState>,
@@ -144,11 +144,11 @@ export default defineComponent({
     );
     const showGroupBy = computed(
       () =>
-        props.requestData?.group_by.length > 0 && props.displayMode === "group",
+        props.requestData?.group_by.length > 0 && props.displayMode === 'group',
     );
     const isFlattenMode = computed(
       () =>
-        props.requestData?.group_by.length > 0 && props.displayMode !== "group",
+        props.requestData?.group_by.length > 0 && props.displayMode !== 'group',
     );
     const columnWidth = computed(() =>
       Object.assign({}, props.tableColumnWidth ?? {}, props.widthList ?? {}),
@@ -239,7 +239,7 @@ export default defineComponent({
         groupBy.forEach((el, index) => {
           additionList.push({
             field: el,
-            operator: "is",
+            operator: 'is',
             value: row.group[index],
             isLink,
           });
@@ -247,40 +247,40 @@ export default defineComponent({
       }
       additionList.push({
         field: `__dist_${props.requestData?.pattern_level}`,
-        operator: "is",
+        operator: 'is',
         value: row.signature.toString(),
         isLink,
       });
 
       // 聚类下钻只能使用ui模式
-      store.commit("updateIndexItem", { search_mode: "ui" });
+      store.commit('updateIndexItem', { search_mode: 'ui' });
       // 新开页打开首页是原始日志，不需要传聚类参数，如果传了则会初始化为聚类
-      store.commit("updateState", { key: "clusterParams", value: null });
+      store.commit('updateState', { key: 'clusterParams', value: null });
       store
-        .dispatch("setQueryCondition", additionList)
+        .dispatch('setQueryCondition', additionList)
         .then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
             const openUrl = getConditionRouterParams(
               newSearchList,
               searchMode,
               isNewSearchPage,
-              { tab: "origin" },
+              { tab: 'origin' },
             );
-            window.open(openUrl, "_blank");
+            window.open(openUrl, '_blank');
             // 新开页后当前页面回填聚类参数
-            store.commit("updateState", {
-              key: "clusterParams",
+            store.commit('updateState', {
+              key: 'clusterParams',
               value: props.requestData,
             });
             return;
           }
-          emit("show-change", "origin");
+          emit('show-change', 'origin');
         });
     };
 
     const handleMenuClick = (row, isLink = false) => {
       handleMenuBatchClick(row, isLink);
-      emit("show-origin-log");
+      emit('show-origin-log');
     };
 
     const getLimitState = (index: number) => {
@@ -292,7 +292,7 @@ export default defineComponent({
     const getGroupsValue = (group) => {
       if (!props.requestData?.group_by.length) return {};
       return props.requestData.group_by.reduce((acc, cur, index) => {
-        acc[cur] = group?.[index] ?? "";
+        acc[cur] = group?.[index] ?? '';
         return acc;
       }, {});
     };
@@ -303,13 +303,13 @@ export default defineComponent({
       // 当创建告警策略开启时，不允许删掉最后一个责任人
       if (row.strategy_enabled && !val.length) {
         bkMessage({
-          theme: "error",
-          message: t("删除失败，开启告警时，需要至少一个责任人"),
+          theme: 'error',
+          message: t('删除失败，开启告警时，需要至少一个责任人'),
         });
         return;
       }
       $http
-        .request("/logClustering/setOwner", {
+        .request('/logClustering/setOwner', {
           params: {
             index_set_id: props.indexId,
           },
@@ -323,10 +323,10 @@ export default defineComponent({
         .then((res) => {
           if (res.result) {
             const { owners } = res.data;
-            updateTableRowData(row, "owners", owners);
+            updateTableRowData(row, 'owners', owners);
             bkMessage({
-              theme: "success",
-              message: t("操作成功"),
+              theme: 'success',
+              message: t('操作成功'),
             });
           }
         });
@@ -335,7 +335,7 @@ export default defineComponent({
     const changeStrategy = (enabled: boolean, row: LogPattern) => {
       currentRowId.value = row.id;
       $http
-        .request("/logClustering/updatePatternStrategy", {
+        .request('/logClustering/updatePatternStrategy', {
           params: {
             index_set_id: props.indexId,
           },
@@ -350,11 +350,11 @@ export default defineComponent({
           if (res.result) {
             const { strategy_id } = res.data;
             bkMessage({
-              theme: "success",
-              message: t("操作成功"),
+              theme: 'success',
+              message: t('操作成功'),
             });
-            updateTableRowData(row, "strategy_id", strategy_id);
-            updateTableRowData(row, "strategy_enabled", enabled);
+            updateTableRowData(row, 'strategy_id', strategy_id);
+            updateTableRowData(row, 'strategy_enabled', enabled);
           }
         });
     };
@@ -363,12 +363,12 @@ export default defineComponent({
       currentRowId.value = row.id;
       window.open(
         `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
-        "_blank",
+        '_blank',
       );
     };
 
     const remarkContent = (remarkList) => {
-      if (!remarkList.length) return "--";
+      if (!remarkList.length) return '--';
       const maxTimestamp = remarkList.reduce((pre, cur) => {
         return cur.create_time > pre.create_time ? cur : pre;
       }, remarkList[0]);
@@ -390,13 +390,13 @@ export default defineComponent({
             content: remarkTipsRef.value.tipRef,
             allowHTML: true,
             arrow: true,
-            theme: "light remark-edit-tip-popover",
+            theme: 'light remark-edit-tip-popover',
             sticky: true,
             maxWidth: 340,
             // duration: [500, 0],
             offset: [0, 5],
             interactive: true,
-            placement: "top",
+            placement: 'top',
             onHidden: () => {
               popoverInstance?.destroy();
               popoverInstance = null;
@@ -407,8 +407,8 @@ export default defineComponent({
       }, 500);
     };
 
-    const handleUpdateRemark = (remark: LogPattern["remark"]) => {
-      updateTableRowData(currentRowValue.value.data, "remark", remark);
+    const handleUpdateRemark = (remark: LogPattern['remark']) => {
+      updateTableRowData(currentRowValue.value.data, 'remark', remark);
       activeMarkElement.textContent = remarkContent(remark);
     };
 
@@ -416,12 +416,12 @@ export default defineComponent({
       e.stopPropagation();
       const addConditions = props.requestData?.group_by.map((item, index) => ({
         field: item,
-        operator: "=",
+        operator: '=',
         value: [row.group[index]],
-        from: "cluster",
+        from: 'cluster',
       }));
-      store.dispatch("setQueryCondition", addConditions);
-      RetrieveHelper.searchValueChange("cluster", addConditions);
+      store.dispatch('setQueryCondition', addConditions);
+      RetrieveHelper.searchValueChange('cluster', addConditions);
     };
 
     /**
@@ -429,7 +429,7 @@ export default defineComponent({
      * @param row
      */
     const handleGroupClick = (row: ITableItem) => {
-      emit("group-state-change", row);
+      emit('group-state-change', row);
     };
 
     /**
@@ -441,45 +441,45 @@ export default defineComponent({
       if (showGroupBy.value) {
         return (
           <div
-            class="collpase-main"
+            class='collpase-main'
             on-click={() => {
               handleGroupClick(row);
             }}
           >
             <div
               class={{
-                "collapse-icon": true,
-                "is-open": groupState.value[row.hashKey]?.isOpen ?? false,
+                'collapse-icon': true,
+                'is-open': groupState.value[row.hashKey]?.isOpen ?? false,
               }}
             >
-              <log-icon type="arrow-down-filled-2" />
+              <log-icon type='arrow-down-filled-2' />
             </div>
             <div
-              class="group-value-display"
+              class='group-value-display'
               v-bk-overflow-tips={{
                 content: row.groupKey,
               }}
             >
-              <div class="value-item">{row.groupKey}</div>
+              <div class='value-item'>{row.groupKey}</div>
             </div>
             <div
-              class="add-search"
-              v-bk-tooltips={t("添加为检索条件")}
+              class='add-search'
+              v-bk-tooltips={t('添加为检索条件')}
               on-click={(e) => handleAddSearch(e, row)}
             >
-              <log-icon type="sousuo-" />
+              <log-icon type='sousuo-' />
             </div>
-            <div class="count-display">
-              （{t("共有 {0} 条数据", [row.childCount])}）
+            <div class='count-display'>
+              （{t('共有 {0} 条数据', [row.childCount])}）
             </div>
           </div>
         );
       }
 
       return (
-        <div class="list-count-main">
-          <i18n path="共有 {0} 条数据">
-            <span style="font-weight:700">{props.pagination.childCount}</span>
+        <div class='list-count-main'>
+          <i18n path='共有 {0} 条数据'>
+            <span style='font-weight:700'>{props.pagination.childCount}</span>
           </i18n>
         </div>
       );
@@ -497,7 +497,7 @@ export default defineComponent({
         row.index === 1
       ) {
         return (
-          <tr class="is-row-group is-flatten-count">
+          <tr class='is-row-group is-flatten-count'>
             <td colspan={columnLength.value}>{renderGroupItem(row)}</td>
           </tr>
         );
@@ -506,7 +506,7 @@ export default defineComponent({
       // 分组模式
       if (showGroupBy.value) {
         return (
-          <tr class="is-row-group">
+          <tr class='is-row-group'>
             <td colspan={columnLength.value}>{renderGroupItem(row)}</td>
           </tr>
         );
@@ -524,40 +524,40 @@ export default defineComponent({
       return (
         <tr>
           <td>
-            <div class="signature-box">
-              <div class="signature" v-bk-overflow-tips>
+            <div class='signature-box'>
+              <div class='signature' v-bk-overflow-tips>
                 {row.data?.signature}
               </div>
-              <div class="new-finger" v-show={row.data?.is_new_class}>
+              <div class='new-finger' v-show={row.data?.is_new_class}>
                 New
               </div>
             </div>
           </td>
           <td>
             <bk-button
-              style="padding: 0px"
-              size="small"
-              theme="primary"
+              style='padding: 0px'
+              size='small'
+              theme='primary'
               text
-              on-click={() => handleMenuBatchClick(row)}
+              on-click={() => handleMenuBatchClick(row.data)}
             >
               {row.data?.count}
             </bk-button>
           </td>
           <td>
             <bk-button
-              style="padding: 0px"
-              size="small"
-              theme="primary"
+              style='padding: 0px'
+              size='small'
+              theme='primary'
               text
-              on-click={() => handleMenuBatchClick(row)}
+              on-click={() => handleMenuBatchClick(row.data)}
             >
               {`${row.data?.percentage.toFixed(2)}%`}
             </bk-button>
           </td>
           {showYOY.value && (
             <td>
-              <span style="padding-left:6px">
+              <span style='padding-left:6px'>
                 {row.data?.year_on_year_count}
               </span>
             </td>
@@ -568,23 +568,23 @@ export default defineComponent({
                 style={{
                   color:
                     row.data?.year_on_year_percentage < 0
-                      ? "#2CAF5E"
+                      ? '#2CAF5E'
                       : row.data?.year_on_year_percentage === 0
-                        ? "#313238"
-                        : "#E71818",
+                        ? '#313238'
+                        : '#E71818',
                 }}
-                class="compared-change"
+                class='compared-change'
               >
                 <span>{`${Math.abs(Number(row.data?.year_on_year_percentage.toFixed(2)))}%`}</span>
                 {row.data?.year_on_year_percentage !== 0 ? (
                   <log-icon
-                    style="font-size: 16px;"
+                    style='font-size: 16px;'
                     type={
-                      row.data?.year_on_year_percentage < 0 ? "down-4" : "up-2"
+                      row.data?.year_on_year_percentage < 0 ? 'down-4' : 'up-2'
                     }
                   />
                 ) : (
-                  <log-icon style="font-size: 16px;" type="--2" />
+                  <log-icon style='font-size: 16px;' type='--2' />
                 )}
               </div>
             </td>
@@ -592,7 +592,7 @@ export default defineComponent({
           {isFlattenMode.value &&
             row.data?.group.map((item) => (
               <td>
-                <div class="dynamic-column" v-bk-overflow-tips>
+                <div class='dynamic-column' v-bk-overflow-tips>
                   {item}
                 </div>
               </td>
@@ -600,22 +600,22 @@ export default defineComponent({
           <td>
             <div
               class={[
-                "pattern-content",
-                { "is-limit": getLimitState(row.index) },
+                'pattern-content',
+                { 'is-limit': getLimitState(row.index) },
               ]}
             >
               <ClusterEventPopover
                 indexId={props.indexId}
                 rowData={row.data}
                 on-event-click={(isLink) => handleMenuClick(row.data, isLink)}
-                on-open-cluster-config={() => emit("open-cluster-config")}
+                on-open-cluster-config={() => emit('open-cluster-config')}
               >
                 <text-highlight
-                  style=""
-                  class="monospace-text"
+                  style=''
+                  class='monospace-text'
                   queries={getHeightLightList(row.data?.pattern)}
                 >
-                  {row.data?.pattern ? row.data?.pattern : t("未匹配")}
+                  {row.data?.pattern ? row.data?.pattern : t('未匹配')}
                 </text-highlight>
               </ClusterEventPopover>
               {/* {!isLimitExpandView.value && (
@@ -639,34 +639,34 @@ export default defineComponent({
           )} */}
             </div>
           </td>
-          <td style="padding-left: 0px">
+          <td style='padding-left: 0px'>
             <div
               // 组件样式有问题，暂时这样处理
-              style={{ padding: isExternal && "5px 0" }}
-              class="principal-main"
+              style={{ padding: isExternal && '5px 0' }}
+              class='principal-main'
               v-bk-tooltips={{
-                placement: "top",
-                content: row.data?.owners.value.join(", "),
+                placement: 'top',
+                content: row.data?.owners.value.join(', '),
                 delay: 300,
                 disabled: !row.data?.owners.value.length,
               }}
             >
               {!isExternal ? (
                 <bk-user-selector
-                  class="principal-input"
+                  class='principal-input'
                   api={window.BK_LOGIN_URL}
-                  empty-text={t("无匹配人员")}
-                  placeholder="--"
+                  empty-text={t('无匹配人员')}
+                  placeholder='--'
                   value={row.data?.owners.value}
                   multiple
                   on-change={(val) => handleChangePrincipal(val, row.data)}
                 />
               ) : (
                 <bk-tag-input
-                  style="width: 100%"
-                  class="principal-tag-input"
+                  style='width: 100%'
+                  class='principal-tag-input'
                   clearable={false}
-                  placeholder="--"
+                  placeholder='--'
                   value={row.data?.owners.value}
                   allow-create
                   has-delete-icon
@@ -680,24 +680,24 @@ export default defineComponent({
           </td>
           {!isExternal && (
             <td>
-              <div class="create-strategy-main">
+              <div class='create-strategy-main'>
                 {row.data?.owners.value.length > 0 ? (
-                  <div class="is-able">
+                  <div class='is-able'>
                     <bk-switcher
-                      theme="primary"
+                      theme='primary'
                       value={row.data?.strategy_enabled}
                       on-change={(val) => changeStrategy(val, row.data)}
                     />
                     {row.data?.strategy_id > 0 && (
                       <span on-click={() => handleStrategyInfoClick(row.data)}>
-                        <log-icon style="font-size: 16px" type="audit" />
+                        <log-icon style='font-size: 16px' type='audit' />
                       </span>
                     )}
                   </div>
                 ) : (
                   <bk-switcher
-                    v-bk-tooltips={t("暂无配置责任人，无法自动创建告警策略")}
-                    theme="primary"
+                    v-bk-tooltips={t('暂无配置责任人，无法自动创建告警策略')}
+                    theme='primary'
                     value={row.data?.strategy_enabled}
                     disabled
                   />
@@ -705,9 +705,9 @@ export default defineComponent({
               </div>
             </td>
           )}
-          <td style="padding-right: 8px;">
+          <td style='padding-right: 8px;'>
             <div
-              class="remark-column"
+              class='remark-column'
               on-mouseenter={(e) => handleHoverRemarkIcon(e, row.data)}
               on-mouseleave={() => clearTimeout(remarkPopoverTimer)}
             >
@@ -746,15 +746,15 @@ export default defineComponent({
     return () => (
       <div
         style={{
-          borderLeft: showGroupBy.value ? "1px solid #dcdee5" : "none",
-          borderRight: showGroupBy.value ? "1px solid #dcdee5" : "none",
+          borderLeft: showGroupBy.value ? '1px solid #dcdee5' : 'none',
+          borderRight: showGroupBy.value ? '1px solid #dcdee5' : 'none',
         }}
-        class="log-content-table-main"
+        class='log-content-table-main'
         v-show={props.tableList.length > 0}
       >
-        <div ref={tableWraperRef} class="log-content-table-wraper">
-          <table class="log-content-table">
-            <thead class="hide-header">
+        <div ref={tableWraperRef} class='log-content-table-wraper'>
+          <table class='log-content-table'>
+            <thead class='hide-header'>
               <tr ref={headRowRef}>
                 <th
                   style={{ width: `${columnWidth.value.signature ?? 125}px` }}

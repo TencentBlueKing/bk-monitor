@@ -211,7 +211,7 @@ const setRouteParams = () => {
 };
 
 const requestIndexSetList = () => {
-  if (route.query.tab === 'origin') {
+  if (route.query.tab === 'origin' || !route.query.tab) {
     store.dispatch("requestIndexSetQuery");
   }
 }

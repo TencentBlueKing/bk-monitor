@@ -5,8 +5,7 @@
 创建存储集群配置
 根据给定的配置参数，创建一个存储集群配置
 
-
-#### 接口参数
+### 请求参数
 
 | 字段           | 类型   | 必选 | 描述        |
 | -------------- | ------ | ---- | ----------- |
@@ -22,13 +21,10 @@
 | schema | string | 否 | 强行配置schema，可用于配置https等情形 |
 | is_ssl_verify | bool | 否 | 是否需要跳过SSL\TLS 认证 |
 
-#### 请求示例
+### 请求参数示例
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "cluster_name": "first_influxdb",
     "cluster_type": "influxDB",
     "domain_name": "influxdb.service.consul",
@@ -42,7 +38,7 @@
 }
 ```
 
-### 返回结果
+### 响应参数
 
 | 字段       | 类型   | 描述         |
 | ---------- | ------ | ------------ |
@@ -58,7 +54,7 @@
 | ------------------- | ------ | -------- |
 | cluster_id | int | 集群ID |
 
-#### 结果示例
+### 响应参数示例
 
 ```json
 {

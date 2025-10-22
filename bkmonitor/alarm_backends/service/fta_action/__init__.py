@@ -115,8 +115,8 @@ class BaseActionProcessor:
         self.execute_config = self.action_config.get("execute_config", {})
         self.timeout_setting = self.execute_config.get("timeout")
         self.failed_retry = self.execute_config.get("failed_retry", {})
-        self.max_retry_times = self.failed_retry.get("max_retry_times", -1)
-        self.retry_interval = self.failed_retry.get("retry_interval", 0)
+        self.max_retry_times = int(self.failed_retry.get("max_retry_times", -1))
+        self.retry_interval = int(self.failed_retry.get("retry_interval", 0))
 
         # 当前的重试次数
         self.retry_times = self.action.outputs.get("retry_times", 0)

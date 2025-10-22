@@ -39,6 +39,9 @@ import '@blueking/ai-blueking/dist/vue2/style.css';
 @Component
 export default class AiBluekingWrapper extends tsc<object> {
   @Ref('aiBlueking') aiBluekingRef: typeof AIBlueking;
+  // 是否处于临时会话
+  isInTemporarySession = false;
+
   get apiUrl() {
     return '/ai_whale/chat';
   }
@@ -71,10 +74,16 @@ export default class AiBluekingWrapper extends tsc<object> {
     this.aiBluekingRef.handleSendMessage(newVal);
   }
   @Watch('customFallbackShortcut')
-  handleCustomFallbackShortcutChange(shortcut: AIBluekingShortcut) {
+  async handleCustomFallbackShortcutChange(shortcut: AIBluekingShortcut) {
     if (shortcut?.id) {
-      this.aiBluekingRef.handleShow();
-      this.aiBluekingRef.handleShortcutClick?.({ shortcut, source: 'popup' });
+      const newSession = (
+        [AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS, AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS] as string[]
+      ).includes(shortcut.id);
+      await this.aiBluekingRef.handleShow(undefined, {
+        isTemporary: newSession,
+      });
+      this.isInTemporarySession = newSession;
+      this.aiBluekingRef.handleShortcutClick?.({ shortcut, source: 'popup' }, newSession);
     }
   }
   handleShortcutFilter(shortcut: AIBluekingShortcut, selectedText: string) {
@@ -122,6 +131,7 @@ export default class AiBluekingWrapper extends tsc<object> {
             },
           }}
           enablePopup={true}
+          hideDefaultTrigger={true}
           hideNimbus={true}
           loadRecentSessionOnMount={true}
           prompts={[]}

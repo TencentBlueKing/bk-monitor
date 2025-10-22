@@ -48,7 +48,7 @@ import {
   Tooltip,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Exception, Loading, Message, Popover, Slider } from 'bkui-vue';
+import { Loading, Message, Popover, Slider } from 'bkui-vue';
 import { cloneDeep } from 'lodash';
 import isEqual from 'lodash/isEqual';
 import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
@@ -57,8 +57,7 @@ import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import ErrorImg from '../../../static/img/error.svg';
-import NoDataImg from '../../../static/img/no-data.svg';
+import ExceptionComp from '../../../components/exception';
 import ResourceGraph from '../resource-graph/resource-graph';
 import { useIncidentInject } from '../utils';
 import LegendPopoverContent from './components/legend-popover-content';
@@ -1251,16 +1250,19 @@ export default defineComponent({
       loading.value = !isAutoRefresh;
       if (!wrapRef.value) return;
       clearTimeout(refreshTimeout);
-      const renderData = await incidentTopology({
-        id: incidentId.value,
-        auto_aggregate: autoAggregate.value,
-        aggregate_cluster: aggregateCluster.value ?? false,
-        aggregate_config: aggregateConfig.value,
-        only_diff: true,
-        start_time: isAutoRefresh
-          ? topoRawDataCache.value.diff[topoRawDataCache.value.diff.length - 1].create_time + 1
-          : incidentId.value.substr(0, 10),
-      })
+      const renderData = await incidentTopology(
+        {
+          id: incidentId.value,
+          auto_aggregate: autoAggregate.value,
+          aggregate_cluster: aggregateCluster.value ?? false,
+          aggregate_config: aggregateConfig.value,
+          only_diff: true,
+          start_time: isAutoRefresh
+            ? topoRawDataCache.value.diff[topoRawDataCache.value.diff.length - 1].create_time + 1
+            : incidentId.value.substr(0, 10),
+        },
+        { needMessage: false }
+      )
         .then(res => {
           const { latest, diff, complete } = res;
           complete.combos = latest.combos;
@@ -2640,23 +2642,13 @@ export default defineComponent({
               class='topo-graph-wrapper-padding'
             >
               {this.errorData.isError || this.isNoData ? (
-                <Exception
-                  class='exception-wrap'
-                  v-slots={{
-                    type: () => (
-                      <img
-                        class='custom-icon'
-                        alt=''
-                        src={this.isNoData ? NoDataImg : ErrorImg}
-                      />
-                    ),
-                  }}
-                >
-                  <div style={{ color: this.isNoData ? '#979BA5' : '#E04949' }}>
-                    <div class='exception-title'>{this.isNoData ? this.t('暂无数据') : this.t('查询异常')}</div>
-                    {this.errorData.isError && <div class='exception-desc'>{this.errorData.msg}</div>}
-                  </div>
-                </Exception>
+                <ExceptionComp
+                  errorMsg={this.errorData.msg}
+                  imgHeight={100}
+                  isDarkTheme={true}
+                  isError={this.errorData.isError}
+                  title={this.errorData.isError ? this.t('查询异常') : this.t('暂无数据')}
+                />
               ) : (
                 <>
                   <div

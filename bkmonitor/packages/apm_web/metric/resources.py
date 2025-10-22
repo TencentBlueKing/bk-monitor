@@ -519,6 +519,9 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
             query_config["table"] = result["table_id"]
             query_config["metrics"][0]["field"] = result["metric"]
 
+            # 去掉可能存在的 data_label
+            query_config.pop("data_label", None)
+
         if is_pre_cal_hit and not is_time_shift_exists:
             query_params["start_time"], query_params["end_time"] = helper.adjust_time_range(
                 query_params["start_time"], query_params["end_time"]
@@ -704,24 +707,25 @@ class ServiceListResource(PageListResource):
                 asyncable=True,
                 min_width=160,
             ),
-            NumberTableFormat(
-                id="p50",
-                name=_lazy("P50"),
-                checked=True,
-                unit="ns",
-                decimal=2,
-                asyncable=True,
-                width=80,
-            ),
-            NumberTableFormat(
-                id="p90",
-                name=_lazy("P90"),
-                checked=True,
-                unit="ns",
-                decimal=2,
-                asyncable=True,
-                width=80,
-            ),
+            # 2025-10-13 临时去掉 bk_apm_duration_bucket 指标，以及页面对应的pXX展示，待新方案上线后再放开，预计半年后
+            # NumberTableFormat(
+            #     id="p50",
+            #     name=_lazy("P50"),
+            #     checked=True,
+            #     unit="ns",
+            #     decimal=2,
+            #     asyncable=True,
+            #     width=80,
+            # ),
+            # NumberTableFormat(
+            #     id="p90",
+            #     name=_lazy("P90"),
+            #     checked=True,
+            #     unit="ns",
+            #     decimal=2,
+            #     asyncable=True,
+            #     width=80,
+            # ),
             # 四个数据状态 ↓
             DataStatusTableFormat(
                 id="metric_data_status",

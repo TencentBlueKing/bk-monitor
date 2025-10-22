@@ -1,0 +1,50 @@
+/* stylelint-disable declaration-no-important */
+.condition-select-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  .condition-condition {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 40px;
+    margin: 0 4px 4px 0;
+    background: #fdeed8;
+    border-radius: 2px;
+
+    .name-wrap {
+      font-family: RobotoMono-Medium, Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: #f59500;
+    }
+  }
+
+  .condition-tag {
+    max-width: 100%;
+    margin: 0 4px 2px 0 !important;
+    overflow: hidden;
+
+    .key-wrap {
+      .key-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    .value-wrap {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      .value-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  }
+}

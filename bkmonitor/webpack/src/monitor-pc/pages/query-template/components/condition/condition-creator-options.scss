@@ -155,7 +155,15 @@
         .form-item-content {
           .method-select {
             .bk-select-name {
-              color: #f59500;
+              color: #3a84ff;
+            }
+            &.exclude,
+            &.ne,
+            &.neq,
+            &.nreg {
+              .bk-select-name {
+                color: #ea3636;
+              }
             }
           }
         }

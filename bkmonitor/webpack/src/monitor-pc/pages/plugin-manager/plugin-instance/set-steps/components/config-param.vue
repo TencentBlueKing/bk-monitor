@@ -241,7 +241,7 @@ export default {
         custom: this.$t('自定义'),
       },
       typeDes: {
-        opt_cmd: this.$t('最常用的参数使用方式。如 --port 3306'),
+        opt_cmd: this.$t('最常见的参数使用方式，如--port 3306（需手动添加“--”前缀）'),
         env: this.$t("在程序中直接获取环境变量中的变量如 os.getenv('PYTHONPATH')"),
         pos_cmd: this.$t('基于参数传递的顺序进行变量的获取,由添加参数的顺序决定,如Shell中常见的echo $1'),
         dms_insert: this.$t('注入的维度信息将追加进采集的指标数据中，基于配置平台的服务实例自定义标签及主机字段获取'),

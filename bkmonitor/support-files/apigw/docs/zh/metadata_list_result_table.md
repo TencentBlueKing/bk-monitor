@@ -6,7 +6,7 @@
 根据给定的过滤参数（暂无），返回符合条件的结果表列表
 
 
-#### 接口参数
+### 请求参数
 无请求参数
 
 | 字段           | 类型   | 必选 | 描述        |
@@ -16,20 +16,17 @@
 | is_public_include | int | 否 | 是否包含全业务结果表, 0为不包含, 非0为包含全业务结果表 |
 | is_config_by_user | bool | 否 | 是否需要包含非用户配置的结果表内容 |
 
-#### 请求示例
+### 请求参数示例
 
 ```json
 {
-    "bk_app_code": "xxx",
-  	"bk_app_secret": "xxxxx",
-  	"bk_token": "xxxx",
 	"bk_biz_id": 123,
 	"is_public_include": 1,
 	"datasource_type": "system"
 }
 ```
 
-### 返回结果
+### 响应参数
 
 | 字段       | 类型   | 描述         |
 | ---------- | ------ | ------------ |
@@ -68,7 +65,7 @@
 | is_config_by_user | bool   | 用户是否启用该字段配置                              |
 | unit              | string | 字段单位                                            |
 
-#### 结果示例
+### 响应参数示例
 
 ```json
 {
