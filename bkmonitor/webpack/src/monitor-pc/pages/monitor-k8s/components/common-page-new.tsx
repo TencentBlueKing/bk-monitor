@@ -149,7 +149,7 @@ export type ShowModeType = 'dashboard' | 'default' | 'list';
 // 事件tab的query
 export const Event_EXPORT_QUERY_KEYS = ['targets', 'filterMode', 'commonWhere', 'showResidentBtn', 'prop', 'order'];
 /** 告警模板查询条件 */
-const ALARM_TEMPLATE_QUERY_KEYS = ['quickStatus', 'searchKeyword']
+const ALARM_TEMPLATE_QUERY_KEYS = ['quickStatus', 'searchKeyword', 'sort'];
 const customRouterQueryKeys = [
   'sliceStartTime',
   'sliceEndTime',
@@ -158,7 +158,7 @@ const customRouterQueryKeys = [
   // log-retrieve图所需的路由参数
   ...APM_LOG_ROUTER_QUERY_KEYS,
   ...Event_EXPORT_QUERY_KEYS,
-  ...ALARM_TEMPLATE_QUERY_KEYS
+  ...ALARM_TEMPLATE_QUERY_KEYS,
 ];
 @Component({
   components: {
@@ -1826,7 +1826,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             tabList={this.tabList}
             onAddTab={() => this.handleAddTab('edit-tab')}
             onFilterChange={val => {
-              this.filterActive = val
+              this.filterActive = val;
             }}
             onListPanelChange={this.handleDashboardModeChange}
             onSearchChange={this.handleSearchChange}
@@ -1912,10 +1912,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   title={this.$t('列表').toString()}
                   toggleSet={this.toggleSet}
                   onShowChange={show => {
-                    !show && (this.isSelectPanelActive = false)
+                    !show && (this.isSelectPanelActive = false);
                   }}
                   onShrink={() => {
-                    this.isSelectPanelActive = !this.isSelectPanelActive
+                    this.isSelectPanelActive = !this.isSelectPanelActive;
                   }}
                   onWidthChange={this.handleLeftPanelWidthChange}
                 />
@@ -1938,7 +1938,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                             expand={this.filterActive}
                             renderAnimation={false}
                             onExpandChange={val => {
-                              this.filterActive = val
+                              this.filterActive = val;
                             }}
                           >
                             <div
@@ -2149,10 +2149,10 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   title={this.title}
                   viewType={this.localSceneType}
                   onActiveChange={val => {
-                    this.activeSettingId = val
+                    this.activeSettingId = val;
                   }}
                   onPanelChange={val => {
-                    this.isPanelChange = val
+                    this.isPanelChange = val;
                   }}
                 />
               )}

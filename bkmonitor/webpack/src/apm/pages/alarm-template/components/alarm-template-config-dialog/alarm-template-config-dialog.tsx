@@ -248,7 +248,7 @@ export default class AlarmTemplateConfigDialog extends tsc<
 
   render() {
     /** dialog弹窗配置项 */
-    const { title, label, width } = TYPE_MAP[this.activeType] || {};
+    const { title, width } = TYPE_MAP[this.activeType] || {};
 
     return (
       <bk-dialog
@@ -278,7 +278,7 @@ export default class AlarmTemplateConfigDialog extends tsc<
         >
           <bk-form-item
             error-display-type='normal'
-            label={label}
+            // label={label}
             property='value'
           >
             {this.getAllTypeComponent()}
