@@ -12398,3 +12398,9 @@ msgstr "Reserved Field 3"
 
 msgid "主调服务"
 msgstr "Caller Server"
+
+msgid "调用数"
+msgstr "Call number"
+
+msgid "缩略图"
+msgstr "Thumbnail"

@@ -12738,3 +12738,9 @@ msgstr "预留字段3"
 
 msgid "主调服务"
 msgstr "主调服务"
+
+msgid "调用数"
+msgstr "Call number"
+
+msgid "缩略图"
+msgstr "Thumbnail"
