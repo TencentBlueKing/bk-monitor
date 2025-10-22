@@ -33,6 +33,7 @@ from django.forms import model_to_dict
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
+from bk_dataview.api import get_or_create_org, get_or_create_user
 from bkmonitor.aiops.alert.maintainer import AIOpsStrategyMaintainer
 from bkmonitor.dataflow.constant import (
     FLINK_KEY_WORDS,
@@ -57,7 +58,12 @@ from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerialize
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
-from bkmonitor.utils.user import get_admin_username, get_global_user, set_local_username
+from bkmonitor.utils.user import (
+    get_admin_username,
+    get_global_user,
+    get_user_display_name,
+    set_local_username,
+)
 from constants.aiops import SCENE_NAME_MAPPING
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -124,9 +130,18 @@ def active_business(username: str, space_info: dict[str, Any]):
 
 
 @shared_task(ignore_result=True)
-def run_init_builtin(bk_biz_id):
+def run_init_builtin(bk_biz_id: int, username: str | None = None):
     if bk_biz_id and settings.ENVIRONMENT != "development":
         logger.info("[run_init_builtin] enter with bk_biz_id -> %s", bk_biz_id)
+
+        # 初始化Grafana组织和用户
+        try:
+            get_or_create_org(str(bk_biz_id))
+            if username:
+                get_or_create_user(username=username, display_name=get_user_display_name(username))
+        except Exception as e:
+            logger.exception("[run_init_builtin] failed to create org: bk_biz_id -> %s, error -> %s", bk_biz_id, e)
+
         # 创建默认内置策略
         run_build_in(int(bk_biz_id))
 

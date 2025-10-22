@@ -37,10 +37,10 @@ from .tools.environment import (
     ROLE,
 )
 from .tools.mysql import (
+    get_backend_alert_mysql_settings,
     get_backend_mysql_settings,
     get_grafana_mysql_settings,
     get_saas_mysql_settings,
-    get_backend_alert_mysql_settings,
 )
 from .tools.service import get_service_url
 
@@ -349,6 +349,7 @@ ACTIVE_VIEWS = {
         "apm_event": "apm_web.event.views",
         "apm_profile": "apm_web.profile.views",
         "apm_container": "apm_web.container.views",
+        "apm_strategy": "apm_web.strategy.views",
     },
 }
 
@@ -527,6 +528,9 @@ APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG = (
     os.getenv("BKAPP_APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG", "false").lower() == "true"
 )
 
+# 是否下发平台级别字段标准化配置
+APM_FIELD_NORMALIZER_ENABLED = True
+
 APM_APP_DEFAULT_ES_STORAGE_CLUSTER = -1
 APM_APP_DEFAULT_ES_RETENTION = 7
 APM_APP_DEFAULT_ES_SLICE_LIMIT = 100
@@ -553,6 +557,8 @@ APM_DORIS_STORAGE_CONFIG = {}
 APM_PROFILING_ENABLED_APPS = {}
 # dis/enable profiling for all apps
 APM_PROFILING_ENABLED = False
+# APM metrics维度补充功能应用白名单 {2:["app1", "app2"], 3:["app3"]}
+APM_RESOURCE_FILTER_METRICS_ENABLED_APPS = {}
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
 # {2:["app1", "app2"], 3:["app_name"]}
@@ -1044,7 +1050,7 @@ LINUX_UPTIME_CHECK_COLLECTOR_CONF_NAME = "uptimecheckbeat.conf"
 LINUX_GSE_AGENT_IPC_PATH = "/var/run/ipc.state.report"
 
 # 采集配置升级，使用订阅更新模式的业务列表
-COLLECTING_UPGRADE_WITH_UPDATE_BIZ = []
+COLLECTING_UPGRADE_WITH_UPDATE_BIZ = [0]
 
 # aix系统配置
 AIX_SCRIPT_EXT = "sh"
@@ -1626,6 +1632,9 @@ K8S_V2_BIZ_LIST = []
 # APM UnifyQuery 查询业务黑名单
 APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
+# APM 调用分析启用全局指标的应用列表
+APM_RPC_GLOBAL_METRIC_ENABLE_APP_LIST = []
+
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
 
@@ -1662,9 +1671,6 @@ ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
 
 # 用户管理web api地址
 BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL}/api/bk-user-web/prod/"
-
-# 进程采集独立数据源模式业务ID列表
-PROCESS_INDEPENDENT_DATAID_BIZ_IDS = []
 
 # GSE消息槽
 GSE_SLOT_ID = int(os.getenv("GSE_SLOT_ID", 0))

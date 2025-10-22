@@ -297,6 +297,11 @@ export default {
   '变量名仅支持大小写字符、数字、下划线、点（.），50个字符以内':
     'Variable name only supports case-sensitive characters, numbers, underscores, and dots (.), up to 50 characters',
   请输入业务ID: 'Please enter the business ID',
-  '被调服务、被调service、被调接口组合值唯一': 'The combination value of the called service, called service, and called interface is unique',
+  '被调服务、被调service、被调接口组合值唯一':
+    'The combination value of the called service, called service, and called interface is unique',
   返回码格式错误: 'Return code format error',
+  检测规则必须开启一个级别: 'The detection rule must be enabled at one level',
+  '触发周期数 >=1 且 >= 检测数': 'Trigger cycle number >=1 and >= detection number',
+  告警组必填: 'Alarm group is required',
+  克隆配置不能和源模板一致: 'Cloned configuration cannot be consistent with the source template',
 };

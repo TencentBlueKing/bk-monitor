@@ -192,7 +192,14 @@ export default class HandleStatusDialog extends tsc<IHandleStatusDialog, IEvent>
       default: ({ row }) => row.operateTargetString,
     };
     const operatorSlot = {
-      default: ({ row }) => row.operator?.join(';'),
+      default: ({ row }) =>
+        row.operator?.map?.((id, index) => [
+          <bk-user-display-name
+            key={id}
+            user-id={id}
+          />,
+          index < row?.operator?.length - 1 ? ';' : '',
+        ]),
     };
     const checkSlot = {
       default: ({ row }) => (

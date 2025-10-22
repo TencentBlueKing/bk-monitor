@@ -3,20 +3,17 @@
 查询单个处理套餐
 
 
-#### 接口参数
+### 请求参数
 
 | 字段      | 类型 | 必选 | 描述       |
 | --------- | ---- | ---- | ---------- |
 | id        | Int  | 是   | 处理套餐ID |
 | bk_biz_id | Int  | 是   | 业务ID     |
 
-#### 示例数据
+### 请求参数示例
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "id": 1,
     "bk_biz_id": 2
 }
@@ -114,7 +111,7 @@
 | template_detail | Dict   | 模版详情（默认{}）              |
 | timeout         | Int    | 执行超时时间（单位s，默认600s） |
 
-#### 示例数据
+### 响应参数示例
 
 ```json
 {

@@ -52,6 +52,7 @@ import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import VariableCommonFormDetail from '../common-form/variable-common-form-detail';
+import VariableValueDetail from '../variable-panel/variable-value-detail';
 
 import type { ConstantVariableModel } from '../../index';
 interface ConstantDetailProps {
@@ -68,7 +69,9 @@ export default class ConstantVariableDetail extends tsc<ConstantDetailProps> {
         <VariableCommonFormDetail data={this.variable.data}>
           <div class='form-item'>
             <div class='form-item-label'>{this.$t('默认值')}：</div>
-            <div class='form-item-value'>{this.variable.defaultValue || '--'}</div>
+            <div class='form-item-value'>
+              <VariableValueDetail variable={this.variable} />
+            </div>
           </div>
         </VariableCommonFormDetail>
       </div>

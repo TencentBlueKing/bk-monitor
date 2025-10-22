@@ -1,12 +1,9 @@
-
-
 ### 功能描述
 
 图表数据查询 
 根据给定的sql表达式查询指定的存储引擎  
 
 
-#### 接口参数
 
 | 字段           | 类型   | 必选 | 描述        |
 | -------------- | ------ | ---- | ----------- |
@@ -14,13 +11,10 @@
 | prefer_storage | string | 否   | 查询引擎(默认influxdb)    |
 | bk_username    | string | 否   | 白名单的app_code必填      |
 
-#### 请求示例
+### 请求参数示例
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "bk_username":"admin",
     "sql":"select max(in_use) as _in_use from 3_system_disk where time >= \"1m\" group by ip, bk_cloud_id, bk_supplier_id, device_name, minute1 order by time desc limit 1"
 }
@@ -39,7 +33,7 @@
 
 >注意：上述的库和表并非和时序存储中的实际物理库、表对应。而是指'源数据管理模块'的库表
 
-### 返回结果
+### 响应参数
 
 | 字段       | 类型   | 描述               |
 | ---------- | ------ | ------------------ |
@@ -62,7 +56,7 @@
 
 这里面的内容就是sql查找的相关内容
 
-#### 结果示例
+### 响应参数示例
 
 ```json
 {

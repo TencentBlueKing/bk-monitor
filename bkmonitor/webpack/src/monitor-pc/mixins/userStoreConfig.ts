@@ -47,7 +47,15 @@ export default class UserConfigMixin extends Vue {
     if (!this.hasBusinessAuth) return undefined;
     const userConfig = await listUserConfig({ key }, config).catch(() => false);
     if (!userConfig?.[0]?.id) {
-      const { id } = await createUserConfig({ key, value: '""' }, config);
+      // 创建用户配置 可能出现并发情况 需要忽略错误
+      const { id } = await createUserConfig(
+        { key, value: '""' },
+        {
+          ...(config || {}),
+          needMessage: false,
+        }
+      ).catch(() => false);
+      if (!id) return undefined;
       this.storeId = id;
       return undefined;
     }

@@ -83,6 +83,10 @@ export default defineComponent({
     const eventsData = shallowRef<IEventsAnalysis[]>([]);
     const loadingList = reactive({
       summary: false,
+      suggestion: false,
+      alerts_analysis: false,
+      events_analysis: false,
+      logs_analysis: false,
     });
     const dimensionalActiveIndex = shallowRef([0]);
     const eventActiveIndex = shallowRef([0]);
@@ -330,8 +334,9 @@ export default defineComponent({
             (item.type === 'tmp_events' && key === 'event_name') ||
             (['k8s_warning_events', 'alert_system_events'].includes(item.type) &&
               ['event_name', '_sub_unit', '_sub_count'].includes(key))
-          )
-            return;
+          ) {
+            return null;
+          }
           return (
             <span
               key={key}
@@ -842,13 +847,15 @@ export default defineComponent({
                     key={item.id}
                     class='failure-item-wrapper'
                   >
-                    <i
-                      class='icon-monitor icon-chakan1 slider-icon'
-                      v-bk-tooltips={this.t('独立查看')}
-                      onClick={() => {
-                        this.toggleSlider(item.id);
-                      }}
-                    />
+                    {this.subPanels[item.key]?.status !== 'failed' && (
+                      <i
+                        class='icon-monitor icon-chakan1 slider-icon'
+                        v-bk-tooltips={this.t('独立查看')}
+                        onClick={() => {
+                          this.toggleSlider(item.id);
+                        }}
+                      />
+                    )}
                     {titleSlot(item)}
                     <div class='failure-item-content'>{contentSlot(item)}</div>
                   </div>

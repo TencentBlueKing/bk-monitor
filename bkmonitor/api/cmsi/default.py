@@ -440,7 +440,9 @@ class SendMail(CheckCMSIResource):
             "message": "发送成功",
         }
         if internal_users:
-            validated_request_data["receiver__username"] = ",".join(internal_users)
+            # esb 模式下，需要将 receiver__username 转换为字符串
+            if not self.use_apigw():
+                validated_request_data["receiver__username"] = ",".join(internal_users)
             response_data = super().perform_request(validated_request_data)
         if external_users:
             # 外部用户通知

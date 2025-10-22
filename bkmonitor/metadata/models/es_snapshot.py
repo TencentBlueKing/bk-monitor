@@ -140,7 +140,7 @@ class EsSnapshot(models.Model):
         snapshot.delete()
 
     @classmethod
-    def batch_get_state(cls, table_ids: list, bk_tenant_id=DEFAULT_TENANT_ID):
+    def batch_get_state(cls, bk_tenant_id: str, table_ids: list):
         from metadata.models import ESStorage
 
         es_storages = ESStorage.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
@@ -336,7 +336,7 @@ class EsSnapshotIndice(models.Model):
         return [obj.to_json() for obj in batch_obj]
 
     @classmethod
-    def all_doc_count_and_store_size(cls, table_ids, bk_tenant_id=DEFAULT_TENANT_ID):
+    def all_doc_count_and_store_size(cls, bk_tenant_id: str, table_ids: list[str]):
         agg_result = (
             cls.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
             .values("table_id")
@@ -405,13 +405,13 @@ class EsSnapshotRestore(models.Model):
     @atomic(config.DATABASE_CONNECTION_NAME)
     def create_restore(
         cls,
+        bk_tenant_id: str,
         table_id,
         start_time,
         end_time,
         expired_time,
         operator,
         is_sync: bool | None = False,
-        bk_tenant_id=DEFAULT_TENANT_ID,
     ):
         from metadata.models import ESStorage
 
@@ -499,9 +499,9 @@ class EsSnapshotRestore(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def modify_restore(cls, restore_id, expired_time, operator):
+    def modify_restore(cls, bk_tenant_id: str, restore_id, expired_time, operator):
         try:
-            restore = cls.objects.get(restore_id=restore_id)
+            restore = cls.objects.get(restore_id=restore_id, bk_tenant_id=bk_tenant_id)
         except cls.DoesNotExist:
             raise ValueError(_("结果表回溯不存在"))
         if restore.is_deleted:
@@ -515,9 +515,9 @@ class EsSnapshotRestore(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def delete_restore(cls, restore_id, operator, is_sync: bool | None = False):
+    def delete_restore(cls, bk_tenant_id: str, restore_id, operator, is_sync: bool | None = False):
         try:
-            restore = cls.objects.get(restore_id=restore_id)
+            restore = cls.objects.get(restore_id=restore_id, bk_tenant_id=bk_tenant_id)
         except cls.DoesNotExist:
             raise ValueError(_("回溯不存在"))
         if restore.is_deleted:
@@ -557,8 +557,8 @@ class EsSnapshotRestore(models.Model):
             logger.info("restore ->[%s] has expired, has be clean", expired_restore.restore_id)
 
     @classmethod
-    def batch_get_state(cls, restore_ids: list):
-        restores = cls.objects.filter(restore_id__in=restore_ids)
+    def batch_get_state(cls, bk_tenant_id: str, restore_ids: list):
+        restores = cls.objects.filter(restore_id__in=restore_ids, bk_tenant_id=bk_tenant_id)
         return [
             {
                 "table_id": restore.table_id,

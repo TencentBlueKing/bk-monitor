@@ -24,26 +24,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  type PropType,
-  type Ref,
-  computed,
-  defineComponent,
-  inject,
-  nextTick,
-  onMounted,
-  onUnmounted,
-  ref,
-  watch,
-} from 'vue';
+import { type PropType, computed, defineComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
-import { Button, Checkbox, Exception, Loading, Popover, Switcher } from 'bkui-vue';
+import { Button, Checkbox, Loading, Popover, Switcher } from 'bkui-vue';
 import { fitPosition } from 'monitor-ui/chart-plugins/utils';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { useI18n } from 'vue-i18n';
 
-import ErrorImg from '../../../../../static/img/error.svg';
-import NoDataImg from '../../../../../static/img/no-data.svg';
+import ExceptionComp from '../../../../../components/exception';
 import useMetrics from '../useMetrics';
 import CustomEventMenu from './custom-event-menu';
 import MetricChart from './metric-chart';
@@ -280,23 +268,13 @@ export default defineComponent({
       const { type, msg } = exceptionData.value;
       if (!type && !msg) return '';
       return (
-        <Exception
-          class='metric-view-exception'
-          v-slots={{
-            type: () => (
-              <img
-                class='custom-icon'
-                alt=''
-                src={type === 'noData' ? NoDataImg : ErrorImg}
-              />
-            ),
-          }}
-        >
-          <div style={{ color: type === 'noData' ? '#979BA5' : '#E04949' }}>
-            <div class='exception-title'>{type === 'noData' ? msg : t('查询异常')}</div>
-            {type === 'error' && <span class='exception-desc'>{msg}</span>}
-          </div>
-        </Exception>
+        <ExceptionComp
+          errorMsg={msg}
+          imgHeight={100}
+          isDarkTheme={true}
+          isError={type === 'error'}
+          title={type === 'noData' ? msg : t('查询异常')}
+        />
       );
     };
 

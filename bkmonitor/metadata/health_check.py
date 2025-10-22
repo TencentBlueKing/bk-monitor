@@ -20,9 +20,12 @@ specific language governing permissions and limitations under the License.
 6. APM - bk_biz_id, app_name
 """
 
+from datetime import datetime
+import enum
 import json
 from typing import Any
 
+import arrow
 from django.conf import settings
 from pydantic import BaseModel
 from pydantic.fields import Field
@@ -50,7 +53,19 @@ from metadata.models.space.constants import (
 from metadata.utils.redis_tools import RedisTools
 
 
+class DataScene(enum.Enum):
+    """数据场景"""
+
+    UPTIMECHECK = "uptimecheck"
+    HOST = "host"
+    CUSTOM_METRIC = "custom_metric"
+    K8S = "k8s"
+
+
 class DataIdStatus(BaseModel):
+    """数据源状态"""
+
+    bk_data_id: int = Field(description="数据源ID", default=0)
     data_name: str = Field(description="数据源名称", default="")
     exists: bool = Field(description="数据源是否存在", default=False)
     created_from: DataIdCreatedFromSystem | None = Field(description="数据源来源", default=None)
@@ -60,7 +75,7 @@ class DataIdStatus(BaseModel):
     bkbase_config: dict[str, Any] = Field(description="bkbase配置", default={})
 
     kafka_data_exists: bool = Field(description="Kafka是否存在数据", default=False)
-    kafka_latest_timestamp: int = Field(description="Kafka最新数据时间", default=0)
+    kafka_latest_time: datetime | None = Field(description="Kafka最新数据时间", default=None)
     kafka_latest_data: list[dict[str, Any]] = Field(description="Kafka最新数据", default=[])
 
     finished: bool = Field(description="是否检查完成", default=False)
@@ -79,7 +94,7 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
     Returns:
         DataIdStatus: 数据id状态
     """
-    data_id_status = DataIdStatus()
+    data_id_status = DataIdStatus(bk_data_id=bk_data_id)
 
     ds = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id).first()
 
@@ -135,9 +150,11 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
         return data_id_status
     data_id_status.kafka_data_exists = bool(result)
     if isinstance(result, list) and len(result) > 0:
-        data_id_status.kafka_latest_timestamp = result[0].get("timestamp", 0)
-    else:
-        data_id_status.kafka_latest_timestamp = 0
+        data_record = result[0]
+        time_info = data_record.get("timestamp") or data_record.get("data", {}).get("utctime")
+        if time_info:
+            data_id_status.kafka_latest_time = arrow.get(time_info).datetime
+
     if with_detail:
         data_id_status.kafka_latest_data = result
 
@@ -148,13 +165,14 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
 class DataLinkComponentStatus(BaseModel):
     """数据链路组件状态"""
 
+    kind: str = Field(description="组件类型")
     name: str = Field(description="组件名称")
     exists: bool = Field(description="组件是否存在", default=False)
     config: dict[str, Any] = Field(description="组件配置", default={})
     status: str = Field(description="组件状态", default="Unknown")
 
 
-class DataLinkStatus(BaseModel):
+class BkDataStatus(BaseModel):
     """数据链路状态"""
 
     data_link_name: str = Field(description="数据链路名称")
@@ -165,16 +183,23 @@ class DataLinkStatus(BaseModel):
     finished: bool = Field(description="是否检查完成", default=False)
 
 
-def get_datalink_status(bk_tenant_id: str, data_link_name: str, with_detail: bool = False):
+def get_bkdata_status(bk_tenant_id: str, data_link_name: str, with_detail: bool = False) -> BkDataStatus:
+    """获取清洗任务状态
+
+    Args:
+        bk_tenant_id: 租户id
+        data_link_name: 数据链路名称
+        with_detail: 是否返回详细信息
+
+    Returns:
+        BkDataStatus: 数据链路状态
     """
-    获取清洗任务状态
-    """
-    datalink_status = DataLinkStatus(data_link_name=data_link_name)
+    datalink_status = BkDataStatus(data_link_name=data_link_name)
 
     datalink = DataLink.objects.filter(data_link_name=data_link_name, bk_tenant_id=bk_tenant_id).first()
     if not datalink:
         datalink_status.exists = False
-        datalink_status.message = "数据链路不存在"
+        datalink_status.message = f"数据链路{data_link_name}不存在"
         return datalink_status
 
     datalink_status.exists = True
@@ -184,40 +209,34 @@ def get_datalink_status(bk_tenant_id: str, data_link_name: str, with_detail: boo
     for component_cls in datalink.STRATEGY_RELATED_COMPONENTS[datalink.data_link_strategy]:
         components = component_cls.objects.filter(data_link_name=data_link_name, bk_tenant_id=bk_tenant_id)
         for component in components:
-            component_status = DataLinkComponentStatus(name=component.name)
+            component_status = DataLinkComponentStatus(name=component.name, kind=component.kind)
+
+            # 将组件状态添加到数据链路状态列表
+            datalink_status.component_statuses.append(component_status)
+
             component_config = component.component_config
+
+            # 检查组件配置是否存在
             if not component_config:
-                datalink_status.message += f"数据链路 Kind:{component.kind} Name:{component.name}配置不存在\n"
+                datalink_status.message += f"数据链路组件 Kind:{component.kind} Name:{component.name}配置不存在\n"
                 status_ok = False
                 continue
-
-            phase = component_config.get("status", {}).get("phase")
+            component_status.exists = True
 
             # 检查组件状态
+            phase = component_config.get("status", {}).get("phase")
+            component_status.status = phase or "Unknown"
             if phase != DataLinkResourceStatus.OK.value:
-                datalink_status.message += f"数据链路 Kind:{component.kind} Name:{component.name}状态异常\n"
+                datalink_status.message += f"数据链路组件 Kind:{component.kind} Name:{component.name}状态异常\n"
                 status_ok = False
                 continue
 
-            # 检查组件配置
-            component_config: dict[str, Any] | None = component.component_config
-            if component_config:
-                component_status.config = component_config if with_detail else {}
-                component_status.exists = True
-            else:
-                datalink_status.message += f"数据链路 Kind:{component.kind} Name:{component.name}配置不存在\n"
-                status_ok = False
-                continue
-
-            datalink_status.component_statuses.append(component_status)
+            # 如果需要详细信息，则返回组件配置
+            if with_detail:
+                component_status.config = component_config
 
     # 如果组件状态异常，则认为数据链路状态异常
     if not status_ok:
-        return datalink_status
-
-    # 如果组件状态列表为空，则认为数据链路不存在
-    if not datalink_status.component_statuses:
-        datalink_status.message = "数据链路不存在"
         return datalink_status
 
     # 检查结束
@@ -240,8 +259,16 @@ class QueryRouterStatus(BaseModel):
 def get_query_router_status(
     bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_detail: bool = False
 ) -> list[QueryRouterStatus]:
-    """
-    获取查询路由状态
+    """获取查询路由状态
+
+    Args:
+        bk_tenant_id: 租户id
+        bk_biz_id: 业务id
+        bk_data_id: 数据源id
+        with_detail: 是否返回详细信息
+
+    Returns:
+        list[QueryRouterStatus]: 查询路由状态
     """
     query_router_statuses: list[QueryRouterStatus] = []
 
@@ -313,82 +340,279 @@ def get_query_router_status(
     return query_router_statuses
 
 
-def _get_data_source_status(bk_tenant_id: str, bk_biz_id: int, data_source: DataSource) -> dict[str, Any]:
-    data_id_status = get_data_id_status(
-        bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bk_data_id=data_source.bk_data_id
-    )
-    if data_id_status.finished and data_id_status.created_from == DataIdCreatedFromSystem.BKDATA:
-        data_link_status = get_datalink_status(
-            bk_tenant_id=bk_tenant_id, data_link_name=data_id_status.bkbase_data_id_name
+class DataLinkStatus(BaseModel):
+    """数据链路状态"""
+
+    bk_data_id: int | None = Field(description="数据ID")
+    data_name: str = Field(description="数据名称")
+    is_platform_data_id: bool = Field(description="是否平台数据ID", default=False)
+    data_id_status: DataIdStatus | None = Field(description="数据ID状态")
+    bkdata_status: BkDataStatus | None = Field(description="数据平台接入状态")
+    query_router_statuses: list[QueryRouterStatus] = Field(description="查询路由状态", default=[])
+
+
+def get_datalink_status(
+    *,
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    data_names: list[str] | None = None,
+    bk_data_ids: list[int] | None = None,
+    with_detail: bool = False,
+):
+    """获取数据链路状态
+
+    data_names 和 bk_data_ids 至少一个不能为空
+
+    Args:
+        bk_tenant_id: 租户id
+        bk_biz_id: 业务id
+        data_names: 数据名称列表
+        bk_data_ids: 数据ID列表
+        with_detail: 是否返回详细信息
+
+    Returns:
+        list[DataLinkStatus]: 数据链路状态
+    """
+    if not data_names and not bk_data_ids:
+        raise ValueError("bk_data_names, bk_data_ids 至少一个不能为空")
+
+    # 获取数据源
+    data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id)
+    if data_names:
+        data_sources = data_sources.filter(data_name__in=data_names)
+    elif bk_data_ids:
+        data_sources = data_sources.filter(bk_data_id__in=bk_data_ids)
+
+    result: list[DataLinkStatus] = []
+    for data_source in data_sources:
+        # 获取数据ID状态
+        data_id_status = get_data_id_status(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bk_data_id=data_source.bk_data_id
         )
+
+        # 获取数据链路状态
+        if data_id_status.finished and data_id_status.created_from == DataIdCreatedFromSystem.BKDATA:
+            bkdata_status = get_bkdata_status(
+                bk_tenant_id=bk_tenant_id, data_link_name=data_id_status.bkbase_data_id_name, with_detail=with_detail
+            )
+        else:
+            bkdata_status = None
+
+        # 获取查询路由状态
+        query_router_statuses = get_query_router_status(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bk_data_id=data_source.bk_data_id, with_detail=with_detail
+        )
+
+        result.append(
+            DataLinkStatus(
+                bk_data_id=data_source.bk_data_id,
+                data_name=data_source.data_name,
+                is_platform_data_id=data_source.is_platform_data_id,
+                data_id_status=data_id_status,
+                bkdata_status=bkdata_status,
+                query_router_statuses=query_router_statuses,
+            )
+        )
+
+    if data_names:
+        exists_data_names = [data_source.data_name for data_source in data_sources]
+        not_exists_data_names = list(set(data_names) - set(exists_data_names))
+        for not_exists_data_name in not_exists_data_names:
+            result.append(
+                DataLinkStatus(
+                    bk_data_id=None,
+                    data_name=not_exists_data_name,
+                    is_platform_data_id=False,
+                    data_id_status=None,
+                    bkdata_status=None,
+                    query_router_statuses=[],
+                )
+            )
+    elif bk_data_ids:
+        exists_bk_data_ids = [data_source.bk_data_id for data_source in data_sources]
+        not_exists_bk_data_ids = list(set(bk_data_ids) - set(exists_bk_data_ids))
+        for not_exists_bk_data_id in not_exists_bk_data_ids:
+            result.append(
+                DataLinkStatus(
+                    bk_data_id=not_exists_bk_data_id,
+                    data_name="",
+                    is_platform_data_id=False,
+                    data_id_status=None,
+                    bkdata_status=None,
+                    query_router_statuses=[],
+                )
+            )
+    return result
+
+
+def explain_datalink_status(data_link_status: DataLinkStatus) -> str:
+    """解释数据链路状态
+
+    Args:
+        data_link_status: 数据链路状态
+
+    Returns:
+        对数据链路状态的解释
+    """
+    message = "--------------------\n"
+
+    # 数据源不存在
+    if not data_link_status.data_id_status:
+        if not data_link_status.bk_data_id:
+            message = f"数据源不存在: {data_link_status.data_name}"
+        elif not data_link_status.data_id_status:
+            message = f"数据源不存在: {data_link_status.bk_data_id}"
+        return message
+
+    # 数据源基本信息
+    message += f"""
+数据ID: {data_link_status.bk_data_id}
+数据名称: {data_link_status.data_name}
+是否平台数据: {data_link_status.is_platform_data_id}
+来源: {data_link_status.data_id_status.created_from.value if data_link_status.data_id_status.created_from else "未知"}
+Kafka是否有数据: {data_link_status.data_id_status.kafka_data_exists}
+kafka最新数据时间: {data_link_status.data_id_status.kafka_latest_time.strftime("%Y-%m-%d %H:%M:%S") if data_link_status.data_id_status.kafka_latest_time else "未知"}
+
+"""
+
+    # 无数据平台接入状态
+    if not data_link_status.bkdata_status:
+        message += "无数据平台接入状态\n"
+        return message
+
+    # 未接入数据平台
+    if not data_link_status.bkdata_status.exists:
+        message += "未接入数据平台，请检查相关接入任务\n"
+
+    # 数据平台接入状态
+    message += "数据平台接入状态:\n"
+    for component_status in data_link_status.bkdata_status.component_statuses:
+        message += f"  类型: {component_status.kind}, 名称: {component_status.name}, 状态: {component_status.status}\n"
+
+    if data_link_status.bkdata_status.finished:
+        message += "  数据平台接入正常\n"
     else:
-        data_link_status = None
-    query_router_status = get_query_router_status(
-        bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bk_data_id=data_source.bk_data_id
-    )
-    return {
-        "bk_data_id": data_source.bk_data_id,
-        "bk_data_name": data_source.data_name,
-        "data_id_status": data_id_status.model_dump(),
-        "data_link_status": data_link_status.model_dump() if data_link_status else None,
-        "query_router_statuses": [query_router_status.model_dump() for query_router_status in query_router_status],
-    }
+        message += f"  数据平台接入异常\n{data_link_status.bkdata_status.message}\n"
+
+    # 查询路由状态
+    message += "\n查询路由状态:\n"
+    for query_router_status in data_link_status.query_router_statuses:
+        if query_router_status.messages:
+            query_router_message = ",".join(query_router_status.messages)
+            message += f"  结果表{query_router_status.result_table_id}路由异常, {query_router_message}\n"
+        else:
+            message += f"  结果表{query_router_status.result_table_id}路由正常\n"
+
+    return message
 
 
-def check_health(
-    scene: str, bk_tenant_id: str, bk_biz_id: int, bk_data_id: int | None = None, bcs_cluster_id: str | None = None
-) -> list[dict[str, Any]]:
+def get_datalink_status_by_scene(
+    *,
+    scene: str | DataScene,
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    data_names: list[str] | None = None,
+    bk_data_id: int | None = None,
+    bcs_cluster_id: str | None = None,
+    with_detail: bool = False,
+) -> list[DataLinkStatus]:
+    """根据场景获取数据链路状态
+
+    Args:
+        scene: 场景(uptimecheck, custom_metric, host, k8s)
+
     """
-    检查健康状态
-    """
-    result: list[dict[str, Any]] = []
+    result: list[DataLinkStatus] = []
 
-    if scene == "uptimecheck":
+    # 校验场景
+    if isinstance(scene, str):
+        try:
+            scene = DataScene(scene)
+        except ValueError as e:
+            raise ValueError(f"不支持的场景: {scene}") from e
+
+    if scene == DataScene.UPTIMECHECK:
         data_names = [
             f"uptimecheck_tcp_{bk_biz_id}",
             f"uptimecheck_udp_{bk_biz_id}",
             f"uptimecheck_http_{bk_biz_id}",
             f"uptimecheck_icmp_{bk_biz_id}",
         ]
-        data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, data_name__in=data_names)
-        for data_source in data_sources:
-            result.append(
-                _get_data_source_status(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, data_source=data_source)
-            )
-    elif scene == "custom_metric":
+        result = get_datalink_status(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, data_names=data_names, with_detail=with_detail
+        )
+    elif scene == DataScene.CUSTOM_METRIC:
         if not bk_data_id:
             raise ValueError("bk_data_id 不能为空")
-        data_source = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id).first()
-        if not data_source:
-            raise ValueError(f"数据源不存在: {bk_data_id}")
-        result.append(_get_data_source_status(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, data_source=data_source))
-    elif scene == "custom_event":
-        raise ValueError("custom_event 暂不支持")
-    elif scene == "system":
+        result = get_datalink_status(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, bk_data_ids=[bk_data_id], with_detail=with_detail
+        )
+    elif scene == DataScene.HOST:
         data_names = [
             f"{bk_tenant_id}_{bk_biz_id}_sys_base",
             f"base_{bk_biz_id}_system_proc_port",
             f"base_{bk_biz_id}_system_proc_perf",
         ]
-        data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, data_name__in=data_names)
-        for data_source in data_sources:
-            result.append(
-                _get_data_source_status(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, data_source=data_source)
-            )
-    elif scene == "kubernetes":
+        result = get_datalink_status(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, data_names=data_names, with_detail=with_detail
+        )
+    elif scene == DataScene.K8S:
         cluster = BCSClusterInfo.objects.filter(
             bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, cluster_id=bcs_cluster_id
         ).first()
         if not cluster:
             raise ValueError(f"集群不存在: {bcs_cluster_id}")
-        data_sources = DataSource.objects.filter(
-            bk_tenant_id=bk_tenant_id, bk_data_id__in=[cluster.K8sMetricDataID, cluster.CustomMetricDataID]
+        result = get_datalink_status(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            bk_data_ids=[cluster.K8sMetricDataID, cluster.CustomMetricDataID],
+            with_detail=with_detail,
         )
-        for data_source in data_sources:
-            result.append(
-                _get_data_source_status(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, data_source=data_source)
-            )
-    else:
-        raise ValueError(f"不支持的场景: {scene}")
 
     return result
+
+
+def check_datalink_health(
+    *,
+    bk_tenant_id: str,
+    scene: str | DataScene,
+    bk_biz_id: int,
+    bk_data_id: int | None = None,
+    bcs_cluster_id: str | None = None,
+    with_detail: bool = False,
+) -> str:
+    """
+    检查数据链路健康状态
+    """
+    if isinstance(scene, str):
+        try:
+            scene = DataScene(scene)
+        except ValueError as e:
+            raise ValueError(f"不支持的场景: {scene}") from e
+
+    messages: list[str] = []
+
+    # 获取数据链路状态
+    data_link_statuses = get_datalink_status_by_scene(
+        bk_tenant_id=bk_tenant_id,
+        scene=scene,
+        bk_biz_id=bk_biz_id,
+        with_detail=with_detail,
+        bk_data_id=bk_data_id,
+        bcs_cluster_id=bcs_cluster_id,
+    )
+
+    # 服务拨测
+    if scene == DataScene.UPTIMECHECK:
+        messages.append(
+            "服务拨测的数据链路是按业务进行创建，只有在对应类型的拨测任务第一次创建时才会创建数据链路，分为tcp、udp、http、icmp四种类型"
+        )
+    elif scene == DataScene.HOST:
+        messages.append("主机的数据链路是按业务进行创建，包括系统基础指标、进程端口和进程性能指标")
+    elif scene == DataScene.K8S:
+        messages.append("k8s监控的数据链路是按集群进行创建，包括k8s指标和自定义指标")
+
+    for data_link_status in data_link_statuses:
+        messages.append(explain_datalink_status(data_link_status))
+
+    return "\n".join(messages)

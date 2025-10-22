@@ -26,6 +26,9 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
 from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
+from apm_web.strategy.builtin.registry import BuiltinStrategyTemplateRegistry
+from apm_web.strategy.handler import StrategyTemplateHandler
+from monitor.models import GlobalConfig
 from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip, deserialize_and_decompress
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.tenant import set_local_tenant_id
@@ -288,3 +291,58 @@ def refresh_apm_app_state_snapshot():
         all_data_status[application["application_id"]] = data_status
     key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=(datetime.now() - timedelta(days=1)).strftime("%Y%m%d"))
     cache.set(key, json.dumps(all_data_status), 7 * 24 * 60 * 60)
+
+
+@shared_task(ignore_result=True)
+def auto_register_apm_builtin_strategy_template():
+    logger.info("[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] task start")
+
+    config_obj, _ = GlobalConfig.objects.get_or_create(key="apm_register_builtin_strategy_template_version")
+    current_map: dict[str, str] = config_obj.value if isinstance(config_obj.value, dict) else {}
+    applied_map: dict[str, str] = {}
+    for app in Application.objects.filter(is_enabled=True):
+        map_key = f"{app.bk_biz_id}-{app.app_name}"
+        current = current_map.get(map_key, "-")
+        try:
+            current_version, current_system_str = current.rsplit("-", 1) if "-" in current else ("", "")
+            current_systems: list[str] = current_system_str.split("|") if current_system_str else []
+            applied_map[map_key] = current
+            registry = BuiltinStrategyTemplateRegistry(app)
+            if not registry.is_need_register(current_version, current_systems):
+                continue
+            registry.register()
+            applied_map[map_key] = (
+                f"{BuiltinStrategyTemplateRegistry.BUILTIN_STRATEGY_TEMPLATE_VERSION}-{'|'.join(registry.systems)}"
+            )
+        except Exception as e:
+            logger.exception(
+                f"[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] apply failed: "
+                f"bk_biz_id={app.bk_biz_id}, app_name={app.app_name}, "
+                f"current={current}, "
+                f"expect_version={BuiltinStrategyTemplateRegistry.BUILTIN_STRATEGY_TEMPLATE_VERSION}, "
+                f"error_info => {e}"
+            )
+
+    config_obj.value = applied_map
+    config_obj.save()
+
+    logger.info("[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] task finished")
+
+
+@shared_task(ignore_result=True)
+def auto_apply_strategy_template():
+    logger.info("[AUTO_APPLY_STRATEGY_TEMPLATE] task start")
+
+    for application in Application.objects.filter(is_enabled=True).values("bk_biz_id", "app_name"):
+        bk_biz_id: int = application["bk_biz_id"]
+        app_name: str = application["app_name"]
+
+        try:
+            StrategyTemplateHandler.handle_auto_apply(bk_biz_id, app_name)
+        except Exception as e:
+            logger.exception(
+                f"[AUTO_APPLY_STRATEGY_TEMPLATE] auto apply strategy template failed: "
+                f"bk_biz_id={bk_biz_id}, app_name={app_name}, error_info => {e}"
+            )
+
+    logger.info("[AUTO_APPLY_STRATEGY_TEMPLATE] task finished")
