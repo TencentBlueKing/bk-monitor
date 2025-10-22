@@ -474,10 +474,4 @@ class StrategyTemplateSearchModelSerializer(StrategyTemplateBaseModelSerializer)
 class StrategyTemplateSimpleSearchModelSerializer(StrategyTemplateBaseModelSerializer):
     class Meta:
         model = StrategyTemplate
-        fields = [
-            "id",
-            "name",
-            "system",
-            "category",
-            "monitor_type",
-        ]
+        fields = ["id", "name", "system", "category", "monitor_type", "code", "type"]
