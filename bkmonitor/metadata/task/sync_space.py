@@ -95,9 +95,6 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
         logger.info("query cmdb api resp is null")
         return
 
-    # 检查空间下内置数据链路
-    check_bkcc_space_builtin_datalink(biz_list=[(b.bk_tenant_id, b.bk_biz_id) for b in biz_list])
-
     biz_id_name_dict = {str(b.bk_biz_id): (b.bk_biz_name, b.bk_tenant_id) for b in biz_list}
     # 过滤已经创建空间的业务
     space_id_list = Space.objects.filter(space_type_id=bkcc_type_id).values_list("space_id", flat=True)
@@ -148,7 +145,8 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
 
         logger.info("create bkcc space successfully, space: %s", json.dumps(diff_biz_list))
 
-    # 额外检查V4链路配置
+    # 检查V4链路配置
+    check_bkcc_space_builtin_datalink(biz_list=[(b.bk_tenant_id, b.bk_biz_id) for b in biz_list])
 
     cost_time = time.time() - start_time
 

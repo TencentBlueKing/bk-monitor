@@ -23,6 +23,8 @@
       column-gap: 8px;
 
       .alarm-template-header-filter-tab {
+        color: #4d4f56;
+
         .common-status-wrap {
           align-items: center;
 
@@ -43,7 +45,6 @@
 
           .status-count {
             line-height: 20px;
-            color: #4d4f56;
           }
         }
       }

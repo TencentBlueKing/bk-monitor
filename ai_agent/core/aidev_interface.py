@@ -35,6 +35,7 @@ class AIDevInterface:
             if isinstance(data, dict) and "prompt_setting" in data:
                 # 避免提示词泄漏
                 del data["prompt_setting"]
+            del data["saas_url"]  # TODO 移除 ping url,后续完善后补充
         except Exception as e:  # 出现异常不应影响主流程
             logger.warning("get_agent_info: failed to strip prompt_setting: %s", e)
         return res

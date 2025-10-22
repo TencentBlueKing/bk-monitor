@@ -1,31 +1,37 @@
 .batch-operations {
-  display: flex;
-  align-items: center;
-  height: 32px;
-  padding: 0 12px;
   cursor: pointer;
   background: #fff;
   border: 1px solid #c4c6cc;
   border-radius: 2px;
 
-  .icon-monitor {
-    margin-left: 2px;
-    font-size: 22px;
-    color: #979ba5;
-    transition: all 0.3s;
+  .tip-trigger {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
 
-    &.is-active {
-      transform: rotate(180deg);
+    .icon-monitor {
+      margin-left: 2px;
+      font-size: 22px;
+      color: #979ba5;
+      transition: all 0.3s;
+
+      &.is-active {
+        transform: rotate(180deg);
+      }
     }
   }
 
   &.is-disabled {
     color: #c4c6cc;
     cursor: not-allowed;
-    background: #fafafa;
+    background: #fff;
+    border: 1px solid #dcdee5;
 
-    .icon-monitor {
-      color: #c4c6cc;
+    .tip-trigger {
+      .icon-monitor {
+        color: #c4c6cc;
+      }
     }
   }
 }
