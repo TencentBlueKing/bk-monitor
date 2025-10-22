@@ -142,7 +142,9 @@ class StrategyTemplateViewSet(GenericViewSet):
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateSearchRequestSerializer)
     @user_visit_record
     def search(self, *args, **kwargs) -> Response:
-        queryset = self._filter_by_conditions(self.get_queryset(), self.query_data["conditions"])
+        queryset = self._filter_by_conditions(self.get_queryset(), self.query_data["conditions"]).order_by(
+            *self.query_data["order_by"]
+        )
         total = queryset.count()
         if self.query_data["simple"]:
             strategy_template_list = serializers.StrategyTemplateSimpleSearchModelSerializer(queryset, many=True).data
