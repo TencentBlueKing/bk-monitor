@@ -276,8 +276,14 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     return noticeWayList;
   }
 
+  // 是否克隆入口进入
+  get isClone() {
+    return this.$route.name === 'alarm-group-clone';
+  }
+
   async created() {
-    this.updateNavData(this.groupId ? this.$tc('编辑') : this.$tc('新增告警组'));
+    // 面包屑文案 克隆使用新增告警组
+    this.updateNavData(this.groupId && !this.isClone ? this.$tc('编辑') : this.$tc('新增告警组'));
     this.formData.bizId = this.$store.getters.bizId;
     this.formData.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     this.bizIdLIst = this.$store.getters.bizList;
@@ -349,9 +355,15 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           mention_list: mentionList,
         } = data;
         // this.type === 'monitor' && this.$store.commit('app/SET_NAV_TITLE', `${this.$t('编辑')} - #${id} ${name}`);
-        this.updateNavData(`${this.$t('编辑')} ${name}`);
+        // 面包屑文案 克隆使用新增告警组
+        !this.isClone && this.updateNavData(`${this.$t('编辑')} ${name}`);
         this.pageTitle = `#${this.groupId} ${name}`;
         this.formData.name = name;
+        // 克隆 1.告警组名称后面追加_copy; 2.不需要pageTitle
+        if (this.isClone) {
+          this.formData.name = `${name}_copy`;
+          this.pageTitle = '';
+        }
         this.formData.desc = desc;
         this.formData.bizId = bizId;
         this.formData.timezone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -625,11 +637,15 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     };
     // 新增参数channels
     params.channels = this.channels;
-    const api = this.groupId ? params => updateUserGroup(this.groupId, params) : createUserGroup;
+    // 克隆调新建接口
+    const api = this.groupId && !this.isClone ? params => updateUserGroup(this.groupId, params) : createUserGroup;
     this.loading = true;
     api(params)
       .then(data => {
-        this.$bkMessage({ theme: 'success', message: this.groupId ? this.$t('编辑成功') : this.$t('创建成功') });
+        this.$bkMessage({
+          theme: 'success',
+          message: this.groupId && !this.isClone ? this.$t('编辑成功') : this.$t('创建成功'),
+        });
         this.handleRouterTo(data);
       })
       .finally(() => (this.loading = false));
