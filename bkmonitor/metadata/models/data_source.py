@@ -918,7 +918,7 @@ class DataSource(models.Model):
 
         if authorized_spaces is not None:
             # 写入 空间与数据源的关系表
-            space_info = self.get_spaces_by_data_id(self.bk_data_id, self.bk_tenant_id)
+            space_info = self.get_spaces_by_data_id(bk_tenant_id=self.bk_tenant_id, bk_data_id=self.bk_data_id)
             if space_info:
                 try:
                     self._save_space_datasource(
@@ -1357,7 +1357,7 @@ class DataSourceResultTable(models.Model):
         return f"<{self.bk_data_id},{self.table_id}>"
 
     @classmethod
-    def modify_table_id_datasource(cls, table_id=None, bk_data_id=None, bk_tenant_id=DEFAULT_TENANT_ID):
+    def modify_table_id_datasource(cls, bk_tenant_id: str, table_id=None, bk_data_id=None):
         if cls.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists():
             raise ValueError(_("数据源有跟结果表关联"))
 
@@ -1371,7 +1371,7 @@ class DataSourceResultTable(models.Model):
             if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
                 if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).count() != 1:
                     raise ValueError(_("结果表有多个关联数据源"))
-                target = cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+                target = cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)[0]
                 logger.info("table_id => [%s] do not relation bk_data_id => [%s]", table_id, target.bk_data_id)
                 target.delete()
                 refresh_consul_config_data_ids.append(target.bk_data_id)
