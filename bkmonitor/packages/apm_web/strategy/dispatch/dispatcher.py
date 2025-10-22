@@ -9,11 +9,15 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+from threading import Lock
 from typing import Any
 
 from django.db import models, transaction
+
 from apm_web.models import StrategyTemplate, StrategyInstance
 from bkmonitor.query_template.core import QueryTemplateWrapper
+from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
+from django.utils.translation import gettext_lazy as _
 from core.drf_resource import resource
 from . import entity, enricher, builder, base
 from .. import helper, serializers
@@ -100,6 +104,10 @@ class StrategyDispatcher:
         ).values("id", "strategy_id", "service_name", "strategy_template_id", "root_strategy_template_id"):
             service_strategy_instance_map[strategy_instance["service_name"]] = strategy_instance
 
+        id_strategy_map: dict[int, dict[str, Any]] = helper.get_id_strategy_map(
+            self.bk_biz_id, [instance["strategy_id"] for instance in service_strategy_instance_map.values()]
+        )
+
         to_be_created_strategies: list[dict[str, Any]] = []
         to_be_updated_strategies: list[dict[str, Any]] = []
         to_be_deleted_strategy_instance_ids: list[int] = []
@@ -109,12 +117,18 @@ class StrategyDispatcher:
             service_config: base.DispatchConfig = service_config_map[service_name]
             strategy_instance: dict[str, Any] | None = service_strategy_instance_map.get(service_name)
             if strategy_instance is None:
-                # 没有已下发实例，直接新增。
+                # 没有已下发实例直接新增。
                 to_be_created_strategies.append(strategy_params)
             else:
                 # 记录 ID，用于更新。
-                strategy_params["id"] = strategy_instance["strategy_id"]
-                to_be_updated_strategies.append(strategy_params)
+                if strategy_instance["strategy_id"] in id_strategy_map:
+                    # 已下发实例对应的策略存在，更新策略。
+                    strategy_params["id"] = strategy_instance["strategy_id"]
+                    to_be_updated_strategies.append(strategy_params)
+                else:
+                    # 已下发实例对应的策略不存在，视为未下发，新增策略。
+                    to_be_created_strategies.append(strategy_params)
+
                 if self._is_same_origin_instance(strategy_instance):
                     # 当前模板的同源模板已下发，需删除实例记录。
                     to_be_deleted_strategy_instance_ids.append(strategy_instance["id"])
@@ -123,6 +137,7 @@ class StrategyDispatcher:
                     to_be_updated_strategy_instance_objs.append(
                         StrategyInstance(
                             id=strategy_instance["id"],
+                            service_name=service_name,
                             detect=service_config.detect,
                             algorithms=service_config.algorithms,
                             user_group_ids=service_config.user_group_ids,
@@ -150,15 +165,37 @@ class StrategyDispatcher:
                 )
             )
 
+        def _save_strategy(_params: dict[str, Any]):
+            _strategy_id: int = resource.strategies.save_strategy_v2(**_params)["id"]
+            with lock:
+                service_strategy_id_map[_params["service_name"]] = _strategy_id
+
         # 下发告警策略：更新 or 创建策略，并收集 ID 映射关系。
+        lock: Lock = Lock()
         service_strategy_id_map: dict[str, int] = {}
-        for strategy_params in to_be_created_strategies + to_be_updated_strategies:
-            strategy_id: int = resource.strategies.save_strategy_v2(**strategy_params)["id"]
-            service_strategy_id_map[strategy_params["service_name"]] = strategy_id
+        run_threads(
+            [
+                InheritParentThread(target=_save_strategy, args=(_strategy_params,))
+                for _strategy_params in to_be_created_strategies + to_be_updated_strategies
+            ]
+        )
 
-        for strategy_instance_obj in to_be_created_strategy_instance_objs:
-            strategy_instance_obj.strategy_id = service_strategy_id_map[strategy_instance_obj.service_name]
+        invalid_service_names: list[str] = []
+        for strategy_instance_obj in to_be_created_strategy_instance_objs + to_be_updated_strategy_instance_objs:
+            # 回填策略 ID。
+            try:
+                strategy_instance_obj.strategy_id = service_strategy_id_map[strategy_instance_obj.service_name]
+            except KeyError:
+                # 没有策略 ID，说明下发失败。
+                invalid_service_names.append(strategy_instance_obj.service_name)
 
+        # 仅对策略下发成功的服务进行实例记录的创建或更新，尽可能记录成功下发的策略，而不是遇到异常即刻抛出，减少脏数据的产生。
+        to_be_created_strategy_instance_objs = [
+            obj for obj in to_be_created_strategy_instance_objs if obj.service_name not in invalid_service_names
+        ]
+        to_be_updated_strategy_instance_objs = [
+            obj for obj in to_be_updated_strategy_instance_objs if obj.service_name not in invalid_service_names
+        ]
         with transaction.atomic():
             StrategyInstance.objects.filter(
                 bk_biz_id=self.bk_biz_id, app_name=self.app_name, id__in=to_be_deleted_strategy_instance_ids
@@ -168,9 +205,12 @@ class StrategyDispatcher:
             if to_be_updated_strategy_instance_objs:
                 StrategyInstance.objects.bulk_update(
                     to_be_updated_strategy_instance_objs,
-                    fields=["detect", "algorithms", "user_group_ids", "context", "md5"],
+                    fields=["detect", "algorithms", "user_group_ids", "context", "md5", "strategy_id"],
                     batch_size=500,
                 )
+
+        if invalid_service_names:
+            raise ValueError(_("创建部分服务策略失败：{}").format("，".join(invalid_service_names)))
 
         return service_strategy_id_map
 
@@ -187,6 +227,10 @@ class StrategyDispatcher:
         ).values("id", "strategy_id", "service_name", "strategy_template_id", "root_strategy_template_id", "md5"):
             service_strategy_instance_map[strategy_instance["service_name"]] = strategy_instance
 
+        id_strategy_map: dict[int, dict[str, Any]] = helper.get_id_strategy_map(
+            self.bk_biz_id, [instance["strategy_id"] for instance in service_strategy_instance_map.values()]
+        )
+
         results: list[dict[str, Any]] = []
         for service_name in entity_set.service_names:
             result: dict[str, Any] = {
@@ -200,7 +244,14 @@ class StrategyDispatcher:
             if strategy_instance is None:
                 results.append(result)
                 continue
-            result["strategy"] = {"id": strategy_instance["strategy_id"]}
+
+            try:
+                strategy_id: int = strategy_instance["strategy_id"]
+                result["strategy"] = {"id": strategy_id, "name": id_strategy_map[strategy_id]["name"]}
+            except KeyError:
+                # 已下发策略被删除，视为未下发。
+                results.append(result)
+                continue
 
             if self._is_same_origin_instance(strategy_instance):
                 result["same_origin_strategy_template"] = {"id": strategy_instance["strategy_template_id"]}

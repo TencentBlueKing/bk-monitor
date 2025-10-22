@@ -16,8 +16,6 @@ from apm_web.strategy.constants import StrategyTemplateSystem
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
 
-from constants.data_source import ApplicationsResultTableLabel
-
 from monitor_web.strategies.default_settings.common import (
     DEFAULT_NOTICE,
     NO_DATA_CONFIG,
@@ -107,11 +105,11 @@ class StrategyBuilder:
         )
 
         app_name: str = self.strategy_template.app_name
+        system_enum: StrategyTemplateSystem = StrategyTemplateSystem.from_value(self.strategy_template.system)
         return {
             "bk_biz_id": self.strategy_template.bk_biz_id,
             "service_name": self.service_name,
-            "name": f"[{StrategyTemplateSystem.from_value(self.strategy_template.system).label}] "
-            f"{self.strategy_template.name} [{app_name}/{self.service_name}]",
+            "name": f"[{system_enum.label}] {self.strategy_template.name} [{app_name}/{self.service_name}]",
             "labels": [
                 f"APM-APP({app_name})",
                 f"APM-SERVICE({self.service_name})",
@@ -130,5 +128,5 @@ class StrategyBuilder:
             "detects": detects,
             "notice": notice,
             "actions": [],
-            "scenario": ApplicationsResultTableLabel.application_check,
+            "scenario": system_enum.scenario,
         }
