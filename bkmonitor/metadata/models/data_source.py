@@ -14,6 +14,7 @@ import logging
 import time
 import traceback
 import uuid
+from typing import Any
 
 import kafka
 from django.conf import settings
@@ -219,19 +220,14 @@ class DataSource(models.Model):
 
         return conf_list
 
-    def get_spaces_by_data_id(
-        self, bk_data_id: int, from_authorization: bool | None = False, bk_tenant_id=DEFAULT_TENANT_ID
-    ) -> list | dict:
-        """通过数据源 ID 查询空间为授权的或者为当前空间"""
+    def get_spaces_by_data_id(self, bk_tenant_id: str, bk_data_id: int) -> dict[str, Any]:
+        """通过数据源 ID 查询空间"""
         # 返回来源于授权空间信息,{space_type_id}__{space_id}__{bk_tenant_id}
         space_list = list(
             SpaceDataSource.objects.filter(
-                bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id, from_authorization=from_authorization
+                bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id, from_authorization=False
             ).values("space_type_id", "space_id", "bk_tenant_id")
         )
-        # 如果为授权，则直接返回
-        if from_authorization:
-            return space_list
 
         # 否则， 返回归属的空间，也就是第一个
         return space_list[0] if space_list else {}

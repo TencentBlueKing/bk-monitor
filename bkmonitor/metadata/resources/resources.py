@@ -1735,7 +1735,7 @@ class QueryTagValuesResource(Resource):
         try:
             rt = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
         except models.ResultTable.DoesNotExist:
-            raise ValidationError(_("结果表{}不存在，请确认后重试").format(table_id))
+            raise ValueError(f"结果表{table_id}不存在，请确认后重试")
 
         return {"tag_values": rt.get_tag_values(tag_name=tag_name)}
 
