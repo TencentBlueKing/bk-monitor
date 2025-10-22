@@ -508,7 +508,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
               <div class='form-item-label'>{this.$t('运算符')}</div>
               <div class='form-item-content mt-6'>
                 <bk-select
-                  ext-cls={['method-select', this.method]}
+                  ext-cls={`method-select ${this.method}`}
                   v-model={this.method}
                   popover-options={{
                     appendTo: 'parent',
