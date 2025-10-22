@@ -407,6 +407,7 @@ export default class UiSelector extends tsc<IProps> {
                 ...this.fields,
               ]}
               getValueFn={this.getValueFn}
+              isEnterSelect={true}
               keyword={this.inputValue}
               show={this.showSelector}
               value={this.localValue?.[this.updateActive]}

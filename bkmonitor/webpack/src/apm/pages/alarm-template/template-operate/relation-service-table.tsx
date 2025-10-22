@@ -388,7 +388,7 @@ export default class RelationServiceTable extends tsc<IProps> {
       strategy_template_id: row.strategy_template_id as number,
     }).catch(() => ({ diff: [] }));
     if (data) {
-      const diffData = data.diff;
+      const diffData = data?.diff || [];
       const detectData = diffData.find(d => d.field === 'detect');
       const algorithms = diffData.find(d => d.field === 'algorithms');
       const variablesList = diffData.find(d => d.field === 'variables');
@@ -510,9 +510,8 @@ export default class RelationServiceTable extends tsc<IProps> {
                 <span
                   key={'01'}
                   class='strategy-name'
-                  onClick={() => this.handleShowDetails(row)}
                 >
-                  {row.same_origin_strategy_template?.name}
+                  <span onClick={() => this.handleShowDetails(row)}>{row.same_origin_strategy_template?.name}</span>
                 </span>
               ) : (
                 <span
