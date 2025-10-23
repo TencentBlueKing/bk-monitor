@@ -55,8 +55,9 @@ from metadata.models.bcs import (
 from metadata.models.constants import (
     DT_TIME_STAMP_NANO,
     NANO_FORMAT,
-    NON_STRICT_NANO_ES_FORMAT,
     DataIdCreatedFromSystem,
+    STRICT_NANO_ES_FORMAT,
+    EPOCH_MILLIS_FORMAT,
 )
 from metadata.models.data_link.utils import (
     get_bkbase_raw_data_name_for_v3_datalink,
@@ -2745,15 +2746,15 @@ class NotifyEsDataLinkAdaptNano(Resource):
 
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name="dtEventTimeStampNanos", name="es_format", bk_tenant_id=bk_tenant_id
-                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+                ).update(value=STRICT_NANO_ES_FORMAT)
 
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name="time", name="es_format", bk_tenant_id=bk_tenant_id
-                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+                ).update(value=EPOCH_MILLIS_FORMAT)
 
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name="dtEventTimeStamp", name="es_format", bk_tenant_id=bk_tenant_id
-                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+                ).update(value=EPOCH_MILLIS_FORMAT)
 
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name="dtEventTimeStamp", name="es_type", bk_tenant_id=bk_tenant_id
