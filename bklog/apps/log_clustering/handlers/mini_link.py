@@ -1,3 +1,6 @@
+import json
+
+from apps.api import TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import MINI_CLUSTERING_CONFIG
 from apps.log_clustering.constants import RegexRuleTypeEnum
@@ -9,7 +12,9 @@ from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
 from apps.log_databus.models import CollectorConfig
-from apps.log_search.models import LogIndexSet
+from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
+from apps.log_search.handlers.index_set import BaseIndexSetHandler
+from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
 from bkm_space.utils import space_uid_to_bk_biz_id
 
@@ -45,6 +50,11 @@ class MiniLinkAccessHandler:
         """
         创建或更新配置
         """
+        signature_pattern_rt = CollectorHandler.build_result_table_id(
+            self.collector_config.get_bk_biz_id(),
+            self.collector_config.collector_config_name_en,
+            is_pattern_rt=True,
+        )
 
         clustering_config, created = ClusteringConfig.objects.get_or_create(
             index_set_id=self.index_set.index_set_id,
@@ -69,11 +79,7 @@ class MiniLinkAccessHandler:
                 log_bk_data_id=self.collector_config.bk_data_id,
                 use_mini_link=True,
                 predict_cluster=self.read_config(params, "predict_cluster"),
-                signature_pattern_rt=CollectorHandler.build_result_table_id(
-                    self.collector_config.get_bk_biz_id(),
-                    self.collector_config.collector_config_name_en,
-                    is_pattern_rt=True,
-                ),
+                signature_pattern_rt=signature_pattern_rt,
             ),
         )
 
@@ -110,6 +116,9 @@ class MiniLinkAccessHandler:
 
         if config_modified:
             self.update_metadata()
+
+        self.update_route(signature_pattern_rt)
+
         return model_to_dict(clustering_config)
 
     def update_metadata(self):
@@ -121,3 +130,46 @@ class MiniLinkAccessHandler:
 
         # 更新结果表
         TransferEtlHandler(self.collector_config.collector_config_id).patch_update()
+
+    def update_route(self, signature_pattern_rt):
+        """
+        更新路由，用于通过 UQ 查询 pattern 数据
+        """
+        TransferApi.create_or_update_log_router(
+            {
+                "cluster_id": self.index_set.storage_cluster_id,
+                "index_set": signature_pattern_rt,
+                "source_type": Scenario.LOG,
+                "data_label": BaseIndexSetHandler.get_data_label(
+                    self.index_set.index_set_id,
+                    pattern_rt=True,
+                ),
+                "table_id": BaseIndexSetHandler.get_rt_id(
+                    self.index_set.index_set_id,
+                    signature_pattern_rt,
+                ),
+                "space_id": self.index_set.space_uid.split("__")[-1],
+                "space_type": self.index_set.space_uid.split("__")[0],
+                "need_create_index": False,
+                "options": [
+                    {
+                        "name": "time_field",
+                        "value_type": "dict",
+                        "value": json.dumps(
+                            {
+                                "name": "dtEventTimeStamp",
+                                "type": self.index_set.time_field_type,
+                                "unit": self.index_set.time_field_unit
+                                if self.index_set.time_field_type != TimeFieldTypeEnum.DATE.value
+                                else TimeFieldUnitEnum.MILLISECOND.value,
+                            }
+                        ),
+                    },
+                    {
+                        "name": "need_add_time",
+                        "value_type": "bool",
+                        "value": "true",
+                    },
+                ],
+            }
+        )

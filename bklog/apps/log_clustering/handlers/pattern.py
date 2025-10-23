@@ -109,7 +109,10 @@ class PatternHandler:
         year_on_year_result = result.get("year_on_year_result", {})
         new_class = result.get("new_class", set())
         # 同步的pattern保存信息
-        if self._clustering_config.signature_pattern_rt:
+        if self._clustering_config.use_mini_link:
+            # TODO: 查询 UQ 获取 pattern 信息
+            pattern_map = []
+        elif self._clustering_config.signature_pattern_rt:
             pattern_map = self._get_pattern_data(patterns=list({p["key"] for p in pattern_aggs}))
         elif self._clustering_config.model_output_rt:
             # 在线训练逻辑适配

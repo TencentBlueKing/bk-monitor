@@ -34,7 +34,7 @@ def create_or_delete_records(mocker):
     )
 
     models.DataIdConfig.objects.create(namespace="bkmonitor", name="bkm_test_data_link")
-    models.VMResultTableConfig.objects.create(
+    models.ResultTableConfig.objects.create(
         namespace="bkmonitor", status="creating", data_link_name="bkm_test_data_link", name="bkm_test_rt"
     )
     models.VMStorageBindingConfig.objects.create(
@@ -52,7 +52,7 @@ def create_or_delete_records(mocker):
     yield
     models.DataLink.objects.filter(data_link_name="bkm_test_data_link").delete()
     models.DataIdConfig.objects.filter(name="bkm_test_data_link").delete()
-    models.VMResultTableConfig.objects.filter(name="bkm_test_rt").delete()
+    models.ResultTableConfig.objects.filter(name="bkm_test_rt").delete()
     models.VMStorageBindingConfig.objects.filter(name="bkm_test_rt").delete()
     models.DataBusConfig.objects.filter(name="bkm_test_rt").delete()
     models.BkBaseResultTable.objects.filter(bkbase_rt_name="bkm_test_rt").delete()
@@ -66,7 +66,7 @@ def test_refresh_data_link_status(create_or_delete_records):
     _refresh_data_link_status(bkbase_rt_record=bkbase_rt_record)
 
     assert models.DataIdConfig.objects.get(name=data_link_name).status == "Failed"
-    assert models.VMResultTableConfig.objects.get(name=bkbase_rt_name).status == "Failed"
+    assert models.ResultTableConfig.objects.get(name=bkbase_rt_name).status == "Failed"
     assert models.VMStorageBindingConfig.objects.get(name=bkbase_rt_name).status == "Failed"
     assert models.DataBusConfig.objects.get(name=bkbase_rt_name).status == "Failed"
     assert models.BkBaseResultTable.objects.get(data_link_name=data_link_name).status == "Pending"

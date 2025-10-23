@@ -999,6 +999,7 @@ class ModifyClusterInfoResource(Resource):
     def perform_request(self, validated_request_data):
         request = get_request()
         bk_app_code = get_app_code_by_request(request)
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
 
         # 1. 判断是否存在cluster_id或者cluster_name
         cluster_id = validated_request_data.pop("cluster_id")
@@ -1011,7 +1012,7 @@ class ModifyClusterInfoResource(Resource):
         query_dict = {"cluster_id": cluster_id} if cluster_id is not None else {"cluster_name": cluster_name}
         try:
             cluster_info = models.ClusterInfo.objects.get(
-                bk_tenant_id=validated_request_data["bk_tenant_id"],
+                bk_tenant_id=bk_tenant_id,
                 registered_system__in=[bk_app_code, models.ClusterInfo.DEFAULT_REGISTERED_SYSTEM],
                 **query_dict,
             )

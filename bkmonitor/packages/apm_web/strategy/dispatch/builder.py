@@ -11,12 +11,14 @@ specific language governing permissions and limitations under the License.
 import copy
 from typing import Any
 from collections.abc import Callable
-from apm_web.models import StrategyTemplate
+
+from django.conf import settings
+
+from apm_web.models import StrategyTemplate, Application
 from apm_web.strategy.constants import StrategyTemplateSystem
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
-
-from constants.data_source import ApplicationsResultTableLabel
+from constants.apm import DEFAULT_DATA_LABEL, CommonMetricTag
 
 from monitor_web.strategies.default_settings.common import (
     DEFAULT_NOTICE,
@@ -95,6 +97,35 @@ class StrategyBuilder:
             prepared_algorithms.extend(config_getter_map[algorithm["type"]](algorithm))
         return prepared_algorithms
 
+    def _prepare_query_template(self) -> dict[str, Any]:
+        strategy_item: dict[str, Any] = self.query_template_wrapper.render_to_strategy_item(
+            self.dispatch_config.context
+        )
+
+        bk_biz_id: int = self.strategy_template.bk_biz_id
+        app_name: str = self.strategy_template.app_name
+        enable_global_metric: bool = f"{bk_biz_id}-{app_name}" in (settings.APM_RPC_GLOBAL_METRIC_ENABLE_APP_LIST or [])
+        if enable_global_metric:
+            return strategy_item
+
+        # 没有开启全局指标，替换为应用的指标表。
+        # TODO 后续 bk-collector 灰度完成后，删除此逻辑，页面重新下发策略即可。
+        for query_config in strategy_item.get("query_configs", []):
+            if query_config.get("data_label") != DEFAULT_DATA_LABEL:
+                continue
+
+            query_config.pop("data_label", None)
+            query_config["result_table_id"] = Application.get_metric_table_id(bk_biz_id, app_name)
+
+            # 去掉 APP_NAME 过滤条件
+            processed_agg_condition: list[dict[str, Any]] = []
+            for cond in query_config.get("agg_condition", []):
+                if cond.get("key") != CommonMetricTag.APP_NAME.value:
+                    processed_agg_condition.append(cond)
+            query_config["agg_condition"] = processed_agg_condition
+
+        return strategy_item
+
     def build(self) -> dict[str, Any]:
         notice: dict[str, Any] = copy.deepcopy(DEFAULT_NOTICE)
         notice["user_groups"] = self.dispatch_config.user_group_ids
@@ -107,11 +138,11 @@ class StrategyBuilder:
         )
 
         app_name: str = self.strategy_template.app_name
+        system_enum: StrategyTemplateSystem = StrategyTemplateSystem.from_value(self.strategy_template.system)
         return {
             "bk_biz_id": self.strategy_template.bk_biz_id,
             "service_name": self.service_name,
-            "name": f"[{StrategyTemplateSystem.from_value(self.strategy_template.system).label}] "
-            f"{self.strategy_template.name} [{app_name}/{self.service_name}]",
+            "name": f"[{system_enum.label}] {self.strategy_template.name} [{app_name}/{self.service_name}]",
             "labels": [
                 f"APM-APP({app_name})",
                 f"APM-SERVICE({self.service_name})",
@@ -124,11 +155,11 @@ class StrategyBuilder:
                     "target": [[]],
                     "algorithms": algorithms,
                     "no_data_config": NO_DATA_CONFIG,
-                    **self.query_template_wrapper.render_to_strategy_item(self.dispatch_config.context),
+                    **self._prepare_query_template(),
                 }
             ],
             "detects": detects,
             "notice": notice,
             "actions": [],
-            "scenario": ApplicationsResultTableLabel.application_check,
+            "scenario": system_enum.scenario,
         }

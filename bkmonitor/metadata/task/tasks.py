@@ -1473,7 +1473,7 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         bk_tenant_id=bk_tenant_id,
     )
 
-    # 2. 申请数据链路配置 LogResultTableConfig,ESStorageBindingConfig,LogDataBusConfig
+    # 2. 申请数据链路配置 ResultTableConfig,ESStorageBindingConfig,DataBusConfig
     try:
         data_link_ins.apply_data_link(
             data_source=data_source, table_id=table_id, storage_cluster_name=storage_cluster_name, bk_biz_id=bk_biz_id
@@ -1796,7 +1796,7 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
     """
 
     # 如果未开启新版数据链路或空间内置数据链路，则不检查
-    if not (settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK):
+    if not (settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK) or not biz_list:
         return
 
     logger.info("check_bkcc_space_builtin_datalink: start to check bkcc space builtin datalink")
