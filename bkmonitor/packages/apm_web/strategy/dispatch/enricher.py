@@ -24,6 +24,7 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from apm_web.models import StrategyTemplate
 from apm_web.strategy.constants import StrategyTemplateCategory, StrategyTemplateSystem
+from apm_web.strategy.helper import simplify_conditions
 from bkmonitor.data_source import q_to_conditions, conditions_to_q
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -231,7 +232,8 @@ class BaseEnricher(abc.ABC):
         :return:
         """
         conditions: list[dict[str, Any]] = dispatch_config.context.get("CONDITIONS", [])
-        dispatch_config.context["CONDITIONS"] = q_to_conditions(conditions_to_q(conditions) & q)
+        # 多个上下文的条件合并，通过 simplify_conditions 避免产生重复条件，误判成差异。
+        dispatch_config.context["CONDITIONS"] = simplify_conditions(q_to_conditions(conditions_to_q(conditions) & q))
 
     def upsert_message_template(self, dispatch_config: DispatchConfig) -> None:
         """设置告警通知模板"""
@@ -346,11 +348,21 @@ class RPCEnricher(BaseEnricher):
     def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
         return ""
 
+    def _dimension_tmpl(self, dispatch_config: DispatchConfig) -> str:
+        if not self.is_rpc_log():
+            return super()._dimension_tmpl(dispatch_config)
+
+        return "\n".join([super()._dimension_tmpl(dispatch_config), str(_("#关联日志# {{alarm.log_related_info}}"))])
+
     def _links_tmpl(self, dispatch_config: DispatchConfig) -> str:
         return str(_(f"#调用分析# [查看]({self._get_rpc_url_template(dispatch_config)})"))
 
+    def is_rpc_log(self) -> bool:
+        """是否为 RPC 日志告警"""
+        return self._strategy_template.category == StrategyTemplateCategory.RPC_LOG.value
+
     def _enrich(self, service_name: str, dispatch_config: DispatchConfig) -> None:
-        if self._strategy_template.category == StrategyTemplateCategory.RPC_LOG.value:
+        if self.is_rpc_log():
             dispatch_config.context.update(
                 {
                     "SERVICE_NAME": service_name,
@@ -372,7 +384,8 @@ class RPCEnricher(BaseEnricher):
                 dispatch_config.context["FUNCTIONS"] = []
 
         self.upsert_message_template(dispatch_config)
-        if self._strategy_template.category == StrategyTemplateCategory.RPC_LOG.value:
+        if self.is_rpc_log():
+            # 日志告警维度固定且不可修改。
             dispatch_config.context.pop("GROUP_BY", None)
 
 
@@ -380,6 +393,10 @@ class K8SEnricher(BaseEnricher):
     SYSTEM: str = StrategyTemplateSystem.K8S.value
 
     _TAG_ENUMS: list[type[apm_constants.CachedEnum]] = [apm_constants.K8SMetricTag]
+
+    def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
+        # 目标信息用于更好地与观测场景实体联动。
+        return "\n".join([super()._entity_info_tmpl(dispatch_config), "{{content.target}}"])
 
     @classmethod
     def _filter_by_workloads(cls, workloads: list[dict[str, Any]]) -> Q:

@@ -8,7 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import itertools
 from collections import defaultdict
+from threading import Lock
 from typing import Any
 from collections.abc import Iterable
 
@@ -21,7 +23,7 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.generics import get_object_or_404
 from rest_framework.serializers import Serializer, ValidationError
 
-from core.drf_resource import resource
+from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
@@ -178,13 +180,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         return Response(self._preview(strategy_template_obj, self.query_data["service_name"]))
 
     def _get_id_strategy_map(self, ids: Iterable[int]) -> dict[int, dict[str, Any]]:
-        strategies: list[dict[str, Any]] = resource.strategies.plain_strategy_list_v2(
-            {"bk_biz_id": self.query_data["bk_biz_id"], "ids": list(ids)}
-        )
-        return {
-            strategy_dict["id"]: {"id": strategy_dict["id"], "name": strategy_dict["name"]}
-            for strategy_dict in strategies
-        }
+        return helper.get_id_strategy_map(self.query_data["bk_biz_id"], ids)
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateApplyRequestSerializer)
     @user_visit_record
@@ -201,22 +197,45 @@ class StrategyTemplateViewSet(GenericViewSet):
             self.get_queryset().filter(id__in=self.query_data["strategy_template_ids"])
         )
 
-        strategy_ids: list[int] = []
-        template_dispatch_map: dict[int, dict[str, int]] = {}
+        def _apply(_obj: StrategyTemplate) -> dict[str, int | dict[str, int]]:
+            try:
+                _dispatcher = dispatch.StrategyDispatcher(
+                    _obj, handler.StrategyTemplateHandler.get_query_template_or_none(_obj, query_template_map)
+                )
+                _service_strategy_id_map: dict[str, int] = _dispatcher.dispatch(
+                    entity_set, global_config, extra_configs_map.get(_obj.pk, [])
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                # 由于异常会中断其他线程的下发，这里捕获所有异常，最后统一抛出，避免中断带来的不一致问题。
+                with lock:
+                    error_msgs.append(_("模板【{}】下发失败, {}").format(_obj.name, str(e)))
+                return {"strategy_template_id": _obj.pk, "service_strategy_id_map": {}}
+
+            return {"strategy_template_id": _obj.pk, "service_strategy_id_map": _service_strategy_id_map}
+
         query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = (
             handler.StrategyTemplateHandler.get_query_template_map(strategy_templates)
         )
         global_config = dispatch.DispatchGlobalConfig(**self.query_data["global_config"])
-        for strategy_template_obj in strategy_templates:
-            qtw = handler.StrategyTemplateHandler.get_query_template_or_none(strategy_template_obj, query_template_map)
-            dispatcher = dispatch.StrategyDispatcher(strategy_template_obj, qtw)
-            service_strategy_map: dict[str, int] = dispatcher.dispatch(
-                entity_set,
-                global_config,
-                extra_configs_map.get(strategy_template_obj.pk, []),
-            )
-            strategy_ids.extend(list(service_strategy_map.values()))
-            template_dispatch_map[strategy_template_obj.pk] = service_strategy_map
+
+        # 批量进行模板下发
+        lock: Lock = Lock()
+        error_msgs: list[str] = []
+        pool = ThreadPool(8)
+        dispatch_results_iter: Iterable[dict[str, int | dict[str, int]]] = pool.imap_unordered(
+            lambda _obj: _apply(_obj), strategy_templates
+        )
+        pool.close()
+
+        strategy_ids: list[int] = []
+        template_dispatch_map: dict[int, dict[str, int]] = {}
+        for dispatch_result in dispatch_results_iter:
+            service_strategy_id_map: dict[str, int] = dispatch_result["service_strategy_id_map"]
+            strategy_ids.extend(list(service_strategy_id_map.values()))
+            template_dispatch_map[dispatch_result["strategy_template_id"]] = service_strategy_id_map
+
+        if error_msgs:
+            raise ValueError("\n".join(error_msgs))
 
         apply_data: list[dict[str, Any]] = []
         id_strategy_map = self._get_id_strategy_map(strategy_ids)
@@ -248,22 +267,23 @@ class StrategyTemplateViewSet(GenericViewSet):
             )
         )
 
-        # 批量进行模板下发检查
-        # TODO 此处可以改成多线程
-        results: list[dict[str, Any]] = []
-        for strategy_template_obj in strategy_templates:
-            qtw = query_template_map[
-                (strategy_template_obj.query_template["bk_biz_id"], strategy_template_obj.query_template["name"])
-            ]
-            dispatcher: dispatch.StrategyDispatcher = dispatch.StrategyDispatcher(strategy_template_obj, qtw)
-            results.extend(dispatcher.check(entity_set, self.query_data["is_check_diff"]))
+        def _check(_obj: StrategyTemplate) -> list[dict[str, Any]]:
+            return dispatch.StrategyDispatcher(
+                _obj, query_template_map[(_obj.query_template["bk_biz_id"], _obj.query_template["name"])]
+            ).check(entity_set, self.query_data["is_check_diff"])
 
-        # 填充模板、策略信息
-        strategy_ids: set[int] = set()
+        # 批量进行模板下发检查
+        pool = ThreadPool(5)
+        check_results_iter: Iterable[list[dict[str, Any]]] = pool.imap_unordered(
+            lambda _obj: _check(_obj), strategy_templates
+        )
+        pool.close()
+
+        results: list[dict[str, Any]] = list(itertools.chain.from_iterable(check_results_iter))
+
+        # 填充模板信息
         strategy_template_ids: set[int] = set()
         for result in results:
-            if result.get("strategy"):
-                strategy_ids.add(result["strategy"]["id"])
             if result.get("same_origin_strategy_template"):
                 strategy_template_ids.add(result["same_origin_strategy_template"]["id"])
 
@@ -273,13 +293,11 @@ class StrategyTemplateViewSet(GenericViewSet):
             except (KeyError, TypeError):
                 pass
 
-        id_strategy_map: dict[int, dict[str, Any]] = self._get_id_strategy_map(strategy_ids)
         id_strategy_template_map: dict[int, dict[str, Any]] = {
             strategy_template["id"]: strategy_template
             for strategy_template in self.get_queryset().filter(id__in=strategy_template_ids).values("id", "name")
         }
         for result in results:
-            _set_name(result, "strategy", id_strategy_map)
             _set_name(result, "same_origin_strategy_template", id_strategy_template_map)
 
         return Response({"list": results})

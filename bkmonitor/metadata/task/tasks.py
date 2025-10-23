@@ -1473,7 +1473,7 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         bk_tenant_id=bk_tenant_id,
     )
 
-    # 2. 申请数据链路配置 LogResultTableConfig,ESStorageBindingConfig,LogDataBusConfig
+    # 2. 申请数据链路配置 ResultTableConfig,ESStorageBindingConfig,DataBusConfig
     try:
         data_link_ins.apply_data_link(
             data_source=data_source, table_id=table_id, storage_cluster_name=storage_cluster_name, bk_biz_id=bk_biz_id

@@ -169,7 +169,8 @@
             },
             "unit": "",
             "is_support_group_by": true,
-            "is_support_compare": true
+            "is_support_compare": true,
+            "strategy_template_codes": {"callee": ["rpc_callee_success_rate"], "caller": ["rpc_caller_success_rate"]}
           }
         },
         {
@@ -427,7 +428,8 @@
             "precision": 6,
             "is_support_group_by": true,
             "is_support_compare": true,
-            "is_code_redefine": true
+            "is_code_redefine": true,
+            "strategy_template_codes": {"callee": ["rpc_callee_success_rate"], "caller": ["rpc_caller_success_rate"]}
           }
         },
         {
@@ -709,7 +711,8 @@
               }
             ],
             "is_support_group_by": true,
-            "is_support_compare": true
+            "is_support_compare": true,
+            "strategy_template_codes": {"callee": ["rpc_callee_success_rate"], "caller": ["rpc_caller_success_rate"]}
           }
         },
         {
@@ -941,7 +944,8 @@
             },
             "unit": "s",
             "is_support_group_by": true,
-            "is_support_compare": true
+            "is_support_compare": true,
+            "strategy_template_codes": {"callee": ["rpc_callee_p99"], "caller": ["rpc_caller_p99"]}
           }
         },
         {
@@ -1402,7 +1406,8 @@
             },
             "unit": "s",
             "is_support_group_by": false,
-            "is_support_compare": false
+            "is_support_compare": false,
+            "strategy_template_codes": {"callee": ["rpc_callee_p99"], "caller": ["rpc_caller_p99"]}
           }
         },
         {
