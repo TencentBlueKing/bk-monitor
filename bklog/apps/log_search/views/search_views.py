@@ -1941,25 +1941,32 @@ class SearchViewSet(APIViewSet):
         """
         params = self.params_valid(ChartSerializer)
         bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
-        is_export = params.pop("is_export", False)
 
-        if is_export or FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+        if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
             params["index_set_ids"] = [index_set_id]
             params["bk_biz_id"] = bk_biz_id
             query_handler = UnifyQueryChartHandler(params)
-            if is_export:
-                file_name = f"bklog_{index_set_id}_{arrow.now().format('YYYYMMDD_HHmmss')}.csv"
-                response = StreamingHttpResponse(
-                    query_handler.export_chart_data(),
-                    content_type="text/csv",
-                )
-                response["Content-Disposition"] = f'attachment; filename="{file_name}"'
-                return response
             result = query_handler.get_chart_data()
         else:
             instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
             result = instance.get_chart_data(params)
         return Response(result)
+
+    @detail_route(methods=["POST"], url_path="export_chart_data")
+    def export_chart_data(self, request, index_set_id=None):
+        params = self.params_valid(ChartSerializer)
+        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+        params["index_set_ids"] = [index_set_id]
+        params["bk_biz_id"] = bk_biz_id
+
+        query_handler = UnifyQueryChartHandler(params)
+        file_name = f"bklog_{index_set_id}_{arrow.now().format('YYYYMMDD_HHmmss')}.csv"
+        response = StreamingHttpResponse(
+            query_handler.export_chart_data(),
+            content_type="text/csv",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{file_name}"'
+        return response
 
     @detail_route(methods=["POST"], url_path="generate_sql")
     def generate_sql(self, request, index_set_id=None):
