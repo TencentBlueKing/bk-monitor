@@ -24,37 +24,56 @@
  * IN THE SOFTWARE.
  */
 
-import { alertDetail, listAlertFeedback } from 'monitor-api/modules/alert';
-import { getSceneView } from 'monitor-api/modules/scene_view';
+import { computed, onScopeDispose, shallowRef, watch } from 'vue';
 
-import { AlarmDetail } from '../typings/detail';
+import { defineStore } from 'pinia';
 
-import type { IAlarmDetail } from '../typings/detail';
+import { fetchAlarmDetail } from '@/pages/alarm-center/services/alarm-detail';
 
-export const fetchAlarmDetail = (id: string): Promise<AlarmDetail | null> => {
-  if (!id) return Promise.resolve(null);
-  return alertDetail<IAlarmDetail>({
-    id,
-  })
-    .then(res => new AlarmDetail(res))
-    .catch(() => null);
-};
+import type { AlarmDetail } from '../../pages/alarm-center/typings/detail';
 
-export const fetchListAlertFeedback = (id: string, bizId: number) => {
-  return listAlertFeedback({ alert_id: id, bk_biz_id: bizId }).catch(() => []);
-};
+export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => {
+  /** 告警详情 */
+  const alarmDetail = shallowRef<AlarmDetail | null>(null);
+  /** 告警ID */
+  const alarmId = shallowRef<string>('');
+  /** 加载状态 */
+  const loading = shallowRef<boolean>(false);
 
-/**
- * @description host 场景指标视图配置信息
- * @param bizId 业务ID
- */
-export const getHostSceneView = async (bizId: number) => {
-  const sceneView = await getSceneView({
-    bk_biz_id: bizId,
-    scene_id: 'host',
-    type: 'detail',
-    id: 'host',
-  }).catch(() => ({ id: '', panels: [], name: '' }));
+  const bizId = computed(() => {
+    return alarmDetail.value?.bk_biz_id || window.bk_biz_id || window.cc_biz_id || '';
+  });
 
-  return sceneView;
-};
+  /**
+   * @description 获取告警详情
+   * @param id 告警ID
+   */
+  const getAlertDetailData = async (id: string) => {
+    loading.value = true;
+    const data = await fetchAlarmDetail(id).catch(() => null);
+    alarmDetail.value = data;
+    loading.value = false;
+  };
+
+  watch(
+    alarmId,
+    newVal => {
+      if (newVal && !loading.value) {
+        getAlertDetailData(newVal);
+      }
+    },
+    { immediate: true }
+  );
+
+  onScopeDispose(() => {
+    alarmId.value = '';
+    alarmDetail.value = null;
+    loading.value = false;
+  });
+  return {
+    alarmDetail,
+    alarmId,
+    loading,
+    bizId,
+  };
+});

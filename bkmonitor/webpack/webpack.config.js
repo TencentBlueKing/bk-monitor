@@ -36,7 +36,7 @@ module.exports = async (baseConfig, { production, app }) => {
       server: 'http',
       proxy: ['proxy', 'logProxy', 'tenantProxy'] // 监控平台、日志平台、租户平台代理配置
         .map(key =>
-          devConfig[key]
+          devConfig[key]?.target
             ? {
                 ...devConfig[key],
                 proxyTimeout: 5 * 60 * 1000,

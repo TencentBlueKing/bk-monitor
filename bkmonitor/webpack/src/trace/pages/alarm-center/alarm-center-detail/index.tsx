@@ -23,50 +23,48 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, PropType } from 'vue';
+import { defineComponent, watch } from 'vue';
+
+import { Message, Sideslider } from 'bkui-vue';
+import { copyText } from 'monitor-common/utils';
+import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
 
 import DetailCommon from '../detail-common';
-import { Message, Sideslider } from 'bkui-vue';
-import type { IAlert } from '../detail-common/typeing';
 import EventDetailHead from './components/event-detail-head';
-import { AlarmType } from '../typings';
-import { useI18n } from 'vue-i18n';
-import { copyText } from 'monitor-common/utils';
-import { useAppStore } from '@/store/modules/app';
+import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 export default defineComponent({
   name: 'AlarmCenterDetail',
   props: {
-    data: {
-      type: Object as PropType<IAlert>,
-    },
-    detailType: {
-      type: String as PropType<AlarmType>,
-      default: AlarmType.ALERT,
-    },
-    loading: {
-      type: Boolean,
-      default: false,
+    alarmId: {
+      type: String,
+      required: true,
     },
     show: {
       type: Boolean,
-      default: false,
-    },
-    isFeedback: {
-      type: Boolean,
-      default: false,
+      required: true,
     },
   },
   emits: ['update:show'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const store = useAppStore();
-    const bizId = computed(() => store.bizId);
+    const alarmCenterDetailStore = useAlarmCenterDetailStore();
+    const { bizId, alarmId, alarmDetail } = storeToRefs(alarmCenterDetailStore);
+    watch(
+      () => props.alarmId,
+      newVal => {
+        if (newVal) {
+          alarmId.value = newVal;
+        }
+      },
+      { immediate: true }
+    );
 
     // 复制事件详情连接
     const handleToEventDetail = (type: 'action-detail' | 'detail', isNewPage = false) => {
-      let url = location.href.replace(location.hash, `#/event-center/${type}/${props.data?.id}`);
-      url = url.replace(location.search, `?bizId=${props.data?.bk_biz_id || bizId}`);
+      let url = location.href.replace(location.hash, `#/event-center/${type}/${alarmId.value}`);
+      url = url.replace(location.search, `?bizId=${bizId.value}`);
       if (isNewPage) {
         window.open(url);
         return;
@@ -88,7 +86,7 @@ export default defineComponent({
     };
 
     // 作为新页面打开
-    const newPageBtn = (type: 'action-detail' | 'detail') => {
+    const _newPageBtn = (type: 'action-detail' | 'detail') => {
       return (
         <span
           class='new-page-btn'
@@ -104,60 +102,21 @@ export default defineComponent({
       emit('update:show', isShow);
     };
 
-    const renderDetailHeader = () => {
-      switch (props.detailType) {
-        case AlarmType.ALERT:
-          return (
-            <EventDetailHead
-              basicInfo={props.data}
-              bizId={props.data?.bk_biz_id}
-              eventId={props.data?.id}
-              isFeedback={props.isFeedback}
-            />
-          );
-        case AlarmType.ACTION:
-          return (
-            <div class='title-wrap'>
-              <span>{t('处理记录详情')}</span>
-              <i
-                class='icon-monitor icon-copy-link'
-                onClick={() => handleToEventDetail('action-detail')}
-              />
-              {newPageBtn('action-detail')}
-            </div>
-          );
-        default:
-          return null;
-      }
-    };
-
-    const renderDetailContent = () => {
-      switch (props.detailType) {
-        case AlarmType.ALERT:
-          return <DetailCommon data={props.data} />;
-        case AlarmType.ACTION:
-          return null;
-        default:
-          return null;
-      }
-    };
-
     return {
       handleShowChange,
-      renderDetailHeader,
-      renderDetailContent,
+      alarmDetail,
     };
   },
   render() {
     return (
       <Sideslider
         width={1280}
+        v-slots={{
+          header: <EventDetailHead />,
+          default: <DetailCommon data={this.alarmDetail} />,
+        }}
         isShow={this.show}
         onUpdate:isShow={this.handleShowChange}
-        v-slots={{
-          header: this.renderDetailHeader,
-          default: this.renderDetailContent,
-        }}
       />
     );
   },

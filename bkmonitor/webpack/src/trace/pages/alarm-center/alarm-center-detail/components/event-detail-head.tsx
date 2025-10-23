@@ -24,22 +24,23 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, reactive, PropType, shallowRef } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { type PropType, computed, defineComponent, reactive, shallowRef } from 'vue';
+
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import { deepClone } from 'monitor-common/utils/utils';
+import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
+
 import TemporaryShare from '../../../../components/temporary-share/temporary-share';
-
+import { useAppStore } from '../../../../store/modules/app';
 import Feedback from './feedback';
+import ChatGroup from '@/pages/failure/alarm-detail/chat-group/chat-group';
 
+import type { IAlert } from '../../detail-common/typeing';
 import type { IChatGroupDialogOptions } from '../../typings';
 
-import { useAppStore } from '../../../../store/modules/app';
-import type { IAlert } from '../../detail-common/typeing';
 import './event-detail-head.scss';
-import ChatGroup from '@/pages/failure/alarm-detail/chat-group/chat-group';
 
 export default defineComponent({
   name: 'EventDetailHead',
@@ -268,8 +269,8 @@ export default defineComponent({
           key='feedback'
           ids={[this.basicInfo.id]}
           show={this.feedbackDialog}
-          onUpdate:isShow={this.handleFeedback}
           onConfirm={this.handleFeedBackConfirm}
+          onUpdate:isShow={this.handleFeedback}
         />
       </div>
     );

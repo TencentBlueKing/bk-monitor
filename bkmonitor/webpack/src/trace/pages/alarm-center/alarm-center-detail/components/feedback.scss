@@ -19,15 +19,15 @@
 
     .left,
     .right {
-      width: 96px;
-      height: 96px;
-      background: #f5f7fa;
-      border-radius: 50%;
-      cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
+      width: 96px;
+      height: 96px;
       padding-top: 24px;
+      cursor: pointer;
+      background: #f5f7fa;
+      border-radius: 50%;
 
       .icon-mc-like-filled,
       .icon-mc-unlike-filled {
@@ -76,18 +76,18 @@
 
     .tags {
       display: flex;
-      align-items: center;
       flex-wrap: wrap;
+      align-items: center;
       margin-top: 8px;
 
       .tag {
-        height: 22px;
-        background: #f0f1f5;
-        border-radius: 2px;
         display: flex;
         align-items: center;
+        height: 22px;
         padding: 0 10px;
         cursor: pointer;
+        background: #f0f1f5;
+        border-radius: 2px;
 
         &:not(:first-of-type) {
           margin-left: 8px;

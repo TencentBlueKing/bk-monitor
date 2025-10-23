@@ -41,14 +41,14 @@ import PanelLog from './components/panel-log';
 import PanelMetric from './components/panel-metric';
 import PanelView from './components/panel-view';
 
-import type { IAlert } from './typeing';
+import type { AlarmDetail } from '../typings/detail';
 
 import './index.scss';
 
 export default defineComponent({
   name: 'DetailCommon',
   props: {
-    data: Object as PropType<IAlert>,
+    data: Object as PropType<AlarmDetail>,
   },
   setup(props) {
     const { t } = useI18n();

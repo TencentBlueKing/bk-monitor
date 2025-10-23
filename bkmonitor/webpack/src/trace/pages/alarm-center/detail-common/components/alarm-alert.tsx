@@ -23,15 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
+import { computed } from 'vue';
+
+import { Button } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
+
+import { AlarmStatusIconMap } from '../../typings';
 
 import type { IAlert } from '../typeing';
 
 import './alarm-alert.scss';
-import { AlarmStatusIconMap } from '../../typings';
-import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { Button } from 'bkui-vue';
 
 export default defineComponent({
   name: 'AlarmAlert',
@@ -73,7 +75,7 @@ export default defineComponent({
       statusIcon,
       handleAlarmConfirm,
       handleQuickShield,
-      handleToShield
+      handleToShield,
     };
   },
   render() {
@@ -89,8 +91,8 @@ export default defineComponent({
           {this.status === 'ABNORMAL' && [
             <Button
               key='shield'
-              text
               theme='primary'
+              text
               onClick={this.handleQuickShield}
             >
               <i class='icon-monitor icon-mc-notice-shield' />
@@ -98,8 +100,8 @@ export default defineComponent({
             </Button>,
             <Button
               key='confirm'
-              theme='primary'
               size='small'
+              theme='primary'
               onClick={this.handleAlarmConfirm}
             >
               {this.t('告警确认')}
@@ -108,8 +110,8 @@ export default defineComponent({
 
           {this.status === 'SHIELDED_ABNORMAL' && (
             <Button
-              text
               theme='primary'
+              text
               onClick={this.handleToShield}
             >
               <i class='icon-monitor icon-fenxiang' />

@@ -23,38 +23,41 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { shallowRef, watch } from 'vue';
+import { onScopeDispose } from 'vue';
 
-import { alertDetail, listAlertFeedback } from 'monitor-api/modules/alert';
-import { getSceneView } from 'monitor-api/modules/scene_view';
+import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
+import { fetchListAlertFeedback } from '../services/alarm-detail';
 
-import { AlarmDetail } from '../typings/detail';
+export function useAlarmDetail() {
+  const alarmCenterDetailStore = useAlarmCenterDetailStore();
 
-import type { IAlarmDetail } from '../typings/detail';
+  /** 是否反馈 */
+  const isFeedback = shallowRef(false);
 
-export const fetchAlarmDetail = (id: string): Promise<AlarmDetail | null> => {
-  if (!id) return Promise.resolve(null);
-  return alertDetail<IAlarmDetail>({
-    id,
-  })
-    .then(res => new AlarmDetail(res))
-    .catch(() => null);
-};
+  const getAlertFeedback = async () => {
+    const data = await fetchListAlertFeedback(
+      alarmCenterDetailStore.alarmDetail.id,
+      alarmCenterDetailStore.alarmDetail.bk_biz_id
+    ).catch(() => []);
+    isFeedback.value = data.length > 0;
+  };
 
-export const fetchListAlertFeedback = (id: string, bizId: number) => {
-  return listAlertFeedback({ alert_id: id, bk_biz_id: bizId }).catch(() => []);
-};
+  watch(
+    alarmCenterDetailStore.alarmDetail,
+    newVal => {
+      if (newVal) {
+        getAlertFeedback();
+      }
+    },
+    { immediate: true }
+  );
 
-/**
- * @description host 场景指标视图配置信息
- * @param bizId 业务ID
- */
-export const getHostSceneView = async (bizId: number) => {
-  const sceneView = await getSceneView({
-    bk_biz_id: bizId,
-    scene_id: 'host',
-    type: 'detail',
-    id: 'host',
-  }).catch(() => ({ id: '', panels: [], name: '' }));
+  onScopeDispose(() => {
+    isFeedback.value = false;
+  });
 
-  return sceneView;
-};
+  return {
+    isFeedback,
+  };
+}
