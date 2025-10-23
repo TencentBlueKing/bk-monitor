@@ -152,7 +152,7 @@ const getUrlArgs = (_route?) => {
 };
 
 let URL_ARGS = getUrlArgs();
-const update_URL_ARGS = route => {
+const update_URL_ARGS = (route) => {
   URL_ARGS = getUrlArgs(route);
   return URL_ARGS;
 };

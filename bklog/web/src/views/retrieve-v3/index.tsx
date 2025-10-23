@@ -49,8 +49,14 @@ export default defineComponent({
     const store = useStore();
     const aiAssitantRef = RetrieveHelper.aiAssitantHelper.getAiAssitantInstance();
 
-    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
-      useAppInit();
+    const {
+      isSearchContextStickyTop,
+      isSearchResultStickyTop,
+      stickyStyle,
+      contentStyle,
+      isPreApiLoaded,
+    } = useAppInit();
+
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
 
     /**
@@ -62,7 +68,7 @@ export default defineComponent({
 
     /**
      * 渲染 AI 助手
-     * @returns 
+     * @returns
      */
     const renderAiAssitant = () => {
       if (!store.state.features.isAiAssistantActive) {
@@ -74,7 +80,7 @@ export default defineComponent({
 
     /**
      * 渲染结果内容
-     * @returns 
+     * @returns
      */
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
@@ -97,7 +103,7 @@ export default defineComponent({
 
     /**
      * 渲染根元素
-     * @returns 
+     * @returns
      */
     return () => (
       <div

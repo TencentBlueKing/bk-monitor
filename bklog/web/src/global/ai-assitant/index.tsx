@@ -58,6 +58,12 @@ export interface IAssitantOptions {
   defaultLeft: number;
   draggable: boolean;
   title: string;
+  maxWidth?: number | string;
+  defaultChatInputPosition?: 'bottom' | undefined;
+  showCompressionIcon?: boolean;
+  showMoreIcon?: boolean;
+  showNewChatIcon?: boolean;
+  showHistoryIcon?: boolean;
 }
 
 export type IAssitantOptionsType = 'log_analysis' | 'query_string_generate';
@@ -99,6 +105,12 @@ export default defineComponent({
       defaultLeft: undefined,
       draggable: true,
       title: undefined,
+      defaultChatInputPosition: undefined,
+      maxWidth: 1000,
+      showCompressionIcon: true,
+      showMoreIcon: true,
+      showNewChatIcon: true,
+      showHistoryIcon: true,
     };
 
     const aiAssitantOptions = ref<IAssitantOptions>({ ...defaultOptions });
@@ -139,10 +151,9 @@ export default defineComponent({
           shortcut.components.forEach((comp) => {
             const value = args[comp.key];
             if (value) {
-              comp.default =
-                typeof value === 'object'
-                  ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
-                  : value;
+              comp.default =                typeof value === 'object'
+                ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
+                : value;
             }
           });
 
@@ -272,10 +283,9 @@ export default defineComponent({
         shortcut.components.forEach((comp) => {
           const value = args[comp.key];
           if (value) {
-            comp.default =
-              typeof value === 'object'
-                ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
-                : value;
+            comp.default =              typeof value === 'object'
+              ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
+              : value;
           }
         });
 
@@ -302,10 +312,11 @@ export default defineComponent({
       setPosition,
       queryStringShowAiAssistant,
       isShow,
+      aiBluekingInstance: aiBlueking,
     });
 
     return () => (
-      <div class='ai-blueking-wrapper'>
+      <div class='bklog-ai-blueking-container'>
         {isUpdated.value && (
           <AIBlueking
             ref={aiBlueking}
@@ -335,6 +346,11 @@ export default defineComponent({
             defaultLeft={aiAssitantOptions.value.defaultLeft}
             draggable={aiAssitantOptions.value.draggable}
             title={aiAssitantOptions.value.title}
+            maxWidth={aiAssitantOptions.value.maxWidth}
+            defaultChatInputPosition={aiAssitantOptions.value.defaultChatInputPosition}
+            showCompressionIcon={aiAssitantOptions.value.showCompressionIcon}
+            showMoreIcon={aiAssitantOptions.value.showMoreIcon}
+            showNewChatIcon={aiAssitantOptions.value.showNewChatIcon}
           />
         )}
       </div>

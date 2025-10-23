@@ -90,9 +90,13 @@ class AiAssitantHelper {
    */
   isClickAiAssitant(e: MouseEvent) {
     const target = e.target as HTMLElement;
+    const selector = '.ai-blueking-wrapper > .ai-blueking-container-wrapper > .ai-blueking-container';
+    const aiBlueKineElement = document.querySelector(selector);
     return (
-      target?.classList?.contains('ai-blueking-button-text') ||
-      target?.closest('.ai-blueking-container-wrapper')
+      aiBlueKineElement?.contains(target)
+      || target?.classList?.contains('ai-blueking-button-text')
+      || target?.closest('.ai-blueking-container-wrapper')
+      || target?.closest('.ai-blueking-form')
     );
   }
 
@@ -102,9 +106,9 @@ class AiAssitantHelper {
    */
   closeAiAssitantWithSearchBar(e: MouseEvent) {
     if (
-      this.aiAssitantRef.value?.isShown() &&
-      this.activePosition === 'search-bar' &&
-      !this.isClickAiAssitant(e)
+      this.aiAssitantRef.value?.isShown()
+      && this.activePosition === 'search-bar'
+      && !this.isClickAiAssitant(e)
     ) {
       this.aiAssitantRef.value?.close();
     }
