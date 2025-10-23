@@ -162,10 +162,40 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
         return gen_condition_matcher(agg_condition)
 
     @cached_property
+    def result_table_id(self):
+        """结果表名称"""
+        if self.query_configs:
+            return self.query_configs[0].get("result_table_id", "")
+        return ""
+
+    @cached_property
+    def metric_field(self):
+        """指标字段"""
+        if self.query_configs:
+            return self.query_configs[0].get("metric_field", "")
+        return ""
+
+    @cached_property
+    def agg_interval(self):
+        """周期"""
+        if self.query_configs:
+            return self.query_configs[0].get("agg_interval", 60)
+        return 60
+
+    @cached_property
+    def agg_method(self):
+        """聚合方法"""
+        if self.agg_methods:
+            return self.agg_methods[0]
+        return ""
+
+    @cached_property
     def agg_methods(self) -> list[str]:
         """聚合方法列表"""
         methods = []
         for query_config in self.query_configs:
+            if not query_config.get("agg_method"):
+                continue
             methods.append(query_config.get("agg_method"))
 
         return methods
