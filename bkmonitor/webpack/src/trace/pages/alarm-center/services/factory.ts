@@ -29,18 +29,11 @@ import { ActionService } from './action-services';
 import { AlertService } from './alert-services';
 import { IncidentService } from './incident-services';
 
-// export function AlarmServiceFactory(type: AlarmType.ALERT): AlertService;
-// export function AlarmServiceFactory(type: AlarmType.INCIDENT): IncidentService;
-// export function AlarmServiceFactory(type: AlarmType.ACTION): ActionService;
-export function AlarmServiceFactory(type: AlarmType) {
-  if (type === AlarmType.ACTION) {
-    return new ActionService(AlarmType.ACTION);
-  }
-  if (type === AlarmType.INCIDENT) {
-    return new IncidentService(AlarmType.INCIDENT);
-  }
-  return new AlertService(AlarmType.ALERT);
-}
+export type AlarmServiceType<T = AlarmType> = T extends AlarmType.ACTION
+  ? ActionService
+  : T extends AlarmType.INCIDENT
+    ? IncidentService
+    : AlertService;
 
 // export class AlarmContextProxy {
 //   protected service: AlarmServiceType;
@@ -70,8 +63,15 @@ export function AlarmServiceFactory(type: AlarmType) {
 //   // }
 // }
 
-export type AlarmServiceType<T = AlarmType> = T extends AlarmType.ACTION
-  ? ActionService
-  : T extends AlarmType.INCIDENT
-    ? IncidentService
-    : AlertService;
+// export function AlarmServiceFactory(type: AlarmType.ALERT): AlertService;
+// export function AlarmServiceFactory(type: AlarmType.INCIDENT): IncidentService;
+// export function AlarmServiceFactory(type: AlarmType.ACTION): ActionService;
+export function AlarmServiceFactory(type: AlarmType) {
+  if (type === AlarmType.ACTION) {
+    return new ActionService(AlarmType.ACTION);
+  }
+  if (type === AlarmType.INCIDENT) {
+    return new IncidentService(AlarmType.INCIDENT);
+  }
+  return new AlertService(AlarmType.ALERT);
+}

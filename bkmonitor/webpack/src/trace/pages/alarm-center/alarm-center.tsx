@@ -33,6 +33,7 @@ import { mergeWhereList } from '../../components/retrieval-filter/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
+import AlarmCenterDetail from './alarm-center-detail';
 import AlarmAnalysis from './components/alarm-analysis/alarm-analysis';
 import AlarmCenterHeader from './components/alarm-center-header';
 import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retrieval-filter';
@@ -48,8 +49,6 @@ import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
 
 import './alarm-center.scss';
-import AlarmCenterDetail from './alarm-center-detail';
-import { useAlarmDetail } from './composables/use-alarm-detail';
 export default defineComponent({
   name: 'AlarmCenter',
   setup() {
@@ -70,9 +69,9 @@ export default defineComponent({
       lockedTableFields,
     } = useAlarmTableColumns();
 
-    const { detailShow, detailData, detailType, detailLoading, currentDetailId, isFeedback } = useAlarmDetail();
     const isCollapsed = shallowRef(false);
-
+    const alarmId = shallowRef<string>('');
+    const alarmDetailShow = shallowRef(false);
     /**
      * @description 检索栏字段列表
      */
@@ -269,20 +268,17 @@ export default defineComponent({
      * 展示告警详情
      */
     function handleShowAlertDetail(id: string) {
-      currentDetailId.value = id;
-      detailType.value = AlarmType.ALERT;
+      alarmId.value = id;
       handleDetailShowChange(true);
     }
 
     /**  展示处理记录详情  */
-    function handleShowActionDetail(id: string) {
-      currentDetailId.value = id;
-      detailType.value = AlarmType.ACTION;
+    function handleShowActionDetail(_id: string) {
       handleDetailShowChange(true);
     }
 
     function handleDetailShowChange(show: boolean) {
-      detailShow.value = show;
+      alarmDetailShow.value = show;
     }
 
     onBeforeMount(() => {
@@ -309,10 +305,8 @@ export default defineComponent({
       retrievalFilterFields,
       favoriteList,
       residentSettingOnlyId,
-      detailData,
-      detailShow,
-      detailLoading,
-      isFeedback,
+      alarmId,
+      alarmDetailShow,
       handleFilterValueChange,
       updateIsCollapsed,
       handleAddCondition,
@@ -410,9 +404,9 @@ export default defineComponent({
                           this.storageColumns = displayColFields;
                         }}
                         onPageSizeChange={this.handlePageSizeChange}
-                        onSortChange={sort => this.handleSortChange(sort as string)}
-                        onShowAlertDetail={this.handleShowAlertDetail}
                         onShowActionDetail={this.handleShowActionDetail}
+                        onShowAlertDetail={this.handleShowAlertDetail}
+                        onSortChange={sort => this.handleSortChange(sort as string)}
                       />
                     </div>
                   </div>
@@ -428,10 +422,8 @@ export default defineComponent({
         </div>
 
         <AlarmCenterDetail
-          isFeedback={this.isFeedback}
-          data={this.detailData}
-          loading={this.detailLoading}
-          show={this.detailShow}
+          alarmId={this.alarmId}
+          show={this.alarmDetailShow}
           onUpdate:show={this.handleDetailShowChange}
         />
       </div>

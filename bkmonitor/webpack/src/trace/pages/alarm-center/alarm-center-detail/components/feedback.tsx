@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, PropType, shallowRef, watch } from 'vue';
-
-import { useI18n } from 'vue-i18n';
-import { feedbackAlert } from 'monitor-api/modules/alert';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import { Dialog, Message } from 'bkui-vue';
+import { feedbackAlert } from 'monitor-api/modules/alert';
+import { useI18n } from 'vue-i18n';
+
 import './feedback.scss';
 
 const TAGS = [window.i18n.t('无法给予帮助'), window.i18n.t('结果不准确'), window.i18n.t('问题定位不清晰')];
@@ -137,8 +137,8 @@ export default defineComponent({
       <Dialog
         width={480}
         header-position={'left'}
-        title={this.t('反馈')}
         isShow={this.show}
+        title={this.t('反馈')}
         onUpdate:isShow={this.handleShowChange}
       >
         <div
@@ -167,8 +167,8 @@ export default defineComponent({
               <div class='tags'>
                 {TAGS.map(item => (
                   <div
-                    class='tag'
                     key={item}
+                    class='tag'
                     onClick={() => this.handleClickTag(item)}
                   >
                     {item}
