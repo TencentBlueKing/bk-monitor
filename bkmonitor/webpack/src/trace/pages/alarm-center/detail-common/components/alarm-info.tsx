@@ -29,25 +29,31 @@ import dayjs from 'dayjs';
 import { toBcsDetail, toPerformanceDetail } from 'fta-solutions/common/go-link';
 import { ETagsType } from 'monitor-common/utils/biz';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import { useAppStore } from '@/store/modules/app';
 
-import type { IAlert } from '../typeing';
+import type { AlarmDetail, AlertActionOverview } from '../../typings';
 
 import './alarm-info.scss';
 
 export default defineComponent({
   name: 'AlarmInfo',
   props: {
-    data: Object as PropType<IAlert>,
+    data: {
+      type: Object as PropType<AlarmDetail>,
+    },
+    alertActionOverview: {
+      type: Object as PropType<AlertActionOverview>,
+    },
     readonly: Boolean,
   },
   emits: ['manualProcess', 'alarmDispatch'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const appStore = useAppStore();
-    const bizItem = computed(() => appStore.bizList.find(item => item.id === props.data.bk_biz_id));
+    const { bizItem } = storeToRefs(appStore);
     const bizIdName = computed(() =>
       bizItem.value?.space_type_id === ETagsType.BKCC
         ? `#${bizItem.value?.id}`
@@ -55,6 +61,44 @@ export default defineComponent({
     );
     const cloudIdMap = ['bk_target_cloud_id', 'bk_cloud_id'];
     const ipMap = ['bk_target_ip', 'ip', 'bk_host_id', 'tags.bcs_cluster_id'];
+
+    const handleStatusString = computed(() => {
+      const total = props.alertActionOverview?.count;
+      if (!total) return '--';
+
+      // 定义需要统计的状态及其初始计数
+      const statusKeys = ['success', 'failure', 'partial_failure'];
+      const statusCounts = Object.fromEntries(statusKeys.map(key => [key, 0]));
+
+      // 遍历 children 数组，更新对应状态的计数
+      const children = props.alertActionOverview?.children || [];
+      for (const item of children) {
+        if (statusKeys.includes(item.id)) {
+          statusCounts[item.id] = item.count;
+        }
+      }
+
+      // 生成每种状态的描述字符串数组
+      const statusDescriptions = statusKeys
+        .map(key => {
+          const count = statusCounts[key];
+          if (count) {
+            const statusText = {
+              success: '次成功',
+              failure: '次失败',
+              partial_failure: '次部分失败',
+            }[key];
+            return t(`{0}${statusText}`, [count]);
+          }
+          return null;
+        })
+        .filter(description => description !== null);
+      // 拼接所有状态描述字符串
+      const details = statusDescriptions.join(', ');
+
+      // 生成最终的状态字符串
+      return `${t(' {0} 次', [total])}(${details})`;
+    });
 
     /** 维度列表 */
     const filterDimensions = computed(() => {
@@ -174,7 +218,7 @@ export default defineComponent({
     function renderAlarmStatus() {
       return (
         <div class='alarm-status'>
-          <span class='total'>7 次(7次失败)</span>
+          <span class='total'>{handleStatusString.value}</span>
           <span class='icon-monitor icon-xiangqing1'>{t('详情')}</span>
         </div>
       );

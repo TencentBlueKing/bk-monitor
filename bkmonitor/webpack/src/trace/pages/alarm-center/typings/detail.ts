@@ -194,7 +194,7 @@ export interface IDimension {
   display_key: string;
   display_value: string;
   key: string;
-  value: string;
+  value: number | string;
 }
 
 /** 维度翻译 */
@@ -510,7 +510,7 @@ export class AlarmDetail {
   readonly extend_info: IExtendInfo;
   readonly extra_info: IExtraInfo;
   readonly first_anomaly_time: number;
-  readonly follower: null | string;
+  readonly follower: null | string[];
   readonly graph_panel: IGraphPanel;
   readonly id: string;
   readonly ip: null | string;

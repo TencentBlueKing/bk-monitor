@@ -72,9 +72,18 @@ $fatal-red: #ea3536;
   }
 
   .skeleton-element {
-    width: 220px;
-    height: 18px;
-    border-radius: 2px;
+    &.event-detail-title {
+      flex: 1;
+      height: 44px;
+      margin: 4px 0;
+    }
+
+    &.btn-item {
+      width: 72px;
+      height: 42px;
+      padding: 0;
+      margin-left: 5px;
+    }
   }
 
   .btn-strategy-detail {

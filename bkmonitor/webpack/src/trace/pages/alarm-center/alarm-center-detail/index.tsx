@@ -25,10 +25,8 @@
  */
 import { defineComponent, watch } from 'vue';
 
-import { Message, Sideslider } from 'bkui-vue';
-import { copyText } from 'monitor-common/utils';
+import { Sideslider } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
-import { useI18n } from 'vue-i18n';
 
 import DetailCommon from '../detail-common';
 import EventDetailHead from './components/event-detail-head';
@@ -48,9 +46,9 @@ export default defineComponent({
   },
   emits: ['update:show'],
   setup(props, { emit }) {
-    const { t } = useI18n();
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { bizId, alarmId, alarmDetail } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId } = storeToRefs(alarmCenterDetailStore);
+
     watch(
       () => props.alarmId,
       newVal => {
@@ -61,50 +59,12 @@ export default defineComponent({
       { immediate: true }
     );
 
-    // 复制事件详情连接
-    const handleToEventDetail = (type: 'action-detail' | 'detail', isNewPage = false) => {
-      let url = location.href.replace(location.hash, `#/event-center/${type}/${alarmId.value}`);
-      url = url.replace(location.search, `?bizId=${bizId.value}`);
-      if (isNewPage) {
-        window.open(url);
-        return;
-      }
-      let success = true;
-      copyText(url, msg => {
-        Message({
-          message: msg,
-          theme: 'error',
-        });
-        success = false;
-      });
-      if (success) {
-        Message({
-          message: t('复制成功'),
-          theme: 'success',
-        });
-      }
-    };
-
-    // 作为新页面打开
-    const _newPageBtn = (type: 'action-detail' | 'detail') => {
-      return (
-        <span
-          class='new-page-btn'
-          onClick={() => handleToEventDetail(type, true)}
-        >
-          <span class='btn-text'>{t('新开页')}</span>
-          <span class='icon-monitor icon-fenxiang' />
-        </span>
-      );
-    };
-
     const handleShowChange = (isShow: boolean) => {
       emit('update:show', isShow);
     };
 
     return {
       handleShowChange,
-      alarmDetail,
     };
   },
   render() {
@@ -112,8 +72,8 @@ export default defineComponent({
       <Sideslider
         width={1280}
         v-slots={{
-          header: <EventDetailHead />,
-          default: <DetailCommon data={this.alarmDetail} />,
+          header: () => <EventDetailHead />,
+          default: () => <DetailCommon />,
         }}
         isShow={this.show}
         onUpdate:isShow={this.handleShowChange}
