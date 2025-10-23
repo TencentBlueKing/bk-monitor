@@ -24,15 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onMounted, provide, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent } from 'vue';
 
 import { type IBookMark, BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
-import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
-import { createAutoTimeRange } from '../../../../../../../plugins/charts/failure-chart/failure-alarm-chart';
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
-
-import type { IAlert } from '../../../../typeing';
 
 import './panel-host-dashboard.scss';
 
@@ -43,22 +39,18 @@ export default defineComponent({
     dashboardId: {
       type: String,
     },
+    /** host 场景指标视图配置信息 */
     sceneData: {
       type: Object as PropType<IBookMark>,
       default: () => ({ id: '', panels: [], name: '' }),
     },
-    detail: {
-      type: Object as PropType<IAlert>,
+    /** 图表请求参数变量 */
+    viewOptions: {
+      type: Object as PropType<Record<string, unknown>>,
       default: () => ({}),
     },
   },
   setup(props) {
-    /** 数据时间间隔 */
-    const timeRange = shallowRef(DEFAULT_TIME_RANGE);
-    /** 是否立即刷新图表数据 */
-    const refreshImmediate = shallowRef('');
-    /** 图表请求参数变量 */
-    const viewOptions = shallowRef<Record<string, unknown>>({});
     /** 需要渲染的仪表盘面板配置数组 */
     const sceneView = computed(() => {
       const transformData = new BookMarkModel(props.sceneData || { id: '', panels: [], name: '' });
@@ -84,65 +76,7 @@ export default defineComponent({
       return transformData;
     });
 
-    provide('timeRange', timeRange);
-    provide('refreshImmediate', refreshImmediate);
-    watch(
-      () => props.detail,
-      () => {
-        init();
-      }
-    );
-    onMounted(() => {
-      init();
-    });
-
-    /**
-     * @description 初始化 数据时间间隔 & 图表请求参数变量
-     */
-    function init() {
-      const currentTarget: Record<string, any> = {
-        bk_target_ip: '0.0.0.0',
-        bk_target_cloud_id: '0',
-      };
-      const variables: Record<string, any> = {
-        bk_target_ip: '0.0.0.0',
-        bk_target_cloud_id: '0',
-        ip: '0.0.0.0',
-        bk_cloud_id: '0',
-      };
-
-      for (const item of props.detail?.dimensions ?? []) {
-        if (item.key === 'bk_host_id') {
-          variables.bk_host_id = item.value;
-          currentTarget.bk_host_id = item.value;
-        }
-        if (['bk_target_ip', 'ip', 'bk_host_id'].includes(item.key)) {
-          variables.bk_target_ip = item.value;
-          variables.ip = item.value;
-          currentTarget.bk_target_ip = item.value;
-        }
-        if (['bk_cloud_id', 'bk_target_cloud_id', 'bk_host_id'].includes(item.key)) {
-          variables.bk_target_cloud_id = item.value;
-          variables.bk_cloud_id = item.value;
-          currentTarget.bk_target_cloud_id = item.value;
-        }
-      }
-
-      const interval = props.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-      const { startTime, endTime } = createAutoTimeRange(props.detail.begin_time, props.detail.end_time, interval);
-
-      timeRange.value = [startTime, endTime];
-      timeRange.value = DEFAULT_TIME_RANGE;
-      viewOptions.value = {
-        method: 'AVG',
-        variables,
-        interval,
-        group_by: [],
-        current_target: currentTarget,
-      };
-    }
-
-    return { sceneView, viewOptions };
+    return { sceneView };
   },
   render() {
     return (
