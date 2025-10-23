@@ -34,7 +34,7 @@ import type { AlarmDetail } from '../../pages/alarm-center/typings/detail';
 
 export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => {
   /** 告警详情 */
-  const alarmDetail = shallowRef<AlarmDetail | null>(null);
+  const alarmDetail = shallowRef<AlarmDetail | null>();
   /** 告警ID */
   const alarmId = shallowRef<string>('');
   /** 加载状态 */
@@ -70,6 +70,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     alarmDetail.value = null;
     loading.value = false;
   });
+
   return {
     alarmDetail,
     alarmId,

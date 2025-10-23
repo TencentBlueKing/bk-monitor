@@ -23,13 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 import { shallowRef } from 'vue';
 import { computed } from 'vue';
 
-import { Loading, Tab } from 'bkui-vue';
+import { Tab } from 'bkui-vue';
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
+import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
+import { useAlarmBasicInfo } from '../composables/use-alarm-baseinfo';
 import AlarmAlert from './components/alarm-alert';
 import AlarmInfo from './components/alarm-info';
 import PanelAlarm from './components/panel-alarm';
@@ -41,17 +44,17 @@ import PanelLog from './components/panel-log';
 import PanelMetric from './components/panel-metric';
 import PanelView from './components/panel-view';
 
-import type { AlarmDetail } from '../typings/detail';
-
 import './index.scss';
 
 export default defineComponent({
   name: 'DetailCommon',
-  props: {
-    data: Object as PropType<AlarmDetail>,
-  },
-  setup(props) {
+  setup() {
     const { t } = useI18n();
+    const alarmCenterDetailStore = useAlarmCenterDetailStore();
+    const { alarmDetail, loading } = storeToRefs(alarmCenterDetailStore);
+
+    const { alertActionOverview, handleAlarmConfirm, handleQuickShield } = useAlarmBasicInfo();
+    console.log(alertActionOverview);
 
     const panelTabList = [
       {
@@ -88,7 +91,6 @@ export default defineComponent({
       },
     ];
 
-    const isLoading = shallowRef(false);
     const currentPanel = shallowRef(panelTabList[0].name);
 
     const panelCom = computed(() => {
@@ -106,35 +108,36 @@ export default defineComponent({
       return comMap[currentPanel.value];
     });
 
-    const handleAlarmConfirm = () => {};
-
-    const handleQuickShield = () => {};
-
     return () => (
-      <Loading loading={isLoading.value}>
-        <div class='alarm-center-detail-box'>
-          <AlarmAlert
-            data={props.data}
-            onAlarmConfirm={handleAlarmConfirm}
-            onQuickShield={handleQuickShield}
+      <div class='alarm-center-detail-box'>
+        <AlarmAlert
+          data={alarmDetail.value}
+          onAlarmConfirm={handleAlarmConfirm}
+          onQuickShield={handleQuickShield}
+        />
+        {loading.value ? (
+          <div class='alarm-basic-info' />
+        ) : (
+          <AlarmInfo
+            alertActionOverview={alertActionOverview.value}
+            data={alarmDetail.value}
           />
-          <AlarmInfo data={props.data} />
-          <Tab
-            class='panel-tab'
-            v-model:active={currentPanel.value}
-            type='unborder-card'
-          >
-            {panelTabList.map(item => (
-              <Tab.TabPanel
-                key={item.name}
-                label={item.label}
-                name={item.name}
-              />
-            ))}
-          </Tab>
-          <panelCom.value detail={props.data} />
-        </div>
-      </Loading>
+        )}
+        <Tab
+          class='panel-tab'
+          v-model:active={currentPanel.value}
+          type='unborder-card'
+        >
+          {panelTabList.map(item => (
+            <Tab.TabPanel
+              key={item.name}
+              label={item.label}
+              name={item.name}
+            />
+          ))}
+        </Tab>
+        <panelCom.value detail={alarmDetail.value} />
+      </div>
     );
   },
 });

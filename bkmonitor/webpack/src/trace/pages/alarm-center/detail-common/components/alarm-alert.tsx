@@ -29,16 +29,14 @@ import { computed } from 'vue';
 import { Button } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { AlarmStatusIconMap } from '../../typings';
-
-import type { IAlert } from '../typeing';
+import { type AlarmDetail, AlarmStatusIconMap } from '../../typings';
 
 import './alarm-alert.scss';
 
 export default defineComponent({
   name: 'AlarmAlert',
   props: {
-    data: Object as PropType<IAlert>,
+    data: Object as PropType<AlarmDetail>,
   },
   emits: ['alarmConfirm', 'quickShield'],
   setup(props, { emit }) {

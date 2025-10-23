@@ -26,38 +26,54 @@
 import { shallowRef, watch } from 'vue';
 import { onScopeDispose } from 'vue';
 
-import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
-import { fetchListAlertFeedback } from '../services/alarm-detail';
+import { searchAction } from 'monitor-api/modules/alert';
 
-export function useAlarmDetail() {
+import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
+
+export function useAlarmBasicInfo() {
   const alarmCenterDetailStore = useAlarmCenterDetailStore();
 
-  /** 是否反馈 */
-  const isFeedback = shallowRef(false);
+  const alertActionOverview = shallowRef(null);
 
-  const getAlertFeedback = async () => {
-    const data = await fetchListAlertFeedback(
-      alarmCenterDetailStore.alarmDetail.id,
-      alarmCenterDetailStore.alarmDetail.bk_biz_id
-    ).catch(() => []);
-    isFeedback.value = data.length > 0;
+  // 获取处理状态数据
+  const getHandleListData = async () => {
+    const params = {
+      bk_biz_id: alarmCenterDetailStore.alarmDetail.bk_biz_id,
+      page: 1,
+      page_size: 100,
+      alert_ids: [alarmCenterDetailStore.alarmId],
+      status: ['failure', 'success', 'partial_failure'],
+      ordering: ['-create_time'],
+      conditions: [{ key: 'parent_action_id', value: [0], method: 'eq' }], // 处理状态数据写死条件
+    };
+    const data = await searchAction(params);
+    alertActionOverview.value = data.overview;
   };
 
+  /** 告警确认 */
+  const handleAlarmConfirm = async () => {};
+
+  /** 告警屏蔽 */
+  const handleQuickShield = async () => {};
+
   watch(
-    alarmCenterDetailStore.alarmDetail,
+    () => alarmCenterDetailStore.alarmDetail,
     newVal => {
+      console.log(newVal);
       if (newVal) {
-        getAlertFeedback();
+        getHandleListData();
       }
     },
     { immediate: true }
   );
 
   onScopeDispose(() => {
-    isFeedback.value = false;
+    alertActionOverview.value = null;
   });
 
   return {
-    isFeedback,
+    alertActionOverview,
+    handleAlarmConfirm,
+    handleQuickShield,
   };
 }
