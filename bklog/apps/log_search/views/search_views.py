@@ -23,7 +23,9 @@ import copy
 import json
 import math
 
+import arrow
 from django.conf import settings
+from django.http import StreamingHttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -1918,7 +1920,7 @@ class SearchViewSet(APIViewSet):
     @detail_route(methods=["POST"], url_path="chart")
     def chart(self, request, index_set_id=None):
         """
-        @api {get} /search/index_set/$index_set_id/chart/
+        @api {post} /search/index_set/$index_set_id/chart/
         @apiDescription 获取图表信息
         @apiName chart
         @apiGroup 11_Search
@@ -1939,11 +1941,20 @@ class SearchViewSet(APIViewSet):
         """
         params = self.params_valid(ChartSerializer)
         bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+        is_export = params.pop("is_export", False)
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+        if is_export or FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
             params["index_set_ids"] = [index_set_id]
             params["bk_biz_id"] = bk_biz_id
             query_handler = UnifyQueryChartHandler(params)
+            if is_export:
+                file_name = f"bklog_{index_set_id}_{arrow.now().format('YYYYMMDD_HHmmSS')}.csv"
+                response = StreamingHttpResponse(
+                    query_handler.export_chart_data(),
+                    content_type="text/csv",
+                )
+                response["Content-Disposition"] = f'attachment; filename="{file_name}"'
+                return response
             result = query_handler.get_chart_data()
         else:
             instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])

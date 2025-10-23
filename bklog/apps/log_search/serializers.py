@@ -1029,6 +1029,7 @@ class ChartSerializer(serializers.Serializer):
         label=_("查询模式"), required=False, choices=QueryMode.get_choices(), default=QueryMode.SQL.value
     )
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+    is_export = serializers.BooleanField(label=_("是否导出"), default=False)
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
