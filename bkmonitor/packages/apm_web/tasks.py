@@ -242,8 +242,8 @@ def cache_application_scope_name():
 
     cache_agent = caches["redis"]
 
-    # 获取按服务缓存的配置
-    service_cache_config = settings.APM_SERVICE_CACHE_APPLICATIONS
+    # 获取按服务缓存的灰度应用列表
+    service_cache_apps = settings.APM_SERVICE_CACHE_APPLICATIONS
 
     for application in Application.objects.filter(is_enabled=True, is_enabled_metric=True):
         try:
@@ -255,28 +255,24 @@ def cache_application_scope_name():
             if result_table_id is None:
                 continue
 
-            # 检查是否需要按服务粒度缓存
             app_key = f"{bk_biz_id}-{application.app_name}"
-            service_names = service_cache_config.get(app_key, [])
+            is_service_cache_enabled = app_key in service_cache_apps
 
-            if service_names:
+            if is_service_cache_enabled:
                 # 按服务粒度缓存
-                logger.info(
-                    f"[CACHE_APPLICATION_SCOPE_NAME] caching by service for {app_key}, services: {service_names}"
-                )
-                _cache_by_services(application, result_table_id, service_names, cache_agent)
+                logger.info(f"[CACHE_APPLICATION_SCOPE_NAME] caching by service for {app_key}")
+                monitor_info = _cache_by_services(application, result_table_id, cache_agent)
             else:
                 # 按应用粒度缓存
                 monitor_info = MetricHelper.get_monitor_info(bk_biz_id, result_table_id)
-                if monitor_info and isinstance(monitor_info, dict):
-                    cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(
-                        bk_biz_id=bk_biz_id, application_id=application_id
-                    )
-                    cached_data = cache_agent.get(cache_key)
-                    old_monitor_info = deserialize_and_decompress(cached_data) if cached_data else {}
-                    merged_monitor_info = MetricHelper.merge_monitor_info(monitor_info, old_monitor_info)
-                    cache_agent.set(cache_key, compress_and_serialize(merged_monitor_info))
-                    cache_agent.expire(cache_key, 60 * 60 * 24)
+
+            if monitor_info and isinstance(monitor_info, dict):
+                cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(bk_biz_id=bk_biz_id, application_id=application_id)
+
+                cache_agent.set(cache_key, compress_and_serialize(monitor_info))
+                cache_agent.expire(cache_key, 60 * 60 * 24)
+
+                logger.info(f"[CACHE_APPLICATION_SCOPE_NAME] cached data for {bk_biz_id}-{application.app_name}")
 
         except Exception as e:  # noqa
             logger.warning(
@@ -286,12 +282,11 @@ def cache_application_scope_name():
     logger.info("[CACHE_APPLICATION_SCOPE_NAME] task finished")
 
 
-def _cache_by_services(application, result_table_id, service_names, cache_agent):
+def _cache_by_services(application, result_table_id, cache_agent):
     """
-    1. 获取应用所有服务，过滤出有效服务
-    2. 为每个有效服务查询指标数据
-    3. 过滤旧数据只保留指定服务
-    4. 合并新旧数据写回缓存
+    1. 获取应用所有服务
+    2. 为每个服务查询指标数据
+    3. 返回合并后的数据
     """
     from apm_web.handlers.service_handler import ServiceHandler
 
@@ -302,16 +297,13 @@ def _cache_by_services(application, result_table_id, service_names, cache_agent)
     all_services = ServiceHandler.list_services(application)
     all_service_names = [service["topo_key"] for service in all_services]
 
-    # 过滤出需要缓存的服务
-    valid_service_names = [name for name in service_names if name in all_service_names]
-
-    if not valid_service_names:
-        logger.warning(f"[CACHE_APPLICATION_SCOPE_NAME] no valid services found for {bk_biz_id}-{application.app_name}")
-        return
+    if not all_service_names:
+        logger.warning(f"[CACHE_APPLICATION_SCOPE_NAME] no services found for {bk_biz_id}-{application.app_name}")
+        return None
 
     # 为每个服务获取指标数据
     service_monitor_info = {}
-    for service_name in valid_service_names:
+    for service_name in all_service_names:
         try:
             service_monitor_info[service_name] = MetricHelper.get_monitor_info(
                 bk_biz_id, result_table_id, service_name=service_name
@@ -320,25 +312,19 @@ def _cache_by_services(application, result_table_id, service_names, cache_agent)
             logger.warning(f"[CACHE_APPLICATION_SCOPE_NAME] failed to get monitor info for service {service_name}: {e}")
 
     if service_monitor_info:
-        # 使用相同的缓存key，但只存储指定服务的数据
+        # 获取旧缓存数据并合并
         cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(bk_biz_id=bk_biz_id, application_id=application_id)
         cached_data = cache_agent.get(cache_key)
         old_monitor_info = deserialize_and_decompress(cached_data) if cached_data else {}
 
-        # 合并数据，但只保留指定服务的数据
-        filtered_old_monitor_info = {
-            service_name: service_data
-            for service_name, service_data in old_monitor_info.items()
-            if service_name in valid_service_names
-        }
-        merged_monitor_info = MetricHelper.merge_monitor_info(service_monitor_info, filtered_old_monitor_info)
-
-        cache_agent.set(cache_key, compress_and_serialize(merged_monitor_info))
-        cache_agent.expire(cache_key, 60 * 60 * 24)
+        merged_monitor_info = MetricHelper.merge_monitor_info(service_monitor_info, old_monitor_info)
 
         logger.info(
-            f"[CACHE_APPLICATION_SCOPE_NAME] cached {len(service_monitor_info)} services for {bk_biz_id}-{application.app_name}"
+            f"[CACHE_APPLICATION_SCOPE_NAME] got {len(service_monitor_info)} services for {bk_biz_id}-{application.app_name}"
         )
+        return merged_monitor_info
+
+    return None
 
 
 @shared_task(ignore_result=True)
