@@ -184,7 +184,10 @@ export default defineComponent({
               }
             }
           } else {
-            handleCheck(props.fields[0]);
+            if (props.fields?.[0]) {
+              handleCheck(props.fields[0]);
+            }
+
             // 需要等待popover 动画执行完毕 300ms
             // setTimeout(() => {
             //   searchInputRef.value?.focus();

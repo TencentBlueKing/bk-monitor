@@ -488,6 +488,7 @@ export default defineComponent({
                 loadDelay={this.loadDelay}
                 placeholder={this.placeholder}
                 value={this.uiValue}
+                zIndex={this.zIndex}
                 onChange={this.handleUiValueChange}
               />
             ) : (
@@ -499,6 +500,7 @@ export default defineComponent({
                 placeholder={this.placeholder}
                 qsSelectorOptionsWidth={this.qsSelectorOptionsWidth}
                 value={this.qsValue}
+                zIndex={this.zIndex}
                 onChange={this.handleQsValueChange}
                 onQuery={() => this.handleQuery()}
               />
