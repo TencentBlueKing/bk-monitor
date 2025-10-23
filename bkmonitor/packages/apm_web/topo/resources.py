@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 
 from apm_web.topo.constants import GraphViewType, SourceType, TopoLinkType
@@ -87,7 +87,6 @@ class TopoViewResource(Resource):
             service_name=validated_data.get("service_name"),
             runtime={"start_time": start_time, "end_time": end_time},
         )
-
         graph = GraphQuery(**{**params, "start_time": start_time, "end_time": end_time}).execute(
             edge_data_type=validated_data["edge_data_type"],
             converter=converter,

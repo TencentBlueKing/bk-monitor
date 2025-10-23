@@ -5,7 +5,7 @@
   "name": "DB",
   "variables": [
     {
-      "title": "DB类型",
+      "title": "_(DB类型)",
       "type": "list",
       "targets": [
         {
@@ -24,7 +24,7 @@
       ]
     },
     {
-      "title": "DB实例",
+      "title": "_(DB实例)",
       "type": "list",
       "targets": [
         {
@@ -45,7 +45,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "请求数",
+      "title": "_(请求数)",
       "type": "graph",
       "gridPos": {
         "x": 0,
@@ -58,7 +58,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "总数量",
+          "alias": "_(总数量)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -131,7 +131,7 @@
     },
     {
       "id": 2,
-      "title": "错误数",
+      "title": "_(错误数)",
       "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
@@ -144,7 +144,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "错误数",
+          "alias": "_(错误数)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -231,7 +231,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "错误率",
+          "alias": "_(错误率)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -369,7 +369,7 @@
     },
     {
       "id": 3,
-      "title": "耗时",
+      "title": "_(耗时)",
       "gridPos": {
         "x": 16,
         "y": 0,
@@ -863,7 +863,7 @@
     },
     {
       "id": 4,
-      "title": "命名语句统计",
+      "title": "_(命名语句统计)",
       "type": "table-chart",
       "targets": [
         {
@@ -904,7 +904,7 @@
     },
     {
       "id": 5,
-      "title": "命名语句明细",
+      "title": "_(命名语句明细)",
       "type": "table-chart",
       "targets": [
         {
@@ -938,7 +938,7 @@
     },
     {
       "id": 6,
-      "title": "异常事件",
+      "title": "_(异常事件)",
       "type": "api_message",
       "targets": [
         {
@@ -973,7 +973,7 @@
   "overview_panels": [
     {
       "id": 1,
-      "title": "请求数",
+      "title": "_(请求数)",
       "type": "graph",
       "gridPos": {
         "x": 0,
@@ -986,7 +986,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "总数量",
+          "alias": "_(总数量)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -1057,7 +1057,7 @@
     },
     {
       "id": 2,
-      "title": "错误数",
+      "title": "_(错误数)",
       "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
@@ -1070,7 +1070,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "错误数",
+          "alias": "_(错误数)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -1155,7 +1155,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "错误率",
+          "alias": "_(错误率)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -1289,7 +1289,7 @@
     },
     {
       "id": 3,
-      "title": "耗时",
+      "title": "_(耗时)",
       "gridPos": {
         "x": 16,
         "y": 0,
@@ -1791,7 +1791,7 @@
     },
     {
       "id": 4,
-      "title": "命名语句统计",
+      "title": "_(命名语句统计)",
       "type": "table-chart",
       "targets": [
         {
@@ -1831,7 +1831,7 @@
     },
     {
       "id": 5,
-      "title": "命名语句明细",
+      "title": "_(命名语句明细)",
       "type": "table-chart",
       "targets": [
         {
@@ -1864,7 +1864,7 @@
     },
     {
       "id": 6,
-      "title": "异常事件",
+      "title": "_(异常事件)",
       "type": "api_message",
       "targets": [
         {
