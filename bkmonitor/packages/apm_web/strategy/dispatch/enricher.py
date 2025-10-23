@@ -24,6 +24,7 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from apm_web.models import StrategyTemplate
 from apm_web.strategy.constants import StrategyTemplateCategory, StrategyTemplateSystem
+from apm_web.strategy.helper import simplify_conditions
 from bkmonitor.data_source import q_to_conditions, conditions_to_q
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -231,7 +232,8 @@ class BaseEnricher(abc.ABC):
         :return:
         """
         conditions: list[dict[str, Any]] = dispatch_config.context.get("CONDITIONS", [])
-        dispatch_config.context["CONDITIONS"] = q_to_conditions(conditions_to_q(conditions) & q)
+        # 多个上下文的条件合并，通过 simplify_conditions 避免产生重复条件，误判成差异。
+        dispatch_config.context["CONDITIONS"] = simplify_conditions(q_to_conditions(conditions_to_q(conditions) & q))
 
     def upsert_message_template(self, dispatch_config: DispatchConfig) -> None:
         """设置告警通知模板"""

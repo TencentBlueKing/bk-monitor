@@ -24,7 +24,7 @@ from bkmonitor.strategy.serializers import allowed_threshold_method
 
 from . import constants
 from apm_web.models import StrategyTemplate, StrategyInstance
-from apm_web.strategy.helper import get_user_groups
+from apm_web.strategy.helper import get_user_groups, simplify_conditions
 
 
 class DetectSerializer(serializers.Serializer):
@@ -425,6 +425,13 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         if qs.filter(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"], name=data["name"]).exists():
             raise serializers.ValidationError(_("同一应用下策略模板名称不能重复"))
 
+    @staticmethod
+    def _validate_context(data: dict[str, Any]) -> None:
+        conditions: Any = data.get("context", {}).get("CONDITIONS")
+        if conditions and isinstance(conditions, list):
+            simplified_conditions = simplify_conditions(conditions)
+            data["context"]["CONDITIONS"] = simplified_conditions
+
     @classmethod
     def set_auto_apply(
         cls, data: dict[str, Any], instance: StrategyTemplate, auto_applied_at: datetime.datetime | None = None
@@ -435,12 +442,14 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
             data["auto_applied_at"] = auto_applied_at or timezone.now()
 
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
+        self._validate_context(validated_data)
         self._validate_name(StrategyTemplate.origin_objects.exclude(pk=instance.pk), validated_data)
         self.validate_auto_apply([instance], validated_data)
         self.set_auto_apply(validated_data, instance)
         return super().update(instance, validated_data)
 
     def create(self, validated_data: dict[str, Any]) -> StrategyTemplate:
+        self._validate_context(validated_data)
         self._validate_name(StrategyTemplate.origin_objects.all(), validated_data)
         self.validate_auto_apply(None, validated_data)
         instance: StrategyTemplate = super().create(validated_data)
