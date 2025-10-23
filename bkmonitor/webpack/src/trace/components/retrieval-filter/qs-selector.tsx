@@ -137,7 +137,7 @@ export default defineComponent({
         theme: 'light common-monitor padding-0',
         arrow: false,
         appendTo: document.body,
-        zIndex: 998,
+        zIndex: props.zIndex,
         maxWidth: props.qsSelectorOptionsWidth || 1600,
         offset: [0, 5],
         interactive: true,

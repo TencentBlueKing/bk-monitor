@@ -408,6 +408,11 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Number,
     default: 200,
   },
+  // 下拉弹层z-index
+  zIndex: {
+    type: Number,
+    default: 1000,
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,
@@ -454,6 +459,11 @@ export const UI_SELECTOR_PROPS = {
   limit: {
     type: Number,
     default: 200,
+  },
+  // 下拉弹层z-index
+  zIndex: {
+    type: Number,
+    default: 1000,
   },
 };
 export const UI_SELECTOR_EMITS = {
@@ -677,6 +687,11 @@ export const QS_SELECTOR_PROPS = {
   placeholder: {
     type: String,
     default: window.i18n.t('快捷键 / ，可直接输入'),
+  },
+  // 下拉弹层z-index
+  zIndex: {
+    type: Number,
+    default: 1000,
   },
 };
 export const QS_SELECTOR_EMITS = {

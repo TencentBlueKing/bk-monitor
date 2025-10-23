@@ -23,25 +23,66 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowReactive } from 'vue';
+import { shallowRef } from 'vue';
 
 import { Button } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import RetrievalFilter from '../../../../../components/retrieval-filter/retrieval-filter';
+import { useAlarmLog } from '../../../composables/use-alarm-log';
 import IndexSetSelector from './index-set-selector/index-set-selector';
 import LogTable from './log-table/log-table';
+
+import type { AlarmDetail } from '../../../typings/detail';
 
 import './index.scss';
 
 export default defineComponent({
   name: 'PanelLog',
   props: {
-    id: String as PropType<string>,
+    detail: {
+      type: Object as PropType<AlarmDetail>,
+      default: () => null,
+    },
   },
-  setup() {
+  setup(props) {
     const { t } = useI18n();
+    const loading = shallowRef(false);
+    const indexSetList = shallowRef([]);
+    const selectIndexSet = shallowRef('');
+    const tableData = shallowReactive({
+      data: [],
+      total: 0,
+      columns: [],
+      limit: 30,
+      offset: 0,
+    });
+
+    const { getIndexSetList, updateTableData } = useAlarmLog(props.detail);
+
+    async function init() {
+      loading.value = true;
+      indexSetList.value = await getIndexSetList();
+      selectIndexSet.value = indexSetList.value[0]?.index_set_id || '';
+      const data = await updateTableData({
+        index_set_id: selectIndexSet.value,
+        keyword: '',
+        limit: tableData.limit,
+        offset: tableData.offset,
+      });
+      console.log(data);
+      tableData.data = data?.data || [];
+      tableData.total = data?.total || 0;
+      tableData.columns = data?.columns || [];
+      loading.value = false;
+    }
+
+    init();
+
     return {
+      indexSetList,
+      tableData,
       t,
     };
   },
@@ -49,7 +90,7 @@ export default defineComponent({
     return (
       <div class='alarm-center-detail-panel-alarm-log'>
         <div class='panel-log-header'>
-          <IndexSetSelector />
+          <IndexSetSelector indexSetList={this.indexSetList} />
           <Button
             class='ml-16'
             theme='primary'
@@ -60,9 +101,9 @@ export default defineComponent({
           </Button>
         </div>
         <div class='panel-log-filter'>
-          <RetrievalFilter />
+          <RetrievalFilter zIndex={4000} />
         </div>
-        <LogTable />
+        <LogTable tableData={this.tableData} />
       </div>
     );
   },

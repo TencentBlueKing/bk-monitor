@@ -29,18 +29,21 @@ import { type PropType, defineComponent, onUnmounted, shallowRef, useTemplateRef
 import { useEventListener } from '@vueuse/core';
 import { useTippy } from 'vue-tippy';
 
-import IndexSetSelectorPop from './index-set-selector-pop';
+import IndexSetSelectorPopSimple from './index-set-selector-pop-simple';
+
+import type { IIndexSet } from './typing';
 
 import './index-set-selector.scss';
 
 export default defineComponent({
   name: 'IndexSetSelector',
   props: {
-    id: String as PropType<string>,
+    indexSetList: {
+      type: Array as PropType<IIndexSet[]>,
+      default: () => [],
+    },
   },
-  setup(props) {
-    console.log(props.id);
-
+  setup(_props) {
     const elRef = useTemplateRef<HTMLDivElement>('el');
     const selectorRef = useTemplateRef<HTMLDivElement>('selector');
 
@@ -71,7 +74,7 @@ export default defineComponent({
         theme: 'light common-monitor padding-0',
         arrow: false,
         appendTo: document.body,
-        zIndex: 998,
+        zIndex: 4000,
         maxWidth: 700,
         offset: [0, 6],
         interactive: true,
@@ -143,7 +146,7 @@ export default defineComponent({
         </div>
         <div style={{ display: 'none' }}>
           <div ref='selector'>
-            <IndexSetSelectorPop />
+            <IndexSetSelectorPopSimple list={this.indexSetList} />
           </div>
         </div>
       </div>
