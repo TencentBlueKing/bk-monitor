@@ -119,7 +119,7 @@ class StrategyBuilder:
 
             # 去掉 APP_NAME 过滤条件
             processed_agg_condition: list[dict[str, Any]] = []
-            for cond in query_config.get("agg_condition"):
+            for cond in query_config.get("agg_condition", []):
                 if cond.get("key") != CommonMetricTag.APP_NAME.value:
                     processed_agg_condition.append(cond)
             query_config["agg_condition"] = processed_agg_condition
