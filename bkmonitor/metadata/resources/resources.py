@@ -1459,10 +1459,11 @@ class ModifyTimeSeriesGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default=None)
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         # 指定group_id的情况下，无需使用租户ID再次过滤
         try:
             time_series_group = models.TimeSeriesGroup.objects.get(
-                bk_tenant_id=validated_request_data["bk_tenant_id"],
+                bk_tenant_id=bk_tenant_id,
                 time_series_group_id=validated_request_data.pop("time_series_group_id"),
                 is_delete=False,
             )
