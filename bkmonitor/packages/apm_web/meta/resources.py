@@ -64,7 +64,6 @@ from apm_web.handlers.endpoint_handler import EndpointHandler
 from apm_web.handlers.instance_handler import InstanceHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
-
 from apm_web.icon import get_icon
 from apm_web.meta.handlers.custom_service_handler import Matcher
 from apm_web.meta.handlers.sampling_handler import SamplingHelpers
