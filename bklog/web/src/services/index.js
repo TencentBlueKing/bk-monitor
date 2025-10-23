@@ -55,6 +55,7 @@ import * as retrieve from './retrieve';
 import * as source from './source';
 import * as unionSearch from './union-search';
 import * as userInfo from './userInfo';
+import * as dashboard from './dashboard.js';
 const getMyProjectList = {
   url: '/meta/projects/mine/',
   method: 'get',
@@ -110,4 +111,5 @@ export default {
   newReport,
   graphAnalysis,
   alertStrategy,
+  dashboard
 };

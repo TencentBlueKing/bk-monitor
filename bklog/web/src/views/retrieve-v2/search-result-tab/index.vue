@@ -168,7 +168,6 @@ onMounted(() => {
     </div>
      <DashboardDialog
       :is-show="showDialog"
-      :collection-list="[]"
       @update:isShow="handleDialogUpdate"
       @on-collection-success="handleCollectionSuccess"
     />
