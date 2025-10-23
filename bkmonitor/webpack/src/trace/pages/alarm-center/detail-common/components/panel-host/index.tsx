@@ -23,16 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, provide, shallowRef, watch } from 'vue';
 
 import { random } from 'monitor-common/utils';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
+import { DEFAULT_TIME_RANGE } from '../../../../../components/time-range/utils';
+import { createAutoTimeRange } from '../../../../../plugins/charts/failure-chart/failure-alarm-chart';
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import { getHostSceneView } from '../../../services/alarm-detail';
-import { type IAlert } from '../../typeing';
-import PanelHostDashboard from './components/host-dashboard/panel-host-dashboard';
+import PanelHostDashboard from './components/panel-host-dashboard/panel-host-dashboard';
+import PanelHostSelector from './components/panel-host-selector/panel-host-selector';
 
+import type { AlarmDetail } from '../../../typings';
 import type { IBookMark } from 'monitor-ui/chart-plugins/typings';
 
 import './index.scss';
@@ -40,44 +43,86 @@ import './index.scss';
 export default defineComponent({
   name: 'PanelHost',
   props: {
-    id: {
-      type: String,
-    },
     detail: {
-      type: Object as PropType<IAlert>,
+      type: Object as PropType<AlarmDetail>,
       default: () => ({}),
     },
   },
   setup(props) {
-    /** host 场景指标视图配置信息 */
-    const hostSceneData = shallowRef<IBookMark>({ id: '', panels: [], name: '' });
-    /** 是否处于请求加载状态 */
-    const loading = shallowRef(false);
     /** 图表联动Id */
     const dashboardId = random(10);
-    /** 跳转至容器监控时的详情Id */
-    const detailId = computed(() => {
-      let ip: number | string = '0.0.0.0';
-      let cloudId: number | string = '0';
-      let bkHostId: number | string = 0;
 
-      for (const item of props.detail?.dimensions || []) {
-        if (item.key === 'bk_host_id') {
-          bkHostId = item.value;
-        }
-        if (['bk_target_ip', 'ip', 'bk_host_id'].includes(item.key)) {
-          ip = item.value;
-        }
-        if (['bk_cloud_id', 'bk_target_cloud_id', 'bk_host_id'].includes(item.key)) {
-          cloudId = item.value;
-        }
-      }
-      return bkHostId ? bkHostId : `${ip}-${cloudId}`;
+    /** host 场景指标视图配置信息 */
+    const hostSceneData = shallowRef<IBookMark>({ id: '', panels: [], name: '' });
+    /** 图表请求参数变量 */
+    const viewOptions = shallowRef<Record<string, any>>({});
+    /** 是否处于请求加载状态 */
+    const loading = shallowRef(false);
+    /** 是否立即刷新图表数据 */
+    const refreshImmediate = shallowRef('');
+
+    /** 数据时间间隔 */
+    const timeRange = computed(() => {
+      const interval = props.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
+      const { startTime, endTime } = createAutoTimeRange(props.detail?.begin_time, props.detail?.end_time, interval);
+      return startTime && endTime ? [startTime, endTime] : DEFAULT_TIME_RANGE;
     });
 
+    watch(
+      () => props.detail,
+      () => {
+        init();
+      }
+    );
+
+    provide('timeRange', timeRange);
+    provide('refreshImmediate', refreshImmediate);
     onMounted(() => {
       getDashboardPanels();
     });
+
+    /**
+     * @description 初始化 数据时间间隔 & 图表请求参数变量
+     */
+    function init() {
+      const currentTarget: Record<string, any> = {
+        bk_target_ip: '0.0.0.0',
+        bk_target_cloud_id: '0',
+      };
+      const variables: Record<string, any> = {
+        bk_target_ip: '0.0.0.0',
+        bk_target_cloud_id: '0',
+        ip: '0.0.0.0',
+        bk_cloud_id: '0',
+      };
+
+      for (const item of props.detail?.dimensions ?? []) {
+        if (item.key === 'bk_host_id') {
+          variables.bk_host_id = item.value;
+          currentTarget.bk_host_id = item.value;
+        }
+        if (['bk_target_ip', 'ip', 'bk_host_id'].includes(item.key)) {
+          variables.bk_target_ip = item.value;
+          variables.ip = item.value;
+          currentTarget.bk_target_ip = item.value;
+        }
+        if (['bk_cloud_id', 'bk_target_cloud_id', 'bk_host_id'].includes(item.key)) {
+          variables.bk_target_cloud_id = item.value;
+          variables.bk_cloud_id = item.value;
+          currentTarget.bk_target_cloud_id = item.value;
+        }
+      }
+
+      const interval = props.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
+
+      viewOptions.value = {
+        method: 'AVG',
+        variables,
+        interval,
+        group_by: [],
+        current_target: currentTarget,
+      };
+    }
 
     /**
      * @description 获取仪表盘数据数组
@@ -95,18 +140,26 @@ export default defineComponent({
      * @description 跳转主机检索页面
      */
     function handleToPerformance() {
+      const currentTarget = viewOptions.value?.current_target;
+
+      const ip = currentTarget?.bk_target_ip ?? '0.0.0.0';
+      const cloudId = currentTarget?.bk_target_cloud_id ?? '0';
+      const bkHostId = currentTarget?.bk_host_id ?? 0;
+
+      // 跳转至容器监控时的详情Id
+      const detailId = bkHostId ? bkHostId : `${ip}-${cloudId}`;
       window.open(
-        `${location.origin}${location.pathname}?bizId=${props.detail.bk_biz_id}#/performance/detail/${detailId.value}`
+        `${location.origin}${location.pathname}?bizId=${props.detail.bk_biz_id}#/performance/detail/${detailId}`
       );
     }
-    return { hostSceneData, dashboardId, handleToPerformance };
+    return { hostSceneData, dashboardId, viewOptions, handleToPerformance };
   },
   render() {
     return (
       <div class='alarm-center-detail-panel-host'>
         <div class='panel-host-white-bg-container'>
           <div class='host-selector-wrap'>
-            <div class='host-selector'>host-selector</div>
+            <PanelHostSelector class='host-selector' />
             <div
               class='host-explore-link-btn'
               onClick={this.handleToPerformance}
@@ -124,6 +177,7 @@ export default defineComponent({
           <PanelHostDashboard
             dashboardId={this.dashboardId}
             sceneData={this.hostSceneData}
+            viewOptions={this.viewOptions}
           />
         </div>
       </div>

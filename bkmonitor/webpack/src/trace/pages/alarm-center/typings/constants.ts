@@ -31,6 +31,28 @@ export enum AlarmType {
   INCIDENT = 'incident',
 }
 
+/** 告警详情 主机选择器类型 */
+export enum AlertDetailHostSelectorTypeEnum {
+  /** 主机级别 */
+  HOST = 'host',
+  /** 模块级别 */
+  MODULE = 'module',
+}
+
+/** 告警场景 表格批量操作栏按钮项 id */
+export enum AlertSelectAction {
+  /** 取消选择 */
+  CANCEL = 'cancel',
+  /** 一键拉群 */
+  CHAT = 'chat',
+  /** 批量确认 */
+  CONFIRM = 'confirm',
+  /** 批量分派 */
+  DISPATCH = 'dispatch',
+  /** 批量屏蔽 */
+  SHIELD = 'shield',
+}
+
 export const alarmTypeMap: { label: string; value: AlarmType }[] = [
   {
     label: window.i18n.t('告警'),
@@ -66,12 +88,12 @@ export const AlarmStatusIconMap = {
   RECOVERED: {
     icon: 'icon-mc-check-fill',
     iconColor: '#6FC5BF',
-    name: window.i18n.t('已恢复')
+    name: window.i18n.t('已恢复'),
   },
   CLOSED: {
     icon: '',
     iconColor: '#DCDEE5',
-    name: window.i18n.t('已失效')
+    name: window.i18n.t('已失效'),
   },
 };
 
@@ -288,17 +310,3 @@ export const MY_ALARM_BIZ_ID = -2;
 export const CONTENT_SCROLL_ELEMENT_CLASS_NAME = 'alarm-center-content';
 /** common-table 表格检测是否内容溢出弹出 tip 功能类名 */
 export const COMMON_TABLE_ELLIPSIS_CLASS_NAME = 'common-table-ellipsis';
-
-/** 告警场景 表格批量操作栏按钮项 id */
-export enum AlertSelectAction {
-  /** 取消选择 */
-  CANCEL = 'cancel',
-  /** 一键拉群 */
-  CHAT = 'chat',
-  /** 批量确认 */
-  CONFIRM = 'confirm',
-  /** 批量分派 */
-  DISPATCH = 'dispatch',
-  /** 批量屏蔽 */
-  SHIELD = 'shield',
-}
