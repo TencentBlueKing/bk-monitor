@@ -24,50 +24,36 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, reactive, shallowRef } from 'vue';
+import { computed, defineComponent, reactive, shallowRef, watch } from 'vue';
 
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import { deepClone } from 'monitor-common/utils/utils';
+import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import TemporaryShare from '../../../../components/temporary-share/temporary-share';
-import { useAppStore } from '../../../../store/modules/app';
+import { useAlarmCenterDetailStore } from '../../../../store/modules/alarm-center-detail';
+import { fetchListAlertFeedback } from '../../services/alarm-detail';
 import Feedback from './feedback';
 import ChatGroup from '@/pages/failure/alarm-detail/chat-group/chat-group';
 
-import type { IAlert } from '../../detail-common/typeing';
 import type { IChatGroupDialogOptions } from '../../typings';
 
 import './event-detail-head.scss';
 
 export default defineComponent({
   name: 'EventDetailHead',
-  props: {
-    eventId: {
-      type: [String, Number],
-      default: '',
-    },
-    bizId: {
-      type: [Number, String],
-      default: +window.bk_biz_id,
-    },
-    basicInfo: {
-      type: Object as PropType<IAlert>,
-      default: () => ({}),
-    },
-    /** 是否已反馈 */
-    isFeedback: {
-      type: Boolean,
-      default: true,
-    },
-  },
   setup(props) {
     const { t } = useI18n();
     const route = useRoute();
-    const store = useAppStore();
-    const bizId = computed(() => store.bizId);
+    const alarmCenterDetailStore = useAlarmCenterDetailStore();
+    /** 是否反馈 */
+    const isFeedback = shallowRef(false);
+
+    const { bizId, alarmId, alarmDetail, loading } = storeToRefs(alarmCenterDetailStore);
+
     /** 一键拉群弹窗 */
     const chatGroupDialog = reactive<IChatGroupDialogOptions>({
       show: false,
@@ -91,7 +77,7 @@ export default defineComponent({
         },
         {
           id: 'feedback',
-          title: props.isFeedback ? t('已反馈') : t('反馈'),
+          title: isFeedback.value ? t('已反馈') : t('反馈'),
           icon: 'icon-a-FeedBackfankui',
           isShow: true,
         },
@@ -104,17 +90,36 @@ export default defineComponent({
       ];
     });
 
+    /** 获取告警反馈 */
+    const getAlertFeedback = async () => {
+      const data = await fetchListAlertFeedback(
+        alarmCenterDetailStore.alarmDetail.id,
+        alarmCenterDetailStore.alarmDetail.bk_biz_id
+      ).catch(() => []);
+      isFeedback.value = data.length > 0;
+    };
+
+    watch(
+      () => alarmDetail.value,
+      newVal => {
+        if (newVal) {
+          getAlertFeedback();
+        }
+      },
+      { immediate: true }
+    );
+
     /** 策略详情跳转 */
     const toStrategyDetail = () => {
       // 如果 告警来源 是监控策略就要跳转到 策略详情 。
-      if (props.basicInfo.plugin_id === 'bkmonitor') {
+      if (alarmDetail.value.plugin_id === 'bkmonitor') {
         window.open(
-          `${location.origin}${location.pathname}?bizId=${props.basicInfo.bk_biz_id}/#/strategy-config/detail/${props.eventId}?fromEvent=true`
+          `${location.origin}${location.pathname}?bizId=${alarmDetail.value.bk_biz_id}/#/strategy-config/detail/${alarmId.value}?fromEvent=true`
         );
-      } else if (props.basicInfo.plugin_id) {
+      } else if (alarmDetail.value.plugin_id) {
         // 否则都新开一个页面并添加 告警源 查询，其它查询项保留。
         const query = deepClone(route.query);
-        query.queryString = `告警源 : "${props.basicInfo.plugin_id}"`;
+        query.queryString = `告警源 : "${alarmDetail.value.plugin_id}"`;
         const queryString = new URLSearchParams(query).toString();
         window.open(`${location.origin}${location.pathname}${location.search}/#/event-center?${queryString}`);
       }
@@ -137,8 +142,8 @@ export default defineComponent({
     };
     // 复制事件详情连接
     const handleToEventDetail = (type: 'action-detail' | 'detail') => {
-      let url = location.href.replace(location.hash, `#/event-center/${type}/${props.eventId}`);
-      url = url.replace(location.search, `?bizId=${props.bizId || bizId.value}`);
+      let url = location.href.replace(location.hash, `#/event-center/${type}/${alarmId.value}`);
+      url = url.replace(location.search, `?bizId=${bizId.value || bizId.value}`);
       copyText(url, msg => {
         Message({
           message: msg,
@@ -170,9 +175,9 @@ export default defineComponent({
      * @return {*}
      */
     const handleChatGroup = () => {
-      chatGroupDialog.assignee = props.basicInfo.assignee || [];
-      chatGroupDialog.alertName = props.basicInfo.alert_name;
-      chatGroupDialog.alertIds.splice(0, chatGroupDialog.alertIds.length, props.basicInfo.id);
+      chatGroupDialog.assignee = alarmDetail.value.assignee || [];
+      chatGroupDialog.alertName = alarmDetail.value.alert_name;
+      chatGroupDialog.alertIds.splice(0, chatGroupDialog.alertIds.length, alarmDetail.value.id);
       chatGroupShowChange(true);
     };
     /**
@@ -187,13 +192,18 @@ export default defineComponent({
     const handleFeedback = (v: boolean) => {
       feedbackDialog.value = v;
     };
-    const handleFeedBackConfirm = () => {};
+    const handleFeedBackConfirm = () => {
+      isFeedback.value = true;
+    };
 
     return {
       t,
       chatGroupDialog,
       feedbackDialog,
       btnGroupObject,
+      alarmDetail,
+      alarmId,
+      loading,
       getTagComponent,
       toStrategyDetail,
       handleToEventDetail,
@@ -204,42 +214,47 @@ export default defineComponent({
     };
   },
   render() {
+    if (this.loading)
+      return (
+        <div class='event-detail-head-main'>
+          <div class='level-tag skeleton-element' />
+          <div class='event-detail-title skeleton-element' />
+          <div class='event-detail-head-btn-group'>
+            <div class='btn-item skeleton-element' />
+            <div class='btn-item skeleton-element' />
+          </div>
+        </div>
+      );
     return (
       <div class='event-detail-head-main'>
-        {this.getTagComponent(this.basicInfo.severity)}
+        {this.getTagComponent(this.alarmDetail.severity)}
         <div class='event-detail-head-content'>
           <span class='event-id'>
-            ID: {this.eventId}
+            ID: {this.alarmId}
             {window.source_app === 'fta' ? (
               <i
                 class='icon-monitor icon-copy-link'
                 onClick={() => this.handleToEventDetail('detail')}
               />
             ) : (
-              <TemporaryShare
-                customData={{ eventId: this.eventId }}
-                navMode={'share'}
-                pageInfo={{ alertName: this.basicInfo.alert_name }}
-              />
+              <TemporaryShare />
             )}
           </span>
-          {this.basicInfo.alert_name ? (
+          {this.alarmDetail.alert_name && (
             <span
               class='basic-title-name'
-              v-bk-tooltips={{ content: this.basicInfo.alert_name, allowHTML: false, placements: ['bottom'] }}
+              v-bk-tooltips={{ content: this.alarmDetail.alert_name, allowHTML: false, placements: ['bottom'] }}
             >
-              {this.basicInfo.alert_name}
+              {this.alarmDetail.alert_name}
             </span>
-          ) : (
-            <div class='skeleton-element' />
           )}
 
-          {this.basicInfo.plugin_id ? (
+          {this.alarmDetail.plugin_id ? (
             <span
               class='btn-strategy-detail'
               onClick={this.toStrategyDetail}
             >
-              <span>{this.t('来源：{0}', [this.basicInfo.plugin_display_name])}</span>
+              <span>{this.t('来源：{0}', [this.alarmDetail.plugin_display_name])}</span>
               <i class='icon-monitor icon-fenxiang icon-float' />
             </span>
           ) : undefined}
@@ -267,7 +282,7 @@ export default defineComponent({
         />
         <Feedback
           key='feedback'
-          ids={[this.basicInfo.id]}
+          ids={[this.alarmDetail.id]}
           show={this.feedbackDialog}
           onConfirm={this.handleFeedBackConfirm}
           onUpdate:isShow={this.handleFeedback}

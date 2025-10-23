@@ -141,6 +141,13 @@ export type ActionTableItem = {
 };
 export type AlarmStorageKey = typeof ACTION_STORAGE_KEY | typeof ALERT_STORAGE_KEY | typeof INCIDENT_STORAGE_KEY;
 
+export type AlertActionOverview = {
+  children: { count: number; id: 'failure' | 'success'; name: string }[];
+  count: number;
+  id: string;
+  name: string;
+};
+
 /** 告警 -- 告警内容详情 */
 export interface AlertContentItem {
   expression: string;
@@ -150,9 +157,9 @@ export interface AlertContentItem {
   origin_sql: string;
   query_configs: QueryConfig[];
 }
-
 /** 告警 -- 关联事件数接口返回数据类型 */
 export type AlertEventCountResult = Record<string, number>;
+
 export interface AlertExtendInfoItem {
   data_label: string;
   hostname?: string;
@@ -160,9 +167,9 @@ export interface AlertExtendInfoItem {
   topo_info?: string;
   type?: string;
 }
-
 /** 告警 -- 关联告警信息接口返回数据类型 */
 export type AlertExtendInfoResult = Record<string, AlertExtendInfoItem>;
+
 /**
  * 告警 table 数据
  */
@@ -253,11 +260,11 @@ export type AnalysisFieldAggItem = {
   field: string; // 字段名，如 bk_biz_id
   is_char: boolean; // 是否为字符型
 };
-
 export interface AnalysisListItem extends AnalysisFieldAggItem {
   buckets: AnalysisListItemBucket[];
   name: string;
 }
+
 export type AnalysisListItemBucket = AnalysisBucket & { percent: number };
 
 export type AnalysisTopNDataResponse<T> = {

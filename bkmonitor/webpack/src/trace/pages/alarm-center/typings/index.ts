@@ -24,6 +24,6 @@
  * IN THE SOFTWARE.
  */
 export * from './constants';
+export * from './detail';
 export * from './services';
 export * from './table';
-export * from './detail';
