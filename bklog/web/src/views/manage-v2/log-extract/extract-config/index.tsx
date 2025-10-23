@@ -395,8 +395,8 @@ export default defineComponent({
           <bk-table-column
             scopedSlots={{
               default: ({ row }: any) => (
-                <div class='table-ceil-container'>
-                  <span v-bk-overflow-tips>{row.operator || '--'}</span>
+                <div class='table-ceil-container'>                  
+                  <bk-user-display-name user-id={row.operator || '--'}></bk-user-display-name>
                 </div>
               ),
             }}

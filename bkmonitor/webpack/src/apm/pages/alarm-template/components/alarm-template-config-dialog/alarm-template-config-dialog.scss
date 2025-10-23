@@ -1,4 +1,26 @@
 .alarm-template-config-dialog {
+  .alarm-template-dialog-wrap {
+    font-size: 12px;
+
+    .alarm-group-skeleton {
+      width: 120px;
+      height: 22px;
+      margin-top: 5px;
+    }
+
+    .alarm-group-wrap .alarm-group-tag-list {
+      margin-top: 0;
+
+      .alarm-group-tag {
+        margin-top: 0;
+      }
+
+      .add-btn {
+        margin-top: 0;
+      }
+    }
+  }
+
   .bk-dialog-footer {
     .bk-button {
       margin-right: 10px;

@@ -39,7 +39,10 @@
         {{ item.name }}
       </bk-radio>
     </bk-radio-group>
-    <div class="time-select">
+    <div
+      class="time-select"
+      :style="{ width: `${wrapWidth}px` }"
+    >
       <!-- 按小时 -->
       <bk-select
         v-if="typeValue === 5"
@@ -47,7 +50,7 @@
         v-model="hour"
         class="hour"
         :clearable="false"
-        style="width: 200px"
+        style="flex: 1"
         @change="getValue"
       >
         <bk-option
@@ -65,7 +68,7 @@
         class="week"
         :clearable="false"
         multiple
-        style="width: 200px"
+        style="flex: 1"
         @change="getValue"
       >
         <bk-option
@@ -82,7 +85,7 @@
         class="month"
         multiple
         :clearable="false"
-        style="width: 200px"
+        style="flex: 1"
         @change="getValue"
       >
         <bk-option
@@ -96,7 +99,7 @@
       <bk-time-picker
         v-if="[2, 3, 4].includes(typeValue)"
         v-model="dayTime"
-        style="width: 168px"
+        style="flex: 1"
         :clearable="false"
         :placeholder="'选择时间'"
         @change="v => getValue(v, 'time')"
@@ -110,8 +113,8 @@
       <bk-checkbox
         v-if="typeValue === 2"
         v-model="includeWeekend"
-        v-en-style="'width: 160px'"
-        style="font-size: 12px"
+        v-en-style="'width: 160px; margin-left: -168px; transform: translate3d(168px, 0, 0)'"
+        class="weekend-checkbox"
         @change="getValue"
         >{{ $t('包含周末') }}</bk-checkbox
       >
@@ -120,7 +123,7 @@
       <bk-date-picker
         v-if="typeValue === 1"
         v-model="onceTime"
-        style="width: 168px"
+        style="flex: 1"
         :clearable="false"
         :type="'datetime'"
         :options="datePickerOptions"
@@ -131,7 +134,7 @@
 </template>
 
 <script lang="ts">
-import { Component, Emit, Model, Vue, Watch } from 'vue-property-decorator';
+import { Component, Emit, Model, Prop, Vue, Watch } from 'vue-property-decorator';
 
 import dayjs from 'dayjs';
 
@@ -147,6 +150,7 @@ const EXCLUDES_WEEKEND = [1, 2, 3, 4, 5];
   name: 'time-period',
 })
 export default class TimePeriod extends Vue {
+  @Prop({ default: 300, type: Number }) readonly wrapWidth;
   @Model('updateValue', {
     default: () => ({
       type: 2,
@@ -295,7 +299,7 @@ export default class TimePeriod extends Vue {
   .time-select {
     display: flex;
     align-items: center;
-    width: 300px;
+    // width: 300px;
     margin-top: 10px;
 
     .week,
@@ -306,6 +310,13 @@ export default class TimePeriod extends Vue {
     & > :not(:last-child) {
       margin-right: 8px;
     }
+  }
+
+  .weekend-checkbox {
+    flex-shrink: 0;
+    margin-left: -86px;
+    font-size: 12px;
+    transform: translate3d(86px, 0, 0);
   }
 }
 </style>

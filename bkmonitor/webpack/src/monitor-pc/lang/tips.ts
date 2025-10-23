@@ -422,4 +422,5 @@ export default {
   'AI 小鲸': 'AI Blueking',
   '再次勾选「已配置」的策略，可重新下发，覆盖原有的策略':
     'After checking the strategy that has been applied, you can re-issue it to override the existing strategy',
+  请先选择模版: 'Please select a template first',
 };

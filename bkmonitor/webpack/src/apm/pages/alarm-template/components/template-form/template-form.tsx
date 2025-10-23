@@ -137,7 +137,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
 
   @Watch('data')
   handleDataChange(val: EditTemplateFormData) {
-    this.algorithmsUnit = val.algorithms[0]?.unit_prefix;
+    this.algorithmsUnit = val.algorithms?.[0]?.unit_prefix;
   }
 
   /** 校验告警组 */
@@ -285,194 +285,200 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
   }
 
   render() {
-    if (this.loading)
-      return (
-        <div class='template-form-skeleton-wrap'>
-          {new Array(10).fill(0).map((_, ind) => (
-            <div
-              key={ind}
-              class='skeleton-element'
-            />
-          ))}
-        </div>
-      );
-
     return (
-      <bk-form
-        ref='form'
-        class='template-form'
-        {...{
-          props: {
-            model: this.data,
-            rules: this.rules,
-          },
-        }}
-        label-width={this.labelWidth}
-      >
-        <bk-form-item
-          class='form-item-text'
-          label={this.$t('监控数据')}
-        >
-          <span
-            class='text monitor-data'
-            v-bk-tooltips={{
-              content: this.data?.query_template?.description,
-              disabled: !this.data?.query_template?.description,
-            }}
-          >
-            {this.monitorData}
-          </span>
-        </bk-form-item>
-        <bk-form-item
-          class='form-item-text mt16'
-          label={this.$t('模板类型')}
-        >
-          <span class='text'>{this.data?.system.alias}</span>
-        </bk-form-item>
-        <bk-form-item
-          class='mt16'
-          error-display-type='normal'
-          label={this.$t('模板名称')}
-          property='name'
-          required
-        >
-          {this.scene === 'edit' ? (
-            <bk-input
-              value={this.data?.name}
-              onBlur={this.handleNameChange}
-              onEnter={this.handleNameChange}
-            />
-          ) : (
-            <span>{this.data?.name}</span>
-          )}
-        </bk-form-item>
-        <bk-form-item
-          class='mt24'
-          error-display-type='normal'
-          label={this.$t('检测规则')}
-          property='algorithms'
-          required
-        >
-          <Threshold
-            data={this.data?.algorithms}
-            defaultUnit={this.algorithmsUnit}
-            onChange={this.handleAlgorithmsChange}
-          />
-        </bk-form-item>
-        <bk-form-item
-          class='mt24'
-          error-display-type='normal'
-          label={this.$t('判断条件')}
-          property='detect'
-          required
-        >
-          <i18n path='在{0}个周期内累计满足{1}次检测算法'>
-            <bk-input
-              class='small-input'
-              behavior='simplicity'
-              show-controls={false}
-              size='small'
-              type='number'
-              value={this.data?.detect?.config.trigger_check_window}
-              onBlur={this.handleTriggerWindowChange}
-              onEnter={this.handleTriggerWindowChange}
-            />
-            <bk-input
-              class='small-input'
-              behavior='simplicity'
-              show-controls={false}
-              size='small'
-              type='number'
-              value={this.data?.detect?.config.trigger_count}
-              onBlur={this.handleTriggerCountChange}
-              onEnter={this.handleTriggerCountChange}
-            />
-          </i18n>
-        </bk-form-item>
-        <bk-form-item
-          class='mt24'
-          error-display-type='normal'
-          label={this.$t('告警组')}
-          property='selectUserGroup'
-          required
-        >
-          <bk-select
-            loading={this.alarmGroupLoading}
-            value={this.selectUserGroup}
-            collapse-tag
-            display-tag
-            multiple
-            searchable
-            onSelected={this.handleUserGroupSelect}
-            onToggle={this.handleUserGroupToggle}
-          >
-            {this.showAlarmGroupList.map(item => (
-              <bk-option
-                id={item.id}
-                key={item.id}
-                name={item.name}
+      <div class='template-form'>
+        {this.loading ? (
+          <div class='bk-form template-form-skeleton-wrap'>
+            {new Array(10).fill(0).map((_, ind) => (
+              <div
+                key={ind}
+                class={[
+                  'skeleton-element bk-form-item',
+                  {
+                    'form-item-text': ind === 0 || ind === 1,
+                    'algorithm-item': ind === 3,
+                  },
+                ]}
               />
             ))}
-          </bk-select>
-        </bk-form-item>
-        {this.variablesList.map((variable, index) => (
-          <bk-form-item
-            key={variable.id}
-            desc={{
-              width: 320,
-              content: `${this.$t('变量名')}: ${variable.variableName}<br />${this.$t('变量别名')}: ${variable.alias}<br />${this.$t('变量描述')}: ${variable.description}`,
-              allowHTML: true,
+          </div>
+        ) : (
+          <bk-form
+            ref='form'
+            {...{
+              props: {
+                model: this.data,
+                rules: this.rules,
+              },
             }}
-            label={variable.alias || variable.variableName}
+            label-width={this.labelWidth}
           >
-            <VariablePanel
-              metricFunctions={this.metricFunctions}
-              scene='edit'
-              showConditionTag={true}
-              showLabel={false}
-              variable={variable}
-              variableList={this.variablesList}
-              onValueChange={value => {
-                this.handleVariableValueChange(value, index);
-              }}
-            />
-          </bk-form-item>
-        ))}
-        {this.scene === 'edit' && (
-          <bk-form-item
-            class='mt24'
-            label={this.$t('自动下发')}
-            property='is_auto_apply'
-          >
-            <bk-switcher
-              theme='primary'
-              value={this.data?.is_auto_apply}
-              onChange={this.handleChangeAutoApply}
-            />
-          </bk-form-item>
-        )}
+            <bk-form-item
+              class='form-item-text'
+              label={this.$t('监控数据')}
+            >
+              <span
+                class='text monitor-data'
+                v-bk-tooltips={{
+                  content: this.data?.query_template?.description,
+                  disabled: !this.data?.query_template?.description,
+                }}
+              >
+                {this.monitorData}
+              </span>
+            </bk-form-item>
+            <bk-form-item
+              class='form-item-text mt16'
+              label={this.$t('模板类型')}
+            >
+              <span class='text'>{this.data?.system.alias}</span>
+            </bk-form-item>
+            <bk-form-item
+              class='mt16'
+              error-display-type='normal'
+              label={this.$t('模板名称')}
+              property='name'
+              required
+            >
+              {this.scene === 'edit' ? (
+                <bk-input
+                  value={this.data?.name}
+                  onBlur={this.handleNameChange}
+                  onEnter={this.handleNameChange}
+                />
+              ) : (
+                <span>{this.data?.name}</span>
+              )}
+            </bk-form-item>
+            <bk-form-item
+              class='mt24'
+              error-display-type='normal'
+              label={this.$t('检测规则')}
+              property='algorithms'
+              required
+            >
+              <Threshold
+                data={this.data?.algorithms}
+                defaultUnit={this.algorithmsUnit}
+                onChange={this.handleAlgorithmsChange}
+              />
+            </bk-form-item>
+            <bk-form-item
+              class='mt24'
+              error-display-type='normal'
+              label={this.$t('判断条件')}
+              property='detect'
+              required
+            >
+              <i18n path='在{0}个周期内累计满足{1}次检测算法'>
+                <bk-input
+                  class='small-input'
+                  behavior='simplicity'
+                  show-controls={false}
+                  size='small'
+                  type='number'
+                  value={this.data?.detect?.config.trigger_check_window}
+                  onBlur={this.handleTriggerWindowChange}
+                  onEnter={this.handleTriggerWindowChange}
+                />
+                <bk-input
+                  class='small-input'
+                  behavior='simplicity'
+                  show-controls={false}
+                  size='small'
+                  type='number'
+                  value={this.data?.detect?.config.trigger_count}
+                  onBlur={this.handleTriggerCountChange}
+                  onEnter={this.handleTriggerCountChange}
+                />
+              </i18n>
+            </bk-form-item>
+            <bk-form-item
+              class='mt24'
+              error-display-type='normal'
+              label={this.$t('告警组')}
+              property='selectUserGroup'
+              required
+            >
+              <bk-select
+                loading={this.alarmGroupLoading}
+                value={this.selectUserGroup}
+                collapse-tag
+                display-tag
+                multiple
+                searchable
+                onSelected={this.handleUserGroupSelect}
+                onToggle={this.handleUserGroupToggle}
+              >
+                {this.showAlarmGroupList.map(item => (
+                  <bk-option
+                    id={item.id}
+                    key={item.id}
+                    name={item.name}
+                  />
+                ))}
+              </bk-select>
+            </bk-form-item>
+            {this.variablesList.map((variable, index) => (
+              <bk-form-item
+                key={variable.id}
+                desc={{
+                  width: 320,
+                  content: `${this.$t('变量名')}: ${variable.variableName}<br />${this.$t('变量别名')}: ${variable.alias}<br />${this.$t('变量描述')}: ${variable.description}`,
+                  allowHTML: true,
+                }}
+                label={variable.alias || variable.variableName}
+              >
+                <VariablePanel
+                  metricFunctions={this.metricFunctions}
+                  scene='edit'
+                  showConditionTag={true}
+                  showLabel={false}
+                  variable={variable}
+                  variableList={this.variablesList}
+                  onValueChange={value => {
+                    this.handleVariableValueChange(value, index);
+                  }}
+                />
+              </bk-form-item>
+            ))}
+            {this.scene === 'edit' && (
+              <bk-form-item
+                class='mt24'
+                label={this.$t('自动下发')}
+                property='is_auto_apply'
+              >
+                <bk-switcher
+                  theme='primary'
+                  value={this.data?.is_auto_apply}
+                  onChange={this.handleChangeAutoApply}
+                />
+              </bk-form-item>
+            )}
 
-        {this.scene === 'edit' && (
-          <bk-form-item
-            class='submit-btns'
-            label=''
-          >
-            <bk-button
-              class='submit-btn'
-              theme='primary'
-              onClick={this.handleSubmit}
-            >
-              {this.$t('保存')}
-            </bk-button>
-            <bk-button
-              class='cancel-btn'
-              onClick={this.handleCancel}
-            >
-              {this.$t('取消')}
-            </bk-button>
-          </bk-form-item>
+            {this.scene === 'edit' && (
+              <bk-form-item
+                class='submit-btns'
+                label=''
+              >
+                <bk-button
+                  class='submit-btn'
+                  theme='primary'
+                  onClick={this.handleSubmit}
+                >
+                  {this.$t('保存')}
+                </bk-button>
+                <bk-button
+                  class='cancel-btn'
+                  onClick={this.handleCancel}
+                >
+                  {this.$t('取消')}
+                </bk-button>
+              </bk-form-item>
+            )}
+          </bk-form>
         )}
-      </bk-form>
+      </div>
     );
   }
 }

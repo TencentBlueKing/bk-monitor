@@ -10,6 +10,7 @@
   box-shadow: 0 2px 4px 0 #1919290d;
 
   .alarm-template-header {
+    z-index: 1;
     display: flex;
     flex-shrink: 0;
     column-gap: 8px;
@@ -23,6 +24,8 @@
       column-gap: 8px;
 
       .alarm-template-header-filter-tab {
+        color: #4d4f56;
+
         .common-status-wrap {
           align-items: center;
 
@@ -43,7 +46,6 @@
 
           .status-count {
             line-height: 20px;
-            color: #4d4f56;
           }
         }
       }

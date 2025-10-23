@@ -100,7 +100,8 @@
       >
         <template #default="{ row }">
           <div class="table-ceil-container">
-            <span v-bk-overflow-tips>{{ row.operator || '--' }}</span>
+            <!-- <span v-bk-overflow-tips>{{ row.operator || '--' }}</span> -->
+            <bk-user-display-name :user-id="row.operator"></bk-user-display-name>
           </div>
         </template>
       </bk-table-column>

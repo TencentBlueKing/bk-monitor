@@ -91,7 +91,7 @@ export default {
   },
   computed: {
     isExternal() {
-      return this.$store.state.isExternal;
+      return !this.$store.getters.isAiAssistantActive;
     },
   },
   methods: {

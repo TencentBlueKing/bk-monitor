@@ -231,6 +231,9 @@
               filter-multiple
               :filter-method="sourceFilterMethod"
             >
+              <template #default="{ row }">
+                <bk-user-display-name :user-id="row.updated_by"></bk-user-display-name>
+              </template>
             </bk-table-column>
             <bk-table-column :label="$t('变更时间')" prop="updated_at" sortable>
               <template #default="{ row }">

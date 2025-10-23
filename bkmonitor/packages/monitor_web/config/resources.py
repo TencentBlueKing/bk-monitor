@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 from monitor_web.config.converter import convert_field
 from rest_framework import serializers
@@ -49,7 +47,7 @@ class SetGlobalConfig(Resource):
         configs = ConfigSerializer(required=True, many=True)
 
     def get_serializer_cls(self, data_type, options):
-        cls_name = "{}Field".format(data_type)
+        cls_name = f"{data_type}Field"
         serializer_cls = getattr(serializers, cls_name)
         options = options or {}
         return serializer_cls(**options)
@@ -62,6 +60,11 @@ class SetGlobalConfig(Resource):
             key, value = data["key"], data["value"]
             if key not in configs:
                 continue
+            # 页面只能配置简单 dsn (字符串类型)
+            if key == "MESSAGE_QUEUE_DSN" and not value:
+                if isinstance(configs[key].value, dict):
+                    # 如果是字典，则说明通过 shell 配置的待认证信息的队列。页面不支持此类型的管理
+                    continue
             config = configs[key]
             try:
                 serializer = config.get_serializer()
@@ -72,7 +75,7 @@ class SetGlobalConfig(Resource):
                 message = "modify success"
             except Exception as e:
                 result = False
-                message = "modify failed: {}".format(e)
+                message = f"modify failed: {e}"
             set_results.append(
                 {
                     "key": key,

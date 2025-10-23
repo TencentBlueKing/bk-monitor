@@ -31,6 +31,7 @@ import { Debounce, random } from 'monitor-common/utils';
 import AcrossPageSelection from 'monitor-pc/components/across-page-selection/across-page-selection';
 import { type SelectTypeEnum, SelectType } from 'monitor-pc/components/across-page-selection/typing';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
+import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import {
   type VariableModelType,
   getCreateVariableParams,
@@ -48,6 +49,7 @@ import type { MetricDetailV2 } from 'monitor-pc/pages/query-template/typings/met
 import './relation-service-table.scss';
 
 interface IProps {
+  loading?: boolean;
   metricFunctions?: any[];
   relationService: IRelationService[];
   getCompareData?: (params: { service_name: string; strategy_template_id: number }) => Promise<TCompareData>;
@@ -75,6 +77,7 @@ export default class RelationServiceTable extends tsc<IProps> {
     strategy_template_id: number;
   }) => Promise<TCompareData>;
   @Prop({ default: () => [] }) metricFunctions: any[];
+  @Prop({ default: false }) loading: boolean;
 
   /* 搜索值 */
   searchValue = '';
@@ -388,7 +391,7 @@ export default class RelationServiceTable extends tsc<IProps> {
       strategy_template_id: row.strategy_template_id as number,
     }).catch(() => ({ diff: [] }));
     if (data) {
-      const diffData = data.diff;
+      const diffData = data?.diff || [];
       const detectData = diffData.find(d => d.field === 'detect');
       const algorithms = diffData.find(d => d.field === 'algorithms');
       const variablesList = diffData.find(d => d.field === 'variables');
@@ -510,9 +513,8 @@ export default class RelationServiceTable extends tsc<IProps> {
                 <span
                   key={'01'}
                   class='strategy-name'
-                  onClick={() => this.handleShowDetails(row)}
                 >
-                  {row.same_origin_strategy_template?.name}
+                  <span onClick={() => this.handleShowDetails(row)}>{row.same_origin_strategy_template?.name}</span>
                 </span>
               ) : (
                 <span
@@ -711,80 +713,86 @@ export default class RelationServiceTable extends tsc<IProps> {
               clearable
               onChange={this.handleSearchChange}
             />
-            <bk-table
-              key={this.tableKey}
-              data={this.tableData}
-              expand-row-keys={this.expandRowKeys}
-              header-border={false}
-              outer-border={false}
-              row-key={row => row.key}
-            >
-              <div slot='empty'>
-                <EmptyStatus
-                  type={this.searchValue ? 'search-empty' : 'empty'}
-                  onOperation={this.handleOperation}
-                />
-              </div>
-              <bk-table-column
-                width={50}
-                formatter={row => {
-                  return (
-                    <span
-                      onClick={e => {
-                        e.stopPropagation();
-                      }}
-                    >
-                      <bk-checkbox
-                        value={this.getCurServiceObj().selectKeys.has(row.key)}
-                        onChange={v => this.handleCheckRow(v, row)}
-                      />
-                    </span>
-                  );
-                }}
-                render-header={() => {
-                  return (
-                    <AcrossPageSelection
-                      value={this.pageSelection}
-                      onChange={this.handlePageSelectionChange}
-                    />
-                  );
-                }}
-              />
-              <bk-table-column
-                width={0}
-                scopedSlots={{
-                  default: () => {
-                    return this.expandContentFormatter();
-                  },
-                }}
-                type='expand'
-              />
-              {this.tableColumns
-                .filter(item => (item.prop === Columns.relation ? !this.isRelation : true))
-                .map(item => (
-                  <bk-table-column
-                    key={item.prop}
-                    label={item.label}
-                    prop={item.prop}
-                    {...{ props: item.props }}
-                    width={item.width}
-                    formatter={item.formatter}
-                    min-width={item.minWidth}
-                    render-header={item?.renderHeader}
+            {this.loading ? (
+              <TableSkeleton type={4} />
+            ) : (
+              <bk-table
+                key={this.tableKey}
+                data={this.tableData}
+                expand-row-keys={this.expandRowKeys}
+                header-border={false}
+                outer-border={false}
+                row-key={row => row.key}
+              >
+                <div slot='empty'>
+                  <EmptyStatus
+                    type={this.searchValue ? 'search-empty' : 'empty'}
+                    onOperation={this.handleOperation}
                   />
-                ))}
-            </bk-table>
-            <bk-pagination
-              class='mt-14'
-              align='right'
-              count={this.getCurServiceObj().pagination.count}
-              current={this.getCurServiceObj().pagination.current}
-              limit={this.getCurServiceObj().pagination.limit}
-              size={'small'}
-              show-total-count
-              on-change={this.handlePageChange}
-              on-limit-change={this.handleLimitChange}
-            />
+                </div>
+                <bk-table-column
+                  width={50}
+                  formatter={row => {
+                    return (
+                      <span
+                        onClick={e => {
+                          e.stopPropagation();
+                        }}
+                      >
+                        <bk-checkbox
+                          value={this.getCurServiceObj().selectKeys.has(row.key)}
+                          onChange={v => this.handleCheckRow(v, row)}
+                        />
+                      </span>
+                    );
+                  }}
+                  render-header={() => {
+                    return (
+                      <AcrossPageSelection
+                        value={this.pageSelection}
+                        onChange={this.handlePageSelectionChange}
+                      />
+                    );
+                  }}
+                />
+                <bk-table-column
+                  width={0}
+                  scopedSlots={{
+                    default: () => {
+                      return this.expandContentFormatter();
+                    },
+                  }}
+                  type='expand'
+                />
+                {this.tableColumns
+                  .filter(item => (item.prop === Columns.relation ? !this.isRelation : true))
+                  .map(item => (
+                    <bk-table-column
+                      key={item.prop}
+                      label={item.label}
+                      prop={item.prop}
+                      {...{ props: item.props }}
+                      width={item.width}
+                      formatter={item.formatter}
+                      min-width={item.minWidth}
+                      render-header={item?.renderHeader}
+                    />
+                  ))}
+              </bk-table>
+            )}
+            {this.loading ? undefined : (
+              <bk-pagination
+                class='mt-14'
+                align='right'
+                count={this.getCurServiceObj().pagination.count}
+                current={this.getCurServiceObj().pagination.current}
+                limit={this.getCurServiceObj().pagination.limit}
+                size={'small'}
+                show-total-count
+                on-change={this.handlePageChange}
+                on-limit-change={this.handleLimitChange}
+              />
+            )}
           </div>
         </div>
         <div class='right-preview'>

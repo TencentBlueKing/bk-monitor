@@ -180,7 +180,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
       } else {
         const item = this.fields.filter(f => ![EFieldType.custom_operator, EFieldType.variable].includes(f.type))?.[0];
         if (item) {
-          this.handleCheck(item);
+          this.handleCheck(item, '', [], false, true);
         }
         setTimeout(() => {
           this.searchInputRef?.focus();
@@ -508,7 +508,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
               <div class='form-item-label'>{this.$t('运算符')}</div>
               <div class='form-item-content mt-6'>
                 <bk-select
-                  ext-cls={'method-select'}
+                  ext-cls={`method-select ${this.method}`}
                   v-model={this.method}
                   popover-options={{
                     appendTo: 'parent',

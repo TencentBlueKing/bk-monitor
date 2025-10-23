@@ -170,7 +170,11 @@
           width="160"
           :label="$t('操作人')"
           prop="created_by"
-        ></bk-table-column>
+        >
+        <template #default="{ row }">
+          <bk-user-display-name :user-id="row.created_by"></bk-user-display-name>
+        </template>
+        </bk-table-column>
         <bk-table-column
           width="140"
           :label="$t('操作结果')"
