@@ -1948,7 +1948,7 @@ class SearchViewSet(APIViewSet):
             params["bk_biz_id"] = bk_biz_id
             query_handler = UnifyQueryChartHandler(params)
             if is_export:
-                file_name = f"bklog_{index_set_id}_{arrow.now().format('YYYYMMDD_HHmmSS')}.csv"
+                file_name = f"bklog_{index_set_id}_{arrow.now().format('YYYYMMDD_HHmmss')}.csv"
                 response = StreamingHttpResponse(
                     query_handler.export_chart_data(),
                     content_type="text/csv",
