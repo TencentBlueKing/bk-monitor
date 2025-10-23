@@ -63,20 +63,27 @@ export interface IAssitantOptions {
 export type IAssitantOptionsType = 'log_analysis' | 'query_string_generate';
 
 export interface IAssitantInstance {
-  open: (sendMsg: boolean, args: IRowSendData) => void;
+  open: (_sendMsg: boolean, _args: IRowSendData) => void;
   close: () => void;
-  sendMessage: (msg: string) => void;
-  setCiteText: (text: string) => void;
+  sendMessage: (_msg: string) => void;
+  setCiteText: (_text: string) => void;
   show: () => void;
-  updateOptions: (options: Partial<IAssitantOptions>, type: IAssitantOptionsType) => Promise<boolean>;
+  updateOptions: (
+    _options: Partial<IAssitantOptions>,
+    _type: IAssitantOptionsType,
+  ) => Promise<boolean>;
   getOptions: () => IAssitantOptions;
   isShown: () => boolean;
-  setPosition: (x?: number, y?: number, width?: number, height?: number) => void;
-  queryStringShowAiAssistant: (args: IQueryStringSendData) => void;
+  setPosition: (
+    _x?: number,
+    _y?: number,
+    _width?: number,
+    _height?: number,
+  ) => void;
+  queryStringShowAiAssistant: (_args: IQueryStringSendData) => void;
 }
 
 export default defineComponent({
-
   setup(_props, { expose, emit }) {
     const aiBlueking = ref<InstanceType<typeof AIBlueking> | null>(null);
 
@@ -118,20 +125,31 @@ export default defineComponent({
       emit('show');
     };
 
+    /**
+     * 设置AI助手开始
+     * @param sendMsg 是否发送消息
+     * @param args 消息内容
+     */
     const setAiStart = (sendMsg = false, args: IRowSendData) => {
       chatid = random(10);
       if (sendMsg) {
         aiBlueking.value?.handleShow();
         aiBlueking.value?.addNewSession().finally(() => {
           const shortcut = structuredClone(AI_BLUEKING_SHORTCUTS[0]);
-          shortcut.components.forEach(comp => {
+          shortcut.components.forEach((comp) => {
             const value = args[comp.key];
             if (value) {
-              comp.default = typeof value === 'object' ? JSON.stringify(value).replace(/<\/?mark>/gim, '') : value;
+              comp.default =
+                typeof value === 'object'
+                  ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
+                  : value;
             }
           });
 
-          aiBlueking.value?.handleShortcutClick?.({ shortcut, source: 'popup' });
+          aiBlueking.value?.handleShortcutClick?.({
+            shortcut,
+            source: 'popup',
+          });
         });
       }
     };
@@ -184,9 +202,12 @@ export default defineComponent({
      * 更新选项
      * @param options 选项
      * @param type 类型 log_analysis 日志解读，query_string_generate 自然语言转查询语句
-     * @returns 
+     * @returns
      */
-    const updateOptions = (options: Partial<IAssitantOptions> = {}, type: IAssitantOptionsType = 'log_analysis') => {
+    const updateOptions = (
+      options: Partial<IAssitantOptions> = {},
+      type: IAssitantOptionsType = 'log_analysis',
+    ) => {
       if (type === 'query_string_generate') {
         shortcuts.value = [...AI_BLUEKING_QUERY_STRING];
       } else {
@@ -216,12 +237,17 @@ export default defineComponent({
 
     /**
      * 设置位置
-     * @param x 
-     * @param y 
-     * @param width 
-     * @param height 
+     * @param x
+     * @param y
+     * @param width
+     * @param height
      */
-    const setPosition = (x?: number, y?: number, width?: number, height?: number) => {
+    const setPosition = (
+      x?: number,
+      y?: number,
+      width?: number,
+      height?: number,
+    ) => {
       if (x !== undefined && y !== undefined) {
         aiBlueking.value?.updatePosition(x, y);
         aiAssitantOptions.value.defaultLeft = x;
@@ -237,21 +263,27 @@ export default defineComponent({
 
     /**
      * 自然语言转查询语句
-     * @param args 
+     * @param args
      */
     const queryStringShowAiAssistant = (args: IQueryStringSendData) => {
       aiBlueking.value?.handleShow();
       aiBlueking.value?.addNewSession().finally(() => {
         const shortcut = structuredClone(AI_BLUEKING_QUERY_STRING[0]);
-        shortcut.components.forEach(comp => {
+        shortcut.components.forEach((comp) => {
           const value = args[comp.key];
           if (value) {
-            comp.default = typeof value === 'object' ? JSON.stringify(value).replace(/<\/?mark>/gim, '') : value;
+            comp.default =
+              typeof value === 'object'
+                ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
+                : value;
           }
         });
 
         try {
-          aiBlueking.value?.handleShortcutClick?.({ shortcut, source: 'popup' });
+          aiBlueking.value?.handleShortcutClick?.({
+            shortcut,
+            source: 'popup',
+          });
         } catch (error) {
           console.error(error);
         }
@@ -278,7 +310,7 @@ export default defineComponent({
           <AIBlueking
             ref={aiBlueking}
             requestOptions={{
-              beforeRequest: data => {
+              beforeRequest: (data) => {
                 return {
                   ...data,
                   headers: {

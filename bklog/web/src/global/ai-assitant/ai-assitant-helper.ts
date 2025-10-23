@@ -1,5 +1,11 @@
-import { Ref, ref } from "vue";
-import { IAssitantInstance, IAssitantOptions, IAssitantOptionsType, IQueryStringSendData, IRowSendData } from ".";
+import { Ref, ref } from 'vue';
+import {
+  IAssitantInstance,
+  IAssitantOptions,
+  IAssitantOptionsType,
+  IQueryStringSendData,
+  IRowSendData,
+} from '.';
 
 /**
  * AI 助手工具类
@@ -15,7 +21,7 @@ class AiAssitantHelper {
   /**
    * 获取 AI 助手实例
    * 这里返回的是一个 Ref 对象，对象为AI助手组件实例
-   * @returns 
+   * @returns
    */
   getAiAssitantInstance() {
     return this.aiAssitantRef;
@@ -23,7 +29,7 @@ class AiAssitantHelper {
 
   /**
    * 设置 AI 助手实例
-   * @param aiAssitantRef 
+   * @param aiAssitantRef
    */
   setAiAssitantRef(aiAssitantRef: Ref<any | null>) {
     this.aiAssitantRef = aiAssitantRef;
@@ -31,9 +37,12 @@ class AiAssitantHelper {
 
   /**
    * 搜索栏显示 AI 助手
-   * @param options 
+   * @param options
    */
-  showAiAssitant(options: Partial<IAssitantOptions> = {}, args: IQueryStringSendData) {
+  showAiAssitant(
+    options: Partial<IAssitantOptions> = {},
+    args: IQueryStringSendData,
+  ) {
     this.updateAiAssitantOptions(options, 'query_string_generate').then(() => {
       this.activePosition = 'search-bar';
       this.aiAssitantRef.value?.queryStringShowAiAssistant(args);
@@ -42,16 +51,19 @@ class AiAssitantHelper {
 
   /**
    * 更新 AI 助手实例的选项
-   * @param options 
+   * @param options
    */
-  updateAiAssitantOptions(options: Partial<IAssitantOptions> = {}, type: IAssitantOptionsType = 'log_analysis') {
+  updateAiAssitantOptions(
+    options: Partial<IAssitantOptions> = {},
+    type: IAssitantOptionsType = 'log_analysis',
+  ) {
     return this.aiAssitantRef.value?.updateOptions(options, type);
   }
 
   /**
    * 打开 AI 助手并带有上下文信息
-   * @param sendMsg 
-   * @param args 
+   * @param sendMsg
+   * @param args
    */
   openAiAssitant(sendMsg: boolean, args: IRowSendData) {
     this.updateAiAssitantOptions(undefined, 'log_analysis').then(() => {
@@ -62,7 +74,7 @@ class AiAssitantHelper {
 
   /**
    * 设置引用文本
-   * @param text 
+   * @param text
    */
   setCiteText(text: string) {
     this.updateAiAssitantOptions(undefined, 'log_analysis').then(() => {
@@ -73,20 +85,27 @@ class AiAssitantHelper {
 
   /**
    * 判断是否点击了 AI 助手
-   * @param e 
-   * @returns 
+   * @param e
+   * @returns
    */
   isClickAiAssitant(e: MouseEvent) {
     const target = e.target as HTMLElement;
-    return target?.classList?.contains('ai-blueking-button-text') || target?.closest('.ai-blueking-container-wrapper');
+    return (
+      target?.classList?.contains('ai-blueking-button-text') ||
+      target?.closest('.ai-blueking-container-wrapper')
+    );
   }
 
   /**
    * 搜索栏使用AI助手时，点击其他位置关闭 AI 助手
-   * @param e 
+   * @param e
    */
   closeAiAssitantWithSearchBar(e: MouseEvent) {
-    if (this.aiAssitantRef.value?.isShown() && this.activePosition === 'search-bar' && !this.isClickAiAssitant(e)) {
+    if (
+      this.aiAssitantRef.value?.isShown() &&
+      this.activePosition === 'search-bar' &&
+      !this.isClickAiAssitant(e)
+    ) {
       this.aiAssitantRef.value?.close();
     }
   }
@@ -104,7 +123,7 @@ class AiAssitantHelper {
 
   /**
    * 判断 AI 助手是否显示
-   * @returns 
+   * @returns
    */
   isShown() {
     return this.aiAssitantRef.value?.isShown();
