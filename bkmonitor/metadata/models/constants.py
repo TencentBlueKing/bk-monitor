@@ -497,6 +497,7 @@ DT_TIME_STAMP = "dtEventTimeStamp"
 DT_TIME_STAMP_NANO = "dtEventTimeStampNanos"
 NANO_FORMAT = "date_nanos"
 STRICT_NANO_ES_FORMAT = "strict_date_optional_time_nanos"
+EPOCH_MILLIS_FORMAT = "epoch_millis"
 NON_STRICT_NANO_ES_FORMAT = "strict_date_optional_time_nanos||epoch_millis"
 
 BASEREPORT_RESULT_TABLE_FIELD_MAP = {
