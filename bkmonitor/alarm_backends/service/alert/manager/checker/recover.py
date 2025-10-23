@@ -129,7 +129,7 @@ class RecoverStatusChecker(BaseChecker):
                         recovery_configs = recovery_configs_map[level]
                         break
                 else:
-                    recovery_configs = recovery_configs_map[alert.event_severity]
+                    recovery_configs = recovery_configs_map[str(alert.event_severity)]
             recovery_window_size = recovery_configs["check_window_size"]
             status_setter = recovery_configs["status_setter"]
             # 新增无数据恢复配置: "recovery-nodata"
