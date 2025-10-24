@@ -257,6 +257,12 @@ class DiscoverBase(ABC):
     def discover(self, origin_data):
         pass
 
+    def discover_with_remain_data(self, origin_data, remain_data):
+        return self.discover(origin_data)
+
+    def get_remain_data(self):
+        return None
+
 
 class TopoHandler:
     TRACE_ID_CHUNK_MAX_DURATION = 10 * 60
@@ -368,9 +374,10 @@ class TopoHandler:
             self.datasource.es_client.clear_scroll(scroll_id=scroll_id)
             return res
 
-    def _discover_handle(self, discover, spans, handle_type):
+    def _discover_handle(self, discover, spans, handle_type, remain_data):
         def _topo_handle():
-            discover(self.bk_biz_id, self.app_name).discover(spans)
+            instance = discover(self.bk_biz_id, self.app_name)
+            instance.discover_with_remain_data(spans, remain_data)
 
         def _pre_calculate_handle():
             discover.handle(spans)
@@ -441,6 +448,11 @@ class TopoHandler:
             )
             return
 
+        # 提前构造topo_params结构
+        topo_params_template = []
+        for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
+            topo_params_template.append((c, None, "topo", c(self.bk_biz_id, self.app_name).get_remain_data()))
+
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:
                 continue
@@ -472,11 +484,12 @@ class TopoHandler:
             topo_params = []
             filter_spans = [i for i in all_spans if i[OtlpKey.KIND] in self.FILTER_KIND]
             filter_span_count += len(filter_spans)
-            for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
+            # 根据模板更新spans数据
+            for c, spans, handle_type, remain_data in topo_params_template:
                 if c.DISCOVERY_ALL_SPANS:
-                    topo_params.append((c, all_spans, "topo"))
+                    topo_params.append((c, all_spans, handle_type, remain_data))
                 else:
-                    topo_params.append((c, filter_spans, "topo"))
+                    topo_params.append((c, filter_spans, handle_type, remain_data))
 
             pool.map_ignore_exception(self._discover_handle, topo_params)
 

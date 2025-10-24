@@ -8,7 +8,7 @@
   "overview_panels": [
     {
       "id": 1,
-      "title": "请求数",
+      "title": "_(请求数)",
       "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 0,
@@ -21,7 +21,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "主调",
+          "alias": "_(主调)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -117,7 +117,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "被调",
+          "alias": "_(被调)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -224,7 +224,7 @@
     },
     {
       "id": 2,
-      "title": "错误数",
+      "title": "_(错误数)",
       "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
@@ -237,7 +237,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "错误数",
+          "alias": "_(错误数)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -322,7 +322,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "错误率",
+          "alias": "_(错误率)",
           "data": {
             "app_name": "${app_name}",
             "service_name": "${service_name}",
@@ -461,7 +461,7 @@
     },
     {
       "id": 3,
-      "title": "耗时",
+      "title": "_(耗时)",
       "gridPos": {
         "x": 16,
         "y": 0,
@@ -950,7 +950,7 @@
     },
     {
       "id": 4,
-      "title": "接口调用总数Top5",
+      "title": "_(接口调用总数Top5)",
       "type": "percentage-bar",
       "instant": true,
       "gridPos": {
@@ -977,7 +977,7 @@
     },
     {
       "id": 5,
-      "title": "接口错误次数Top5",
+      "title": "_(接口错误次数Top5)",
       "type": "percentage-bar",
       "gridPos": {
         "x": 8,
@@ -1004,7 +1004,7 @@
     },
     {
       "id": 6,
-      "title": "接口平均耗时Top5",
+      "title": "_(接口平均耗时Top5)",
       "type": "percentage-bar",
       "instant": true,
       "gridPos": {

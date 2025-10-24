@@ -1662,6 +1662,15 @@ msgstr "The metric item corresponding to the event"
 msgid "分类"
 msgstr "Category"
 
+msgid "数据上报"
+msgstr "Data Report"
+
+msgid "数据状态"
+msgstr "Data Status"
+
+msgid "自定义标签"
+msgstr "Custom Label"
+
 msgid "事件所属的数据分层，如 \"application\", \"os\", \"others\""
 msgstr "Event Scenario"
 
@@ -2053,6 +2062,9 @@ msgstr "Exception"
 
 msgid "无数据"
 msgstr "No Data"
+
+msgid "有数据"
+msgstr "Data"
 
 msgid "集群名称"
 msgstr "Cluster Name"
@@ -5888,6 +5900,9 @@ msgstr "Web Page"
 msgid "远程调用"
 msgstr "Remote Call"
 
+msgid "其他语言"
+msgstr "Other Language"
+
 msgid "高级(Advances)"
 msgstr "Advanced"
 
@@ -7916,6 +7931,9 @@ msgstr "Operation"
 msgid "调用链"
 msgstr "Trace"
 
+msgid "性能分析"
+msgstr "Profiling"
+
 msgid "统计"
 msgstr "Statistics"
 
@@ -8319,6 +8337,15 @@ msgstr "Interface"
 msgid "调用类型"
 msgstr "Invocation Type"
 
+msgid "调用服务"
+msgstr "Invoked Service"
+
+msgid "查看告警"
+msgstr "View Alarm"
+
+msgid "查看指标"
+msgstr "View Metrics"
+
 msgid "平均响应时间"
 msgstr "Average response time"
 
@@ -8437,6 +8464,18 @@ msgstr "View the alarm"
 msgid "查看相关指标"
 msgstr "View relevant metrics"
 
+msgid "接口下钻"
+msgstr "API drilldown"
+
+msgid "查看三方应用"
+msgstr "View Third Party Application"
+
+msgid "服务概览"
+msgstr "Service Overview"
+
+msgid "资源拓扑"
+msgstr "Resource Topology"
+
 msgid "展开服务"
 msgstr "Expand Service"
 
@@ -8451,6 +8490,24 @@ msgstr "View related application"
 
 msgid "关系调用"
 msgstr "Relationship Call"
+
+msgid "主调总量"
+msgstr "The total number of Main Tone"
+
+msgid "主调平均耗时"
+msgstr "The average time is Main Tone"
+
+msgid "主调错误量"
+msgstr "The amount of error to be Main Tone"
+
+msgid "被调总量"
+msgstr "The total number of Turned"
+
+msgid "被调平均耗时"
+msgstr "The average time is Turned"
+
+msgid "被调错误量"
+msgstr "The amount of error to be Turned"
 
 msgid "Span列表请求失败: {e.data.get('message')}"
 msgstr "Failed to retrieve the Span list: {e.data.get('message')}"
@@ -12152,3 +12209,198 @@ msgstr "JSON Parsing Error: {msg}"
 
 #~ msgid "存在非法的策略ID, {}"
 #~ msgstr "There is an illegal strategy ID, {}"
+
+msgid "告警事件"
+msgstr "Alarm Event"
+
+msgid "服务调用总数Top5"
+msgstr "Total number of service calls Top5"
+
+msgid "服务错误次数Top5"
+msgstr "Service error times Top5"
+
+msgid "服务平均响应耗时Top5"
+msgstr "Average response time Top5"
+
+msgid "服务接口调用总数Top5"
+msgstr "Service interface call total Top5"
+
+msgid "服务接口错误率Top5"
+msgstr "Service interface error rate Top5"
+
+msgid "服务接口平均耗时Top5"
+msgstr "Service interface average time Top5"
+
+msgid "异常事件"
+msgstr "Exception Event"
+
+msgid "总数量"
+msgstr "Total number"
+
+msgid "请求统计"
+msgstr "Request Statistics"
+
+msgid "错误详情"
+msgstr "Error Details"
+
+msgid "错误趋势"
+msgstr "Error Trend"
+
+msgid "DB类型"
+msgstr "DB Type"
+
+msgid "命名语句统计"
+msgstr "Named Statement Statistics"
+
+msgid "命名语句明细"
+msgstr "Named Statement Details"
+
+msgid "异常列表"
+msgstr "Exception List"
+
+msgid "调用总数"
+msgstr "Total number"
+
+msgid "组件实例"
+msgstr "Component instance"
+
+msgid "接口调用总数Top5"
+msgstr "Top5 Total number of interface calls"
+
+msgid "接口错误次数Top5"
+msgstr "Top5 number of interface errors"
+
+msgid "接口平均耗时Top5"
+msgstr "Top5 average time of interface"
+
+msgid "URI请求统计"
+msgstr "URI request statistics"
+
+msgid "请求量"
+msgstr "Amount of requests"
+
+msgid "成功率"
+msgstr "Success rate"
+
+msgid "超时率"
+msgstr "Timeout rate"
+
+msgid "异常率"
+msgstr "Exception rate"
+
+msgid "耗时分布"
+msgstr "Time consumption distribution"
+
+msgid "耗时热力图"
+msgstr "Time heatmap"
+
+msgid "维度值分布"
+msgstr "Dimensional value distribution"
+
+msgid "成功异常超时率"
+msgstr "Success exception timeout rate"
+
+msgid "容器列表"
+msgstr "List of containers"
+
+msgid "自定义指标维度列表"
+msgstr "Custom indicator dimension list"
+
+msgid "主机概览"
+msgstr "Host Overview"
+
+msgid "主机详情"
+msgstr "Host Details"
+
+msgid "主机列表"
+msgstr "Host list"
+
+msgid "总趋势"
+msgstr "Total trend"
+
+msgid "查询项"
+msgstr "Query item"
+
+msgid "对比项"
+msgstr "Compare item"
+
+msgid "告警模板"
+msgstr "Alarm template"
+
+msgid "服务组件"
+msgstr "Service component"
+
+msgid "调用分析"
+msgstr "Call analysis"
+
+msgid "事件等级"
+msgstr "Event level"
+
+msgid "事件来源"
+msgstr "Event source"
+
+msgid "用户环境"
+msgstr "Environment"
+
+msgid "主调 Service"
+msgstr "Caller Service"
+
+msgid "主调接口"
+msgstr "Caller Method"
+
+msgid "主调 IP"
+msgstr "Caller IP"
+
+msgid "主调容器"
+msgstr "Caller Container"
+
+msgid "主调 SetID"
+msgstr "Caller SetID"
+
+msgid "主调流量组"
+msgstr "Caller Group"
+
+msgid "被调服务"
+msgstr "Callee Server"
+
+msgid "被调 Service"
+msgstr "Callee Service"
+
+msgid "被调接口"
+msgstr "Callee Method"
+
+msgid "被调 IP"
+msgstr "Callee IP"
+
+msgid "被调容器"
+msgstr "Callee Container"
+
+msgid "被调 SetID"
+msgstr "Callee SetID"
+
+msgid "返回码"
+msgstr "Return Code"
+
+msgid "地域"
+msgstr "Region"
+
+msgid "金丝雀"
+msgstr "Canary"
+
+msgid "预留字段1"
+msgstr "Reserved Field 1"
+
+msgid "预留字段2"
+msgstr "Reserved Field 2"
+
+msgid "预留字段3"
+msgstr "Reserved Field 3"
+
+msgid "主调服务"
+msgstr "Caller Server"
+
+msgid "调用数"
+msgstr "Call number"
+
+msgid "缩略图"
+msgstr "Thumbnail"

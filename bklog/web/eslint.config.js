@@ -21,11 +21,8 @@
  */
 
 // ESLint v9 扁平配置（Flat Config）
-// 兼容引入 eslint-config-tencent、plugin:vue/recommended、plugin:prettier/recommended
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { FlatCompat } = require('@eslint/eslintrc');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const js = require('@eslint/js');
 
 const compat = new FlatCompat({ baseDirectory: __dirname });
@@ -36,7 +33,6 @@ module.exports = [
   // 兼容旧版共享配置
   ...compat.extends('tencent'),
   ...compat.extends('plugin:vue/recommended'),
-  ...compat.extends('plugin:prettier/recommended'),
 
   // 基础语言选项与全局
   {
@@ -46,16 +42,17 @@ module.exports = [
       sourceType: 'module',
       globals: {
         NODE_ENV: 'readonly',
-        __webpack_public_path__: 'readonly'
-      }
+        __webpack_public_path__: 'readonly',
+      },
     },
-    plugins: {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      prettier: require('eslint-plugin-prettier')
-    },
+
     rules: {
       // 统一使用单引号
-      quotes: ['error', 'single', { avoidEscape: true, allowTemplateLiterals: false }],
+      quotes: [
+        'error',
+        'single',
+        { avoidEscape: true, allowTemplateLiterals: false },
+      ],
       // JSX 属性使用单引号
       'jsx-quotes': ['error', 'prefer-single'],
       'no-param-reassign': 'off',
@@ -67,45 +64,39 @@ module.exports = [
       'arrow-body-style': 'off',
       'no-restricted-properties': 'off',
       'function-paren-newline': 'off',
-      // 同步 prettier 的单引号策略
-      'prettier/prettier': ['error', { singleQuote: true, jsxSingleQuote: true }]
-    }
+      'linebreak-style': 'off',
+    },
   },
 
   // TypeScript / TSX
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       parser: require('@typescript-eslint/parser'),
       parserOptions: {
         project: './tsconfig.json',
-        ecmaFeatures: { jsx: true }
-      }
+        ecmaFeatures: { jsx: true },
+      },
     },
     plugins: {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      '@typescript-eslint': require('@typescript-eslint/eslint-plugin')
-    }
+      '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
+    },
   },
 
   // Vue 文件
   {
     files: ['**/*.vue'],
     languageOptions: {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       parser: require('vue-eslint-parser'),
       parserOptions: {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         parser: require('@typescript-eslint/parser'),
         project: './tsconfig.json',
         extraFileExtensions: ['.vue'],
-        ecmaFeatures: { jsx: true }
-      }
+        ecmaFeatures: { jsx: true },
+      },
     },
     plugins: {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      vue: require('eslint-plugin-vue')
+      vue: require('eslint-plugin-vue'),
     },
     rules: {
       'vue/no-lone-template': 'off',
@@ -132,12 +123,12 @@ module.exports = [
             'LIFECYCLE_HOOKS',
             'methods',
             ['template', 'render'],
-            'renderError'
-          ]
-        }
+            'renderError',
+          ],
+        },
       ],
       'vue/require-default-prop': 'off',
-      'vue/no-side-effects-in-computed-properties': 'off'
-    }
-  }
+      'vue/no-side-effects-in-computed-properties': 'off',
+    },
+  },
 ];
