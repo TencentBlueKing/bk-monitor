@@ -9,9 +9,9 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
-import json
 import time
 
+import ujson
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
@@ -95,7 +95,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
                 # 删除内置字段
                 for key in ["__data_label", "__index", "__result_table"]:
                     record.pop(key, None)
-                yield json.dumps(record) + "\n"
+                yield f"{ujson.dumps(record, ensure_ascii=False)}\n"
 
             total_count += len(search_result["list"])
             if search_result.get("done", False):
