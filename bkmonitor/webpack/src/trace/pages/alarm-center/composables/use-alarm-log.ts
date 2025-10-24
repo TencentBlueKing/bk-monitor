@@ -130,7 +130,12 @@ export function useAlarmLog(detail: AlarmDetail) {
     return relatedIndexSetList;
   }
 
-  async function updateTableData(_params: { index_set_id: string; keyword: string; limit: number; offset: number }) {
+  async function updateTableData(_params: {
+    index_set_id: number | string;
+    keyword: string;
+    limit: number;
+    offset: number;
+  }) {
     let data = {
       columns: [],
       data: [],

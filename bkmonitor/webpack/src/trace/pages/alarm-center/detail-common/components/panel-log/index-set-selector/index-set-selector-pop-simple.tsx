@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { Input } from 'bkui-vue';
 
@@ -39,16 +39,42 @@ export default defineComponent({
       type: Array as PropType<IIndexSet[]>,
       default: () => [],
     },
+    id: {
+      type: [Number, String] as PropType<number | string>,
+      default: '',
+    },
+    show: {
+      type: Boolean,
+      default: false,
+    },
   },
-  setup(props) {
+  emits: {
+    select: (_indexSetId: number | string) => true,
+  },
+  setup(props, { emit }) {
     const searchValue = shallowRef('');
     const filterList = computed(() => {
       const filterValue = searchValue.value.toLocaleLowerCase();
       return props.list.filter(item => item.index_set_name.toLocaleLowerCase().includes(filterValue));
     });
+
+    watch(
+      () => props.show,
+      show => {
+        if (show) {
+          searchValue.value = '';
+        }
+      }
+    );
+
+    function handleSelect(indexSetId: number | string) {
+      emit('select', indexSetId);
+    }
+
     return {
       filterList,
       searchValue,
+      handleSelect,
     };
   },
 
@@ -77,7 +103,8 @@ export default defineComponent({
           {this.filterList.map(item => (
             <div
               key={item.index_set_id}
-              class='list-item'
+              class={['list-item', { active: item.index_set_id === this.id }]}
+              onClick={() => this.handleSelect(item.index_set_id)}
             >
               {item.index_set_name}
             </div>

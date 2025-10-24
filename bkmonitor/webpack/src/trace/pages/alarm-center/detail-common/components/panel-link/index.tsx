@@ -23,7 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType } from 'vue';
+import { type PropType, defineComponent } from 'vue';
+
+import LinkTable from './components/link-table';
 
 export default defineComponent({
   name: 'PanelLink',
@@ -32,9 +34,12 @@ export default defineComponent({
   },
   setup(props) {
     console.log(props.id);
-    return () => (
+    return {};
+  },
+  render() {
+    return (
       <div class='alarm-center-detail-panel-alarm'>
-        <div>hello alarm</div>
+        <LinkTable />
       </div>
     );
   },
