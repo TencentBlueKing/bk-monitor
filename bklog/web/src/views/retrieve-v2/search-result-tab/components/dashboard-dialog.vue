@@ -100,7 +100,7 @@ watch(
       directory: '',
       dashboard: ''
     };
-    formRef.value.clearError();
+    formRef.value?.clearError();
     if (newVal) {
       directoryRawData.value = [];
       basicLoading.value = false;
