@@ -261,15 +261,40 @@ def cache_application_scope_name():
             if is_service_cache_enabled:
                 # 按服务粒度缓存
                 logger.info(f"[CACHE_APPLICATION_SCOPE_NAME] caching by service for {app_key}")
-                monitor_info = _cache_by_services(application, result_table_id, cache_agent)
+
+                # 获取应用的所有服务列表
+                all_services = ServiceHandler.list_services(application)
+                all_service_names = [service["topo_key"] for service in all_services]
+
+                if not all_service_names:
+                    logger.warning(
+                        f"[CACHE_APPLICATION_SCOPE_NAME] no services found for {bk_biz_id}-{application.app_name}"
+                    )
+                    continue
+
+                # 为每个服务获取指标数据
+                monitor_info = {}
+                for service_name in all_service_names:
+                    try:
+                        service_data = MetricHelper.get_monitor_info(
+                            bk_biz_id, result_table_id, service_name=service_name
+                        )
+                        if service_data:  # 只添加非空数据
+                            monitor_info[service_name] = service_data
+                    except Exception as e:
+                        logger.warning(
+                            f"[CACHE_APPLICATION_SCOPE_NAME] failed to get monitor info for service {service_name}: {e}"
+                        )
             else:
                 # 按应用粒度缓存
                 monitor_info = MetricHelper.get_monitor_info(bk_biz_id, result_table_id)
 
             if monitor_info and isinstance(monitor_info, dict):
                 cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(bk_biz_id=bk_biz_id, application_id=application_id)
-
-                cache_agent.set(cache_key, compress_and_serialize(monitor_info))
+                cached_data = cache_agent.get(cache_key)
+                old_monitor_info = deserialize_and_decompress(cached_data) if cached_data else {}
+                merged_monitor_info = MetricHelper.merge_monitor_info(monitor_info, old_monitor_info)
+                cache_agent.set(cache_key, compress_and_serialize(merged_monitor_info))
                 cache_agent.expire(cache_key, 60 * 60 * 24)
 
                 logger.info(f"[CACHE_APPLICATION_SCOPE_NAME] cached data for {bk_biz_id}-{application.app_name}")
@@ -280,51 +305,6 @@ def cache_application_scope_name():
             )
 
     logger.info("[CACHE_APPLICATION_SCOPE_NAME] task finished")
-
-
-def _cache_by_services(application, result_table_id, cache_agent):
-    """
-    1. 获取应用所有服务
-    2. 为每个服务查询指标数据
-    3. 返回合并后的数据
-    """
-    from apm_web.handlers.service_handler import ServiceHandler
-
-    bk_biz_id = application.bk_biz_id
-    application_id = application.application_id
-
-    # 获取应用的所有服务列表
-    all_services = ServiceHandler.list_services(application)
-    all_service_names = [service["topo_key"] for service in all_services]
-
-    if not all_service_names:
-        logger.warning(f"[CACHE_APPLICATION_SCOPE_NAME] no services found for {bk_biz_id}-{application.app_name}")
-        return None
-
-    # 为每个服务获取指标数据
-    service_monitor_info = {}
-    for service_name in all_service_names:
-        try:
-            service_monitor_info[service_name] = MetricHelper.get_monitor_info(
-                bk_biz_id, result_table_id, service_name=service_name
-            )
-        except Exception as e:
-            logger.warning(f"[CACHE_APPLICATION_SCOPE_NAME] failed to get monitor info for service {service_name}: {e}")
-
-    if service_monitor_info:
-        # 获取旧缓存数据并合并
-        cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(bk_biz_id=bk_biz_id, application_id=application_id)
-        cached_data = cache_agent.get(cache_key)
-        old_monitor_info = deserialize_and_decompress(cached_data) if cached_data else {}
-
-        merged_monitor_info = MetricHelper.merge_monitor_info(service_monitor_info, old_monitor_info)
-
-        logger.info(
-            f"[CACHE_APPLICATION_SCOPE_NAME] got {len(service_monitor_info)} services for {bk_biz_id}-{application.app_name}"
-        )
-        return merged_monitor_info
-
-    return None
 
 
 @shared_task(ignore_result=True)
