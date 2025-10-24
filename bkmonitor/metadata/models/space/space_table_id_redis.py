@@ -28,6 +28,7 @@ from metadata.models.space.constants import (
     DATA_LABEL_TO_RESULT_TABLE_CHANNEL,
     DATA_LABEL_TO_RESULT_TABLE_KEY,
     DBM_1001_TABLE_ID_PREFIX,
+    DEFAULT_VM_RETENTION_TIME,
     P4_1001_TABLE_ID_PREFIX,
     RESULT_TABLE_DETAIL_CHANNEL,
     RESULT_TABLE_DETAIL_KEY,
@@ -53,7 +54,7 @@ from metadata.models.space.utils import (
     reformat_table_id,
     update_filters_with_alias,
 )
-from metadata.utils.db import filter_model_by_in_page, filter_query_set_by_in_page
+from metadata.utils.db import filter_model_by_in_page
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
@@ -1470,73 +1471,90 @@ class SpaceTableIDRedis:
         # 过滤写入 influxdb 的结果表
         influxdb_table_ids = models.InfluxDBStorage.objects.values_list("table_id", flat=True)
 
-        other_filter = None
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            other_filter = {"bk_tenant_id": bk_tenant_id}
         if table_id_list:
-            influxdb_table_ids = filter_query_set_by_in_page(
-                query_set=influxdb_table_ids,
-                field_op="table_id__in",
-                filter_data=table_id_list,
-            )
+            influxdb_table_ids = influxdb_table_ids.filter(table_id__in=table_id_list)
         # 过滤写入 vm 的结果表
-        vm_table_ids = models.AccessVMRecord.objects.values_list("result_table_id", flat=True)
+        vm_table_ids = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id).values_list(
+            "result_table_id", flat=True
+        )
         if table_id_list:
-            vm_table_ids = filter_query_set_by_in_page(
-                query_set=vm_table_ids,
-                field_op="result_table_id__in",
-                filter_data=table_id_list,
-                other_filter=other_filter,
-            )
+            vm_table_ids = vm_table_ids.filter(result_table_id__in=table_id_list)
 
-        es_table_ids = models.ESStorage.objects.values_list("table_id", flat=True)
+        # 过滤写入 es 的结果表
+        es_table_ids = models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id).values_list("table_id", flat=True)
         if table_id_list:
-            es_table_ids = filter_query_set_by_in_page(
-                query_set=es_table_ids,
-                field_op="table_id__in",
-                filter_data=table_id_list,
-                other_filter=other_filter,
-            )
+            es_table_ids = es_table_ids.filter(table_id__in=table_id_list)
 
-        table_ids = set(influxdb_table_ids).union(set(vm_table_ids)).union(set(es_table_ids))
-
-        return table_ids
+        return set(influxdb_table_ids).union(set(vm_table_ids)).union(set(es_table_ids))
 
     def _filter_ts_info(self, table_ids: set) -> dict:
         """根据结果表获取对应的时序数据"""
         if not table_ids:
             return {}
-        _filter_data = filter_model_by_in_page(
-            model=models.TimeSeriesGroup,
-            field_op="table_id__in",
-            filter_data=table_ids,
-            value_func="values",
-            value_field_list=["table_id", "time_series_group_id"],
+
+        _filter_data = models.TimeSeriesGroup.objects.filter(table_id__in=table_ids).values(
+            "table_id", "time_series_group_id"
         )
         if not _filter_data:
             return {}
 
-        table_id_ts_group_id = {data["table_id"]: data["time_series_group_id"] for data in _filter_data}
-        # NOTE: 针对自定义时序，过滤掉历史废弃的指标，时间在`TIME_SERIES_METRIC_EXPIRED_SECONDS`的为有效数据
-        # 其它类型直接获取所有指标和维度
-        begin_time = tz_now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
-        _filter_group_id_list = list(table_id_ts_group_id.values())
-        ts_group_fields = filter_model_by_in_page(
-            model=models.TimeSeriesMetric,
-            field_op="group_id__in",
-            filter_data=_filter_group_id_list,
-            value_func="values",
-            value_field_list=["field_name", "group_id"],
-            other_filter={"last_modify_time__gte": begin_time},
-        )
+        # 获取vm集群对应的过期时间
+        vm_clusters = models.ClusterInfo.objects.filter(
+            cluster_type=models.ClusterInfo.TYPE_VM,
+        ).only("cluster_id", "default_settings")
+        vm_cluster_id_retention_time_map: dict[int, int] = {
+            data.cluster_id: data.default_settings.get("retention_time") or DEFAULT_VM_RETENTION_TIME
+            for data in vm_clusters
+        }
 
+        # 获取table_id对应的vm集群ID
+        access_vm_records = models.AccessVMRecord.objects.filter(result_table_id__in=table_ids).values(
+            "result_table_id", "vm_cluster_id"
+        )
+        result_table_id_vm_cluster_id_map: dict[str, int] = {
+            data["result_table_id"]: data["vm_cluster_id"] for data in access_vm_records
+        }
+
+        table_id_ts_group_id = {data["table_id"]: data["time_series_group_id"] for data in _filter_data}
+
+        # NOTE: 针对自定义时序，过滤掉历史废弃的指标，根据集群的过期时间进行过滤
+        # 将 group_id 按照对应集群的 retention_time 进行分组
+        retention_time_group_ids_map: dict[int, list[int]] = {}
+        for table_id, group_id in table_id_ts_group_id.items():
+            vm_cluster_id = result_table_id_vm_cluster_id_map.get(table_id)
+            if vm_cluster_id is None:
+                # 如果没有找到对应的集群，使用默认的过期时间
+                retention_time = DEFAULT_VM_RETENTION_TIME
+            else:
+                retention_time = vm_cluster_id_retention_time_map.get(vm_cluster_id, DEFAULT_VM_RETENTION_TIME)
+
+            # 将 retention_time 转换为天数（以天为单位进行分组）
+            retention_days = retention_time
+            retention_time_group_ids_map.setdefault(retention_days, []).append(group_id)
+
+        # 对每个 retention_time 分组进行查询
         group_id_field_map = {}
-        for data in ts_group_fields:
-            group_id_field_map.setdefault(data["group_id"], set()).add(data["field_name"])
+        for retention_days, group_id_list in retention_time_group_ids_map.items():
+            # 计算该分组的 begin_time，使用集群的 retention_time（天数转换为秒数）
+            begin_time = tz_now() - datetime.timedelta(days=retention_days)
+            logger.info(
+                "_filter_ts_info: querying TimeSeriesMetric for retention_days=%s, group_ids count=%s, begin_time=%s",
+                retention_days,
+                len(group_id_list),
+                begin_time,
+            )
+
+            ts_group_fields = models.TimeSeriesMetric.objects.filter(
+                group_id__in=group_id_list, last_modify_time__gte=begin_time
+            ).values("field_name", "group_id")
+
+            # 合并结果
+            for data in ts_group_fields:
+                group_id_field_map.setdefault(data["group_id"], set()).add(data["field_name"])
 
         return {"table_id_ts_group_id": table_id_ts_group_id, "group_id_field_map": group_id_field_map}
 
-    def _compose_table_id_fields(self, table_ids: set | None = None, bk_tenant_id: str = DEFAULT_TENANT_ID) -> dict:
+    def _compose_table_id_fields(self, table_ids: set, bk_tenant_id: str = DEFAULT_TENANT_ID) -> dict:
         """组装结果表对应的指标数据"""
         logger.info(
             "_compose_table_id_fields: try to compose table id fields,table_ids->[%s],bk_tenant_id->[%s]",

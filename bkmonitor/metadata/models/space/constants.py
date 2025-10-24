@@ -198,3 +198,6 @@ DBM_1001_TABLE_ID_PREFIX = "dbm_system."
 
 # BKCI 类型可以访问的主机类型结果表前缀
 BKCI_SYSTEM_TABLE_ID_PREFIX = "system."
+
+# VM 集群默认过期时间, 单位为秒, 默认60天
+DEFAULT_VM_RETENTION_TIME = 60 * 3600 * 24

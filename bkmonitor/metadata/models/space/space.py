@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from django.db import models
 from django.db.models.fields import DateTimeField
@@ -155,11 +155,11 @@ class SpaceResource(BaseModel):
         null=True,
         help_text="关联的资源的唯一标识，如关联BCS项目ID，BKCC业务ID等",
     )
-    dimension_values = JsonField(
+    dimension_values: list[dict[str, Any]] = JsonField(
         "关键维度对应的值",
         help_text="关键维度值，格式如[{'project_id': 'testproject', 'cluster_id': 'BCS-K8S-1000', 'namespace': 'test'}]",
         default=[],
-    )
+    )  # pyright: ignore [reportAssignmentType]
 
     objects = SpaceResourceManager()
 
