@@ -163,7 +163,7 @@ def test_notify_es_data_link_adapt_nano(create_or_delete_records):
             "is_disabled": False,
             "option": {
                 "default_function": "fn:timestamp_from_utctime",
-                "es_format": "strict_date_optional_time_nanos||epoch_millis",
+                "es_format": "epoch_millis",
                 "es_type": "date",
                 "field_index": "1",
                 "real_path": "bk_separator_object.log_time",
@@ -184,7 +184,7 @@ def test_notify_es_data_link_adapt_nano(create_or_delete_records):
             "is_disabled": False,
             "option": {
                 "default_function": "fn:timestamp_from_utctime",
-                "es_format": "strict_date_optional_time_nanos||epoch_millis",
+                "es_format": "strict_date_optional_time_nanos",
                 "es_type": "date_nanos",
                 "field_index": "1",
                 "real_path": "bk_separator_object.log_time",

@@ -135,11 +135,14 @@ class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSeria
         # 校验 strategy_template_ids 是否有效
         strategy_templates: list[dict[str, Any]] = list(
             StrategyTemplate.objects.filter(
-                bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"], id__in=attrs["strategy_template_ids"]
+                bk_biz_id=attrs["bk_biz_id"],
+                app_name=attrs["app_name"],
+                id__in=attrs["strategy_template_ids"],
+                is_enabled=True,
             ).values("id", "root_id")
         )
         if len(strategy_templates) != len(set(attrs["strategy_template_ids"])):
-            raise serializers.ValidationError(_("数据异常，部分策略模板不存在"))
+            raise serializers.ValidationError(_("数据异常，部分策略模板不存在或已禁用"))
         # 不允许存在同源的模板
         root_template_ids: set[int] = set()
         for strategy_template in strategy_templates:

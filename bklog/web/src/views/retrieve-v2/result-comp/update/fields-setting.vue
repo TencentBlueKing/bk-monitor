@@ -169,6 +169,9 @@
   import fieldsSettingOperate from './fields-setting-operate';
   import tableSort from './table-sort';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import { isEqual } from 'lodash-es';
+
   /** 导出配置字段文件名前缀 */
   const FIELD_CONFIG_FILENAME_PREFIX = 'log-field-';
 
@@ -352,6 +355,8 @@
       async confirmModifyFields() {
         const updateSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
         const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
+        const oldSortList = this.$store.state.indexFieldInfo.user_custom_config.sortList;
+        const isSortListChanged = updateSortList.length && !isEqual(oldSortList, updateSortList);
         if (currentVisibleList.length === 0) {
           this.messageWarn(this.$t('显示字段不能为空'));
           return;
@@ -386,9 +391,13 @@
               this.$store.commit('resetVisibleFields', currentVisibleList);
               this.$store.commit('updateIsSetDefaultTableColumn');
             });
-          await this.$store.dispatch('requestIndexSetFieldInfo');
 
-          await this.$store.dispatch('requestIndexSetQuery');
+            if (isSortListChanged) {
+              await this.$store.dispatch('requestIndexSetFieldInfo');
+              await this.$store.dispatch('requestIndexSetQuery');
+              RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
+            }
+
         } catch (error) {
           console.warn(error);
         } finally {

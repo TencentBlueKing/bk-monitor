@@ -9,7 +9,8 @@
     height: var(--height) !important;
 
     .exception-img {
-      width: 220px;
+      width: 100%;
+      max-width: 220px;
     }
   }
 

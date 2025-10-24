@@ -55,8 +55,9 @@ from metadata.models.bcs import (
 from metadata.models.constants import (
     DT_TIME_STAMP_NANO,
     NANO_FORMAT,
-    NON_STRICT_NANO_ES_FORMAT,
     DataIdCreatedFromSystem,
+    STRICT_NANO_ES_FORMAT,
+    EPOCH_MILLIS_FORMAT,
 )
 from metadata.models.data_link.utils import (
     get_bkbase_raw_data_name_for_v3_datalink,
@@ -1459,10 +1460,11 @@ class ModifyTimeSeriesGroupResource(Resource):
         data_label = serializers.CharField(label="数据标签", required=False, default=None)
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         # 指定group_id的情况下，无需使用租户ID再次过滤
         try:
             time_series_group = models.TimeSeriesGroup.objects.get(
-                bk_tenant_id=validated_request_data["bk_tenant_id"],
+                bk_tenant_id=bk_tenant_id,
                 time_series_group_id=validated_request_data.pop("time_series_group_id"),
                 is_delete=False,
             )
@@ -2744,15 +2746,15 @@ class NotifyEsDataLinkAdaptNano(Resource):
 
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name="dtEventTimeStampNanos", name="es_format", bk_tenant_id=bk_tenant_id
-                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+                ).update(value=STRICT_NANO_ES_FORMAT)
 
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name="time", name="es_format", bk_tenant_id=bk_tenant_id
-                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+                ).update(value=EPOCH_MILLIS_FORMAT)
 
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name="dtEventTimeStamp", name="es_format", bk_tenant_id=bk_tenant_id
-                ).update(value=NON_STRICT_NANO_ES_FORMAT)
+                ).update(value=EPOCH_MILLIS_FORMAT)
 
                 models.ResultTableFieldOption.objects.filter(
                     table_id=table_id, field_name="dtEventTimeStamp", name="es_type", bk_tenant_id=bk_tenant_id
