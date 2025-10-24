@@ -25,6 +25,8 @@
  */
 /* eslint-disable @typescript-eslint/naming-convention */
 
+import { ALARM_CENTER_PANEL_TAB_MAP, AlarmCenterPanelTabList } from '../utils/constant';
+
 /** 聚合条件 */
 export interface IAggCondition {
   _origin_method?: string;
@@ -69,7 +71,7 @@ export interface IAlarmDetail {
   extend_info: IExtendInfo;
   extra_info: IExtraInfo;
   first_anomaly_time: number;
-  follower: null | string;
+  follower: null | string[];
   graph_panel: IGraphPanel;
   id: string;
   ip: null | string;
@@ -96,7 +98,7 @@ export interface IAlarmDetail {
   strategy_name: string;
   supervisor: null | string;
   tags: ITag[];
-  target: any | null;
+  target?: any | null;
   target_key: string;
   target_type: string;
   update_time: number;
@@ -544,5 +546,19 @@ export class AlarmDetail {
 
   constructor(public readonly rawData: IAlarmDetail) {
     Object.assign(this, rawData);
+  }
+
+  get alarmTabList() {
+    return AlarmCenterPanelTabList.filter(item => {
+      /* 主机和日志 */
+      if (item.name === ALARM_CENTER_PANEL_TAB_MAP.HOST || item.name === ALARM_CENTER_PANEL_TAB_MAP.LOG) {
+        return this.dimensions?.some(item => ['bk_target_ip', 'ip'].includes(item.key));
+      }
+      /* 进程 */
+      if (item.name === ALARM_CENTER_PANEL_TAB_MAP.PROCESS) {
+        return this.category === 'host_process' && this.dimensions?.some(item => item.key === 'tags.display_name');
+      }
+      return true;
+    });
   }
 }

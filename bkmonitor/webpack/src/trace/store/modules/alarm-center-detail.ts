@@ -28,6 +28,7 @@ import { computed, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { defineStore } from 'pinia';
 
+import { useAppStore } from './app';
 import { fetchAlarmDetail } from '@/pages/alarm-center/services/alarm-detail';
 
 import type { AlarmDetail } from '../../pages/alarm-center/typings/detail';
@@ -39,9 +40,12 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   const alarmId = shallowRef<string>('');
   /** 加载状态 */
   const loading = shallowRef<boolean>(false);
-
+  const appStore = useAppStore();
   const bizId = computed(() => {
     return alarmDetail.value?.bk_biz_id || (window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined;
+  });
+  const bizItem = computed(() => {
+    return appStore.bizList.find(item => +item.id === +bizId.value);
   });
 
   /**
@@ -76,5 +80,6 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     alarmId,
     loading,
     bizId,
+    bizItem,
   };
 });

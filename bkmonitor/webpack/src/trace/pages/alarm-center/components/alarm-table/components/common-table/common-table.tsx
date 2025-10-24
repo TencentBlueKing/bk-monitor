@@ -147,10 +147,10 @@ export default defineComponent({
     /** 处理后的表格列配置 */
     const tableColumns = computed(() =>
       props.columns.map(column => ({
-        // @ts-ignore
+        // @ts-expect-error
         cellEllipsis: column?.ellipsis != null ? column?.ellipsis : true,
         ellipsis: false,
-        // @ts-ignore
+        // @ts-expect-error
         ellipsisTitle: column?.ellipsisTitle != null ? column?.ellipsisTitle : true,
         ...column,
         cell: (_, { row }) =>

@@ -27,6 +27,7 @@ import { type PropType, defineComponent, shallowReactive } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Button } from 'bkui-vue';
+import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
 
 import RetrievalFilter from '../../../../../components/retrieval-filter/retrieval-filter';
@@ -48,9 +49,10 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const loading = shallowRef(false);
+    const { getIndexSetList, updateTableData } = useAlarmLog(props.detail);
+    const selectLoading = shallowRef(false);
     const indexSetList = shallowRef([]);
-    const selectIndexSet = shallowRef('');
+    const selectIndexSet = shallowRef<number | string>('');
     const tableData = shallowReactive({
       data: [],
       total: 0,
@@ -58,13 +60,18 @@ export default defineComponent({
       limit: 30,
       offset: 0,
     });
-
-    const { getIndexSetList, updateTableData } = useAlarmLog(props.detail);
+    const tableLoading = shallowRef(false);
 
     async function init() {
-      loading.value = true;
+      selectLoading.value = true;
       indexSetList.value = await getIndexSetList();
       selectIndexSet.value = indexSetList.value[0]?.index_set_id || '';
+      selectLoading.value = false;
+      getTableData();
+    }
+
+    async function getTableData() {
+      tableLoading.value = true;
       const data = await updateTableData({
         index_set_id: selectIndexSet.value,
         keyword: '',
@@ -75,7 +82,12 @@ export default defineComponent({
       tableData.data = data?.data || [];
       tableData.total = data?.total || 0;
       tableData.columns = data?.columns || [];
-      loading.value = false;
+      tableLoading.value = false;
+    }
+
+    function handleChangeIndexSet(indexSetId: number | string) {
+      selectIndexSet.value = indexSetId;
+      getTableData();
     }
 
     init();
@@ -83,6 +95,10 @@ export default defineComponent({
     return {
       indexSetList,
       tableData,
+      selectIndexSet,
+      tableLoading,
+      selectLoading,
+      handleChangeIndexSet,
       t,
     };
   },
@@ -90,7 +106,15 @@ export default defineComponent({
     return (
       <div class='alarm-center-detail-panel-alarm-log'>
         <div class='panel-log-header'>
-          <IndexSetSelector indexSetList={this.indexSetList} />
+          {this.selectLoading ? (
+            <div class='skeleton-element select-loading' />
+          ) : (
+            <IndexSetSelector
+              indexSetList={this.indexSetList}
+              value={this.selectIndexSet}
+              onChange={this.handleChangeIndexSet}
+            />
+          )}
           <Button
             class='ml-16'
             theme='primary'
@@ -103,7 +127,7 @@ export default defineComponent({
         <div class='panel-log-filter'>
           <RetrievalFilter zIndex={4000} />
         </div>
-        <LogTable tableData={this.tableData} />
+        {this.tableLoading ? <TableSkeleton type={4} /> : <LogTable tableData={this.tableData} />}
       </div>
     );
   },

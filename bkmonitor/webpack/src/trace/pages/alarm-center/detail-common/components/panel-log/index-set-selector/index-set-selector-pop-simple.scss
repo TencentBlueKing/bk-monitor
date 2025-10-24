@@ -29,7 +29,8 @@
       user-select: none;
       user-select: none;
 
-      &:hover {
+      &:hover,
+      &.active {
         color: #63656e;
         background-color: #f5f7fa;
       }

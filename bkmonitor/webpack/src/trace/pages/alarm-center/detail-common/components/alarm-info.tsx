@@ -32,7 +32,7 @@ import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/c
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
-import { useAppStore } from '@/store/modules/app';
+import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 import type { AlarmDetail, AlertActionOverview } from '../../typings';
 
@@ -52,8 +52,7 @@ export default defineComponent({
   emits: ['manualProcess', 'alarmDispatch'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const appStore = useAppStore();
-    const { bizItem } = storeToRefs(appStore);
+    const { bizItem } = storeToRefs(useAlarmCenterDetailStore());
     const bizIdName = computed(() =>
       bizItem.value?.space_type_id === ETagsType.BKCC
         ? `#${bizItem.value?.id}`

@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onUnmounted, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, onUnmounted, shallowRef, useTemplateRef } from 'vue';
 
 import { useEventListener } from '@vueuse/core';
+import { useI18n } from 'vue-i18n';
 import { useTippy } from 'vue-tippy';
 
 import IndexSetSelectorPopSimple from './index-set-selector-pop-simple';
@@ -42,13 +43,25 @@ export default defineComponent({
       type: Array as PropType<IIndexSet[]>,
       default: () => [],
     },
+    value: {
+      type: [Number, String] as PropType<number | string>,
+      default: '',
+    },
   },
-  setup(_props) {
+  emits: {
+    change: (_indexSetId: number | string) => true,
+  },
+  setup(props, { emit }) {
+    const { t } = useI18n();
     const elRef = useTemplateRef<HTMLDivElement>('el');
     const selectorRef = useTemplateRef<HTMLDivElement>('selector');
 
     const popoverInstance = shallowRef(null);
     const showSelector = shallowRef(false);
+
+    const curIndexSet = computed<IIndexSet>(() => {
+      return props.indexSetList.find(item => item.index_set_id === props.value) || null;
+    });
 
     let cleanup = () => {};
 
@@ -119,8 +132,16 @@ export default defineComponent({
       handleShowSelect(customEvent);
     }
 
+    function handleSelect(indexSetId: number | string) {
+      destroyPopoverInstance();
+      emit('change', indexSetId);
+    }
+
     return {
+      t,
       showSelector,
+      curIndexSet,
+      handleSelect,
       handleShowSelect,
       handleClickComponent,
     };
@@ -136,9 +157,12 @@ export default defineComponent({
           data-shortcut-key={'Cmd+o'}
           onClick={this.handleClickComponent}
         >
-          <span class='index-set-trigger-text'>
-            <span class='name'>容器文件采集测试_fixed</span>
-            <span class='alias'>容器文件采集测试_fixed</span>
+          <span
+            class='index-set-trigger-text'
+            data-placeholder={this.curIndexSet ? '' : this.t('请选择索引集')}
+          >
+            <span class='name'>{this.curIndexSet?.index_set_name || ''}</span>
+            <span class='alias' />
           </span>
           <span class='index-set-trigger-icon'>
             <span class='icon-monitor icon-mc-arrow-down' />
@@ -146,7 +170,12 @@ export default defineComponent({
         </div>
         <div style={{ display: 'none' }}>
           <div ref='selector'>
-            <IndexSetSelectorPopSimple list={this.indexSetList} />
+            <IndexSetSelectorPopSimple
+              id={this.value}
+              list={this.indexSetList}
+              show={this.showSelector}
+              onSelect={this.handleSelect}
+            />
           </div>
         </div>
       </div>

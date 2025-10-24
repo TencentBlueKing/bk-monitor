@@ -23,16 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { defineComponent, KeepAlive } from 'vue';
 import { shallowRef } from 'vue';
-import { computed } from 'vue';
 
 import { Tab } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
-import { useI18n } from 'vue-i18n';
 
 import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
 import { useAlarmBasicInfo } from '../composables/use-alarm-baseinfo';
+import { AlarmDetail } from '../typings';
 import AlarmAlert from './components/alarm-alert';
 import AlarmConfirmDialog from './components/alarm-confirm-dialog';
 import AlarmInfo from './components/alarm-info';
@@ -50,77 +49,42 @@ import './index.scss';
 export default defineComponent({
   name: 'DetailCommon',
   setup() {
-    const { t } = useI18n();
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const { alarmDetail, loading, bizId, alarmId } = storeToRefs(alarmCenterDetailStore);
-
     const { alertActionOverview } = useAlarmBasicInfo();
-
     const alarmConfirmShow = shallowRef(false);
-
-    const panelTabList = [
-      {
-        label: t('视图'),
-        name: 'view',
-      },
-      {
-        label: t('日志'),
-        name: 'log',
-      },
-      {
-        label: t('调用链'),
-        name: 'link',
-      },
-      {
-        label: t('主机'),
-        name: 'host',
-      },
-      {
-        label: t('容器'),
-        name: 'container',
-      },
-      {
-        label: t('关联事件'),
-        name: 'event',
-      },
-      {
-        label: t('相关性指标'),
-        name: 'metric',
-      },
-      {
-        label: t('收敛的告警'),
-        name: 'alarm',
-      },
-    ];
-
-    const currentPanel = shallowRef(panelTabList[0].name);
-
-    const panelCom = computed(() => {
-      const comMap = {
-        view: PanelView,
-        log: PanelLog,
-        link: PanelLink,
-        host: PanelHost,
-        container: PanelContainer,
-        event: PanelEvent,
-        metric: PanelMetric,
-        alarm: PanelAlarm,
-      };
-
-      return comMap[currentPanel.value];
-    });
+    const currentPanel = shallowRef(alarmCenterDetailStore.alarmDetail?.alarmTabList?.[0]?.label);
 
     const handleAlarmConfirm = (val: boolean) => {
-      alarmDetail.value = {
-        ...alarmDetail.value,
-        is_ack: val,
-      };
+      alarmDetail.value = new AlarmDetail({ ...alarmDetail.value, is_ack: val });
     };
 
+    const getPanelComponent = () => {
+      switch (currentPanel.value) {
+        case 'view':
+          return <PanelView />;
+        case 'log':
+          return <PanelLog detail={alarmCenterDetailStore.alarmDetail} />;
+        case 'link':
+          return <PanelLink />;
+        case 'host':
+          return <PanelHost detail={alarmCenterDetailStore.alarmDetail} />;
+        case 'container':
+          return <PanelContainer />;
+        case 'event':
+          return <PanelEvent />;
+        case 'metric':
+          return <PanelMetric />;
+        case 'alarm':
+          return <PanelAlarm />;
+        default:
+          return null;
+      }
+    };
     return () => (
       <div class='alarm-center-detail-box'>
         <AlarmAlert
-          data={alarmDetail.value}
+          data={alarmCenterDetailStore.alarmDetail}
           onAlarmConfirm={() => {
             alarmConfirmShow.value = true;
           }}
@@ -131,7 +95,7 @@ export default defineComponent({
         ) : (
           <AlarmInfo
             alertActionOverview={alertActionOverview.value}
-            data={alarmDetail.value}
+            data={alarmCenterDetailStore.alarmDetail}
           />
         )}
         <Tab
@@ -139,7 +103,7 @@ export default defineComponent({
           v-model:active={currentPanel.value}
           type='unborder-card'
         >
-          {panelTabList.map(item => (
+          {alarmCenterDetailStore.alarmDetail?.alarmTabList?.map(item => (
             <Tab.TabPanel
               key={item.name}
               label={item.label}
@@ -147,7 +111,7 @@ export default defineComponent({
             />
           ))}
         </Tab>
-        <panelCom.value detail={alarmDetail.value} />
+        <KeepAlive>{getPanelComponent()}</KeepAlive>
 
         <AlarmConfirmDialog
           alarmBizId={bizId.value}

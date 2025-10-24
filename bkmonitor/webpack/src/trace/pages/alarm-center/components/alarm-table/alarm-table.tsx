@@ -99,7 +99,7 @@ export default defineComponent({
     pageSizeChange: (pageSize: number) => typeof pageSize === 'number',
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
     showAlertDetail: (item: string) => typeof item === 'string',
-    showActionDetail: (item: string) =>  typeof item === 'string',
+    showActionDetail: (item: string) => typeof item === 'string',
   },
   setup(props, { emit }) {
     // const alarmStore = useAlarmCenterStore();
