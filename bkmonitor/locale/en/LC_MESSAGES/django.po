@@ -76,7 +76,7 @@ msgid "发生告警"
 msgstr "Alarm Occurs"
 
 msgid "实例"
-msgstr "Examples"
+msgstr "Instance"
 
 msgid "节点"
 msgstr "Node"
@@ -7962,7 +7962,7 @@ msgid "未设置"
 msgstr "Not Set"
 
 msgid "错误"
-msgstr "mistake"
+msgstr "Error"
 
 msgid "最大耗时 {}"
 msgstr "Maximum Time {}"
@@ -12235,7 +12235,7 @@ msgid "异常事件"
 msgstr "Exception Event"
 
 msgid "总数量"
-msgstr "Total number"
+msgstr "Total Number"
 
 msgid "请求统计"
 msgstr "Request Statistics"
@@ -12259,7 +12259,7 @@ msgid "异常列表"
 msgstr "Exception List"
 
 msgid "调用总数"
-msgstr "Total number"
+msgstr "Total Number"
 
 msgid "组件实例"
 msgstr "Component instance"
@@ -12280,19 +12280,19 @@ msgid "请求量"
 msgstr "Amount of requests"
 
 msgid "成功率"
-msgstr "Success rate"
+msgstr "Success Rate"
 
 msgid "超时率"
-msgstr "Timeout rate"
+msgstr "Timeout Rate"
 
 msgid "异常率"
-msgstr "Exception rate"
+msgstr "Exception Rate"
 
 msgid "耗时分布"
 msgstr "Time consumption distribution"
 
 msgid "耗时热力图"
-msgstr "Time heatmap"
+msgstr "Time Heatmap"
 
 msgid "维度值分布"
 msgstr "Dimensional value distribution"
@@ -12316,28 +12316,28 @@ msgid "主机列表"
 msgstr "Host list"
 
 msgid "总趋势"
-msgstr "Total trend"
+msgstr "Total Trend"
 
 msgid "查询项"
-msgstr "Query item"
+msgstr "Query Item"
 
 msgid "对比项"
-msgstr "Compare item"
+msgstr "Compare Item"
 
 msgid "告警模板"
-msgstr "Alarm template"
+msgstr "Alarm Template"
 
 msgid "服务组件"
-msgstr "Service component"
+msgstr "Service Component"
 
 msgid "调用分析"
-msgstr "Call analysis"
+msgstr "Call Analysis"
 
 msgid "事件等级"
-msgstr "Event level"
+msgstr "Event Level"
 
 msgid "事件来源"
-msgstr "Event source"
+msgstr "Event Source"
 
 msgid "用户环境"
 msgstr "Environment"
@@ -12400,7 +12400,7 @@ msgid "主调服务"
 msgstr "Caller Server"
 
 msgid "调用数"
-msgstr "Call number"
+msgstr "Call Number"
 
 msgid "缩略图"
 msgstr "Thumbnail"
