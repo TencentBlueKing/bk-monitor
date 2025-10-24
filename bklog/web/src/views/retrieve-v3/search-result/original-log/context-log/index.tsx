@@ -110,6 +110,7 @@ export default defineComponent({
     let timer: NodeJS.Timeout;
     let displayFieldNames: string[] = [];
 
+
     watch(
       () => props.isShow,
       () => {
@@ -206,6 +207,42 @@ export default defineComponent({
       }
     };
 
+    /**
+     * 获取显示的字段名
+     * 优先展示displayFieldNames，如果没有则展示log字段，如果没有则展示text类型字段，如果没有则展示页面可见字段
+     * @returns 获取显示的字段名
+     */
+    const getShowFieldNames = () => {
+      if (displayFieldNames.length) {
+        return displayFieldNames;
+      }
+
+      const allFields = store.state.indexFieldInfo.fields;
+      let showFieldName = '';
+      for (const field of allFields) {
+        if (field.field_name === 'log') {
+          showFieldName = field.field_name;
+          break;
+        }
+
+        if (field.field_type === 'text') {
+          showFieldName = field.field_name;
+          break;
+        }
+      }
+
+      if (showFieldName) {
+        return [showFieldName];
+      }
+
+      const pageVisibleFields = store.state.visibleFields.map(item => item.field_name);
+      if (pageVisibleFields.length) {
+        return pageVisibleFields;
+      }
+
+      return ['log'];
+    };
+
     const requestContentLog = async (direction?: string) => {
       const data: any = Object.assign(
         {
@@ -234,7 +271,7 @@ export default defineComponent({
 
         const { list } = res.data;
         if (list?.length > 0) {
-          const formatList = hadnleFormatList(list, displayFieldNames.length ? displayFieldNames : ['log']);
+          const formatList = handleFormatList(list, getShowFieldNames());
           if (direction) {
             if (direction === 'down') {
               logList.value.push(...formatList);
@@ -282,13 +319,13 @@ export default defineComponent({
     /**
      * 将列表根据字段组合成字符串数组
      **/
-    const hadnleFormatList = (list, displayFieldNames) => {
+    const handleFormatList = (list, displayFieldNames) => {
       const filterDisplayList: any[] = [];
-      list.forEach(listItem => {
+      list.forEach((listItem) => {
         const displayObj = {};
         const { newObject } = getFlatObjValues(listItem);
         const { changeFieldName } = useFieldNameHook({ store });
-        displayFieldNames.forEach(field => {
+        displayFieldNames.forEach((field) => {
           Object.assign(displayObj, {
             [field]: newObject[changeFieldName(field)],
           });
@@ -301,8 +338,8 @@ export default defineComponent({
     // 确定设置显示字段
     const handleConfirmFieldsConfig = async (list: string[]) => {
       displayFieldNames = list;
-      logList.value = hadnleFormatList(rawList, list);
-      reverseLogList.value = hadnleFormatList(reverseRawList, list);
+      logList.value = handleFormatList(rawList, list);
+      reverseLogList.value = handleFormatList(reverseRawList, list);
     };
 
     const initLogScrollPosition = () => {
@@ -379,7 +416,7 @@ export default defineComponent({
       }
     };
 
-    const filterLog = value => {
+    const filterLog = (value) => {
       activeFilterKey.value = value;
       clearTimeout(throttleTimer);
       throttleTimer = setTimeout(() => {

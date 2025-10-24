@@ -25,8 +25,8 @@
  */
 import { defineComponent, ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 
-import { parseTableRowData } from '@/common/util';
-import { readBlobRespToJson, parseBigNumberList, formatDate } from '@/common/util';
+import { parseTableRowData, readBlobRespToJson, parseBigNumberList, formatDate } from '@/common/util';
+
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -67,11 +67,10 @@ export default defineComponent({
     const listLoading = ref(false);
     const isCollapsed = ref(false);
 
-    const fieldsMap = computed(() =>
-      (store.state.indexFieldInfo.fields || []).reduce((dataMap, item) => {
-        dataMap[item.field_name] = item;
-        return dataMap;
-      }, {}),
+    const fieldsMap = computed(() => (store.state.indexFieldInfo.fields || []).reduce((dataMap, item) => {
+      dataMap[item.field_name] = item;
+      return dataMap;
+    }, {}),
     );
     const visibleFields = computed(() => store.state.visibleFields);
 
@@ -236,20 +235,19 @@ export default defineComponent({
       return mappingKey[operator] ?? operator; // is is not 值映射
     };
 
-    const getValidUISearchValue = (searchValue: any[]) =>
-      searchValue.reduce((addtions, item) => {
-        if (!item.disabled) {
-          addtions.push({
-            field: item.field,
-            operator: item.operator,
-            value:
+    const getValidUISearchValue = (searchValue: any[]) => searchValue.reduce((addtions, item) => {
+      if (!item.disabled) {
+        addtions.push({
+          field: item.field,
+          operator: item.operator,
+          value:
               item.hidden_values?.length > 0
                 ? item.value.filter(value => !item.hidden_values.includes(value))
                 : item.value,
-          });
-        }
-        return addtions;
-      }, []);
+        });
+      }
+      return addtions;
+    }, []);
 
     const handleMenuClick = (data: {
       option: {
@@ -331,7 +329,7 @@ export default defineComponent({
       if (Array.isArray(contextFields) && contextFields.length) {
         // 传参配置指定字段
         contextFields.push(timeField);
-        contextFields.forEach(field => {
+        contextFields.forEach((field) => {
           if (field === 'bk_host_id') {
             if (rowInfo[field]) {
               dialogNewParams[field] = rowInfo[field];
@@ -416,7 +414,7 @@ export default defineComponent({
               relation: 'OR',
               showAll: true,
             }));
-            addAdditionList.forEach(addition => {
+            addAdditionList.forEach((addition) => {
               searchBarRef.value.addValue(addition);
             });
           }
@@ -446,6 +444,10 @@ export default defineComponent({
       },
       reset: handleReset,
     });
+
+    const rowStyle = `font-family: var(--bklog-v3-row-ctx-font);
+    font-size: var(--table-fount-size);
+    color: var(--table-fount-color);`;
 
     return () => (
       <div class='log-result-main'>
@@ -487,13 +489,13 @@ export default defineComponent({
             <thead>
               <tr class='table-header'>
                 <th style='width:90px;padding-left:42px'>{t('行号')}</th>
-                <th style='width:140px'>{t('时间')}</th>
+                <th style='width:200px'>{t('时间')}</th>
                 <th style='min-width:300px'>{t('原始日志')}</th>
               </tr>
             </thead>
             <tbody v-bkloading={{ isLoading: listLoading.value, opacity: 0.6 }}>
-              {logList.value.length > 0 &&
-                logList.value.map((row, index) => (
+              {logList.value.length > 0
+                && logList.value.map((row, index) => (
                   <tr
                     key={`${index}_${row.time}`}
                     class={{ 'is-choosed': choosedIndex.value === index }}
@@ -509,7 +511,7 @@ export default defineComponent({
                         </div>
                       </div>
                     </td>
-                    <td>{formatDate(Number(row.time))}</td>
+                    <td style={rowStyle}>{formatDate(Number(row.time))}</td>
                     <td style='padding:4px 0'>
                       <RenderJsonCell>
                         <JsonFormatter
