@@ -232,7 +232,7 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
             # 如果是VictoriaMetrics集群，需要获取过期时间
             if cluster_type == models.ClusterInfo.TYPE_VM:
                 # 记录过期时间，单位为秒
-                default_settings["expire_time"] = (cluster_spec.get("expiresMs") or DEFAULT_VM_EXPIRES_MS) // 1000
+                default_settings["retention_time"] = (cluster_spec.get("expiresMs") or DEFAULT_VM_EXPIRES_MS) // 1000
                 # 记录集群所属业务ID，只有业务独立集群才会有对应字段，默认为None
                 default_settings["bk_biz_id"] = cluster_spec.get("bkBizId")
 
