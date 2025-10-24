@@ -105,6 +105,7 @@ export default defineComponent({
 
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
+      aiBluekingEnabled: store.state.features.isAiAssistantActive,
       stopPropagation: true,
       onclick: (...args) => {
         const type = args[1];
@@ -686,6 +687,10 @@ export default defineComponent({
       ],
       handleResultBoxResize,
     );
+
+    addEvent(RetrieveEvent.AI_CLOSE, () => {
+      refResultRowBox.value?.querySelector('.ai-active')?.classList.remove('ai-active');
+    });
 
     const handleColumnWidthChange = (w, col) => {
       const width = w > 40 ? w : 40;

@@ -24,28 +24,172 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 
 import RetrieveHelper from '../../retrieve-helper';
 import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
+import useLocale from '@/hooks/use-locale';
+import useElementEvent from '@/hooks/use-element-event';
+import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
+import useStore from '@/hooks/use-store';
 
 import './index.scss';
 
+
 export default defineComponent({
   name: 'V3Searchbar',
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  setup(_, {}) {
+  setup() {
+    const { t } = useLocale();
+    const store = useStore();
+
     const searchBarHeight = ref(0);
-    const handleHeightChange = height => {
-      searchBarHeight.value = height;
-      RetrieveHelper.setSearchBarHeight(height);
+    const searchBarRef = ref<any>(null);
+
+    const aiSpanStyle = {
+      background: 'linear-gradient(115deg, #235DFA 0%, #E28BED 100%)',
+      '-webkit-background-clip': 'text',
+      'background-clip': 'text',
+      '-webkit-text-fill-color': 'transparent',
+      color: 'transparent',
+      'font-size': '12px',
+      cursor: 'pointer',
     };
 
+    const aiBtnStyle = {
+      'font-size': '12px',
+      color: '#313238',
+      width: 'max-content',
+      'background-image': 'linear-gradient(-79deg, #F1EDFA 0%, #EBF0FF 100%)',
+      'border-radius': '12px',
+      padding: '4px 8px',
+      display: 'flex',
+      'align-items': 'center',
+      gap: '4px',
+      cursor: 'pointer',
+      'margin-right': '8px',
+    };
+
+    const aiSpanWrapperStyle = {
+      display: 'flex',
+      'align-items': 'center',
+      gap: '4px',
+      'font-size': '12px',
+      color: '#c4c6cc',
+    };
+
+    /**
+     * 获取字段配置
+     */
+    const fieldsJsonValue = computed(() => {
+      const fieldConfig = store.state.indexFieldInfo.fields.reduce((acc, field) => {
+        return {
+          ...acc,
+          [field.field_name]: {
+            type: field.field_type,
+            ...(field.query_alias ? { query_alias: field.query_alias } : {}),
+          },
+        };
+      }, {});
+
+      return JSON.stringify(fieldConfig);
+    });
+
+
+    const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+
+    /**
+     * 用于处理搜索栏高度变化
+     * @param height 搜索栏高度
+     */
+    const handleHeightChange = (height) => {
+      searchBarHeight.value = height;
+      RetrieveHelper.setSearchBarHeight(height);
+
+      if (RetrieveHelper.aiAssitantHelper.isShown()) {
+        const rect = searchBarRef.value?.getRect();
+        const left = rect?.left;
+        const top = rect?.top + rect?.height + 4;
+
+        RetrieveHelper.aiAssitantHelper.setPosition(left, top);
+      }
+    };
+
+    /**
+     * 添加事件
+     */
+    const { addElementEvent } = useElementEvent();
+    addElementEvent(document.body, 'click', (e: MouseEvent) => {
+      RetrieveHelper.aiAssitantHelper.closeAiAssitantWithSearchBar(e);
+    });
+
+    const handleAiSpanClick = (e: MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const rect = searchBarRef.value?.getRect();
+      const left = rect?.left;
+      const top = rect?.top + rect?.height + 4;
+      const width = rect?.width;
+
+      RetrieveHelper.aiAssitantHelper.showAiAssitant({
+        defaultLeft: left,
+        defaultTop: top,
+        defaultWidth: width,
+        defaultHeight: 560,
+        draggable: false,
+        defaultChatInputPosition: 'bottom',
+        showCompressionIcon: false,
+        showNewChatIcon: false,
+        showMoreIcon: false,
+        maxWidth: '100%',
+        title: t('AI编辑'),
+      }, {
+        index_set_id: store.state.indexItem.ids[0],
+        description: '',
+        domain: window.location.origin,
+        fields: fieldsJsonValue.value,
+      });
+    };
+
+    /**
+     * 渲染搜索栏
+     * @returns
+     */
     return () => (
       <V2SearchBar
         class='v3-search-bar-root'
+        ref={searchBarRef}
         on-height-change={handleHeightChange}
-      ></V2SearchBar>
+        {...{
+          scopedSlots: {
+            'custom-placeholder'(slotProps) {
+              if (isAiAssistantActive.value) {
+                return (
+                  <span style={aiSpanWrapperStyle}>
+                    { slotProps.isEmptyText ? t('或') : '' }
+                    <span style={aiSpanStyle} onClick={handleAiSpanClick}>
+                      {t('使用AI编辑')}
+                    </span>
+                  </span>
+                );
+              }
+              return null;
+            },
+            'search-tool': () => {
+              if (isAiAssistantActive.value) {
+                return (
+                  <span onClick={handleAiSpanClick} style={aiBtnStyle}>
+                    <img src={aiBluekingSvg} alt='AI编辑' style={{ width: '16px', height: '16px' }} />
+                    {t('AI编辑')}
+                  </span>
+                );
+              }
+              return null;
+            },
+          },
+        }}
+      >
+      </V2SearchBar>
     );
   },
 });

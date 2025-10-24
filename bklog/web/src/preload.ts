@@ -28,11 +28,11 @@ import './polyfill';
 import { SET_APP_STATE } from './store';
 import { URL_ARGS } from './store/default-values';
 import { BK_LOG_STORAGE } from './store/store.type';
-window.__VUE_PROD_HYDRATION_MISMATCH_DETAILS__ = false;
 import BkUserDisplayName from '@blueking/bk-user-display-name';
+window.__VUE_PROD_HYDRATION_MISMATCH_DETAILS__ = false;
 
 /** 外部版根据空间授权权限显示菜单 */
-export const getExternalMenuListBySpace = space => {
+export const getExternalMenuListBySpace = (space) => {
   const list: string[] = [];
   for (const permission of space.external_permission || []) {
     if (permission === 'log_search') {
@@ -52,9 +52,9 @@ export const getExternalMenuListBySpace = space => {
  */
 export const getAllSpaceList = (http, store) => {
   window.scheduler.postTask(() => {
-    http.request('space/getMySpaceList').then(resp => {
+    http.request('space/getMySpaceList').then((resp) => {
       const spaceList = resp.data;
-      spaceList.forEach(item => {
+      spaceList.forEach((item) => {
         item.bk_biz_id = `${item.bk_biz_id}`;
         item.space_uid = `${item.space_uid}`;
         item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
@@ -70,7 +70,7 @@ export default ({
   http,
   store,
 }: {
-  http: { request: (...args) => Promise<any> };
+  http: { request: (..._args: any) => Promise<any> };
   store: any;
   isExternal?: boolean;
 }) => {
@@ -88,7 +88,7 @@ export default ({
             index_set_id: URL_ARGS.index_id,
           },
         })
-        .then(resp => {
+        .then((resp) => {
           if (resp.result) {
             store.commit('updateSpace', resp.data);
             store.commit('updateStorage', {
@@ -137,7 +137,7 @@ export default ({
   const getDefaultSpaceList = () => {
     const requestSpaceList = params => http.request('space/getMySpaceList', params);
     const spaceRequestData = getSpaceRequestData();
-    return requestSpaceList(spaceRequestData).then(resp => {
+    return requestSpaceList(spaceRequestData).then((resp) => {
       const spaceList = resp.data;
       if (spaceList.length) {
         return Promise.resolve(resp);
@@ -158,7 +158,7 @@ export default ({
    * return
    */
   const spaceRequest = getSpaceByIndexId().then(() => {
-    return getDefaultSpaceList().then(resp => {
+    return getDefaultSpaceList().then((resp) => {
       const spaceList = resp.data;
       for (const item of spaceList) {
         item.bk_biz_id = `${item.bk_biz_id}`;
@@ -167,12 +167,12 @@ export default ({
       }
 
       store.commit('updateMySpaceList', spaceList);
-      const space_uid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
+      const spaceUid = store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
       const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
       let space: { [key: string]: any } | null = null;
 
-      if (space_uid) {
-        space = (spaceList ?? []).find(item => item.space_uid === space_uid);
+      if (spaceUid) {
+        space = (spaceList ?? []).find(item => item.space_uid === spaceUid);
       }
 
       if (!space && bkBizId) {
@@ -185,7 +185,7 @@ export default ({
 
       store.commit('updateSpace', space?.space_uid);
 
-      if (space && (space_uid !== space.space_uid || bkBizId !== space.bk_biz_id)) {
+      if (space && (spaceUid !== space.space_uid || bkBizId !== space.bk_biz_id)) {
         store.commit('updateStorage', {
           [BK_LOG_STORAGE.BK_BIZ_ID]: space.bk_biz_id,
           [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
@@ -199,7 +199,7 @@ export default ({
   /**
    * 获取用户信息
    */
-  const userInfoRequest = http.request('userInfo/getUsername').then(resp => {
+  const userInfoRequest = http.request('userInfo/getUsername').then((resp) => {
     store.commit('updateState', { userMeta: resp.data });
     BkUserDisplayName.configure({
       // 必填，租户 ID
@@ -218,7 +218,7 @@ export default ({
   /**
    * 获取全局配置
    */
-  const globalsRequest = http.request('collect/globals').then(res => {
+  const globalsRequest = http.request('collect/globals').then((res) => {
     store.commit('globals/setGlobalsData', res.data);
     return res.data;
   });
@@ -226,7 +226,7 @@ export default ({
   /**
    * 获取用户引导数据
    */
-  const getUserGuideRequest = http.request('meta/getUserGuide').then(res => {
+  const getUserGuideRequest = http.request('meta/getUserGuide').then((res) => {
     store.commit('updateState', { userGuideData: res.data });
     return res.data;
   });

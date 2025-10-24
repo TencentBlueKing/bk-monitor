@@ -57,14 +57,15 @@ export interface ComponentOption {
 }
 export const AI_BLUEKING_SHORTCUTS_ID = {
   LOG_ANALYSIS: 'log_analysis',
+  QUERY_STRING_GENERATE: 'querystring_generate',
 } as const;
 
-export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
+export type AIBluekingShortcutId =
+  (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
 
-// index_set_id,
-// log,
-// context_count
-
+/**
+ * 日志解读快捷方式
+ */
 export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
   {
     id: AI_BLUEKING_SHORTCUTS_ID.LOG_ANALYSIS,
@@ -105,6 +106,61 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         fillBack: true,
         required: true,
         placeholder: window.$t('请输入需要解读的内容'),
+      },
+    ],
+  },
+];
+
+/**
+ * 自然语言转查询语句
+ */
+export const AI_BLUEKING_QUERY_STRING = [
+  {
+    id: AI_BLUEKING_SHORTCUTS_ID.QUERY_STRING_GENERATE,
+    name: window.$t('自然语言转查询语句'),
+    mode: 'simple',
+    hideFooter: true,
+    components: [
+      {
+        type: 'textarea',
+        key: 'index_set_id',
+        name: 'index_set_id',
+        fillBack: true,
+        required: true,
+        hide: true,
+        placeholder: window.$t('index_set_id'),
+        default: '',
+      },
+      {
+        type: 'textarea',
+        key: 'description',
+        name: window.$t('检索需求'),
+        fillBack: true,
+        required: true,
+        hide: false,
+        placeholder: window.$t('请输入检索需求'),
+        mode: 'simple',
+        showSendButton: true,
+        default: '',
+      },
+      {
+        type: 'textarea',
+        key: 'domain',
+        name: 'domain',
+        fillBack: true,
+        required: true,
+        hide: true,
+        default: '',
+      },
+      {
+        type: 'textarea',
+        key: 'fields',
+        name: 'fields',
+        fillBack: true,
+        required: true,
+        hide: true,
+        placeholder: 'fields',
+        default: '',
       },
     ],
   },
