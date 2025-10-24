@@ -52,6 +52,7 @@ export default class TemplatePush extends tsc<IProps> {
   @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
   @Prop({ default: () => [] }) metricFunctions: any[];
 
+  loading = false;
   relationService: IRelationService[] = [];
 
   compareDataMap = new Map<string, TCompareData>();
@@ -61,6 +62,8 @@ export default class TemplatePush extends tsc<IProps> {
 
   @Watch('show')
   handleWatchShowChange(v: boolean) {
+    this.loading = false;
+    this.submitLoading = false;
     if (v) {
       this.getCheckStrategyTemplate();
     } else {
@@ -111,15 +114,20 @@ export default class TemplatePush extends tsc<IProps> {
   }
 
   getCheckStrategyTemplate() {
+    this.loading = true;
     getCheckStrategyTemplate({
       strategy_template_ids: this.params?.strategy_template_ids,
       app_name: this.params?.app_name,
-    }).then(data => {
-      this.relationService = (data?.list || []).map(item => ({
-        ...item,
-        key: random(8),
-      }));
-    });
+    })
+      .then(data => {
+        this.relationService = (data?.list || []).map(item => ({
+          ...item,
+          key: random(8),
+        }));
+      })
+      .finally(() => {
+        this.loading = false;
+      });
   }
 
   async getCompareStrategyTemplate(params: { service_name: string; strategy_template_id: number }) {
@@ -181,6 +189,7 @@ export default class TemplatePush extends tsc<IProps> {
         >
           <RelationServiceTable
             getCompareData={this.getCompareStrategyTemplate}
+            loading={this.loading}
             metricFunctions={this.metricFunctions}
             relationService={this.relationService}
             onChangeCheckKeys={this.handleChangeCheckKeys}

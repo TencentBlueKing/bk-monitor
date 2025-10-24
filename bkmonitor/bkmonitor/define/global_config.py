@@ -433,7 +433,7 @@ ADVANCED_OPTIONS = OrderedDict(
         # RUM 配置
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
-        ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[])),
+        ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
     ]
 )
 
@@ -544,6 +544,10 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_APDEX_T_VALUE", slz.IntegerField(label=_("APM平台apdex_t默认配置"), default=800)),
         ("APM_SAMPLING_PERCENTAGE", slz.IntegerField(label=_("APM中默认采样比例"), default=100)),
         ("APM_APP_QPS", slz.IntegerField(label=_("APM中应用默认QPS"), default=500)),
+        (
+            "APM_FIELD_NORMALIZER_ENABLED",
+            slz.BooleanField(label=_("是否下发平台级别字段标准化配置"), default=True),
+        ),
         ("APM_CUSTOM_EVENT_REPORT_CONFIG", slz.DictField(label=_("APM事件上报配置"), default={})),
         ("APM_TRACE_DIAGRAM_CONFIG", slz.DictField(label=_("APM Trace 检索图表配置"), default={})),
         ("APM_DORIS_STORAGE_CONFIG", slz.DictField(label=_("APM Doris 存储配置"), default={})),
@@ -552,6 +556,10 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
         ("APM_TRPC_ENABLED", slz.BooleanField(label=_("APM 是否针对TRPC有特殊配置"), default=False)),
         ("APM_TRPC_APPS", slz.DictField(label=_("APM TRPC 应用标记"), default={})),
+        (
+            "APM_RESOURCE_FILTER_METRICS_ENABLED_APPS",
+            slz.DictField(label=_("APM metrics维度补充功能应用白名单"), default={}),
+        ),
         (
             "APM_BMW_DEPLOY_BIZ_ID",
             slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0),
@@ -661,6 +669,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("ENABLE_CUSTOM_EVENT_SLEEP", slz.BooleanField(label=_("是否开启自定义事件休眠"), default=False)),
         # 事件中心AIOps功能灰度业务列表
         ("ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST", slz.ListField(label=_("事件中心AIOps功能灰度业务列表"), default=[])),
+        # APM 按服务缓存指标的灰度应用列表，格式：["业务ID-应用名1", "业务ID-应用名2"]
+        ("APM_SERVICE_CACHE_APPLICATIONS", slz.ListField(label=_("APM 按服务缓存指标的灰度应用列表"), default=[])),
     ]
 )
 

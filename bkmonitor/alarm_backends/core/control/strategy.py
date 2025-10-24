@@ -42,14 +42,14 @@ class Strategy:
         return self._config
 
     @property
-    def strategy_group_key(self):
+    def strategy_group_key(self) -> str:
         if not self.config.get("items"):
             return ""
 
         return self.config["items"][0].get("query_md5", "")
 
     @property
-    def use_api_sdk(self):
+    def use_api_sdk(self) -> bool:
         for query_config in self.config["items"][0]["query_configs"]:
             if "intelligent_detect" in query_config:
                 return bool(query_config["intelligent_detect"].get("use_sdk"))
@@ -84,37 +84,48 @@ class Strategy:
         return self.config.get("priority")
 
     @property
-    def priority_group_key(self):
+    def priority_group_key(self) -> str:
         return self.config.get("priority_group_key", "")
 
     @cached_property
-    def is_service_target(self):
+    def is_service_target(self) -> bool:
         """
         判断是否是"服务"层
         """
         return self.config.get("scenario") in ("component", "service_module", "service_process")
 
     @cached_property
-    def is_host_target(self):
+    def is_host_target(self) -> bool:
         """
         判断是否为"主机"层
         """
         return self.config.get("scenario") in ("os", "host_process")
 
     @cached_property
-    def bk_biz_id(self):
+    def bk_biz_id(self) -> str:
         return self.config.get("bk_biz_id", "0")
 
     @cached_property
-    def scenario(self):
+    def scenario(self) -> str:
         return self.config.get("scenario", "")
 
     @cached_property
-    def name(self):
+    def name(self) -> str:
         return self.config.get("name") or _("--")
 
     @cached_property
-    def items(self):
+    def labels(self) -> str:
+        """策略标签"""
+        return ",".join(self.config.get("labels", []))
+
+    @cached_property
+    def item(self) -> Item:
+        if self.items:
+            return self.items[0]
+        return Item({}, self)
+
+    @cached_property
+    def items(self) -> list[Item]:
         results = []
         item_list = self.config.get("items") or []
         for item_config in item_list:
@@ -122,15 +133,15 @@ class Strategy:
         return results
 
     @cached_property
-    def type(self):
+    def type(self) -> str:
         return self.config.get("type", "monitor")
 
     @cached_property
-    def notice(self):
+    def notice(self) -> dict:
         return self.config.get("notice", {})
 
     @cached_property
-    def actions(self):
+    def actions(self) -> list:
         return self.config.get("actions", [])
 
     def in_alarm_time(self, now_time=None) -> tuple[bool, str]:

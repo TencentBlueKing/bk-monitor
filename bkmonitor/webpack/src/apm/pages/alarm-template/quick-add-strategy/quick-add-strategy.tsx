@@ -66,6 +66,7 @@ class QuickAddStrategy extends Mixins(
   @Prop({ type: Object, default: () => ({}) }) params: Record<string, any>;
   @Ref('templateForm') templateFormRef: TemplateForm;
 
+  loading = false;
   templateList: ITempLateItem[] = [];
   alarmGroupList: IAlarmGroupList[] = [];
   alarmGroupLoading = false;
@@ -93,6 +94,8 @@ class QuickAddStrategy extends Mixins(
   @Watch('show')
   handleWatchShowChange(v: boolean) {
     if (v) {
+      this.getAlarmGroupList();
+      this.getFunctions();
       this.getTemplateList();
     } else {
       this.templateDetail = {};
@@ -104,11 +107,6 @@ class QuickAddStrategy extends Mixins(
       this.cursorId = null;
       this.cursorItem = null;
     }
-  }
-
-  created() {
-    this.getAlarmGroupList();
-    this.getFunctions();
   }
 
   handleShowTemplateDetails() {
@@ -129,6 +127,9 @@ class QuickAddStrategy extends Mixins(
   }
 
   getAlarmGroupList() {
+    if (this.alarmGroupList.length) {
+      return;
+    }
     this.alarmGroupLoading = true;
     return listUserGroup({ exclude_detail_info: 1 })
       .then(data => {
@@ -146,6 +147,9 @@ class QuickAddStrategy extends Mixins(
   }
 
   getFunctions() {
+    if (this.metricFunctions.length) {
+      return;
+    }
     getFunctions().then(data => {
       this.metricFunctions = data;
     });
@@ -311,8 +315,9 @@ class QuickAddStrategy extends Mixins(
     if (!valid) return;
 
     const h = this.$createElement;
-
+    this.loading = true;
     const isSuccess = await this.applyStrategyTemplate();
+    this.loading = false;
     if (!isSuccess) {
       return;
     }
@@ -384,7 +389,7 @@ class QuickAddStrategy extends Mixins(
       ],
       simple: true,
     }).catch(() => ({ list: [] }));
-    this.templateList = await this.checkTemplateList(
+    const templateList = await this.checkTemplateList(
       (data?.list || []).map(item => {
         const system = item.system;
         const category = item.category;
@@ -403,8 +408,44 @@ class QuickAddStrategy extends Mixins(
         };
       })
     );
+    // 检查是否有system为'RPC'的项，如果有则移动到首位
+    const rpcIndex = templateList.findIndex(item => item.system === 'RPC');
+    if (rpcIndex > 0) {
+      const rpcItem = templateList.splice(rpcIndex, 1)[0];
+      templateList.unshift(rpcItem);
+    }
+    this.templateList = templateList;
     if (this.templateList.length) {
-      this.handleCursorChange(this.templateList[0].id);
+      // strategy_template_codes 包含 code 时，默认选中这一个 优先选中 type=builtin
+      let id = null;
+      const checkIds = new Set();
+      let needCheck = true;
+      for (const temp of this.templateList) {
+        if (temp?.type === 'builtin' && this.params?.strategy_template_codes?.includes(temp?.code)) {
+          if (!id) {
+            id = temp.id;
+          }
+          checkIds.add(temp.id);
+        }
+      }
+      if (!id) {
+        for (const temp of this.templateList) {
+          if (this.params?.strategy_template_codes?.includes(temp?.code)) {
+            if (!id) {
+              id = temp.id;
+            }
+            checkIds.add(temp.id);
+          }
+        }
+        if (!id) {
+          id = this.templateList[0].id;
+          needCheck = false;
+        }
+      }
+      this.handleCursorChange(id);
+      if (needCheck) {
+        this.handleCheckedChange(Array.from(checkIds));
+      }
     }
     this.templateListLoading = false;
   }
@@ -541,6 +582,7 @@ class QuickAddStrategy extends Mixins(
           <bk-button
             class='mr-8 ml-24'
             disabled={!this.checkedList.length}
+            loading={this.loading}
             theme='primary'
             onClick={this.handleSubmit}
           >

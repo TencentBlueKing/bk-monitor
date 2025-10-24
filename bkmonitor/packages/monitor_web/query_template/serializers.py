@@ -22,7 +22,7 @@ from constants.query_template import GLOBAL_BIZ_ID
 
 
 class BaseQueryTemplateRequestSerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField(label="业务 ID")
+    bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
 
 
 class QueryTemplateDetailRequestSerializer(BaseQueryTemplateRequestSerializer):
@@ -32,24 +32,24 @@ class QueryTemplateDetailRequestSerializer(BaseQueryTemplateRequestSerializer):
 class QueryTemplateListRequestSerializer(BaseQueryTemplateRequestSerializer):
     class ConditionSerializer(serializers.Serializer):
         key = serializers.ChoiceField(
-            label="查询条件", choices=["query", "name", "alias", "description", "create_user", "update_user"]
+            label=_("查询条件"), choices=["query", "name", "alias", "description", "create_user", "update_user"]
         )
-        value = serializers.ListField(label="查询条件值", child=serializers.CharField())
+        value = serializers.ListField(label=_("查询条件值"), child=serializers.CharField())
 
-    page = serializers.IntegerField(label="页码", min_value=1, default=1)
-    page_size = serializers.IntegerField(label="每页条数", min_value=1, default=50)
+    page = serializers.IntegerField(label=_("页码"), min_value=1, default=1)
+    page_size = serializers.IntegerField(label=_("每页条数"), min_value=1, default=50)
     order_by = serializers.ListField(
-        label="排序字段",
+        label=_("排序字段"),
         child=serializers.ChoiceField(choices=["update_time", "-update_time", "create_time", "-create_time"]),
         default=["-update_time"],
         allow_empty=True,
     )
-    conditions = serializers.ListField(label="查询条件", child=ConditionSerializer(), default=[], allow_empty=True)
+    conditions = serializers.ListField(label=_("查询条件"), child=ConditionSerializer(), default=[], allow_empty=True)
 
 
 class FunctionSerializer(serializers.Serializer):
     id = serializers.CharField()
-    params = serializers.ListField(child=serializers.DictField(), allow_empty=True)
+    params = serializers.ListField(label=_("函数参数"), child=serializers.DictField(), allow_empty=True)
 
 
 class QueryTemplateCreateRequestSerializer(BaseQueryTemplateRequestSerializer, QueryTemplateSerializer):
@@ -61,13 +61,13 @@ class QueryTemplateUpdateRequestSerializer(QueryTemplateCreateRequestSerializer)
 
 
 class QueryTemplatePreviewRequestSerializer(BaseQueryTemplateRequestSerializer):
-    query_template = QueryTemplateSerializer(label="查询模板")
-    context = serializers.DictField(label="变量值", default={}, required=False)
+    query_template = QueryTemplateSerializer(label=_("查询模板"))
+    context = serializers.DictField(label=_("变量值"), default={}, required=False)
 
 
 class QueryTemplateRelationsRequestSerializer(BaseQueryTemplateRequestSerializer):
     query_template_ids = serializers.ListField(
-        label="查询模板 ID 列表", child=serializers.IntegerField(min_value=1), default=[], allow_empty=True
+        label=_("查询模板 ID 列表"), child=serializers.IntegerField(min_value=1), default=[], allow_empty=True
     )
 
 

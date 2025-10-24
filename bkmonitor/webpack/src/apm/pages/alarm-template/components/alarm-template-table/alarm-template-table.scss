@@ -240,6 +240,16 @@
       }
     }
   }
+
+  &.not-selected {
+    .alarm-template-table {
+      .bk-table-pagination-wrapper {
+        .bk-page-selection-count {
+          display: none;
+        }
+      }
+    }
+  }
 }
 
 .apm-alarm-template-popover-theme {

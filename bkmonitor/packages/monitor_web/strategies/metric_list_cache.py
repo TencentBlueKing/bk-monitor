@@ -45,14 +45,13 @@ from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
 from common.context_processors import Platform
 from constants.alert import IGNORED_TAGS, EventTargetType
-from constants.apm import ApmMetricProcessor
+from constants.apm import APM_TRACE_TABLE_REGEX, ApmMetricProcessor
 from constants.data_source import (
     DataSourceLabel,
     DataTypeLabel,
     OthersResultTableLabel,
     ResultTableLabelObj,
 )
-from constants.apm import APM_TRACE_TABLE_REGEX
 from constants.event import ALL_EVENT_PLUGIN_METRIC, EVENT_PLUGIN_METRIC_PREFIX
 from constants.strategy import (
     HOST_SCENARIO,
@@ -1215,15 +1214,35 @@ class CustomEventCacheManager(BaseMetricCacheManager):
 
         # 新增整个事件源
         if table["event_group_id"] != 0:
+            dimensions_set = set()
+            dimensions_set.add("event_name")
+            for event_info in table["event_info_list"]:
+                if len(dimensions_set) >= 100:
+                    break
+                # 处理维度字段
+                if event_info.get("dimension_list"):
+                    for dimension in event_info["dimension_list"]:
+                        if len(dimensions_set) >= 100:
+                            break
+                        dimensions_set.add(dimension)
+                # 处理条件字段
+                if event_info.get("condition_field_list"):
+                    for condition in event_info["condition_field_list"]:
+                        if len(dimensions_set) >= 100:
+                            break
+                        dimensions_set.add(condition)
+
+            dimensions = [{"id": dimension, "name": dimension} for dimension in dimensions_set]
+
             metric_detail = {
                 "default_dimensions": [],
                 "default_condition": [],
                 # "__INDEX__" 表示整个事件源索引
                 "metric_field": "__INDEX__",
                 "metric_field_name": f"{table_display_name}({table['bk_data_id']})",
-                "dimensions": [{"id": "event_name", "name": "event_name"}],
+                "dimensions": dimensions,
                 "extend_fields": {
-                    # 全局自定义事件指标， 不预定义事件名称
+                    # 全局自定义事件指标，不预定义事件名称
                     "custom_event_name": "",
                     "bk_data_id": table["bk_data_id"],
                     "bk_event_group_id": table["event_group_id"],
@@ -1529,8 +1548,13 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
             db_name_list = [f"{plugin[0]}_{plugin[1]}".lower() for plugin in plugin_data]
             for name in db_name_list:
                 # 插件默认都是全局数据
-                group_list = api.metadata.query_time_series_group.request.refresh(
+                group_list: list[dict[str, Any]] = api.metadata.query_time_series_group.request.refresh(
                     bk_tenant_id=self.bk_tenant_id, bk_biz_id=0, time_series_group_name=name
+                )
+                group_list.extend(
+                    api.metadata.query_time_series_group.request.refresh(
+                        bk_tenant_id=self.bk_tenant_id, bk_biz_id=self.bk_biz_id, time_series_group_name=name
+                    )
                 )
                 if not group_list:
                     continue

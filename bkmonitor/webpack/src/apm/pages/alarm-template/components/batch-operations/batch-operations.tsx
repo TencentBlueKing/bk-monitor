@@ -137,8 +137,13 @@ export default class BatchOperations extends tsc<BatchOperationsProps, BatchOper
         class={`batch-operations ${this.disabled ? 'is-disabled' : ''}`}
         onClick={this.handlePopoverShow}
       >
-        <span class='batch-operations-name'> {this.$t('批量操作')} </span>
-        <i class={`icon-monitor icon-arrow-down ${this.popoverInstance ? 'is-active' : ''}`} />
+        <div
+          class='tip-trigger'
+          v-bk-tooltips={{ content: this.$t('请先选择模版'), disabled: !this.disabled }}
+        >
+          <span class='batch-operations-name'> {this.$t('批量操作')} </span>
+          <i class={`icon-monitor icon-arrow-down ${this.popoverInstance ? 'is-active' : ''}`} />
+        </div>
         <div style='display: none'>
           <ul
             ref='batchMenuRef'

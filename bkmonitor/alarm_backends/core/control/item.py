@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -11,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import defaultdict
-from typing import List
 
 from django.conf import settings
 from django.db.models.sql import AND, OR
@@ -42,7 +40,7 @@ def gen_condition_matcher(agg_condition):
             or_cond.append(and_cond)
             and_cond = [t]
         else:
-            raise Exception("Unsupported connector(%s)" % connector)
+            raise Exception(f"Unsupported connector({connector})")
 
     if and_cond:
         or_cond.append(and_cond)
@@ -107,7 +105,7 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
         point_remain = detect_result_point_required(self.strategy.config)
         return point_remain * interval
 
-    def query_record(self, start_time: int, end_time: int) -> List:
+    def query_record(self, start_time: int, end_time: int) -> list:
         records = self.query.query_data(start_time * 1000, end_time * 1000)
         for record in records:
             record["_time_"] //= 1000
@@ -161,16 +159,46 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
         return gen_condition_matcher(agg_condition)
 
     @cached_property
-    def agg_methods(self) -> List[str]:
+    def result_table_id(self):
+        """结果表名称"""
+        if self.query_configs:
+            return self.query_configs[0].get("result_table_id", "")
+        return ""
+
+    @cached_property
+    def metric_field(self):
+        """指标字段"""
+        if self.query_configs:
+            return self.query_configs[0].get("metric_field", "")
+        return ""
+
+    @cached_property
+    def agg_interval(self):
+        """周期"""
+        if self.query_configs:
+            return self.query_configs[0].get("agg_interval", 60)
+        return 60
+
+    @cached_property
+    def agg_method(self):
+        """聚合方法"""
+        if self.agg_methods:
+            return self.agg_methods[0]
+        return ""
+
+    @cached_property
+    def agg_methods(self) -> list[str]:
         """聚合方法列表"""
         methods = []
         for query_config in self.query_configs:
+            if not query_config.get("agg_method"):
+                continue
             methods.append(query_config.get("agg_method"))
 
         return methods
 
     @cached_property
-    def algorithm_types(self) -> List[str]:
+    def algorithm_types(self) -> list[str]:
         """检测算法列表"""
         types = []
         for algorithm_type in self.algorithms:

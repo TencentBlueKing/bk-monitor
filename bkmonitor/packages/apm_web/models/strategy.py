@@ -64,6 +64,15 @@ class StrategyTemplate(AbstractRecordModel):
         verbose_name_plural = _("告警策略模板")
         index_together = [["bk_biz_id", "app_name", "type"]]
 
+    @classmethod
+    def filter_same_origin_templates(
+        cls, qs: models.QuerySet["StrategyTemplate"], ids: list[int], root_ids: list[int]
+    ) -> models.QuerySet["StrategyTemplate"]:
+        """列出同源的模板"""
+
+        strategy_template_ids: list[int] = list(filter(lambda x: x != DEFAULT_ROOT_ID, ids + root_ids))
+        return qs.filter(Q(id__in=strategy_template_ids) | Q(root_id__in=strategy_template_ids))
+
 
 class StrategyInstance(models.Model):
     # 服务元信息

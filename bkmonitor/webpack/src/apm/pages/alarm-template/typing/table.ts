@@ -123,6 +123,12 @@ export interface GetAlarmTemplateOptionsParams {
   fields: string[];
 }
 
+/** 表格排序属性 */
+export interface ITableSort {
+  order: 'ascending' | 'descending' | null;
+  prop: string;
+}
+
 export interface StrategiesItem {
   alert_number: number;
   service_name: string;

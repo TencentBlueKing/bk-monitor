@@ -43,7 +43,11 @@ export default class MethodSelectDetail extends tsc<MethodSelectDetailProps> {
     return [...METHOD_LIST, ...CP_METHOD_LIST];
   }
 
+  get currMethod() {
+    return this.methodList.find(item => item.id === this.variable.data.value);
+  }
+
   render() {
-    return this.methodList.find(item => item.id === this.variable.data.value)?.name || this.variable.data.value || '--';
+    return <div class='method-select-detail'>{this.currMethod?.name || this.variable.data.value || '--'}</div>;
   }
 }

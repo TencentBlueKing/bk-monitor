@@ -99,21 +99,7 @@ module.exports = (baseConfig, { app, mobile, production, fta, log, email = false
       host: devConfig.host,
       open: false,
       static: [],
-      proxy: [
-        // 多租户本地代理配置
-        // {
-        //   context: ['/api/v3'],
-        //   target: '', // window.BK_LOGIN_URL
-        //   changeOrigin: true,
-        //   secure: false,
-        //   headers: {
-        //     Cookie: '',
-        //   },
-        // },
-        {
-          ...devConfig.proxy,
-        },
-      ],
+      proxy: [...devConfig.proxy],
     });
     config.plugins.push(
       new webpack.DefinePlugin({

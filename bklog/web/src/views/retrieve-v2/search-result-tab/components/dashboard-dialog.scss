@@ -1,0 +1,59 @@
+.dashboard-extension {
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.dashboard-form-wrapper {
+  padding: 0 24px;
+}
+.dashboard-extension-flex {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  margin: 7px 0 7px 0;
+}
+
+.dashboard-extension-with-gap {
+  display: flex;
+  margin-top: 8px;
+  justify-content: center;
+  cursor: pointer;
+  align-items: center;
+  gap: 5px;
+}
+
+.dashboard-input-full {
+  width: 432px;
+}
+
+.dashboard-radio-margin {
+  margin-left: 15px;
+}
+
+.dashboard-button-green {
+  color: green;
+}
+
+.dashboard-button-red {
+  color: red;
+}
+
+:deep(.bk-dialog-header-inner) {
+  width: 120px;
+  height: 28px;
+  font-family: MicrosoftYaHei;
+  font-size: 20px;
+  color: #313238;
+  letter-spacing: 0;
+  line-height: 28px;
+}
+
+:deep(.bk-label-text) {
+  height: 20px;
+  font-family: MicrosoftYaHei;
+  font-size: 12px;
+  color: #4D4F56;
+  letter-spacing: 0;
+  line-height: 20px;
+}

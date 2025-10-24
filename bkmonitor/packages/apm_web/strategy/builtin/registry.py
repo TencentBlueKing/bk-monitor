@@ -19,6 +19,7 @@ import logging
 
 from django.db.models import QuerySet, Q
 from django.utils import timezone
+from django.utils.functional import cached_property
 
 from . import serializers, templates
 
@@ -47,10 +48,11 @@ class BuiltinStrategyTemplateRegistry:
         self.bk_biz_id: int = application.bk_biz_id
         self.application: Application = application
 
-    @classmethod
-    def is_need_register(cls, app_applied_version: str) -> bool:
+    def is_need_register(self, app_applied_version: str, applied_systems: list[str]) -> bool:
         """判断是否需要注册内置策略模板"""
-        return app_applied_version != cls.BUILTIN_STRATEGY_TEMPLATE_VERSION
+        is_version_update = app_applied_version != self.BUILTIN_STRATEGY_TEMPLATE_VERSION
+        is_system_update = set(applied_systems) != set(self.systems)
+        return is_version_update or is_system_update
 
     @classmethod
     def _add_member_to_notice_group(
@@ -123,21 +125,22 @@ class BuiltinStrategyTemplateRegistry:
             qs = qs.filter(type=constants.StrategyTemplateType.BUILTIN_TEMPLATE.value)
         return qs
 
-    def _get_supported_builtin_templ_sets(self) -> list[type[templates.StrategyTemplateSet]]:
+    @cached_property
+    def _supported_builtin_templ_sets(self) -> list[type[templates.StrategyTemplateSet]]:
         supported_systems: list[str] = dispatch.SystemChecker(
             dispatch.EntitySet(self.bk_biz_id, self.app_name)
         ).check_systems()
 
         return [builtin for builtin in self._BUILTIN_STRATEGY_TEMPLATES if builtin.SYSTEM.value in supported_systems]
 
+    @cached_property
+    def systems(self) -> list[str]:
+        return [builtin.SYSTEM.value for builtin in self._supported_builtin_templ_sets]
+
     def register(self):
         """注册内置告警策略模板"""
 
-        # 创建/更新默认告警组
-        user_group_id: int = self.apply_default_notice_group(self.application)
-        supported_builtin_templ_sets = self._get_supported_builtin_templ_sets()
-        systems: list[str] = [builtin.SYSTEM.value for builtin in supported_builtin_templ_sets]
-        if not systems:
+        if not self.systems:
             logger.info(
                 "[BuiltinStrategyTemplateRegistry] no supported system, skip register: bk_biz_id=%s, app_name=%s",
                 self.bk_biz_id,
@@ -149,13 +152,16 @@ class BuiltinStrategyTemplateRegistry:
             "[BuiltinStrategyTemplateRegistry] start register: bk_biz_id=%s, app_name=%s, systems=%s",
             self.bk_biz_id,
             self.app_name,
-            systems,
+            self.systems,
         )
+
+        # 创建/更新默认告警组
+        user_group_id: int = self.apply_default_notice_group(self.application)
 
         code_tmpl_map: dict[str, dict[str, Any]] = {
             tmpl["code"]: tmpl
             for tmpl in self._get_strategy_template_qs(only_builtin=True)
-            .filter(system__in=systems)
+            .filter(system__in=self.systems)
             .values("code", "id", "update_user")
         }
 
@@ -163,7 +169,7 @@ class BuiltinStrategyTemplateRegistry:
         to_be_updated: list[StrategyTemplate] = []
         local_tmpl_codes: set[str] = set()
         remote_tmpl_codes: set[str] = set(code_tmpl_map.keys())
-        for builtin in supported_builtin_templ_sets:
+        for builtin in self._supported_builtin_templ_sets:
             for template in builtin.STRATEGY_TEMPLATES:
                 # TODO 开放配置项，允许根据应用场景，内置更多模板。
                 if template["code"] not in builtin.ENABLED_CODES:

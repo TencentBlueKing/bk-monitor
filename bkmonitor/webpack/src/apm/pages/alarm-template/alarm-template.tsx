@@ -86,6 +86,8 @@ export default class AlarmTemplate extends tsc<object> {
   current = 1;
   /** 每页条数 */
   pageSize = 50;
+  /** 排序字段 */
+  sort = '-update_time';
   /** 总条数 */
   total = 0;
   /** 列表请求状态 loading */
@@ -140,6 +142,7 @@ export default class AlarmTemplate extends tsc<object> {
       conditions,
       page: this.current,
       page_size: this.pageSize,
+      order_by: this.sort ? [this.sort] : [],
       simple: false,
     };
 
@@ -185,10 +188,6 @@ export default class AlarmTemplate extends tsc<object> {
     this.total = total;
     this.tableLoading = false;
     this.selectedRowKeys = [];
-    this.handleCustomRouteQueryChange({
-      quickStatus: this.quickStatus,
-      searchKeyword: JSON.stringify(this.searchKeyword),
-    });
   }
   /** 获取函数列表 */
   async handleGetMetricFunctions() {
@@ -197,13 +196,7 @@ export default class AlarmTemplate extends tsc<object> {
 
   created() {
     this.pageSize = commonPageSizeGet();
-    const { quickStatus = 'all', searchKeyword = '[]' } = this.customRouteQuery;
-    this.quickStatus = quickStatus;
-    try {
-      this.searchKeyword = JSON.parse(searchKeyword);
-    } catch (_error) {
-      this.searchKeyword = [];
-    }
+    this.getRouterParams();
   }
 
   mounted() {
@@ -224,6 +217,35 @@ export default class AlarmTemplate extends tsc<object> {
   }
 
   /**
+   * @description 获取路由参数
+   */
+  getRouterParams() {
+    const { quickStatus = 'all', searchKeyword = '[]', sort = '-update_time' } = this.customRouteQuery;
+    this.quickStatus = quickStatus;
+    this.sort = sort;
+    try {
+      this.searchKeyword = JSON.parse(searchKeyword);
+    } catch (_error) {
+      this.searchKeyword = [];
+    }
+  }
+
+  /**
+   * @description 缓存条件参数知路由
+   */
+  setRouterParams(otherParams: Record<string, any> = {}) {
+    const query = {
+      ...this.customRouteQuery,
+      quickStatus: this.quickStatus,
+      searchKeyword: JSON.stringify(this.searchKeyword),
+      sort: this.sort,
+      ...otherParams,
+    };
+
+    this.handleCustomRouteQueryChange(query);
+  }
+
+  /**
    * @description 获取搜索选择器候选值选项数据
    */
   async getSelectOptions() {
@@ -241,6 +263,7 @@ export default class AlarmTemplate extends tsc<object> {
   handleQuickStatusChange(status: 'all' | AlarmTemplateTypeEnumType) {
     this.quickStatus = status;
     this.handleCurrentPageChange(1);
+    this.setRouterParams();
   }
   /**
    * @description 批量操作按钮点击事件
@@ -257,6 +280,17 @@ export default class AlarmTemplate extends tsc<object> {
   handleSearchChange(keyword: AlarmTemplateConditionParamItem[]) {
     this.handleCurrentPageChange(1);
     this.searchKeyword = keyword;
+    this.setRouterParams();
+  }
+  /**
+   * @description 表格排序值改变后回调
+   * @param {string} sort 排序值
+   */
+  handleSortChange(sort: `-${string}` | string) {
+    if (sort === this.sort) return;
+    this.sort = sort;
+    this.handleCurrentPageChange(1);
+    this.setRouterParams();
   }
 
   /**
@@ -289,7 +323,6 @@ export default class AlarmTemplate extends tsc<object> {
    * @description 下发事件回调
    */
   handleDispatch(id: AlarmTemplateListItem['id']) {
-    console.log('================ 下发事件回调 ================', id);
     this.templatePushObj = {
       show: true,
       params: {
@@ -304,7 +337,6 @@ export default class AlarmTemplate extends tsc<object> {
    * @description 克隆事件回调
    */
   handleCloneTemplate(id: AlarmTemplateListItem['id']) {
-    console.log('================ 克隆事件回调 ================', id);
     this.editTemplateId = id;
     this.editTemplateShow = true;
     this.editTemplateSliderScene = 'clone';
@@ -314,7 +346,6 @@ export default class AlarmTemplate extends tsc<object> {
    * @description 展示模板详情事件回调
    */
   handleShowDetail(obj: { id: AlarmTemplateListItem['id']; sliderActiveTab: AlarmTemplateDetailTabEnumType }) {
-    console.log('================ 展示模板详情事件回调 ================', obj);
     this.templateDetailObj = {
       show: true,
       tabActive: obj.sliderActiveTab === 'base_info' ? detailsTabColumn.basic : detailsTabColumn.service,
@@ -435,7 +466,9 @@ export default class AlarmTemplate extends tsc<object> {
             loading={this.tableLoading}
             pageSize={this.pageSize}
             searchKeyword={this.searchKeyword}
+            selectedRowKeys={this.selectedRowKeys}
             selectOptionMap={this.selectOptionsMap}
+            sort={this.sort}
             tableData={this.tableData}
             total={this.total}
             onBatchUpdate={this.handleBatchUpdate}
@@ -449,6 +482,7 @@ export default class AlarmTemplate extends tsc<object> {
             onPageSizeChange={this.handlePageSizeChange}
             onSelectedChange={this.handleTableSelectedChange}
             onShowDetail={this.handleShowDetail}
+            onSortChange={this.handleSortChange}
           />
         </div>
 

@@ -141,4 +141,5 @@ export default {
   全部来源: 'All Sources',
   分享: 'Share',
   从分组中移除: 'Remove from Group',
+  自定义时间: 'Custom time',
 };

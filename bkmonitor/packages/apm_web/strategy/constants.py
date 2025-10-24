@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from constants.apm import CachedEnum
+from constants.data_source import ResultTableLabelObj
 
 
 from django.utils.functional import cached_property
@@ -79,6 +80,12 @@ class StrategyTemplateSystem(CachedEnum):
                 self.EVENT: _("事件"),
                 self.METRIC: _("指标"),
             }.get(self, self.value)
+        )
+
+    @cached_property
+    def scenario(self) -> str:
+        return {self.K8S: ResultTableLabelObj.KubernetesObject.kubernetes}.get(
+            self, ResultTableLabelObj.ApplicationsObj.apm
         )
 
 

@@ -125,7 +125,7 @@ class ApplicationConfig(BkCollectorConfig):
                         # 为该业务下的所有应用生成配置
                         for application in biz_application_list:
                             try:
-                                application_config_context = cls(application).get_application_config()
+                                application_config_context = cls(application).get_application_config(cluster_id)
                                 application_config = compiled_template.render(application_config_context)
                                 cluster_config_map[application.id] = application_config
                             except Exception as e:  # pylint: disable=broad-except
@@ -142,7 +142,7 @@ class ApplicationConfig(BkCollectorConfig):
                     s.record_exception(exception=e)
                     logger.exception(f"batch refresh apm application config to k8s({cluster_id})")
 
-    def get_application_config(self):
+    def get_application_config(self, bcs_cluster_id: str | None = None):
         """获取应用配置上下文"""
         config = {
             "bk_biz_id": self._application.bk_biz_id,
@@ -152,6 +152,7 @@ class ApplicationConfig(BkCollectorConfig):
         config["bk_data_token"] = self._application.get_bk_data_token()
         config["resource_filter_config"] = self.get_resource_filter_config()
         config["resource_filter_config_logs"] = self.get_resource_filter_config_logs()
+        config["resource_filter_config_metrics"] = self.get_resource_filter_config_metrics(bcs_cluster_id)
 
         apdex_config = self.get_apdex_config(ApdexConfig.APP_LEVEL)
         sampler_config = self.get_random_sampler_config(ApdexConfig.APP_LEVEL)
@@ -383,6 +384,37 @@ class ApplicationConfig(BkCollectorConfig):
             "name": "resource_filter/logs",
             "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
         }
+
+    def get_resource_filter_config_metrics(self, bcs_cluster_id=None):
+        """
+        维度补充配置
+        """
+        default_metrics_config = {
+            "name": "resource_filter/metrics",
+            "drop": {"keys": ["resource.bk.data.token", "resource.process.pid", "resource.tps.tenant.id"]},
+            "from_token": {"keys": ["app_name"]},
+        }
+
+        if not bcs_cluster_id or bcs_cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            # 中心化集群，可以接收到所有的数据，不对中心化集群做维度补充逻辑
+            return default_metrics_config
+
+        enabled_apps = settings.APM_RESOURCE_FILTER_METRICS_ENABLED_APPS
+
+        # 只有在白名单中的应用才启用该功能
+        if enabled_apps and self._application.app_name in enabled_apps.get(str(self._application.bk_biz_id), []):
+            extra_config = {
+                "from_record": [
+                    {
+                        "source": "request.client.ip",
+                        "destination": "resource.net.host.ip",
+                    }
+                ],
+                "from_cache": {"key": "resource.net.host.ip", "cache_name": "k8s_cache"},
+            }
+            extra_config.update(default_metrics_config)
+            return extra_config
+        return default_metrics_config
 
     def get_sub_configs(self, unique_key: str, config_level):
         apdex_configs = self.get_apdex_config(config_level)

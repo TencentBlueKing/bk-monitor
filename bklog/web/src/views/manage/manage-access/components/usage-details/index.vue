@@ -86,7 +86,11 @@
           :label="$t('执行人')"
           min-width="10"
           prop="created_by"
-        ></bk-table-column>
+        >
+          <template #default="{ row }">
+            <bk-user-display-name :user-id="row.created_by"></bk-user-display-name>
+          </template>
+        </bk-table-column>
         <bk-table-column
           :label="$t('查询语句')"
           min-width="20"
