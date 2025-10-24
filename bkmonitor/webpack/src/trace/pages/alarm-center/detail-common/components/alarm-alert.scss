@@ -26,15 +26,50 @@
     width: 1px;
     height: 12px;
     margin: 0 8px;
-    background-color: #C4C6CC;
+    background-color: #c4c6cc;
   }
 
   .alert-content {
+    display: flex;
+    align-items: center;
     flex: 1;
+
+    .alarm-content {
+      display: flex;
+      align-items: center;
+
+      .alarm-title {
+        line-height: 20px;
+        border-bottom: 1px dashed #979797;
+      }
+
+      .alarm-value {
+        margin-left: 5px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #313238;
+      }
+    }
+
+    .alarm-tips {
+      display: flex;
+      align-items: center;
+      margin-left: 5px;
+
+      .shielded-duration {
+        color: #f59500;
+      }
+
+      .duration-value {
+        margin-left: 5px;
+        color: #313238;
+        font-weight: 700;
+      }
+    }
   }
 
   .tools {
-    color: #3A84FF;
+    color: #3a84ff;
 
     .bk-button {
       margin-left: 12px;
@@ -58,30 +93,38 @@
     background: #ffebeb;
 
     .status-icon {
-      color: #EA3636;
+      color: #ea3636;
     }
   }
 
   &.SHIELDED_ABNORMAL {
-    border-left-color: #F59500;
-    background: #FDEED8;
+    border-left-color: #f59500;
+    background: #fdeed8;
 
     .status-icon {
-      color: #F59500;
+      color: #f59500;
     }
 
     .status-text {
-      color: #E38B02;
+      color: #e38b02;
     }
   }
 
   &.RECOVERED {
-    border-left-color: #2CAF5E;
-    background: #DAF6E5;
+    border-left-color: #2caf5e;
+    background: #daf6e5;
 
     .status-icon {
-      color: #2CAF5E;
+      color: #2caf5e;
     }
   }
 
+  &.CLOSED {
+    border-left-color: #c4c6cc;
+    background: #eaebf0;
+
+    .status-icon {
+      color: #979ba5;
+    }
+  }
 }

@@ -50,6 +50,23 @@ export default defineComponent({
       return AlarmStatusIconMap[status.value];
     });
 
+    const renderAlertTips = () => {
+      if (status.value === 'CLOSED') return <div class='alarm-tips'>{t('在恢复检测周期内无数据上报，告警已失效')}</div>;
+      if (status.value === 'SHIELDED_ABNORMAL')
+        return (
+          <div class='alarm-tips'>
+            <span class='shielded-text'>{t('屏蔽时间剩余')}:</span>
+            <span class='shielded-duration'>{props.data?.shield_left_time}</span>
+          </div>
+        );
+      return (
+        <div class='alarm-tips'>
+          <span class='duration-text'>{t('持续时间')}:</span>
+          <span class='duration-value'>{props.data?.duration}</span>
+        </div>
+      );
+    };
+
     /** 告警确认 */
     const handleAlarmConfirm = () => {
       emit('alarmConfirm');
@@ -71,6 +88,7 @@ export default defineComponent({
       t,
       status,
       statusIcon,
+      renderAlertTips,
       handleAlarmConfirm,
       handleQuickShield,
       handleToShield,
@@ -84,7 +102,13 @@ export default defineComponent({
           <span class='status-text'>{this.statusIcon.name}</span>
         </span>
         <div class='separator' />
-        <div class='alert-content'>{'主调成功率：65% < 80%,  持续时间：30d 22h'}</div>
+        <div class='alert-content'>
+          <div class='alarm-content'>
+            <span class='alarm-title'>主调成功率:</span>
+            <span class='alarm-value'>{'65% < 80%,'}</span>
+          </div>
+          {this.renderAlertTips()}
+        </div>
         <div class='tools'>
           {this.status === 'ABNORMAL' && [
             <Button
@@ -96,14 +120,16 @@ export default defineComponent({
               <i class='icon-monitor icon-mc-notice-shield' />
               <span class='btn-text'>{this.t('快捷屏蔽')}</span>
             </Button>,
-            <Button
-              key='confirm'
-              size='small'
-              theme='primary'
-              onClick={this.handleAlarmConfirm}
-            >
-              {this.t('告警确认')}
-            </Button>,
+            !this.data?.is_ack && (
+              <Button
+                key='confirm'
+                size='small'
+                theme='primary'
+                onClick={this.handleAlarmConfirm}
+              >
+                {this.t('告警确认')}
+              </Button>
+            ),
           ]}
 
           {this.status === 'SHIELDED_ABNORMAL' && (

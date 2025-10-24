@@ -45,7 +45,16 @@ import './event-detail-head.scss';
 
 export default defineComponent({
   name: 'EventDetailHead',
-  setup(props) {
+  props: {
+    isFullscreen: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: {
+    toggleFullscreen: val => typeof val === 'boolean',
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
     const route = useRoute();
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
@@ -64,11 +73,21 @@ export default defineComponent({
     const feedbackDialog = shallowRef(false);
     /** 是否支持一键拉群 todo */
     const enableCreateChatGroup = computed(() => Boolean(window.enable_create_chat_group));
-    /** 是否全屏 */
-    const isFullscreen = shallowRef(false);
     /** 右侧操作按钮 */
     const btnGroupObject = computed(() => {
       return [
+        // {
+        //   id: '',
+        //   title: t('上一个'),
+        //   icon: 'icon-back-left',
+        //   isShow: true,
+        // },
+        // {
+        //   id: '',
+        //   title: t('下一个'),
+        //   icon: 'icon-back-right',
+        //   isShow: true,
+        // },
         {
           id: 'wx-chart',
           title: t('拉群'),
@@ -84,7 +103,7 @@ export default defineComponent({
         {
           id: 'fullscreen',
           title: t('全屏'),
-          icon: isFullscreen.value ? 'icon-mc-unfull-screen' : 'icon-fullscreen',
+          icon: props.isFullscreen ? 'icon-mc-unfull-screen' : 'icon-fullscreen',
           isShow: true,
         },
       ];
@@ -166,7 +185,7 @@ export default defineComponent({
           handleFeedback(true);
           break;
         case 'fullscreen':
-          isFullscreen.value = !isFullscreen.value;
+          emit('toggleFullscreen', !props.isFullscreen);
           break;
       }
     };
