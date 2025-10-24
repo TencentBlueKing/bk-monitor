@@ -235,16 +235,14 @@ class StrategyTemplateHandler:
         cls,
         bk_biz_id: int,
         app_name: str,
-        service_names: list[str] | None = None,
-        strategy_templates: list[StrategyTemplate] | None = None,
+        service_names: list[str],
+        strategy_templates: list[StrategyTemplate],
         extra_configs_map: dict[StrategyTemplateId, list[dispatch.DispatchExtraConfig]] | None = None,
         global_config: dispatch.DispatchGlobalConfig | None = None,
         raise_exception: bool = True,
     ):
         extra_configs_map = extra_configs_map or {}
         entity_set: dispatch.EntitySet = dispatch.EntitySet(bk_biz_id, app_name, service_names)
-        if strategy_templates is None:
-            strategy_templates = StrategyTemplate.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name)
 
         def _apply(_obj: StrategyTemplate) -> dict[str, int | dict[str, int]]:
             try:

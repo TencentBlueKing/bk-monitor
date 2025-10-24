@@ -2202,6 +2202,7 @@ class ApplyStrategiesToServicesResource(Resource):
                 app_name=app_name,
                 system__in=[StrategyTemplateSystem.RPC.value, StrategyTemplateSystem.K8S.value],
                 type=StrategyTemplateType.BUILTIN_TEMPLATE.value,
+                is_enabled=True,
             )
         )
         StrategyTemplateHandler.apply(
