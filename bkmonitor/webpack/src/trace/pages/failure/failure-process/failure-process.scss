@@ -5,14 +5,40 @@
   padding: 16px 0px 16px 0px;
   background: #ffffff;
 
-  .link {
-    margin: 0px 2px;
-    color: #3a84ff;
+  &-exception {
+    .bk-exception-img {
+      width: auto !important;
+      height: 160px !important;
+    }
+
+    .bk-exception-footer {
+      margin-top: 0 !important;
+
+      .exception-title {
+        font-size: 14px;
+        color: #313238;
+      }
+
+      .exception-desc {
+        max-width: 380px;
+        padding: 0 20px;
+        margin-top: 8px;
+        color: #979ba5;
+        overflow-wrap: break-word;
+      }
+    }
+
+    .link {
+      margin: 8px 2px 0px;
+      color: #3a84ff;
+    }
+
+    .cursor {
+      cursor: pointer;
+    }
   }
 
-  .cursor {
-    cursor: pointer;
-  }
+
 
   .bk-nested-loading {
     height: 100%;
@@ -93,11 +119,13 @@
         font-weight: 700;
         color: #63656e;
       }
+
       .tag-txt {
         color: #313238;
         font-weight: 500;
         margin-left: 2px;
       }
+
       .tag-wrap {
         display: inline-block;
         align-items: center;
@@ -131,6 +159,7 @@
         margin: 0 4px;
         position: relative;
         padding-left: 18px;
+
         .sign-icon {
           position: absolute;
           top: 0;
@@ -173,6 +202,7 @@
     .failure-process-item-content {
       position: relative;
       width: calc(100% - 32px);
+
       &::after {
         content: '';
         display: inline-block;
@@ -222,6 +252,7 @@
   .bk-tree-node .bk-node-action {
     margin-right: 9px;
   }
+
   .bk-tree-node .bk-node-content .bk-checkbox {
     vertical-align: middle;
   }
@@ -237,6 +268,7 @@
       color: #979ba5;
       vertical-align: middle;
     }
+
     .setting-tree-node-name {
       vertical-align: middle;
     }
