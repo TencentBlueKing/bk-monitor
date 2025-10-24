@@ -43,10 +43,10 @@ class ReportLogStore extends VuexModule {
     }
 
     if (
-      !isAppFirstLoad &&
-      oldspaceUid === spaceUid &&
-      params.nav_name !== '日志聚类' &&
-      (oldRouteId === params.route_id || oldNavId === params.nav_id)
+      !isAppFirstLoad
+      && oldspaceUid === spaceUid
+      && params.nav_name !== '日志聚类'
+      && (oldRouteId === params.route_id || oldNavId === params.nav_id)
     ) {
       return;
     }
