@@ -148,9 +148,12 @@ export default defineComponent({
       autoAggregateIdText = checkedIds.value.join('|');
     };
     /** 获取聚合数据 */
-    incidentTopologyMenu({
-      id: incidentId.value,
-    }).then(data => {
+    incidentTopologyMenu(
+      {
+        id: incidentId.value,
+      },
+      { needMessage: false }
+    ).then(data => {
       // checkedIds.value = data
       treeData.value = data.menu.map(item => {
         const parentId = random(10);

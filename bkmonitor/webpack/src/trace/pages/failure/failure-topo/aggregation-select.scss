@@ -127,6 +127,14 @@
         background-color: transparent !important;
       }
     }
+
+    .aggregation-select-empty.exception-wrap {
+      top: 21%;
+    }
+
+    .aggregation-select-empty .bk-exception-img {
+      width: 145px !important;
+    }
   }
 }
 
@@ -148,7 +156,7 @@
   }
 }
 
-.failure-props-collapse + .failure-props-collapse {
+.failure-props-collapse+.failure-props-collapse {
   margin-top: 16px;
   border-top: 1px solid #63656e;
 }
