@@ -14,6 +14,7 @@ from typing import Any
 from collections.abc import Iterable
 
 from django.db.models import Q, QuerySet
+from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import action
@@ -29,6 +30,7 @@ from bkmonitor.iam.drf import InstanceActionForDataPermission
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.query_template.constants import VariableType
+from core.drf_resource import resource
 from constants.alert import EventStatus
 from utils import count_md5
 
@@ -201,6 +203,30 @@ class StrategyTemplateViewSet(GenericViewSet):
             global_config=global_config,
         )
         return Response({"app_name": self.query_data["app_name"], "list": apply_data})
+
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateUnapplyResponseSerializer)
+    def unapply(self, *args, **kwargs) -> Response:
+        entity_set: dispatch.EntitySet = dispatch.EntitySet(
+            self.query_data["bk_biz_id"], self.query_data["app_name"], self.query_data["service_names"]
+        )
+        strategy_instance_qs = StrategyInstance.objects.filter(
+            bk_biz_id=self.query_data["bk_biz_id"],
+            app_name=self.query_data["app_name"],
+            service_name__in=entity_set.service_names,
+            strategy_template_id__in=self.query_data["strategy_template_ids"],
+        )
+        with transaction.atomic():
+            # 先删除策略
+            resource.strategies.delete_strategy_v2(
+                {
+                    "bk_biz_id": self.query_data["bk_biz_id"],
+                    "ids": list(strategy_instance_qs.values_list("strategy_id", flat=True)),
+                }
+            )
+            # 再删除策略实例
+            strategy_instance_qs.delete()
+
+        return Response({})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCheckRequestSerializer)
     def check(self, *args, **kwargs) -> Response:
