@@ -24,7 +24,7 @@ from bkmonitor.strategy.serializers import allowed_threshold_method
 
 from . import constants
 from apm_web.models import StrategyTemplate, StrategyInstance
-from apm_web.strategy.helper import get_user_groups
+from apm_web.strategy.helper import get_user_groups, simplify_conditions
 
 
 class DetectSerializer(serializers.Serializer):
@@ -135,11 +135,14 @@ class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSeria
         # 校验 strategy_template_ids 是否有效
         strategy_templates: list[dict[str, Any]] = list(
             StrategyTemplate.objects.filter(
-                bk_biz_id=attrs["bk_biz_id"], app_name=attrs["app_name"], id__in=attrs["strategy_template_ids"]
+                bk_biz_id=attrs["bk_biz_id"],
+                app_name=attrs["app_name"],
+                id__in=attrs["strategy_template_ids"],
+                is_enabled=True,
             ).values("id", "root_id")
         )
         if len(strategy_templates) != len(set(attrs["strategy_template_ids"])):
-            raise serializers.ValidationError(_("数据异常，部分策略模板不存在"))
+            raise serializers.ValidationError(_("数据异常，部分策略模板不存在或已禁用"))
         # 不允许存在同源的模板
         root_template_ids: set[int] = set()
         for strategy_template in strategy_templates:
@@ -425,6 +428,13 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
         if qs.filter(bk_biz_id=data["bk_biz_id"], app_name=data["app_name"], name=data["name"]).exists():
             raise serializers.ValidationError(_("同一应用下策略模板名称不能重复"))
 
+    @staticmethod
+    def _validate_context(data: dict[str, Any]) -> None:
+        conditions: Any = data.get("context", {}).get("CONDITIONS")
+        if conditions and isinstance(conditions, list):
+            simplified_conditions = simplify_conditions(conditions)
+            data["context"]["CONDITIONS"] = simplified_conditions
+
     @classmethod
     def set_auto_apply(
         cls, data: dict[str, Any], instance: StrategyTemplate, auto_applied_at: datetime.datetime | None = None
@@ -435,12 +445,14 @@ class StrategyTemplateModelSerializer(StrategyTemplateBaseModelSerializer):
             data["auto_applied_at"] = auto_applied_at or timezone.now()
 
     def update(self, instance: StrategyTemplate, validated_data: dict[str, Any]) -> StrategyTemplate:
+        self._validate_context(validated_data)
         self._validate_name(StrategyTemplate.origin_objects.exclude(pk=instance.pk), validated_data)
         self.validate_auto_apply([instance], validated_data)
         self.set_auto_apply(validated_data, instance)
         return super().update(instance, validated_data)
 
     def create(self, validated_data: dict[str, Any]) -> StrategyTemplate:
+        self._validate_context(validated_data)
         self._validate_name(StrategyTemplate.origin_objects.all(), validated_data)
         self.validate_auto_apply(None, validated_data)
         instance: StrategyTemplate = super().create(validated_data)
@@ -474,10 +486,4 @@ class StrategyTemplateSearchModelSerializer(StrategyTemplateBaseModelSerializer)
 class StrategyTemplateSimpleSearchModelSerializer(StrategyTemplateBaseModelSerializer):
     class Meta:
         model = StrategyTemplate
-        fields = [
-            "id",
-            "name",
-            "system",
-            "category",
-            "monitor_type",
-        ]
+        fields = ["id", "name", "system", "category", "monitor_type", "code", "type"]

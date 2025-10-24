@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
             field=models.CharField(default="system", max_length=256, null=True, verbose_name="租户ID"),
         ),
         migrations.AddField(
-            model_name="vmresulttableconfig",
+            model_name="resulttableconfig",
             name="bk_tenant_id",
             field=models.CharField(default="system", max_length=256, null=True, verbose_name="租户ID"),
         ),

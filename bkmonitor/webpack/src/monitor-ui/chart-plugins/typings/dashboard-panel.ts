@@ -357,17 +357,18 @@ export type PanelOption = {
     id?: string;
     title?: string;
   }[];
-  is_code_redefine?: boolean; // 是否有返回码重定义功能
   collect_interval_display?: string; // 数据步长（步长过大情况时需要，正常情况无此字段）
   enable_panels_selector?: boolean;
   header?: {
     tips: string; // 提示
   };
+  is_code_redefine?: boolean; // 是否有返回码重定义功能
   is_support_compare?: boolean;
   is_support_group_by?: boolean;
   legend?: ILegendOption;
   need_zr_click_event?: boolean; // 是否需要zrender click 事件
   precision?: number; // 单位精度
+  strategy_template_codes?: { callee: string[]; caller: string[] }; // 策略模板编码
   unit?: string; // 单位
 } & IApdexChartOption &
   IApmRelationGraphOption &
