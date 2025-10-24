@@ -61,7 +61,7 @@ export default class {
   trendGraphHeight: number;
 
   // 事件列表
-  events: Map<string, ((...args) => void)[]>;
+  events: Map<string, ((..._args) => void)[]>;
 
   // 索引集id列表
   indexSetIdList: string[];
@@ -98,32 +98,38 @@ export default class {
     this.jsonFormatter = new JsonFormatter();
   }
 
-  formatDateValue(data: string, field_type: string) {
+  /**
+   * 格式化时间戳
+   * @param data 时间戳
+   * @param fieldType 字段类型
+   * @returns 格式化后的时间戳
+   */
+  formatDateValue(data: string, fieldType: string) {
     const formatFn = {
       date: formatDate,
       date_nanos: formatDateNanos,
     };
 
-    if (formatFn[field_type]) {
+    if (formatFn[fieldType]) {
       if (`${data}`.startsWith('<mark>')) {
         const value = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
 
         if (/^\d+$/.test(value)) {
-          return `<mark>${formatFn[field_type](Number(value))}</mark>`;
+          return `<mark>${formatFn[fieldType](Number(value))}</mark>`;
         }
-        return `<mark>${formatFn[field_type](value)}</mark>`;
+        return `<mark>${formatFn[fieldType](value)}</mark>`;
       }
 
       if (/^\d+$/.test(data)) {
-        return formatFn[field_type](Number(data)) || data || '--';
+        return formatFn[fieldType](Number(data)) || data || '--';
       }
 
-      return formatFn[field_type](data) || data || '--';
+      return formatFn[fieldType](data) || data || '--';
     }
     return data;
   }
 
-  on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (...args) => void) {
+  on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (..._args) => void) {
     const targetEvents = Array.isArray(fnName) ? fnName : [fnName];
     for (const event of targetEvents) {
       if (!this.events.has(event)) {
@@ -153,7 +159,7 @@ export default class {
    * @param eventName
    * @param fn
    */
-  off(eventName: RetrieveEvent, fn?: (...args) => void) {
+  off(eventName: RetrieveEvent, fn?: (..._args) => void) {
     if (typeof fn === 'function') {
       const index = this.events.get(eventName)?.indexOf(fn);
       if (index !== -1) {
@@ -169,7 +175,7 @@ export default class {
    * @param eventNames
    * @param fn
    */
-  batchOff(eventNames: RetrieveEvent[], fn?: (...args) => void) {
+  batchOff(eventNames: RetrieveEvent[], fn?: (..._args) => void) {
     for (const eventName of eventNames) {
       this.off(eventName, fn);
     }

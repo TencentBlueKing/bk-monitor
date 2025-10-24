@@ -22,10 +22,10 @@
           </div>
           <ul class="select-list">
             <li
-              v-for="item in shadowTotal"
+              v-for="(item, index) in shadowTotal"
               style="cursor: pointer"
               class="select-item bklog-v3-popover-tag"
-              :key="item.field_name"
+              :key="`${item.field_name}-${index}`"
               @click="addField(item)"
             >
               <span
@@ -86,7 +86,7 @@
               <li
                 v-for="(item, index) in shadowVisible"
                 class="select-item"
-                :key="item.field_name"
+                :key="`${item.field_name}-${index}`"
                 @click="e => deleteField(e, item, index)"
               >
                 <span

@@ -28,7 +28,6 @@ import { defineComponent, ref, watch, nextTick, onMounted, onBeforeUnmount } fro
 
 import { messageSuccess } from '@/common/bkmagic';
 import { getFlatObjValues } from '@/common/util';
-import FieldsConfig from '@/components/common/fields-config.vue';
 import LogView from '@/components/log-view/index.vue';
 import useLocale from '@/hooks/use-locale';
 
@@ -43,7 +42,6 @@ export default defineComponent({
   name: 'RealTimeLog',
   components: {
     LogView,
-    FieldsConfig,
     DataFilter,
     LogResult,
     CommonHeader,
@@ -256,7 +254,7 @@ export default defineComponent({
             localParams.value,
           ),
         })
-        .then(res => {
+        .then((res) => {
           // 通过gseindex 去掉出返回日志， 并加入现有日志
           const { list } = res.data;
           if (list?.length) {
@@ -267,7 +265,7 @@ export default defineComponent({
             }
 
             const logArr: any[] = [];
-            list.forEach(item => {
+            list.forEach((item) => {
               const { log } = item;
               logArr.push({ log });
             });
