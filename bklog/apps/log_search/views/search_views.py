@@ -1954,6 +1954,12 @@ class SearchViewSet(APIViewSet):
 
     @detail_route(methods=["POST"], url_path="export_chart_data")
     def export_chart_data(self, request, index_set_id=None):
+        """
+        @api {post} /search/index_set/$index_set_id/export_chart_data/
+        @apiDescription 导出图表数据
+        @apiName export_chart_data
+        @apiGroup 11_Search
+        """
         params = self.params_valid(ChartSerializer)
         bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
         params["index_set_ids"] = [index_set_id]
