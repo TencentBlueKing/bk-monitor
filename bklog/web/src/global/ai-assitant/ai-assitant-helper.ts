@@ -97,6 +97,7 @@ class AiAssitantHelper {
       || target?.classList?.contains('ai-blueking-button-text')
       || target?.closest('.ai-blueking-container-wrapper')
       || target?.closest('.ai-blueking-form')
+      || target?.parentElement?.querySelector('.bkai-icon') !== null
     );
   }
 
