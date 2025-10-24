@@ -20,7 +20,7 @@
       "extra_panels": [
         {
           "id": "request_total",
-          "title": "请求量",
+          "title": "_(请求量)",
           "type": "caller-line-chart",
           "gridPos": {
             "x": 0,
@@ -33,7 +33,7 @@
               "data_type": "time_series",
               "api": "apm_metric.dynamicUnifyQuery",
               "datasource": "time_series",
-              "alias": "请求量",
+              "alias": "_(请求量)",
               "data": {
                 "app_name": "${app_name}",
                 "expression": "A",
@@ -175,7 +175,7 @@
         },
         {
           "id": "success_rate",
-          "title": "成功率",
+          "title": "_(成功率)",
           "type": "caller-line-chart",
           "gridPos": {
             "x": 8,
@@ -188,7 +188,7 @@
               "data_type": "time_series",
               "api": "apm_metric.dynamicUnifyQuery",
               "datasource": "time_series",
-              "alias": "成功率",
+              "alias": "_(成功率)",
               "data": {
                 "app_name": "${app_name}",
                 "expression": "(a or b < bool  0) /  b * 100",
@@ -434,7 +434,7 @@
         },
         {
           "id": "timeout_rate",
-          "title": "超时率",
+          "title": "_(超时率)",
           "type": "caller-line-chart",
           "gridPos": {
             "x": 16,
@@ -447,7 +447,7 @@
               "data_type": "time_series",
               "api": "apm_metric.dynamicUnifyQuery",
               "datasource": "time_series",
-              "alias": "超时率",
+              "alias": "_(超时率)",
               "data": {
                 "app_name": "${app_name}",
                 "expression": "(a or b < bool  0) /  b * 100",
@@ -687,7 +687,7 @@
             "child_panels_selector_variables": [
               {
                 "id": "exception_rate",
-                "title": "异常率",
+                "title": "_(异常率)",
                 "variables": {
                   "code_field": "code_type",
                   "code_method": "eq",
@@ -699,7 +699,7 @@
               },
               {
                 "id": "timeout_rate",
-                "title": "超时率",
+                "title": "_(超时率)",
                 "variables": {
                   "code_field": "code_type",
                   "code_method": "eq",
@@ -717,7 +717,7 @@
         },
         {
           "id": "avg_duration",
-          "title": "平均耗时",
+          "title": "_(平均耗时)",
           "type": "caller-line-chart",
           "gridPos": {
             "x": 0,
@@ -730,7 +730,7 @@
               "data_type": "time_series",
               "api": "apm_metric.dynamicUnifyQuery",
               "datasource": "time_series",
-              "alias": "平均耗时",
+              "alias": "_(平均耗时)",
               "data": {
                 "app_name": "${app_name}",
                 "expression": "a / b",
@@ -950,7 +950,7 @@
         },
         {
           "id": "pxx_duration",
-          "title": "耗时分布",
+          "title": "_(耗时分布)",
           "type": "caller-line-chart",
           "gridPos": {
             "x": 8,
@@ -1412,7 +1412,7 @@
         },
         {
           "id": "duration_heatmap",
-          "title": "耗时热力图",
+          "title": "_(耗时热力图)",
           "type": "apm_heatmap",
           "gridPos": {
             "x": 16,
@@ -1525,7 +1525,7 @@
       "dimension_panels": [
         {
           "id": "dimension_pie",
-          "title": "维度值分布",
+          "title": "_(维度值分布)",
           "type": "caller-pie-chart",
           "gridPos": {
             "x": 0,
@@ -1566,7 +1566,7 @@
         },
         {
           "id": "dimension_bar",
-          "title": "维度值分布",
+          "title": "_(维度值分布)",
           "type": "caller-bar-chart",
           "gridPos": {
             "x": 0,
@@ -1613,20 +1613,20 @@
         "common": {
           "drawer": {
             "total": {
-              "title": "请求量",
+              "title": "_(请求量)",
               "panels": [
                 "request_total"
               ]
             },
             "rate": {
-              "title": "成功异常超时率",
+              "title": "_(成功异常超时率)",
               "panels": [
                 "success_rate",
                 "timeout_rate"
               ]
             },
             "duration": {
-              "title": "耗时",
+              "title": "_(耗时)",
               "panels": [
                 "avg_duration",
                 "pxx_duration"
@@ -1634,7 +1634,7 @@
             }
           },
           "time": {
-            "text": "时间",
+            "text": "_(时间)",
             "value": "time",
             "interval": 60
           },
@@ -1650,88 +1650,88 @@
               "tags": [
                 {
                   "value": "namespace",
-                  "text": "物理环境"
+                  "text": "_(物理环境)"
                 },
                 {
                   "value": "env_name",
-                  "text": "用户环境"
+                  "text": "_(用户环境)"
                 },
                 {
                   "value": "caller_service",
-                  "text": "主调 Service"
+                  "text": "_(主调 Service)"
                 },
                 {
                   "value": "caller_method",
-                  "text": "主调接口"
+                  "text": "_(主调接口)"
                 },
                 {
                   "value": "instance",
-                  "text": "主调 IP"
+                  "text": "_(主调 IP)"
                 },
                 {
                   "value": "container_name",
-                  "text": "主调容器"
+                  "text": "_(主调容器)"
                 },
                 {
                   "value": "caller_con_setid",
-                  "text": "主调 SetID"
+                  "text": "_(主调 SetID)"
                 },
                 {
                   "value": "caller_group",
-                  "text": "主调流量组"
+                  "text": "_(主调流量组)"
                 },
                 {
                   "value": "callee_server",
-                  "text": "被调服务"
+                  "text": "_(被调服务)"
                 },
                 {
                   "value": "callee_service",
-                  "text": "被调 Service"
+                  "text": "_(被调 Service)"
                 },
                 {
                   "value": "callee_method",
-                  "text": "被调接口",
+                  "text": "_(被调接口)",
                   "default_group_by_field": true
                 },
                 {
                   "value": "callee_ip",
-                  "text": "被调 IP"
+                  "text": "_(被调 IP)"
                 },
                 {
                   "value": "callee_container",
-                  "text": "被调容器"
+                  "text": "_(被调容器)"
                 },
                 {
                   "value": "callee_con_setid",
-                  "text": "被调 SetID"
+                  "text": "_(被调 SetID)"
                 },
                 {
                   "value": "code",
-                  "text": "返回码"
+                  "text": "_(返回码)"
                 },
                 {
                   "value": "version",
-                  "text": "版本"
+                  "text": "_(版本)"
                 },
                 {
                   "value": "region",
-                  "text": "地域"
+                  "text": "_(地域)"
                 },
                 {
                   "value": "canary",
-                  "text": "金丝雀"
+                  "text": "_(金丝雀)"
                 },
                 {
                   "value": "user_ext1",
-                  "text": "预留字段1"
+                  "text": "_(预留字段1)"
                 },
                 {
                   "value": "user_ext2",
-                  "text": "预留字段2"
+                  "text": "_(预留字段2)"
                 },
                 {
                   "value": "user_ext3",
-                  "text": "预留字段3"
+                  "text": "_(预留字段3)"
                 }
               ],
               "support_operations": [
@@ -1828,93 +1828,93 @@
               "tags": [
                 {
                   "value": "namespace",
-                  "text": "物理环境"
+                  "text": "_(物理环境)"
                 },
                 {
                   "value": "env_name",
-                  "text": "用户环境"
+                  "text": "_(用户环境)"
                 },
                 {
                   "value": "caller_server",
-                  "text": "主调服务"
+                  "text": "_(主调服务)"
                 },
                 {
                   "value": "caller_service",
-                  "text": "主调 Service"
+                  "text": "_(主调 Service)"
                 },
                 {
                   "value": "caller_method",
-                  "text": "主调接口"
+                  "text": "_(主调接口)"
                 },
                 {
                   "value": "caller_ip",
-                  "text": "主调 IP"
+                  "text": "_(主调 IP)"
                 },
                 {
                   "value": "caller_container",
-                  "text": "主调容器"
+                  "text": "_(主调容器)"
                 },
                 {
                   "value": "caller_con_setid",
-                  "text": "主调 SetID"
+                  "text": "_(主调 SetID)"
                 },
                 {
                   "value": "caller_group",
-                  "text": "主调流量组"
+                  "text": "_(主调流量组)"
                 },
                 {
                   "value": "callee_service",
-                  "text": "被调 Service"
+                  "text": "_(被调 Service)"
                 },
                 {
                   "value": "callee_method",
-                  "text": "被调接口",
+                  "text": "_(被调接口)",
                   "default_group_by_field": true
                 },
                 {
                   "value": "instance",
-                  "text": "被调 IP"
+                  "text": "_(被调 IP)"
                 },
                 {
                   "value": "container_name",
-                  "text": "被调容器"
+                  "text": "_(被调容器)"
                 },
                 {
                   "value": "callee_con_setid",
-                  "text": "被调 SetID"
+                  "text": "_(被调 SetID)"
                 },
                 {
                   "value": "code",
-                  "text": "返回码"
+                  "text": "_(返回码)"
                 },
                 {
                   "value": "version",
-                  "text": "版本"
+                  "text": "_(版本)"
                 },
                 {
                   "value": "region",
-                  "text": "地域"
+                  "text": "_(地域)"
                 },
                 {
                   "value": "canary",
-                  "text": "金丝雀"
+                  "text": "_(金丝雀)"
                 },
                 {
                   "value": "user_ext1",
-                  "text": "预留字段1"
+                  "text": "_(预留字段1)"
                 },
                 {
                   "value": "user_ext2",
-                  "text": "预留字段2"
+                  "text": "_(预留字段2)"
                 },
                 {
                   "value": "user_ext3",
-                  "text": "预留字段3"
+                  "text": "_(预留字段3)"
                 }
               ],
               "support_operations": [
                 {
-                  "text": "主调",
+                  "text": "_(主调)",
                   "value": "callee",
                   "tags": [
                     "caller_service",
