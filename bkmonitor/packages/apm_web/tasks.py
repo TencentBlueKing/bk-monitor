@@ -279,8 +279,8 @@ def cache_application_scope_name():
                         service_data = MetricHelper.get_monitor_info(
                             bk_biz_id, result_table_id, service_name=service_name
                         )
-                        if service_data:  # 只添加非空数据
-                            monitor_info[service_name] = service_data
+                        if service_data:
+                            monitor_info.update(service_data)
                     except Exception as e:
                         logger.warning(
                             f"[CACHE_APPLICATION_SCOPE_NAME] failed to get monitor info for service {service_name}: {e}"
