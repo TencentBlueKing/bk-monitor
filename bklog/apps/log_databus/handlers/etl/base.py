@@ -261,7 +261,10 @@ class EtlHandler:
     @staticmethod
     def etl_preview(etl_config, etl_params, data):
         etl_storage = EtlStorage.get_instance(etl_config=etl_config)
-        fields = etl_storage.etl_preview(data, etl_params)
+        if FeatureToggleObject.switch("log_v4_data_link"):
+            fields = etl_storage.etl_preview_v4(data, etl_params)
+        else:
+            fields = etl_storage.etl_preview(data, etl_params)
         return {"fields": fields}
 
     def etl_time(self, time_format, time_zone, data):
