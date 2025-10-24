@@ -226,7 +226,10 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
                   <div class='tag-column'>
                     {row.labels ? (
                       <div>
-                        <div class='tag-item set-item'>
+                        <div
+                          class='tag-item set-item'
+                          v-bk-overflow-tips
+                        >
                           {typeof row.labels[0] === 'string'
                             ? row.labels[0].replace(/\//g, '')
                             : row.labels[0]?.key
