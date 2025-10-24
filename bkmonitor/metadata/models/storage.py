@@ -164,7 +164,9 @@ class ClusterInfo(models.Model):
 
     # 用于标识用途标签
     label = models.CharField("用途标签", max_length=32, null=True, default="")
-    default_settings = JsonField("集群的默认配置", default={}, null=True)
+    default_settings: dict[str, Any] = JsonField(
+        "集群的默认配置", default={}, null=True
+    )  # # pyright: ignore [reportAssignmentType]
 
     # 创建和修改信息
     creator = models.CharField("创建者", default="system", max_length=255)
