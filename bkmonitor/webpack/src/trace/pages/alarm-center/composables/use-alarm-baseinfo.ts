@@ -33,6 +33,7 @@ import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-d
 export function useAlarmBasicInfo() {
   const alarmCenterDetailStore = useAlarmCenterDetailStore();
 
+  /** 处理状态 */
   const alertActionOverview = shallowRef(null);
 
   // 获取处理状态数据
@@ -49,12 +50,6 @@ export function useAlarmBasicInfo() {
     const data = await searchAction(params);
     alertActionOverview.value = data.overview;
   };
-
-  /** 告警确认 */
-  const handleAlarmConfirm = async () => {};
-
-  /** 告警屏蔽 */
-  const handleQuickShield = async () => {};
 
   watch(
     () => alarmCenterDetailStore.alarmDetail,
@@ -73,7 +68,5 @@ export function useAlarmBasicInfo() {
 
   return {
     alertActionOverview,
-    handleAlarmConfirm,
-    handleQuickShield,
   };
 }

@@ -41,7 +41,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   const loading = shallowRef<boolean>(false);
 
   const bizId = computed(() => {
-    return alarmDetail.value?.bk_biz_id || window.bk_biz_id || window.cc_biz_id || '';
+    return alarmDetail.value?.bk_biz_id || (window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined;
   });
 
   /**

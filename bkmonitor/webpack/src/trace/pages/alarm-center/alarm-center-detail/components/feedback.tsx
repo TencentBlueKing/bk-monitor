@@ -25,7 +25,7 @@
  */
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
-import { Dialog, Message } from 'bkui-vue';
+import { Button, Dialog, Input, Loading, Message } from 'bkui-vue';
 import { feedbackAlert } from 'monitor-api/modules/alert';
 import { useI18n } from 'vue-i18n';
 
@@ -136,70 +136,74 @@ export default defineComponent({
     return (
       <Dialog
         width={480}
+        v-slots={{
+          default: () => (
+            <Loading loading={this.loading}>
+              <div class='event-detail-feedbak-dialog'>
+                <div class='state'>
+                  <div
+                    class={['left', { active: this.state === 1 }]}
+                    onClick={() => this.handleState(1)}
+                  >
+                    <span class='icon-monitor icon-mc-like-filled' />
+                    <span class='text'>{this.t('有用')}</span>
+                  </div>
+                  <div
+                    class={['right', { active: this.state === 2 }]}
+                    onClick={() => this.handleState(2)}
+                  >
+                    <span class='icon-monitor icon-mc-unlike-filled' />
+                    <span class='text'>{this.t('无用')}</span>
+                  </div>
+                </div>
+                <div class='content'>
+                  <div class='title'>{this.t('反馈')}</div>
+                  {this.state === 2 && (
+                    <div class='tags'>
+                      {TAGS.map(item => (
+                        <div
+                          key={item}
+                          class='tag'
+                          onClick={() => this.handleClickTag(item)}
+                        >
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Input
+                    class='content-text'
+                    v-model={this.description}
+                    rows={3}
+                    type={'textarea'}
+                    onChange={() => {
+                      this.errMsg = '';
+                    }}
+                  />
+                  {this.errMsg ? <div class='err-msg'>{this.errMsg}</div> : undefined}
+                </div>
+              </div>
+            </Loading>
+          ),
+          footer: () => (
+            <div class='btns'>
+              <Button
+                style='margin-right: 10px'
+                disabled={this.loading}
+                theme='primary'
+                onClick={this.handleAlarmConfirm}
+              >
+                {this.$t('确认')}
+              </Button>
+              <Button onClick={() => this.handleShowChange(false)}>{this.$t('取消')}</Button>
+            </div>
+          ),
+        }}
         header-position={'left'}
         isShow={this.show}
         title={this.t('反馈')}
         onUpdate:isShow={this.handleShowChange}
-      >
-        <div
-          class='event-detail-feedbak-dialog'
-          v-bkloading={{ isLoading: this.loading }}
-        >
-          <div class='state'>
-            <div
-              class={['left', { active: this.state === 1 }]}
-              onClick={() => this.handleState(1)}
-            >
-              <span class='icon-monitor icon-mc-like-filled' />
-              <span class='text'>{this.t('有用')}</span>
-            </div>
-            <div
-              class={['right', { active: this.state === 2 }]}
-              onClick={() => this.handleState(2)}
-            >
-              <span class='icon-monitor icon-mc-unlike-filled' />
-              <span class='text'>{this.t('无用')}</span>
-            </div>
-          </div>
-          <div class='content'>
-            <div class='title'>{this.t('反馈')}</div>
-            {this.state === 2 && (
-              <div class='tags'>
-                {TAGS.map(item => (
-                  <div
-                    key={item}
-                    class='tag'
-                    onClick={() => this.handleClickTag(item)}
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-            )}
-            <bk-input
-              class='content-text'
-              v-model={this.description}
-              rows={3}
-              type={'textarea'}
-              onChange={() => {
-                this.errMsg = '';
-              }}
-            />
-            {this.errMsg ? <div class='err-msg'>{this.errMsg}</div> : undefined}
-          </div>
-        </div>
-        <template slot='footer'>
-          <bk-button
-            style='margin-right: 10px'
-            disabled={this.loading}
-            theme='primary'
-            on-click={this.handleAlarmConfirm}
-          >
-            {this.$t('确认')}
-          </bk-button>
-          <bk-button on-click={() => this.handleShowChange(false)}>{this.$t('取消')}</bk-button>
-        </template>
-      </Dialog>
+      ></Dialog>
     );
   },
 });

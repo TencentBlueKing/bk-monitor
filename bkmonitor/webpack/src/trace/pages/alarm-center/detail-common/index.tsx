@@ -34,6 +34,7 @@ import { useI18n } from 'vue-i18n';
 import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
 import { useAlarmBasicInfo } from '../composables/use-alarm-baseinfo';
 import AlarmAlert from './components/alarm-alert';
+import AlarmConfirmDialog from './components/alarm-confirm-dialog';
 import AlarmInfo from './components/alarm-info';
 import PanelAlarm from './components/panel-alarm';
 import PanelContainer from './components/panel-container';
@@ -51,10 +52,11 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmDetail, loading } = storeToRefs(alarmCenterDetailStore);
+    const { alarmDetail, loading, bizId, alarmId } = storeToRefs(alarmCenterDetailStore);
 
-    const { alertActionOverview, handleAlarmConfirm, handleQuickShield } = useAlarmBasicInfo();
-    console.log(alertActionOverview);
+    const { alertActionOverview } = useAlarmBasicInfo();
+
+    const alarmConfirmShow = shallowRef(false);
 
     const panelTabList = [
       {
@@ -108,12 +110,21 @@ export default defineComponent({
       return comMap[currentPanel.value];
     });
 
+    const handleAlarmConfirm = (val: boolean) => {
+      alarmDetail.value = {
+        ...alarmDetail.value,
+        is_ack: val,
+      };
+    };
+
     return () => (
       <div class='alarm-center-detail-box'>
         <AlarmAlert
           data={alarmDetail.value}
-          onAlarmConfirm={handleAlarmConfirm}
-          onQuickShield={handleQuickShield}
+          onAlarmConfirm={() => {
+            alarmConfirmShow.value = true;
+          }}
+          onQuickShield={() => {}}
         />
         {loading.value ? (
           <div class='alarm-basic-info' />
@@ -137,6 +148,16 @@ export default defineComponent({
           ))}
         </Tab>
         <panelCom.value detail={alarmDetail.value} />
+
+        <AlarmConfirmDialog
+          alarmBizId={bizId.value}
+          alarmIds={[alarmId.value]}
+          show={alarmConfirmShow.value}
+          onConfirm={handleAlarmConfirm}
+          onUpdate:show={v => {
+            alarmConfirmShow.value = v;
+          }}
+        />
       </div>
     );
   },
