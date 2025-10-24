@@ -231,9 +231,8 @@ def application_create_check():
 @shared_task(ignore_result=True)
 def cache_application_scope_name():
     """
-    1. 每次获取 10 分钟内的数据
-    2. 和已有的缓存数据做一个整合
-    3. 支持按服务粒度缓存，通过全局配置控制
+    1. 和已有的缓存数据做一个整合
+    2. 支持按服务粒度缓存，通过全局配置控制
     """
     logger.info("[CACHE_APPLICATION_SCOPE_NAME] task start")
     if "redis" not in caches:
