@@ -232,7 +232,16 @@ export default defineComponent({
       },
     });
 
-    const { tableCellRender } = useTableCell(tableRowKeyField);
+    const { tableCellRender, renderContext } = useTableCell({
+      rowKeyField: tableRowKeyField,
+      customDefaultGetRenderValue: (row, column) => {
+        const alias = row?.[column.colKey];
+        if (typeof alias !== 'object' || alias == null) {
+          return alias;
+        }
+        return JSON.stringify(alias);
+      },
+    });
     const {
       tableColumns,
       displayColumnFields,
@@ -245,6 +254,7 @@ export default defineComponent({
       isSpanVisual,
       rowKeyField: tableRowKeyField,
       sortContainer,
+      renderContext,
       tableHeaderCellRender,
       tableCellRender,
       handleConditionMenuShow,
@@ -731,7 +741,7 @@ export default defineComponent({
       >
         <PrimaryTable
           ref='tableRef'
-          class={this.tableSkeletonConfig?.tableClass}
+          class={`explore-table ${this.tableSkeletonConfig?.tableClass}`}
           v-slots={{
             empty: () => (
               <ExploreTableEmpty
@@ -798,6 +808,7 @@ export default defineComponent({
           activeRowType='single'
           data={this.tableViewData}
           hover={true}
+          needCustomScroll={false}
           resizable={true}
           rowKey={this.tableRowKeyField}
           showSortColumnBgColor={true}
