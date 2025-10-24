@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,11 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 from itertools import chain
 
 from alarm_backends.core.cache.cmdb import HostManager, ServiceInstanceManager
 from alarm_backends.service.access.base import Fuller
+from alarm_backends.service.access.data.records import DataRecord
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
@@ -32,13 +31,14 @@ class TopoNodeFuller(Fuller):
         """
         return scenario in ("os", "host_process")
 
-    def full(self, record):
+    def full(self, record: DataRecord):
         """
         维度补充(当策略目标是CMDB节点时，需要在数据的维度中补充CMDB节点的信息)
 
         1. 如果数据来源"服务"层，则补充"实例"所属的CMDB节点信息，以及主机信息，否则进入下一步
         2. 如果数据来源"主机"层，则补充"主机"所属的CMDB节点信息
         """
+        bk_tenant_id = record.bk_tenant_id
         dimensions = record.dimensions
 
         for item in record.items:
@@ -55,7 +55,7 @@ class TopoNodeFuller(Fuller):
         # 按主机ID补全维度
         bk_host_id = dimensions.get("bk_host_id")
         if bk_host_id:
-            host = HostManager.get_by_id(bk_host_id)
+            host = HostManager.get_by_id(bk_tenant_id=bk_tenant_id, bk_host_id=bk_host_id)
             if host:
                 dimensions["bk_target_ip"] = host.ip
                 dimensions["bk_target_cloud_id"] = str(host.bk_cloud_id)
@@ -63,7 +63,9 @@ class TopoNodeFuller(Fuller):
         # 按服务实例补全维度
         service_instance_id = dimensions.get("bk_target_service_instance_id") or dimensions.get("service_instance_id")
         if service_instance_id:
-            service_instance = ServiceInstanceManager.get(service_instance_id)
+            service_instance = ServiceInstanceManager.get(
+                bk_tenant_id=bk_tenant_id, service_instance_id=service_instance_id
+            )
             if service_instance:
                 bk_topo_node = []
                 if service_instance.topo_link:
@@ -79,7 +81,9 @@ class TopoNodeFuller(Fuller):
             return
 
         bk_target_cloud_id = dimensions.get("bk_target_cloud_id", "0") or dimensions.get("bk_cloud_id", "0")
-        host = HostManager.get(bk_target_ip, bk_target_cloud_id, using_mem=True)
+        host = HostManager.get(
+            bk_tenant_id=bk_tenant_id, ip=bk_target_ip, bk_cloud_id=bk_target_cloud_id, using_mem=True
+        )
         if not host:
             return
 

@@ -19,12 +19,12 @@ from django.utils.translation import gettext as _
 from alarm_backends.constants import CONST_MINUTES, CONST_ONE_HOUR, NO_DATA_LEVEL
 from alarm_backends.core.cache import key
 from alarm_backends.core.cache.calendar import CalendarCacheManager
-from alarm_backends.core.cache.cmdb.business import BusinessManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.i18n import i18n
-from bkmonitor.utils import time_tools
 from bkmonitor.models.strategy import AlgorithmModel
+from bkmonitor.utils import time_tools
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.errors.alarm_backends import StrategyItemNotFound
 
 logger = logging.getLogger("core.control")
@@ -78,6 +78,10 @@ class Strategy:
                 min_interval = query_config["agg_interval"]
 
         return min_interval or CONST_MINUTES
+
+    @cached_property
+    def bk_tenant_id(self) -> str:
+        return bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
 
     @property
     def priority(self):
@@ -239,7 +243,7 @@ class Strategy:
             return item_messages
 
         calendars: list[list[dict]] = CalendarCacheManager.mget(
-            calendar_ids=calendar_ids, bk_tenant_id=BusinessManager.get_tenant_id(self.bk_biz_id)
+            calendar_ids=calendar_ids, bk_tenant_id=self.bk_tenant_id
         )
         for items in calendars:
             for item in items:

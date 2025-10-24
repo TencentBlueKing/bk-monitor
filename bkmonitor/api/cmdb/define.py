@@ -10,12 +10,12 @@ specific language governing permissions and limitations under the License.
 
 import copy
 
-import six
 from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.country import CHINESE_PROVINCE_MAP, COUNTRY_MAP, ISP_MAP
+from constants.common import DEFAULT_TENANT_ID
 
 
 def _split_member_list(member_str):
@@ -26,7 +26,7 @@ def _split_member_list(member_str):
     """
     if not member_str:
         return []
-    if not isinstance(member_str, six.string_types):
+    if not isinstance(member_str, str):
         return member_str
     return [member for member in member_str.split(",") if member]
 
@@ -140,6 +140,7 @@ class Business(TopoNode):
         bk_biz_productor=None,
         operator=None,
         time_zone="Asia/Shanghai",
+        bk_tenant_id=DEFAULT_TENANT_ID,
         **kwargs,
     ):
         """
@@ -151,6 +152,8 @@ class Business(TopoNode):
         super().__init__(
             bk_obj_id="biz", bk_obj_name="business", bk_inst_id=bk_biz_id, bk_inst_name=bk_biz_name, **kwargs
         )
+
+        self.bk_tenant_id = bk_tenant_id
         self.bk_biz_id = int(bk_biz_id)
         if not bk_biz_name:
             space_name = kwargs.get("space_name", "")
@@ -620,7 +623,7 @@ class Process:
         """
         检查端口号是否合法
         """
-        if isinstance(port_num, six.string_types) and port_num.strip().isdigit():
+        if isinstance(port_num, str) and port_num.strip().isdigit():
             port_num = int(port_num)
         elif isinstance(port_num, int):
             pass
@@ -687,7 +690,7 @@ class ServiceInstance:
     def __init__(
         self,
         service_instance_id,
-        name=None,
+        name: str | None = None,
         bk_host_id=None,
         bk_module_id=None,
         service_category_id=0,

@@ -49,7 +49,9 @@ def gen_condition_matcher(agg_condition):
 
 
 class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
-    def __init__(self, item_config, strategy):
+    def __init__(self, item_config: dict, strategy):
+        from alarm_backends.core.control.strategy import Strategy
+
         self.id = item_config.get("id")
         self.name = item_config.get("name")
 
@@ -72,7 +74,8 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
         self.target = item_config.get("target", [[]])
 
         self.item_config = item_config
-        self.strategy = strategy
+        self.strategy: Strategy = strategy
+        self.bk_tenant_id: str = self.strategy.bk_tenant_id
 
         for query_config in self.query_configs:
             query_config["target"] = self.target
@@ -115,7 +118,7 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
     def target_condition_obj(self):
         if not self.target or not self.target[0]:
             return
-        return TargetCondition(self.target)
+        return TargetCondition(bk_biz_id=self.strategy.bk_biz_id, target=self.target)
 
     @cached_property
     def agg_condition_obj(self):
