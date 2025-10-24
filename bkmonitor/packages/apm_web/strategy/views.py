@@ -35,7 +35,6 @@ from utils import count_md5
 from apm_web.models import StrategyTemplate, StrategyInstance, Application
 from apm_web.decorators import user_visit_record
 from . import serializers, handler, dispatch, helper, query_template, constants
-from .handler import StrategyTemplateHandler
 
 
 class StrategyTemplateViewSet(GenericViewSet):
@@ -193,7 +192,7 @@ class StrategyTemplateViewSet(GenericViewSet):
             strategy_template_id: int = extra_config.pop("strategy_template_id", 0)
             extra_configs_map[strategy_template_id].append(dispatch.DispatchExtraConfig(**extra_config))
         global_config = dispatch.DispatchGlobalConfig(**self.query_data["global_config"])
-        apply_data = StrategyTemplateHandler.apply(
+        apply_data = handler.StrategyTemplateHandler.apply(
             bk_biz_id=self.query_data["bk_biz_id"],
             app_name=self.query_data["app_name"],
             service_names=self.query_data["service_names"],
