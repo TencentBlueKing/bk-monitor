@@ -112,6 +112,7 @@ class TimeCompareProcessor:
                 limit=new_params["limit"],
                 slimit=new_params["slimit"],
                 down_sample_range=params["down_sample_range"],
+                not_time_align=params.get("not_time_align", False),
             )
 
             # 标记时间对比数据
@@ -298,6 +299,7 @@ class RankProcessor:
                 end_time=params["end_time"] * 1000,
                 limit=1000,
                 slimit=params["slimit"],
+                not_time_align=params.get("not_time_align", False),
             )
 
             metric_field = data_source.metrics[0].get("alias") or data_source.metrics[0]["field"]
@@ -567,6 +569,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         query_method = serializers.CharField(label="查询方法", required=False, default="query_data")
         unit = serializers.CharField(label="单位", default="", allow_blank=True)
         with_metric = serializers.BooleanField(label="是否返回metric信息", default=True)
+        not_time_align = serializers.BooleanField(label="是否不对齐时间窗口", required=False, default=False)
 
         @classmethod
         def to_str(cls, value):
@@ -762,6 +765,7 @@ class UnifyQueryRawResource(ApiAuthResource):
             limit=params["limit"],
             slimit=params["slimit"],
             down_sample_range=params["down_sample_range"],
+            not_time_align=params.get("not_time_align", False),
         )
 
         # 去掉排序函数topk
@@ -881,6 +885,7 @@ class UnifyQueryRawResource(ApiAuthResource):
             slimit=params["slimit"],
             down_sample_range=params["down_sample_range"],
             time_alignment=time_alignment,
+            not_time_align=params.get("not_time_align", False),
         )
 
         # 如果存在数据后过滤条件，则进行过滤
