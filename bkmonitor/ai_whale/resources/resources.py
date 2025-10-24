@@ -143,6 +143,45 @@ class RenameChatSessionResource(Resource):
             return aidev_interface.rename_chat_session_by_user_question(session_code=session_code)
 
 
+class GetFeedbackReasonsResource(Resource):
+    """
+    获取反馈原因列表
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        rate = serializers.IntegerField(label="评分", required=True)
+
+    @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
+    def perform_request(self, validated_request_data):
+        return aidev_interface.get_feedback_reasons(params=validated_request_data)
+
+
+class CreateFeedbackResource(Resource):
+    """
+    创建会话内容反馈
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        comment = serializers.CharField(label="评论内容", required=False)
+        labels = serializers.ListField(label="标签", required=False)
+        rate = serializers.IntegerField(label="评分", required=True)
+        session_code = serializers.CharField(label="会话代码", required=True)
+        session_content_ids = serializers.ListField(label="会话内容ID", required=False)
+
+    @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
+    def perform_request(self, validated_request_data):
+        session_code = validated_request_data.get("session_code")
+        rate = validated_request_data.get("rate")
+        username = get_request_username()
+        logger.info(
+            "CreateFeedbackResource: try to create feedback with session_code->[%s], rate->[%s], username->[%s]",
+            session_code,
+            rate,
+            username,
+        )
+        return aidev_interface.create_chat_session_feedback(params=validated_request_data, username=username)
+
+
 # -------------------- 会话内容管理 -------------------- #
 class CreateChatSessionContentResource(Resource):
     """
