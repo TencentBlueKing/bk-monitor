@@ -130,6 +130,7 @@ export default defineComponent({
       () => [props.indexSetId, props.logParams],
       async () => {
         if (props.indexSetId && props.logParams) {
+          localParams.value = {};
           deepClone(props.logParams);
           await requestContentLog();
         }
@@ -159,6 +160,7 @@ export default defineComponent({
       nextBegin.value = 0;
       prevBegin.value = 0;
       zero.value = true;
+      localParams.value = {};
     };
 
     const handleAfterLeave = () => {
@@ -198,7 +200,11 @@ export default defineComponent({
       for (const key in obj) {
         const prefixKey = prefix ? `${prefix}.${key}` : key;
         if (typeof obj[key] === 'object') {
-          deepClone(obj[key], prefixKey);
+          if (obj[key]?._isBigNumber) {
+            localParams.value[prefixKey] = obj[key].toString();
+          } else {
+            deepClone(obj[key], prefixKey);
+          }
         } else {
           localParams.value[prefixKey] = String(obj[key])
             .replace(/<mark>/g, '')
@@ -218,18 +224,20 @@ export default defineComponent({
       }
 
       const allFields = store.state.indexFieldInfo.fields;
-      let showFieldName = '';
+      let textField = undefined;
+      let logField = undefined;
       for (const field of allFields) {
         if (field.field_name === 'log') {
-          showFieldName = field.field_name;
+          logField = field.field_name;
           break;
         }
 
         if (field.field_type === 'text') {
-          showFieldName = field.field_name;
-          break;
+          textField = field.field_name;
         }
       }
+
+      const showFieldName = logField ?? textField;
 
       if (showFieldName) {
         return [showFieldName];

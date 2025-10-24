@@ -25,7 +25,7 @@
  */
 import { defineComponent, ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 
-import { parseTableRowData, readBlobRespToJson, parseBigNumberList, formatDate } from '@/common/util';
+import { parseTableRowData, readBlobRespToJson, parseBigNumberList, xssFilter } from '@/common/util';
 
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
@@ -34,6 +34,7 @@ import { BK_LOG_STORAGE } from '@/store/store.type';
 import SearchBar from '@/views/retrieve-v2/search-bar/index.vue';
 import DOMPurify from 'dompurify';
 import { cloneDeep, debounce } from 'lodash-es';
+import RetrieveHelper from '@/views/retrieve-helper';
 
 import RenderJsonCell from './render-json-cell';
 import { axiosInstance } from '@/api';
@@ -72,6 +73,9 @@ export default defineComponent({
       return dataMap;
     }, {}),
     );
+
+    const timeField = computed(() => store.state.indexFieldInfo.time_field);
+    const timeFieldType = computed(() => fieldsMap.value[timeField.value]?.field_type);
     const visibleFields = computed(() => store.state.visibleFields);
 
     const requestOtherparams = cloneDeep(props.retrieveParams);
@@ -143,7 +147,7 @@ export default defineComponent({
                 logList.value.push(...list);
                 if (isManualSearch) {
                   choosedIndex.value = -1;
-                  handleChooseRow(0);
+                  handleChooseRow(0, list[0]);
                 }
               }
             });
@@ -313,13 +317,13 @@ export default defineComponent({
       requestLogList(isManualSearch);
     };
 
-    const handleChooseRow = (index: number) => {
+    const handleChooseRow = (index: number, row: any) => {
       if (choosedIndex.value === index) {
         return;
       }
 
       choosedIndex.value = index;
-      const rowInfo = logList.value[index];
+      const rowInfo = row;
       const contextFields = store.state.indexSetOperatorConfig.contextAndRealtime.extra?.context_fields;
       const timeField = store.state.indexFieldInfo.time_field;
       const dialogNewParams = {};
@@ -381,6 +385,10 @@ export default defineComponent({
     const handleCollpaseToggle = () => {
       isCollapsed.value = !isCollapsed.value;
       emit('toggle-collapse', isCollapsed.value);
+    };
+
+    const renderTimeCell = (row: any) => {
+      return xssFilter(RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value));
     };
 
     onMounted(() => {
@@ -499,7 +507,7 @@ export default defineComponent({
                   <tr
                     key={`${index}_${row.time}`}
                     class={{ 'is-choosed': choosedIndex.value === index }}
-                    on-click={() => handleChooseRow(index)}
+                    on-click={() => handleChooseRow(index, row)}
                   >
                     <td>
                       <div class='index-column'>
@@ -511,7 +519,7 @@ export default defineComponent({
                         </div>
                       </div>
                     </td>
-                    <td style={rowStyle}>{formatDate(Number(row.time))}</td>
+                    <td style={rowStyle} domProps={{ innerHTML: renderTimeCell(row) }}></td>
                     <td style='padding:4px 0'>
                       <RenderJsonCell>
                         <JsonFormatter
