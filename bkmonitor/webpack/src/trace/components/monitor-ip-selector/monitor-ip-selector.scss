@@ -12,3 +12,13 @@
     }
   }
 }
+
+.ip-selector-resize-layout {
+  .layout-left {
+    position: relative;
+
+    .bk-big-tree-empty {
+      pointer-events: none;
+    }
+  }
+}
