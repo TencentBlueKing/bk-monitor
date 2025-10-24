@@ -65,6 +65,20 @@ class AIDevInterface:
         )
         return session_res
 
+    def create_chat_session_feedback(self, params, username):
+        """
+        会话反馈（点赞/点踩）
+        """
+        res = self.api_client.api.create_feedback(json=params, headers={"X-BKAIDEV-USER": username})
+        return res
+
+    def get_feedback_reasons(self, params):
+        """
+        获取反馈原因
+        """
+        res = self.api_client.api.get_feedback_reasons(params=params)
+        return res
+
     def retrieve_chat_session(self, session_code):
         """获取单个会话"""
         return self.api_client.api.retrieve_chat_session(path_params={"session_code": session_code})
