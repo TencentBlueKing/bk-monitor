@@ -76,8 +76,8 @@ import type {
   ITreeItem,
 } from './typing';
 
+import './monitor-ip-selector.scss';
 import '@blueking/ip-selector/dist/styles/index.css';
-
 const BkIpSelector = create({
   version: '3',
   serviceConfigError: false,
@@ -539,7 +539,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
     return Object.fromEntries(
       Object.entries(value).map(([key, value]) => [
         key,
-        // @ts-ignore
+        // @ts-expect-error
         transformCacheMapToOriginData(value, key, this.serverOriginDataMapForChange),
       ])
     );
