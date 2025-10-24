@@ -4,6 +4,8 @@ import useStore from '@/hooks/use-store';
 import $http from "@/api";
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 import { bkMessage } from 'bk-magic-vue';
+import useLocale from '@/hooks/use-locale';
+const  { t } = useLocale();
 const store = useStore();
 const props = defineProps({
   isShow: {
@@ -25,7 +27,17 @@ const formData = ref({
   dashboard: '',
 })
 const formRef = ref(null);
-
+const rules = {
+  chartName: [
+    { required: true, message: t('请输入图表名称'), trigger: 'blur' },
+  ],
+  directory: [
+    { required: true, message: t('请选择所属目录'), trigger: 'change' },
+  ],
+  dashboard: [
+    { required: true, message: t('请选择目标仪表盘'), trigger: 'change' },
+  ],
+};
 
 // 修改数据结构定义
 const directoryRawData = ref([]); // 存储原始目录数据
@@ -42,7 +54,6 @@ const filteredDashboards = computed(() => {
   if (!formData.value.directory) {
     return [];
   }
-
   const folderId = formData.value.directory.replace('folder_', '');
   const folder = directoryRawData.value.find(item => item.id == folderId);
 
@@ -73,7 +84,6 @@ const fetchDirectoryList = () => {
     },
   }).then((res) => {
     const { data } = res;
-    console.log('原始数据:', data);
     directoryRawData.value = data || [];
   }).catch((error) => {
     console.error('获取目录列表失败:', error);
@@ -109,12 +119,12 @@ watch(
 );
 // UI模式
 const generateQueryStringData = async () => {
-  console.log(store.getters.retrieveParams, '查询条件');
-  queryStringData.value = await $http.request("retrieve/generateQueryString", {
+  const result = await $http.request("retrieve/generateQueryString", {
     data: {
       addition: store.getters.retrieveParams?.addition || []
     },
   })
+  queryStringData.value = result.querystring || ''
 }
 
 // 开始创建目录
@@ -148,7 +158,6 @@ const saveItem = async (type) => {
   if (isSaving.value) {
     return;
   }
-
   const isDirectory = type === 'directory';
   const inputValue = isDirectory ? newDirectoryName.value : newDashboardName.value;
   const creatingState = isDirectory ? isCreatingDirectory : isCreatingDashboard;
@@ -157,10 +166,8 @@ const saveItem = async (type) => {
   if (!inputValue.trim()) {
     return;
   }
-
   isSaving.value = true;
   basicLoading.value = true;
-
   try {
     if (isDirectory) {
       // 创建目录
@@ -182,7 +189,7 @@ const saveItem = async (type) => {
         formData.value.directory = `folder_${res.data.id}`;
         bkMessage({
           theme: 'success',
-          message: '目录创建成功',
+          message: t('目录创建成功'),
         });
       }
     } else {
@@ -192,14 +199,13 @@ const saveItem = async (type) => {
         data: {
           title: inputValue.trim(),
           type: 'dashboard',
-          folderId: folderId,
+          folderId: folderId || '',
           bk_biz_id: store.state.bkBizId || 0
         }
       });
 
       if (res.result) {
         const newDashboard = res.data;
-        console.log('新仪表盘数据:', newDashboard);
         // 在对应目录中添加新的仪表盘
         const folderIndex = directoryRawData.value.findIndex(item => item.id == folderId);
         if (folderIndex !== -1) {
@@ -224,7 +230,7 @@ const saveItem = async (type) => {
 
         bkMessage({
           theme: 'success',
-          message: '仪表盘创建成功',
+          message: t('仪表盘创建成功'),
         });
       }
     }
@@ -232,7 +238,7 @@ const saveItem = async (type) => {
     console.error(`${isDirectory ? '创建目录' : '创建仪表盘'}失败:`, error);
     bkMessage({
       theme: 'error',
-      message: `${isDirectory ? '创建目录' : '创建仪表盘'}失败: ${error.message || ''}`,
+      message: `${isDirectory ? t('创建目录') : t('创建仪表盘')}失败: ${error.message || ''}`,
     });
   } finally {
     // 重置所有状态
@@ -269,36 +275,8 @@ const handleClose = () => {
 
 const handleSubmit = async () => {
   try {
-    console.log('提交时的表单数据:', JSON.stringify(formData.value));
-    console.log('chartName类型和值:', typeof formData.value.chartName, `"${formData.value.chartName}"`);
-    console.log('directory类型和值:', typeof formData.value.directory, `"${formData.value.directory}"`);
-    console.log('dashboard类型和值:', typeof formData.value.dashboard, `"${formData.value.dashboard}"`);
-    const validations = [
-      { 
-        field: formData.value.chartName?.trim(), 
-        message: '请输入图表名称' 
-      },
-      { 
-        field: formData.value.directory, 
-        message: '请选择目标目录' 
-      },
-      { 
-        field: formData.value.dashboard, 
-        message: '请选择目标仪表盘' 
-      }
-    ];
-    
-    // 检查每个字段
-    for (const validation of validations) {
-      if (!validation.field || validation.field === '') {
-        bkMessage({
-          theme: 'warning',
-          message: validation.message,
-        });
-        return;
-      }
-    }
-    
+   const validationResult = await formRef.value.validate();
+   if (!validationResult) return;
     basicLoading.value = true;
     const selectedDashboard = filteredDashboards.value.find(
       dashboard => dashboard.id === formData.value.dashboard
@@ -369,18 +347,15 @@ const saveChartToDashboard = async (dashboardUids) => {
 </script>
 
 <template>
-  <bk-dialog v-model="visible" theme="primary" :mask-close="false" title="添加到仪表盘" header-position="left"
-    @close="handleClose" width="520px" @after-leave="handleClose">
-    <bk-form :model="formData" ref="formRef" :label-width="100" form-type="vertical"
+  <bk-dialog v-model="visible" theme="primary" :mask-close="false" :title="t('添加到仪表盘')" header-position="left"
+    @close="handleClose" width="480px" @after-leave="handleClose">
+    <bk-form :model="formData" ref="formRef" :label-width="100" form-type="vertical" :rules ="rules"
       v-bkloading="{ isLoading: basicLoading, zIndex: 10 }">
-      <bk-form-item label="图表名称" required property="chartName">
-        <bk-input class="dashboard-input-full" v-model="formData.chartName" placeholder="请输入图表名称"
+      <bk-form-item :label="t('图表名称')" required property="chartName">
+        <bk-input class="dashboard-input-full" v-model="formData.chartName" :placeholder="t('请输入图表名称')"
           maxlength="255" :clearable="true"></bk-input>
       </bk-form-item>
-      <bk-form-item label="添加目标" required property="targetType" v-if="false">
-        已有仪表盘
-      </bk-form-item>
-      <bk-form-item label="所属目录" required property="directory">
+      <bk-form-item :label="t('所属目录')" required property="directory">
         <bk-select v-model="formData.directory" class="dashboard-input-full" :search-with-pinyin="true" searchable>
           <bk-option v-for="option in directoryList" :key="option.id" :id="option.id" :name="option.name">
           </bk-option>
@@ -388,10 +363,10 @@ const saveChartToDashboard = async (dashboardUids) => {
           <div slot="extension" v-if="!isCreatingDirectory" @click="startCreateDirectory"
             class="dashboard-extension-with-gap">
             <i class="bk-icon icon-plus-circle"></i>
-            <span>新增目录</span>
+            <span>{{ t('新增目录') }}</span>
           </div>
           <div slot="extension" v-else class="dashboard-extension-flex">
-            <bk-input v-model="newDirectoryName" placeholder="请输入目录名称" style="flex: 1;"
+            <bk-input v-model="newDirectoryName" :placeholder="t('请输入目录名称')" style="flex: 1;"
               @keyup.enter="handleDirectoryEnter"></bk-input>
             <bk-button icon="check-1" size="small" @click="() => saveItem('directory')" class="dashboard-button-green">
             </bk-button>
@@ -400,17 +375,17 @@ const saveChartToDashboard = async (dashboardUids) => {
           </div>
         </bk-select>
       </bk-form-item>
-      <bk-form-item label="目标仪表盘" required property="dashboard">
+      <bk-form-item :label="t('目标仪表盘')" required property="dashboard">
         <bk-select v-model="formData.dashboard" class="dashboard-input-full" :search-with-pinyin="true" searchable>
           <bk-option v-for="option in filteredDashboards" :key="option.id" :id="option.id" :name="option.name">
           </bk-option>
           <div slot="extension" v-if="!isCreatingDashboard && formData.directory" @click="startCreateDashboard"
             class="dashboard-extension-with-gap">
             <i class="bk-icon icon-plus-circle"></i>
-            <span>新增仪表盘</span>
+            <span>{{ t('新增仪表盘') }}</span>
           </div>
           <div slot="extension" v-else-if="isCreatingDashboard" class="dashboard-extension-flex">
-            <bk-input v-model="newDashboardName" placeholder="请输入仪表盘名称" style="flex: 1;"
+            <bk-input v-model="newDashboardName" :placeholder="t('请输入仪表盘名称')" style="flex: 1;"
               @keyup.enter="handleDashboardEnter"></bk-input>
             <bk-button icon="check-1" size="small" @click="saveItem('dashboard')" class="dashboard-button-green">
             </bk-button>
@@ -421,8 +396,8 @@ const saveChartToDashboard = async (dashboardUids) => {
       </bk-form-item>
     </bk-form>
     <template #footer>
-      <bk-button theme="primary" @click="handleSubmit">确定</bk-button>
-      <bk-button @click="handleClose">取消</bk-button>
+      <bk-button theme="primary" @click="handleSubmit">{{ t('确定') }}</bk-button>
+      <bk-button @click="handleClose">{{ t('取消') }}</bk-button>
     </template>
   </bk-dialog>
 </template>

@@ -153,9 +153,11 @@ onMounted(() => {
 </script>
 <template>
   <div class="retrieve2-tab">
-    <span v-for="(item, index) in renderPanelList" :key="item.label"
+    <div>
+      <span v-for="(item, index) in renderPanelList" :key="item.label"
       :class="['retrieve-panel', { active: value === item.name }, ...tabClassList[index]]"
       @click="handleActive(item.name)">{{ item.label }}</span>
+    </div>
     <div class="tab-right-operate">
       <div class="btn-alert-dashboard" @click="handleAddAlertDashboard">
         <span class="bklog-icon bklog-yibiaopan" style="font-size: 16px"></span>

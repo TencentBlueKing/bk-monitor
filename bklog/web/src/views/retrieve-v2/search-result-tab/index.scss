@@ -1,9 +1,11 @@
 .retrieve2-tab {
-  position: relative;
+  // position: relative;
+  display: flex;
   padding-top: 8px;
   margin: 0px 8px 0 0;
   background: #f5f7fa;
   border-radius: 2px 2px 0 0;
+  justify-content: space-between;
 
   &>span {
     &:not(:last-child) {
@@ -17,9 +19,9 @@
   }
 
   .btn-alert-policy {
-    position: absolute;
-    top: 0px;
-    right: -2px;
+    // position: absolute;
+    // top: 0px;
+    // right: -2px;
     height: 42px;
     font-size: 12px;
     line-height: 42px;
@@ -28,9 +30,9 @@
   }
 
   .btn-alert-dashboard {
-    position: absolute;
-    top: 0px;
-    right: 95px;
+    // position: absolute;
+    // top: 0px;
+    // right: 95px;
     height: 42px;
     font-size: 12px;
     line-height: 42px;

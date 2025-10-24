@@ -788,11 +788,11 @@ export default class FieldAnalysis extends Vue {
                     v-bk-tooltips={window.mainComponent.$t('下载')}
                     on-Click={this.downloadFieldStatistics}
                   ></span>
-                  <span
+                  {/* <span
                     class='bklog-icon bklog-yibiaopan'
                     v-bk-tooltips='查看仪表盘'
                     style={{ marginLeft: '5px',cursor: 'pointer' }}
-                  ></span>
+                  ></span> */}
                 </div>
               </div>
 
