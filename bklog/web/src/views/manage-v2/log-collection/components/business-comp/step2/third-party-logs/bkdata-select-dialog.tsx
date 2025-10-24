@@ -67,12 +67,15 @@ export default defineComponent({
       fetchCollectionList();
     });
 
-    watch (() => props.isShowDialog, (val) => {
-      if (val) {
-        indexName.value = '';
-        tableData.value = [];
-      }
-    })
+    watch(
+      () => props.isShowDialog,
+      val => {
+        if (val) {
+          indexName.value = '';
+          tableData.value = [];
+        }
+      },
+    );
 
     /**
      * 获取索引列表
@@ -111,7 +114,7 @@ export default defineComponent({
         query: {
           scenario_id: props.scenarioId,
           bk_biz_id: bkBizId.value,
-        }
+        },
       };
       tableData.value = await handleMultipleSelected(param);
     };
@@ -120,7 +123,7 @@ export default defineComponent({
      */
     const handleChoose = value => {
       indexName.value = value;
-      handleSelected(value); 
+      handleSelected(value);
     };
     /**
      * 关闭新增索引弹窗
@@ -164,8 +167,6 @@ export default defineComponent({
         theme='primary'
         title={t('新增索引')}
         value={props.isShowDialog}
-        // on-cancel={handleCancel}
-        // on-confirm={handleConfirm}
       >
         <bk-form label-width={60}>
           <bk-form-item
@@ -207,8 +208,16 @@ export default defineComponent({
             </bk-table>
           </bk-form-item>
         </bk-form>
-        <div slot='footer'> 
-          <bk-button class='mr-8' disabled={!indexName.value} loading={confirmLoading.value} theme='primary' on-click={handleConfirm}>{t('添加')}</bk-button>
+        <div slot='footer'>
+          <bk-button
+            class='mr-8'
+            disabled={!indexName.value}
+            loading={confirmLoading.value}
+            theme='primary'
+            on-click={handleConfirm}
+          >
+            {t('添加')}
+          </bk-button>
           <bk-button on-click={handleCancel}>{t('取消')}</bk-button>
         </div>
       </bk-dialog>

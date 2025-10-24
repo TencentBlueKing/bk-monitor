@@ -105,6 +105,7 @@ export default defineComponent({
     const showSelectDialog = ref(false);
     const selectorNodes = ref({ host_list: [] });
     const ipSelectorOriginalValue = ref(null);
+    const collectorType = ref('container_log_config');
 
     /**
      * 日志种类
@@ -169,6 +170,7 @@ export default defineComponent({
         target_object_type: 'HOST',
         data_encoding: 'UTF-8',
         parent_index_set_ids: [],
+        tail_files: true,
       };
     });
     const formData = ref<IFormData>({
@@ -206,9 +208,9 @@ export default defineComponent({
         formData.value = {
           ...formData.value,
           ...CONTAINER_COLLECTION_CONFIG,
-          config: {
-            collector_type: 'container_log_config',
-          },
+          // config: {
+          //   collector_type: 'container_log_config',
+          // },
         };
       }
       /**
@@ -220,7 +222,6 @@ export default defineComponent({
           ...CONTAINER_COLLECTION_CONFIG,
         };
       }
-      console.log('formData.value', formData.value);
     };
 
     /**
@@ -451,10 +452,14 @@ export default defineComponent({
                 key={item.id}
                 class={{
                   'collect-method-item': true,
-                  active: formData.value.config.collector_type === item.id,
+                  active: collectorType.value === item.id,
                 }}
                 on-click={() => {
-                  formData.value.config.collector_type = item.id;
+                  collectorType.value = item.id;
+                  formData.value.configs?.map(config => {
+                    config.collector_type = item.id;
+                    return config;
+                  });
                 }}
               >
                 <img
@@ -503,7 +508,7 @@ export default defineComponent({
                   </bk-button>
                 ))}
               </div>
-              {logType.value === 'section' && renderSegment(formData.value.params)}
+              {logType.value === 'section' && props.scenarioId === 'host' && renderSegment(formData.value.params)}
             </div>
           </div>
         )}
@@ -636,9 +641,20 @@ export default defineComponent({
             </div>
             <div class='label-form-box'>
               <span class='label-title'>{t('采集范围')}</span>
-              <bk-radio-group class='form-box'>
-                <bk-radio class='mr-24'>{t('仅采集下发后的日志')}</bk-radio>
-                <bk-radio>{t('采集全量日志')}</bk-radio>
+              <bk-radio-group
+                class='form-box'
+                value={formData.value.tail_files}
+                on-change={val => {
+                  formData.value.tail_files = val;
+                }}
+              >
+                <bk-radio
+                  class='mr-24'
+                  value={true}
+                >
+                  {t('仅采集下发后的日志')}
+                </bk-radio>
+                <bk-radio value={false}>{t('采集全量日志')}</bk-radio>
               </bk-radio-group>
             </div>
             <div class='label-form-box large-width'>
@@ -656,7 +672,16 @@ export default defineComponent({
             <div class='label-form-box large-width'>
               <span class='label-title'>{t('配置项')}</span>
               <div class='form-box mt-5'>
-                <ConfigurationItemList data={formData.value.configs} />
+                <ConfigurationItemList
+                  bcsClusterId={formData.value.bcs_cluster_id}
+                  clusterList={clusterList.value}
+                  collectorType={collectorType.value}
+                  data={formData.value.configs}
+                  logType={logType.value}
+                  on-change={data => {
+                    formData.value.configs = data;
+                  }}
+                />
               </div>
             </div>
             <div class='label-form-box'>
@@ -785,11 +810,16 @@ export default defineComponent({
 
     // 新增/修改采集
     const setCollection = () => {
-      console.log('params', formData.value);
       loadingSave.value = true;
+      const { params } = formData.value;
+      const newParams = {
+        ...params,
+        paths: params?.paths.map(item => item.value),
+      };
+      console.log(newParams, '===');
       $http
         .request('collect/addCollection', {
-          data: formData.value,
+          data: { ...formData.value, params: newParams },
         })
         .then(res => {
           store.commit(`collect/${isUpdate.value ? 'updateCurCollect' : 'setCurCollect'}`, {
@@ -808,7 +838,7 @@ export default defineComponent({
      */
     const handleSubmitSave = () => {
       // emit('next');
-      // setCollection();
+      setCollection();
       console.log('下一步', formData.value);
     };
     return () => (

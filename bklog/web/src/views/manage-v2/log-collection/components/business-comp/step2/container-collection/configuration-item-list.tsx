@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed } from 'vue';
+import { defineComponent, computed, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -33,6 +33,9 @@ import useStore from '@/hooks/use-store';
 import LineRuleConfig from '../line-rule-config';
 import LogFilter from '../log-filter';
 import LogPathConfig from '../log-path-config';
+import ConfigClusterBox from './config-cluster-box';
+
+import type { IContainerConfigItem } from '../../../../type';
 
 import './configuration-item-list.scss';
 
@@ -46,10 +49,26 @@ export default defineComponent({
 
   props: {
     data: {
-      type: Array,
+      type: Array as PropType<IContainerConfigItem[]>,
       default: () => [],
     },
     scenarioId: {
+      type: String,
+      default: '',
+    },
+    bcsClusterId: {
+      type: String,
+      default: '',
+    },
+    clusterList: {
+      type: Array,
+      default: () => [],
+    },
+    logType: {
+      type: String,
+      default: 'row',
+    },
+    collectorType: {
       type: String,
       default: '',
     },
@@ -70,34 +89,115 @@ export default defineComponent({
       return String.fromCharCode(asciiCode + index);
     };
 
-    const handleDataChange = () => {
-      console.log(props.data);
-      emit('change', props.data);
+    const handleDataChange = (item: IContainerConfigItem, ind: number) => {
+      const nextData = [...props.data];
+      nextData[ind] = item;
+      emit('change', nextData);
     };
-    const renderItem = (item, ind) => (
+
+    // 创建默认配置项
+    const createDefaultConfigItem = () => {
+      return {
+        collector_type: 'container_log_config',
+        namespaces: [],
+        noQuestParams: {
+          letterIndex: 0,
+          scopeSelectShow: {
+            namespace: false,
+            label: true,
+            load: true,
+            containerName: true,
+            annotation: true,
+          },
+          namespaceStr: '',
+          namespacesExclude: '=',
+          containerExclude: '=',
+        },
+        container: {
+          workload_type: '',
+          workload_name: '',
+          container_name: '',
+        },
+        containerNameList: [],
+        label_selector: {
+          match_labels: [],
+          match_expressions: [],
+        },
+        annotation_selector: {
+          match_annotations: [],
+        },
+        data_encoding: 'UTF-8',
+        params: {
+          paths: [{ value: '' }],
+          exclude_files: [{ value: '' }],
+          conditions: {
+            type: 'none',
+            match_type: 'include',
+            match_content: '',
+            separator: '|',
+            separator_filters: [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }],
+          },
+          multiline_pattern: '',
+          multiline_max_lines: '50',
+          multiline_timeout: '2',
+          winlog_name: [],
+          winlog_level: [],
+          winlog_event_id: [],
+        },
+      };
+    };
+
+    // 添加配置项
+    const handleAddConfigItem = () => {
+      const newConfigItem = createDefaultConfigItem();
+      const nextData = [...props.data, newConfigItem];
+      emit('change', nextData);
+    };
+
+    // 删除配置项
+    const handleDeleteConfigItem = (index: number) => {
+      const nextData = [...props.data];
+      nextData.splice(index, 1);
+      emit('change', nextData);
+    };
+    const renderItem = (item: IContainerConfigItem, ind: number) => (
       <div class='item-box'>
         <div class='item-header'>
           <span>{indexToLetter(ind)}</span>
           {props.data.length > 1 && (
             <i
               class='bk-icon icon-delete del-icons'
-              // on-Click={() => deleteFilterGroup(groupIndex)}
+              on-Click={() => handleDeleteConfigItem(ind)}
             />
           )}
         </div>
         <div class='item-content'>
-          <div class='item-content-child-bg'>1</div>
-          {/* 行首正则 */}
           <div class='item-content-child-bg'>
-            <LineRuleConfig
-              class='line-rule-tmp small-width'
-              data={item.params}
-              on-update={val => {
-                item.params = val;
-                handleDataChange();
+            <ConfigClusterBox
+              bcsClusterId={props.bcsClusterId}
+              clusterList={props.clusterList}
+              config={item}
+              isNode={props.collectorType === 'node_log_config'}
+              scenarioId={props.scenarioId}
+              on-change={data => {
+                item = data;
+                handleDataChange(item, ind);
               }}
             />
           </div>
+          {/* 行首正则 */}
+          {props.logType === 'section' && (
+            <div class='item-content-child-bg'>
+              <LineRuleConfig
+                class='line-rule-tmp small-width'
+                data={item.params}
+                on-update={val => {
+                  item.params = val;
+                  handleDataChange(item, ind);
+                }}
+              />
+            </div>
+          )}
           {/* 日志路径 */}
           <div class='item-content-child small-width'>
             <LogPathConfig
@@ -105,7 +205,7 @@ export default defineComponent({
               paths={item.params.paths}
               on-update={(key, val) => {
                 item.params[key] = val;
-                handleDataChange();
+                handleDataChange(item, ind);
               }}
             />
           </div>
@@ -118,9 +218,10 @@ export default defineComponent({
               searchable
               on-selected={val => {
                 item.data_encoding = val;
+                handleDataChange(item, ind);
               }}
             >
-              {globalsData.value.data_encoding.map(option => (
+              {(globalsData.value.data_encoding || []).map(option => (
                 <bk-option
                   id={option.id}
                   key={option.id}
@@ -136,6 +237,7 @@ export default defineComponent({
               // isCloneOrUpdate={isCloneOrUpdate.value}
               on-conditions-change={val => {
                 item.params.conditions = val;
+                handleDataChange(item, ind);
               }}
             />
           </div>
@@ -146,7 +248,10 @@ export default defineComponent({
     return () => (
       <div class='configuration-item-list-main'>
         {props.data.map((item, ind) => renderItem(item, ind))}
-        <div class='add-btn'>
+        <div
+          class='add-btn'
+          on-Click={handleAddConfigItem}
+        >
           <i class='bk-icon icon-plus-line icons' />
           {t('添加配置项')}
         </div>

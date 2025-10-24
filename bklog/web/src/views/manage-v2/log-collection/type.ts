@@ -53,8 +53,8 @@ export interface IHostCollectionParams {
 
 // 容器采集配置参数结构
 export interface IContainerCollectionParams {
-  paths?: string[];
-  exclude_files?: string[];
+  paths?: { value: string }[];
+  exclude_files?: { value: string }[];
   conditions?: IConditions;
   winlog_name?: string[];
   winlog_level?: string[];
@@ -84,7 +84,7 @@ export interface IContainerConfigItem {
   match_labels?: any[];
   match_expressions?: any[];
   data_encoding?: string;
-  params?: IContainerCollectionParams;
+  params?: IHostCollectionParams;
   collector_type?: string;
   namespaces?: string[];
   annotation_selector?: IAnnotationSelector;
@@ -108,7 +108,7 @@ export interface IFormData {
   parent_index_set_ids?: any[];
 
   // 主机采集配置
-  params?: IHostCollectionParams;
+  params?: {...IHostCollectionParams, ...IContainerCollectionParams};
 
   // 容器采集配置
   bcs_cluster_id?: string;

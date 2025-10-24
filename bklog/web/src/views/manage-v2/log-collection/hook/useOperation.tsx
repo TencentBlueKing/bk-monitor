@@ -123,6 +123,9 @@ export const useOperation = () => {
       .then(res => {
         callback?.(res.data);
       })
+      .catch(err => {
+        console.warn(err);
+      })
       .finally(() => {
         indexGroupLoading.value = false;
       });

@@ -277,7 +277,10 @@ export default defineComponent({
       }
       return <span class='disabled-work'>{t('暂无预览')}</span>;
     };
-
+    /**
+     * 渲染分词符的popover
+     * @returns
+     */
     const initMenuPop = () => {
       // 销毁旧实例，避免重复绑定
       destroyTippyInstances();
@@ -390,6 +393,7 @@ export default defineComponent({
      * @returns
      */
     const renderFieldName = row => {
+      console.log('row', row);
       if (isPreviewMode.value || row.is_objectKey) {
         return (
           <div
@@ -424,8 +428,8 @@ export default defineComponent({
 
           {row.is_built_in && row.alias_name ? (
             <bk-input
-              // v-model={[row.alias_name, 'trim']}
               class='participle-field-name-input-pl5'
+              value={row.field_name}
               // disabled={() => getFieldEditDisabled(row)}
               // on-blur={() => checkFieldNameItem(row)}
             />
@@ -435,7 +439,7 @@ export default defineComponent({
                 'participle-field-name-input': row.alias_name || row.alias_name_show,
                 // 'participle-field-name-input-pl5': true,
               }}
-              // v-model={[row.field_name, 'trim']}
+              value={row.field_name}
               // disabled={() => getFieldEditDisabled(row)}
               // on-blur={() => checkFieldNameItem(row)}
             />
@@ -451,9 +455,9 @@ export default defineComponent({
           {(row.alias_name || row.alias_name_show) && !row.is_built_in && (
             <bk-input
               class='participle-alias-name-input'
-              // v-model={[row.alias_name, 'trim']}
               // disabled={() => getFieldEditDisabled(row)}
               placeholder={t('请输入映射名')}
+              value={row.alias_name}
               // on-blur={() => checkAliasNameItem(row)}
             />
           )}
@@ -529,16 +533,16 @@ export default defineComponent({
         prop: 'field_name',
         renderFn: renderFieldName,
       },
-      {
-        label: t('别名'),
-        prop: 'alias_name',
-        renderFn: (row: any) => (
-          <bk-input
-            disabled={row.is_built_in}
-            value={row.alias_name}
-          />
-        ),
-      },
+      // {
+      //   label: t('别名'),
+      //   prop: 'alias_name',
+      //   renderFn: (row: any) => (
+      //     <bk-input
+      //       disabled={row.is_built_in}
+      //       value={row.alias_name}
+      //     />
+      //   ),
+      // },
       {
         label: t('类型'),
         prop: 'field_type',
@@ -693,7 +697,7 @@ export default defineComponent({
      * 新增字段
      */
     const handleAddField = () => {
-      console.log('新增字段');
+      console.log('新增字段', showTableList.value);
     };
 
     return () => (

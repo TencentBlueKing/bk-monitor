@@ -5,6 +5,13 @@
   .label-form-box .label-title {
     width: 124px !important;
   }
+  .format-error {
+    color: #ea3636;
+    font-size: 12px;
+    margin-left: 124px;
+    margin-top: -8px;
+    margin-bottom: 10px;
+  }
   .template-btn {
     margin: 0 24px;
     color: #3a84ff;
@@ -184,7 +191,7 @@
     display: flex;
     align-items: center;
     .input-box {
-      width: 38%;
+      width: 50%;
     }
     .icons {
       color: #63656e;
@@ -193,18 +200,39 @@
     }
   }
   .debug-box {
-    width: 38%;
+    width: 50%;
     margin-top: 10px;
     display: flex;
     align-items: center;
-    .symbol {
-      margin: 0 4px;
-      color: #979ba5;
-      font-size: 14px;
+    font-size: 12px;
+    color: #818289;
+    .metadata-fields-item {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      .item-name, .item-value {
+        height: 32px;
+        line-height: 32px;
+        background-color: #fafbfd;
+        border: 1px solid #dcdee5;
+        padding: 0 8px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .item-name {
+        width: 24%;
+      }
+      .item-value {
+        width: calc(76% - 4px);
+      }
+      .symbol {
+        margin: 0 4px;
+        color: #979ba5;
+        font-size: 14px;
+      }
     }
-    .first-input {
-      width: 30%;
-    }
+    
   }
   .debug-btn {
     margin-left: 12px;
@@ -213,6 +241,16 @@
     &:hover {
       border: 1px solid #3a84ff;
       color: #3a84ff;
+    }
+    &.is-disabled {
+      background-color: #dcdee5;
+      border-color: #dcdee5;
+      color: #fff;
+      cursor: not-allowed;
+      &:hover {
+        background-color: #dcdee5 !important;
+        border-color: #dcdee5 !important;
+      }
     }
   }
   .separator-box {

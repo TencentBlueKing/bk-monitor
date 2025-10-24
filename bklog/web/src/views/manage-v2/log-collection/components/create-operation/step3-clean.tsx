@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted } from 'vue';
+import { defineComponent, ref, onMounted, computed } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -36,7 +36,10 @@ import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import InfoTips from '../common-comp/info-tips';
 import { tableFieldData } from './detail';
 import { log } from './log';
+import { step3 } from './step3';
 import $http from '@/api';
+
+import type { ISelectItem } from '../../utils';
 // // 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
 // const iconsContext = (require as any).context('@/images/log-collection', false, /\.png$/);
 
@@ -72,8 +75,19 @@ export default defineComponent({
     const showCollectIssuedSlider = ref(false);
     const showReportLogSlider = ref(false);
     const jsonText = ref({});
-    const pathExample = ref('');
-    const logOriginal = ref('');
+    /**
+     * 指定日志时间校验报错信息
+     */
+    const timeCheckErrContent = ref('');
+    /**
+     * 路径元数据 - 路径样例
+     */
+    const pathExample = ref();
+    const isDebugLoading = ref(false);
+    /**
+     * 日志样例
+     */
+    const logOriginal = ref('{"a": 123, "b": 222}');
     const copyBuiltField = ref([]);
     const originParticipleState = ref('default');
     const cleaningModeList = [
@@ -89,10 +103,6 @@ export default defineComponent({
         label: t('正则表达式'),
         value: 'bk_log_regexp',
       },
-      // {
-      //   label: t('高级清洗'),
-      //   value: 'advanced',
-      // },
     ];
     /**
      * 分词列表
@@ -110,6 +120,19 @@ export default defineComponent({
     const cleaningMode = ref('bk_log_json');
     const enableMetaData = ref(false);
     const defaultParticipleStr = ref('@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\');
+    const globalsData = computed(() => store.getters['globals/globalsData']);
+    /**
+     * 分隔符
+     */
+    const globalDataDelimiter = computed<ISelectItem[]>(() => globalsData.value?.data_delimiter || []);
+    /**
+     * 时间格式
+     */
+    const fieldDateFormat = computed(() => globalsData.value?.field_date_format || []);
+    /**
+     * 时区
+     */
+    const timeZone = computed(() => (globalsData.value?.time_zone || []).toReversed());
 
     const formData = ref({
       // 最后一次正确的结果，保存以此数据为准
@@ -126,6 +149,65 @@ export default defineComponent({
         path_regexp: '', // 采集路径分割的正则
         metadata_fields: [],
       },
+      etl_fields: [
+        {
+          value: 'sd',
+          option: {
+            time_zone: '',
+            time_format: '',
+          },
+          is_time: false,
+          is_delete: false,
+          alias_name: '',
+          field_name: 'ss',
+          field_type: 'string',
+          description: '',
+          field_index: 1,
+          is_analyzed: false,
+          is_built_in: false,
+          is_dimension: true,
+          is_case_sensitive: false,
+          tokenize_on_chars: '',
+        },
+        {
+          value: 'sad',
+          option: {
+            time_zone: '',
+            time_format: '',
+          },
+          is_time: false,
+          is_delete: false,
+          alias_name: '',
+          field_name: 'sadg',
+          field_type: 'string',
+          description: '',
+          field_index: 2,
+          is_analyzed: false,
+          is_built_in: false,
+          is_dimension: true,
+          is_case_sensitive: false,
+          tokenize_on_chars: '',
+        },
+        {
+          value: 'ha',
+          option: {
+            time_zone: '',
+            time_format: '',
+          },
+          is_time: false,
+          is_delete: false,
+          alias_name: '',
+          field_name: 'sadgss',
+          field_type: 'string',
+          description: '',
+          field_index: 3,
+          is_analyzed: false,
+          is_built_in: false,
+          is_dimension: true,
+          is_case_sensitive: false,
+          tokenize_on_chars: '',
+        },
+      ],
       fields: [],
       visible_type: 'current_biz', // 可见范围单选项
       visible_bk_biz: [], // 多个业务
@@ -165,127 +247,120 @@ export default defineComponent({
       },
     });
 
+    const showDebugPathRegexBtn = computed(() => formData.value.etl_params.path_regexp && pathExample.value);
+
     const fieldsObjectData = ref([]);
     onMounted(() => {
-      getDetail();
+      // getDetail();
     });
-
-    // 获取详情
-    const getDetail = () => {
-      console.log(store.getters['collect/curCollect'], '===');
-      // const tsStorageId = this.formData.storage_cluster_id;
-      // const {
-      //   table_id,
-      //   storage_cluster_id,
-      //   table_id_prefix,
-      //   etl_config,
-      //   etl_params: etlParams,
-      //   fields,
-      //   index_set_id,
-      // } = this.curCollect;
-      // const option = { time_zone: '', time_format: '' };
-      // const copyFields = fields ? structuredClone(fields) : [];
-      // // biome-ignore lint/complexity/noForEach: <explanation>
-      // copyFields.forEach(row => {
-      //   row.value = '';
-      //   if (row.is_delete) {
-      //     const copyRow = Object.assign(structuredClone(rowTemplate.value), structuredClone(row));
-      //     Object.assign(row, copyRow);
-      //   }
-      //   if (row.option) {
-      //     row.option = { ...option, ...(row.option || {}) };
-      //   } else {
-      //     row.option = { ...option };
-      //   }
-      // });
-      // params.value.etl_config = etl_config;
-      // Object.assign(params.value.etl_params, {
-      //   separator_regexp: etlParams?.separator_regexp || '',
-      //   separator: etlParams?.separator || '',
-      // });
-      // isUnmodifiable.value = !!(table_id || storage_cluster_id);
-      // cleaningMode.value = etl_config || 'bk_log_text';
-      // Object.assign(formData.value, {
-      //   table_id,
-      //   // storage_cluster_id,
-      //   table_id_prefix,
-      //   etl_config: cleaningMode.value,
-      //   etl_params: {
-      //     retain_original_text: true,
-      //     separator_regexp: '',
-      //     separator: '',
-      //     retain_extra_json: false,
-      //     original_text_is_case_sensitive: false,
-      //     original_text_tokenize_on_chars: '',
-      //     enable_retain_content: true,
-      //     path_regexp: '',
-      //     metadata_fields: [],
-      //     ...(etlParams
-      //       ? {
-      //           ...structuredClone(etlParams),
-      //           metadata_fields: etlParams.metadata_fields || [],
-      //         }
-      //       : {}),
-      //   },
-      //   fields: copyFields.filter(item => !item.is_built_in),
-      // });
-
-      // if (!copyBuiltField.value.length) {
-      //   copyBuiltField.value = copyFields.filter(item => item.is_built_in);
-      // }
-      // if (this.curCollect.etl_config && this.curCollect.etl_config !== 'bk_log_text') {
-      //   this.formatResult = true;
-      // }
-      // requestFields(index_set_id);
-    };
-
-    const addChildrenToBuiltField = (builtFieldList, item, name) => {
-      const field_name = name.split('.')[0].replace(/^_+|_+$/g, '');
-      // biome-ignore lint/complexity/noForEach: <explanation>
-      builtFieldList.forEach(builtField => {
-        if (builtField.field_type === 'object' && field_name === builtField.field_name?.split('.')[0]) {
-          if (!Array.isArray(builtField.children)) {
-            builtField.children = [];
-            builtField.expand = false;
-            // this.$set(builtField, 'expand', false);
-          }
-          builtField.children.push(item);
-        }
-      });
-    };
-
-    /** 获取fields */
-    const requestFields = async (indexSetId: number) => {
-      if (!indexSetId) {
-        return;
-      }
-      const typeConversion = {
-        keyword: 'string',
-        long: 'string',
+    /**
+     * 路径元数据 - 调试按钮
+     */
+    const debuggerPathRegex = () => {
+      console.log('debugHandler', props.configData, step3);
+      const data = {
+        etl_config: 'bk_log_regexp',
+        etl_params: {
+          separator_regexp: formData.value.etl_params?.path_regexp,
+        },
+        data: pathExample.value,
       };
-      try {
-        const res = await $http.request('retrieve/getLogTableHead', {
-          params: {
-            index_set_id: indexSetId,
-          },
+      const urlParams = {};
+      isDebugLoading.value = true;
+      urlParams.collector_config_id = props.configData.collector_config_id || step3.collector_config_id;
+      const updateData = { params: urlParams, data };
+      // 先置空防止接口失败显示旧数据
+      // formData.value.etl_params.metadata_fields?.splice(0, formData.value.etl_params.metadata_fields?.length);
+      // this.metaDataList.splice(0, this.metaDataList.length);
+      $http
+        .request('collect/getEtlPreview', updateData)
+        .then(res => {
+          const fields = res.data?.fields || [];
+          formData.value.etl_params?.metadata_fields.push(...fields);
+        })
+        .finally(() => {
+          isDebugLoading.value = false;
         });
-        fieldsObjectData.value = res.data.fields.filter(item => item.field_name.includes('.'));
-        // biome-ignore lint/complexity/noForEach: <explanation>
-        fieldsObjectData.value.forEach(item => {
-          const name = item.field_name.split('.')[0];
-          item.field_type = typeConversion[item.field_type];
-          item.is_objectKey = true;
-          item.is_delete = false;
-
-          addChildrenToBuiltField(copyBuiltField.value, item, name);
-          addChildrenToBuiltField(formData.value.fields, item, name);
-        });
-      } catch (err) {
-        console.warn(err);
+    };
+    /**
+     * 清洗模式 - 清洗/调试按钮
+     */
+    const debugHandler = () => {
+      formData.value.fields.splice(0, formData.value.fields.length);
+      // this.isFinishCatchFrom = false;
+      // this.requestEtlPreview();
+    };
+    /** 根据清洗模式，渲染不同的内容 */
+    const renderCleaningMode = () => {
+      if (cleaningMode.value === 'bk_log_json') {
+        return (
+          <bk-button
+            class='clean-btn'
+            on-click={debugHandler}
+          >
+            {t('清洗')}
+          </bk-button>
+        );
+      }
+      if (cleaningMode.value === 'bk_log_delimiter') {
+        return (
+          <div class='separator-box select-group'>
+            <div class='select-item'>
+              <span class='select-title'>{t('分隔符')}</span>
+              <bk-select
+                class='select-box'
+                clearable={false}
+              >
+                {globalDataDelimiter.value.map(option => (
+                  <bk-option
+                    id={option.id}
+                    key={option.id}
+                    name={option.name}
+                  />
+                ))}
+              </bk-select>
+            </div>
+            <bk-button
+              class='clean-btn'
+              on-click={debugHandler}
+            >
+              {t('调试')}
+            </bk-button>
+          </div>
+        );
+      }
+      if (cleaningMode.value === 'bk_log_regexp') {
+        return (
+          <div class='regex-box-main'>
+            <div class='title'>
+              {t('正则表达式')}
+              <i
+                class='bk-icon icon-info-circle tips-icon'
+                v-bk-tooltips={{
+                  placement: 'right',
+                  content: `${t('正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容')}<br />${t(' - 日志内容：[2006-01-02 15:04:05] content')}<br /> ${t(' - 表达式：')} \[(?P<request_time>[^]]+)\] (?P<content>.+)`,
+                }}
+              />
+            </div>
+            <bk-input
+              placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
+              type='textarea'
+            />
+            <bk-button
+              class='clean-btn'
+              on-click={debugHandler}
+            >
+              {t('调试')}
+            </bk-button>
+          </div>
+        );
       }
     };
 
-    //  获取采样状态
+    /**
+     * 获取清洗的相关信息，如日志样例、上报日志（origin字段）
+     * @param type
+     */
     const getDataLog = type => {
       console.log('type', type, props.configData);
       // this.refresh = false;
@@ -337,44 +412,6 @@ export default defineComponent({
           // this.refresh = true;
         });
     };
-    /** 根据清洗模式，渲染不同的内容 */
-    const renderCleaningMode = () => {
-      if (cleaningMode.value === 'bk_log_json') {
-        return <bk-button class='clean-btn'>{t('清洗')}</bk-button>;
-      }
-      if (cleaningMode.value === 'bk_log_delimiter') {
-        return (
-          <div class='separator-box select-group'>
-            <div class='select-item'>
-              <span class='select-title'>{t('分隔符')}</span>
-              <bk-select class='select-box' />
-            </div>
-            <bk-button class='clean-btn'>{t('调试')}</bk-button>
-          </div>
-        );
-      }
-      if (cleaningMode.value === 'bk_log_regexp') {
-        return (
-          <div class='regex-box-main'>
-            <div class='title'>
-              {t('正则表达式')}
-              <i
-                class='bk-icon icon-info-circle tips-icon'
-                v-bk-tooltips={{
-                  placement: 'right',
-                  content: `${t('正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容')}<br />${t(' - 日志内容：[2006-01-02 15:04:05] content')}<br /> ${t(' - 表达式：')} \[(?P<request_time>[^]]+)\] (?P<content>.+)`,
-                }}
-              />
-            </div>
-            <bk-input
-              placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
-              type='textarea'
-            />
-            <bk-button class='clean-btn'>{t('调试')}</bk-button>
-          </div>
-        );
-      }
-    };
     /** 应用模版下拉框 */
     const renderTemplateSelect = () => (
       <bk-select
@@ -410,6 +447,34 @@ export default defineComponent({
     /** 选择清洗模式 */
     const handleChangeCleaningMode = mode => {
       cleaningMode.value = mode.value;
+    };
+
+    // 对时间格式做校验逻辑
+    const requestCheckTime = async () => {
+      const { time_format, time_zone, field_name } = formData.value;
+      const fieldsData = formData.value.etl_fields;
+      const timeValueItem = fieldsData.find(item => field_name === item.field_name);
+      let result = false;
+      await $http
+        .request('collect/getCheckTime', {
+          params: {
+            collector_config_id: props.configData.collector_config_id || step3.collector_config_id,
+          },
+          data: {
+            time_format,
+            time_zone,
+            data: timeValueItem?.value || '',
+          },
+        })
+        .then(res => {
+          timeCheckErrContent.value = '';
+          result = true;
+        })
+        .catch(err => {
+          timeCheckErrContent.value = err;
+          result = false;
+        });
+      return result;
     };
     /** 清洗设置 */
     const renderSetting = () => (
@@ -498,6 +563,7 @@ export default defineComponent({
                 class='form-link'
                 on-click={() => {
                   showReportLogSlider.value = true;
+                  getDataLog();
                 }}
               >
                 <i class='bklog-icon bklog-audit link-icon' />
@@ -515,7 +581,14 @@ export default defineComponent({
                 tips={t('作为清洗调试的原始数据')}
               />
             </div>
-            <bk-input type='textarea' />
+            <bk-input
+              type='textarea'
+              // logOriginal
+              value={logOriginal.value}
+              on-change={val => {
+                logOriginal.value = val;
+              }}
+            />
           </div>
         </div>
         <div class='label-form-box'>
@@ -547,7 +620,8 @@ export default defineComponent({
           <span class='label-title no-require'>{t('字段列表')}</span>
           <div class='form-box'>
             <FieldList
-              data={tableFieldData.fields}
+              // data={tableFieldData.fields}
+              data={formData.value.etl_fields || []}
               selectEtlConfig={cleaningMode.value}
             />
           </div>
@@ -581,26 +655,60 @@ export default defineComponent({
                   <bk-select
                     class='select-box'
                     value={formData.value.field_name}
-                  />
+                    on-selected={val => {
+                      formData.value.field_name = val;
+                    }}
+                  >
+                    {formData.value.etl_fields.map(item => (
+                      <bk-option
+                        id={item.field_name}
+                        key={`${item.field_index}${item.field_name}`}
+                        name={item.field_name}
+                      />
+                    ))}
+                  </bk-select>
                 </div>
                 <div class='select-item'>
                   <span class='select-title'>{t('时间格式')}</span>
                   <bk-select
                     class='select-box'
                     value={formData.value.time_format}
-                  />
+                    on-selected={val => {
+                      formData.value.time_format = val;
+                    }}
+                  >
+                    {fieldDateFormat.value.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={`${item.name} (${item.description})`}
+                      />
+                    ))}
+                  </bk-select>
                 </div>
                 <div class='select-item'>
                   <span class='select-title'>{t('时区选择')}</span>
                   <bk-select
                     class='select-box'
                     value={formData.value.time_zone}
-                  />
+                    on-selected={val => {
+                      formData.value.time_zone = val;
+                    }}
+                  >
+                    {timeZone.value.map(item => (
+                      <bk-option
+                        id={item.id}
+                        key={item.id}
+                        name={item.name}
+                      />
+                    ))}
+                  </bk-select>
                 </div>
               </div>
             )}
           </div>
         </div>
+        {timeCheckErrContent.value && <p class='format-error'>{timeCheckErrContent.value}</p>}
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('失败日志')}</span>
           <bk-radio-group
@@ -639,9 +747,15 @@ export default defineComponent({
         {enableMetaData.value && (
           <div class='label-form-box'>
             <span class='label-title no-require'>{t('路径样例')}</span>
-            <div class='form-box mt-5'>
+            <div class='form-box'>
               <div class='url-demo-box'>
-                <bk-input class='input-box' />
+                <bk-input
+                  class='input-box'
+                  value={pathExample.value}
+                  on-change={val => {
+                    pathExample.value = val;
+                  }}
+                />
                 <i class='bklog-icon bklog-refresh-icon icons' />
               </div>
             </div>
@@ -650,7 +764,7 @@ export default defineComponent({
         {enableMetaData.value && (
           <div class='label-form-box'>
             <span class='label-title'>{t('采集路径分割正则')}</span>
-            <div class='form-box mt-5'>
+            <div class='form-box'>
               <div class='url-demo-box'>
                 <bk-input
                   class='input-box'
@@ -660,15 +774,35 @@ export default defineComponent({
                     formData.value.etl_params.path_regexp = val;
                   }}
                 />
-                <bk-button class='debug-btn'>{t('调试')}</bk-button>
+                <bk-button
+                  class='debug-btn'
+                  disabled={!showDebugPathRegexBtn.value || isDebugLoading.value}
+                  on-click={debuggerPathRegex}
+                >
+                  {t('调试')}
+                </bk-button>
               </div>
               <div class='debug-box'>
-                <bk-input
-                  class='first-input'
-                  disabled
-                />
-                <span class='symbol'>:</span>
-                <bk-input disabled />
+                {(formData.value.etl_params.metadata_fields || []).map(item => (
+                  <div
+                    key={item.field_name}
+                    class='metadata-fields-item'
+                  >
+                    <div
+                      class='item-name'
+                      title={item.field_name}
+                    >
+                      {item.field_name}
+                    </div>
+                    <span class='symbol'>:</span>
+                    <div
+                      class='item-value'
+                      title={item.value}
+                    >
+                      {item.value}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -729,7 +863,14 @@ export default defineComponent({
             class='width-88 mr-8'
             theme='primary'
             on-click={() => {
-              emit('next');
+              // emit('next');
+              /**
+               * 校验时间格式， 校验通过之后，把指定的时间字段的 is_time 设置为 true
+               */
+              requestCheckTime().then(res => {
+                console.log(res, 'res.value');
+              });
+              console.log('formData.value', formData.value);
             }}
           >
             {t('下一步')}
