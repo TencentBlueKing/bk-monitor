@@ -195,7 +195,9 @@
               class="title-overflow"
               v-bk-overflow-tips
             >
-              <span>{{ row.export_created_by || '--' }}</span>
+              <span>
+                <bk-user-display-name :user-id="row.export_created_by || '--'"></bk-user-display-name>
+              </span>
             </div>
           </template>
         </bk-table-column>
