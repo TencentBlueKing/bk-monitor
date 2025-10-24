@@ -294,8 +294,8 @@ const store = new Vuex.Store({
         timezone,
       } = state.indexItem;
 
-      const search_mode =        SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
-      const searchParams =        search_mode === 'sql'
+      const search_mode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+      const searchParams = search_mode === 'sql'
         ? { keyword, addition: [] }
         : { addition: getters.originAddition, keyword: '*' };
 
@@ -328,7 +328,7 @@ const store = new Vuex.Store({
      * @returns
      */
     requestAddition: (state, getters) => {
-      const search_mode =        SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+      const search_mode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
       if (search_mode !== 'ui') {
         return [];
       }
@@ -590,7 +590,7 @@ const store = new Vuex.Store({
 
     updateSpace(state, spaceUid) {
       if (typeof spaceUid === 'string') {
-        state.space =          state.mySpaceList.find(item => item.space_uid === spaceUid) || {};
+        state.space = state.mySpaceList.find(item => item.space_uid === spaceUid) || {};
       }
 
       if (typeof spaceUid === 'object') {
@@ -723,7 +723,7 @@ const store = new Vuex.Store({
         f => f.field_name,
       );
       state.indexFieldInfo.fields.forEach((field) => {
-        const field_alias =          field.query_alias || field.field_alias || field.field_name;
+        const field_alias = field.query_alias || field.field_alias || field.field_name;
 
         if (!alias_field_list.includes(field_alias)) {
           const exist_value = field_alias_map.get(field_alias) ?? {
@@ -864,7 +864,7 @@ const store = new Vuex.Store({
     updateIsSetDefaultTableColumn(state, payload) {
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
       if (!state.isSetDefaultTableColumn) {
-        const catchFieldsWidthObj =          store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
+        const catchFieldsWidthObj = store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
         const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole
           ?.is_active
           ? 104
@@ -892,15 +892,15 @@ const store = new Vuex.Store({
      */
     resetVisibleFields(state, payload) {
       const isVersion2Payload = payload?.version === 'v2';
-      const catchDisplayFields =        store.state.retrieve.catchFieldCustomConfig.displayFields;
+      const catchDisplayFields = store.state.retrieve.catchFieldCustomConfig.displayFields;
       const displayFields = catchDisplayFields.length
         ? catchDisplayFields
         : null;
       // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
-      const filterList =        (isVersion2Payload
+      const filterList = (isVersion2Payload
         ? payload.displayFieldNames
         : payload || displayFields) ?? state.indexFieldInfo.display_fields;
-      const visibleFields =        filterList
+      const visibleFields = filterList
         .map((displayName) => {
           const field = state.indexFieldInfo.fields.find(
             field => field.field_name === displayName,
@@ -998,7 +998,7 @@ const store = new Vuex.Store({
      *
      * @return {Promise} promise 对象
      */
-    getMenuList({}, spaceUid) {
+    getMenuList({ }, spaceUid) {
       return http.request('meta/menu', {
         query: {
           space_uid: spaceUid,
@@ -1301,7 +1301,7 @@ const store = new Vuex.Store({
         }
       }
 
-      const searchCount =        payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
+      const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
       commit(
         payload.isPagination
           ? 'updateIndexSetQueryResult'
@@ -1312,12 +1312,12 @@ const store = new Vuex.Store({
         },
       );
 
-      const baseUrl =        process.env.NODE_ENV === 'development'
+      const baseUrl = process.env.NODE_ENV === 'development'
         ? 'api/v1'
         : window.AJAX_URL_PREFIX;
       const cancelTokenKey = 'requestIndexSetQueryCancelToken';
       RequestPool.execCanceToken(cancelTokenKey);
-      const requestCancelToken =        payload.cancelToken ?? RequestPool.getCancelToken(cancelTokenKey);
+      const requestCancelToken = payload.cancelToken ?? RequestPool.getCancelToken(cancelTokenKey);
 
       // 区分联合查询和单选查询
       const searchUrl = !state.indexItem.isUnionIndex
@@ -1620,7 +1620,7 @@ const store = new Vuex.Store({
     setQueryCondition({ state, dispatch }, payload) {
       const newQueryList = Array.isArray(payload) ? payload : [payload];
       const isLink = newQueryList[0]?.isLink;
-      const searchMode =        SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+      const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
       const depth = Number(payload.depth ?? '0');
       const isNestedField = payload?.isNestedField ?? 'false';
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
