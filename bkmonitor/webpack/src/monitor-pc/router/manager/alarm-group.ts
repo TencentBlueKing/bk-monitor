@@ -110,4 +110,36 @@ export default [
       // noNavBar: true
     },
   },
+  {
+    path: '/alarm-group/clone/:id',
+    name: 'alarm-group-clone',
+    components: {
+      noCache: AlarmGroupAdd,
+    },
+    props: {
+      noCache: true,
+    },
+    beforeEnter(
+      to: Route,
+      from: Route,
+      next: (to?: ((vm: Vue) => any) | false | Location | string | undefined | void) => void
+    ) {
+      to.meta.title = to.params.title || '加载中...';
+      next();
+    },
+    meta: {
+      title: '加载中...',
+      navId: 'alarm-group',
+      needBack: true,
+      needCopyLink: false,
+      authority: {
+        map: AlarmGroupAuth,
+        page: [AlarmGroupAuth.MANAGE_AUTH],
+      },
+      route: {
+        parent: 'alarm-group',
+      },
+      // noNavBar: true
+    },
+  },
 ] as RouteConfig[];
