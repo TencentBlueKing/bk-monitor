@@ -362,16 +362,6 @@ class ResultTable(models.Model):
             logger.error("create_result_table: bk_data_id->[%s] is not exists, nothing will do.", bk_data_id)
             raise ValueError(_("数据源ID不存在，请确认"))
 
-        # 非系统创建的结果表，不可以使用容器监控的表前缀名
-        if operator != "system" and table_id.startswith(config.BCS_TABLE_ID_PREFIX):
-            logger.error(
-                "create_result_table: operator->[%s] try to create table->[%s] which is reserved prefix, nothing will "
-                "do.",
-                operator,
-                table_id,
-            )
-            raise ValueError(_("结果表ID不可以是%s开头，请确认后重试") % config.BCS_TABLE_ID_PREFIX)
-
         # Q: 为什么不在结果表生成时,在table_id中拼接租户属性，从而做到结果表全局唯一？
         # A: 外部导入的插件,如redis_exporter、mongodb_exporter以及一些内置采集,结果表命名相对固定,使用额外字段过滤更为稳定安全
         if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
