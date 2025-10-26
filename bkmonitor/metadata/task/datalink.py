@@ -10,6 +10,7 @@ from metadata.models import DataSource, DataSourceResultTable, ResultTable, Resu
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.data_link import DataLink
+from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig, ESStorageBindingConfig
 from metadata.models.result_table import LogV4DataLinkOption
 from metadata.models.storage import DorisStorage, ESStorage
 
@@ -36,10 +37,7 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
     enabled_v4_datalink_option = ResultTableOption.objects.filter(
         bk_tenant_id=bk_tenant_id, table_id=table_id, name=ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK
     ).first()
-    if (
-        enabled_v4_datalink_option
-        and enabled_v4_datalink_option.to_json()[ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK]
-    ):
+    if enabled_v4_datalink_option and enabled_v4_datalink_option.get_value():
         # 使用V4链路
         # 读取option中的日志链路配置
         datalink_option = ResultTableOption.objects.filter(
@@ -95,7 +93,15 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
             datalink = DataLink.objects.get(bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name)
         datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
 
-        # TODO: 清理多余的存储链路
+        # 清理多余的存储链路
+        es_binding_config = ESStorageBindingConfig.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+        if not datalink_config.es_storage_config and es_binding_config:
+            es_binding_config.delete_config()
+        doris_binding_config = DorisStorageBindingConfig.objects.filter(
+            bk_tenant_id=bk_tenant_id, table_id=table_id
+        ).first()
+        if not datalink_config.doris_storage_config and doris_binding_config:
+            doris_binding_config.delete_config()
 
         # 清理transfer链路配置
         if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:

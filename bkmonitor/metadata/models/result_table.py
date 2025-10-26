@@ -29,6 +29,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
+from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 from metadata.utils.basic import getitems
 
@@ -558,7 +559,23 @@ class ResultTable(models.Model):
 
         return result_table
 
-    def apply_datalink(self):
+    def delete_datalink(self) -> None:
+        """删除数据链路及对应的关联记录"""
+        from metadata.models.data_link.data_link import DataLink
+
+        # 查询结果表对应的Datalink
+        records = BkBaseResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, monitor_table_id=self.table_id)
+        if not records:
+            logger.info("delete_datalink: tenant(%s) %s no bkbase record found", self.bk_tenant_id, self.table_id)
+            return
+
+        # 删除数据链路及对应的关联记录
+        for record in records:
+            data_link_name = record.data_link_name
+            DataLink.objects.get(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).delete_data_link()
+            record.delete()
+
+    def apply_datalink(self) -> None:
         """创建数据链路"""
         from metadata.models.space import Space
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
@@ -1273,7 +1290,6 @@ class ResultTable(models.Model):
         for ex_storage_type, ex_storage_config in list(external_storage.items()):
             try:
                 ex_storage = self.REAL_STORAGE_DICT[ex_storage_type]
-
             except KeyError:
                 logger.error(
                     "try to set storage->[%s] for table->[%s] of bk_tenant_id->[%s] but storage is not exists.",
@@ -1405,8 +1421,12 @@ class ResultTable(models.Model):
         except Exception as e:  # pylint: disable=broad-except
             logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
 
-        # 刷新清洗配置
-        self.refresh_etl_config()
+        # 如果结果表启用，则刷新清洗配置
+        if self.is_enable:
+            self.apply_datalink()
+        else:
+            self.delete_datalink()
+
         logger.info("table_id->[%s] of bk_tenant_id->[%s] updated success.", self.table_id, self.bk_tenant_id)
 
     # TODO: 多租户 计算平台关联接口，暂未改造

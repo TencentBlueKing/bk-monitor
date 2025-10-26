@@ -1185,6 +1185,24 @@ class GetDataLink(DataAccessAPIResource):
         name = serializers.CharField(label="资源名称")
 
 
+class DeleteDataLink(DataAccessAPIResource):
+    """删除数据链路"""
+
+    @property
+    def action(self):
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return "/v4/tenants/{bk_tenant_id}/namespaces/{namespace}/{kind}/{name}/"
+        return "/v4/namespaces/{namespace}/{kind}/{name}/"
+
+    method = "DELETE"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        kind = serializers.CharField(label="资源类型")
+        namespace = serializers.CharField(label="命名空间")
+        name = serializers.CharField(label="资源名称")
+
+
 class NotifyLogDataIdChanged(DataAccessAPIResource):
     action = "/v4/tmp/notify_log_dataid_changed/"
     method = "PUT"

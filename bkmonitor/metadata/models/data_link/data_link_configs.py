@@ -17,6 +17,7 @@ from django.db import models
 from typing_extensions import deprecated
 
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
+from core.drf_resource import api
 from metadata.models.data_link import constants, utils
 from metadata.models.data_link.constants import DataLinkKind
 from metadata.models.space.constants import LOG_EVENT_ETL_CONFIGS
@@ -51,7 +52,7 @@ class DataLinkResourceConfigBase(models.Model):
     status = models.CharField(verbose_name="状态", max_length=64)
     data_link_name = models.CharField(verbose_name="数据链路名称", max_length=64)
     bk_biz_id = models.BigIntegerField(verbose_name="业务ID")
-    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
+    bk_tenant_id: str = models.CharField("租户ID", max_length=256, null=True, default="system")  # pyright: ignore[reportAssignmentType]
 
     class Meta:
         abstract: ClassVar[bool] = True
@@ -89,6 +90,13 @@ class DataLinkResourceConfigBase(models.Model):
     @classmethod
     def compose_config(cls, *args, **kwargs):
         raise NotImplementedError
+
+    def delete_config(self):
+        """删除数据链路配置"""
+        api.bkdata.delete_data_link(
+            bk_tenant_id=self.bk_tenant_id, kind=self.kind, namespace=self.namespace, name=self.name
+        )
+        self.delete()
 
 
 class DataIdConfig(DataLinkResourceConfigBase):
