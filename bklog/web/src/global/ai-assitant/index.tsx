@@ -151,7 +151,7 @@ export default defineComponent({
           shortcut.components.forEach((comp) => {
             const value = args[comp.key];
             if (value) {
-              comp.default =                typeof value === 'object'
+              comp.default = typeof value === 'object'
                 ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
                 : value;
             }
@@ -277,13 +277,12 @@ export default defineComponent({
      * @param args
      */
     const queryStringShowAiAssistant = (args: IQueryStringSendData) => {
-      aiBlueking.value?.handleShow(undefined, { is_temporary: true });
-      aiBlueking.value?.addNewSession().finally(() => {
+      aiBlueking.value?.handleShow(undefined, { isTemporary: true }).then(() => {
         const shortcut = structuredClone(AI_BLUEKING_QUERY_STRING[0]);
         shortcut.components.forEach((comp) => {
           const value = args[comp.key];
           if (value) {
-            comp.default =              typeof value === 'object'
+            comp.default = typeof value === 'object'
               ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
               : value;
           }
