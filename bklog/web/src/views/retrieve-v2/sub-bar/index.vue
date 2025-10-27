@@ -23,7 +23,7 @@ import BarGlobalSetting from './bar-global-setting.tsx';
 import MoreSetting from './more-setting.vue';
 import TimeSetting from './time-setting';
 import WarningSetting from './warning-setting.vue';
-// import AutoRefresh from './auto-refresh'
+import AutoRefresh from './auto-refresh.vue';
 // #else
 // #code const TimeSetting = () => null;
 // #code const FieldSetting = () => null;
@@ -217,16 +217,16 @@ const handleIndexSetSelected = async payload => {
     if (payload.pid?.length && !isEqual(payload.pid, indexSetPid.value)) {
       store.commit('updateIndexItem', { pid: payload.pid });
       router.replace({
-    // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-    params: {
-      ...route.params,
-    },
-    // #endif
-    query: {
-      ...route.query,
-      pid: JSON.stringify(payload.pid)
-    },
-  });
+        // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+        params: {
+          ...route.params,
+        },
+        // #endif
+        query: {
+          ...route.query,
+          pid: JSON.stringify(payload.pid)
+        },
+      });
     }
   }
 };
@@ -360,8 +360,9 @@ function handleIndexConfigSliderOpen() {
     </div>
 
     <div v-if="!isMonitorComponent" class="box-right-option">
-      <TimeSetting class="custom-border-right"></TimeSetting>
-      <!-- <AutoRefresh class="custom-border-right"></AutoRefresh> -->
+      <TimeSetting></TimeSetting>
+      <span class="custom-border"></span>
+      <AutoRefresh class="custom-border-right"></AutoRefresh>
       <ShareLink v-if="!isExternal"></ShareLink>
       <FieldSetting v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId" ref="fieldSettingRef"
         class="custom-border-right" />
