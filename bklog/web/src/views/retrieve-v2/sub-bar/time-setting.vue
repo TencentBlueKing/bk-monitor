@@ -36,7 +36,6 @@
       datePickerValue: store.state.indexItem.datePickerValue,
     });
     Object.assign(query, resolver.resolveParamsToUrl());
-
     router.replace({
       query,
     });
@@ -68,6 +67,9 @@
   const handleFormatChange = value => {
     store.commit('updateIndexItemParams', { format: value });
   };
+  defineExpose({
+    setRouteParams
+  })
 </script>
 <template>
   <span class="query-params-wrap">
