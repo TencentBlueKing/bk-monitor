@@ -16,6 +16,7 @@
   .tab-right-operate {
     display: flex;
     justify-content: space-between;
+    margin-right: -8px;
   }
 
   .btn-alert-policy {
@@ -38,6 +39,7 @@
     line-height: 42px;
     color: #4d4f56;
     cursor: pointer;
+    margin-right: 17px;
   }
 
   .retrieve-panel {

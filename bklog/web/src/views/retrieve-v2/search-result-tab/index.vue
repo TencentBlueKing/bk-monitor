@@ -159,7 +159,7 @@ onMounted(() => {
       @click="handleActive(item.name)">{{ item.label }}</span>
     </div>
     <div class="tab-right-operate">
-      <div class="btn-alert-dashboard" @click="handleAddAlertDashboard">
+      <div class="btn-alert-dashboard" @click="handleAddAlertDashboard" v-if="false">
         <span class="bklog-icon bklog-yibiaopan" style="font-size: 16px"></span>
         <span>{{ $t('添加到仪表盘') }}</span>
       </div>
