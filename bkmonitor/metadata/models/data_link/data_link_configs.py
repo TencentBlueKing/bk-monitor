@@ -94,7 +94,10 @@ class DataLinkResourceConfigBase(models.Model):
     def delete_config(self):
         """删除数据链路配置"""
         api.bkdata.delete_data_link(
-            bk_tenant_id=self.bk_tenant_id, kind=self.kind, namespace=self.namespace, name=self.name
+            bk_tenant_id=self.bk_tenant_id,
+            kind=DataLinkKind.get_choice_value(self.kind),
+            namespace=self.namespace,
+            name=self.name,
         )
         self.delete()
 
