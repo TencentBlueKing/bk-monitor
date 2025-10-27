@@ -1466,9 +1466,9 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         bk_biz_id,
         data_name,
     )
-    data_link_ins, created = models.DataLink.objects.get_or_create(
+    data_link_ins, _ = models.DataLink.objects.get_or_create(
         data_link_name=data_name,
-        namespace="bkmonitor",
+        namespace="bklog",
         data_link_strategy=models.DataLink.BASE_EVENT_V1,
         bk_tenant_id=bk_tenant_id,
     )

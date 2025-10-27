@@ -1221,7 +1221,7 @@ class ModifyEventGroupResource(Resource):
                 # 将事件分组的ID去掉
                 event_group_id=validated_request_data.pop("event_group_id"),
                 is_delete=False,
-                bk_tenant_id=validated_request_data["bk_tenant_id"],
+                bk_tenant_id=validated_request_data.pop("bk_tenant_id"),
             )
         except models.EventGroup.DoesNotExist:
             raise ValueError(_("事件分组不存在，请确认后重试"))
