@@ -2,8 +2,9 @@
 import { ref, watch, onUnmounted } from 'vue';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper.tsx';
 
+const emit = defineEmits(['handleSetRouteParams']);
 const isDropdownShow = ref(false);
-const isRefreshActive = ref(false);
+// const isRefreshActive = ref(false);
 const dropdown = ref(null);
 const selectedValue = ref('off');
 let refreshTimer = null;
@@ -52,6 +53,7 @@ const getTimeInMs = (timeValue) => {
 };
 
 const handleRefresh = () => {
+  emit('handleSetRouteParams');
   // 触发自动刷新事件
   RetrieveHelper.fire(RetrieveEvent.AUTO_REFRESH);
 };

@@ -51,6 +51,7 @@ const router = useRouter();
 const store = useStore();
 
 const fieldSettingRef = ref(null);
+const timeSettingRef = ref(null);
 const isShowClusterSetting = ref(false);
 const indexSetParams = computed(() => store.state.indexItem);
 
@@ -334,7 +335,10 @@ const handleAuthRequest = item => {
     console.warn(err);
   }
 };
-
+// 设置参数
+function handleSetRouteParams()  { 
+  timeSettingRef.value?.setRouteParams();
+};
 /**
  * @description: 打开 索引集配置 抽屉页
  */
@@ -360,9 +364,9 @@ function handleIndexConfigSliderOpen() {
     </div>
 
     <div v-if="!isMonitorComponent" class="box-right-option">
-      <TimeSetting></TimeSetting>
+      <TimeSetting ref="timeSettingRef"></TimeSetting>
       <span class="custom-border"></span>
-      <AutoRefresh class="custom-border-right"></AutoRefresh>
+      <AutoRefresh class="custom-border-right" @handleSetRouteParams="handleSetRouteParams"></AutoRefresh>
       <ShareLink v-if="!isExternal"></ShareLink>
       <FieldSetting v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId" ref="fieldSettingRef"
         class="custom-border-right" />
