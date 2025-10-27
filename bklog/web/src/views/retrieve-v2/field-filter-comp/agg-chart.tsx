@@ -72,6 +72,7 @@ export default class AggChart extends tsc<object> {
   };
   // 获取翻译函数
   t = window.mainComponent.$t.bind(window.mainComponent);
+  searchKeyword = '';
 
   // 缓存计算
   private cachedTopFiveList: [string, number][] = [];
@@ -141,6 +142,10 @@ export default class AggChart extends tsc<object> {
    */
   get searchMode() {
     return store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
+  }
+
+  get filterList() {
+    return this.showFiveList?.filter(item => item[0]?.includes(this.searchKeyword)) || [];
   }
 
   @Watch('watchQueryParams', { deep: true })
@@ -244,16 +249,16 @@ export default class AggChart extends tsc<object> {
 
     if (this.searchMode === 0) {
       const mappedOperator = OPERATOR_MAPPING[operator] || operator;
-      return store.getters.retrieveParams?.addition?.some(addition => {
+      return store.getters.retrieveParams?.addition?.some((addition) => {
         return (
-          addition.field === fieldName &&
-          addition.operator === mappedOperator &&
-          addition.value.toString() === value.toString()
+          addition.field === fieldName
+          && addition.operator === mappedOperator
+          && addition.value.toString() === value.toString()
         );
       });
     }
 
-    const formatJsonString = formatResult => {
+    const formatJsonString = (formatResult) => {
       if (typeof formatResult === 'string') {
         return DOMPurify.sanitize(formatResult);
       }
@@ -266,7 +271,7 @@ export default class AggChart extends tsc<object> {
       const textType = this.fieldType;
 
       // biome-ignore lint/nursery/noShadow: reason
-      const formatValue = value => {
+      const formatValue = (value) => {
         let formatResult = value;
         if (['text', 'string', 'keyword'].includes(textType)) {
           if (Array.isArray(formatResult)) {
@@ -335,10 +340,18 @@ export default class AggChart extends tsc<object> {
 
   // 渲染函数
   render() {
-    const hasData = !!this.showFiveList.length;
+    const hasData = !!this.filterList.length;
 
     return (
       <div class='retrieve-v2 field-data'>
+        <div style={{ marginBottom: '10px' }}>
+          <bk-input
+            v-model={this.searchKeyword}
+            placeholder={this.$t('搜索')}
+            clearable
+            right-icon='icon-search'
+          />
+        </div>
         {this.listLoading ? (
           <ItemSkeleton
             columns={2}
@@ -347,7 +360,7 @@ export default class AggChart extends tsc<object> {
           />
         ) : hasData ? (
           <ul class='chart-list'>
-            {this.showFiveList.map((item, index) => {
+            {this.filterList.map((item, index) => {
               const [value, count] = item;
               const percent = this.computePercent(count);
               const percentValue = this.getPercentValue(count);
