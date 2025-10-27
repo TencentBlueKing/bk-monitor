@@ -24,19 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref, Vue, Emit, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
 import ChartSkeleton from '@/skeleton/chart-skeleton';
 import ItemSkeleton from '@/skeleton/item-skeleton';
 import axios from 'axios';
 import dayjs from 'dayjs';
 
+import store from '@/store';
+import * as echarts from 'echarts';
 import $http from '../../../api';
 import { formatNumberWithRegex } from '../../../common/util';
 import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
 import { lineColor } from '../../../store/constant';
 import AggChart from './agg-chart';
-import store from '@/store';
 
 import './field-analysis.scss';
 
@@ -471,7 +472,7 @@ export default class FieldAnalysis extends Vue {
 
   handleSetTimeTooltip(params: any[]) {
     const sortedParams = [...params].sort((a, b) => b.value[1] - a.value[1]);
-    const liHtmls = sortedParams.map(item => {
+    const liHtmls = sortedParams.map((item) => {
       const formattedName = item.seriesName.replace(/(.{85})(?=.{85})/g, '$1\n');
       const formattedValue = formatNumberWithRegex(item.value[1]);
       /** 折线图tooltips不能使用纯CSS来处理换行 会有宽度贴图表边缘变小问题 字符串添加换行倍数为85 */
@@ -682,7 +683,7 @@ export default class FieldAnalysis extends Vue {
 
         <div
           style={{
-            maxHeight: isPillarChart ? `${CHART_HEIGHTS.PILLAR_BOX}px` : `${CHART_HEIGHTS.LINE_BOX}px`,
+            // maxHeight: isPillarChart ? `${CHART_HEIGHTS.PILLAR_BOX}px` : `${CHART_HEIGHTS.LINE_BOX}px`,
             alignItems: 'center',
           }}
         >
