@@ -1,25 +1,25 @@
 <script setup>
-import { ref, watch, onUnmounted } from 'vue';
+import { ref, onUnmounted } from 'vue';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper.tsx';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import useStore from '@/hooks/use-store';
 
-const emit = defineEmits(['handleSetRouteParams']);
 const isDropdownShow = ref(false);
-// const isRefreshActive = ref(false);
 const dropdown = ref(null);
 const selectedValue = ref('off');
-let refreshTimer = null;
+const store = useStore();
 
 const datasource = ref([
   { label: '关闭(off)', value: 'off' },
-  { label: '10s', value: '10s' }, 
-  { label: '30s', value: '30s' }, 
-  { label: '1m', value: '1m' }, 
-  { label: '5m', value: '5m' }, 
-  { label: '15m', value: '15m' }, 
-  { label: '30m', value: '30m' }, 
-  { label: '1h', value: '1h' }, 
-  { label: '2h', value: '2h' }, 
-  { label: '1d', value: '1d' }, 
+  { label: '10s', value: '10s' },
+  { label: '30s', value: '30s' },
+  { label: '1m', value: '1m' },
+  { label: '5m', value: '5m' },
+  { label: '15m', value: '15m' },
+  { label: '30m', value: '30m' },
+  { label: '1h', value: '1h' },
+  { label: '2h', value: '2h' },
+  { label: '1d', value: '1d' },
 ]);
 
 /**
@@ -53,41 +53,30 @@ const getTimeInMs = (timeValue) => {
 };
 
 const handleRefresh = () => {
-  emit('handleSetRouteParams');
-  // 触发自动刷新事件
-  setTimeout(() => { RetrieveHelper.fire(RetrieveEvent.AUTO_REFRESH); })
+  const formatValue = store.getters.retrieveParams.format;
+  const val = store.state.indexItem.datePickerValue;
+  const result = handleTransformToTimestamp(val, formatValue.value);
+
+  store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1] });
+  RetrieveHelper.fire(RetrieveEvent.AUTO_REFRESH);
 };
 
-const clearRefreshTimer = () => {
-  if (refreshTimer) {
-    clearInterval(refreshTimer);
-    refreshTimer = null;
+let timerId = null;
+const createRefreshTimerTask = () => {
+  const interval = getTimeInMs(selectedValue.value);
+  if (interval === 0) {
+    return;
   }
+
+  timerId && clearTimeout(timerId);
+  timerId = setTimeout(() => {
+    handleRefresh();
+    createRefreshTimerTask();
+  }, interval);
 };
-
-// 移除了 TypeScript 类型注解
-const setRefreshTimer = (timeValue) => {
-  clearRefreshTimer();
-
-  if (timeValue === 'off') return;
-
-  const interval = getTimeInMs(timeValue);
-
-  if (interval > 0) {
-    refreshTimer = setInterval(handleRefresh, interval);
-  }
-};
-
-watch(
-  selectedValue,
-  (newVal) => {
-    setRefreshTimer(newVal);
-  },
-  { immediate: true }
-);
 
 onUnmounted(() => {
-  clearRefreshTimer();
+  timerId && clearTimeout(timerId);
 });
 
 const dropdownShow = () => {
@@ -101,27 +90,44 @@ const dropdownHide = () => {
 const triggerHandler = (item) => {
   selectedValue.value = item.value;
   dropdown.value.hide();
+  createRefreshTimerTask();
 };
 </script>
 <template>
   <div class="auto-refresh-sub-bar">
-    <bk-dropdown-menu trigger="click" @show="dropdownShow" @hide="dropdownHide" ref="dropdown" ext-cls="dropdown-menu"
-      class="auto-refresh-dropdown">
-      <div class="dropdown-trigger-text" :class="{ 'active': isDropdownShow }" slot="dropdown-trigger"
-        v-bk-tooltips="{ content: $t('自动刷新设置'), placement: 'bottom' }">
-        <i class="bklog-icon bklog-auto-refresh"></i>
-        <span>{{datasource.find(item => item.value === selectedValue)?.value || 'off'}}</span>
+    <bk-dropdown-menu
+      ref="dropdown"
+      trigger="click"
+      ext-cls="dropdown-menu"
+      class="auto-refresh-dropdown"
+      @show="dropdownShow"
+      @hide="dropdownHide"
+    >
+      <div
+        slot="dropdown-trigger"
+        v-bk-tooltips="{ content: $t('自动刷新设置'), placement: 'bottom' }"
+        class="dropdown-trigger-text"
+        :class="{ 'active': isDropdownShow }"
+      >
+        <i class="bklog-icon bklog-auto-refresh" />
+        <span>{{ datasource.find(item => item.value === selectedValue)?.value || 'off' }}</span>
       </div>
-      <ul class="bk-dropdown-list" slot="dropdown-content">
-        <li v-for="item in datasource" :key="item.value">
-          <a href="javascript:;" @click="() => triggerHandler(item)">{{ item.label }}</a>
+      <ul
+        slot="dropdown-content"
+        class="bk-dropdown-list"
+      >
+        <li
+          v-for="item in datasource"
+          :key="item.value"
+        >
+          <a
+            href="javascript:;"
+            @click="() => triggerHandler(item)"
+          >{{ item.label }}</a>
         </li>
       </ul>
     </bk-dropdown-menu>
-     <!-- <span class="custom-border"></span> -->
-    <!-- <i class="bklog-icon bklog-refresh-icon" v-bk-tooltips="{ content: $t('刷新'), placement: 'bottom' }" @click="handleRefresh()" :class="{ 'refresh-active': isRefreshActive }"></i> -->
   </div>
-
 </template>
 <style lang="scss" scoped>
 @import'./auto-refresh.scss';
