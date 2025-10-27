@@ -683,7 +683,7 @@ export default class FieldAnalysis extends Vue {
 
         <div
           style={{
-            maxHeight: isPillarChart ? `${CHART_HEIGHTS.PILLAR_BOX}px` : `${CHART_HEIGHTS.LINE_BOX}px`,
+            // maxHeight: isPillarChart ? `${CHART_HEIGHTS.PILLAR_BOX}px` : `${CHART_HEIGHTS.LINE_BOX}px`,
             alignItems: 'center',
           }}
         >
