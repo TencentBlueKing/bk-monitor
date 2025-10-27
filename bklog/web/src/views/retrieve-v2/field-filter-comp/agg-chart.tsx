@@ -345,14 +345,17 @@ export default class AggChart extends tsc<object> {
 
     return (
       <div class='retrieve-v2 field-data'>
-        <div style={{ marginBottom: '10px' }} v-if={this.showSearchKeyword}>
-          <bk-input
-            v-model={this.searchKeyword}
-            placeholder={this.$t('搜索')}
-            clearable
-            right-icon='icon-search'
-          />
-        </div>
+        {
+        this.showSearchKeyword
+          ? <div style={{ marginBottom: '10px' }}>
+            <bk-input
+              v-model={this.searchKeyword}
+              placeholder={this.$t('搜索')}
+              clearable
+              right-icon='icon-search'
+            />
+          </div> : null
+        }
         {this.listLoading ? (
           <ItemSkeleton
             columns={2}

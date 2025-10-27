@@ -23,16 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, nextTick } from 'vue';
+import { defineComponent, nextTick, ref } from 'vue';
 
 import AIBlueking from '@blueking/ai-blueking/vue2';
 
 import { random } from '@/common/util';
 import { AI_BLUEKING_QUERY_STRING, AI_BLUEKING_SHORTCUTS } from './ai-type';
 
-import './ai-assistant.scss';
 import '@blueking/ai-blueking/dist/vue2/style.css';
 import { isEqual } from 'lodash-es';
+import './ai-assistant.scss';
 
 export interface IRowSendData {
   space_uid: string;
@@ -277,7 +277,7 @@ export default defineComponent({
      * @param args
      */
     const queryStringShowAiAssistant = (args: IQueryStringSendData) => {
-      aiBlueking.value?.handleShow();
+      aiBlueking.value?.handleShow(undefined, { is_temporary: true });
       aiBlueking.value?.addNewSession().finally(() => {
         const shortcut = structuredClone(AI_BLUEKING_QUERY_STRING[0]);
         shortcut.components.forEach((comp) => {
