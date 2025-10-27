@@ -31,6 +31,7 @@ import useStore from '@/hooks/use-store';
 
 import { BK_LOG_STORAGE } from '../../../../store/store.type';
 
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import './index.scss';
 
 export default defineComponent({
@@ -95,6 +96,7 @@ export default defineComponent({
       }
 
       const sortList = store.state.indexFieldInfo[activeSortField.value].map(item => [item[0], timeSort]);
+      RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED, sortList);
       store.commit('updateIndexFieldInfo', { default_sort_list: sortList });
       store.dispatch('requestIndexSetQuery', { defaultSortList: sortList });
     };
