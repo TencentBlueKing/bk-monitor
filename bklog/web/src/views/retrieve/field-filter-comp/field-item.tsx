@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { BK_LOG_STORAGE } from '../../../store/store.type';
@@ -81,9 +81,9 @@ export default class FieldItem extends tsc<object> {
   }
   get isShowFieldsAnalysis() {
     return (
-      ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(this.fieldItem.field_type) &&
-      this.fieldItem.es_doc_values &&
-      !/^__dist_/.test(this.fieldItem.field_name)
+      ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(this.fieldItem.field_type)
+      && this.fieldItem.es_doc_values
+      && !/^__dist_/.test(this.fieldItem.field_name)
     );
   }
   get reQueryAggChart() {
@@ -227,7 +227,7 @@ export default class FieldItem extends tsc<object> {
                 v-bk-tooltips={{
                   content: this.isUnionSearch || this.isFrontStatistics ? this.$t('暂不支持') : this.$t('图表分析'),
                 }}
-                onClick={e => {
+                onClick={(e) => {
                   e.stopPropagation();
                   // 联合查询 或 非白名单业务和索引集类型 时不能点击字段分析
                   if (this.isUnionSearch || this.isFrontStatistics) {
@@ -245,7 +245,7 @@ export default class FieldItem extends tsc<object> {
               v-bk-tooltips={{
                 content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示'),
               }}
-              onClick={e => {
+              onClick={(e) => {
                 e.stopPropagation();
                 this.handleShowOrHiddenItem();
               }}

@@ -55,7 +55,7 @@ const getTimeInMs = (timeValue) => {
 const handleRefresh = () => {
   emit('handleSetRouteParams');
   // 触发自动刷新事件
-  RetrieveHelper.fire(RetrieveEvent.AUTO_REFRESH);
+  setTimeout(() => { RetrieveHelper.fire(RetrieveEvent.AUTO_REFRESH); })
 };
 
 const clearRefreshTimer = () => {

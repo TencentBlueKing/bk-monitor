@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Inject, Watch } from 'vue-property-decorator';
+import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import _escape from 'lodash/escape';
@@ -137,11 +137,11 @@ export default class AggChart extends tsc<object> {
       if (newOperator === 'not') {
         newOperator = 'is not';
       }
-      return this.retrieveParams.addition.some(addition => {
+      return this.retrieveParams.addition.some((addition) => {
         return (
-          addition.field === this.fieldName &&
-          addition.operator === (this.mappingKay[newOperator] ?? newOperator) && // is is not 值映射
-          addition.value.toString() === value.toString()
+          addition.field === this.fieldName
+          && addition.operator === (this.mappingKay[newOperator] ?? newOperator) // is is not 值映射
+          && addition.value.toString() === value.toString()
         );
       });
     }
