@@ -93,6 +93,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         csv_writer = csv.writer(row_buffer)
         batch_counter = 0  # 批量计数器
         while total_count < max_result_count:
+            # 首次请求清空缓存
             search_params["clear_cache"] = total_count == 0
             search_result = UnifyQueryApi.query_ts_raw_with_scroll(search_params)
             if not search_result.get("list"):
