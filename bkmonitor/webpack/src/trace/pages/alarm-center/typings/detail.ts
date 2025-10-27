@@ -71,7 +71,7 @@ export interface IAlarmDetail {
   extend_info: IExtendInfo;
   extra_info: IExtraInfo;
   first_anomaly_time: number;
-  follower: null | string;
+  follower: null | string[];
   graph_panel: IGraphPanel;
   id: string;
   ip: null | string;
@@ -98,7 +98,7 @@ export interface IAlarmDetail {
   strategy_name: string;
   supervisor: null | string;
   tags: ITag[];
-  target: any | null;
+  target?: any | null;
   target_key: string;
   target_type: string;
   update_time: number;
