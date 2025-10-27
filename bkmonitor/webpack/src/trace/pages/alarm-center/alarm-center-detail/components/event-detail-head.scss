@@ -6,7 +6,7 @@ $fatal-red: #ea3536;
   display: flex;
   align-items: center;
   width: 100%;
-  height: 52px;
+  height: 100%;
 
   .level-tag {
     width: 40px;
@@ -116,6 +116,10 @@ $fatal-red: #ea3536;
       text-align: center;
       cursor: pointer;
       border-left: 1px solid #f5f7fa;
+
+      &:hover {
+        background: #f5f7fa;
+      }
     }
 
     .btn-item-icon {

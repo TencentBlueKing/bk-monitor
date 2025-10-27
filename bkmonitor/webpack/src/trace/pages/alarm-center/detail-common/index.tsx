@@ -27,10 +27,13 @@ import { defineComponent, KeepAlive } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
+import { storeToRefs } from 'pinia';
 
 import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
 import { useAlarmBasicInfo } from '../composables/use-alarm-baseinfo';
+import { AlarmDetail } from '../typings';
 import AlarmAlert from './components/alarm-alert';
+import AlarmConfirmDialog from './components/alarm-confirm-dialog';
 import AlarmInfo from './components/alarm-info';
 import PanelAlarm from './components/panel-alarm';
 import PanelContainer from './components/panel-container';
@@ -47,9 +50,14 @@ export default defineComponent({
   name: 'DetailCommon',
   setup() {
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-
-    const { alertActionOverview, handleAlarmConfirm, handleQuickShield } = useAlarmBasicInfo();
+    const { alarmDetail, loading, bizId, alarmId } = storeToRefs(alarmCenterDetailStore);
+    const { alertActionOverview } = useAlarmBasicInfo();
+    const alarmConfirmShow = shallowRef(false);
     const currentPanel = shallowRef(alarmCenterDetailStore.alarmDetail?.alarmTabList?.[0]?.label);
+
+    const handleAlarmConfirm = (val: boolean) => {
+      alarmDetail.value = new AlarmDetail({ ...alarmDetail.value, is_ack: val });
+    };
 
     const getPanelComponent = () => {
       switch (currentPanel.value) {
@@ -77,10 +85,12 @@ export default defineComponent({
       <div class='alarm-center-detail-box'>
         <AlarmAlert
           data={alarmCenterDetailStore.alarmDetail}
-          onAlarmConfirm={handleAlarmConfirm}
-          onQuickShield={handleQuickShield}
+          onAlarmConfirm={() => {
+            alarmConfirmShow.value = true;
+          }}
+          onQuickShield={() => {}}
         />
-        {alarmCenterDetailStore.loading ? (
+        {loading.value ? (
           <div class='alarm-basic-info' />
         ) : (
           <AlarmInfo
@@ -102,6 +112,16 @@ export default defineComponent({
           ))}
         </Tab>
         <KeepAlive>{getPanelComponent()}</KeepAlive>
+
+        <AlarmConfirmDialog
+          alarmBizId={bizId.value}
+          alarmIds={[alarmId.value]}
+          show={alarmConfirmShow.value}
+          onConfirm={handleAlarmConfirm}
+          onUpdate:show={v => {
+            alarmConfirmShow.value = v;
+          }}
+        />
       </div>
     );
   },

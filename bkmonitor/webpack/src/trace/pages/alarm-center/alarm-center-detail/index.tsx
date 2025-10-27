@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, watch } from 'vue';
+import { defineComponent, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
@@ -46,6 +46,7 @@ export default defineComponent({
   },
   emits: ['update:show'],
   setup(props, { emit }) {
+    const isFullscreen = shallowRef(false);
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const { alarmId } = storeToRefs(alarmCenterDetailStore);
 
@@ -64,15 +65,23 @@ export default defineComponent({
     };
 
     return {
+      isFullscreen,
       handleShowChange,
     };
   },
   render() {
     return (
       <Sideslider
-        width={1280}
+        width={this.isFullscreen ? '100%' : 1280}
         v-slots={{
-          header: () => <EventDetailHead />,
+          header: () => (
+            <EventDetailHead
+              isFullscreen={this.isFullscreen}
+              onToggleFullscreen={val => {
+                this.isFullscreen = val;
+              }}
+            />
+          ),
           default: () => <DetailCommon />,
         }}
         isShow={this.show}
