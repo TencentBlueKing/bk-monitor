@@ -172,6 +172,8 @@ NOT_CUSTOM = "not_custom"
 IGNORE_DISPLAY_CONFIG = "ignore_display_config"
 # 异步导出滚动查询超时时间
 ASYNC_EXPORT_SCROLL = "5m"
+# 流式导出 每次返回的行数
+STREAM_BATCH_SIZE = 100
 
 FIND_MODULE_WITH_RELATION_FIELDS = ["bk_module_id", "bk_module_name", "service_template_id"]
 
