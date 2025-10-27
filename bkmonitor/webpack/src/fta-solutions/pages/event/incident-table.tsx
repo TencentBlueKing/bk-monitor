@@ -63,6 +63,10 @@ interface IColumnItem {
   };
 }
 
+interface IEventStatusList {
+  text: any;
+  value: string;
+}
 interface IEventStatusMap {
   bgColor: string;
   color: string;
@@ -115,6 +119,7 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
   @Ref('moreItems') moreItemsRef: HTMLDivElement;
 
   eventStatusMap: Record<string, IEventStatusMap> = {};
+  eventStatusList: IEventStatusList[] = [];
   actionStatusColorMap: Record<string, string> = {
     running: '#A3C4FD',
     success: '#8DD3B5',
@@ -199,6 +204,12 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
           disabled: true,
           props: {
             width: 110,
+            filters: this.eventStatusList,
+            'filter-method': (value: string, row, column) => {
+              const { property } = column;
+              return row[property].toLowerCase() === value;
+            },
+            'filter-multiple': true,
           },
         },
         {
@@ -226,7 +237,10 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
                   <div class='tag-column'>
                     {row.labels ? (
                       <div>
-                        <div class='tag-item set-item'>
+                        <div
+                          class='tag-item set-item'
+                          v-bk-overflow-tips
+                        >
                           {typeof row.labels[0] === 'string'
                             ? row.labels[0].replace(/\//g, '')
                             : row.labels[0]?.key
@@ -392,6 +406,24 @@ export default class IncidentTable extends tsc<IEventTableProps, IEventTableEven
         icon: '',
       },
     };
+    this.eventStatusList = [
+      {
+        value: 'abnormal',
+        text: this.$t('未恢复'),
+      },
+      {
+        value: 'recovering',
+        text: this.$t('观察中'),
+      },
+      {
+        value: 'recovered',
+        text: this.$t('已恢复'),
+      },
+      {
+        value: 'closed',
+        text: this.$t('已解决'),
+      },
+    ];
     this.extendInfoMap = {
       log_search: this.$t('查看更多相关的日志'),
       custom_event: this.$t('查看更多相关的事件'),
