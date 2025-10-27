@@ -792,7 +792,7 @@ class QueryTopoInstanceResource(PageListResource):
         for instance in instance_list:
             key = str(instance["id"]) + ":" + instance["instance_id"]
             if key in cache_data:
-                instance["updated_at"] = datetime.datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
+                instance["updated_at"] = str(datetime.datetime.fromtimestamp(cache_data.get(key)))
             merge_data.append(instance)
         return merge_data
 
@@ -810,9 +810,10 @@ class QueryTopoInstanceResource(PageListResource):
         return page, page_size, query_fields
 
     def perform_request(self, validated_request_data):
-        filter_params = DiscoverHandler.get_retention_utc_filter_params(
+        filter_params = DiscoverHandler.get_retention_filter_params(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
+        filter_params["updated_at__gte"] = str(filter_params["updated_at__gte"])
         service_name = validated_request_data["service_name"]
         if service_name:
             filter_params["topo_node_key__in"] = service_name

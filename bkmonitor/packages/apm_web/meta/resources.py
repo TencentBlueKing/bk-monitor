@@ -288,6 +288,13 @@ class ListApplicationInfoResource(Resource):
             model = Application
             fields = "__all__"
 
+        def to_representation(self, instance):
+            data = super(ListApplicationInfoResource.ApplicationInfoResponseSerializer, self).to_representation(instance)
+            data["es_storage_index_name"] = instance.trace_result_table_id.replace(".", "_")
+            config_dict = {config.config_key: config.config_value for config in instance.get_all_config()}
+            data.update(config_dict)
+            return data
+
     def perform_request(self, validated_request_data):
         # 过滤掉没有 metricTable 和 traceTable 的应用(接入中应用)
         bk_biz_id = validated_request_data["bk_biz_id"]
