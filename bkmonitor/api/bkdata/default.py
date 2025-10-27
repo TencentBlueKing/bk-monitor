@@ -1507,4 +1507,4 @@ class DataBusCleanDebug(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     class RequestSerializer(CommonRequestSerializer):
         input = serializers.CharField(required=True, label="输入数据")
         rules = serializers.ListField(required=True, label="清洗规则")
-        filter_rules = serializers.CharField(label="过滤规则", default="True")
+        filter_rules = serializers.ListField(label="过滤规则", default=[])

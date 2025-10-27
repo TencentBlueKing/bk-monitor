@@ -33,6 +33,9 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
         raise ValueError(f"apply_log_v4_datalink: tenant({bk_tenant_id}) {table_id} related datasource not found")
     ds: DataSource = DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=dsrt.bk_data_id)
 
+    # 如果datasource是gse创建的，需要在bkbase上注册
+    ds.register_to_bkbase(bk_biz_id=rt.bk_biz_id)
+
     # 判断使用V4链路还是transfer链路
     enabled_v4_datalink_option = ResultTableOption.objects.filter(
         bk_tenant_id=bk_tenant_id, table_id=table_id, name=ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK
