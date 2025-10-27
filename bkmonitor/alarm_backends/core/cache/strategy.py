@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -30,7 +30,6 @@ from alarm_backends.core.cache.cmdb import (
     SetTemplateManager,
     TopoManager,
 )
-from alarm_backends.core.storage.redis import Cache
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.models import (
     AlgorithmModel,
@@ -49,6 +48,7 @@ from constants.strategy import (
     AdvanceConditionMethod,
     TargetFieldType,
     OS_RESTART_METRIC_ID,
+    SYSTEM_PROC_PORT_METRIC_ID,
 )
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -87,7 +87,6 @@ class StrategyCacheManager(CacheManager):
     fake_event_agg_interval = 60
     # 实例维度
     instance_dimensions = {"bk_target_ip", "bk_target_service_instance_id", "bk_host_id"}
-    cache = Cache("cache-strategy")
 
     @classmethod
     def transform_template_to_topo_nodes(cls, target, template_node_type, cache_manager):
@@ -290,7 +289,7 @@ class StrategyCacheManager(CacheManager):
             fake_event_metric_id_mapping = {
                 "bk_monitor.system.env.uptime": OS_RESTART_METRIC_ID,
                 "bk_monitor.pingserver.base.loss_percent": "bk_monitor.ping-gse",
-                "bk_monitor.system.proc_port.proc_exists": "bk_monitor.proc_port",
+                "bk_monitor.system.proc_port.proc_exists": SYSTEM_PROC_PORT_METRIC_ID,
             }
             if query_config["metric_id"] in fake_event_metric_id_mapping:
                 query_config["metric_id"] = fake_event_metric_id_mapping[query_config["metric_id"]]
@@ -310,7 +309,7 @@ class StrategyCacheManager(CacheManager):
                     # alarm_backends/service/detect/strategy/ping_unreachable.py:37
                     query_config["alias"] = "a"
                     item["expression"] = "a >= 1"
-                if query_config["metric_id"] == "bk_monitor.proc_port":
+                if query_config["metric_id"] == SYSTEM_PROC_PORT_METRIC_ID:
                     # alarm_backends/service/detect/strategy/proc_port.py:32
                     query_config["alias"] = "a"
                     item["expression"] = "a != 1"
@@ -400,6 +399,21 @@ class StrategyCacheManager(CacheManager):
                 continue
 
             try:
+                is_aiops_algorithm = False
+                items = strategy_config.get("items", [])
+                if items:
+                    is_aiops_list = [
+                        algorithm["type"] in AlgorithmModel.AIOPS_ALGORITHMS
+                        for item in items
+                        for algorithm in item.get("algorithms") or []
+                    ]
+                    is_aiops_algorithm = all(is_aiops_list) and len(is_aiops_list) > 0
+
+                if is_aiops_algorithm:
+                    for detect in strategy_config.get("detects") or []:
+                        detect["trigger_config"]["count"] = 1
+                        detect["trigger_config"]["check_window"] = 5
+
                 if cls.handle_strategy(strategy_config, invalid_strategy_dict):
                     result_map[strategy_id] = strategy_config
             except Exception as e:

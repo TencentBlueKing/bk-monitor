@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -63,6 +63,19 @@ export const NUMBER_CONDITION_METHOD_LIST = [
   { id: 'reg', name: 'regex' },
   { id: 'nreg', name: 'nregex' },
 ];
+export const NEW_NUMBER_CONDITION_METHOD_LIST = [
+  // 原版引入地方较多
+  { id: 'eq', name: 'in' },
+  { id: 'gt', name: '>' },
+  { id: 'gte', name: '>=' },
+  { id: 'lt', name: '<' },
+  { id: 'lte', name: '<=' },
+  { id: 'neq', name: 'not in' },
+  { id: 'include', name: 'like' },
+  { id: 'exclude', name: 'not like' },
+  { id: 'reg', name: 'regex' },
+  { id: 'nreg', name: 'nregex' },
+];
 export const LOG_CONDITION_METHOD_LIST = [
   { id: 'is', name: 'is' },
   { id: 'is one of', name: 'is one of' },
@@ -74,6 +87,15 @@ export const STRING_CONDITION_METHOD_LIST = [
   { id: 'neq', name: '!=' },
   { id: 'include', name: 'include' },
   { id: 'exclude', name: 'exclude' },
+  { id: 'reg', name: 'regex' },
+  { id: 'nreg', name: 'nregex' },
+];
+export const NEW_STRING_CONDITION_METHOD_LIST = [
+  // 原版引入地方较多
+  { id: 'eq', name: 'in' },
+  { id: 'neq', name: 'not in' },
+  { id: 'include', name: 'like' },
+  { id: 'exclude', name: 'not like' },
   { id: 'reg', name: 'regex' },
   { id: 'nreg', name: 'nregex' },
 ];

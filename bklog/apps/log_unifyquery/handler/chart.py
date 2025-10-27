@@ -11,9 +11,11 @@ specific language governing permissions and limitations under the License.
 import copy
 import time
 
+import ujson
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
+from apps.log_search.constants import MAX_RESULT_WINDOW, MAX_ASYNC_COUNT
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
 
@@ -32,7 +34,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
                 "conditions": self._transform_additions(index_info),
                 "query_string": self.query_string,
                 "sql": self.sql,
-                "table_id": f"bkdata_index_set_{self.index_set_ids[0]}",
+                "table_id": f"bklog_index_set_{index_info['index_set_id']}_analysis",
             }
 
             query_list.append(query_dict)
@@ -60,7 +62,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
 
         return {
             "list": result["list"],
-            "total_records": result["total"],
+            "total_records": result.get("total", 0),
             "time_taken": time.time() - start_time,
             "result_schema": result_schema,
             "select_fields_order": [field["field_alias"] for field in result_schema],
@@ -77,3 +79,24 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
             "sql": self.sql,
             "additional_where_clause": final_sql,
         }
+
+    def export_chart_data(self):
+        search_params = copy.deepcopy(self.base_dict)
+        search_params["limit"] = MAX_RESULT_WINDOW
+        max_result_count = MAX_ASYNC_COUNT
+        total_count = 0
+        while total_count < max_result_count:
+            # 首次请求清空缓存
+            search_params["clear_cache"] = total_count == 0
+            search_result = UnifyQueryApi.query_ts_raw_with_scroll(search_params)
+            if not search_result.get("list"):
+                break
+            for record in search_result["list"]:
+                # 删除内置字段
+                for key in ["__data_label", "__index", "__result_table"]:
+                    record.pop(key, None)
+                yield f"{ujson.dumps(record, ensure_ascii=False)}\n"
+
+            total_count += len(search_result["list"])
+            if search_result.get("done", False):
+                break

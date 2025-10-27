@@ -826,6 +826,36 @@ class HostCollectorHandler(CollectorHandler):
                 host_result_dict[key].append(host["bk_host_id"])
         return host_result_dict
 
+    def _get_dynamic_group_hosts(self, node_collect) -> dict:
+        """
+        获取动态分组主机信息
+        @param node_collect {List} _get_collect_node处理后组成的node_collect
+        """
+        host_result_dict = defaultdict(list)
+        for node_obj in node_collect:
+            key = "{}|{}".format(str(node_obj["bk_obj_id"]), str(node_obj["bk_inst_id"]))
+            host_result = CCApi.execute_dynamic_group.bulk_request(
+                params={
+                    "bk_biz_id": self.data.bk_biz_id,
+                    "id": node_obj["bk_inst_id"],
+                    "fields": CMDB_HOST_SEARCH_FIELDS,
+                }
+            )
+            for host in host_result:
+                host_result_dict[key].append((host["bk_host_innerip"], host["bk_cloud_id"]))
+                host_result_dict[key].append(host["bk_host_id"])
+        return host_result_dict
+
+    @staticmethod
+    def _get_dynamic_group_info(bk_biz_id) -> dict:
+        """
+        查询业务下所有动态分组信息
+        """
+        dynamic_group_list = CCApi.search_dynamic_group.bulk_request(
+            params={"bk_biz_id": bk_biz_id, "no_request": True}
+        )
+        return {group["id"]: group for group in dynamic_group_list}
+
     @classmethod
     def _get_node_obj(cls, node_obj, template_mapping, node_mapping, map_key):
         """
@@ -852,6 +882,83 @@ class HostCollectorHandler(CollectorHandler):
         bk_inst_name = node_mapping.get(map_key, {}).get("bk_inst_name", "")
 
         return node_path, bk_obj_name, bk_inst_name
+
+    def _get_status_content(self, instance_status: list, is_task=False) -> list:
+        """
+        获取采集任务/订阅状态内容
+        @param instance_status {List} 实例列表
+        """
+        target_node_type = self.data.target_node_type
+
+        # 如果采集目标是HOST-INSTANCE
+        if target_node_type == TargetNodeTypeEnum.INSTANCE.value:
+            content_data = [
+                {
+                    "is_label": False,
+                    "label_name": "",
+                    "bk_obj_name": _("主机"),
+                    "node_path": _("主机"),
+                    "bk_obj_id": "host",
+                    "bk_inst_id": "",
+                    "bk_inst_name": "",
+                    "child": instance_status,
+                }
+            ]
+            return content_data
+
+        # 如果采集目标是HOST - TOPO 或 HOST - DYNAMIC_GROUP
+        # 如果是查询采集任务状态，获取target_nodes获取采集目标及差异节点target_subscription_diff合集
+        node_collect = self._get_collect_node() if is_task else self.data.target_nodes
+        target_mapping = self.get_target_mapping() if is_task else {}
+
+        if target_node_type == TargetNodeTypeEnum.DYNAMIC_GROUP.value:
+            total_host_result = self._get_dynamic_group_hosts(node_collect)
+            node_mapping, template_mapping = {}, {}
+            dynamic_group_info = self._get_dynamic_group_info(self.data.bk_biz_id)
+        else:
+            total_host_result = self._get_host_result(node_collect)
+            node_mapping, template_mapping = self._get_mapping(node_collect)
+            dynamic_group_info = {}
+
+        content_data = list()
+        for node_obj in node_collect:
+            map_key = "{}|{}".format(node_obj["bk_obj_id"], node_obj["bk_inst_id"])
+            host_result = set(total_host_result.get(map_key, []))
+            label_name = target_mapping.get(map_key, "") if is_task else ""
+
+            content_obj = {
+                "is_label": False if not label_name else True,
+                "label_name": label_name,
+                "bk_obj_id": node_obj["bk_obj_id"],
+                "bk_inst_id": node_obj["bk_inst_id"],
+                "child": [],
+            }
+
+            if target_node_type == TargetNodeTypeEnum.DYNAMIC_GROUP.value:
+                dynamic_group_name = dynamic_group_info.get(content_obj["bk_inst_id"], {}).get("name", "")
+                content_obj["bk_inst_name"] = dynamic_group_name
+                content_obj["node_path"] = dynamic_group_name
+                content_obj["bk_obj_name"] = _("主机")
+            else:
+                node_path, bk_obj_name, bk_inst_name = self._get_node_obj(
+                    node_obj, template_mapping, node_mapping, map_key
+                )
+                content_obj["node_path"] = node_path
+                content_obj["bk_obj_name"] = bk_obj_name
+                content_obj["bk_inst_name"] = bk_inst_name
+
+            for instance_obj in instance_status:
+                # delete 标签如果任务状态action不为UNINSTALL
+                if is_task and label_name == "delete" and instance_obj["steps"].get(LogPluginInfo.NAME) != "UNINSTALL":
+                    continue
+                # 因为instance_obj兼容新版IP选择器的字段名, 所以这里的bk_cloud_id->cloud_id, bk_host_id->host_id
+                if (instance_obj["ip"], instance_obj["cloud_id"]) in host_result or instance_obj[
+                    "host_id"
+                ] in host_result:
+                    content_obj["child"].append(instance_obj)
+            content_data.append(content_obj)
+
+        return content_data
 
     def get_task_status(self, id_list):
         """
@@ -911,59 +1018,7 @@ class HostCollectorHandler(CollectorHandler):
         )
         instance_status = self.format_task_instance_status(status_result)
 
-        # 如果采集目标是HOST-INSTANCE
-        if self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value:
-            content_data = [
-                {
-                    "is_label": False,
-                    "label_name": "",
-                    "bk_obj_name": _("主机"),
-                    "node_path": _("主机"),
-                    "bk_obj_id": "host",
-                    "bk_inst_id": "",
-                    "bk_inst_name": "",
-                    "child": instance_status,
-                }
-            ]
-            return {"task_ready": True, "contents": content_data}
-
-        # 如果采集目标是HOST-TOPO
-        # 获取target_nodes获取采集目标及差异节点target_subscription_diff合集
-        node_collect = self._get_collect_node()
-        node_mapping, template_mapping = self._get_mapping(node_collect=node_collect)
-        content_data = list()
-        target_mapping = self.get_target_mapping()
-        total_host_result = self._get_host_result(node_collect)
-        for node_obj in node_collect:
-            map_key = "{}|{}".format(str(node_obj["bk_obj_id"]), str(node_obj["bk_inst_id"]))
-            host_result = total_host_result.get(map_key, [])
-            label_name = target_mapping.get(map_key, "")
-            node_path, bk_obj_name, bk_inst_name = self._get_node_obj(
-                node_obj=node_obj, template_mapping=template_mapping, node_mapping=node_mapping, map_key=map_key
-            )
-
-            content_obj = {
-                "is_label": False if not label_name else True,
-                "label_name": label_name,
-                "bk_obj_name": bk_obj_name,
-                "node_path": node_path,
-                "bk_obj_id": node_obj["bk_obj_id"],
-                "bk_inst_id": node_obj["bk_inst_id"],
-                "bk_inst_name": bk_inst_name,
-                "child": [],
-            }
-
-            for instance_obj in instance_status:
-                # delete 标签如果订阅任务状态action不为UNINSTALL
-                if label_name == "delete" and instance_obj["steps"].get(LogPluginInfo.NAME) != "UNINSTALL":
-                    continue
-                # 因为instance_obj兼容新版IP选择器的字段名, 所以这里的bk_cloud_id->cloud_id, bk_host_id->host_id
-                if (instance_obj["ip"], instance_obj["cloud_id"]) in host_result or instance_obj[
-                    "host_id"
-                ] in host_result:
-                    content_obj["child"].append(instance_obj)
-            content_data.append(content_obj)
-        return {"task_ready": True, "contents": content_data}
+        return {"task_ready": True, "contents": self._get_status_content(instance_status, is_task=True)}
 
     @staticmethod
     def format_subscription_instance_status(instance_data, plugin_data):
@@ -1061,58 +1116,7 @@ class HostCollectorHandler(CollectorHandler):
         )
 
         instance_status = self.format_subscription_instance_status(instance_data, plugin_data)
-
-        # 如果采集目标是HOST-INSTANCE
-        if self.data.target_node_type == TargetNodeTypeEnum.INSTANCE.value:
-            content_data = [
-                {
-                    "is_label": False,
-                    "label_name": "",
-                    "bk_obj_name": _("主机"),
-                    "node_path": _("主机"),
-                    "bk_obj_id": "host",
-                    "bk_inst_id": "",
-                    "bk_inst_name": "",
-                    "child": instance_status,
-                }
-            ]
-            return {"contents": content_data}
-
-        # 如果采集目标是HOST-TOPO
-        # 从数据库target_nodes获取采集目标，查询业务TOPO，按采集目标节点进行分类
-        target_nodes = self.data.target_nodes
-        biz_topo = self._get_biz_topo()
-
-        node_mapping = self.get_node_mapping(biz_topo)
-        template_mapping = self._get_template_mapping(target_nodes)
-        total_host_result = self._get_host_result(node_collect=target_nodes)
-
-        content_data = list()
-        for node_obj in target_nodes:
-            map_key = "{}|{}".format(str(node_obj["bk_obj_id"]), str(node_obj["bk_inst_id"]))
-            host_result = total_host_result.get(map_key, [])
-            node_path, bk_obj_name, bk_inst_name = self._get_node_obj(
-                node_obj=node_obj, template_mapping=template_mapping, node_mapping=node_mapping, map_key=map_key
-            )
-            content_obj = {
-                "is_label": False,
-                "label_name": "",
-                "bk_obj_name": bk_obj_name,
-                "node_path": node_path,
-                "bk_obj_id": node_obj["bk_obj_id"],
-                "bk_inst_id": node_obj["bk_inst_id"],
-                "bk_inst_name": bk_inst_name,
-                "child": [],
-            }
-
-            for instance_obj in instance_status:
-                # 因为instance_obj兼容新版IP选择器的字段名, 所以这里的bk_cloud_id->cloud_id, bk_host_id->host_id
-                if (instance_obj["ip"], instance_obj["cloud_id"]) in host_result or instance_obj[
-                    "host_id"
-                ] in host_result:
-                    content_obj["child"].append(instance_obj)
-            content_data.append(content_obj)
-        return {"contents": content_data}
+        return {"contents": self._get_status_content(instance_status, is_task=False)}
 
     @staticmethod
     def search_object_attribute():
@@ -1289,8 +1293,8 @@ class HostCollectorHandler(CollectorHandler):
             params["scope"] = scope
             params["scope"]["bk_biz_id"] = self.data.bk_biz_id
 
-        task_id = str(NodeApi.run_subscription_task(params)["task_id"])
-        if scope is None:
+        task_id = NodeApi.run_subscription_task(params).get("task_id")
+        if scope is None and task_id:
             self.data.task_id_list = [str(task_id)]
         self.data.save()
         return self.data.task_id_list

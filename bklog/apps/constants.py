@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -114,7 +113,7 @@ class UserOperationActionEnum(ChoicesEnum):
     )
 
 
-class LuceneSyntaxEnum(object):
+class LuceneSyntaxEnum:
     """Lucene语法枚举"""
 
     UNKNOWN = "UnknownOperation"
@@ -247,8 +246,15 @@ class ApiTokenAuthType(ChoicesEnum):
 
     GRAFANA = "Grafana"
     SEARCH = "Search"
+    CODECC = "CodeCC"
+    UNIFY_QUERY = "UnifyQuery"
 
-    _choices_labels = ((GRAFANA, _("Grafana")), (SEARCH, "Search"),)
+    _choices_labels = (
+        (GRAFANA, _("Grafana")),
+        (SEARCH, "Search"),
+        (CODECC, "CodeCC"),
+        (UNIFY_QUERY, "UnifyQuery"),
+    )
 
 
 class TokenStatusEnum(ChoicesEnum):
@@ -367,6 +373,9 @@ class ViewSetActionEnum(ChoicesEnum):
     )
     SEARCH_VIEWSET_ASYNC_EXPORT = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="async_export"
+    )
+    SEARCH_VIEWSET_QUICK_EXPORT = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="quick_export"
     )
     SEARCH_VIEWSET_GET_EXPORT_HISTORY = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
@@ -585,6 +594,7 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_TAILF,
         SEARCH_VIEWSET_EXPORT,
         SEARCH_VIEWSET_ASYNC_EXPORT,
+        SEARCH_VIEWSET_QUICK_EXPORT,
         SEARCH_VIEWSET_HISTORY,
         SEARCH_VIEWSET_OPTION_HISTORY,
         SEARCH_VIEWSET_GET_EXPORT_HISTORY,

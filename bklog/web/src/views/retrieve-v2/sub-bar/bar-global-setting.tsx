@@ -209,7 +209,7 @@ export default defineComponent({
                   class='link'
                   onClick={handleIndexConfigSliderShow}
                 >
-                  <span class='link-text'>{$t('前往 "索引配置" 批量修改别名')}</span>
+                  <span class='link-text'>{$t('前往 "批量编辑别名" 批量修改别名')}</span>
                   <i class='bklog-icon bklog-jump' />
                 </div>
               </div>
@@ -251,7 +251,10 @@ export default defineComponent({
           class={`popover-trigger ${popoverInstance ? 'is-active' : ''}`}
           onClick={handleSettingPopoverShow}
         >
-          <i class='bklog-icon bklog-setting-line' />
+          <i
+            class='bklog-icon bklog-setting-line'
+            v-bk-tooltips={t('全局设置')}
+          />
           <span class='trigger-label'>{t('全局设置')}</span>
         </div>
         <div style='display: none'>{settingContainerRender()}</div>

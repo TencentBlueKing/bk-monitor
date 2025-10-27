@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -8,12 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import time
+from datetime import datetime, timedelta
 from enum import Enum
 
 from celery import shared_task
 from django.conf import settings
-from django.core.cache import caches
+from django.core.cache import caches, cache
 from django.db.models import Q
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
@@ -24,11 +26,16 @@ from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
 from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
+from apm_web.strategy.builtin.registry import BuiltinStrategyTemplateRegistry
+from apm_web.strategy.handler import StrategyTemplateHandler
+from monitor.models import GlobalConfig
 from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip, deserialize_and_decompress
 from bkmonitor.utils.custom_report_tools import custom_report_tool
+from bkmonitor.utils.tenant import set_local_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
 from constants.apm import TelemetryDataType
+from core.drf_resource import api
 
 
 class APMEvent(Enum):
@@ -125,8 +132,8 @@ def build_event_body(
 
 
 @shared_task(ignore_result=True)
-def update_application_config(application_id):
-    Application.objects.get(application_id=application_id).refresh_config()
+def update_application_config(bk_biz_id, app_name, config):
+    api.apm_api.release_app_config({"bk_biz_id": bk_biz_id, "app_name": app_name, **config})
 
 
 @shared_task(ignore_result=True)
@@ -134,6 +141,7 @@ def refresh_application():
     logger.info("[REFRESH_APPLICATION] task start")
 
     for application in Application.objects.filter(is_enabled=True):
+        set_local_tenant_id(application.bk_tenant_id)
         try:
             # 刷新数据状态
             application.set_data_status()
@@ -223,8 +231,8 @@ def application_create_check():
 @shared_task(ignore_result=True)
 def cache_application_scope_name():
     """
-    1. 每次获取 5 分钟内的数据
-    2. 和已有的缓存数据做一个整合
+    1. 和已有的缓存数据做一个整合
+    2. 支持按服务粒度缓存，通过全局配置控制
     """
     logger.info("[CACHE_APPLICATION_SCOPE_NAME] task start")
     if "redis" not in caches:
@@ -232,6 +240,10 @@ def cache_application_scope_name():
         return
 
     cache_agent = caches["redis"]
+
+    # 获取按服务缓存的灰度应用列表
+    service_cache_apps = settings.APM_SERVICE_CACHE_APPLICATIONS
+
     for application in Application.objects.filter(is_enabled=True, is_enabled_metric=True):
         try:
             bk_biz_id = application.bk_biz_id
@@ -242,7 +254,40 @@ def cache_application_scope_name():
             if result_table_id is None:
                 continue
 
-            monitor_info = MetricHelper.get_monitor_info(bk_biz_id, result_table_id)
+            app_key = f"{bk_biz_id}-{application.app_name}"
+            is_service_cache_enabled = app_key in service_cache_apps
+
+            if is_service_cache_enabled:
+                # 按服务粒度缓存
+                logger.info(f"[CACHE_APPLICATION_SCOPE_NAME] caching by service for {app_key}")
+
+                # 获取应用的所有服务列表
+                all_services = ServiceHandler.list_services(application)
+                all_service_names = [service["topo_key"] for service in all_services]
+
+                if not all_service_names:
+                    logger.warning(
+                        f"[CACHE_APPLICATION_SCOPE_NAME] no services found for {bk_biz_id}-{application.app_name}"
+                    )
+                    continue
+
+                # 为每个服务获取指标数据
+                monitor_info = {}
+                for service_name in all_service_names:
+                    try:
+                        service_data = MetricHelper.get_monitor_info(
+                            bk_biz_id, result_table_id, service_name=service_name
+                        )
+                        if service_data:
+                            monitor_info.update(service_data)
+                    except Exception as e:
+                        logger.warning(
+                            f"[CACHE_APPLICATION_SCOPE_NAME] failed to get monitor info for service {service_name}: {e}"
+                        )
+            else:
+                # 按应用粒度缓存
+                monitor_info = MetricHelper.get_monitor_info(bk_biz_id, result_table_id)
+
             if monitor_info and isinstance(monitor_info, dict):
                 cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(bk_biz_id=bk_biz_id, application_id=application_id)
                 cached_data = cache_agent.get(cache_key)
@@ -250,9 +295,94 @@ def cache_application_scope_name():
                 merged_monitor_info = MetricHelper.merge_monitor_info(monitor_info, old_monitor_info)
                 cache_agent.set(cache_key, compress_and_serialize(merged_monitor_info))
                 cache_agent.expire(cache_key, 60 * 60 * 24)
+
+                logger.info(f"[CACHE_APPLICATION_SCOPE_NAME] cached data for {bk_biz_id}-{application.app_name}")
+
         except Exception as e:  # noqa
             logger.warning(
-                f"[REFRESH_APPLICATION] refresh data failed: {application.bk_biz_id}{application.app_name}, error: {e}"
+                f"[CACHE_APPLICATION_SCOPE_NAME] refresh data failed: {application.bk_biz_id}-{application.app_name}, error: {e}"
             )
 
     logger.info("[CACHE_APPLICATION_SCOPE_NAME] task finished")
+
+
+@shared_task(ignore_result=True)
+def refresh_apm_app_state_snapshot():
+    all_data_status = {}
+    for application in Application.objects.filter(is_enabled=True).values(
+        "application_id",
+        "bk_biz_id",
+        "app_name",
+        "app_alias",
+        "trace_data_status",
+        "metric_data_status",
+        "log_data_status",
+        "profiling_data_status",
+    ):
+        data_status = {
+            "bk_biz_id": application["bk_biz_id"],
+            "app_name": application["app_name"],
+            "app_alias": application["app_alias"],
+            TelemetryDataType.TRACE.value: application["trace_data_status"],
+            TelemetryDataType.METRIC.value: application["metric_data_status"],
+            TelemetryDataType.LOG.value: application["log_data_status"],
+            TelemetryDataType.PROFILING.value: application["profiling_data_status"],
+        }
+        all_data_status[application["application_id"]] = data_status
+    key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=(datetime.now() - timedelta(days=1)).strftime("%Y%m%d"))
+    cache.set(key, json.dumps(all_data_status), 7 * 24 * 60 * 60)
+
+
+@shared_task(ignore_result=True)
+def auto_register_apm_builtin_strategy_template():
+    logger.info("[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] task start")
+
+    config_obj, _ = GlobalConfig.objects.get_or_create(key="apm_register_builtin_strategy_template_version")
+    current_map: dict[str, str] = config_obj.value if isinstance(config_obj.value, dict) else {}
+    applied_map: dict[str, str] = {}
+    for app in Application.objects.filter(is_enabled=True):
+        map_key = f"{app.bk_biz_id}-{app.app_name}"
+        current = current_map.get(map_key, "-")
+        try:
+            current_version, current_system_str = current.rsplit("-", 1) if "-" in current else ("", "")
+            current_systems: list[str] = current_system_str.split("|") if current_system_str else []
+            applied_map[map_key] = current
+            registry = BuiltinStrategyTemplateRegistry(app)
+            if not registry.is_need_register(current_version, current_systems):
+                continue
+            registry.register()
+            applied_map[map_key] = (
+                f"{BuiltinStrategyTemplateRegistry.BUILTIN_STRATEGY_TEMPLATE_VERSION}-{'|'.join(registry.systems)}"
+            )
+        except Exception as e:
+            logger.exception(
+                f"[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] apply failed: "
+                f"bk_biz_id={app.bk_biz_id}, app_name={app.app_name}, "
+                f"current={current}, "
+                f"expect_version={BuiltinStrategyTemplateRegistry.BUILTIN_STRATEGY_TEMPLATE_VERSION}, "
+                f"error_info => {e}"
+            )
+
+    config_obj.value = applied_map
+    config_obj.save()
+
+    logger.info("[AUTO_REGISTER_APM_BUILTIN_STRATEGY_TEMPLATE] task finished")
+
+
+@shared_task(ignore_result=True)
+def auto_apply_strategy_template():
+    logger.info("[AUTO_APPLY_STRATEGY_TEMPLATE] task start")
+
+    for application in Application.objects.filter(is_enabled=True).values("bk_biz_id", "app_name"):
+        bk_biz_id: int = application["bk_biz_id"]
+        app_name: str = application["app_name"]
+
+        try:
+            StrategyTemplateHandler.handle_auto_apply(bk_biz_id, app_name)
+        except Exception as e:
+            logger.exception(
+                f"[AUTO_APPLY_STRATEGY_TEMPLATE] auto apply strategy template failed: "
+                f"bk_biz_id={bk_biz_id}, app_name={app_name}, error_info => {e}"
+            )
+
+    logger.info("[AUTO_APPLY_STRATEGY_TEMPLATE] task finished")

@@ -1,0 +1,57 @@
+.email-subscription-main {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+
+  .email-subscription {
+    font-size: 14px;
+    color: #63656e;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    background: #f0f1f5;
+    border-radius: 2px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    &:hover {
+      background: #eaebf0;
+    }
+
+    &:active {
+      background-color: #e1ecff;
+    }
+
+    .is-subscribed {
+      color: #3a84ff;
+    }
+  }
+
+  .dropdown-list {
+    width: 90px;
+    font-size: 12px;
+
+    .item {
+      display: flex;
+      height: 32px;
+      padding-left: 12px;
+      align-items: center;
+      width: 100%;
+      cursor: pointer;
+      color: #4d4f56;
+
+      &:hover {
+        background-color: #f5f7fa;
+      }
+
+      .item-icon {
+        font-size: 13px;
+      }
+
+      .item-title {
+        margin-left: 6px;
+      }
+    }
+  }
+}

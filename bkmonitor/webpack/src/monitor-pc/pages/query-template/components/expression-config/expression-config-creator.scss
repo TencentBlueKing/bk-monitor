@@ -1,0 +1,36 @@
+.template-expression-config-creator-component {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  min-height: 32px;
+
+  .alias-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    margin-right: 3px;
+    color: #3A84FF;
+    background: #F5F7FA;
+
+    .icon-arrow-turn {
+      font-size: 12px;
+    }
+  }
+
+  .expression-config-wrap {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+
+    & > div {
+        margin-bottom: 2px;
+        margin-left: -1px;
+      }
+  }
+
+  .template-expression-creator-component {
+    flex: auto;
+  }
+}

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -208,7 +208,9 @@ export default defineComponent({
           fields: [localField.value],
         },
         {
-          cancelToken: new CancelToken(c => (topKCancelFn = c)),
+          cancelToken: new CancelToken(c => {
+            topKCancelFn = c;
+          }),
         }
       ).catch(() => [{ distinct_count: 0, field: '', list: [] }]);
       if (count !== getStatisticsListCount.value) return;
@@ -240,7 +242,9 @@ export default defineComponent({
           },
         },
         {
-          cancelToken: new CancelToken(c => (topKInfoCancelFn = c)),
+          cancelToken: new CancelToken(c => {
+            topKInfoCancelFn = c;
+          }),
         }
       ).catch(() => []);
       /** 如果是取消接口，不进行后续操作 */
@@ -268,7 +272,9 @@ export default defineComponent({
           },
         },
         {
-          cancelToken: new CancelToken(c => (topKChartCancelFn = c)),
+          cancelToken: new CancelToken(c => {
+            topKChartCancelFn = c;
+          }),
         }
       ).catch(() => ({ series: [] }));
 
@@ -384,7 +390,9 @@ export default defineComponent({
         });
         try {
           downloadFile(data.data, 'txt', data.filename);
-        } catch {}
+        } catch (err) {
+          console.log('err', err);
+        }
       }
     }
 
@@ -562,11 +570,11 @@ export default defineComponent({
                         <span class='value'> {this.statisticsInfo.total_count}</span>
                       </div>
                       <div class='label-item'>
-                        <span class='label'>{this.t('出现行数')}:</span>
+                        <span class='label'>{this.t('非空数据')}:</span>
                         <span class='value'> {this.statisticsInfo.field_count}</span>
                       </div>
                       <div class='label-item'>
-                        <span class='label'>{this.t('日志条数')}:</span>
+                        <span class='label'>{this.t('非空数据占比')}:</span>
                         <span class='value'> {this.statisticsInfo.field_percent}%</span>
                       </div>
                     </div>

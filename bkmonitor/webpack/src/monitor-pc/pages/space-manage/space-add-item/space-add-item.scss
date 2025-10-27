@@ -2,17 +2,69 @@
   border: 1px solid #c4c6cc;
   border-radius: 2px;
 
+  &.checked {
+    .spance-add-header {
+      min-height: 52px; // 
+      border-bottom: 1px solid #c4c6cc;
+      
+      .title-wrap {
+        flex-direction: row;
+        padding-left: 24px;
+        width: 118px;
+
+        .title-icon {
+          font-size: 15px;
+        }
+
+        .title-text {
+          margin-left: 6px;
+        }
+      }
+
+      .header-desc {
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        word-break: break-all;
+      }
+    }
+
+    .item-radio {
+        height: auto;
+        width: auto;
+  
+        .icon-mc-check-fill {
+          font-size: 18px;
+          color: #3a84ff;
+        }
+    }
+  }
+
+  &.disabled {
+    .spance-add-header {
+      cursor: default;
+    }
+    .item-radio {
+      visibility: hidden;
+    }
+  }
+
+  &:hover:not(.checked):not(.disabled) {
+    background-color: #fafbfd;
+
+    .item-radio {
+      border: 1px solid #c4c6cc;
+    }
+  }
+
   .spance-add-header {
     display: flex;
     align-items: center;
     min-height: 84px;
     font-size: 12px;
     padding: 12px 0;
-
-    &:not(.disabled) {
-      cursor: pointer;
-    }
-
+    cursor: pointer;
+    
     .header-desc {
       font-size: 12px;
       color: #979ba5;
@@ -39,44 +91,6 @@
       }
     }
 
-    &.checked {
-      min-height: 52px;
-
-      .title-wrap {
-        flex-direction: row;
-        padding-left: 24px;
-        width: 118px;
-
-        .title-icon {
-          font-size: 15px;
-        }
-
-        .title-text {
-          margin-left: 6px;
-        }
-      }
-
-      .header-desc {
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        overflow: hidden;
-        word-break: break-all;
-      }
-    }
-  }
-
-  &.checked {
-    .spance-add-header {
-      border-bottom: 1px solid #c4c6cc;;
-    }
-  }
-
-  &:hover:not(.checked):not(.disabled) {
-    background-color: #fafbfd;
-
-    .item-radio {
-      border: 1px solid #c4c6cc;
-    }
   }
 
   .item-radio {
@@ -88,24 +102,14 @@
     background: #fff;
     border-radius: 50%;
     cursor: pointer;
-
-    &.checked {
-      height: auto;
-      width: auto;
-
-      .icon-mc-check-fill {
-        font-size: 18px;
-        color: #3a84ff;
-      }
-    }
   }
 
   .spance-add-content {
     background-color: #f5f7fa;
     overflow: hidden;
+  }
 
-    .spance-add-content-mian {
-      padding: 16px 24px;
-    }
+  .spance-add-content-mian {
+    padding: 16px 24px;
   }
 }

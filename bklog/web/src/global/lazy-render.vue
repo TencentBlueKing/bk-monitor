@@ -19,7 +19,7 @@
 <script setup>
   import { ref, computed, onBeforeUnmount } from 'vue';
   import useIntersectionObserver from '@/hooks/use-intersection-observer';
-  import { isElement } from 'lodash';
+  import { isElement } from 'lodash-es';
 
   const props = defineProps({
     delay: {

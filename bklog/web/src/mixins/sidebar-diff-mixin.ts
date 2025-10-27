@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { deepClone, deepEqual } from '../common/util';
+import { deepEqual } from '../common/util';
 
 export default {
   data() {
@@ -45,9 +45,13 @@ export default {
       deep: true,
       handler(newVal: object) {
         // 已经修改过 或 未初始化formData的值时不对比
-        if (this._isChange_ || !this._isDataInit_) return;
+        if (this._isChange_ || !this._isDataInit_) {
+          return;
+        }
         // 对比是否进行过修改
-        if (!deepEqual(newVal, this._initCloneData_)) this._isChange_ = true;
+        if (!deepEqual(newVal, this._initCloneData_)) {
+          this._isChange_ = true;
+        }
       },
     },
   },
@@ -57,7 +61,7 @@ export default {
      * @returns {Boolean} 是否编辑过
      */
     $isSidebarClosed(): Promise<boolean> {
-      // eslint-disable-next-line @typescript-eslint/no-this-alias
+       
       const _this = this;
       return new Promise(resolve => {
         if (this._isChange_) {
@@ -90,7 +94,7 @@ export default {
     initSidebarFormData(): void {
       // 从计算属性中获取所需要对比的key列表
       this._initCloneData_ = Object.keys(this._watchFormData_).reduce((pre: object, cur: string) => {
-        pre[cur] = deepClone(this[cur]);
+        pre[cur] = structuredClone(this[cur]);
         return pre;
       }, {});
       this._isDataInit_ = true;

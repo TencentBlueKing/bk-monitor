@@ -48,7 +48,7 @@
   //   return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
   // });
   const indexSetName = computed(() => {
-    const indexSetList = store.state.retrieve.indexSetList || [];
+    const indexSetList = store.state.retrieve.flatIndexSetList || [];
     const indexSetId = store.state.indexId;
     const indexSet = indexSetList.find(item => item.index_set_id == indexSetId);
     return indexSet ? indexSet.index_set_name : ''; // 提供一个默认名称或处理
@@ -183,6 +183,7 @@
           await store.dispatch('requestFavoriteList');
           favoriteData.value.group_id = res.data.id;
           window.mainComponent.messageSuccess($t('操作成功'));
+          favoriteGroupSelectRef.value?.close();
         }
       } catch (error) {
       } finally {
@@ -255,6 +256,7 @@
       index_set_ids: [],
       index_set_names: [],
       space_uid: spaceUid.value,
+      pid: store.state.indexItem.pid,
       ...searchParams,
     };
     if (indexSetItem.value.isUnionIndex) {
@@ -313,7 +315,7 @@
     verifyData.value.groupName = '';
     emit('instanceShow',false);
     nextTick(() => {
-      popoverContentRef.value?.clearError();
+      popoverContentRef.value?.clearError?.();
     });
   };
   // popover组件Ref
@@ -338,6 +340,7 @@
     popoverContentRef.value.hideHandler();
   };
   const favoriteNameInputRef = ref(null);
+  const favoriteGroupSelectRef = ref(null);
   const handlePopoverShow = () => {
     // 界面初始化隐藏弹窗样式
     nextTick(() => {
@@ -402,6 +405,7 @@
         <ul class="bk-dropdown-list">
           <li>
             <a
+              v-bk-tooltips="{ disabled: !matchSQLStr, content: $t('当前检索已收藏'), placement: 'left' }"
               :class="matchSQLStr ? 'disabled' : ''"
               href="javascript:;"
               @click.stop="saveCurrentFavorite"
@@ -431,8 +435,8 @@
           form-type="vertical"
         >
           <bk-form-item
-            :property="'name'"
             :label="$t('收藏名称')"
+            :property="'name'"
             required
           >
             <bk-input
@@ -441,15 +445,16 @@
             ></bk-input>
           </bk-form-item>
           <bk-form-item
-            :property="'project'"
             :label="$t('所属分组')"
+            :property="'project'"
           >
             <bk-select
+              ref="favoriteGroupSelectRef"
               ext-cls="add-popover-new-page-container"
               v-model="favoriteData.group_id"
+              :placeholder="$t('未编组')"
               :popover-options="{ appendTo: 'parent' }"
               :search-placeholder="$t('请输入关键字')"
-              :placeholder="$t('未编组')"
               searchable
               @change="handleSelectGroup"
             >
@@ -493,7 +498,6 @@
                         <bk-input
                           v-model="verifyData.groupName"
                           :placeholder="$t('{n}, （长度30个字符）', { n: $t('请输入组名') })"
-                          clearable
                         ></bk-input>
                       </bk-form-item>
                     </bk-form>

@@ -215,7 +215,7 @@ ul.search-items {
           
           > span {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
 
             .match-value-text {
               display: inline-block;
@@ -225,6 +225,7 @@ ul.search-items {
               line-height: 16px;
               text-overflow: ellipsis;
               white-space: nowrap;
+
               &:hover{
                 text-decoration: underline
               }
@@ -235,10 +236,12 @@ ul.search-items {
                 white-space: nowrap;
               }
             }
+
             .delete-line {
-              text-decoration: line-through;
               color: #979ba5;
+              text-decoration: line-through;
             }
+
             .match-value-relation {
               margin: 0 4px;
               font-family: 'Roboto Mono';

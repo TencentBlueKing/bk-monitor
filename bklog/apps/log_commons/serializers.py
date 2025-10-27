@@ -1,7 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from apps.constants import OperateEnum, ViewTypeEnum
+from apps.constants import OperateEnum, ViewTypeEnum, ApiTokenAuthType
 from apps.exceptions import ValidationError
 
 
@@ -81,5 +81,13 @@ class CreateOrUpdateTokenSerializer(serializers.Serializer):
     end_time = serializers.IntegerField(required=False, default=None, label="结束时间")
     data = serializers.DictField(required=False, default={}, label="鉴权参数")
 
+
 class GetShareParamsSerializer(serializers.Serializer):
     token = serializers.CharField(required=True, label="鉴权令牌")
+
+
+class GetApiTokenSerializer(serializers.Serializer):
+    space_uid = serializers.CharField(required=True, label="空间ID")
+    type = serializers.ChoiceField(
+        choices=ApiTokenAuthType.get_choices(), default=ApiTokenAuthType.CODECC.value, required=False, label="令牌类型"
+    )

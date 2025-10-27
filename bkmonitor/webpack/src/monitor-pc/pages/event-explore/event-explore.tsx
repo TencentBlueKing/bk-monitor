@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
  *
@@ -51,6 +51,7 @@ import {
   type ExploreFieldMap,
   type HideFeatures,
   type IFormData,
+  type IDataIdItem,
   ExploreSourceTypeEnum,
 } from './typing';
 
@@ -58,6 +59,7 @@ import type { IWhereItem } from '../../components/retrieval-filter/utils';
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IFavList } from '../data-retrieval/typings';
 import type { IViewOptions } from '../monitor-k8s/typings/book-mark';
+import type { IntervalType } from 'monitor-ui/chart-plugins/plugins/explore-custom-graph/explore-custom-graph';
 
 import './event-explore.scss';
 Component.registerHooks(['beforeRouteEnter', 'beforeRouteLeave']);
@@ -78,6 +80,7 @@ interface IProps {
   commonWhere?: IWhereItem[];
   currentFavorite?: IFavList.favList;
   dataId?: string;
+  dataIdList?: IDataIdItem[];
   dataSourceLabel?: string;
   dataTypeLabel?: string;
   defaultShowResidentBtn?: boolean;
@@ -107,6 +110,7 @@ export default class EventExplore extends tsc<
 
   /** 数据Id */
   @Prop({ default: '' }) dataId;
+  @Prop({ default: () => [] }) dataIdList: IDataIdItem[];
   @Prop({ default: EMode.ui }) filterMode: EMode;
   /** 查询语句 */
   @Prop({ default: '' }) queryString;
@@ -174,6 +178,8 @@ export default class EventExplore extends tsc<
   eventSourcePopoverInstance = null;
   localEventSourceType = [];
   retrievalFilterCandidateValue: RetrievalFilterCandidateValue = null;
+
+  interval: IntervalType  = 'auto';
 
   /** 常驻筛选唯一ID */
   get residentSettingOnlyId() {
@@ -531,6 +537,42 @@ export default class EventExplore extends tsc<
     this.handleWhereChange([]);
   }
 
+  handleIntervalChange(interval: IntervalType) {
+    this.interval = interval;
+  }
+
+  /** 跳转添加告警策略 */
+  handleAddAlertPolicy() {
+    const { data_source_label, data_type_label, group_by, table, where, query_string } = this.queryConfig;
+    const field = this.dataIdList.find(item => item.id === this.dataId)?.metrics[0]?.id || '';
+    const queryConfigs = [
+      {
+        // data_source_label,
+        // data_type_label,
+        // filter_dict: {},
+        // functions: [],
+        group_by,
+        interval: this.interval,
+        // table,
+        where, // 产品确认将普通筛选和常驻筛选一并带入告警策略
+        query_string,
+        metrics: [{ alias: 'a', field: `${data_type_label === 'log' ? field : '__INDEX__'}`, method: 'COUNT' }],
+        metric_id: `${data_source_label}.${data_type_label}.${table}.${data_type_label === 'log' ? field : '__INDEX__'}`, // 和后端确认__INDEX__写死
+      },
+    ];
+    const queryData = {
+      expression: 'a',
+      query_configs: queryConfigs,
+    };
+    const { href } = this.$router.resolve({
+      name: 'strategy-config-add',
+      query: {
+        data: JSON.stringify(queryData),
+      }
+    });
+    window.open(href, '_blank');
+  }
+
   /** 更新queryConfig */
   @Debounce(100)
   updateQueryConfig() {
@@ -645,6 +687,15 @@ export default class EventExplore extends tsc<
               </div>
             )}
 
+            {this.source === APIType.MONITOR && (
+              <div class='btn-alert-policy__wrap'>
+              <div class='btn-alert-policy' onClick={this.handleAddAlertPolicy}>
+                <i class='icon-monitor icon-a-celve' />
+                <span class='btn-alert-policy-text'>{this.$t('添加告警策略')}</span>
+              </div>
+            </div>
+            )}
+
             <EventRetrievalLayout
               ref='eventRetrievalLayout'
               class='content-container'
@@ -681,6 +732,7 @@ export default class EventExplore extends tsc<
                   onSearch={this.updateQueryConfig}
                   onSetRouteParams={this.setRouteParams}
                   onShowEventSourcePopover={this.handleShowEventSourcePopover}
+                  onIntervalChange={this.handleIntervalChange}
                 />
               </div>
             </EventRetrievalLayout>

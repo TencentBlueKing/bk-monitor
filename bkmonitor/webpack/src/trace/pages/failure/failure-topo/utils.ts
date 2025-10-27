@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -25,6 +25,7 @@
  */
 
 import type { IEntity, ITopoNode } from './types';
+import type { ITargetInfo } from 'monitor-ui/chart-plugins/plugins/caller-line-chart/use-custom';
 
 /** 根因节点样式 */
 const rootNodeAttrs = {
@@ -230,3 +231,404 @@ export const getOffset = (root, lines) => {
       return root ? 62 : 54;
   }
 };
+
+/** 不同类型的路由跳转逻辑处理 */
+export const typeToLinkHandle = {
+  BcsService: {
+    title: '容器场景页',
+    path: () => '/k8s-new',
+    beforeJumpVerify: () => true,
+    query: node => {
+      const { namespace, cluster_id, service_name, pod_name } = node.entity?.dimensions || {};
+      const filterBy = {
+        service: service_name ? [service_name] : [],
+        namespace: namespace ? [namespace] : [],
+        pod: pod_name ? [pod_name] : [],
+      };
+      return {
+        groupBy: JSON.stringify(['namespace', 'service']),
+        scene: 'network',
+        sceneId: 'kubernetes',
+        activeTab: 'list',
+        cluster: cluster_id ?? '',
+        filterBy: JSON.stringify(filterBy),
+      };
+    },
+  },
+  BcsWorkload: {
+    title: '容器场景页',
+    path: () => '/k8s-new',
+    beforeJumpVerify: () => true,
+    query: node => {
+      const { namespace, pod_name, cluster_id, workload_name, workload_type } = node.entity?.dimensions || {};
+      const filterBy = {
+        workload: workload_name ? [`${workload_type}:${workload_name}`] : [],
+        namespace: namespace ? [namespace] : [],
+        pod: pod_name ? [pod_name] : [],
+      };
+      return {
+        sceneId: 'kubernetes',
+        groupBy: JSON.stringify(['namespace', 'workload']),
+        activeTab: 'list',
+        cluster: cluster_id ?? '',
+        filterBy: JSON.stringify(filterBy),
+      };
+    },
+  },
+  BcsPod: {
+    title: '容器场景页',
+    path: () => '/k8s-new',
+    beforeJumpVerify: () => true,
+    query: node => {
+      const { namespace, pod_name, cluster_id } = node.entity?.dimensions || {};
+      const filterBy = {
+        namespace: namespace ? [namespace] : [],
+        pod: pod_name ? [pod_name] : [],
+      };
+      return {
+        groupBy: JSON.stringify(['namespace', 'pod']),
+        sceneId: 'kubernetes',
+        activeTab: 'list',
+        cluster: cluster_id ?? '',
+        filterBy: JSON.stringify(filterBy),
+      };
+    },
+  },
+  BkNodeHost: {
+    title: '主机详情页',
+    path: node => `/performance/detail/${node.entity?.dimensions?.bk_host_id}`,
+    beforeJumpVerify: node => !!node.entity?.dimensions?.bk_host_id,
+    query: node => ({
+      'filter-bk_host_id': node.entity?.dimensions?.bk_host_id ?? '',
+      'filter-bk_target_cloud_id': node.entity?.dimensions?.bk_cloud_id ?? '',
+      'filter-bk_target_ip': node.entity?.dimensions?.inner_ip ?? '',
+    }),
+  },
+  APMService: {
+    title: '服务详情页',
+    path: () => '/apm/service/',
+    beforeJumpVerify: node => !!node.entity?.dimensions?.apm_service_name,
+    query: node => ({
+      'filter-app_name': node.entity?.dimensions?.apm_application_name ?? '',
+      'filter-service_name': node.entity?.dimensions?.apm_service_name ?? '',
+    }),
+  },
+  EventExplore: {
+    title: '事件检索页',
+    path: () => '/event-explore',
+    beforeJumpVerify: () => true,
+    query: (data: ITargetInfo, type: string, isClickMore: boolean, isWarningEvent: boolean, endTime: number) => {
+      // 根据事件类型来创建条件配置
+      const baseWhere = [];
+      const dimensions = data.dimensions || {};
+      const fields = type === 'pod' ? ['bcs_cluster_id', 'namespace', 'pod'] : ['bk_cloud_id', 'bk_target_ip'];
+
+      const addCondition = key => {
+        // 只有data中存在对应数据时，才添加条件
+        if (dimensions[key]) {
+          baseWhere.push({
+            key,
+            condition: 'and',
+            value: [dimensions[key]],
+            method: 'eq',
+          });
+        }
+      };
+      for (const field of fields) {
+        addCondition(field);
+      }
+      if (isWarningEvent) {
+        baseWhere.push({ key: 'type', condition: 'and', value: ['Warning'], method: 'eq' });
+      }
+      if (!isClickMore && data.event_name) {
+        baseWhere.push({ key: 'event_name', condition: 'and', value: [data.event_name], method: 'eq' });
+      }
+
+      const queryConfigs: {
+        data_source_label: string;
+        data_type_label: string;
+        filter_dict: object;
+        group_by: any[];
+        query_string: string;
+        result_table_id?: string;
+        where: any[];
+      } = {
+        data_type_label: 'event',
+        data_source_label: 'custom',
+        query_string: '',
+        group_by: [],
+        filter_dict: {},
+        where: baseWhere,
+      };
+      if (data.table) {
+        queryConfigs.result_table_id = data.table;
+      }
+      const targets = [
+        {
+          data: {
+            query_configs: [queryConfigs],
+          },
+        },
+      ];
+      return {
+        filterMode: 'ui',
+        commonWhere: [],
+        showResidentBtn: 'false',
+        from: data.start_time.toString() || 'now-30d',
+        to: endTime.toString() || 'now',
+        targets: encodeURIComponent(JSON.stringify(targets)),
+      };
+    },
+  },
+};
+
+/** 根据类型判断是否可以跳转 */
+export function canJumpByType(node) {
+  const type = node.entity.entity_type;
+  // @ts-ignore
+  if (!(Object.hasOwn(typeToLinkHandle, type) && !!typeToLinkHandle[type])) {
+    return false;
+  }
+  return typeToLinkHandle[type].beforeJumpVerify(node);
+}
+
+/** 跳转事件检索页 */
+export function handleToEventPage(
+  targetInfo: ITargetInfo,
+  type: string,
+  isClickMore = false,
+  isWarningEvent = false,
+  endTime: number
+) {
+  const linkHandleByType = typeToLinkHandle.EventExplore;
+  const query = linkHandleByType?.query(targetInfo, type, isClickMore, isWarningEvent, endTime);
+
+  const queryString = Object.keys(query)
+    .map(key => `${key}=${query[key]}`)
+    .join('&');
+
+  const { origin, pathname } = window.location;
+  const bk_biz_id = targetInfo.dimensions.bk_biz_id;
+
+  // 使用原始 URL 的协议、主机名和路径部分构建新的 URL
+  const baseUrl = bk_biz_id ? `${origin}${pathname}?bizId=${bk_biz_id}` : '';
+  window.open(`${baseUrl}#${linkHandleByType?.path()}?${queryString}`, '_blank');
+}
+
+/** 获取检索结束时间戳 */
+export const handleEndTime = (begin_time, end_time) => {
+  if (!begin_time) {
+    return '';
+  }
+  if (!end_time) {
+    return Math.floor(Date.now() / 1000);
+  }
+  return end_time;
+};
+
+/** 跳转pod页面 */
+export function handleToLink(node, bkzIds, incidentDetailData) {
+  if (!canJumpByType(node)) return;
+
+  const timestamp = new Date().getTime();
+  const linkHandleByType = typeToLinkHandle[node.entity.entity_type];
+  const query = linkHandleByType?.query(node);
+
+  const { begin_time, end_time } = incidentDetailData;
+  const realEndTime = handleEndTime(begin_time, end_time);
+  query.from = (begin_time * 1000).toString();
+  query.to = (realEndTime * 1000).toString();
+
+  const queryString = Object.keys(query)
+    .map(key => `${key}=${query[key]}`)
+    .join('&');
+
+  const { origin, pathname } = window.location;
+  // 使用原始 URL 的协议、主机名和路径部分构建新的 URL
+  const baseUrl = bkzIds[0] ? `${origin}${pathname}?bizId=${bkzIds[0]}` : '';
+  window.open(`${baseUrl}#${linkHandleByType?.path(node)}?${queryString.toString()}`, timestamp.toString());
+}
+
+/**
+ * 生成长度可缩短的二次贝塞尔平行曲线
+ * @param {Array} path - G6路径数组，格式如 [['M', x0, y0], ['Q', cx, cy, x2, y2]]
+ * @param {number} offset - 偏移距离（正数向上，负数向下）
+ * @param {number} [shortenBy=0] - 路径缩短长度（默认0）
+ * @param {number} [segments=50] - 采样点数量
+ * @returns {Array} - 新路径数组（格式与输入相同）
+ */
+export const createParallelCurve = (
+  path: [number[] | string, number[] | string],
+  offset: number,
+  shortenBy = 0,
+  segments = 50
+) => {
+  // 1. 解析控制点
+  const [[, x0, y0], [, cx, cy, x2, y2]] = path;
+  const P0 = { x: x0, y: y0 };
+  const Pc = { x: cx, y: cy };
+  const P2 = { x: x2, y: y2 };
+
+  // 2. 初始化变量
+  const points = []; // 存储偏移点
+  let totalLength = 0; // 原始曲线长度
+  const cumulativeLengths = [0]; // 累计长度数组
+
+  // 3. 采样计算曲线长度和偏移点
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+
+    // 3.1 计算当前点 B(t)
+    const Bt = {
+      x: (1 - t) ** 2 * P0.x + 2 * (1 - t) * t * Pc.x + t ** 2 * P2.x,
+      y: (1 - t) ** 2 * P0.y + 2 * (1 - t) * t * Pc.y + t ** 2 * P2.y,
+    };
+
+    // 3.2 计算切向量 T(t)
+    const Tx = 2 * (1 - t) * (Pc.x - P0.x) + 2 * t * (P2.x - Pc.x);
+    const Ty = 2 * (1 - t) * (Pc.y - P0.y) + 2 * t * (P2.y - Pc.y);
+    const magnitude = Math.sqrt(Tx * Tx + Ty * Ty) || 0.001; // 防除零
+
+    // 3.3 计算法向量并偏移
+    const Nx = -Ty / magnitude;
+    const Ny = Tx / magnitude;
+    const offsetPoint = {
+      x: Bt.x + offset * Nx,
+      y: Bt.y + offset * Ny,
+    };
+    points.push(offsetPoint);
+
+    // 3.4 累计曲线长度（从第二个点开始）
+    if (i > 0) {
+      const dx = points[i].x - points[i - 1].x;
+      const dy = points[i].y - points[i - 1].y;
+      totalLength += Math.sqrt(dx * dx + dy * dy);
+      cumulativeLengths.push(totalLength);
+    }
+  }
+
+  // 4. 计算需保留的采样点数量
+  const targetLength = Math.max(0, totalLength - shortenBy);
+  let validPointCount = segments;
+  for (let i = cumulativeLengths.length - 1; i >= 0; i--) {
+    if (cumulativeLengths[i] <= targetLength) {
+      validPointCount = i + 1; // +1 包含起点
+      break;
+    }
+  }
+
+  // 5. 构建新路径（截断到目标长度）
+  const newPath = [['M', points[0].x, points[0].y]];
+  for (let i = 1; i < validPointCount; i++) {
+    newPath.push(['L', points[i].x, points[i].y]);
+  }
+
+  return newPath;
+};
+/**
+ * 生成两条与原始曲线平行并连接其起点的新曲线
+ * @param {Array} path - G6路径数组，格式如 [['M', x0, y0], ['Q', cx, cy, x2, y2]]
+ * @param {number} offset - 偏移距离（正数向上，负数向下）
+ * @param {number} shortenBy - 路径缩短长度（默认0）
+ * @param {number} segments - 采样点数量
+ * @returns {Object} - 含上下路径及连接路径的新曲线
+ */
+export const createConnectedParallelCurves = (
+  path: [number[] | string, number[] | string],
+  offset: number,
+  shortenBy = 0,
+  segments = 50
+) => {
+  // 上偏移曲线
+  const upperCurve = createParallelCurve(path, offset, shortenBy, segments);
+
+  // 下偏移曲线（负偏移）
+  const lowerCurve = createParallelCurve(path, -offset, shortenBy, segments);
+
+  // 提取上下曲线的起点
+  const upperStartPoint = upperCurve[0].slice(1);
+  const lowerStartPoint = lowerCurve[0].slice(1);
+
+  // 计算用于生成椭圆曲线连接的中间控制点
+  const controlPoint = {
+    x: (upperStartPoint[0] + lowerStartPoint[0]) / 2,
+    y: (upperStartPoint[1] + lowerStartPoint[1]) / 2 + Math.abs(offset), // 提高控制点的垂直位置
+  };
+
+  // 创建椭圆曲线连接线
+  const connectingLine = [
+    ['M', upperStartPoint[0], upperStartPoint[1]],
+    ['Q', controlPoint.x, controlPoint.y, lowerStartPoint[0], lowerStartPoint[1]],
+  ];
+
+  return [upperCurve, lowerCurve, connectingLine];
+};
+
+/**
+ * @description: 在图表数据没有单位或者单位不一致时则不做单位转换 y轴label的转换用此方法做计数简化
+ * @param {number} num
+ * @return {*}
+ */
+export function handleYAxisLabelFormatter(num: number): string {
+  const si = [
+    { value: 1, symbol: '' },
+    { value: 1e3, symbol: 'K' },
+    { value: 1e6, symbol: 'M' },
+    { value: 1e9, symbol: 'G' },
+    { value: 1e12, symbol: 'T' },
+    { value: 1e15, symbol: 'P' },
+    { value: 1e18, symbol: 'E' },
+  ];
+  const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
+  let i: number;
+  for (i = si.length - 1; i > 0; i--) {
+    if (num >= si[i].value) {
+      break;
+    }
+  }
+  return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
+}
+
+/**
+ * 移除数字中不必要的尾随零
+ * 如"5.00" → "5"
+ */
+export function removeTrailingZeros(num) {
+  if (num && num !== '0') {
+    return num
+      .toString()
+      .replace(/(\.\d*?)0+$/, '$1')
+      .replace(/\.$/, '');
+  }
+  return num;
+}
+
+/**
+ * @description: 将数组中的值缩放到指定的范围
+ * @param {number[]} inputArray - 输入的数值数组
+ * @param {number} [minRange=8] - 缩放后的最小值
+ * @param {number} [maxRange=16] - 缩放后最大值
+ * @return {number[]} 缩放后的数值数组
+ */
+export function scaleArrayToRange(inputArray: number[], minRange = 8, maxRange = 16): number[] {
+  if (inputArray.length === 0) {
+    return [];
+  }
+
+  const minInput = Math.min(...inputArray);
+  const maxInput = Math.max(...inputArray);
+  // 处理所有输入值相同的情况
+  if (minInput === maxInput) {
+    return inputArray.map(value => (value < 1 ? 0 : minRange));
+  }
+
+  return inputArray.map(value => {
+    if (value < 1) {
+      return 0;
+    }
+    // 应用线性变换公式缩放值
+    const scaledValue = Math.floor(((value - minInput) / (maxInput - minInput)) * (maxRange - minRange) + minRange);
+    // 确保缩放后的值在 minRange 和 maxRange 之间
+    return Math.max(minRange, Math.min(maxRange, scaledValue));
+  });
+}

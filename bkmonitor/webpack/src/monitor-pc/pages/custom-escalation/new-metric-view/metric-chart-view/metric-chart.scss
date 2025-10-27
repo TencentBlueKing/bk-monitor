@@ -6,12 +6,19 @@
   width: 100%;
   height: 100%;
   background-color: transparent;
-  .chart-title {
-    padding: 7px 12px 0 12px;
+
+  .title-interval {
+    display: none !important;
   }
+
+  .chart-title {
+    padding: 7px 12px 0;
+  }
+
   .title-center {
     margin-right: auto;
   }
+
   .icon-tool-list {
     display: flex;
     align-items: center;
@@ -19,42 +26,50 @@
     min-width: 30px;
     height: 30px;
   }
+
   .menu-list-icon {
-    color: #4d4f56;
-    cursor: pointer;
     width: 20px;
     height: 20px;
-    line-height: 20px;
-    text-align: center;
-    margin-right: 8px;
     margin-top: 3px;
+    margin-right: 8px;
+    line-height: 20px;
+    color: #4d4f56;
+    text-align: center;
+    cursor: pointer;
+
     &:hover {
       background: #f0f1f5;
       border-radius: 2px;
     }
+
     &.disabled {
-      cursor: not-allowed;
       color: #c4c6cc;
+      cursor: not-allowed;
     }
   }
+
   .status-tab-view {
     text-align: center;
+
     .more-status-tab-wrap {
       height: 24px;
+      font-size: 12px;
+      color: #4d4f56;
       background: #f0f1f5;
       border-radius: 3px;
-      color: #4d4f56;
-      font-size: 12px;
+
       .status-tab-item {
         cursor: pointer;
       }
+
       .status-tab-item.active {
         font-weight: 500;
-        box-shadow: 0 0 1px 0 #0000001f;
         border-radius: 2px;
+        box-shadow: 0 0 1px 0 #0000001f;
       }
     }
   }
+
   .new-metric-chart-content {
     display: flex;
     flex: 1;
@@ -62,19 +77,20 @@
     width: 100%;
     height: calc(100% - 46px);
     padding-bottom: 6px;
+
     .metric-chart-legend {
       width: 100%;
       max-height: 28%;
-      margin-top: 12px;
       padding: 0 16px;
+      margin-top: 12px;
       overflow-y: auto;
     }
 
     .chart-instance {
-      height: 100%;
       display: flex;
       flex: 1;
       flex-grow: 2;
+      height: 100%;
 
       .chart-base {
         & > div {
@@ -87,25 +103,29 @@
         max-width: calc(100% - 320px);
       }
     }
+
     .skeleton-loading-chart {
       width: 100%;
       height: 100%;
+
       .skeleton-element {
-        width: 100%;
-        height: 96%;
-        border-radius: 3px;
         display: flex;
         align-items: center;
         justify-content: center;
+        width: 100%;
+        height: 96%;
         margin-top: 10px;
+        border-radius: 3px;
+
         &::after {
           background: linear-gradient(
             90deg,
-            rgba(100, 100, 100, 0.03) 25%,
-            rgba(100, 100, 100, 0.07) 37%,
-            rgba(100, 100, 100, 0.03) 63%
+            rgb(100 100 100 / 3%) 25%,
+            rgb(100 100 100 / 7%) 37%,
+            rgb(100 100 100 / 3%) 63%
           );
         }
+
         .skeleton-icon {
           font-size: 54px;
           font-weight: 900;
@@ -123,45 +143,53 @@
     height: 100%;
   }
 }
+
 .new-metric-chart-tooltips {
-  background-color: rgba(0, 0, 0, 0.8) !important;
+  background-color: rgb(0 0 0 / 80%) !important;
   border: none !important;
+
   .tooltips-content-item {
     font-size: 12px;
     font-weight: normal;
+
     .item-name {
       min-width: 20px;
     }
+
     .item-value {
-      background: none;
       margin-left: 0;
+      background: none;
     }
   }
 }
+
 .metric-dropdown-list-tool {
   .metric-dropdown-item-tool {
     height: 32px;
-    line-height: 32px;
     padding: 0 12px;
+    line-height: 32px;
     color: #4d4f56;
     cursor: pointer;
+
     &:hover {
       background: #f5f7fa;
     }
+
     &.disabled {
-      cursor: not-allowed;
       color: #c4c6cc;
+      cursor: not-allowed;
     }
   }
 }
+
 .drill-down-chart-tab {
   position: absolute;
+  z-index: 1000;
   padding: 9px 12px;
   text-align: center;
-  background: #ffffff;
-  border: 1px solid #dcdee5;
-  box-shadow: 0 2px 6px 0 #0000001a;
-  border-radius: 2px;
   cursor: pointer;
-  z-index: 1000;
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px 0 #0000001a;
 }

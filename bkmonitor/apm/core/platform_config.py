@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -86,37 +86,18 @@ class PlatformConfig(BkCollectorConfig):
                 cluster_mapping[cluster_id] = [0]
 
         for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
-            with tracer.start_as_current_span(
-                f"cluster-id: {cluster_id}", attributes={"bk_biz_ids": cc_bk_biz_ids}
-            ) as s:
-                try:
-                    platform_config_tpl = BkCollectorClusterConfig.platform_config_tpl(cluster_id)
-                    if platform_config_tpl is None:
-                        # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
-                        continue
+            try:
+                platform_config_tpl = BkCollectorClusterConfig.platform_config_tpl(cluster_id)
+                if platform_config_tpl is None:
+                    # 如果集群中不存在 bk-collector 的平台配置模版，则不下发
+                    continue
 
-                    # bk_biz_id = cc_bk_biz_ids[0]
-                    # if len(cc_bk_biz_ids) != 1:
-                    #     logger.warning(
-                    #         f"[post-deploy-bk_collector] cluster_id: {cluster_id} record multiple bk_biz_id!",
-                    #     )
+                platform_config_context = PlatformConfig.get_platform_config(cluster_id)
 
-                    # Step1: 创建默认应用
-                    # default_application = ApplicationHelper.create_default_application(bk_biz_id)
-
-                    # Step2: 往集群的 bk-collector 下发配置
-                    platform_config_context = PlatformConfig.get_platform_config(cluster_id)
-
-                    platform_config = Environment().from_string(platform_config_tpl).render(platform_config_context)
-                    PlatformConfig.deploy_to_k8s(cluster_id, platform_config)
-
-                    # s.add_event("default_application", attributes={"id": default_application.id})
-                    s.add_event("platform_secret", attributes={"name": BkCollectorComp.SECRET_PLATFORM_NAME})
-                    s.set_status(trace.StatusCode.OK)
-                except Exception as e:  # pylint: disable=broad-except
-                    # 仅记录异常
-                    s.record_exception(exception=e)
-                    logger.error(f"refresh platform config to cluster: {cluster_id} failed, error: {e}")
+                platform_config = Environment().from_string(platform_config_tpl).render(platform_config_context)
+                PlatformConfig.deploy_to_k8s(cluster_id, platform_config)
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(f"refresh platform config to cluster: {cluster_id} failed, error: {e}")
 
     @classmethod
     def get_platform_config(cls, bcs_cluster_id=None):
@@ -130,6 +111,9 @@ class PlatformConfig(BkCollectorConfig):
             "license_config": cls.get_license_config(),
             "attribute_config": cls.get_attribute_config(),
         }
+
+        if settings.APM_FIELD_NORMALIZER_ENABLED:
+            plat_config["field_normalizer_config"] = cls.get_field_normalizer_config()
 
         if bcs_cluster_id and bcs_cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             resource_fill_dimensions_config = cls.get_resource_fill_dimensions_config(bcs_cluster_id)
@@ -193,18 +177,19 @@ class PlatformConfig(BkCollectorConfig):
                     {"metric_name": "bk_apm_duration_delta", "type": "delta_duration", "rules": metric_dimension_rules}
                 ],
             },
-            "metric_bk_apm_duration_bucket_config": {
-                "name": "traces_deriver/bucket",
-                "operations": [
-                    {
-                        "metric_name": "bk_apm_duration_bucket",
-                        "type": "bucket",
-                        "rules": metric_dimension_rules,
-                        # todo buckets 交由用户配置 暂时传递默认值
-                        "buckets": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
-                    }
-                ],
-            },
+            # 2025-10-13 临时去掉 bk_apm_duration_bucket 指标，待新方案上线后再放开，预计半年后
+            # "metric_bk_apm_duration_bucket_config": {
+            #     "name": "traces_deriver/bucket",
+            #     "operations": [
+            #         {
+            #             "metric_name": "bk_apm_duration_bucket",
+            #             "type": "bucket",
+            #             "rules": metric_dimension_rules,
+            #             # todo buckets 交由用户配置 暂时传递默认值
+            #             "buckets": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+            #         }
+            #     ],
+            # },
         }
 
     @classmethod
@@ -277,6 +262,19 @@ class PlatformConfig(BkCollectorConfig):
         return {"name": "license_checker/common", **DEFAULT_PLATFORM_LICENSE_CONFIG}
 
     @classmethod
+    def get_field_normalizer_config(cls):
+        """
+        获取字段标准化配置
+        从 FieldNormalizerConfig 表中读取配置
+        """
+        from apm.models.config import FieldNormalizerConfig
+
+        # 将数据库配置转换为所需格式
+        fields = [config.to_json() for config in FieldNormalizerConfig.objects.all()]
+
+        return {"name": "field_normalizer/otel_mapping", "fields": fields}
+
+    @classmethod
     def get_token_checker_config(cls, bcs_cluster_id=None):
         # 需要判断是否有指定密钥，如有，优先级最高
         x_key = getattr(settings, settings.AES_X_KEY_FIELD)
@@ -295,7 +293,7 @@ class PlatformConfig(BkCollectorConfig):
             else settings.BK_DATA_AES_IV,
         }
 
-        if bcs_cluster_id:
+        if bcs_cluster_id and bcs_cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             # 集群内默认上报 APM 应用
             default_app_relation = BcsClusterDefaultApplicationRelation.objects.filter(
                 cluster_id=bcs_cluster_id
@@ -379,6 +377,7 @@ class PlatformConfig(BkCollectorConfig):
                     "timeout": "60s",
                     "interval": cache_interval,
                 },
+                "cache_name": "k8s_cache",
             },
         }
 
@@ -488,15 +487,25 @@ class PlatformConfig(BkCollectorConfig):
 
     @classmethod
     def deploy_to_k8s(cls, cluster_id, platform_config):
+        secret_info_platform = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, "platform") or {}
+        secret_name = secret_info_platform.get("secret_name_tpl")
+        secret_data_key = secret_info_platform.get("secret_data_key_tpl")
+        if not secret_name or not secret_data_key:
+            logger.info("has no secret platform config, please check if your platform config has been initialized")
+            return
+
         gzip_content = gzip.compress(platform_config.encode())
         b64_content = base64.b64encode(gzip_content).decode()
 
         bcs_client = BcsKubeClient(cluster_id)
         namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
+        secret_label_selector = (
+            f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_info_platform.get('secret_extra_label')}"
+        )
         secrets = bcs_client.client_request(
             bcs_client.core_api.list_namespaced_secret,
             namespace=namespace,
-            label_selector=f"component={BkCollectorComp.LABEL_COMPONENT_VALUE},template=false,type={BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG}",
+            label_selector=secret_label_selector,
         )
         if len(secrets.items) > 0:
             # 存在，且与已有的数据不一致，则更新
@@ -504,7 +513,7 @@ class PlatformConfig(BkCollectorConfig):
             need_update = False
             sec = secrets.items[0]
             if isinstance(sec.data, dict):
-                old_content = sec.data.get(BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME, "")
+                old_content = sec.data.get(secret_data_key, "")
                 old_platform_config = gzip.decompress(base64.b64decode(old_content)).decode()
                 if old_platform_config != platform_config:
                     need_update = True
@@ -513,10 +522,10 @@ class PlatformConfig(BkCollectorConfig):
 
             if need_update:
                 logger.info(f"{cluster_id} apm platform config has changed, update it.")
-                sec.data = {BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME: b64_content}
+                sec.data = {secret_data_key: b64_content}
                 bcs_client.client_request(
                     bcs_client.core_api.patch_namespaced_secret,
-                    name=BkCollectorComp.SECRET_PLATFORM_NAME,
+                    name=secret_name,
                     namespace=namespace,
                     body=sec,
                 )
@@ -527,15 +536,11 @@ class PlatformConfig(BkCollectorConfig):
             sec = client.V1Secret(
                 type="Opaque",
                 metadata=client.V1ObjectMeta(
-                    name=BkCollectorComp.SECRET_PLATFORM_NAME,
+                    name=secret_name,
                     namespace=namespace,
-                    labels={
-                        "component": BkCollectorComp.LABEL_COMPONENT_VALUE,
-                        "type": BkCollectorComp.LABEL_TYPE_PLATFORM_CONFIG,
-                        "template": "false",
-                    },
+                    labels=BkCollectorComp.label_selector_to_dict(secret_label_selector),
                 ),
-                data={BkCollectorComp.SECRET_PLATFORM_CONFIG_FILENAME_NAME: b64_content},
+                data={secret_data_key: b64_content},
             )
 
             bcs_client.client_request(

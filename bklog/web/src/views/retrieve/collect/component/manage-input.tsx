@@ -29,7 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { Input } from 'bk-magic-vue';
 
-import { IFavoriteItem } from '../collect-index';
+import type { IFavoriteItem } from '../collect-index';
 
 import './manage-input.scss';
 
@@ -86,7 +86,7 @@ export default class ManageInput extends tsc<IProps> {
             vModel={this.inputStr}
             maxlength={30}
             onBlur={this.blurInput}
-          ></Input>
+          />
         ) : (
           <div class='collect-box'>
             <span
@@ -95,11 +95,11 @@ export default class ManageInput extends tsc<IProps> {
             >
               {this.inputStr}
             </span>
-            {!this.favoriteData.is_active ? (
+            {this.favoriteData.is_active ? undefined : (
               <span v-bk-tooltips={{ content: this.$t('数据源不存在'), placement: 'right' }}>
-                <span class='bk-icon bklog-icon bklog-shixiao'></span>
+                <span class='bk-icon bklog-icon bklog-shixiao' />
               </span>
-            ) : undefined}
+            )}
           </div>
         )}
       </div>

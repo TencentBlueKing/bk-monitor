@@ -1,0 +1,32 @@
+.ai-blueking-icon-container {
+  display: flex;
+  align-items: center;
+
+  .ai-blueking-title {
+    margin-left: 4px;
+    font-size: 12px;
+    color: transparent;
+    background: linear-gradient(to right, #235dfa, #b780ef);
+    background-clip: text;
+  }
+
+  .ai-blueking-icon {
+    display: inline-flex;
+    flex: 0 0 20px;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-left: 4px;
+    object-fit: cover;
+    background-image: url('../../static/img/ai-icon.svg');
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+  }
+
+  &:hover {
+    cursor: pointer;
+    filter: brightness(1.22);
+  }
+}

@@ -48,97 +48,13 @@ export default {
   },
   watch: {
     '$route.query'(val) {
-      const queryObj = JSON.parse(JSON.stringify(val));
+      const queryObj = structuredClone(val);
       if (queryObj.from) {
-        this.$store.commit('updateAsIframe', queryObj.from);
         this.$store.commit('updateIframeQuery', queryObj);
       }
     },
   },
   methods: {
-    async requestMySpaceList() {
-      try {
-        // const res = await this.$http.request('space/getMySpaceList');
-        const queryObj = JSON.parse(JSON.stringify(this.$route.query));
-        if (queryObj.from) {
-          this.$store.commit('updateAsIframe', queryObj.from);
-          this.$store.commit('updateIframeQuery', queryObj);
-        }
-
-        const spaceList = this.$store.state.mySpaceList;
-        let isHaveViewBusiness = false;
-
-        spaceList.forEach(item => {
-          item.bk_biz_id = `${item.bk_biz_id}`;
-          item.space_uid = `${item.space_uid}`;
-          item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
-          item.permission.view_business_v2 && (isHaveViewBusiness = true);
-        });
-
-        const { bizId, spaceUid } = queryObj;
-        const demoId = String(window.DEMO_BIZ_ID);
-        const demoProject = spaceList.find(item => item.bk_biz_id === demoId);
-        const demoProjectUrl = demoProject ? this.getDemoProjectUrl(demoProject.space_uid) : '';
-        this.$store.commit('setDemoUid', demoProject ? demoProject.space_uid : '');
-        const isOnlyDemo = demoProject && spaceList.length === 1;
-        if (!isHaveViewBusiness || isOnlyDemo) {
-          // 没有一个业务或只有一个demo业务显示欢迎页面
-          const args = {
-            newBusiness: { url: window.BIZ_ACCESS_URL },
-            getAccess: {},
-          };
-          if (isOnlyDemo) {
-            // this.$store.commit('updateMySpaceList', spaceList);
-            if (bizId === demoProject.bk_biz_id || spaceUid === demoProject.space_uid) {
-              // 查询参数指定查看 demo 业务
-              return this.checkSpaceChange(demoProject.space_uid);
-            }
-            args.demoBusiness = {
-              url: demoProjectUrl,
-            };
-          }
-          if (spaceUid || bizId) {
-            // 查询参数带非 demo 业务 id，获取业务名和权限链接
-            const query = spaceUid ? { space_uid: spaceUid } : { bk_biz_id: bizId };
-            const [betaRes, authRes] = await Promise.all([
-              this.$http.request('/meta/getMaintainerApi', { query }),
-              this.$store.dispatch('getApplyData', {
-                action_ids: [authorityMap.VIEW_BUSINESS],
-                resources: [], // todo 需要将 url query 改成 bizId
-              }),
-            ]);
-            args.getAccess.businessName = betaRes.data.bk_biz_name;
-            args.getAccess.url = authRes.data.apply_url;
-          } else {
-            const authRes = await this.$store.dispatch('getApplyData', {
-              action_ids: [authorityMap.VIEW_BUSINESS],
-              resources: [],
-            });
-            args.getAccess.url = authRes.data.apply_url;
-          }
-          this.$store.commit('setPageLoading', false);
-          this.checkSpaceChange();
-          this.$emit('welcome', args);
-        } else {
-          // 正常业务
-          // this.$store.commit('updateMySpaceList', spaceList);
-          // 首先从查询参数找，然后从storage里面找，还找不到就返回第一个不是demo的业务
-
-          const firstRealSpaceUid = spaceList.find(item => item.bk_biz_id !== demoId).space_uid;
-          if (spaceUid || bizId) {
-            const matchProject = spaceList.find(item => item.space_uid === spaceUid || item.bk_biz_id === bizId);
-            this.checkSpaceChange(matchProject ? matchProject.space_uid : firstRealSpaceUid);
-          } else {
-            const storageSpaceUid = this.$store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID];
-            const hasSpace = storageSpaceUid ? spaceList.some(item => item.space_uid === storageSpaceUid) : false;
-            this.checkSpaceChange(hasSpace ? storageSpaceUid : firstRealSpaceUid);
-          }
-        }
-      } catch (e) {
-        console.warn(e);
-        this.$store.commit('setPageLoading', false);
-      }
-    },
     getDemoProjectUrl(id) {
       let siteUrl = window.SITE_URL;
       if (!siteUrl.startsWith('/')) siteUrl = `/${siteUrl}`;
@@ -147,7 +63,7 @@ export default {
     },
     checkSpaceChange(spaceUid = '') {
       if (!this.isFirstLoad && this.$route.meta.needBack) {
-        this.$store.commit('updateRouterLeaveTip', true);
+        this.$store.commit('updateState', { showRouterLeaveTip: true });
 
         this.$bkInfo({
           title: this.$t('是否放弃本次操作？'),
@@ -155,7 +71,7 @@ export default {
             this.spaceChange(spaceUid);
           },
           cancelFn: () => {
-            this.$store.commit('updateRouterLeaveTip', false);
+            this.$store.commit('updateState', { showRouterLeaveTip: false });
           },
         });
         return;
@@ -228,7 +144,7 @@ export default {
           list.push('manage');
         }
       });
-      this.$store.commit('updateExternalMenu', list);
+      this.$store.commit('updateState', { externalMenu: list });
     },
     async setRouter(spaceUid) {
       if (this.isExternal) {
@@ -268,7 +184,7 @@ export default {
               menuList.find(item => {
                 return matchedList.some(record => record.name === item.id);
               }) || {};
-            this.$store.commit('updateActiveTopMenu', activeTopMenu);
+            this.$store.commit('updateState', { activeTopMenu: activeTopMenu });
 
             const topMenuList = activeTopMenu.children?.length ? activeTopMenu.children : [];
             const topMenuChildren = topMenuList.reduce((pre, cur) => {
@@ -281,14 +197,14 @@ export default {
               topMenuChildren.find(item => {
                 return matchedList.some(record => record.name === item.id);
               }) || {};
-            this.$store.commit('updateActiveManageNav', activeManageNav);
+            this.$store.commit('updateState', { activeManageNav: activeManageNav });
 
             const activeManageSubNav = activeManageNav.children
               ? activeManageNav.children.find(item => {
                   return matchedList.some(record => record.name === item.id);
                 })
               : {};
-            this.$store.commit('updateActiveManageSubNav', activeManageSubNav);
+            this.$store.commit('updateState', { activeManageSubNav: activeManageSubNav });
           },
           {
             immediate: true,
@@ -322,7 +238,7 @@ export default {
             delete newQuery.bizId;
           }
           if (params.indexId) delete params.indexId;
-          this.$store.commit('setPageLoading', true);
+          this.$store.commit('updateState', { pageLoading: true });
           this.$router.push({
             name: RoutingHop,
             params: {
@@ -332,9 +248,9 @@ export default {
           });
         }
         setTimeout(() => {
-          this.$store.commit('setPageLoading', false);
+          this.$store.commit('updateState', { pageLoading: false });
           this.isFirstLoad = false;
-          this.$store.commit('updateRouterLeaveTip', false);
+          this.$store.commit('updateState', { showRouterLeaveTip: false });
         }, 0);
       }
     },

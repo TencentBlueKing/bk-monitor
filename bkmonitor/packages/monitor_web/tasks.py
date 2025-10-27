@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -33,8 +33,7 @@ from django.forms import model_to_dict
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 
-from bkm_space.api import SpaceApi
-from bkm_space.define import Space, SpaceTypeEnum
+from bk_dataview.api import get_or_create_org, get_or_create_user
 from bkmonitor.aiops.alert.maintainer import AIOpsStrategyMaintainer
 from bkmonitor.dataflow.constant import (
     FLINK_KEY_WORDS,
@@ -59,13 +58,17 @@ from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerialize
 from bkmonitor.utils.common_utils import to_bk_data_rt_id
 from bkmonitor.utils.sql import sql_format_params
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
-from bkmonitor.utils.user import get_global_user, set_local_username
+from bkmonitor.utils.user import (
+    get_admin_username,
+    get_global_user,
+    get_user_display_name,
+    set_local_username,
+)
 from constants.aiops import SCENE_NAME_MAPPING
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.dataflow import ConsumingMode
 from core.drf_resource import api, resource
-from core.errors.api import BKAPIError
 from core.errors.bkmonitor.dataflow import DataFlowNotExists
 from core.prometheus import metrics
 from fta_web.tasks import run_init_builtin_action_config
@@ -127,9 +130,18 @@ def active_business(username: str, space_info: dict[str, Any]):
 
 
 @shared_task(ignore_result=True)
-def run_init_builtin(bk_biz_id):
+def run_init_builtin(bk_biz_id: int, username: str | None = None):
     if bk_biz_id and settings.ENVIRONMENT != "development":
         logger.info("[run_init_builtin] enter with bk_biz_id -> %s", bk_biz_id)
+
+        # 初始化Grafana组织和用户
+        try:
+            get_or_create_org(str(bk_biz_id))
+            if username:
+                get_or_create_user(username=username, display_name=get_user_display_name(username))
+        except Exception as e:
+            logger.exception("[run_init_builtin] failed to create org: bk_biz_id -> %s, error -> %s", bk_biz_id, e)
+
         # 创建默认内置策略
         run_build_in(int(bk_biz_id))
 
@@ -181,6 +193,7 @@ def update_metric_list():
     from monitor.models import GlobalConfig
 
     now_timestamp = arrow.get(datetime.datetime.now()).timestamp
+    # 遍历所有租户id
     for tenant in api.bk_login.list_tenant():
         bk_tenant_id = tenant["id"]
         last_timestamp_key = (
@@ -218,6 +231,7 @@ def update_metric_list():
         )
 
         # 刷新指定租户的指标列表结果表
+        set_local_username(get_admin_username(bk_tenant_id=bk_tenant_id))
         _update_metric_list(bk_tenant_id, period, offset)
 
         # 更新此轮分发任务时间戳
@@ -226,7 +240,7 @@ def update_metric_list():
 
 def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
     """
-    刷新指定租户的指标列表结果表
+    定时刷新指定租户的指标列表结果表
 
     Args:
         bk_tenant_id (str): 租户ID，用于区分不同的租户环境
@@ -248,8 +262,10 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
     from monitor_web.strategies.metric_list_cache import SOURCE_TYPE
 
     def update_metric(_source_type: str, bk_biz_id: int | None = None):
+        """执行具体的指标列表更新操作"""
         try:
-            SOURCE_TYPE[_source_type](bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).run(delay=True)
+            m_class = SOURCE_TYPE[_source_type]
+            m_class(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).run(delay=True)
         except BaseException as e:
             logger.exception(
                 "Failed to update metric list(%s) for (%s)",
@@ -257,63 +273,33 @@ def _update_metric_list(bk_tenant_id: str, period: int, offset: int):
                 e,
             )
 
-    set_local_username(settings.COMMON_USERNAME)
-
-    # 指标缓存类型: 全业务、单业务、业务0
-    source_type_use_biz = ["BKDATA", "LOGTIMESERIES", "BKMONITORALERT"]
-    source_type_all_biz = ["BASEALARM", "BKMONITORLOG"]
-    source_type_add_biz_0 = ["BKMONITOR", "CUSTOMEVENT", "CUSTOMTIMESERIES", "BKFTAALERT", "BKMONITORK8S"]
-    # 非业务空间不需要执行
-    source_type_gt_0 = ["BKDATA"]
-    # 不再全局周期任务重执行，引导用户通过主动刷新进行触发
-    extr_source_type_gt_0 = ["LOGTIMESERIES", "BKFTAALERT", "BKMONITORALERT", "BKMONITOR"]
-    # 非web请求， 允许使用 list_spaces
-    businesses: list[Space] = SpaceApi.list_spaces(bk_tenant_id=bk_tenant_id)
-    # 计算每轮任务更新业务数
-    biz_num = math.ceil(len(businesses) / period)
-    biz_count = 0
-
     # 记录任务开始时间
     start = time.time()
     logger.info(f"^update metric list(round {offset})")
 
-    # 第一轮进行全业务和0业务更新
-    if offset == 0:
-        biz_count += 1
-        for source_type in source_type_all_biz:
-            update_metric(source_type)
-        for source_type in source_type_add_biz_0:
-            update_metric(source_type, 0)
+    # 根据数据源类型分别处理有效业务ID
+    for source_type, manager_class in SOURCE_TYPE.items():
+        # 获取有效的业务ID列表
+        try:
+            available_biz_ids = manager_class.get_available_biz_ids(bk_tenant_id)
+        except Exception as e:
+            logger.exception("Failed to get or process available biz IDs for source type(%s): %s", source_type, e)
+            available_biz_ids = []
 
-    # 记录有容器集群的cmdb业务列表
-    k8s_biz_set = set()
-    for biz in businesses[offset * biz_num : (offset + 1) * biz_num]:
-        biz_count += 1
-        for source_type in source_type_use_biz + source_type_add_biz_0:
-            # 非容器平台项目，不需要缓存容器指标：
-            if not biz.space_code and source_type == "BKMONITORK8S":
-                continue
-            else:
-                # 记录容器平台项目空间关联的业务id
-                try:
-                    k8s_biz: Space = SpaceApi.get_related_space(biz.space_uid, SpaceTypeEnum.BKCC.value)
-                    if k8s_biz:
-                        k8s_biz_set.add(k8s_biz.bk_biz_id)
-                except BKAPIError:
-                    pass
-            # 部分环境可用禁用数据平台指标缓存
-            if not settings.ENABLE_BKDATA_METRIC_CACHE and source_type == "BKDATA":
-                continue
-            # 数据平台指标缓存仅支持更新大于0业务
-            if source_type in (source_type_gt_0 + extr_source_type_gt_0) and biz.bk_biz_id <= 0:
-                continue
-            update_metric(source_type, biz.bk_biz_id)
+        # 分页处理
+        total_biz_count = len(available_biz_ids)
+        if total_biz_count == 0:
+            continue
+        # 对获取到的biz列表进行分页处理
+        biz_per_round = math.ceil(total_biz_count / period)
+        biz_ids_for_current_round = available_biz_ids[offset * biz_per_round : (offset + 1) * biz_per_round]
 
-    # 关联容器平台的业务，批量跑容器指标
-    for k8s_biz_id in k8s_biz_set:
-        update_metric("BKMONITORK8S", k8s_biz_id)
+        logger.info(f"update metric list({source_type}) round {offset} by biz({biz_ids_for_current_round})")
+        for biz_id in biz_ids_for_current_round:
+            # 更新指标缓存
+            update_metric(source_type, biz_id)
 
-    logger.info(f"$update metric list(round {offset}), biz count: {biz_count}, cost: {time.time() - start}")
+    logger.info(f"$update metric list(round {offset}), cost: {time.time() - start}")
 
 
 @shared_task(queue="celery_resource")
@@ -443,14 +429,14 @@ def soft_delete_expired_shields():
     """
     软删除失效且创建时间在1个月前的屏蔽记录
     """
-    from django.utils import timezone
-    from bkmonitor.models import Shield
     from datetime import timedelta
 
+    from django.utils import timezone
+
+    from bkmonitor.models import Shield
+
     one_month_ago = timezone.now() - timedelta(days=30)
-    updated_count = Shield.objects.filter(create_time__lte=one_month_ago, failure_time__lte=timezone.now()).update(
-        is_enabled=False, is_deleted=True
-    )
+    updated_count = Shield.objects.filter(failure_time__lte=one_month_ago).update(is_enabled=False, is_deleted=True)
 
     if updated_count:
         logger.info(f"Soft deleted {updated_count} expired shield records")
@@ -472,6 +458,7 @@ def import_config(
     collect_config_list,
     strategy_config_list,
     view_config_list,
+    folder_id: int = 0,
     is_overwrite_mode=False,
 ):
     """
@@ -497,7 +484,7 @@ def import_config(
 
     import_collect(bk_biz_id, history_instance, collect_config_list)
     import_strategy(bk_biz_id, history_instance, strategy_config_list, is_overwrite_mode)
-    import_view(bk_biz_id, view_config_list, is_overwrite_mode)
+    import_view(bk_biz_id, view_config_list, folder_id, is_overwrite_mode)
     if (
         ImportDetail.objects.filter(history_id=history_instance.id, import_status=ImportDetailStatus.IMPORTING).count()
         == 0
@@ -513,9 +500,31 @@ def remove_file(file_path):
     :param file_path:
     :return:
     """
-    shutil.rmtree(file_path)
+    if os.path.exists(file_path):
+        shutil.rmtree(file_path)
+
     if settings.USE_CEPH:
-        default_storage.delete(file_path.replace(settings.MEDIA_ROOT, ""))
+        path = file_path.replace(settings.MEDIA_ROOT, "")
+        if default_storage.exists(path):
+            # 先删除目录下的文件
+            files = default_storage.listdir(path)[1]
+            for package in files:
+                full_path = os.path.join(path, package)
+                default_storage.delete(full_path)
+            default_storage.delete(path)
+
+
+def clean_ceph_tmp_file():
+    # 清理ceph临时导出文件
+    tmp = default_storage.listdir("/export_import/tmp/")[0]
+    for package_dir in tmp:
+        path = f"/export_import/tmp/{package_dir}/"
+        files = default_storage.listdir(path)[1]
+        for package in files:
+            default_storage.delete(f"{path}{package}")
+            print(f"delete {path}{package}")
+        print(f"delete {path}")
+        default_storage.delete(path)
 
 
 @shared_task(ignore_result=True)

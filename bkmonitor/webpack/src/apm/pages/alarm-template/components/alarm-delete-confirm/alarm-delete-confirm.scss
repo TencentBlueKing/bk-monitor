@@ -1,0 +1,44 @@
+.alarm-delete-confirm-tip {
+  width: 280px;
+  padding: 16px;
+  font-size: 12px;
+  line-height: 20px;
+
+  .tip-title {
+    margin-bottom: 16px;
+    font-size: 16px;
+    line-height: 24px;
+    color: #313238;
+  }
+
+  .tip-confirm-info {
+    color: #4d4f56;
+
+    .tip-confirm-info-item {
+      display: flex;
+
+      .info-item-label {
+        display: inline-block;
+        flex-shrink: 0;
+        margin-right: 4px;
+      }
+
+      .info-item-value {
+        color: #313238;
+        word-break: break-all;
+      }
+    }
+  }
+
+  .tip-description {
+    margin-top: 4px;
+    color: #4d4f56;
+  }
+
+  .tip-operation {
+    display: flex;
+    column-gap: 8px;
+    justify-content: flex-end;
+    margin-top: 18px;
+  }
+}

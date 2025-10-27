@@ -55,7 +55,7 @@
             <bk-table-column
               :render-header="renderHeaderFieldName"
               :resizable="true"
-              width="220"
+              width="250"
             >
               <template #default="props">
                 <div
@@ -90,7 +90,7 @@
                       :class="getFieldEditDisabled(props.row)?'participle-icon-color':''"
                     >
                       <i
-                      style ='color: #3A84FF;margin: 0 10px;'
+                      style ='margin: 0 10px;color: #3A84FF;'
                       class="bk-icon bklog-icon bklog-yingshe"
                     ></i>
                     </div>
@@ -127,46 +127,12 @@
                 </bk-form-item>
               </template>
             </bk-table-column>
-            <!-- 别名 -->
-            <bk-table-column
-              :render-header="renderHeaderAliasName"
-              :resizable="true"
-              width="140"
-            >
-              <template #default="props">
-                <div
-                  v-if="(!props.row.is_edit && isPreviewMode) || tableType === 'originLog' || props.row.field_type === 'object'"
-                  class="overflow-tips"
-                  v-bk-overflow-tips
-                >
-                  <span>{{ props.row.query_alias }}</span>
-                </div>
-                <bk-form-item
-                  v-else
-                  :class="{ 'is-required is-error': props.row.aliasErr }"
-                >
-                  <bk-input
-                    v-model.trim="props.row.query_alias"
-                    :disabled="props.row.is_delete || isSetDisabled "
-                    @blur="checkQueryAliasItem(props.row)"
-                  >
-                  </bk-input>
-                  <template v-if="props.row.aliasErr">
-                    <i
-                      style="right: 8px"
-                      class="bk-icon icon-exclamation-circle-shape tooltips-icon"
-                      v-bk-tooltips.top="props.row.aliasErr"
-                    ></i>
-                  </template>
-                </bk-form-item>
-              </template>
-            </bk-table-column>
             <!-- 类型 -->
             <bk-table-column
               :render-header="renderHeaderDataType"
               :resizable="true"
               align="center"
-              width="100"
+              width="160"
             >
               <template #default="props">
                 <div
@@ -358,7 +324,6 @@
 </template>
 <script>
   import { mapGetters } from 'vuex';
-  import { cloneDeep } from 'lodash';
   export default {
     name: 'SettingTable',
     props: {
@@ -544,7 +509,7 @@
     methods: {
       reset() {
         let arr = [];
-        const copyFields = cloneDeep(this.fields); // option指向地址bug
+        const copyFields = structuredClone(this.fields); // option指向地址bug
         const errTemp = {
           fieldErr: '',
           typeErr: false,
@@ -589,7 +554,7 @@
         this.$emit('reset');
       },
       batchAddField() {
-        const indexSetList = this.$store.state.retrieve.indexSetList;
+        const indexSetList = this.$store.state.retrieve.flatIndexSetList;
         const indexSetId = this.$route.params?.indexId;
         const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` == indexSetId);
 
@@ -701,7 +666,7 @@
         return value && value !== ' ' ? isNaN(value) : true;
       },
       getData() {
-        const data = cloneDeep(this.changeTableList);
+        const data = structuredClone(this.changeTableList);
 
         data.forEach(item => {
           if (item.hasOwnProperty('fieldErr')) {
@@ -718,7 +683,7 @@
         return data;
       },
       getAllData() {
-        const data = cloneDeep(this.tableAllList);
+        const data = structuredClone(this.tableAllList);
         data.forEach(field => {
           if (field.hasOwnProperty('expand')) {
             if (field.expand === false) {
@@ -870,67 +835,12 @@
           }
         });
       },
-      checkQueryAliasItem(row) {
-        const { field_name: fieldName, query_alias: queryAlias, alias_name: aliasName, is_delete: isDelete } = row;
-        if (isDelete) {
-          return true;
-        }
-        this.$set(row, 'aliasErr', '');
-        if (queryAlias) {
-          // 设置了别名
-          if (!/^(?!^\d)[\w]+$/gi.test(queryAlias)) {
-            row.aliasErr = this.$t('别名只支持【英文、数字、下划线】，并且不能以数字开头');
-            return false;
-          }else if (queryAlias === fieldName) {
-            row.aliasErr = this.$t('别名与字段名重复');
-            return false;
-          }else if (queryAlias === aliasName) {
-            row.aliasErr = this.$t('别名与重命名重复');
-            return false;
-          }
-          if (this.globalsData.field_built_in.find(item => item.id === queryAlias.toLocaleLowerCase())) {
-            row.aliasErr = this.$t('别名不能与内置字段名相同');
-            return false;
-          }
-        } else if (this.globalsData.field_built_in.find(item => item.id === fieldName.toLocaleLowerCase())) {
-          if(row.alias_name || row.is_built_in){
-            row.aliasErr = '';
-            return true
-          }
-          row.aliasErr = this.$t('字段名与内置字段冲突，必须设置别名');
-          return false;
-        }
-        row.aliasErr = '';
-        return true;
-      },
-      checkQueryAlias() {
-        return new Promise((resolve, reject) => {
-          try {
-            let result = true;
-            const data = this.getAllData();
-            data.forEach(row => {
-              if (!this.checkQueryAliasItem(row)) {
-                result = false;
-              }
-            });
 
-            if (result) {
-              resolve();
-            } else {
-              console.warn('QueryAlias校验错误');
-              reject(result);
-            }
-          } catch (err) {
-            console.warn('QueryAlias校验错误');
-            reject(err);
-          }
-        });
-      },
+
       validateFieldTable() {
         const promises = [];
         promises.push(this.checkAliasName());
         promises.push(this.checkFieldName());
-        promises.push(this.checkQueryAlias());
         promises.push(this.checkType());
         return promises;
       },
@@ -950,30 +860,6 @@
             class: 'render-header',
           },
           [h('span', { directives: [{ name: 'bk-overflow-tips' }], class: 'title-overflow' }, [this.$t('字段名')])],
-        );
-      },
-      renderHeaderAliasName(h) {
-        return h(
-          'div',
-          {
-            directives: [
-              {
-                name: 'bk-tooltips',
-                value: this.$t('填写后原字段名和别名均可查询'),
-              },
-            ],
-            class: 'render-header decoration-header-cell',
-          },
-          [
-            h(
-              'span',
-              {
-                class: 'title-overflow',
-              },
-              [this.$t('别名')],
-            ),
-            h('span', this.$t('(选填)')),
-          ],
         );
       },
       renderHeaderDataType(h) {
@@ -1062,7 +948,7 @@
         }
       },
       addObject(){
-        const fieldsObjectData = cloneDeep(this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.')))
+        const fieldsObjectData = structuredClone(this.$store.state.indexFieldInfo.fields.filter(item => item.field_name.includes('.')))
         fieldsObjectData.forEach(item => {
           let name = item.field_name?.split('.')[0].replace(/^_+|_+$/g, '');
           item.is_objectKey = true
@@ -1133,9 +1019,7 @@
         .cell {
           display: contents;
           height: 100%;
-
-          /* stylelint-disable-next-line declaration-no-important */
-          padding: 0 !important;
+          padding: 0;
 
           .tooltips-icon {
             top: 24px;
@@ -1144,46 +1028,55 @@
           .overflow-tips {
             padding: 10px 15px;
           }
+
           .field-name-overflow-tips{
             .ext-btn{
-              cursor: pointer;
-              font-size: 18px;
               position: absolute;
               left: 0;
+              font-size: 18px;
+              cursor: pointer;
             }
+
             .bklog-subnode{
               font-size: 16px;
             }
+
             .rotate{
               transform: rotate(-90deg);
             }
+
             .field-name{
                 margin: 15px 10px 15px 15px;
             }
+
             .field-name-box{
               display: flex;
-              height: 100%;
               align-items: center;
+              height: 100%;
+
               .alias-name{
-                padding-left: 15px;
-                width: 50%
+                width: 50%;
+                padding-left: 15px
               }
+
               .participle-icon{
-                font-size: 18px;
-                left: 40%;
-                width: 10%;
                 position: absolute;
-                z-index: 999
+                left: 40%;
+                z-index: 999;
+                width: 10%;
+                font-size: 18px
               }
+
               .participle-icon-color{
-                background-color: rgb(250, 251, 253) !important;
+                background-color: rgb(250, 251, 253);
               }
+
               .tooltips-icon{
                 position: absolute;
                 z-index: 10;
+                font-size: 16px;
                 color: #ea3636;
                 cursor: pointer;
-                font-size: 16px;
               }
             }
           }
@@ -1197,8 +1090,7 @@
 
       :deep(.participle-disabled-input) {
         .bk-form-input[disabled] {
-          /* stylelint-disable-next-line declaration-no-important */
-          border-color: transparent !important;
+          border-color: transparent;
         }
       }
 
@@ -1344,8 +1236,7 @@
   }
 
   .header {
-    /* stylelint-disable-next-line declaration-no-important */
-    white-space: normal !important;
+    white-space: normal;
   }
 
   .participle-form {

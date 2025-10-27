@@ -130,7 +130,11 @@ class RegexTemplateViewSet(ModelViewSet):
         """
         data = self.params_valid(CreateRegexTemplateSerializer)
         return Response(
-            RegexTemplateHandler().create_template(space_uid=data["space_uid"], template_name=data["template_name"])
+            RegexTemplateHandler().create_template(
+                space_uid=data["space_uid"],
+                template_name=data["template_name"],
+                predefined_varibles=data.get("predefined_varibles"),
+            )
         )
 
     def partial_update(self, request, *args, id=None, **kwargs):
@@ -149,13 +153,20 @@ class RegexTemplateViewSet(ModelViewSet):
             "data": {
                 "id': 6,
                 "space_uid": "bkcc__2",
-                "template_name": "aaa"
+                "template_name": "aaa",
+                "pipeline_ids": ["xx"]
             },
             "result": true
         }
         """
         data = self.params_valid(UpdateRegexTemplateSerializer)
-        return Response(RegexTemplateHandler().update_template(template_id=id, template_name=data["template_name"]))
+        return Response(
+            RegexTemplateHandler().update_template(
+                template_id=id,
+                template_name=data.get("template_name"),
+                predefined_varibles=data.get("predefined_varibles"),
+            )
+        )
 
     def destroy(self, request, *args, id=None, **kwargs):
         """

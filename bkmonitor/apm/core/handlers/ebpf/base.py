@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
-Copyright (C) 2022 THL A29 Limited,
+Copyright (C) 2017-2025 Tencent,
 a Tencent company. All rights reserved.
 Licensed under the MIT License (the "License");
 you may not use this file except in compliance with the License.
@@ -15,12 +14,14 @@ specific language governing permissions and limitations under the License.
 We undertake not to change the open source license (MIT license) applicable
 to the current version of the project delivered to anyone in the future.
 """
+
 import logging
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apm.models import ApmApplication, EbpfApplicationConfig
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import resource
 
 logger = logging.getLogger(__name__)
@@ -40,9 +41,9 @@ class EbpfHandler:
         return f"__{bk_biz_id}_ebpf_app"
 
     @classmethod
-    def get_default_cluster(cls):
+    def get_default_cluster(cls, bk_tenant_id: str):
         # 从集群列表获取默认集群
-        clusters = resource.metadata.query_cluster_info(cluster_type=cls.CLUSTER_TYPE)
+        clusters = resource.metadata.query_cluster_info(bk_tenant_id=bk_tenant_id, cluster_type=cls.CLUSTER_TYPE)
         return next(
             (
                 i.get("cluster_config").get("cluster_id")
@@ -62,7 +63,7 @@ class EbpfHandler:
         es_storage_cluster = cls.DEFAULT_ES_STORAGE_CLUSTER
         if not es_storage_cluster or es_storage_cluster == -1:
             # 默认集群从集群列表中选择
-            default_cluster = cls.get_default_cluster()
+            default_cluster = cls.get_default_cluster(bk_biz_id_to_bk_tenant_id(bk_biz_id))
             if default_cluster:
                 es_storage_cluster = default_cluster
 

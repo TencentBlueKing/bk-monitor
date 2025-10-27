@@ -1,0 +1,19 @@
+paths:
+  /user/metadata/list_spaces/by_user/:
+    get:
+      operationId: metadata_list_spaces_by_user
+      description: 获取用户空间列表
+      x-bk-apigateway-resource:
+        isPublic: true
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/list_spaces/by_user/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: list_spaces_by_user

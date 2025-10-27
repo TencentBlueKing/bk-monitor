@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -163,7 +163,7 @@ def test_notify_es_data_link_adapt_nano(create_or_delete_records):
             "is_disabled": False,
             "option": {
                 "default_function": "fn:timestamp_from_utctime",
-                "es_format": "strict_date_optional_time_nanos||epoch_millis",
+                "es_format": "epoch_millis",
                 "es_type": "date",
                 "field_index": "1",
                 "real_path": "bk_separator_object.log_time",
@@ -184,7 +184,7 @@ def test_notify_es_data_link_adapt_nano(create_or_delete_records):
             "is_disabled": False,
             "option": {
                 "default_function": "fn:timestamp_from_utctime",
-                "es_format": "strict_date_optional_time_nanos||epoch_millis",
+                "es_format": "strict_date_optional_time_nanos",
                 "es_type": "date_nanos",
                 "field_index": "1",
                 "real_path": "bk_separator_object.log_time",

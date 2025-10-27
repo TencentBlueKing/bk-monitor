@@ -23,16 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, Ref, onBeforeUnmount } from 'vue';
+import { onMounted, type Ref, onBeforeUnmount } from 'vue';
 
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 export default (target: Ref<HTMLElement>, callbackFn, options?) => {
   const debounceCallback = debounce(() => {
     callbackFn?.();
   }, 120);
 
-  let resizeObserver = null;
+  let resizeObserver: MutationObserver | null = null;
   const createResizeObserve = () => {
     const cellElement = target?.value;
 

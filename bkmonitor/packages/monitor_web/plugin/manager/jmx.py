@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import os
 
@@ -54,7 +52,7 @@ class JMXPluginManager(PluginManager):
             plugin_params["port"] = collector_params["port"]
         else:
             plugin_params["port"] = "{{ control_info.listen_port }}"
-            collector_params["port"] = "{{ step_data.%s.control_info.listen_port }}" % self.plugin.plugin_id
+            collector_params["port"] = f"{{{{ step_data.{self.plugin.plugin_id}.control_info.listen_port }}}}"
         plugin_params["host"] = collector_params["host"]
         collector_params["metric_url"] = "{}:{}".format(collector_params["host"], collector_params["port"])
         diff_metrics = plugin_version.config.diff_fields
@@ -84,13 +82,14 @@ class JMXPluginManager(PluginManager):
         file_name = "config.yaml.tpl"
         config_yaml_path = ""
         for filename in self.filename_list:
-            if os.path.basename(filename) == file_name:
-                config_yaml_path = os.path.join(self.tmp_path, filename)
+            if os.path.basename(str(filename)) == file_name:
+                config_yaml_path = filename
                 break
-        if not config_yaml_path:
-            raise PluginParseError({"msg": _("无法获取JMX对应的配置文件")})
 
-        content = self._read_file(config_yaml_path)
+        if not config_yaml_path:
+            raise PluginParseError({"msg": _(f"无法获取JMX对应的配置文件'{file_name}'")})
+
+        content = self._decode_file(self.plugin_configs[config_yaml_path])
         jmx_collector_json = {
             "config_yaml": content,
         }

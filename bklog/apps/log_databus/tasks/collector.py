@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 
 import datetime
 import time
+import re
 import traceback
 from collections import defaultdict
 
@@ -29,6 +30,7 @@ from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
 from django.conf import settings
 from django.utils.translation import gettext as _
+from django.db import transaction
 
 from apps.api import BkLogApi, TransferApi
 from apps.api.modules.bkdata_databus import BkDataDatabusApi
@@ -41,6 +43,7 @@ from apps.log_databus.constants import (
     WAIT_FOR_RETRY,
     CollectItsmStatus,
     ContainerCollectStatus,
+    BATCH_SYNC_CLUSTER_COUNT,
 )
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.etl import EtlHandler
@@ -124,19 +127,19 @@ def sync_storage_capacity():
     每小时同步业务各集群已用容量
     :return:
     """
-
-    # 1、获取已有采集项业务
-    business_list = CollectorConfig.objects.all().values("bk_biz_id").distinct()
-
-    # 2、获取所有集群
+    # 1、获取所有集群
     params = {"cluster_type": STORAGE_CLUSTER_TYPE}
     cluster_obj = TransferApi.get_cluster_info(params)
 
+    # 2、构建集群业务映射
     from apps.log_search.models import LogIndexSet
 
     cluster_biz_cnt_map = defaultdict(lambda: defaultdict(int))
     for index_set in LogIndexSet.objects.all():
         cluster_biz_cnt_map[index_set.storage_cluster_id][index_set.space_uid] += 1
+
+    # 批量收集所有需要创建或更新的 StorageUsed 对象
+    storage_used_objects = []
 
     for _cluster in cluster_obj:
         try:
@@ -144,41 +147,48 @@ def sync_storage_capacity():
 
             index_count = count_storage_indices(_cluster["cluster_config"]["cluster_id"])
 
-            StorageUsed.objects.update_or_create(
+            # 按集群归纳的 StorageUsed 对象
+            cluster_storage_obj = StorageUsed(
                 bk_biz_id=0,
                 storage_cluster_id=_cluster["cluster_config"]["cluster_id"],
-                defaults={
-                    "storage_used": 0,
-                    "storage_total": total,
-                    "storage_usage": usage,
-                    "index_count": index_count,
-                    "biz_count": len(cluster_biz_cnt_map.get(_cluster["cluster_config"]["cluster_id"], {}).keys()),
-                },
+                storage_total=total,
+                storage_usage=usage,
+                index_count=index_count,
+                biz_count=len(cluster_biz_cnt_map.get(_cluster["cluster_config"]["cluster_id"], {}).keys()),
             )
+            storage_used_objects.append(cluster_storage_obj)
 
             # 2-1公共集群：所有业务都需要查询
             if _cluster["cluster_config"].get("registered_system") == REGISTERED_SYSTEM_DEFAULT:
-                for _business in business_list:
-                    storage_used = get_biz_storage_capacity(_business["bk_biz_id"], _cluster)
-
-                    StorageUsed.objects.update_or_create(
-                        bk_biz_id=_business["bk_biz_id"],
+                # 一次性获取该集群下所有业务的存储容量
+                all_biz_storage = get_all_biz_storage_capacity(_cluster)
+                for biz_id, storage_used in all_biz_storage.items():
+                    biz_storage_obj = StorageUsed(
+                        bk_biz_id=biz_id,
                         storage_cluster_id=_cluster["cluster_config"]["cluster_id"],
-                        defaults={"storage_used": storage_used},
+                        storage_used=storage_used,
                     )
+                    storage_used_objects.append(biz_storage_obj)
             # 2-2第三方集群：只需查询指定业务
             else:
                 bk_biz_id = _cluster["cluster_config"].get("custom_option", {}).get("bk_biz_id")
-                if not bk_biz_id:
-                    continue
-                storage_used = get_biz_storage_capacity(bk_biz_id, _cluster)
-                StorageUsed.objects.update_or_create(
-                    bk_biz_id=bk_biz_id,
-                    storage_cluster_id=_cluster["cluster_config"]["cluster_id"],
-                    defaults={"storage_used": storage_used},
-                )
+                if bk_biz_id:
+                    storage_used = get_biz_storage_capacity(bk_biz_id, _cluster)
+                    biz_storage_obj = StorageUsed(
+                        bk_biz_id=bk_biz_id,
+                        storage_cluster_id=_cluster["cluster_config"]["cluster_id"],
+                        storage_used=storage_used,
+                    )
+                    storage_used_objects.append(biz_storage_obj)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"sync_storage_info error: {e}")
+
+    # 进行批量处理
+    if storage_used_objects:
+        try:
+            batch_upsert_storage_used(storage_used_objects)
+        except Exception as e:
+            logger.exception(f"批量处理storage_used记录失败: {e}")
 
 
 def query(cluster_id):
@@ -212,33 +222,114 @@ def count_storage_indices(cluster_id):
     return len(indices) if indices else 0
 
 
-def get_biz_storage_capacity(bk_biz_id, cluster):
-    # 集群信息
+def _get_cluster_connection_info(cluster):
+    """
+    提取集群连接信息的公共逻辑
+    :param cluster: 集群信息
+    :return: (domain_name, port, username, password)
+    """
     cluster_config = cluster["cluster_config"]
     domain_name = cluster_config["domain_name"]
     port = cluster_config["port"]
     auth_info = cluster.get("auth_info", {})
     username = auth_info.get("username")
     password = auth_info.get("password")
-    index_format = f"{bk_biz_id}_bklog_*"
+    return domain_name, port, username, password
 
-    # 索引信息
+
+def _get_indices_info(cluster, index_format):
+    """
+    获取索引信息的公共逻辑
+    :param cluster: 集群信息
+    :param index_format: 索引格式
+    :return: 索引信息列表
+    """
+    # 获取集群连接信息
+    domain_name, port, username, password = _get_cluster_connection_info(cluster)
+
+    # 获取索引信息并过滤掉关闭状态的索引
     try:
         indices_info = ElasticHandle(domain_name, port, username, password).get_indices_cat(
             index=index_format, bytes="mb", column=["index", "store.size", "status"]
         )
+        return [index_info for index_info in indices_info if index_info["status"] != "close"]
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(f"集群[{domain_name}] 索引cat信息获取失败，错误信息：{e}")
-        return 0
+        raise
 
-    # 汇总容量
+
+def get_biz_storage_capacity(bk_biz_id, cluster):
+    """
+    获取指定业务的存储容量
+    :param bk_biz_id: 业务ID
+    :param cluster: 集群信息
+    :return: 存储容量（GB）
+    """
+    index_format = f"{bk_biz_id}_bklog_*"
+    active_indices = _get_indices_info(cluster, index_format)
+
+    # 累加存储容量
     total_size = 0
-    for _info in indices_info:
-        if _info["status"] == "close":
-            continue
+    for _info in active_indices:
         total_size += int(_info["store.size"])
-
     return round(total_size / 1024, 2)
+
+
+def get_all_biz_storage_capacity(cluster):
+    """
+    获取集群下所有业务的存储容量
+    :param cluster: 集群信息
+    :return: 字典格式 {biz_id: storage_size}
+    """
+    index_format = "*_bklog_*"
+    active_indices = _get_indices_info(cluster, index_format)
+
+    # 按业务ID分组累加存储容量
+    biz_storage_map = defaultdict(int)
+    for index_info in active_indices:
+        index_name = index_info["index"]
+
+        # 尝试解析biz_id，如果解析失败说明不是有效的bklog索引
+        biz_id = parse_index_to_biz_id(index_name)
+        if biz_id is None:
+            continue
+        # 处理存储大小转换
+        store_size = int(index_info["store.size"])
+        # 累加存储容量
+        biz_storage_map[biz_id] += store_size
+
+    # 转换为GB并保留两位小数
+    result = {}
+    for biz_id, total_size in biz_storage_map.items():
+        result[biz_id] = round(total_size / 1024, 2)
+
+    return result
+
+
+def parse_index_to_biz_id(index_name):
+    """
+    解析索引名称获取biz_id
+    :param index_name: 完整的索引名称
+    :return: biz_id 或 None
+    """
+    # 定义所有支持的索引格式模式
+    patterns = [
+        r"^v2_(\d+)_bklog_.*$",  # v2_x_bklog_* 格式
+        r"^v2_space_(\d+)_bklog_.*$",  # v2_space_x_bklog_* 格式
+    ]
+
+    # 尝试每个模式
+    for pattern in patterns:
+        match = re.match(pattern, index_name)
+        if match:
+            if "v2_space_" in pattern:
+                # 对于空间ID，取负数才是真正的业务ID
+                space_id = int(match.group(1))
+                biz_id = -space_id
+            else:
+                biz_id = int(match.group(1))
+            return biz_id
+    return None
 
 
 @high_priority_task(ignore_result=True)
@@ -415,49 +506,6 @@ def update_collector_storage_config(storage_cluster_id):
 
 
 @high_priority_task(ignore_result=True)
-def update_alias_settings(collector_config_id, alias_settings):
-    """
-    更新别名配置
-    """
-    try:
-        handler = CollectorHandler.get_instance(collector_config_id)
-        collect_config = handler.retrieve()
-        clean_stash = handler.get_clean_stash()
-
-        etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]
-        etl_fields = (
-            clean_stash["etl_fields"]
-            if clean_stash
-            else [field for field in collect_config["fields"] if not field["is_built_in"]]
-        )
-
-        etl_params = {
-            "table_id": handler.data.collector_config_name_en,
-            "storage_cluster_id": collect_config["storage_cluster_id"],
-            "retention": collect_config["retention"],
-            "allocation_min_days": collect_config["allocation_min_days"],
-            "storage_replies": collect_config["storage_replies"],
-            "es_shards": collect_config["storage_shards_nums"],
-            "etl_params": etl_params,
-            "etl_config": collect_config["etl_config"],
-            "fields": etl_fields,
-            "alias_settings": alias_settings,
-        }
-        etl_handler = EtlHandler.get_instance(collector_config_id)
-        etl_handler.update_or_create(**etl_params)
-        logger.info(
-            "[update_alias_settings] executed successfully, collector_config_id->%s",
-            collector_config_id,
-        )
-    except Exception as e:  # pylint: disable=broad-except
-        logger.exception(
-            "[update_alias_settings] executed failed, collector_config_id->%s, reason: %s",
-            collector_config_id,
-            e,
-        )
-
-
-@high_priority_task(ignore_result=True)
 def modify_result_table(params):
     """
     更新结果表
@@ -474,3 +522,54 @@ def modify_result_table(params):
             params["table_id"],
             e,
         )
+
+
+def batch_upsert_storage_used(storage_used_objects):
+    """
+    批量处理 StorageUsed 对象的创建和更新
+    """
+    if not storage_used_objects:
+        raise ValueError("没有StorageUsed需要处理")
+
+    total_count = len(storage_used_objects)
+
+    # 查询现有数据
+    existing_objects = StorageUsed.objects.filter(
+        bk_biz_id__in=set([obj.bk_biz_id for obj in storage_used_objects]),
+        storage_cluster_id__in=set([obj.storage_cluster_id for obj in storage_used_objects]),
+    )
+    existing_map = {(obj.bk_biz_id, obj.storage_cluster_id): obj for obj in existing_objects}
+
+    # 分类处理：需要创建的和需要更新的
+    to_create = []
+    to_update = []
+
+    for obj in storage_used_objects:
+        key = (obj.bk_biz_id, obj.storage_cluster_id)
+        if key in existing_map:
+            # 更新现有对象
+            existing_obj = existing_map[key]
+            existing_obj.storage_used = obj.storage_used
+            existing_obj.storage_total = obj.storage_total
+            existing_obj.storage_usage = obj.storage_usage
+            existing_obj.index_count = obj.index_count
+            existing_obj.biz_count = obj.biz_count
+            to_update.append(existing_obj)
+        else:
+            # 创建新对象
+            to_create.append(obj)
+
+    # 使用事务进行批量操作
+    with transaction.atomic():
+        # 批量创建
+        if to_create:
+            StorageUsed.objects.bulk_create(to_create, batch_size=BATCH_SYNC_CLUSTER_COUNT)
+
+        # 批量更新
+        if to_update:
+            StorageUsed.objects.bulk_update(
+                to_update,
+                ["storage_used", "storage_total", "storage_usage", "index_count", "biz_count"],
+                batch_size=BATCH_SYNC_CLUSTER_COUNT,
+            )
+    logger.info(f"批量处理完成，共处理 {total_count} 条记录（创建: {len(to_create)}, 更新: {len(to_update)}）")

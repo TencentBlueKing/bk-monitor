@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -66,6 +66,8 @@ export default {
   '确认删除该视图？': 'Confirm Delete This View?',
   '视图名称：': 'View Name:',
   '删除后，不可恢复，请谨慎操作！': 'After deletion, recovery is not possible. Please be cautious!',
+  '删除后不可恢复，请谨慎操作。': 'After deletion, recovery is not possible. Please be cautious.',
+  '删除后，不可恢复，请确认。': 'After deletion, recovery is not possible. Please confirm.',
   视图名称重复: 'View Name Duplicate',
   维度管理: 'Dimension Management',
   没有选择任务指标: 'No Task Metrics Selected',

@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -73,11 +72,11 @@ class Command(BaseCommand):
 
         bk_biz_id = options.get("bk_biz_id")
         if not bk_biz_id:
-            bk_biz_id = api.cmdb.get_blueking_biz()
+            bk_biz_id = settings.DEFAULT_BK_BIZ_ID
 
         node_man_version = options.get("node_man_version")
 
-        message = "Start to deply plugin({}@{}) to target_hosts({})".format(plugin_name, plugin_version, target_hosts)
+        message = f"Start to deply plugin({plugin_name}@{plugin_version}) to target_hosts({target_hosts})"
         self.stdout.write(message)
 
         if node_man_version == "2.0":
@@ -103,10 +102,10 @@ class Command(BaseCommand):
             )
             try:
                 result = api.node_man.plugin_operate(**params)
-                message = "update plugin success with result({}), Please see detail in bk_nodeman SaaS".format(result)
+                message = f"update plugin success with result({result}), Please see detail in bk_nodeman SaaS"
                 self.stdout.write(message)
             except Exception as e:  # noqa
-                raise Exception("update plugin error:{}, params:{}".format(e, params))
+                raise Exception(f"update plugin error:{e}, params:{params}")
 
     def deploy_1_3(self, bk_biz_id, plugin_name, plugin_version, target_hosts):
         print("deploy with nodeman1.3")
@@ -126,7 +125,7 @@ class Command(BaseCommand):
                     package_info = p
             control_info = api.node_man.get_control_info(process_name=plugin_name, plugin_package_id=package_info["id"])
         except Exception as e:  # noqa
-            self.stderr.write("deploy plugin({}) error, Can not get plugin info from bk_nodeman".format(plugin_name))
+            self.stderr.write(f"deploy plugin({plugin_name}) error, Can not get plugin info from bk_nodeman")
             return
 
         self.deploy_with_nodeman_1_3(bk_biz_id, plugin_info, package_info, control_info, target_hosts)
@@ -149,11 +148,11 @@ class Command(BaseCommand):
         }
         try:
             result = api.node_man.tasks(params)
-            message = "update plugin success with result({}), Please see detail in bk_nodeman SaaS".format(result)
+            message = f"update plugin success with result({result}), Please see detail in bk_nodeman SaaS"
             self.stdout.write(message)
 
         except Exception as e:  # noqa
-            raise Exception("update plugin error:{}, params:{}".format(e, params))
+            raise Exception(f"update plugin error:{e}, params:{params}")
 
     def update_to_global_config(self, plugin_name, target_hosts):
         plugin_name_global_config_key = {
@@ -167,5 +166,5 @@ class Command(BaseCommand):
         qs = GlobalConfig.objects.filter(key=plugin_name_global_config_key)
         if qs.exists():
             old_hosts = qs.first().value
-            print("Old Proxy({}) will be replace with New Proxy({})".format(old_hosts, target_hosts))
+            print(f"Old Proxy({old_hosts}) will be replace with New Proxy({target_hosts})")
         qs.update(value=target_hosts)

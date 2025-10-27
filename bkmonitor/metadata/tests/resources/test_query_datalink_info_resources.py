@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -137,7 +137,7 @@ def test_query_data_ids_by_biz_id(create_or_delete_records):
     """
     测试查询业务关联的数据源信息
     """
-    actual_data = QueryDataIdsByBizIdResource().request(bk_biz_id=1001)
+    actual_data = QueryDataIdsByBizIdResource().request(bk_tenant_id="system", bk_biz_id=1001)
     expected_data = [
         {
             "bk_data_id": 50010,

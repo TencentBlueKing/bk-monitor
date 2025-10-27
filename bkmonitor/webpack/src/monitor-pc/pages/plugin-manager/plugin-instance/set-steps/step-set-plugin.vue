@@ -2,7 +2,7 @@
 * Tencent is pleased to support the open source community by making
 * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
 *
-* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* Copyright (C) 2017-2025 Tencent.  All rights reserved.
 *
 * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
 *
@@ -479,6 +479,7 @@ import { pluginRegister } from 'monitor-api/modules/plugin';
 import Editor from 'monitor-ui/markdown-editor/editor.tsx';
 import { mapActions, mapGetters } from 'vuex';
 
+import { getBkUserDisplayNameInstance, getUserComponentConfig } from '../../../../common/user-display-name';
 import PollingLoading from '../../../../components/polling-loading/polling-loading';
 import VerifyInput from '../../../../components/verify-input/verify-input.vue';
 import documentLinkMixin from '../../../../mixins/documentLinkMixin';
@@ -1143,8 +1144,16 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       });
       if (result) {
         this.backFillData(result);
+        const displayNameConfig = getUserComponentConfig();
+        let updateUserDisplayName = result.update_user;
+        if (updateUserDisplayName && displayNameConfig.apiBaseUrl && displayNameConfig.tenantId) {
+          updateUserDisplayName = await getBkUserDisplayNameInstance()
+            .getMultipleUsersDisplayName([updateUserDisplayName])
+            .then(v => v || updateUserDisplayName)
+            .catch(() => updateUserDisplayName);
+        }
         const msg = `${this.$t('上次变更，版本号')}${result.config_version}.${result.info_version},
-                        ${this.$t('最近更新人')}:${result.update_user},${this.$t('修改时间')}:${result.update_time}`;
+                        ${this.$t('最近更新人')}:${updateUserDisplayName},${this.$t('修改时间')}:${result.update_time}`;
         this.$bus.$emit('showmsg', msg);
       }
       this.resetScroll();
@@ -1807,7 +1816,7 @@ ${this.$t('采集器将定期访问 http://127.0.0.1/server-status 以获取Apac
       margin-right: 24px;
       text-align: right;
 
-      &.item-required:after {
+      &.item-required::after {
         position: absolute;
         top: 3px;
         right: -10px;

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -69,8 +69,6 @@ export default class ExploreCollapseWrapper extends tsc<ExploreCollapseWrapperPr
     return {
       // 容器头部高度（也是折叠状态下需要显示的高度）
       '--header-height': `${this.collapseShowHeight}px`,
-      // 容器头部区域垂直内边距
-      '--header-intersect-padding': '7px',
       // 容器整体高度
       '--container-height': this.containerHeightForStyle,
     };

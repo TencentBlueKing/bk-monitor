@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+/** biome-ignore-all lint/suspicious/noTemplateCurlyInString: reason */
 
 export default {
   '正则匹配：': 'Regex matching:',
@@ -98,7 +99,7 @@ export default {
   设置显示字段: 'Set display fields',
   暂未进行检索: 'No search yet',
   优化查询语句: 'Optimize query statements',
-  仅查看新类: 'Just view new class strategy',
+  '仅查看新类 Pattern': 'Just view new class strategy',
   批量使用告警: 'Batch use alerts',
   批量停用告警: 'Batch disable alerts',
   查询显示字段: 'Query display fields',
@@ -503,7 +504,7 @@ export default {
     'The maximum length of the clustering field. if it exceeds this length, it will be directly discarded. the larger the setting, the more resources it will consume.',
   填写后原字段名和别名均可查询:
     'The original field name and the alias can both be used for querying after being populated.',
-  '只能基于一个字段进行聚类，并且字段是为text的分词类型，默认为log字段':
+  '只能基于 1 个字段进行聚类，并且字段是为text的分词类型，默认为log字段':
     "Clustering can only be based on one field, and the field must be of text tokenization type, defaulting to 'log' field",
   ' - 日志内容：[2006-01-02 15:04:05] content': ' - Log content: [2006-01-02 15:04:05] content',
   '容量计算公式：单机日志增量主机数量存储转化率分片数（日志保留天数 + 1）':
@@ -1039,7 +1040,7 @@ export default {
   '“常驻筛选”面板被折叠，过滤条件已填充到上方搜索框。':
     '"Permanent filtering" panel is collapsed, filter conditions are filled in the search box above.',
   '请导入正确的JSON格式文件~': 'Please import the correct JSON format file~',
-  '前往 "索引配置" 批量修改别名': 'Go to "Index Configuration" to modify the alias in batches',
+  '前往 "批量编辑别名" 批量修改别名': 'Go to "Batch Edit Aliases" to modify the alias in batches',
   '勾选后，基于聚类结果为责任人创建关键字告警。持续监测您的异常问题。通过开关可控制告警策略启停。':
     'After checking, create a keyword alert for the responsible person based on the clustering result. Continue to monitor your abnormal problems. The alert strategy can be started and stopped through the switch.',
   '删除失败，开启告警时，需要至少一个责任人':
@@ -1090,10 +1091,58 @@ export default {
   '请输入 索引集、采集项 搜索': 'Please enter index set, collection item to search',
   '如果CMDB的元数据无法满足您的需求，可以自行定义匹配想要的结果':
     'If the metadata of CMDB cannot meet your needs, you can define it yourself to match the results you want',
-  '自定义标签key与元数据key重复': 'Custom tag key and metadata key conflict',
+  自定义标签key与元数据key重复: 'Custom tag key and metadata key conflict',
   '指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段':
     'This configuration takes effect after specifying the parsing field. Logs will be color-categorized by up to six fields.',
   '综合时间排序,是基于：dtEventTimeStamp、gesIndex、iterationIndex 3个字段的排序结果':
     'Comprehensive time sorting is based on the sorting results of the following 3 fields: dtEventTimeStamp, gesIndex, iterationIndex',
   object字段不支持编辑别名: 'object fields do not support editing aliases',
+  收藏项移动成功: 'Collection item moved successfully',
+  '解散后，该分组下的收藏项将统一挪动至[未分组]，请谨慎操作！':
+    'Dismissed, the collection items under this group will be moved to [ungrouped] uniformly. Please operate carefully.',
+  '确认解散该分组？': 'Confirm to dissolve this group?',
+  '删除后，无法恢复，请谨慎操作。': 'After deletion, it cannot be recovered. Please operate carefully.',
+  '确认删除该收藏项？': 'Confirm to delete this favorite item?',
+  '表示近一段时间内新增日志模式，可自定义判定的时间区间，如：近 30 天内新增': 'Indicates that a new log pattern has been added in the recent period. The time interval for determination can be customized, such as: Newly added in the past 30 days',
+  '如需根据某些维度拆分聚类结果，可将字段设置为维度；维度拆分是比较 {0} 的，根据拆分结果填写责任人和备注，较少改动（临时分组需求请使用“{1}”功能）':
+    'If you need to split the clustering results according to certain dimensions, you can set the field as the dimension; dimension splitting is relatively {0}, fill in the responsible person and remarks according to the split results, and make fewer changes (please use the "{1}" function for temporary grouping needs)',
+  '满足临时的分组需求，刷新不会保存（如需固化下来，请使用“{0}”功能)': '',
+  '只展示新类 Pattern': 'Only show the new class Pattern',
+  当前日志查询时间范围不支持静态区间: 'The current log query time range does not support static intervals',
+  '搜索 占位符': 'Search placeholder',
+  '只能基于 1 个字段进行聚类，并且字段是为 text 的分词类型，默认为 log 字段': 'Clustering can only be performed based on one field, and the field must be of the text type. The default is the log field.',
+  '配置有调整，请重新预览': 'The configuration has been adjusted, please preview again',
+  '请先完成预览，才可提交': 'Please complete the preview before submitting',
+  '确认与模板解绑？': 'Confirm to unbind from template?',
+  '与模板解除绑定后，不再跟随模板变更': 'After unbinding from the template, it will no longer follow the template changes',
+  '相关规则配置将落地到  {0}，可在 {0} 继续调整': 'The relevant rule configuration will be implemented in {0} and can be further adjusted in {0}',
+  '搜索 模板名称': 'Search Template Name',
+  '删除后，使用该模板的 {0} 个 {1} 将与模板 {2}，相关配置转成 {3}': 'After deletion, {0} {1} using this template will be converted to {3} with template {2} and related configurations.',
+  '确认删除该模板？': 'Are you sure you want to delete this template?',
+  '确认删除该规则？': 'Are you sure you want to delete this rule?',
+  '删除操作无法撤回，请谨慎操作！': 'The deletion operation cannot be undone, please proceed with caution!',
+  '共有 {0} 条数据': 'There are {0} records in total',
+  '鼠标左键框选字段，可提取并生成正则表达式。': 'Use the left mouse button to select a field to extract and generate a regular expression.',
+  不能为空: 'Cannot be empty',
+  '配置有变更，请重新点击“预览”': 'The configuration has changed, please click "Preview" again',
+  预览结果如下: 'The preview results are as follows',
+  '预览结果无数据，无法提交': 'The preview result has no data and cannot be submitted.',
+  '任务超时失败，请联系 {0}': 'The task timed out and failed. Please contact {0}',
+  暂无使用该模板的索引集: 'There is currently no index set using this template',
+  当前使用了聚类模板: 'Currently using clustering template',
+  '如需保存当前配置，需要处理聚类模板': 'To save the current configuration, you need to process the cluster template',
+  同步更新模板: 'Synchronous update template',
+  影响其他使用模板的索引集: 'Affects other index sets that use templates',
+  与模板解除绑定: 'Unbind from template',
+  相关配置落地自定义: 'Customized configuration',
+  '最近 1 周日志趋势': 'Log trends for the past week',
+  '最近 10 条日志样例': 'The latest 10 log samples',
+  占位符不允许重复: 'Placeholders cannot be repeated',
+  添加为检索条件: 'Add as search condition',
+  '确认切换配置模式？': 'Confirm to switch configuration mode?',
+  '切换后，已有的相关配置将会丢失，请确认。': 'After switching, the existing related configurations will be lost, please confirm.',
+  确认切换: 'Confirm switch',
+  '聚类正则已生效，请前往 {0} 修改': 'Clustering regularization has taken effect, please go to {0} to modify',
+  原始日志检索结果: 'Original log retrieval results',
+  '可切换原始日志，查看该日志的上下文': 'You can switch to the original log to view the context of the log',
 };

@@ -4,28 +4,22 @@ from .data_link_configs import (  # noqa
     DataBusConfig,
     DataIdConfig,
     DataLinkResourceConfigBase,
-    VMResultTableConfig,
+    ResultTableConfig,
     VMStorageBindingConfig,
     LogResultTableConfig,
     ESStorageBindingConfig,
     LogDataBusConfig,
 )
-from .resource import DataLinkResource, DataLinkResourceConfig  # noqa
 
 __all__ = [
-    "DataLinkResource",
-    "DataLinkResourceConfig",
     "DataLinkResourceConfigBase",
     "DataLink",
     "DataIdConfig",
     "DataBusConfig",
-    "VMResultTableConfig",
+    "ResultTableConfig",
     "VMStorageBindingConfig",
     "ConditionalSinkConfig",
     "LogResultTableConfig",
     "ESStorageBindingConfig",
     "LogDataBusConfig",
 ]
-
-
-# TODO：BkBase多租户改造

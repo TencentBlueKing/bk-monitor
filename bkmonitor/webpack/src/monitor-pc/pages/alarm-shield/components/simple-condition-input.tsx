@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -28,7 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getVariableValue } from 'monitor-api/modules/grafana';
 
-import { CONDITION, NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../../../constant/constant';
+import { CONDITION, NEW_NUMBER_CONDITION_METHOD_LIST, NEW_STRING_CONDITION_METHOD_LIST } from '../../../constant/constant';
 import SelectMenu from '../../strategy-config/strategy-config-set-new/components/select-menu';
 import SimpleSelectInput from './simple-select-input';
 
@@ -167,12 +167,12 @@ export default class SimpleConditionInput extends tsc<IProps, IEvents> {
    */
   handleGetMethodList(type: 'number' | 'string') {
     if (type === 'number') {
-      return NUMBER_CONDITION_METHOD_LIST;
+      return NEW_NUMBER_CONDITION_METHOD_LIST;
     }
-    return STRING_CONDITION_METHOD_LIST;
+    return NEW_STRING_CONDITION_METHOD_LIST;
   }
   handleGetMethodNameById(id: string) {
-    return NUMBER_CONDITION_METHOD_LIST.find(item => item.id === id)?.name || '';
+    return NEW_NUMBER_CONDITION_METHOD_LIST.find(item => item.id === id)?.name || '';
   }
 
   // 粘贴条件时触发(tag-input)

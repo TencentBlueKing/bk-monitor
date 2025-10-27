@@ -1,0 +1,44 @@
+.basic-info {
+  padding: 16px 0 24px 24px;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px 0 #1919290d;
+
+  .bk-form.basic-info-form {
+    display: flex;
+    flex-wrap: wrap;
+    row-gap: 24px;
+    margin-top: 16px;
+
+    .bk-form-item {
+      padding-right: 24px;
+      margin-top: 0;
+
+      .bk-label {
+        font-size: 12px;
+        color: #4d4f56;
+      }
+    }
+  }
+
+  .bk-tag-input {
+    &.disabled {
+      background-color: #fafbfd;
+      border-color: #dcdee5
+
+    }
+
+    .tag {
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  .w100 {
+    width: 100%;
+  }
+
+  .w50 {
+    width: 50%;
+  }
+}

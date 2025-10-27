@@ -43,8 +43,8 @@ export default () => {
 
   const sort_list = computed(() =>
     store.state.localSort
-      ? store.state.indexItem.sort_list ?? []
-      : store.state.retrieve.catchFieldCustomConfig.sortList ?? [],
+      ? (store.state.indexItem.sort_list ?? [])
+      : (store.state.retrieve.catchFieldCustomConfig.sortList ?? []),
   );
 
   return {

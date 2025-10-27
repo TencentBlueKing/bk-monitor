@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -213,7 +213,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
       },
       this.source,
       {
-        cancelToken: new CancelToken(c => (this.topKInfoCancelFn = c)),
+        cancelToken: new CancelToken(c => {
+          this.topKInfoCancelFn = c;
+        }),
       }
     ).catch(() => {
       return null;
@@ -254,7 +256,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
       },
       this.source,
       {
-        cancelToken: new CancelToken(c => (this.topKChartCancelFn = c)),
+        cancelToken: new CancelToken(c => {
+          this.topKChartCancelFn = c;
+        }),
       }
     ).catch(() => ({ series: [] }));
     const series = data.series || [];
@@ -315,7 +319,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     });
     try {
       downloadFile(data.data, 'txt', data.filename);
-    } catch {}
+    } catch (err) {
+      console.log('err', err);
+    }
   }
 
   async getFieldTopK(params) {
@@ -327,7 +333,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
       },
       this.source,
       {
-        cancelToken: new CancelToken(c => (this.topKCancel = c)),
+        cancelToken: new CancelToken(c => {
+          this.topKCancel = c;
+        }),
       }
     )
       .then(data => data[0] || { distinct_count: 0, field: '', list: [] })
@@ -382,11 +390,11 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             <span class='value'> {this.statisticsInfo.total_count}</span>
           </div>
           <div class='label-item'>
-            <span class='label'>{this.$t('出现行数')}:</span>
+            <span class='label'>{this.$t('非空数据')}:</span>
             <span class='value'> {this.statisticsInfo.field_count}</span>
           </div>
           <div class='label-item'>
-            <span class='label'>{this.$t('日志条数')}:</span>
+            <span class='label'>{this.$t('非空数据占比')}:</span>
             <span class='value'> {this.statisticsInfo.field_percent}%</span>
           </div>
         </div>

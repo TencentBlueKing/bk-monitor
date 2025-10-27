@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -237,7 +237,11 @@ class CollectConfigMeta(OperateRecordModelBase):
         if diff_result["plugin_version"]["is_modified"]:
             # 判断是否需要使用update模式进行插件升级
 
-            if self.bk_biz_id in settings.COLLECTING_UPGRADE_WITH_UPDATE_BIZ:
+            if (
+                0 in settings.COLLECTING_UPGRADE_WITH_UPDATE_BIZ
+                or self.bk_biz_id in settings.COLLECTING_UPGRADE_WITH_UPDATE_BIZ
+            ):
+                # COLLECTING_UPGRADE_WITH_UPDATE_BIZ 配置 [0] 表示所有业务均使用update模式进行采集配置升级
                 return "update"
             return "rebuild"
 

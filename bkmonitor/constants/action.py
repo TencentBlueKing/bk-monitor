@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 
 from django.utils.translation import gettext_lazy as _lazy
@@ -67,11 +67,17 @@ CONVERGE_FUNCTION = {
 }
 
 CONVERGE_FUNCTION_DESCRIPTION = {
-    ConvergeFunction.SKIP_WHEN_SUCCESS: _lazy("触发规则后，如果当前策略存在其他的告警已经处理成功，则跳过当前告警的处理"),
+    ConvergeFunction.SKIP_WHEN_SUCCESS: _lazy(
+        "触发规则后，如果当前策略存在其他的告警已经处理成功，则跳过当前告警的处理"
+    ),
     ConvergeFunction.SKIP_WHEN_PROCEED: _lazy("触发规则后，如果当前策略存在其他正在处理的告警，则跳过当前告警的处理"),
-    ConvergeFunction.WAIT_WHEN_PROCEED: _lazy("触发规则后，如果当前策略存在其他正在处理的告警，则等其他告警处理完成后再继续处理当前告警"),
+    ConvergeFunction.WAIT_WHEN_PROCEED: _lazy(
+        "触发规则后，如果当前策略存在其他正在处理的告警，则等其他告警处理完成后再继续处理当前告警"
+    ),
     ConvergeFunction.SKIP_WHEN_EXCEED: _lazy("触发规则后，超出数量的告警将不进行处理"),
-    ConvergeFunction.DEFENSE: _lazy("触发规则后，对于每个处理动作，都会产生一个审批单据，让负责人审批决定是否需要执行，如同意则继续执行，拒绝或者超时30分钟未审批则直接收敛不处理"),
+    ConvergeFunction.DEFENSE: _lazy(
+        "触发规则后，对于每个处理动作，都会产生一个审批单据，让负责人审批决定是否需要执行，如同意则继续执行，拒绝或者超时30分钟未审批则直接收敛不处理"
+    ),
     ConvergeFunction.COLLECT: _lazy("触发规则后，超出数量的告警将不进行处理，并发送汇总通知"),
 }
 
@@ -366,9 +372,17 @@ VARIABLES = [
             {"name": "alarm.begin_timestamp", "desc": _lazy("告警开始时间戳"), "example": "1970-01-01 00:00:00"},
             {"name": "alarm.duration", "desc": _lazy("告警持续时间(秒)"), "example": "130"},
             {"name": "alarm.duration_string", "desc": _lazy("告警持续时间字符串"), "example": "2m 10s"},
-            {"name": "alarm.description", "desc": _lazy("告警内容"), "example": "AVG(CPU使用率) >= 95.0%, 当前值96.317582%"},
+            {
+                "name": "alarm.description",
+                "desc": _lazy("告警内容"),
+                "example": "AVG(CPU使用率) >= 95.0%, 当前值96.317582%",
+            },
             {"name": "alarm.target_string", "desc": _lazy("告警目标"), "example": "127.0.1.10,127.0.1.11"},
-            {"name": "alarm.dimension_string", "desc": _lazy("告警维度(除目标)"), "example": _lazy("磁盘=C,主机名=xxx")},
+            {
+                "name": "alarm.dimension_string",
+                "desc": _lazy("告警维度(除目标)"),
+                "example": _lazy("磁盘=C,主机名=xxx"),
+            },
             {"name": "alarm.collect_count", "desc": _lazy("汇总事件数量"), "example": "10"},
             {"name": "alarm.notice_from", "desc": _lazy("消息来源"), "example": _lazy("蓝鲸监控")},
             {"name": "alarm.company", "desc": _lazy("企业标识"), "example": _lazy("蓝鲸")},
@@ -442,7 +456,7 @@ VARIABLES = [
             {"name": "strategy.strategy_id", "desc": _lazy("策略ID"), "example": "1"},
             {"name": "strategy.name", "desc": _lazy("策略名称"), "example": _lazy("CPU总使用率")},
             {"name": "strategy.scenario", "desc": _lazy("场景"), "example": "os"},
-            {"name": "strategy.source_type", "desc": _lazy("数据来源"), "example": "BKMONITOR"},
+            # {"name": "strategy.source_type", "desc": _lazy("数据来源"), "example": "BKMONITOR"},
             {"name": "strategy.bk_biz_id", "desc": _lazy("业务ID"), "example": "2"},
             {"name": "strategy.item.result_table_id", "desc": _lazy("结果表名称"), "example": "system.cpu_detail"},
             {"name": "strategy.item.name", "desc": _lazy("指标名称"), "example": _lazy("空闲率")},
@@ -450,6 +464,7 @@ VARIABLES = [
             {"name": "strategy.item.unit", "desc": _lazy("单位"), "example": "%"},
             {"name": "strategy.item.agg_interval", "desc": _lazy("周期"), "example": "60"},
             {"name": "strategy.item.agg_method", "desc": _lazy("聚合方法"), "example": "AVG"},
+            {"name": "strategy.labels", "desc": _lazy("策略标签"), "example": "bkmonitor,test"},
         ],
     },
     {
@@ -525,6 +540,7 @@ class ActionLogLevel:
 
 
 class ConvergeType:
+    # 二级收敛
     CONVERGE = "converge"
     ACTION = "action"
 
@@ -751,7 +767,7 @@ class ActionSignal:
         DEMO: _lazy("调试时"),
         UNSHIELDED: _lazy("解除屏蔽时"),
         UPGRADE: _lazy("告警升级"),
-        INCIDENT: _lazy("故障生成时")
+        INCIDENT: _lazy("故障生成时"),
     }
 
     ACTION_SIGNAL_MAPPING = {

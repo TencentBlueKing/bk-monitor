@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -27,20 +27,23 @@ import { Component, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AIBlueking from '@blueking/ai-blueking/vue2';
+import { getUrlHashValue } from 'monitor-common/utils/url';
 import { random } from 'monitor-common/utils/utils';
 
 import aiWhaleStore from '../../store/modules/ai-whale';
+import { type AIBluekingShortcut, AI_BLUEKING_SHORTCUTS, AI_BLUEKING_SHORTCUTS_ID } from './types';
+import { isPromQL } from '@/utils/promql-detector';
 
 import '@blueking/ai-blueking/dist/vue2/style.css';
 
 @Component
 export default class AiBluekingWrapper extends tsc<object> {
   @Ref('aiBlueking') aiBluekingRef: typeof AIBlueking;
-  headers = {
-    Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
-  };
+  // 是否处于临时会话
+  isInTemporarySession = false;
+
   get apiUrl() {
-    return '/ai_agents/chat';
+    return '/ai_whale/chat';
   }
   get showDialog() {
     return aiWhaleStore.showAIBlueking;
@@ -48,83 +51,11 @@ export default class AiBluekingWrapper extends tsc<object> {
   get message() {
     return aiWhaleStore.message;
   }
+  get customFallbackShortcut() {
+    return aiWhaleStore.customFallbackShortcut;
+  }
   get shortcuts() {
-    return [
-      {
-        id: 'explanation',
-        name: this.$t('解释'),
-        // icon: 'bkai-help',
-        components: [
-          {
-            type: 'textarea',
-            key: 'content',
-            name: this.$t('内容'),
-            fillBack: true,
-            placeholder: this.$t('请输入需要解释的内容'),
-          },
-        ],
-      },
-      {
-        id: 'translate',
-        name: this.$t('翻译'),
-        // icon: 'bkai-translate',
-        components: [
-          {
-            type: 'textarea',
-            key: 'content',
-            name: this.$t('待翻译文本'),
-            fillBack: true,
-            placeholder: this.$t('请输入需要翻译的内容'),
-          },
-          {
-            type: 'select',
-            key: 'language',
-            name: this.$t('语言'),
-            placeholder: this.$t('请选择语言'),
-            default: 'english',
-            options: [
-              { label: 'English', value: 'english' },
-              { label: '中文', value: 'chinese' },
-            ],
-          },
-        ],
-      },
-      {
-        id: 'promql_helper',
-        name: this.$t('PromQL助手'),
-        // icon: 'icon-monitor icon-mc-help-fill',
-        components: [
-          {
-            type: 'textarea',
-            key: 'promql',
-            fillBack: true,
-            name: this.$t('指标/PromQL语句'),
-            placeholder: this.$t('请输入指标/PromQL语句'),
-          },
-          {
-            type: 'textarea',
-            key: 'user_demand',
-            fillBack: false,
-            name: this.$t('用户指令'),
-            placeholder: this.$t('请输入用户指令'),
-          },
-        ],
-      },
-      // {
-      //   id: 'metadata_diagnosis',
-      //   name: this.$t('链路排障'),
-      //   // icon: 'bk-icon icon-monitors-cog',
-      //   components: [
-      //     {
-      //       type: 'textarea',
-      //       key: 'bk_data_id',
-      //       fillBack: true,
-      //       name: this.$t('数据源ID'),
-      //       placeholder: this.$t('请输入数据源ID'),
-      //     },
-      //   ],
-      // },
-    ];
+    return [...AI_BLUEKING_SHORTCUTS];
   }
   @Watch('showDialog')
   handleShowDialogChange(newVal: boolean) {
@@ -142,22 +73,72 @@ export default class AiBluekingWrapper extends tsc<object> {
     this.aiBluekingRef.handleStop();
     this.aiBluekingRef.handleSendMessage(newVal);
   }
+  @Watch('customFallbackShortcut')
+  async handleCustomFallbackShortcutChange(shortcut: AIBluekingShortcut) {
+    if (shortcut?.id) {
+      const newSession = (
+        [AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS, AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS] as string[]
+      ).includes(shortcut.id);
+      await this.aiBluekingRef.handleShow(undefined, {
+        isTemporary: newSession,
+      });
+      this.isInTemporarySession = newSession;
+      this.aiBluekingRef.handleShortcutClick?.({ shortcut, source: 'popup' }, newSession);
+    }
+  }
+  handleShortcutFilter(shortcut: AIBluekingShortcut, selectedText: string) {
+    // trace 分析判断
+    if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS) {
+      return !!selectedText?.match(/^[0-9a-f]{32}$/);
+    }
+    if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS) {
+      return false;
+    }
+    if (shortcut.id === AI_BLUEKING_SHORTCUTS_ID.PROMQL_HELPER && selectedText?.length) {
+      if (!isPromQL(selectedText)) {
+        return false;
+      }
+    }
+    return true;
+  }
+  handleShortcutClick(data: { shortcut: AIBluekingShortcut }) {
+    // trace 分析点击后自动带入 url 上的 app_name 和 bizId
+    if (data.shortcut.id === AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS) {
+      for (const component of data.shortcut.components) {
+        if (component.key === 'app_name' && !component.default) {
+          component.default = getUrlHashValue('app_name');
+        } else if (component.key === 'bk_biz_id' && !component.default) {
+          component.default = window.bk_biz_id || window.cc_biz_id;
+        }
+      }
+    }
+  }
   render() {
     return (
       <div class='ai-blueking-wrapper'>
         <AIBlueking
           ref='aiBlueking'
           requestOptions={{
-            headers: this.headers,
+            beforeRequest: data => {
+              return {
+                ...data,
+                headers: {
+                  ...(data?.headers || {}),
+                  Traceparent: `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`,
+                  'Monitor-Route-Name': this.$route.name,
+                },
+              };
+            },
           }}
           enablePopup={true}
+          hideDefaultTrigger={true}
           hideNimbus={true}
+          loadRecentSessionOnMount={true}
           prompts={[]}
+          shortcutFilter={this.handleShortcutFilter}
           shortcuts={this.shortcuts}
           url={this.apiUrl}
-          on-send-message={() => {
-            this.headers.Traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
-          }}
+          on-shortcut-click={this.handleShortcutClick}
           onClose={() => {
             aiWhaleStore.setShowAIBlueking(false);
           }}

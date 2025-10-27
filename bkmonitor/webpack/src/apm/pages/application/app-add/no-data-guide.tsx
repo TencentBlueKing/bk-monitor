@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -43,6 +43,7 @@ interface IProps {
   type: 'noData' | 'service'; // 应用无数据 | 新增服务
 }
 interface IPushUrlItem {
+  bk_cloud_alias?: string;
   bk_cloud_id: number;
   push_url: string;
   tags: string[];
@@ -116,7 +117,7 @@ export default class NoDataGuide extends tsc<IProps> {
    * 通过app name来获取应用的信息
    */
   async getAppInfo() {
-    this.appInfo = await applicationInfoByAppName({ app_name: this.appName });
+    this.appInfo = await applicationInfoByAppName({ app_name: this.appName }).catch(() => undefined);
   }
 
   /** 获取环境 语言 md文档等信息 */
@@ -231,7 +232,10 @@ export default class NoDataGuide extends tsc<IProps> {
                 >
                   <div class='step-tips-content'>
                     {this.stepTipsList.map((item, index) => (
-                      <div class='step-tips-item'>
+                      <div
+                        key={index}
+                        class='step-tips-item'
+                      >
                         <span>{index + 1}.</span>
                         <span>{item.message}</span>
                       </div>
@@ -286,7 +290,9 @@ export default class NoDataGuide extends tsc<IProps> {
                     {this.secureKey && (
                       <i
                         class={`bk-icon toggle-icon ${this.showSecureKey ? 'icon-eye-slash' : 'icon-eye'}`}
-                        onClick={() => (this.showSecureKey = !this.showSecureKey)}
+                        onClick={() => {
+                          this.showSecureKey = !this.showSecureKey;
+                        }}
                       />
                     )}
                   </span>
@@ -295,7 +301,9 @@ export default class NoDataGuide extends tsc<IProps> {
                   <span class='config-label'>Push URL</span>
                   <span class='config-value'>
                     {this.pushUrl.map(item => (
-                      <span>{`${this.$t('管控区域')} ${item.bk_cloud_id} ${item.push_url} [${item.tags.join(
+                      <span
+                        key={item.push_url}
+                      >{`${item.bk_cloud_alias || this.$t('管控区域')} ${item.push_url} [${item.tags.join(
                         ','
                       )}]`}</span>
                     ))}
@@ -309,8 +317,11 @@ export default class NoDataGuide extends tsc<IProps> {
                 <div class='select-view-content'>
                   <div class='select-lang-system'>
                     {/* 选择环境 and 语言 */}
-                    {this.systemDataList.map(item => (
-                      <div class={['system-select-row']}>
+                    {this.systemDataList.map((item, index) => (
+                      <div
+                        key={index}
+                        class={['system-select-row']}
+                      >
                         <div class={['system-select-title', { 'has-child': !!item.children?.length }]}>
                           {item.title}
                         </div>
@@ -323,7 +334,10 @@ export default class NoDataGuide extends tsc<IProps> {
                           {!!item.children?.length &&
                             item.children.map(child =>
                               child.list.length ? (
-                                <div class='system-select-row-child'>
+                                <div
+                                  key={child.title}
+                                  class='system-select-row-child'
+                                >
                                   <div class='child-title'>{child.title}</div>
                                   <div class='system-select-list-wrap'>
                                     <div class='system-select-list'>

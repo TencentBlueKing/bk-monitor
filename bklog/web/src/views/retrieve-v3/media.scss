@@ -1,0 +1,52 @@
+.v3-bklog-root {
+  @media (max-width: 1366px) {
+    .search-bar-wrapper .search-bar-container .search-options {
+      width: 48px;
+      color: #313238;
+      .mode-text {
+        display: none;
+      }
+      .mode-icon {
+        display: inline-block;
+      }
+    }
+    .field-setting-wrap {
+      width: 40px;
+      padding: 0;
+      margin: 0;
+      .field-settin-text{
+        display: none;
+      }
+    }
+    .popover-trigger{
+      width: 40px;
+      padding: 0;
+      margin: 0;
+      .trigger-label{
+        display: none;
+      }
+      .bklog-icon {
+        margin: 0;
+      }
+    }
+    .bklog-v3-select-popover-share{
+      width: 40px;
+      padding: 0;
+      margin: 0;
+      .popover-share-text{
+        display: none;
+      }
+    }
+    .warn-table-wrap{
+      width: 40px;
+      padding: 0;
+      margin: 0;
+      .warn-table-text{
+        display: none;
+      }
+      .bklog-icon {
+        margin: 0;
+      }
+    }
+  }
+}

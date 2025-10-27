@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -30,22 +30,20 @@ import { Component as tsc } from 'vue-tsx-support';
 import { copyText } from 'monitor-common/utils';
 
 import { ECondition, EMethod, EMode } from '../../../components/retrieval-filter/utils';
-import { SceneAliasMap } from '../../monitor-k8s/k8s-dimension';
-import { SceneEnum } from '../../monitor-k8s/typings/k8s-new';
+import { type ConditionChangeEvent, type IExploreSceneUrlItem, KVValueMenuEnum } from '../typing';
 
-import type { ConditionChangeEvent } from '../typing';
 import type { KVFieldList } from './explore-kv-list';
 
 import './explore-condition-menu.scss';
 
-interface ExploreConditionMenuProps {
-  fieldTarget: KVFieldList;
-  activeColumnOrIndex: 'key' | 'value' | number;
-}
-
 interface ExploreConditionMenuEvents {
   onConditionChange(condition: ConditionChangeEvent): void;
   onMenuClick(): void;
+}
+
+interface ExploreConditionMenuProps {
+  activeColumnOrIndex: 'key' | 'value' | number;
+  fieldTarget: KVFieldList;
 }
 
 @Component
@@ -58,43 +56,54 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
   /** 场景下拉菜单 dom 实例 */
   @Ref('sceneRef') sceneRef: any;
 
-  menuList = [
-    {
-      id: 'copy',
+  allMenuMap = {
+    [KVValueMenuEnum.COPY]: {
+      id: KVValueMenuEnum.COPY,
       name: this.$t('复制'),
       icon: 'icon-mc-copy',
       onClick: this.handleCopy,
     },
-    {
-      id: 'add',
+    [KVValueMenuEnum.ADD]: {
+      id: KVValueMenuEnum.ADD,
       name: this.$t('添加到本次检索'),
       icon: 'icon-a-sousuo',
       suffixRender: this.menuItemSuffixRender({ method: EMethod.eq }),
       onClick: () => this.handleConditionChange(EMethod.eq),
     },
-    {
-      id: 'delete',
+    [KVValueMenuEnum.DELETE]: {
+      id: KVValueMenuEnum.DELETE,
       name: this.$t('从本次检索中排除'),
       icon: 'icon-sousuo-',
       suffixRender: this.menuItemSuffixRender({ method: EMethod.ne }),
       onClick: () => this.handleConditionChange(EMethod.ne),
     },
-    {
-      id: 'new-page',
+    [KVValueMenuEnum.NEW_PAGE]: {
+      id: KVValueMenuEnum.NEW_PAGE,
       name: this.$t('新建检索'),
       icon: 'icon-mc-search',
       suffixRender: this.menuItemSuffixRender({ hasClick: false }),
       onClick: this.handleNewExplorePage,
     },
-    // TODO 暂不支持配置，隐藏事件快捷跳转容器监控其他场景功能，等后续后端接口实现后补充逻辑
-    // {
-    //   id: 'other-scene',
-    //   name: this.$t('查看该对象的其他场景'),
-    //   icon: 'icon-switch',
-    //   suffixRender: () => <i class={'icon-monitor icon-arrow-right '} />,
-    //   onClick: this.handleScenePopoverShow,
-    // },
-  ];
+    [KVValueMenuEnum.OTHER_SCENES]: {
+      id: KVValueMenuEnum.OTHER_SCENES,
+      name: this.$t('查看该对象的其他场景'),
+      icon: 'icon-switch',
+      suffixRender: () => <i class={'icon-monitor icon-arrow-right '} />,
+      onClick: this.handleScenePopoverShow,
+    },
+  };
+
+  get sceneOptions() {
+    return this.fieldTarget?.sceneUrls;
+  }
+
+  get menuList() {
+    const showMenuIds = [KVValueMenuEnum.COPY, KVValueMenuEnum.ADD, KVValueMenuEnum.DELETE, KVValueMenuEnum.NEW_PAGE];
+    if (this.sceneOptions?.length) {
+      showMenuIds.push(KVValueMenuEnum.OTHER_SCENES);
+    }
+    return showMenuIds.map(id => this.allMenuMap[id]);
+  }
 
   /** 二级 popover 实例(切换场景菜单) */
   childrenPopoverInstance = null;
@@ -156,26 +165,11 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
 
   /**
    * @description 切换场景(新开页跳转至k8s容器监控实现)
-   * @param {SceneEnum} targetScene 想要切换到的目标场景
+   * @param  targetScene 想要切换到的目标场景
    *
    */
-  handleNewK8sPage(targetScene: SceneEnum) {
-    // TODO 暂不支持配置，隐藏事件快捷跳转容器监控其他场景功能，等后续后端接口实现后补充逻辑
-    // const { scene: currentScene, groupBy, filterBy, ...rest } = this.$route.query;
-    // const targetPageGroupInstance = K8sGroupDimension.createInstance(targetScene);
-    // targetPageGroupInstance.addGroupFilter(this.groupByField);
-
-    // const query = {
-    //   ...rest,
-    //   filterBy: JSON.stringify({ [this.groupByField]: [this.filterValue] }),
-    //   groupBy: JSON.stringify(targetPageGroupInstance.groupFilters),
-    //   scene: targetScene,
-    // };
-    // const targetRoute = this.$router.resolve({
-    //   query,
-    // });
-    // this.menuClick();
-    // window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
+  handleNewK8sPage(targetScene: IExploreSceneUrlItem) {
+    window.open(targetScene.url, '_blank');
     this.handleScenePopoverHide();
     this.menuClick();
   }
@@ -281,7 +275,7 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
    * @param {boolean} config.hasClick 是否有点击事件及 hover新开标签页 tooltip 提示
    *
    */
-  menuItemSuffixRender(config: { method?: EMethod; hasClick?: boolean }) {
+  menuItemSuffixRender(config: { hasClick?: boolean; method?: EMethod }) {
     const { method, hasClick = true } = config;
     return () => (
       <i
@@ -303,13 +297,13 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
           ref='sceneRef'
           class='scene-list-menu'
         >
-          {[SceneEnum.Performance, SceneEnum.Capacity].map(scene => (
+          {this.sceneOptions?.map?.(item => (
             <li
-              key={scene}
+              key={item.scene}
               class='menu-item'
-              onClick={() => this.handleNewK8sPage(scene)}
+              onClick={() => this.handleNewK8sPage(item)}
             >
-              {SceneAliasMap[scene]}
+              {item.scene}
             </li>
           ))}
         </ul>
@@ -331,11 +325,11 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
           >
             <i class={`prefix-icon icon-monitor ${item.icon}`} />
             <span>{item.name}</span>
+            {/* @ts-ignore */}
             <div class='item-suffix'>{item?.suffixRender?.()}</div>
           </li>
         ))}
-        {/* TODO 暂不支持配置，隐藏事件快捷跳转容器监控其他场景功能，等后续后端接口实现后补充逻辑 */}
-        {/* {this.sceneMenuListRender()} */}
+        {this.sceneMenuListRender()}
       </ul>
     );
   }

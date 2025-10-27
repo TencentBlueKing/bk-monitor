@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -35,7 +35,6 @@ from bkmonitor.models import StrategyModel
 from bkmonitor.utils.common_utils import get_local_ip
 from constants.action import ActionPluginType
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import api
 from metadata.models import DataSource
 
 
@@ -98,8 +97,8 @@ class MonitorEventDelayCheck(CheckStep):
     name = "check AlertPoller delay"
 
     def check(self):
-        cache = Cache("service")
-        ip_topics = cache.hgetall(ALERT_HOST_DATA_ID_KEY.get_key())
+        client = ALERT_HOST_DATA_ID_KEY.client
+        ip_topics = client.hgetall(ALERT_HOST_DATA_ID_KEY.get_key())
         topics = []
         for value in ip_topics.values():
             topics.extend(json.loads(value))
@@ -228,7 +227,7 @@ class DurationSpace(CheckStep):
 
     def check(self):
         start = time.time()
-        bk_biz_id = api.cmdb.get_blueking_biz()
+        bk_biz_id = settings.DEFAULT_BK_BIZ_ID
         data_source_class = load_data_source(DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES)
         promql = "sum(count_over_time(bkmonitor:system:cpu_summary:usage[10m]))"
         data_source = data_source_class(
@@ -243,12 +242,12 @@ class DurationSpace(CheckStep):
                 start_time=now_ts.replace(minutes=-1).timestamp * 1000, end_time=now_ts.timestamp * 1000
             )
         except Exception as e:
-            return APIERROR("UnifyQuery.query_data Error: %s" % e, self.story)
+            return APIERROR(f"UnifyQuery.query_data Error: {e}", self.story)
 
         duration = time.time() - start
         if duration > self.warning_duration:
-            return APIPending("api worker duration cost %s" % duration, self.story)
-        self.story.info("api worker duration cost %s" % duration)
+            return APIPending(f"api worker duration cost {duration}", self.story)
+        self.story.info(f"api worker duration cost {duration}")
 
         if records and records[0]["_result_"] == 0:
             # 尝试从kafka拉取最新的一条数据。
@@ -268,7 +267,7 @@ class DurationSpace(CheckStep):
         }
         kafka_queue = KafkaQueue(kfk_conf=kfk_conf)
         try:
-            kafka_queue.set_topic(topic, group_prefix="%s.healthz.0" % get_local_ip())
+            kafka_queue.set_topic(topic, group_prefix=f"{get_local_ip()}.healthz.0")
             kafka_queue.reset_offset()
             result = kafka_queue.take(count=1, timeout=5)
             if not result:
@@ -285,7 +284,7 @@ class DurationSpace(CheckStep):
         message = result[0]
         raw_data = json.loads(message[:-1] if message[-1] == "\x00" or message[-1] == "\n" else message)
         report_time = raw_data["data"]["utctime"]
-        d = datetime.datetime.strptime("%s+0000" % report_time, "%Y-%m-%d %H:%M:%S%z")
+        d = datetime.datetime.strptime(f"{report_time}+0000", "%Y-%m-%d %H:%M:%S%z")
         offset = time.time() - d.timestamp()
         if offset > 10 * 60:
             return KafkaDataDelay(

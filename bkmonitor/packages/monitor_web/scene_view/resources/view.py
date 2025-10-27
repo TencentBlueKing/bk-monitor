@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -113,7 +113,6 @@ class GetSceneViewListResource(ApiAuthResource):
         scene_id = params["scene_id"]
         scene_type = params.get("type", "")
         bk_biz_id = params["bk_biz_id"]
-
         # 添加自定义视图
         views = SceneViewModel.objects.filter(bk_biz_id=bk_biz_id, scene_id=scene_id, type=scene_type)
 
@@ -141,7 +140,7 @@ class GetSceneViewListResource(ApiAuthResource):
                 result.append(
                     {
                         "id": view.id,
-                        "name": view.name,
+                        "name": _(view.name),
                         "show_panel_count": view_config.get("options", {}).get("show_panel_count", False),
                         "mode": view_config.get("mode", ""),
                         "type": scene_type,
@@ -161,7 +160,7 @@ class GetSceneViewListResource(ApiAuthResource):
                 result.append(
                     {
                         "id": view.id,
-                        "name": view.name,
+                        "name": _(view.name),
                         "show_panel_count": False,
                         "mode": mode,
                         "type": scene_type,
@@ -708,7 +707,7 @@ class GetStrategyAndEventCountResource(Resource):
                     return {"strategy_counts": 0, "event_counts": 0}
             if ip:
                 conditions.extend([{"key": "IP", "value": [ip]}, {"key": "bk_cloud_id", "value": [bk_cloud_id]}])
-                query_string = _("目标IP : {} AND 目标云区域ID : {}").format(ip, bk_cloud_id)
+                query_string = _('目标IP : "{}" AND 目标云区域ID : "{}"').format(ip, bk_cloud_id)
 
         elif params["scene_id"] == "uptime_check":
             scenario = ["uptimecheck"]

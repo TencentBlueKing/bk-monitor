@@ -248,7 +248,7 @@
           this.$emit('confirm', this.selectedIpList, availablePaths);
           this.$emit('update:show-select-dialog', false);
 
-          this.topoCache = JSON.parse(JSON.stringify(this.$refs.treeRef.checked));
+          this.topoCache = structuredClone(this.$refs.treeRef.checked);
         } catch (e) {
           console.warn(e);
         } finally {

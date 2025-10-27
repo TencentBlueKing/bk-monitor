@@ -253,6 +253,11 @@ class IndexSetTagNameExistException(BaseIndexSetException):
     MESSAGE = _("标签名称: [{name}] 已存在")
 
 
+class IndexSetAliasSettingsException(BaseIndexSetException):
+    ERROR_CODE = "330"
+    MESSAGE = _("别名冲突: {conflict_info}")
+
+
 # =================================================
 # 管理-检索
 # =================================================
@@ -533,6 +538,16 @@ class TooManyBucketsException(BaseSearchException):
     MESSAGE = _("日志检索失败，维度组合数量过多，请减少维度字段数量或缩短查询时间范围后重试")
 
 
+class ParseDateFieldException(BaseSearchException):
+    ERROR_CODE = "456"
+    MESSAGE = _("日志检索失败，解析日期字段失败，请检查日期字段格式")
+
+
+class GetAllFieldsException(BaseSearchException):
+    ERROR_CODE = "457"
+    MESSAGE = _("索引集({index_set_id}),获取字段信息异常, 原因: {e}")
+
+
 # =================================================
 # 导出
 # =================================================
@@ -563,6 +578,11 @@ class BKBaseExportException(BaseException):
     MESSAGE = _("计算平台索引集暂不支持快速下载")
 
 
+class DuplicateUnifyQueryExportException(BaseException):
+    ERROR_CODE = "506"
+    MESSAGE = _("已有相同检索参数正在下载中，请勿重复下载")
+
+
 # =================================================
 # JWT
 # =================================================
@@ -581,6 +601,16 @@ class BkJwtVerifyException(BasePermException):
 class BkJwtVerifyFailException(BasePermException):
     ERROR_CODE = "903"
     MESSAGE = _("JWT校验失败")
+
+
+class TokenMissingException(BasePermException):
+    ERROR_CODE = "904"
+    MESSAGE = _("请求中缺少token或token为空")
+
+
+class TokenInvalidException(BasePermException):
+    ERROR_CODE = "905"
+    MESSAGE = _("token无效")
 
 
 class SettingMenuException(BasePermException):

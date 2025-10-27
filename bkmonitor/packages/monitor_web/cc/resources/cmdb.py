@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -261,13 +261,13 @@ def get_host_performance_data(bk_biz_id: int, hosts: list[Host] = None) -> dict[
                 bk_host_id = ip_to_host_id.get((record["bk_target_ip"], int(record["bk_target_cloud_id"])))
 
             if bk_host_id in bk_host_ids:
-                _data[bk_host_id][metric["field"]] = round(record["_result_"], 2)
+                _data[bk_host_id][metric["field"]] = round(record["_result_"] * metric.get("ratio", 1), 2)
 
     metrics = [
         {"field": "cpu_load", "result_table_id": "system.load", "metric_field": "load5"},
         {"field": "cpu_usage", "result_table_id": "system.cpu_summary", "metric_field": "usage"},
         {"field": "disk_in_use", "result_table_id": "system.disk", "metric_field": "in_use"},
-        {"field": "io_util", "result_table_id": "system.io", "metric_field": "util"},
+        {"field": "io_util", "result_table_id": "system.io", "metric_field": "util", "ratio": 100},
         {"field": "mem_usage", "result_table_id": "system.mem", "metric_field": "pct_used"},
         {"field": "psc_mem_usage", "result_table_id": "system.mem", "metric_field": "psc_pct_used"},
     ]

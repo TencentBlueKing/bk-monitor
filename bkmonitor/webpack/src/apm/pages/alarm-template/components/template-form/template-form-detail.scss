@@ -1,0 +1,61 @@
+.template-form-detail {
+  padding: 24px 40px;
+
+  .form-item {
+    line-height: 20px;
+
+    .form-item-label {
+      font-size: 12px;
+      color: #979ba5;
+
+      .tooltips-label {
+        cursor: pointer;
+        border-bottom: 1px dashed #c4c6cc;
+      }
+    }
+
+    .content {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #313238;
+
+      .monitor-data {
+        display: inline-block;
+        line-height: 20px;
+        cursor: pointer;
+        border-bottom: 1px dashed #c4c6cc;
+      }
+
+      .detect-text {
+        color: #313238;
+        
+        .value {
+          margin: 0 2px;
+          font-weight: 700;
+          color: #3a84ff;
+        }
+      }
+
+      .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+
+        .tag-item {
+          height: 22px;
+          padding: 0 8px;
+          margin-right: 4px;
+          margin-bottom: 4px;
+          font-size: 12px;
+          line-height: 22px;
+          color: #4d4f56;
+          background: #f0f1f5;
+          border-radius: 2px;
+        }
+      }
+    }
+
+    & + .form-item {
+      margin-top: 24px;
+    }
+  }
+}

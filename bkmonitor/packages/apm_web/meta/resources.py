@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -62,14 +62,8 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbComponentHandler
 from apm_web.handlers.endpoint_handler import EndpointHandler
 from apm_web.handlers.instance_handler import InstanceHandler
-from apm_web.handlers.metric_group import MetricHelper
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
-from apm_web.handlers.strategy_group import (
-    BaseStrategyGroup,
-    GroupType,
-    StrategyGroupRegistry,
-)
 from apm_web.icon import get_icon
 from apm_web.meta.handlers.custom_service_handler import Matcher
 from apm_web.meta.handlers.sampling_handler import SamplingHelpers
@@ -115,11 +109,15 @@ from apm_web.service.serializers import (
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import get_interval_number, span_time_strft
+from apm_web.strategy.handler import StrategyTemplateHandler
+from apm_web.models import StrategyTemplate
+from apm_web.strategy.constants import StrategyTemplateSystem, StrategyTemplateType
 from bkm_space.api import SpaceApi
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.ip import is_v6
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.user import (
     get_backend_username,
@@ -138,6 +136,7 @@ from constants.apm import (
     TailSamplingSupportMethod,
     TelemetryDataType,
 )
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import ApplicationsResultTableLabel, DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import Resource, api, resource
@@ -224,7 +223,12 @@ class CreateApplicationResource(Resource):
         ).exists():
             raise ValueError(_("应用名称: {}已被创建").format(validated_request_data["app_name"]))
 
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
         app = Application.create_application(
+            bk_tenant_id=bk_tenant_id,
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
             app_alias=validated_request_data["app_alias"],
@@ -481,6 +485,10 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
             data["trace_data_status"] = DataStatus.NO_DATA
             if ApplicationHandler.have_data(application, start_time, end_time):
                 data["trace_data_status"] = DataStatus.NORMAL
+
+        # 增加一个信息给到页面，是否需要提供尾部采样的选项。
+        # 如果没有 bk base 等相关配置，则不提供尾部采样选项
+        data["is_enabled_tail_sampling"] = bool(settings.APM_APP_BKDATA_TAIL_SAMPLING_PROJECT_ID)
         return data
 
 
@@ -728,6 +736,9 @@ class SetupResource(Resource):
         def setup(self):
             pass
 
+        def get_transfer_config(self):
+            return {}
+
     class NoDataPeriodProcessor(SetupProcessor):
         update_key = ["no_data_period"]
 
@@ -773,6 +784,10 @@ class SetupResource(Resource):
             self._application.setup_config(
                 self._application.apdex_config, self._params, self._application.APDEX_CONFIG_KEY, override=True
             )
+            self._application.apdex_config = self._params
+
+        def get_transfer_config(self):
+            return self._application.get_apdex_config()
 
     class InstanceNameSetupProcessor(SetupProcessor):
         group_key = "application_instance_name_config"
@@ -782,6 +797,10 @@ class SetupResource(Resource):
             self._application.setup_config(
                 self._application.instance_config, self._params, self._application.INSTANCE_NAME_CONFIG_KEY
             )
+            self._application.instance_name_config = self._params
+
+        def get_transfer_config(self):
+            return self._application.get_instance_name_config()
 
     class DimensionSetupProcessor(SetupProcessor):
         group_key = "application_dimension_config"
@@ -791,6 +810,10 @@ class SetupResource(Resource):
             self._application.setup_config(
                 self._application.dimension_config, self._params, self._application.DIMENSION_CONFIG_KEY
             )
+            self._application.dimension_config = self._params
+
+        def get_transfer_config(self):
+            return self._application.get_dimension_config()
 
     class DbSetupProcessor(SetupProcessor):
         update_key = ["application_db_config"]
@@ -802,6 +825,10 @@ class SetupResource(Resource):
                 self._application.DB_CONFIG_KEY,
                 override=True,
             )
+            self._application.db_config = self._params["application_db_config"]
+
+        def get_transfer_config(self):
+            return self._application.get_db_configs()
 
     class QPSSetupProcessor(SetupProcessor):
         update_key = ["application_qps_config"]
@@ -813,6 +840,10 @@ class SetupResource(Resource):
                 self._application.QPS_CONFIG_KEY,
                 override=True,
             )
+            self._application.qps_config = self._params["application_qps_config"]
+
+        def get_transfer_config(self):
+            return self._application.get_qps_config()
 
     class EventSetupProcessor(SetupProcessor):
         update_key = [Application.EVENT_CONFIG_KEY]
@@ -824,6 +855,7 @@ class SetupResource(Resource):
                 self._application.EVENT_CONFIG_KEY,
                 override=True,
             )
+            self._application.event_config = self._params[Application.EVENT_CONFIG_KEY]
 
     def perform_request(self, validated_data):
         try:
@@ -848,6 +880,7 @@ class SetupResource(Resource):
         ]
 
         need_handle_processors = []
+        need_transfer_configs = {}
         for key, value in validated_data.items():
             for processor in processors:
                 if processor.group_key and key == processor.group_key:
@@ -860,10 +893,13 @@ class SetupResource(Resource):
 
         for processor in need_handle_processors:
             processor.setup()
+            need_transfer_configs.update(processor.get_transfer_config())
 
         # Step2: 因为采样配置较复杂所以不走Processor 交给单独Helper处理
         if validated_data.get("application_sampler_config"):
-            SamplingHelpers(validated_data["application_id"]).setup(validated_data["application_sampler_config"])
+            sampling_helpers = SamplingHelpers(validated_data["application_id"])
+            sampling_helpers.setup(validated_data["application_sampler_config"])
+            need_transfer_configs.update(sampling_helpers.get_transfer_config())
 
         Application.objects.filter(application_id=application.application_id).update(update_user=get_global_user())
 
@@ -873,7 +909,7 @@ class SetupResource(Resource):
 
         from apm_web.tasks import update_application_config
 
-        update_application_config.delay(application.application_id)
+        update_application_config.delay(application.bk_biz_id, application.app_name, need_transfer_configs)
 
 
 class ListApplicationResource(PageListResource):
@@ -1157,7 +1193,8 @@ class ServiceDetailResource(Resource):
                 }.items()
             ]
 
-        self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
+        # 暂时用不上，并需注意方法体逻辑已过时
+        # self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
 
         return [
             {
@@ -1476,6 +1513,7 @@ class MetaConfigInfoResource(Resource):
         return {
             "guide_url": {
                 "access_url": settings.APM_ACCESS_URL,
+                "data_push_url_all": settings.APM_DATA_PUSH_URL,
                 "best_practice": settings.APM_BEST_PRACTICE_URL,
                 "metric_description": settings.APM_METRIC_DESCRIPTION_URL,
             },
@@ -1584,6 +1622,7 @@ class PushUrlResource(Resource):
         push_url = serializers.CharField(label="push_url")
         tags = serializers.ListField(label="地址标签")
         bk_cloud_id = serializers.IntegerField(label="云区域ID")
+        bk_cloud_alias = serializers.CharField(label="云区域别名", required=False, allow_blank=True)
 
     many_response_data = True
 
@@ -1591,6 +1630,8 @@ class PushUrlResource(Resource):
         {"tags": ["grpc", "opentelemetry"], "port": "4317", "path": ""},
         {"tags": ["http", "opentelemetry"], "port": "4318", "path": "/v1/traces"},
     ]
+    CLOUD_AREA_ZERO_ALIAS = "内网"
+    CLUSTER_PUSH_URL_ALIAS = "集群内服务"
 
     @classmethod
     def get_proxy_infos(cls, bk_biz_id):
@@ -1609,6 +1650,14 @@ class PushUrlResource(Resource):
             default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN
         for proxy_ip in default_cloud_display:
             proxy_host_infos.insert(0, {"ip": proxy_ip, "bk_cloud_id": 0})
+
+        # 添加集群内上报域名（在默认区域0之后）
+        cluster_domain = getattr(settings, "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE", "")
+        if cluster_domain:
+            proxy_host_infos.insert(
+                len(default_cloud_display) if default_cloud_display else 0, {"ip": cluster_domain, "bk_cloud_id": 0}
+            )
+
         return proxy_host_infos
 
     @classmethod
@@ -1627,14 +1676,51 @@ class PushUrlResource(Resource):
 
         return base_endpoint
 
+    def _get_cloud_alias_map(self) -> dict[int, str]:
+        """获取云区域别名映射"""
+        bk_tenant_id = get_request_tenant_id()
+        clouds = api.cmdb.search_cloud_area(bk_tenant_id=bk_tenant_id)
+        return {int(c.get("bk_cloud_id", 0)): c.get("bk_cloud_name", "") for c in clouds}
+
+    def _generate_alias(self, ip: str, bk_cloud_id: int, cloud_alias_map: dict[int, str]) -> str:
+        """生成别名"""
+        # 判断是否为中心化域名
+        default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
+        if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
+            default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN
+
+        if ip in (default_cloud_display or []):
+            return self.CLOUD_AREA_ZERO_ALIAS
+
+        # 判断是否为集群内域名
+        cluster_domain = getattr(settings, "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE", "")
+        if cluster_domain and ip == cluster_domain:
+            return self.CLUSTER_PUSH_URL_ALIAS
+
+        # 其他代理：使用云区域名称
+        if bk_cloud_id == 0:
+            return self.CLOUD_AREA_ZERO_ALIAS
+        else:
+            return cloud_alias_map.get(bk_cloud_id, "")
+
     def _get_default_endpoints(self, proxy_infos: list[dict[str, Any]]) -> list[dict[str, Any]]:
         endpoints: list[dict[str, Any]] = []
+        # 获取云区域别名映射
+        cloud_alias_map = self._get_cloud_alias_map()
+
         for proxy_info, config in itertools.product(proxy_infos, self.PUSH_URL_CONFIGS):
+            bk_cloud_id = proxy_info["bk_cloud_id"]
+            ip = proxy_info["ip"]
+
+            # 生成别名
+            alias = self._generate_alias(ip, bk_cloud_id, cloud_alias_map)
+
             endpoints.append(
                 {
-                    "push_url": self.generate_endpoint(proxy_info["ip"], config["port"], config["path"]),
+                    "push_url": self.generate_endpoint(ip, config["port"], config["path"]),
                     "tags": config["tags"],
-                    "bk_cloud_id": proxy_info["bk_cloud_id"],
+                    "bk_cloud_id": bk_cloud_id,
+                    "bk_cloud_alias": alias,
                 }
             )
         return endpoints
@@ -1642,17 +1728,27 @@ class PushUrlResource(Resource):
     def _get_simple_endpoints(self, proxy_infos: list[dict[str, Any]]):
         deplicate_keys: set[str] = set()
         endpoints: list[dict[str, Any]] = []
+        # 获取云区域别名映射
+        cloud_alias_map = self._get_cloud_alias_map()
+
         for proxy_info in proxy_infos:
             deplicate_key: str = f"{proxy_info['bk_cloud_id']}-{proxy_info['ip']}"
             if deplicate_key in deplicate_keys:
                 continue
             deplicate_keys.add(deplicate_key)
 
+            bk_cloud_id = proxy_info["bk_cloud_id"]
+            ip = proxy_info["ip"]
+
+            # 生成别名
+            alias = self._generate_alias(ip, bk_cloud_id, cloud_alias_map)
+
             endpoints.append(
                 {
-                    "push_url": self.generate_endpoint(proxy_info["ip"]),
+                    "push_url": self.generate_endpoint(ip),
                     "tags": [PluginEnum.OPENTELEMETRY.id],
-                    "bk_cloud_id": proxy_info["bk_cloud_id"],
+                    "bk_cloud_id": bk_cloud_id,
+                    "bk_cloud_alias": alias,
                 }
             )
         return endpoints
@@ -2081,18 +2177,9 @@ class ApplyStrategiesToServicesResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id", required=False)
         space_uid = serializers.CharField(label="空间唯一标识", required=False)
         app_name = serializers.CharField(label="应用名称", max_length=50)
-        group_type = serializers.ChoiceField(label="策略组类型", choices=GroupType.choices())
-        apply_types = serializers.ListSerializer(
-            label="策略类型列表", child=serializers.CharField(label="策略类型"), required=False, default=[]
-        )
         apply_services = serializers.ListSerializer(
             label="服务列表", child=serializers.CharField(label="服务"), required=False, default=[]
         )
-        notice_group_ids = serializers.ListSerializer(
-            label="告警组 ID 列表", child=serializers.IntegerField(label="告警组 ID"), required=False, default=[]
-        )
-        config = serializers.CharField(label="配置文本", default="{}")
-        options = serializers.DictField(label="配置", required=False)
 
         def validate(self, attrs):
             bk_biz_id: int | None = attrs.get("bk_biz_id")
@@ -2103,28 +2190,28 @@ class ApplyStrategiesToServicesResource(Resource):
             # space_uid to bk_biz_id
             if space_uid:
                 attrs["bk_biz_id"] = SpaceApi.get_space_detail(space_uid=space_uid).bk_biz_id
-
-            try:
-                attrs["options"] = json.loads(attrs.get("config") or "{}")
-            except (TypeError, json.JSONDecodeError):
-                raise ValueError(_("配置解析错误，必须是合法 JSON 字符串"))
             return attrs
 
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
 
-        group: BaseStrategyGroup = StrategyGroupRegistry.get(
-            GroupType.RPC.value,
-            bk_biz_id,
-            app_name,
-            metric_helper=MetricHelper(bk_biz_id, app_name),
-            notice_group_ids=validated_request_data.get("notice_group_ids") or [],
-            apply_types=validated_request_data["apply_types"],
-            apply_services=validated_request_data["apply_services"],
-            options=validated_request_data["options"],
+        strategy_templates = list(
+            StrategyTemplate.objects.filter(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                system__in=[StrategyTemplateSystem.RPC.value, StrategyTemplateSystem.K8S.value],
+                type=StrategyTemplateType.BUILTIN_TEMPLATE.value,
+                is_enabled=True,
+            )
         )
-        group.apply()
+        StrategyTemplateHandler.apply(
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
+            service_names=validated_request_data["apply_services"],
+            strategy_templates=strategy_templates,
+            raise_exception=False,
+        )
 
         return {}
 
@@ -2863,7 +2950,9 @@ class CustomServiceConfigResource(Resource):
         application = Application.objects.filter(
             bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
         ).first()
-        update_application_config.delay(application.application_id)
+        update_application_config.delay(
+            application.bk_biz_id, application.app_name, application.get_custom_service_config()
+        )
 
     def validate_name(self, validated_data, config_id=None):
         if validated_data["match_type"] == CustomServiceMatchType.AUTO:
@@ -2914,7 +3003,9 @@ class DeleteCustomSeriviceResource(Resource):
         from apm_web.tasks import update_application_config
 
         application = Application.objects.filter(bk_biz_id=instance.bk_biz_id, app_name=instance.app_name).first()
-        update_application_config.delay(application.application_id)
+        update_application_config.delay(
+            application.bk_biz_id, application.app_name, application.get_custom_service_config()
+        )
 
 
 class CustomServiceMatchListResource(Resource):

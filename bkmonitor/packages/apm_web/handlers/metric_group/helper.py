@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -13,6 +13,7 @@ import datetime
 import logging
 import math
 import time
+from functools import cached_property
 from typing import Any
 from collections.abc import Iterable
 
@@ -314,6 +315,10 @@ class PreCalculateHelper:
     """指标预计算工具类，配置示例：
     {
         "enabled": true,
+        # 灰度类型，WHITE 表示白名单，BLACK 表示黑名单，默认是黑名单机制
+        "gray_type": "BLACK",
+        # 灰度服务列表，场景：一个应用下，可能只有一部分服务需要预计算，可以通过灰度列表按服务粒度来控制启停
+        "gray_list": [],
         # 数据延迟
         "data_delay": "3m",
         # 数据偏移，用于对齐原指标数据
@@ -346,9 +351,25 @@ class PreCalculateHelper:
     def __init__(self, config: dict[str, Any]):
         self._config: dict[str, Any] = config
 
-    def _is_enabled(self) -> bool:
+    def _is_enabled(self, service_names: Iterable[str] | None = None) -> bool:
         """启用预计算时返回 True，默认启用"""
-        return self._config.get("enabled", True)
+        enabled: bool = self._config.get("enabled", True)
+        if not enabled or not service_names:
+            return enabled
+
+        gray_list: set[str] = set(self._config.get("gray_list") or [])
+        is_in_gray_list: bool = gray_list.issuperset(service_names)
+        if self._config.get("gray_type", "BLACK") == "WHITE":
+            # 白名单机制：如果在灰度列表中，则启用预计算
+            return is_in_gray_list
+
+        # 黑名单机制：如果在灰度列表中，则不启用预计算
+        return not is_in_gray_list
+
+    @cached_property
+    def _data_delay(self) -> int:
+        data_delay: str = self._config.get("data_delay", "0s")
+        return parse_duration(data_delay)
 
     def adjust_time_shift(self, origin_time_shift: str | None) -> str:
         """指标时间戳对齐"""
@@ -364,11 +385,10 @@ class PreCalculateHelper:
         """调整查询数据范围
         背景：预计算存在一定的数据延迟，如果查询时间临近当前时间，按数据延迟进行截断，避免最后一个点数据存在较大误差影响观测
         """
-        data_delay_sec: int = parse_duration(self._config.get("data_delay", "0s"))
         is_near_to_now: bool = abs(end_time - int(datetime.datetime.now().timestamp())) < 60
-        if end_time - start_time > data_delay_sec and is_near_to_now:
-            logger.info("[adjust_time_range] adjust end_time -> %s, data_delay_sec -> %s", end_time, data_delay_sec)
-            end_time -= data_delay_sec
+        if end_time - start_time > self._data_delay and is_near_to_now:
+            logger.info("[adjust_time_range] adjust end_time -> %s, data_delay_sec -> %s", end_time, self._data_delay)
+            end_time -= self._data_delay
 
         return start_time, end_time
 
@@ -381,7 +401,8 @@ class PreCalculateHelper:
     ) -> bool:
         """判断是否屏蔽预计算
         - 规则-1：查询时长 >= min_duration
-        - 规则-2: 查询时间范围不在屏蔽时间范围内
+        - 规则-2：查询开始时间在最近可用查询时间之后
+        - 规则-3：查询时间范围不在屏蔽时间范围内
         """
         min_duration: str | None = metric_info.get("min_duration") or self._config.get("min_duration")
         start_time, end_time = self.shift_time_range(start_time, end_time, time_shift)
@@ -393,6 +414,20 @@ class PreCalculateHelper:
                 metric_info["metric"],
                 duration,
                 min_duration,
+            )
+            return True
+
+        # 背景：当数据量非常大时，可能查询几分钟的数据都会非常慢，此时 min_duration 无法满足要求。
+        # 基于上述背景，当不指定 min_duration 时，只要开始时间在最新可用查询时间之前，就允许查询。
+        last_available_query_time: int = int(datetime.datetime.now().timestamp()) - self._data_delay - 60
+        if start_time > last_available_query_time:
+            # 判断查询开始时间是否在最新查询时间之后
+            logger.info(
+                "[is_time_shield] shield due to data delay: metric -> %s, start_time -> %s, "
+                "last_available_query_time -> %s",
+                metric_info["metric"],
+                start_time,
+                last_available_query_time,
             )
             return True
 
@@ -431,6 +466,7 @@ class PreCalculateHelper:
         start_time: int | None = None,
         end_time: int | None = None,
         time_shift: str | None = None,
+        service_names: Iterable[str] | None = None,
     ) -> dict[str, Any]:
         """将原始指标路由到预计算指标
         :param table_id: 原结果表
@@ -439,10 +475,11 @@ class PreCalculateHelper:
         :param end_time: 开始时间
         :param start_time: 结束时间
         :param time_shift: 时间偏移
+        :param service_names: 服务名列表
         :return:
         """
         result: dict[str, Any] = {"table_id": table_id, "metric": metric, "is_hit": False}
-        if not self._is_enabled():
+        if not self._is_enabled(service_names):
             return result
 
         try:

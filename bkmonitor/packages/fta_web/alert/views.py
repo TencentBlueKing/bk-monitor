@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import collections
 import logging
 
@@ -44,6 +44,7 @@ class AlertViewSet(ResourceViewSet):
         write_actions = [
             "alert/save_experience",
             "alert/ack",
+            "alert/close",
             "event/top_n",
             "alert/feedback",
         ]
@@ -182,6 +183,7 @@ class AlertViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.alert.alert_related_info, endpoint="alert/related_info"),
         ResourceRoute("POST", resource.alert.alert_extend_fields, endpoint="alert/extend_fields"),
         ResourceRoute("POST", resource.alert.ack_alert, endpoint="alert/ack"),
+        ResourceRoute("POST", resource.alert.close_alert, endpoint="alert/close"),
         ResourceRoute("POST", resource.alert.alert_graph_query, endpoint="alert/graph_query"),
         ResourceRoute("POST", resource.alert.event_date_histogram, endpoint="event/date_histogram"),
         ResourceRoute("POST", resource.alert.search_action, endpoint="action/search"),
@@ -213,7 +215,7 @@ class AlertViewSet(ResourceViewSet):
         # 业务统计相关接口
         ResourceRoute("GET", resource.alert.get_four_metrics_strategy, endpoint="alert/get_four_metrics_strategy"),
         ResourceRoute("GET", resource.alert.get_tmp_data, endpoint="alert/get_tmp_data"),
-        ResourceRoute("GET", resource.alert.get_four_metrics_data, endpoint="alert/get_four_metrics_data")
+        ResourceRoute("GET", resource.alert.get_four_metrics_data, endpoint="alert/get_four_metrics_data"),
     ]
 
 

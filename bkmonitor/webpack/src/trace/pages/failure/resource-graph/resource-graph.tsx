@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -36,14 +36,13 @@ import {
   registerNode,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Exception, Loading } from 'bkui-vue';
+import { Loading } from 'bkui-vue';
 import { incidentTopologyUpstream } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
 
-import ErrorImg from '../../../static/img/error.svg';
-import NoDataImg from '../../../static/img/no-data.svg';
+import ExceptionComp from '../../../components/exception';
 import FailureTopoTooltips from '../failure-topo/failure-topo-tooltips';
 import { NODE_TYPE_SVG } from '../failure-topo/node-type-svg';
 import TopoTooltip from '../failure-topo/topo-tppltip-plugin';
@@ -79,7 +78,7 @@ export default defineComponent({
       default: () => {},
     },
   },
-  emits: ['toDetail', 'hideToolTips', 'collapseResource'],
+  emits: ['hideToolTips', 'collapseResource', 'viewService'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const graphRef = ref<HTMLElement>(null);
@@ -1492,34 +1491,26 @@ export default defineComponent({
     onUnmounted(() => {
       graphRef.value && removeListener(graphRef.value as HTMLElement, onResize);
     });
-    const handleToDetail = node => {
-      emit('toDetail', node);
-    };
     const handleException = () => {
       const { type, msg } = exceptionData.value;
       if (!type && !msg) return '';
       return (
-        <Exception
-          class='exception-wrap'
-          v-slots={{
-            type: () => (
-              <img
-                class='custom-icon'
-                alt=''
-                src={type === 'noData' ? NoDataImg : ErrorImg}
-              />
-            ),
-          }}
-        >
-          <div style={{ color: type === 'noData' ? '#979BA5' : '#E04949' }}>
-            <div class='exception-title'>{type === 'noData' ? msg : t('查询异常')}</div>
-            {type === 'error' && <div class='exception-desc'>{msg}</div>}
-          </div>
-        </Exception>
+        <ExceptionComp
+          class='resource-graph-exception'
+          errorMsg={msg}
+          imgHeight={100}
+          isDarkTheme={true}
+          isError={type === 'error'}
+          title={type === 'noData' ? msg : t('查询异常')}
+        />
       );
     };
     const handleCollapseResource = () => {
-      emit('collapseResource');
+      emit('collapseResource', true);
+    };
+    const handleViewService = data => {
+      hideToolTips();
+      emit('viewService', data);
     };
     return {
       graphRef,
@@ -1527,14 +1518,14 @@ export default defineComponent({
       tooltipsModel,
       tooltipsEdge,
       tooltipsType,
-      hideToolTips,
-      handleToDetail,
       loading,
       graph,
       exceptionData,
+      hideToolTips,
       handleException,
       handleCollapseResource,
       t,
+      handleViewService,
     };
   },
   render() {
@@ -1578,7 +1569,7 @@ export default defineComponent({
             model={this.tooltipsModel}
             showViewResource={false}
             type={this.tooltipsType}
-            onToDetail={this.handleToDetail}
+            onViewService={this.handleViewService}
           />
         </div>
       </div>

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -94,7 +94,9 @@ export default class CustomService extends tsc<IProps> {
         this.serviceList = res.data || [];
         this.pagination.count = res.total || 0;
       })
-      .finally(() => (this.tableLoading = false));
+      .finally(() => {
+        this.tableLoading = false;
+      });
   }
   /**
    * @desc 列表排序
@@ -273,7 +275,7 @@ export default class CustomService extends tsc<IProps> {
 
         <AddServiceDialog
           v-model={this.showAddDialog}
-          appName={this.appInfo.app_name}
+          appName={this.appInfo?.app_name?.toString()}
           serviceInfo={this.curServiceInfo}
           onRefresh={() => this.getServiceList()}
         />

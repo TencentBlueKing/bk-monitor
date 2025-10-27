@@ -1,0 +1,57 @@
+.template-config-options-add-variable-option-pop {
+  width: 402px;
+  min-height: 116px;
+  padding: 8px 12px 12px;
+  background: #FFF;
+  border: 1px solid #DCDEE5;
+  box-shadow: 0 2px 6px 0 #0000001a;
+
+  &.not-pop {
+    width: auto;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  .header-title {
+    line-height: 20px;
+
+    .header-title-name {
+      position: relative;
+      color: #4D4F56;
+
+      &::after {
+        position: absolute;
+        top: 50%;
+        display: inline-block;
+        height: 8px;
+        font-size: 12px;
+        line-height: 1;
+        vertical-align: middle;
+        color: #ea3636;
+        content: "*";
+        transform: translate(5px, -50%);
+      }
+    }
+    
+  }
+
+  .var-input {
+    margin-top: 6px;
+  }
+
+  .btn-wrap {
+    display: flex;
+    align-items: center;
+    margin-top: 12px;
+
+    .confirm-btn {
+      margin: 0 8px 0 auto;
+    }
+  }
+
+  .error-tip {
+    margin-top: 4px;
+    color: #E71818;
+  }
+}

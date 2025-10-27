@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -55,7 +55,15 @@ class TraceQueryViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
-        if self.action in ["trace_option_value", "trace_charts", "list_traces", "trace_detail"]:
+        if self.action in [
+            "trace_option_value",
+            "trace_charts",
+            "list_traces",
+            "trace_detail",
+            "list_flatten_traces",
+            "list_flatten_spans",
+            "list_spans",
+        ]:
             return [
                 InstanceActionForDataPermission(
                     self.INSTANCE_ID,

@@ -1,18 +1,17 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.conf import settings
 from django.core.management import BaseCommand
 
 from constants.common import DEFAULT_TENANT_ID
-from core.drf_resource import api
 from metadata.models import TimeSeriesGroup
 
 
@@ -23,13 +22,12 @@ class Command(BaseCommand):
             return
         from monitor_web.models import CustomTSTable
 
-        bk_biz_id = api.cmdb.get_blueking_biz()
         tsg = TimeSeriesGroup.objects.get(bk_data_id=1100013)
         _, created = CustomTSTable.objects.get_or_create(
             time_series_group_id=tsg.time_series_group_id,
             defaults=dict(
                 bk_tenant_id=DEFAULT_TENANT_ID,
-                bk_biz_id=bk_biz_id,
+                bk_biz_id=settings.DEFAULT_BK_BIZ_ID,
                 scenario="application_check",
                 name="bkm_statistics",
                 bk_data_id=1100013,

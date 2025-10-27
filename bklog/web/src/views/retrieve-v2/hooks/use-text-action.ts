@@ -1,12 +1,40 @@
-import useStore from '@/hooks/use-store';
-import { useRouter, useRoute } from 'vue-router/composables';
-import { RetrieveUrlResolver } from '@/store/url-resolver';
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import useFieldNameHook from '@/hooks/use-field-name';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
 import { copyMessage, formatDate } from '@/common/util';
+import useFieldNameHook from '@/hooks/use-field-name';
+import useStore from '@/hooks/use-store';
+import { RetrieveUrlResolver } from '@/store/url-resolver';
+import { bkMessage } from 'bk-magic-vue';
+import { useRoute, useRouter } from 'vue-router/composables';
+
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { getConditionRouterParams } from '../search-result-panel/panel-util';
 
-export default function useTextAction(emit?: Function, from?: string) {
+export default (emit?: (event: string, ...args: any[]) => void, from?: string) => {
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
@@ -56,13 +84,14 @@ export default function useTextAction(emit?: Function, from?: string) {
   };
 
   // 添加条件
-  const handleAddCondition = (field, operator, value, isLink = false, depth = undefined, isNestedField = 'false') => {
+  const handleAddCondition = (field, operator, value, isLink = false, depth, isNestedField = 'false') => {
     return store
       .dispatch('setQueryCondition', { field, operator, value, isLink, depth, isNestedField })
       .then(([newSearchList, searchMode, isNewSearchPage]) => {
         setRouteParams();
         if (from === 'origin') {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+          RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
         }
         if (isLink) {
           const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
@@ -80,9 +109,9 @@ export default function useTextAction(emit?: Function, from?: string) {
       const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
       window.open(url, '_blank');
     } else {
-      store.state.bkMessage({
+      bkMessage({
         theme: 'warning',
-        message: store.state.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
+        message: window.$t('未找到相关的应用，请确认是否有Trace数据的接入。'),
       });
     }
   };
@@ -125,7 +154,7 @@ export default function useTextAction(emit?: Function, from?: string) {
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
     }
-
+    console.log('type==', type, actualValue);
     // 处理不同类型的操作
     switch (type) {
       case 'highlight':
@@ -144,11 +173,12 @@ export default function useTextAction(emit?: Function, from?: string) {
       case 'is':
       case 'is not':
       case 'not':
-      case 'new-search-page-is':
+      case 'new-search-page-is': {
         isParamsChange = true;
         const operator = operation === 'not' ? 'is not' : operation;
         handleSearchCondition(fieldName || field, operator, actualValue, isLink, depth, isNestedField);
         break;
+      }
       case 'display':
         emit?.('fields-updated', displayFieldNames, undefined, false);
         break;
@@ -168,4 +198,4 @@ export default function useTextAction(emit?: Function, from?: string) {
     setRouteParams,
     handleTraceIdClick,
   };
-}
+};

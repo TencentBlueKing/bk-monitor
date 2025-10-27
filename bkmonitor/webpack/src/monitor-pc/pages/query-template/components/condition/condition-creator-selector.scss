@@ -1,0 +1,60 @@
+/* stylelint-disable selector-class-pattern */
+.template-config-ui-selector-component {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 46px;
+  padding: 4px 4px 0;
+  overflow: hidden;
+
+  .add-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+    background: #e1ecff;
+    border-radius: 2px;
+    opacity: 0.8;
+
+    .icon-mc-add {
+      font-size: 20px;
+      line-height: 16px;
+    }
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  .variable-tag {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 40px;
+    padding: 4px;
+    margin: 0 4px 4px 0;
+    cursor: pointer;
+    background: #f0f1f5;
+    border-radius: 2px;
+
+    &:hover {
+      background: #eaebf0;
+    }
+
+    .icon-mc-close {
+      margin-left: 4px;
+      font-size: 18px;
+      color: #979BA5;
+
+      &:hover {
+        color: #979ba5;
+      }
+    }
+  }
+}

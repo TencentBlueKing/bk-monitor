@@ -31,7 +31,7 @@ const DEFAULT_OPTIONS = {
 };
 
 function init(el, binding) {
-  el.mouseEnterHandler = function () {
+  el.mouseEnterHandler = () => {
     const element = document.createElement('div');
     element.id = 'directive-ele';
     element.style.position = 'absolute';
@@ -42,14 +42,14 @@ function init(el, binding) {
     element.classList.add(binding.value.cls || DEFAULT_OPTIONS.cls);
     el.addEventListener('mousemove', el.mouseMoveHandler);
   };
-  el.mouseMoveHandler = function (event) {
+  el.mouseMoveHandler = event => {
     const { pageX, pageY } = event;
     const elLeft = pageX + DEFAULT_OPTIONS.offset[0];
     const elTop = pageY + DEFAULT_OPTIONS.offset[1];
     el.element.style.left = `${elLeft}px`;
     el.element.style.top = `${elTop}px`;
   };
-  el.mouseLeaveHandler = function () {
+  el.mouseLeaveHandler = () => {
     el.element?.remove();
     el.element = null;
     el.removeEventListener('mousemove', el.mouseMoveHandler);
@@ -70,11 +70,11 @@ function destroy(el) {
 
 export default {
   bind(el, binding) {
-    binding.value = Object.assign({}, DEFAULT_OPTIONS, binding.value);
+    binding.value = { ...DEFAULT_OPTIONS, ...binding.value };
     init(el, binding);
   },
   update(el, binding) {
-    binding.value = Object.assign({}, DEFAULT_OPTIONS, binding.value);
+    binding.value = { ...DEFAULT_OPTIONS, ...binding.value };
     destroy(el);
     init(el, binding);
   },

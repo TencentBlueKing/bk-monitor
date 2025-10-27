@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onMounted, Ref } from 'vue';
+import { onMounted, type Ref } from 'vue';
 
 import { formatDate } from '@/common/util';
 import * as Echarts from 'echarts';
-import { cloneDeep } from 'lodash';
 
 import { lineOrBarOptions, pieOptions } from './chart-config-def';
 export default ({ target, type }: { target: Ref<any>; type: string }) => {
@@ -36,12 +35,13 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
 
   type DataItem = Record<string, any>;
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   const aggregateDataByDimensions = (data: DataItem[], dimensionFields: string[], metricFields: string[]) => {
     const groupedData = {};
-    let reservedFields = dimensionFields;
+    const reservedFields = dimensionFields;
 
-    data.forEach(item => {
-      reservedFields.forEach(field => {
+    for (const item of data) {
+      for (const field of reservedFields) {
         if (groupedData[field] === undefined) {
           groupedData[field] = {};
         }
@@ -50,41 +50,42 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
           groupedData[field][item[field]] = {};
         }
 
-        metricFields.forEach(m => {
+        for (const m of metricFields) {
           if (groupedData[field][item[field]][m] === undefined) {
             groupedData[field][item[field]][m] = 0;
           }
 
           groupedData[field][item[field]][m] += item[m];
-        });
-      });
-    });
+        }
+      }
+    }
 
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const getNewGroup = (index, group) => {
       const field = reservedFields[index];
       if (field) {
-        const target = groupedData[field] ?? {};
+        const newTarget = groupedData[field] ?? {};
 
-        const group1Keys = Object.keys(target).sort();
+        const group1Keys = Object.keys(newTarget).sort();
         const group2Keys = Object.keys(group).sort();
 
         if (group2Keys.length === 0) {
-          return getNewGroup(index + 1, target);
+          return getNewGroup(index + 1, newTarget);
         }
 
         const newGroup = {};
-        group1Keys.forEach(k1 => {
-          group2Keys.forEach(k2 => {
-            metricFields.forEach(m => {
+        for (const k1 of group1Keys) {
+          for (const k2 of group2Keys) {
+            for (const m of metricFields) {
               const key3 = `${k1},${k2}`;
               if (newGroup[key3] === undefined) {
                 newGroup[key3] = {};
               }
 
-              newGroup[key3][m] = Math.min(target[k1][m], group[k2][m]);
-            });
-          });
-        });
+              newGroup[key3][m] = Math.min(newTarget[k1][m], group[k2][m]);
+            }
+          }
+        }
 
         return getNewGroup(index + 1, newGroup);
       }
@@ -106,17 +107,18 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     return timeValue || value;
   };
 
-  const aggregateData = (data, dimensions, metrics, type, timeField?) => {
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
+  const aggregateData = (data, dimensions, metrics, newType, timeField?) => {
     const dimFields = dimensions.length > 0 ? dimensions : [timeField];
     if (timeField && dimensions.length > 0) {
       const timeGroup = {};
-      data.forEach(item => {
+      for (const item of data) {
         if (timeGroup[item[timeField]] === undefined) {
           timeGroup[item[timeField]] = [];
         }
 
         timeGroup[item[timeField]].push(item);
-      });
+      }
 
       const categories = Object.keys(timeGroup)
         .sort()
@@ -127,27 +129,27 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
           const aggregatedData = aggregateDataByDimensions(timeGroup[key] ?? [], dimFields, metrics);
           return metrics.map(metric => ({
             name: metric,
-            type,
+            type: newType,
             data: Object.keys(aggregatedData).map(item => [timeValue, aggregatedData[item][metric], item]),
           }));
         })
         .flat(2);
 
       const seriesDataMap = new Map();
-      seriesData.forEach(d => {
+      for (const d of seriesData) {
         if (!seriesDataMap.has(d.name)) {
           seriesDataMap.set(d.name, {});
         }
 
         const mapValue = seriesDataMap.get(d.name);
-        d.data.forEach(([timeValue, value, key]) => {
+        for (const [timeValue, value, key] of d.data) {
           if (mapValue[key] === undefined) {
             mapValue[key] = [];
           }
 
           mapValue[key].push([timeValue, value, key]);
-        });
-      });
+        }
+      }
 
       return {
         categories: categories.map(c => c[1]),
@@ -156,7 +158,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
             return Object.keys(mapValue).map(k => {
               return {
                 name: `${name}-${k}`,
-                type,
+                type: newType,
                 data: mapValue[k],
               };
             });
@@ -172,7 +174,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
 
     const seriesData = metrics.map(metric => ({
       name: metric,
-      type,
+      type: newType,
       data: categories.map(item => [item, aggregatedData[item][metric]]),
     }));
 
@@ -198,14 +200,14 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     let newValue = value;
     let suffix = '';
 
-    if (value >= 1000 && value < 1000000) {
+    if (value >= 1000 && value < 1_000_000) {
       newValue = value / 1000;
       suffix = 'K';
-    } else if (value >= 1000000 && value < 1000000000) {
-      newValue = value / 1000000;
+    } else if (value >= 1_000_000 && value < 1_000_000_000) {
+      newValue = value / 1_000_000;
       suffix = ' Mil';
-    } else if (value >= 1000000000) {
-      newValue = value / 1000000000;
+    } else if (value >= 1_000_000_000) {
+      newValue = value / 1_000_000_000;
       suffix = 'Bil';
     }
 
@@ -241,14 +243,14 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
   };
 
   const getLineBarChartOption = () => {
-    const option = cloneDeep(lineOrBarOptions);
+    const option = structuredClone(lineOrBarOptions);
     Object.assign(option.tooltip, getTooltipFormatter());
 
     return option;
   };
 
   const getPieChartOption = () => {
-    return cloneDeep(pieOptions);
+    return structuredClone(pieOptions);
   };
 
   const getLineDefaultOption = () => {
@@ -302,10 +304,10 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     yFields?: string[],
     dimensions?: string[],
     data?: any,
-    type?: string,
+    newType?: string,
   ) => {
     const { categories, seriesData } = formatTimeDimensionResultData(
-      aggregateData(data?.list ?? [], xFields, yFields, type, dimensions[0]),
+      aggregateData(data?.list ?? [], xFields, yFields, newType, dimensions[0]),
       dimensions.length === 1,
     );
     options.xAxis.data = categories;
@@ -325,7 +327,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     yFields?: string[],
     dimensions?: string[],
     data?: any,
-    type?: string,
+    newType?: string,
   ) => {
     const actionMap = {
       pie: updatePieOption,
@@ -333,7 +335,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
       bar: updateLineBarOption,
     };
 
-    actionMap[type]?.(xFields, yFields, dimensions, data, type);
+    actionMap[newType]?.(xFields, yFields, dimensions, data, newType);
   };
 
   const setChartOptions = (
@@ -341,7 +343,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     yFields?: string[],
     dimensions?: string[],
     data?: any,
-    type?: string,
+    newType?: string,
   ) => {
     chartInstance?.clear();
     if (!chartInstance) {
@@ -349,8 +351,8 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     }
 
     if (chartInstance) {
-      setDefaultOption(type);
-      updateChartOptions(xFields, yFields, dimensions, data, type);
+      setDefaultOption(newType);
+      updateChartOptions(xFields, yFields, dimensions, data, newType);
     }
   };
 

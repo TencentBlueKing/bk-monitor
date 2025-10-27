@@ -1,19 +1,19 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import copy
 import re
 from collections import OrderedDict, defaultdict
 from functools import cmp_to_key, lru_cache
-from typing import Dict, List, Optional, Union
+from typing import Optional
 
 import arrow
 from django.conf import settings
@@ -159,26 +159,26 @@ class CollectorPluginMeta(OperateRecordModelBase):
         return debug_version
 
     @classmethod
-    def fetch_id__current_version_id_map(cls, bk_tenant_id: str, plugin_ids: List[str]) -> Dict[str, int]:
-        version_infos: List[Dict[str, Union[int, str]]] = PluginVersionHistory.objects.filter(
+    def fetch_id__current_version_id_map(cls, bk_tenant_id: str, plugin_ids: list[str]) -> dict[str, int]:
+        version_infos: list[dict[str, int | str]] = PluginVersionHistory.objects.filter(
             bk_tenant_id=bk_tenant_id, plugin_id__in=plugin_ids
         ).values("plugin_id", "id", "stage")
 
         # 排序规则：Release > DEBUG/UNREGISTER
 
-        def _version_comparator(_left: Dict[str, Union[int, str]], _right: Dict[str, Union[int, str]]) -> int:
+        def _version_comparator(_left: dict[str, int | str], _right: dict[str, int | str]) -> int:
             """stage 相同时 ID 优先，stage 不同时，stage=RELEASE 优先"""
             if _left["stage"] == _right["stage"]:
                 return (1, -1)[_left["id"] < _right["id"]]
             return (1, -1)[_right["stage"] == PluginVersionHistory.Stage.RELEASE]
 
-        version_infos_gby_plugin_id: Dict[str, List[Dict[str, Union[int, str]]]] = defaultdict(list)
+        version_infos_gby_plugin_id: dict[str, list[dict[str, int | str]]] = defaultdict(list)
         for version_info in version_infos:
             version_infos_gby_plugin_id[version_info["plugin_id"]].append(version_info)
 
-        id__current_version_id_map: Dict[str, int] = {}
+        id__current_version_id_map: dict[str, int] = {}
         for plugin_id, version_infos in version_infos_gby_plugin_id.items():
-            ordered_version_infos: List[Dict[str, Union[int, str]]] = sorted(
+            ordered_version_infos: list[dict[str, int | str]] = sorted(
                 version_infos, key=cmp_to_key(_version_comparator)
             )
             # 取出最新版本
@@ -717,8 +717,8 @@ class CollectorPluginConfig(OperateRecordModelBase):
     采集器插件功能信息
     """
 
-    config_json = JsonField("参数配置", default=None)
-    collector_json = JsonField("采集器配置", default=None)
+    config_json = JsonField("参数配置", default=[])
+    collector_json = JsonField("采集器配置", default={})
     is_support_remote = models.BooleanField("是否支持远程采集", default=False)
 
     def __str__(self):
@@ -840,7 +840,7 @@ class PluginVersionHistory(OperateRecordModelBase):
     采集插件版本历史
     """
 
-    class Stage(object):
+    class Stage:
         """
         插件状态
         """
@@ -877,8 +877,16 @@ class PluginVersionHistory(OperateRecordModelBase):
         """
         if getattr(self, "_plugin", None):
             return self._plugin
-
-        return CollectorPluginMeta.objects.get(bk_tenant_id=self.bk_tenant_id, plugin_id=self.plugin_id)
+        try:
+            obj = CollectorPluginMeta.objects.get(bk_tenant_id=self.bk_tenant_id, plugin_id=self.plugin_id)
+        except CollectorPluginMeta.DoesNotExist:
+            # 当数据库中不存在该插件时，检查是否有临时插件对象
+            tmp_plugin = getattr(self, "tmp_plugin", None)
+            if tmp_plugin is not None:
+                return tmp_plugin
+            # 如果没有临时插件对象，则重新抛出异常
+            raise
+        return obj
 
     @plugin.setter
     def plugin(self, value: CollectorPluginMeta):
@@ -974,7 +982,7 @@ class PluginVersionHistory(OperateRecordModelBase):
                     new_signature[protocol] = self.signature[protocol]
 
             self.signature = new_signature or ""
-        return super(PluginVersionHistory, self).save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
     @classmethod
     def gen_diff_fields(cls, metric_json):
@@ -997,16 +1005,16 @@ class PluginVersionHistory(OperateRecordModelBase):
         from monitor_web.models import CustomEventGroup
 
         if plugin.plugin_type == PluginType.LOG or plugin.plugin_type == PluginType.SNMP_TRAP:
-            name = "{}_{}".format(plugin.plugin_type, plugin.plugin_id)
+            name = f"{plugin.plugin_type}_{plugin.plugin_id}"
             table_id = CustomEventGroup.objects.get(
                 bk_biz_id=plugin.bk_biz_id, type=EVENT_TYPE.KEYWORDS, name=name
             ).table_id
             return table_id
         else:
-            db_name = ("{}_{}".format(plugin.plugin_type, plugin.plugin_id)).lower()
+            db_name = (f"{plugin.plugin_type}_{plugin.plugin_id}").lower()
             if plugin.plugin_type == PluginType.PROCESS:
                 db_name = "process"
-            return "{}.{}".format(db_name, table_name)
+            return f"{db_name}.{table_name}"
 
     def get_plugin_version_detail(self):
         logo_base64 = self.info.logo_content
@@ -1044,7 +1052,7 @@ class PluginVersionHistory(OperateRecordModelBase):
         unique_together = ["bk_tenant_id", "plugin_id", "config_version", "info_version"]
 
     def __str__(self):
-        return "{}-{}".format(self.plugin_id, self.version)
+        return f"{self.plugin_id}-{self.version}"
 
 
 class OperatorSystemManager(models.Manager):
@@ -1054,7 +1062,7 @@ class OperatorSystemManager(models.Manager):
         return [_o["os_type"] for _o in supported_os]
 
     def get_queryset(self):
-        return super(OperatorSystemManager, self).get_queryset().filter(os_type__in=settings.OS_GLOBAL_SWITCH)
+        return super().get_queryset().filter(os_type__in=settings.OS_GLOBAL_SWITCH)
 
 
 class OperatorSystem(models.Model):

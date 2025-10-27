@@ -166,3 +166,23 @@ git config tag.gpgsign true
   npm run analyze
   ```
 
+## 格式化以及校验
+
+### 格式化
+  1、biome格式化配置[文档](https://biomejs.dev/zh-cn/reference/configuration/)
+  2、biome格式化命令
+  ```bash
+  # 格式化
+  npm run biome:format
+  ```
+  3、biome vscode扩展[文档](https://biomejs.dev/zh-cn/reference/vscode/)
+  > 注意：目前安装这个插件可能启动会失败，可以手动格式化；有git钩子，也可不手动格式化
+
+### 校验
+  1、oxlint校验配置[文档](https://oxc.rs/docs/guide/usage/linter/rules.html)
+  2、oxlint校验命令
+  ```bash
+  # 校验
+  npm run oxlint
+  ```
+  3、oxlint vscode扩展[文档](https://oxc.rs/docs/guide/usage/linter.html#vscode-extension)

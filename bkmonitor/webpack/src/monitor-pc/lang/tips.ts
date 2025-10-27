@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -267,6 +267,9 @@ export default {
   从属关系: 'Subordinate',
   调用关系: 'Call',
   故障传播: 'Incident Spread',
+  无故障传播: 'No Incident Spread',
+  指向性: 'Directional',
+  线型: 'Line Type',
   显示图例: 'Show Legend',
   显示小地图: 'Show Mini Map',
   重置比例: 'Reset Scale',
@@ -284,9 +287,15 @@ export default {
   反馈新根因: 'New Feedback',
   所属业务: 'Business',
   '已恢复 / 已解决 / 已失效告警': 'Recovered / Resolved / Expired Alerts',
+  '已恢复...告警': 'Recovered...Alerts',
   包含告警: 'Alarm',
   '等共 {slot0} 个同类告警': 'And {slot0} Same Alerts',
+  '等共 {0} 个同类告警': 'And {0} Same Alerts',
   异常信息: 'Exception Message',
+  展开资源拓扑: 'Expand resource topology',
+  收起资源拓扑: 'Collapse resource topology',
+  '展开节点/边概览': 'Expand node/edge overview',
+  '收起节点/边概览': 'Collapse node/edge overview',
 
   // 故障
   搜索数据为空: 'No search results',
@@ -369,4 +378,49 @@ export default {
   用户指令: 'User Instruction',
   '请输入指标/PromQL语句': 'Please enter the metric/PromQL statement',
   请输入用户指令: 'Please enter the user instruction',
+  请先打开事件分析: 'Please open event analysis first',
+  暂无关联的事件数据: 'No related event data',
+  '应安全需求，公共拨测节点需经过审核方可使用':
+    'The public testing nodes must undergo a review process before they can be used, in accordance with security requirements',
+  点击申请业务权限: 'Click to apply for business privileges',
+  调试数据范围取当前时间窗口前1000条数据:
+    'The debugging data range takes the previous 1000 entries from the current time window',
+  只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators',
+
+  // 查询模板
+  无法删除: 'Cannot delete',
+  无法编辑: 'Cannot edit',
+  '当前仍然有关联的消费场景，无法编辑':
+    'Currently there are still associated consumption scenarios and cannot be edited',
+  '当前仍然有关联的消费场景，无法删除':
+    'Currently there are still associated consumption scenarios and cannot be deleted',
+  全局模板无法删除: 'Global template cannot be deleted',
+  全局模板无法编辑: 'Global template cannot be edited',
+  '模板属于业务 {0}，无法删除': 'The template belongs to the business {0} and cannot be deleted',
+  '模板属于业务 {0}，无法编辑': 'The template belongs to the business {0} and cannot be edited',
+  '输入框：直接输入 {0} 即可新建变量': 'Input box: Enter {0} directly to create a new variable',
+  '选择框：在选项中选择 {0} 然后输入变量名': 'Select box: Select {0} in the options and then enter the variable name',
+  '新建后，右侧会出现 {0}': 'After creating, {0} will appear on the right side',
+  '可以定义 {0} {1}': 'You can define {0} {1}',
+  '在各消费场景，选择 {0} 后，可填入 {1}': 'In various consumption scenarios, after selecting {0}, you can fill in {1}',
+  '仪表盘 Panel 级别的定位，需要一定的时间同步，如有需要请点击':
+    'The positioning at the panel level of the dashboard requires a certain amount of time to synchronize. If necessary, please click',
+
+  // APM-告警模板
+  查看各服务告警情况: 'View alarm situation of each service',
+  查看全部关联服务: 'View all related services',
+  内置策略不可删除: 'Built-in policies cannot be deleted',
+  '该模板已下发服务，不可删除': 'This template has been issued to services and cannot be deleted',
+  '该模板已禁用，无法下发': 'This template has been disabled and cannot be issued',
+  '可以通过 {0} 来关联更多的服务。': 'You can associate more services through {0}',
+  '应用一般是拥有独立的站点，由多个 Service 共同组成，提供完整的产品功能，拥有独立的软件架构。从技术方面来说应用是 Trace 数据的存储隔离，在同一个应用内的数据将进行统计和观测。{0}':
+    'An application generally has an independent site, composed of multiple services working together to provide complete product functionalities, with a standalone software architecture. From a technical perspective, an application represents the storage isolation of trace data, where data within the same application will be aggregated and observed.{0}',
+  更多请: 'For more',
+  查看产品文档: 'please refer to the product documentation',
+  '配置修改保存后，需 5 分钟左右生效':
+    'After the configuration modification is saved, it will take about 5 minutes to take effect',
+  'AI 小鲸': 'AI Blueking',
+  '再次勾选「已配置」的策略，可重新下发，覆盖原有的策略':
+    'After checking the strategy that has been applied, you can re-issue it to override the existing strategy',
+  请先选择模版: 'Please select a template first',
 };

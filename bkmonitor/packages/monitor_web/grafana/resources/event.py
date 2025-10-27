@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -13,12 +13,12 @@ import re
 import time
 from typing import Any
 
-from django.db.models import Max, QuerySet
+from django.db.models import Max, Q, QuerySet
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from bkm_space.api import SpaceApi
-from bkm_space.define import SpaceTypeEnum
+from bkm_space.define import Space, SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.models import BCSCluster, MetricListCache
 from bkmonitor.utils.request import get_request_tenant_id
@@ -65,28 +65,40 @@ class GetDataSourceConfigResource(Resource):
         )
         return cls._fetch_metrics(qs.filter(id__in=metric_row_ids))
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         bcs_cluster_id_match_regex = r"\((?P<bcs_cluster_id>BCS-K8S-\d{5})\)$"
-        data_source_label = params["data_source_label"]
-        data_type_label = params["data_type_label"]
-        bk_biz_id = params["bk_biz_id"]
-        target_cluster_ids = []
-        if bk_biz_id < 0:
+        data_source_label = validated_request_data["data_source_label"]
+        data_type_label = validated_request_data["data_type_label"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        target_cluster_ids: list[str] = []
+
+        # 当且仅当空间为非业务空间，且查询事件数据源时，需要查询关联的bkcc业务下的指标，并按项目集群过滤
+        related_bk_biz_id = None
+        if bk_biz_id < 0 and (data_source_label, data_type_label) == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+            # 获取项目空间下的集群
             target_cluster_ids = list(
-                BCSCluster.objects.filter(space_uid=space_uid).values_list("bcs_cluster_id", flat=1)
+                BCSCluster.objects.filter(space_uid=space_uid).values_list("bcs_cluster_id", flat=True)
             )
-            space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
+            space: Space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
             if space:
-                bk_biz_id = space.bk_biz_id
+                related_bk_biz_id = space.bk_biz_id
 
         qs = MetricListCache.objects.filter(
             data_type_label=data_type_label,
             data_source_label=data_source_label,
-            bk_biz_id__in=[0, bk_biz_id],
             bk_tenant_id=get_request_tenant_id(),
         )
-        if params.get("return_dimensions"):
+
+        # 过滤关联业务
+        if related_bk_biz_id:
+            qs = qs.filter(
+                Q(bk_biz_id__in=[0, bk_biz_id]) | Q(bk_biz_id=related_bk_biz_id, result_table_name__contains="BCS-K8S-")
+            )
+        else:
+            qs = qs.filter(bk_biz_id__in=[0, bk_biz_id])
+
+        if validated_request_data.get("return_dimensions"):
             metrics = self._fetch_metrics(qs)
         else:
             metrics = self._fetch_metrics_without_dimensions(qs)
@@ -103,10 +115,14 @@ class GetDataSourceConfigResource(Resource):
                     bk_data_id = table_id.split("_", -1)[-1]
                 elif (data_source_label, data_type_label) == (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT):
                     name = metric["result_table_name"]
+                    bk_data_id = metric["extend_fields"].get("bk_data_id", "")
+
+                    # 过滤掉已经处理过的需要过滤的指标
                     if name in ignore_name_list:
                         continue
-                    bk_data_id = metric["extend_fields"].get("bk_data_id", "")
-                    if bk_biz_id < 0:
+
+                    # 如果是关联业务的指标，需要过滤掉非项目集群
+                    if metric["bk_biz_id"] == related_bk_biz_id:
                         # 项目空间， 仅列出项目集群， metrics包含关联业务的全部集群
                         if not target_cluster_ids:
                             ignore_name_list.append(name)
@@ -150,12 +166,12 @@ class GetAlarmEventField(Resource):
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         now = int(time.time())
         handler = AlertQueryHandler(
-            bk_biz_ids=[params["bk_biz_id"]],
-            start_time=params.get("start_time", now - 3600 * 24 * 7),
-            end_time=params.get("end_time", now),
+            bk_biz_ids=[validated_request_data["bk_biz_id"]],
+            start_time=validated_request_data.get("start_time", now - 3600 * 24 * 7),
+            end_time=validated_request_data.get("end_time", now),
         )
         tags = handler.list_tags()
         for tag in tags:
@@ -183,14 +199,14 @@ class GetAlarmEventDimensionValue(Resource):
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         now = int(time.time())
         handler = AlertQueryHandler(
-            bk_biz_ids=[params["bk_biz_id"]],
-            start_time=params.get("start_time", now - 3600 * 24 * 7),
-            end_time=params.get("end_time", now),
+            bk_biz_ids=[validated_request_data["bk_biz_id"]],
+            start_time=validated_request_data.get("start_time", now - 3600 * 24 * 7),
+            end_time=validated_request_data.get("end_time", now),
         )
-        fields = handler.top_n(fields=[params["field"]], size=100, char_add_quotes=False)["fields"]
+        fields = handler.top_n(fields=[validated_request_data["field"]], size=100, char_add_quotes=False)["fields"]
         if not fields:
             return []
 
@@ -230,15 +246,17 @@ class QueryAlarmEventGraph(Resource):
                 attrs["interval"] = attrs["interval"] * 3600 * 24
             return attrs
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
         handler = AlertQueryHandler(
-            bk_biz_ids=[params["bk_biz_id"]],
-            conditions=params["where"],
-            start_time=params["start_time"],
-            end_time=params["end_time"],
+            bk_biz_ids=[validated_request_data["bk_biz_id"]],
+            conditions=validated_request_data["where"],
+            start_time=validated_request_data["start_time"],
+            end_time=validated_request_data["end_time"],
         )
 
-        data = handler.date_histogram(params["interval"], params["group_by"])
+        data = handler.date_histogram(
+            validated_request_data["interval"], validated_request_data["group_by"], bucket_size=1000
+        )
 
         series = []
         for dimension_tuple, status_mapping in data.items():
@@ -247,7 +265,7 @@ class QueryAlarmEventGraph(Resource):
                 datapoints = [[count, timestamp] for timestamp, count in value.items()]
                 dimensions = {k.replace(".", "__"): v for k, v in dimensions.items()}
 
-                if "status" in params["group_by"]:
+                if "status" in validated_request_data["group_by"]:
                     new_dimensions = {"status": status, **dimensions}
                 else:
                     new_dimensions = dimensions

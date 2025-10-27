@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import logging
+import traceback
 
 from django.conf import settings
 from django.core.cache import caches
@@ -19,11 +21,12 @@ from rest_framework.exceptions import ValidationError
 from bkm_space import api as space_api
 from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
-from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 
 local_mem = caches["space"]
+
+logger = logging.getLogger(__name__)
 
 
 class Empty:
@@ -81,6 +84,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             # 3. 指定 space_uid
             params.update({"space_uid": space_uid})
         else:
+            logger.error(f"get_space_detail error stack: {traceback.print_stack()}")
             raise ValidationError(_("参数[space_uid]、和[id]不能同时为空"))
 
         cache_key = params.get("space_uid", "")
@@ -156,6 +160,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
         with connections["monitor_api"].cursor() as cursor:
             sql = """
                 SELECT s.id,
+                       s.bk_tenant_id,
                        s.space_type_id,
                        s.space_id,
                        s.space_name,
@@ -185,11 +190,6 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             cursor.execute(sql)
             columns = [col[0] for col in cursor.description]
             spaces: list[dict] = [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-            # 如果空间没有指定租户，则补充默认租户
-            for space_dict in spaces:
-                if not space_dict.get("bk_tenant_id"):
-                    space_dict["bk_tenant_id"] = DEFAULT_TENANT_ID
 
             # 过滤指定租户
             if bk_tenant_id:

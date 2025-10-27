@@ -29,9 +29,22 @@ class GrafanaViewSet(ResourceViewSet):
             endpoint="time_series/unify_query_trace",
             content_encoding="gzip",
         ),
-        ResourceRoute("POST", resource.grafana.quick_import_dashboard, endpoint="quick_import_dashboard"),
         ResourceRoute("POST", resource.grafana.log_query, endpoint="log/query"),
+        # 告警事件查询
+        ResourceRoute("POST", resource.grafana.query_alarm_event_graph, endpoint="query_alarm_event_graph"),
+        ResourceRoute("GET", resource.grafana.get_alarm_event_field, endpoint="get_alarm_event_field"),
+        ResourceRoute(
+            "GET", resource.grafana.get_alarm_event_dimension_value, endpoint="get_alarm_event_dimension_value"
+        ),
+        # 仪表盘管理
         ResourceRoute("GET", resource.grafana.get_directory_tree, endpoint="get_directory_tree"),
+        ResourceRoute("POST", resource.grafana.quick_import_dashboard, endpoint="quick_import_dashboard"),
         ResourceRoute("GET", resource.grafana.get_dashboard_detail, endpoint="get_dashboard_detail"),
-        ResourceRoute("GET", resource.grafana.get_data_source_config, endpoint="get_data_source_config"),
+        ResourceRoute("POST", resource.grafana.create_dashboard_or_folder, endpoint="create_dashboard_or_folder"),
+        ResourceRoute("DELETE", resource.grafana.delete_dashboard, endpoint="delete_dashboard"),
+        ResourceRoute("POST", resource.grafana.star_dashboard, endpoint="star_dashboard"),
+        ResourceRoute("DELETE", resource.grafana.unstar_dashboard, endpoint="unstar_dashboard"),
+        ResourceRoute("DELETE", resource.grafana.delete_folder, endpoint="delete_folder"),
+        ResourceRoute("PUT", resource.grafana.rename_folder, endpoint="rename_folder"),
+        ResourceRoute("POST", resource.data_explorer.save_to_dashboard, endpoint="save_to_dashboard"),
     ]

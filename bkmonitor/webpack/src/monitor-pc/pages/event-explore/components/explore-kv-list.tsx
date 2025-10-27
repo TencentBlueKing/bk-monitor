@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -34,6 +34,7 @@ import {
   type ConditionChangeEvent,
   type DimensionType,
   type ExploreEntitiesItem,
+  type IExploreSceneUrlItem,
   type KVSplitItem,
   KVSplitEnum,
 } from '../typing';
@@ -53,6 +54,8 @@ export interface KVFieldList {
   entities: KVEntities[];
   /** kv 面板中的 key */
   name: string;
+  /** kv 点击 value 打开的 menu popover 中 查看该对象的其他场景 项中可选场景数据（空数组则不渲染） */
+  sceneUrls?: IExploreSceneUrlItem[];
   /** 部分字段目前显示的 name 是经过拼接处理后的值，sourceName 则是最原始未处理前的 name */
   sourceName: string;
   /** 字段的类型 */
@@ -60,6 +63,7 @@ export interface KVFieldList {
   /** kv 面板中的 value */
   value: KVSplitItem[] | string;
 }
+
 interface IExploreKvListEvents {
   onConditionChange(e: ConditionChangeEvent): void;
 }

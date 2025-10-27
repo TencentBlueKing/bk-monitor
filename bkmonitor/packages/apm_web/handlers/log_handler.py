@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -57,23 +57,27 @@ class ServiceLogHandler:
         """获取所有服务的关联日志的数据量"""
 
         # Step1: 找到此应用所有服务关联的日志
-        service_mapping = {}
+        service_mapping = defaultdict(dict)
         relations = LogServiceRelation.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name)
         for i in relations:
             if i.log_type == ServiceRelationLogTypeChoices.BK_LOG:
-                service_mapping[i.service_name] = {"bk_biz_id": i.related_bk_biz_id, "index_set_id": i.value}
+                service_mapping[i.service_name][i.related_bk_biz_id] = {
+                    int(val) for val in (i.value_list + [i.value]) if val
+                }
 
         # Step2: 查询业务的所有索引集 (避免每个 relation 都单独查询)
         pool = ThreadPool()
         futures = []
-        for i in {j["bk_biz_id"] for j in service_mapping.values()}:
-            futures.append(pool.apply_async(get_biz_index_sets_with_cache, kwds={"bk_biz_id": i}))
+        for i in service_mapping.values():
+            for bk_biz_id in i.keys():
+                futures.append(pool.apply_async(get_biz_index_sets_with_cache, kwds={"bk_biz_id": bk_biz_id}))
         index_set = list(itertools.chain(*[i.get() for i in futures]))
 
         # Step3: 根据 index_set_id 进行匹配
         res = {}
         for service_name, info in service_mapping.items():
-            index_info = next((i for i in index_set if i.get("index_set_id") == int(info["index_set_id"])), None)
+            info_index_set_ids = {item for value_set in info.values() for item in value_set}
+            index_info = next((i for i in index_set if i.get("index_set_id") in info_index_set_ids), None)
             if index_info:
                 # tag_id == 4 为无数据 (bk_log 固定值)
                 if all(i.get("tag_id") != 4 for i in index_info.get("tags", [])):
@@ -189,13 +193,16 @@ class ServiceLogHandler:
         return []
 
     @classmethod
-    def get_log_relation(cls, bk_biz_id, app_name, service_name):
-        return LogServiceRelation.objects.filter(
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            service_name=service_name,
-            log_type=ServiceRelationLogTypeChoices.BK_LOG,
-        ).first()
+    def get_log_relations(cls, bk_biz_id: int, app_name: str, service_names: list[str]) -> list[LogServiceRelation]:
+        """获取服务关联的日志"""
+        return list(
+            LogServiceRelation.objects.filter(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                log_type=ServiceRelationLogTypeChoices.BK_LOG,
+                service_name__in=service_names,
+            )
+        )
 
     @classmethod
     def list_indexes_by_relation(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):

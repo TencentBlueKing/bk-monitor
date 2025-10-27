@@ -99,11 +99,7 @@ module.exports = (baseConfig, { app, mobile, production, fta, log, email = false
       host: devConfig.host,
       open: false,
       static: [],
-      proxy: [
-        {
-          ...devConfig.proxy,
-        },
-      ],
+      proxy: [...devConfig.proxy],
     });
     config.plugins.push(
       new webpack.DefinePlugin({

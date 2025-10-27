@@ -24,15 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { blobDownload } from '@/common/util';
+import { debounce } from 'lodash-es';
 
+import { axiosInstance } from '@/api';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
-import { axiosInstance } from '@/api';
 
 import './field-item.scss';
 @Component
@@ -41,23 +42,26 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
   @Prop({ type: Boolean, default: false }) showFieldAlias: boolean;
-  @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
+  @Prop({ type: Array, default: () => [] }) datePickerValue: any[];
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
-  @Prop({ type: Object, required: true }) retrieveParams: object;
-  @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
+  @Prop({ type: Object, required: true }) retrieveParams: any;
+  @Prop({ type: Array, default: () => [] }) visibleFields: any[];
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: object;
   @Prop({ type: Boolean, required: true }) isFrontStatistics: boolean;
   @Prop({ type: Boolean, default: false }) isFieldObject: boolean;
-
+  @Ref('fieldChart') fieldChartRef: any;
   isExpand = false;
   analysisActive = false;
   operationInstance = null;
-  fieldAnalysisInstance = null;
   ifShowMore = false;
   fieldData = null;
   distinctCount = 0;
   btnLoading = false;
   expandIconShow = false;
+  queryParams = {};
+
+  fieldIconCache: Record<string, { icon: string; color: string; textColor: string }> = {};
+
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
   }
@@ -74,22 +78,27 @@ export default class FieldItem extends tsc<object> {
     return this.$store.state.retrieve?.indexSetList ?? [];
   }
   get gatherFieldsCount() {
-    if (this.isFrontStatistics) return Object.keys(this.statisticalFieldData).length;
+    if (this.isFrontStatistics) {
+      return Object.keys(this.statisticalFieldData).length;
+    }
     return 0;
   }
   // 显示融合字段统计比例图表
   get showFieldsChart() {
-    if (this.fieldItem.field_type === 'text') return false;
+    if (this.fieldItem.field_type === 'text') {
+      return false;
+    }
     return this.isFrontStatistics ? !!this.gatherFieldsCount : this.isShowFieldsAnalysis;
   }
   get isShowFieldsCount() {
     return !['object', 'nested', 'text'].includes(this.fieldItem.field_type) && this.isFrontStatistics;
   }
   get isShowFieldsAnalysis() {
+    const validTypes = ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'];
     return (
-      ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(this.fieldItem.field_type) &&
-      this.fieldItem.es_doc_values &&
-      !/^__dist_/.test(this.fieldItem.field_name)
+      validTypes.includes(this.fieldItem.field_type)
+      && this.fieldItem.es_doc_values
+      && !/^__dist_/.test(this.fieldItem.field_name)
     );
   }
   /** 冲突字段索引集名称*/
@@ -99,21 +108,48 @@ export default class FieldItem extends tsc<object> {
       .map(item => item.indexName);
   }
 
+  get agg_field() {
+    const fieldName = this.fieldItem.field_name;
+    return this.retrieveParams.showFieldAlias ? (this.fieldAliasMap[fieldName] ?? fieldName) : fieldName;
+  }
+
+  get computedFieldName() {
+    let name = this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
+      ? this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name
+      : this.fieldItem.field_name;
+
+    if (this.isFieldObject) {
+      const parts = name.split('.');
+      name = parts.at(-1) || parts[0];
+    }
+    return name;
+  }
+
   beforeDestroy() {
     this.instanceDestroy();
   }
   // 数据变化后关闭图表分析
   @Watch('statisticalFieldData')
   statisticalFieldDataChange() {
-    this.instanceDestroy();
+    debounce(() => {
+      this.instanceDestroy();
+    }, 100);
   }
   @Emit('toggleItem')
   emitToggleItem(v) {
     return v;
   }
-
-  getFieldIcon(fieldType: string) {
-    return this.fieldTypeMap[fieldType] ? this.fieldTypeMap[fieldType].icon : 'bklog-icon bklog-unkown';
+  // 缓存图标信息
+  getFieldIconInfo(fieldType: string) {
+    if (!this.fieldIconCache[fieldType]) {
+      const typeMap = this.fieldTypeMap[fieldType] || {};
+      this.fieldIconCache[fieldType] = {
+        icon: typeMap.icon || 'bklog-icon bklog-unkown',
+        color: typeMap.color || '#EAEBF0',
+        textColor: typeMap.textColor || '',
+      };
+    }
+    return this.fieldIconCache[fieldType];
   }
 
   // 显示或隐藏字段
@@ -131,44 +167,49 @@ export default class FieldItem extends tsc<object> {
   closeSlider() {
     this.ifShowMore = false;
   }
+  /** 点击查看图表分析 */
   handleClickAnalysisItem() {
+    if (!this.isShowFieldsAnalysis || this.isUnionSearch || this.isFrontStatistics) {
+      return;
+    }
+
     this.instanceDestroy();
     this.analysisActive = true;
-    this.fieldAnalysisInstance = new FieldAnalysis({
-      router: this.$router,
-      store: this.$store,
-    });
+
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
-    this.fieldAnalysisInstance.$props.queryParams = {
+
+    this.queryParams = {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
-      agg_field: this.fieldItem.field_name,
+      agg_field: this.agg_field,
       statisticalFieldData: this.statisticalFieldData,
       isFrontStatisticsL: this.isFrontStatistics,
     };
-    this.fieldAnalysisInstance.$mount();
-    /** 当小窗位置过于靠近底部时会显示不全chart图表，需要等接口更新完后更新Popper位置 */
-    this.fieldAnalysisInstance?.$on('statisticsInfoFinish', this.updatePopperInstance);
-    /** 字段下载功能 */
-    this.fieldAnalysisInstance?.$on('downloadFieldStatistics', this.downloadFieldStatistics);
-    this.fieldAnalysisInstance?.$on('showMore', this.showMore);
-    this.operationInstance = this.$bkPopover(this.$refs.operationRef, {
-      content: this.fieldAnalysisInstance.$el,
-      arrow: true,
-      placement: 'right-start',
-      boundary: 'viewport',
-      trigger: 'click',
-      theme: 'light analysis-chart',
-      interactive: true,
-      appendTo: document.body,
-      onHidden: () => {
-        this.instanceDestroy();
-      },
+
+    // 使用nextTick确保DOM更新
+    this.$nextTick(() => {
+      if (!this.fieldChartRef) {
+        return;
+      }
+
+      this.operationInstance = this.$bkPopover(this.$refs.operationRef, {
+        content: this.fieldChartRef,
+        arrow: true,
+        placement: 'right-center',
+        boundary: 'viewport',
+        trigger: 'click',
+        theme: 'light analysis-chart',
+        interactive: true,
+        appendTo: document.body,
+        onHidden: () => {
+          this.instanceDestroy();
+        },
+      });
+      this.operationInstance.show(100);
     });
-    this.operationInstance.show(100);
   }
   /** 更新Popper位置 */
   updatePopperInstance() {
@@ -177,12 +218,8 @@ export default class FieldItem extends tsc<object> {
     }, 100);
   }
   instanceDestroy() {
-    this.fieldAnalysisInstance?.$off('statisticsInfoFinish', this.updatePopperInstance);
-    this.fieldAnalysisInstance?.$off('downloadFieldStatistics', this.downloadFieldStatistics);
     this.operationInstance?.destroy();
-    this.fieldAnalysisInstance?.$destroy();
     this.operationInstance = null;
-    this.fieldAnalysisInstance = null;
     this.analysisActive = false;
   }
   /** 联合查询并且有冲突字段 */
@@ -190,13 +227,14 @@ export default class FieldItem extends tsc<object> {
     return this.isUnionSearch && fieldType === 'conflict';
   }
 
-  getFieldIconColor = type => {
+  getFieldIconColor = (type) => {
     return this.fieldTypeMap?.[type] ? this.fieldTypeMap?.[type]?.color : '#EAEBF0';
   };
 
-  getFieldIconTextColor = type => {
+  getFieldIconTextColor = (type) => {
     return this.fieldTypeMap?.[type]?.textColor;
   };
+  /** 下载 */
   downloadFieldStatistics() {
     this.btnLoading = true;
     const indexSetIDs = this.isUnionSearch
@@ -207,12 +245,12 @@ export default class FieldItem extends tsc<object> {
       ...this.retrieveParams,
       index_set_ids: indexSetIDs,
       field_type: this.fieldItem.field_type,
-      agg_field: this.fieldItem.field_name,
+      agg_field: this.agg_field,
       limit: this.fieldData?.distinct_count,
     };
     axiosInstance
       .post(downRequestUrl, data)
-      .then(res => {
+      .then((res) => {
         if (typeof res !== 'string') {
           this.$bkMessage({
             theme: 'error',
@@ -229,30 +267,21 @@ export default class FieldItem extends tsc<object> {
         this.btnLoading = false;
       });
   }
-  getdistinctCount(val) {
+  getDistinctCount(val) {
     this.distinctCount = val;
   }
-  retuanFieldName() {
-    let name = this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
-      ? this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name
-      : this.fieldItem.field_name;
-    if (this.isFieldObject) {
-      const objectName = name.split('.');
-      name = objectName[objectName.length - 1] || objectName[0];
-    }
-    return name;
-  }
   render() {
+    const fieldIconInfo = this.getFieldIconInfo(this.fieldItem.field_type);
+    const iconStyle = {
+      backgroundColor: this.fieldItem.is_full_text ? '' : fieldIconInfo.color,
+      color: this.fieldItem.is_full_text ? '' : fieldIconInfo.textColor,
+    };
+    const childrenCount = this.fieldItem.children?.length || 0;
+
     return (
       <li class='filed-item'>
         <div class={{ 'filed-title': true, expanded: this.isExpand }}>
-          <div
-            onClick={() => {
-              // 联合查询 或 非白名单业务和索引集类型 时不能点击弹出字段分析
-              if (!this.isShowFieldsAnalysis || this.isUnionSearch || this.isFrontStatistics) return;
-              this.handleClickAnalysisItem();
-            }}
-          >
+          <div onClick={this.handleClickAnalysisItem}>
             {/* 拖动字段位置按钮 */}
             <div class='bklog-drag-dots-box'>
               <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
@@ -261,13 +290,8 @@ export default class FieldItem extends tsc<object> {
             {/* 字段类型对应的图标 */}
             <div class='bklog-field-icon'>
               <span
-                style={{
-                  backgroundColor: this.fieldItem.is_full_text
-                    ? false
-                    : this.getFieldIconColor(this.fieldItem.field_type),
-                  color: this.fieldItem.is_full_text ? false : this.getFieldIconTextColor(this.fieldItem.field_type),
-                }}
-                class={[this.getFieldIcon(this.fieldItem.field_type) || 'bklog-icon bklog-unkown', 'field-type-icon']}
+                style={iconStyle}
+                class={[fieldIconInfo.icon, 'field-type-icon']}
                 v-bk-tooltips={{
                   content: this.fieldTypeMap[this.fieldItem.field_type]?.name,
                   disabled: !this.fieldTypeMap[this.fieldItem.field_type],
@@ -277,14 +301,13 @@ export default class FieldItem extends tsc<object> {
 
             {/* 字段名 */}
             <span>
-              <span class='field-name'>{this.retuanFieldName()}</span>
-              {this.fieldItem.children?.length && <span class='field-badge'>{this.fieldItem.children?.length}</span>}
-              {this.fieldItem.children?.length &&
-                (this.expandIconShow ? (
-                  <span class={['bk-icon', 'icon-angle-up', 'expand']}></span>
-                ) : (
-                  <span class={['bk-icon', 'icon-angle-down', 'expand']}></span>
-                ))}
+              <span class='field-name'>{this.computedFieldName}</span>
+              {childrenCount > 0 && (
+                <span>
+                  <span class='field-badge'>{childrenCount}</span>
+                  <span class={['bk-icon', 'expand', this.expandIconShow ? 'icon-angle-up' : 'icon-angle-down']} />
+                </span>
+              )}
 
               {this.isUnionConflictFields(this.fieldItem.field_type) && (
                 <bk-popover
@@ -295,7 +318,7 @@ export default class FieldItem extends tsc<object> {
                   <div slot='content'>
                     <p>{this.$t('该字段在以下索引集存在冲突')}</p>
                     {this.unionConflictFieldsName.map(item => (
-                      <bk-tag>{item}</bk-tag>
+                      <bk-tag key={item}>{item}</bk-tag>
                     ))}
                   </div>
                 </bk-popover>
@@ -306,94 +329,99 @@ export default class FieldItem extends tsc<object> {
             ref='operationRef'
             class={['operation-text', { 'analysis-active': this.analysisActive }]}
           >
-            {this.isShowFieldsAnalysis && (
+            {this.isShowFieldsAnalysis && !this.isUnionSearch && !this.isFrontStatistics && (
               <div
-                class={{
-                  'operation-icon-box': true,
-                  'analysis-disabled': this.isUnionSearch || this.isFrontStatistics,
-                }}
-                v-bk-tooltips={{
-                  content: this.isUnionSearch || this.isFrontStatistics ? this.$t('暂不支持') : this.$t('图表分析'),
-                }}
-                onClick={e => {
+                class='operation-icon-box'
+                v-bk-tooltips={{ content: this.$t('图表分析') }}
+                onClick={(e) => {
                   e.stopPropagation();
-                  // 联合查询 或 非白名单业务和索引集类型 时不能点击字段分析
-                  if (this.isUnionSearch || this.isFrontStatistics) return;
                   this.handleClickAnalysisItem();
                 }}
               >
                 <i class='bklog-icon bklog-chart-2' />
               </div>
             )}
-            {/* 设置字段显示或隐藏 */}
-            {
-              <div
-                class='operation-icon-box'
-                v-bk-tooltips={{
-                  content: this.type === 'visible' ? this.$t('隐藏') : this.$t('显示'),
-                }}
-                onClick={e => {
-                  e.stopPropagation();
-                  this.handleShowOrHiddenItem();
-                }}
-              >
-                <i class={['bk-icon include-icon', `${this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
-              </div>
-            }
+            <div
+              class='operation-icon-box'
+              v-bk-tooltips={{
+                content: this.type === 'visible' ? this.$t('隐藏') : this.$t('显示'),
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                this.handleShowOrHiddenItem();
+              }}
+            >
+              <i class={['bk-icon include-icon', this.type === 'visible' ? 'icon-eye' : 'icon-eye-slash']} />
+            </div>
+          </div>
+          <div style='display: none'>
+            <div ref='fieldChart'>
+              {this.analysisActive && (
+                <FieldAnalysis
+                  queryParams={this.queryParams}
+                  on-downloadFieldStatistics={this.downloadFieldStatistics}
+                  on-showMore={this.showMore}
+                  on-statisticsInfoFinish={this.updatePopperInstance}
+                />
+              )}
+            </div>
           </div>
         </div>
 
-        <bk-sideslider
-          width={480}
-          class='agg-field-item-sideslider'
-          is-show={this.ifShowMore}
-          quick-close={true}
-          show-mask={false}
-          transfer
-          onAnimation-end={this.closeSlider}
-        >
-          <template slot='header'>
-            <div class='agg-sides-slider-header'>
-              <div class='distinct-num'>
-                <span class='field-name'>{this.fieldItem?.field_name}</span>
-                <div class='col-line' />
-                <span class='distinct-count-label'>{this.$t('去重后字段统计')}</span>
-                <span class='distinct-count-num'>{`(${this.distinctCount})`}</span>
+        {this.ifShowMore && (
+          <bk-sideslider
+            width={480}
+            class='agg-field-item-sideslider'
+            is-show={true}
+            show-mask={false}
+            quick-close
+            transfer
+            onAnimation-end={this.closeSlider}
+          >
+            <template slot='header'>
+              <div class='agg-sides-slider-header'>
+                <div class='distinct-num'>
+                  <span class='field-name'>{this.fieldItem?.field_name}</span>
+                  <div class='col-line' />
+                  <span class='distinct-count-label'>{this.$t('去重后字段统计')}</span>
+                  <span class='distinct-count-num'>{`(${this.distinctCount})`}</span>
+                </div>
+                <div class='fnBtn'>
+                  <bk-button
+                    loading={this.btnLoading}
+                    size='small'
+                    text
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      this.downloadFieldStatistics();
+                    }}
+                  >
+                    <div class='download-btn'>
+                      <i class='bklog-icon bklog-download' />
+                      <span>{this.$t('下载')}</span>
+                    </div>
+                  </bk-button>
+                  {/* <bk-button size='small'>查看仪表盘</bk-button> */}
+                </div>
               </div>
-              <div class='fnBtn'>
-                <bk-button
-                  loading={this.btnLoading}
-                  size='small'
-                  text={true}
-                  onClick={e => {
-                    e.stopPropagation();
-                    this.downloadFieldStatistics();
-                  }}
-                >
-                  <div class='download-btn'>
-                    <i class='bklog-icon bklog-download' />
-                    <span>{this.$t('下载')}</span>
-                  </div>
-                </bk-button>
-                {/* <bk-button size='small'>查看仪表盘</bk-button> */}
+            </template>
+            <template slot='content'>
+              <div class='agg-sides-content slider-content'>
+                <AggChart
+                  field-name={this.agg_field}
+                  field-type={this.fieldItem.field_type}
+                  is-front-statistics={this.isFrontStatistics}
+                  limit={this.fieldData?.distinct_count}
+                  parent-expand={this.isExpand}
+                  retrieve-params={this.retrieveParams}
+                  statistical-field-data={this.statisticalFieldData}
+                  show-search-keyword={true}
+                  onDistinctCount={this.getDistinctCount}
+                />
               </div>
-            </div>
-          </template>
-          <template slot='content'>
-            <div class='agg-sides-content slider-content'>
-              <AggChart
-                field-name={this.fieldItem.field_name}
-                field-type={this.fieldItem.field_type}
-                is-front-statistics={this.isFrontStatistics}
-                limit={this.fieldData?.distinct_count}
-                parent-expand={this.isExpand}
-                retrieve-params={this.retrieveParams}
-                statistical-field-data={this.statisticalFieldData}
-                onDistinctCount={val => this.getdistinctCount(val)}
-              />
-            </div>
-          </template>
-        </bk-sideslider>
+            </template>
+          </bk-sideslider>
+        )}
       </li>
     );
   }

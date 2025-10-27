@@ -28,7 +28,8 @@ import deepMerge from 'deepmerge';
 
 import MonitorBaseSeries from './base-chart-option';
 import { lineOrBarOptions } from './echart-options-config';
-import { ILegendItem, IChartInstance } from './type-interface';
+
+import type { ILegendItem, IChartInstance } from './type-interface';
 export default class MonitorLineSeries extends MonitorBaseSeries implements IChartInstance {
   public defaultOption: any;
   public constructor(props: any) {
@@ -83,14 +84,14 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
               color: this.colors[index % this.colors.length],
               show: true,
             };
-            item.data.forEach((seriesItem: any) => {
+            for (const seriesItem of item.data) {
               if (seriesItem?.length && seriesItem[1]) {
                 const curValue = +seriesItem[1];
                 legendItem.max = Math.max(legendItem.max, curValue);
                 legendItem.min = Math.min(+legendItem.min, curValue);
-                legendItem.total = legendItem.total + curValue;
+                legendItem.total += curValue;
               }
-            });
+            }
             legendItem.avg = +(legendItem.total / item.data.length).toFixed(2);
             legendItem.total = +legendItem.total.toFixed(2);
             legendData.push(legendItem);
@@ -171,43 +172,62 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
     };
   }
 
+  private getYAxisValue(current: any, nextThreshold: any, index: number) {
+    const openInterval = ['gte', 'gt']; // 开区间
+    const closedInterval = ['lte', 'lt']; // 闭区间
+    if (
+      openInterval.includes(current.method) &&
+      nextThreshold &&
+      nextThreshold.condition === 'and' &&
+      closedInterval.includes(nextThreshold.method) &&
+      nextThreshold.yAxis >= current.yAxis
+    ) {
+      return {
+        yAxis: nextThreshold.yAxis,
+        index: index + 1,
+      };
+    }
+    if (
+      closedInterval.includes(current.method) &&
+      nextThreshold &&
+      nextThreshold.condition === 'and' &&
+      openInterval.includes(nextThreshold.method) &&
+      nextThreshold.yAxis <= current.yAxis
+    ) {
+      return {
+        yAxis: nextThreshold.yAxis,
+        index: index + 1,
+      };
+    }
+    if (openInterval.includes(current.method)) {
+      return {
+        yAxis: 'max',
+        index,
+      };
+    }
+    if (closedInterval.includes(current.method)) {
+      return {
+        yAxis: current.yAxis < 0 ? current.yAxis : 0,
+        index,
+      };
+    }
+    return {
+      yAxis: undefined,
+      index,
+    };
+  }
+
   private handleSetThresholdAreaData(thresholdLine: any[]) {
     const threshold = thresholdLine.filter(item => item.method && !['eq', 'neq'].includes(item.method));
 
-    const openInterval = ['gte', 'gt']; // 开区间
-    const closedInterval = ['lte', 'lt']; // 闭区间
-
-    const data = [];
+    const data: any[] = [];
 
     for (let index = 0; index < threshold.length; index++) {
       const current = threshold[index];
       const nextThreshold = threshold[index + 1];
       // 判断是否为一个闭合区间
-      let yAxis = undefined;
-      if (
-        openInterval.includes(current.method) &&
-        nextThreshold &&
-        nextThreshold.condition === 'and' &&
-        closedInterval.includes(nextThreshold.method) &&
-        nextThreshold.yAxis >= current.yAxis
-      ) {
-        yAxis = nextThreshold.yAxis;
-        index += 1;
-      } else if (
-        closedInterval.includes(current.method) &&
-        nextThreshold &&
-        nextThreshold.condition === 'and' &&
-        openInterval.includes(nextThreshold.method) &&
-        nextThreshold.yAxis <= current.yAxis
-      ) {
-        yAxis = nextThreshold.yAxis;
-        index += 1;
-      } else if (openInterval.includes(current.method)) {
-        yAxis = 'max';
-      } else if (closedInterval.includes(current.method)) {
-        yAxis = current.yAxis < 0 ? current.yAxis : 0;
-      }
-
+      const { yAxis, index: newIndex } = this.getYAxisValue(current, nextThreshold, index);
+      index = newIndex;
       yAxis !== undefined &&
         data.push([
           {

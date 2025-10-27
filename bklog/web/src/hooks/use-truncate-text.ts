@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, ComputedRef } from 'vue';
+import { computed, type ComputedRef } from 'vue';
 
 type TextOption = {
   text: string;
@@ -33,7 +33,7 @@ type TextOption = {
   showAll: boolean;
 };
 export default (options: ComputedRef<TextOption>) => {
-  let canvas;
+  let canvas: HTMLCanvasElement;
   const getTextWidth = (text, font) => {
     if (!canvas) {
       canvas = document.createElement('canvas');
@@ -79,7 +79,7 @@ export default (options: ComputedRef<TextOption>) => {
       }
 
       if (groupIndex < length) {
-        truncatedText += temp ? '<mark>' : '</mark>';
+        truncatedText += temp === true ? '<mark>' : '</mark>';
         temp = !temp;
       }
     }

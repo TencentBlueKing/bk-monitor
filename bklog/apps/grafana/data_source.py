@@ -130,7 +130,8 @@ class CustomIndexSetESDataSource:
     def get_or_create_feature_config(cls) -> FeatureToggle:
         obj, __ = FeatureToggle.objects.get_or_create(
             name=GRAFANA_CUSTOM_ES_DATASOURCE,
-            defaults={"status": "debug", "is_viewed": False, "feature_config": {}, "biz_id_white_list": []},
+            defaults={"status": "debug", "is_viewed": False, "feature_config": {}, "biz_id_white_list": [],
+                      "biz_id_black_list": []},
         )
         return obj
 

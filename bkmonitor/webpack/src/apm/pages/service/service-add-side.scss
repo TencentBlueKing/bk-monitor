@@ -1,0 +1,33 @@
+.service-add-side {
+  .service-add-side__content {
+    padding: 24px 24px 0;
+  }
+
+  .service-add-side__block {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 148px;
+    height: 32px;
+    margin-right: 8px;
+    vertical-align: middle;
+    background: #f0f1f5;
+    border-radius: 2px;
+
+    .icon-monitor {
+      margin-right: 2px;
+      font-size: 12px;
+    }
+
+    &:hover {
+      cursor: pointer;
+      background: #eaebf0;
+    }
+  }
+
+  .more-link {
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+}

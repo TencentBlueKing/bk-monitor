@@ -249,25 +249,26 @@ class DataFlowHandler(BaseAiopsHandler):
             else f"`{all_fields_dict[field_name]}`"
         )
         for idx, val in enumerate(filter_rule.get("value")):
+            op = filter_rule.get("op", "=")
+            if op == "!=":
+                op = "<>"
+            elif op == "contains":
+                op = "LIKE"
+                val = f"%{val}%"
+            elif op == "not contains":
+                op = "NOT LIKE"
+                val = f"%{val}%"
             if idx > 0:
-                result.append("or")
-            result.extend(
-                [
-                    query_field_name,
-                    cls.change_op(filter_rule.get("op")),
-                    f"'{val}'",
-                ]
-            )
+                # 否定条件需要用 and 连接
+                if op in ["<>", "NOT LIKE"]:
+                    result.append("and")
+                else:
+                    result.append("or")
+            result.extend([query_field_name, op, f"'{val}'"])
         if len(filter_rule.get("value")) > 1 and len(filter_rules) > 1:
             result.append(")")
             result.insert(0, "(")
         return result
-
-    @classmethod
-    def change_op(cls, op):
-        if op == "!=":
-            return "<>"
-        return op
 
     @classmethod
     def _init_default_filter_rule(cls, clustering_field):

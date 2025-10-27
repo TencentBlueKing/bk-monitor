@@ -1,18 +1,17 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import calendar
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from typing import List
 
 import pytz
 from dateutil.relativedelta import relativedelta
@@ -122,12 +121,15 @@ class PushActionProcessor:
             converge_info = DimensionCalculator(
                 action_instance, converge_config=converge_config, alerts=alerts
             ).calc_dimension()
-            task_id = run_converge.delay(
-                converge_config,
-                action_instance.id,
-                ConvergeType.ACTION,
-                converge_info["converge_context"],
-                alerts=[alert.to_dict() for alert in alerts],
+            task_id = run_converge.apply_async(
+                args=(
+                    converge_config,
+                    action_instance.id,
+                    ConvergeType.ACTION,
+                    converge_info["converge_context"],
+                    [alert.to_dict() for alert in alerts],
+                ),
+                countdown=3,
             )
             logger.info(
                 "[push_actions_to_converge_queue] push action(%s) to converge queue, converge_config %s,  task id %s",
@@ -197,7 +199,7 @@ def to_document(action_instance: ActionInstance, current_time, alerts=None):
 
     converge_info = getattr(action_instance, "converge_info", {})
     action_info = dict(
-        id="{}{}".format(create_timestamp, action_instance.id),
+        id=f"{create_timestamp}{action_instance.id}",
         raw_id=action_instance.id,
         create_time=create_timestamp,
         update_time=int(action_instance.update_time.timestamp()),
@@ -248,7 +250,7 @@ def to_document(action_instance: ActionInstance, current_time, alerts=None):
     return ActionInstanceDocument(**action_info)
 
 
-def get_target_info_from_ctx(action_instance: ActionInstance, alerts: List[AlertDocument]):
+def get_target_info_from_ctx(action_instance: ActionInstance, alerts: list[AlertDocument]):
     """获取目标信息"""
     if action_instance.outputs.get("target_info"):
         return action_instance.outputs["target_info"]

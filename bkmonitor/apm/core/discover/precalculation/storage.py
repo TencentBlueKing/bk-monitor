@@ -1,7 +1,7 @@
 """
 TencentBlueKing is pleased to support the open source community by making
 蓝鲸智云 - Resource SDK (BlueKing - Resource SDK) available.
-Copyright (C) 2022 THL A29 Limited,
+Copyright (C) 2017-2025 Tencent,
 a Tencent company. All rights reserved.
 Licensed under the MIT License (the "License");
 you may not use this file except in compliance with the License.
@@ -34,7 +34,8 @@ from apm.models import DataLink
 from apm.utils.base import rt_id_to_index
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.user import get_global_user
-from constants.apm import PreCalculateSpecificField, PRECALCULATE_RESULT_TABLE_OPTION, PrecalculateStorageConfig
+from constants.apm import PRECALCULATE_RESULT_TABLE_OPTION, PreCalculateSpecificField, PrecalculateStorageConfig
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from metadata.models import ESStorage
@@ -194,20 +195,20 @@ class PrecalculateStorage:
 
     @classmethod
     def fetch_result_table_ids(cls, bk_biz_id: int) -> list[str]:
-        cluster_infos: list[dict[str, int | str]] = cls.fetch_cluster_simple_infos(bk_biz_id)
+        cluster_infos: list[dict[str, Any]] = cls.fetch_cluster_simple_infos(bk_biz_id)
         return [cluster_info["table_name"] for cluster_info in cluster_infos]
 
     @classmethod
     def list_nodes(
         cls, bk_biz_id: int, need_client: bool
     ) -> tuple[RendezvousHash | None, dict[str, Any] | None, dict[str, int] | None]:
-        cluster_infos: list[dict[str, int | str]] = cls.fetch_cluster_simple_infos(bk_biz_id)
+        cluster_infos: list[dict[str, Any]] = cls.fetch_cluster_simple_infos(bk_biz_id)
         if not cluster_infos:
             return None, None, None
 
         table_ids: list[str] = [cluster_info["table_name"] for cluster_info in cluster_infos]
-        table_storage_mapping: dict[str, ESStorage] = {
-            storage.table_id: storage for storage in ESStorage.objects.filter(table_id__in=table_ids)
+        table_storage_mapping = {
+            _storage.table_id: _storage for _storage in ESStorage.objects.filter(table_id__in=table_ids)
         }
 
         nodes: list[str] = []
@@ -216,13 +217,14 @@ class PrecalculateStorage:
 
         for cluster_info in cluster_infos:
             table_name: str = cluster_info["table_name"]
-            cluster_id: str = cluster_info["cluster_id"]
+            cluster_id: int = cluster_info["cluster_id"]
             key: str = f"{cluster_id}-{table_name}"
 
-            storage: ESStorage | None = table_storage_mapping.get(table_name)
-            if storage is None:
+            if table_name not in table_storage_mapping:
                 try:
-                    storage: ESStorage = cls.create_storage_table(cluster_id, table_name)
+                    storage = cls.create_storage_table(
+                        bk_biz_id=bk_biz_id, storage_id=cluster_id, table_name=table_name
+                    )
                 except Exception as e:  # noqa
                     logger.exception(
                         "[PreCalculate] create storage table failed but ignore: table_name -> %s, cluster_id -> %s",
@@ -230,6 +232,8 @@ class PrecalculateStorage:
                         cluster_id,
                     )
                     continue
+            else:
+                storage: ESStorage = table_storage_mapping[table_name]
 
             if need_client:
                 try:
@@ -261,12 +265,13 @@ class PrecalculateStorage:
         return f"write_{datetime.datetime.now().strftime('%Y%m%d')}_{index_name}"
 
     @classmethod
-    def create_storage_table(cls, storage_id, table_name):
-        bk_data_id = cls.create_data_id(table_name)
+    def create_storage_table(cls, bk_biz_id: int, storage_id: int, table_name: str):
+        bk_data_id = cls.create_data_id(bk_biz_id=bk_biz_id, table_name=table_name)
         resource.metadata.create_result_table(
             {
                 "bk_data_id": bk_data_id,
                 "table_id": table_name,
+                "bk_tenant_id": DEFAULT_TENANT_ID,
                 "operator": get_global_user(),
                 "is_enable": True,
                 "table_name_zh": f"APM预计算结果表: {table_name}",
@@ -304,13 +309,14 @@ class PrecalculateStorage:
         )
         logger.info(f"[PrecalculateStorage] create result table success -> {table_name}")
 
-        return ESStorage.objects.filter(table_id=table_name).first()
+        return ESStorage.objects.filter(table_id=table_name)[0]
 
     @classmethod
-    def create_data_id(cls, table_name):
+    def create_data_id(cls, bk_biz_id: int, table_name: str):
         try:
             instance = api.metadata.create_data_id(
                 {
+                    "bk_biz_id": bk_biz_id,
                     "data_name": table_name,
                     "operator": get_global_user(),
                     "data_description": "apm_cross_trace_info",
@@ -337,7 +343,7 @@ class PrecalculateStorage:
         for i in DataLink.objects.all():
             cluster_config = i.pre_calculate_config.get("cluster")
             if not cluster_config:
-                logger.info(f"[PreCalculateStorage-CHECK_UPDATE] not found config in dataLinkId: {i.id}")
+                logger.info(f"[PreCalculateStorage-CHECK_UPDATE] not found config in dataLinkId: {i.pk}")
                 continue
 
             for j in cluster_config:
@@ -397,6 +403,7 @@ class PrecalculateStorage:
         """更新所有DataLink的预计算存储配置"""
         params = {
             "table_id": table_name,
+            "bk_tenant_id": DEFAULT_TENANT_ID,
             "operator": get_global_user(),
             "label": "application_check",
             "field_list": PrecalculateStorageConfig.TABLE_SCHEMA,

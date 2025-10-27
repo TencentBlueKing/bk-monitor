@@ -1,17 +1,16 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
 import json
 import os
-from typing import Dict, List, Optional, Set
 
 from django.db.models import QuerySet
 from django.utils.translation import gettext_lazy as _
@@ -24,10 +23,10 @@ BUILTIN_SCENES = {
     "uptime_check": {"name": _("服务拨测"), "detail": {"task"}, "overview": set()},
 }
 
-_BUILTIN_VIEWS: Optional[Dict[str, Dict]] = None
+_BUILTIN_VIEWS: dict[str, dict] | None = None
 
 
-def get_builtin_processors() -> List["BuiltinProcessor"]:
+def get_builtin_processors() -> list["BuiltinProcessor"]:
     """
     内置视图处理器
     """
@@ -60,13 +59,31 @@ class BuiltinProcessor(metaclass=abc.ABCMeta):
     view_config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "view_configs")
 
     @classmethod
-    def _read_builtin_view_config(cls, filename: str) -> Dict:
+    def _read_builtin_view_config(cls, filename: str) -> dict:
         """
         读取内置视图配置文件
         """
         file_path = os.path.join(cls.view_config_path, f"{filename}.json")
-        with open(file_path, "r", encoding="utf8") as f:
-            return json.loads(f.read())
+        with open(file_path, encoding="utf8") as f:
+            config = json.loads(f.read())
+            return cls._translate_config(config)
+
+    @classmethod
+    def _translate_config(cls, config) -> dict:
+        """
+        国际化配置文件
+        """
+        from django.utils.translation import gettext_lazy as _
+
+        if isinstance(config, dict):
+            return {k: cls._translate_config(v) for k, v in config.items()}
+        elif isinstance(config, list):
+            return [cls._translate_config(item) for item in config]
+        elif isinstance(config, str):
+            # 只翻译特定字段
+            if config.startswith("_(") and config.endswith(")"):
+                return _(config[2:-1])
+        return config
 
     @classmethod
     @abc.abstractmethod
@@ -85,15 +102,15 @@ class BuiltinProcessor(metaclass=abc.ABCMeta):
     @classmethod
     @abc.abstractmethod
     def create_or_update_view(
-        cls, bk_biz_id: int, scene_id: str, view_type: str, view_id: str, view_config: Dict
-    ) -> Optional[SceneViewModel]:
+        cls, bk_biz_id: int, scene_id: str, view_type: str, view_id: str, view_config: dict
+    ) -> SceneViewModel | None:
         """
         常见或更新该场景下的视图
         """
 
     @classmethod
     @abc.abstractmethod
-    def get_view_config(cls, view: SceneViewModel, *args, **kwargs) -> Dict:
+    def get_view_config(cls, view: SceneViewModel, *args, **kwargs) -> dict:
         """
         根据视图对象生成视图配置，内置视图可能只会使用其中的部分字段
         """
@@ -118,7 +135,7 @@ class BuiltinProcessor(metaclass=abc.ABCMeta):
         return False
 
     @classmethod
-    def list_view_list(cls, scene_id, views: List[SceneViewModel], params):
+    def list_view_list(cls, scene_id, views: list[SceneViewModel], params):
         """
         返回自定义视图列表 当cls.is_custom_view_list() = True时有效
         """
@@ -141,7 +158,7 @@ class BuiltinProcessor(metaclass=abc.ABCMeta):
 
 class NormalProcessorMixin:
     SCENE_ID = None
-    builtin_views: Dict = None
+    builtin_views: dict = None
 
     filenames = []
 
@@ -158,7 +175,7 @@ class NormalProcessorMixin:
         cls.load_builtin_views()
 
         builtin_view_ids = {v.split("-", 1)[-1] for v in cls.builtin_views if v.startswith(f"{scene_id}-")}
-        existed_view_ids: Set[str] = {v.id for v in existed_views}
+        existed_view_ids: set[str] = {v.id for v in existed_views}
         create_view_ids = builtin_view_ids - existed_view_ids
         new_views = []
         for view_id in create_view_ids:
@@ -194,7 +211,7 @@ class NormalProcessorMixin:
         return
 
 
-def get_view_config(view: SceneViewModel, params: Dict = None) -> Dict:
+def get_view_config(view: SceneViewModel, params: dict = None) -> dict:
     """
     获取实际配置
     """
@@ -209,7 +226,7 @@ def get_view_config(view: SceneViewModel, params: Dict = None) -> Dict:
     raise TypeError("not scene processor")
 
 
-def list_processors_view(scene_id: str, views: List[SceneViewModel], params: dict):
+def list_processors_view(scene_id: str, views: list[SceneViewModel], params: dict):
     for generator in get_builtin_processors():
         if generator.is_builtin_scene(scene_id) and generator.is_custom_view_list():
             return generator.list_view_list(scene_id, views, params)
@@ -252,8 +269,8 @@ def post_handle_view_list_config(scene_id, config_list):
 
 
 def create_or_update_view(
-    bk_biz_id: int, scene_id: str, view_type: str, view_id: str, view_config: Dict
-) -> Optional[SceneViewModel]:
+    bk_biz_id: int, scene_id: str, view_type: str, view_id: str, view_config: dict
+) -> SceneViewModel | None:
     """
     创建或更新视图
     """

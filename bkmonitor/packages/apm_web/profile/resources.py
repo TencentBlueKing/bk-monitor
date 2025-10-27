@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import itertools
 import json
@@ -32,7 +32,14 @@ logger = logging.getLogger("apm")
 class QueryServicesDetailResource(Resource):
     """查询Profile服务详情信息"""
 
-    COUNT_ALLOW_SAMPLE_TYPES = ["goroutine/count", "syscall/count", "allocations/count", "exception-samples/count"]
+    COUNT_ALLOW_SAMPLE_TYPES = [
+        "goroutine/count",
+        "syscall/count",
+        "allocations/count",
+        "exception-samples/count",
+        "alloc_objects/count",
+        "inuse_objects/count",
+    ]
 
     class RequestSerializer(serializers.Serializer):
         view_mode_choices = (
@@ -45,14 +52,16 @@ class QueryServicesDetailResource(Resource):
         service_name = serializers.CharField()
         start_time = serializers.IntegerField(required=True, label="开始时间")
         end_time = serializers.IntegerField(required=True, label="结束时间")
-        view_mode = serializers.ChoiceField(label="数据模式", default="default", choices=view_mode_choices, required=False)
+        view_mode = serializers.ChoiceField(
+            label="数据模式", default="default", choices=view_mode_choices, required=False
+        )
 
     def perform_request(self, validated_data):
         app = Application.objects.filter(
             bk_biz_id=validated_data["bk_biz_id"], app_name=validated_data["app_name"]
         ).first()
         if not app:
-            raise ValueError(_("应用{}不存在").format(validated_data['app_name']))
+            raise ValueError(_("应用{}不存在").format(validated_data["app_name"]))
 
         if not app.is_enabled_profiling:
             raise ValueError(_(f"应用：{app.app_name} 未开启 Profile 功能，需先前往应用配置中开启"))
@@ -98,7 +107,7 @@ class QueryServicesDetailResource(Resource):
         """
         将 service 转换为数据类型
         对于 count 类型 只允许以下:
-        goroutine/syscall/allocations/exception-samples
+        goroutine/syscall/allocations/exception-samples/alloc_objects/inuse_objects
         """
         res = []
         for svr in services:

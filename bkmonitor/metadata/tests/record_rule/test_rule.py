@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -51,11 +51,11 @@ def test_get_src_table_ids(create_and_delete_record, mocker):
 @pytest.mark.parametrize(
     "table_id, dst_table_id",
     [
-        ("test", "0_test"),
-        ("test.demo", "0_test_demo"),
+        ("test", "2_vm_test"),
+        ("test.demo", "2_vm_test_demo"),
         (
             "test111111111111111111111111111111111111111111111111111111111111.demo",
-            "0_11111111111111111111111111111111111_demo",
+            "2_vm_11111111111111111111111111111111111_demo",
         ),
     ],
 )

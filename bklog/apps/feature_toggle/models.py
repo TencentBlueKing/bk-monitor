@@ -38,6 +38,7 @@ class FeatureToggle(SoftDeleteModel):
     is_viewed = models.BooleanField(_("是否在前端展示"), default=True)
     feature_config = models.JSONField(_("特性开关配置"), null=True, blank=True)
     biz_id_white_list = models.JSONField(_("业务白名单"), null=True, blank=True)
+    biz_id_black_list = models.JSONField(_("业务黑名单"), null=True, blank=True)
 
     class Meta:
         verbose_name = _("日志平台特性开关")

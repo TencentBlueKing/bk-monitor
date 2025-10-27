@@ -1,0 +1,41 @@
+.log-table-main {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  position: relative;
+
+  .display-type-main {
+    font-size: 12px;
+    display: flex;
+    gap: 14px;
+    margin: 0 0 8px 12px;
+
+    .bk-form-radio {
+      color: #4d4f56;
+      font-family: MicrosoftYaHei;
+      font-weight: normal;
+    }
+  }
+
+  .table-list-content {
+    flex: 1;
+
+    .bk-loading {
+      z-index: 0 !important;
+    }
+  }
+
+  .global-scrollbar-wraper {
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    height: 12px;
+    width: 100%;
+    overflow-x: auto;
+
+    .global-scrollbar {
+      width: 100%;
+    }
+  }
+}

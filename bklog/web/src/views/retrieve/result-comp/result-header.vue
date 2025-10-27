@@ -560,7 +560,7 @@
       /** 更新用户指引 */
       updateUserGuide() {
         this.$http.request('meta/getUserGuide').then(res => {
-          this.$store.commit('setUserGuideData', res.data);
+          this.$store.commit('updateState', {'userGuideData': res.data});
         });
       },
       handleRefresh() {

@@ -36,6 +36,7 @@
     }
 
     .common-link-item {
+      cursor: pointer;
       &:not(:last-child) {
         margin-right: 26px;
       }

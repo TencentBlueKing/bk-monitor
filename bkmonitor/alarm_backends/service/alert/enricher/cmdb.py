@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from itertools import chain
-from typing import List
 
 from alarm_backends.core.alert import Event
 from alarm_backends.core.cache.cmdb import (
@@ -25,8 +24,8 @@ logger = logging.getLogger("alert.enricher")
 
 
 class CMDBEnricher(BaseEventEnricher):
-    def __init__(self, events: List[Event]):
-        super(CMDBEnricher, self).__init__(events)
+    def __init__(self, events: list[Event]):
+        super().__init__(events)
 
         # 缓存准备，批量查询避免重复请求redis
         ips = set()
@@ -112,19 +111,24 @@ class CMDBEnricher(BaseEventEnricher):
             ip = ip_with_cloud_id[0]
             bk_cloud_id = 0
             host = None
-            for h in self.get_host_by_ip(ip):
-                if event.bk_biz_id and int(event.bk_biz_id) > 0 and h.bk_biz_id != event.bk_biz_id:
-                    continue
-                # 1. 如果提供了业务ID，且主机的业务ID跟事件提供的业务ID相同，则匹配成功
-                # 2. 如果没有提供业务ID，则直接匹配成功
-                if host:
-                    # 如果已经有一台机器匹配过了，那么就发生冲突，清洗失败
-                    logger.warning(
-                        "[enrich_host] host(%s) conflict, multiple cloud regions exist for this IP", event.target
-                    )
-                    event.drop()
-                    return event
-                host = h
+            target_hosts = self.get_host_by_ip(ip)
+            if len(target_hosts) == 1:
+                # 0. 如果 ip 下只有一台机器，则直接匹配成功
+                host = target_hosts[0]
+            else:
+                for h in target_hosts:
+                    if event.bk_biz_id and int(event.bk_biz_id) > 0 and h.bk_biz_id != event.bk_biz_id:
+                        continue
+                    # 1. 如果提供了业务ID，且主机的业务ID跟事件提供的业务ID相同，则匹配成功
+                    # 2. 如果没有提供业务ID，则直接匹配成功
+                    if host:
+                        # 如果已经有一台机器匹配过了，那么就发生冲突，清洗失败
+                        logger.warning(
+                            "[enrich_host] host(%s) conflict, multiple cloud regions exist for this IP", event.target
+                        )
+                        event.drop()
+                        return event
+                    host = h
             event.set("target", f"{ip}|{bk_cloud_id}")
         else:
             # 存在IP和云区域

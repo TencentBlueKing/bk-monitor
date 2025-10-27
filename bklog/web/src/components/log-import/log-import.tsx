@@ -90,7 +90,7 @@ export default class LogExport extends tsc<LogExportProps, LogExportEvents> {
           }
           resolve(contents);
           event.target.value = '';
-        } catch (e) {
+        } catch {
           resolve({});
         }
       };
@@ -115,7 +115,7 @@ export default class LogExport extends tsc<LogExportProps, LogExportEvents> {
           ref='fileInput'
           accept={this.accept}
           type='file'
-          // @ts-ignore
+          // @ts-expect-error
           onInput={this.handleInput}
         />
       </div>

@@ -1,0 +1,13 @@
+.bklog-row-observe-main {
+  display: inline-flex;
+  flex-direction: column;
+  width: fit-content;
+
+  min-width: 100%;
+  height: 100%;
+  will-change: contents;
+
+  &.is-pending {
+    position: relative;
+  }
+}

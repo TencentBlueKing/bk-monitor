@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -44,8 +44,8 @@ export default class AIWhaleIcon extends tsc<AIWhaleIconProps> {
   @Prop({ default: '' }) tip?: string; // 提示信息
   // 是否显示AI智能助手
   get enableAiAssistant() {
-    // return false; // 暂时不上线 等ai小鲸新模型调试好后
-    return aiWhaleStore.enableAiAssistant;
+    return false; // 暂时不上线 等ai小鲸新模型调试好后
+    // return aiWhaleStore.enableAiAssistant;
   }
   /* 图标点击事件 */
   handleClick() {
@@ -54,21 +54,20 @@ export default class AIWhaleIcon extends tsc<AIWhaleIconProps> {
     if (this.type === 'guideline') {
       // 操作指引
       aiWhaleStore.sendMessage(`操作指引文案：“${this.content}”
-当前场景：“策略配置”
+当前页面：“策略配置”
 请问为什么会触发当前的操作指引文案，后续可能出现什么情况，分别应该做什么操作`);
       return;
     }
     if (this.type === 'explanation') {
       // 名词解释
-      aiWhaleStore.sendMessage(`名称解释文案：“${this.content}”
-当前场景：“策略配置”
-请提供该名词在当前场景下的详细解释，如果需要可参考知识库内容`);
+      aiWhaleStore.sendMessage(`我在“策略配置”页，需要解释“${this.content}”的含义
+请帮忙参照知识库进行介绍`);
       return;
     }
     if (this.type === 'description') {
       // 功能说明
       aiWhaleStore.sendMessage(`功能说明文案：“${this.content}”
-当前场景：“策略配置”
+当前页面：“策略配置”
 请结合知识库内容和当前场景，详细介绍功能说明文案中的内容`);
       return;
     }

@@ -11,7 +11,7 @@ import MiniTimeSeries from 'monitor-ui/chart-plugins/plugins/mini-time-series/mi
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -668,7 +668,9 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   @Emit('columnSettingChange')
   handleSettingChange({ size, fields }) {
     this.tableSize = size;
-    this.tableColumns.forEach(item => (item.checked = fields.some(field => field.id === item.id)));
+    for (const item of this.tableColumns) {
+      item.checked = fields.some(field => field.id === item.id);
+    }
     const colList = this.tableColumns.filter(item => item.checked || item.disabled).map(item => item.id);
     this.storeKey && this.storage.set(this.storeKey, colList);
     this.tableKey = random(10);
@@ -685,13 +687,13 @@ export default class CommonTable extends tsc<ICommonTableProps, ICommonTableEven
   }
   @Emit('filterChange')
   handleFilterChange(filters: IFilterItem) {
-    Object.keys(filters).forEach(item => {
+    for (const item of Object.keys(filters)) {
       if (filters[item].length) {
         this.filterDict[item] = filters[item];
       } else if (this.filterDict[item]) {
         delete this.filterDict[item];
       }
-    });
+    }
     return this.filterDict;
   }
 

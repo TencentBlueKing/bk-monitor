@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, nextTick, onMounted, ref, watch } from 'vue';
+import { type Ref, computed, defineComponent, inject, nextTick, onMounted, ref, shallowRef, watch } from 'vue';
 
 import { Exception, Input, Loading, Popover, Tree } from 'bkui-vue';
 import { CogShape } from 'bkui-vue/lib/icon';
@@ -64,6 +64,11 @@ export default defineComponent({
     const tableLoading = ref<boolean>(false);
     const operationId = ref<string>('');
     const incidentId = useIncidentInject();
+    // 错误状态/空状态
+    const exceptionData = shallowRef({
+      isError: false,
+      msg: '',
+    });
     /** 时间过滤 */
     const formatterTime = (time: number | string): string => {
       if (!time) return '--';
@@ -101,9 +106,16 @@ export default defineComponent({
 
     const getIncidentOperationTypes = () => {
       tableLoading.value = true;
-      incidentOperationTypes({
-        incident_id: incidentDetail.value?.incident_id,
-      })
+      // 重置异常状态
+      exceptionData.value.isError = false;
+      exceptionData.value.msg = '';
+
+      incidentOperationTypes(
+        {
+          incident_id: incidentDetail.value?.incident_id,
+        },
+        { needMessage: false }
+      )
         .then(res => {
           res.forEach(item => {
             item.id = item.operation_class;
@@ -127,6 +139,9 @@ export default defineComponent({
         })
         .catch(err => {
           console.log(err);
+          // 异常状态赋值
+          exceptionData.value.isError = true;
+          exceptionData.value.msg = err.message || '';
         })
         .finally(() => {
           tableLoading.value = false;
@@ -176,6 +191,7 @@ export default defineComponent({
       searchOperations,
       operations,
       operationTypes,
+      exceptionData,
       renderStep,
       handleHide,
       handleClearSearch,
@@ -263,7 +279,29 @@ export default defineComponent({
           </Popover>
         </div>
         <Loading loading={this.operationsLoading || this.tableLoading}>
-          {this.searchOperations.length ? (
+          {!this.searchOperations.length || this.exceptionData.isError ? (
+            <Exception
+              class='failure-process-exception'
+              type={this.exceptionData.isError ? '500' : 'empty'}
+            >
+              <div class='exception-title'>
+                {this.exceptionData.isError
+                  ? this.t('查询异常')
+                  : this.checkedNodes.length || this.queryString !== ''
+                    ? this.t('搜索数据为空')
+                    : this.t('暂无数据')}
+              </div>
+              {this.exceptionData.isError && <div class='exception-desc'>{this.exceptionData.msg}</div>}
+              {(this.checkedNodes.length || this.queryString !== '') && (
+                <div
+                  class='link cursor'
+                  onClick={this.handleClearSearch}
+                >
+                  {this.t('清空筛选条件')}
+                </div>
+              )}
+            </Exception>
+          ) : (
             <ul
               ref='failureProcessListRef'
               class='failure-process-list'
@@ -308,25 +346,6 @@ export default defineComponent({
                 );
               })}
             </ul>
-          ) : (
-            <Exception
-              description={
-                this.checkedNodes.length || this.queryString !== '' ? this.t('搜索数据为空') : this.t('暂无数据')
-              }
-              scene='part'
-              type='empty'
-            >
-              {this.checkedNodes.length || this.queryString !== '' ? (
-                <span
-                  class='link cursor'
-                  onClick={this.handleClearSearch}
-                >
-                  {this.t('清空筛选条件')}
-                </span>
-              ) : (
-                ''
-              )}
-            </Exception>
           )}
         </Loading>
       </div>

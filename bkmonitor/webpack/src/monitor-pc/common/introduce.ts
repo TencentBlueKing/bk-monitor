@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -68,7 +68,7 @@ class IntroduceStore {
   // 通过 tag 参数获取介绍数据
   async getIntroduce(tag: IntroduceRouteKey) {
     // 如果已有数据，直接返回
-    if (this.data[tag].introduce) return;
+    if (this.data[tag].introduce && !this.data[tag]?.introduce?.is_no_data) return;
 
     // 如果正在加载，等待加载完成
     if (this.data[tag].loading) {
@@ -115,7 +115,7 @@ class IntroduceStore {
     const toNavId = to.meta.navId;
     for (const [tag, value] of Object.entries(this.data)) {
       // 如果已有数据，直接返回
-      if (value.introduce) return;
+      if (value.introduce && !value.introduce?.is_no_data) return;
       if (!value.loading) {
         requestIdleCallback(() => {
           if (toNavId === tag) {

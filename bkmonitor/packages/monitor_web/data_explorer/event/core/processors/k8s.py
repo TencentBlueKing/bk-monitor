@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -35,6 +35,37 @@ class K8sEventProcessor(BaseEventProcessor):
     def __init__(self, bcs_cluster_context, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bcs_cluster_context = bcs_cluster_context
+
+    # 对象场景映射
+    OBJECT_SCENES_MAP = {
+        "namespace": ["performance", "network"],
+        "Pod": ["performance", "network"],
+        "Service": ["network"],
+        "Endpoints": ["network"],
+        "Ingress": ["network"],
+        "Node": ["capacity"],
+        "workload": ["performance"],
+        "host": ["capacity"],
+    }
+
+    # 场景标签映射翻译
+    SCENE_LABEL_MAP = {
+        "performance": "性能",
+        "network": "网络",
+        "capacity": "容量",
+    }
+
+    @classmethod
+    def _get_supported_scenes(cls, level: str, kind: str) -> list[str]:
+        """根据 level 和 kind 获取支持的场景列表"""
+        if level == "namespace":
+            return cls.OBJECT_SCENES_MAP.get("namespace")
+        if level == "host":
+            return cls.OBJECT_SCENES_MAP.get("host")
+        if level in {"kind", "workload"}:
+            # 直接用 K8s 标准 kind，未知类型默认为 workload
+            return cls.OBJECT_SCENES_MAP.get(kind, cls.OBJECT_SCENES_MAP.get("workload"))
+        return []
 
     @classmethod
     def _need_process(cls, origin_event: dict[str, Any]) -> bool:
@@ -90,6 +121,7 @@ class K8sEventProcessor(BaseEventProcessor):
             "alias": f"{bcs_cluster_id}/{namespace}/{kind}/{name}",
             "url": cls.generate_url("workload", k8s_info, start_time, end_time),
             "scenario": EventScenario.CONTAINER_MONITOR.value,
+            "scene_urls": cls.generate_scene_urls("workload", k8s_info, start_time, end_time),
         }
 
     @classmethod
@@ -110,11 +142,11 @@ class K8sEventProcessor(BaseEventProcessor):
         start_time: int,
         end_time: int,
     ) -> None:
-        def create_detail_field(field: str, alias: str, url: str) -> dict[str, str]:
+        def create_detail_field(field: str, alias: str, url: str, level: str = None) -> dict[str, str]:
             field_value = k8s_info[field]["value"]
             if not field_value:
                 return {}
-            return {
+            detail_field = {
                 "label": k8s_info[field]["label"],
                 "value": field_value,
                 "alias": alias,
@@ -122,6 +154,10 @@ class K8sEventProcessor(BaseEventProcessor):
                 "scenario": EventScenario.CONTAINER_MONITOR.value,
                 "url": url,
             }
+            # 为支持多场景的字段添加 scene_urls
+            if level:
+                detail_field["scene_urls"] = self.generate_scene_urls(level, k8s_info, start_time, end_time)
+            return detail_field
 
         # 处理集群信息
         detail = processed_event["event.content"]["detail"]
@@ -142,7 +178,7 @@ class K8sEventProcessor(BaseEventProcessor):
         # 处理命名空间信息
         if namespace:
             detail["namespace"] = create_detail_field(
-                "namespace", namespace, self.generate_url("namespace", k8s_info, start_time, end_time)
+                "namespace", namespace, self.generate_url("namespace", k8s_info, start_time, end_time), "namespace"
             )
         # 处理名称信息
         if name:
@@ -151,13 +187,12 @@ class K8sEventProcessor(BaseEventProcessor):
                 f"{kind}/{name}" if kind else name,
                 # 统一使用 kind 表示不同监控指标的名称所在层级
                 self.generate_url("kind", k8s_info, start_time, end_time),
+                "kind",
             )
         # 如果有 host 字段，补充容器监控容量界面的 url 到 detail 内
         if host:
             detail["host"] = create_detail_field(
-                "host",
-                host,
-                self._generate_capacity_url(k8s_info, start_time, end_time, host),
+                "host", host, self._generate_capacity_url(k8s_info, start_time, end_time, host), "host"
             )
 
     @classmethod
@@ -269,7 +304,11 @@ class K8sEventProcessor(BaseEventProcessor):
             "activeTab": ContainerMonitorTabType.LIST.value,
         }
         filter_by: dict[str, list[str]] = {"namespace": [], "ingress": [], "service": [], "pod": []}
-        group_by = ["namespace", "pod"]
+        group_by = {
+            "Pod": ["namespace", "pod"],
+            "Ingress": ["namespace", "ingress"],
+            "Service": ["namespace", "service"],
+        }
         if level == "cluster":
             return cls._generate_url(k8s_info, start_time, end_time, filter_by, ["namespace"], tab_info)
 
@@ -277,18 +316,22 @@ class K8sEventProcessor(BaseEventProcessor):
             filter_by["namespace"].append(namespace)
 
         if level == "namespace":
-            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by, tab_info)
+            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by["Pod"], tab_info)
 
         if not (name and kind):
             return ""
 
+        if kind == "Pod":
+            filter_by["pod"].append(name)
+            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by["Pod"], tab_info)
+
         if kind == "Ingress":
             filter_by["ingress"].append(name)
-            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by, tab_info)
+            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by["Ingress"], tab_info)
 
         if kind in ["Service", "Endpoints"]:
             filter_by["service"].append(name)
-            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by, tab_info)
+            return cls._generate_url(k8s_info, start_time, end_time, filter_by, group_by["Service"], tab_info)
 
     @classmethod
     def _generate_capacity_url(cls, k8s_info: dict[str, Any], start_time, end_time, name) -> str:
@@ -300,3 +343,33 @@ class K8sEventProcessor(BaseEventProcessor):
             "activeTab": ContainerMonitorTabType.LIST.value,
         }
         return cls._generate_url(k8s_info, start_time, end_time, {"node": [name]}, ["node"], tab_info)
+
+    @classmethod
+    def generate_scene_urls(
+        cls, level: str, k8s_info: dict[str, Any], start_time: int, end_time: int
+    ) -> list[dict[str, str]]:
+        """
+        根据对象类型生成多场景跳转 URLs（有序），保持与默认单场景跳转一致的优先级。
+        """
+        kind: str = k8s_info["kind"]["value"]
+        name: str = k8s_info["name"]["value"]
+        namespace = k8s_info["namespace"]["value"]
+
+        # 1. 计算支持的场景集合（数据驱动）
+        scenes: list[str] = cls._get_supported_scenes(level, kind)
+
+        # 2. 构造各场景 URL
+        scene_to_url: dict[str, str] = {}
+        for scene in scenes:
+            if scene == "performance":
+                url = cls._generate_performance_url(level, k8s_info, start_time, end_time, namespace, name, kind)
+            elif scene == "network":
+                url = cls._generate_network_url(level, k8s_info, start_time, end_time, namespace, name, kind)
+            elif scene == "capacity":
+                url = cls._generate_capacity_url(k8s_info, start_time, end_time, name)
+            else:
+                url = ""
+            if url:
+                scene_to_url[scene] = url
+
+        return [{"scene": cls.SCENE_LABEL_MAP.get(s, s), "url": scene_to_url[s]} for s in scenes if s in scene_to_url]

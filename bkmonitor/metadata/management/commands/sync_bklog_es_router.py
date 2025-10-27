@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -48,6 +48,9 @@ class Command(BaseCommand):
         while not data_queue.empty():
             _data = data_queue.get()
             es_router_list.extend(_data)
+
+        # 过滤doris数据
+        es_router_list = [router for router in es_router_list if router.get("storage_type") != "doris"]
 
         # 批量创建或更新结果表及 es 存储
         update_space_set, update_rt_set, update_data_label_set = self._update_or_create_es_data(es_router_list)

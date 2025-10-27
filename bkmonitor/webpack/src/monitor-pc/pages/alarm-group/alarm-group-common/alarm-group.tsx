@@ -4,7 +4,7 @@ import type { VNode } from 'vue';
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -320,6 +320,20 @@ export default class AlarmGroup extends tsc<IGroupList> {
         key='2'
         class='col-btn'
         v-authority={{ active: !this.authority.MANAGE_AUTH }}
+        // disabled={}
+        text={true}
+        onClick={() =>
+          this.authority.MANAGE_AUTH
+            ? this.handleCloneRow(row.id)
+            : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
+        }
+      >
+        {this.$t('克隆')}
+      </bk-button>,
+      <bk-button
+        key='3'
+        class='col-btn'
+        v-authority={{ active: !this.authority.MANAGE_AUTH }}
         disabled={!row.delete_allowed}
         text={true}
         onClick={() =>
@@ -467,6 +481,20 @@ export default class AlarmGroup extends tsc<IGroupList> {
             this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
           })
           .finally(() => (this.loading = false));
+      },
+    });
+  }
+
+  /**
+   * @description: 克隆告警组
+   * @param {number} id
+   * @return {*}
+   */
+  handleCloneRow(id: number) {
+    this.$router.push({
+      name: 'alarm-group-clone',
+      params: {
+        id: String(id),
       },
     });
   }

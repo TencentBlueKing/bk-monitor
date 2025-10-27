@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -25,31 +25,6 @@ from metadata.models.data_link.constants import MATCH_DATA_NAME_PATTERN
 logger = logging.getLogger("metadata")
 
 
-def get_bkdata_table_id(table_id: str) -> str:
-    """获取计算平台结果表"""
-    # 按照 '__default__' 截断，取前半部分
-    table_id = table_id.split(".__default__")[0]
-    table_id = table_id.lower()
-
-    # 转换中划线和点为下划线
-    table_id = table_id.replace("-", "_").replace(".", "_")
-
-    # 处理负数开头和其他情况
-    if table_id.startswith("_"):
-        table_id = f"bkm_neg_{table_id.lstrip('_')}"
-    elif table_id[0].isdigit():
-        table_id = f"bkm_{table_id}"
-    else:
-        table_id = f"bkm_{table_id}"
-
-    # 确保不会出现连续的下划线
-    while "__" in table_id:
-        table_id = table_id.replace("__", "_")
-
-    # 确保长度不超过40
-    return table_id[:40]
-
-
 def clean_redundant_underscores(table_id: str) -> str:
     """
     清理连续的下划线，确保只保留单个下划线
@@ -60,7 +35,7 @@ def clean_redundant_underscores(table_id: str) -> str:
     return table_id
 
 
-def compose_bkdata_table_id(table_id: str, strategy: str = None) -> str:
+def compose_bkdata_table_id(table_id: str, strategy: str | None = None) -> str:
     """
     获取计算平台结果表ID, 计算平台元数据长度限制为40，不可超出
     @param table_id: 监控平台结果表ID
@@ -133,7 +108,7 @@ def get_bkdata_data_id_name(data_name: str) -> str:
     return f"bkm_{refine_data_name[-45:].lower()}"
 
 
-def compose_bkdata_data_id_name(data_name: str, strategy: str = None) -> str:
+def compose_bkdata_data_id_name(data_name: str, strategy: str | None = None) -> str:
     """
     组装bkdata数据源名称，支持中文处理
     @param data_name: 监控平台数据源名称
@@ -196,13 +171,15 @@ def get_bkbase_raw_data_id_name(data_source, table_id):
 
 
 @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
-def get_bkbase_raw_data_name_for_v3_datalink(bkbase_data_id):
+def get_bkbase_raw_data_name_for_v3_datalink(bk_tenant_id: str, bkbase_data_id: int):
     """
     获取计算平台对应的data_id_name，适配V3迁移V4场景，具备重试能力
     @param bkbase_data_id: 计算平台数据源ID
     """
     try:
-        raw_data_name = api.bkdata.get_bkbase_raw_data_with_data_id(bkbase_data_id=bkbase_data_id).get("raw_data_name")
+        raw_data_name = api.bkdata.get_bkbase_raw_data_with_data_id(
+            bk_tenant_id=bk_tenant_id, bkbase_data_id=bkbase_data_id
+        ).get("raw_data_name")
         return raw_data_name
     except Exception as e:  # pylint: disable=broad-except
         logger.info("get_bkbase_raw_data_name_for_v3_datalink: bkbase_data_id->[%s] error->[%s]", bkbase_data_id, e)

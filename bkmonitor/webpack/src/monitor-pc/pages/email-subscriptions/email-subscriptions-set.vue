@@ -2,7 +2,7 @@
 * Tencent is pleased to support the open source community by making
 * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
 *
-* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* Copyright (C) 2017-2025 Tencent.  All rights reserved.
 *
 * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
 *
@@ -191,7 +191,10 @@
             :label="$t('发送频率')"
             :required="true"
           >
-            <time-period v-model="formData.frequency" />
+            <time-period
+              v-model="formData.frequency"
+              :wrap-width="268"
+            />
           </bk-form-item>
           <bk-form-item
             :label="$t('数据范围')"
@@ -200,9 +203,12 @@
             property="timeRange"
           >
             <bk-select
+              ref="timeRangeSelectRef"
               v-model="formData.timeRange"
               class="time-range-select"
+              ext-popover-cls="time-range-select-popover"
               :clearable="false"
+              @selected="handleSelectedTimeRange"
             >
               <bk-option
                 v-for="opt in timeRangeOption"
@@ -210,6 +216,77 @@
                 :key="opt.id"
                 :name="opt.name"
               />
+              <template slot="extension">
+                <div
+                  v-if="!showTimeRangeCustom"
+                  class="input-time-range entry"
+                  @click="() => (showTimeRangeCustom = true)"
+                >
+                  <i class="bk-icon icon-plus-circle" />{{ $t('自定义时间') }}
+                </div>
+                <div
+                  v-else
+                  class="input-time-range"
+                >
+                  <bk-input
+                    v-model="inputTimeRange"
+                    :placeholder="$t('请输入')"
+                    :size="'small'"
+                    :show-controls="false"
+                    :precision="0"
+                    :min="0"
+                    type="number"
+                    @enter="handleTimeRangeConfirm"
+                  >
+                    <template slot="prepend">
+                      <div class="group-text">{{ $t('近') }}</div>
+                    </template>
+                    <bk-dropdown-menu
+                      slot="append"
+                      class="group-text"
+                      trigger="click"
+                      :position-fixed="true"
+                      @show="() => (isDropdownShow = true)"
+                      @hide="() => (isDropdownShow = false)"
+                    >
+                      <div
+                        slot="dropdown-trigger"
+                        class="dropdown-trigger-btn"
+                      >
+                        {{ timeRangeTypeText }}
+                        <i :class="['bk-icon', 'icon-angle-down', { 'icon-flip': isDropdownShow }]" />
+                      </div>
+                      <ul
+                        slot="dropdown-content"
+                        class="bk-dropdown-list"
+                      >
+                        <li
+                          v-for="item in timeRangeCustomOption"
+                          :key="item.id"
+                          class="bk-dropdown-item"
+                          @click="() => (timeRangeType = item.id)"
+                        >
+                          {{ item.name }}
+                        </li>
+                      </ul>
+                    </bk-dropdown-menu>
+                  </bk-input>
+                  <div class="time-range-option">
+                    <div
+                      class="time-range-confirm"
+                      @click="handleTimeRangeConfirm"
+                    >
+                      <i class="icon-monitor icon-mc-check-small" />
+                    </div>
+                    <div
+                      class="time-range-cancel"
+                      @click="handleTimeRangeCancel"
+                    >
+                      <i class="icon-monitor icon-mc-close" />
+                    </div>
+                  </div>
+                </div>
+              </template>
             </bk-select>
           </bk-form-item>
           <!-- 订阅内容的校验替身 -->
@@ -338,6 +415,7 @@ import type { TranslateResult } from 'vue-i18n';
 const DEFAULT_TIME_RANGE = 'none';
 
 interface IOption {
+  customTime?: boolean; // 是否自定义时间
   id: string;
   name: string | TranslateResult;
 }
@@ -522,6 +600,44 @@ export default class SubscriptionsSet extends Vue {
   ];
 
   noticeWayList = [];
+
+  // 数据范围-显示自定义时间输入框
+  showTimeRangeCustom = false;
+
+  // 数据范围-自定义时间可选单位
+  timeRangeCustomOption: IOption[] = [
+    {
+      id: 'minutes',
+      name: this.$t('分钟'),
+    },
+    {
+      id: 'hours',
+      name: this.$t('小时'),
+    },
+    {
+      id: 'days',
+      name: this.$t('天'),
+    },
+  ];
+
+  // 数据范围-自定义时间的输入值
+  inputTimeRange = '';
+
+  // 数据范围-自定义时间选中单位
+  timeRangeType = 'minutes';
+
+  // 数据范围-自定义时间下拉框显示隐藏
+  isDropdownShow = false;
+
+  get timeRangeTypeText() {
+    if (this.timeRangeType === 'hours') {
+      return this.$t('小时');
+    }
+    if (this.timeRangeType === 'days') {
+      return this.$t('天');
+    }
+    return this.$t('分钟');
+  }
 
   get receiverListTableData() {
     const groupList = this.memberList.find(item => item.id === 'group')?.children || [];
@@ -713,6 +829,20 @@ export default class SubscriptionsSet extends Vue {
     this.formData.timeRange = data.frequency.dataRange
       ? this.getTimeRange(data.frequency.dataRange)
       : DEFAULT_TIME_RANGE;
+    // 自定义时间的回显特殊处理
+    if (this.formData.timeRange !== 'none') {
+      const hasTime = this.timeRangeOption.some(item => item.id === this.formData.timeRange);
+      // 时间不在下拉列表，需要添加回显
+      if (!hasTime) {
+        const { number, time_level } = this.getTimeRangeObj(this.formData.timeRange);
+        this.timeRangeType = time_level;
+        this.timeRangeOption.unshift({
+          customTime: true,
+          id: this.formData.timeRange,
+          name: this.$i18n.locale === 'zhCN' ? `近${number}${this.timeRangeTypeText}` : `last${number}${time_level}`,
+        });
+      }
+    }
     this.getReceiverId(data.receivers);
     const graphsData = splitGraphId(data.contents[0].graphs[0]);
     const isFull = graphsData.panelId === '*';
@@ -1105,6 +1235,46 @@ export default class SubscriptionsSet extends Vue {
   handleTabChange(type: string) {
     this.contentType = type;
   }
+
+  // 数据范围-自定义时间确认
+  handleTimeRangeConfirm() {
+    if (!this.inputTimeRange || !this.timeRangeType) return;
+    const regex = /^[1-9]\d*$/;
+    // 非正整数 不通过
+    if (!regex.test(this.inputTimeRange)) return;
+    this.$refs.timeRangeSelectRef.close?.();
+    this.formData.timeRange = `${this.inputTimeRange}${this.timeRangeType}`;
+    const hasTimeData = this.timeRangeOption.some(item => item.id === `${this.inputTimeRange}${this.timeRangeType}`);
+    // 输入的自定义时间在下拉列表存在，则不添加
+    if (hasTimeData) return;
+    this.timeRangeOption.unshift({
+      customTime: true,
+      id: `${this.inputTimeRange}${this.timeRangeType}`,
+      name:
+        this.$i18n.locale === 'zhCN'
+          ? `近${this.inputTimeRange}${this.timeRangeTypeText}`
+          : `last${this.inputTimeRange}${this.timeRangeType}`,
+    });
+  }
+
+  // 数据范围-自定义时间取消
+  handleTimeRangeCancel() {
+    this.timeRangeCustomReset();
+  }
+
+  // 数据范围-自定义时间输入框重置
+  timeRangeCustomReset() {
+    this.showTimeRangeCustom = false;
+    this.inputTimeRange = '';
+    this.timeRangeType = 'minutes';
+  }
+
+  // 数据范围-自定义时间选中下拉操作
+  handleSelectedTimeRange(item) {
+    if (!item.customTime) {
+      this.timeRangeCustomReset();
+    }
+  }
 }
 </script>
 
@@ -1253,7 +1423,7 @@ export default class SubscriptionsSet extends Vue {
       }
 
       .time-range-select {
-        width: 168px;
+        width: 268px;
       }
 
       .subscribe-item {
@@ -1413,6 +1583,117 @@ export default class SubscriptionsSet extends Vue {
     color: #979ba5;
     background: #fafbfd;
     border-radius: 16px;
+  }
+}
+
+.time-range-select-popover {
+  .bk-select-extension:hover {
+    background-color: #fafbfd;
+  }
+
+  .input-time-range {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 0 6px;
+
+    &.entry {
+      padding: 3px 0 4px;
+      color: #4d4f56;
+      cursor: pointer;
+
+      .bk-icon {
+        margin-right: 5px;
+        color: #979ba5;
+      }
+    }
+
+    .control-prepend-group {
+      background-color: #fafbfd;
+    }
+
+    .bk-input-small,
+    .group-box,
+    .group-text {
+      height: 28px;
+      line-height: 28px;
+    }
+
+    .group-box {
+      flex-shrink: 0;
+    }
+
+    .group-append {
+      width: 60px;
+    }
+
+    .group-text {
+      width: 100%;
+    }
+
+    .bk-input-text {
+      flex: 1;
+    }
+
+    .dropdown-trigger-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+
+      .bk-icon {
+        margin-left: 2px;
+        font-size: 20px;
+        color: #979ba5;
+      }
+    }
+
+    .bk-dropdown-list {
+      width: 58px;
+    }
+
+    .bk-dropdown-item {
+      padding: 0 8px;
+      font-size: 12px;
+      line-height: 32px;
+      color: #4d4f56;
+      cursor: pointer;
+      background-color: #fff;
+
+      &:hover {
+        background-color: #f5f7fa;
+      }
+    }
+
+    .time-range-option {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .time-range-confirm,
+    .time-range-cancel {
+      width: 20px;
+      height: 20px;
+      margin-left: 8px;
+      line-height: 20px;
+      cursor: pointer;
+      border: 1px solid #c4c6cc;
+
+      .icon-monitor {
+        display: block;
+        font-size: 20px;
+        transform: translate3d(-0.5px, -0.5px, 0);
+      }
+    }
+
+    .time-range-confirm {
+      color: #2caf5e;
+    }
+
+    .time-range-cancel {
+      color: #ea3636;
+    }
   }
 }
 </style>

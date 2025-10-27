@@ -28,24 +28,60 @@ import { computed, defineComponent } from 'vue';
 
 import useStore from '@/hooks/use-store';
 
+import { BK_LOG_STORAGE } from '../../store/store.type';
 import V3Container from './container';
 import V3Collection from './favorite';
 import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
 import V3Toolbar from './toolbar';
 import useAppInit from './use-app-init';
-import { BK_LOG_STORAGE } from '../../store/store.type';
+import AiAssitant from '@/global/ai-assitant/index';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
+import './global-en.scss';
 import './index.scss';
-import './global-en.scss'
+import './media.scss';
+import './segment-pop.scss';
+
 export default defineComponent({
   name: 'RetrieveV3',
   setup() {
     const store = useStore();
+    const aiAssitantRef = RetrieveHelper.aiAssitantHelper.getAiAssitantInstance();
 
-    const { isSearchContextStickyTop, isSearchResultStickyTop, stickyStyle, contentStyle, isPreApiLoaded } =
-      useAppInit();
+    const {
+      isSearchContextStickyTop,
+      isSearchResultStickyTop,
+      stickyStyle,
+      contentStyle,
+      isPreApiLoaded,
+    } = useAppInit();
+
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+
+    /**
+     * AI 助手关闭
+     */
+    const handleAiClose = () => {
+      RetrieveHelper.fire(RetrieveEvent.AI_CLOSE);
+    };
+
+    /**
+     * 渲染 AI 助手
+     * @returns
+     */
+    const renderAiAssitant = () => {
+      if (!store.state.features.isAiAssistantActive) {
+        return null;
+      }
+
+      return <AiAssitant ref={aiAssitantRef} on-close={handleAiClose}></AiAssitant>;
+    };
+
+    /**
+     * 渲染结果内容
+     * @returns
+     */
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
         return [
@@ -65,15 +101,19 @@ export default defineComponent({
       return <div style={{ minHeight: '50vh', width: '100%' }}></div>;
     };
 
+    /**
+     * 渲染根元素
+     * @returns
+     */
     return () => (
       <div
         style={stickyStyle.value}
-        v-bkloading={{ isLoading: !isPreApiLoaded.value }}
         class={[
           'v3-bklog-root',
           { 'is-start-text-ellipsis': isStartTextEllipsis.value },
           { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value },
         ]}
+        v-bkloading={{ isLoading: !isPreApiLoaded.value }}
       >
         <V3Collection></V3Collection>
         <div
@@ -81,6 +121,7 @@ export default defineComponent({
           class='v3-bklog-content'
         >
           {renderResultContent()}
+          {renderAiAssitant()}
         </div>
       </div>
     );

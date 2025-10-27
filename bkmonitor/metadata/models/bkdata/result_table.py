@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -78,7 +78,7 @@ class BkBaseResultTable(models.Model):
         from metadata.models.data_link.data_link_configs import DataBusConfig
 
         try:
-            databus_config_ins = DataBusConfig.objects.get(name=self.bkbase_rt_name)
+            databus_config_ins = DataBusConfig.objects.get(name=self.bkbase_rt_name, bk_tenant_id=self.bk_tenant_id)
             return databus_config_ins.namespace + "-" + databus_config_ins.name
         except DataBusConfig.DoesNotExist:
             logger.error("data_link->[%s],do not have databus->[%s]", self.data_link_name, self.bkbase_rt_name)

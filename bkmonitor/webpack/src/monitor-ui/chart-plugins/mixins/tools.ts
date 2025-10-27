@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -46,7 +46,7 @@ function removeUndefined(obj) {
     } else if (value === undefined || (Array.isArray(obj) && value === 'undefined')) {
       // 如果属性值为undefined，则删除该属性
       if (Array.isArray(obj)) {
-        const delIndex = obj.findIndex(v => v === value);
+        const delIndex = obj.indexOf(value);
         if (delIndex > -1) {
           obj.splice(delIndex, 1);
         }

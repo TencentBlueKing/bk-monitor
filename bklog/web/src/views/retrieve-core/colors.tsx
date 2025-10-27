@@ -87,7 +87,7 @@ export const baseColorList = [
   'rgba(222, 218, 247, 1)',
 ];
 
-export const getRGBAColors = (opacity?: number) => [
+export const getRGBAColors = (_opacity?: number) => [
   'rgba(255, 235, 204, 1)',
   'rgba(206, 235, 222, 1)',
   'rgba(215, 235, 245, 1)',

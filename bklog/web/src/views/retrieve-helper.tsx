@@ -26,43 +26,128 @@
 
 import { Ref } from 'vue';
 
-import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
-import RetrieveEvent from './retrieve-core/retrieve-events';
-import { type GradeSetting, type GradeConfiguration, GradeFieldValueType } from './retrieve-core/interface';
-import RetrieveBase from './retrieve-core/base';
-import { RouteQueryTab } from './retrieve-v3/index.type';
 import { parseTableRowData } from '@/common/util';
 
+import AiAssitantHelper from '@/global/ai-assitant/ai-assitant-helper';
+import RetrieveBase from './retrieve-core/base';
+import { GradeFieldValueType, type GradeConfiguration, type GradeSetting } from './retrieve-core/interface';
+import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
+import RetrieveEvent from './retrieve-core/retrieve-events';
+import { RouteQueryTab } from './retrieve-v3/index.type';
+
 export enum STORAGE_KEY {
+  // eslint-disable-next-line no-unused-vars
   STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
-  STORAGE_KEY_FAVORITE_WIDTH = 'STORAGE_KEY_FAVORITE_WIDTH',
+  // eslint-disable-next-line no-unused-vars
   STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE = 'STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE',
+  // eslint-disable-next-line no-unused-vars
+  STORAGE_KEY_FAVORITE_WIDTH = 'STORAGE_KEY_FAVORITE_WIDTH',
 }
 
-export { RetrieveEvent, GradeSetting, GradeConfiguration };
+export { GradeConfiguration, GradeSetting, RetrieveEvent };
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 class RetrieveHelper extends RetrieveBase {
   scrollEventAdded = false;
+  mousedownEvent = null;
+  aiAssitantHelper: typeof AiAssitantHelper;
+
   constructor({ isFavoriteShow = false, isViewCurrentIndex = true, favoriteWidth = 0 }) {
-    super({});
+    super();
     this.globalScrollSelector = GLOBAL_SCROLL_SELECTOR;
     this.isFavoriteShown = isFavoriteShow;
     this.isViewCurrentIndex = isViewCurrentIndex;
     this.favoriteWidth = favoriteWidth;
+    this.mousedownEvent = null;
+    this.aiAssitantHelper = AiAssitantHelper;
   }
 
   /**
-   * 添加滚动监听
+   * 设置鼠标按下事件
+   * @param e 鼠标事件
    */
-  private setContentScroll() {
-    if (!this.scrollEventAdded) {
-      const target = document.querySelector(this.globalScrollSelector);
-      if (target) {
-        target.addEventListener('scroll', this.handleScroll);
-        this.scrollEventAdded = true;
+  setMousedownEvent(e?: MouseEvent) {
+    this.mousedownEvent = e ?? null;
+  }
+
+  /**
+   * 判断当前鼠标Mouseup事件是否在鼠标按下事件的偏移量内
+   * @param e 鼠标事件
+   * @param offset 偏移量，默认为4，如果 > 0，点击位置在偏移量内也判定为点击在选择区域内
+   * @returns
+   */
+  isMouseSelectionUpEvent(e: MouseEvent, offset = 4) {
+    if (!this.mousedownEvent) {
+      return false;
+    }
+
+    const diffX = Math.abs(e.clientX - this.mousedownEvent.clientX);
+    const diffY = Math.abs(e.clientY - this.mousedownEvent.clientY);
+
+    return diffX > offset || diffY > offset;
+  }
+
+  /**
+   * 判断当前鼠标点击位置是否在选中的文本区域
+   * 需要根据当前鼠标点击位置和当前选中文本区域进行对比
+   * 考虑文本换行，选择区域范围折行的区域需要进行详细判定
+   * @param e 鼠标事件
+   * @param lineSpacing 行间距，默认为0，如果 > 0，点击位置在行间距内也判定为点击在选择区域内
+   */
+  isClickOnSelection(e: MouseEvent, lineSpacing = 0) {
+    const selection = window.getSelection();
+
+    // 如果没有选中文本，直接返回 false
+    if (!selection || selection.isCollapsed) {
+      return false;
+    }
+
+    const rangeCount = selection.rangeCount;
+    if (rangeCount === 0) {
+      return false;
+    }
+
+    // 获取鼠标点击位置
+    const clickPoint = {
+      x: e.clientX,
+      y: e.clientY,
+    };
+
+    // 遍历所有选中的范围
+    for (const range of Array.from({ length: rangeCount }, (_, i) => selection.getRangeAt(i))) {
+      // 获取范围的边界矩形
+      const rects = range.getClientRects();
+
+      // 检查鼠标点击位置是否在任何一个矩形内
+      for (let j = 0; j < rects.length; j++) {
+        const rect = rects[j];
+
+        // 检查点击位置是否在矩形范围内（包含行间距）
+        const expandedTop = rect.top - lineSpacing;
+        const expandedBottom = rect.bottom + lineSpacing;
+
+        if (
+          clickPoint.x >= rect.left
+          && clickPoint.x <= rect.right
+          && clickPoint.y >= expandedTop
+          && clickPoint.y <= expandedBottom
+        ) {
+          return true;
+        }
       }
     }
+
+    return false;
+  }
+
+  /**
+   * 阻止事件传播
+   * @param e 鼠标事件
+   */
+  stopEventPropagation(e: MouseEvent) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    e.stopPropagation();
   }
 
   /**
@@ -109,23 +194,24 @@ class RetrieveHelper extends RetrieveBase {
    * 高亮关键词
    * @param keywords 关键词
    * @param reset 是否重置
-   * @param afterMarkFn 高亮后回调
+   * @param _afterMarkFn 高亮后回调
    */
-  highLightKeywords(keywords?: string[], reset = true, afterMarkFn?: () => void) {
+  highLightKeywords(keywords?: string[], reset = true, _afterMarkFn?: () => void) {
     if (!this.markInstance) {
       return;
     }
 
-    const { caseSensitive } = this.markInstance.getMarkOptions();
+    const { caseSensitive, regExpMark, accuracy } = this.markInstance.getMarkOptions();
     this.markInstance.setObserverConfig({ root: document.getElementById(this.logRowsContainerId) });
     this.markInstance.unmark();
+    const formatRegStr = !regExpMark;
     this.markInstance.highlight(
       (keywords ?? []).map((keyword, index) => {
         return {
           text: keyword,
           className: `highlight-${index}`,
           backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
-          textReg: new RegExp(`^${keyword}$`, caseSensitive ? '' : 'i'),
+          textReg: this.getRegExp(keyword, caseSensitive ? '' : 'i', accuracy === 'exactly', formatRegStr),
         };
       }),
       reset,
@@ -156,37 +242,12 @@ class RetrieveHelper extends RetrieveBase {
     const target = event.target as HTMLElement;
     // 检查按下的键是否是斜杠 "/"（需兼容不同键盘布局）
     const isSlashKey = event.key === '/' || event.keyCode === 191;
-    
-    if (isSlashKey && target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+
+    if ((isSlashKey && target.tagName === 'INPUT') || target.tagName === 'TEXTAREA') {
       return;
     }
 
     callback();
-  }
-
-  /**
-   * 将值转换为可匹配的字符串
-   * @param value 待转换的值
-   * @returns 转换后的字符串或null
-   */
-  private convertToMatchableString(value: any): string | null {
-    // 如果值为 null 或 undefined，返回 null
-    if (value == null) {
-      return null;
-    }
-
-    // 如果值为 Object（但不是 null），返回 null
-    if (typeof value === 'object') {
-      return null;
-    }
-
-    // 如果是 string, number, boolean，转换为 string
-    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-      return String(value);
-    }
-
-    // 其他情况返回 null
-    return null;
   }
 
   /**
@@ -232,7 +293,7 @@ class RetrieveHelper extends RetrieveBase {
       // 收集所有匹配的日志级别
       for (const match of matches) {
         const groups = match.groups || {};
-        Object.keys(groups).forEach(level => {
+        Object.keys(groups).forEach((level) => {
           if (groups[level]) levelSet.add(level.toUpperCase());
         });
       }
@@ -256,8 +317,8 @@ class RetrieveHelper extends RetrieveBase {
       const logSegment = target.slice(0, 1000);
       options.settings.forEach((item: GradeSetting) => {
         if (item.enable && item.id !== 'others') {
-          this.isMatchedGroup(item, logSegment, options.valueType === GradeFieldValueType.VALUE) &&
-            levels.push(item.id);
+          this.isMatchedGroup(item, logSegment, options.valueType === GradeFieldValueType.VALUE)
+            && levels.push(item.id);
         }
       });
 
@@ -313,10 +374,10 @@ class RetrieveHelper extends RetrieveBase {
 
   /**
    * 检索值变化
-   * @param type 检索类型：ui/sql/filter
+   * @param type 检索类型：ui/sql/filter/cluster
    * @param value
    */
-  searchValueChange(type: 'ui' | 'sql' | 'filter', value: string | Array<any>) {
+  searchValueChange(type: 'filter' | 'sql' | 'ui' | 'cluster', value: Array<any> | string) {
     this.runEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, { type, value });
   }
 
@@ -386,6 +447,14 @@ class RetrieveHelper extends RetrieveBase {
     this.runEvent(RetrieveEvent.INDEX_CONFIG_OPEN, show);
   }
 
+  /**
+   * 打开别名配置
+   * @param show
+   */
+  setAliasConfigOpen(show: boolean) {
+    this.runEvent(RetrieveEvent.ALIAS_CONFIG_OPEN, show);
+  }
+
   getScrollSelector() {
     return this.globalScrollSelector;
   }
@@ -409,8 +478,8 @@ class RetrieveHelper extends RetrieveBase {
   routeQueryTabValueFix(indexSetItem, tabValue?: string | string[], isUnionSearch = false) {
     const isclusteringEnable = () => {
       return (
-        (indexSetItem?.scenario_id === 'log' && indexSetItem.collector_config_id !== null) ||
-        indexSetItem?.scenario_id === 'bkdata'
+        (indexSetItem?.scenario_id === 'log' && indexSetItem.collector_config_id !== null)
+        || indexSetItem?.scenario_id === 'bkdata'
       );
     };
 
@@ -437,10 +506,6 @@ class RetrieveHelper extends RetrieveBase {
     return {};
   }
 
-  private handleScroll = (e: MouseEvent) => {
-    this.fire(RetrieveEvent.GLOBAL_SCROLL, e);
-  };
-
   onMounted() {
     this.setContentScroll();
   }
@@ -450,10 +515,52 @@ class RetrieveHelper extends RetrieveBase {
     document.querySelector(this.globalScrollSelector)?.removeEventListener('scroll', this.handleScroll);
     this.scrollEventAdded = false;
   }
+
+  /**
+   * 添加滚动监听
+   */
+  private setContentScroll() {
+    if (!this.scrollEventAdded) {
+      const target = document.querySelector(this.globalScrollSelector);
+      if (target) {
+        target.addEventListener('scroll', e => this.handleScroll(e));
+        this.scrollEventAdded = true;
+      }
+    }
+  }
+
+  /**
+   * 将值转换为可匹配的字符串
+   * @param value 待转换的值
+   * @returns 转换后的字符串或null
+   */
+  private convertToMatchableString(value: any): null | string {
+    // 如果值为 null 或 undefined，返回 null
+    if (value == null) {
+      return null;
+    }
+
+    // 如果值为 Object（但不是 null），返回 null
+    if (typeof value === 'object') {
+      return null;
+    }
+
+    // 如果是 string, number, boolean，转换为 string
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+
+    // 其他情况返回 null
+    return null;
+  }
+
+  private handleScroll = (e: Event) => {
+    this.fire(RetrieveEvent.GLOBAL_SCROLL, e);
+  };
 }
 
 const isFavoriteShow = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_SHOW) === 'true';
-const isViewCurrentIndex = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) !== 'false';
+const isViewCurrentIndex = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) === 'true';
 const favoriteWidth = Number(localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_WIDTH) ?? 240);
 
 export default new RetrieveHelper({ isFavoriteShow, favoriteWidth, isViewCurrentIndex });

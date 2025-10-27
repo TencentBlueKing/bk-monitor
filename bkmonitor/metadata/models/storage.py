@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -120,9 +120,10 @@ class ClusterInfo(models.Model):
     LOG_PLATFORM_REGISTERED_SYSTEM = "log-search-4"
     BKDATA_REGISTERED_SYSTEM = "bkdata"
 
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
     cluster_id = models.AutoField("集群ID", primary_key=True)
     # 集群中文名，便于管理员维护
-    cluster_name = models.CharField("集群名称", max_length=128, unique=True)
+    cluster_name = models.CharField("集群名称", max_length=128)
     cluster_type = models.CharField("集群类型", max_length=32, db_index=True)
     domain_name = models.CharField("集群域名", max_length=128)
     port = models.IntegerField("端口")
@@ -174,6 +175,7 @@ class ClusterInfo(models.Model):
     class Meta:
         verbose_name = "集群配置信息"
         verbose_name_plural = "集群配置信息"
+        unique_together = (("bk_tenant_id", "cluster_type", "cluster_name"),)
 
     def to_dict(self, fields: list | None = None, exclude: list | None = None) -> dict:
         data = {}
@@ -320,7 +322,7 @@ class ClusterInfo(models.Model):
         if self.cluster_type == self.TYPE_ES:
             try:
                 disable_start_with_write = "-write_*"
-                client = es_tools.get_client(self.cluster_id)
+                client = es_tools.get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=self.cluster_id)
                 cluster_settings = client.cluster.get_settings()
                 auto_create_index = (
                     cluster_settings.get("persistent", {}).get("action", {}).get("auto_create_index", "*")
@@ -345,6 +347,7 @@ class ClusterInfo(models.Model):
     @atomic(config.DATABASE_CONNECTION_NAME)
     def create_cluster(
         cls,
+        bk_tenant_id: str,
         cluster_name,
         cluster_type,
         domain_name,
@@ -397,7 +400,7 @@ class ClusterInfo(models.Model):
 
         # 1. 判断请求的数据是否有冲突
         # 基本数据校验
-        if cls.objects.filter(cluster_name=cluster_name).exists():
+        if cls.objects.filter(bk_tenant_id=bk_tenant_id, cluster_name=cluster_name).exists():
             logger.error(
                 f"reg_system->[{registered_system}] try to add cluster with name->[{cluster_name}] which is already exists, nothing will do"
             )
@@ -411,7 +414,9 @@ class ClusterInfo(models.Model):
             raise ValueError(_("存储集群【{}】暂不支持，请确认后重试").format(cluster_type))
 
         # 判断集群信息是否有存在冲突的
-        if cls.objects.filter(domain_name=domain_name, port=port, username=username).exists():
+        if cls.objects.filter(
+            bk_tenant_id=bk_tenant_id, domain_name=domain_name, port=port, username=username
+        ).exists():
             logger.error(
                 f"reg_system->[{registered_system}] try to add cluster->[{cluster_type}] with domain->[{domain_name}] port->[{port}] username->[{username}] "
                 f"pass->[{password}] which already has the same cluster config , nothing will do."
@@ -420,6 +425,7 @@ class ClusterInfo(models.Model):
 
         # 2. 创建新的逻辑
         new_cluster = cls.objects.create(
+            bk_tenant_id=bk_tenant_id,
             cluster_name=cluster_name,
             cluster_type=cluster_type,
             domain_name=domain_name,
@@ -611,6 +617,7 @@ class KafkaTopicInfo(models.Model):
 class StorageResultTable:
     """实际结果表基类，提供公共方法的模板"""
 
+    bk_tenant_id: str
     STORAGE_TYPE = None
     UPGRADE_FIELD_CONFIG = ()
 
@@ -631,7 +638,7 @@ class StorageResultTable:
         pass
 
     @abc.abstractmethod
-    def get_client(self):
+    def get_client(self) -> Any:
         """获取该结果表的客户端句柄"""
         pass
 
@@ -671,6 +678,7 @@ class StorageResultTable:
                 if last_storage_cluster_id != new_storage_cluster_id:
                     # 更新上一次集群记录，更新停止写入时间
                     record, _ = StorageClusterRecord.objects.update_or_create(
+                        bk_tenant_id=self.bk_tenant_id,
                         table_id=self.table_id,
                         cluster_id=last_storage_cluster_id,
                         defaults={
@@ -686,6 +694,7 @@ class StorageResultTable:
 
                     # 创建新纪录
                     new_record, _ = StorageClusterRecord.objects.update_or_create(
+                        bk_tenant_id=self.bk_tenant_id,
                         table_id=self.table_id,
                         cluster_id=new_storage_cluster_id,
                         enable_time=django_timezone.now(),
@@ -700,7 +709,7 @@ class StorageResultTable:
                     )
 
                 records_queryset = StorageClusterRecord.objects.filter(
-                    table_id=self.table_id, cluster_id=new_storage_cluster_id
+                    bk_tenant_id=self.bk_tenant_id, table_id=self.table_id, cluster_id=new_storage_cluster_id
                 )
 
                 # 若DB中不存在当前集群ID的记录,那么需要额外创建(避免非前端迁移行为导致的路由异常)
@@ -709,11 +718,11 @@ class StorageResultTable:
                         "update_storage: table_id->[%s] update es_storage_cluster_id may be failed, no record found",
                         self.table_id,
                     )
-                    result_table = ResultTable.objects.get(table_id=self.table_id)
+                    result_table = ResultTable.objects.get(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
                     # 先将存量记录的is_current更改为False
-                    StorageClusterRecord.objects.filter(table_id=self.table_id, is_current=True).update(
-                        is_current=False, disable_time=result_table.last_modify_time
-                    )
+                    StorageClusterRecord.objects.filter(
+                        bk_tenant_id=self.bk_tenant_id, table_id=self.table_id, is_current=True
+                    ).update(is_current=False, disable_time=result_table.last_modify_time)
 
                     correct_record, _ = StorageClusterRecord.objects.get_or_create(
                         table_id=self.table_id,
@@ -724,11 +733,15 @@ class StorageResultTable:
 
                 # 刷新RESULT_TABLE_DETAIL路由,需要先找到该RT关联的虚拟RT
                 virtual_rt_list = list(
-                    ESStorage.objects.filter(origin_table_id=self.table_id).values_list("table_id", flat=True)
+                    ESStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, origin_table_id=self.table_id).values_list(
+                        "table_id", flat=True
+                    )
                 )
                 table_ids = [self.table_id] + virtual_rt_list
                 logger.info("update_storage: table_id->[%s] try to refresh es_table_id_detail", json.dumps(table_ids))
-                space_client.push_es_table_id_detail(table_id_list=table_ids, is_publish=True)
+                space_client.push_es_table_id_detail(
+                    bk_tenant_id=self.bk_tenant_id, table_id_list=table_ids, is_publish=True
+                )
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(
                     "update_storage: table_id->[%s] update es_storage_cluster_id failed,error->[%s]", self.table_id, e
@@ -768,7 +781,7 @@ class StorageResultTable:
         """返回数据源的消息队列类型"""
         # 这个配置应该是很少变化的，所以考虑增加缓存
         if getattr(self, "_cluster", None) is None:
-            self._cluster = ClusterInfo.objects.get(cluster_id=self.storage_cluster_id)
+            self._cluster = ClusterInfo.objects.get(bk_tenant_id=self.bk_tenant_id, cluster_id=self.storage_cluster_id)
 
         return self._cluster
 
@@ -941,7 +954,9 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
         """返回数据源的消息队列类型"""
         # 这个配置应该是很少变化的，所以考虑增加缓存
         if getattr(self, "_cluster", None) is None:
-            self._cluster = ClusterInfo.objects.get(cluster_id=self.influxdb_proxy_storage.proxy_cluster_id)
+            self._cluster = ClusterInfo.objects.get(
+                bk_tenant_id=self.bk_tenant_id, cluster_id=self.influxdb_proxy_storage.proxy_cluster_id
+            )
 
         return self._cluster
 
@@ -1729,13 +1744,13 @@ class KafkaStorage(models.Model, StorageResultTable):
                 storage_cluster_id = settings.DEFAULT_KAFKA_STORAGE_CLUSTER_ID
             else:
                 storage_cluster_id = ClusterInfo.objects.get(
-                    cluster_type=ClusterInfo.TYPE_KAFKA, is_default_cluster=True
+                    bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_KAFKA, is_default_cluster=True
                 ).cluster_id
 
         # 如果有提供集群信息，需要判断
         else:
             if not ClusterInfo.objects.filter(
-                cluster_type=ClusterInfo.TYPE_KAFKA, cluster_id=storage_cluster_id
+                bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_KAFKA, cluster_id=storage_cluster_id
             ).exists():
                 logger.error(
                     f"cluster_id->[{storage_cluster_id}] is not exists or is not redis cluster, something go wrong?"
@@ -1999,13 +2014,19 @@ class ESStorage(models.Model, StorageResultTable):
         """
         # 0. 判断是否需要使用默认集群信息
         if cluster_id is None:
-            cluster_id = (
-                ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_ES, is_default_cluster=True).first().cluster_id
-            )
+            try:
+                cluster_id = ClusterInfo.objects.get(
+                    bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_ES, is_default_cluster=True
+                ).cluster_id
+            except ClusterInfo.DoesNotExist:
+                logger.error(f"cluster_id->[{cluster_id}] is not exists or is not redis cluster, something go wrong?")
+                raise ValueError(_("存储集群配置有误，默认es集群不存在，请确认或联系管理员处理"))
 
         # 如果有提供集群信息，需要判断
         else:
-            if not ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_ES, cluster_id=cluster_id).exists():
+            if not ClusterInfo.objects.filter(
+                bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_ES, cluster_id=cluster_id
+            ).exists():
                 logger.error(f"cluster_id->[{cluster_id}] is not exists or is not redis cluster, something go wrong?")
                 raise ValueError(_("存储集群配置有误，请确认或联系管理员处理"))
 
@@ -2250,7 +2271,7 @@ class ESStorage(models.Model, StorageResultTable):
         """
         获取ES版本号
         """
-        cluster_info = ClusterInfo.objects.get(cluster_id=self.storage_cluster_id)
+        cluster_info = ClusterInfo.objects.get(bk_tenant_id=self.bk_tenant_id, cluster_id=self.storage_cluster_id)
         try:
             cluster_version = int(cluster_info.version.split(".")[0])
         except Exception:
@@ -2512,7 +2533,7 @@ class ESStorage(models.Model, StorageResultTable):
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def get_client(self):
         """获取该结果表的客户端句柄"""
-        return es_tools.get_client(self.storage_cluster_id)
+        return es_tools.get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=self.storage_cluster_id)
 
     es_client = cached_property(get_client, name="es_client")
 
@@ -3591,7 +3612,7 @@ class ESStorage(models.Model, StorageResultTable):
             )
             # 初始化对应存储集群的 ES 客户端
             try:
-                es_client = es_tools.get_client(cluster_id)
+                es_client = es_tools.get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=cluster_id)
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(
                     "clean_history_es_index:table_id->[%s] failed to get ES client for cluster_id->[%s]: %s",
@@ -4556,7 +4577,13 @@ class BkDataStorage(models.Model, StorageResultTable):
         else:
             from metadata.task import tasks
 
-            tasks.access_to_bk_data_task.apply_async(args=(self.table_id,), countdown=60)
+            tasks.access_to_bk_data_task.apply_async(
+                args=(
+                    self.bk_tenant_id,
+                    self.table_id,
+                ),
+                countdown=60,
+            )
 
     def create_databus_clean(self, result_table):
         kafka_storage = KafkaStorage.objects.filter(
@@ -5181,69 +5208,6 @@ class SpaceRelatedStorageInfo(models.Model):
     create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     update_time = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
-    @classmethod
-    def create_space_related_storage_record(
-        cls, space_type_id, space_id, storage_type, cluster_id=None, bk_tenant_id=DEFAULT_TENANT_ID
-    ):
-        """
-        创建空间<->存储集群映射记录
-        @param space_type_id: 空间类型ID
-        @param space_id: 空间ID
-        @param storage_type: 存储类型
-        @param cluster_id: 存储集群ID
-        @param bk_tenant_id: 租户ID
-        """
-        from django.db import transaction
-
-        logger.info(
-            "create_space_related_storage_record: try to create space related storage record, "
-            "space_type_id->[%s], space_id->[%s], storage_type->[%s], cluster_id->[%s] bk_tenant_id->[%s]",
-            space_type_id,
-            space_id,
-            storage_type,
-            cluster_id,
-            bk_tenant_id,
-        )
-
-        if not cluster_id:
-            logger.info(
-                "create_space_related_storage_record: cluster_id is None, try to get default cluster,"
-                "space_type->[%s],space_id->[%s]",
-                space_type_id,
-                space_id,
-            )
-
-            cluster_id = (
-                ClusterInfo.objects.filter(cluster_type=storage_type, is_default_cluster=True).first().cluster_id
-            )
-        try:
-            with transaction.atomic():
-                # 创建空间<->存储集群映射记录
-                space_related_storage_info = cls.objects.create(
-                    space_type_id=space_type_id,
-                    space_id=space_id,
-                    storage_type=storage_type,
-                    cluster_id=cluster_id,
-                    bk_tenant_id=bk_tenant_id,
-                )
-                logger.info(
-                    "create_space_related_storage_record: create space related storage record, "
-                    "space_type_id->[%s], space_id->[%s], storage_type->[%s], cluster_id->[%s],successfully",
-                    space_type_id,
-                    space_id,
-                    storage_type,
-                    space_related_storage_info.cluster_id,
-                )
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error(
-                "create_space_related_storage_record: create space related storage record failed,space_type->[%s],"
-                "space_id->[%s],cluster_id->[%s],error->[%s]",
-                space_type_id,
-                space_id,
-                cluster_id,
-                e,
-            )
-
 
 class DorisStorage(models.Model, StorageResultTable):
     """
@@ -5307,15 +5271,13 @@ class DorisStorage(models.Model, StorageResultTable):
         """
         # 0. 判断是否需要使用默认集群信息
         if storage_cluster_id is None:
-            storage_cluster_id = (
-                ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_DORIS, is_default_cluster=True)
-                .first()
-                .cluster_id
-            )
+            storage_cluster_id = ClusterInfo.objects.get(
+                bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_DORIS, is_default_cluster=True
+            ).cluster_id
             logger.info("CreateDorisStorage: use default Doris storage cluster->[%s]", storage_cluster_id)
         else:
             if not ClusterInfo.objects.filter(
-                cluster_type=ClusterInfo.TYPE_DORIS, cluster_id=storage_cluster_id
+                bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_DORIS, cluster_id=storage_cluster_id
             ).exists():
                 logger.error("CreateDorisStorage: storage cluster[%s] not exist", storage_cluster_id)
                 raise ValueError(_("Doris存储集群配置有误，请确认或联系管理员处理"))
@@ -5341,7 +5303,8 @@ class DorisStorage(models.Model, StorageResultTable):
                     expire_days=expire_days,
                     storage_cluster_id=storage_cluster_id,
                 )
-                storage_record, tag = StorageClusterRecord.objects.update_or_create(
+                StorageClusterRecord.objects.update_or_create(
+                    bk_tenant_id=bk_tenant_id,
                     table_id=table_id,
                     cluster_id=storage_cluster_id,
                     enable_time=django_timezone.now(),

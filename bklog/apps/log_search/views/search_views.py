@@ -23,7 +23,9 @@ import copy
 import json
 import math
 
+import arrow
 from django.conf import settings
+from django.http import StreamingHttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -75,7 +77,6 @@ from apps.log_search.handlers.search.search_handlers_esquery import UnionSearchH
 from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
-    AliasSettingsSerializer,
     BcsWebConsoleSerializer,
     ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
@@ -101,6 +102,8 @@ from apps.log_search.serializers import (
     UnionSearchSearchExportSerializer,
     UpdateIndexSetFieldsConfigSerializer,
     UserIndexSetCustomConfigSerializer,
+    AliasSettingsSerializer,
+    SearchLogForCodeSerializer,
 )
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.builder.context import build_context_params
@@ -148,6 +151,8 @@ class SearchViewSet(APIViewSet):
             "history",
             "chart",
             "generate_sql",
+            "grep_query",
+            "search_log_for_code",
         ]:
             return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
@@ -360,8 +365,8 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAttrSerializer)
-        search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
+            search_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(search_handler.scroll_search())
 
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
@@ -369,6 +374,7 @@ class SearchViewSet(APIViewSet):
             query_handler = UnifyQueryHandler(data)
             return Response(query_handler.search())
         else:
+            search_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="search/original")
@@ -427,7 +433,8 @@ class SearchViewSet(APIViewSet):
         data = self.params_valid(OriginalSearchAttrSerializer)
         data["original_search"] = True
         data["is_desensitize"] = False
-        search_handler = SearchHandlerEsquery(index_set_id, data)
+        # TODO: 需要切换为 UnifyQuery 查询
+        search_handler = SearchHandlerEsquery(index_set_id, data, only_for_agg=True)
         return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="context")
@@ -1913,7 +1920,7 @@ class SearchViewSet(APIViewSet):
     @detail_route(methods=["POST"], url_path="chart")
     def chart(self, request, index_set_id=None):
         """
-        @api {get} /search/index_set/$index_set_id/chart/
+        @api {post} /search/index_set/$index_set_id/chart/
         @apiDescription 获取图表信息
         @apiName chart
         @apiGroup 11_Search
@@ -1944,6 +1951,28 @@ class SearchViewSet(APIViewSet):
             instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
             result = instance.get_chart_data(params)
         return Response(result)
+
+    @detail_route(methods=["POST"], url_path="export_chart_data")
+    def export_chart_data(self, request, index_set_id=None):
+        """
+        @api {post} /search/index_set/$index_set_id/export_chart_data/
+        @apiDescription 导出图表数据
+        @apiName export_chart_data
+        @apiGroup 11_Search
+        """
+        params = self.params_valid(ChartSerializer)
+        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+        params["index_set_ids"] = [index_set_id]
+        params["bk_biz_id"] = bk_biz_id
+
+        query_handler = UnifyQueryChartHandler(params)
+        file_name = f"bklog_{index_set_id}_{arrow.now().format('YYYYMMDD_HHmmss')}.csv"
+        response = StreamingHttpResponse(
+            query_handler.export_chart_data(),
+            content_type="text/csv",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{file_name}"'
+        return response
 
     @detail_route(methods=["POST"], url_path="generate_sql")
     def generate_sql(self, request, index_set_id=None):
@@ -2050,3 +2079,55 @@ class SearchViewSet(APIViewSet):
     def alias_settings(self, request, index_set_id):
         params = self.params_valid(AliasSettingsSerializer)
         return Response(IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params["alias_settings"]))
+
+    @detail_route(methods=["POST"], url_path="search_log_for_code")
+    def search_log_for_code(self, request, index_set_id):
+        """
+        @api {post} /search/index_set/$index_set_id/search_log_for_code/ CodeCC日志搜索
+        @apiDescription 根据CodeCC token进行日志搜索，需要在请求头中传入 X-BKLOG-TOKEN
+        @apiParam 接口参数参考query_ts_raw
+        @apiParamExample {Json} 请求参数
+        {
+            "query_list": [
+                {
+                    "data_source": "bklog",
+                    "reference_name": "a",
+                    "time_field": "time",
+                    "query_string": "log:error AND path:/var/log/app/*",
+                    "table_id": "",
+                    "conditions": {"field_list": [], "condition_list": []},
+                    "field_name": "dtEventTimeStamp",
+                    "keep_columns": ["log", "path", "serverIp"]
+                }
+            ],
+            "start_time": "1753859263536",
+            "end_time": "1753945663536",
+            "timezone": "UTC",
+            "from_index": 0,
+            "limit": 10000
+        }
+        @apiSuccessExample {json} 成功返回:
+        {
+                'result': True,
+                'data': {
+                    'total': 1,
+                    'list': [
+                        {
+                            'log': 'Jul 31 11:53:01 VM-6-xxx-centos systemd: Started Session 170380 of user root.',
+                            'path': '/var/log/xxxx'
+                        }
+                    ],
+                    'done': False,
+                    'trace_id': 'xxxxx',
+                    'result_table_options': {
+                        'bklog_index_set_xxx_bklog_codecc.__default__|http://10.x.x.x:xxxx': {
+                            'search_after': [xxxxxx]
+                        }
+                    }
+                },
+                'code': 0,
+                'message': ''
+            }
+        """
+        data = self.params_valid(SearchLogForCodeSerializer)
+        return Response(UnifyQueryHandler.search_log_for_code(index_set_id, data))

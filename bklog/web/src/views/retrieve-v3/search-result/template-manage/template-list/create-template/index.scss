@@ -1,0 +1,38 @@
+.add-template-btn {
+  width: 32px;
+  height: 32px;
+  background: #cddffe;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &:hover {
+    background: #3a84ff;
+
+    .add-icon {
+      color: #fff;
+    }
+  }
+
+  .add-icon {
+    font-size: 26px;
+    color: #3a84ff;
+  }
+}
+
+.create-template-popover {
+  .tippy-tooltip {
+    // padding: 16px;
+  }
+
+  .create-template-main {
+    .operate-btns {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+  }
+}

@@ -169,6 +169,9 @@
   import fieldsSettingOperate from './fields-setting-operate';
   import tableSort from './table-sort';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import { isEqual } from 'lodash-es';
+
   /** 导出配置字段文件名前缀 */
   const FIELD_CONFIG_FILENAME_PREFIX = 'log-field-';
 
@@ -244,7 +247,7 @@
         if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {
           return this.catchFieldCustomSortList;
         }
-        return this.$store.state.indexFieldInfo.sort_list;
+        return this.$store.state.indexFieldInfo?.user_custom_config?.sortList ?? [];
       },
       shadowTotal() {
         return formatHierarchy(this.$store.state.indexFieldInfo.fields);
@@ -295,7 +298,7 @@
         return this.$store.state.isEnLanguage ? '60' : '114';
       },
       currentSortList() {
-        return this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
+        return (this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields) ?? [];
       },
       currentVisibleList() {
         return (
@@ -338,21 +341,22 @@
         if (!this.isTemplateConfig) {
           this.initShadowFields(this.localVisibleFields);
           // 在数据初始化后缓存，使用深拷贝
-          this.cachedVisibleFields = JSON.parse(JSON.stringify(this.shadowVisible));
-          this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
+          this.cachedVisibleFields = structuredClone(this.shadowVisible);
+          this.cachedSortFields = structuredClone(this.shadowSort);
           return;
         }
         await this.getFiledConfigList();
         this.initShadowFields();
         // 在数据初始化后缓存，使用深拷贝
-        this.cachedVisibleFields = JSON.parse(JSON.stringify(this.shadowVisible));
-        this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
-      },
+        this.cachedVisibleFields = structuredClone(this.shadowVisible);
+        this.cachedSortFields = structuredClone(this.shadowSort);
+     },
       /** 保存或应用 */
       async confirmModifyFields() {
-        const currentSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
+        const updateSortList = this.$refs?.tableSortRef?.shadowSort || this.cachedSortFields;
         const currentVisibleList = this.$refs.fieldSettingRef.shadowVisible.map(item => item.field_name);
-        const updateSortList = this.syncSort(currentSortList)
+        const oldSortList = this.$store.state.indexFieldInfo.user_custom_config.sortList;
+        const isSortListChanged = updateSortList.length && !isEqual(oldSortList, updateSortList);
         if (currentVisibleList.length === 0) {
           this.messageWarn(this.$t('显示字段不能为空'));
           return;
@@ -375,7 +379,7 @@
           }
 
           this.cancelModifyFields();
-          this.$store.commit('updateLocalSort', false);
+          this.$store.commit('updateState', { 'localSort': false});
           this.$store.commit('updateIsSetDefaultTableColumn', false);
           this.$store
             .dispatch('userFieldConfigChange', {
@@ -387,9 +391,13 @@
               this.$store.commit('resetVisibleFields', currentVisibleList);
               this.$store.commit('updateIsSetDefaultTableColumn');
             });
-          await this.$store.dispatch('requestIndexSetFieldInfo');
 
-          await this.$store.dispatch('requestIndexSetQuery');
+            if (isSortListChanged) {
+              await this.$store.dispatch('requestIndexSetFieldInfo');
+              await this.$store.dispatch('requestIndexSetQuery');
+              RetrieveHelper.fire(RetrieveEvent.SORT_LIST_CHANGED);
+            }
+
         } catch (error) {
           console.warn(error);
         } finally {
@@ -417,9 +425,9 @@
         // 取消时恢复缓存数据，使用深拷贝
         if (!this.isTemplateConfig) {
           // 只更新父组件的数据，子组件会通过 props 自动更新
-          this.shadowVisible = JSON.parse(JSON.stringify(this.cachedVisibleFields));
-          // this.shadowSort = JSON.parse(JSON.stringify(this.cachedSortFields));
-          this.cachedSortFields = JSON.parse(JSON.stringify(this.shadowSort));
+          this.shadowVisible = structuredClone(this.cachedVisibleFields);
+          // this.shadowSort = structuredClone(this.cachedSortFields);
+          this.cachedSortFields = structuredClone(this.shadowSort);
         }
         this.$emit('cancel');
         this.isSortFieldChanged = false;
@@ -759,7 +767,7 @@
         }
 
         .bk-tab-label-list-has-bar::after {
-          display: none !important;
+          display: none;
         }
 
         .config-tab {
@@ -835,7 +843,6 @@
 
       .text-type {
         margin-bottom: 8px;
-        font-family: MicrosoftYaHei;
         font-size: 14px;
         line-height: 22px;
         color: #313238;

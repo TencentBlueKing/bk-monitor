@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -18,6 +18,7 @@ class DataLinkKind(Enum):
     RESULTTABLE = "ResultTable"
     VMSTORAGEBINDING = "VmStorageBinding"
     ESSTORAGEBINDING = "ElasticSearchBinding"
+    DORISBINDING = "DorisBinding"
     DATABUS = "Databus"
     CONDITIONALSINK = "ConditionalSink"
     SINK = "Sink"
@@ -30,6 +31,7 @@ class DataLinkKind(Enum):
         (RESULTTABLE, "resulttables"),
         (VMSTORAGEBINDING, "vmstoragebindings"),
         (ESSTORAGEBINDING, "elasticsearchbindings"),
+        (DORISBINDING, "dorisbindings"),
         (DATABUS, "databuses"),
         (CONDITIONALSINK, "conditionalsinks"),
         (SINK, "sinks"),
@@ -103,6 +105,8 @@ BASEREPORT_USAGES = [
 ]
 
 BASEREPORT_DATABUS_FORMAT = "bkmonitor_basereport_v1"
+SYSTEM_PROC_PERF_DATABUS_FORMAT = "bkmonitor_proc_perf"
+SYSTEM_PROC_PORT_DATABUS_FORMAT = "bkmonitor_proc_port"
 
 
 # 基础采集数据链路来源 -- 主机系统、DBM、DEVX、Perforce

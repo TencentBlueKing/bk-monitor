@@ -38,6 +38,7 @@ from apps.log_search.exceptions import (
     QueryServerUnavailableException,
     IndexMappingEmptyException,
     TooManyBucketsException,
+    ParseDateFieldException,
 )
 from apps.utils import ChoicesEnum
 from apps.utils.custom_report import render_otlp_report_config
@@ -99,6 +100,8 @@ DEFAULT_TAG_COLOR = TagColor.BLUE
 DEFAULT_BK_CLOUD_ID = 0
 MAX_RESULT_WINDOW = 10000
 MAX_SEARCH_SIZE = 100000
+DEFAULT_QUERY_OFFSET = 0
+DEFAULT_QUERY_LIMIT = 10000
 SCROLL = "1m"
 DEFAULT_TIME_FIELD = "dtEventTimeStamp"
 DEFAULT_TIME_FIELD_ALIAS_NAME = "utctime"
@@ -167,6 +170,8 @@ HAVE_DATA_ID = "have_data_id"
 BKDATA_OPEN = "bkdata"
 NOT_CUSTOM = "not_custom"
 IGNORE_DISPLAY_CONFIG = "ignore_display_config"
+# 异步导出滚动查询超时时间
+ASYNC_EXPORT_SCROLL = "5m"
 
 FIND_MODULE_WITH_RELATION_FIELDS = ["bk_module_id", "bk_module_name", "service_template_id"]
 
@@ -896,6 +901,7 @@ class FieldDataTypeEnum(ChoicesEnum):
     DOUBLE = "double"
     OBJECT = "object"
     NESTED = "nested"
+    FLATTENED = "flattened"
 
     choices_list = [(STRING, STRING), (INT, INT), (LONG, LONG), (DOUBLE, DOUBLE)]
 
@@ -904,6 +910,8 @@ class FieldDataTypeEnum(ChoicesEnum):
 
     if settings.FEATURE_TOGGLE.get("es_type_nested") == "on":
         choices_list.append((NESTED, NESTED))
+
+    choices_list.append((FLATTENED, FLATTENED))
 
     _choices_labels = tuple(choices_list)
 
@@ -918,6 +926,7 @@ class FieldDataTypeEnum(ChoicesEnum):
             "double": "float",
             "object": "object",
             "nested": "nested",
+            "flattened": "flattened",
         }.get(es_field_type, "string")
 
     @classmethod
@@ -929,6 +938,7 @@ class FieldDataTypeEnum(ChoicesEnum):
             "double": "double",
             "object": "object",
             "nested": "nested",
+            "flattened": "flattened",
         }.get(field_type, "keyword")
         if is_analyzed:
             field_type = "text"
@@ -948,6 +958,7 @@ class FieldDataTypeEnum(ChoicesEnum):
             "object": "object",
             "nested": "nested",
             "boolean": "boolean",
+            "flattened": "flattened",
         }.get(es_field_type, "string")
 
 
@@ -1670,6 +1681,14 @@ OPERATORS = {
         OperatorEnum.EXISTS,
         OperatorEnum.NOT_EXISTS,
     ],
+    "flattened": [
+        OperatorEnum.EQ_WILDCARD,
+        OperatorEnum.NE_WILDCARD,
+        OperatorEnum.EXISTS,
+        OperatorEnum.NOT_EXISTS,
+        OperatorEnum.CONTAINS,
+        OperatorEnum.NOT_CONTAINS,
+    ],
 }
 
 DEFAULT_INDEX_OBJECT_FIELDS_PRIORITY = ["__ext.io_kubernetes_pod", "serverIp", "ip"]
@@ -1777,13 +1796,17 @@ class HighlightConfig:
 
 
 ES_ERROR_PATTERNS = [
-    (r"ERROR DSL is|Lexical error at line|Failed to parse query", ESQuerySyntaxException),
+    (r"ERROR DSL is|Lexical error at line|Failed to parse query|parse_exception", ESQuerySyntaxException),
     (r"No mapping found for \[(?P<field_name>.*?)] in order to sort on", FieldNoMappingException),
     (r"The length of \[(?P<field_name>.*?)] field.*?analyzed for highlighting", HighlightException),
     (r"The length \[\d+] of field \[(?P<field_name>.*?)].*?highlight", HighlightException),
     (r"Can't load fielddata on \[(?P<field_name>.*?)]", UnsupportedOperationException),
     (r"Set fielddata=true on \[(?P<field_name>.*?)] in order to load fielddata", UnsupportedOperationException),
-    (r"connect_timeout\[.*?]|timed out after|HTTPConnectionPool.*?Read timed out", QueryServerUnavailableException),
+    (
+        r"connect_timeout|timed out after|Read timed out|context deadline exceeded|Gateway Time-out|Connection to .*? timed out",
+        QueryServerUnavailableException,
+    ),
     (r"index is empty with \[(?P<result_table_id>.*?)]", IndexMappingEmptyException),
     (r"too_many_buckets_exception.*?Trying to create too many buckets", TooManyBucketsException),
+    (r"failed to parse date field", ParseDateFieldException),
 ]

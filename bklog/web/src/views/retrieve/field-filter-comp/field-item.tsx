@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import { BK_LOG_STORAGE } from '../../../store/store.type';
 
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
 
@@ -39,10 +39,10 @@ export default class FieldItem extends tsc<object> {
   @Prop({ type: Object, default: () => ({}) }) fieldItem: any;
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
   @Prop({ type: Boolean, default: false }) showFieldAlias: boolean;
-  @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
+  @Prop({ type: Array, default: () => [] }) datePickerValue: any[];
   @Prop({ type: Number, default: 0 }) retrieveSearchNumber: number;
   @Prop({ type: Object, required: true }) retrieveParams: object;
-  @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
+  @Prop({ type: Array, default: () => [] }) visibleFields: any[];
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData: object;
   @Prop({ type: Boolean, required: true }) isFrontStatistics: boolean;
 
@@ -64,12 +64,16 @@ export default class FieldItem extends tsc<object> {
     return this.$store.getters.unionIndexItemList;
   }
   get gatherFieldsCount() {
-    if (this.isFrontStatistics) return Object.keys(this.statisticalFieldData).length;
+    if (this.isFrontStatistics) {
+      return Object.keys(this.statisticalFieldData).length;
+    }
     return 0;
   }
   // 显示融合字段统计比例图表
   get showFieldsChart() {
-    if (this.fieldItem.field_type === 'text') return false;
+    if (this.fieldItem.field_type === 'text') {
+      return false;
+    }
     return this.isFrontStatistics ? !!this.gatherFieldsCount : this.isShowFieldsAnalysis;
   }
   get isShowFieldsCount() {
@@ -77,9 +81,9 @@ export default class FieldItem extends tsc<object> {
   }
   get isShowFieldsAnalysis() {
     return (
-      ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(this.fieldItem.field_type) &&
-      this.fieldItem.es_doc_values &&
-      !/^__dist_/.test(this.fieldItem.field_name)
+      ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'].includes(this.fieldItem.field_type)
+      && this.fieldItem.es_doc_values
+      && !/^__dist_/.test(this.fieldItem.field_name)
     );
   }
   get reQueryAggChart() {
@@ -171,9 +175,9 @@ export default class FieldItem extends tsc<object> {
           class={{ 'filed-title': true, expanded: this.isExpand }}
           onClick={() => this.handleClickItem()}
         >
-          <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]}></span>
+          <span class={['icon bklog-icon bklog-drag-dots', { 'hidden-icon': this.type === 'hidden' }]} />
           {/* 三角符号 */}
-          <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }}></span>
+          <span class={{ 'icon-right-shape': this.showFieldsChart, 'bk-icon': true }} />
           {/* 字段类型对应的图标 */}
           <span
             class={[this.getFieldIcon(this.fieldItem.field_type) || 'bklog-icon bklog-unkown', 'field-type-icon']}
@@ -181,7 +185,7 @@ export default class FieldItem extends tsc<object> {
               content: this.fieldTypeMap[this.fieldItem.field_type]?.name,
               disabled: !this.fieldTypeMap[this.fieldItem.field_type],
             }}
-          ></span>
+          />
           {/* 字段名 */}
           <span class='overflow-tips field-name'>
             <span v-bk-overflow-tips>
@@ -200,11 +204,11 @@ export default class FieldItem extends tsc<object> {
                 ext-cls='conflict-popover'
                 theme='light'
               >
-                <i class='conflict-icon bk-icon icon-exclamation-triangle-shape'></i>
+                <i class='conflict-icon bk-icon icon-exclamation-triangle-shape' />
                 <div slot='content'>
                   <p>{this.$t('该字段在以下索引集存在冲突')}</p>
                   {this.unionConflictFieldsName.map(item => (
-                    <bk-tag>{item}</bk-tag>
+                    <bk-tag key={item}>{item}</bk-tag>
                   ))}
                 </div>
               </bk-popover>
@@ -223,14 +227,16 @@ export default class FieldItem extends tsc<object> {
                 v-bk-tooltips={{
                   content: this.isUnionSearch || this.isFrontStatistics ? this.$t('暂不支持') : this.$t('图表分析'),
                 }}
-                onClick={e => {
+                onClick={(e) => {
                   e.stopPropagation();
                   // 联合查询 或 非白名单业务和索引集类型 时不能点击字段分析
-                  if (this.isUnionSearch || this.isFrontStatistics) return;
+                  if (this.isUnionSearch || this.isFrontStatistics) {
+                    return;
+                  }
                   this.handleClickAnalysisItem();
                 }}
               >
-                <i class='bklog-icon bklog-log-trend'></i>
+                <i class='bklog-icon bklog-log-trend' />
               </div>
             )}
             {/* 设置字段显示或隐藏 */}
@@ -239,12 +245,12 @@ export default class FieldItem extends tsc<object> {
               v-bk-tooltips={{
                 content: this.type === 'visible' ? this.$t('点击隐藏') : this.$t('点击显示'),
               }}
-              onClick={e => {
+              onClick={(e) => {
                 e.stopPropagation();
                 this.handleShowOrHiddenItem();
               }}
             >
-              <i class={['bk-icon include-icon', `${this.type !== 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]}></i>
+              <i class={['bk-icon include-icon', `${this.type !== 'visible' ? 'icon-eye' : 'icon-eye-slash'}`]} />
             </div>
           </div>
         </div>

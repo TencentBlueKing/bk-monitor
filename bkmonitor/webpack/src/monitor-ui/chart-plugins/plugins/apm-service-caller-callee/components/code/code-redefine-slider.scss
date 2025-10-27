@@ -1,0 +1,148 @@
+.code-redefine-slider {
+  .code-redefine-slider-content {
+    padding: 28px 40px;
+
+    .info-table {
+      border: 1px solid #dcdee5;
+      border-radius: 0 2px 0 0;
+      font-size: 12px;
+      color: #4d4f56;
+
+      .table-row {
+        display: flex;
+        height: 42px;
+        line-height: 42px;
+
+        .row-label {
+          width: 80px;
+          padding-left: 16px;
+          border-right: 1px solid #dcdee5;
+        }
+
+        .row-value {
+          padding-left: 16px;
+        }
+
+        & + .table-row {
+          border-top: 1px solid #dcdee5;
+        }
+      }
+    }
+
+    .submit-table {
+      margin: 24px 0 24px;
+
+      .explore-btns {
+        text-align: right;
+        line-height: 20px;
+        margin-bottom: 4px;
+
+        .hidden-file-input {
+          display: none;
+        }
+
+        .btn {
+          & + .btn {
+            margin-left: 8px;
+          }
+        }
+
+        .bk-button-text {
+          font-size: 12px;
+        }
+      }
+
+      .skeleton-wrap {
+        .skeleton-element {
+          height: 150px;
+
+          &+.skeleton-element {
+            margin-top: 25px;
+          }
+        }
+      }
+
+      .rule-row {
+        height: 154px;
+        background-color: #fff;
+      }
+
+      .interface-column {
+        display: flex;
+        align-items: center;
+
+        .bk-select {
+          flex: 1;
+        }
+
+        .icon-mind-fill {
+          margin-left: 8px;
+          color: #ea3636;
+          cursor: pointer;
+        }
+      }
+
+      .code-column-header {
+        display: flex;
+        align-items: center;
+
+        .icon-hint {
+          margin-left: 5px;
+          font-size: 14px;
+          color: #979ba5;
+          cursor: pointer;
+        }
+      }
+
+      .code-rules {
+        .code-status-rule-item {
+          display: flex;
+          align-items: center;
+
+          .bk-form-item {
+            flex: 1;
+            margin-right: 16px;
+          }
+
+          .success {
+            color: #2caf5e;
+          }
+
+          .timeout {
+            color: #f59500;
+          }
+
+          .exception {
+            color: #ea3636;
+          }
+
+          & + .code-status-rule-item {
+            margin-top: 12px;
+          }
+        }
+      }
+
+      .operate-btns {
+        .btn {
+          & + .btn {
+            margin-left: 16px;
+          }
+        }
+      }
+    }
+
+    .submit-btns {
+      .bk-button {
+        & + .bk-button {
+          margin-left: 8px;
+        }
+      }
+    }
+
+    .tips {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #979ba5;
+    }
+  }
+}

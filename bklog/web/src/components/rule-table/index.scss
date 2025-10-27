@@ -1,0 +1,148 @@
+.rule-table-main {
+  &.sortable-ghost-class {
+    background: #eaf3ff;
+    transition: background 0.2s linear;
+  }
+
+  .table-row-header {
+    width: 100%;
+    height: 42px;
+    font-size: 12px;
+    background: #fafbfd;
+    border-bottom: 1px solid #dcdee5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #313238;
+
+    &:hover {
+      background: #f0f1f5;
+      transition: background 0.2s linear;
+    }
+
+    &.is-readonly {
+      .index-column {
+        width: 64px;
+        text-align: right;
+        margin-right: 55px;
+      }
+    }
+
+    .index-column {
+      width: 96px;
+      text-align: right;
+      margin-right: 40px;
+    }
+
+    .regular-column {
+      flex: 1;
+    }
+
+    .placement-column {
+      width: 155px;
+    }
+
+    .operate-column {
+      width: 80px;
+    }
+  }
+
+  .table-row-content {
+    width: 100%;
+    min-height: 42px;
+    font-size: 12px;
+    border-bottom: 1px solid #dcdee5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #4d4f56;
+
+    &:hover {
+      background-color: #f0f1f5;
+      transition: background 0.2s linear;
+
+      .bklog-drag-dots {
+        opacity: 1;
+        transition: opacity 0.2s linear;
+      }
+    }
+
+    &.is-readonly {
+      .index-column {
+        width: 64px;
+        display: block;
+        margin-right: 55px;
+        text-align: right;
+      }
+    }
+
+    .index-column {
+      width: 96px;
+      margin-right: 40px;
+      padding-left: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .regular-column {
+      flex: 1;
+      padding: 2px 40px 2px 2px;
+      word-break: break-all;
+    }
+
+    .placement-column {
+      width: 140px;
+      word-break: break-all;
+      margin-right: 15px;
+    }
+
+    .operate-column {
+      width: 80px;
+      display: flex;
+      gap: 10px;
+
+      .opt-icon {
+        font-size: 14px;
+        color: #4d4f56;
+      }
+    }
+
+    .bklog-drag-dots {
+      width: 16px;
+      font-size: 14px;
+      color: #979ba5;
+      text-align: left;
+      cursor: move;
+      opacity: 0;
+      transition: opacity 0.2s linear;
+    }
+  }
+
+  .no-cluster-rule {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    border-bottom: 1px solid #dcdee5;
+
+    .icon-empty {
+      font-size: 80px;
+      color: #c3cdd7;
+    }
+  }
+}
+
+.delete-confirm-main {
+  padding: 8px 8px 0;
+
+  .popover-btn {
+    margin-top: 6px;
+    text-align: right;
+
+    button {
+      padding: 0 !important;
+      width: 32px;
+    }
+  }
+}

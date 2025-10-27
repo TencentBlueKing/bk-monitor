@@ -187,6 +187,9 @@
           min-width="80"
           prop="cluster_config.creator"
         >
+        <template #default="props">
+          <bk-user-display-name :user-id="props.row.cluster_config.creator"></bk-user-display-name>
+        </template>
         </bk-table-column>
         <bk-table-column
           v-if="checkcFields('create_time')"
@@ -611,7 +614,7 @@
                 },
               ],
             });
-            this.$store.commit('updateAuthDialogData', res.data);
+            this.$store.commit('updateState', {'authDialogData': res.data});
           } catch (err) {
             console.warn(err);
           } finally {
@@ -645,7 +648,7 @@
             };
             this.tableLoading = true;
             const res = await this.$store.dispatch('getApplyData', paramData);
-            this.$store.commit('updateAuthDialogData', res.data);
+            this.$store.commit('updateState', {'authDialogData': res.data});
           } catch (err) {
             console.warn(err);
           } finally {
@@ -673,7 +676,7 @@
             };
             this.tableLoading = true;
             const res = await this.$store.dispatch('getApplyData', paramData);
-            this.$store.commit('updateAuthDialogData', res.data);
+            this.$store.commit('updateState', {'authDialogData': res.data});
           } catch (err) {
             console.warn(err);
           } finally {

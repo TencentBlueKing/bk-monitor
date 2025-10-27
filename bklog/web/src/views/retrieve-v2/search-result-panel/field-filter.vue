@@ -39,11 +39,13 @@
       item.minWidth = 0;
       item.filterExpand = false; // 字段过滤展开
       item.filterVisible = true;
-      fieldAliasMap[item.field_name] = item.query_alias || item.field_alias || item.field_name;
+      fieldAliasMap[item.field_name] = item.query_alias || item.field_name;
     });
 
     return fieldAliasMap;
   });
+
+  const requestAddition = computed(() => store.getters.requestAddition);
 
   const retrieveParams = computed(() => {
     return {
@@ -51,6 +53,8 @@
       ...store.getters.retrieveParams,
       start_time: datePickerValue.value[0],
       end_time: datePickerValue.value[1],
+      addition: requestAddition.value ?? [],
+      showFieldAlias: store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
     };
   });
 

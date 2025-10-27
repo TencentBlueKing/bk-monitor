@@ -34,7 +34,7 @@ export default class PixiAppPool {
     this.queue = [];
   }
 
-  async createApp(taskFunction: (app: Application) => Promise<void>) {
+  createApp(taskFunction: (app: Application) => Promise<void>) {
     return new Promise<void>((resolve, reject) => {
       const runTask = () => {
         const app = new Application();

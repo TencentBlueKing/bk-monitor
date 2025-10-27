@@ -34,7 +34,7 @@ import './original-light-height.scss';
 
 interface IProps {
   originJson: object;
-  visibleFields: Array<any>;
+  visibleFields: any[];
   isWrap: boolean;
   operatorConfig: object;
 }
@@ -62,11 +62,11 @@ export default class QueryStatement extends tsc<IProps> {
   get fieldMapDataObj() {
     const { newObject } = getFlatObjValues(this.originJson || {});
     const visibleObject = {};
-    Object.keys(newObject).forEach(el => {
+    for (const el of Object.keys(newObject)) {
       if (this.visibleFieldsNameList.includes(el)) {
         visibleObject[el] = newObject[el];
       }
-    });
+    }
     const sortObject = this.visibleFields.reduce((pre, cur) => {
       let fieldValue = visibleObject[cur.field_name];
       if (this.operatorConfig?.isShowSourceField && cur?.tag === 'union-source') {
@@ -96,7 +96,7 @@ export default class QueryStatement extends tsc<IProps> {
       <span class='origin-content'>
         {Object.entries(this.fieldMapDataObj).map(([key, value]) => {
           return (
-            <span>
+            <span key={key}>
               <span class='black-mark'>&nbsp;{key}:&nbsp;</span>
               <span class='origin-value'>
                 <TextSegmentation

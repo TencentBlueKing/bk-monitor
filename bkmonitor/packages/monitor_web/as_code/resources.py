@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -14,6 +14,7 @@ import os
 import shutil
 import tarfile
 import tempfile
+from typing import Any
 import zipfile
 from collections import defaultdict
 from collections.abc import Iterable
@@ -128,6 +129,7 @@ class ExportConfigResource(Resource):
     """
 
     class RequestSerializer(BkBizIdSerializer):
+        app = serializers.CharField(default=None, allow_blank=True, allow_null=True)
         action_ids = serializers.ListField(child=serializers.IntegerField(), allow_null=True, default=None)
         rule_ids = serializers.ListField(child=serializers.IntegerField(), allow_null=True, default=None)
         notice_group_ids = serializers.ListField(child=serializers.IntegerField(), allow_null=True, default=None)
@@ -164,7 +166,12 @@ class ExportConfigResource(Resource):
 
     @classmethod
     def export_rules(
-        cls, bk_biz_id: int, rule_ids: list[int] | None, with_id: bool = False, lock_filename: bool = False
+        cls,
+        bk_biz_id: int,
+        rule_ids: list[int] | None,
+        app: str | None = None,
+        with_id: bool = False,
+        lock_filename: bool = False,
     ) -> Iterable[tuple[str, str, str]]:
         """
         导出策略配置
@@ -175,6 +182,10 @@ class ExportConfigResource(Resource):
             if not rule_ids:
                 return
             rules = rules.filter(id__in=rule_ids)
+
+        # 如果app不为None，则过滤app字段
+        if app is not None:
+            rules = rules.filter(app=app)
 
         # 查询关联拓扑信息
         topo_nodes = {}
@@ -203,12 +214,12 @@ class ExportConfigResource(Resource):
         notice_group_ids = {}
         all_user_groups = UserGroup.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name")
         for user_group in all_user_groups:
-            notice_group_ids[user_group.name] = user_group.id
+            notice_group_ids[user_group.name] = user_group.pk
 
         action_ids = {}
         all_actions = ActionConfig.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name")
         for action in all_actions:
-            action_ids[action.name] = action.id
+            action_ids[action.name] = action.pk
 
         # 配置生成
         # 所有的策略需要非告警状态采集内置策略才可以导出
@@ -232,7 +243,12 @@ class ExportConfigResource(Resource):
 
     @classmethod
     def export_notice_groups(
-        cls, bk_biz_id: int, notice_group_ids: list[int] | None, with_id: bool = False, lock_filename: bool = False
+        cls,
+        bk_biz_id: int,
+        notice_group_ids: list[int] | None,
+        app: str | None = None,
+        with_id: bool = False,
+        lock_filename: bool = False,
     ):
         """
         导出告警组配置
@@ -244,6 +260,10 @@ class ExportConfigResource(Resource):
                 return
             user_groups = user_groups.filter(id__in=notice_group_ids)
 
+        # 如果app不为None，则过滤app字段
+        if app is not None:
+            user_groups = user_groups.filter(app=app)
+
         # 配置生成
         user_group_configs = []
         for user_group in user_groups:
@@ -253,7 +273,7 @@ class ExportConfigResource(Resource):
         duty_rules_ids = {}
         duty_rules = DutyRule.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name")
         for duty_rule in duty_rules:
-            duty_rules_ids[duty_rule.name] = duty_rule.id
+            duty_rules_ids[duty_rule.name] = duty_rule.pk
 
         # 转换为AsCode配置
         parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id, duty_rules=duty_rules_ids)
@@ -261,7 +281,12 @@ class ExportConfigResource(Resource):
 
     @classmethod
     def export_duties(
-        cls, bk_biz_id: int, duty_rules: list[int] | None, with_id: bool = False, lock_filename: bool = False
+        cls,
+        bk_biz_id: int,
+        duty_rules: list[int] | None,
+        app: str | None = None,
+        with_id: bool = False,
+        lock_filename: bool = False,
     ):
         """
         导出告警组配置
@@ -272,7 +297,11 @@ class ExportConfigResource(Resource):
             # 如果duty rule为一个空列表，表示没有需要导出的
             return
         if duty_rules:
-            duty_rule_queryset = duty_rule_queryset.filter(id__in=duty_rule_queryset)
+            duty_rule_queryset = duty_rule_queryset.filter(id__in=duty_rules)
+
+        # 如果app不为None，则过滤app字段
+        if app is not None:
+            duty_rule_queryset = duty_rule_queryset.filter(app=app)
 
         # 配置生成
         duty_configs = []
@@ -285,7 +314,12 @@ class ExportConfigResource(Resource):
 
     @classmethod
     def export_actions(
-        cls, bk_biz_id: int, action_ids: list[int] | None, with_id: bool = False, lock_filename: bool = False
+        cls,
+        bk_biz_id: int,
+        action_ids: list[int] | None,
+        app: str | None = None,
+        with_id: bool = False,
+        lock_filename: bool = False,
     ):
         """
         导出自愈套餐配置
@@ -297,13 +331,17 @@ class ExportConfigResource(Resource):
                 return
             actions = actions.filter(id__in=action_ids)
 
+        # 如果app不为None，则过滤app字段
+        if app is not None:
+            actions = actions.filter(app=app)
+
         # 配置生成
         action_configs = []
         for action in actions:
             action_configs.append(ActionConfigDetailSlz(action).data)
 
         # 转换为AsCode配置
-        parser = ActionConfigParser(bk_biz_id=bk_biz_id, action_plugins=ActionPlugin.objects.all())
+        parser = ActionConfigParser(bk_biz_id=bk_biz_id, action_plugins=list(ActionPlugin.objects.all()))
         yield from cls.transform_configs(parser, action_configs, with_id, lock_filename)
 
     @classmethod
@@ -356,7 +394,12 @@ class ExportConfigResource(Resource):
 
     @classmethod
     def export_assign_groups(
-        cls, bk_biz_id: int, assign_group_ids: list[int] | None, with_id: bool = False, lock_filename: bool = False
+        cls,
+        bk_biz_id: int,
+        assign_group_ids: list[int] | None,
+        app: str | None = None,
+        with_id: bool = False,
+        lock_filename: bool = False,
     ) -> Iterable[tuple[str, str, str]]:
         """
         导出策略配置
@@ -369,6 +412,11 @@ class ExportConfigResource(Resource):
             if not assign_group_ids:
                 return
             assign_groups = assign_groups.filter(id__in=assign_group_ids)
+
+        # 如果app不为None，则过滤app字段
+        if app is not None:
+            assign_groups = assign_groups.filter(app=app)
+
         groups_dict = {}
         for group in assign_groups:
             if group.source == DATALINK_SOURCE:
@@ -392,44 +440,66 @@ class ExportConfigResource(Resource):
         notice_group_ids = {}
         all_user_groups = UserGroup.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name")
         for user_group in all_user_groups:
-            notice_group_ids[user_group.name] = user_group.id
+            notice_group_ids[user_group.name] = user_group.pk
 
         action_ids = {}
         all_actions = ActionConfig.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name")
         for action in all_actions:
-            action_ids[action.name] = action.id
+            action_ids[action.name] = action.pk
 
         # 转换为AsCode配置
         parser = AssignGroupRuleParser(bk_biz_id=bk_biz_id, notice_group_ids=notice_group_ids, action_ids=action_ids)
         yield from cls.transform_configs(parser, list(groups_dict.values()), with_id, lock_filename)
 
-    def perform_request(self, params):
+    def perform_request(self, params: dict):
         bk_biz_id = params["bk_biz_id"]
         configs = {
             "rule": {
                 (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
-                for x in self.export_rules(bk_biz_id, params["rule_ids"], params["with_id"], params["lock_filename"])
+                for x in self.export_rules(
+                    bk_biz_id=bk_biz_id,
+                    app=params["app"],
+                    rule_ids=params["rule_ids"],
+                    with_id=params["with_id"],
+                    lock_filename=params["lock_filename"],
+                )
             },
             "notice": {
                 (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
                 for x in self.export_notice_groups(
-                    bk_biz_id, params["notice_group_ids"], params["with_id"], params["lock_filename"]
+                    bk_biz_id=bk_biz_id,
+                    notice_group_ids=params["notice_group_ids"],
+                    app=params["app"],
+                    with_id=params["with_id"],
+                    lock_filename=params["lock_filename"],
                 )
             },
             "action": {
                 (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
                 for x in self.export_actions(
-                    bk_biz_id, params["action_ids"], params["with_id"], params["lock_filename"]
+                    bk_biz_id=bk_biz_id,
+                    action_ids=params["action_ids"],
+                    app=params["app"],
+                    with_id=params["with_id"],
+                    lock_filename=params["lock_filename"],
                 )
             },
             "grafana": {
                 (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
-                for x in self.export_dashboard(bk_biz_id, params["dashboard_uids"], params["dashboard_for_external"])
+                for x in self.export_dashboard(
+                    bk_biz_id=bk_biz_id,
+                    dashboard_uids=params["dashboard_uids"],
+                    external=params["dashboard_for_external"],
+                )
             },
             "assign_group": {
                 (f"{x[0]}|{x[1]}" if x[0] else x[1]): x[2]
                 for x in self.export_assign_groups(
-                    bk_biz_id, params["assign_group_ids"], params["with_id"], params["lock_filename"]
+                    bk_biz_id=bk_biz_id,
+                    assign_group_ids=params["assign_group_ids"],
+                    app=params["app"],
+                    with_id=params["with_id"],
+                    lock_filename=params["lock_filename"],
                 )
             },
         }
@@ -442,6 +512,7 @@ class ExportConfigFileResource(ExportConfigResource):
     """
 
     class RequestSerializer(BkBizIdSerializer):
+        app = serializers.CharField(default=None, allow_blank=True, allow_null=True)
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
         rule_ids = serializers.ListField(child=serializers.IntegerField(), default=None, allow_null=True)
         with_related_config = serializers.BooleanField(label="是否导出关联", default=False)
@@ -480,8 +551,9 @@ class ExportConfigFileResource(ExportConfigResource):
         shutil.rmtree(configs_path)
         return tarfile_path
 
-    def perform_request(self, params):
+    def perform_request(self, params: dict[str, Any]):
         bk_biz_id = params["bk_biz_id"]
+        app: str | None = params["app"]
 
         # 默认导出全部配置，除非传入策略ID列表
         rule_ids = params.get("rule_ids")
@@ -522,16 +594,46 @@ class ExportConfigFileResource(ExportConfigResource):
                 )
 
         configs = {
-            "rule": self.export_rules(bk_biz_id, rule_ids, params["with_id"], params["lock_filename"]),
+            "rule": self.export_rules(
+                bk_biz_id=bk_biz_id,
+                rule_ids=rule_ids,
+                app=app,
+                with_id=params["with_id"],
+                lock_filename=params["lock_filename"],
+            ),
             "notice": self.export_notice_groups(
-                bk_biz_id, notice_group_ids, params["with_id"], params["lock_filename"]
+                bk_biz_id=bk_biz_id,
+                notice_group_ids=notice_group_ids,
+                app=app,
+                with_id=params["with_id"],
+                lock_filename=params["lock_filename"],
             ),
-            "action": self.export_actions(bk_biz_id, action_ids, params["with_id"], params["lock_filename"]),
-            "grafana": self.export_dashboard(bk_biz_id, dashboard_uids, params["dashboard_for_external"]),
+            "action": self.export_actions(
+                bk_biz_id=bk_biz_id,
+                action_ids=action_ids,
+                app=app,
+                with_id=params["with_id"],
+                lock_filename=params["lock_filename"],
+            ),
+            "grafana": self.export_dashboard(
+                bk_biz_id=bk_biz_id,
+                dashboard_uids=dashboard_uids,
+                external=params["dashboard_for_external"],
+            ),
             "assign_group": self.export_assign_groups(
-                bk_biz_id, assign_group_ids, params["with_id"], params["lock_filename"]
+                bk_biz_id=bk_biz_id,
+                assign_group_ids=assign_group_ids,
+                app=app,
+                with_id=params["with_id"],
+                lock_filename=params["lock_filename"],
             ),
-            "duty": self.export_duties(bk_biz_id, duty_rules, params["with_id"], params["lock_filename"]),
+            "duty": self.export_duties(
+                bk_biz_id=bk_biz_id,
+                duty_rules=duty_rules,
+                app=app,
+                with_id=params["with_id"],
+                lock_filename=params["lock_filename"],
+            ),
         }
 
         # 压缩包制作
@@ -566,6 +668,7 @@ class ExportConfigFileResource(ExportConfigResource):
 
 class ExportAllConfigFileResource(ExportConfigFileResource):
     class RequestSerializer(BkBizIdSerializer):
+        app = serializers.CharField(default=None, allow_blank=True, allow_null=True)
         dashboard_for_external = serializers.BooleanField(label="仪表盘导出", default=False)
         lock_filename = serializers.BooleanField(label="锁定文件名", default=False)
         with_id = serializers.BooleanField(label="带上ID", default=False)

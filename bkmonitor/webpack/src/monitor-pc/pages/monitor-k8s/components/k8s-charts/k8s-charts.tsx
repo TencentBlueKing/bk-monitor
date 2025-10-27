@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -317,31 +317,31 @@ export default class K8SCharts extends tsc<{
   createWorkLoadRequestOrLimit(isLimit: boolean, isCPU = true) {
     if (isCPU) {
       if (isLimit)
-        return `($method by (workload_kind, workload_name) (count by (workload_kind, workload_name, pod_name, namespace) (rate(container_cpu_usage_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift) ) *
+        return `($method by (workload_kind, workload_name) ((count by (workload_kind, workload_name, pod_name, namespace) (rate(container_cpu_usage_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift) ) * 0 + 1) *
       on(pod_name, namespace)
       group_right(workload_kind, workload_name)
       $method by (pod_name, namespace) (
         kube_pod_container_resource_limits_cpu_cores{${this.createCommonPromqlContent(true)}} $time_shift
       )))`;
-      return `($method by (workload_kind, workload_name) (count by (workload_kind, workload_name, pod_name, namespace) (rate(container_cpu_usage_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) *
+      return `($method by (workload_kind, workload_name) ((count by (workload_kind, workload_name, pod_name, namespace) (rate(container_cpu_usage_seconds_total{${this.createCommonPromqlContent()},container_name!="POD"}[1m] $time_shift)) * 0 + 1) *
       on(pod_name, namespace)
       group_right(workload_kind, workload_name)
       $method by (pod_name, namespace) (kube_pod_container_resource_requests_cpu_cores{${this.createCommonPromqlContent(true)}} $time_shift)))`;
     }
     if (isLimit)
       return `($method by (workload_kind, workload_name)
-        (count by (workload_kind, workload_name, pod_name, namespace) (
+        ((count by (workload_kind, workload_name, pod_name, namespace) (
       container_memory_working_set_bytes{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift
-    ) *
+    ) * 0 + 1) *
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     $method by (pod_name, namespace) (
       kube_pod_container_resource_limits_memory_bytes{${this.createCommonPromqlContent(true)}} $time_shift
     )))`;
     return `($method by (workload_kind, workload_name)
-                (count by (workload_kind, workload_name, pod_name, namespace) (
+                ((count by (workload_kind, workload_name, pod_name, namespace) (
               container_memory_working_set_bytes{${this.createCommonPromqlContent()},container_name!="POD"} $time_shift
-            ) *
+            ) * 0 + 1) *
             on(pod_name, namespace)
             group_right(workload_kind, workload_name)
             $method by (pod_name, namespace) (

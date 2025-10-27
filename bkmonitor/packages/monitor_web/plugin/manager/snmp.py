@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import copy
 import os
@@ -129,15 +127,17 @@ class SNMPPluginManager(PluginManager):
 
     def _get_collector_json(self, plugin_params):
         file_name = "config.yaml.tpl"
-        config_yaml_path = ""
-        for filename in self.filename_list:
-            if os.path.basename(filename) == file_name:
-                config_yaml_path = os.path.join(self.tmp_path, filename)
-                break
-        if not config_yaml_path:
-            raise PluginParseError({"msg": _("无法获取SNMP对应的配置文件")})
+        config_yaml_path = None
 
-        content = yaml.load(self._read_file(config_yaml_path), Loader=yaml.FullLoader)
+        # 获取 config.yaml.tpl 的文件路径
+        for filename in self.filename_list:
+            if os.path.basename(str(filename)) == file_name:
+                config_yaml_path = filename
+                break
+        if config_yaml_path is None:
+            raise PluginParseError({"msg": _(f"无法获取SNMP对应的配置文件 {file_name}")})
+
+        content = yaml.load(self._decode_file(self.plugin_configs[config_yaml_path]), Loader=yaml.FullLoader)
         content["if_mib"].pop("auth")
         snmp_collector_json = {
             "snmp_version": content["if_mib"].pop("version"),
@@ -190,7 +190,7 @@ class SNMPPluginManager(PluginManager):
                     }
                 )
         data["metric_json"] = metric_json
-        return super(SNMPPluginManager, self).create_version(data)
+        return super().create_version(data)
 
     def parse_snmp_yaml_to_metric(self, config_yaml):
         config = yaml.load(config_yaml, Loader=yaml.FullLoader)
@@ -204,7 +204,7 @@ class SNMPPluginManager(PluginManager):
                 # 当类型为枚举类型时，exporter会默认在指标名里加上_info, 这里进行对齐
                 if metric["type"] == "EnumAsInfo":
                     dimensions.append({"dimension_name": metric_name, "dimension_value": ""})
-                    metric_name = "{}_info".format(metric_name)
+                    metric_name = f"{metric_name}_info"
                 indexes = metric.get("indexes", [])
                 for index in indexes:
                     dimensions.append({"dimension_name": index["labelname"], "dimension_value": ""})
@@ -220,7 +220,7 @@ class SNMPPluginManager(PluginManager):
         """
         获取snmp主动采集调试信息，则指标以snmp.yaml文件为准
         """
-        debug_result = super(SNMPPluginManager, self).query_debug(task_id)
+        debug_result = super().query_debug(task_id)
         if debug_result.get("metric_json"):
             debug_result["metric_json"] = self.parse_snmp_yaml_to_metric(
                 self.version.config.collector_json["config_yaml"]

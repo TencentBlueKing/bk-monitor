@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -29,8 +29,6 @@ from constants.alert import EventTargetType
 from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.translator import AbstractTranslator
-from fta_web.alert.utils import process_metric_string, process_stage_string, is_include_promql, strip_outer_quotes
-import re
 
 
 class QueryField:
@@ -129,7 +127,12 @@ class BaseQueryTransformer(BaseTreeTransformer):
 
             context.update({"search_field_name": node.name, "search_field_origin_name": origin_node_name})
 
-            yield from self.generic_visit(node, context)
+            # 忽略ignore_generic_visit时，直接返回node,context
+            # 这样做是为了方便子类可以调用当前类的visit_search_field方法，并获取到node,context
+            if context.get("ignore_generic_visit", False):
+                yield node, context
+            else:
+                yield from self.generic_visit(node, context)
 
     @classmethod
     def transform_query_string(cls, query_string: str, context=None):
@@ -143,10 +146,6 @@ class BaseQueryTransformer(BaseTreeTransformer):
         if not query_string:
             return ""
         transform_obj = cls()
-
-        if is_include_promql(query_string):
-            # 包含promql语句，可能会报语法错误，需要尝试转换
-            query_string = cls.convert_metric_id(query_string)
         query_tree = parse_query_string_node(transform_obj, query_string, context)
 
         if getattr(transform_obj, "has_nested_field", False) and cls.doc_cls:
@@ -160,77 +159,6 @@ class BaseQueryTransformer(BaseTreeTransformer):
         query_tree = auto_head_tail(query_tree)
 
         return str(query_tree)
-
-    @classmethod
-    def convert_metric_id(cls, query_string: str) -> str:
-        """
-        当指定了指标ID时，且指标ID值是一个promql，比如"sum(sum_over_time({__name__="custom::bk_apm_count"}[1m])) or vector(0)"
-        此时需要对指标ID进行转义，并在前后加上“*”，用于支持模糊查询
-
-        '+ - = && || > < ! ( ) { } [ ] ^ " ~ * ? : \ /' 字符串在query string中具有特殊含义，需要转义
-        参考文档： https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-query-string-query
-        """
-
-        def convert_metric(match):
-            value = match.group(0)
-            value = strip_outer_quotes(value.split(":", 1)[1])
-
-            value = re.sub(r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])', lambda match: "\\" + match.group(0), value.strip())
-
-            # 给value前后加上“*”，用于支持模糊匹配
-            if not value.startswith("*"):
-                value = "*" + value
-            if not value.endswith("*"):
-                value = value + "*"
-            return f"{target_type} : {value}"
-
-        def add_quote(match):
-            value = match.group("value")
-            value = f'"{value}"' if value else value
-            return f"{target_type} : {value}"
-
-        target_type = "指标ID"
-
-        # 如果匹配上，则指标ID是被截断过的
-        if re.match(r'(指标ID|event.metric)\s*:.*\.{3}"', query_string, flags=re.IGNORECASE):
-            query_string = re.sub(
-                r'(指标ID|event.metric)\s*:.*\.{3}"', convert_metric, query_string, flags=re.IGNORECASE
-            )
-            return query_string
-
-        # 指标ID: "sum(sum_over_time({__name__=\"custom::bk_apm_count\"}[1m])) or vector(0)"
-        # 匹配需要被转义的promql语句，是根据`指标ID:"{promql}"`的格式进行匹配
-        #  - 如果promql本身就已经具有引号，会导致匹配失败，需要到promql中的引号提前处理，这里是将其转为“#”号。
-        #  - 如果指标格式为`指标ID:{promql}`，也会匹配失败，需要转变为`指标ID:"{promql}"`
-        query_string = cls.process_label_filter(query_string)
-        query_string = re.sub(
-            r'(指标ID|event.metric)\s*:\s*(?P<value>[^\s+\'"]*)', add_quote, query_string, re.IGNORECASE
-        )
-        query_string = re.sub(
-            r'(指标ID|event.metric)\s*:\s*("[^"]*"*|\'[^\']*\'*)', convert_metric, query_string, re.IGNORECASE
-        )
-
-        # 还原process_label_filter函数中处理的双引号，并做转义
-        query_string = query_string.replace("###", r"\~\"")
-        query_string = query_string.replace("##", r"\=\"")
-        query_string = query_string.replace("#", r"\"")
-
-        return query_string
-
-    @classmethod
-    def process_label_filter(cls, query_string: str) -> str:
-        """处理promql语句中的过滤条件，对双引号进行提前处理，否则会导致转义失败"""
-
-        def replace(match):
-            value = match.group(0)
-            # 将{__name__="custom::bk_apm_count"}[1m]) 替换为 {__name__##custom::bk_apm_count#}
-            value = value.replace('~"', "###").replace('="', "##").replace('"', "#")
-            return value
-
-        # 匹配promql中的过滤条件,比如：{__name__="custom::bk_apm_count"}
-        pattern = r"\{.*(=|~).*\}"
-        query_string = re.sub(pattern, replace, query_string)
-        return query_string
 
     @classmethod
     def get_field_info(cls, field: str) -> QueryField | None:
@@ -287,6 +215,7 @@ class BaseQueryHandler:
         conditions: list = None,
         page: int = 1,
         page_size: int = 10,
+        need_bucket_count: bool = True,
         **kwargs,
     ):
         self.start_time = start_time
@@ -303,15 +232,21 @@ class BaseQueryHandler:
         self.ordering = self.query_transformer.transform_ordering_fields(ordering)
         # 转换 condition 的字段
         self.conditions = self.query_transformer.transform_condition_fields(conditions)
+        self.bucket_count_suffix = ".bucket_count" if need_bucket_count else ""
 
-    def scan(self):
+    def scan(self, source_fields=None):
         """
         扫描全量符合条件的文档
+
+        :param source_fields: 可选，指定需要返回的字段。如果为None，返回所有字段。
         """
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
         search_object = self.add_query_string(search_object)
         search_object = self.add_ordering(search_object)
+
+        if source_fields:
+            search_object = search_object.source(source_fields)
 
         yield from search_object.params(preserve_order=True).scan()
 
@@ -368,8 +303,6 @@ class BaseQueryHandler:
         处理 query_string
         """
         query_string = self.query_string if query_string is None else query_string
-        query_string = process_stage_string(query_string)
-        query_string = process_metric_string(query_string)
 
         if query_string.strip():
             query_dsl = self.query_transformer.transform_query_string(query_string, context)
@@ -395,6 +328,8 @@ class BaseQueryHandler:
         cond_q = None
         for condition in conditions:
             q = self.parse_condition_item(condition)
+            if q is None:
+                continue
             if condition["method"] == "neq":
                 q = ~q
             if cond_q is None:
@@ -411,7 +346,30 @@ class BaseQueryHandler:
 
     def parse_condition_item(self, condition: dict) -> Q:
         """
-        解析单个filter条件为 Q
+        将字典格式的查询条件转换为Elasticsearch DSL的Q查询对象
+
+        参数:
+            condition: 包含查询条件的字典对象，格式要求:
+                {
+                    "method": "include/exclude/terms/gte/gt/lte/lt",
+                    "key": 字段名称,
+                    "value": 匹配值(字符串、列表或范围对象)
+                }
+
+        返回值:
+            转换后的Q查询对象，用于构建Elasticsearch查询条件
+
+        处理逻辑:
+        1. 包含查询(include):
+            - 单值转换为通配符查询(*value*)
+            - 多值生成多个通配符查询并通过OR组合
+        2. 排除查询(exclude):
+            - 单值转换为取反的通配符查询
+            - 多值生成多个通配符查询后整体取反
+        3. 范围查询(gte/gt/lte/lt):
+            - 支持大于等于、大于、小于等于、小于的范围比较
+        4. 默认terms查询:
+            - 直接转换为terms精确匹配查询
         """
         if condition["method"] == "include":
             if isinstance(condition["value"], list):
@@ -419,12 +377,24 @@ class BaseQueryHandler:
                 queries = [Q("wildcard", **{condition["key"]: f"*{value}*"}) for value in condition["value"]]
                 return queries[0] if len(queries) == 1 else Q("bool", should=queries)
             return Q("wildcard", **{condition["key"]: f"*{condition['value']}*"})
+
         elif condition["method"] == "exclude":
             if isinstance(condition["value"], list):
                 # 如果是列表，生成多个 wildcard 查询并通过 OR 组合后取反
                 queries = [Q("wildcard", **{condition["key"]: f"*{value}*"}) for value in condition["value"]]
                 return ~(queries[0] if len(queries) == 1 else Q("bool", should=queries))
+            # 生成单个取反wildcard查询
             return ~Q("wildcard", **{condition["key"]: f"*{condition['value']}*"})
+
+        elif condition["method"] in ["gte", "gt", "lte", "lt"]:
+            # 范围查询：支持大于、大于等于、小于、小于等于操作
+            # 构建range查询条件，用于数值或日期字段的范围比较
+            value = condition["value"]
+            if isinstance(value, list) and value:
+                value = value[0]
+            return Q("range", **{condition["key"]: {condition["method"]: value}})
+
+        # 默认执行terms精确匹配查询
         return Q("terms", **{condition["key"]: condition["value"]})
 
     @classmethod
@@ -483,7 +453,7 @@ class BaseQueryHandler:
         result = {"hits": {"total": {"value": 0, "relation": "eq"}, "max_score": 1.0, "hits": []}}
         return Response(Search(), result)
 
-    def add_agg_bucket(self, search_object: Bucket, field: str, size: int = 10, bucket_count_suffix: str = ""):
+    def add_agg_bucket(self, search_object: Bucket, field: str, size: int = 10):
         """
         按字段添加聚合桶
         """
@@ -516,11 +486,6 @@ class BaseQueryHandler:
                 )
             )
 
-            # 计算桶的个数
-            if bucket_count_suffix:
-                search_object.bucket(f"{field}{bucket_count_suffix}", "nested", path="event.tags").bucket(
-                    "key", "filter", {"term": {"event.tags.key": tag_key}}
-                ).bucket("value", "cardinality", field="event.tags.value.raw")
         else:
             agg_field = self.query_transformer.transform_field_to_es_field(actual_field, for_agg=True)
             if agg_field == "duration":
@@ -539,12 +504,26 @@ class BaseQueryHandler:
                     order=order,
                     size=size,
                 )
-            if bucket_count_suffix:
-                search_object.bucket(f"{field}{bucket_count_suffix}", "cardinality", field=agg_field)
 
         return new_search_object
 
-    def top_n(self, fields: list, size=10, translators: dict[str, AbstractTranslator] = None, char_add_quotes=True):
+    def add_cardinality_bucket(self, search_object: Bucket, field: str, bucket_count_suffix: str):
+        """
+        添加基数聚合桶
+        """
+        actual_field = field.lstrip("+-")
+        if actual_field.startswith("tags."):
+            tag_key = actual_field[len("tags.") :]
+            search_object.bucket(f"{field}{bucket_count_suffix}", "nested", path="event.tags").bucket(
+                "key", "filter", {"term": {"event.tags.key": tag_key}}
+            ).bucket("value", "cardinality", field="event.tags.value.raw")
+        else:
+            agg_field = self.query_transformer.transform_field_to_es_field(actual_field, for_agg=True)
+            search_object.bucket(f"{field}{bucket_count_suffix}", "cardinality", field=agg_field)
+
+    def top_n(
+        self, fields: list, size=10, translators: dict[str, AbstractTranslator] = None, char_add_quotes=True
+    ) -> dict:
         """
         字段值 TOP N 统计
         :param fields: 需要统计的字段，"+abc" 为升序排列，"-abc" 为降序排列，默认降序排列
@@ -578,10 +557,11 @@ class BaseQueryHandler:
         # 最多不能超过10000个桶
         size = min(size, 10000)
 
-        bucket_count_suffix = ".bucket_count"
-
+        bucket_count_suffix = self.bucket_count_suffix
         for field in fields:
-            self.add_agg_bucket(search_object.aggs, field, size=size, bucket_count_suffix=bucket_count_suffix)
+            self.add_agg_bucket(search_object.aggs, field, size=size)
+            if bucket_count_suffix:
+                self.add_cardinality_bucket(search_object.aggs, field, bucket_count_suffix)
 
         search_result = search_object.execute()
 
@@ -594,12 +574,13 @@ class BaseQueryHandler:
 
         # 返回结果的数据处理
         for field in fields:
+            bucket_count = None
             if not search_result.aggs:
                 result["fields"].append(
                     {
                         "field": field,
                         "is_char": field in char_fields,
-                        "bucket_count": 0,
+                        "bucket_count": bucket_count,
                         "buckets": [],
                     }
                 )
@@ -608,13 +589,17 @@ class BaseQueryHandler:
             actual_field = field.strip("-+")
 
             if actual_field.startswith("tags."):
-                bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").key.value.value
+                if bucket_count_suffix:
+                    bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").key.value.value
+
                 buckets = [
                     {"id": bucket.key, "name": bucket.key, "count": bucket.doc_count}
                     for bucket in getattr(search_result.aggs, field).key.value.buckets
                 ]
             elif actual_field == "duration":
-                bucket_count = len(self.DurationOption.AGG)
+                if bucket_count_suffix:
+                    bucket_count = len(self.DurationOption.AGG)
+
                 buckets = [
                     {
                         "id": self.DurationOption.QUERYSTRING[bucket.key],
@@ -636,13 +621,18 @@ class BaseQueryHandler:
                     if int(bk_biz_id) in exist_bizs:
                         continue
                     buckets.append({"id": bk_biz_id, "name": bk_biz_id, "count": 0})
-                bucket_count = len(set(self.authorized_bizs) | exist_bizs)
+
+                if bucket_count_suffix:
+                    bucket_count = len(set(self.authorized_bizs) | exist_bizs)
+
             else:
-                # 桶的总数
-                bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").value
+                if bucket_count_suffix:
+                    # 桶的总数
+                    bucket_count = getattr(search_result.aggs, f"{field}{bucket_count_suffix}").value
+
                 buckets = []
                 for bucket in getattr(search_result.aggs, field).buckets:
-                    if not bucket.key:
+                    if bucket_count_suffix and not bucket.key:
                         bucket_count -= 1
                     else:
                         buckets.append({"id": bucket.key, "name": bucket.key, "count": bucket.doc_count})

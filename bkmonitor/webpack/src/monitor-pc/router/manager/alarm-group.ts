@@ -9,7 +9,7 @@ import type Vue from 'vue';
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -81,6 +81,38 @@ export default [
   {
     path: '/alarm-group/edit/:id',
     name: 'alarm-group-edit',
+    components: {
+      noCache: AlarmGroupAdd,
+    },
+    props: {
+      noCache: true,
+    },
+    beforeEnter(
+      to: Route,
+      from: Route,
+      next: (to?: ((vm: Vue) => any) | false | Location | string | undefined | void) => void
+    ) {
+      to.meta.title = to.params.title || '加载中...';
+      next();
+    },
+    meta: {
+      title: '加载中...',
+      navId: 'alarm-group',
+      needBack: true,
+      needCopyLink: false,
+      authority: {
+        map: AlarmGroupAuth,
+        page: [AlarmGroupAuth.MANAGE_AUTH],
+      },
+      route: {
+        parent: 'alarm-group',
+      },
+      // noNavBar: true
+    },
+  },
+  {
+    path: '/alarm-group/clone/:id',
+    name: 'alarm-group-clone',
     components: {
       noCache: AlarmGroupAdd,
     },

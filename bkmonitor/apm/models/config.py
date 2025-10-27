@@ -1,18 +1,19 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import itertools
 import logging
 import operator
 
 from django.conf import settings
+from django.core.cache import caches
 from django.db import models
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
@@ -29,6 +30,7 @@ from bkmonitor.utils.db import JsonField
 from constants.apm import OtlpKey, SpanKindKey, TrpcAttributes
 
 logger = logging.getLogger("apm")
+mem_cache = caches["locmem"]
 
 
 class ApmTopoDiscoverRule(models.Model):
@@ -230,12 +232,23 @@ class ApmTopoDiscoverRule(models.Model):
 
     @classmethod
     def get_application_rule(cls, bk_biz_id, app_name, _type=DiscoverRuleType.CATEGORY.value):
+        # 增加一层内存缓存，避免频繁请求DB
+        cache_key = f"ApmTopoDiscoverRule::{bk_biz_id}::{app_name}::{_type}"
+        rules = mem_cache.get(cache_key)
+        if rules is not None:
+            return rules
+
         filter_args = {}
         if _type != "all":
             filter_args["type"] = _type
-        return cls.objects.filter(
-            (Q(bk_biz_id=bk_biz_id) & Q(app_name=app_name)) | (Q(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID)), **filter_args
-        ).order_by("sort")
+
+        app_rules = cls.objects.filter(Q(bk_biz_id=bk_biz_id) & Q(app_name=app_name), **filter_args).order_by("sort")
+        global_rules = cls.objects.filter(Q(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID), **filter_args).order_by("sort")
+        rules = list(app_rules) + list(global_rules)
+
+        # 内存缓存可一直保留，直到进程退出，估这里保留默认的 timeout 过期即可
+        mem_cache.set(cache_key, rules)
+        return rules
 
     @classmethod
     def init_builtin_config(cls):
@@ -857,3 +870,24 @@ class ProbeConfig(AppConfigBase):
             return None
 
         return config
+
+
+class FieldNormalizerConfig(models.Model):
+    """
+    字段标准化配置
+    用于管理 field_normalizer 的配置规则
+    """
+
+    kind = models.CharField("Span类型", max_length=50, help_text="例如: SPAN_KIND_SERVER, SPAN_KIND_CLIENT 等")
+    predicate_key = models.CharField(
+        "判断字段", max_length=255, help_text="用于判断是否应用该规则的字段，多个字段用逗号分隔"
+    )
+    rules = JsonField(verbose_name="字段映射规则", help_text="字段标准化的具体规则配置")
+
+    class Meta:
+        verbose_name = "字段标准化配置"
+        verbose_name_plural = "字段标准化配置"
+
+    def to_json(self):
+        """转换为JSON格式"""
+        return {"kind": self.kind, "predicate_key": self.predicate_key, "rules": self.rules}

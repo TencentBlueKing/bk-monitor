@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -127,6 +127,7 @@ export default defineComponent({
     const timer = deepRef();
     const isShowDiagnosis = shallowRef(false);
     const currentAlertList = deepRef({});
+    const isCollapsed = deepRef(false);
     provide('playLoading', playLoading);
     provide('bkzIds', bkzIds);
     provide('incidentDetail', incidentDetailData);
@@ -250,9 +251,12 @@ export default defineComponent({
       analyzeTagList.value = list;
     };
     const getIncidentOperationTypes = () => {
-      incidentOperationTypes({
-        incident_id: incidentDetailData.value?.incident_id,
-      })
+      incidentOperationTypes(
+        {
+          incident_id: incidentDetailData.value?.incident_id,
+        },
+        { needMessage: false }
+      )
         .then(res => {
           res.map(item => {
             item.id = item.operation_class;
@@ -275,9 +279,12 @@ export default defineComponent({
     /** 获取故障流转列表 */
     const getIncidentOperations = () => {
       operationsLoading.value = true;
-      incidentOperations({
-        incident_id: incidentDetailData.value?.incident_id,
-      })
+      incidentOperations(
+        {
+          incident_id: incidentDetailData.value?.incident_id,
+        },
+        { needMessage: false }
+      )
         .then(res => {
           res.map(item => {
             const { operation_type, extra_info } = item;
@@ -394,6 +401,9 @@ export default defineComponent({
     const goAlertList = data => {
       refContent.value?.goAlertDetail(data);
     };
+    const handleCollapseChange = val => {
+      isCollapsed.value = val;
+    };
     return {
       incidentDetailData,
       getIncidentDetail,
@@ -420,6 +430,8 @@ export default defineComponent({
       changeTab,
       goAlertList,
       currentAlertList,
+      isCollapsed,
+      handleCollapseChange,
     };
   },
   render() {
@@ -461,8 +473,10 @@ export default defineComponent({
                 currentNode={this.currentNode}
                 filterSearch={this.filterSearch}
                 incidentDetail={this.incidentDetailData}
+                isCollapsed={this.isCollapsed}
                 scrollTop={this.scrollTopNum}
                 onChangeSelectNode={this.handleChangeSelectNode}
+                onCloseCollapse={this.handleCollapseChange}
                 onRefresh={this.refresh}
               />
             ),
@@ -470,8 +484,10 @@ export default defineComponent({
           auto-minimize={400}
           border={false}
           initial-divide={500}
+          isCollapsed={this.isCollapsed}
           max={850}
           collapsible
+          onCollapse-change={this.handleCollapseChange}
         />
       </div>
     );

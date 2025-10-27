@@ -182,7 +182,7 @@
         // 创建新的群聊时带上本人和默认人员
         this.formDataAdmin = adminList.users.concat([this.userMeta.username]);
         // 用于存储本人和默认人员 不能进行删除
-        this.baseAdmin = JSON.parse(JSON.stringify(this.formDataAdmin));
+        this.baseAdmin = structuredClonethis.formDataAdmin);
       },
       handleSubmitQWGroup() {
         const data = {

@@ -395,7 +395,7 @@
 <script>
   import TextHighlight from 'vue-text-highlight';
 
-  import { copyMessage, formatDate, deepClone, deepEqual } from '@/common/util';
+  import { copyMessage, formatDate, deepEqual } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import ClusteringLoader from '@/skeleton/clustering-loader';
   import BkUserSelector from '@blueking/user-selector';
@@ -1017,7 +1017,7 @@
        */
       getUserList() {
         this.ownerLoading = true;
-        const cloneOwnerBase = deepClone(this.ownerBaseList);
+        const cloneOwnerBase = structuredClone(this.ownerBaseList);
         this.$http
           .request('/logClustering/getOwnerList', {
             params: {

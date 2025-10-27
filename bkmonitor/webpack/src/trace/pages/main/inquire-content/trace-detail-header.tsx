@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
  *
@@ -27,7 +27,11 @@ import { defineComponent } from 'vue';
 
 import { Message, Popover } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
+import { AI_BLUEKING_SHORTCUTS_ID, getAIBluekingShortcutTips } from 'monitor-pc/components/ai-whale/types';
+// import { AI_BLUEKING_SHORTCUTS_ID } from 'monitor-pc/components/ai-whale/types';
 import { useI18n } from 'vue-i18n';
+
+import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 
 import './trace-detail-header.scss';
 
@@ -98,12 +102,10 @@ export default defineComponent({
   },
 
   render() {
-    const { isInTable, traceId } = this.$props;
-
     return (
-      <div class={`trace-detail-header ${isInTable ? 'is-in-table' : ''}`}>
+      <div class={`trace-detail-header ${this.isInTable ? 'is-in-table' : ''}`}>
         <div class='trace-header-title'>
-          <span class='trace-id'>{isInTable ? `Trace ID：${traceId}` : traceId}</span>
+          <span class='trace-id'>{this.isInTable ? `Trace ID：${this.traceId}` : this.traceId}</span>
           <Popover
             content={this.t('复制 TraceID')}
             placement='right'
@@ -124,6 +126,16 @@ export default defineComponent({
               onClick={() => this.handleCopy('link')}
             />
           </Popover>
+          <AiBluekingIcon
+            style={{ marginLeft: '12px' }}
+            fillBackFieldMap={{
+              trace_id: this.traceId,
+              app_name: this.appName,
+              bk_biz_id: (window.bk_biz_id || window.cc_biz_id) as string,
+            }}
+            shortcutId={AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS}
+            tips={getAIBluekingShortcutTips(AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS)}
+          />
         </div>
 
         <div class='header-tool'>

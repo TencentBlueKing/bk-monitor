@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -27,24 +27,18 @@ import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import NoPermission from '../../components/no-permission/no-permission';
-import DataPipeline from '../data-pipeline/data-pipeline';
 import ResourceRegister from '../resource-register/resource-register';
 import * as authorityMap from './authority-map';
 
 import './platform-setting.scss';
 
 enum ENavId {
-  dataPipeline = 'dataPipeline',
   resourceRegister = 'resourceRegister',
 }
 
 @Component
 export default class PlatformSetting extends tsc<object> {
   navList = [
-    {
-      id: ENavId.dataPipeline,
-      name: window.i18n.tc('链路管理'),
-    },
     {
       id: ENavId.resourceRegister,
       name: window.i18n.tc('资源注册'),
@@ -89,9 +83,6 @@ export default class PlatformSetting extends tsc<object> {
           </div>
           <div class='setting-content-right'>
             {(() => {
-              if (this.curNav === ENavId.dataPipeline) {
-                return <DataPipeline />;
-              }
               if (this.curNav === ENavId.resourceRegister) {
                 return <ResourceRegister />;
               }

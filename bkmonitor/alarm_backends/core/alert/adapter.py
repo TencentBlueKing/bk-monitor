@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -199,7 +199,10 @@ class MonitorEventAdapter:
                 return EventTargetType.HOST, str(bk_host_id), data_dimensions
             elif "bk_target_ip" in agg_dimensions:
                 bk_target_ip = data_dimensions.pop("bk_target_ip")
-                bk_target_cloud_id = data_dimensions.pop("bk_target_cloud_id", None)
+                # 兼容 云区域配置 bk_cloud_id 的情况, 采集器和采集目标的云区域都是一致的
+                bk_target_cloud_id = data_dimensions.pop("bk_target_cloud_id", None) or data_dimensions.pop(
+                    "bk_cloud_id", None
+                )
                 if bk_target_cloud_id is None:
                     return EventTargetType.HOST, f"{bk_target_ip}", data_dimensions
                 return EventTargetType.HOST, f"{bk_target_ip}|{bk_target_cloud_id}", data_dimensions

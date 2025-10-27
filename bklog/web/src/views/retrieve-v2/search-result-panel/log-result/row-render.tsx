@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, provide, Ref, ref } from 'vue';
+import { defineComponent, nextTick, provide, type Ref, ref } from 'vue';
 
 import useIntersectionObserver from '@/hooks/use-intersection-observer';
 
@@ -36,7 +36,7 @@ export default defineComponent({
       default: 0,
     },
   },
-  emits: ['row-click', 'row-visible'],
+  emits: ['row-click', 'row-visible', 'row-mousedown', 'row-mouseup'],
   setup(props, { slots, emit }) {
     const refRootContainer: Ref<HTMLElement> = ref();
     const refRowNodeRoot: Ref<HTMLElement> = ref();
@@ -57,12 +57,22 @@ export default defineComponent({
       emit('row-click', e);
     };
 
+    const handleRowMousedown = (e: MouseEvent) => {
+      emit('row-mousedown', e);
+    };
+
+    const handleRowMouseup = (e: MouseEvent) => {
+      emit('row-mouseup', e);
+    };
+
     const renderRowVNode = () => {
       return (
         <div
           ref={refRootContainer}
           data-row-index={props.rowIndex}
           on-click={handleRowClick}
+          on-mousedown={handleRowMousedown}
+          on-mouseup={handleRowMouseup}
         >
           <div
             ref={refRowNodeRoot}

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -570,9 +570,10 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
       },
       ...customOptions,
     });
+    const target = e.currentTarget;
     const popoverCache = this.popoverInstance;
     this.popoverDelayTimer = setTimeout(() => {
-      if (popoverCache === this.popoverInstance) {
+      if (popoverCache === this.popoverInstance && target && document.body.contains(target as Node)) {
         this.popoverInstance?.show?.(0);
       } else {
         popoverCache?.hide?.(0);

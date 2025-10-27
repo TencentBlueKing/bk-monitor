@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -112,6 +112,10 @@ export default defineComponent({
     },
     id: {
       type: [Number, String],
+      default: '',
+    },
+    failureTime: {
+      type: String,
       default: '',
     },
     onShowChange: {
@@ -381,6 +385,11 @@ export default defineComponent({
                     {this.statusColorMap[this.detail.status]?.text}
                   </span>
                 </FormItem>
+                {this.failureTime && (
+                  <FormItem label={this.t('屏蔽失效时间')}>
+                    <span class='detail-text'>{this.failureTime}</span>
+                  </FormItem>
+                )}
                 {(() => {
                   if (this.detail.category === 'scope') {
                     return (

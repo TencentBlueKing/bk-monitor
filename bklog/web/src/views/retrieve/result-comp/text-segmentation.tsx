@@ -60,9 +60,11 @@ export default class QueryStatement extends tsc<IProps> {
   get currentFieldRegStr() {
     try {
       let currentRegStr = this.segmentRegStr;
-      if (this.field.tokenize_on_chars) currentRegStr = this.field.tokenize_on_chars;
+      if (this.field.tokenize_on_chars) {
+        currentRegStr = this.field.tokenize_on_chars;
+      }
       return currentRegStr;
-    } catch (error) {
+    } catch {
       return '';
     }
   }
@@ -81,7 +83,7 @@ export default class QueryStatement extends tsc<IProps> {
 
   get splitList() {
     const value = this.content.toString();
-    let arr = [];
+    let arr: Record<string, any>[] = [];
     if (this.isAnalyzed) {
       // 这里进来的都是开了分词的情况
       arr = this.splitParticipleWithStr(value, this.currentFieldRegStr);
@@ -117,7 +119,11 @@ export default class QueryStatement extends tsc<IProps> {
         list.push(item);
       } else {
         const arr = item.split(regex);
-        arr.forEach(i => i && list.push(i));
+        for (const i of arr) {
+          if (i) {
+            list.push(i);
+          }
+        }
       }
       return list;
     }, []);
@@ -137,7 +143,9 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   handleClick(e, value) {
-    if (!value.toString() || value === '--') return;
+    if (!value.toString() || value === '--') {
+      return;
+    }
     this.handleDestroy();
     this.curValue = value;
     this.popoverInstance = this.$bkPopover(e.target, {
@@ -164,15 +172,15 @@ export default class QueryStatement extends tsc<IProps> {
   }
   // 注册Intersection监听
   registerObserver() {
-    if (this.intersectionObserver) this.unregisterObserver();
+    if (this.intersectionObserver) {
+      this.unregisterObserver();
+    }
     this.intersectionObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (this.intersectionObserver) {
-          if (entry.intersectionRatio <= 0) {
-            this.popoverInstance.hide();
-          }
+      for (const entry of entries) {
+        if (this.intersectionObserver && entry.intersectionRatio <= 0) {
+          this.popoverInstance.hide();
         }
-      });
+      }
     });
     this.intersectionObserver?.observe(this.$el);
   }
@@ -204,23 +212,31 @@ export default class QueryStatement extends tsc<IProps> {
           <span class='null-item'>{this.content}</span>
         ) : (
           <span class='segment-content'>
-            {this.splitList.map(item => {
-              if (item.text === '\n') return <br />;
-              if (item.isMark)
+            {this.splitList.map((item, index) => {
+              if (item.text === '\n') {
+                return <br key={`${index}-${item}`} />;
+              }
+              if (item.isMark) {
                 return (
-                  <mark onClick={$event => this.handleClick($event, item.text)}>
+                  <mark
+                    key={`${index}-${item}`}
+                    onClick={$event => this.handleClick($event, item.text)}
+                  >
                     {item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '')}
                   </mark>
                 );
-              if (!item.isNotParticiple)
+              }
+              if (!item.isNotParticiple) {
                 return (
                   <span
+                    key={`${index}-${item}`}
                     class='valid-text'
                     onClick={$event => this.handleClick($event, item.text)}
                   >
                     {item.text}
                   </span>
                 );
+              }
               return item.text;
             })}
           </span>
@@ -236,7 +252,7 @@ export default class QueryStatement extends tsc<IProps> {
                 class='event-btn'
                 onClick={() => this.handleMenuClick('copy')}
               >
-                <i class='icon bklog-icon bklog-copy'></i>
+                <i class='icon bklog-icon bklog-copy' />
                 <span>{this.$t('复制')}</span>
               </span>
             </div>
@@ -245,7 +261,7 @@ export default class QueryStatement extends tsc<IProps> {
                 class='event-btn'
                 onClick={() => this.handleMenuClick('is')}
               >
-                <i class='icon bk-icon icon-plus-circle'></i>
+                <i class='icon bk-icon icon-plus-circle' />
                 <span>{this.$t('添加到本次检索')}</span>
               </span>
               <div
@@ -256,7 +272,7 @@ export default class QueryStatement extends tsc<IProps> {
                   this.handleMenuClick('is', true);
                 }}
               >
-                <i class='bklog-icon bklog-jump'></i>
+                <i class='bklog-icon bklog-jump' />
               </div>
             </div>
             <div class='event-box'>
@@ -264,7 +280,7 @@ export default class QueryStatement extends tsc<IProps> {
                 class='event-btn'
                 onClick={() => this.handleMenuClick('not')}
               >
-                <i class='icon bk-icon icon-minus-circle'></i>
+                <i class='icon bk-icon icon-minus-circle' />
                 <span>{this.$t('从本次检索中排除')}</span>
               </span>
               <div
@@ -275,7 +291,7 @@ export default class QueryStatement extends tsc<IProps> {
                   this.handleMenuClick('not', true);
                 }}
               >
-                <i class='bklog-icon bklog-jump'></i>
+                <i class='bklog-icon bklog-jump' />
               </div>
             </div>
           </div>

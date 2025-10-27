@@ -51,8 +51,7 @@
 </template>
 
 <script>
-  import Tippy from 'bk-magic-vue/lib/utils/tippy';
-
+  import { copyMessage } from '@/common/util';
   export default {
     props: {
       taskId: {
@@ -68,34 +67,13 @@
     methods: {
       async handleClick() {
         try {
-          this.loading = true;
-          const res = await this.$http.request('extract/getDownloadUrl', {
-            query: {
-              bk_biz_id: this.$store.state.bkBizId,
-              task_id: this.taskId,
-              is_url: true,
-            },
-          });
+          let urlPrefix = window.AJAX_URL_PREFIX;
+          if (!urlPrefix.endsWith('/')) urlPrefix += '/';
+          const { bkBizId } = this.$store.state;
 
-          const input = document.createElement('input');
-          input.setAttribute('value', res.data);
-          document.body.appendChild(input);
-          input.select();
-          document.execCommand('copy');
-          document.body.removeChild(input);
-
-          const el = this.$refs.button.$el;
-          if (!el._tippy) {
-            el._tippy = Tippy(el, {
-              content: this.$t('已复制到剪切板'),
-              placement: 'top',
-              trigger: 'manual',
-              arrow: true,
-              size: 'small',
-              extCls: 'copy-successfully-tippy',
-            });
-          }
-          el._tippy.show();
+          const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${this.taskId}&bk_biz_id=${bkBizId}`;
+          // copyMessage(downloadUrl, this.$t('已复制到剪切板'));
+          copyMessage(new URL(downloadUrl, window.location.origin).href, this.$t('已复制到剪切板'));
         } catch (e) {
           console.warn(e);
         } finally {

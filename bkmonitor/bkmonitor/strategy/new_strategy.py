@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -14,7 +14,7 @@ import json
 import logging
 import traceback
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import partial, reduce
 from itertools import chain, permutations
 from typing import Any
@@ -45,10 +45,10 @@ from bkmonitor.data_source.unify_query.functions import add_expression_functions
 from bkmonitor.dataflow.constant import AccessStatus
 from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.models import Action as ActionModel
-from bkmonitor.models import ActionConfig, ActionNoticeMapping, NoticeTemplate
+from bkmonitor.models import ActionConfig, ActionNoticeMapping, NoticeTemplate, UserGroup
 from bkmonitor.models import StrategyActionConfigRelation as RelationModel
-from bkmonitor.models import UserGroup
 from bkmonitor.models.strategy import (
+    AlgorithmChoiceConfig,
     AlgorithmModel,
     DetectModel,
     ItemModel,
@@ -56,7 +56,6 @@ from bkmonitor.models.strategy import (
     StrategyHistoryModel,
     StrategyLabel,
     StrategyModel,
-    AlgorithmChoiceConfig,
 )
 from bkmonitor.strategy.expression import parse_expression
 from bkmonitor.strategy.serializers import (
@@ -95,8 +94,9 @@ from bkmonitor.utils.time_tools import parse_time_compare_abbreviation, strftime
 from bkmonitor.utils.user import get_global_user
 from constants.action import ActionPluginType, ActionSignal, AssignMode, UserGroupType
 from constants.aiops import SDKDetectStatus
-from constants.data_source import DataSourceLabel, DataTypeLabel, DATA_SOURCE_LABEL_ALIAS
+from constants.data_source import DATA_SOURCE_LABEL_ALIAS, DataSourceLabel, DataTypeLabel
 from constants.strategy import (
+    CUSTOM_PRIORITY_GROUP_PREFIX,
     DATALINK_SOURCE,
     HOST_SCENARIO,
     SERVICE_SCENARIO,
@@ -317,10 +317,12 @@ class AbstractConfig(metaclass=abc.ABCMeta):
     @staticmethod
     def _get_username():
         try:
-            from blueapps.utils import get_request
+            from bkmonitor.utils.request import get_request
 
+            # 这里不能直接用 blueapps 的 get_request，没有适配多线程调用场景。
             username = get_request().user.username
-        except IndexError:
+        except Exception:  # pylint: disable=broad-except
+            # 后台任务场景，取不到 request，则使用 system 用户。
             username = "system"
         return username
 
@@ -1067,6 +1069,9 @@ class Detect(AbstractConfig):
                 calendars = serializers.ListField(
                     label="不生效日历列表", allow_empty=True, default=[], child=serializers.IntegerField()
                 )
+                active_calendars = serializers.ListField(
+                    label="生效日历列表", allow_empty=True, default=[], child=serializers.IntegerField()
+                )
 
             count = serializers.IntegerField()
             check_window = serializers.IntegerField()
@@ -1308,9 +1313,9 @@ class QueryConfig(AbstractConfig):
         )
         self.id = obj.id
 
-    def save(self):
+    def save(self, instance=None):
         self._clean_empty_dimension()
-        self.supplement_adv_condition_dimension()
+        self.supplement_adv_condition_dimension(instance)
 
         try:
             if self.id > 0:
@@ -1359,12 +1364,16 @@ class QueryConfig(AbstractConfig):
             records.append(record)
         return records
 
-    def supplement_adv_condition_dimension(self):
+    def supplement_adv_condition_dimension(self, instance=None):
         """
         高级条件补全维度
         """
         if not hasattr(self, "agg_dimension"):
             return
+        if instance is not None:
+            # 多指标时，不进行维度补充
+            if len(instance.query_configs) > 1:
+                return
         data_source = load_data_source(self.data_source_label, self.data_type_label)
         has_advance_method = False
         dimensions = set()
@@ -1591,7 +1600,7 @@ class Item(AbstractConfig):
         )
 
         for query_config in self.query_configs:
-            query_config.save()
+            query_config.save(self)
 
     def save(self):
         try:
@@ -1684,7 +1693,13 @@ class Strategy(AbstractConfig):
         app = serializers.CharField(allow_blank=True, default="")
         path = serializers.CharField(allow_blank=True, default="")
         priority = serializers.IntegerField(min_value=0, required=False, default=None, max_value=10000, allow_null=True)
+        priority_group_key = serializers.CharField(allow_blank=True, default="", max_length=60)
         metric_type = serializers.CharField(allow_blank=True, default="")
+
+        def validate_priority_group_key(self, value):
+            if value.startswith(CUSTOM_PRIORITY_GROUP_PREFIX):
+                return value
+            return ""
 
         def validate(self, attrs):
             name = attrs.get("name")
@@ -1797,6 +1812,7 @@ class Strategy(AbstractConfig):
             if self.priority_group_key:
                 priority_group_key = self.priority_group_key
             else:
+                # 自动生成优先级分组key
                 priority_group_key = self.get_priority_group_key(self.bk_biz_id, self.items)
 
         config = {
@@ -2097,9 +2113,9 @@ class Strategy(AbstractConfig):
         update_time = config.get("update_time")
         create_time = config.get("create_time")
         if isinstance(update_time, int):
-            config["update_time"] = datetime.utcfromtimestamp(update_time)
+            config["update_time"] = datetime.fromtimestamp(update_time, UTC)
         if isinstance(create_time, int):
-            config["create_time"] = datetime.utcfromtimestamp(create_time)
+            config["create_time"] = datetime.fromtimestamp(create_time, UTC)
 
         # 适配extend_fields为字符串的情况
         if isinstance(item.get("extend_fields"), str):
@@ -2188,6 +2204,7 @@ class Strategy(AbstractConfig):
                             }
                         ],
                         "calendars": [],
+                        "active_calendars": [],
                     }
                 }
             )
@@ -2267,7 +2284,9 @@ class Strategy(AbstractConfig):
             create_user=self._get_username(),
             update_user=self._get_username(),
             priority=self.priority,
-            priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items) if self.priority else "",
+            priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)
+            if self.priority is not None
+            else "",
         )
         self.id = strategy.id
 
@@ -2395,7 +2414,9 @@ class Strategy(AbstractConfig):
                 strategy.update_user = self._get_username()
                 strategy.priority = self.priority
                 strategy.priority_group_key = (
-                    self.get_priority_group_key(self.bk_biz_id, self.items) if self.priority else ""
+                    self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)
+                    if self.priority is not None
+                    else ""
                 )
                 strategy.save()
             else:
@@ -2615,10 +2636,16 @@ class Strategy(AbstractConfig):
         query_config.save()
 
     @classmethod
-    def get_priority_group_key(cls, bk_biz_id: int, items: list[Item]):
+    def get_priority_group_key(cls, bk_biz_id: int, items: list[Item], priority_group_key: str = ""):
         """
         获取优先级分组key
         """
+        if priority_group_key:
+            # 指定优先级分组key的场景，需要判定是自动算的还是用户指定的
+            # 自动算的是16位uuid，用户指定带固定前缀 PGK:
+            if priority_group_key.startswith(CUSTOM_PRIORITY_GROUP_PREFIX):
+                return priority_group_key
+
         query_config_fields = [
             "functions",
             "metric_field",

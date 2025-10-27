@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -12,10 +12,11 @@ import copy
 import json
 import logging
 import urllib.parse
+from typing import Any
 
+import requests
 from celery.schedules import crontab
 from django.conf import settings
-import requests
 
 from alarm_backends.core.cache.base import CacheManager
 from alarm_backends.core.cluster import get_cluster
@@ -31,7 +32,6 @@ from alarm_backends.service.scheduler.tasks.cron import task_duration
 from bkmonitor.utils.custom_report_aggate import register_report_task
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
-
 
 logger = logging.getLogger("bkmonitor.cron_report")
 
@@ -64,7 +64,7 @@ def register_alarm_cache_bmw_task():
     }
 
     # 参数准备
-    task_kind_params: dict[str, dict[str, dict]] = {
+    task_kind_params: dict[str, Any] = {
         "daemon:alarm:cmdb_resource_watch": {
             "kind": "daemon:alarm:cmdb_resource_watch",
             "payload": {
@@ -79,14 +79,16 @@ def register_alarm_cache_bmw_task():
                 "prefix": CacheManager.CACHE_KEY_PREFIX,
                 "redis": redis_options,
                 "full_refresh_intervals": {
-                    "host_topo": 3600,
-                    "business": 3600,
-                    "module": 3600,
-                    "set": 3600,
-                    "service_instance": 600,
-                    "dynamic_group": 3600,
+                    # 1.5–2 小时区间内的错峰周期（尽量选质数，减少对齐）
+                    "business": 5671,  # ~94.5 min
+                    "host_topo": 5923,  # ~98.7 min
+                    "module": 6131,  # ~102.2 min
+                    "set": 6553,  # ~109.2 min
+                    "dynamic_group": 6827,  # ~113.8 min
+                    "service_instance": 7013,  # ~116.9 min
                 },
-                "biz_concurrent": 5,
+                # 并发度
+                "biz_concurrent": 4,
                 "event_handle_interval": 120,
             },
             "options": {"queue": "alarm"},
@@ -95,11 +97,11 @@ def register_alarm_cache_bmw_task():
 
     # 获取已注册的告警缓存刷新任务
     url = urllib.parse.urljoin(bmw_api_url, "bmw/task/")
-    r = requests.get(url=url, params={"task_type": "daemon"}, timeout=10)
+    r = requests.get(url=url, params={"task_type": "daemon"}, timeout=20)
     if r.status_code != 200:
         logger.error(f"获取已注册的告警缓存刷新任务失败: {r.text}")
     try:
-        result: list[dict] = r.json()["data"]
+        result: list[dict] = r.json()["data"] or []
     except requests.JSONDecodeError:
         logger.error(f"获取已注册的告警缓存刷新任务失败: {r.text}")
         return

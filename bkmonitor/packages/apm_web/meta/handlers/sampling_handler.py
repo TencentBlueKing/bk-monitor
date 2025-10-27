@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -80,9 +79,8 @@ class SamplingHelpers:
                     config_key=self.application.SAMPLER_CONFIG_KEY,
                     override=True,
                 )
-                self.log(
-                    span, f"update random-sampling configuration successfully, overwrite DB config with new config"
-                )
+                self.application.sampler_config = config
+                self.log(span, "update random-sampling configuration successfully, overwrite DB config with new config")
                 return
 
             # 环境中无计算平台 -> 报错
@@ -107,14 +105,14 @@ class SamplingHelpers:
                     flow_type=FlowType.TAIL_SAMPLING.value,
                     config=p,
                 )
-                self.log(span, f"setup successfully")
+                self.log(span, "setup successfully")
             except BKAPIError as e:
                 self.log(span, f"failed to enable tail-sampling, error: {e}", level="error")
                 raise ValueError(f"启动尾部采样失败，请求API错误：{e}")
 
             # 暂停transfer入库
             try:
-                self.log(span, f"start to stop apm_data_id trace datalink")
+                self.log(span, "start to stop apm_data_id trace datalink")
                 response = api.apm_api.operate_apm_data_id(
                     bk_biz_id=self.bk_biz_id,
                     app_name=self.app_name,
@@ -133,6 +131,7 @@ class SamplingHelpers:
                 config_key=self.application.SAMPLER_CONFIG_KEY,
                 override=True,
             )
+            self.application.sampler_config = config
 
     def _change_to_tail_sampling_config(self, sample_config):
         """将完整的采样配置转为尾部采样配置"""
@@ -167,3 +166,6 @@ class SamplingHelpers:
             app_name=self.app_name,
             flow_type=FlowType.TAIL_SAMPLING.value,
         )
+
+    def get_transfer_config(self):
+        return self.application.get_sampler_config()

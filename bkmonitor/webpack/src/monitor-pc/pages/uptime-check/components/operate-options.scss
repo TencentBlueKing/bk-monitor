@@ -25,6 +25,14 @@
         cursor: pointer;
         background: #f0f1f5;
       }
+
+      &.is-danger {
+        color: #ea3636;
+      }
+
+      .icon-monitor {
+        margin-right: 6px;
+      }
     }
 
     .more-item.authority {

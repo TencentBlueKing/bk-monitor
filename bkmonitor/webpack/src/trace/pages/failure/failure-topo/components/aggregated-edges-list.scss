@@ -1,0 +1,69 @@
+.edge-list-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 54px;
+  background: #545457;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  color: #eaebf0;
+  font-size: 12px;
+
+  .edge-line-icon {
+    position: relative;
+    width: 38px;
+    height: 36px;
+  }
+
+  .line {
+    position: absolute;
+    left: 50%;
+    width: 0;
+    height: 100%;
+    border-right: 2px solid #979ba5;
+  }
+
+  .call-edge::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -2px;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 14px solid #979ba5;
+    transform: translateX(-42%);
+  }
+
+  .anomaly-edge {
+    border-right: 2px dashed #f55555;
+
+    &::after {
+      border-top: 14px solid #f55555 !important;
+    }
+  }
+
+  .list-item-name-wrap {
+    display: flex;
+    flex-direction: column;
+    width: 258px;
+
+    &__name {
+      display: flex;
+      height: 22px;
+      line-height: 22px;
+      white-space: nowrap;
+      padding-right: 4px;
+
+      span {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+
+  &:hover {
+    background: #48628f;
+  }
+}

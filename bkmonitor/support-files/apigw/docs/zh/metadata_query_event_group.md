@@ -3,7 +3,7 @@
 批量查询事件分组信息
 
 
-#### 接口参数
+### 请求参数
 
 | 字段               | 类型     | 必选 | 描述           |
 |------------------|--------|----|--------------|
@@ -11,20 +11,17 @@
 | event_group_name | string | 否  | 事件分组名称       |
 | bk_biz_id        | int    | 否  | 业务ID         | 
 
-#### 请求示例
+### 请求参数示例
 
 ```json
 {
-  "bk_app_code": "xxx",
-  "bk_app_secret": "xxxxx",
-  "bk_token": "xxxx",
   "label": "application",
   "event_group_name": "事件分组名",
   "bk_biz_id": 123
 }
 ```
 
-### 返回结果
+### 响应参数
 
 | 字段         | 类型     | 描述     |
 |------------|--------|--------|
@@ -65,7 +62,7 @@
 | dimension_name    | string | 维度名   | 
 | dimension_ch_name | string | 维度中文名 | 
 
-#### 结果示例
+### 响应参数示例
 
 ```json
 {

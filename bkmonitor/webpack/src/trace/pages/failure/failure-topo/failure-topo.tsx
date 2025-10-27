@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -48,62 +48,41 @@ import {
   Tooltip,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Exception, Loading, Message, Popover, Slider } from 'bkui-vue';
+import { Loading, Message, Popover, Slider } from 'bkui-vue';
 import { cloneDeep } from 'lodash';
 import isEqual from 'lodash/isEqual';
 import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
-import { random } from 'monitor-common/utils/utils.js';
+import { deepClone, random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import ErrorImg from '../../../static/img/error.svg';
-import NoDataImg from '../../../static/img/no-data.svg';
+import ExceptionComp from '../../../components/exception';
 import ResourceGraph from '../resource-graph/resource-graph';
 import { useIncidentInject } from '../utils';
+import LegendPopoverContent from './components/legend-popover-content';
 import ElkjsUtils from './elkjs-utils';
+import FailureTopoDetail from './failure-topo-detail/failure-topo-detail';
 import FailureTopoTooltips from './failure-topo-tooltips';
 import FeedbackCauseDialog from './feedback-cause-dialog';
 import formatTopoData from './format-topo-data';
 import { NODE_TYPE_SVG } from './node-type-svg';
 import ServiceCombo from './service-combo';
 import TopoTools from './topo-tools';
-import { getApmServiceType, getNodeAttrs, truncateText } from './utils';
+import {
+  canJumpByType,
+  createConnectedParallelCurves,
+  getApmServiceType,
+  getNodeAttrs,
+  handleToLink,
+  truncateText,
+} from './utils';
 
 import type { IEdge, IEntity, IncidentDetailData, ITopoData, ITopoNode } from './types';
 
 import './failure-topo.scss';
 
-const NODE_TYPE = [
-  {
-    text: '异常',
-    status: 'error',
-  },
-  {
-    text: '正常',
-    status: 'normal',
-  },
-];
-
-const TAG_TYPE = [
-  {
-    text: '未恢复告警',
-    status: 'notRestored',
-  },
-  {
-    text: '已恢复 / 已解决 / 已失效告警',
-    status: 'restored',
-  },
-  {
-    text: '根因',
-    status: 'root',
-  },
-  {
-    text: '反馈的根因',
-    status: 'feedBackRoot',
-  },
-];
-/** 增加画布离画布上下左右的留白区域可 */
+/** 增加画布离画布上下左右的留白区域 */
 const GRAPH_DRAG_MARGIN = 100;
 
 export default defineComponent({
@@ -115,8 +94,12 @@ export default defineComponent({
         return [];
       },
     },
+    isCollapsed: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['toDetail', 'playing', 'toDetailTab', 'changeSelectNode', 'refresh'],
+  emits: ['toDetail', 'playing', 'toDetailTab', 'changeSelectNode', 'refresh', 'closeCollapse'],
   setup(props, { emit }) {
     const router = useRouter();
     const bkzIds = inject<Ref<string[]>>('bkzIds');
@@ -125,15 +108,18 @@ export default defineComponent({
     const detailInfo = ref({});
     const cacheResize = ref<boolean>(false);
     const wrapRef = ref<HTMLDivElement>();
-    const refreshTime = ref<number>(30 * 1000);
+    const refreshTime = ref<number>(5 * 60 * 1000);
     const topoTools = ref(null);
     let refreshTimeout = null;
     const topoGraphRef = ref<HTMLDivElement>(null);
     const graphRef = ref<HTMLElement>(null);
+    // 缓存当前combo拖拽后label的坐标
+    const rootComboMovePoint = ref({ x: null, y: null });
     let graph: Graph;
     let tooltips = null;
+    let nodeTooltips = null;
     // 边的动画定时器
-    const edgeInterval = [];
+    let edgeInterval = [];
     let playTime = null;
     /** g6 默认缩放级别 数值 / 10 为真实结果值  */
     const MIN_ZOOM = 0.2;
@@ -160,9 +146,20 @@ export default defineComponent({
     const isRenderComplete = ref<boolean>(false);
     const tooltipsModel = shallowRef<ITopoNode | ITopoNode[]>();
     const tooltipsEdge: Ref<IEdge> = shallowRef();
+    // 用于边概览中的信息展示
+    const edgeDetail: Ref<IEdge> = shallowRef();
+    const isClickEdgeItem = ref<boolean>(false);
+    // 用于节点概览中的信息展示
+    const nodeDetail: Ref<ITopoNode> = ref(null);
+    // 节点关联边数据
+    const curLinkedEdges: Ref<IEdge[]> = shallowRef();
     const tooltipsType = ref<string>('node');
+    const detailType = ref<string>('node');
     const tooltipsRef = ref<InstanceType<typeof FailureTopoTooltips>>();
     const resourceGraphRef = ref<InstanceType<typeof ResourceGraph>>();
+    // 节点详情tooltips
+    const nodeDetailTips = ref([]);
+    const nodeDetailTipsRef = ref(null);
     let topoRawData: ITopoData = null;
     const autoAggregate = ref<boolean>(true);
     const aggregateCluster = ref(true);
@@ -175,7 +172,8 @@ export default defineComponent({
       msg: '',
     });
     const isNoData = ref(false);
-
+    // 展示资源从属相关信息
+    const showViewResource = ref<boolean>(true);
     const feedbackCauseShow = ref<boolean>(false);
     const feedbackModel: Ref<{ entity: IEntity }> = ref(null);
     const incidentId = useIncidentInject();
@@ -184,9 +182,10 @@ export default defineComponent({
     const loading = ref<boolean>(false);
     let activeAnimation = [];
     const resourceNodeId = ref<string>('');
+    const resourceEdgeId = ref<string>('');
     const zoomValue = ref<number>(10);
+    const showServiceOverview = ref<boolean>(false);
     const showResourceGraph = ref<boolean>(false);
-    const savedMatrix = ref(null);
     /** 检测文字长度，溢出截断 */
     const accumulatedWidth = (text, maxWidth = 80) => {
       const context = graph.get('canvas').get('context'); // 获取canvas上下文用于测量文本
@@ -515,16 +514,68 @@ export default defineComponent({
     };
     /** 自定义边公共工具函数 */
     const edgeUtils = {
+      // 绘制高亮边
+      handelCreateHighlightEdge(shape: any, group: any) {
+        const offset = shape.attrs.endArrow ? 6 : 0;
+        const [left, right, mid] = createConnectedParallelCurves(
+          shape.attrs.path,
+          Math.max(shape.attrs.lineWidth - 1, 1),
+          offset
+        );
+        group.addShape('path', {
+          attrs: {
+            ...shape.attrs,
+            stroke: 'rgba(58, 132, 255, 1)',
+            shadowColor: 'rgba(58, 132, 255, 0.3)',
+            shadowOffsetX: -3,
+            endArrow: false,
+            lineDash: false,
+            lineWidth: 0,
+            path: right,
+          },
+          name: 'select-edge-path-right',
+        });
+        group.addShape('path', {
+          attrs: {
+            ...shape.attrs,
+            stroke: 'rgba(58, 132, 255, 1)',
+            shadowColor: 'rgba(58, 132, 255, 0.3)',
+            shadowOffsetX: 3,
+            endArrow: false,
+            lineDash: false,
+            lineWidth: 0,
+            path: left,
+          },
+          name: 'select-edge-path-left',
+        });
+
+        group.addShape('path', {
+          attrs: {
+            ...shape.attrs,
+            endArrow: false,
+            stroke: 'rgba(58, 132, 255, 1)',
+            lineDash: false,
+            lineWidth: 0,
+            path: mid,
+          },
+          name: 'select-edge-path-mid',
+        });
+      },
       // 处理边动画
-      handleEdgeAnimation(shape: any, cfg: any, edgeInterval: any[]) {
+      handleEdgeAnimation(shape: any, item: any, cfg: any, edgeInterval: any[]) {
+        // biome-ignore lint/complexity/noForEach: <explanation>
         const { is_anomaly, anomaly_score, events, edge_type } = cfg;
         const lineDash = anomaly_score === 0 ? [6] : [10];
         if (is_anomaly && events?.[0] && edge_type === 'ebpf_call') {
           const { direction } = events[0];
           let index = 0;
           // 这里改为定时器执行，自带的动画流动速度控制不了
-          edgeInterval.push(
-            setInterval(() => {
+          const interVal = {
+            id: cfg.id,
+            timer: setInterval(() => {
+              if (item.hasState('highlight')) {
+                item.toFront();
+              }
               shape.animate(() => {
                 index = index + 1;
                 if (index > (anomaly_score === 0 ? 60 : 120)) {
@@ -536,8 +587,17 @@ export default defineComponent({
                 };
                 return res;
               });
-            }, 30)
-          );
+            }, 30),
+          };
+          // 避免反复存储
+          const intervalIndex = edgeInterval.findIndex(item => item.id === cfg.id);
+          if (intervalIndex === -1) {
+            edgeInterval.push(interVal);
+          } else {
+            clearInterval(edgeInterval[intervalIndex].timer);
+            edgeInterval[intervalIndex] = null;
+            edgeInterval.splice(intervalIndex, 1, interVal);
+          }
         }
       },
       // 添加聚合点
@@ -581,58 +641,55 @@ export default defineComponent({
         const { is_anomaly } = model;
         const colors = {
           highlight: is_anomaly ? '#F55555' : '#699DF4',
-          dark: is_anomaly ? '#F55555' : '#63656D',
+          dark: is_anomaly ? '#F55555' : '#63656E',
         };
-
         switch (name) {
           case 'show-animate':
-            // biome-ignore lint/correctness/noSwitchDeclarations: <explanation>
-            const length = shape.getTotalLength();
-            // biome-ignore lint/correctness/noSwitchDeclarations: <explanation>
-            const originalStroke = shape.attr('stroke');
-
-            shape.attr({ stroke: colors.highlight, opacity: 0 });
             item.show();
-            shape.animate(
-              (ratio: number) => ({
-                opacity: 1,
-                quadraticDash: [ratio * length, length - ratio * length],
-              }),
-              {
-                duration: 1000,
-                easing: 'easeLinear',
-                callback: () => shape.attr('stroke', originalStroke),
-              }
-            );
             break;
           case 'highlight':
-            shape.attr('stroke', value ? colors.highlight : colors.dark);
-            group.attr('opacity', value ? 1 : 0.4);
-            shape?.cfg?.endArrowShape?.attr({
-              opacity: value ? 1 : 0.2,
-              stroke: value ? colors.highlight : colors.dark,
-              fill: value ? colors.highlight : colors.dark,
+            // biome-ignore lint/complexity/noForEach: <explanation>
+            group.get('children').forEach(shape => {
+              const name = shape.get('name');
+              if (name?.includes('select-edge-path')) {
+                shape.attr('lineWidth', value ? 1 : 0);
+              }
             });
+            group.attr('opacity', 1);
+            if (shape.attrs.endArrow) {
+              shape.attr({
+                endArrow: {
+                  opacity: 1,
+                  ...shape.attrs.endArrow,
+                  stroke: value ? '#3A84FF' : colors.dark,
+                },
+              });
+            }
             break;
           case 'dark':
-            setTimeout(() => {
-              group.attr('opacity', 1);
-              shape?.cfg?.endArrowShape?.attr({
-                opacity: 1,
-                stroke: colors.dark,
-                fill: colors.dark,
-              });
-            });
+            group.attr('opacity', value ? 1 : 0.4);
             break;
         }
       },
+    };
+    /** 拖拽时设置combox label轴的位置 */
+    const moveComboLabelPosition = (point: { x?: number; y?: number }) => {
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      graph.getCombos().forEach(combo => {
+        if (!combo.getModel().parentId) {
+          (combo.getContainer() as any).shapeMap['text-shape'].attr(point);
+        }
+      });
     };
     /** 自定义边类型工厂函数 */
     const createEdgeConfig = () => ({
       afterDraw(cfg: any, group: any) {
         const shape = group.get('children')[0];
-        edgeUtils.handleEdgeAnimation(shape, cfg, edgeInterval);
+        const item = group.get('item');
+        edgeUtils.handleEdgeAnimation(shape, item, cfg, edgeInterval);
         edgeUtils.addAggregationMarkers(cfg, group);
+        // 绘制异常选中的高亮边
+        edgeUtils.handelCreateHighlightEdge(shape, group);
       },
       setState(name: string, value: any, item: any) {
         edgeUtils.handleEdgeState(name, value, item);
@@ -813,9 +870,19 @@ export default defineComponent({
               xCombo = combo;
               xComboWidth = width;
             }
+            if (rootComboMovePoint.value.x) {
+              (combo.getContainer() as any).shapeMap['text-shape'].attr({
+                x: rootComboMovePoint.value.x,
+              });
+            }
           });
+          const comboModel = combos[0].getModel() as { height: number; width: number };
           this.comboRect = {
             ...((this as any).comboRect || {}),
+            labelPoint: {
+              x: -(comboModel.width / 2 + 10),
+              y: -(comboModel.height / 2 + 30),
+            },
             xCombo,
             topCombo: combos[0],
             bottomCombo: combos[combos.length - 1],
@@ -828,6 +895,7 @@ export default defineComponent({
             const comboRect = this.comboRect as {
               bottomCombo: ICombo;
               height: number;
+              labelPoint: { x: number; y: number };
               topCombo: ICombo;
               width: number;
               xCombo: ICombo;
@@ -836,17 +904,25 @@ export default defineComponent({
             // 大于零向上拖动
             if (movementY < 0) {
               const { bottomRight } = getCanvasByPoint(comboRect.bottomCombo);
-              bottomRight.y + GRAPH_DRAG_MARGIN < comboRect.height && (movementY = 0);
+              if (bottomRight.y + GRAPH_DRAG_MARGIN < comboRect.height) {
+                movementY = 0;
+              }
             } else {
               const { topLeft } = getCanvasByPoint(comboRect.topCombo);
-              topLeft.y - GRAPH_DRAG_MARGIN > 0 && (movementY = 0);
+              if (topLeft.y - GRAPH_DRAG_MARGIN > 0) {
+                movementY = 0;
+              }
             }
             const { topLeft, bottomRight } = getCanvasByPoint(comboRect.xCombo);
             /** 大于0向左拖动 */
             if (movementX < 0) {
-              bottomRight.x + GRAPH_DRAG_MARGIN < comboRect.width && (movementX = 0);
+              if (bottomRight.x + GRAPH_DRAG_MARGIN < comboRect.width) {
+                movementX = 0;
+              }
             } else {
-              topLeft.x - GRAPH_DRAG_MARGIN > 0 && (movementX = 0);
+              if (topLeft.x - GRAPH_DRAG_MARGIN > 0) {
+                movementX = 0;
+              }
             }
             graph.translate(movementX, movementY);
           }
@@ -864,6 +940,7 @@ export default defineComponent({
               },
             });
           (this as any).comboRect.el.style.cursor = 'grab';
+          rootComboMovePoint.value.x && moveComboLabelPosition({ x: rootComboMovePoint.value.x });
         },
         onMouseLeave(e) {
           if (this.dragging) {
@@ -902,11 +979,15 @@ export default defineComponent({
             if (deltaY > 0) {
               const bottomCombo = combos[combos.length - 1];
               const { bottomRight } = getCanvasByPoint(bottomCombo);
-              bottomRight.y + GRAPH_DRAG_MARGIN < height && (dy = 0);
+              if (bottomRight.y + GRAPH_DRAG_MARGIN < height) {
+                dy = 0;
+              }
             } else {
               const topCombo = combos[0];
               const { topLeft } = getCanvasByPoint(topCombo);
-              topLeft.y - GRAPH_DRAG_MARGIN > 0 && (dy = 0);
+              if (topLeft.y - GRAPH_DRAG_MARGIN > 0) {
+                dy = 0;
+              }
             }
             dx = 0;
           } else {
@@ -914,9 +995,13 @@ export default defineComponent({
             const { topLeft, bottomRight } = getCanvasByPoint(topCombo);
             /** 大于0判断右侧 否则判断左侧 */
             if (deltaX > 0) {
-              bottomRight.x + GRAPH_DRAG_MARGIN < width && (dx = 0);
+              if (bottomRight.x + GRAPH_DRAG_MARGIN < width) {
+                dx = 0;
+              }
             } else {
-              topLeft.x - GRAPH_DRAG_MARGIN > 0 && (dx = 0);
+              if (topLeft.x - GRAPH_DRAG_MARGIN > 0) {
+                dx = 0;
+              }
             }
             dy = 0;
           }
@@ -942,6 +1027,10 @@ export default defineComponent({
             const sourceModel = nodes.find(item => item.id === model.source);
             tooltipsModel.value = [sourceModel, targetModel];
             tooltipsEdge.value = model as IEdge;
+
+            edgeDetail.value = model as IEdge;
+            isClickEdgeItem.value = false;
+
             model.nodes = [
               {
                 ...sourceModel,
@@ -981,12 +1070,73 @@ export default defineComponent({
                 },
               ];
             });
+
+            // 点击非聚合边，直接打开边概览
+            if (!model.aggregated) {
+              handleViewServiceFromTopo({ type: 'edge', data: model, sourceNode: null, isAggregatedEdge: false });
+            }
           } else {
             tooltipsModel.value = model as ITopoNode;
             // nodeEntityId.value = tooltipsModel.value.entity.entity_id;
           }
           tooltipsType.value = type;
           return tooltipsRef.value.$el as HTMLDivElement;
+        },
+      });
+    };
+    /** 自定义node节点tips，展示node详情信息 */
+    const registerCustomNodeTooltip = () => {
+      nodeTooltips = new Tooltip({
+        offsetX: -100,
+        className: 'node-message-tooltip',
+        offsetY: -120,
+        fixToNode: [0, 0],
+        container: document.querySelector('.topo-graph') as HTMLDivElement,
+        itemTypes: ['node'],
+        getContent: e => {
+          // 用于根据文案数量动态偏移，保证tips不盖住节点
+          let top = 0;
+          nodeDetailTips.value = [];
+          const model = e.item.getModel() as ITopoNode;
+          const isShowRootText = model.is_feedback_root || model?.entity?.is_root;
+          // 节点名称
+          nodeDetailTips.value.push({ label: t('名称'), value: model.entity.entity_name });
+          // 节点告警信息
+          if (model.alert_display?.alert_name) {
+            top = 20;
+            nodeDetailTips.value.push({
+              label: t('包含告警'),
+              value: `${model.alert_display?.alert_name} ${
+                model.alert_display?.alert_name && model.alert_ids?.length > 1
+                  ? t('等共 {0} 个同类告警', [model.alert_ids.length])
+                  : ''
+              } `,
+            });
+          }
+          // 节点异常信息
+          if (isShowRootText && model.entity?.rca_trace_info?.abnormal_message) {
+            top += 22;
+            nodeDetailTips.value.push({ label: t('异常信息'), value: model.entity.rca_trace_info.abnormal_message });
+          }
+          // 节点其他信息组
+          const res = [
+            { label: t('分类'), value: model.entity.rank.rank_category.category_alias },
+            { label: t('节点类型'), value: model.entity.properties?.entity_category || model.entity.rank_name },
+            { label: t('所属业务'), value: `[#${model.bk_biz_id}] ${model.bk_biz_name}` },
+          ];
+          nodeDetailTips.value = nodeDetailTips.value.concat(res);
+          // 节点服务信息
+          if (model.entity?.tags?.BcsService) {
+            top += 22;
+            nodeDetailTips.value.push({ label: t('所属服务'), value: model.entity?.tags?.BcsService?.name });
+          }
+
+          // 动态计算提示窗y轴偏移，保证提示窗不盖住节点
+          const tooltipEl = document.querySelector('.node-message-tooltip');
+          if (tooltipEl) {
+            tooltipEl.style.setProperty('--offset', `-${top}px`);
+          }
+          return nodeDetailTipsRef.value as HTMLDivElement;
         },
       });
     };
@@ -999,22 +1149,30 @@ export default defineComponent({
         cacheResize.value = true;
         return;
       }
+      const graphWidth = graph.getWidth();
       const { height } = document.querySelector('.failure-topo').getBoundingClientRect();
       const { width } = graphRef.value.getBoundingClientRect();
       tooltipsRef?.value?.hide?.();
+      rootComboMovePoint.value = { x: null, y: null };
       tooltips?.hide?.();
+      const combosList = graph.getCombos().map(combo => combo.getModel());
+      ElkjsUtils.setRootComboStyle(combosList, width, !(graphWidth - width > 450));
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      graph.getCombos().forEach(combo => {
+        if (!combo.getModel()?.parentId) {
+          const com = combosList.find(c => c.id === combo.getID());
+          graph.updateItem(combo, com);
+        }
+      });
       graph.changeSize(width, height - 40);
-      const combos = graph.getCombos().map(combo => combo.getModel());
-      ElkjsUtils.setRootComboStyle(combos, graph.getWidth());
-      graph.refresh();
-      // graph.render();
-      renderGraph();
+      graph.get('viewController').changeSize(width, height - 40);
+      graph.layout();
+      graph.translate(graphWidth - width > 450 ? -10 : 0, 0);
       const zoom = localStorage.getItem('failure-topo-zoom');
       if (zoom) {
         handleZoomChange(zoom);
         zoomValue.value = Number(zoom);
       }
-      // graph.fitCenter();
       timelinePosition.value = topoRawDataCache.value.diff.length - 1;
       /** 打开时会触发导致动画消失 */
       if (resourceNodeId.value) {
@@ -1029,10 +1187,11 @@ export default defineComponent({
         const node = graph.findById(resourceNodeId.value);
         node && graph.setItemState(node, 'running', true);
       }
-
-      /** 恢复视图状态 */
-      if (savedMatrix.value) {
-        graph.getGroup().setMatrix(savedMatrix.value);
+      if (!resourceEdgeId.value) {
+        // biome-ignore lint/complexity/noForEach: <explanation>
+        graph.getEdges().forEach(edge => {
+          edge && graph.setItemState(edge, 'highlight', false);
+        });
       }
     }
 
@@ -1091,19 +1250,21 @@ export default defineComponent({
       loading.value = !isAutoRefresh;
       if (!wrapRef.value) return;
       clearTimeout(refreshTimeout);
-      const renderData = await incidentTopology({
-        id: incidentId.value,
-        auto_aggregate: autoAggregate.value,
-        aggregate_cluster: aggregateCluster.value ?? false,
-        aggregate_config: aggregateConfig.value,
-        only_diff: true,
-        start_time: isAutoRefresh
-          ? topoRawDataCache.value.diff[topoRawDataCache.value.diff.length - 1].create_time + 1
-          : incidentId.value.substr(0, 10),
-      })
+      const renderData = await incidentTopology(
+        {
+          id: incidentId.value,
+          auto_aggregate: autoAggregate.value,
+          aggregate_cluster: aggregateCluster.value ?? false,
+          aggregate_config: aggregateConfig.value,
+          only_diff: true,
+          start_time: isAutoRefresh
+            ? topoRawDataCache.value.diff[topoRawDataCache.value.diff.length - 1].create_time + 1
+            : incidentId.value.substr(0, 10),
+        },
+        { needMessage: false }
+      )
         .then(res => {
           const { latest, diff, complete } = res;
-          // diff = diff.filter(item => item.content.nodes.length > 0 || item.content.edges.length > 0);
           complete.combos = latest.combos;
           formatResponseData(complete);
           const { combos = [], edges = [], nodes = [], sub_combos = [] } = complete || {};
@@ -1117,6 +1278,7 @@ export default defineComponent({
           // biome-ignore lint/complexity/noForEach: <explanation>
           diff.forEach(item => {
             item.showNodes = [...processedNodes];
+            // biome-ignore lint/complexity/noForEach: <explanation>
             item.content.nodes.forEach(showNode => {
               const index = processedNodes.findIndex(node => node.id === showNode.id);
               if (index !== -1) {
@@ -1164,7 +1326,7 @@ export default defineComponent({
           }
         });
       if (isAutoRefresh) return;
-      topoRawData = renderData;
+      topoRawData = renderData as ITopoData;
       const rootNode = topoRawData.nodes.find(node => node.entity.is_root);
       if (!resourceNodeId.value && rootNode) {
         resourceNodeId.value = rootNode.id;
@@ -1180,100 +1342,71 @@ export default defineComponent({
       const resolvedData = ElkjsUtils.getKlayGraphData({ nodes: layoutNodes, edges, source: nodes });
       return ElkjsUtils.getLayoutData(resolvedData).then(layouted => {
         ElkjsUtils.updatePositionFromLayouted(layouted, copyData);
-        ElkjsUtils.OptimizeLayout(layouted, copyData, edges);
+        data.sub_combos?.length > 0 && ElkjsUtils.OptimizeLayout(layouted, copyData, edges);
         ElkjsUtils.setRootComboStyle(copyData.combos, graph.getWidth());
         return { layouted, data: copyData };
       });
     };
-    /** 确认某个节点是否在画布之外 */
-    const isNodeOutOfCanvas = node => {
-      const canvasWidth = graph.get('width');
-      const canvasHeight = graph.get('height');
-      const matrix = graph.get('group').getMatrix();
-      if (!matrix) {
+    function isItemInView(graph, itemId, containerWidth, containerHeight) {
+      // 获取图表实例中的项目
+      const item = graph.findById(itemId);
+      if (!item) {
+        console.error(`Item with id: ${itemId} not found`);
         return false;
       }
-      const { x, y, width } = node.getModel();
 
-      /** 拖动画布偏移节点位置是不变的，需要考虑画布的偏移和缩放 */
-      const transformedX = x * matrix[0] + matrix[6];
-      const transformedY = y * matrix[4] + matrix[7];
+      const itemBBox = item.getBBox();
 
-      /** 计算节点边界 */
-      const fraction = width / 3;
-      /** 检查节点的位置是否超出画布边界 */
-      if (
-        transformedX - fraction < 0 ||
-        transformedX + fraction > canvasWidth ||
-        transformedY < 0 ||
-        transformedY > canvasHeight
-      ) {
-        return true;
-      }
-      return false;
-    };
+      // 当前组的矩阵，用于考虑缩放
+      const matrix = graph.get('group').getMatrix();
+      const currentScale = matrix ? matrix[0] : 1;
 
-    const fixLayoutPosition = () => {
-      let top = Number.POSITIVE_INFINITY;
-      let left = Number.POSITIVE_INFINITY;
-      let comboLen = 0;
-      // biome-ignore lint/complexity/noForEach: <explanation>
-      graph.getCombos().forEach(combo => {
-        const model = combo.getModel();
-        if (!model.parentId) {
-          comboLen += 1;
-          const { x, y, width, height } = model as { [key: string]: number };
-          // const [width, height] = model.fixSize as [number, number];
-          top = Math.min(top, y - height / 2);
-          left = Math.min(left, x - width / 2);
-        }
-      });
-      // 视图宽度与容器宽度不一致，容器还有margin等需要修复
-      // if (left < 0 && diffWidth < 0) {
-      //   left = left + diffWidth / 2;
-      // }
-      // 只有一个combo时，combo上下没有间距所以需要修复40px 修正combo顶部的间距及算法导致的差异
-      return {
-        left: left < 0 ? Math.abs(left) + 20 : 20,
-        top: top < 0 ? Math.abs(top) + (comboLen === 1 ? 40 : 0) : 0,
+      // 获取项目位置基于缩放后的实际位置，进行缩放校正
+      const scaledBBox = {
+        minX: itemBBox.minX * currentScale,
+        minY: itemBBox.minY * currentScale,
+        maxX: itemBBox.maxX * currentScale,
+        maxY: itemBBox.maxY * currentScale,
       };
-    };
-    /** 移动根因节点到画布中心 */
-    const moveRootNodeCenter = (isRecordMatrix = false) => {
-      if (isRecordMatrix) {
-        /** 记录当前画布的移动坐标 */
-        const matrix = graph.getGroup().getMatrix();
-        if (matrix) {
-          /** 保存当前的变换矩阵 */
-          savedMatrix.value = matrix.slice();
-        }
-      } else {
-        const rootNode = topoRawData.nodes.find(node => node.entity.is_root);
-        const node = graph.findById(resourceNodeId.value || rootNode.id);
-        const graphWidth = graph.get('width');
-        const graphHeight = graph.get('height');
-        let dy = 0;
-        let dx = 0;
-        if (!isNodeOutOfCanvas(node)) {
-          const { left, top } = fixLayoutPosition();
-          graph.translate(dx + left, dy + top + 40);
-          return;
-        }
-        // x轴居中，y轴在视图范围内即可
-        const { x, y, height } = node.getModel();
-        const centerX = graphWidth / 2;
-        dx = centerX - x;
-        const h = (height as number) / 2;
-        // 计算 y 轴上的偏移量，使节点在画布范围内
-        if (y < h) {
-          dy = h - y; // 节点超过上边界
-        } else if (y > graphHeight - h) {
-          dy = graphHeight - h - y; // 节点超过下边界
-        }
-        const { left, top } = fixLayoutPosition();
-        graph.translate(dx + left, dy + top);
+
+      // 检查项目是否完全在视口内
+      return (
+        scaledBBox.minX >= 0 &&
+        scaledBBox.maxX <= containerWidth &&
+        scaledBBox.minY >= 0 &&
+        scaledBBox.maxY <= containerHeight
+      );
+    }
+
+    function moveToCenterIfNeeded(graph, itemId, containerWidth, containerHeight) {
+      if (isItemInView(graph, itemId, containerWidth, containerHeight)) {
+        console.info(`Item with id: ${itemId} is already in view`);
+        graph.moveTo(0, 0);
+        return;
       }
-    };
+
+      const item = graph.findById(itemId);
+      const itemBBox = item.getBBox();
+
+      // 获取缩放比例
+      const matrix = graph.get('group').getMatrix();
+      const currentScale = matrix ? matrix[0] : 1;
+
+      // 画布中心位置
+      const canvasCenterX = containerWidth / 2;
+      const canvasCenterY = containerHeight / 2;
+
+      // 项目的中心位置
+      const itemCenterX = (itemBBox.minX + itemBBox.maxX) / 2;
+      const itemCenterY = (itemBBox.minY + itemBBox.maxY) / 2;
+
+      // 计算将项目移动到画布中心所需的偏移量
+      const moveX = canvasCenterX - itemCenterX * currentScale;
+      const moveY = canvasCenterY - itemCenterY * currentScale;
+
+      // 移动视口到目标位置
+      graph.translate(moveX, moveY);
+    }
     /** 线置于顶层 */
     const toFrontAnomalyEdge = () => {
       const edges = graph.getEdges();
@@ -1286,8 +1419,9 @@ export default defineComponent({
     const renderGraph = (data = topoRawDataCache.value.complete, renderComplete = false) => {
       // biome-ignore lint/complexity/noForEach: <explanation>
       edgeInterval.forEach(interval => {
-        clearInterval(interval);
+        clearInterval(interval.timer);
       });
+      edgeInterval = [];
       resolveLayout(data).then(resp => {
         graph.data(resp.data);
         graph.render();
@@ -1295,6 +1429,7 @@ export default defineComponent({
           const node = graph.findById(resourceNodeId.value);
           node && graph.setItemState(node, 'running', true);
         }
+        setHighlightEdge();
         isRenderComplete.value = renderComplete;
         // 默认渲染最后帧
         // handleTimelineChange(topoRawDataCache.value.diff.length - 1);
@@ -1304,7 +1439,7 @@ export default defineComponent({
           handleZoomChange(zoom);
           zoomValue.value = Number(zoom);
         }
-        moveRootNodeCenter();
+        moveToCenterIfNeeded(graph, resourceNodeId.value, graphRef.value.clientWidth, graphRef.value.clientHeight);
         // biome-ignore lint/complexity/noForEach: <explanation>
         data.nodes.forEach(node => {
           if (node.is_deleted) {
@@ -1319,9 +1454,18 @@ export default defineComponent({
         setTimeout(toFrontAnomalyEdge, 500);
       });
     };
+    // 清除边状态
+    const clearEdgeState = (item: any, highlight = true) => {
+      graph.getEdges().forEach(edge => {
+        graph.clearItemStates(edge, ['dark', highlight && 'highlight']);
+        graph.setItemState(item, 'dark', true);
+        edge.toFront();
+      });
+    };
     onMounted(() => {
       getGraphData().then(initGraph);
     });
+
     /** 初始化图表相关 */
     const initGraph = async () => {
       if (!topoRawData) return;
@@ -1331,6 +1475,7 @@ export default defineComponent({
       registerCustomBehavior();
       registerCustomEdge();
       registerCustomTooltip();
+      registerCustomNodeTooltip();
       registerCustomCombo();
       graph = new Graph({
         container: graphRef.value as HTMLElement,
@@ -1342,7 +1487,7 @@ export default defineComponent({
         minZoom: MIN_ZOOM,
         maxZoom: 2,
         groupByTypes: false,
-        plugins: [tooltips],
+        plugins: [tooltips, nodeTooltips],
         defaultNode: {
           type: 'circle',
           size: 40,
@@ -1412,7 +1557,7 @@ export default defineComponent({
             endArrow:
               isInvoke || is_anomaly
                 ? {
-                    path: Arrow.triangle(12, 12, 0),
+                    path: Arrow.triangle(10, 10, 0),
                     d: 0,
                     fill: color,
                     stroke: color,
@@ -1452,7 +1597,7 @@ export default defineComponent({
         if (cfg.parentId) {
           // label宽度为cfg.width减去"反馈根因节点"文本宽度
           const labelWidth = cfg.width - (cfg.is_feedback_root ? 90 : 56);
-          const link = tooltipsRef.value?.canJumpByType?.(cfg);
+          const link = canJumpByType(cfg);
           const fill = link ? '#699DF4' : '#C4C6CC';
           return {
             ...model,
@@ -1486,9 +1631,9 @@ export default defineComponent({
           resourceGraphRef.value.hideToolTips();
         }
       });
-      /** 点击非节点清楚高亮状态 */
+      /** 点击非节点、非边，清除高亮状态 */
       graph.on('click', e => {
-        if (!e.item || e.item.getType() !== 'node') {
+        if (!e.item || (e.item.getType() !== 'node' && e.item.getType() !== 'edge')) {
           clearAllStats();
         }
         setTimeout(toFrontAnomalyEdge, 500);
@@ -1568,6 +1713,23 @@ export default defineComponent({
         if (action === 'zoom') {
           zoomValue.value = graph.getZoom() * 10;
         }
+        const currentZoom = graph.getZoom();
+        // if (action === 'translate') {
+        const comboModel = (graph.getCombos() as any)[0].getModel() as { height: number; width: number };
+        const labelPoint = {
+          x: -(comboModel.width / 2 + 10) * currentZoom,
+          y: -(comboModel.height / 2 + 30) * currentZoom,
+        };
+        const canvasCenter = graph.getGraphCenterPoint(); // 画布中心
+        if (canvasCenter.x < Math.abs(labelPoint.x)) {
+          const x = -(canvasCenter.x - 5) / currentZoom;
+          moveComboLabelPosition({ x });
+          rootComboMovePoint.value.x = x;
+        } else {
+          rootComboMovePoint.value.x = null;
+          moveComboLabelPosition({ x: labelPoint.x / currentZoom });
+        }
+        // }
       });
       // 监听鼠标离开节点
       graph.on('node:mouseleave', e => {
@@ -1592,43 +1754,62 @@ export default defineComponent({
       graph.on('node:click', event => {
         const { item } = event;
         graph.setAutoPaint(false);
+        /** 根据边的关系设置节点状态 */
         // biome-ignore lint/complexity/noForEach: <explanation>
-        graph.getNodes().forEach(function (node) {
+        graph.getEdges().forEach(edge => {
+          if (edge.getSource() === item) {
+            graph.setItemState(edge, 'dark', true);
+            edge.toFront();
+          } else if (edge.getTarget() === item) {
+            graph.setItemState(edge, 'dark', true);
+            edge.toFront();
+          } else {
+            graph.setItemState(edge, 'dark', false);
+          }
+        });
+        // biome-ignore lint/complexity/noForEach: <explanation>
+        graph.getNodes().forEach(node => {
           graph.clearItemStates(node, ['dark', 'highlight']);
           graph.setItemState(node, 'dark', true);
           node.toFront();
         });
-        /** 根据边的关系设置节点状态 */
-        // biome-ignore lint/complexity/noForEach: <explanation>
-        graph.getEdges().forEach(function (edge) {
-          if (edge.getSource() === item) {
-            graph.setItemState(edge.getTarget(), 'dark', false);
-            graph.setItemState(edge.getTarget(), 'highlight', true);
-            graph.setItemState(edge, 'highlight', true);
-            edge.toFront();
-          } else if (edge.getTarget() === item) {
-            graph.setItemState(edge.getSource(), 'dark', false);
-            graph.setItemState(edge.getSource(), 'highlight', true);
-            graph.setItemState(edge, 'highlight', true);
-            edge.toFront();
-          } else {
-            graph.setItemState(edge, 'highlight', false);
-          }
-        });
-
         graph.setItemState(item, 'dark', false);
         graph.setItemState(item, 'highlight', true);
         graph.paint();
         graph.setAutoPaint(true);
       });
+      /** 设置边高亮状态 */
+      graph.on('edge:click', ({ item }) => {
+        graph.setAutoPaint(false);
+        // biome-ignore lint/complexity/noForEach: <explanation>
+        const { source, target, count } = item.getModel();
+        clearEdgeState(item, count === 1);
+        graph.paint();
+        graph.setAutoPaint(true);
+        item.toFront();
+        resourceEdgeId.value = `${source}-${target}`;
+        // 非聚合的则直接切换
+        if (count === 1) {
+          graph.setItemState(item, 'highlight', true);
+          graph.setItemState(item, 'dark', true);
+        }
+      });
       /** 清除高亮状态 */
       function clearAllStats() {
         graph.setAutoPaint(false);
-        graph.getEdges().forEach(function (edge) {
+        // biome-ignore lint/complexity/noForEach: <explanation>
+        graph.getEdges().forEach(edge => {
+          const { source, target } = edge.getModel();
+          if (`${source}-${target}` === resourceEdgeId.value) {
+            edge.toFront();
+            return;
+          }
           graph.clearItemStates(edge, ['dark', 'highlight']);
+          // graph.setItemState(edge, 'dark', true);
           edge.toFront();
         });
-        graph.getNodes().forEach(function (node) {
+        // biome-ignore lint/complexity/noForEach: <explanation>
+        graph.getNodes().forEach(node => {
           graph.clearItemStates(node, ['dark', 'highlight']);
           node.toFront();
         });
@@ -1646,7 +1827,7 @@ export default defineComponent({
         const model = item.getModel();
         if (model.type !== 'service-combo') return;
         if (target.get('name') === 'text-shape') {
-          tooltipsRef.value.handleToLink(model);
+          handleToLink(model, bkzIds.value, incidentDetailData.value);
           return;
         }
         if (target.get('className') === 'sub-combo-label-feedback') {
@@ -1668,12 +1849,163 @@ export default defineComponent({
     };
     onUnmounted(() => {
       edgeInterval.forEach(interval => {
-        clearInterval(interval);
+        clearInterval(interval.timer);
       });
+      edgeInterval = [];
       clearTimeout(playTime);
       clearTimeout(refreshTimeout);
       graphRef.value && removeListener(graphRef.value as HTMLElement, onResize);
     });
+
+    // 处理单个边的公共逻辑
+    const processEdge = (edge, nodes, isAggregatedEdge = false) => {
+      const model = deepClone(edge);
+      model.id = `edge-${random(10)}`;
+      const getEntityData = prefix =>
+        isAggregatedEdge
+          ? {
+              entity: {
+                is_anomaly: model[`${prefix}_is_anomaly`],
+                is_on_alert: model[`${prefix}_is_on_alert`],
+                entity_name: model[`${prefix}_name`],
+                entity_type: model[`${prefix}_type`],
+              },
+            }
+          : {};
+
+      const targetModel = nodes.find(item => item.id === model.target);
+      const sourceModel = nodes.find(item => item.id === model.source);
+      model.nodes = [
+        {
+          ...getEntityData('source'),
+          ...sourceModel,
+          events: model.events || [],
+        },
+        {
+          ...getEntityData('target'),
+          ...targetModel,
+          events: model.events || [],
+        },
+      ];
+
+      return model;
+    };
+
+    /** 整合关联边数据 */
+    const filterEdges = (edges, nodes, nodeId) => {
+      const result = [];
+      const checkAndProcess = (edge, isAggregated = false) => {
+        if (edge.source === nodeId || edge.target === nodeId) {
+          result.push(processEdge(edge, nodes, isAggregated));
+        }
+      };
+
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      edges.forEach(mainEdge => {
+        checkAndProcess(mainEdge);
+        // biome-ignore lint/complexity/noForEach: <explanation>
+        mainEdge.aggregated_edges?.forEach(aggEdge => {
+          checkAndProcess(aggEdge, true);
+        });
+      });
+      return result;
+    };
+    // 切换node清除高亮边信息
+    const setHighlightEdge = (highlight = true, nodeId = '') => {
+      if (resourceEdgeId.value) {
+        const edge = graph.getEdges().find(edge => {
+          const { source, target } = edge.getModel();
+          return `${source}-${target}` === resourceEdgeId.value;
+        });
+        highlight && edge && graph.setItemState(edge, 'highlight', true);
+        if (!highlight && edge) {
+          const statesToClear = nodeId && resourceEdgeId.value.includes(nodeId) ? ['highlight'] : ['highlight', 'dark'];
+          graph.clearItemStates(edge, statesToClear);
+        }
+      }
+      if (!highlight) resourceEdgeId.value = '';
+    };
+    /** 通过主画布的tooltip打开节点/边概览 */
+    const handleViewServiceFromTopo = ({ type, data, sourceNode, isAggregatedEdge }) => {
+      if (type === 'node') {
+        setHighlightEdge(false, sourceNode.id);
+        if (!showServiceOverview.value) {
+          showServiceOverview.value = true;
+        } else {
+          const node = graph.findById(sourceNode.id);
+          graph.setItemState(node, 'running', true);
+        }
+        // 如果之前有选中的节点且不是当前节点，取消其'running'状态
+        if (resourceNodeId.value && resourceNodeId.value !== sourceNode.id) {
+          const node = graph.findById(resourceNodeId.value);
+          graph.setItemState(node, 'running', false);
+        }
+
+        nodeDetail.value = data;
+        const { edges = [], nodes = [] } = topoRawDataCache.value.complete;
+        curLinkedEdges.value = filterEdges(edges, nodes, data.id);
+
+        // 保存当前选中节点的ID
+        resourceNodeId.value = sourceNode.id;
+        nodeEntityId.value = data?.entity?.entity_id || data?.model?.entity?.entity_id;
+        emit('changeSelectNode', sourceNode.id);
+      } else {
+        if (!showServiceOverview.value) {
+          showServiceOverview.value = true;
+        }
+        edgeDetail.value = data;
+        isClickEdgeItem.value = true;
+        // 处理聚合边,聚合边只有明确选中才高亮
+        if (isAggregatedEdge) {
+          const edges = graph.getEdges();
+          // 遍历每个边，查找匹配的属性
+          const edge = edges.find(edge => {
+            const model = edge.getModel();
+            return (
+              model.source === sourceNode?.[0]?.entity?.entity_id && model.target === sourceNode?.[1]?.entity?.entity_id
+            );
+          });
+          if (!edge.hasState('highlight')) {
+            clearEdgeState(edge);
+            graph.setItemState(edge, 'highlight', true);
+            graph.setItemState(edge, 'dark', true);
+          }
+        }
+      }
+      // 当前节点/边的类型
+      detailType.value = type;
+      tooltipsRef.value.hide();
+      tooltips.hide();
+    };
+
+    /** 通过资源拓扑的tooltip打开节点/边概览 */
+    const handleViewServiceFromResource = ({ type, data }) => {
+      if (type === 'node') {
+        if (!showServiceOverview.value) {
+          showServiceOverview.value = true;
+        }
+        nodeDetail.value = data;
+        const { edges = [], nodes = [] } = topoRawDataCache.value.complete;
+        curLinkedEdges.value = filterEdges(edges, nodes, data.id);
+        detailType.value = 'node';
+        showViewResource.value = false;
+      }
+    };
+
+    /** 通过顶部开关打开节点/边概览，展示当前选中节点的概览 */
+    const handleViewServiceFromTop = () => {
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      graph.getNodes().forEach(node => {
+        const model = node.getModel();
+        if ((model.entity as { entity_id: string })?.entity_id === nodeEntityId.value) {
+          nodeDetail.value = model;
+          detailType.value = 'node';
+          const { edges = [], nodes = [] } = topoRawDataCache.value.complete;
+          curLinkedEdges.value = filterEdges(edges, nodes, model.id);
+        }
+      });
+    };
+
     /** 打开资源拓朴 */
     const handleViewResource = ({ sourceNode, node }) => {
       if (!showResourceGraph.value) {
@@ -1682,15 +2014,16 @@ export default defineComponent({
         const node = graph.findById(sourceNode.id);
         graph.setItemState(node, 'running', true);
       }
+      // 如果之前有选中的节点(resourceNodeId.value存在)且不是当前节点，则取消其'running'状态
       if (resourceNodeId.value && resourceNodeId.value !== sourceNode.id) {
         const node = graph.findById(resourceNodeId.value);
         graph.setItemState(node, 'running', false);
       }
+      // 保存当前选中节点的ID
       resourceNodeId.value = sourceNode.id;
       nodeEntityId.value = node?.entity?.entity_id || node?.model?.entity?.entity_id;
       nodeEntityName.value = node?.entity?.entity_name || node?.model?.entity?.entity_name;
-      moveRootNodeCenter(true);
-      tooltipsRef.value.hide();
+      nodeDetail.value = sourceNode;
       tooltips.hide();
       emit('changeSelectNode', sourceNode.id);
     };
@@ -1716,6 +2049,11 @@ export default defineComponent({
         });
         await getGraphData();
         renderGraph();
+
+        // 刷新节点概览数据
+        setTimeout(() => {
+          handleViewServiceFromTop();
+        }, 500);
       });
     };
     /** 反馈新根因， 反馈后需要重新调用接口拉取数据 */
@@ -1750,6 +2088,8 @@ export default defineComponent({
       const hideNodeArr = timelinePosition.value === 0 ? topoRawDataCache.value.complete.nodes : hideNodes;
       /** 播放时关闭查看资源态 */
       showResourceGraph.value = false;
+      /** 播放时关闭查看节点/边概览态 */
+      showServiceOverview.value = false;
       /** 播放时清楚自动刷新 */
       clearTimeout(refreshTimeout);
       // biome-ignore lint/complexity/noForEach: <explanation>
@@ -1848,10 +2188,11 @@ export default defineComponent({
       });
       return currNodes.length === 0 || !next;
     };
-    /** 判断资源图是否开启状态 是的话关闭状态并等待重新布局 */
+    /** 判断资源图或者节点/边概览是否为开启状态 是的话关闭状态并等待重新布局 */
     const handleResetPlay = playOption => {
-      if (showResourceGraph.value) {
+      if (showResourceGraph.value || showServiceOverview.value) {
         showResourceGraph.value = false;
+        showServiceOverview.value = false;
         resizeCacheCallback.value = () => {
           setTimeout(() => handlePlay(playOption), 300);
           resizeCacheCallback.value = null;
@@ -1900,6 +2241,7 @@ export default defineComponent({
       if (!isPlay.value && topoRawDataCache.value.diff[value]) {
         /** 切换帧时 */
         showResourceGraph.value = false;
+        showServiceOverview.value = false;
         /** 直接切换到对应帧时，直接隐藏掉未出现的帧，并更新当前帧每个node的节点数据 */
         const { showNodes, content, showEdges, showSubCombos } = topoRawDataCache.value.diff[value];
         const updateEdges = content.edges;
@@ -1969,14 +2311,20 @@ export default defineComponent({
         });
       }
     };
-    /** 查看资源展开收起 */
-    const handleExpandResourceChange = () => {
-      showResourceGraph.value = !showResourceGraph.value;
-      moveRootNodeCenter(true);
+    /** 收起查看资源 或者 节点/边概览 */
+    const handleCollapseChange = (isResourceGraph = false) => {
+      if (isResourceGraph) {
+        showResourceGraph.value = false;
+      } else {
+        showServiceOverview.value = false;
+      }
+      resourceEdgeId.value = '';
     };
+
     const handleResetZoom = () => {
       zoomValue.value = 10;
       graph.zoomTo(1);
+      graph.moveTo(0, 0);
       localStorage.setItem('failure-topo-zoom', String(zoomValue.value));
     };
     /** 画布缩放 */
@@ -2005,6 +2353,11 @@ export default defineComponent({
       await getGraphData();
       renderGraph();
       feedbackCauseShow.value = false;
+
+      // 刷新节点概览数据
+      setTimeout(() => {
+        handleViewServiceFromTop();
+      }, 500);
     };
     const handleToDetail = node => {
       emit('toDetail', node);
@@ -2019,6 +2372,7 @@ export default defineComponent({
       const val = [...props.selectNode];
       const rootNode = [];
       if (!val.length) return rootNode;
+      // biome-ignore lint/complexity/noForEach: <explanation>
       topoRawData?.nodes?.forEach?.(node => {
         if (val.includes(node.id)) {
           rootNode.push({
@@ -2027,6 +2381,7 @@ export default defineComponent({
           });
         } else if (node.aggregated_nodes.length) {
           /** 检测是否是个被聚合节点，如果是则展示节点为父节点id，请求数据为本身id */
+          // biome-ignore lint/complexity/noForEach: <explanation>
           node.aggregated_nodes.forEach(aggNode => {
             val.includes(aggNode.id) &&
               rootNode.push({
@@ -2045,19 +2400,26 @@ export default defineComponent({
         if (val.length) {
           if (!graph) return;
           /** 清除之前节点状态 */
+          // biome-ignore lint/complexity/noForEach: <explanation>
           graph.findAllByState('node', 'running').forEach?.(node => {
             graph.setItemState(node, 'running', false);
           });
           navSelectNode.value?.map?.((item, index) => {
-            /** 多个节点只设置第一个节点会资源图节点 */
+            /** 多个节点只设置第一个节点为资源图节点 */
             if (index === 0) {
               if (item.entityId !== nodeEntityId.value) {
                 showResourceGraph.value = false;
+                showServiceOverview.value = false;
                 resourceNodeId.value = item.id;
                 nodeEntityId.value = item.entityId;
                 nodeEntityName.value = item.entity_name;
               }
-              // moveRootNodeCenter();
+              moveToCenterIfNeeded(
+                graph,
+                resourceNodeId.value,
+                graphRef.value.clientWidth,
+                graphRef.value.clientHeight
+              );
             }
             graph.setItemState(graph.findById(item.id), 'running', true);
           });
@@ -2116,14 +2478,83 @@ export default defineComponent({
     const refresh = () => {
       emit('refresh');
     };
+
+    const getTopoWidth = computed(() => {
+      let width = 0;
+      if (showResourceGraph.value) width += 410;
+      if (showServiceOverview.value) width += 360;
+      return width ? `calc(100% - ${width}px)` : `calc(100% - ${1}px)`;
+    });
+
+    /** 点击节点概览中的关联边，画布中对应的边高亮 */
+    const handleHighlightEdge = (edge: ITopoNode) => {
+      // 对于聚合边，每个边上会携带当前最外层作为容器变的属性，聚合边需要高亮的是容器边
+      const isAggregated = edge?.properties?.aggregated_by?.length > 0;
+      const sourceId = isAggregated ? edge.properties.aggregated_by[0] : edge.source;
+      const targetId = isAggregated ? edge.properties.aggregated_by[1] : edge.target;
+      resourceEdgeId.value = `${sourceId}-${targetId}`;
+      graph.setAutoPaint(false);
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      graph.getNodes().forEach(function (node) {
+        graph.clearItemStates(node, ['dark', 'highlight']);
+        graph.setItemState(node, 'highlight', true);
+        node.toFront();
+      });
+      // biome-ignore lint/complexity/noForEach: <explanation>
+      graph.getEdges().forEach(curEdge => {
+        graph.clearItemStates(curEdge, ['dark', 'highlight']);
+        graph.setItemState(curEdge, 'dark', true);
+        const sourceNode = curEdge.getSource();
+        const targetNode = curEdge.getTarget();
+        if (sourceNode.getID() === sourceId && targetNode.getID() === targetId) {
+          graph.setItemState(curEdge, 'dark', false);
+          graph.setItemState(curEdge, 'highlight', true);
+          curEdge.toFront();
+        }
+      });
+      graph.paint();
+      graph.setAutoPaint(true);
+    };
+
+    const handleHideTooltips = () => {
+      tooltipsRef.value.hide();
+      tooltips.hide();
+    };
+
+    /** 右侧资源拓扑、节点/边概览侧滑同时打开时，关闭左侧侧滑 */
+    watch(
+      () => [showServiceOverview.value, showResourceGraph.value],
+      ([showService, showResource]) => {
+        if (showService && showResource) {
+          emit('closeCollapse', true);
+        }
+        if (!showService) {
+          resourceEdgeId.value = '';
+        }
+      }
+    );
+
+    /** 右侧资源拓扑、节点/边概览侧滑同时打开时，打开左侧侧滑，关闭节点/边概览侧滑 */
+    watch(
+      () => props.isCollapsed,
+      val => {
+        if (!val && showServiceOverview.value && showResourceGraph.value) {
+          showServiceOverview.value = false;
+        }
+      }
+    );
+
     return {
       isPlay,
       nodeEntityId,
       topoTools,
       showResourceGraph,
+      showServiceOverview,
       timelinePosition,
       topoGraphRef,
       tooltipsEdge,
+      edgeDetail,
+      isClickEdgeItem,
       graphRef,
       loading,
       zoomValue,
@@ -2132,14 +2563,23 @@ export default defineComponent({
       wrapRef,
       showLegend,
       tooltipsModel,
+      nodeDetail,
       feedbackCauseShow,
       feedbackModel,
       resourceNodeId,
       topoRawDataCache,
       tooltipsType,
+      detailType,
       errorData,
       isNoData,
       nodeEntityName,
+      detailInfo,
+      getTopoWidth,
+      curLinkedEdges,
+      refreshTime,
+      showViewResource,
+      nodeDetailTipsRef,
+      nodeDetailTips,
       handleToDetail,
       handleHideToolTips,
       handleRootToSpan,
@@ -2147,6 +2587,9 @@ export default defineComponent({
       handleFeedBack,
       handleShowLegend,
       handleViewResource,
+      handleViewServiceFromResource,
+      handleViewServiceFromTop,
+      handleViewServiceFromTopo,
       handleUpdateZoom,
       handleZoomChange,
       handleResetZoom,
@@ -2155,13 +2598,15 @@ export default defineComponent({
       handleTimelineChange,
       handlePlay,
       handleResetPlay,
-      handleExpandResourceChange,
       handleToDetailSlider,
+      setHighlightEdge,
       handleToDetailTab,
-      detailInfo,
       refresh,
       goToTracePage,
       t,
+      handleCollapseChange,
+      handleHighlightEdge,
+      handleHideTooltips,
     };
   },
   render() {
@@ -2173,10 +2618,13 @@ export default defineComponent({
       >
         <TopoTools
           ref='topoTools'
+          v-model:showResource={this.showResourceGraph}
+          v-model:showService={this.showServiceOverview}
           timelinePlayPosition={this.timelinePosition}
           topoRawDataList={this.topoRawDataCache.diff}
           onChangeRefleshTime={this.handleChangeRefleshTime}
           onPlay={this.handleResetPlay}
+          onShowService={this.handleViewServiceFromTop}
           onTimelineChange={this.handleTimelineChange}
           onUpdate:AggregationConfig={this.handleUpdateAggregateConfig}
         />
@@ -2190,27 +2638,17 @@ export default defineComponent({
             class='topo-graph-wrapper'
           >
             <div
-              style={{ width: this.showResourceGraph ? '70%' : '100%' }}
+              style={{ width: this.getTopoWidth }}
               class='topo-graph-wrapper-padding'
             >
               {this.errorData.isError || this.isNoData ? (
-                <Exception
-                  class='exception-wrap'
-                  v-slots={{
-                    type: () => (
-                      <img
-                        class='custom-icon'
-                        alt=''
-                        src={this.isNoData ? NoDataImg : ErrorImg}
-                      />
-                    ),
-                  }}
-                >
-                  <div style={{ color: this.isNoData ? '#979BA5' : '#E04949' }}>
-                    <div class='exception-title'>{this.isNoData ? this.t('暂无数据') : this.t('查询异常')}</div>
-                    {this.errorData.isError && <div class='exception-desc'>{this.errorData.msg}</div>}
-                  </div>
-                </Exception>
+                <ExceptionComp
+                  errorMsg={this.errorData.msg}
+                  imgHeight={100}
+                  isDarkTheme={true}
+                  isError={this.errorData.isError}
+                  title={this.errorData.isError ? this.t('查询异常') : this.t('暂无数据')}
+                />
               ) : (
                 <>
                   <div
@@ -2222,59 +2660,7 @@ export default defineComponent({
                     <Popover
                       extCls='failure-topo-graph-legend-popover'
                       v-slots={{
-                        content: (
-                          <div class='failure-topo-graph-legend-content'>
-                            <ul class='node-type'>
-                              <li class='node-type-title'>{this.t('节点图例')}</li>
-                              {NODE_TYPE.map(node => {
-                                return (
-                                  <li key={node.status}>
-                                    <span class='circle-wrap'>
-                                      <span class={['circle', node.status]}>
-                                        {'error' === node.status && <i class='icon-monitor icon-mc-pod' />}
-                                        {['feedBackRoot', 'root'].includes(node.status) && this.t('根因')}
-                                      </span>
-                                    </span>
-                                    <span>{this.t(node.text)}</span>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                            <ul class='node-type node-line-type'>
-                              <li class='node-type-title'>{this.t('标签图例')}</li>
-                              {TAG_TYPE.map(node => {
-                                return (
-                                  <li key={node.status}>
-                                    <span class='circle-wrap'>
-                                      <span class={['circle', node.status]}>
-                                        {['notRestored', 'restored'].includes(node.status) && (
-                                          <i class='icon-monitor icon-menu-event' />
-                                        )}
-                                        {['feedBackRoot', 'root'].includes(node.status) && this.t('根因')}
-                                      </span>
-                                    </span>
-                                    <span>{this.t(node.text)}</span>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                            <ul class='node-line-type'>
-                              <li class='node-line-title'>{this.t('边图例')}</li>
-                              <li>
-                                <span class='line' />
-                                <span>{this.t('从属关系')}</span>
-                              </li>
-                              <li>
-                                <span class='line arrow' />
-                                <span>{this.t('调用关系')}</span>
-                              </li>
-                              <li>
-                                <span class='line dash' />
-                                <span>{this.t('故障传播')}</span>
-                              </li>
-                            </ul>
-                          </div>
-                        ),
+                        content: <LegendPopoverContent />,
                         default: (
                           <div
                             class={['failure-topo-graph-legend', this.showLegend && 'failure-topo-graph-legend-active']}
@@ -2336,14 +2722,6 @@ export default defineComponent({
                   </div>
                 </>
               )}
-              {!this.isPlay && !this.showResourceGraph && (
-                <div
-                  class='expand-resource'
-                  onClick={this.handleExpandResourceChange}
-                >
-                  <i class={'icon-monitor icon-mc-tree expand-icon'} />
-                </div>
-              )}
             </div>
             {this.showResourceGraph && !this.isPlay && (
               <ResourceGraph
@@ -2352,9 +2730,29 @@ export default defineComponent({
                 entityName={this.nodeEntityName}
                 modelData={this.topoRawDataCache.complete}
                 resourceNodeId={this.resourceNodeId}
-                onCollapseResource={this.handleExpandResourceChange}
+                onCollapseResource={this.handleCollapseChange}
                 onHideToolTips={this.handleHideToolTips}
+                onViewService={this.handleViewServiceFromResource}
+              />
+            )}
+            {this.showServiceOverview && !this.isPlay && (
+              <FailureTopoDetail
+                edge={this.edgeDetail}
+                isClickEdgeItem={this.isClickEdgeItem}
+                linkedEdges={this.curLinkedEdges}
+                model={this.nodeDetail}
+                refreshTime={this.refreshTime}
+                showServiceOverview={this.showServiceOverview}
+                showViewResource={this.showViewResource}
+                type={this.detailType}
+                onClearHighlightEdge={this.setHighlightEdge.bind(this)}
+                onCollapseService={this.handleCollapseChange}
+                onFeedBack={this.handleFeedBack}
+                onHighlightEdge={this.handleHighlightEdge}
                 onToDetail={this.handleToDetail}
+                onToDetailSlider={this.handleToDetailSlider}
+                onToDetailTab={this.handleToDetailTab}
+                onToTracePage={this.goToTracePage}
               />
             )}
           </div>
@@ -2364,7 +2762,9 @@ export default defineComponent({
           visible={this.feedbackCauseShow}
           onEditSuccess={this.handleFeedBackChange}
           onRefresh={this.refresh}
-          onUpdate:isShow={(val: boolean) => (this.feedbackCauseShow = val)}
+          onUpdate:isShow={(val: boolean) => {
+            this.feedbackCauseShow = val;
+          }}
         />
         <div style='display: none'>
           <FailureTopoTooltips
@@ -2372,18 +2772,31 @@ export default defineComponent({
             edge={this.tooltipsEdge}
             model={this.tooltipsModel}
             type={this.tooltipsType}
-            onFeedBack={this.handleFeedBack}
-            onToDetail={this.handleToDetail}
-            onToDetailSlider={this.handleToDetailSlider}
-            onToDetailTab={this.handleToDetailTab}
-            onToTracePage={this.goToTracePage}
+            onHide={this.handleHideTooltips}
             onViewResource={this.handleViewResource}
+            onViewService={this.handleViewServiceFromTopo}
           />
         </div>
         <div
           id='combo-label-tooltip'
           class='combo-label-tooltip'
         />
+        <div style='display: none'>
+          <div
+            ref='nodeDetailTipsRef'
+            class='node-detail-tips'
+          >
+            {this.nodeDetailTips.map(item => (
+              <span
+                key={item.label}
+                class='node-detail-tips_item'
+              >
+                <span class='item-label'>{item.label}：</span>
+                <span class='item-value'>{item.value}</span>
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     );
   },

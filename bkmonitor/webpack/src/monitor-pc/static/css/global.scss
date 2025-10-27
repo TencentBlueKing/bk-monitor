@@ -23,6 +23,14 @@
     height: 0;
   }
 
+  &.padding-0-theme {
+    padding: 0;
+  }
+
+  &.border-1-theme {
+    border: 1px solid #dcdee5;
+  }
+
   &.common-monitor-theme {
     min-width: 68px;
     padding: 0 !important;
@@ -105,16 +113,16 @@
 
   &.shield-theme {
     border-radius: 2px;
-    box-shadow: 0px 1px 4px 0px rgba(196, 198, 204, 1);
+    box-shadow: 0 1px 4px 0 rgb(196 198 204 / 100%);
   }
 
   &.table-filter-theme {
     border-radius: 2px;
-    box-shadow: 0px 1px 4px 0px rgba(196, 198, 204, 1);
+    box-shadow: 0 1px 4px 0 rgb(196 198 204 / 100%);
   }
 
   &.strategy-remind-theme {
-    box-shadow: 0px 3px 12px 0px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 3px 12px 0 rgb(0 0 0 / 20%);
 
     .tippy-arrow {
       left: 0 !important;
@@ -151,7 +159,7 @@
   background: #c4c6cc;
 }
 
-.bk-select.is-default-trigger.is-unselected:before {
+.bk-select.is-default-trigger.is-unselected::before {
   color: #c4c6cc;
 }
 
@@ -169,7 +177,7 @@
 }
 
 .codicon[class*='codicon-'] {
-  font-family: 'codicon' !important;
+  font-family: codicon !important;
 }
 
 .cursor-element {
@@ -184,8 +192,7 @@
   right: -3px;
   z-index: 100;
   display: flex;
-  align-items: center;
-  justify-items: center;
+  place-items: center center;
   width: 6px;
   height: 100px;
   background-color: #dcdee5;
@@ -211,8 +218,7 @@
     right: -3px;
     z-index: 100;
     display: flex;
-    align-items: center;
-    justify-items: center;
+    place-items: center center;
     width: 6px;
     height: 25px;
     background-color: initial;
@@ -282,12 +288,13 @@
 .fta-set-meal {
   padding: 20px 24px !important;
 }
+
 // 初始化popver弹层样式
 .common-popover-theme {
   width: 100%;
   padding: 0 !important;
   border-radius: 0;
-  box-shadow: 0 0 6px rgba(204, 204, 204, 0.3);
+  box-shadow: 0 0 6px rgb(204 204 204 / 30%);
 
   .tippy-backdrop {
     opacity: 0 !important;
@@ -330,7 +337,7 @@
       }
     }
 
-    &.is-default-trigger.is-unselected:before {
+    &.is-default-trigger.is-unselected::before {
       left: 2px;
     }
 
@@ -360,7 +367,6 @@
   display: flex;
   flex-direction: column;
   max-width: 50vw;
-  border-radius: 4px;
   border-radius: 10px;
 
   .tooltips-header {
@@ -409,6 +415,7 @@
         min-width: 120px;
         max-width: calc(100% - 20px);
         margin-right: 5px;
+
         // overflow: hidden;
         // text-overflow: ellipsis;
         color: #f1f3fa;
@@ -429,15 +436,15 @@
         height: 18px;
         padding: 0 5px;
         margin-left: auto;
-        color: rgba(255, 255, 255, 0.8);
-        background-color: rgba(1, 1, 1, 0.8);
+        color: rgb(255 255 255 / 80%);
+        background-color: rgb(1 1 1 / 80%);
         border-radius: 3px;
       }
     }
   }
 
   &-table {
-    color: #ffffff;
+    color: #fff;
     border-collapse: collapse;
 
     th,
@@ -531,14 +538,13 @@
   width: 100%;
   overflow: hidden;
 
-  &:after {
+  &::after {
     position: absolute;
-    inset-inline-start: -150%;
-    inset-inline-end: -150%;
+    inset-inline: -150%;
     top: 0;
     bottom: 0;
     content: '';
-    background: linear-gradient(90deg, rgba(0, 0, 0, 0.06) 25%, rgba(0, 0, 0, 0.15) 37%, rgba(0, 0, 0, 0.06) 63%);
+    background: linear-gradient(90deg, rgb(0 0 0 / 6%) 25%, rgb(0 0 0 / 15%) 37%, rgb(0 0 0 / 6%) 63%);
     animation-name: skeleton-loading;
     animation-duration: 1.4s;
     animation-timing-function: ease;
@@ -559,10 +565,12 @@
     transform: translateX(37.5%);
   }
 }
+
 // 通用的v3 search select组件暂时解决menu宽度问题
 .vue3-bk-search-select-menu .menu-content .menu-item .menu-name {
   max-width: inherit !important;
 }
+
 // 事件中aiops相关通用tips样式
 .anomaly-dimension-tips {
   display: flex;

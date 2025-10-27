@@ -25,9 +25,11 @@
  */
 import { formatDate, formatDateNanos, random } from '../../common/util';
 import { getRGBAColors } from './colors';
-import OptimizedHighlighter from './optimized-highlighter';
-import RetrieveEvent from './retrieve-events';
+import JsonFormatter from './json-formatter';
 import StaticUtil from './static.util';
+
+import type OptimizedHighlighter from './optimized-highlighter';
+import type RetrieveEvent from './retrieve-events';
 
 export default class {
   // 滚动条查询条件
@@ -59,7 +61,7 @@ export default class {
   trendGraphHeight: number;
 
   // 事件列表
-  events: Map<string, ((...args) => void)[]>;
+  events: Map<string, ((..._args) => void)[]>;
 
   // 索引集id列表
   indexSetIdList: string[];
@@ -68,6 +70,9 @@ export default class {
   indexSetType: string;
 
   markInstance: OptimizedHighlighter = undefined;
+
+  // JSON格式化辅助
+  jsonFormatter: JsonFormatter;
 
   // 正则表达式提取日志级别
   logLevelRegex = {
@@ -85,50 +90,56 @@ export default class {
 
   isSearching = false;
 
-  constructor({}) {
+  constructor() {
     this.randomTrendGraphClassName = `random-${random(12)}`;
     this.events = new Map();
     this.logRowsContainerId = `result_container_key_${random(12)}`;
     this.RGBA_LIST = getRGBAColors(0.3);
+    this.jsonFormatter = new JsonFormatter();
   }
 
-  formatDateValue(data: string, field_type: string) {
+  /**
+   * 格式化时间戳
+   * @param data 时间戳
+   * @param fieldType 字段类型
+   * @returns 格式化后的时间戳
+   */
+  formatDateValue(data: string, fieldType: string) {
     const formatFn = {
       date: formatDate,
       date_nanos: formatDateNanos,
     };
 
-    if (formatFn[field_type]) {
+    if (formatFn[fieldType]) {
       if (`${data}`.startsWith('<mark>')) {
         const value = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
 
         if (/^\d+$/.test(value)) {
-          return `<mark>${formatFn[field_type](Number(value))}</mark>`;
+          return `<mark>${formatFn[fieldType](Number(value))}</mark>`;
         }
-        return `<mark>${formatFn[field_type](value)}</mark>`;
+        return `<mark>${formatFn[fieldType](value)}</mark>`;
       }
 
       if (/^\d+$/.test(data)) {
-        return formatFn[field_type](Number(data)) || data || '--';
+        return formatFn[fieldType](Number(data)) || data || '--';
       }
 
-      return formatFn[field_type](data) || data || '--';
+      return formatFn[fieldType](data) || data || '--';
     }
     return data;
   }
 
-  on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (...args) => void) {
+  on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (..._args) => void) {
     const targetEvents = Array.isArray(fnName) ? fnName : [fnName];
-    targetEvents.forEach(event => {
-      if (this.events.has(event)) {
-        if (!this.events.get(event).includes(callbackFn)) {
-          this.events.get(event)?.push(callbackFn);
-        }
-        return this;
+    for (const event of targetEvents) {
+      if (!this.events.has(event)) {
+        this.events.set(event, [callbackFn]);
       }
 
-      this.events.set(event, [callbackFn]);
-    });
+      if (this.events.has(event) && !this.events.get(event)?.includes(callbackFn)) {
+        this.events.get(event)?.push(callbackFn);
+      }
+    }
 
     return this;
   }
@@ -148,9 +159,9 @@ export default class {
    * @param eventName
    * @param fn
    */
-  off(eventName: RetrieveEvent, fn?: (...args) => void) {
+  off(eventName: RetrieveEvent, fn?: (..._args) => void) {
     if (typeof fn === 'function') {
-      const index = this.events.get(eventName)?.findIndex(item => item === fn);
+      const index = this.events.get(eventName)?.indexOf(fn);
       if (index !== -1) {
         this.events.get(eventName)?.splice(index, 1);
       }
@@ -159,15 +170,26 @@ export default class {
     this.events.delete(eventName);
   }
 
+  /**
+   * 批量移除事件
+   * @param eventNames
+   * @param fn
+   */
+  batchOff(eventNames: RetrieveEvent[], fn?: (..._args) => void) {
+    for (const eventName of eventNames) {
+      this.off(eventName, fn);
+    }
+  }
+
   runEvent(event: RetrieveEvent, ...args) {
-    this.events.get(event)?.forEach(item => {
+    for (const item of this.events.get(event) || []) {
       if (typeof item === 'function') {
         item(...args);
       }
-    });
+    }
   }
 
-  getRegExp(reg: RegExp | boolean | number | string): RegExp {
-    return StaticUtil.getRegExp(reg);
+  getRegExp(reg: RegExp | boolean | number | string, flgs?: string, fullMatch = false, formatRegStr = true): RegExp {
+    return StaticUtil.getRegExp(reg, flgs, fullMatch, formatRegStr);
   }
 }

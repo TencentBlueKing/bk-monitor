@@ -82,7 +82,8 @@
         >
         </bk-input>
         <span>{{ $t('行') }}</span>
-        <span>{{ $t(', 后') }}</span>
+        <span>，</span>
+        <span>{{ $t('后') }}</span>
         <bk-input
           v-model="interval.next"
           style="width: 74px; margin-right: 10px"
@@ -100,7 +101,7 @@
 </template>
 
 <script>
-  import { deepClone, contextHighlightColor } from '../../../common/util';
+  import { contextHighlightColor } from '../../../common/util';
   export default {
     props: {
       isScreenFull: Boolean,
@@ -160,7 +161,7 @@
       changeLightList() {
         // 找出未显示的颜色
         const colorIndex = contextHighlightColor.findIndex((item, index) => !this.catchColorIndexList.includes(index));
-        const catchCloneColorList = deepClone(this.colorHighlightList);
+        const catchCloneColorList = structuredClone(this.colorHighlightList);
         // 给高亮颜色重新赋值
         this.colorHighlightList = this.highlightList.map(item => {
           const notChangeItem = catchCloneColorList.find(cItem => cItem.heightKey === item);

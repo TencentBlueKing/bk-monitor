@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -71,7 +71,8 @@ export interface IJudgingData {
     statusSetter: RecoveryConfigStatusSetter;
   };
   triggerConfig: {
-    calendars: string[];
+    calendars: string[]; // 排除时的关联日历id
+    active_calendars: string[]; // 包含时的关联日历id
     checkType: string;
     checkWindow: number;
     count: number;
@@ -111,6 +112,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
         checkType: 'total',
         timeRanges: DEFAULT_TIME_RANGES,
         calendars: [],
+        active_calendars: [],
       },
       recoveryConfig: {
         // 恢复条件
@@ -160,6 +162,19 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
   /* 手动输入的维度(promql模式专用) */
   promqlDimensions = [];
 
+  // 关联日历条件
+  calendarsOptionList = [{id: 'excludes', name: '排除'}, {id: 'includes', name: '包含'}]
+
+  // 关联日历条件下拉
+  calendarsOption = '';
+
+  // 关联日历数据
+  get calendarsData() {
+    const {calendars, active_calendars} = this.localData.triggerConfig;
+    if (calendars.length) return calendars;
+    return active_calendars;
+  }
+
   get aggDimensionCollection() {
     return this.metricData.reduce((acc, cur) => {
       cur.agg_dimension.forEach(dim => {
@@ -202,6 +217,15 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
     } else {
       this.curDimensions = [];
       this.localData.noDataConfig.dimensions = [];
+    }
+  }
+
+  @Watch('calendarsData') 
+  handleUpdatecalendarsOption(v) {
+    // 回显
+    if (v.length && !this.calendarsOption) {
+      const { calendars } = this.localData.triggerConfig;
+      this.calendarsOption = this.calendarsOptionList[calendars.length ? 0 : 1].id;
     }
   }
 
@@ -296,6 +320,12 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
       this.$emit('validatorErr');
       return false;
     }
+    
+    // if (!this.calendarsOption && this.calendarsData.length) {
+    //   this.errMsg.timeRanges = `${this.$t('选择包含/排除')}`;
+    //   this.$emit('validatorErr');
+    //   return false;
+    // }
     this.errMsg.timeRanges = '';
 
     return true;
@@ -326,6 +356,25 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
     this.calendarSelectRef?.close?.();
     bus.$emit(HANDLE_SHOW_SETTING, 'calendar');
   }
+
+  // 关联日历数据变化
+  handleCalendarSelected(data) {
+    const { triggerConfig } = this.localData;
+    if (this.calendarsOption === 'excludes') {
+      triggerConfig.calendars = data;
+      return;
+    }
+    // 默认为包含
+    triggerConfig.active_calendars = data;
+  }
+
+  // 切换关联日历条件
+  handleCalendarOptionSelected(option) {
+    const { triggerConfig } = this.localData;
+    [triggerConfig.active_calendars, triggerConfig.calendars] = [triggerConfig.calendars, triggerConfig.active_calendars]
+  }
+  
+  
 
   handleClearTimeRangeError(val: ITimeRangeMultipleProps['value']) {
     if (val.length) {
@@ -648,10 +697,11 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
           </VerifyItem>
           <span
             class='calendar-title'
-            v-bk-tooltips={this.$t('默认是所有时间都生效，日历中添加的为不生效时间段')}
+            v-bk-tooltips={this.$t('默认所有日期都生效，可关联日历来“包含”或“排除”哪些日期')}
           >
             {this.$t('关联日历')}
           </span>
+          {this.calendarOptionSelect(this.$tc('选择'))}
           {this.calendarSelect(this.$tc('选择'))}
         </CommonItem>
         <StrategyTemplatePreview
@@ -678,11 +728,13 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
       <bk-select
         ref='calendarSelectRef'
         class='calendar-select simplicity-select'
-        v-model={this.localData.triggerConfig.calendars}
+        value={this.calendarsData}
         behavior='simplicity'
         ext-popover-cls='link-calendar-popover'
         placeholder={placeholder || this.$t('关联日历')}
         multiple
+        on-selected={this.handleCalendarSelected}
+        on-clear={() => this.handleCalendarSelected([])}
       >
         {this.calendarList.map(item => (
           <bk-option
@@ -700,6 +752,29 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
         </div>
       </bk-select>
     );
+  }
+
+  // 关联日历 包含与排除下拉框
+  calendarOptionSelect(placeholder?: string) {
+    return (
+      <bk-select
+        class='calendar-option-select simplicity-select'
+        v-model={this.calendarsOption}
+        behavior='simplicity'
+        clearable={false}
+        ext-popover-cls='link-calendar-popover'
+        placeholder={placeholder || this.$t('选项')}
+        on-selected={this.handleCalendarOptionSelected}
+      >
+        {this.calendarsOptionList.map(item => (
+          <bk-option
+            id={item.id}
+            key={item.id + item.name}
+            name={item.name}
+          />
+        ))}
+      </bk-select>
+    )
   }
 
   // 当关联告警时显示的内容
@@ -720,6 +795,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
               onChange={this.handleClearTimeRangeError}
             />
           </VerifyItem>
+          {this.calendarOptionSelect()}
           {this.calendarSelect()}
         </CommonItem>
       </div>

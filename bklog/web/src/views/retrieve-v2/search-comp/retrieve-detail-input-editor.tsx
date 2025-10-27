@@ -144,8 +144,8 @@ export default class UiQuery extends Mixins(classDragMixin) {
   }
 
   /** 语法初始化 */
-  initMonacoBeforeFun(monaco) {
-    monaco.editor.defineTheme('myTheme', {
+  initMonacoBeforeFun(monacoInst) {
+    monacoInst.editor.defineTheme('myTheme', {
       base: 'vs',
       inherit: true,
       rules: [
@@ -156,8 +156,8 @@ export default class UiQuery extends Mixins(classDragMixin) {
         'editor.foreground': '63656E', // 用户输入的基础颜色
       },
     });
-    monaco.languages.register({ id: 'mySpecialLanguage' });
-    monaco.languages.setMonarchTokensProvider('mySpecialLanguage', {
+    monacoInst.languages.register({ id: 'mySpecialLanguage' });
+    monacoInst.languages.setMonarchTokensProvider('mySpecialLanguage', {
       // 设置语法规则
       tokenizer: {
         root: [
@@ -166,7 +166,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
         ],
       },
     });
-    return monaco;
+    return monacoInst;
   }
 
   /** 重置光标位置到文本末尾 */
@@ -184,12 +184,12 @@ export default class UiQuery extends Mixins(classDragMixin) {
     // 方向键的键绑定
     const arrowKeys = [monaco.KeyCode.UpArrow, monaco.KeyCode.DownArrow];
     // 禁止方向键的默认行为
-    arrowKeys.forEach(keyCode => {
+    for (const keyCode of arrowKeys) {
       this.editor.addCommand(keyCode, () => {
         // 当方向键被按下时，此函数会被调用。
         // 在这里不做任何操作，从而忽略键盘事件。
       });
-    });
+    }
     this.editor.addCommand(monaco.KeyCode.Enter, () => {
       this.resetCursorPosition();
     });
@@ -219,7 +219,7 @@ export default class UiQuery extends Mixins(classDragMixin) {
         <div
           class={['drag-bottom', { 'drag-ing': this.isChanging }]}
           onMousedown={e => this.dragBegin(e, 'dragY')}
-        ></div>
+        />
       </div>
     );
   }

@@ -3,20 +3,17 @@
 查询屏蔽详情
 
 
-#### 接口参数
+### 请求参数
 
 | 字段      | 类型 | 必选 | 描述   |
 | --------- | ---- | ---- | ------ |
 | id        | int  | 是   | 屏蔽ID |
 | bk_biz_id | int  | 是   | 业务ID |
 
-#### 示例数据
+### 请求参数示例
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "id": 1,
     "bk_biz_id": 2
 }
@@ -101,9 +98,9 @@
 
 > 注：scope和strategy里的target是根据scope_type去选择的。instances对应的是instances_id，ip对应的是{ip,bk_cloud_id}，node对应的是{bk_obj_id, bk_inst_id}，biz则不需要传入任何东西
 
-#### 示例数据
+### 响应参数示例
 
-基于范围的屏蔽
+#### 基于范围的屏蔽
 
 ```json
 {
@@ -146,7 +143,7 @@
 
 ```
 
-基于策略的屏蔽
+#### 基于策略的屏蔽
 
 ```json
 {

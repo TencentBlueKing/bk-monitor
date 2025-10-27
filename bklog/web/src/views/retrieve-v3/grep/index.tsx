@@ -29,8 +29,9 @@ import { readBlobRespToJson } from '@/common/util';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import GrepCli from './grep-cli';
@@ -263,8 +264,9 @@ export default defineComponent({
       handleRequestResult(!isSearching);
     };
 
-    RetrieveHelper.on([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE], handleRequestResult);
-    RetrieveHelper.on([RetrieveEvent.SEARCHING_CHANGE, RetrieveEvent.INDEX_SET_ID_CHANGE], handleSearchingChange);
+    const { addEvent } = useRetrieveEvent();
+    addEvent([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE,RetrieveEvent.AUTO_REFRESH], handleRequestResult);
+    addEvent([RetrieveEvent.SEARCHING_CHANGE, RetrieveEvent.INDEX_SET_ID_CHANGE], handleSearchingChange);
 
     const handleParamsChange = ({ isParamsChange, option }: { isParamsChange: boolean; option: any }) => {
       if (isParamsChange) {
@@ -289,12 +291,7 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       resetGrepRequestResult();
-
       RetrieveHelper.destroyMarkInstance();
-      RetrieveHelper.off(RetrieveEvent.SEARCH_VALUE_CHANGE, handleRequestResult);
-      RetrieveHelper.off(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
-      RetrieveHelper.off(RetrieveEvent.SEARCH_TIME_CHANGE, handleRequestResult);
-      RetrieveHelper.off(RetrieveEvent.INDEX_SET_ID_CHANGE, handleRequestResult);
     });
 
     return () => (

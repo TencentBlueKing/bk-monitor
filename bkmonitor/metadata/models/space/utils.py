@@ -785,8 +785,7 @@ def get_project_clusters(bk_tenant_id: str, project_id: str) -> list:
         return []
 
 
-@atomic(config.DATABASE_CONNECTION_NAME)
-def create_bkcc_spaces(biz_list: list[dict]) -> bool:
+def create_bkcc_spaces(biz_list: list[dict], create_builtin_data_link_delay: bool = True) -> bool:
     """创建业务对应的空间信息
 
     NOTE: 业务类型，不需要关联资源
@@ -794,6 +793,12 @@ def create_bkcc_spaces(biz_list: list[dict]) -> bool:
     :param biz_list: 需要创建的业务列表，需要包含业务ID、业务中文名称、租户ID
     :return: 返回 True 或异常
     """
+    from metadata.task.tasks import (
+        create_base_event_datalink_for_bkcc,
+        create_basereport_datalink_for_bkcc,
+        create_system_proc_datalink_for_bkcc,
+    )
+
     space_data = []
     for biz in biz_list:
         space_data.append(
@@ -808,6 +813,20 @@ def create_bkcc_spaces(biz_list: list[dict]) -> bool:
         )
 
     Space.objects.bulk_create(space_data)
+
+    # 初始化空间内置数据链路
+    if settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK:
+        for biz in biz_list:
+            bk_biz_id = int(biz["bk_biz_id"])
+            if create_builtin_data_link_delay:
+                create_basereport_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
+                create_base_event_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
+                create_system_proc_datalink_for_bkcc.delay(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
+            else:
+                create_basereport_datalink_for_bkcc(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
+                create_base_event_datalink_for_bkcc(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
+                create_system_proc_datalink_for_bkcc(bk_tenant_id=biz["bk_tenant_id"], bk_biz_id=bk_biz_id)
+
     logger.info("bulk create bkcc space successfully, space: %s", json.dumps(biz_list))
 
     return True

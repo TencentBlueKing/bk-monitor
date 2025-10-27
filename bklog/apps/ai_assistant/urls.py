@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,16 +18,27 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf.urls import include
 from django.urls import re_path
 from rest_framework import routers
 
-from apps.ai_assistant.views import AIAssistantViewSet
+from apps.ai_assistant.views import (
+    AIAssistantViewSet,
+    ChatSessionViewSet,
+    ChatSessionContentViewSet,
+    ChatCompletionViewSet,
+    AgentInfoViewSet,
+)
 
 router = routers.DefaultRouter(trailing_slash=True)
 
-router.register(r"ai_assistant", AIAssistantViewSet, basename="ai_assistant")
+router.register(r"", AIAssistantViewSet, basename="ai_assistant")
+router.register(r"agent", AgentInfoViewSet, basename="agent_info")
+router.register(r"session", ChatSessionViewSet, basename="chat_session")
+router.register(r"session_content", ChatSessionContentViewSet, basename="chat_session_content")
+router.register(r"chat_completion", ChatCompletionViewSet, basename="chat_completion")
 
 urlpatterns = [
-    re_path(r"^", include(router.urls)),
+    re_path(r"^ai_assistant/", include(router.urls)),
 ]

@@ -249,8 +249,8 @@ export const pieOptions: any = {
     trigger: 'item',
     confine: true,
     backgroundColor: 'rgba(50, 50, 50, 0.7)', // 半透明背景
-    borderColor: '#333',                     // 边框颜色
-    borderWidth: 1,  
+    borderColor: '#333', // 边框颜色
+    borderWidth: 1,
     textStyle: {
       fontSize: 12,
       lineHeight: 18,

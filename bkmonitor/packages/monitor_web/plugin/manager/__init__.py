@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -68,7 +68,7 @@ FILE_PLUGINS_FACTORY = {
 
 class PluginManagerFactory(object):
     @classmethod
-    def get_manager(cls, bk_tenant_id=None, plugin=None, plugin_type=None, operator="", tmp_path=None) -> PluginManager:
+    def get_manager(cls, bk_tenant_id=None, plugin=None, plugin_type=None, operator="", tmp_path=None, plugin_configs=None) -> PluginManager:
         """
         根据插件ID和插件类型获取对应的插件管理对象
         :param plugin: CollectorPluginMeta对象或id
@@ -77,8 +77,8 @@ class PluginManagerFactory(object):
         :param tmp_path: 临时路径
         :rtype: PluginManager
         """
-        if tmp_path and not os.path.exists(tmp_path):
-            raise IOError(_("文件夹不存在：%s") % tmp_path)
+        if (tmp_path and not os.path.exists(tmp_path)) and not plugin_configs:
+            raise IOError(_("文件夹不存在：%s ，或指标插件配置不存在：plugin_configs") % tmp_path)
 
         if not isinstance(plugin, CollectorPluginMeta):
             if not bk_tenant_id:
@@ -98,7 +98,7 @@ class PluginManagerFactory(object):
         if not operator:
             operator = get_global_user()
 
-        return plugin_manager_cls(plugin, operator, tmp_path)
+        return plugin_manager_cls(plugin, operator, tmp_path, plugin_configs)
 
 
 class PluginFileManagerFactory(object):

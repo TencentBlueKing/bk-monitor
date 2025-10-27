@@ -2,7 +2,7 @@
 * Tencent is pleased to support the open source community by making
 * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
 *
-* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* Copyright (C) 2017-2025 Tencent.  All rights reserved.
 *
 * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
 *
@@ -520,7 +520,7 @@ export default class DashboardPanels extends Vue {
         this.chartOptions,
         {
           tool: {
-            list: list.filter(item => item !== 'strategy'),
+            list,
           },
         },
         {
@@ -640,7 +640,7 @@ export default class DashboardPanels extends Vue {
   // 跳转新增策略
   handleAddStrategy(item) {
     const { targets } = item;
-    if (targets.length === 1) {
+    if (targets.length) {
       let [{ data }] = targets;
       if (this.variableData) {
         data = this.compileVariableData(data);
@@ -652,7 +652,9 @@ export default class DashboardPanels extends Vue {
           }
         });
       }
-      window.open(`${location.href.replace(location.hash, '#/strategy-config/add')}?data=${JSON.stringify(data)}`);
+      window.open(
+        `${location.href.replace(location.hash, '#/strategy-config/add')}?data=${encodeURIComponent(JSON.stringify(data))}`
+      );
     }
   }
   handleRelateAlert(item) {
@@ -833,7 +835,7 @@ export default class DashboardPanels extends Vue {
   :deep(.bk-collapse-item-hover) {
     background: #fff;
     border-radius: 2px;
-    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 5%);
 
     &:hover {
       color: #63656e;
@@ -844,7 +846,7 @@ export default class DashboardPanels extends Vue {
     padding: 0;
     margin-top: 1px;
     background: #fff;
-    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 10%);
   }
 
   .chart-wrapper-old {
@@ -890,7 +892,7 @@ export default class DashboardPanels extends Vue {
       margin-bottom: 10px;
       border: 2px solid transparent;
       border-radius: 2px;
-      box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 1px 2px 0 rgb(0 0 0 / 10%);
 
       &.scroll-in {
         /* stylelint-disable-next-line declaration-no-important */
@@ -917,7 +919,7 @@ export default class DashboardPanels extends Vue {
           background: white;
           border: 0;
           border-radius: 2px;
-          box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 1px 2px 0 rgb(0 0 0 / 10%);
 
           &:first-child {
             margin-right: 10px;
@@ -939,9 +941,10 @@ export default class DashboardPanels extends Vue {
 
     .collect-wrapper {
       position: relative;
+
       // border: 1px solid transparent;
       &:hover {
-        box-shadow: 0px 2px 2px 0px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 2px 0 rgb(0 0 0 / 10%);
 
         .collect-wrapper-mark {
           display: block;
@@ -973,7 +976,7 @@ export default class DashboardPanels extends Vue {
       }
 
       &.is-collect {
-        box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 10%);
 
         .collect-wrapper-mark {
           display: block;
@@ -993,7 +996,7 @@ export default class DashboardPanels extends Vue {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 0 10px 0;
+    padding: 8px 0 10px;
     font-size: 12px;
     line-height: 20px;
 

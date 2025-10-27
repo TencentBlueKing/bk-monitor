@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def disable_influxdb_router_for_vm_table(
     table_ids: list, switched_storage_id: int | None = 0, can_deleted: bool | None = False
-) -> bool:
+) -> None:
     """禁用接入 vm 的结果表的写入 influxdb 的路由
     :param table_ids: 结果表 id
     :param switched_storage_id: 要切换到的关联关系 ID
@@ -48,15 +48,15 @@ def disable_influxdb_router_for_vm_table(
             ).exists():
                 raise ValueError("storage cluster id: %s not vm type", switched_storage_id)
         else:
-            vm_qs = models.AccessVMRecord.objects.filter(result_table_id__in=table_ids)
-            if not vm_qs.exists():
+            vm = models.AccessVMRecord.objects.filter(result_table_id__in=table_ids).first()
+            if not vm:
                 raise ValueError("table_id: %s not access to vm", json.dumps(table_ids))
-            switched_storage_id = vm_qs.first().vm_cluster_id
+            switched_storage_id = vm.vm_cluster_id
 
-        proxy_storage_qs = models.InfluxDBProxyStorage.objects.filter(proxy_cluster_id=switched_storage_id)
-        if not proxy_storage_qs.exists():
+        proxy_storage = models.InfluxDBProxyStorage.objects.filter(proxy_cluster_id=switched_storage_id).first()
+        if not proxy_storage:
             raise ValueError("storage cluster id: %s not register InfluxDBProxyStorage", switched_storage_id)
-        proxy_storage_id = proxy_storage_qs.first().id
+        proxy_storage_id = proxy_storage.pk
         qs.update(storage_cluster_id=switched_storage_id, influxdb_proxy_storage_id=proxy_storage_id)
 
     # 更新数据源的consul, 并且刷新路由配置
@@ -125,9 +125,11 @@ def query_vm_datalink(bk_data_id: int) -> dict:
         )
     }
     # 批量获取结果表级别选项
-    table_id_option_dict = models.ResultTableOption.batch_result_table_option(real_table_id_list)
+    table_id_option_dict = models.ResultTableOption.batch_result_table_option(
+        real_table_id_list, bk_tenant_id=ds.bk_tenant_id
+    )
     # 获取字段信息
-    table_field_dict = models.ResultTableField.batch_get_fields(real_table_id_list, True)
+    table_field_dict = models.ResultTableField.batch_get_fields(real_table_id_list, True, bk_tenant_id=ds.bk_tenant_id)
     # 判断需要未删除，而且在启用状态的结果表
     for rt, rt_info in real_table_ids.items():
         result_table_list.append(

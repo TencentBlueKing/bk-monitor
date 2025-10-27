@@ -50,7 +50,7 @@ class ApiAuthToken(OperateRecordModel):
     token = models.CharField(_("鉴权令牌"), max_length=32, default=get_random_string_16)
     type = models.CharField(_("鉴权类型"), max_length=32, choices=ApiTokenAuthType.get_choices())
     params = models.JSONField(_("鉴权参数"), default=dict)
-    expire_time = models.DateTimeField(_("过期时间"), null=True, default=None)
+    expire_time = models.DateTimeField(_("过期时间"), blank=True, null=True, default=None)
 
     class Meta:
         verbose_name = _("API鉴权令牌")
@@ -83,7 +83,8 @@ class AuthorizerSettings:
     def get_or_create(cls):
         obj, __ = FeatureToggle.objects.get_or_create(
             name=EXTERNAL_AUTHORIZER_MAP,
-            defaults={"status": "debug", "is_viewed": False, "feature_config": {}, "biz_id_white_list": []},
+            defaults={"status": "debug", "is_viewed": False, "feature_config": {}, "biz_id_white_list": [],
+                      "biz_id_black_list": []},
         )
         return obj
 
@@ -164,8 +165,8 @@ class ExternalPermission(OperateRecordModel):
         """
         return (
             ExternalPermission.objects.filter(authorized_user=authorized_user, expire_time__gt=timezone.now())
-                .values_list("space_uid", flat=True)
-                .distinct()
+            .values_list("space_uid", flat=True)
+            .distinct()
         )
 
     @property
@@ -182,7 +183,7 @@ class ExternalPermission(OperateRecordModel):
                 # is_allowed_by_biz里针对bk_biz_id的判断, 当非BKCC的时候需要传入space_uid
                 bk_biz_id = self.bk_biz_id if self.bk_biz_id > 0 else self.space_uid
                 if not Permission(username=authorizer).is_allowed_by_biz(
-                        bk_biz_id=bk_biz_id, action=ActionEnum.MANAGE_EXTRACT_CONFIG, raise_exception=False
+                    bk_biz_id=bk_biz_id, action=ActionEnum.MANAGE_EXTRACT_CONFIG, raise_exception=False
                 ):
                     status = TokenStatusEnum.INVALID.value
             elif self.action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
@@ -210,7 +211,7 @@ class ExternalPermission(OperateRecordModel):
 
     @classmethod
     def create(
-            cls, authorized_users: List[str], space_uid: str, action_id: str, resources: List[str], expire_time: str
+        cls, authorized_users: List[str], space_uid: str, action_id: str, resources: List[str], expire_time: str
     ):
         """
         新增权限
@@ -220,9 +221,9 @@ class ExternalPermission(OperateRecordModel):
         """
         exist_authorized_users = set()
         for permission_obj in cls.objects.filter(
-                authorized_user__in=authorized_users,
-                action_id=action_id,
-                space_uid=space_uid,
+            authorized_user__in=authorized_users,
+            action_id=action_id,
+            space_uid=space_uid,
         ):
             exist_authorized_users.add(permission_obj.authorized_user)
             all_resources = set(resources) | set(permission_obj.resources)
@@ -330,8 +331,8 @@ class ExternalPermission(OperateRecordModel):
                 cls.objects.filter(
                     space_uid=validated_request_data["space_uid"],
                 )
-                    .values_list("authorized_user", flat=True)
-                    .distinct()
+                .values_list("authorized_user", flat=True)
+                .distinct()
             )
 
         view_type = validated_request_data.pop("view_type", ViewTypeEnum.USER.value)
@@ -351,8 +352,8 @@ class ExternalPermission(OperateRecordModel):
             origin_authorized_users = set(authorized_users)
             # 遍历与该实例相关的授权信息
             for permission in cls.objects.filter(
-                    action_id=validated_request_data["action_id"],
-                    space_uid=validated_request_data["space_uid"],
+                action_id=validated_request_data["action_id"],
+                space_uid=validated_request_data["space_uid"],
             ):
                 resource_id = resources[0]
                 if resource_id not in permission.resources:
@@ -416,9 +417,9 @@ class ExternalPermission(OperateRecordModel):
         if view_type == ViewTypeEnum.RESOURCE.value:
             resource_id = resources[0]
             for permission in cls.objects.filter(
-                    authorized_user__in=authorized_users,
-                    action_id=validated_request_data["action_id"],
-                    space_uid=validated_request_data["space_uid"],
+                authorized_user__in=authorized_users,
+                action_id=validated_request_data["action_id"],
+                space_uid=validated_request_data["space_uid"],
             ):
                 permission.resources = [
                     exist_resource for exist_resource in permission.resources if exist_resource != resource_id

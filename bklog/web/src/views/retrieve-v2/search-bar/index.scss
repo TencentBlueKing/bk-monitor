@@ -25,6 +25,9 @@
         color: #313238;
       }
 
+      .mode-icon {
+        display: none;
+      }
       .bklog-qiehuan-2 {
         margin-left: 4px;
         color: #4d4f56;
@@ -127,10 +130,10 @@
                 font-size: 12px;
                 line-height: 20px;
                 color: #e71818;
-                background: #f5f7fa;
-                border-radius: 2px;
                 word-break: break-all;
                 white-space: break-word;
+                background: #f5f7fa;
+                border-radius: 2px;
               }
 
               &:last-child {
@@ -270,16 +273,16 @@
       justify-content: end;
     }
 
-    &::before {
-      position: absolute;
-      top: 0;
-      right: 0;
-      left: 0;
-      height: 50px;
-      content: '';
-      background-color: #f4f7fa;
-      transform: translateY(-100%);
-    }
+    // &::before {
+    //   position: absolute;
+    //   top: 0;
+    //   right: 0;
+    //   left: 0;
+    //   height: 50px;
+    //   content: '';
+    //   background-color: #f4f7fa;
+    //   transform: translateY(-100%);
+    // }
 
     &.readonly {
       &::after {

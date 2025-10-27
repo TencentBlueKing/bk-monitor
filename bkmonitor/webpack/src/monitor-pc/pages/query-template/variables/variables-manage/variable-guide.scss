@@ -1,0 +1,105 @@
+.variable-guide {
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px 0 #1919290d;
+
+  .guide-title {
+    display: flex;
+    align-items: center;
+
+    .icon-bangzhu {
+      font-size: 14px;
+      color: #313238;
+    }
+
+    .title {
+      margin-left: 5px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #313238;
+    }
+  }
+
+  .guide-steps {
+    margin: 24px 0 0 24px;
+
+    .step-item {
+      display: flex;
+
+      .step-index {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-right: 8px;
+
+        .index {
+          width: 24px;
+          height: 24px;
+          font-size: 14px;
+          line-height: 24px;
+          color: #fff;
+          text-align: center;
+          background: #a3b1cc;
+          border-radius: 50%;
+        }
+
+        .line {
+          width: 1px;
+          min-height: 66px;
+          margin: 8px 0;
+          background-color: #a3b1cc;
+        }
+      }
+
+      .step-content {
+        .title {
+          font-size: 14px;
+          font-weight: 600;
+          line-height: 24px;
+          color: #8e9bb3;
+        }
+
+        .description {
+          margin: 8px 0;
+
+          .description-item {
+            display: flex;
+            align-items: center;
+
+            & + .description-item {
+              margin-top: 6px;
+            }
+
+            .dot {
+              width: 5px;
+              height: 5px;
+              background: #4d4f56;
+              border-radius: 50%;
+            }
+
+            .text {
+              display: flex;
+              align-items: center;
+              margin-left: 8px;
+              font-size: 12px;
+              color: #4d4f56;
+            }
+
+            .variable-tag {
+              height: 22px;
+              padding: 0 4px;
+              margin: 0 4px;
+              font-size: 12px;
+              font-weight: 400;
+              line-height: 22px;
+              color: #e54488;
+              background: #f9eff3;
+              border-radius: 2px;
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,24 +1,28 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import logging
-from datetime import datetime
+from collections import defaultdict
+from datetime import UTC, datetime
 
 import pytz
 from django.conf import settings
+from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
+from bkmonitor.utils.time_tools import time_interval_align
 from constants.apm import TelemetryDataType
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import (
     DATA_LINK_V4_VERSION_NAME,
     DataSourceLabel,
@@ -381,6 +385,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
         if vm_record:
             ret["data_id"] = vm_record.bk_base_data_id
             ret["vm_result_table_id"] = vm_record.vm_result_table_id
+            ret["vm_cluster_id"] = vm_record.vm_cluster_id
         return ret
 
     @cached_property
@@ -404,6 +409,32 @@ class MetricBackendHandler(TelemetryBackendHandler):
         return self.bk_base_data_info.get("vm_result_table_id")
 
     def storage_info(self):
+        vm_cluster_id = self.bk_base_data_info.get("vm_cluster_id")
+        if settings.ENABLE_MULTI_TENANT_MODE and vm_cluster_id:
+            from metadata import models
+
+            cluster_name = ""
+            cluster_obj = models.ClusterInfo.objects.filter(cluster_id=vm_cluster_id).first()
+            if cluster_obj:
+                cluster_name = cluster_obj.cluster_name
+            return [
+                {
+                    "raw_data_id": self.bk_base_data_id,
+                    "bk_biz_id": self.app.bk_biz_id,
+                    "result_table_id": self.bk_vm_result_table_id,
+                    "storage_type": "vm",
+                    "storage_type_alias": "",
+                    "storage_cluster": vm_cluster_id,
+                    "storage_cluster_alias": cluster_name,
+                    "expire_time": "30d",
+                    "expire_time_alias": _("30天"),
+                    "status": "running",
+                    "status_display": _("运行中"),
+                    "created_at": "system",
+                    "created_by": "system",
+                }
+            ]
+
         storage_info = []
         result_table = api.bkdata.get_result_table(result_table_id=self.bk_vm_result_table_id)
         storage = result_table.get("storages", {}).get("vm")
@@ -449,11 +480,9 @@ class MetricBackendHandler(TelemetryBackendHandler):
                 if "timestamp" not in log_record:
                     continue
                 timestamp_s = log_record["timestamp"] / 1000
-                localized_dt = (
-                    datetime.utcfromtimestamp(timestamp_s).replace(tzinfo=pytz.utc).astimezone(target_timezone)
-                )
+                localized_dt = datetime.fromtimestamp(timestamp_s, UTC).astimezone(target_timezone)
                 # 格式化为指定的字符串格式
-                formatted_time = localized_dt.strftime('%Y-%m-%d %H:%M:%S%z')
+                formatted_time = localized_dt.strftime("%Y-%m-%d %H:%M:%S%z")
                 formatted_time_with_colon = f"{formatted_time[:-2]}:{formatted_time[-2:]}"
                 if formatted_time_with_colon:
                     break
@@ -495,42 +524,49 @@ class MetricBackendHandler(TelemetryBackendHandler):
             if not metric_biz_id:
                 return []
 
-            component_id = f"{namespace}_{self.bk_vm_result_table_id}"
-            grain = kwargs.get("time_grain", "1m")
-            promql = f"sum(sum_over_time(bkmonitor:record_count{{component_id=~\"^{component_id}-\"}}[{grain}]))"
-            request_params = {
-                "bk_biz_id": metric_biz_id,
-                "query_configs": [
-                    {
-                        "data_source_label": DataSourceLabel.PROMETHEUS,
-                        "data_type_label": DataTypeLabel.TIME_SERIES,
-                        "promql": promql,
-                        "interval": self.GRAIN_MAPPING[grain],
-                        "alias": "a",
-                        "filter_dict": {},
-                    }
-                ],
-                "expression": "",
-                "alias": "a",
-                "start_time": start_time,
-                "end_time": end_time,
-            }
+            if not self.bk_vm_result_table_id:
+                return []
 
-            try:
-                result = resource.grafana.graph_unify_query(request_params)
-                if result["series"]:
-                    datapoints = result["series"][0]["datapoints"]
-                else:
-                    datapoints = []
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(f"get data view error: {e}")
-                datapoints = []
+            # 多租户适配
+            tenant_prefix = "" if self.app.bk_tenant_id == DEFAULT_TENANT_ID else f"{self.app.bk_tenant_id}-"
+
+            # v3迁移到v4链路的规则
+            component_id_prefix = f"{namespace}_{self.bk_vm_result_table_id}-"
+
+            # 监控自建v4链路规则
+            databus_name = "_".join(self.bk_vm_result_table_id.split("_")[1:])
+            v4_component_id_prefix = f"bkmonitor-{databus_name}-"
+
+            grain = kwargs.get("time_grain", "1m")
+
+            # 时间对齐
+            start_time = time_interval_align(timestamp=start_time, interval=self.GRAIN_MAPPING[grain])
+            end_time = time_interval_align(timestamp=end_time, interval=self.GRAIN_MAPPING[grain])
+
+            request_params = dict(
+                # 数据存储在运营租户下
+                bk_tenant_id=DEFAULT_TENANT_ID,
+                promql=f'sum(increase(bkmonitor:record_count{{component_id=~"^{tenant_prefix}({component_id_prefix}|{v4_component_id_prefix})"}}[{grain}]))',
+                start=start_time,
+                end=end_time,
+                step=grain,
+                bk_biz_ids=[metric_biz_id],
+                timezone=timezone.get_current_timezone_name(),
+            )
+
+            series = api.unify_query.query_data_by_promql(**request_params)["series"]
+
+            # 讲同一个timestamp的count相加
+            timestamp_to_count = defaultdict(int)
+            for serie in series:
+                for datapoint in serie["values"]:
+                    timestamp_to_count[datapoint[0]] += datapoint[1]
+
             resp = [
                 {
                     "series": [
-                        {"output_count": datapoint[0], "time": int(datapoint[1] / 1000)}
-                        for datapoint in datapoints
-                        if len(datapoint) >= 2
+                        {"output_count": count, "time": int(timestamp / 1000)}
+                        for timestamp, count in timestamp_to_count.items()
                     ]
                 }
             ]

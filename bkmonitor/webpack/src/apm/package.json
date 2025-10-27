@@ -15,7 +15,7 @@
     "@blueking/search-select-v3": "0.0.1-beta.10",
     "async-validator": "^3.5.2",
     "bk-magic-vue": "2.5.9-beta.45",
-    "dayjs": "^1.11.13",
+    "dayjs": "^1.11.18",
     "deepmerge": "^4.3.1",
     "monitor-api": "workspace:*",
     "monitor-common": "workspace:*",

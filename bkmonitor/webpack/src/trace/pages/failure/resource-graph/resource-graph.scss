@@ -1,7 +1,7 @@
 .resource-graph {
   position: relative;
   display: flex;
-  width: 30%;
+  width: 410px;
   height: 100%;
   background: #34383c;
 
@@ -21,7 +21,7 @@
     font-size: 14px;
     color: #979ba5;
     background-color: #34383c;
-    border-bottom: 1px solid #14161A;
+    border-bottom: 1px solid #14161a;
 
     &_label {
       max-width: 20%;
@@ -64,14 +64,10 @@
     height: 100%;
   }
 
-  .exception-wrap {
-    position: absolute;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -40%);
-
+  .resource-graph-exception {
     .exception-desc {
-      padding: 0px 20px;
+      display: inline-block;
+      max-width: 410px !important;
     }
   }
 }

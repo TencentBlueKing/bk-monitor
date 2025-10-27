@@ -2,7 +2,7 @@
 * Tencent is pleased to support the open source community by making
 * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
 *
-* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* Copyright (C) 2017-2025 Tencent.  All rights reserved.
 *
 * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
 *
@@ -101,11 +101,19 @@
                     :name="set.name"
                   />
                 </bk-select>
-                <bk-input
-                  v-model="item.value"
-                  class="message-set-input"
-                  :placeholder="item.placeholder"
-                />
+                <template v-if="typeof (item.value ?? '') === 'string'">
+                  <bk-input
+                    v-model="item.value"
+                    class="message-set-input"
+                    :placeholder="item.placeholder"
+                  />
+                </template>
+                <template v-else>
+                  <bk-input
+                    disabled
+                    :value="JSON.stringify(item.value)"
+                  />
+                </template>
                 <div
                   v-show="validate.notice && isValidateNotice"
                   class="error-message"
@@ -395,6 +403,7 @@ export default {
   min-height: calc(100vh - 100px);
   margin: 20px 24px;
   font-size: 12px;
+
   // transform: translate3d(0,0,0);
   .notice-list {
     display: flex;
@@ -406,7 +415,7 @@ export default {
       line-height: 28px;
 
       &:first-child {
-        margin-bottom: 0px;
+        margin-bottom: 0;
       }
 
       .item-check {
@@ -457,6 +466,7 @@ export default {
       .item-img {
         width: 32px;
         height: 32px;
+
         // background-color: #699DF4;
         margin-top: 23px;
       }
@@ -479,7 +489,7 @@ export default {
       &:hover {
         cursor: pointer;
         border-color: #699df4;
-        box-shadow: 0px 0px 0px 2px #e1ecff;
+        box-shadow: 0 0 0 2px #e1ecff;
 
         .item-check {
           visibility: visible;

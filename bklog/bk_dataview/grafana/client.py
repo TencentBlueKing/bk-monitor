@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import requests
 from django.utils.crypto import get_random_string
 
@@ -58,14 +58,16 @@ def get_organization_by_id(org_id: int):
     return resp
 
 
-def get_all_organization():
-    url = f"{API_HOST}/api/orgs/"
+def get_all_organization(api_host: str = None):
+    api_host = api_host or API_HOST
+    url = f"{api_host}/api/orgs/?perpage=1000000"
     resp = rpool.get(url, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
     return resp
 
 
-def create_organization(name: str):
-    url = f"{API_HOST}/api/orgs/"
+def create_organization(name: str, api_host: str = None):
+    api_host = api_host or API_HOST
+    url = f"{api_host}/api/orgs/"
     data = {"name": name}
     resp = rpool.post(url, json=data, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
     return resp
@@ -97,6 +99,14 @@ def update_user_in_org(org_id: int, user_id: int, role: str = "Editor"):
 def get_datasource(org_id: int, name):
     """查询数据源"""
     url = f"{API_HOST}/api/datasources/name/{name}"
+    headers = {"X-Grafana-Org-Id": str(org_id)}
+    resp = rpool.get(url, headers=headers, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
+    return resp
+
+
+def get_all_datasources(org_id: int, api_host: str = None):
+    api_host = api_host or API_HOST
+    url = f"{api_host}/api/datasources/"
     headers = {"X-Grafana-Org-Id": str(org_id)}
     resp = rpool.get(url, headers=headers, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
     return resp
@@ -144,6 +154,53 @@ def delete_datasource(org_id: int, datasource_id: int):
     return resp
 
 
+def create_folder(org_id: int, title: str, parent_uid: str = None, api_host: str = None):
+    api_host = api_host or API_HOST
+    url = f"{api_host}/api/folders"
+    headers = {"X-Grafana-Org-Id": str(org_id)}
+    if parent_uid is None:
+        data = {"title": title}
+    else:
+        data = {"title": title, "parentUid": parent_uid}
+    resp = rpool.post(
+        url, json=data, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log}
+    )
+    return resp
+
+
+def get_folders(org_id: int, api_host: str = None):
+    api_host = api_host or API_HOST
+    url = f"{api_host}/api/folders"
+    headers = {"X-Grafana-Org-Id": str(org_id)}
+    resp = rpool.get(url, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log})
+    return resp
+
+
+def create_dashboard(org_id: int, dashboard_info: dict, panels: list, folder_uid: str, api_host: str = None):
+    url = f"{api_host}/api/dashboards/db"
+    headers = {"X-Grafana-Org-Id": str(org_id)}
+    data = {
+        "dashboard": {
+            "id": None,
+            "uid": None,
+            "title": dashboard_info["title"],
+            "tags": dashboard_info["tags"],
+            "timezone": dashboard_info["timezone"],
+            "refresh": dashboard_info["refresh"],
+            "templating": dashboard_info["templating"],
+            "time": dashboard_info["time"],
+            "timepicker": dashboard_info["timepicker"],
+            "panels": panels,
+        },
+        "folderUid": folder_uid,
+        "overwrite": True,
+    }
+    resp = rpool.post(
+        url, json=data, auth=grafana_settings.ADMIN, headers=headers, hooks={"response": requests_curl_log}
+    )
+    return resp
+
+
 def update_dashboard(org_id: int, folder_id, dashboard):
     url = f"{API_HOST}/api/dashboards/db"
     data = {
@@ -157,10 +214,6 @@ def update_dashboard(org_id: int, folder_id, dashboard):
         url, json=data, headers=headers, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log}
     )
     return resp
-
-
-def create_folder():
-    pass
 
 
 def search_dashboard(org_id: int, dashboard_id: int = None):

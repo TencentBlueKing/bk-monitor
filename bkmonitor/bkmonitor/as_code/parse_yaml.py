@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -13,8 +13,8 @@ import datetime
 import re
 from abc import abstractmethod
 from copy import deepcopy
+from typing import Any
 
-from django.conf import settings
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.action.serializers import DutyRuleDetailSlz
@@ -48,6 +48,7 @@ from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import DEFAULT_CONVERGE_CONFIG, NoticeChannel, NoticeWay
 from constants.common import DutyCategory, DutyGroupType
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.strategy import CUSTOM_PRIORITY_GROUP_PREFIX
 
 LEVEL_NAME_TO_ID = {"fatal": 1, "warning": 2, "remind": 3}
 LEVEL_ID_TO_NAME = {v: k for k, v in LEVEL_NAME_TO_ID.items()}
@@ -170,7 +171,7 @@ class StrategyConfigParser(BaseConfigParser):
 
         return time_ranges
 
-    def get_query_configs_n_name(self, config: dict, detect: dict) -> tuple[list, str, str]:
+    def get_query_configs_n_name(self, config: dict[str, Any], detect: dict) -> tuple[list, str, str]:
         # 查询配置
         query_configs = []
 
@@ -275,7 +276,12 @@ class StrategyConfigParser(BaseConfigParser):
         trigger_config = {
             "check_window": trigger_window,
             "count": trigger_count,
-            "uptime": {"calendars": config["active_calendars"], "time_ranges": time_ranges},
+            "uptime": {
+                # 向前兼容旧的active_calendars旧配置
+                "calendars": config["calendars"].get("not_active", []) or config["active_calendars"],
+                "active_calendars": config["calendars"].get("active", []),
+                "time_ranges": time_ranges,
+            },
         }
         detect = {
             "connector": config["detect"]["algorithm"]["operator"],
@@ -475,6 +481,10 @@ class StrategyConfigParser(BaseConfigParser):
                 }
             )
 
+        # 策略优先级分组自定义判定:
+        priority_group_key = ""
+        if config["priority_group_key"].startswith(CUSTOM_PRIORITY_GROUP_PREFIX):
+            priority_group_key = config["priority_group_key"]
         strategy = {
             "bk_biz_id": self.bk_biz_id,
             "scenario": scenario,
@@ -482,6 +492,7 @@ class StrategyConfigParser(BaseConfigParser):
             "labels": config["labels"],
             "name": config["name"],
             "priority": config["priority"],
+            "priority_group_key": priority_group_key,
             "items": [item],
             "detects": detects,
             "notice": notice,
@@ -491,7 +502,10 @@ class StrategyConfigParser(BaseConfigParser):
         return strategy
 
     @staticmethod
-    def update_active_time(config: dict, code_config: dict):
+    def update_active_time(config: dict[str, Any], code_config: dict[str, Any]):
+        """
+        更新活跃时间配置
+        """
         uptime = config["detects"][0]["trigger_config"].get("uptime")
         if uptime:
             active_times = []
@@ -501,9 +515,16 @@ class StrategyConfigParser(BaseConfigParser):
             if active_time and active_time != "00:00 -- 23:59":
                 code_config["active_time"] = active_time
 
-            calendars = uptime.get("calendars", [])
+            # 日历配置
+            not_active_calendars: list[int] = uptime.get("calendars", [])
+            active_calendars: list[int] = uptime.get("active_calendars", [])
+            calendars: dict[str, list[int]] = {}
+            if active_calendars:
+                calendars["active"] = active_calendars
+            if not_active_calendars:
+                calendars["not_active"] = not_active_calendars
             if calendars:
-                code_config["active_calendar"] = calendars
+                code_config["calendars"] = calendars
 
     @staticmethod
     def update_algorithm_config(data_source: str, data_type: str, config: dict, item: dict, detect: dict):
@@ -568,6 +589,8 @@ class StrategyConfigParser(BaseConfigParser):
                     if dynamic_group_id not in self.reverse_dynamic_groups:
                         continue
                     nodes.append(self.reverse_dynamic_groups[dynamic_group_id])
+            else:
+                raise ValueError(f"Unknown target field: {target['field']}")
 
             if nodes:
                 query["target"] = {"type": target_type, "nodes": nodes}
@@ -575,7 +598,7 @@ class StrategyConfigParser(BaseConfigParser):
     def update_notice_config(self, config: dict, code_config: dict):
         # 通知配置
         notice_config = config["notice"]
-        notice = {
+        notice: dict[str, Any] = {
             "user_groups": [],
             "signal": [signal for signal in notice_config["signal"] if signal != "no_data"],
         }
@@ -659,6 +682,11 @@ class StrategyConfigParser(BaseConfigParser):
         if config["priority"] is not None:
             code_config["priority"] = config["priority"]
 
+        priority_group_key = config["priority_group_key"]
+        if not priority_group_key.startswith(CUSTOM_PRIORITY_GROUP_PREFIX):
+            priority_group_key = ""
+        code_config["priority_group_key"] = priority_group_key
+
         if config["labels"]:
             code_config["labels"] = config["labels"]
         if not config["is_enabled"]:
@@ -689,13 +717,9 @@ class StrategyConfigParser(BaseConfigParser):
             code_query_config = {"metric": get_metric_id(data_source, data_type, query_config)}
             # 如果需要的话，自定义上报和插件采集类指标导出时将结果表ID部分替换为 data_label
             data_label = query_config.get("data_label", None)
-            if (
-                settings.ENABLE_DATA_LABEL_EXPORT
-                and data_label
-                and (
-                    query_config.get("data_source_label", None)
-                    in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
-                )
+            if data_label and (
+                query_config.get("data_source_label", None)
+                in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
             ):
                 code_query_config["metric"] = re.sub(
                     rf"\b{query_config['result_table_id']}\b", data_label, code_query_config["metric"]

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 
 from django.core import exceptions
@@ -117,7 +117,7 @@ class MixinMultiStrSplitByCommaField(models.Field):
 
         value = [str(_value) for _value in value]
         try:
-            value = ",%s," % ",".join(value)
+            value = ",{},".format(",".join(value))
         except (TypeError, KeyError):
             raise exceptions.ValidationError(
                 self.error_messages["invalid"],
@@ -189,7 +189,7 @@ class OperateRecordQuerySet(models.query.QuerySet):
         if get_request_username(default=""):
             # 非用户请求，不对更新人进行修改
             kwargs.update({"updated_at": timezone.now(), "updated_by": get_request_username()})
-        super().update(**kwargs)
+        return super().update(**kwargs)
 
 
 class OperateRecordModelManager(models.Manager):
@@ -248,23 +248,23 @@ class SoftDeleteModelManager(OperateRecordModelManager):
 
     def exclude(self, *args, **kwargs):
         # 默认都不显示被标记为删除的数据
-        return super(SoftDeleteModelManager, self).filter(is_deleted=False).exclude(*args, **kwargs)
+        return super().filter(is_deleted=False).exclude(*args, **kwargs)
 
     def all(self, *args, **kwargs):
         # 默认都不显示被标记为删除的数据
-        return super(SoftDeleteModelManager, self).filter(is_deleted=False)
+        return super().filter(is_deleted=False)
 
     def filter(self, *args, **kwargs):
         # 默认都不显示被标记为删除的数据
         if not kwargs.get("is_deleted"):
             kwargs["is_deleted"] = False
-        return super(SoftDeleteModelManager, self).filter(*args, **kwargs)
+        return super().filter(*args, **kwargs)
 
     def get(self, *args, **kwargs):
         # 默认都不显示被标记为删除的数据
         if not kwargs.get("is_deleted"):
             kwargs["is_deleted"] = False
-        return super(SoftDeleteModelManager, self).get(*args, **kwargs)
+        return super().get(*args, **kwargs)
 
     def get_queryset(self):
         return SoftDeleteQuerySet(self.model, using=self._db)

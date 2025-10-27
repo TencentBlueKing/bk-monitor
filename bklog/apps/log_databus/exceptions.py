@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import BaseException, ErrorCode
@@ -416,3 +416,8 @@ class VclusterNodeNotAllowedException(BaseCollectorConfigException):
 class NodeSettingException(BaseCollectorConfigException):
     ERROR_CODE = "910"
     MESSAGE = _("ES集群节点配置获取失败：{error_info}")
+
+
+class SubscriptionStatisticException(BaseException):
+    ERROR_CODE = "911"
+    MESSAGE = _("节点管理统计订阅任务数据异常: {reason}")

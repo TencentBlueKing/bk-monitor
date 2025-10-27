@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { BarChart, CustomChart, HeatmapChart, LineChart, MapChart, PieChart } from 'echarts/charts';
+import { BarChart, CustomChart, HeatmapChart, LineChart, MapChart, PieChart, ScatterChart } from 'echarts/charts';
 import {
   BrushComponent,
   GeoComponent,
@@ -72,6 +72,7 @@ echarts.use([
   BarChart,
   PieChart,
   LineChart,
+  ScatterChart,
   MapChart,
   HeatmapChart,
   CustomChart,

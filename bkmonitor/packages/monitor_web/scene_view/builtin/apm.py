@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -13,6 +13,7 @@ import json
 import logging
 import threading
 from typing import Any
+from collections.abc import Callable
 
 from django.conf import settings
 from django.core.cache import caches
@@ -25,13 +26,13 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric.constants import SeriesAliasType
-from apm_web.models import Application, CodeRedefinedConfigRelation
+from apm_web.models import Application
 from bkmonitor.models import MetricListCache
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import deserialize_and_decompress
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
-from constants.apm import MetricTemporality, TelemetryDataType, Vendor
+from constants.apm import MetricTemporality, TelemetryDataType, CommonMetricTag, DEFAULT_DATA_LABEL
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.scene_view.builtin import BuiltinProcessor, create_default_views
@@ -41,30 +42,7 @@ from monitor_web.scene_view.builtin.utils import gen_string_md5
 logger = logging.getLogger(__name__)
 
 
-def discover_config_from_node_or_none(node: dict[str, Any]) -> dict[str, Any] | None:
-    is_trpc: bool = False
-    rpc_system: str = metric_group.GroupEnum.TRPC
-    for meta in node.get("system") or []:
-        if meta.get("name") == metric_group.GroupEnum.TRPC:
-            is_trpc = True
-        extra_data: dict[str, Any] = meta.get("extra_data") or {}
-        if extra_data.get("rpc_system"):
-            rpc_system = extra_data["rpc_system"]
-            break
-
-    if not is_trpc:
-        logger.info("[apm][discover_config_from_node_or_none] system not found: node -> %s", node)
-        return None
-
-    # G 和 Tars 框架的指标类型为 Gauge。
-    temporality: str = (MetricTemporality.CUMULATIVE, MetricTemporality.DELTA)[
-        Vendor.has_sdk(node.get("sdk"), Vendor.G) or rpc_system == "tars"
-    ]
-    logger.info("[apm][discover_config_from_node_or_none] temporality -> %s, node -> %s", temporality, node)
-    return MetricTemporality.get_metric_config(temporality)
-
-
-def discover_config_from_metric_or_none(
+def get_rpc_service_config_from_metric_or_none(
     bk_biz_id: int, app_name: str, table_id: str, service_name: str
 ) -> dict[str, Any] | None:
     metric_fields: list[str] = [
@@ -79,7 +57,7 @@ def discover_config_from_metric_or_none(
         metric_field__in=metric_fields,
     ).exists()
     if not metric_exists:
-        logger.info("[apm][discover_config_from_metric_or_none] rpc metric not found: table_id -> %s", table_id)
+        logger.info("[apm][get_rpc_service_config_from_metric_or_none] rpc metric not found: table_id -> %s", table_id)
         return None
 
     def _fetch_server_list():
@@ -101,7 +79,7 @@ def discover_config_from_metric_or_none(
     if "server_config" not in discover_result:
         _get_server_config()
 
-    logger.info("[apm][discover_config_from_metric_or_none] discover_result -> %s", discover_result)
+    logger.info("[apm][get_rpc_service_config_from_metric_or_none] discover_result -> %s", discover_result)
     if service_name not in discover_result["server_list"]:
         return None
 
@@ -137,22 +115,15 @@ def discover_caller_callee(
         logger.info("[apm][discover_caller_callee] node not found: %s / %s / %s", bk_biz_id, app_name, service_name)
         return discover_result
 
-    server_config: dict[str, Any] | None = discover_config_from_node_or_none(
+    server_config: dict[str, Any] | None = ServiceHandler.get_rpc_service_config_or_none(
         node
-    ) or discover_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
+    ) or get_rpc_service_config_from_metric_or_none(bk_biz_id, app_name, table_id, service_name)
     if not server_config:
         return discover_result
 
-    try:
-        code_redefined_config = CodeRedefinedConfigRelation.objects.get(
-            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-        )
-        server_config["ret_code_as_exception"] = code_redefined_config.ret_code_as_exception
-    except CodeRedefinedConfigRelation.DoesNotExist:
-        server_config["ret_code_as_exception"] = False
-
     # 模调指标可能来源于用户自定义，因为框架/协议原因无法补充「服务」字段，此处允许动态设置「服务」配置以满足该 case。
-    server_config.update(settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(f"{bk_biz_id}-{app_name}") or {})
+    app_key: str = f"{bk_biz_id}-{app_name}"
+    server_config.update(settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(app_key) or {})
     discover_result["server_config"] = server_config
     discover_result["exists"] = True
     logger.info(
@@ -162,6 +133,11 @@ def discover_caller_callee(
         service_name,
         discover_result,
     )
+
+    discover_result["server_config"]["enable_global_metric"] = app_key in (
+        settings.APM_RPC_GLOBAL_METRIC_ENABLE_APP_LIST or []
+    )
+
     return discover_result
 
 
@@ -172,6 +148,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
     filenames = [
         # ⬇️ APM观测场景视图
+        "apm_application-alarm_template",
         "apm_application-endpoint",
         "apm_application-error",
         "apm_application-overview",
@@ -385,46 +362,29 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             server_config: dict[str, Any] = discover_result["server_config"]
             if server_config["temporality"] == MetricTemporality.CUMULATIVE:
                 # 指标为累加类型，需要添加 increase 函数
-                cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
+                cls._extend_query_config_param(
+                    view_config, "functions", [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}]
+                )
+
+            if server_config.get("enable_global_metric"):
+                # 设置 data_label 并替换 table_id
+                cls._set_query_config_param(view_config, "data_label", DEFAULT_DATA_LABEL)
+                view_config = cls._replace_variable(view_config, table_id, f"{DEFAULT_DATA_LABEL}.__default__")
+
+                # 增加 app_name 过滤条件。
+                extra_cond: dict[str, Any] = {
+                    "key": CommonMetricTag.APP_NAME.value,
+                    "method": "eq",
+                    "value": [app_name],
+                    "condition": "and",
+                }
+                cls._extend_query_config_param(view_config=view_config, field="where", value=[extra_cond])
 
             view_config = cls._replace_variable(view_config, "${temporality}", server_config["temporality"])
             view_config = cls._replace_variable(view_config, "${server}", server_config["server_field"])
             view_config = cls._replace_variable(view_config, "${service_name}", server_config["service_field"])
             view_config = cls._replace_variable(
                 view_config, "${server_filter_method}", server_config["server_filter_method"]
-            )
-
-            ret_code_as_exception: bool = server_config.get("ret_code_as_exception", False)
-            if ret_code_as_exception:
-                success_rate_panel_data: dict[str, Any] = view_config["overview_panels"][0]["extra_panels"][1][
-                    "targets"
-                ][0]["data"]
-                code_condition: dict[str, Any] = {
-                    "key": "code",
-                    "method": "eq",
-                    "value": ["0", "ret_0"],
-                    "condition": "and",
-                }
-                success_rate_panel_data["query_configs"][0]["where"][1] = code_condition
-                success_rate_panel_data["unify_query_param"]["query_configs"][0]["where"][1] = code_condition
-
-                view_config["overview_panels"][0]["extra_panels"][2]["options"]["child_panels_selector_variables"][0][
-                    "variables"
-                ] = {
-                    "code_field": "code",
-                    "code_values": ["0", "ret_0"],
-                    "code_method": "neq",
-                    # 排除非 0 返回码可能是 timeout 的情况
-                    "code_extra_where": {
-                        "key": "code_type",
-                        "method": "neq",
-                        "value": ["timeout"],
-                        "condition": "and",
-                    },
-                }
-
-            view_config = cls._replace_variable(
-                view_config, "${ret_code_as_exception}", ("false", "true")[ret_code_as_exception]
             )
 
         # APM自定义指标
@@ -466,14 +426,15 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
                 if server_config["temporality"] == MetricTemporality.CUMULATIVE:
                     # 指标为累加类型，需要添加 increase 函数
-                    cls._add_functions(view_config, [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}])
+                    cls._extend_query_config_param(
+                        view_config, "functions", [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}]
+                    )
 
                 view_variables = {
                     "temporality": server_config["temporality"],
                     "server": server_config["server_field"],
                     "service_name": server_config["service_field"],
                     "server_filter_method": server_config["server_filter_method"],
-                    "ret_code_as_exception": server_config.get("ret_code_as_exception", False),
                 }
 
             if metric_count > 0:
@@ -623,30 +584,61 @@ class ApmBuiltinProcessor(BuiltinProcessor):
     def _replace_variable(cls, view_config, target, value):
         """替换模版中的变量"""
         content = json.dumps(view_config)
-        return json.loads(content.replace(target, str(value)))
+        return json.loads(content.replace(target, json.dumps(str(value))[1:-1]))
 
     @classmethod
-    def _add_functions(cls, view_config: dict[str, Any], functions: list[dict[str, Any]]):
+    def _walk_target_data(cls, view_config: dict[str, Any], callback: Callable[[dict[str, Any]], ...]):
+        """遍历 view_config 中所有 target 的 data 字段，并执行回调函数"""
         for panel in (
             (view_config.get("overview_panels") or [])
             + (view_config.get("extra_panels") or [])
             + (view_config.get("panels") or [])
         ):
-            cls._add_functions(panel, functions)
+            cls._walk_target_data(panel, callback)
 
         for target in view_config.get("targets") or []:
-            target_data = target.get("data")
+            target_data: dict[str, Any] | None = target.get("data")
             if not target_data:
                 continue
 
-            for query_config in target_data.get("query_configs") or []:
-                query_config.setdefault("functions", []).extend(functions)
+            callback(target_data)
 
-            if not target_data.get("unify_query_param"):
-                continue
+    @classmethod
+    def _set_query_config_param(cls, view_config: dict[str, Any], field: str, value: Any):
+        """设置 query_config 的字段值"""
 
-            for query_config in target_data["unify_query_param"].get("query_configs") or []:
-                query_config.setdefault("functions", []).extend(functions)
+        def _handle_query_configs(_target_data: dict[str, Any] | None):
+            if not _target_data:
+                return
+
+            for _query_config in _target_data.get("query_configs") or []:
+                _query_config[field] = value
+
+        def _callback(target_data: dict[str, Any]):
+            _handle_query_configs(target_data)
+            _handle_query_configs(target_data.get("unify_query_param"))
+
+        cls._walk_target_data(view_config, _callback)
+
+    @classmethod
+    def _extend_query_config_param(cls, view_config: dict[str, Any], field: str, value: list[dict[str, Any]]):
+        """向 query_config 的列表字段中追加内容"""
+
+        def _handle_query_configs(_target_data: dict[str, Any] | None):
+            if not _target_data:
+                return
+
+            for _query_config in _target_data.get("query_configs") or []:
+                _query_config.setdefault(field, []).extend(value)
+
+        def _callback(target_data: dict[str, Any]):
+            _handle_query_configs(target_data)
+            _handle_query_configs(target_data.get("unify_query_param"))
+
+            if target_data.get("group_by_limit") and field in target_data["group_by_limit"]:
+                target_data["group_by_limit"][field].extend(value)
+
+        cls._walk_target_data(view_config, _callback)
 
     @classmethod
     def _add_config_from_container(cls, app_name, service_name, view, view_config, display_with_sidebar):
@@ -768,7 +760,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 bk_biz_id=bk_biz_id,
                 scene_id=scene_id,
                 type="",
-                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error"]},
+                defaults={"config": ["overview", "topo", "service", "endpoint", "db", "error", "alarm_template"]},
             )
         if scene_id == f"{cls.SCENE_ID}_service":
             SceneViewOrderModel.objects.update_or_create(

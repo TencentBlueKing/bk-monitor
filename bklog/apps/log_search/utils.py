@@ -155,16 +155,35 @@ def fetch_request_username():
     return request_username
 
 
-def add_highlight_mark(data_list: list[dict], match_field: str, pattern: str, ignore_case: bool = False):
+def add_highlight_mark(data_list: list[dict], match_field: str, grep_nodes: list[dict]):
     """
     添加高亮标记
     :param data_list: 数据列表
     :param match_field: data中需要进行高亮的字段
-    :param pattern: 高亮内容的正则表达式
-    :param ignore_case: 是否忽略大小写
+    :param grep_nodes: 节点列表
     """
-    if not data_list or not match_field or not pattern or ("." not in match_field and match_field not in data_list[0]):
+    if not all([data_list, match_field, grep_nodes]):
         return data_list
+
+    ignore_case = False
+    for arg in grep_nodes[-1]["args"]:
+        if "v" in arg:
+            # 如果最后一个参数是-v，意味着是排除操作，则不进行高亮
+            return data_list
+        if "i" in arg:
+            ignore_case = True
+    pattern = grep_nodes[-1]["pattern"]
+    if grep_nodes[-1]["command"] == "grep":
+        # LIKE 匹配，进行非正则匹配
+        pattern = re.escape(pattern)
+
+    def mark(raw_value):
+        return re.sub(
+            pattern,
+            lambda x: HighlightConfig.PRE_TAG + x.group() + HighlightConfig.POST_TAG,
+            raw_value,
+            flags=re.I if ignore_case else 0,
+        )
 
     for data in data_list:
         # 对 grep_field 字段 pattern 内容进行高亮处理
@@ -174,6 +193,7 @@ def add_highlight_mark(data_list: list[dict], match_field: str, pattern: str, ig
             keys = match_field.split(".")
             first_key = keys[0]
             last_key = keys[-1]
+            value = ""
             for key in keys[1:]:
                 if isinstance(json_data, dict) and key in json_data:
                     if key == last_key:
@@ -184,23 +204,13 @@ def add_highlight_mark(data_list: list[dict], match_field: str, pattern: str, ig
                     continue
             if not isinstance(value, str):
                 value = str(value)
-            json_data[last_key] = re.sub(
-                pattern,
-                lambda x: HighlightConfig.PRE_TAG + x.group() + HighlightConfig.POST_TAG,
-                value,
-                flags=re.I if ignore_case else 0,
-            )
+            json_data[last_key] = mark(value)
             data[first_key] = json.dumps(tmp_dic)
-        else:
+        elif match_field in data:
             value = data[match_field]
             if not isinstance(value, str):
                 value = str(value)
-            data[match_field] = re.sub(
-                pattern,
-                lambda x: HighlightConfig.PRE_TAG + x.group() + HighlightConfig.POST_TAG,
-                value,
-                flags=re.I if ignore_case else 0,
-            )
+            data[match_field] = mark(value)
 
     return data_list
 

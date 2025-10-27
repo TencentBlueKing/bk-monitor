@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -10,19 +9,17 @@ specific language governing permissions and limitations under the License.
 """
 
 import re
-from typing import Optional
+from rest_framework.fields import empty
 
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-from rest_framework.fields import empty
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.request import get_request_tenant_id
-from constants.common import DEFAULT_TENANT_ID
 from constants.result_table import RT_TABLE_NAME_WORD_EXACT
 from core.unit import UNITS
 
@@ -32,7 +29,7 @@ PATTERN = re.compile(r"^[_a-zA-Z][a-zA-Z0-9_]*$")
 class StrictCharField(serializers.CharField):
     def __init__(self, **kwargs):
         kwargs.update({"trim_whitespace": False})
-        super(StrictCharField, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
 
 class MetricJsonSerializer(serializers.Serializer):
@@ -145,11 +142,11 @@ class StringSplitListField(serializers.ListField):
 
     def __init__(self, sep, *args, **kwargs):
         self.sep = sep
-        super(StringSplitListField, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def to_internal_value(self, data):
         result = data.split(self.sep) if isinstance(data, str) else data
-        return super(StringSplitListField, self).to_internal_value([item for item in result if item])
+        return super().to_internal_value([item for item in result if item])
 
 
 class BkBizIdSerializer(serializers.Serializer):
@@ -176,26 +173,24 @@ class TenantIdField(serializers.CharField):
     如果传入的值为空，则使用当前请求的租户ID
     """
 
-    def __init__(self, *args, must_system_tenant=False, **kwargs):
+    def __init__(self, *args, prefer_request_tenant=True, **kwargs):
         kwargs["required"] = False
 
         super().__init__(*args, **kwargs)
         self._allow_blank = kwargs.get("allow_blank", False)
         self.allow_blank = True
-        self.must_system_tenant = must_system_tenant
+        self.prefer_request_tenant = prefer_request_tenant
 
-    def run_validation(self, data=...):
+    def run_validation(self, data=empty):
         # 如果传入的值为空，则使用当前请求的租户ID
-        if not data or data is empty:
-            data = get_request_tenant_id(peaceful=True)
+        if self.prefer_request_tenant or not data or data is empty:
+            request_tenant_id = get_request_tenant_id(peaceful=True)
+            if request_tenant_id:
+                data = request_tenant_id
 
         # 如果租户ID为空，则抛出异常
-        if not data and not self._allow_blank:
+        if (not data or data is empty) and not self._allow_blank:
             raise ValidationError(_("tenant_id is required"))
-
-        # 如果必须为系统租户，则对租户ID进行校验
-        if self.must_system_tenant and data != DEFAULT_TENANT_ID:
-            raise ValidationError(_("bk_tenant_id must be system tenant"))
 
         return super().run_validation(data)
 
@@ -221,7 +216,7 @@ class TenantSerializer(serializers.Serializer):
             raise ValidationError(_("bk_tenant_id or bk_biz_id must be provided"))
 
         # 通过业务ID获取租户ID
-        space: Optional[Space] = SpaceApi.get_space_detail(
+        space: Space | None = SpaceApi.get_space_detail(
             bk_biz_id=attrs.get("bk_biz_id") or 0, space_uid=attrs.get("space_uid") or ""
         )
         if not space:

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -277,7 +277,8 @@ export default {
     'Indicates the environment dependency of running this plugin, such as which version it is running on, Which versions of collection are only supported',
   '采集的数据为CMDB中服务模块下的服务实例数据，可以支持多实例的采集，如mysql redis。':
     'The collected data is the service instance data under the service module in CMDB, which can support the collection of multiple instances, such as mysql redis. ',
-  '最常用的参数使用方式。如 --port 3306': 'The most commonly used parameter usage. Such as: --port 3306',
+  // '最常用的参数使用方式。如 --port 3306': 'The most commonly used parameter usage. Such as: --port 3306',
+  '最常见的参数使用方式，如--port 3306（需手动添加“--”前缀）': 'The most common way to use parameters, such as --port 3306 (with the \'--\' prefix added manually)',
   插件制作快速入门: 'Plug-in making quick start',
   '说明采集的原理过程，可以更好的方便使用': 'Explain the collection process to facilitate better use.',
   "了解'快速接入'方法": "Learn about the 'Quick Access' Method",

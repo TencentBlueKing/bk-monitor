@@ -1,15 +1,16 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import functools
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any
+from collections.abc import Callable
 
 from django.db.models import Q
 from django.utils.functional import cached_property
@@ -17,11 +18,11 @@ from django.utils.functional import cached_property
 from apm_web.metric.constants import SeriesAliasType
 from bkmonitor.data_source import filter_dict_to_conditions, q_to_dict
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from constants.apm import MetricTemporality, TRPCMetricTag
+from constants.apm import MetricTemporality, RPCMetricTag
 
 from .. import base, define
 
-SUCCESS_CODES: List[str] = ["0", "ret_0"]
+SUCCESS_CODES: list[str] = ["0", "ret_0"]
 
 
 class TRPCMetricField:
@@ -56,7 +57,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
     # tRPC-Go Recovery 插件写入指标，通用框架指标，和上报 SDK 无关。
     PANIC_METRIC_FIELD: str = "trpc_PanicNum"
 
-    METRIC_FIELDS: Dict[str, Dict[str, str]] = {
+    METRIC_FIELDS: dict[str, dict[str, str]] = {
         SeriesAliasType.CALLER.value: {
             "rpc_handled_total": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
             "rpc_handled_seconds_sum": TRPCMetricField.RPC_CLIENT_HANDLED_SECONDS_SUM,
@@ -77,15 +78,14 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         self,
         bk_biz_id: int,
         app_name: str,
-        group_by: Optional[List[str]] = None,
-        filter_dict: Optional[Dict[str, Any]] = None,
+        group_by: list[str] | None = None,
+        filter_dict: dict[str, Any] | None = None,
         **kwargs,
     ):
         super().__init__(bk_biz_id, app_name, group_by, filter_dict, **kwargs)
         self.kind: str = kwargs.get("kind") or SeriesAliasType.CALLER.value
         self.temporality: str = kwargs.get("temporality") or MetricTemporality.CUMULATIVE
-        self.ret_code_as_exception: bool = kwargs.get("ret_code_as_exception") or False
-        self.time_shift: Optional[str] = kwargs.get("time_shift")
+        self.time_shift: str | None = kwargs.get("time_shift")
         # 预留 interval 可配置入口
         self.interval = self.DEFAULT_INTERVAL
 
@@ -94,17 +94,17 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             self.group_by.remove(self.metric_helper.TIME_FIELD)
             self.instant: bool = False
 
-    def handle(self, calculation_type: str, **kwargs) -> List[Dict[str, Any]]:
+    def handle(self, calculation_type: str, **kwargs) -> list[dict[str, Any]]:
         return self.get_calculation_method(calculation_type)(**kwargs)
 
-    def query_config(self, calculation_type: str, **kwargs) -> Dict[str, Any]:
+    def query_config(self, calculation_type: str, **kwargs) -> dict[str, Any]:
         return self._get_qs(calculation_type).query_config
 
     class Meta:
         name = define.GroupEnum.TRPC
 
-    def get_calculation_method(self, calculation_type: str) -> Callable[..., List[Dict[str, Any]]]:
-        support_calculation_methods: Dict[str, Callable[..., List[Dict[str, Any]]]] = {
+    def get_calculation_method(self, calculation_type: str) -> Callable[..., list[dict[str, Any]]]:
+        support_calculation_methods: dict[str, Callable[..., list[dict[str, Any]]]] = {
             define.CalculationType.REQUEST_TOTAL: self._request_total,
             define.CalculationType.SUCCESS_RATE: functools.partial(self._request_code_rate, CodeType.SUCCESS),
             define.CalculationType.TIMEOUT_RATE: functools.partial(self._request_code_rate, CodeType.TIMEOUT),
@@ -125,9 +125,9 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         return self.temporality == MetricTemporality.CUMULATIVE
 
     @cached_property
-    def _used_labels(self) -> List[str]:
+    def _used_labels(self) -> list[str]:
         """返回使用到的指标维度字段"""
-        used_labels: Set[str] = set(self.group_by)
+        used_labels: set[str] = set(self.group_by)
         for cond in filter_dict_to_conditions(self.filter_dict, []):
             used_labels.add(cond.get("key") or "")
         return list(used_labels)
@@ -137,25 +137,26 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         q: QueryConfigBuilder,
         metric: str,
         method: str,
-        alias: Optional[str] = "",
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
+        alias: str | None = "",
+        start_time: int | None = None,
+        end_time: int | None = None,
     ) -> QueryConfigBuilder:
         """添加一个指标到查询表达式
         处理流程：
           1）[可选] 路由到相应的预计算指标。
           2）累加（Cumulative）类型指标统一增加 increase 处理。
         """
-        time_shift: Optional[str] = self.time_shift
-        result: Dict[str, Any] = {"table_id": self.metric_helper.table_id, "metric": metric, "is_hit": False}
+        time_shift: str | None = self.time_shift
+        result: dict[str, Any] = {"table_id": self.metric_helper.table_id, "metric": metric, "is_hit": False}
         if self.pre_calculate_helper:
-            result: Dict[str, str] = self.pre_calculate_helper.router(
+            result: dict[str, str] = self.pre_calculate_helper.router(
                 self.metric_helper.table_id,
                 metric,
                 used_labels=self._used_labels,
                 start_time=start_time,
                 end_time=end_time,
                 time_shift=time_shift,
+                service_names=self.filter_dict.get("service_name__eq"),
             )
             if result["is_hit"]:
                 time_shift = self.pre_calculate_helper.adjust_time_shift(self.time_shift)
@@ -168,7 +169,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
 
         return q
 
-    def q(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> QueryConfigBuilder:
+    def q(self, start_time: int | None = None, end_time: int | None = None) -> QueryConfigBuilder:
         # 如果是求瞬时量，那么整个时间范围是作为一个区间
         q: QueryConfigBuilder = (
             self.metric_helper.q.group_by(*self.group_by).interval(self.interval).filter(self._filter_dict_to_q())
@@ -189,30 +190,30 @@ class TrpcMetricGroup(base.BaseMetricGroup):
 
         return q
 
-    def qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None):
+    def qs(self, start_time: int | None = None, end_time: int | None = None):
         qs: UnifyQuerySet = self.metric_helper.time_range_qs(start_time, end_time)
         if self.instant:
             return qs.instant(align_interval=self.interval * self.metric_helper.TIME_FIELD_ACCURACY).limit(1)
         return qs.limit(self.metric_helper.MAX_DATA_LIMIT)
 
-    def _panic_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None):
+    def _panic_qs(self, start_time: int | None = None, end_time: int | None = None):
         q: QueryConfigBuilder = (
             self.q(start_time, end_time).alias("a").metric(field=self.PANIC_METRIC_FIELD, method="SUM", alias="a")
         )
         return self.qs(start_time, end_time).add_query(q).expression("a")
 
-    def _request_total_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
-        time_kwargs: Dict[str, Optional[int]] = {"start_time": start_time, "end_time": end_time}
+    def _request_total_qs(self, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
+        time_kwargs: dict[str, int | None] = {"start_time": start_time, "end_time": end_time}
         q: QueryConfigBuilder = self._add_metric(
             self.q(**time_kwargs), self.METRIC_FIELDS[self.kind]["rpc_handled_total"], "SUM", "a", **time_kwargs
         )
         # a != 0：非时序计算反应的是一段时间内的统计值，不需要展示请求量为 0 的数据。
         return self.qs(**time_kwargs).add_query(q).expression("a != 0")
 
-    def _request_total(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
+    def _request_total(self, start_time: int | None = None, end_time: int | None = None) -> list[dict[str, Any]]:
         return list(self._request_total_qs(start_time, end_time))
 
-    def _avg_duration_qs(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
+    def _avg_duration_qs(self, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
         sum_q: QueryConfigBuilder = self._add_metric(
             q=self.q(start_time, end_time),
             metric=self.METRIC_FIELDS[self.kind]["rpc_handled_seconds_sum"],
@@ -232,11 +233,11 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         # b == 0：分母为 0 需短路返回
         return self.qs(start_time, end_time).add_query(sum_q).add_query(count_q).expression("b == 0 or (a / b) * 1000")
 
-    def _avg_duration(self, start_time: Optional[int] = None, end_time: Optional[int] = None) -> List[Dict[str, Any]]:
+    def _avg_duration(self, start_time: int | None = None, end_time: int | None = None) -> list[dict[str, Any]]:
         return list(self._avg_duration_qs(start_time, end_time))
 
     def _histogram_quantile_duration_qs(
-        self, scalar: float, start_time: Optional[int] = None, end_time: Optional[int] = None
+        self, scalar: float, start_time: int | None = None, end_time: int | None = None
     ) -> UnifyQuerySet:
         q: QueryConfigBuilder = (
             self.q(start_time, end_time)
@@ -254,23 +255,12 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         return self.qs(start_time, end_time).add_query(q).expression("a * 1000")
 
     def _histogram_quantile_duration(
-        self, scalar: float, start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, scalar: float, start_time: int | None = None, end_time: int | None = None
+    ) -> list[dict[str, Any]]:
         return list(self._histogram_quantile_duration_qs(scalar, start_time, end_time))
 
-    def _code_redefined(self, code_type: str, q: QueryConfigBuilder) -> QueryConfigBuilder:
-        if not self.ret_code_as_exception:
-            return q.filter(code_type__eq=code_type)
-
-        if code_type == CodeType.EXCEPTION:
-            return q.filter(code__neq=SUCCESS_CODES, code_type__neq=CodeType.TIMEOUT)
-        elif code_type == CodeType.SUCCESS:
-            return q.filter(code__eq=SUCCESS_CODES)
-
-        return q.filter(code_type__eq=code_type)
-
     def _request_code_rate_qs(
-        self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None
+        self, code_type: str, start_time: int | None = None, end_time: int | None = None
     ) -> UnifyQuerySet:
         code_q: QueryConfigBuilder = self._add_metric(
             q=self.q(start_time, end_time),
@@ -279,8 +269,7 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             alias="a",
             start_time=start_time,
             end_time=end_time,
-        )
-        code_q: QueryConfigBuilder = self._code_redefined(code_type, code_q)
+        ).filter(code_type__eq=code_type)
 
         total_q: QueryConfigBuilder = self._add_metric(
             q=self.q(start_time, end_time),
@@ -302,11 +291,11 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         )
 
     def _request_code_rate(
-        self, code_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, code_type: str, start_time: int | None = None, end_time: int | None = None
+    ) -> list[dict[str, Any]]:
         return list(self._request_code_rate_qs(code_type, start_time, end_time))
 
-    def _get_qs(self, qs_type: str, start_time: Optional[int] = None, end_time: Optional[int] = None) -> UnifyQuerySet:
+    def _get_qs(self, qs_type: str, start_time: int | None = None, end_time: int | None = None) -> UnifyQuerySet:
         return {
             define.CalculationType.REQUEST_TOTAL: self._request_total_qs,
             define.CalculationType.SUCCESS_RATE: functools.partial(self._request_code_rate_qs, CodeType.SUCCESS),
@@ -318,14 +307,14 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         }[qs_type](start_time, end_time)
 
     def _top_n(
-        self, qs_type: str, limit: int, start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, qs_type: str, limit: int, start_time: int | None = None, end_time: int | None = None
+    ) -> list[dict[str, Any]]:
         qs: UnifyQuerySet = self._get_qs(qs_type, start_time, end_time)
         if self.instant:
             return list(qs.func(_id="topk", params=[{"value": limit}]))
 
         # 时间聚合场景，需要排序找 TopN
-        records: List[Dict[str, Any]] = []
+        records: list[dict[str, Any]] = []
         for record in qs:
             if record.get("_result_") is None:
                 continue
@@ -334,36 +323,36 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         return sorted(records, key=lambda r: -r["_result_"])[:limit]
 
     def _bottom_n(
-        self, qs_type: str, limit: int, start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+        self, qs_type: str, limit: int, start_time: int | None = None, end_time: int | None = None
+    ) -> list[dict[str, Any]]:
         return list(self._get_qs(qs_type, start_time, end_time).func(_id="bottomk", params=[{"value": limit}]))
 
     def fetch_server_list(
         self,
-        filter_dict: Optional[Dict[str, Any]] = None,
-        start_time: Optional[int] = None,
-        end_time: Optional[int] = None,
-    ) -> List[str]:
+        filter_dict: dict[str, Any] | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+    ) -> list[str]:
         return self.metric_helper.get_field_option_values_by_groups(
             params_list=[
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.CALLER_SERVER,
+                    "field": RPCMetricTag.CALLER_SERVER.value,
                     "filter_dict": filter_dict,
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.CALLEE_SERVER,
+                    "field": RPCMetricTag.CALLEE_SERVER.value,
                     "filter_dict": filter_dict,
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.SERVICE_NAME,
+                    "field": RPCMetricTag.SERVICE_NAME.value,
                     "filter_dict": filter_dict,
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.SERVICE_NAME,
+                    "field": RPCMetricTag.SERVICE_NAME.value,
                     "filter_dict": filter_dict,
                 },
             ],
@@ -372,25 +361,25 @@ class TrpcMetricGroup(base.BaseMetricGroup):
         )
 
     def get_server_config(
-        self, server: str, start_time: Optional[int] = None, end_time: Optional[int] = None
-    ) -> Dict[str, Any]:
+        self, server: str, start_time: int | None = None, end_time: int | None = None
+    ) -> dict[str, Any]:
         # 根据特殊维度探测上报方式，不同上报方式需要采用不同的指标计算/筛选方式
-        apps: List[str] = self.metric_helper.get_field_option_values_by_groups(
+        apps: list[str] = self.metric_helper.get_field_option_values_by_groups(
             params_list=[
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.APP,
+                    "field": RPCMetricTag.SERVER.value,
                     "filter_dict": q_to_dict(
-                        Q(**{f"{TRPCMetricTag.CALLER_SERVER}__eq": server})
-                        | Q(**{f"{TRPCMetricTag.SERVICE_NAME}__eq": server})
+                        Q(**{f"{RPCMetricTag.CALLER_SERVER.value}__eq": server})
+                        | Q(**{f"{RPCMetricTag.SERVICE_NAME.value}__eq": server})
                     ),
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": TRPCMetricTag.APP,
+                    "field": RPCMetricTag.SERVER.value,
                     "filter_dict": q_to_dict(
-                        Q(**{f"{TRPCMetricTag.CALLEE_SERVER}__eq": server})
-                        | Q(**{f"{TRPCMetricTag.SERVICE_NAME}__eq": server})
+                        Q(**{f"{RPCMetricTag.CALLEE_SERVER.value}__eq": server})
+                        | Q(**{f"{RPCMetricTag.SERVICE_NAME.value}__eq": server})
                     ),
                 },
             ],

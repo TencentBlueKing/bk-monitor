@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -10,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from typing import List
 
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
@@ -18,6 +16,7 @@ from django.utils.translation import gettext as _
 from alarm_backends.core.alert.alert import Alert, AlertKey
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
+from alarm_backends.core.control.mixins.double_check import DoubleCheckStrategy
 from alarm_backends.core.control.strategy import Strategy
 from bkmonitor.documents import EventDocument
 from bkmonitor.documents.alert import AlertDocument
@@ -42,7 +41,7 @@ from constants.action import (
 logger = logging.getLogger("fta_action.run")
 
 
-class ActionContext(object):
+class ActionContext:
     """
     处理套餐上下文
     """
@@ -103,8 +102,8 @@ class ActionContext(object):
     def __init__(
         self,
         action,
-        related_actions: List[ActionInstance] = None,
-        alerts: List[AlertDocument] = None,
+        related_actions: list[ActionInstance] = None,
+        alerts: list[AlertDocument] = None,
         use_alert_snap=False,
         notice_way=None,
         dynamic_kwargs=None,
@@ -274,7 +273,14 @@ class ActionContext(object):
 
     @cached_property
     def level_name(self):
-        return str(alert_constants.EVENT_SEVERITY_DICT.get(self.alert_level, self.alert_level))
+        from alarm_backends.service.fta_action.double_check import DoubleCheckHandler
+
+        # 判定是否是疑似异常
+        if DoubleCheckStrategy.DOUBLE_CHECK_CONTEXT_KEY in DoubleCheckHandler(self.alert).tags:
+            prefix = _("[疑似异常]")
+        else:
+            prefix = ""
+        return f"{prefix}{str(alert_constants.EVENT_SEVERITY_DICT.get(self.alert_level, self.alert_level))}"
 
     @cached_property
     def level_color(self):
@@ -285,7 +291,7 @@ class ActionContext(object):
         return self.ALERT_LEVEL_COLOR.get(self.alert_level, "#000000")
 
     @cached_property
-    def alerts(self) -> List[AlertDocument]:
+    def alerts(self) -> list[AlertDocument]:
         if self.use_alert_snap and self.related_alerts:
             # 如果强制使用alert缓存并且存在缓存，直接返回
             return self.related_alerts
@@ -529,9 +535,7 @@ class ActionContext(object):
                 result[field] = None
                 action_id = self.action.id if self.action else "NULL"
                 alert_id = self.alert.id if self.alert else "NULL"
-                logger.debug(
-                    "action({})|alert({}) create context field({}) error, {}".format(action_id, alert_id, field, e)
-                )
+                logger.debug(f"action({action_id})|alert({alert_id}) create context field({field}) error, {e}")
         # logger.info("get context dictionary finished for action(%s)", self.action.id if self.action else "None")
         return result
 
@@ -559,14 +563,13 @@ class ActionContext(object):
                     "id": alert.id,
                     "name": strategy.get("name", "-"),
                     "target": alert.event_document.target,
-                    "dimension": ",".join(["{}={}".format(d.display_key, d.display_value) for d in alert.dimensions])
-                    or "-",
+                    "dimension": ",".join([f"{d.display_key}={d.display_value}" for d in alert.dimensions]) or "-",
                     "current_value": current_value,
                 }
             )
         return infos
 
 
-class BaseContextObject(object):
+class BaseContextObject:
     def __init__(self, parent):
         self.parent = parent

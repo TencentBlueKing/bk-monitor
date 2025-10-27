@@ -224,7 +224,7 @@
             query: { task_id_list: this.curTaskIdStr },
           })
           .then(res => {
-            const data = JSON.parse(JSON.stringify(res.data.contents)) || [];
+            const data = structuredClone(res.data.contents) || [];
             this.allFailedIDList = [];
             this.navBtnList.forEach(item => (item.listNum = 0));
             this.renderTitleList = data.reduce((pre, cur) => {

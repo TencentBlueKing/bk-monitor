@@ -60,7 +60,7 @@ class PlatformConfigStore extends VuexModule {
 
   @Action
   public async fetchConfig() {
-    let configPromise;
+    let configPromise: any;
     const bkRepoUrl = window.BK_SHARED_RES_URL;
     if (bkRepoUrl) {
       const repoUrl = bkRepoUrl.endsWith('/') ? bkRepoUrl : `${bkRepoUrl}/`;

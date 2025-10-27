@@ -46,6 +46,16 @@ export default {
   },
   render(h, c) {
     const { item, lightList, ignoreCase, isShowKey } = c.props;
+    const tagStyle = `padding: 2px 2px;
+    font-family: var(--bklog-v3-row-tag-font);
+    font-weight: 500;
+    background-color: #ebeef5;
+    border-radius: 2px;
+    display: inline-block;
+    line-height: 16px;`;
+
+    const rowStyle = `font-family: var(--bklog-v3-row-ctx-font);
+    font-size: var(--table-fount-size);`;
 
     /**
      * @desc: 包含和高亮的列表生成的展示数组
@@ -56,17 +66,17 @@ export default {
      */
     const highlightStringToArray = (str, highlights, caseInsensitive) => {
       // 最终结果数组
-      let resultArray = [{ str: str, style: null }];
+      let resultArray = [{ str, style: null }];
 
       // 先处理 isUnique 为 true 的高亮项
       for (const highlight of highlights.filter(h => h.isUnique)) {
         const { str: searchStr, style } = highlight;
-        let regexFlags = caseInsensitive ? '' : 'i';
+        const regexFlags = caseInsensitive ? '' : 'i';
 
         const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s*]/g, '\\$&'), regexFlags);
         const tempResultArray = [];
 
-        resultArray.forEach(segment => {
+        resultArray.forEach((segment) => {
           if (segment.style === null) {
             const match = re.exec(segment.str);
             if (match) {
@@ -78,7 +88,7 @@ export default {
               if (beforeMatch) {
                 tempResultArray.push({ str: beforeMatch, style: null });
               }
-              tempResultArray.push({ str: matchedText, style: style });
+              tempResultArray.push({ str: matchedText, style });
               if (afterMatch) {
                 tempResultArray.push({ str: afterMatch, style: null });
               }
@@ -96,14 +106,14 @@ export default {
       // 再处理 isUnique 为 false 的高亮项
       highlights
         .filter(h => !h.isUnique)
-        .forEach(highlight => {
+        .forEach((highlight) => {
           const { str: searchStr, style } = highlight;
-          let regexFlags = caseInsensitive ? 'g' : 'gi';
+          const regexFlags = caseInsensitive ? 'g' : 'gi';
 
           const re = new RegExp(searchStr.replace(/[-[\]{}()*+?.,\\^$|#\s*]/g, '\\$&'), regexFlags);
           const tempResultArray = [];
 
-          resultArray.forEach(segment => {
+          resultArray.forEach((segment) => {
             if (segment.style === null) {
               let matchIndex = 0;
               let match;
@@ -114,7 +124,7 @@ export default {
                 if (beforeMatch) {
                   tempResultArray.push({ str: beforeMatch, style: null });
                 }
-                tempResultArray.push({ str: matchedText, style: style, isHighLight: true });
+                tempResultArray.push({ str: matchedText, style, isHighLight: true });
                 matchIndex = match.index + matchedText.length;
               }
 
@@ -139,25 +149,24 @@ export default {
     return (
       <span style='white-space: normal;word-break: break-all; white-space: pre-wrap;'>
         {parseList.map(item => (
-          <span>
+          <span style={rowStyle}>
             {isShowKey && (
               <span>
-                <span style='background: #EBECF0; color: #313238; display: inline-block; line-height: 16px; padding: 0 2px;'>
+                <span style={tagStyle}>
                   {item.key}:
                 </span>
                 {'\u00a0'}
               </span>
             )}
-            {item.val.map(item => {
-              if (item.style)
-                return (
-                  <span
-                    style={item.style}
-                    data-index={item?.isHighLight ? 'light' : 'filter'}
-                  >
-                    {item.str}
-                  </span>
-                );
+            {item.val.map((item) => {
+              if (item.style) return (
+                <span
+                  style={item.style}
+                  data-index={item?.isHighLight ? 'light' : 'filter'}
+                >
+                  {item.str}
+                </span>
+              );
               return item.str;
             })}
             &nbsp;

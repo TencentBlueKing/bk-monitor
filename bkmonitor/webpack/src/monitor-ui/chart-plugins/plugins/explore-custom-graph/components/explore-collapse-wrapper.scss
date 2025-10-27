@@ -36,14 +36,14 @@ $expand-animation-duration: 0.6s;
 
   .explore-collapse-header {
     display: flex;
+    align-items: center;
     width: 100%;
-    padding: var(--header-intersect-padding, 7px) 0;
 
     .explore-collapse-header-trigger {
       display: flex;
       flex-shrink: 0;
       align-items: center;
-      height: calc(var(--header-height, 36px) - var(--header-intersect-padding, 7px) * 2);
+      height: var(--header-height, 36px);
       cursor: pointer;
 
       .header-trigger-default {
@@ -53,8 +53,8 @@ $expand-animation-duration: 0.6s;
 
         .icon-mc-triangle-down {
           font-size: 18px;
-          transition: transform $expand-animation-duration ease;
           transform: rotate(-90deg);
+          transition: transform $expand-animation-duration ease;
         }
 
         .chart-trigger-title {

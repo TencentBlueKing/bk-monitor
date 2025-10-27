@@ -24,13 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { Route } from 'vue-router';
-
-// @ts-ignore
 import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-range/utils';
 
 import { ConditionOperator } from './condition-operator';
 import { BK_LOG_STORAGE } from './store.type';
+
+import type { Route } from 'vue-router';
 
 /**
  * 初始化App时解析URL中的参数
@@ -67,7 +66,7 @@ class RouteUrlResolver {
     return this.resolveFieldList.reduce((output, key) => {
       const value = this.resolver.get(key)?.(this.query?.[key]) ?? this.commonResolver(this.query?.[key]);
       if (value !== undefined) {
-        return Object.assign(output, { [key]: value });
+        output[key] = value;
       }
 
       return output;
@@ -78,10 +77,13 @@ class RouteUrlResolver {
    * 需要清理URL参数时，获取默认的参数配置列表
    * @returns
    */
-  public getDefUrlQuery(ignoreList = []) {
+  public getDefUrlQuery(ignoreList: string[] = []) {
     const routeQuery = this.query;
     const appendParamKeys = [...this.resolveFieldList, 'end_time'].filter(f => !(ignoreList ?? []).includes(f));
-    const undefinedQuery = appendParamKeys.reduce((out, key) => Object.assign(out, { [key]: undefined }), {});
+    const undefinedQuery = appendParamKeys.reduce((out, key) => {
+      out[key] = undefined;
+      return out;
+    }, {});
     return {
       ...routeQuery,
       ...undefinedQuery,
@@ -107,6 +109,7 @@ class RouteUrlResolver {
       'spaceUid',
       'format',
       'index_id',
+      'pid',
       BK_LOG_STORAGE.FAVORITE_ID,
       BK_LOG_STORAGE.HISTORY_ID,
     ];
@@ -118,11 +121,18 @@ class RouteUrlResolver {
       return next?.(val) ?? val;
     }
 
-    return undefined;
+    return;
   }
 
   private objectResolver(str) {
-    return this.commonResolver(str, val => JSON.parse(decodeURIComponent(val)));
+    return this.commonResolver(str, val => {
+      try {
+        return JSON.parse(decodeURIComponent(val ?? ''));
+      } catch (error) {
+        console.warn('route url resolver objectResolver error', error);
+        return val;
+      }
+    });
   }
 
   private arrayResolver(str) {
@@ -171,9 +181,25 @@ class RouteUrlResolver {
     });
   }
 
+  private additionArrayResolver(str) {
+    if (!str) {
+      return [];
+    }
+
+    try {
+      return JSON.parse(decodeURIComponent(str));
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  }
+
   private searchModeResolver() {
-    const hasAddition = this.query.keyword?.length;
-    const hasKeyword = this.query.addition?.length;
+    const hasKeyword = this.query.keyword?.length;
+    const additionArray = this.additionArrayResolver(this.query.addition).filter(
+      str => str.length > 0 && str !== '' && str !== null && str !== undefined && str !== '',
+    );
+    const hasAddition = additionArray.length;
     const defValue = ['sql', 'ui'].includes(this.query.search_mode) ? this.query.search_mode : 'ui';
 
     if (['sql', 'ui'].includes(this.query.search_mode)) {
@@ -201,6 +227,7 @@ class RouteUrlResolver {
     this.resolver.set('host_scopes', this.objectResolver.bind(this));
     this.resolver.set('ip_chooser', this.objectResolver.bind(this));
     this.resolver.set('clusterParams', this.objectResolver.bind(this));
+    this.resolver.set('pid', this.objectResolver.bind(this));
     this.resolver.set('timeRange', this.dateTimeRangeResolver.bind(this));
     this.resolver.set('search_mode', this.searchModeResolver.bind(this));
     this.resolver.set('format', this.timeFormatResolver.bind(this));
@@ -258,27 +285,27 @@ class RetrieveUrlResolver {
 
         return isEmpty ? undefined : getEncodeString(val);
       },
-      start_time: () => this.routeQueryParams.datePickerValue[0],
-      end_time: () => this.routeQueryParams.datePickerValue[1],
-      keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : val),
+      start_time: () => encodeURIComponent(this.routeQueryParams.datePickerValue[0]),
+      end_time: () => encodeURIComponent(this.routeQueryParams.datePickerValue[1]),
+      keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : encodeURIComponent(val)),
       unionList: val => {
         if (this.routeQueryParams.isUnionIndex && val?.length) {
-          return getEncodeString(val);
+          return encodeURIComponent(getEncodeString(val));
         }
 
-        return undefined;
+        return;
       },
       default: val => {
         if (typeof val === 'object' && val !== null) {
           if (Array.isArray(val) && val.length) {
-            return getEncodeString(val);
+            return encodeURIComponent(getEncodeString(val));
           }
 
           if (Object.keys(val).length) {
-            return getEncodeString(val);
+            return encodeURIComponent(getEncodeString(val));
           }
 
-          return undefined;
+          return;
         }
 
         return val?.length ? val : undefined;
@@ -295,7 +322,8 @@ class RetrieveUrlResolver {
           const valueFn = typeof routeQueryMap[key] === 'function' ? routeQueryMap[key] : routeQueryMap.default;
           const value = valueFn(val);
           const fieldName = this.storeFieldKeyMap[key] ?? key;
-          return Object.assign(result, { [fieldName]: value });
+          result[fieldName] = value;
+          return result;
         }, {});
     };
 

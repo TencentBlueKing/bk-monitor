@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -58,6 +58,7 @@ class UnifyQuery:
         functions: list | None = None,
         bk_tenant_id: str | None = None,
     ):
+        self.is_partial = False
         self.functions = [] if functions is None else functions
         # 不传业务指标时传 0，为 None 时查询所有业务
         self.bk_biz_id = bk_biz_id
@@ -353,13 +354,14 @@ class UnifyQuery:
         down_sample_range: int | None = "",
         time_alignment: bool = True,
         instant: bool = None,
-    ) -> list[dict]:
+    ) -> tuple[list[dict], bool]:
         """
         使用统一查询模块进行查询
         """
+        is_partial = False
         params = self.get_unify_query_params(start_time, end_time, time_alignment)
         if not params["query_list"]:
-            return []
+            return [], is_partial
 
         params.update(dict(down_sample_range=down_sample_range, timezone=timezone.get_current_timezone_name()))
 
@@ -374,9 +376,10 @@ class UnifyQuery:
             span.set_attribute("bk.system", "unify_query")
             span.set_attribute("bk.unify_query.statement", json.dumps(params))
             data = api.unify_query.query_data(**params)
+            is_partial = data.get("is_partial", False)
             records: list[dict[str, Any]] = self.process_unify_query_data(params, data, end_time=end_time)
             records = self.process_data_by_datasource(records)
-        return records
+        return records, is_partial
 
     def _query_reference_using_unify_query(
         self,
@@ -509,6 +512,7 @@ class UnifyQuery:
         *args,
         **kwargs,
     ) -> list[dict]:
+        self.is_partial = False
         if not self.data_sources:
             return []
 
@@ -523,7 +527,7 @@ class UnifyQuery:
             labels["api"] = "unify_query"
             try:
                 with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
-                    data = self._query_unify_query(
+                    data, is_partial = self._query_unify_query(
                         start_time=start_time,
                         end_time=end_time,
                         limit=limit,
@@ -532,6 +536,7 @@ class UnifyQuery:
                         time_alignment=kwargs.get("time_alignment", True),
                         instant=kwargs.get("instant"),
                     )
+                    self.is_partial = is_partial
             except Exception as e:
                 exc = e
         else:

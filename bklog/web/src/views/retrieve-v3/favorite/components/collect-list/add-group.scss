@@ -1,0 +1,43 @@
+.add-new-page-input {
+  position: relative;
+  padding: 6px 0;
+  .select-add-new-group {
+    cursor: pointer;
+    .icon-plus-circle {
+      margin-right: 4px;
+    }
+  }
+  .add-new-group-item {
+    width: 90%;
+    .bk-form-input {
+      width: 100%;
+    }
+  }
+  .operate-button {
+    height: 32px;
+    line-height: 32px;
+    position: absolute;
+    right: 0;
+    top: 6px;
+    font-size: 16px;
+    .submit-icon {
+      color: #299e56;
+      font-weight: 700;
+      margin-right: 10px;
+      cursor: pointer;
+    }
+    .close-icon {
+      color: #e71818;
+      font-weight: 700;
+      cursor: pointer;
+    }
+  }
+}
+.add-new-from-input {
+  .add-group-from-btns {
+    margin-top: 16px;
+  }
+  .ml8 {
+    margin-left: 8px;
+  }
+}

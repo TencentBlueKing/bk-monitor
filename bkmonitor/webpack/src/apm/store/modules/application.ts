@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -60,8 +60,8 @@ class ApplicationStore extends VuexModule implements IApplicationState {
    * @param name 应用名
    */
   @Action
-  getAppInfo(query: IAppInfoQuery): Promise<Record<string, any>> {
-    return applicationInfoByAppName(query);
+  async getAppInfo(query: IAppInfoQuery): Promise<Record<string, any>> {
+    return applicationInfoByAppName(query).catch(() => undefined);
   }
   /**
    * 请求插件列表

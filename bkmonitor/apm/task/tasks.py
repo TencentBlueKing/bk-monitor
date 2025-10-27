@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -20,8 +20,6 @@ from django.db.models import Q, Value
 from django.utils import timezone
 from opentelemetry.trace import get_current_span
 
-from alarm_backends.core.cache import key
-from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.scheduler.app import app
 from apm.core.application_config import ApplicationConfig
 from apm.core.cluster_config import BkCollectorInstaller
@@ -30,6 +28,7 @@ from apm.core.discover.precalculation.check import PreCalculateCheck
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
 from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHandler
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
 from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
 from apm.core.platform_config import PlatformConfig
@@ -74,7 +73,8 @@ def topo_discover_cron():
     for application in to_be_refreshed:
         bk_biz_id, app_name, app_id, create_time = application
         try:
-            with service_lock(key.APM_TOPO_DISCOVER_LOCK, app_id=app_id):
+            apm_cache_handler = ApmCacheHandler()
+            with apm_cache_handler.distributed_lock("topo_discover", app_id=app_id):
                 # 在 settings.APM_APPLICATION_QUICK_REFRESH_DELTA 时间内新创建的应用，每 interval_quick 分钟执行一次拓扑发现
                 if (current_time - create_time) < datetime.timedelta(
                     minutes=settings.APM_APPLICATION_QUICK_REFRESH_DELTA
@@ -137,7 +137,8 @@ def datasource_discover_cron():
     for k, v in datasource_mapping.items():
         app_id = valid_application_mapping[k]["id"]
         try:
-            with service_lock(key.APM_DATASOURCE_DISCOVER_LOCK, app_id=app_id):
+            apm_cache_handler = ApmCacheHandler()
+            with apm_cache_handler.distributed_lock("datasource_discover", app_id=app_id):
                 if app_id % interval == slug:
                     logger.info(f"[datasource_discover_cron] delay task for app_id: {app_id}")
                     datasource_discover_handler.delay(v, interval, current_timestamp)
@@ -158,6 +159,22 @@ def refresh_apm_config():
             refresh_apm_application_config.delay(bk_biz_id, app_name)
 
 
+def refresh_apm_config_to_k8s():
+    """
+    刷新所有 APM 应用的 K8s 配置（获取全部数据进行批量调度）
+    """
+    # 获取所有启用的应用
+    applications = list(ApmApplication.objects.filter(is_enabled=True))
+    if not applications:
+        return
+
+    try:
+        ApplicationConfig.refresh_k8s(applications)
+        logger.info(f"[refresh_apm_config_to_k8s]: batch publish k8s config for {len(applications)} applications")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(f"[RefreshApmApplicationK8sConfigFailed] Err => {str(e)}; Applications => {applications}")
+
+
 def refresh_apm_platform_config():
     # 每个租户下发一份平台配置
     for tenant in api.bk_login.list_tenant():
@@ -174,7 +191,6 @@ def refresh_apm_platform_config():
 def refresh_apm_application_config(bk_biz_id, app_name):
     _app = ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
     ApplicationConfig(_app).refresh()
-    ApplicationConfig(_app).refresh_k8s()
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -270,7 +286,7 @@ def k8s_bk_collector_discover_cron():
 
 
 @app.task(ignore_result=True, queue="celery_cron")
-def create_application_async(application_id, storage_config, options):
+def create_application_async(application_id, storage_config, options, cur_retry_times=0):
     """后台创建应用"""
 
     try:
@@ -279,7 +295,15 @@ def create_application_async(application_id, storage_config, options):
         EventReportHelper.report(f"[异步创建任务] 业务：{application.bk_biz_id}，应用{application.app_name}，创建成功")
     except Exception as e:  # pylint: disable=broad-except
         logger.error(f"[create_application_async] occur exception of app_id:{application_id} error: {e}")
-        EventReportHelper.report(f"[异步创建任务] 应用 ID {application_id} 异步创建失败，需要人工介入，错误详情：{e}")
+        EventReportHelper.report(
+            f"[异步创建任务] 应用 ID {application_id} 异步创建失败，需要人工介入，当前重试次数({cur_retry_times})，错误详情：{e}"
+        )
+        next_retry_times = cur_retry_times + 1
+        if next_retry_times <= 2:
+            create_application_async.apply_async(
+                args=(application_id, storage_config, options, next_retry_times),
+                countdown=next_retry_times * 60,
+            )
 
     # 异步分派预计算任务
     bmw_task_cron.apply_async(countdown=60)

@@ -1,22 +1,23 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, Tuple
+from typing import Any
 
 from django.conf import settings
 from django.utils.encoding import force_str
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.common_utils import safe_int
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from monitor.constants import UptimeCheckProtocol
@@ -28,7 +29,7 @@ from monitor_web.plugin.constant import (
 )
 
 
-class ResultTableField(object):
+class ResultTableField:
     FIELD_TYPE_FLOAT = ("double",)
     FIELD_TYPE_STRING = ("text",)
 
@@ -58,7 +59,7 @@ class ResultTableField(object):
             self.alias_name = alias_name
 
 
-class ResultTable(object):
+class ResultTable:
     def __init__(self, table_name, description, fields):
         self.table_name = table_name.lower()
         self.description = description
@@ -146,13 +147,23 @@ class ResultTable(object):
         return cls(table_name=table_dict["table_name"], description=table_dict.get("table_desc", ""), fields=fields)
 
 
-class DataAccessor(object):
+class DataAccessor:
     """
     申请数据链路资源
     """
 
     def __init__(
-        self, bk_biz_id, db_name, tables, etl_config, operator, type_label, source_label, label, data_label: str = None
+        self,
+        bk_tenant_id: str,
+        bk_biz_id,
+        db_name,
+        tables,
+        etl_config,
+        operator,
+        type_label,
+        source_label,
+        label,
+        data_label: str | None = None,
     ):
         """
         :param bk_biz_id: 业务ID
@@ -162,14 +173,13 @@ class DataAccessor(object):
         :param operator: 操作人
         """
         self.bk_biz_id = bk_biz_id
+        self.bk_tenant_id = bk_tenant_id
         self.db_name = db_name.lower()
         self.data_label = data_label.lower() if data_label else self.db_name
         self.tables = tables
         self.operator = operator
         self.etl_config = etl_config
         self.modify = False
-        # 获取table_id与table的映射关系
-        self.tables_info = {self.get_table_id(table): table for table in self.tables}
         self.type_label = type_label
         self.source_label = source_label
         self.label = label
@@ -178,26 +188,17 @@ class DataAccessor(object):
         except BKAPIError:
             self.data_id = None
 
-    def get_table_id(self, table):
-        """
-        table_id:库.表(system.cpu)
-        """
-        return "{}.{}".format(self.tsdb_name, table.table_name)
-
-    @property
-    def tsdb_name(self):
-        return "{}_{}".format(self.bk_biz_id, self.db_name) if self.bk_biz_id else self.db_name
-
     @property
     def data_name(self):
-        # TODO: 新规范是业务ID在后，这个要确定影响范围
-        return "{}_{}".format(self.bk_biz_id, self.db_name) if self.bk_biz_id else self.db_name
+        return f"{self.bk_biz_id}_{self.db_name}" if self.bk_biz_id else self.db_name
 
     def create_dataid(self):
         """
         创建/修改dataid
         """
         param = {
+            "bk_tenant_id": self.bk_tenant_id,
+            "bk_biz_id": self.bk_biz_id,
             "data_name": self.data_name,
             "etl_config": self.etl_config,
             "operator": self.operator,
@@ -215,18 +216,39 @@ class DataAccessor(object):
         self.data_id = api.metadata.create_data_id(param)["bk_data_id"]
         return self.data_id
 
-    def contrast_rt(self):
-        result_table_list = api.metadata.list_result_table(
-            {"datasource_type": self.tsdb_name, "is_config_by_user": True}
+    def contrast_rt(self) -> tuple[dict[str, Any], dict[str, ResultTable]]:
+        """
+        Returns:
+            dict[str, Any]: 结果表信息
+            dict[str, ResultTable]: 结果表信息映射，包含表的详细信息
+        """
+        # 向前兼容，优先查询不带业务ID的结果表
+        without_biz_result_table_list = api.metadata.list_result_table(
+            bk_tenant_id=self.bk_tenant_id,
+            datasource_type=self.db_name,
+            is_config_by_user=True,
         )
-        new_table_id_set = {i for i in list(self.tables_info.keys())}
+        if without_biz_result_table_list or self.bk_biz_id == 0:
+            result_table_list = without_biz_result_table_list
+            table_infos = {f"{self.db_name}.{table.table_name}": table for table in self.tables}
+        else:
+            db_name_with_biz = f"{self.bk_biz_id}_{self.db_name}"
+            result_table_list = api.metadata.list_result_table(
+                bk_tenant_id=self.bk_tenant_id,
+                bk_biz_id=self.bk_biz_id,
+                datasource_type=db_name_with_biz,
+                is_config_by_user=True,
+            )
+            table_infos = {f"{db_name_with_biz}.{table.table_name}": table for table in self.tables}
+
+        new_table_id_set = {i for i in list(table_infos.keys())}
 
         old_table_id_set = set()
         for old_table in result_table_list:
             old_table_id = old_table["table_id"]
             old_table_id_set.add(old_table_id)
             if old_table_id not in new_table_id_set:
-                self.tables_info[old_table_id] = ResultTable(
+                table_infos[old_table_id] = ResultTable(
                     table_name=old_table_id.split(".")[-1],
                     description=old_table["table_name_zh"],
                     fields=[],
@@ -236,16 +258,16 @@ class DataAccessor(object):
         modify_table_id_set = new_table_id_set & old_table_id_set
         for result_table in result_table_list:
             if result_table["table_id"] in modify_table_id_set:
-                if not self.check_table_modify(self.tables_info[result_table["table_id"]], result_table):
+                if not self.check_table_modify(table_infos[result_table["table_id"]], result_table):
                     modify_table_id_set.remove(result_table["table_id"])
 
         return {
             "create": new_table_id_set - old_table_id_set,
             "modify": modify_table_id_set,
             "clean": old_table_id_set - new_table_id_set,
-        }
+        }, table_infos
 
-    def check_table_modify(self, new_table_info: ResultTable, old_result_table: Dict) -> bool:
+    def check_table_modify(self, new_table_info: ResultTable, old_result_table: dict) -> bool:
         """判断表配置是否修改
 
         :param new_table_info: 新提交的配置
@@ -267,11 +289,7 @@ class DataAccessor(object):
                 continue
 
             # 有些属性的值虽然不想等，但是其实是同一个含义
-            special_value_mappings = {
-                "tag": {
-                    "group": "dimension",
-                }
-            }
+            special_value_mappings = {"tag": {"group": "dimension"}}
             old_field_info["field_type"] = old_field_info["type"]
             for field_key in ["field_type", "tag", "description", "unit", "is_config_by_user"]:
                 old_field_value = special_value_mappings.get(field_key, {}).get(
@@ -289,12 +307,13 @@ class DataAccessor(object):
         """
         创建结果表
         """
-        contrast_result = self.contrast_rt()
+        contrast_result, table_infos = self.contrast_rt()
         func_list = []
         params_list = []
 
         for operation in contrast_result:
             param = {
+                "bk_tenant_id": self.bk_tenant_id,
                 "bk_data_id": self.data_id,
                 "is_custom_table": True,
                 "operator": self.operator,
@@ -311,10 +330,10 @@ class DataAccessor(object):
                     {
                         "bk_biz_id": self.bk_biz_id,
                         "table_id": table_id,
-                        "table_name_zh": self.tables_info[table_id].description,
+                        "table_name_zh": table_infos[table_id].description,
                         "field_list": [
                             field
-                            for field in self.tables_info[table_id].fields
+                            for field in table_infos[table_id].fields
                             if field["field_name"] not in ORIGIN_PLUGIN_EXCLUDE_DIMENSION
                         ],
                         "external_storage": external_storage,
@@ -342,7 +361,9 @@ class DataAccessor(object):
         return self.data_id
 
     def get_data_id(self):
-        data_id_info = api.metadata.get_data_id({"data_name": self.data_name, "with_rt_info": False})
+        data_id_info = api.metadata.get_data_id(
+            bk_tenant_id=self.bk_tenant_id, data_name=self.data_name, with_rt_info=False
+        )
         self.data_id = safe_int(data_id_info["data_id"])
         return self.data_id
 
@@ -350,13 +371,19 @@ class DataAccessor(object):
         """
         修改label
         """
-        result_table_list = api.metadata.list_result_table({"datasource_type": self.tsdb_name})
+        result_table_list = api.metadata.list_result_table(bk_tenant_id=self.bk_tenant_id, datasource_type=self.db_name)
+        if not result_table_list and self.bk_biz_id != 0:
+            result_table_list = api.metadata.list_result_table(
+                bk_tenant_id=self.bk_tenant_id, datasource_type=f"{self.bk_biz_id}_{self.db_name}"
+            )
+
         params_list = []
         for table in result_table_list:
             external_storage = {"kafka": {"expired_time": 1800000}}
             if settings.IS_ACCESS_BK_DATA:
                 external_storage["bkdata"] = {}
             param = {
+                "bk_tenant_id": self.bk_tenant_id,
                 "bk_data_id": self.data_id,
                 "is_custom_table": True,
                 "operator": self.operator,
@@ -397,7 +424,7 @@ class DataAccessor(object):
 
 
 class PluginDataAccessor(DataAccessor):
-    def __init__(self, plugin_version, operator: str, data_label: str = None):
+    def __init__(self, plugin_version, operator: str, data_label: str | None = None):
         def get_field_instance(field):
             # 将field字典转化为ResultTableField对象
             return ResultTableField(
@@ -424,7 +451,7 @@ class PluginDataAccessor(DataAccessor):
         self.dms_field = []
 
         # 维度注入参数名称，更新至group的添加参数信息中
-        for param in config_json:
+        for param in config_json or []:
             if param["mode"] == ParamMode.DMS_INSERT:
                 for dms_key in param["default"].keys():
                     add_fields_names.append((dms_key, dms_key))
@@ -446,15 +473,16 @@ class PluginDataAccessor(DataAccessor):
             fields.extend(list(map(get_field_instance, add_fields)))
             tables.append(ResultTable(table_name=table["table_name"], description=table["table_desc"], fields=fields))
 
-        db_name = "{}_{}".format(plugin_type, plugin_version.plugin.plugin_id)
+        db_name = f"{plugin_type}_{plugin_version.plugin.plugin_id}"
         if plugin_type in [PluginType.SCRIPT, PluginType.DATADOG]:
             etl_config = "bk_standard"
         elif plugin_type == PluginType.K8S:
             etl_config = "bk_standard_v2_time_series"
         else:
             etl_config = "bk_exporter"
-        super(PluginDataAccessor, self).__init__(
-            bk_biz_id=0,
+        super().__init__(
+            bk_tenant_id=plugin_version.plugin.bk_tenant_id,
+            bk_biz_id=plugin_version.plugin.bk_biz_id,
             db_name=db_name,
             tables=tables,
             etl_config=etl_config,
@@ -517,8 +545,15 @@ class PluginDataAccessor(DataAccessor):
     def modify_is_split_measurement(self):
         """将 datasource option 的 is_split_measurement 改为 True"""
         return api.metadata.modify_data_id(
-            {"data_id": self.data_id, "operator": self.operator, "option": {"is_split_measurement": True}}
+            bk_tenant_id=self.bk_tenant_id,
+            data_id=self.data_id,
+            operator=self.operator,
+            option={"is_split_measurement": True},
         )
+
+    @property
+    def data_name(self):
+        return self.db_name
 
     def access(self):
         """
@@ -541,7 +576,9 @@ class PluginDataAccessor(DataAccessor):
         if not is_split_measurement:
             # 没开自动发现，且非新增插件
             try:
-                result_table_info = api.metadata.get_result_table(table_id=f"{self.db_name}.__default__")
+                result_table_info = api.metadata.get_result_table(
+                    bk_tenant_id=self.bk_tenant_id, table_id=f"{self.db_name}.__default__"
+                )
                 # 对于白名单模式，如果resulttableoption 的 is_split_measurement 为 True，则说明开启过单指标单表
                 if result_table_info["option"].get("is_split_measurement"):
                     is_split_measurement = True
@@ -552,6 +589,7 @@ class PluginDataAccessor(DataAccessor):
             self.modify_is_split_measurement()
             metric_info_list = self.format_time_series_metric_info_data(self.metric_json, self.enable_field_blacklist)
             params = {
+                "bk_tenant_id": self.bk_tenant_id,
                 "operator": self.operator,
                 "bk_data_id": self.data_id,
                 "bk_biz_id": self.bk_biz_id,
@@ -564,7 +602,9 @@ class PluginDataAccessor(DataAccessor):
             }
             # 插件数据在这里需要去掉业务id
             # 单指标单表，不需要补齐schema: "enable_default_value": False,
-            group_list = api.metadata.query_time_series_group.request.refresh(time_series_group_name=self.db_name)
+            group_list = api.metadata.query_time_series_group.request.refresh(
+                bk_tenant_id=self.bk_tenant_id, time_series_group_name=self.db_name
+            )
             if group_list:
                 params.update(
                     {
@@ -593,25 +633,30 @@ class PluginDataAccessor(DataAccessor):
         return self.data_id
 
 
-class EventDataAccessor(object):
+class EventDataAccessor:
     def __init__(self, current_version, operator):
         self.bk_biz_id = current_version.plugin.bk_biz_id
-        self.name = "{}_{}".format(current_version.plugin.plugin_type, current_version.plugin_id)
+        self.bk_tenant_id = current_version.plugin.bk_tenant_id
+        self.name = f"{current_version.plugin.plugin_type}_{current_version.plugin_id}"
         self.label = current_version.plugin.label
         self.operator = operator
 
     def get_data_id(self):
         data_id_info = api.metadata.get_data_id(
-            {"data_name": "{}_{}".format(self.name, self.bk_biz_id), "with_rt_info": False}
+            bk_tenant_id=self.bk_tenant_id, data_name=f"{self.name}_{self.bk_biz_id}", with_rt_info=False
         )
         return safe_int(data_id_info["bk_data_id"])
 
     def create_data_id(self, source_label, type_label):
-        data_name = "{}_{}".format(self.name, self.bk_biz_id)
+        data_name = f"{self.name}_{self.bk_biz_id}"
         try:
-            data_id_info = api.metadata.get_data_id({"data_name": data_name, "with_rt_info": False})
+            data_id_info = api.metadata.get_data_id(
+                bk_tenant_id=self.bk_tenant_id, data_name=data_name, with_rt_info=False
+            )
         except BKAPIError:
             param = {
+                "bk_tenant_id": self.bk_tenant_id,
+                "bk_biz_id": self.bk_biz_id,
                 "data_name": data_name,
                 "etl_config": "bk_standard_v2_event",
                 "operator": self.operator,
@@ -626,6 +671,7 @@ class EventDataAccessor(object):
 
     def create_result_table(self, bk_data_id, event_info_list):
         params = {
+            "bk_tenant_id": self.bk_tenant_id,
             "operator": self.operator,
             "bk_data_id": bk_data_id,
             "bk_biz_id": self.bk_biz_id,
@@ -638,10 +684,11 @@ class EventDataAccessor(object):
         return group_info
 
     def modify_result_table(self, event_info_list):
-        event_groups = api.metadata.query_event_group(event_group_name=self.name)
+        event_groups = api.metadata.query_event_group(bk_tenant_id=self.bk_tenant_id, event_group_name=self.name)
         if event_groups:
             event_group_id = event_groups[0]["event_group_id"]
             params = {
+                "bk_tenant_id": self.bk_tenant_id,
                 "operator": self.operator,
                 "event_group_id": event_group_id,
                 "event_info_list": event_info_list,
@@ -652,7 +699,7 @@ class EventDataAccessor(object):
         raise Exception(_("结果表不存在，请确认后重试"))
 
     def delete_result_table(self):
-        event_groups = api.metadata.query_event_group(event_group_name=self.name)
+        event_groups = api.metadata.query_event_group(bk_tenant_id=self.bk_tenant_id, event_group_name=self.name)
         if event_groups:
             event_group_id = event_groups[0]["event_group_id"]
             api.metadata.delete_event_group(event_group_id=event_group_id, operator=self.operator)
@@ -676,8 +723,9 @@ class UptimecheckDataAccessor:
     def __init__(self, task) -> None:
         self.task = task
         self.bk_biz_id = task.bk_biz_id
+        self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
 
-    def get_data_id(self) -> Tuple[bool, str]:
+    def get_data_id(self) -> tuple[bool, int]:
         """
         TODO: 获取拨测数据链路ID
         :return: 是否是自定义上报，数据链路ID
@@ -685,7 +733,9 @@ class UptimecheckDataAccessor:
         if not self.use_custom_report():
             return False, self.DATAID_MAP[self.task.protocol.upper()]
 
-        data_id_info = api.metadata.get_data_id({"data_name": self.data_name, "with_rt_info": False})
+        data_id_info = api.metadata.get_data_id(
+            bk_tenant_id=self.bk_tenant_id, data_name=self.data_name, with_rt_info=False
+        )
         return True, safe_int(data_id_info["bk_data_id"])
 
     def use_custom_report(self) -> bool:
@@ -709,17 +759,21 @@ class UptimecheckDataAccessor:
     def data_name(self) -> str:
         return self.db_name
 
-    def create_data_id(self) -> None:
+    def create_data_id(self) -> int:
         """
         创建数据ID
         """
         try:
-            data_id_info = api.metadata.get_data_id({"data_name": self.data_name, "with_rt_info": False})
+            data_id_info = api.metadata.get_data_id(
+                bk_tenant_id=self.bk_tenant_id, data_name=self.data_name, with_rt_info=False
+            )
             return safe_int(data_id_info["bk_data_id"])
         except BKAPIError:
             pass
 
         params = {
+            "bk_tenant_id": self.bk_tenant_id,
+            "bk_biz_id": self.bk_biz_id,
             "data_name": self.data_name,
             "etl_config": "bk_standard_v2_time_series",
             "operator": "admin",
@@ -754,6 +808,7 @@ class UptimecheckDataAccessor:
 
         # 创建自定义上报
         params = {
+            "bk_tenant_id": self.bk_tenant_id,
             "operator": "admin",
             "bk_data_id": data_id,
             "bk_biz_id": self.bk_biz_id,

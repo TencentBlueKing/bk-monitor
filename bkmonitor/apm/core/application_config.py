@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -45,6 +45,7 @@ from core.drf_resource import api
 logger = logging.getLogger("apm")
 
 tracer = trace.get_tracer(__name__)
+jinja_env = Environment()
 
 
 class ApplicationConfig(BkCollectorConfig):
@@ -80,45 +81,68 @@ class ApplicationConfig(BkCollectorConfig):
         except Exception:  # noqa
             logger.exception("auto deploy bk-collector application config error")
 
-    def refresh_k8s(self):
-        """
-        下发应用配置到 K8S 集群
+    @classmethod
+    def refresh_k8s(cls, applications: list[ApmApplication]) -> None:
+        """批量刷新多个应用的 k8s 配置"""
+        if not applications:
+            return
 
-        # 1. 获取应用所在业务的集群 ID 列表
-        # 2. 针对每一个集群
-        #    2.1 从集群中获取模版配置
-        #    2.2 获取到模板，则下发，否则忽略该集群
-        """
-        from apm_ebpf.models import ClusterRelation
+        # 按业务ID分组，因为不同业务可能需要部署到不同的集群
+        biz_applications = {}
+        for application in applications:
+            bk_biz_id = application.bk_biz_id
+            biz_applications.setdefault(bk_biz_id, []).append(application)
 
-        cluster_ids = ClusterRelation.objects.filter(bk_biz_id=self._application.bk_biz_id).values_list(
-            "cluster_id", flat=True
-        )
-        need_deploy_cluster_ids = set(cluster_ids)
+        cluster_mapping: dict = BkCollectorClusterConfig.get_cluster_mapping()
+
+        # 补充默认部署集群
         if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            need_deploy_cluster_ids = need_deploy_cluster_ids | set(settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER)
+            for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+                cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
 
-        for cluster_id in need_deploy_cluster_ids:
-            with tracer.start_as_current_span(
-                f"cluster-id: {cluster_id}", attributes={"apm_application_id": self._application.id}
-            ) as s:
+        # 按集群分组配置，实现批量下发
+        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+            with tracer.start_as_current_span(f"cluster-id: {cluster_id}") as s:
                 try:
                     application_tpl = BkCollectorClusterConfig.sub_config_tpl(
                         cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
                     )
-                    if application_tpl is None:
+                    if not application_tpl:
                         continue
 
-                    application_config_context = self.get_application_config()
-                    application_config = Environment().from_string(application_tpl).render(application_config_context)
-                    BkCollectorClusterConfig.deploy_to_k8s(cluster_id, self._application.id, "apm", application_config)
+                    # 收集该集群需要部署的所有配置
+                    cluster_config_map = {}
+                    compiled_template = jinja_env.from_string(application_tpl)
+                    for bk_biz_id, biz_application_list in biz_applications.items():
+                        need_deploy_bk_biz_ids = {
+                            str(bk_biz_id),
+                            int(bk_biz_id),
+                            BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID,
+                        }
+                        if not set(need_deploy_bk_biz_ids) & set(cc_bk_biz_ids):
+                            continue
 
-                    s.set_status(trace.StatusCode.OK)
+                        # 为该业务下的所有应用生成配置
+                        for application in biz_application_list:
+                            try:
+                                application_config_context = cls(application).get_application_config(cluster_id)
+                                application_config = compiled_template.render(application_config_context)
+                                cluster_config_map[application.id] = application_config
+                            except Exception as e:  # pylint: disable=broad-except
+                                # 单个失败，继续渲染模板
+                                s.record_exception(exception=e)
+                                logger.exception(f"generate config for application({application.app_name})")
+
+                    # 批量下发该集群的所有配置
+                    if cluster_config_map:
+                        BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, cluster_config_map, "apm")
+                        logger.info(f"batch deploy {len(cluster_config_map)} apm configs to k8s cluster({cluster_id})")
+
                 except Exception as e:  # pylint: disable=broad-except
                     s.record_exception(exception=e)
-                    logger.info(f"refresh application({self._application.id}) config to k8s({cluster_id}) error({e})")
+                    logger.exception(f"batch refresh apm application config to k8s({cluster_id})")
 
-    def get_application_config(self):
+    def get_application_config(self, bcs_cluster_id: str | None = None):
         """获取应用配置上下文"""
         config = {
             "bk_biz_id": self._application.bk_biz_id,
@@ -128,6 +152,7 @@ class ApplicationConfig(BkCollectorConfig):
         config["bk_data_token"] = self._application.get_bk_data_token()
         config["resource_filter_config"] = self.get_resource_filter_config()
         config["resource_filter_config_logs"] = self.get_resource_filter_config_logs()
+        config["resource_filter_config_metrics"] = self.get_resource_filter_config_metrics(bcs_cluster_id)
 
         apdex_config = self.get_apdex_config(ApdexConfig.APP_LEVEL)
         sampler_config = self.get_random_sampler_config(ApdexConfig.APP_LEVEL)
@@ -147,6 +172,7 @@ class ApplicationConfig(BkCollectorConfig):
         )
         profiles_drop_sampler_config = self.get_profiles_drop_sampler_config()
         traces_drop_sampler_config = self.get_traces_drop_sampler_config()
+        metrics_filter_config = self.get_metrics_filter_config()
 
         if apdex_config:
             config["apdex_config"] = apdex_config.get(self._application.app_name)
@@ -180,6 +206,9 @@ class ApplicationConfig(BkCollectorConfig):
         if db_slow_command_config:
             config["db_slow_command_config"] = db_slow_command_config
 
+        if metrics_filter_config:
+            config["metrics_filter_config"] = metrics_filter_config
+
         service_configs = self.get_sub_configs("service_name", ApdexConfig.SERVICE_LEVEL)
         if service_configs:
             config["service_configs"] = service_configs
@@ -188,6 +217,23 @@ class ApplicationConfig(BkCollectorConfig):
             config["instance_configs"] = instance_configs
 
         return config
+
+    def get_metrics_filter_config(self) -> dict:
+        params = {"bk_biz_id": self._application.bk_biz_id, "app_name": self._application.app_name}
+        json_value = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.CODE_RELABEL_CONFIG)
+
+        if not json_value:
+            return {}
+
+        code_relabel_rules = json.loads(json_value)
+
+        if not isinstance(code_relabel_rules, list):
+            return {}
+
+        if not code_relabel_rules:
+            return {}
+
+        return {"name": "metrics_filter/relabel", "code_relabel": code_relabel_rules}
 
     def get_bk_data_id_config(self):
         data_ids = {}
@@ -222,6 +268,7 @@ class ApplicationConfig(BkCollectorConfig):
         log_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_LOGS_BATCH_SIZE)
         metric_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_METRIC_BATCH_SIZE)
         trace_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_TRACES_BATCH_SIZE)
+        profile_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_PROFILES_BATCH_SIZE)
 
         res = {}
         if log_size:
@@ -230,6 +277,8 @@ class ApplicationConfig(BkCollectorConfig):
             res["metrics_batch_size"] = metric_size
         if trace_size:
             res["traces_batch_size"] = trace_size
+        if profile_size:
+            res["profiles_batch_size"] = profile_size
 
         return res
 
@@ -335,6 +384,37 @@ class ApplicationConfig(BkCollectorConfig):
             "name": "resource_filter/logs",
             "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
         }
+
+    def get_resource_filter_config_metrics(self, bcs_cluster_id=None):
+        """
+        维度补充配置
+        """
+        default_metrics_config = {
+            "name": "resource_filter/metrics",
+            "drop": {"keys": ["resource.bk.data.token", "resource.process.pid", "resource.tps.tenant.id"]},
+            "from_token": {"keys": ["app_name"]},
+        }
+
+        if not bcs_cluster_id or bcs_cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            # 中心化集群，可以接收到所有的数据，不对中心化集群做维度补充逻辑
+            return default_metrics_config
+
+        enabled_apps = settings.APM_RESOURCE_FILTER_METRICS_ENABLED_APPS
+
+        # 只有在白名单中的应用才启用该功能
+        if enabled_apps and self._application.app_name in enabled_apps.get(str(self._application.bk_biz_id), []):
+            extra_config = {
+                "from_record": [
+                    {
+                        "source": "request.client.ip",
+                        "destination": "resource.net.host.ip",
+                    }
+                ],
+                "from_cache": {"key": "resource.net.host.ip", "cache_name": "k8s_cache"},
+            }
+            extra_config.update(default_metrics_config)
+            return extra_config
+        return default_metrics_config
 
     def get_sub_configs(self, unique_key: str, config_level):
         apdex_configs = self.get_apdex_config(config_level)

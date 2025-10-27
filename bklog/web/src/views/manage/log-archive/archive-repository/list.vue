@@ -121,7 +121,7 @@
           :render-header="$renderHeader"
         >
           <template #default="props">
-            {{ props.row.creator }}
+            <bk-user-display-name :user-id="props.row.creator"></bk-user-display-name>
           </template>
         </bk-table-column>
         <bk-table-column
@@ -421,7 +421,7 @@
         try {
           this.isTableLoading = true;
           const res = await this.$store.dispatch('getApplyData', paramData);
-          this.$store.commit('updateAuthDialogData', res.data);
+          this.$store.commit('updateState', {'authDialogData': res.data});
         } catch (err) {
           console.warn(err);
         } finally {

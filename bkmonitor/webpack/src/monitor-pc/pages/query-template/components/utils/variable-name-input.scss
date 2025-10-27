@@ -1,0 +1,65 @@
+/* stylelint-disable no-descending-specificity */
+.template-config-variable-name-input {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  width: 100%;
+  height: 30px;
+  background: #FEF9FB;
+  border-radius: 2px;
+
+  .label-left, .label-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 100%;
+    color: #313238;
+    background: #F5F7FA;
+  }
+
+  .label-left {
+    width: 28px;
+    margin-right: -1px;
+    border: 1px solid #C4C6CC;
+    border-right: none;
+  }
+
+  .label-right {
+    width: 21px;
+    margin-left: -1px;
+    border: 1px solid #C4C6CC;
+    border-left: none;
+  }
+
+  .variable-name-input {
+    .bk-input-text {
+      .bk-form-input {
+        height: 30px;
+        font-weight: 700;
+        color: #E54488;
+        background: #fff;
+        border: 1px solid #C4C6CC;
+
+        &:focus {
+          background-color: #fff !important;
+          border: 1px solid #C4C6CC !important;
+
+        }
+
+        &::placeholder {
+          font-weight: 400;
+        }
+      }
+    }
+  }
+
+  &.is-err {
+    .variable-name-input {
+      .bk-form-input {
+        border: 1px solid #EA3636;
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -52,6 +52,7 @@ from metadata.models.vm.constants import (
     QUERY_VM_SPACE_UID_CHANNEL_KEY,
     QUERY_VM_SPACE_UID_LIST_KEY,
 )
+from metadata.task.tasks import check_bkcc_space_builtin_datalink
 from metadata.task.utils import bulk_handle
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
@@ -60,7 +61,7 @@ logger = logging.getLogger("metadata")
 
 
 @share_lock(identify="metadata__sync_bkcc_space")
-def sync_bkcc_space(allow_deleted=False):
+def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create_builtin_data_link_delay=True):
     """同步 bkcc 的业务，自动创建对应的空间
 
     TODO: 是否由服务方调用接口创建或者服务方可以被 watch
@@ -74,14 +75,19 @@ def sync_bkcc_space(allow_deleted=False):
     start_time = time.time()
 
     # 先同步已归档业务
-    sync_archived_bkcc_space()
+    sync_archived_bkcc_space(bk_tenant_id=bk_tenant_id)
+
+    if bk_tenant_id:
+        bk_tenant_ids = [bk_tenant_id]
+    else:
+        bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
 
     bkcc_type_id = SpaceTypes.BKCC.value
     biz_list: list[Business] = []
-    for tenant in api.bk_login.list_tenant():
-        temp: list[Business] = api.cmdb.get_business(bk_tenant_id=tenant["id"])
+    for tenant_id in bk_tenant_ids:
+        temp: list[Business] = api.cmdb.get_business(bk_tenant_id=tenant_id)
         for b in temp:
-            setattr(b, "bk_tenant_id", tenant["id"])
+            setattr(b, "bk_tenant_id", tenant_id)
         biz_list.extend(temp)
 
     # NOTE: 为防止出现接口变动的情况，导致误删操作；如果为空，则忽略数据处理
@@ -94,10 +100,6 @@ def sync_bkcc_space(allow_deleted=False):
     space_id_list = Space.objects.filter(space_type_id=bkcc_type_id).values_list("space_id", flat=True)
     diff = set(biz_id_name_dict.keys()) - set(space_id_list)
     diff_delete = set(space_id_list) - set(biz_id_name_dict.keys())
-    # 如果业务没有查询，则直接返回；否则, 创建对应的空间信息
-    if not (diff or diff_delete):
-        logger.info("bkcc space not need add or delete!")
-        return
 
     # 针对删除的业务
     # 当业务在 cmdb 删除业务，并且允许删除为 True 时，才进行删除；避免因为接口返回不正确，误删除的场景
@@ -129,7 +131,7 @@ def sync_bkcc_space(allow_deleted=False):
 
         # 创建空间
         try:
-            create_bkcc_spaces(diff_biz_list)
+            create_bkcc_spaces(diff_biz_list, create_builtin_data_link_delay=create_builtin_data_link_delay)
         except Exception:
             logger.exception("create bkcc biz space error")
             return
@@ -138,6 +140,11 @@ def sync_bkcc_space(allow_deleted=False):
         RedisTools.publish(QUERY_VM_SPACE_UID_CHANNEL_KEY, [json.dumps({"time": time.time()})])
 
         logger.info("create bkcc space successfully, space: %s", json.dumps(diff_biz_list))
+
+    # 检查V4链路配置，需要排除新增的业务
+    check_bkcc_space_builtin_datalink(
+        biz_list=[(b.bk_tenant_id, b.bk_biz_id) for b in biz_list if str(b.bk_biz_id) not in diff]
+    )
 
     cost_time = time.time() - start_time
 
@@ -150,14 +157,20 @@ def sync_bkcc_space(allow_deleted=False):
     logger.info("sync bkcc space task cost time: %s", cost_time)
 
 
-def sync_archived_bkcc_space():
+def sync_archived_bkcc_space(bk_tenant_id: str | None = None):
     """同步 bkcc 被归档的业务，停用对应的空间"""
     logger.info("start sync archived bkcc space task")
     bkcc_type_id = SpaceTypes.BKCC.value
     # 获取已归档的业务
     archived_biz_list: list[Business] = []
-    for tenant in api.bk_login.list_tenant():
-        archived_biz_list.extend(api.cmdb.get_business(bk_tenant_id=tenant["id"], is_archived=True))
+
+    if bk_tenant_id:
+        bk_tenant_ids = [bk_tenant_id]
+    else:
+        bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
+
+    for tenant_id in bk_tenant_ids:
+        archived_biz_list.extend(api.cmdb.get_business(bk_tenant_id=tenant_id, is_archived=True))
     archived_biz_id_list = [str(b.bk_biz_id) for b in archived_biz_list]
     # 归档的业务，变更空间名称为 {当前名称}(已归档_20240619)
     name_suffix = f"(已归档_{datetime.now().strftime('%Y%m%d')})"
@@ -688,7 +701,7 @@ def push_and_publish_space_router(
         space_uid_list = []
         for space in spaces:
             if settings.ENABLE_MULTI_TENANT_MODE:
-                space_uid_list.append(f"{space['bk_tenant_id']}|{space['space_type_id']}__{space['space_id']}")
+                space_uid_list.append(f"{space['space_type_id']}__{space['space_id']}|{space['bk_tenant_id']}")
             else:
                 space_uid_list.append(f"{space['space_type_id']}__{space['space_id']}")
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, space_uid_list)
@@ -912,7 +925,7 @@ def refresh_bksaas_space_resouce():
     push_redis_keys = []
     for space in spaces:
         if settings.ENABLE_MULTI_TENANT_MODE:
-            push_redis_keys.append(f"{space.bk_tenant_id}|{space.space_type_id}__{space.space_id}")
+            push_redis_keys.append(f"{space.space_type_id}__{space.space_id}|{space.bk_tenant_id}")
         else:
             push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
     RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)

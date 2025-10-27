@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -12,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import abc
 import time
 from datetime import datetime
-from typing import Dict, List
 
 import six
 from django.utils.translation import gettext as _
@@ -83,7 +81,7 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
                 strategy_names = StrategyModel.objects.filter(id__in=strategy_ids).values_list("name", flat=True)
 
             if strategy_names:
-                names = " ".join(strategy_names)
+                names = ",".join(strategy_names)
                 content = STRATEGY_NAME_TEMPLATE.format(names.strip()) + " - "
             else:
                 return STRATEGY_ALREADY_DELETED_MESSAGE
@@ -95,7 +93,7 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
             content += ",".join([ip["bk_target_ip"] for ip in dimension_config.get("bk_target_ip", [])])
         elif scope_type == ScopeType.NODE:
             node_path_list = self.get_node_path_list(bk_biz_id, dimension_config.get("bk_topo_node"))
-            content += ",".join(["/".join(item) for item in node_path_list])
+            content += ",".join(["/ ".join(item) for item in node_path_list])
         elif scope_type == ScopeType.DYNAMIC_GROUP:
             dynamic_group_names = self.get_dynamic_group_name_list(
                 bk_biz_id, dimension_config.get("dynamic_group") or []
@@ -135,7 +133,7 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
         return []
 
     @abc.abstractmethod
-    def get_dynamic_group_name_list(self, bk_biz_id: int, dynamic_group_list: List[Dict]) -> List:
+    def get_dynamic_group_name_list(self, bk_biz_id: int, dynamic_group_list: list[dict]) -> list:
         """
         根据动态分组id列表返回动态分组名称列表，需要子类实现
         """
@@ -247,7 +245,9 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
         now_datetime = datetime.now()
         cycle_config = shield.get("cycle_config")
         remaining_time = None
-        begin_time = time.strptime(cycle_config.get("begin_time"), "%H:%M:%S") if cycle_config.get("begin_time") != "" else ""
+        begin_time = (
+            time.strptime(cycle_config.get("begin_time"), "%H:%M:%S") if cycle_config.get("begin_time") != "" else ""
+        )
         end_time = time.strptime(cycle_config.get("end_time"), "%H:%M:%S") if cycle_config.get("end_time") != "" else ""
 
         begin_datetime = datetime.strptime(shield.get("begin_time"), "%Y-%m-%d %H:%M:%S")
@@ -319,7 +319,7 @@ class BaseShieldDisplayManager(six.with_metaclass(abc.ABCMeta, object)):
 
             return f"{day}{' ' if day else ''}{hour} {minute}"
 
-    def get_category_name(self, shield):
+    def get_category_name(self, shield: dict) -> str:
         """
         获取屏蔽的分类
         """

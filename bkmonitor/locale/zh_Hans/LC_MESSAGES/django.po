@@ -1687,6 +1687,15 @@ msgstr "事件对应的指标项"
 msgid "分类"
 msgstr "分类"
 
+msgid "数据上报"
+msgstr "数据上报"
+
+msgid "数据状态"
+msgstr "数据状态"
+
+msgid "自定义标签"
+msgstr "自定义标签"
+
 msgid "事件所属的数据分层，如 \"application\", \"os\", \"others\""
 msgstr "事件所属的数据分层，如 \"application\", \"os\", \"others\""
 
@@ -2080,6 +2089,9 @@ msgstr "异常"
 
 msgid "无数据"
 msgstr "无数据"
+
+msgid "有数据"
+msgstr "有数据"
 
 msgid "集群名称"
 msgstr "集群名称"
@@ -5921,6 +5933,9 @@ msgstr "网页"
 msgid "远程调用"
 msgstr "远程调用"
 
+msgid "其他语言"
+msgstr "其他语言"
+
 msgid "高级(Advances)"
 msgstr "高级(Advances)"
 
@@ -7976,6 +7991,9 @@ msgstr "操作"
 msgid "调用链"
 msgstr "调用链"
 
+msgid "性能分析"
+msgstr "性能分析"
+
 msgid "统计"
 msgstr "统计"
 
@@ -8388,6 +8406,15 @@ msgstr "接口"
 msgid "调用类型"
 msgstr "调用类型"
 
+msgid "调用服务"
+msgstr "调用服务"
+
+msgid "查看告警"
+msgstr "查看告警"
+
+msgid "查看指标"
+msgstr "查看指标"
+
 msgid "平均响应时间"
 msgstr "平均响应时间"
 
@@ -8512,6 +8539,18 @@ msgstr "查看告警事件"
 msgid "查看相关指标"
 msgstr "查看相关指标"
 
+msgid "接口下钻"
+msgstr "接口下钻"
+
+msgid "查看三方应用"
+msgstr "查看三方应用"
+
+msgid "服务概览"
+msgstr "服务概览"
+
+msgid "资源拓扑"
+msgstr "资源拓扑"
+
 msgid "展开服务"
 msgstr "展开服务"
 
@@ -8526,6 +8565,24 @@ msgstr "查看关联应用"
 
 msgid "关系调用"
 msgstr "关系调用"
+
+msgid "主调总量"
+msgstr "主调总量"
+
+msgid "主调平均耗时"
+msgstr "主调平均耗时"
+
+msgid "主调错误量"
+msgstr "主调错误量"
+
+msgid "被调总量"
+msgstr "被调总量"
+
+msgid "被调平均耗时"
+msgstr "被调平均耗时"
+
+msgid "被调错误量"
+msgstr "被调错误量"
 
 msgid "Span列表请求失败: {e.data.get('message')}"
 msgstr "Span列表请求失败: {e.data.get('message')}"
@@ -12445,3 +12502,245 @@ msgstr "JSON解析错误：{msg}"
 
 #~ msgid "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
 #~ msgstr "sum_without_time(内存 requests)/sum_without_time(kube_node_status_allocatable_memory_bytes)-(count_without_time(kube_node_status_allocatable_memory_bytes)-1)/count_without_time(kube_node_status_allocatable_memory_bytes)"
+
+# Incident metrics config translations
+msgid "总数"
+msgstr "总数"
+
+# Incident metrics constants translations
+msgid "请求总数"
+msgstr "请求总数"
+
+msgid "主调请求数"
+msgstr "主调请求数"
+
+msgid "被调请求数"
+msgstr "被调请求数"
+
+msgid "错误请求数"
+msgstr "错误请求数"
+
+msgid "99% 耗时"
+msgstr "99% 耗时"
+
+msgid "95% 耗时"
+msgstr "95% 耗时"
+
+msgid "50% 耗时"
+msgstr "50% 耗时"
+
+msgid "CPU request使用率"
+msgstr "CPU request使用率"
+
+msgid "CPU limit使用率"
+msgstr "CPU limit使用率"
+
+msgid "内存 request使用率"
+msgstr "内存 request使用率"
+
+msgid "内存 limit使用率"
+msgstr "内存 limit使用率"
+
+msgid "网络入带宽"
+msgstr "网络入带宽"
+
+msgid "网络出带宽"
+msgstr "网络出带宽"
+
+msgid "CPU五分钟平均负载"
+msgstr "CPU五分钟平均负载"
+
+msgid "告警事件"
+msgstr "告警事件"
+
+msgid "服务调用总数Top5"
+msgstr "服务调用总数 Top5"
+
+msgid "服务错误次数Top5"
+msgstr "服务错误次数 Top5"
+
+msgid "服务平均响应耗时Top5"
+msgstr "服务平均响应耗时 Top5"
+
+msgid "服务接口调用总数Top5"
+msgstr "服务接口调用总数 Top5"
+
+msgid "服务接口错误率Top5"
+msgstr "服务接口错误率 Top5"
+
+msgid "服务接口平均耗时Top5"
+msgstr "服务接口平均耗时 Top5"
+
+msgid "异常事件"
+msgstr "异常事件"
+
+msgid "总数量"
+msgstr "总数量"
+
+msgid "请求统计"
+msgstr "请求统计"
+
+msgid "错误详情"
+msgstr "错误详情"
+
+msgid "错误趋势"
+msgstr "错误趋势"
+
+msgid "DB类型"
+msgstr "DB 类型"
+
+msgid "命名语句统计"
+msgstr "命名语句统计"
+
+msgid "命名语句明细"
+msgstr "命名语句明细"
+
+msgid "异常列表"
+msgstr "异常列表"
+
+msgid "调用总数"
+msgstr "调用总数"
+
+msgid "组件实例"
+msgstr "组件实例"
+
+msgid "接口调用总数Top5"
+msgstr "接口调用总数 Top5"
+
+msgid "接口错误次数Top5"
+msgstr "接口错误次数 Top5"
+
+msgid "接口平均耗时Top5"
+msgstr "接口平均耗时 Top5"
+
+msgid "URI请求统计"
+msgstr "URI 请求统计"
+
+msgid "请求量"
+msgstr "请求量"
+
+msgid "成功率"
+msgstr "成功率"
+
+msgid "超时率"
+msgstr "超时率"
+
+msgid "异常率"
+msgstr "异常率"
+
+msgid "耗时分布"
+msgstr "耗时分布"
+
+msgid "耗时热力图"
+msgstr "耗时热力图"
+
+msgid "维度值分布"
+msgstr "维度值分布"
+
+msgid "成功异常超时率"
+msgstr "成功异常超时率"
+
+msgid "容器列表"
+msgstr "容器列表"
+
+msgid "自定义指标维度列表"
+msgstr "自定义指标维度列表"
+
+msgid "主机概览"
+msgstr "主机概览"
+
+msgid "主机详情"
+msgstr "主机详情"
+
+msgid "主机列表"
+msgstr "主机列表"
+
+msgid "总趋势"
+msgstr "总趋势"
+
+msgid "查询项"
+msgstr "查询项"
+
+msgid "对比项"
+msgstr "对比项"
+
+msgid "告警模板"
+msgstr "告警模板"
+
+msgid "服务组件"
+msgstr "服务组件"
+
+msgid "调用分析"
+msgstr "调用分析"
+
+msgid "事件等级"
+msgstr "事件等级"
+
+msgid "事件来源"
+msgstr "事件来源"
+
+msgid "用户环境"
+msgstr "用户环境"
+
+msgid "主调 Service"
+msgstr "主调 Service"
+
+msgid "主调接口"
+msgstr "主调接口"
+
+msgid "主调 IP"
+msgstr "主调 IP"
+
+msgid "主调容器"
+msgstr "主调容器"
+
+msgid "主调 SetID"
+msgstr "主调 SetID"
+
+msgid "主调流量组"
+msgstr "主调流量组"
+
+msgid "被调服务"
+msgstr "被调服务"
+
+msgid "被调 Service"
+msgstr "被调 Service"
+
+msgid "被调接口"
+msgstr "被调接口"
+
+msgid "被调 IP"
+msgstr "被调 IP"
+
+msgid "被调容器"
+msgstr "被调容器"
+
+msgid "被调 SetID"
+msgstr "被调 SetID"
+
+msgid "返回码"
+msgstr "返回码"
+
+msgid "地域"
+msgstr "地域"
+
+msgid "金丝雀"
+msgstr "金丝雀"
+
+msgid "预留字段1"
+msgstr "预留字段1"
+
+msgid "预留字段2"
+msgstr "预留字段2"
+
+msgid "预留字段3"
+msgstr "预留字段3"
+
+msgid "主调服务"
+msgstr "主调服务"
+
+msgid "调用数"
+msgstr "Call number"
+
+msgid "缩略图"
+msgstr "Thumbnail"

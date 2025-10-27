@@ -1,0 +1,53 @@
+.bk-form.variable-common-form {
+  .bk-label {
+    padding: 0;
+    font-size: 12px;
+    color: #4d4f56;
+    text-align: left;
+  }
+
+  .bk-form-item {
+    margin-bottom: 16px;
+
+    .variable-name-input {
+      .bk-form-input,
+      .group-box {
+        border-color: #c4c6cc;
+      }
+
+      .bk-form-input {
+        color: #e54488;
+      }
+
+      .group-box {
+        background-color: #f5f7fa;
+
+        .group-text {
+          padding: 0 8px;
+          line-height: 30px;
+          color: #313238;
+        }
+      }
+    }
+
+    &.is-error {
+      .variable-name-input {
+        .bk-form-input {
+          border-color: #EA3636
+        }
+      }
+    }
+
+    &.variable-name-form-item {
+      .bk-form-input:focus {
+        border-color: #c4c6cc !important;
+      }
+    }
+
+    .bk-form-content {
+      .tooltips-icon {
+        right: 30px !important;
+      }
+    }
+  }
+}

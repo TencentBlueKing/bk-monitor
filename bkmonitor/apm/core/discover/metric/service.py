@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -72,9 +72,10 @@ class ServiceDiscover(Discover):
         return list(merged_dimensions.values())
 
     def discover(self, start_time, end_time):
-        # 1 - 查询自定义指标中的 service_name 维度。
+        # 1 - 查询自定义指标中的 service_name 和 rpc_system 维度。
         custom_metric_promql: str = (
-            f'count by (service_name) ({{__name__=~"custom:{self.result_table_id}:.*",{CUSTOM_METRICS_PROMQL_FILTER}}})'
+            f"count by (service_name, rpc_system) "
+            f'({{__name__=~"custom:{self.result_table_id}:.*",{CUSTOM_METRICS_PROMQL_FILTER}}})'
         )
         # 2 - 查询 RPC 指标中的 service_name 和 rpc_system 维度。
         #     相较于上一个实现版本，去掉 target 维度（已由接收端清洗为 service_name），增加 rpc_system 维度（兼容更多 RPC 框架）。
@@ -82,29 +83,43 @@ class ServiceDiscover(Discover):
             f"count by (service_name, rpc_system) "
             f'({{__name__=~"custom:{self.result_table_id}:rpc_(client|server)_handled_total"}})'
         )
-        dimensions: list[dict[str, str | None]] = self.merge_dimensions(
-            [
-                self.query_dimensions(custom_metric_promql, start_time, end_time),
-                self.query_dimensions(rpc_metric_promql, start_time, end_time),
-            ]
+
+        # 根据自定义指标发现服务
+        custom_metric_services: list[dict[str, str | None]] = self.query_dimensions(
+            custom_metric_promql, start_time, end_time
         )
-        logger.info(f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) find {len(dimensions)} dimensions")
-        if not dimensions:
-            logger.warning(f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) no dimensions found, skipped")
+        # 根据调用分析指标发现服务
+        rpc_services: list[dict[str, bool | str | None]] = [
+            {**service, "is_rpc": True} for service in self.query_dimensions(rpc_metric_promql, start_time, end_time)
+        ]
+        services: list[dict[str, str | None]] = self.merge_dimensions([custom_metric_services, rpc_services])
+        logger.info(f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) find {len(services)} services")
+        if not services:
+            logger.warning(f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) no service found, skipped")
             return
 
         found_topo_keys: set[str] = set()
         to_be_created_topo_nodes: list[TopoNode] = []
         to_be_updated_topo_nodes: list[TopoNode] = []
         exists_mapping: dict[str, dict[str, Any]] = self.list_exists_mapping()
-        for item in dimensions:
-            topo_key: str | None = item.get("service_name")
+        for service in services:
+            topo_key: str | None = service.get("service_name")
             if not topo_key or topo_key in found_topo_keys:
                 continue
 
-            system: list[dict[str, Any]] = [
-                {"name": "trpc", "extra_data": {"rpc_system": item.get("rpc_system") or ""}}
-            ]
+            system: list[dict[str, Any]] = []
+            rpc_system: str | None = service.get("rpc_system")
+            # 如何确定一个服务是否为 RPC（tRPC 或其他）类型？
+            # - 通过调用分析指标发现。
+            # - 自定义指标携带 rpc_system 维度。
+            is_rpc: bool = bool(rpc_system) or service.get("is_rpc", False)
+            if is_rpc:
+                # 标记为 RPC 服务时，才设置 system。
+                system.append({"name": "trpc", "extra_data": {}})
+            if rpc_system:
+                # 如果存在 rpc_system，才添加到 system 中，避免空值覆盖有值。
+                system[0]["extra_data"]["rpc_system"] = rpc_system
+
             if topo_key in exists_mapping:
                 source: list[str] = exists_mapping[topo_key]["source"] or [TelemetryDataType.METRIC.value]
                 if TelemetryDataType.METRIC.value not in source:

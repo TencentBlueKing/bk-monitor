@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -538,7 +538,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
     this.formData.dir = item?.isGroup && !!item?.isFolder ? item?.id : '';
     this.showAddForm = true;
     this.curFormType = option.id as FormType;
-    this.copiedUid = item.uid;
+    this.copiedUid = item?.uid;
     this.formData.name = (this.isCopyDashboard && item?.title) || '';
   }
 
@@ -851,6 +851,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
           v-model={this.showAddForm}
           header-position='left'
           title={this.$t(this.isDashboard ? '新建仪表盘' : this.isCopyDashboard ? '复制仪表盘' : '新增目录')}
+          z-index={2000}
           show-footer
           onCancel={this.handleCancel}
         >

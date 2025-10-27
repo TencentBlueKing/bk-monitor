@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -23,7 +23,8 @@ from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import safe_int
-from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
+from bkmonitor.utils.request import get_request, get_request_username
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_local_username
 from bkmonitor.views import serializers
 from core.drf_resource import CacheResource, api, resource
@@ -122,20 +123,23 @@ class FetchBusinessInfoResource(Resource):
 
 class ListSpacesResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField()
         show_all = serializers.BooleanField(required=False, default=False, allow_null=True)
         show_detail = serializers.BooleanField(required=False, default=False, allow_null=True)
 
     @classmethod
-    def get_space_by_user(cls, username, use_cache=True) -> list[dict]:
-        perm_client = Permission(username=username, bk_tenant_id=get_request_tenant_id())
+    def get_space_by_user(cls, bk_tenant_id: str, username: str, use_cache: bool = True) -> list[dict]:
+        perm_client = Permission(username=username, bk_tenant_id=bk_tenant_id)
+        perm_client.skip_check = False
         return perm_client.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS, use_cache)
 
     def perform_request(self, validated_request_data) -> list[dict]:
         request = get_request(peaceful=True)
         username = get_request_username()
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
 
         if request and getattr(request, "external_user", None):
-            spaces: list[dict] = SpaceApi.list_spaces_dict()
+            spaces: list[dict] = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)
             external_biz_ids = (
                 ExternalPermission.objects.filter(authorized_user=request.external_user, expire_time__gt=timezone.now())
                 .values_list("bk_biz_id", flat=True)
@@ -145,15 +149,15 @@ class ListSpacesResource(Resource):
         elif validated_request_data["show_all"]:
             # 针对特定用户名屏蔽空间信息
             if settings.BLOCK_SPACE_RULE and re.search(settings.BLOCK_SPACE_RULE, username):
-                spaces: list[dict] = self.get_space_by_user(username)
+                spaces: list[dict] = self.get_space_by_user(bk_tenant_id, username)
             else:
-                spaces: list[dict] = SpaceApi.list_spaces_dict()
+                spaces: list[dict] = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)
         else:
-            spaces: list[dict] = self.get_space_by_user(username)
+            spaces: list[dict] = self.get_space_by_user(bk_tenant_id, username)
 
         if validated_request_data["show_detail"]:
             list(map(self.enrich_space_func, spaces))
-        return spaces
+        return [space for space in spaces if space["bk_tenant_id"] == bk_tenant_id]
 
     def enrich_space_func(self, space):
         # todo 使用运营数据判定是否接入
@@ -353,9 +357,16 @@ class SpaceIntroduceResource(CacheResource):
                     ],
                     "buttons": [{"name": _("新建应用"), "url": "#/apm/application/add"}, {"name": "DEMO", "url": ""}],
                     "links": [
-                        {"name": _("开启APM"), "url": "ProductFeatures/scene-apm/apm_monitor_overview.md"},
-                        {"name": _("APM指标说明"), "url": "ProductFeatures/scene-apm/apm_metrics.md"},
-                        {"name": _("APM策略说明"), "url": "ProductFeatures/scene-apm/apm_default_rules.md"},
+                        {
+                            "name": _("产品白皮书"),
+                            "url": settings.APM_FUNC_INTRODUCTION_URL
+                            or "ProductFeatures/scene-apm/apm_monitor_overview.md",
+                        },
+                        {
+                            "name": _("接入指引"),
+                            "url": settings.APM_ACCESS_URL
+                            or "ProductFeatures/integrations-traces/opentelemetry_overview.md",
+                        },
                     ],
                 },
             }
@@ -472,48 +483,13 @@ class SpaceIntroduceResource(CacheResource):
             return {_tag: self.get_introduce(_tag, bk_biz_id) for _tag in tags}
 
 
-class ListDataPipelineResource(Resource):
-    def perform_request(self, validated_request_data):
-        return api.metadata.list_data_pipeline(validated_request_data)
-
-
-class ListDataSourceByDataPipelineResource(Resource):
-    def perform_request(self, validated_request_data):
-        return api.metadata.list_data_source_by_data_pipeline(validated_request_data)
-
-
-class CreateDataPipelineResource(Resource):
-    def perform_request(self, validated_request_data):
-        return api.metadata.create_data_pipeline(validated_request_data)
-
-
-class UpdateDataPipelineResource(Resource):
-    def perform_request(self, validated_request_data):
-        return api.metadata.update_data_pipeline(validated_request_data)
-
-
-class GetClusterInfoResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        cluster_id = serializers.IntegerField(required=False, label="集群 ID", allow_null=True)
-        cluster_type = serializers.CharField(required=False, label="集群类型", allow_null=True, allow_blank=True)
-
-    def perform_request(self, validated_request_data):
-        return api.metadata.get_storage_cluster_info(validated_request_data)
-
-
-class GetEtlConfigResource(Resource):
-    def perform_request(self, validated_request_data):
-        return api.metadata.get_etl_config(validated_request_data)
-
-
-class GetTransferListResource(Resource):
-    def perform_request(self, validated_request_data):
-        return api.metadata.get_transfer_list(validated_request_data)
-
-
 class CheckClusterHealthResource(Resource):
+    """
+    检测集群连通性（废弃，默认返回成功）
+    """
+
     def perform_request(self, validated_request_data):
-        return api.metadata.check_cluster_health(validated_request_data)
+        return True
 
 
 class ListClustersResource(Resource):

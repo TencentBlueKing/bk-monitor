@@ -24,10 +24,42 @@
  * IN THE SOFTWARE.
  */
 
-import * as authorityMap from '@/common/authority-map';
 import { random } from '@/components/monitor-echarts/utils';
 
 import http from '@/api';
+
+/**
+ * 索引集列表初始化
+ * @param {*} indexSetList 索引集列表
+ * @param {*} pid 父节点id
+ */
+const resolveIndexItemAttr = (indexSetList = [], parent_node = null) => {
+  const s1 = [];
+  const s2 = [];
+  indexSetList?.forEach(item => {
+    const copyItem = structuredClone(item);
+    Object.assign(copyItem, {
+      index_set_id: `${item.index_set_id}`,
+      indexName: item.index_set_name,
+      lightenName: ` (${item.indices.map(item => item.result_table_id).join(';')})`,
+      unique_id: `${parent_node?.index_set_id ?? '#'}_${item.index_set_id}`,
+      is_child_node: parent_node !== null,
+      parent_node,
+    });
+
+    // 这里只有两层，数据结构固定为 parent_id#child_id
+    // 如果是跟节点 数据结构为 #_child_id
+    copyItem.children = resolveIndexItemAttr(item.children ?? [], copyItem);
+
+    if (copyItem.auth_wieght === 1) {
+      s1.push(copyItem);
+    } else {
+      s2.push(copyItem);
+    }
+  });
+
+  return s1.concat(s2);
+};
 
 export default {
   namespaced: true,
@@ -37,6 +69,7 @@ export default {
     cacheTimeRange: '',
     filedSettingConfigID: 1,
     indexSetList: [],
+    flatIndexSetList: [],
     isIndexSetLoading: false,
     isTrendDataLoading: false,
     trendDataCount: 0,
@@ -76,13 +109,11 @@ export default {
       state.indexSetList.length = 0;
       state.indexSetList = [];
       state.indexSetList.push(...payload);
+
+      state.flatIndexSetList.length = 0;
+      state.flatIndexSetList = (payload ?? []).map(item => [item, item.children ?? []]).flat(2);
     },
-    updateIndexSetItem(state, item) {
-      const index = state.indexSetList.findIndex(item => item.index_set_id === item.index_set_id);
-      if (index > -1) {
-        state.indexSetList.splice(index, 1, item);
-      }
-    },
+
     updateIndexSetLoading(state, payload) {
       state.isIndexSetLoading = payload;
     },
@@ -122,40 +153,13 @@ export default {
           },
         })
         .then(res => {
-          let indexSetList = [];
+          let processedIndexSetList = [];
           if (res.data.length) {
-            // 有索引集
-            // 根据权限排序
-            const s1 = [];
-            const s2 = [];
-
-            const authEachPush = (list, is_child_node = false, parent_node = null) => {
-              for (const item of list) {
-                Object.assign(item, { is_child_node, parent_node });
-                if (item.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
-                  s1.push(item);
-                } else {
-                  s2.push(item);
-                }
-
-                if (Array.isArray(item?.children ?? null)) {
-                  authEachPush(item.children, true, item);
-                }
-              }
-            };
-
-            authEachPush(res.data);
-
-            indexSetList = s1.concat(s2);
             // 索引集数据加工
-            indexSetList.forEach(item => {
-              item.index_set_id = `${item.index_set_id}`;
-              item.indexName = item.index_set_name;
-              item.lightenName = ` (${item.indices.map(item => item.result_table_id).join(';')})`;
-            });
-            ctx.commit('updateIndexSetList', indexSetList);
+            processedIndexSetList = resolveIndexItemAttr(res.data);
+            ctx.commit('updateIndexSetList', processedIndexSetList);
           }
-          return [res, indexSetList];
+          return [res, processedIndexSetList];
         })
         .finally(() => {
           ctx.commit('updateIndexSetLoading', false);

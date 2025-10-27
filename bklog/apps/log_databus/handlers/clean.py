@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from apps.log_databus.constants import AsyncStatus
 from apps.log_databus.exceptions import (
     CleanTemplateNotExistException,
@@ -34,7 +34,7 @@ from apps.models import model_to_dict
 from apps.utils.log import logger
 
 
-class CleanHandler(object):
+class CleanHandler:
     def __init__(self, collector_config_id):
         self.collector_config_id = collector_config_id
         try:
@@ -70,7 +70,7 @@ class CleanHandler(object):
         return AsyncStatus.RUNNING
 
 
-class CleanTemplateHandler(object):
+class CleanTemplateHandler:
     def __init__(self, clean_template_id=None):
         self.clean_template_id = clean_template_id
         self.data = None
@@ -96,7 +96,6 @@ class CleanTemplateHandler(object):
             "etl_params": params["etl_params"],
             "etl_fields": params["etl_fields"],
             "bk_biz_id": params["bk_biz_id"],
-            "alias_settings": params["alias_settings"]
         }
         if params.get("visible_type"):
             model_fields["visible_type"] = params["visible_type"]
@@ -107,13 +106,13 @@ class CleanTemplateHandler(object):
             space = Space.objects.get(bk_biz_id=model_fields["bk_biz_id"])
             raise CleanTemplateRepeatException(
                 CleanTemplateRepeatException.MESSAGE.format(
-                    bk_biz="[{bk_biz_id}]{bk_biz_name}".format(bk_biz_id=space.bk_biz_id, bk_biz_name=space.space_name),
+                    bk_biz=f"[{space.bk_biz_id}]{space.space_name}",
                     name=model_fields["name"],
                 )
             )
         if not self.data:
             clean_template = CleanTemplate.objects.create(**model_fields)
-            logger.info("create clean template {}".format(clean_template.clean_template_id))
+            logger.info(f"create clean template {clean_template.clean_template_id}")
             return model_to_dict(clean_template)
 
         # 判断是否可以编辑模板
@@ -121,7 +120,7 @@ class CleanTemplateHandler(object):
             space = Space.objects.get(bk_biz_id=model_fields["bk_biz_id"])
             raise CleanTemplateVisibleException(
                 CleanTemplateVisibleException.MESSAGE.format(
-                    bk_biz="[{bk_biz_id}]{bk_biz_name}".format(bk_biz_id=space.bk_biz_id, bk_biz_name=space.space_name),
+                    bk_biz=f"[{space.bk_biz_id}]{space.space_name}",
                     name=self.data.name,
                 )
             )
@@ -129,7 +128,7 @@ class CleanTemplateHandler(object):
         for key, value in model_fields.items():
             setattr(self.data, key, value)
         self.data.save()
-        logger.info("update clean template {}".format(self.data.clean_template_id))
+        logger.info(f"update clean template {self.data.clean_template_id}")
         return model_to_dict(self.data)
 
     def destroy(self, bk_biz_id):
@@ -138,12 +137,12 @@ class CleanTemplateHandler(object):
             space = Space.objects.get(bk_biz_id=bk_biz_id)
             raise CleanTemplateVisibleException(
                 CleanTemplateVisibleException.MESSAGE.format(
-                    bk_biz="[{bk_biz_id}]{bk_biz_name}".format(bk_biz_id=space.bk_biz_id, bk_biz_name=space.space_name),
+                    bk_biz=f"[{space.bk_biz_id}]{space.space_name}",
                     name=self.data.name,
                 )
             )
         self.data.delete()
-        logger.info("delete clean template {}".format(clean_template_id))
+        logger.info(f"delete clean template {clean_template_id}")
         return clean_template_id
 
     def _check_clean_template_exist(self, name: str, bk_biz_id: int):

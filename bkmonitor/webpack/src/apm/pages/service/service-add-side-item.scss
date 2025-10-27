@@ -1,0 +1,56 @@
+.service-add-side__item {
+  & + .service-add-side__item {
+    margin-top: 24px;
+  }
+
+  .service-add-side__item-label {
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+  }
+
+  .service-add-side__item-content {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    margin-top: 6px;
+  }
+
+  .service-add-side__item-hd {
+    flex: 1;
+    height: 100%;
+    border-radius: 2px;
+
+    &.is-disabled {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      line-height: 32px;
+      color: #4d4f56;
+      text-indent: 8px;
+      white-space: nowrap;
+      background-color: #f0f1f5;
+    }
+  }
+
+  .service-add-side__item-bd {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    margin-left: 8px;
+    line-height: 32px;
+    text-align: center;
+    cursor: pointer;
+    background-color: #e1ecff;
+    border-radius: 2px;
+
+    .icon-monitor {
+      font-size: 14px;
+      color: #3a84ff;
+    }
+  }
+
+  .service-add-side__item-btm {
+    margin-top: 6px;
+  }
+}

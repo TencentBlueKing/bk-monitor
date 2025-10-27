@@ -30,7 +30,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Input } from 'bk-magic-vue';
 
 import $http from '../../../api';
-import { deepClone } from '../../../components/monitor-echarts/utils';
 
 import './ui-query.scss';
 
@@ -55,37 +54,44 @@ export default class UiQuery extends tsc<object> {
   }
 
   async getSearchFieldsList(keyword: string, fieldsList = []) {
-    if (!keyword) keyword = '*';
+    let newKeyword = keyword;
+    if (!newKeyword) {
+      newKeyword = '*';
+    }
     this.loading = true;
     try {
       const res = await $http.request('favorite/getSearchFields', {
-        data: { keyword },
+        data: { keyword: newKeyword },
       });
       this.searchFieldsList = res.data
         .filter(item => fieldsList.includes(item.name))
         .map(item => ({
           ...item,
           name: item.is_full_text_field
-            ? `${window.mainComponent.$t('全文检索')}${!!item.repeat_count ? `(${item.repeat_count})` : ''}`
+            ? `${window.mainComponent.$t('全文检索')}${item.repeat_count ? `(${item.repeat_count})` : ''}`
             : item.name,
           chName: item.name,
         }));
-      this.cacheFieldsList = deepClone(this.searchFieldsList); // 赋值缓存的展示字段
+      this.cacheFieldsList = structuredClone(this.searchFieldsList); // 赋值缓存的展示字段
     } finally {
       this.loading = false;
     }
   }
 
   clearCondition() {
-    this.searchFieldsList.forEach(item => (item.value = ''));
+    for (const item of this.searchFieldsList) {
+      item.value = '';
+    }
     this.handleChangeValue();
   }
 
-  async handleChangeValue() {
+  handleChangeValue() {
     const cacheValueStr = this.cacheFieldsList.map(item => item.value).join(',');
     const searchValueStr = this.searchFieldsList.map(item => item.value).join(',');
-    if (cacheValueStr === searchValueStr) return; // 鼠标失焦后判断每个值是否和缓存的一样 如果一样 则不请求
-    this.cacheFieldsList = deepClone(this.searchFieldsList); // 重新赋值缓存的展示字段
+    if (cacheValueStr === searchValueStr) {
+      return;
+    } // 鼠标失焦后判断每个值是否和缓存的一样 如果一样 则不请求
+    this.cacheFieldsList = structuredClone(this.searchFieldsList); // 重新赋值缓存的展示字段
     const params = this.searchFieldsList
       .filter(item => Boolean(item.value))
       .map(item => ({
@@ -106,7 +112,7 @@ export default class UiQuery extends tsc<object> {
           });
           this.$emit('updateKeyWords', res.data);
           this.$emit('isCanSearch', data.is_legal);
-        } catch (error) {
+        } catch {
           this.$emit('isCanSearch', false);
         }
       })
@@ -125,7 +131,10 @@ export default class UiQuery extends tsc<object> {
         v-bkloading={{ isLoading: this.loading }}
       >
         {this.searchFieldsList.map(item => (
-          <div class='query-item-box'>
+          <div
+            key={item}
+            class='query-item-box'
+          >
             <div class='query-title'>
               <span>{item.name}</span>
               <span>{item.operator}</span>
@@ -133,7 +142,7 @@ export default class UiQuery extends tsc<object> {
             <Input
               v-model={item.value}
               onBlur={this.handleChangeValue}
-            ></Input>
+            />
           </div>
         ))}
       </div>

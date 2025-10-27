@@ -55,57 +55,58 @@
       align-items: center;
 
       .sideslider-title {
-          display: flex;
-          align-items: center;
-          width: 230px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+        display: flex;
+        align-items: center;
+        min-width: 230px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 20px;
+        white-space: nowrap;
 
-          .status {
-            position: relative;
-            display: inline-block;
-            width: 13px;
-            height: 13px;
-            margin: 0 4.5px;
+        .status {
+          position: relative;
+          display: inline-block;
+          width: 13px;
+          height: 13px;
+          margin: 0 4.5px;
+          border-radius: 50%;
+
+          &::after {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 7px;
+            height: 7px;
+            content: '';
             border-radius: 50%;
+            transform: translate(-50%, -50%);
+          }
+
+          &.warning {
+            background-color: #fff1db;
 
             &::after {
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              width: 7px;
-              height: 7px;
-              content: '';
-              border-radius: 50%;
-              transform: translate(-50%, -50%);
+              background-color: #fe9c00;
             }
+          }
 
-            &.warning {
-              background-color: #fff1db;
+          &.normal {
+            background-color: #3fc06d29;
 
-              &::after {
-                background-color: #fe9c00;
-              }
+            &::after {
+              background-color: #3fc06d;
             }
+          }
 
-            &.normal {
-              background-color: #3fc06d29;
+          &.failed {
+            background: #ffebeb;
 
-              &::after {
-                background-color: #3fc06d;
-              }
-            }
-
-            &.failed {
-              background: #ffebeb;
-
-              &::after {
-                background-color: #ea3636;
-              }
+            &::after {
+              background-color: #ea3636;
             }
           }
         }
+      }
     }
 
     .arrow-wrap {
@@ -120,7 +121,7 @@
 
       &:first-of-type {
         margin-right: 4px;
-        margin-left: 16px;
+        margin-left: 4px;
       }
 
       &.disabled {
@@ -261,6 +262,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+
       // height: 26px;
       // padding: 0 7px;
       // font-size: 12px;
@@ -330,6 +332,15 @@
         text-overflow: ellipsis;
         white-space: normal;
 
+        .content-detail-type {
+          display: flex;
+          align-items: center;
+
+          svg {
+            margin-right: 4px;
+          }
+        }
+
         .icon-type {
           margin-left: 4px !important;
         }
@@ -363,7 +374,7 @@
             position: unset;
             display: unset;
             margin-right: 4px;
-            margin-left: 0px;
+            margin-left: 0;
           }
 
           &:hover {
@@ -378,6 +389,7 @@
 
   .content-list {
     box-sizing: border-box;
+
     // margin-top: 24px;
     height: calc(100% - 112px);
     padding: 0 16px 14px;
@@ -389,8 +401,8 @@
 
       &:hover {
         box-shadow:
-          0 2px 4px 0 rgba(25, 25, 41, 0.05),
-          0 2px 4px 0 rgba(0, 0, 0, 0.1);
+          0 2px 4px 0 rgb(25 25 41 / 5%),
+          0 2px 4px 0 rgb(0 0 0 / 10%);
       }
 
       .chart-legend {
@@ -419,22 +431,31 @@
       .bklog-result-container.has-scroll-x .bklog-row-box .bklog-row-container .expand-view-wrapper::after {
         display: none;
       }
+
       .bk-nested-loading {
         height: 100%;
+
         & > div {
           height: 100%;
+
           .dashboard-panel {
             height: 100%;
+
             .flex-dashboard {
               height: 100%;
+
               .flex-dashboard-item {
                 height: 100%;
+
                 .monitor-trace-log {
                   padding: 0;
+
                   .v3-bklog-root {
                     background: #fff;
+
                     .v3-bklog-content {
                       padding: 0;
+
                       .v3-bklog-container {
                         margin-top: 0;
                       }
@@ -484,7 +505,7 @@
       .expan-item-title {
         margin-left: 6px;
         font-size: 14px;
-        font-weight: Bold;
+        font-weight: bold;
         color: #313238;
       }
 
@@ -500,7 +521,7 @@
 
         .red-bold {
           font-size: 14px;
-          font-weight: Bold;
+          font-weight: bold;
           color: #ea3636;
         }
 
@@ -522,7 +543,7 @@
 
       &.active {
         height: auto;
-        padding: 0 24px 14px 24px;
+        padding: 0 24px 14px;
       }
 
       /* kv结构 */
@@ -547,13 +568,13 @@
               line-height: 16px;
               color: #fff;
               background: #c4c6cc;
-              border-radius: 0 0 6px 0;
+              border-radius: 0 0 6px;
             }
 
             .content {
               margin: 0 0 8px 12px;
               font-size: 12px;
-              font-weight: Bold;
+              font-weight: bold;
               line-height: 20px;
               color: #63656e;
 
@@ -564,7 +585,7 @@
                 width: 13px;
                 height: 13px;
                 margin-right: 6px;
-                background: rgba(234, 54, 54, 0.16);
+                background: rgb(234 54 54 / 16%);
                 border-radius: 50%;
 
                 .red-point {
@@ -623,7 +644,7 @@
               .center-text {
                 margin: 0 6px;
                 font-size: 12px;
-                font-weight: Bold;
+                font-weight: bold;
                 color: #63656e;
               }
 
@@ -671,7 +692,7 @@
             .center {
               margin: 2px 0;
               font-size: 12px;
-              font-weight: Bold;
+              font-weight: bold;
               color: #63656e;
             }
 
@@ -760,7 +781,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         font-size: 12px;
-        font-weight: Bold;
+        font-weight: bold;
         color: #63656e;
         white-space: nowrap;
       }
@@ -793,6 +814,7 @@
   .json-text-style {
     position: relative;
     margin-top: 12px;
+
     @extend %json-style;
 
     .json-head {
@@ -896,8 +918,8 @@
 
       .format-button {
         position: absolute;
-        top: 0px;
-        right: 0px;
+        top: 0;
+        right: 0;
         z-index: 1;
         display: none;
         height: 22px;

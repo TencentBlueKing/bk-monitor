@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -88,6 +88,7 @@ export default {
 
   轮值: 'Rotation',
   内部通知对象: 'notify object',
+  默认通知渠道: 'Default Notification Channel',
   群机器人: 'Group robots',
   同比策略: 'YoY Strategy',
   环比策略: 'MoM Strategy',
@@ -168,10 +169,26 @@ export default {
   请求量少: 'Fewer requests',
   请求量多: 'More requests',
   可疑程度: 'Suspicious degree',
+  '异常程度 {0}': 'Abnormal degree {0}',
   诊断分析: 'Diagnosis analysis',
   故障总结: 'Incident summary',
   告警异常维度分析: 'Alarm abnormal dimension analysis',
   '故障关联的告警，统计出最异常的维度（组合）：':
     'Alarms related to the fault, statistics are the most abnormal dimension (combination):',
   '来源于以下 {0} 个策略': 'From the following  {0} strategies',
+  全业务可见: 'Visible to all businesses',
+  '包含 {0} 个告警，来源于以下 {1} 个策略：': 'Contains {0} alarms, from the following {1} strategies:',
+  事件分析: 'Event analysis',
+  '事件分析总结：': 'Event analysis summary:',
+  日志分析: 'Log analysis',
+  '日志分析总结：': 'Log analysis summary:',
+  示例事件: 'Example event',
+  告警类别: 'Alarm category',
+  事件类别: 'Event category',
+  '（共 {0} 个{1}）': ' (total {0} {1})',
+  '（共 {0} 个{1}，展示 {2} 如下）': ' (total {0} {1}, show {2} below)',
+  '示例日志：': 'Example log:',
+  '（共 {0} 条日志）': ' (total {0} logs)',
+  独立查看: 'View independently',
+  '在{0}个周期内累计满足{1}次检测算法': 'In {0} cycles, the detection algorithm is met {1} times',
 };

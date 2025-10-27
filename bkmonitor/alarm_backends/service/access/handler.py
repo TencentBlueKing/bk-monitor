@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -26,6 +26,7 @@ from alarm_backends.service.access.tasks import (
     run_access_data,
     run_access_event_handler,
     run_access_incident_handler,
+    run_access_data_with_qos_queue,
 )
 from bkmonitor.utils.beater import MonitorBeater
 from bkmonitor.utils.common_utils import safe_int
@@ -36,6 +37,9 @@ REFRESH_TARGETS = "refresh_targets"
 REFRESH_INTERVAL = 90
 
 
+# 环境变量: QOS_QUEUE_ENABLE, 开启QOS消费队列
+
+
 class AccessBeater(MonitorBeater):
     def __init__(self, name, targets, service, entries=None):
         super().__init__(name, entries)
@@ -44,6 +48,8 @@ class AccessBeater(MonitorBeater):
         self.interval_map = {}
         self.service = service
         self.host_target = []
+        self.enable_qos_queue = os.getenv("QOS_QUEUE_ENABLE", False)
+        self.qos_keys = []
 
     def refresh_targets(self):
         """
@@ -89,6 +95,7 @@ class AccessBeater(MonitorBeater):
                                 _is_qos = True
             return _interval_list, _is_qos
 
+        self.qos_keys = []
         interval_map = defaultdict(set)
         qos_labels = getattr(settings, "QOS_DATASOURCE_LABELS") or []
         qos_interval_expand = getattr(settings, "QOS_INTERVAL_EXPAND", 3)
@@ -133,6 +140,8 @@ class AccessBeater(MonitorBeater):
                     f"strategy_group_key({strategy_group_key}) is qos, interval will be expanded with {qos_interval_expand}"
                 )
                 min_interval *= qos_interval_expand
+                if self.enable_qos_queue:
+                    self.qos_keys.append(strategy_group_key)
             interval_map[min_interval].add(strategy_group_key)
 
         self.interval_map = interval_map
@@ -159,7 +168,8 @@ class AccessBeater(MonitorBeater):
         """
         strategy_group_keys = self.interval_map.get(interval_key) or []
         for _idx, strategy_group_key in enumerate(strategy_group_keys):
-            run_access_data.delay(strategy_group_key, interval=interval_key)
+            run_task = run_access_data_with_qos_queue if strategy_group_key in self.qos_keys else run_access_data
+            run_task.delay(strategy_group_key, interval=interval_key)
             if _idx % (len(strategy_group_keys) // interval_key + 1) == 0:
                 time.sleep(0.05)
         logger.info(

@@ -1,0 +1,105 @@
+paths:
+  /app/dashboard/quick_import_dashboard/:
+    post:
+      operationId: quick_import_dashboard
+      description: 快速导入仪表盘
+      x-bk-apigateway-resource:
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/grafana/quick_import_dashboard/
+          matchSubpath: false
+          timeout: 0
+        descriptionEn: quick import dashboard
+  /app/dashboard/create_dashboard_or_folder/:
+    post:
+      operationId: create_dashboard_or_folder
+      description: 创建仪表盘或文件夹
+      x-bk-apigateway-resource:
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/grafana/create_dashboard_or_folder/
+          matchSubpath: false
+          timeout: 0
+        descriptionEn: create dashboard or folder
+  /app/dashboard/delete_dashboard/:
+    delete:
+      operationId: delete_dashboard
+      description: 删除仪表盘
+      x-bk-apigateway-resource:
+        matchSubpath: false
+        backend:
+          name: default
+          method: delete
+          path: /api/v4/grafana/delete_dashboard/
+          matchSubpath: false
+          timeout: 0
+        descriptionEn: delete dashboard
+  /app/dashboard/star_dashboard/:
+    post:
+      operationId: star_dashboard
+      description: 收藏仪表盘
+      x-bk-apigateway-resource:
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/grafana/star_dashboard/
+          matchSubpath: false
+          timeout: 0
+        descriptionEn: star dashboard
+  /app/dashboard/unstar_dashboard/:
+    delete:
+      operationId: unstar_dashboard
+      description: 取消收藏仪表盘
+      x-bk-apigateway-resource:
+        matchSubpath: false
+        backend:
+          name: default
+          method: delete
+          path: /api/v4/grafana/unstar_dashboard/
+          matchSubpath: false
+          timeout: 0
+        descriptionEn: unstar dashboard
+  /app/dashboard/delete_folder/:
+    delete:
+      operationId: delete_folder
+      description: 删除文件夹
+      x-bk-apigateway-resource:
+        matchSubpath: false
+        backend:
+          name: default
+          method: delete
+          path: /api/v4/grafana/delete_folder/
+          matchSubpath: false
+          timeout: 0
+        descriptionEn: delete folder
+  /app/dashboard/rename_folder/:
+    put:
+      operationId: rename_folder
+      description: 重命名文件夹
+      x-bk-apigateway-resource:
+        matchSubpath: false
+        backend:
+          name: default
+          method: put
+          path: /api/v4/grafana/rename_folder/
+          matchSubpath: false
+          timeout: 0
+        descriptionEn: rename folder
+  /app/dashboard/save_to_dashboard/:
+    post:
+      operationId: save_to_dashboard
+      description: 保存到仪表盘
+      x-bk-apigateway-resource:
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/grafana/save_to_dashboard/
+          matchSubpath: false
+          timeout: 0
+        descriptionEn: save to dashboard

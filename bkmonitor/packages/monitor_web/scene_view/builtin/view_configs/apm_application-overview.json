@@ -39,7 +39,7 @@
     },
     {
       "id": 2,
-      "title": "告警事件",
+      "title": "_(告警事件)",
       "type": "apdex-chart",
       "gridPos": {
         "x": 12,
@@ -70,7 +70,7 @@
     },
     {
       "id": 3,
-      "title": "请求数",
+      "title": "_(请求数)",
       "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 0,
@@ -78,13 +78,13 @@
         "w": 8,
         "h": 6
       },
-      "alias": "请求数",
+      "alias": "_(请求数)",
       "targets": [
         {
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "主调",
+          "alias": "_(主调)",
           "data": {
             "app_name": "${app_name}",
             "expression": "A",
@@ -177,7 +177,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "被调",
+          "alias": "_(被调)",
           "data": {
             "app_name": "${app_name}",
             "expression": "A",
@@ -281,7 +281,7 @@
     },
     {
       "id": 4,
-      "title": "错误数",
+      "title": "_(错误数)",
       "type": "apm-timeseries-chart",
       "gridPos": {
         "x": 8,
@@ -294,7 +294,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "错误数",
+          "alias": "_(错误数)",
           "data": {
             "app_name": "${app_name}",
             "expression": "A",
@@ -374,7 +374,7 @@
           "data_type": "time_series",
           "api": "apm_metric.dynamicUnifyQuery",
           "datasource": "time_series",
-          "alias": "错误率",
+          "alias": "_(错误率)",
           "data": {
             "app_name": "${app_name}",
             "unit": "percentunit",
@@ -508,7 +508,7 @@
     },
     {
       "id": 5,
-      "title": "耗时",
+      "title": "_(耗时)",
       "gridPos": {
         "x": 16,
         "y": 4,
@@ -979,7 +979,7 @@
     },
     {
       "id": 6,
-      "title": "服务调用总数Top5",
+      "title": "_(服务调用总数Top5)",
       "type": "percentage-bar",
       "instant": true,
       "gridPos": {
@@ -1003,7 +1003,7 @@
     },
     {
       "id": 7,
-      "title": "服务错误次数Top5",
+      "title": "_(服务错误次数Top5)",
       "type": "percentage-bar",
       "instant": true,
       "gridPos": {
@@ -1027,7 +1027,7 @@
     },
     {
       "id": 8,
-      "title": "服务平均响应耗时Top5",
+      "title": "_(服务平均响应耗时Top5)",
       "type": "percentage-bar",
       "instant": true,
       "gridPos": {
@@ -1051,7 +1051,7 @@
     },
     {
       "id": 9,
-      "title": "服务接口调用总数Top5",
+      "title": "_(服务接口调用总数Top5)",
       "type": "percentage-bar",
       "gridPos": {
         "x": 0,
@@ -1075,7 +1075,7 @@
     },
     {
       "id": 10,
-      "title": "服务接口错误率Top5",
+      "title": "_(服务接口错误率Top5)",
       "type": "percentage-bar",
       "gridPos": {
         "x": 8,
@@ -1099,7 +1099,7 @@
     },
     {
       "id": 11,
-      "title": "服务接口平均耗时Top5",
+      "title": "_(服务接口平均耗时Top5)",
       "type": "percentage-bar",
       "instant": true,
       "gridPos": {

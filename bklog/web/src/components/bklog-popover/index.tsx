@@ -23,9 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, PropType, onMounted, onUnmounted } from 'vue';
+import { defineComponent, ref, type PropType, onMounted, onUnmounted } from 'vue';
+
 import PopInstanceUtil from '../../global/pop-instance-util';
-import { Props as TippyProps } from 'tippy.js';
+
+import type { Props as TippyProps } from 'tippy.js';
+
 import './index.scss';
 
 export default defineComponent({
@@ -51,7 +54,7 @@ export default defineComponent({
       default: () => true,
     },
     content: {
-      type: [String, Function] as PropType<string | (() => JSX.Element) | JSX.Element>,
+      type: [String, Function] as PropType<(() => JSX.Element) | JSX.Element | string>,
       default: undefined,
     },
   },
@@ -138,15 +141,15 @@ export default defineComponent({
 
     const resolveOptions = () => {
       if (props.trigger === 'click') {
-        refTargetElement.value.addEventListener('click', handleRootElementClick);
+        refTargetElement.value?.addEventListener?.('click', handleRootElementClick);
       }
 
       if (props.trigger === 'hover') {
-        refTargetElement.value.addEventListener('mouseenter', handleRootElementMouseenter);
-        refTargetElement.value.addEventListener('mouseleave', handleRootElementMouseleave);
+        refTargetElement.value?.addEventListener?.('mouseenter', handleRootElementMouseenter);
+        refTargetElement.value?.addEventListener?.('mouseleave', handleRootElementMouseleave);
 
-        refContentElement.value.addEventListener('mouseenter', handleContentElementMouseenter);
-        refContentElement.value.addEventListener('mouseleave', handleContentElementMouseleave);
+        refContentElement.value?.addEventListener?.('mouseenter', handleContentElementMouseenter);
+        refContentElement.value?.addEventListener?.('mouseleave', handleContentElementMouseleave);
       }
     };
 
@@ -187,6 +190,13 @@ export default defineComponent({
     });
 
     expose({ show, hide, setProps });
+    const renderSlot = () => {
+      if (typeof props.content === 'function') {
+        return props.content();
+      }
+
+      return props.content;
+    };
 
     return () => (
       <div ref={refTargetElement}>
@@ -196,7 +206,7 @@ export default defineComponent({
             ref={refContentElement}
             class={props.contentClass}
           >
-            {slots.content?.() ?? (props.content as Function)?.() ?? props.content}
+            {slots.content?.() ?? renderSlot()}
           </div>
         </div>
       </div>

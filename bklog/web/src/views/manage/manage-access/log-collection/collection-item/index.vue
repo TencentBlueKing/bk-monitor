@@ -607,7 +607,7 @@
     clearTableFilter,
     getDefaultSettingSelectFiled,
     setDefaultSettingSelectFiled,
-    deepClone,
+    updateLastSelectedIndexId
   } from '@/common/util';
   import collectedItemsMixin from '@/mixins/collected-items-mixin';
   import { mapGetters } from 'vuex';
@@ -733,7 +733,7 @@
         needGuide: false,
         timer: null,
         loadingStatus: false,
-        isTableLoading: false,
+        isTableLoading: true,
         pagination: {
           current: 1,
           count: 0,
@@ -974,6 +974,7 @@
           query.type = 'collectionStatus';
         }
         if (operateType === 'search') {
+          updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
           if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
           params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
         }
@@ -1182,7 +1183,7 @@
         try {
           const res = await this.$http.request('unionSearch/unionLabelList');
           this.selectLabelList = res.data;
-          const cloneTagBase = deepClone(this.tagBaseList);
+          const cloneTagBase = structuredClone(this.tagBaseList);
           const notBuiltInList = res.data
             .filter(item => !item.is_built_in)
             .map(item => ({
@@ -1259,7 +1260,7 @@
         this.handleFilterChange(this.tagsData);
       },
       handleToggleTagSelect() {
-        this.tagSelect = !!this.tagsData.tags.length ? deepClone(this.tagsData.tags) : ['all'];
+        this.tagSelect = !!this.tagsData.tags.length ? structuredClone(this.tagsData.tags) : ['all'];
       },
       renderTagsHeader(h, { column }) {
         const isActive = !!this.filterLabelList.length && !this.tagSelect.includes('all');

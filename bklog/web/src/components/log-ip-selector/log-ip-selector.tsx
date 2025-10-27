@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { VNode } from 'vue';
-
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import create from '@blueking/ip-selector/dist/index.esm';
 
 import $http from '../../api';
+
+import type { VNode } from 'vue';
 
 import '@blueking/ip-selector/dist/styles/vue2.6.x.css';
 const BkIpSelector = create({
@@ -176,13 +176,17 @@ export interface ITemplateHost {
  * 转换成标准的IP选择器的选中数据
  */
 export function toSelectorNode(nodes: ITarget[], nodeType: INodeType) {
-  if (!nodeType) return nodes;
+  if (!nodeType) {
+    return nodes;
+  }
 
   switch (nodeType) {
     case 'INSTANCE':
       return nodes.map(item => {
         // 增量数据只需使用host_id
-        if (item.bk_host_id) return { host_id: item.bk_host_id };
+        if (item.bk_host_id) {
+          return { host_id: item.bk_host_id };
+        }
         // 兼容旧数据 没有bk_host_id的情况下 把ip和cloud_id传给组件 提供组件内部定位host_id
         return { host_id: undefined, ip: item.ip, cloud_area: { id: item.bk_cloud_id } };
       });
@@ -207,7 +211,9 @@ export function toSelectorNode(nodes: ITarget[], nodeType: INodeType) {
  * needIpAndCloudArea 需要同时返回ip和cloud_id
  */
 export function toTransformNode(nodes: Array<IHost | INode>, nodeType: INodeType, needIpAndCloudArea = false) {
-  if (!nodeType) return [];
+  if (!nodeType) {
+    return [];
+  }
 
   switch (nodeType) {
     case 'INSTANCE':
@@ -474,7 +480,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
   }
 
   // 动态拓扑 - 勾选节点(查询多个节点拓扑路径)
-  async fetchNodesQueryPath(node: IFetchNode): Promise<Array<INode>[]> {
+  async fetchNodesQueryPath(node: IFetchNode): Promise<INode[][]> {
     const data = {
       scope_list: this.scopeList,
       node_list: node.node_list,
@@ -509,12 +515,12 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     return res?.data || [];
   }
   // 获取动态分组列表
-  async fetchDynamicGroup(p): Promise<Array<IGroupItem>[]> {
+  async fetchDynamicGroup(p): Promise<IGroupItem[][]> {
     const res = await $http.request('ipChooser/dynamicGroups', { data: { scope_list: this.scopeList, ...(p ?? {}) } });
     return res?.data || [];
   }
   // 获取动态分组下的主机列表
-  async fetchDynamicGroupHost(query: IGroupHostQuery): Promise<Array<IGroupHost>[]> {
+  async fetchDynamicGroupHost(query: IGroupHostQuery): Promise<IGroupHost[][]> {
     const data = {
       scope_list: this.scopeList,
       ...query,
@@ -537,7 +543,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     return res?.data || [];
   }
   // 获取服务模板列表
-  async fetchServiceTemplates(query): Promise<Array<ITemplateItem>[]> {
+  async fetchServiceTemplates(query): Promise<ITemplateItem[][]> {
     const serviceTemplateList = query || {};
     const data = {
       scope_list: this.scopeList,
@@ -548,7 +554,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     return res?.data || [];
   }
   // 获取服务模板下各个节点
-  async fetchNodesServiceTemplate(query: IQuery): Promise<Array<ITemplateNode>[]> {
+  async fetchNodesServiceTemplate(query: IQuery): Promise<ITemplateNode[][]> {
     const data = {
       scope_list: this.scopeList,
       template_type: 'SERVICE_TEMPLATE',
@@ -558,7 +564,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     return res?.data || [];
   }
   // 获取服务模板下各个主机
-  async fetchHostServiceTemplate(query: IQuery): Promise<Array<ITemplateHost>[]> {
+  async fetchHostServiceTemplate(query: IQuery): Promise<ITemplateHost[][]> {
     const data = {
       scope_list: this.scopeList,
       template_type: 'SERVICE_TEMPLATE',
@@ -579,7 +585,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     return res?.data || [];
   }
   // 获取集群模板列表
-  async fetchSetTemplates(query): Promise<Array<ITemplateItem>[]> {
+  async fetchSetTemplates(query): Promise<ITemplateItem[][]> {
     const setTemplateList = query || {};
     const data = {
       scope_list: this.scopeList,
@@ -590,7 +596,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     return res?.data || [];
   }
   // 获取集群模板下各个节点
-  async fetchNodesSetTemplate(query: IQuery): Promise<Array<ITemplateNode>[]> {
+  async fetchNodesSetTemplate(query: IQuery): Promise<ITemplateNode[][]> {
     const data = {
       scope_list: this.scopeList,
       template_type: 'SET_TEMPLATE',
@@ -600,7 +606,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps> {
     return res?.data || [];
   }
   // 获取集群模板下各个主机
-  async fetchHostSetTemplate(query: IQuery): Promise<Array<ITemplateHost>[]> {
+  async fetchHostSetTemplate(query: IQuery): Promise<ITemplateHost[][]> {
     const data = {
       scope_list: this.scopeList,
       template_type: 'SET_TEMPLATE',

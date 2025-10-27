@@ -112,7 +112,7 @@
           :render-header="$renderHeader"
         >
           <template #default="props">
-            {{ props.row.updated_by }}
+            <bk-user-display-name :user-id="props.row.updated_by"></bk-user-display-name>
           </template>
         </bk-table-column>
         <bk-table-column
@@ -195,7 +195,7 @@
 </template>
 
 <script>
-  import { clearTableFilter } from '@/common/util';
+  import { clearTableFilter, updateLastSelectedIndexId } from '@/common/util';
   import EmptyStatus from '@/components/empty-status';
   import { mapGetters } from 'vuex';
 
@@ -334,7 +334,7 @@
         try {
           this.isTableLoading = true;
           const res = await this.$store.dispatch('getApplyData', paramData);
-          this.$store.commit('updateAuthDialogData', res.data);
+          this.$store.commit('updateState', { 'authDialogData': res.data});
         } catch (err) {
           console.warn(err);
         } finally {
@@ -422,6 +422,7 @@
           query.editName = row.collector_config_name;
           params.collectorId = row.collector_config_id;
         } else if (operateType === 'search') {
+          updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
           routeName = 'retrieve';
           params.indexId = row.index_set_id;
         }

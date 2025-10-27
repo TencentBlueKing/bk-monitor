@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -66,17 +66,33 @@ export default defineComponent({
     const incidentId = useIncidentInject();
     // const activeId = ref<string>(window.user_name || window.username);
     const activeId = deepRef<string>('all');
+    // 错误状态处理
+    const exceptionData = deepRef({
+      isError: false,
+      msg: '',
+    });
+
     const getIncidentHandlers = () => {
       listLoading.value = true;
-      incidentHandlers({
-        id: incidentId.value,
-        order_by: orderByType.value,
-      })
+      // 重置异常状态
+      exceptionData.value.isError = false;
+      exceptionData.value.msg = '';
+
+      incidentHandlers(
+        {
+          id: incidentId.value,
+          order_by: orderByType.value,
+        },
+        { needMessage: false }
+      )
         .then(res => {
           handlersList.value = res;
         })
         .catch(err => {
           console.log(err);
+          // 异常状态赋值
+          exceptionData.value.isError = true;
+          exceptionData.value.msg = err.message || '';
         })
         .finally(() => (listLoading.value = false));
     };
@@ -114,17 +130,25 @@ export default defineComponent({
       if (isShowEmpty && list.length === 0) {
         return (
           <Exception
-            description={searchText.value !== '' ? t('搜索数据为空') : t('暂无其他告警负责人')}
+            class='search-exception'
             scene='part'
-            type='empty'
+            type={exceptionData.value.isError ? '500' : 'empty'}
           >
+            <div class='exception-title'>
+              {exceptionData.value.isError
+                ? t('查询异常')
+                : searchText.value !== ''
+                  ? t('搜索数据为空')
+                  : t('暂无其他告警负责人')}
+            </div>
+            {exceptionData.value.isError && <div class='exception-desc'>{exceptionData.value.msg}</div>}
             {searchText.value !== '' && (
-              <span
+              <div
                 class='clear-btn'
                 onClick={() => (searchText.value = '')}
               >
                 {t('清空筛选条件')}
-              </span>
+              </div>
             )}
           </Exception>
         );

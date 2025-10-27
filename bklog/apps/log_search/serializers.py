@@ -45,6 +45,8 @@ from apps.log_search.constants import (
     TagColor,
     TemplateType,
     QueryMode,
+    DEFAULT_QUERY_LIMIT,
+    DEFAULT_QUERY_OFFSET,
 )
 from apps.log_search.models import LogIndexSetData, ProjectInfo, Scenario
 from apps.log_unifyquery.constants import FIELD_TYPE_MAP
@@ -289,6 +291,7 @@ class SearchAttrSerializer(serializers.Serializer):
     start_time = DateTimeFieldWithEpoch(required=False)
     end_time = DateTimeFieldWithEpoch(required=False)
     time_range = serializers.CharField(required=False, default=None)
+    time_zone = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     from_favorite_id = serializers.IntegerField(required=False, default=0)
 
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
@@ -364,6 +367,7 @@ class UnionSearchExportSerializer(serializers.Serializer):
     addition = serializers.ListField(allow_empty=True, required=False, default="")
     start_time = DateTimeFieldWithEpoch(required=True)
     end_time = DateTimeFieldWithEpoch(required=True)
+    time_zone = serializers.CharField(default="", allow_null=True, allow_blank=True)
     time_range = serializers.CharField(label=_("时间范围"), required=False)
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     begin = serializers.IntegerField(required=False, default=0)
@@ -520,6 +524,7 @@ class SearchExportSerializer(serializers.Serializer):
     time_range = serializers.CharField(label=_("时间范围"), required=False)
     start_time = DateTimeFieldWithEpoch(label=_("起始时间"), required=True)
     end_time = DateTimeFieldWithEpoch(label=_("结束时间"), required=True)
+    time_zone = serializers.CharField(default="", allow_null=True, allow_blank=True)
     ip_chooser = serializers.DictField(label=_("检索IP条件"), required=False, default={})
     addition = serializers.ListField(label=_("搜索条件"), required=False)
     begin = serializers.IntegerField(label=_("检索开始 offset"), required=True)
@@ -924,6 +929,8 @@ class QueryFieldBaseSerializer(serializers.Serializer):
     start_time = serializers.IntegerField(required=True)
     end_time = serializers.IntegerField(required=True)
     time_range = serializers.CharField(required=False, default=None)
+    interval = serializers.CharField(required=False, default="auto", max_length=16)
+    time_zone = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
     # 关键字填充条
     keyword = serializers.CharField(allow_null=True, allow_blank=True)
@@ -1163,3 +1170,36 @@ class AliasSettingsSerializer(serializers.Serializer):
 
 class QueryByDataIdSerializer(serializers.Serializer):
     bk_data_id = serializers.IntegerField(label=_("采集链路ID"), required=True)
+
+
+class SearchLogForCodeSerializer(serializers.Serializer):
+    """
+    CodeCC query_ts_raw 请求参数序列化器
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["from"] = serializers.IntegerField(
+            label=_("起始位置"), required=False, default=DEFAULT_QUERY_OFFSET
+        )
+
+    query_list = serializers.ListField(
+        label=_("查询列表"), required=True, child=serializers.DictField(), allow_empty=False
+    )
+    order_by = serializers.ListField(label=_("排序字段"), required=False, child=serializers.CharField(), default=[])
+    step = serializers.CharField(label=_("步长"), required=False, default="1h")
+    start_time = serializers.CharField(label=_("开始时间"), required=True)
+    end_time = serializers.CharField(label=_("结束时间"), required=True)
+    timezone = serializers.CharField(label=_("时区"), required=False, default="UTC")
+    limit = serializers.IntegerField(label=_("限制条数"), required=False, default=DEFAULT_QUERY_LIMIT)
+
+
+class SpaceListSerializer(serializers.Serializer):
+    """
+    空间列表序列化器
+    """
+
+    space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
+    has_permission = serializers.BooleanField(label=_("仅获取有权限的空间"), default=False)
+    page = serializers.IntegerField(label=_("页数"), required=False, min_value=1)
+    page_size = serializers.IntegerField(label=_("每页条数"), required=False, min_value=1)

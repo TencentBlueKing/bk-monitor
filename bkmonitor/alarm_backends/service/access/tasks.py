@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -23,6 +23,11 @@ from core.prometheus import metrics
 
 
 logger = logging.getLogger(__name__)
+
+
+@app.task(ingnore_result=True, queue="celery_service_qos")
+def run_access_data_with_qos_queue(strategy_group_key, interval=60):
+    return run_access_data(strategy_group_key, interval)
 
 
 @app.task(ignore_result=True, queue="celery_service")

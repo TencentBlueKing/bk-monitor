@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.views.renderers import MonitorJSONRenderer
+from core.drf_resource import resource as r
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from metadata import resources as resource
 
@@ -303,7 +304,10 @@ class ListSpaceTypesViewSet(MetaViewSet):
 
 
 class ListSpacesViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.ListSpacesResource)]
+    resource_routes = [
+        ResourceRoute("GET", resource.ListSpacesResource),
+        ResourceRoute("GET", r.commons.list_spaces, endpoint="by_user"),
+    ]
 
 
 class GetSpaceDetailViewSet(MetaViewSet):
@@ -348,38 +352,6 @@ class StickSpaceViewSet(MetaViewSet):
 
 class RefreshMetricForKihanViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.RefreshMetricForKihan)]
-
-
-class ListDataPipelineViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.ListDataPipeline)]
-
-
-class ListDataSourceByDataPipelineViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.ListDataSourceByDataPipeline)]
-
-
-class CreateDataPipelineViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.CreateDataPipeline)]
-
-
-class UpdateDataPipelineViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.UpdateDataPipeline)]
-
-
-class GetStorageClusterInfoViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.GetClusterInfo)]
-
-
-class GetTransferListViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.GetTransferList)]
-
-
-class GetEtlConfigViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.GetEtlConfig)]
-
-
-class CheckClusterHealthViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("GET", resource.CheckClusterHealth)]
 
 
 class ListClustersViewSet(MetaViewSet):
@@ -454,6 +426,10 @@ class QueryMetaInfoByVmrtViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryMetaInfoByVmrt)]
 
 
+class ModifyClusterByVmrtsViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.ModifyClusterByVmrts)]
+
+
 class QueryVmRtBySpaceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryVmRtBySpace)]
 
@@ -484,6 +460,10 @@ class CreateOrUpdateEsRouterViewSet(MetaViewSet):
 
 class CreateOrUpdateLogRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateLogRouter)]
+
+
+class BulkCreateOrUpdateLogRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.BulkCreateOrUpdateLogRouter)]
 
 
 class ModifyDataIdSourceViewSet(MetaViewSet):

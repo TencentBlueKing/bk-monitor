@@ -21,7 +21,7 @@ class Command(BaseCommand):
     type_id = SpaceTypes.BKCC.value
 
     def add_arguments(self, parser):
-        parser.add_argument("--bk_tenant_id", type=str, required=True, help="租户ID")
+        parser.add_argument("--bk_tenant_id", type=str, default="system", help="租户ID")
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def handle(self, *args, **options):

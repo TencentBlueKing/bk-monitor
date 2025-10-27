@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+/* eslint-disable no-unused-vars */
 enum RetrieveEvent {
   /**
    * 展示收藏内容
@@ -80,6 +81,11 @@ enum RetrieveEvent {
   LEFT_FIELD_SETTING_WIDTH_CHANGE = 'left-field-setting-width-change',
 
   /**
+   * 检索结果容器resize
+   */
+  RESULT_ROW_BOX_RESIZE = 'result-row-box-resize',
+
+  /**
    * 搜索时间变化
    */
   SEARCH_TIME_CHANGE = 'search-time-change',
@@ -118,6 +124,26 @@ enum RetrieveEvent {
    * 趋势图缩放
    */
   TREND_GRAPH_ZOOM = 'trend-graph-zoom',
+
+  /**
+   * 打开别名配置
+   */
+  ALIAS_CONFIG_OPEN = 'alias_config_open',
+
+  /**
+   * 自动刷新日志
+   */
+  AUTO_REFRESH = 'auto_refresh',
+
+  /**
+   * 排序列表变化
+   */
+  SORT_LIST_CHANGED = 'sort-list-changed',
+
+  /**
+   * AI 助手关闭
+   */
+  AI_CLOSE = 'ai-close',
 }
 
 export default RetrieveEvent;

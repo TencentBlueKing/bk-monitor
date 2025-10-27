@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -21,7 +20,18 @@ from core.drf_resource import APIResource
 
 class LogSearchAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     base_url_statement = None
-    base_url = settings.BKLOGSEARCH_API_BASE_URL or "%s/api/c/compapi/v2/bk_log/" % settings.BK_COMPONENT_API_URL
+
+    @property
+    def base_url(self) -> str:
+        # 单独配置了bk-log-search的apigw地址
+        if settings.BKLOGSEARCH_API_BASE_URL or settings.BKLOGSEARCH_API_GW_BASE_URL:
+            return settings.BKLOGSEARCH_API_BASE_URL or settings.BKLOGSEARCH_API_GW_BASE_URL
+
+        # 多租户模式下，使用bk-log-search的apigw地址
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return f"{settings.BK_COMPONENT_API_URL}/api/bk-log-search/prod/"
+        else:
+            return f"{settings.BK_COMPONENT_API_URL}/api/c/compapi/v2/bk_log/"
 
     # 模块名
     module_name = "bk_log"
@@ -29,12 +39,6 @@ class LogSearchAPIGWResource(six.with_metaclass(abc.ABCMeta, APIResource)):
     @property
     def label(self):
         return self.__doc__
-
-
-class LogSearchAPIByApiGwResource(LogSearchAPIGWResource):
-    """仅通过 APIGW 访问日志平台API"""
-
-    base_url = settings.BKLOGSEARCH_API_GW_BASE_URL
 
 
 class IndexSetResource(LogSearchAPIGWResource):
@@ -347,7 +351,7 @@ class SearchPatternResource(LogSearchAPIGWResource):
         return url.format(index_set_id=validated_request_data.pop("index_set_id"))
 
 
-class ListEsRouterResource(LogSearchAPIByApiGwResource):
+class ListEsRouterResource(LogSearchAPIGWResource):
     """获取Es的结果表"""
 
     action = "/index_set/list_es_router/"
@@ -359,7 +363,7 @@ class ListEsRouterResource(LogSearchAPIByApiGwResource):
         space_uid = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
 
-class DataBusCollectorsResource(LogSearchAPIByApiGwResource):
+class DataBusCollectorsResource(LogSearchAPIGWResource):
     """
     采集项列表
     """
@@ -378,7 +382,7 @@ class DataBusCollectorsResource(LogSearchAPIByApiGwResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
-class DataBusCollectorsIndicesResource(LogSearchAPIByApiGwResource):
+class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
     """
     采集项索引列表
     """
@@ -397,7 +401,7 @@ class DataBusCollectorsIndicesResource(LogSearchAPIByApiGwResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
-class LogSearchIndexSetResource(LogSearchAPIByApiGwResource):
+class LogSearchIndexSetResource(LogSearchAPIGWResource):
     """
     索引集列表
     """
@@ -482,7 +486,7 @@ class ListCollectorsResource(LogSearchAPIGWResource):
     method = "GET"
 
 
-class GetUserFavoriteIndexSetResource(LogSearchAPIByApiGwResource):
+class GetUserFavoriteIndexSetResource(LogSearchAPIGWResource):
     """
     获取用户收藏的索引集
     """
@@ -496,7 +500,7 @@ class GetUserFavoriteIndexSetResource(LogSearchAPIByApiGwResource):
         limit = serializers.IntegerField(required=False, label="限制条数", default=10)
 
 
-class GetUserRecentIndexSetResource(LogSearchAPIByApiGwResource):
+class GetUserRecentIndexSetResource(LogSearchAPIGWResource):
     """
     获取用户最近访问的索引集
     """

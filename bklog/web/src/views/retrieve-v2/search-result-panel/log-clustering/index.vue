@@ -181,7 +181,6 @@
   import QuickOpenCluster from './components/quick-open-cluster-step/quick-open-cluster';
   import QuickClusterStep from './components/quick-open-cluster-step/quick-cluster-step';
   import Strategy from './components/strategy';
-  import { deepClone } from '../../../../common/util';
   import { RetrieveUrlResolver } from '@/store/url-resolver';
   import useFieldNameHook from '@/hooks/use-field-name';
 
@@ -379,7 +378,7 @@
         this.confirmClusterStepStatus();
       },
       isShowClusterStep(v) {
-        this.$store.commit('updateStoreIsShowClusterStep', v);
+        this.$store.commit('updateState', {'storeIsShowClusterStep': v});
       },
       showFieldAlias() {
         this.filterGroupList();
@@ -429,7 +428,7 @@
         };
         // 通过路由返回的值 初始化数据指纹的操作参数 url是否有缓存的值
         if (this.isInitPage && !!this.clusterParams) {
-          const paramData = deepClone(this.clusterParams);
+          const paramData = structuredClone(this.clusterParams);
           const findIndex = clusterLevel.findIndex(item => item === String(paramData.pattern_level));
           if (findIndex >= 0) patternLevel = findIndex + 1;
           Object.assign(queryRequestData, paramData, {
@@ -459,7 +458,7 @@
           });
         }
         Object.assign(this.requestData, queryRequestData);
-        this.$store.commit('updateClusterParams', this.requestData);
+        this.$store.commit('updateState', {'clusterParams': this.requestData});
         this.setRouteParams();
         this.isInitPage = false;
       },
@@ -491,7 +490,7 @@
           case 'requestData': // 数据指纹的请求参数
             Object.assign(this.requestData, val);
             // 数据指纹对请求参数修改过的操作将数据回填到url上
-            this.$store.commit('updateClusterParams', this.requestData);
+            this.$store.commit('updateState', {'clusterParams': this.requestData});
             this.setRouteParams();
             break;
           case 'fingerOperateData': // 数据指纹操作的参数
@@ -704,7 +703,7 @@
           await this.confirmClusterStepStatus();
           if (this.isClickSearch && !this.isInitPage) this.requestFinger();
           if (!this.isInitPage) {
-            this.$store.commit('updateClusterParams', this.requestData);
+            this.$store.commit('updateState', {'clusterParams': this.requestData});
             this.setRouteParams();
           }
         }
@@ -712,7 +711,7 @@
       async onUnMountedLoad() {
         if (this.isClusterActive) {
           this.isClusterActive = false;
-          this.$store.commit('updateClusterParams', null);
+          this.$store.commit('updateState', {'clusterParams': null});
           this.setRouteParams();
           this.stopPolling(); // 停止状态轮询
         }
@@ -733,7 +732,7 @@
       this.onUnMountedLoad();
     },
     beforeDestroy() {
-      this.$store.commit('updateClusterParams', null);
+      this.$store.commit('updateState', {'clusterParams': null});
       this.stopPolling(); // 停止状态轮询
     },
   };

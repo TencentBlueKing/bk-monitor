@@ -43,6 +43,7 @@ export const getInputQueryDefaultItem = (value: string[] = []) => {
     value: [...(Array.isArray(value) ? value : [value])],
     relation: 'OR',
     disabled: false,
+    hidden_values: [],
   };
 };
 
@@ -54,6 +55,7 @@ export const getInputQueryIpSelectItem = value => {
     value: [value ?? {}],
     relation: '',
     disabled: false,
+    hidden_values: [],
   };
 };
 /**
@@ -67,6 +69,8 @@ export const getFieldConditonItem = () => {
     field_alias: null,
     field_id: null,
     field_operator: [],
+    disabled: false,
+    hidden_values: [],
   };
 };
 

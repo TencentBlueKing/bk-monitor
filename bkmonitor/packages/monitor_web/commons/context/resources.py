@@ -1,21 +1,22 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.middleware.csrf import get_token
 
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
 from bkmonitor.utils.request import get_request
+from bkmonitor.utils.user import get_request_username
 from bkmonitor.views import serializers
 from common.context_processors import (
     field_formatter,
@@ -101,8 +102,8 @@ class EnhancedGetContextResource(Resource):
         )
 
     @classmethod
-    def get_basic_context(cls, request, space_uid: Optional[str], bk_biz_id: Optional[int]) -> Dict[str, Any]:
-        space_list: List[Dict[str, Any]] = []
+    def get_basic_context(cls, request, space_uid: str | None, bk_biz_id: int | None) -> dict[str, Any]:
+        space_list: list[dict[str, Any]] = []
         try:
             space_list = resource.commons.list_spaces()
         except Exception:  # noqa
@@ -115,7 +116,7 @@ class EnhancedGetContextResource(Resource):
                 bk_biz_id = space["bk_biz_id"]
             except KeyError:
                 logger.warning(
-                    f"[get_basic_context] space_uid not found: " f"uid -> {space_uid} not in space_list -> {space_list}"
+                    f"[get_basic_context] space_uid not found: uid -> {space_uid} not in space_list -> {space_list}"
                 )
         elif not bk_biz_id:
             bk_biz_id = get_default_biz_id(request, space_list, "bk_biz_id")
@@ -128,8 +129,8 @@ class EnhancedGetContextResource(Resource):
         return context
 
     @classmethod
-    def get_extra_context(cls, request, space_uid: Optional[str], bk_biz_id: Optional[int]) -> Dict[str, Any]:
-        space: Optional[Space] = None
+    def get_extra_context(cls, request, space_uid: str | None, bk_biz_id: int | None) -> dict[str, Any]:
+        space: Space | None = None
         if space_uid:
             try:
                 space = SpaceApi.get_space_detail(space_uid)
@@ -141,18 +142,18 @@ class EnhancedGetContextResource(Resource):
 
         # 非核心路径，加上异常捕获避免因消息队列不可用导致页面也无法打开
         try:
-            run_init_builtin.delay(bk_biz_id=bk_biz_id)
+            run_init_builtin.delay(bk_biz_id=bk_biz_id, username=get_request_username())
             logger.info(f"[get_extra_context] run_init_builtin has been added to the asynchronous queue；{bk_biz_id}")
         except Exception as e:
             logger.exception(f"[get_extra_context] run_init_builtin error but skipped: error -> {e}")
 
         return get_extra_context(request, space)
 
-    def perform_request(self, validated_request_data: Dict[str, Any]) -> Dict[str, Any]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         request = get_request()
         context_type: str = validated_request_data["context_type"]
-        bk_biz_id: Optional[int] = validated_request_data["bk_biz_id"]
-        space_uid: Optional[str] = validated_request_data["space_uid"]
+        bk_biz_id: int | None = validated_request_data["bk_biz_id"]
+        space_uid: str | None = validated_request_data["space_uid"]
 
         if context_type == ContextType.BASIC.value:
             context = self.get_basic_context(request, space_uid, bk_biz_id)
@@ -162,7 +163,7 @@ class EnhancedGetContextResource(Resource):
             context = self.get_basic_context(request, space_uid, bk_biz_id)
             context.update(self.get_extra_context(request, space_uid, bk_biz_id))
 
-        external_fields: List[str] = [
+        external_fields: list[str] = [
             "PLATFORM",
             "SPACE_LIST",
             "SITE_URL",

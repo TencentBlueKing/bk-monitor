@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -32,6 +32,7 @@ from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
+from bkmonitor.iam import Permission, ActionEnum
 from bkmonitor.utils.common_utils import host_key, logger, parse_host_id, safe_int
 from bkmonitor.utils.country import ISP_LIST
 from bkmonitor.utils.encode import EncodeWebhook
@@ -353,8 +354,11 @@ class TestTaskResource(Resource):
             else:
                 biz_nodes.append(node)
 
-        # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0.303 # noqa
+        # 检查权限：如果有公共节点，验证用户是否有公共节点的使用权限
+        if common_nodes and settings.ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH:
+            Permission().is_allowed(ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION, raise_exception=True)
 
+        # 拨测版本校验,依赖bkmonitorbeat推荐版本：v3.5.0.303 # noqa
         bk_host_ids = all_nodes.values_list("bk_host_id", flat=1).distinct()
         all_plugin = api.node_man.plugin_search(
             {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
@@ -1180,7 +1184,7 @@ class TaskGraphAndMapResource(Resource):
         return []
 
 
-def get_node_host_dict(nodes):
+def get_node_host_dict(bk_tenant_id: str, nodes: list[UptimeCheckNode]):
     # 配置hostid的节点
     bk_host_ids = []
     # 配置ip的节点
@@ -1193,10 +1197,10 @@ def get_node_host_dict(nodes):
         else:
             ips.append(node.ip)
     if bk_host_ids:
-        hosts = api.cmdb.get_host_without_biz(bk_host_ids=bk_host_ids)["hosts"]
+        hosts = api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, bk_host_ids=bk_host_ids)["hosts"]
         # 兼容bk_host_id不存在的拨测节点
     if ips:
-        hosts += api.cmdb.get_host_without_biz(ips=ips)["hosts"]
+        hosts += api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, ips=ips)["hosts"]
 
     # 按id 和 host_key 记录节点主机信息
     node_to_host = {host.bk_host_id: host for host in hosts}
@@ -1274,17 +1278,16 @@ class UptimeCheckBeatResource(Resource):
         validated_request_data = self.validate_request_data(request_data)
         bk_biz_id = validated_request_data.get("bk_biz_id")
         hosts = validated_request_data.get("hosts", None)
+        bk_tenant_id = validated_request_data.get("bk_tenant_id") or get_request_tenant_id()
 
         # nodes -> hosts
         if not hosts:
-            nodes = UptimeCheckNode.objects.filter(
-                bk_tenant_id=validated_request_data.get("bk_tenant_id") or get_request_tenant_id()
-            )
+            nodes = UptimeCheckNode.objects.filter(bk_tenant_id=bk_tenant_id)
             if bk_biz_id:
                 # 过滤业务下所有节点时，同时还应该加上通用节点
                 nodes = nodes.filter(Q(bk_biz_id=bk_biz_id) | Q(is_common=True))
 
-            node_to_host_dict = resource.uptime_check.get_node_host_dict(nodes)
+            node_to_host_dict = resource.uptime_check.get_node_host_dict(bk_tenant_id=bk_tenant_id, nodes=nodes)
             bk_host_ids = {host.bk_host_id for host in node_to_host_dict.values()}
             hosts = [node_to_host_dict[host_id] for host_id in bk_host_ids]
 
@@ -2993,6 +2996,7 @@ class TopoTemplateHostResource(Resource):
     """
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = get_request_tenant_id()
         bk_biz_id = validated_request_data["bk_biz_id"]
         output_fields = validated_request_data.get("output_fields", settings.UPTIMECHECK_OUTPUT_FIELDS)
         new_hosts = []
@@ -3025,7 +3029,9 @@ class TopoTemplateHostResource(Resource):
                 getattr(host, field, "") for host in new_hosts for field in output_fields if getattr(host, field, "")
             ]
         else:
-            hosts = api.cmdb.get_host_without_biz(bk_host_ids=[host["bk_host_id"] for host in hosts])["hosts"]
+            hosts = api.cmdb.get_host_without_biz(
+                bk_tenant_id=bk_tenant_id, bk_host_ids=[host["bk_host_id"] for host in hosts]
+            )["hosts"]
             new_hosts = [
                 getattr(host, field, "") for host in hosts for field in output_fields if getattr(host, field, "")
             ]

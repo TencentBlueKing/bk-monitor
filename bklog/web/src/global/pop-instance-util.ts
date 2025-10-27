@@ -23,12 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { isRef, ref, Ref } from 'vue';
-import { debounce } from 'lodash';
-import tippy, { Props, Placement, Instance } from 'tippy.js';
+import { isRef, ref, type Ref } from 'vue';
+
+import { debounce } from 'lodash-es';
+import tippy, { type Props, type Placement, type Instance } from 'tippy.js';
 
 type PopInstanceUtilType = {
-  refContent: (() => HTMLElement | string) | HTMLElement | Ref<{ $el?: HTMLElement } | string> | string;
+  refContent:
+    | (() => HTMLElement | string)
+    | HTMLElement
+    | Ref<{ $el?: HTMLElement } | string>
+    | Ref<HTMLElement>
+    | string;
   onShowFn: () => boolean;
   onHiddenFn: () => boolean;
   arrow: boolean;
@@ -39,8 +45,12 @@ type PopInstanceUtilType = {
 
 export default class PopInstanceUtil {
   private tippyInstance: Instance<Props>;
-  private refContent: (() => HTMLElement | string) | HTMLElement | Ref<{ $el?: HTMLElement } | string> | string =
-    ref(null);
+  private refContent:
+    | (() => HTMLElement | string)
+    | HTMLElement
+    | Ref<{ $el?: HTMLElement } | string>
+    | Ref<HTMLElement>
+    | string = ref(null);
   private onShowFn;
   private onHiddenFn;
   private arrow = true;
@@ -185,7 +195,7 @@ export default class PopInstanceUtil {
   getMergeTippyOptions(): Partial<Props> {
     const options = this.getDefaultOption();
 
-    Object.keys(this.tippyOptions).forEach(key => {
+    for (const key of Object.keys(this.tippyOptions)) {
       if (typeof this.tippyOptions[key] === 'function') {
         const oldFn = options[key] ?? (() => {});
 
@@ -193,12 +203,10 @@ export default class PopInstanceUtil {
           this.tippyOptions[key](...args);
           return oldFn(...args);
         };
-      } else {
-        if (this.tippyOptions[key] !== undefined && this.tippyOptions[key] !== null) {
-          options[key] = this.tippyOptions[key];
-        }
+      } else if (this.tippyOptions[key] !== undefined && this.tippyOptions[key] !== null) {
+        options[key] = this.tippyOptions[key];
       }
-    });
+    }
 
     return options as any;
   }

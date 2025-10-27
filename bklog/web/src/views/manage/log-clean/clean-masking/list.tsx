@@ -44,7 +44,7 @@ export default class MaskingList extends tsc<object> {
     this.goToCollection(!val);
   }
   /** 进入路由前判断是否是灰度业务 */
-  beforeRouteEnter(from, to, next) {
+  beforeRouteEnter(_from, _to, next) {
     next(vm => {
       vm.goToCollection(!vm.$store.getters.isShowMaskingTemplate);
     });

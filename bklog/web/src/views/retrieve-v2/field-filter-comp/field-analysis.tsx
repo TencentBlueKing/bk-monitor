@@ -24,30 +24,32 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Ref, Vue, Emit, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Vue, Watch } from 'vue-property-decorator';
 
+import ChartSkeleton from '@/skeleton/chart-skeleton';
+import ItemSkeleton from '@/skeleton/item-skeleton';
 import axios from 'axios';
 import dayjs from 'dayjs';
 
+import store from '@/store';
+import * as echarts from 'echarts';
 import $http from '../../../api';
-import { deepClone, formatNumberWithRegex } from '../../../common/util';
+import { formatNumberWithRegex } from '../../../common/util';
 import { lineOrBarOptions, pillarChartOption } from '../../../components/monitor-echarts/options/echart-options-config';
 import { lineColor } from '../../../store/constant';
 import AggChart from './agg-chart';
-import store from '@/store';
 
 import './field-analysis.scss';
 
 const CancelToken = axios.CancelToken;
 
-const timeSeriesBase = {
-  lineStyle: {
-    width: 1,
-  },
-  transitionDuration: 750, // 动画响应毫秒数
+// 提取为常量
+const TIME_SERIES_BASE = {
+  lineStyle: { width: 1 },
+  transitionDuration: 750,
   type: 'line',
-  symbol: 'circle', // 设置数据点的形状
-  symbolSize: 1, // 设置数据点的初始大小
+  symbol: 'circle',
+  symbolSize: 1,
   itemStyle: {
     borderWidth: 2,
     enabled: true,
@@ -56,19 +58,14 @@ const timeSeriesBase = {
   },
 };
 
-/** 柱状图基础高度 */
-const PILLAR_CHART_BASE_HEIGHT = 140;
-/** 柱状图英文情况下的基础高度 */
-const PILLAR_CHART_EN_BASE_HEIGHT = 130;
-/** 折线图图基础高度 */
-const LINE_CHART_BASE_HEIGHT = 140;
-/** 柱状图图高度盒子 保证图表出来后popover总高度不变 */
-const PILLAR_CHART_BOX_HEIGHT = 264;
-/** 折线图高度盒子 保证图表出来后popover总高度不变 */
-const LINE_CHART_BOX_HEIGHT = 460;
-/** 折线图分页的高度 */
-const LEGEND_BOX_HEIGHT = 40;
-let formatStr = 'HH:mm';
+const CHART_HEIGHTS = {
+  PILLAR_BASE: 140,
+  PILLAR_EN_BASE: 130,
+  LINE_BASE: 140,
+  PILLAR_BOX: 264,
+  LINE_BOX: 460,
+  LEGEND_BOX: 40,
+};
 type LegendActionType = 'click' | 'shift-click';
 
 @Component
@@ -76,31 +73,27 @@ export default class FieldAnalysis extends Vue {
   @Prop({ type: Object, default: () => ({}) }) readonly queryParams: any;
   @Ref('fieldChart') readonly chartRef!: HTMLDivElement;
   @Ref('commonLegend') readonly commonLegendRef!: HTMLDivElement;
-
-  chart = null;
-  /** 图表高度 */
+  // 图表位置
+  chartRect: DOMRect | null = null;
+  // echarts实例
+  echarts: any = null;
+  chart: echarts.ECharts | null = null;
   height = 0;
-  /** 图例数据 */
-  legendData = [];
-  /** 所有的分组数据 */
-  seriesData = [];
-  /** 当前页 */
+  legendData: Array<{ color: string; name: string; show: boolean }> = [];
+  seriesData: any[] = [];
   currentPageNum = 1;
-  /** 所有页 */
   legendMaxPageNum = 1;
   infoLoading = false;
   chartLoading = false;
-  /** 是否无数据 展示空数据 */
   isShowEmpty = false;
-  /** 是否展示分页ICON */
   isShowPageIcon = false;
-  /** 错误提示字符串 */
   emptyTipsStr = '';
   emptyStr = window.mainComponent.$t('暂无数据');
   lineOptions = {};
   pillarOption = {};
+  formatStr = 'HH:mm';
+  splitNumber = 5;
 
-  /** 基础信息数据 */
   fieldData = {
     total_count: 0,
     field_count: 0,
@@ -113,14 +106,28 @@ export default class FieldAnalysis extends Vue {
       min: 0,
     },
   };
+
+  totalConfig = [
+    { key: 'max', label: '最大值' },
+    { key: 'min', label: '最小值' },
+    { key: 'avg', label: '平均值' },
+    { key: 'median', label: '中位数' },
+  ];
+
   route = window.mainComponent.$route;
+  ifShowMore = false;
+
   /** 是否显示柱状图 是否是数字类型字段 */
   get isPillarChart() {
     return ['integer', 'long', 'double'].includes(this.queryParams?.field_type);
   }
-  ifShowMore = false;
+
+  get pillarChartHeight() {
+    return store.getters.isEnLanguage ? CHART_HEIGHTS.PILLAR_EN_BASE : CHART_HEIGHTS.PILLAR_BASE;
+  }
+
   /** 获取数值类型查询时间段 */
-  get getPillarQueryTime() {
+  get pillarQueryTime() {
     const { start_time: startTime, end_time: endTime } = this.queryParams;
     if (startTime && endTime && this.isPillarChart) {
       const pillarFormatStr = 'YYYY-MM-DD HH:mm:ss';
@@ -129,15 +136,18 @@ export default class FieldAnalysis extends Vue {
     return '';
   }
 
-  get pillarChartHeight() {
-    return store.getters.isEnLanguage ? PILLAR_CHART_EN_BASE_HEIGHT : PILLAR_CHART_BASE_HEIGHT;
+  // 图表标题
+  get chartTitle() {
+    return this.isPillarChart
+      ? window.mainComponent.$t('数值分布直方图')
+      : `TOP 5 ${window.mainComponent.$t('时序图')}`;
   }
 
   @Watch('currentPageNum')
   watchPageNum(v: number) {
-    this.commonLegendRef.scrollTo({
-      top: (v - 1) * LEGEND_BOX_HEIGHT,
-    });
+    if (this.commonLegendRef) {
+      this.commonLegendRef.scrollTo({ top: (v - 1) * CHART_HEIGHTS.LEGEND_BOX });
+    }
   }
 
   @Emit('statisticsInfoFinish')
@@ -149,54 +159,77 @@ export default class FieldAnalysis extends Vue {
   downloadFieldStatistics() {
     return true;
   }
+
   mounted() {
-    this.$nextTick(async () => {
-      if (!this.isPillarChart) {
-        const { start_time: startTime, end_time: endTime } = this.queryParams;
-        this.setFormatStr(startTime, endTime);
-      }
-      await this.queryStatisticsInfo();
-      await this.queryStatisticsGraph();
-      this.initFieldChart();
-      this.showMore(false);
-    });
+    this.initializeComponent();
+  }
+
+  // 初始化逻辑封装
+  async initializeComponent() {
+    await this.$nextTick();
+
+    if (!this.isPillarChart) {
+      const { start_time: startTime, end_time: endTime } = this.queryParams;
+      this.setFormatStr(startTime, endTime);
+    }
+
+    // 优化：并行执行数据请求
+    await Promise.all([this.queryStatisticsInfo(), this.loadEChartsLibrary()]);
+
+    await this.queryStatisticsGraph();
+    this.initFieldChart();
+    this.showMore(false);
   }
 
   beforeDestroy() {
-    this.getInfoCancelFn();
-    this.getChartsCancelFn();
-    this.commonLegendRef?.removeEventListener('wheel', this.legendWheel);
+    this.cleanupResources();
+  }
+
+  // 资源清理封装
+  cleanupResources() {
+    this.getInfoCancelFn?.();
+    this.getChartsCancelFn?.();
+
+    if (this.commonLegendRef) {
+      this.commonLegendRef.removeEventListener('wheel', this.legendWheel);
+    }
+
+    if (this.chart) {
+      this.chart.dispose();
+      this.chart = null;
+    }
+  }
+
+  // 异步加载ECharts
+  async loadEChartsLibrary() {
+    if (!this.echarts) {
+      this.echarts = await import('echarts');
+    }
+    return this.echarts;
   }
 
   async queryStatisticsInfo() {
     try {
       this.infoLoading = true;
       this.chartLoading = true;
+
       const res = await $http.request(
         'retrieve/fieldStatisticsInfo',
-        {
-          data: {
-            ...this.queryParams,
-          },
-        },
-        {
-          cancelToken: new CancelToken(c => {
-            this.getInfoCancelFn = c;
-          }),
-        },
+        { data: { ...this.queryParams } },
+        { cancelToken: new CancelToken(c => (this.getInfoCancelFn = c)) },
       );
+
       Object.assign(this.fieldData, res.data);
-    } catch (error) {
     } finally {
       this.infoLoading = false;
     }
   }
-  /** 图表请求 */
+
+  // 图表请求
   async queryStatisticsGraph() {
     try {
-      const data = {
-        ...this.queryParams,
-      };
+      const data = { ...this.queryParams };
+
       if (this.isPillarChart) {
         Object.assign(data, {
           distinct_count: this.fieldData.distinct_count,
@@ -204,182 +237,27 @@ export default class FieldAnalysis extends Vue {
           min: this.fieldData.value_analysis.min,
         });
       }
+
       const res = await $http.request(
         'retrieve/fieldStatisticsGraph',
-        {
-          data,
-        },
+        { data },
         {
           catchIsShowMessage: false,
-          cancelToken: new CancelToken(c => {
-            this.getChartsCancelFn = c;
-          }),
+          cancelToken: new CancelToken(c => (this.getChartsCancelFn = c)),
         },
       );
+
       this.isShowEmpty = false;
       // 分折线图和柱状图显示
+
       if (this.isPillarChart) {
-        this.height = this.pillarChartHeight;
-        const resData = res.data;
-        if (!resData.length) {
-          this.isShowEmpty = true;
-          return;
-        }
-        const xAxisData = resData.map((item, index) => {
-          // 去重小于10 直接展示单个
-          if (this.fieldData.distinct_count < 10) {
-            return item[0];
-          }
-          // 去重大于10 所有的值都是范围 最大的数字范围是info的max
-          if (index === resData.length - 1) {
-            return `${item[0]} - ${this.fieldData.value_analysis.max}`;
-          }
-          return `${item[0]} - ${resData[index + 1][0]}`;
-        });
-        const pillarInterval = Math.round(xAxisData.length / 2) - 1;
-        this.pillarOption = deepClone(pillarChartOption);
-        // 柱状图初始化
-        Object.assign(this.pillarOption, {
-          tooltip: {
-            trigger: 'axis',
-            appendToBody: true,
-            transitionDuration: 0,
-            axisPointer: {
-              type: 'line',
-              lineStyle: {
-                type: 'dashed',
-              },
-            },
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            formatter: p => this.handleSetPillarTooltip(p),
-            position: this.handleSetPosition,
-          },
-          xAxis: {
-            ...pillarChartOption.xAxis,
-            axisLabel: {
-              color: '#979BA5',
-              interval: pillarInterval,
-              showMaxLabel: true,
-              formatter: value => {
-                if (value.length > 18) return `${value.slice(0, 18)}...`; // 只显示前18个字符
-                return value;
-              },
-            },
-            data: xAxisData,
-          },
-          series: [
-            {
-              data: res.data.map(item => item[1]),
-              type: 'bar',
-              itemStyle: {
-                color: '#689DF3',
-              },
-            },
-          ],
-        });
+        this.processPillarChartData(res);
       } else {
-        const seriesData = res.data.series;
-        if (!seriesData.length) {
-          this.isShowEmpty = true;
-          return;
-        }
-        this.height = LINE_CHART_BASE_HEIGHT;
-        const series = [];
-        const echarts = require('echarts');
-        seriesData.forEach((el, index) => {
-          series.push({
-            ...timeSeriesBase,
-            smooth: true,
-            areaStyle: {
-              // 透明度 80是0.5  00是0
-              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: `${lineColor[index]}80` }, // 顶部颜色
-                { offset: 1, color: `${lineColor[index]}00` }, // 底部颜色
-              ]),
-            },
-            name: el.group_values[0],
-            data: el.values,
-            z: 999,
-          });
-        });
-        this.seriesData = series;
-        this.legendData = series.map((item, index) => ({
-          color: lineColor[index],
-          name: item.name,
-          show: true,
-        }));
-        // 收集所有时间戳
-        const allTimestamps = series.reduce((acc, series) => {
-          return acc.concat(series.data.map(item => item[0]));
-        }, []);
-
-        // 找到最小和最大时间戳
-        const minTimestamp = Math.min.apply(null, allTimestamps);
-        const maxTimestamp = Math.max.apply(null, allTimestamps);
-        const {
-          xAxis: { minInterval, splitNumber, ...resetxAxis },
-        } = lineOrBarOptions;
-        this.lineOptions = deepClone(lineOrBarOptions);
-        Object.assign(this.lineOptions, {
-          useUTC: false,
-          tooltip: {
-            trigger: 'axis',
-            appendToBody: true,
-            axisPointer: {
-              type: 'line',
-              lineStyle: {
-                type: 'dashed',
-              },
-            },
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            transitionDuration: 0,
-            appendTo: () => document.body,
-            formatter: p => this.handleSetTimeTooltip(p),
-            position: this.handleSetPosition,
-          },
-          color: lineColor,
-          xAxis: {
-            ...resetxAxis,
-            axisLabel: {
-              color: '#979BA5',
-              boundaryGap: false,
-              // showMinLabel: false,
-              // showMaxLabel: false,
-              fontSize: 12,
-              formatter: value => {
-                return dayjs.tz(value).format(formatStr);
-              },
-              interval: index => {
-                // 控制显示的刻度数量
-                return index % 2 === 0; // 每两个刻度点显示一个
-              },
-            },
-            scale: false,
-            min: minTimestamp,
-            max: maxTimestamp,
-          },
-          yAxis: {
-            ...lineOrBarOptions.yAxis,
-            axisLine: {
-              show: false,
-            },
-          },
-          legend: [],
-          series,
-        });
-
-        this.$nextTick(() => {
-          const comLegRef = this.commonLegendRef;
-          this.isShowPageIcon = comLegRef.scrollHeight > comLegRef.clientHeight;
-          if (this.isShowPageIcon) {
-            comLegRef.addEventListener('wheel', this.legendWheel);
-            this.legendMaxPageNum = Math.ceil(comLegRef.scrollHeight / LEGEND_BOX_HEIGHT);
-          }
-        });
+        await this.processLineChartData(res);
       }
     } catch (error) {
       this.isShowEmpty = true;
-      this.emptyTipsStr = error.message;
+      this.emptyTipsStr = error.message || window.mainComponent.$t('查询失败');
       this.emptyStr = window.mainComponent.$t('查询异常');
     } finally {
       this.statisticsInfoFinish();
@@ -387,310 +265,538 @@ export default class FieldAnalysis extends Vue {
     }
   }
 
-  /** 设置时间戳时间显示格式 与检索趋势图保持一致 */
+  // 处理柱状图数据
+  processPillarChartData(res: any) {
+    this.height = this.pillarChartHeight;
+    const resData = res.data;
+
+    if (!resData.length) {
+      this.isShowEmpty = true;
+      return;
+    }
+
+    const xAxisData = resData.map((item: [number, number], index: number) => {
+      if (this.fieldData.distinct_count < 10) {
+        return item[0].toString();
+      }
+
+      return index === resData.length - 1
+        ? `${item[0]} - ${this.fieldData.value_analysis.max}`
+        : `${item[0]} - ${resData[index + 1][0]}`;
+    });
+
+    const pillarInterval = Math.max(1, Math.round(xAxisData.length / 2) - 1);
+    this.pillarOption = { ...pillarChartOption };
+
+    Object.assign(this.pillarOption, {
+      tooltip: {
+        trigger: 'axis',
+        appendToBody: true,
+        transitionDuration: 0,
+        axisPointer: { type: 'line', lineStyle: { type: 'dashed' } },
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        formatter: (p: any) => this.handleSetPillarTooltip(p),
+        position: this.handleSetPosition,
+      },
+      xAxis: {
+        ...pillarChartOption.xAxis,
+        splitNumber: this.splitNumber,
+        axisLabel: {
+          color: '#979BA5',
+          interval: pillarInterval,
+          showMaxLabel: true,
+          formatter: (value: string) => (value.length > 18 ? `${value.slice(0, 18)}...` : value),
+        },
+        data: xAxisData,
+      },
+      series: [
+        {
+          data: resData.map((item: [number, number]) => item[1]),
+          type: 'bar',
+          itemStyle: { color: '#689DF3' },
+        },
+      ],
+    });
+  }
+
+  // 处理折线图数据
+  async processLineChartData(res: any) {
+    const seriesData = res.data.series;
+
+    if (!seriesData.length) {
+      this.isShowEmpty = true;
+      return;
+    }
+
+    this.height = CHART_HEIGHTS.LINE_BASE;
+    const series: any[] = [];
+    const echarts = this.echarts || (await this.loadEChartsLibrary());
+
+    seriesData.forEach((el: any, index: number) => {
+      const color = lineColor[index % lineColor.length];
+
+      series.push({
+        ...TIME_SERIES_BASE,
+        smooth: true,
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: `${color}80` },
+            { offset: 1, color: `${color}00` },
+          ]),
+        },
+        name: el.group_values[0],
+        data: el.values,
+        z: 999,
+      });
+    });
+
+    this.seriesData = series;
+    this.legendData = series.map((item, index) => ({
+      color: lineColor[index % lineColor.length],
+      name: item.name,
+      show: true,
+    }));
+    // 收集所有时间戳
+
+    const allTimestamps = series.flatMap(s => s.data.map((d: [number, number]) => d[0]));
+    const minTimestamp = Math.min(...allTimestamps);
+    const maxTimestamp = Math.max(...allTimestamps);
+
+    const {
+      xAxis: { minInterval: _minInterval, splitNumber: _splitNumber, ...resetxAxis },
+    } = lineOrBarOptions;
+    this.lineOptions = { ...lineOrBarOptions };
+
+    Object.assign(this.lineOptions, {
+      useUTC: false,
+      tooltip: {
+        trigger: 'axis',
+        appendToBody: true,
+        axisPointer: { type: 'line', lineStyle: { type: 'dashed' } },
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        transitionDuration: 0,
+        appendTo: document.body,
+        formatter: (p: any) => this.handleSetTimeTooltip(p),
+        position: this.handleSetPosition,
+      },
+      color: lineColor,
+      xAxis: {
+        ...resetxAxis,
+        splitNumber: this.splitNumber,
+        axisLabel: {
+          color: '#979BA5',
+          boundaryGap: false,
+          fontSize: 11,
+          formatter: (value: number) => dayjs.tz(value).format(this.formatStr),
+          interval: 0,
+        },
+        scale: false,
+        min: minTimestamp,
+        max: maxTimestamp,
+      },
+      yAxis: {
+        ...lineOrBarOptions.yAxis,
+        axisLine: { show: false },
+      },
+      legend: [],
+      series,
+    });
+    this.$nextTick(() => {
+      if (this.commonLegendRef) {
+        this.isShowPageIcon = this.commonLegendRef.scrollHeight > this.commonLegendRef.clientHeight;
+
+        if (this.isShowPageIcon) {
+          this.commonLegendRef.addEventListener('wheel', this.legendWheel);
+          this.legendMaxPageNum = Math.ceil(this.commonLegendRef.scrollHeight / CHART_HEIGHTS.LEGEND_BOX);
+        }
+      }
+    });
+  }
   setFormatStr(start: number, end: number) {
-    if (!start || !end) return;
-    const differenceInHours = Math.abs(start - end) / (60 * 60);
-    if (differenceInHours <= 48) {
-      formatStr = 'HH:mm';
-    } else if (differenceInHours > 48 && differenceInHours <= 168) {
-      formatStr = 'MM-DD HH:mm';
-    } else if (differenceInHours > 168) {
-      formatStr = 'MM-DD';
+    const FIVE_MINUTES = 5 * 60 * 1000;
+
+    if (!(start && end)) {
+      return;
+    }
+
+    const diffMs = Math.abs(start - end);
+    const differenceInHours = diffMs / 3600000;
+
+    if (diffMs <= FIVE_MINUTES) {
+      this.formatStr = 'HH:mm:ss';
+    } else if (differenceInHours <= 24) {
+      this.formatStr = 'HH:mm';
+    } else if (differenceInHours > 24 && differenceInHours <= 168) {
+      this.formatStr = 'MM-DD HH:mm';
+      this.splitNumber = 4;
+    } else {
+      this.formatStr = 'MM-DD';
     }
   }
 
-  initFieldChart() {
-    if (this.isShowEmpty) return;
-    const echarts = require('echarts');
-    const chart: any = echarts.init(this.chartRef, null, {
-      height: `${this.height}px`,
-    });
-    const getInitChartOption = this.isPillarChart ? this.pillarOption : this.lineOptions;
-    chart?.setOption(getInitChartOption);
-    this.chart = chart;
-    this.chart.resize();
+  async initFieldChart() {
+    if (this.isShowEmpty || !this.chartRef) {
+      return;
+    }
+
+    try {
+      // 清理旧图表实例
+      if (this.chart) {
+        this.chart.dispose();
+        this.chart = null;
+      }
+
+      const echarts = this.echarts || (await this.loadEChartsLibrary());
+
+      this.chart = echarts.init(this.chartRef, null, {
+        height: `${this.height}px`,
+        renderer: 'canvas', // 明确指定渲染器
+      });
+
+      const getInitChartOption = this.isPillarChart ? this.pillarOption : this.lineOptions;
+      this.chart.setOption(getInitChartOption);
+
+      // 添加窗口大小变化监听
+      window.addEventListener('resize', this.handleResize);
+    } catch (error) {
+      console.error('ECharts initialization failed:', error);
+    }
   }
 
-  /** 设置时间戳类型Tooltips */
-  handleSetTimeTooltip(params) {
-    const liHtmls = params
-      .sort((a, b) => b.value[1] - a.value[1])
-      .map(item => {
-        /** 折线图tooltips不能使用纯CSS来处理换行 会有宽度贴图表边缘变小问题 字符串添加换行倍数为85 */
-        return `<li class="tooltips-content-item">
-                  <span class="item-series" style="background-color:${item.color};"></span>
-                  <span class="item-name is-warp">${item.seriesName.replace(/(.{85})(?=.{85})/g, '$1\n')}:</span>
-                  <div class="item-value-box is-warp">
-                    <span class="item-value">${formatNumberWithRegex(item.value[1])}</span>
-                  </div>
-                </li>`;
-      });
+  // 添加防抖的resize处理
+  handleResize = () => {
+    if (this.chart) {
+      this.chart.resize();
+    }
+  };
+
+  handleSetTimeTooltip(params: any[]) {
+    const sortedParams = [...params].sort((a, b) => b.value[1] - a.value[1]);
+    const liHtmls = sortedParams.map((item) => {
+      const formattedName = item.seriesName.replace(/(.{85})(?=.{85})/g, '$1\n');
+      const formattedValue = formatNumberWithRegex(item.value[1]);
+      /** 折线图tooltips不能使用纯CSS来处理换行 会有宽度贴图表边缘变小问题 字符串添加换行倍数为85 */
+
+      return `<li class="tooltips-content-item">
+                <span class="item-series" style="background-color:${item.color};"></span>
+                <span class="item-name is-warp">${formattedName}:</span>
+                <div class="item-value-box is-warp">
+                  <span class="item-value">${formattedValue}</span>
+                </div>
+              </li>`;
+    });
+
     const pointTime = dayjs.tz(params[0].axisValue).format('YYYY-MM-DD HH:mm:ss');
+
     return `<div id="monitor-chart-tooltips">
-        <p class="tooltips-header">
-            ${pointTime}
-        </p>
-        <ul class="tooltips-content">
-            ${liHtmls?.join('')}
-        </ul>
+        <p class="tooltips-header">${pointTime}</p>
+        <ul class="tooltips-content">${liHtmls.join('')}</ul>
       </div>`;
   }
 
-  /** 设置柱状图类型Tooltips */
-  handleSetPillarTooltip(params) {
+  handleSetPillarTooltip(params: any) {
     return `<div id="monitor-chart-tooltips">
       <ul class="tooltips-content">
         <li class="tooltips-content-item" style="align-items: center;">
           <span class="item-name" style="color: #fff;font-weight: bold;">${params[0].axisValue}:</span>
           <div class="item-value-box">
-            <span class="item-value"  style="color: #fff;font-weight: bold;">${params[0].value}</span>
+            <span class="item-value" style="color: #fff;font-weight: bold;">${params[0].value}</span>
           </div>
         </li>
       </ul>
     </div>`;
   }
   /** 设置定位 */
-  handleSetPosition(pos: number[], params: any, dom: any, rect: any, size: any) {
-    const { contentSize } = size;
-    const chartRect = this.chartRef.getBoundingClientRect();
-    const posRect = {
-      x: chartRect.x + +pos[0],
-      y: chartRect.y + +pos[1],
-    };
-    const position = {
-      left: 0,
-      top: 0,
-    };
-    const canSetBottom = window.innerHeight - posRect.y - contentSize[1];
-    if (canSetBottom > 0) {
-      position.top = +pos[1] - Math.min(20, canSetBottom);
-    } else {
-      position.top = +pos[1] + canSetBottom - 20;
-    }
-    const canSetLeft = window.innerWidth - posRect.x - contentSize[0];
 
-    position.left = +pos[0] + Math.min(20, canSetLeft);
+  handleSetPosition(pos: [number, number], _params: any, _dom: any, _rect: any, size: any) {
+    if (!this.chartRect) {
+      this.chartRect = this.chartRef.getBoundingClientRect();
+    }
+
+    const posX = this.chartRect.x + pos[0];
+    const posY = this.chartRect.y + pos[1];
+    const { contentSize } = size;
+    const position = { left: 0, top: 0 };
+
+    const canSetBottom = window.innerHeight - posY - contentSize[1];
+    position.top = canSetBottom > 0 ? pos[1] - Math.min(20, canSetBottom) : pos[1] + canSetBottom - 20;
+
+    const canSetLeft = window.innerWidth - posX - contentSize[0];
+    position.left = pos[0] + Math.min(20, canSetLeft);
 
     return position;
   }
-
   /** 点击分组 */
-  handleLegendEvent(e: MouseEvent, actionType: LegendActionType, item) {
+  handleLegendEvent(e: MouseEvent, actionType: LegendActionType, item: any) {
     if (this.legendData.length < 2) {
       return;
     }
-    let eventType = actionType;
-    if (e.shiftKey && actionType === 'click') {
-      eventType = 'shift-click';
+
+    const eventType = e.shiftKey && actionType === 'click' ? 'shift-click' : actionType;
+
+    const newLegendData = [...this.legendData];
+    const itemIndex = newLegendData.findIndex(legend => legend.name === item.name);
+
+    if (itemIndex === -1) {
+      return;
     }
+
     if (eventType === 'shift-click') {
-      item.show = !item.show;
+      newLegendData[itemIndex].show = !newLegendData[itemIndex].show;
     } else if (eventType === 'click') {
-      const hasOtherShow = this.legendData.some(set => set.name !== item.name && set.show);
-      this.legendData.forEach(legend => {
-        legend.show = legend.name === item.name || !hasOtherShow;
+      const hasOtherShow = newLegendData.some((legend, idx) => idx !== itemIndex && legend.show);
+
+      newLegendData.forEach((legend, idx) => {
+        legend.show = idx === itemIndex || !hasOtherShow;
       });
     }
-    const showSeriesName = this.legendData.filter(legend => legend.show).map(item => item.name);
-    const showSeries = this.seriesData.filter(item => showSeriesName.includes(item.name));
-    const options = this.chart.getOption();
-    const showColor = this.legendData.filter(legend => legend.show).map(item => item.color);
 
-    this.chart.setOption(
-      {
-        ...options,
-        color: showColor,
-        series: showSeries,
-      },
-      {
-        notMerge: true,
-        lazyUpdate: false,
-        silent: true,
-      },
-    );
-    setTimeout(() => {
-      this.chart.resize();
-    }, 100);
-  }
+    this.legendData = newLegendData;
 
-  getChartsCancelFn() {}
-  getInfoCancelFn() {}
+    const showSeriesName = newLegendData.filter(legend => legend.show).map(legend => legend.name);
 
-  legendWheel(event: WheelEvent) {
-    event.preventDefault();
-    // 根据 event.deltaY 判断滚动方向
-    if (event.deltaY < 0) {
-      // 向上滚动
-      if (this.currentPageNum > 1) this.currentPageNum -= 1;
-    } else {
-      // 向下滚动
-      if (this.currentPageNum < this.legendMaxPageNum) this.currentPageNum += 1;
+    const showSeries = this.seriesData.filter(series => showSeriesName.includes(series.name));
+
+    const showColor = newLegendData.filter(legend => legend.show).map(legend => legend.color);
+
+    if (this.chart) {
+      const options = this.chart.getOption();
+
+      this.chart.setOption(
+        {
+          ...options,
+          color: showColor,
+          series: showSeries,
+        },
+        {
+          notMerge: true,
+          lazyUpdate: false,
+          silent: true,
+        },
+      );
+
+      // 使用requestAnimationFrame优化重绘
+      requestAnimationFrame(() => {
+        if (this.chart) {
+          this.chart.resize();
+        }
+      });
     }
   }
 
-  showMore(show) {
+  getChartsCancelFn = () => { };
+  getInfoCancelFn = () => { };
+
+  // 添加防抖处理
+  legendWheel = (event: WheelEvent) => {
+    event.preventDefault();
+
+    if (event.deltaY < 0) {
+      this.currentPageNum = Math.max(1, this.currentPageNum - 1);
+    } else {
+      this.currentPageNum = Math.min(this.legendMaxPageNum, this.currentPageNum + 1);
+    }
+  };
+
+  showMore(show: boolean) {
     this.ifShowMore = !!show;
     this.$emit('showMore', this.fieldData, !!show);
   }
+
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   render() {
+    const {
+      isPillarChart,
+      fieldData,
+      infoLoading,
+      chartLoading,
+      isShowEmpty,
+      emptyTipsStr,
+      emptyStr,
+      totalConfig,
+      height,
+      legendData,
+      currentPageNum,
+      legendMaxPageNum,
+      isShowPageIcon,
+      chartTitle,
+      pillarQueryTime,
+    } = this;
+
+    // const distinctCount = formatNumberWithRegex(fieldData.distinct_count);
+    const fieldPercent = (fieldData.field_percent * 100).toFixed(2);
+
     return (
-      <div class='retrieve-v2 field-analysis-container'>
-        <div v-bkloading={{ isLoading: this.infoLoading }}>
+      <div
+        class={[
+          'retrieve-v2 field-analysis-container',
+          {
+            'is-no-data': isShowEmpty,
+          },
+        ]}
+      >
+        <div>
           <div class='total-num-container'>
             <span class='total-num'>
-              {window.mainComponent.$t('总行数')} : {formatNumberWithRegex(this.fieldData.total_count)}
+              {window.mainComponent.$t('总行数')} : {formatNumberWithRegex(fieldData.total_count)}
             </span>
             <span
               class='appear-num'
               v-bk-tooltips={{ content: window.mainComponent.$t('字段在该事件范围内有数据的日志条数') }}
             >
-              {window.mainComponent.$t('出现行数')} : {formatNumberWithRegex(this.fieldData.field_count)}
+              {window.mainComponent.$t('出现行数')} : {formatNumberWithRegex(fieldData.field_count)}
             </span>
             <span
               class='appear-num'
               v-bk-tooltips={{ content: window.mainComponent.$t('字段在该事件范围内有数据的日志条数') }}
             >
-              {window.mainComponent.$t('日志条数')} : {this.fieldData.field_percent * 100}
+              {window.mainComponent.$t('日志条数')} : {fieldPercent}
               <span class='log-unit'>%</span>
             </span>
           </div>
-          {/* <div class='log-num-container'>
-            <div
-              class='num-box'
-              v-bk-tooltips={{
-                content: window.mainComponent.$t('计算规则：出现行数/总行数。若该值不为100%，该字段存在空值。'),
-              }}
-            >
-              <span class='num-val'>
-                <span class='log-num'>{this.fieldData.field_percent * 100}</span>
-                <span class='log-unit'>%</span>
-              </span>
-              <span class='log-str'>{window.mainComponent.$t('日志条数')}</span>
-            </div>
-            <div class='num-box'>
-              <span class='num-val'>
-                <span class='log-num'>{formatNumberWithRegex(this.fieldData.distinct_count)}</span>
-                <span class='log-unit'>{window.mainComponent.$t('条')}</span>
-              </span>
-              <span class='log-str'>{window.mainComponent.$t('去重后条数')}</span>
-            </div>
-          </div> */}
-          {this.isPillarChart && (
-            <div class='number-num-container'>
-              <div class='num-box'>
-                <span class='num-key'>{window.mainComponent.$t('最大值')}</span>
-                <span class='num-val'>{formatNumberWithRegex(this.fieldData.value_analysis.max)}</span>
-              </div>
-              <div class='num-box'>
-                <span class='num-key'>{window.mainComponent.$t('最小值')}</span>
-                <span class='num-val'>{formatNumberWithRegex(this.fieldData.value_analysis.min)}</span>
-              </div>
-              <div class='num-box'>
-                <span class='num-key'>{window.mainComponent.$t('平均值')}</span>
-                <span class='num-val'>{formatNumberWithRegex(this.fieldData.value_analysis.avg)}</span>
-              </div>
-              <div class='num-box'>
-                <span class='num-key'>{window.mainComponent.$t('中位数')}</span>
-                <span class='num-val'>{formatNumberWithRegex(this.fieldData.value_analysis.median)}</span>
-              </div>
+
+          {isPillarChart && (
+            <div>
+              {infoLoading ? (
+                <ItemSkeleton
+                  columns={2}
+                  rowHeight={'22px'}
+                  rows={2}
+                  widths={['50%', '50%']}
+                />
+              ) : (
+                <div class='number-num-container'>
+                  {totalConfig.map(item => (
+                    <div
+                      key={item.key}
+                      class='num-box'
+                    >
+                      <span class='num-key'>{window.mainComponent.$t(item.label)}</span>
+                      <span class='num-val'>{formatNumberWithRegex(fieldData.value_analysis[item.key] || 0)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
+
         <div
           style={{
-            'max-height': this.isPillarChart ? `${PILLAR_CHART_BOX_HEIGHT}px` : `${LINE_CHART_BOX_HEIGHT}px`,
+            // maxHeight: isPillarChart ? `${CHART_HEIGHTS.PILLAR_BOX}px` : `${CHART_HEIGHTS.LINE_BOX}px`,
             alignItems: 'center',
           }}
-          v-bkloading={{ isLoading: this.chartLoading }}
         >
-          {!this.isShowEmpty ? (
+          {isShowEmpty ? (
+            <div class='not-data-empty'>
+              <bk-exception
+                scene='part'
+                type={emptyTipsStr ? '500' : 'empty'}
+              >
+                <div style={{ marginTop: '10px' }}>
+                  <span>{emptyStr}</span>
+                  {emptyTipsStr && (
+                    <i
+                      class='bk-icon icon-exclamation-circle'
+                      v-bk-tooltips={{ content: emptyTipsStr }}
+                    />
+                  )}
+                </div>
+              </bk-exception>
+            </div>
+          ) : (
             <div>
               <div class='chart-title'>
-                <span>
-                  {!this.isPillarChart
-                    ? `TOP 5 ${window.mainComponent.$t('时序图')}`
-                    : window.mainComponent.$t('数值分布直方图')}
-                </span>
-                <span>{this.getPillarQueryTime}</span>
+                <span style={{ color: '#313238', fontSize: '14px' }}>{chartTitle}</span>
+                <span class='chart-title-time'>{pillarQueryTime}</span>
               </div>
-              <div
-                ref='fieldChart'
-                style={{ width: '100%', height: `${this.height}px` }}
-              ></div>
-              {!this.isPillarChart && (
+
+              {chartLoading ? (
+                <ChartSkeleton type={isPillarChart ? 'bar' : 'line'} />
+              ) : (
                 <div
-                  style={{ height: `${LEGEND_BOX_HEIGHT}px` }}
+                  ref='fieldChart'
+                  style={{ width: '100%', height: `${height}px` }}
+                />
+              )}
+
+              {!(chartLoading || isPillarChart) && (
+                <div
+                  style={{ height: `${CHART_HEIGHTS.LEGEND_BOX}px` }}
                   class='legend-box'
                 >
                   <div
                     ref='commonLegend'
                     class='common-legend'
                   >
-                    {this.legendData.map((legend, index) => {
-                      return (
+                    {legendData.map((legend, index) => (
+                      <div
+                        key={`${index}-${legend}`}
+                        class='common-legend-item'
+                        title={legend.name}
+                        on-Click={e => this.handleLegendEvent(e, 'click', legend)}
+                      >
+                        <span
+                          style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
+                          class='legend-icon'
+                        />
                         <div
-                          key={index}
-                          class='common-legend-item'
-                          title={legend.name}
-                          onClick={e => this.handleLegendEvent(e, 'click', legend)}
+                          style={{ color: legend.show ? '#63656e' : '#ccc' }}
+                          class='legend-name title-overflow'
                         >
-                          <span
-                            style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
-                            class='legend-icon'
-                          ></span>
-                          <div
-                            style={{ color: legend.show ? '#63656e' : '#ccc' }}
-                            class='legend-name title-overflow'
-                          >
-                            {legend.name}
-                          </div>
+                          {legend.name}
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
-                  {this.isShowPageIcon && (
+
+                  {isShowPageIcon && (
                     <div class='legend-icon-box'>
                       <i
                         class={{
                           'bk-select-angle bk-icon icon-angle-up-fill last-page-up': true,
-                          disabled: this.currentPageNum === 1,
+                          disabled: currentPageNum === 1,
                         }}
-                        onClick={() => {
-                          if (this.currentPageNum > 1) this.currentPageNum -= 1;
-                        }}
-                      ></i>
+                        on-Click={() => (this.currentPageNum = Math.max(1, currentPageNum - 1))}
+                      />
                       <i
                         class={{
                           'bk-select-angle bk-icon icon-angle-up-fill': true,
-                          disabled: this.currentPageNum === this.legendMaxPageNum,
+                          disabled: currentPageNum === legendMaxPageNum,
                         }}
-                        onClick={() => {
-                          if (this.currentPageNum < this.legendMaxPageNum) this.currentPageNum += 1;
-                        }}
-                      ></i>
+                        on-Click={() => (this.currentPageNum = Math.min(legendMaxPageNum, currentPageNum + 1))}
+                      />
                     </div>
                   )}
                 </div>
               )}
+
               <div class='distinct-count-num-box'>
                 <div class='count-num'>
                   <span class='count-num-title'>{window.mainComponent.$t('去重后字段统计')}</span>
-                  <span class='distinct-count-num'>{formatNumberWithRegex(this.fieldData.distinct_count)}</span>
                 </div>
-                <div class='moreFn'>
+                <div class='more-fn'>
+                  {!chartLoading && fieldData.distinct_count > 5 && (
+                    <span
+                      class='more-distinct'
+                      on-Click={() => this.showMore(true)}
+                    >
+                      {window.mainComponent.$t('查看全部')}
+                    </span>
+                  )}
                   <span
-                    class='fnBtn bk-icon icon-download'
+                    class='fn-btn bk-icon icon-download'
                     v-bk-tooltips={window.mainComponent.$t('下载')}
-                    onClick={this.downloadFieldStatistics.bind(this)}
+                    on-Click={this.downloadFieldStatistics}
                   ></span>
-
                   {/* <span
-                    class='fnBtn bk-icon icon-apps'
+                    class='bklog-icon bklog-yibiaopan'
                     v-bk-tooltips='查看仪表盘'
+                    style={{ marginLeft: '5px',cursor: 'pointer' }}
                   ></span> */}
                 </div>
               </div>
+
               {this.queryParams.agg_field && (
                 <AggChart
                   colorList={lineColor}
@@ -702,33 +808,6 @@ export default class FieldAnalysis extends Vue {
                   statistical-field-data={this.queryParams.statisticalFieldData}
                 />
               )}
-              {this.fieldData.distinct_count > 5 ? (
-                <span
-                  class='moreDistinct'
-                  onClick={this.showMore.bind(this)}
-                >
-                  {window.mainComponent.$t('更多')}
-                </span>
-              ) : null}
-            </div>
-          ) : (
-            <div class='not-data-empty'>
-              <bk-exception
-                scene='part'
-                type={!!this.emptyTipsStr ? '500' : 'empty'}
-              >
-                <div style={{ marginTop: '10px' }}>
-                  <span>{this.emptyStr}</span>
-                  {!!this.emptyTipsStr && (
-                    <i
-                      class='bk-icon icon-exclamation-circle'
-                      v-bk-tooltips={{
-                        content: this.emptyTipsStr,
-                      }}
-                    ></i>
-                  )}
-                </div>
-              </bk-exception>
             </div>
           )}
         </div>

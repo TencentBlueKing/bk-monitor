@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -96,6 +96,7 @@ def create_or_delete_records(mocker):
         is_default_cluster=True,
         version="5.x",
     )
+    mocker.patch("metadata.models.record_rule.service.space_uid_to_bk_tenant_id", return_value="system")
     space = models.Space.objects.create(space_type_id=space_type, space_id=space_id, space_name="test_biz")
     yield
     models.ClusterInfo.objects.all().delete()
@@ -116,10 +117,15 @@ def create_default_record_rule(create_or_delete_records, mocker):
             "metrics": {"unify_query_tsdb_request_seconds_bucket"},
         },
     )
+    mocker.patch("metadata.models.record_rule.service.space_uid_to_bk_tenant_id", return_value="system")
     mocker.patch("django.conf.settings.DEFAULT_BKDATA_BIZ_ID", 2)
     mocker.patch("django.conf.settings.BK_DATA_BK_BIZ_ID", 2)
     service = RecordRuleService(
-        space_type=space_type, space_id=space_id, record_name=record_name, rule_config=rule_config
+        space_type=space_type,
+        space_id=space_id,
+        record_name=record_name,
+        rule_config=rule_config,
+        bk_tenant_id="system",
     )
     service.create_record_rule()
     yield

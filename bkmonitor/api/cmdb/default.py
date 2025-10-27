@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -27,6 +27,7 @@ from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.ip import exploded_ip, is_v6
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.cmdb import TargetNodeType
 from core.drf_resource import CacheResource, api
@@ -109,7 +110,7 @@ def sort_topo_tree_by_pinyin(topo_trees):
     """
     if not topo_trees:
         return topo_trees
-    topo_trees.sort(key=lambda topo: lazy_pinyin(topo["bk_inst_name"])[0])
+    topo_trees.sort(key=lambda topo: lazy_pinyin(topo["bk_inst_name"])[0] if topo["bk_inst_name"] else "")
     for topo_tree in topo_trees:
         sort_topo_tree_by_pinyin(topo_tree["child"])
 
@@ -124,11 +125,12 @@ def _get_topo_tree(bk_biz_id):
     :return: 拓扑树
     :rtype: Dict
     """
+    bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
     response_data = client.search_biz_inst_topo(bk_biz_id=bk_biz_id)
     if response_data:
         response_data = response_data[0]
     else:
-        response_biz_data = api.cmdb.get_business(bk_biz_ids=[bk_biz_id])
+        response_biz_data = api.cmdb.get_business(bk_tenant_id=bk_tenant_id, bk_biz_ids=[bk_biz_id])
         if response_biz_data:
             biz_data = response_biz_data[0]
             bk_inst_name = biz_data.bk_biz_name
@@ -148,9 +150,7 @@ def _get_topo_tree(bk_biz_id):
         }
 
     # 添加空闲集群/模块
-    internal_module = client.get_biz_internal_module(
-        bk_biz_id=bk_biz_id, bk_supplier_account=settings.BK_SUPPLIER_ACCOUNT
-    )
+    internal_module = client.get_biz_internal_module(bk_biz_id=bk_biz_id)
     if internal_module:
         # 仅支持cmdb空间获取该信息
         if not internal_module["module"]:
@@ -667,32 +667,6 @@ class GetObjectAttribute(Resource):
         return client.search_object_attribute(params)
 
 
-class GetBluekingBiz(Resource):
-    """
-    查询对象属性
-    """
-
-    def perform_request(self, validated_request_data):
-        try:
-            bk_biz_name = getattr(settings, "BLUEKING_NAME", "蓝鲸") or "蓝鲸"
-            result = client.search_business(
-                dict(
-                    fields=["bk_biz_id", "bk_biz_name"],
-                    condition={"bk_biz_name": bk_biz_name},
-                )  # noqa
-            )
-        except BKAPIError as e:
-            logger.info("GetBluekingBiz failed: {}", e.message)
-            return 2
-
-        if result["info"]:
-            for biz_info in result["info"]:
-                if biz_info["bk_biz_name"] == bk_biz_name:
-                    return biz_info["bk_biz_id"]
-
-        return 2
-
-
 class SearchServiceCategory(Resource):
     """
     查询服务分类列表
@@ -891,6 +865,7 @@ def full_host_topo_inst(bk_biz_id, host_list):
 
 class GetHostWithoutBiz(Resource):
     class RequestSerializer(HostRequestSerializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
         ips = serializers.ListField(label="IP组", required=False)
         bk_host_ids = serializers.ListField(label="主机ID组", required=False)
         ip = serializers.CharField(label="IP关键字", required=False)
@@ -908,6 +883,7 @@ class GetHostWithoutBiz(Resource):
             return {"count": 0, "hosts": []}
 
         request_params = {
+            "bk_tenant_id": params["bk_tenant_id"],
             "page": {"start": 0, "limit": params["limit"]},
             "fields": params["fields"],
         }
@@ -953,7 +929,8 @@ class GetHostWithoutBiz(Resource):
             search_result = client.list_hosts_without_biz(request_params)
             if search_result["info"]:
                 relations = client.find_host_biz_relation(
-                    bk_host_id=[host["bk_host_id"] for host in search_result["info"]]
+                    bk_tenant_id=params["bk_tenant_id"],
+                    bk_host_id=[host["bk_host_id"] for host in search_result["info"]],
                 )
             else:
                 relations = []

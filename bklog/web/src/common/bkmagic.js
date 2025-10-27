@@ -30,45 +30,45 @@
  */
 
 import Vue from 'vue';
-
-// 按需引入
-import './demand-import';
-
-const Message = Vue.prototype.$bkMessage;
+import { bkMessage } from 'bk-magic-vue';
 
 export const messageError = (message, delay = 3000, ellipsisLine = 0) => {
-  Message({
+  bkMessage({
     message,
     delay,
     ellipsisLine,
     theme: 'error',
+    zIndex: 9999,
   });
 };
 
 export const messageSuccess = (message, delay = 3000, ellipsisLine = 0) => {
-  Message({
+  bkMessage({
     message,
     delay,
     ellipsisLine,
     theme: 'success',
+    zIndex: 9999,
   });
 };
 
 export const messageInfo = (message, delay = 3000, ellipsisLine = 0) => {
-  Message({
+  bkMessage({
     message,
     delay,
     ellipsisLine,
     theme: 'primary',
+    zIndex: 9999,
   });
 };
 
 export const messageWarn = (message, delay = 3000, ellipsisLine = 0) => {
-  Message({
+  bkMessage({
     message,
     delay,
     ellipsisLine,
     theme: 'warning',
+    zIndex: 9999,
   });
 };
 

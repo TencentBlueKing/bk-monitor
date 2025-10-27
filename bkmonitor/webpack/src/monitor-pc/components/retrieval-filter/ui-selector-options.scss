@@ -1,10 +1,11 @@
+/* stylelint-disable selector-class-pattern */
 .retrieval-filter__ui-selector-options-component {
   position: relative;
   display: flex;
   flex-direction: column;
   min-width: 720px;
   height: 404px;
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #dcdee5;
   border-top: none;
   box-shadow: 0 2px 6px 0 #0000001a;
@@ -47,8 +48,7 @@
 
       .options-wrap {
         flex: 1;
-        overflow-x: hidden;
-        overflow-y: scroll;
+        overflow: hidden scroll;
 
         .option {
           display: flex;
@@ -82,16 +82,16 @@
           .option-name-title {
             margin-left: 4px;
             overflow: hidden;
-            color: #313238;
             text-overflow: ellipsis;
+            color: #313238;
             white-space: nowrap;
           }
 
           .option-name-subtitle {
             margin-left: 4px;
             overflow: hidden;
-            color: #757880;
             text-overflow: ellipsis;
+            color: #757880;
             white-space: nowrap;
           }
 
@@ -155,7 +155,15 @@
         .form-item-content {
           .method-select {
             .bk-select-name {
-              color: #f59500;
+              color: #3a84ff;
+            }
+            &.exclude,
+            &.ne,
+            &.neq,
+            &.nreg {
+              .bk-select-name {
+                color: #ea3636;
+              }
             }
           }
         }

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,7 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from typing import List
 
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
@@ -92,7 +90,7 @@ def sync(model_id=None, model_output_rt=None):
     objects_to_create, objects_to_update = make_signature_objects(patterns=patterns, model_id=model_id)
     AiopsSignatureAndPattern.objects.bulk_create(objects_to_create, batch_size=500)
     AiopsSignatureAndPattern.objects.bulk_update(
-        objects_to_update, fields=["pattern", "origin_pattern"], batch_size=500
+        objects_to_update, fields=["pattern", "origin_pattern", "origin_log"], batch_size=500
     )
 
 
@@ -132,7 +130,7 @@ def get_pattern(content) -> list:
                 pattern_list = []
                 for pattern in sensitive_pattern[PATTERN_INDEX]:
                     if hasattr(pattern, "name"):
-                        pattern_list.append("#{}#".format(pattern.name))
+                        pattern_list.append(f"#{pattern.name}#")
                         continue
                     pattern_list.append(str(pattern))
                 patterns.append(
@@ -140,6 +138,7 @@ def get_pattern(content) -> list:
                         "signature": str(signature),
                         "pattern": " ".join(pattern_list),
                         "origin_pattern": " ".join(pattern_list),
+                        "origin_log": "",
                     }
                 )
                 continue
@@ -147,13 +146,14 @@ def get_pattern(content) -> list:
             origin_log = sensitive_pattern[ORIGIN_LOG_INDEX][0]
             if isinstance(origin_log, list):
                 origin_log = origin_log[0]
+            raw_origin_log = origin_log
             pattern_str = ""
             pattern_list = []
             for pattern in sensitive_pattern[PATTERN_INDEX]:
                 if hasattr(pattern, "name"):
                     value = pattern.value
                     name = f"#{pattern.name}#"
-                elif isinstance(pattern, (tuple, list)):
+                elif isinstance(pattern, tuple | list):
                     value = pattern[-1]
                     name = f"#{pattern[-2]}#"
                 else:
@@ -168,12 +168,17 @@ def get_pattern(content) -> list:
                 origin_log = origin_log[idx + len(value) :]
             pattern_str += origin_log
             patterns.append(
-                {"signature": str(signature), "pattern": pattern_str, "origin_pattern": " ".join(pattern_list)}
+                {
+                    "signature": str(signature),
+                    "pattern": pattern_str,
+                    "origin_pattern": " ".join(pattern_list),
+                    "origin_log": raw_origin_log,
+                }
             )
     return patterns
 
 
-def make_signature_objects(patterns, model_id) -> [List[AiopsSignatureAndPattern], List[AiopsSignatureAndPattern]]:
+def make_signature_objects(patterns, model_id) -> [list[AiopsSignatureAndPattern], list[AiopsSignatureAndPattern]]:
     """
     生成 signature 对象
     :param patterns:
@@ -195,6 +200,7 @@ def make_signature_objects(patterns, model_id) -> [List[AiopsSignatureAndPattern
                     signature=origin_signature,
                     pattern=origin_pattern["pattern"],
                     origin_pattern=origin_pattern["origin_pattern"],
+                    origin_log=origin_pattern["origin_log"],
                 )
             )
         else:
@@ -203,5 +209,6 @@ def make_signature_objects(patterns, model_id) -> [List[AiopsSignatureAndPattern
             signature_obj.pattern = origin_pattern["pattern"]
             # 保留原始pattern 用于不同索引之间的数据同步
             signature_obj.origin_pattern = origin_pattern["origin_pattern"]
+            signature_obj.origin_log = origin_pattern["origin_log"]
             objects_to_update.append(signature_obj)
     return objects_to_create, objects_to_update

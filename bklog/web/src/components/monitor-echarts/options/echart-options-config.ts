@@ -24,6 +24,26 @@
  * IN THE SOFTWARE.
  */
 
+const handleYAxisLabelFormatter = (num: number): string => {
+  const si = [
+    { value: 1, symbol: '' },
+    { value: 1e3, symbol: 'K' },
+    { value: 1e6, symbol: 'M' },
+    { value: 1e9, symbol: 'G' },
+    { value: 1e12, symbol: 'T' },
+    { value: 1e15, symbol: 'P' },
+    { value: 1e18, symbol: 'E' },
+  ];
+  const rx = /\.0+$|(\.[0-9]*[1-9])0+$/;
+  let i: number;
+  for (i = si.length - 1; i > 0; i--) {
+    if (num >= si[i].value) {
+      break;
+    }
+  }
+  return (num / si[i].value).toFixed(3).replace(rx, '$1') + si[i].symbol;
+};
+
 export const lineOrBarOptions = {
   useUTC: true,
   title: {
@@ -112,8 +132,8 @@ export const lineOrBarOptions = {
   },
   grid: {
     containLabel: true,
-    left: 0,
-    right: 26,
+    left: 10,
+    right: 16,
     top: 16,
     bottom: 0,
     backgroundColor: 'transparent',
@@ -161,6 +181,8 @@ export const lineOrBarOptions = {
     },
     axisLabel: {
       color: '#979BA5',
+      fontSize: 11,
+      formatter: (v: number) => handleYAxisLabelFormatter(v),
     },
     splitLine: {
       show: true,
@@ -178,7 +200,7 @@ export const lineOrBarOptions = {
 };
 
 export const pieOptions: any = {
-  lengend: {
+  legend: {
     show: false,
   },
   tooltip: {
@@ -234,6 +256,7 @@ export const pillarChartOption = {
     },
     axisLabel: {
       color: '#979BA5',
+      formatter: (v: number) => handleYAxisLabelFormatter(v),
     },
   },
   grid: {

@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import os
 from collections import defaultdict
@@ -26,7 +26,7 @@ from core.errors.dataapi import SqlQueryException
 NO_DATA_CONCURRENT_NUMBER = os.getenv("NO_DATA_CONCURRENT_NUMBER", 20)
 
 
-class DataBase(object):
+class DataBase:
     @classmethod
     def get_plat_id(cls, point):
         raise NotImplementedError
@@ -48,7 +48,7 @@ class DataBase(object):
                 key = host_key(ip=point["ip"], plat_id=plat_id)
                 if dimension_field:
                     dimension = point[dimension_field]
-                    key = "{}::{}".format(key, dimension)
+                    key = f"{key}::{dimension}"
                 if key not in performance_point_info and point[item] is not None:
                     val = point[item]
                     with ignored(TypeError, log_exception=False):
@@ -174,14 +174,14 @@ class TSDBData(DataBase):
         return data
 
 
-class TSDataBase(object):
+class TSDataBase:
     def __init__(self, db_name, result_tables=None, bk_biz_id=None):
         self.bk_biz_id = bk_biz_id
         self.tables = result_tables
         self.db_name = db_name
 
     def table_id(self, table_name):
-        table_id = "{db_name}.{table}".format(db_name=self.db_name, table=table_name)
+        table_id = f"{self.db_name}.{table_name}"
         # if self.bk_biz_id:
         #     table_id = "{bk_biz_id}_{table_id}".format(bk_biz_id=self.bk_biz_id, table_id=table_id)
 
@@ -229,6 +229,9 @@ class TSDataBase(object):
             return group_by_field_mapping["SERVICE"]
 
     def concurrent_check_if_no_data_by_unify_query(self, target_result, group_by_fields, filter_dict):
+        if not self.tables:
+            return target_result
+
         table = self.tables[0]
         filter_dict = filter_dict or {}
         # 如果没有传时间范围条件，则默认取最后5分钟的数据
@@ -244,7 +247,7 @@ class TSDataBase(object):
         for field in table.fields[0:5]:
             base_statement = (
                 f"count_over_time(bkmonitor:{self.db_name}:{field['field_name']}"
-                f"{{bk_collect_config_id=\'{filter_dict['bk_collect_config_id']}\'}}[1m])"
+                f"{{bk_collect_config_id='{filter_dict['bk_collect_config_id']}'}}[1m])"
             )
             if count_statement:
                 base_statement = " or " + base_statement

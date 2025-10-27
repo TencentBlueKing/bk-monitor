@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -11,13 +10,12 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
+from bkmonitor.models import DefaultStrategyBizAccessModel, StrategyModel
 from core.errors.strategy import CreateStrategyError
-from bkmonitor.models import StrategyModel
-from bkmonitor.models import DefaultStrategyBizAccessModel
+from monitor_web.strategies.default_settings.gse import v1
 from monitor_web.strategies.loader import (
     GseDefaultAlarmStrategyLoader,
 )
-from monitor_web.strategies.default_settings.gse import v1
 
 pytestmark = pytest.mark.django_db
 
@@ -74,7 +72,7 @@ class TestOsDefaultAlarmStrategyLoader:
         notice_group_ids_2 = loader.get_notice_group(config_type)
         assert notice_group_ids == notice_group_ids_2
 
-    def test_load_strategies(self, monkeypatch_api_cmdb_get_business, monkeypatch_api_cmdb_get_blueking_biz):
+    def test_load_strategies(self, monkeypatch_api_cmdb_get_business):
         bk_biz_id = 2
         loader = GseDefaultAlarmStrategyLoader(bk_biz_id)
         strategies_list = loader.get_default_strategy()
@@ -90,9 +88,7 @@ class TestOsDefaultAlarmStrategyLoader:
             assert strategy_config_list[0]["notice"]["user_groups"] == loader.get_notice_group(strategies[0]["type"])
             assert strategy_config_list[1]["notice"]["user_groups"] == loader.get_notice_group(strategies[1]["type"])
 
-    def test_load_strategies__repeat_loading(
-        self, monkeypatch_api_cmdb_get_business, monkeypatch_api_cmdb_get_blueking_biz
-    ):
+    def test_load_strategies__repeat_loading(self, monkeypatch_api_cmdb_get_business):
         bk_biz_id = 2
         loader = GseDefaultAlarmStrategyLoader(bk_biz_id)
         strategies_list = loader.get_default_strategy()

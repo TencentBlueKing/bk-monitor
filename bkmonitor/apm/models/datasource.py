@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -14,14 +14,13 @@ import math
 import operator
 import re
 from functools import reduce
-from typing import Optional, Any
+from typing import Any, ClassVar, Optional
 
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
-
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -34,12 +33,20 @@ from apm.constants import (
 from apm.core.handlers.bk_data.constants import FlowStatus
 from apm.models.doris import BkDataDorisProvider
 from apm.utils.es_search import EsSearch
-from bkmonitor.data_source.unify_query.builder import UnifyQuerySet, QueryConfigBuilder
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.db import JsonField
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
-from constants.apm import FlowType, OtlpKey, SpanKind, TRACE_RESULT_TABLE_OPTION, TraceDataSourceConfig
+from constants.apm import (
+    FlowType,
+    OtlpKey,
+    SpanKind,
+    TRACE_RESULT_TABLE_OPTION,
+    TraceDataSourceConfig,
+    DEFAULT_DATA_LABEL,
+)
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
@@ -71,8 +78,8 @@ class ApmDataSourceConfigBase(models.Model):
     }
 
     # target字段配置
-    DATA_ID_PARAM = None
-    DATASOURCE_TYPE = None
+    DATA_ID_PARAM: ClassVar[dict[str, Any]]
+    DATASOURCE_TYPE: ClassVar[str]
 
     bk_biz_id = models.IntegerField("业务id")
     app_name = models.CharField("所属应用", max_length=255)
@@ -115,15 +122,22 @@ class ApmDataSourceConfigBase(models.Model):
             instance.switch_result_table(False)
 
     def switch_result_table(self, is_enable=True):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         resource.metadata.modify_result_table(
-            {"table_id": self.result_table_id, "is_enable": is_enable, "operator": get_global_user()}
+            {
+                "table_id": self.result_table_id,
+                "is_enable": is_enable,
+                "bk_tenant_id": bk_tenant_id,
+                "operator": get_global_user(bk_tenant_id=bk_tenant_id),
+            }
         )
 
     def create_data_id(self):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         if self.bk_data_id != -1:
             return self.bk_data_id
         try:
-            data_id_info = resource.metadata.query_data_source({"data_name": self.data_name})
+            data_id_info = resource.metadata.query_data_source(bk_tenant_id=bk_tenant_id, data_name=self.data_name)
         except metadata_models.DataSource.DoesNotExist:
             # 临时支持数据链路
             data_link = DataLink.get_data_link(self.bk_biz_id)
@@ -136,14 +150,17 @@ class ApmDataSourceConfigBase(models.Model):
                 if self.DATASOURCE_TYPE == self.TRACE_DATASOURCE:
                     if data_link.trace_transfer_cluster_id:
                         data_link_param["transfer_cluster"] = data_link.trace_transfer_cluster_id
-            param = {
-                "data_name": self.data_name,
-                "operator": get_global_user(),
-                "data_description": self.data_name,
-                **self.DATA_ID_PARAM,
-                **data_link_param,
-            }
-            data_id_info = resource.metadata.create_data_id(param)
+            data_id_info = resource.metadata.create_data_id(
+                {
+                    "bk_tenant_id": bk_tenant_id,
+                    "bk_biz_id": self.bk_biz_id,
+                    "data_name": self.data_name,
+                    "operator": get_global_user(bk_tenant_id=bk_tenant_id),
+                    "data_description": self.data_name,
+                    **self.DATA_ID_PARAM,
+                    **data_link_param,
+                }
+            )
         bk_data_id = data_id_info["bk_data_id"]
         self.bk_data_id = bk_data_id
         self.save()
@@ -176,8 +193,6 @@ class MetricDataSource(ApmDataSourceConfigBase):
     DATASOURCE_TYPE = ApmDataSourceConfigBase.METRIC_DATASOURCE
 
     DEFAULT_MEASUREMENT = "__default__"
-
-    DEFAULT_DATA_LABEL = "APM"  # 数据标签，用来查询数据时三段式前缀(注意：不能随意更改)
 
     DATA_ID_PARAM = {
         "etl_config": "bk_standard_v2_time_series",
@@ -221,15 +236,19 @@ class MetricDataSource(ApmDataSourceConfigBase):
     def create_or_update_result_table(self, **option):
         if self.result_table_id != "":
             return
+
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        global_user = get_global_user(bk_tenant_id=bk_tenant_id)
         params = {
-            "operator": get_global_user(),
+            "operator": global_user,
             "bk_data_id": self.bk_data_id,
             # 平台级接入，ts_group 业务id对应为0
             "bk_biz_id": self.bk_biz_id,
+            "bk_tenant_id": bk_tenant_id,
             "time_series_group_name": self.event_group_name,
             "label": "application_check",
             "table_id": self.table_id,
-            "data_label": self.DEFAULT_DATA_LABEL,
+            "data_label": DEFAULT_DATA_LABEL,
             "is_split_measurement": True,
         }
         datalink = DataLink.get_data_link(self.bk_biz_id)
@@ -243,6 +262,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
         group_info = resource.metadata.create_time_series_group(params)
         resource.metadata.modify_time_series_group(
             {
+                "bk_tenant_id": bk_tenant_id,
                 "time_series_group_id": group_info["time_series_group_id"],
                 "field_list": [
                     {
@@ -253,7 +273,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
                         "unit": "ns",
                     }
                 ],
-                "operator": get_global_user(),
+                "operator": global_user,
             }
         )
         self.time_series_group_id = group_info["time_series_group_id"]
@@ -262,11 +282,13 @@ class MetricDataSource(ApmDataSourceConfigBase):
         self.save()
 
     def update_fields(self, field_list):
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         return resource.metadata.modify_time_series_group(
             {
+                "bk_tenant_id": bk_tenant_id,
                 "time_series_group_id": self.time_series_group_id,
                 "field_list": field_list,
-                "operator": get_global_user(),
+                "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             }
         )
 
@@ -335,6 +357,7 @@ class LogDataSource(ApmDataSourceConfigBase):
                 valid_log_config_name = cls.app_name_to_log_config_name(app_name)
                 response = api.log_search.create_custom_report(
                     **{
+                        "bk_tenant_id": bk_biz_id_to_bk_tenant_id(bk_biz_id),
                         "bk_biz_id": bk_biz_id,
                         "collector_config_name_en": valid_log_config_name,
                         "collector_config_name": valid_log_config_name,
@@ -358,6 +381,7 @@ class LogDataSource(ApmDataSourceConfigBase):
             # 更新
             try:
                 api.log_search.update_custom_report(
+                    bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
                     collector_config_id=obj.collector_config_id,
                     category_id="application_check",
                     collector_config_name=cls.app_name_to_log_config_name(app_name),
@@ -538,6 +562,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
     index_set_id = models.IntegerField("索引集id", null=True)
     index_set_name = models.CharField("索引集名称", max_length=512, null=True)
 
+    def to_json(self):
+        return {**super().to_json(), "index_set_id": self.index_set_id}
+
     @property
     def table_id(self) -> str:
         return self.get_table_id(int(self.bk_biz_id), self.app_name)
@@ -554,11 +581,13 @@ class TraceDataSource(ApmDataSourceConfigBase):
         if self.result_table_id:
             table_id = self.result_table_id
 
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
         params = {
             "bk_data_id": self.bk_data_id,
             # 必须为 库名.表名
             "table_id": table_id,
-            "operator": get_global_user(),
+            "bk_tenant_id": bk_tenant_id,
+            "operator": get_global_user(bk_tenant_id=bk_tenant_id),
             "is_enable": True,
             "table_name_zh": self.app_name,
             "is_custom_table": True,
@@ -596,7 +625,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
         # 获取集群信息
         try:
             cluster_info_list = api.metadata.query_cluster_info(
-                {"cluster_id": option["es_storage_cluster"], "cluster_type": "elasticsearch"}
+                bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.bk_biz_id),
+                cluster_id=option["es_storage_cluster"],
+                cluster_type="elasticsearch",
             )
             cluster_info = cluster_info_list[0]
             custom_option = json.loads(cluster_info["cluster_config"].get("custom_option"))
@@ -715,22 +746,23 @@ class TraceDataSource(ApmDataSourceConfigBase):
     @classmethod
     def _filter_and_sort_valid_index_names(cls, app_name, index_names):
         date_index_pairs = []
-        pattern = re.compile(rf".*_bkapm_trace_{re.escape(app_name)}_(\d{{8}})_\d+$")
+        pattern = re.compile(rf".*_bkapm_trace_{re.escape(app_name)}_(\d{{8}})_(\d+)$")
 
         for name in index_names:
             match = pattern.search(name)
             if match:
                 date_str = match.group(1)
+                num = int(match.group(2))
                 # 检查 app_name 之后的格式是否是日期类型
                 try:
                     date = datetime.datetime.strptime(date_str, "%Y%m%d")
-                    date_index_pairs.append((date, name))
+                    date_index_pairs.append((date, num, name))
                 except ValueError:
                     logger.warning(f"[FilterValidIndexName] filter invalid indexName: {name} with wrong dateString")
                     continue
 
         # 按照时间排序 便于快捷获取最新的索引
-        date_index_pairs.sort(reverse=True, key=lambda x: x[0])
+        date_index_pairs.sort(reverse=True, key=lambda x: (x[0], x[1]))
 
         return [i[-1] for i in date_index_pairs]
 
@@ -1114,10 +1146,11 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
         # 创建接入
         apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
+        global_user = get_global_user(bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id))
         essentials = BkDataDorisProvider.from_datasource_instance(
             obj,
-            maintainer=get_global_user() if not apm_maintainers else f"{get_global_user()},{apm_maintainers}",
-            operator=get_global_user(),
+            maintainer=global_user if not apm_maintainers else f"{global_user},{apm_maintainers}",
+            operator=global_user,
             name_stuffix=bk_biz_id,
         ).provider()
         obj.bk_data_id = essentials["bk_data_id"]
@@ -1130,19 +1163,19 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     @atomic(using=DATABASE_CONNECTION_NAME)
     def create_builtin_source(cls):
-        builtin_biz = api.cmdb.get_blueking_biz()
         # datasource is enough, no real app created.
-        cls.apply_datasource(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME, option=True)
-        cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+        cls.apply_datasource(bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME, option=True)
+        cls._CACHE_BUILTIN_DATASOURCE = cls.objects.get(
+            bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME
+        )
 
     @classmethod
     def get_builtin_source(cls) -> Optional["ProfileDataSource"]:
         if cls._CACHE_BUILTIN_DATASOURCE:
             return cls._CACHE_BUILTIN_DATASOURCE
 
-        builtin_biz = api.cmdb.get_blueking_biz()
         try:
-            return cls.objects.get(bk_biz_id=builtin_biz, app_name=cls.BUILTIN_APP_NAME)
+            return cls.objects.get(bk_biz_id=settings.DEFAULT_BK_BIZ_ID, app_name=cls.BUILTIN_APP_NAME)
         except cls.DoesNotExist:
             return None
 

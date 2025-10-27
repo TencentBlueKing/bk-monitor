@@ -1,0 +1,64 @@
+.query-template-set {
+  display: flex;
+  height: 100%;
+
+  .left-create-container {
+    position: relative;
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+
+    .create-content-wrap {
+      padding: 16px 16px 0;
+    }
+
+    .submit-btns {
+      padding: 0 16px;
+      margin-top: 32px;
+
+      .bk-button {
+        width: 88px;
+
+        & + .bk-button {
+          margin-left: 8px;
+        }
+      }
+    }
+
+    &.sticky {
+      .create-content-wrap {
+        padding: 16px 16px 24px;
+      }
+
+      .submit-btns {
+        position: sticky;
+        bottom: 0;
+        padding: 8px 16px;
+        margin-top: 0;
+        background: #fff;
+        box-shadow: 0 -2px 4px 0 #0000001f;
+      }
+    }
+  }
+
+  .template-config-wrap-component {
+    padding: 24px;
+    margin-top: 12px;
+
+    .template-config-title {
+      margin-bottom: 14px;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 20px;
+      color: #313238;
+    }
+
+    .template-query-panel-component {
+      margin-bottom: 10px;
+    }
+  }
+
+  .mt-12 {
+    margin-top: 12px;
+  }
+}

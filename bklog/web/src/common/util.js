@@ -31,6 +31,7 @@
 
 import { set } from 'vue';
 
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import dayjs from 'dayjs';
 import DOMPurify from 'dompurify';
 import JSONBigNumber from 'json-bignumber';
@@ -107,9 +108,9 @@ export function randomColor(baseColor, count) {
   for (let i = 0; i < count; i++) {
     ret[i] = `#${Math.floor(segments[0] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
       16,
-    )}${Math.floor(segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(
-      16,
-    )}${Math.floor(segments[2] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)}`;
+    )}${Math.floor(segments[1] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20).toString(16)}${Math.floor(
+      segments[2] + (Math.random() < 0.5 ? -1 : 1) * Math.random() * 20,
+    ).toString(16)}`;
   }
   return ret;
 }
@@ -544,11 +545,11 @@ export function formatFileSize(size, dropFractionIfInteger = false) {
 export function readBlobResponse(response) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = function () {
+    reader.onload = () => {
       resolve(reader.result);
     };
 
-    reader.onerror = function () {
+    reader.onerror = () => {
       reject(reader.error);
     };
 
@@ -601,7 +602,7 @@ export function parseBigNumberList(lsit) {
  * @param {Number} n
  * @param str,默认26位字母及数字
  */
-export const random = (n, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
+export const random = (n = 8, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
   // 生成n位长度的字符串
   // const str = 'abcdefghijklmnopqrstuvwxyz0123456789' // 可以作为常量放到random外面
   let result = '';
@@ -625,7 +626,7 @@ export const copyMessage = (val, alertMsg = undefined) => {
     document.execCommand('copy');
     document.body.removeChild(input);
     window.mainComponent.messageSuccess(
-      alertMsg ? alertMsg ?? window.mainComponent.$t('复制失败') : window.mainComponent.$t('复制成功'),
+      alertMsg ? (alertMsg ?? window.mainComponent.$t('复制失败')) : window.mainComponent.$t('复制成功'),
     );
   } catch (e) {
     console.warn(e);
@@ -981,8 +982,8 @@ export const calculateTableColsWidth = (field, list) => {
   // 通过排序获取最大的字段值
   firstLoadList.sort((a, b) => {
     return (
-      parseTableRowData(b, field.field_name, field.field_type).length -
-      parseTableRowData(a, field.field_name, field.field_type).length
+      (parseTableRowData(b, field.field_name, field.field_type)?.length ?? 0) -
+      (parseTableRowData(a, field.field_name, field.field_type)?.length ?? 0)
     );
   });
 
@@ -1106,6 +1107,11 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
       });
       const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
       const tableElem = document.querySelector('.original-log-panel');
+
+      if (!tableElem) {
+        return true;
+      }
+
       // 如果当前表格所有列总和小于表格实际宽度 则对小于800（最大宽度）的列赋值 defalut 使其自适应
       const availableWidth = tableElem.clientWidth - staticWidth;
       if (tableElem && columnsWidth && columnsWidth < availableWidth) {
@@ -1126,6 +1132,7 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
 
     return true;
   } catch (error) {
+    console.error(error);
     return false;
   }
 };
@@ -1158,27 +1165,34 @@ export const formatNumberWithRegex = number => {
   return parts.join('.');
 };
 /** 上下文，实时日志高亮颜色 */
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const contextHighlightColor = [
   {
-    dark: '#FFB401',
-    light: '#FFF6E1',
+    dark: 'rgb(255, 209, 138)',
+    light: 'rgb(255, 235, 204)',
   },
   {
-    dark: '#1CAB88',
-    light: '#E8FFF5',
+    dark: 'rgb(164, 235, 202)',
+    light: 'rgb(206, 235, 222)',
   },
   {
-    dark: '#3A84FF',
-    light: '#F0F5FF',
+    dark: 'rgb(171, 221, 245)',
+    light: 'rgb(215, 235, 245)',
   },
   {
-    dark: '#FF5656',
-    light: '#FFEEEE',
+    dark: 'rgb(179, 190, 255)',
+    light: 'rgb(224, 229, 255)',
   },
   {
-    dark: '#00CBCB',
-    light: '#E1FCFD',
+    dark: 'rgb(243, 179, 255)',
+    light: 'rgb(249, 219, 255)',
+  },
+  {
+    dark: 'rgb(255, 179, 191)',
+    light: 'rgb(255, 224, 230)',
+  },
+  {
+    dark: 'rgb(199, 240, 153)',
+    light: 'rgb(226, 240, 211)',
   },
 ];
 
@@ -1294,4 +1308,17 @@ export const getOs = () => {
  */
 export const getOsCommandLabel = () => {
   return getOs() === 'macos' ? 'Cmd' : 'Ctrl';
+};
+
+/**
+ * 更新最后选择索引ID
+ */
+export const updateLastSelectedIndexId = (spaceUid, index_set_id) => {
+  const storage = {
+    [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
+      ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
+      [spaceUid]: [String(index_set_id)],
+    },
+  };
+  store.commit('updateStorage', storage);
 };

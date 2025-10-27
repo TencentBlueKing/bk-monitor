@@ -716,7 +716,20 @@
         }
       },
       cancel() {
-        this.$router.back(-1);
+        let routeName;
+        const { backRoute, ...reset } = this.$route.query;
+        if (backRoute) {
+          routeName = backRoute;
+        } else {
+          routeName = 'custom-report';
+        }
+        this.$router.push({
+          name: routeName,
+          query: {
+            ...reset,
+            spaceUid: this.$store.state.spaceUid,
+          },
+        });
       },
       handleActiveDetails(state) {
         this.isOpenWindow = state;

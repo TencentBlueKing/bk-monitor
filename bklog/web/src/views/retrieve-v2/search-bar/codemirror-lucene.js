@@ -27,7 +27,7 @@ import { sql } from '@codemirror/lang-sql';
 import { EditorState, EditorSelection } from '@codemirror/state';
 import { keymap, EditorView, Decoration } from '@codemirror/view';
 import { minimalSetup } from 'codemirror';
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 const notKeywordDecorator = Decoration.mark({
   class: 'cm-not-keyword', // 这将添加一个cm-not-keyword类名
@@ -48,6 +48,17 @@ function highlightNotKeywords() {
   });
 }
 
+/**
+ * 创建Lucene编辑器
+ * @param {Object} params 参数
+ * @param {HTMLElement} params.target 目标元素
+ * @param {Function} params.onChange 变化回调
+ * @param {Function} params.onFocusChange 焦点变化回调
+ * @param {Function} params.onFocusPosChange 焦点位置变化回调
+ * @param {Function} params.onKeyEnter 回车回调
+ * @param {String} params.value 初始值
+ * @param {Function} params.stopDefaultKeyboard 阻止默认键盘行为回调 'ArrowUp', 'ArrowDown'
+ */
 export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter, value, stopDefaultKeyboard }) => {
   // 键盘操作事件处理函数
   // 这里通过回调函数处理，如果 stopDefaultKeyboard 返回true，则会阻止编辑器默认的监盘行为

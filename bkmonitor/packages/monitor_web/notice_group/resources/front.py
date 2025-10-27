@@ -1,15 +1,14 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
-from typing import Dict, List
 
 from django.conf import settings
 from django.db import models
@@ -20,6 +19,7 @@ from bkmonitor.utils.request import get_request
 from bkmonitor.views import serializers
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from core.errors.notice_group import NoticeGroupNotExist
 
 logger = logging.getLogger(__name__)
@@ -49,9 +49,27 @@ class GetReceiverResource(Resource):
             members = getattr(business, key, []) if business else []
             all_members.update(members)
 
-        user_list = api.bk_login.get_all_user(
-            page_size=500, fields="username,display_name", exact_lookups=",".join(sorted(all_members))
-        )["results"]
+        futures = []
+        user_list = []
+        if all_members:
+            step_size = 50
+            all_members_list = sorted(all_members)
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                for num in range(0, len(all_members_list), step_size):
+                    futures.append(
+                        executor.submit(
+                            api.bk_login.get_all_user,
+                            page_size=500,
+                            fields="username,display_name",
+                            exact_lookups=",".join(all_members_list[num : num + step_size]),
+                        )
+                    )
+            for future in as_completed(futures):
+                try:
+                    user_list.extend(future.result()["results"])
+                except Exception as e:
+                    logger.warning(f"[GetReceiverResource] Failed to get user info: {e}")
+                    continue
 
         display_name = {user["username"]: user["display_name"] for user in user_list}
 
@@ -98,7 +116,7 @@ class NoticeGroupDetailResource(Resource):
         id = serializers.IntegerField(required=True, label="通知組ID")
 
     @staticmethod
-    def get_users_info(usernames: List) -> Dict[str, Dict]:
+    def get_users_info(usernames: list) -> dict[str, dict]:
         """
         补充通知对象信息
         """
@@ -162,7 +180,7 @@ class NoticeGroupListResource(NoticeGroupDetailResource):
         if bk_biz_id:
             bk_biz_ids = [0, bk_biz_id]
         else:
-            bk_biz_ids: List[int] = resource.space.get_bk_biz_ids_by_user(get_request().user)
+            bk_biz_ids: list[int] = resource.space.get_bk_biz_ids_by_user(get_request().user)
 
         notice_groups = resource.notice_group.backend_search_notice_group(bk_biz_ids=bk_biz_ids)
         strategy_ids = StrategyModel.objects.filter(bk_biz_id__in=bk_biz_ids).values_list("id", flat=True)

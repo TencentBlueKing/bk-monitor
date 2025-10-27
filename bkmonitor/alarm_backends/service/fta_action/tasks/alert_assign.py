@@ -1,19 +1,19 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import time
 from collections import defaultdict
-from typing import List
 
 from alarm_backends.core.cache.assign import AssignCacheManager
+from alarm_backends.core.cache.subscribe import SubscribeCacheManager
 from alarm_backends.core.context import ActionContext
 from alarm_backends.service.fta_action import AlertAssignee
 from bkmonitor.action.alert_assign import (
@@ -22,6 +22,7 @@ from bkmonitor.action.alert_assign import (
     UpgradeRuleMatch,
 )
 from bkmonitor.documents import AlertDocument
+from bkmonitor.utils.range import load_condition_instance
 from constants.action import ActionNoticeType, AssignMode, UserGroupType
 
 logger = logging.getLogger("fta_action.run")
@@ -48,11 +49,9 @@ class BackendAssignMatchManager(AlertAssignMatchManager):
                 "sets": action_context.target.sets,
                 "modules": action_context.target.modules,
             }
-        super(BackendAssignMatchManager, self).__init__(
-            alert, notice_users, group_rules, assign_mode, notice_type, cmdb_attrs
-        )
+        super().__init__(alert, notice_users, group_rules, assign_mode, notice_type, cmdb_attrs)
 
-    def get_matched_rules(self) -> List[AssignRuleMatch]:
+    def get_matched_rules(self) -> list[AssignRuleMatch]:
         """
         适配分派规则, 后台通过缓存获取
         :return:
@@ -159,6 +158,134 @@ class AlertAssigneeManager:
             # 有默认通知的话，就加上默认通知人员
             self.origin_notice_users_object.get_notice_receivers(notify_configs=notify_configs, user_type=user_type)
         return notify_configs
+
+    def get_subscription_notify_info(self):
+        """
+        获取订阅用户的通知信息，复用现有维度构建逻辑
+        返回格式与 get_notify_info 一致: {notice_way: [user_list]}
+        """
+
+        notify_info = defaultdict(list)
+        follow_notify_info = defaultdict(list)
+
+        bk_biz_id = self.alert.event.bk_biz_id
+        strategy_id = str(self.alert.strategy["id"]) if self.alert.strategy else "-"
+
+        # 复用分派的维度构建逻辑
+        if not self.match_manager:
+            return notify_info, follow_notify_info
+
+        # 实例化新的dict，避免告警订阅相关处理，影响告警分派
+        dimensions = dict(**self.match_manager.dimensions)
+        # 新增告警级别支持（仅用于告警订阅匹配，告警分配不支持）
+        dimensions.update(
+            {
+                "alert.severity": str(self.match_manager.origin_severity),
+            }
+        )
+
+        # 获取该业务下所有订阅用户
+        usernames = SubscribeCacheManager.get_users_by_biz(bk_biz_id)
+
+        for username in usernames:
+            # 获取用户的订阅规则
+            user_rules = SubscribeCacheManager.get_rules_by_user(bk_biz_id, username)
+
+            # 收集该用户所有匹配规则的通知方式与命中规则ID（规则ID用于日志输出）
+            matched_notice_ways = set()
+            matched_user_type = "follower"  # 默认为follower
+            matched_rule_ids = set()
+
+            for rule in user_rules:
+                # 支持动态分组：将 dynamic_group 转换为 bk_host_id 列表
+                for condition in rule.get("conditions", []):
+                    if condition.get("field") == "dynamic_group":
+                        condition["value"] = self.match_manager.get_host_ids_by_dynamic_groups(condition["value"])
+                        condition["field"] = "bk_host_id"
+
+                if self._is_subscription_rule_matched(rule, dimensions):
+                    user_type = rule.get("user_type", "follower")
+                    notice_ways = rule.get("notice_ways", [])
+
+                    # 如果有main类型，优先使用main
+                    if user_type == "main":
+                        matched_user_type = "main"
+
+                    matched_notice_ways.update(notice_ways)
+                    if rule.get("id") is not None:
+                        matched_rule_ids.add(str(rule.get("id")))
+
+            # 如果有匹配的规则，添加用户到通知列表
+            if matched_notice_ways:
+                # 根据用户类型选择目标通知信息字典
+                target_notify_info = notify_info if matched_user_type == "main" else follow_notify_info
+
+                # 将用户添加到所有匹配的通知渠道中
+                for notice_way in matched_notice_ways:
+                    target_notify_info[notice_way].append(username)
+                logger.info(
+                    "[alert_subscription] strategy(%s) alert(%s) user(%s) matched: type(%s), ways(%s), rule_ids(%s)",
+                    strategy_id,
+                    self.alert.id,
+                    username,
+                    matched_user_type,
+                    ",".join(sorted(matched_notice_ways)) or "-",
+                    ",".join(sorted(matched_rule_ids)) or "-",
+                )
+            else:
+                logger.debug(
+                    "[alert_subscription] strategy(%s) alert(%s) user(%s) no rule matched",
+                    strategy_id,
+                    self.alert.id,
+                    username,
+                )
+
+        # 汇总日志
+        total_main = sum(len(users) for way, users in notify_info.items())
+        total_follower = sum(len(users) for way, users in follow_notify_info.items())
+        logger.info(
+            "[alert_subscription] strategy(%s) alert(%s) summary: main_users(%d) follower_users(%d)",
+            strategy_id,
+            self.alert.id,
+            total_main,
+            total_follower,
+        )
+
+        return notify_info, follow_notify_info
+
+    def _is_subscription_rule_matched(self, rule, dimensions):
+        """
+        判断订阅规则是否匹配告警维度
+        复用分派规则的条件解析器
+        """
+        conditions = rule.get("conditions", [])
+        if not conditions:
+            return True
+
+        # 将条件转换为 OR 表达式格式
+        or_conditions = []
+        and_conditions = []
+
+        for condition in conditions:
+            connector = str(condition.get("condition", "")).upper()
+            # 告警分派规则中默认按 AND 连接，只有显式 OR 才切换
+            if and_conditions and connector == "OR":
+                or_conditions.append(and_conditions)
+                and_conditions = []
+
+            cond = {
+                "field": condition["field"],
+                "method": condition.get("method", "eq"),
+                "value": condition.get("value"),
+            }
+            and_conditions.append(cond)
+
+        if and_conditions:
+            or_conditions.append(and_conditions)
+
+        # 使用分派的条件匹配器
+        condition_matcher = load_condition_instance(or_conditions, False)
+        return condition_matcher.is_match(dimensions)
 
     def get_appointee_notify_info(self, notify_configs=None):
         """
@@ -270,7 +397,7 @@ class AlertAssigneeManager:
         user_groups, current_group_index = self.upgrade_rule.get_upgrade_user_group(last_group_index, need_upgrade)
         if current_group_index != last_group_index:
             logger.info(
-                "[alert upgrade] alert(%s) current_group_index(%s), " "last_group_index(%s), last_upgrade_time(%s)",
+                "[alert upgrade] alert(%s) current_group_index(%s), last_group_index(%s), last_upgrade_time(%s)",
                 self.alert.id,
                 current_group_index,
                 last_group_index,

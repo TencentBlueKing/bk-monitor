@@ -308,7 +308,6 @@
   import { mapGetters, mapState } from 'vuex';
 
   import * as authorityMap from '../../common/authority-map';
-  import { deepClone } from '../../components/monitor-echarts/utils';
   import { handleTransformToTimestamp } from '../../components/time-range/utils';
   import { updateTimezone } from '../../language/dayjs';
   import AddCollectDialog from './collect/add-collect-dialog';
@@ -508,7 +507,7 @@
         isExternal: state => state.isExternal,
         externalMenu: state => state.externalMenu,
       }),
-      ...mapGetters(['asIframe', 'iframeQuery', 'isNewRetrieveRoute']),
+      ...mapGetters([ 'iframeQuery', 'isNewRetrieveRoute']),
       ...mapGetters({
         authMainPageInfo: 'globals/authContainerInfo',
         unionIndexList: 'unionIndexList',
@@ -521,6 +520,9 @@
       sumLeftWidth() {
         // 收藏和检索左边的页面的合计宽度
         return this.collectWidth + this.leftPanelWidth;
+      },
+      asIframe(){
+        return this.$route.query.asIframe === 'true';
       },
       isShowUiType() {
         // 判断当前点击的收藏是否展示表单字段
@@ -597,7 +599,9 @@
         immediate: true,
         handler(val) {
           const filterIndexSetList = this.indexSetList.filter(item => val.includes(String(item.index_set_id)));
-          this.$store.commit('updateUnionIndexItemList', filterIndexSetList);
+          this.$store.commit('updateState', {
+           'unionIndexItemList': filterIndexSetList,
+          });
         },
       },
     },
@@ -667,7 +671,7 @@
         if (this.isSearchAllowed) this.authPageInfo = null;
         this.resetRetrieveCondition();
         this.resetFavoriteValue();
-        this.$store.commit('updateIndexId', val);
+        this.$store.commit('updateState', {'indexId': val});
         this.clearCondition('*', false);
         this.$refs.searchCompRef?.clearAllCondition();
         this.isSetDefaultTableColumn = false;
@@ -1228,7 +1232,7 @@
             const res = await this.$store.dispatch('checkAndGetData', paramData);
             if (res.isAllowed === false) {
               this.isSearchAllowed = false;
-              this.$store.commit('updateAuthDialogData', res.data);
+              this.$store.commit('updateState', {'authDialogData': res.data});
               return;
             }
           } catch (err) {
@@ -1242,7 +1246,7 @@
           try {
             this.basicLoading = true;
             const res = await this.$store.dispatch('getApplyData', paramData);
-            this.$store.commit('updateAuthDialogData', res.data);
+            this.$store.commit('updateState', { 'authDialogData': res.data});
           } catch (err) {
             console.warn(err);
           } finally {
@@ -1682,7 +1686,7 @@
           })
           .filter(Boolean);
         this.showShowUnionSource(true);
-        this.$store.commit('updateIsNotVisibleFieldsShow', !this.visibleFields.length);
+        this.$store.commit('updateState', {'isNotVisibleFieldsShow': !this.visibleFields.length});
         // 初始化的时候不进行设置自适应宽度 当前dom还没挂在在页面 导致在第一次检索时isSetDefaultTableColumn参数为true 无法更新自适应宽度
         if (this.isSetDefaultTableColumn && !this.shouldUpdateFields) {
           this.setDefaultTableColumn();
@@ -2066,13 +2070,13 @@
           this.$refs.searchCompRef.clearValue();
           return;
         }
-        const data = deepClone(value);
+        const data = structuredClone(value);
         if (!Object.keys(data.params.ip_chooser || []).length) {
           data.params.ip_chooser = {};
         }
         this.addFavoriteData = {}; // 清空新建收藏的数据
         this.isFavoriteSearch = true;
-        this.activeFavorite = deepClone(data);
+        this.activeFavorite = structuredClone(data);
         this.activeFavoriteID = data.id;
         const { index_set_id: indexSetID, params } = data;
         const selectIsUnionSearch = value.index_set_type === 'union';

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf.urls import include
 from django.urls import re_path
 from rest_framework import routers
@@ -29,6 +29,7 @@ from apps.log_commons.views import FrontendEventViewSet
 router = routers.DefaultRouter(trailing_slash=True)
 router.register(r"external_permission", views.ExternalPermissionViewSet, basename="external_permission")
 router.register(r"share", views.ShareViewSet, basename="share")
+router.register(r"", views.GetApiTokenViewSet, basename="api_token")
 router.register(r"frontend_event", FrontendEventViewSet, basename="frontend_event")
 
 urlpatterns = [

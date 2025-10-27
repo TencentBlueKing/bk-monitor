@@ -18,7 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
+from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
@@ -28,11 +28,22 @@ from config.domains import DATABUS_APIGATEWAY_ROOT
 
 class _BkDataDatabusApi:
     MODULE = _("计算平台总线模块")
+    
+    @property
+    def use_apigw(self):
+        return settings.ENABLE_MULTI_TENANT_MODE
+
+    def _build_url(self, new_path, old_path):
+        return (
+            f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v3/databus/{new_path}"
+            if self.use_apigw
+            else f"{DATABUS_APIGATEWAY_ROOT}{old_path}"
+        )
 
     def __init__(self):
         self.get_config_db_list = DataAPI(
             method="GET",
-            url=DATABUS_APIGATEWAY_ROOT + "data_storages/",
+            url=self._build_url("data_storages/", "data_storages/"),
             module=self.MODULE,
             description="获取数据入库列表",
             default_return_value=None,
@@ -42,7 +53,7 @@ class _BkDataDatabusApi:
         )
         self.databus_data_storages_post = DataAPI(
             method="POST",
-            url=DATABUS_APIGATEWAY_ROOT + "data_storages/",
+            url=self._build_url("data_storages/", "data_storages/"),
             module=self.MODULE,
             description="创建入库",
             default_return_value=None,
@@ -52,7 +63,7 @@ class _BkDataDatabusApi:
         )
         self.databus_data_storages_put = DataAPI(
             method="PUT",
-            url=DATABUS_APIGATEWAY_ROOT + "data_storages/{result_table_id}/",
+            url=self._build_url("data_storages/{result_table_id}/", "data_storages/{result_table_id}/"),
             module=self.MODULE,
             description="更新入库",
             url_keys=["result_table_id"],
@@ -64,7 +75,7 @@ class _BkDataDatabusApi:
 
         self.get_cleans = DataAPI(
             method="GET",
-            url=DATABUS_APIGATEWAY_ROOT + "cleans/",
+            url=self._build_url("cleans/", "cleans/"),
             module=self.MODULE,
             description="获取清洗配置列表",
             default_return_value=None,
@@ -73,7 +84,7 @@ class _BkDataDatabusApi:
         )
         self.databus_cleans_post = DataAPI(
             method="POST",
-            url=DATABUS_APIGATEWAY_ROOT + "cleans/",
+            url=self._build_url("cleans/", "cleans/"),
             module=self.MODULE,
             description="创建清洗配置",
             default_return_value=None,
@@ -82,7 +93,7 @@ class _BkDataDatabusApi:
         )
         self.databus_cleans_put = DataAPI(
             method="PUT",
-            url=DATABUS_APIGATEWAY_ROOT + "cleans/{processing_id}/",
+            url=self._build_url("cleans/{processing_id}/", "cleans/{processing_id}/"),
             module=self.MODULE,
             url_keys=["processing_id"],
             description="更新清洗配置",
@@ -92,7 +103,7 @@ class _BkDataDatabusApi:
         )
         self.post_tasks = DataAPI(
             method="POST",
-            url=DATABUS_APIGATEWAY_ROOT + "tasks/",
+            url=self._build_url("tasks/", "tasks/"),
             module=self.MODULE,
             description="创建清洗分发任务",
             default_return_value=None,
@@ -101,7 +112,7 @@ class _BkDataDatabusApi:
         )
         self.delete_tasks = DataAPI(
             method="DELETE",
-            url=DATABUS_APIGATEWAY_ROOT + "tasks/{result_table_id}/",
+            url=self._build_url("tasks/{result_table_id}/", "tasks/{result_table_id}/"),
             module=self.MODULE,
             url_keys=["result_table_id"],
             description="停止清洗，分发任务",

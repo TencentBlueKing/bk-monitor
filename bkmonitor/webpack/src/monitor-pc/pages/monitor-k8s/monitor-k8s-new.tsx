@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -30,9 +30,10 @@ import { random, tryURLDecodeParse } from 'monitor-common/utils';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
+import { EMode } from '../../components/retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
 import { getDefaultTimezone } from '../../i18n/dayjs';
-import UserConfigMixin from '../../mixins/userStoreConfig';
+import NewUserConfigMixin from '../../mixins/newUserStoreConfig';
 import K8sEventExplore from '../event-explore/k8s-event-explore';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 import GroupByCondition from './components/group-by-condition/group-by-condition';
@@ -55,7 +56,6 @@ import {
   K8sNewTabEnum,
   SceneEnum,
 } from './typings/k8s-new';
-import { EMode } from '@/components/retrieval-filter/utils';
 
 import type { TimeRangeType } from '../../components/time-range/time-range';
 import type { IWhere } from './typings';
@@ -63,6 +63,8 @@ import type { IWhere } from './typings';
 import './monitor-k8s-new.scss';
 
 const HIDE_METRICS_KEY = 'monitor_k8s_hide_metrics';
+
+const CACHE_SEARCH_QUERY = 'cacheSearchQuery';
 
 /** 网络场景默认隐藏的指标 */
 const networkDefaultHideMetrics = [
@@ -89,7 +91,7 @@ const tabList = [
 ];
 
 @Component
-export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
+export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   // 数据时间间隔
   @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
   // 时区
@@ -122,6 +124,8 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
   // 是否展示撤回下钻
   showCancelDrill = false;
   groupList = [];
+
+  bizId = this.$store.getters.bizId;
 
   cacheFilterBy: Record<string, string[]> = {};
   cacheGroupBy = [];
@@ -288,9 +292,18 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     }
   }
 
-  created() {
-    this.getRouteParams();
-    this.getClusterList();
+  async created() {
+    /** URL没有参数且存在缓存查询条件，使用缓存查询条件 */
+    if (!Object.keys(this.$route.query).length) {
+      await this.getClusterList();
+      const data = await this.handleGetUserConfig<Record<string, string | string[]>>(
+        `${CACHE_SEARCH_QUERY}_${this.bizId}_${this.cluster}`
+      );
+      data && this.getRouteParams(data);
+    } else {
+      this.getRouteParams(this.$route.query);
+      this.getClusterList();
+    }
     this.getScenarioMetricList();
     this.getHideMetrics();
   }
@@ -311,6 +324,12 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     if (el) {
       this.resizeObserver.observe(el);
     }
+  }
+
+  beforeRouteLeave(to, from, next) {
+    // 离开时缓存当前查询条件，方便下次进入时使用
+    this.handleSetUserConfig(`${CACHE_SEARCH_QUERY}_${this.bizId}_${this.cluster}`, JSON.stringify(from.query));
+    next();
   }
 
   destroyed() {
@@ -572,7 +591,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
     this.showCancelDrill = false;
   }
 
-  getRouteParams() {
+  getRouteParams(query: Record<string, string | string[]> = {}) {
     const {
       from = 'now-1h',
       to = 'now',
@@ -584,7 +603,7 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
       activeTab = K8sNewTabEnum.LIST,
       targets,
       filterMode,
-    } = this.$route.query || {};
+    } = query;
     this.timeRange = [from as string, to as string];
     this.refreshInterval = Number(refreshInterval);
     this.cluster = cluster as string;
@@ -608,12 +627,10 @@ export default class MonitorK8sNew extends Mixins(UserConfigMixin) {
         this.eventFilterMode = EMode.ui;
       }
     } else {
-      this.activeTab = activeTab as K8sNewTabEnum;
       this.initGroupBy();
-      if (groupBy) {
-        this.groupInstance.setGroupFilters(tryURLDecodeParse(groupBy as string, []));
-      }
       this.initFilterBy();
+      this.activeTab = activeTab as K8sNewTabEnum;
+      this.groupInstance.setGroupFilters(tryURLDecodeParse(groupBy as string, []));
       this.filterBy = { ...this.filterBy, ...tryURLDecodeParse(filterBy as string, {}) };
     }
   }

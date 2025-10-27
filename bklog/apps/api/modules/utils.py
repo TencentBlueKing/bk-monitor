@@ -28,7 +28,7 @@ from django.utils import translation
 
 from apps.log_esquery.permission import EsquerySearchPermissions
 from apps.utils import build_auth_args
-from apps.utils.local import get_request
+from apps.utils.local import get_request, get_backend_username
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
@@ -74,6 +74,34 @@ def adapt_non_bkcc_for_bknode(params):
     """
     适配节点管理的space_id
     """
+    # 设置缓存
+    _cache = {}
+    # 处理蓝盾业务
+    if scope_list := params.get("scope_list", []):
+        for item in scope_list:
+            scope_id = item["scope_id"]
+            _scope_id = _cache.get(scope_id)
+            if not _scope_id:
+                _scope_id = get_non_bkcc_space_related_bkcc_biz_id(scope_id)
+                _cache[scope_id] = _scope_id
+            item["scope_id"] = _scope_id
+        for item in params["host_list"]:
+            meta_scope_id = item["meta"]["scope_id"]
+            meta_bk_biz_id = item["meta"]["bk_biz_id"]
+            _meta_scope_id = _cache.get(meta_scope_id)
+            if not _meta_scope_id:
+                _meta_scope_id = get_non_bkcc_space_related_bkcc_biz_id(meta_scope_id)
+                _cache[meta_scope_id] = _meta_scope_id
+
+            _meta_bk_biz_id = _cache.get(meta_bk_biz_id)
+            if not _meta_bk_biz_id:
+                _meta_bk_biz_id = get_non_bkcc_space_related_bkcc_biz_id(meta_bk_biz_id)
+                _cache[meta_bk_biz_id] = _meta_bk_biz_id
+
+            item["meta"]["scope_id"] = _meta_scope_id
+            item["meta"]["bk_biz_id"] = _meta_bk_biz_id
+        return params
+
     bk_biz_id = params.get("scope", {}).get("bk_biz_id", 0)
     if not bk_biz_id:
         return params
@@ -123,7 +151,7 @@ if (
 
     def add_esb_info_before_request(params):
         if "bk_username" not in params:
-            params["bk_username"] = "admin"
+            params["bk_username"] = get_backend_username(bk_tenant_id=params.get("bk_tenant_id"))
 
         if "operator" not in params:
             params["operator"] = params["bk_username"]
@@ -163,7 +191,7 @@ else:
 
         if "no_request" in params and params["no_request"]:
             if "bk_username" not in params:
-                params["bk_username"] = "admin"
+                params["bk_username"] = get_backend_username(bk_tenant_id=params.get("bk_tenant_id"))
 
             if "operator" not in params:
                 params["operator"] = params["bk_username"]

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -185,8 +185,14 @@ export const partialUpdateDutyRule = request('PATCH', 'rest/v2/duty_rules/{pk}/'
 export const retrieveDutyRule = request('GET', 'rest/v2/duty_rules/{pk}/');
 export const switchDutyRule = request('POST', 'rest/v2/duty_rules/switch/');
 export const updateDutyRule = request('PUT', 'rest/v2/duty_rules/{pk}/');
-export const chatChat = request('POST', 'rest/v2/ai_assistant/chat/chat/');
-export const chatChatV2 = request('POST', 'rest/v2/ai_assistant/chat/chat_v2/');
+export const createQueryTemplate = request('POST', 'rest/v2/query_template/');
+export const destroyQueryTemplate = request('DELETE', 'rest/v2/query_template/{pk}/');
+export const previewQueryTemplate = request('POST', 'rest/v2/query_template/preview/');
+export const relationQueryTemplate = request('POST', 'rest/v2/query_template/{pk}/relation/');
+export const relationsQueryTemplate = request('POST', 'rest/v2/query_template/relations/');
+export const retrieveQueryTemplate = request('GET', 'rest/v2/query_template/{pk}/');
+export const searchQueryTemplate = request('POST', 'rest/v2/query_template/search/');
+export const updateQueryTemplate = request('PUT', 'rest/v2/query_template/{pk}/');
 export const createActionConfig = request('POST', 'fta/action/config/');
 export const destroyActionConfig = request('DELETE', 'fta/action/config/{pk}/');
 export const listActionConfig = request('GET', 'fta/action/config/');
@@ -217,6 +223,18 @@ export const listAssignRule = request('GET', 'fta/assign/rules/');
 export const partialUpdateAssignRule = request('PATCH', 'fta/assign/rules/{pk}/');
 export const retrieveAssignRule = request('GET', 'fta/assign/rules/{pk}/');
 export const updateAssignRule = request('PUT', 'fta/assign/rules/{pk}/');
+export const alertsStrategyTemplate = request('POST', 'apm/strategy/strategy_template/alerts/');
+export const applyStrategyTemplate = request('POST', 'apm/strategy/strategy_template/apply/');
+export const batchPartialUpdateStrategyTemplate = request('POST', 'apm/strategy/strategy_template/batch_partial_update/');
+export const checkStrategyTemplate = request('POST', 'apm/strategy/strategy_template/check/');
+export const cloneStrategyTemplate = request('POST', 'apm/strategy/strategy_template/clone/');
+export const compareStrategyTemplate = request('POST', 'apm/strategy/strategy_template/compare/');
+export const destroyStrategyTemplate = request('DELETE', 'apm/strategy/strategy_template/{pk}/');
+export const optionValuesStrategyTemplate = request('POST', 'apm/strategy/strategy_template/option_values/');
+export const previewStrategyTemplate = request('POST', 'apm/strategy/strategy_template/preview/');
+export const retrieveStrategyTemplate = request('GET', 'apm/strategy/strategy_template/{pk}/');
+export const searchStrategyTemplate = request('POST', 'apm/strategy/strategy_template/search/');
+export const updateStrategyTemplate = request('PUT', 'apm/strategy/strategy_template/{pk}/');
 
 export default {
   countBaseAlarm,
@@ -352,8 +370,14 @@ export default {
   retrieveDutyRule,
   switchDutyRule,
   updateDutyRule,
-  chatChat,
-  chatChatV2,
+  createQueryTemplate,
+  destroyQueryTemplate,
+  previewQueryTemplate,
+  relationQueryTemplate,
+  relationsQueryTemplate,
+  retrieveQueryTemplate,
+  searchQueryTemplate,
+  updateQueryTemplate,
   createActionConfig,
   destroyActionConfig,
   listActionConfig,
@@ -384,4 +408,16 @@ export default {
   partialUpdateAssignRule,
   retrieveAssignRule,
   updateAssignRule,
+  alertsStrategyTemplate,
+  applyStrategyTemplate,
+  batchPartialUpdateStrategyTemplate,
+  checkStrategyTemplate,
+  cloneStrategyTemplate,
+  compareStrategyTemplate,
+  destroyStrategyTemplate,
+  optionValuesStrategyTemplate,
+  previewStrategyTemplate,
+  retrieveStrategyTemplate,
+  searchStrategyTemplate,
+  updateStrategyTemplate,
 };

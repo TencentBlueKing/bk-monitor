@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -9,59 +8,72 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
+from typing import Any
 
 import redis
+from confluent_kafka import Producer
 from django.conf import settings
-from kafka import KafkaProducer
-from six.moves.urllib.parse import unquote, urlparse
+from urllib.parse import urlparse, unquote
 
 logger = logging.getLogger("action")
 
 
-class BaseClient(object):
+class BaseClient:
     def send(self, message):
         raise NotImplementedError
 
 
-class KafKaClient(object):
+class KafKaClient:
     """
     KafKa客户端
     """
 
-    def __init__(self, uri):
-        uri_obj = urlparse(uri)
-        params = {
-            "bootstrap_servers": "{}:{}".format(uri_obj.hostname, uri_obj.port),
-        }
+    def __init__(self, conf: Any):
+        """
+        支持两种输入：
+        1) 字符串 DSN：kafka://host:port/topic （不包含用户名/密码）
+        2) 结构化字典：必须包含 bootstrap.servers 与 topic，其它鉴权字段按示例配置
+        conf = {
+                'bootstrap.servers': 'host:port',
+                'security.protocol': 'SASL_PLAINTEXT',  # 明文传输；若集群启用SSL则用 SASL_SSL
+                'sasl.mechanism': 'SCRAM-SHA-512',
+                'sasl.username': 'username',
+                'sasl.password': 'password',
+            }
+        """
+        if isinstance(conf, str):
+            uri_obj = urlparse(conf)
+            self.topic = uri_obj.path.strip("/")
+            if not self.topic:
+                raise ValueError(f"kafka uri({conf}) has no topic")
+            bootstrap = f"{uri_obj.hostname}:{uri_obj.port}"
+            producer_conf: dict[str, Any] = {"bootstrap.servers": bootstrap}
+        elif isinstance(conf, dict):
+            self.topic = conf.get("topic", "")
+            if not self.topic:
+                raise ValueError(f"kafka config (dict) requires 'topic' config: {conf}")
+            _conf = {k: v for k, v in conf.items() if k != "topic"}
+            producer_conf = dict(_conf)
+        else:
+            raise ValueError(f"unsupported kafka config type: {conf}")
 
-        if uri_obj.username:
-            params.update(
-                {"sasl_plain_username": unquote(uri_obj.username), "sasl_plain_password": unquote(uri_obj.password)}
-            )
-
-        self.topic = uri_obj.path.strip("/")
-        if not self.topic:
-            raise ValueError("KafKa URI({}) has not topic".format(uri))
-
-        self.client = KafkaProducer(**params)
+        self.client = Producer(producer_conf)
 
     def send(self, message: str):
         """
         发送消息
         """
         try:
-            self.client.send(
-                self.topic,
-                message.encode(),
-            )
+            self.client.produce(topic=self.topic, value=message.encode("utf-8"))
+            # 等待发送完成（含重试）
             self.client.flush(timeout=3)
         finally:
-            self.client.close()
+            self.client.flush()  # 二次确保消息发送
+            del self.client  # 释放生产者对象
 
 
-class RedisClient(object):
+class RedisClient:
     """
     Redis客户端
     """
@@ -73,7 +85,7 @@ class RedisClient(object):
             db = int(db)
             assert len(key) > 0
         except Exception as e:
-            logger.error("Redis URI({}) parse error, {}".format(uri, e))
+            logger.error(f"redis uri({uri}) parse error, {e}")
             raise e
 
         self.key = key
@@ -106,13 +118,15 @@ SchemaClientMapping = {
 def get_client(uri):
     """
     获取Client
-    :param uri: 消息队列的连接URI
+    :param uri: 消息队列的连接URI 或结构化Kafka配置字典
     :return: Client
     """
-    uri_obj = urlparse(uri)
+    # 结构化Kafka配置
+    if isinstance(uri, dict):
+        return KafKaClient(uri)
 
+    uri_obj = urlparse(uri)
     client_class = SchemaClientMapping.get(uri_obj.scheme)
     if not client_class:
-        raise Exception("message queue schema {} is not support".format(uri_obj.scheme))
-
+        raise Exception(f"message queue schema {uri_obj.scheme} is not support")
     return client_class(uri)

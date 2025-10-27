@@ -61,7 +61,7 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
   }
 
   /** 进入路由前判断是否是灰度业务 */
-  beforeRouteEnter(from, to, next) {
+  beforeRouteEnter(_from, _to, next) {
     next(vm => {
       const { $store, $router } = vm;
       if (!$store.getters.isShowMaskingTemplate) {
@@ -75,12 +75,14 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
   async submitSelectRule(stepChange = false) {
     const data = (this.maskingFieldRef as any).getQueryConfigParams();
     const isUpdate = (this.maskingFieldRef as any).isUpdate;
-    if (!data.field_configs.length && !isUpdate) {
+    if (!(data.field_configs.length || isUpdate)) {
       this.$router.go(-1);
       return;
     } // 非更新状态且没有任何字段选择规则 直接下一步
     let requestStr = isUpdate ? 'updateDesensitizeConfig' : 'createDesensitizeConfig';
-    if (!data.field_configs.length && isUpdate) requestStr = 'deleteDesensitizeConfig'; // 无任何字段且是更新时 则删除当前索引集配置
+    if (!data.field_configs.length && isUpdate) {
+      requestStr = 'deleteDesensitizeConfig';
+    } // 无任何字段且是更新时 则删除当前索引集配置
     try {
       this.submitLoading = true;
       const res = await $http.request(`masking/${requestStr}`, {
@@ -94,7 +96,7 @@ export default class FieldMaskingSeparate extends tsc<IProps> {
         });
         this.$router.go(-1);
       }
-    } catch (err) {
+    } catch {
     } finally {
       this.submitLoading = false;
     }

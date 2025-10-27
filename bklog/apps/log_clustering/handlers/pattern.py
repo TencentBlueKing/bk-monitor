@@ -115,13 +115,14 @@ class PatternHandler:
             # 在线训练逻辑适配
             pattern_map = AiopsSignatureAndPattern.objects.filter(
                 model_id=self._clustering_config.model_output_rt
-            ).values("signature", "pattern", "origin_pattern")
+            ).values("signature", "pattern", "origin_pattern", "origin_log")
         else:
             pattern_map = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id).values(
-                "signature", "pattern", "origin_pattern"
+                "signature", "pattern", "origin_pattern", "origin_log"
             )
         signature_map_pattern = array_hash(pattern_map, "signature", "pattern")
         signature_map_origin_pattern = array_hash(pattern_map, "signature", "origin_pattern")
+        signature_map_origin_log = array_hash(pattern_map, "signature", "origin_log")
         sum_count = sum([pattern.get("doc_count", MIN_COUNT) for pattern in pattern_aggs if pattern["key"]])
 
         # 符合当前分组hash的所有clustering_remark  signature和origin_pattern可能不相同
@@ -162,6 +163,7 @@ class PatternHandler:
                 continue
             signature_pattern = signature_map_pattern.get(signature, "")
             signature_origin_pattern = signature_map_origin_pattern.get(signature) or signature_pattern
+            signature_origin_log = signature_map_origin_log.get(signature, "")
             group_key = f"{signature}|{pattern.get('group', '')}"
             year_on_year_compare = year_on_year_result.get(group_key, MIN_COUNT)
 
@@ -209,6 +211,7 @@ class PatternHandler:
                 {
                     "pattern": signature_pattern,
                     "origin_pattern": signature_origin_pattern,
+                    "origin_log": signature_origin_log,
                     "remark": remark,
                     "owners": owners,
                     "count": count,
@@ -387,7 +390,7 @@ class PatternHandler:
         try:
             records = (
                 BkData(self._clustering_config.signature_pattern_rt)
-                .select("signature", "pattern")
+                .select("signature", "pattern", "log as origin_log")
                 .where("signature", "IN", patterns)
                 .time_range(
                     start_time=int(start_time.shift(days=-1).timestamp())

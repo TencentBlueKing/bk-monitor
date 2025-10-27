@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -84,6 +84,22 @@ export enum KVSplitEnum {
   WORD = 'word',
 }
 
+/**
+ * @description KV 面板Value值点击展示 menu 菜单选项枚举
+ */
+export enum KVValueMenuEnum {
+  /** 添加到本次检索 */
+  ADD = 'add',
+  /** 复制 */
+  COPY = 'copy',
+  /** 从本次检索中排除 */
+  DELETE = 'delete',
+  /** 新建检索 */
+  NEW_PAGE = 'new-page',
+  /** 查看该对象的其他场景 */
+  OTHER_SCENES = 'other-scenes',
+}
+
 export type ConditionChangeEvent = Pick<IWhereItem, 'key' | 'method'> & { value: string };
 
 export type DimensionType = 'boolean' | 'date' | 'double' | 'integer' | 'keyword' | 'long' | 'object' | 'text';
@@ -154,10 +170,16 @@ export interface IDimensionField {
   support_operations: IDimensionOperation[];
   type: DimensionType;
 }
+
 export interface IDimensionOperation {
   alias: string;
   options: { label: string; name: string }[];
   value: string;
+}
+/** 快捷跳转容器监控场景数据类型 */
+export interface IExploreSceneUrlItem {
+  scene: string;
+  url: string;
 }
 
 export interface IFormData {

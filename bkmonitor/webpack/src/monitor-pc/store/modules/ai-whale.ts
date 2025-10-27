@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -24,22 +24,23 @@
  * IN THE SOFTWARE.
  */
 
-import { random } from 'monitor-common/utils';
 import { Action, getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators';
 
 import GlobalConfigMixin from '../../mixins/globalConfig';
 import store from '../store';
 
-import type { AIQuickActionData } from '../../components/ai-whale/ai-whale';
+import type { AIBluekingShortcut } from '@/components/ai-whale/types';
+
 const AI_USER_LIST = 'AI_USER_LIST';
+const AI_BIZ_LIST = 'AI_BIZ_LIST';
 
 // 定义模块
 @Module({ name: 'aiWhale', dynamic: true, namespaced: true, store })
 class AiWhaleStore extends VuexModule {
-  aiQuickActionData: Partial<AIQuickActionData> = {}; // 储用于调用 AI 小鲸quickActions()的参数
-  chartId = random(10); // 初始化 chartId，随机生成一个10位数
+  aiBizList: string[] = null; // AI业务列表
+  aiUserList: string[] = null; // AI用户列表
+  customFallbackShortcut: Partial<AIBluekingShortcut> = {}; // 自定义快捷方式
   enableAiAssistant = false; // 初始化 enableAiAssistant 状态
-  loading = false; // 加载状态
   message = ''; // 会话内容
   showAIBlueking = false; // AI小鲸聊天框
 
@@ -50,15 +51,19 @@ class AiWhaleStore extends VuexModule {
     this.showAIBlueking = true;
   }
 
-  // Mutation: 设置默认消息
   @Mutation
-  setDefaultMessage() {
-    // this.messages = [
-    //   {
-    //     content: `${window.i18n.tc('你好，我是AI小鲸，你可以向我提问蓝鲸监控产品使用相关的问题。')}<br/>${window.i18n.tc('例如')}：<a href="javascript:;" data-ai='${JSON.stringify({ type: 'send', content: window.i18n.tc('监控策略如何使用？') })}' class="ai-clickable">${window.i18n.tc('监控策略如何使用？')}</a>`,
-    //     role: RoleType.Assistant,
-    //   },
-    // ];
+  setAiBizList(value: string[]) {
+    this.aiBizList = value;
+  }
+
+  @Mutation
+  setAiUserList(value: string[]) {
+    this.aiUserList = value;
+  }
+
+  @Mutation
+  setCustomFallbackShortcut(shortcut: Partial<AIBluekingShortcut>) {
+    this.customFallbackShortcut = shortcut;
   }
 
   // Mutation: 设置 enableAiAssistant 的值
@@ -76,9 +81,22 @@ class AiWhaleStore extends VuexModule {
     }
     // 获取全局配置中的 AI 用户列表
     const globalConfigModal = new GlobalConfigMixin();
-    const list: string[] = await globalConfigModal.handleGetGlobalConfig<string[]>(AI_USER_LIST);
+    const list = this.aiBizList ? this.aiBizList : await globalConfigModal.handleGetGlobalConfig<string[]>(AI_BIZ_LIST);
+    !this.aiBizList && this.context.commit('setAiBizList', list);
+    let userList = [];
     // 检查当前用户是否在 AI 用户列表中
-    const isEnabled = list.includes(window.username || window.user_name);
+    let isEnabled = this.context.rootGetters.bizId && list.some(item => +item === +this.context.rootGetters.bizId);
+    if (!isEnabled) {
+      userList = this.aiUserList
+        ? this.aiUserList
+        : await globalConfigModal.handleGetGlobalConfig<string[]>(AI_USER_LIST);
+      isEnabled = userList.some(user => user === window.username || user === window.user_name);
+      !this.aiUserList && this.context.commit('setAiUserList', userList);
+    }
+    // 如果 务列表和用户列表都为空，则默认开启
+    if (!isEnabled && this.aiBizList?.length < 1 && this.aiUserList?.length < 1) {
+      isEnabled = true;
+    }
     // 通过 Mutation 设置 enableAiAssistant 的值
     this.context.commit('setEnableAiAssistant', isEnabled);
   }

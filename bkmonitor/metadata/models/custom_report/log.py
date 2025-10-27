@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -15,7 +15,6 @@ from django.db import models
 from django.db.transaction import atomic
 
 from bkmonitor.utils.cipher import transform_data_id_to_token
-from constants.common import DEFAULT_TENANT_ID
 from metadata import config
 from metadata.models.custom_report.base import CustomGroupBase
 
@@ -35,7 +34,7 @@ class LogGroup(CustomGroupBase):
     GROUP_NAME_FIELD = "log_group_name"
 
     @staticmethod
-    def make_table_id(bk_biz_id: int, bk_data_id: int, table_name: str = None, bk_tenant_id: str = DEFAULT_TENANT_ID) -> str:
+    def make_table_id(bk_biz_id: int, bk_data_id: int, bk_tenant_id: str, table_name: str = None) -> str:
         """
         获取表名
         """
@@ -75,9 +74,9 @@ class LogGroup(CustomGroupBase):
         log_group_name,
         label,
         operator,
+        bk_tenant_id,
         table_id=None,
         max_rate=-1,
-        bk_tenant_id=DEFAULT_TENANT_ID,
     ) -> "LogGroup":
         """
         创建一个新的自定义分组记录
@@ -109,8 +108,7 @@ class LogGroup(CustomGroupBase):
         # 需要刷新一次外部依赖的consul，触发transfer更新
         from metadata.models import DataSource
 
-        # 不存在跨租户日志分组,所以无需添加租户属性用于过滤
-        DataSource.objects.get(bk_data_id=bk_data_id).refresh_consul_config()
+        DataSource.objects.get(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).refresh_consul_config()
 
         # 更新 BkDataToken
         group.bk_data_token = group.get_bk_data_token()

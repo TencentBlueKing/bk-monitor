@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -83,7 +83,7 @@ class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
     expression = serializers.CharField(label="查询表达式", allow_blank=True)
     # 事件/日志场景，无论最后一个点的数据是否完整都需要返回，所以默认不做时间对齐。
     time_alignment = serializers.BooleanField(label="是否对齐时间", required=False, default=False)
-    query_configs = serializers.ListField(label="查询配置列表", child=EventQueryConfigSerializer(), allow_empty=False)
+    query_configs = serializers.ListField(label="查询配置列表", child=EventQueryConfigSerializer(), allow_empty=True)
 
     query_method = serializers.CharField(label="查询方法", required=False)
 
@@ -105,7 +105,7 @@ class EventLogsRequestSerializer(BaseEventRequestSerializer):
     # 如果有 3 个数据源，limit=10 最多返回 30 条数据，为保证数据拉取不跳页，下次拉取时 offset 设置为 10 而不是 30。
     limit = serializers.IntegerField(label="数量限制", required=False, default=10)
     offset = serializers.IntegerField(label="偏移量", required=False, default=0)
-    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=True)
     sort = serializers.ListSerializer(
         label="排序字段", required=False, child=serializers.CharField(), default=[], allow_empty=True
     )
@@ -124,12 +124,12 @@ class EventTopKRequestSerializer(BaseEventRequestSerializer):
     fields = serializers.ListField(
         label="维度字段列表", child=serializers.CharField(label="维度字段"), allow_empty=False
     )
-    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=True)
     need_empty = serializers.BooleanField(label="是否需要统计空值", required=False, default=False)
 
 
 class EventTotalRequestSerializer(BaseEventRequestSerializer):
-    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=True)
 
     def validate(self, attrs):
         EventFilterSerializer.drop_group_by(attrs.get("query_configs") or [])
@@ -152,7 +152,7 @@ class EventStatisticsFieldSerializer(serializers.Serializer):
 
 class EventStatisticsInfoRequestSerializer(BaseEventRequestSerializer):
     field = EventStatisticsFieldSerializer(label="字段")
-    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=True)
 
 
 class EventStatisticsGraphRequestSerializer(EventTimeSeriesRequestSerializer):

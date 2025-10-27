@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -9,15 +8,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import os
+from typing import Any
 
-from django.core.management import call_command
-from django.core.management.base import BaseCommand
-from django.db.models.query import Q
+from django.core.management.base import BaseCommand, CommandParser
+from django.db.models import Q
 from django.db.transaction import atomic
 
+from constants.common import DEFAULT_TENANT_ID
+from core.drf_resource import api
 from metadata import config, models
+from metadata.models.storage import ClusterInfo
+from metadata.task.bkbase import sync_bkbase_cluster_info
+from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.utils import env
 
 
@@ -29,7 +32,7 @@ def refresh_influxdb_info():
     if models.InfluxDBClusterInfo.is_default_cluster_exists():
         # 如果已经由默认集群，则退出不做处理
         message = (
-            "cluster->[%s] is already exists, nothing will be inited." % models.InfluxDBClusterInfo.DEFAULT_CLUSTER_NAME
+            f"cluster->[{models.InfluxDBClusterInfo.DEFAULT_CLUSTER_NAME}] is already exists, nothing will be inited."
         )
         print(message)
         return True
@@ -41,14 +44,14 @@ def refresh_influxdb_info():
         influxdb_username = os.getenv("BK_MONITOR_INFLUXDB_USER") or os.getenv("INFLUXDB_BKMONITORV3_USER", "")
         influxdb_password = os.getenv("BK_MONITOR_INFLUXDB_PASSWORD") or os.getenv("INFLUXDB_BKMONITORV3_PASS", "")
     except KeyError as error:
-        message = "failed to get environ->[%s] maybe something go wrong on init?" % error
+        message = f"failed to get environ->[{error}] maybe something go wrong on init?"
 
         print(message)
         return False
 
     # 3. 写入到数据库，完成配置
     for index, host_ip in enumerate(influxdb_ip_list):
-        host_name = "INFLUXDB_IP%s" % index
+        host_name = f"INFLUXDB_IP{index}"
 
         # 单个机器的配置写入
         models.InfluxDBHostInfo.objects.create(
@@ -64,7 +67,7 @@ def refresh_influxdb_info():
         # 集群信息写入
         models.InfluxDBClusterInfo.objects.create(host_name=host_name, cluster_name="default")
 
-        message = "host->[%s] for cluster->[default] is add." % host_name
+        message = f"host->[{host_name}] for cluster->[default] is add."
         print(message)
 
     # 4. influxdb proxy的信息写入
@@ -96,7 +99,7 @@ def refresh_influxdb_info():
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)
-def refresh_es7_config():
+def refresh_es7_config(bk_tenant_id: str):
     """刷新ES7的配置信息"""
 
     # 0. 判断是否存在ES7的信息，如果不存在，则直接退出，不做刷新
@@ -110,15 +113,17 @@ def refresh_es7_config():
         es_port = os.environ["BK_MONITOR_ES7_REST_PORT"]
         es_username = os.environ.get("BK_MONITOR_ES7_USER", "")
         es_password = os.environ.get("BK_MONITOR_ES7_PASSWORD", "")
-
     except KeyError as error:
-        message = "failed to get environ->[%s] for ES7 cluster maybe something go wrong on init?" % error
+        message = f"failed to get environ->[{error}] for ES7 cluster maybe something go wrong on init?"
         print(message)
         return False
 
     # 0. 判断是否已经存在了默认集群ES7，并确认是否初始化
     default_es = models.ClusterInfo.objects.filter(
-        version__startswith="7.", cluster_type=models.ClusterInfo.TYPE_ES, is_default_cluster=True
+        bk_tenant_id=bk_tenant_id,
+        version__startswith="7.",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        is_default_cluster=True,
     ).first()
     if default_es:
         # 有默认集群，但未初始化, 刷新该集群
@@ -128,7 +133,7 @@ def refresh_es7_config():
             return True
 
         default_es.domain_name = es_host
-        default_es.es_port = es_port
+        default_es.port = es_port
         default_es.username = es_username
         default_es.password = es_password
         default_es.save()
@@ -137,19 +142,24 @@ def refresh_es7_config():
         return True
 
     # 1. 判断默认的ES集群是ES7的，则直接返回
-    if models.ClusterInfo.objects.filter(version__startswith="7.", cluster_type=models.ClusterInfo.TYPE_ES).exists():
+    if models.ClusterInfo.objects.filter(
+        bk_tenant_id=bk_tenant_id, version__startswith="7.", cluster_type=models.ClusterInfo.TYPE_ES
+    ).exists():
         message = "ES version 7 cluster is exists, nothing will do."
         print(message)
 
         return True
 
     # 2. 将之前的其他的配置改为非默认集群
-    models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_ES).update(is_default_cluster=False)
+    models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_ES).update(
+        is_default_cluster=False
+    )
     message = "ALL ES CLUSTER NOT version 7 is unset is_default cluster"
     print(message)
 
     # 3. 需要创建一个新的ES7配置，写入ES7的域名密码等
     models.ClusterInfo.objects.create(
+        bk_tenant_id=bk_tenant_id,
         cluster_name="es7_cluster",
         cluster_type=models.ClusterInfo.TYPE_ES,
         domain_name=es_host,
@@ -164,18 +174,18 @@ def refresh_es7_config():
     print(message)
 
 
-def refresh_kafka_config():
+def refresh_kafka_config(bk_tenant_id: str):
     """更新kafka的配置信息"""
 
     # 判断是否已经存在kafka默认信息
     if models.ClusterInfo.objects.filter(
         ~Q(domain_name=""),
         cluster_type=models.ClusterInfo.TYPE_KAFKA,
+        bk_tenant_id=bk_tenant_id,
         is_default_cluster=True,
     ):
         message = "kafka cluster is already exists, nothing will add."
         print(message)
-
         return True
 
     kafka_host = os.environ.get("BK_MONITOR_KAFKA_HOST", None)
@@ -183,10 +193,11 @@ def refresh_kafka_config():
     if kafka_host is not None and kafka_port is not None:
         try:
             kafka_cluster = models.ClusterInfo.objects.get(
-                cluster_type=models.ClusterInfo.TYPE_KAFKA, is_default_cluster=True
+                bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_KAFKA, is_default_cluster=True
             )
         except models.ClusterInfo.DoesNotExist:
             kafka_cluster = models.ClusterInfo.objects.create(
+                bk_tenant_id=bk_tenant_id,
                 cluster_name="kafka_cluster1",
                 cluster_type=models.ClusterInfo.TYPE_KAFKA,
                 is_default_cluster=True,
@@ -196,11 +207,60 @@ def refresh_kafka_config():
         kafka_cluster.port = kafka_port
         kafka_cluster.save()
         print("update kafka domain & port success.")
-
     return True
 
 
+def refresh_bkbase_cluster_info(bk_tenant_id: str):
+    """
+    同步bkbase集群信息
+    """
+    for storage_config in BKBASE_V4_KIND_STORAGE_CONFIGS:
+        clusters: list[dict[str, Any]] = api.bkdata.list_data_bus_raw_data(
+            bk_tenant_id=bk_tenant_id, namespace=storage_config["namespace"], kind=storage_config["kind"]
+        )
+
+        sync_bkbase_cluster_info(
+            bk_tenant_id=bk_tenant_id,
+            cluster_list=clusters,
+            field_mappings=storage_config["field_mappings"],
+            cluster_type=storage_config["cluster_type"],
+        )
+
+    # 检查并设置vm默认集群
+    vm_clusters = ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_VM)
+
+    # 检查是否存在vm集群
+    if not vm_clusters:
+        raise ValueError(f"lack of vm cluster in tenant({bk_tenant_id}), contact bkbase support.")
+
+    # 检查是否存在默认的vm集群
+    has_default_vm: bool = False
+    vm_cluster_map: dict[str, ClusterInfo] = {}
+    for vm_cluster in vm_clusters:
+        vm_cluster_map[vm_cluster.cluster_name] = vm_cluster
+        if vm_cluster.is_default_cluster:
+            has_default_vm = True
+            break
+
+    # 如果没有默认的vm集群，就设置一个
+    if not has_default_vm:
+        # 优先设置名字为vm_default的集群为默认集群，如果没有就随便选一个
+        default_vm_cluster = vm_cluster_map.get("vm_default")
+        if default_vm_cluster:
+            default_vm_cluster.is_default_cluster = True
+            default_vm_cluster.save()
+        else:
+            # 随便选一个
+            random_vm_cluster = next(iter(vm_cluster_map.values()))
+            random_vm_cluster.is_default_cluster = True
+            random_vm_cluster.save()
+
+
 class Command(BaseCommand):
+    def add_arguments(self, parser: CommandParser) -> None:
+        parser.add_argument("--bk_tenant_id", type=str, default=DEFAULT_TENANT_ID, help="租户ID")
+        return super().add_arguments(parser)
+
     def handle(self, *args, **options):
         """
         将influxdb/ES7/kafka的配置写入到数据库中，作为默认配置
@@ -210,19 +270,18 @@ class Command(BaseCommand):
         :param options:
         :return:
         """
-        # 1. 刷新influxdb实例的配置信息
-        refresh_influxdb_info()
+        bk_tenant_id = options["bk_tenant_id"]
+
+        # 1. 刷新influxdb实例的配置信息，新版本不再初始化
+        # refresh_influxdb_info()
 
         # 2. 刷新ES7的配置
-        refresh_es7_config()
+        refresh_es7_config(bk_tenant_id=bk_tenant_id)
 
         # 3. 刷新kafka配置
-        refresh_kafka_config()
+        refresh_kafka_config(bk_tenant_id=bk_tenant_id)
 
-        # 4. 执行复制 dbm 命令, 如果有错误，可以单独执行，不影响整个命令
-        try:
-            call_command("add_extend_dimensions")
-        except Exception as e:
-            print(f"add dbm system data error: {e}")
+        # 4. 同步bkbase集群信息
+        refresh_bkbase_cluster_info(bk_tenant_id=bk_tenant_id)
 
         print("all cluster init done.")

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import datetime
 import itertools
 import logging
+from typing import Any
 
 from curator import utils
 from django.db import models
@@ -139,7 +140,7 @@ class EsSnapshot(models.Model):
         snapshot.delete()
 
     @classmethod
-    def batch_get_state(cls, table_ids: list, bk_tenant_id=DEFAULT_TENANT_ID):
+    def batch_get_state(cls, bk_tenant_id: str, table_ids: list):
         from metadata.models import ESStorage
 
         es_storages = ESStorage.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
@@ -185,7 +186,7 @@ class EsSnapshot(models.Model):
     def to_json(self):
         from metadata.models import ESStorage
 
-        all_snapshots = []
+        all_snapshots: list[dict[str, Any]] = []
         es_storage = ESStorage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         try:
             all_snapshots = es_storage.es_client.snapshot.get(
@@ -198,11 +199,13 @@ class EsSnapshot(models.Model):
 
         return [
             {
-                "snapshot_name": snapshot.get("snapshot"),
+                "snapshot_name": snapshot.get("snapshot", ""),
                 "state": snapshot.get("state"),
                 "table_id": self.table_id,
-                "expired_time": es_storage.expired_date_timestamp(snapshot.get("snapshot")),
-                "indices": EsSnapshotIndice.batch_to_json(self.table_id, snapshot.get("snapshot")),
+                "expired_time": es_storage.expired_date_timestamp(snapshot.get("snapshot", "")),
+                "indices": EsSnapshotIndice.batch_to_json(
+                    bk_tenant_id=self.bk_tenant_id, table_id=self.table_id, snapshot_name=snapshot.get("snapshot", "")
+                ),
             }
             for snapshot in all_snapshots
         ]
@@ -226,11 +229,13 @@ class EsSnapshotRepository(models.Model):
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
     def create_repository(
-        cls, cluster_id, snapshot_repository_name, es_config, alias, operator, bk_tenant_id=DEFAULT_TENANT_ID
+        cls, bk_tenant_id: str, cluster_id: int, snapshot_repository_name, es_config, alias, operator
     ):
         from metadata.models import ClusterInfo
 
-        cluster: ClusterInfo = ClusterInfo.objects.filter(cluster_id=cluster_id).first()
+        cluster: ClusterInfo | None = ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id, cluster_id=cluster_id
+        ).first()
         if not cluster:
             raise ValueError(_("集群不存在"))
         if cluster.cluster_type != cluster.TYPE_ES:
@@ -238,7 +243,7 @@ class EsSnapshotRepository(models.Model):
         if cls.objects.filter(repository_name=snapshot_repository_name).exists():
             raise ValueError(_("仓库名称已经存在"))
 
-        es_client = get_client(cluster)
+        es_client = get_client(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
         new_rep = cls.objects.create(
             cluster_id=cluster_id,
             repository_name=snapshot_repository_name,
@@ -270,7 +275,9 @@ class EsSnapshotRepository(models.Model):
         cls.objects.filter(
             cluster_id=cluster_id, repository_name=snapshot_repository_name, bk_tenant_id=bk_tenant_id
         ).update(is_deleted=True, last_modify_user=operator)
-        get_client(cluster_id).snapshot.delete_repository(snapshot_repository_name)
+        get_client(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id).snapshot.delete_repository(
+            snapshot_repository_name
+        )
 
     @classmethod
     def verify_repository(cls, cluster_id, snapshot_repository_name, bk_tenant_id=DEFAULT_TENANT_ID):
@@ -278,7 +285,9 @@ class EsSnapshotRepository(models.Model):
             cluster_id=cluster_id, repository_name=snapshot_repository_name, is_deleted=False, bk_tenant_id=bk_tenant_id
         ).exists():
             raise ValueError(_("仓库不存在"))
-        return get_client(cluster_id).snapshot.verify_repository(snapshot_repository_name)
+        return get_client(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id).snapshot.verify_repository(
+            snapshot_repository_name
+        )
 
     def to_json(self):
         result = {
@@ -293,7 +302,9 @@ class EsSnapshotRepository(models.Model):
         }
         try:
             result.update(
-                get_client(self.cluster_id).snapshot.get_repository(self.repository_name).get(self.repository_name, {})
+                get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=self.cluster_id)
+                .snapshot.get_repository(self.repository_name)
+                .get(self.repository_name, {})
             )
         except Exception as e:  # noqa
             logger.exception("get repository(%s) cluster_id(%s) error", self.repository_name, self.cluster_id)
@@ -320,12 +331,12 @@ class EsSnapshotIndice(models.Model):
         verbose_name_plural = "快照物理索引记录"
 
     @classmethod
-    def batch_to_json(cls, table_id, snapshot_name, bk_tenant_id=DEFAULT_TENANT_ID):
+    def batch_to_json(cls, bk_tenant_id: str, table_id: str, snapshot_name: str):
         batch_obj = cls.objects.filter(table_id=table_id, snapshot_name=snapshot_name, bk_tenant_id=bk_tenant_id)
         return [obj.to_json() for obj in batch_obj]
 
     @classmethod
-    def all_doc_count_and_store_size(cls, table_ids, bk_tenant_id=DEFAULT_TENANT_ID):
+    def all_doc_count_and_store_size(cls, bk_tenant_id: str, table_ids: list[str]):
         agg_result = (
             cls.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
             .values("table_id")
@@ -394,13 +405,13 @@ class EsSnapshotRestore(models.Model):
     @atomic(config.DATABASE_CONNECTION_NAME)
     def create_restore(
         cls,
+        bk_tenant_id: str,
         table_id,
         start_time,
         end_time,
         expired_time,
         operator,
         is_sync: bool | None = False,
-        bk_tenant_id=DEFAULT_TENANT_ID,
     ):
         from metadata.models import ESStorage
 
@@ -488,9 +499,9 @@ class EsSnapshotRestore(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def modify_restore(cls, restore_id, expired_time, operator):
+    def modify_restore(cls, bk_tenant_id: str, restore_id, expired_time, operator):
         try:
-            restore = cls.objects.get(restore_id=restore_id)
+            restore = cls.objects.get(restore_id=restore_id, bk_tenant_id=bk_tenant_id)
         except cls.DoesNotExist:
             raise ValueError(_("结果表回溯不存在"))
         if restore.is_deleted:
@@ -504,9 +515,9 @@ class EsSnapshotRestore(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def delete_restore(cls, restore_id, operator, is_sync: bool | None = False):
+    def delete_restore(cls, bk_tenant_id: str, restore_id, operator, is_sync: bool | None = False):
         try:
-            restore = cls.objects.get(restore_id=restore_id)
+            restore = cls.objects.get(restore_id=restore_id, bk_tenant_id=bk_tenant_id)
         except cls.DoesNotExist:
             raise ValueError(_("回溯不存在"))
         if restore.is_deleted:
@@ -546,8 +557,8 @@ class EsSnapshotRestore(models.Model):
             logger.info("restore ->[%s] has expired, has be clean", expired_restore.restore_id)
 
     @classmethod
-    def batch_get_state(cls, restore_ids: list):
-        restores = cls.objects.filter(restore_id__in=restore_ids)
+    def batch_get_state(cls, bk_tenant_id: str, restore_ids: list):
+        restores = cls.objects.filter(restore_id__in=restore_ids, bk_tenant_id=bk_tenant_id)
         return [
             {
                 "table_id": restore.table_id,
@@ -578,8 +589,7 @@ class EsSnapshotRestore(models.Model):
                 cluster_id = EsSnapshotRepository.objects.get(
                     repository_name=repository_name, bk_tenant_id=self.bk_tenant_id
                 ).cluster_id
-                es_client = get_client(cluster_id)
-
+                es_client = get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=cluster_id)
                 es_client.snapshot.restore(
                     repository_name,
                     snapshot,
@@ -612,7 +622,7 @@ class EsSnapshotRestore(models.Model):
         from metadata.models import ESStorage
 
         es_storage = ESStorage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
-        es_client = get_client(es_storage.storage_cluster_id)
+        es_client = get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=es_storage.storage_cluster_id)
 
         # es index 删除是通过url带参数 防止索引太多超过url长度限制 所以进行多批删除
         indices_chunks = utils.chunk_index_list([self.build_restore_index_name(indice) for indice in indices])

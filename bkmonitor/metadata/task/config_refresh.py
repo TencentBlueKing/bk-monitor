@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -78,7 +78,7 @@ def refresh_consul_storage():
         cost_time
     )
     metrics.report_all()
-    logger.info("refresh_consul_storage:task finished, cost time: %s" % cost_time)
+    logger.info(f"refresh_consul_storage:task finished, cost time: {cost_time}")
 
 
 @share_lock(identify="metadata_refreshConsulESInfo")
@@ -108,7 +108,7 @@ def refresh_consul_es_info():
         cost_time
     )
     metrics.report_all()
-    logger.info("refresh_consul_es_info:task finished, cost time: %s" % cost_time)
+    logger.info(f"refresh_consul_es_info:task finished, cost time: {cost_time}")
 
 
 @share_lock(ttl=1800, identify="metadata_refreshInfluxdbRoute")
@@ -124,7 +124,7 @@ def refresh_influxdb_route():
     try:
         for host_info in models.InfluxDBHostInfo.objects.all():
             host_info.refresh_consul_cluster_config()
-            logger.debug("host->[%s] refresh consul config success." % host_info.host_name)
+            logger.debug(f"host->[{host_info.host_name}] refresh consul config success.")
 
         models.InfluxDBClusterInfo.refresh_consul_cluster_config()
         logger.debug("influxdb cluster refresh consul config success.")
@@ -133,7 +133,7 @@ def refresh_influxdb_route():
         for result_table in models.InfluxDBStorage.objects.all():
             index -= 1
             result_table.refresh_consul_cluster_config(is_publish=(index == 0))
-            logger.debug("result_table->[%s] refresh consul config success." % result_table.table_id)
+            logger.debug(f"result_table->[{result_table.table_id}] refresh consul config success.")
 
         # 更新 vm router
         models.AccessVMRecord.refresh_vm_router()
@@ -156,9 +156,7 @@ def refresh_influxdb_route():
             logger.debug(f"tsdb result_table->[{result_table.table_id}] sync_db success.")
         except Exception:
             logger.error(
-                "result_table->[{}] failed to sync database for->[{}]".format(
-                    result_table.table_id, traceback.format_exc()
-                )
+                f"result_table->[{result_table.table_id}] failed to sync database for->[{traceback.format_exc()}]"
             )
     # 刷新tag路由
     try:
@@ -214,12 +212,10 @@ def refresh_datasource():
             datasource.clean_cache()
             # 2. 更新ETL及datasource的配置
             datasource.refresh_outer_config()
-            logger.debug("data_id->[%s] refresh all outer success" % datasource.bk_data_id)
+            logger.debug(f"data_id->[{datasource.bk_data_id}] refresh all outer success")
         except Exception:
             logger.error(
-                "data_id->[{}] failed to refresh outer config for->[{}]".format(
-                    datasource.bk_data_id, traceback.format_exc()
-                )
+                f"data_id->[{datasource.bk_data_id}] failed to refresh outer config for->[{traceback.format_exc()}]"
             )
 
 
@@ -241,9 +237,7 @@ def refresh_kafka_storage():
             logger.debug(f"kafka storage for result_table->[{kafka_storage.table_id}] is ensure create.")
         except Exception:
             logger.error(
-                "kafka->[{}] failed to make sure topic exists for->[{}]".format(
-                    kafka_storage.table_id, traceback.format_exc()
-                )
+                f"kafka->[{kafka_storage.table_id}] failed to make sure topic exists for->[{traceback.format_exc()}]"
             )
     cost_time = time.time() - start_time
 
@@ -267,7 +261,9 @@ def refresh_kafka_topic_info():
             try:
                 client = cluster_map[datasource.mq_cluster_id]
             except KeyError:
-                cluster = models.ClusterInfo.objects.get(cluster_id=datasource.mq_cluster_id)
+                cluster = models.ClusterInfo.objects.get(
+                    bk_tenant_id=datasource.bk_tenant_id, cluster_id=datasource.mq_cluster_id
+                )
                 conf = {
                     "bootstrap.servers": f"{cluster.domain_name}:{cluster.port}",
                 }
@@ -465,9 +461,7 @@ def refresh_es_restore():
             not_done_restore.get_complete_doc_count()
         except Exception:
             logger.info(
-                "es_restore->[{}] failed to cron task for->[{}]".format(
-                    not_done_restore.restore_id, traceback.format_exc()
-                )
+                f"es_restore->[{not_done_restore.restore_id}] failed to cron task for->[{traceback.format_exc()}]"
             )
             continue
     cost_time = time.time() - start_time
@@ -594,10 +588,13 @@ def check_es_clusters_key_settings():
     )
     for cluster in clusters:
         cluster_id = cluster.cluster_id
+        bk_tenant_id = cluster.bk_tenant_id
         logger.info("check_es_clusters_key_settings: start to check cluster_id->[%s]", cluster_id)
         try:
             # 获取 ES 存储配置
-            storage_instance = models.ESStorage.objects.filter(storage_cluster_id=cluster_id).last()
+            storage_instance = models.ESStorage.objects.filter(
+                bk_tenant_id=bk_tenant_id, storage_cluster_id=cluster_id
+            ).last()
             if not storage_instance:
                 continue
 

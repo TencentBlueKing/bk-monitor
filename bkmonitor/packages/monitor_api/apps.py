@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import sys
 
 from django.apps import AppConfig
@@ -32,10 +32,10 @@ class MonitorAPIConfig(AppConfig):
             hack_settings(GlobalConfig, settings)
             call_command("migrate", "--noinput")
         except MigrateError as err:
-            print("Migrate Error:{}".format(err))
+            print(f"Migrate Error:{err}")
             raise err
         except Exception as e:
-            print("Migrate Error:{}".format(e))
+            print(f"Migrate Error:{e}")
 
     def check_external_db(self):
         """
@@ -47,8 +47,7 @@ class MonitorAPIConfig(AppConfig):
             try:
                 with connections[alias].cursor() as cursor:
                     cursor.execute("SELECT 1;")
-            except Exception as e:
-                print("db[{}] query error: {}".format(alias, e))
+            except Exception:
                 # 如果操作失败，说明 DB 不存在，直接从 settings 中去掉
                 settings.DATABASES.pop(alias, None)
 

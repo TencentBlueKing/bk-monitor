@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -18,9 +18,10 @@ from django.db import models
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 from elasticsearch import Elasticsearch
+from elasticsearch5 import Elasticsearch as Elasticsearch5
+from elasticsearch6 import Elasticsearch as Elasticsearch6
 
 from bkmonitor.utils.db.fields import JsonField
-from constants.common import DEFAULT_TENANT_ID
 from metadata import config
 from metadata.models.result_table import ResultTableField, ResultTableOption
 from metadata.models.storage import ClusterInfo, ESStorage
@@ -128,7 +129,7 @@ class EventGroup(CustomGroupBase):
     DEFAULT_STORAGE_CONFIG = STORAGE_ES_CONFIG
 
     @staticmethod
-    def make_table_id(bk_biz_id, bk_data_id, table_name=None, bk_tenant_id=DEFAULT_TENANT_ID):
+    def make_table_id(bk_biz_id, bk_data_id, bk_tenant_id: str, table_name=None):
         """
         生成结果表table_id
         涉及破坏性改造,通过是否开启多租户开关控制
@@ -176,7 +177,7 @@ class EventGroup(CustomGroupBase):
 
         return f"{config.CONSUL_PATH}/data_id/{self.bk_data_id}/event"
 
-    def update_event_dimensions_from_es(self, client: Elasticsearch | None = None):
+    def update_event_dimensions_from_es(self, client: Elasticsearch | Elasticsearch5 | Elasticsearch6 | None = None):
         """
         从ES更新事件及维度信息等内容
         对于一个过久未有上报的事件，那么其将会一直被保留在元数据当中
@@ -246,9 +247,7 @@ class EventGroup(CustomGroupBase):
         # 删除所有的事件以及事件维度
         custom_events = Event.objects.filter(event_group_id=self.event_group_id)
         logger.debug(
-            "going to delete all dimension and custom_event->[{}] for EventGroup->[{}] deletion.".format(
-                custom_events.count(), self.event_group_id
-            )
+            f"going to delete all dimension and custom_event->[{custom_events.count()}] for EventGroup->[{self.event_group_id}] deletion."
         )
         custom_events.delete()
         logger.info(f"all metrics about EventGroup->[{self.event_group_id}] is deleted.")
@@ -292,10 +291,10 @@ class EventGroup(CustomGroupBase):
         event_group_name,
         label,
         operator,
+        bk_tenant_id: str,
         event_info_list=None,
         table_id=None,
         data_label: str | None = None,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
     ):
         """
         创建一个新的自定义分组记录
@@ -453,9 +452,7 @@ class Event(models.Model):
 
             # 后续可以在此处追加其他修改内容
             logger.info(
-                "event_group_id->[{}] has update event_id->[{}] all dimension->[{}]".format(
-                    event_group_id, custom_event.event_name, len(dimension_list)
-                )
+                f"event_group_id->[{event_group_id}] has update event_id->[{custom_event.event_name}] all dimension->[{len(dimension_list)}]"
             )
 
         return True

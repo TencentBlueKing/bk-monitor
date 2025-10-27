@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
  *
@@ -28,9 +28,14 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { loadApp, mount, unmount } from '@blueking/bk-weweb';
 
+import aiWhaleStore from '@/store/modules/ai-whale';
 import '@blueking/bk-weweb';
 
+import type { AIBluekingShortcut } from '@/components/ai-whale/types';
+import type { Vue3WewebData } from '@/types/weweb/weweb';
+
 import './trace-retrieval.scss';
+
 const traceAppId = 'trace-explore';
 Component.registerHooks(['beforeRouteLeave']);
 @Component
@@ -46,12 +51,15 @@ export default class TraceRetrieval extends tsc<object> {
       ? `${this.traceHost}/?bizId=${this.$store.getters.bizId}/#/trace/home`
       : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/home`;
   }
-  get traceData() {
+  get traceData(): Vue3WewebData {
     return {
       host: this.traceHost,
       baseroute: '/trace/',
       setUnmountCallback: (callback: () => void) => {
         this.unmountCallback = callback;
+      },
+      handleAIBluekingShortcut: (shortcut: AIBluekingShortcut) => {
+        aiWhaleStore.setCustomFallbackShortcut(shortcut);
       },
     };
   }

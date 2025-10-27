@@ -106,6 +106,9 @@
         min-width="100"
         prop="created_by"
       >
+      <template #default="{ row }">
+        <bk-user-display-name :user-id="row.created_by"></bk-user-display-name>
+      </template>
       </bk-table-column>
       <bk-table-column
         :label="$t('任务状态')"
@@ -435,6 +438,9 @@
       handleCreateTask() {
         this.$router.push({
           name: 'extract-create',
+          query: {
+            ...this.$route.query
+          }
         });
       },
       // 克隆
@@ -443,6 +449,9 @@
         sessionStorage.setItem('cloneData', JSON.stringify(row));
         this.$router.push({
           name: 'extract-clone',
+          query: {
+            ...this.$route.query
+          }
         });
       },
       // 下载文件

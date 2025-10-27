@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 
 from django.db import models
@@ -18,7 +18,7 @@ from bkmonitor.utils.user import get_global_user
 
 class OperateManagerBase(models.Manager):
     def get_queryset(self):
-        return super(OperateManagerBase, self).get_queryset().filter(is_deleted=False)
+        return super().get_queryset().filter(is_deleted=False)
 
 
 class OperateRecordModelBase(models.Model):
@@ -42,12 +42,12 @@ class OperateRecordModelBase(models.Model):
         :return:
         """
         if not_update_user:
-            return super(OperateRecordModelBase, self).save(*args, **kwargs)
-        username = get_global_user() or "unknown"
+            return super().save(*args, **kwargs)
+        username = get_global_user() or "system"
         self.update_user = username
         if not self.create_user:
             self.create_user = username
-        return super(OperateRecordModelBase, self).save(*args, **kwargs)
+        return super().save(*args, **kwargs)
 
     def delete(self, hard=False, *args, **kwargs):
         """
@@ -57,10 +57,10 @@ class OperateRecordModelBase(models.Model):
         update 方法不触发 save 或者 delete 方法，因此也不会发出任何信号，所以手动将 pre_delete 和 post_delete 信号发出去
         """
         if hard:
-            return super(OperateRecordModelBase, self).delete(*args, **kwargs)
+            return super().delete(*args, **kwargs)
 
         signals.pre_delete.send(sender=self.__class__, instance=self)
-        username = get_global_user() or "unknown"
+        username = get_global_user() or "system"
 
         if hasattr(self, "is_enabled"):
             # 如果 model 有 is_enabled 字段，则软删除字段之时，也将其禁用

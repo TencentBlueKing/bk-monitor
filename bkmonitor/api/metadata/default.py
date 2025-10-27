@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -77,6 +77,7 @@ class CreateDataIdResource(MetaDataAPIGWResource):
         type_label = serializers.CharField(required=True)
         option = serializers.DictField(required=False)
         space_uid = serializers.CharField(required=False)
+        bk_biz_id = serializers.IntegerField(required=False)
 
 
 class CreateResultTableResource(MetaDataAPIGWResource):
@@ -759,113 +760,6 @@ class QueryDataSourceResource(MetaDataAPIGWResource):
         bk_data_id = serializers.IntegerField(required=False, label="数据源ID", default=None)
         data_name = serializers.CharField(required=False, label="数据源名称", default=None)
         with_rt_info = serializers.BooleanField(required=False, label="是否需要ResultTable信息", default=True)
-
-
-class ListDataPipelineResource(MetaDataAPIGWResource):
-    action = "/app/metadata/list_data_pipeline/"
-    method = "GET"
-
-    class RequestSerializer(UsernameSerializer):
-        name = serializers.CharField(required=False, label="链路名称", default=None)
-        chinese_name = serializers.CharField(required=False, label="链路中文名称", default=None)
-        etl_config = serializers.CharField(required=False, label="链路场景类型", default=None)
-        space_type = serializers.CharField(required=False, label="空间类型", default=None)
-        space_id = serializers.CharField(required=False, label="空间 ID", default=None)
-        is_enable = serializers.CharField(required=False, label="是否启用", default="all")
-        page_size = serializers.IntegerField(default=100, label="每页的条数")
-        page = serializers.IntegerField(default=1, min_value=1, label="页数")
-
-
-class ListDataSourceByDataPipeline(MetaDataAPIGWResource):
-    action = "/app/metadata/list_data_source_by_data_pipeline/"
-    method = "GET"
-
-    class RequestSerializer(UsernameSerializer):
-        data_pipeline_name = serializers.CharField(required=True, label="链路名称")
-        page_size = serializers.IntegerField(default=100, label="每页的条数")
-        page = serializers.IntegerField(default=1, min_value=1, label="页数")
-
-
-class CreateDataPipelineResource(MetaDataAPIGWResource):
-    action = "/app/metadata/create_data_pipeline/"
-    method = "POST"
-
-    class RequestSerializer(UsernameSerializer):
-        class SpaceSerializer(serializers.Serializer):
-            space_type = serializers.CharField(required=False, label="空间类型", default="all")
-            space_id = serializers.CharField(required=False, label="空间 ID", default=None)
-
-        name = serializers.CharField(required=True, label="链路名称")
-        chinese_name = serializers.CharField(required=False, label="链路中文名称", default="")
-        etl_configs = serializers.ListField(required=True, label="链路场景类型")
-        spaces = serializers.ListField(child=SpaceSerializer(), required=True, label="空间范围")
-        label = serializers.CharField(required=False, label="标签", default="")
-        kafka_cluster_id = serializers.IntegerField(required=True, label="kafka 消息队列标识")
-        transfer_cluster_id = serializers.CharField(required=True, label="transfer 集群标识")
-        influxdb_storage_cluster_id = serializers.IntegerField(required=False, label="influxdb 存储集群标识", default=0)
-        kafka_storage_cluster_id = serializers.IntegerField(required=False, label="kafka 存储集群标识", default=0)
-        es_storage_cluster_id = serializers.IntegerField(required=False, label="es 存储集群标识", default=0)
-        vm_storage_cluster_id = serializers.IntegerField(required=False, label="vm 存储集群标识", default=0)
-        is_enable = serializers.BooleanField(required=False, label="是否开启", default=True)
-        is_default = serializers.BooleanField(required=False, label="是否默认管道", default=False)
-        description = serializers.CharField(required=False, label="链路描述", default="", allow_blank=True)
-        username = serializers.CharField(label="用户名", required=False)
-
-        def validate(self, attrs):
-            attrs = super().validate(attrs)
-            attrs["creator"] = attrs["username"]
-            return attrs
-
-
-class UpdateDataPipelineResource(MetaDataAPIGWResource):
-    action = "/app/metadata/update_data_pipeline/"
-    method = "POST"
-
-    class RequestSerializer(UsernameSerializer):
-        class SpaceSerializer(serializers.Serializer):
-            space_type = serializers.CharField(required=False, label="空间类型", default="all")
-            space_id = serializers.CharField(required=False, label="空间 ID", default=None)
-
-        name = serializers.CharField(required=True, label="链路名称")
-        etl_configs = serializers.ListField(required=False, label="链路场景类型")
-        spaces = serializers.ListField(child=SpaceSerializer(), required=False, label="空间范围")
-        is_enable = serializers.BooleanField(required=False, label="是否开启", default=None)
-        is_default = serializers.BooleanField(required=False, label="是否默认管道", default=None)
-        description = serializers.CharField(required=False, label="链路描述", default=None, allow_blank=True)
-        username = serializers.CharField(label="用户名", required=False)
-
-        def validate(self, attrs):
-            # 剔除为 None 的参数
-            for key in list(attrs.keys()):
-                if attrs[key] is None:
-                    del attrs[key]
-            attrs = super().validate(attrs)
-            attrs["updater"] = attrs["username"]
-            return attrs
-
-
-class GetStorageClusterInfoResource(MetaDataAPIGWResource):
-    action = "/app/metadata/get_storage_cluster_info/"
-    method = "GET"
-
-    class RequestSerializer(serializers.Serializer):
-        cluster_id = serializers.IntegerField(required=False, label="集群 ID", allow_null=True)
-        cluster_type = serializers.CharField(required=False, label="集群类型", allow_null=True, allow_blank=True)
-
-
-class GetEtlConfigResource(MetaDataAPIGWResource):
-    action = "/app/metadata/get_etl_config/"
-    method = "GET"
-
-
-class GetTransferListResource(MetaDataAPIGWResource):
-    action = "/app/metadata/get_transfer_list/"
-    method = "GET"
-
-
-class CheckClusterHealthResource(MetaDataAPIGWResource):
-    action = "/app/metadata/check_cluster_health/"
-    method = "GET"
 
 
 class ListClustersResource(MetaDataAPIGWResource):

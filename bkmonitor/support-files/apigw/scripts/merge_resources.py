@@ -18,7 +18,7 @@ def merge_resources(resources_dir: Path):
     for public_dir in public_dirs:
         for verify_dir in verify_dirs:
             for file in resources_dir.glob(f"{public_dir}/{verify_dir}/*.yaml"):
-                data: list[dict] = yaml.safe_load(file.read_text())["paths"]
+                data: dict[str, dict] = yaml.safe_load(file.read_text())["paths"]
                 for _, path_data in data.items():
                     for _, method_data in path_data.items():
                         # 覆盖 authConfig
@@ -43,10 +43,8 @@ def merge_resources(resources_dir: Path):
 
     # 生成合并后的资源
     resources = {
-        "swagger": "2.0",
-        "basePath": "/",
-        "info": {"version": "1.0", "title": "API Gateway Resources", "description": ""},
-        "schemes": ["http"],
+        "openapi": "3.0.1",
+        "info": {"version": "2.0", "title": "API Gateway Resources", "description": ""},
         "paths": merged_data,
     }
 

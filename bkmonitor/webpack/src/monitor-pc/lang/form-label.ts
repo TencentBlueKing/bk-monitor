@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -895,6 +895,7 @@ export default {
   从本次检索中排除: 'Exclude from this search',
   新建检索: 'New Explore',
   事件来源: 'Event source',
+  事件等级: 'Event level',
 
   注意: 'Note',
   目录: 'Directory',
@@ -1891,6 +1892,8 @@ export default {
   系统恢复: 'System recovery',
   系统关闭: 'System closed',
   生成告警级别: 'Generate alarm levels',
+  屏蔽选择: 'Shield selection',
+  选择屏蔽范围: 'Select shielding range',
   // 故障
   根因所属节点: 'Root Node',
   标准提示: 'Type',
@@ -1927,8 +1930,14 @@ export default {
   有效期: 'Validity period',
   创建者: 'Creator',
   告警历史: 'Alarm history',
-  上报配置: 'Upload configuration',
+  上报Demo: 'Upload Demo',
   '需先填写「服务名」，生成上报示例': 'Please fill in the service name first, and generate the reporting example',
+  节点概览: 'Node overview',
+  边概览: 'Edge overview',
+  '跳转至 {0} 查看': 'Go to {0} for details',
+  容器场景页: 'Container scene page',
+  复制节点名: 'Copy node name',
+  关联边: 'Associated edges',
 
   // K8s 容器场景
   图表: 'Chart',
@@ -1948,5 +1957,27 @@ export default {
   总行数: 'Total number of branches',
   出现行数: 'Number of rows appearing',
   日志条数: 'Number of logs',
+  非空数据: 'Non-empty data',
+  非空数据占比: 'Proportion of non-empty data',
   添加方式: 'Add method',
+
+  // 查询模板
+  '模板名称:': 'Template name:',
+  模板详情: 'Template details',
+  模板配置: 'Template configuration',
+  生效范围: 'Effective range',
+  变量别名: 'Variable alias',
+  变量类型: 'Variable type',
+  变量描述: 'Variable description',
+  可选维度: 'Optional dimensions',
+  上报地址: 'Reporting address',
+  上报token: 'Reporting token',
+  主调服务: 'Caller service',
+  '将根据「服务名」自动生成上报示例代码，你可以直接运行':
+    'The reporting example code will be automatically generated based on the service name, and you can run it directly',
+
+  // APM-告警模板
+  全部模板: 'All templates',
+  内置模板: 'Built-in templates',
+  克隆模板: 'Clone template',
 };

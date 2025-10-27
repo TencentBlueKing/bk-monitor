@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -128,7 +128,16 @@ class BaseAccessEventProcess(BaseAccessProcess, QoSMixin):
         self.check_qos()
         self.push_to_check_result()
 
-        # 优先级检查
+        # 按维度(md5_dimension)分组，防止self.record_list中存在多个事件
+        dimension_groups = {}
+        for e in self.record_list:
+            dimension_groups.setdefault(e.md5_dimension, []).append(e)
+
+        for dimension, records in dimension_groups.items():
+            if len(records) > 1:
+                logger.warning(f"the same event has {len(records)} records, record: {records[0].raw_data}")
+
+        # 进行优先级检查
         PriorityChecker.check_records(self.record_list)
 
         # 1. split by strategy_id

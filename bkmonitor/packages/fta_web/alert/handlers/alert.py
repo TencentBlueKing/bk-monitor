@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -10,15 +10,16 @@ specific language governing permissions and limitations under the License.
 
 import logging
 import operator
+import re
 import time
-from datetime import datetime, timezone
 from collections import defaultdict
+from datetime import datetime, timezone
 from functools import reduce
 from itertools import chain
 
+from django.db.models import Q as DQ
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
-from django.db.models import Q as DQ
 from elasticsearch_dsl import Q
 from elasticsearch_dsl.response.aggs import BucketData
 from luqum.tree import FieldGroup, OrOperation, Phrase, SearchField, Word
@@ -46,6 +47,7 @@ from constants.data_source import (
     OthersResultTableLabel,
 )
 from core.drf_resource import resource
+from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.base import (
     AlertDimensionFormatter,
     BaseBizQueryHandler,
@@ -59,6 +61,7 @@ from fta_web.alert.handlers.translator import (
     PluginTranslator,
     StrategyTranslator,
 )
+from fta_web.alert.utils import is_include_promql
 
 logger = logging.getLogger(__name__)
 
@@ -85,27 +88,74 @@ def readable_name_alias_to_id(node: SearchField):
     return
 
 
-def get_alert_ids_by_action_id(action_ids) -> list:
-    if not isinstance(action_ids, list):
-        action_ids = [action_ids]
+def get_alert_ids_by_action_id(action_ids: list) -> tuple[list, dict]:
     try:
         actions = ActionInstanceDocument.mget(action_ids)
+        # 构造action_alert_map是为了后续处理query_string时，可以对其中的action_id进行精准替换为对应的
+        action_alert_map = {}  # 以action_id为key的映射
         if actions:
-            alert_ids = [action.alert_id for action in actions]
-        else:
+            for action in actions:
+                action_alert_map[action.id] = action.alert_id
+
+        if len(actions) < len(action_ids):
+            action_ids = set(action_ids) - set(action_alert_map.keys())
             action_ids = [int(str(action_id)[10:]) for action_id in action_ids]
-            alert_ids = ActionInstance.objects.filter(id__in=action_ids).values_list("alerts", flat=True)
-    except Exception:
-        alert_ids = []
-    alert_ids = set(chain.from_iterable(alert_ids))
-    return list(alert_ids)
+            actions = ActionInstance.objects.filter(id__in=action_ids)
+            for action in actions:
+                # 构造action_id: 10位时间戳+action.id
+                action_id = f"{int(action.create_time.timestamp())}{action.id}"
+                action_alert_map[action_id] = action.alerts
+    except Exception as e:
+        logger.exception(f"Failed to get alert ids by action ids, error: {e}")
+        action_alert_map = {}
+
+    # 展平所有告警ID
+    alert_ids = set(chain.from_iterable(action_alert_map.values()))
+    return list(alert_ids), action_alert_map
 
 
-def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time=None, include=False, exclude=False) -> list:
+def get_alert_ids_by_action_name(action_names, include=False, exclude=False, **kwargs) -> list:
     """通过处理套餐名称获取告警ID"""
     if not isinstance(action_names, list):
         action_names = [action_names]
 
+    # 边界检查：排除无效参数组合
+    if include and exclude:
+        raise ValueError("Parameters 'include' and 'exclude' cannot be True simultaneously")
+
+    if "page_size" in kwargs:
+        # 增加额外的查询数量
+        kwargs["page_size"] = kwargs["page_size"] + 50
+
+    alert_ids = _query_alert_ids_from_es(action_names, include=include, exclude=exclude, **kwargs)
+    if alert_ids:
+        return alert_ids
+
+    # ES无结果时，回退到Django ORM查询
+    return _query_alert_ids_from_db(action_names, include=include, exclude=exclude, **kwargs)
+
+
+def _query_alert_ids_from_es(action_names, include=False, exclude=False, **kwargs):
+    """内部方法：通过ES查询获取告警ID"""
+    method = "exclude" if exclude else "include" if include else "eq"
+
+    kwargs["conditions"] = [{"key": "action_name.raw", "value": action_names, "method": method, "condition": "and"}]
+
+    action_handler = ActionQueryHandler(**kwargs)
+    search_obj = action_handler.get_search_object()
+    search_obj = action_handler.add_conditions(search_obj)
+    search_obj = action_handler.add_pagination(search_obj)
+    search_obj = search_obj.source(["alert_id"])  # 仅请求必要字段
+
+    result = search_obj.execute()
+    alert_ids = [item for hit in result.hits for item in hit.alert_id]
+    return list(set(alert_ids))
+
+
+def _query_alert_ids_from_db(
+    action_names, bk_biz_ids, start_time, end_time, page, page_size, include=False, exclude=False
+):
+    """内部方法：通过DB查询获取告警ID"""
     # 构建查询条件
     if include:
         # 模糊查询多个名称
@@ -122,15 +172,16 @@ def get_alert_ids_by_action_name(action_names, bk_biz_ids, start_time=None, incl
 
     action_config_ids = ActionConfig.objects.filter(filter_params_query).values_list("id", flat=True)
 
-    # 获取开始时间,没有则取7天前的时间
-    if start_time is None:
-        start_time = int(time.time()) - 7 * 24 * 60 * 60
-
     start_time = datetime.fromtimestamp(start_time, tz=timezone.utc)
+    end_time = datetime.fromtimestamp(end_time, tz=timezone.utc)
 
-    alert_id_ids = ActionInstance.objects.filter(
-        action_config_id__in=list(action_config_ids), create_time__gte=start_time
-    ).values_list("alerts", flat=True)
+    alert_id_ids = (
+        ActionInstance.objects.filter(
+            action_config_id__in=list(action_config_ids), create_time__gte=start_time, create_time__lte=end_time
+        )
+        .values_list("alerts", flat=True)
+        .order_by("id")[(page - 1) * page_size : page * page_size]
+    )
     alert_ids = set(chain.from_iterable(alert_id_ids))
     return list(alert_ids)
 
@@ -197,6 +248,25 @@ class AlertQueryTransformer(BaseQueryTransformer):
         QueryField("set_id", _lazy("集群ID"), es_field="event.bk_topo_node"),
     ]
 
+    def visit_search_field(self, node: SearchField, context: dict):
+        if context.get("ignore_search_field"):
+            yield from self.generic_visit(node, context)
+        else:
+            context["ignore_generic_visit"] = True
+            node, context = list(super().visit_search_field(node, context))[0]
+
+            process_fun_list = [
+                self._process_stage_field,
+                self._process_metric_field,
+            ]
+
+            for fun in process_fun_list:
+                new_node, new_context = fun(node, context)
+                if new_node is not None:
+                    node, context = new_node, new_context
+                    break
+            yield from self.generic_visit(node, context)
+
     def visit_word(self, node: Word, context: dict):
         if context.get("ignore_word"):
             yield from self.generic_visit(node, context)
@@ -214,7 +284,7 @@ class AlertQueryTransformer(BaseQueryTransformer):
 
             for fun in process_fun_list:
                 new_node, new_context = fun(node, context)
-                if new_node:
+                if new_node is not None:
                     node, context = new_node, new_context
                     break
 
@@ -264,7 +334,11 @@ class AlertQueryTransformer(BaseQueryTransformer):
             "action_id",
             _("处理记录ID"),
         ]:
-            alert_ids = get_alert_ids_by_action_id(node.value)
+            action_alert_map = context.get("action_alert_map", {})
+            if action_alert_map:
+                alert_ids = action_alert_map.get(node.value, [])
+            else:
+                alert_ids, action_alert_map = get_alert_ids_by_action_id([node.value])
             node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
             context.update({"ignore_search_field": True, "ignore_word": True})
 
@@ -315,9 +389,16 @@ class AlertQueryTransformer(BaseQueryTransformer):
             "action_name",
             _("处理套餐名称"),
         ]:
-            bk_biz_ids = context.get("bk_biz_ids", [])
-            start_time = context.get("start_time", None)
-            alert_ids = get_alert_ids_by_action_name([node.value], bk_biz_ids, start_time)
+            params = {
+                "action_names": [node.value],
+                "bk_biz_ids": context.get("bk_biz_ids", []),
+                "start_time": context.get("start_time"),
+                "end_time": context.get("end_time"),
+                "page": context.get("page", 1),
+                "page_size": context.get("page_size", 10),
+            }
+
+            alert_ids = get_alert_ids_by_action_name(**params)
             node = FieldGroup(OrOperation(*[Word(str(alert_id)) for alert_id in alert_ids or [0]]))
             context = {"ignore_search_field": True, "ignore_word": True}
             return node, context
@@ -399,6 +480,64 @@ class AlertQueryTransformer(BaseQueryTransformer):
         context.update({"ignore_search_field": True, "ignore_word": True})
         return node, context
 
+    def _process_stage_field(self, node: SearchField, context: dict) -> tuple:
+        """
+        处理阶段字段：
+            1、将处理阶段的中文描述转换为对应的英文字段名
+            2、如果是已通知状态，添加已屏蔽过滤条件
+        """
+
+        # 阶段值映射表
+        stage_mapping = {
+            "已通知": "is_handled",
+            "已确认": "is_ack",
+            "已屏蔽": "is_shielded",
+            "已流控": "is_blocked",
+            "is_handled": "is_handled",
+            "is_ack": "is_ack",
+            "is_shielded": "is_shielded",
+            "is_blocked": "is_blocked",
+        }
+
+        # 判断是否为处理阶段字段查询
+        value = str(node.expr)
+        is_stage_field = node.name in ["处理阶段", "stage"] and value in list(stage_mapping.keys())
+
+        if not is_stage_field:
+            return None, None
+
+        mapped_field = stage_mapping[value]
+        # 对于"已通知"状态，需要额外过滤已屏蔽的告警
+        if mapped_field == "is_handled":
+            from luqum.tree import AndOperation
+
+            # 构建组合条件：(is_handled: true AND is_shielded: false)
+            node = FieldGroup(
+                AndOperation(SearchField("is_handled", Word("true")), SearchField("is_shielded", Word("false")))
+            )
+        else:
+            # 构建单一条件：{field}: true
+            node = SearchField(mapped_field, Word("true"))
+
+        context.update({"ignore_search_field": True})
+        return node, context
+
+    def _process_metric_field(self, node: SearchField, context: dict) -> tuple:
+        """
+        处理指标字段：将指标ID查询转换为event.metric字段，并添加通配符支持模糊查询
+        """
+        if node.name not in ["指标ID", "metric", "event.metric"]:
+            return None, None
+
+        # 处理指标值：移除外层引号并添加通配符
+        value = str(node.expr).strip("\"'*")
+        if value.endswith("..."):
+            value = value[:-3]
+        node = SearchField("event.metric", Word(f"*{value}*"))
+
+        context.update({"ignore_search_field": True})
+        return node, context
+
 
 class AlertQueryHandler(BaseBizQueryHandler):
     """
@@ -406,6 +545,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
     """
 
     query_transformer = AlertQueryTransformer
+
+    # 导出时需要排除的无用字段（这些字段会在处理过程中被移除）
+    EXCLUDED_EXPORT_FIELDS = {"action_id", "action_name", "module_id", "set_id"}
 
     # “我的告警” 状态名称
     MINE_STATUS_NAME = "MINE"
@@ -422,6 +564,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         status: list[str] = None,
         is_time_partitioned: bool = False,
         is_finaly_partition: bool = False,
+        need_bucket_count: bool = True,
         **kwargs,
     ):
         super().__init__(bk_biz_ids, username, **kwargs)
@@ -432,6 +575,17 @@ class AlertQueryHandler(BaseBizQueryHandler):
             self.ordering = ["status", "-create_time", "-seq_id"]
         self.is_time_partitioned = is_time_partitioned
         self.is_finaly_partition = is_finaly_partition
+        self.need_bucket_count = need_bucket_count
+        self.query_context = kwargs.get("context", {})
+        self.query_context.update(
+            {
+                "bk_biz_ids": self.bk_biz_ids,
+                "start_time": self.start_time,
+                "end_time": self.end_time,
+                "page": self.page,
+                "page_size": self.page_size,
+            }
+        )
 
     def get_search_object(
         self,
@@ -458,9 +612,10 @@ class AlertQueryHandler(BaseBizQueryHandler):
                         & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))
                     )
                 else:
+                    # ES 的时间切片应该使用 [start, end)
                     search_object = search_object.filter(
-                        (Q("range", end_time={"gte": start_time, "lte": end_time}) | ~Q("exists", field="end_time"))
-                        & (Q("range", begin_time={"lte": end_time}) | Q("range", create_time={"lte": end_time}))
+                        (Q("range", end_time={"gte": start_time, "lt": end_time}) | ~Q("exists", field="end_time"))
+                        & (Q("range", begin_time={"lt": end_time}) | Q("range", create_time={"lt": end_time}))
                     )
             else:
                 search_object = search_object.filter(
@@ -503,14 +658,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
         return search_object
 
     def search_raw(self, show_overview=False, show_aggs=False, show_dsl=False):
-        # 构建上下文信息
-        context = {
-            "bk_biz_ids": self.bk_biz_ids,
-            "start_time": self.start_time,
-        }
         search_object = self.get_search_object()
         search_object = self.add_conditions(search_object)
-        search_object = self.add_query_string(search_object, context=context)
+        search_object = self.add_query_string(search_object, context=self.query_context)
         search_object = self.add_ordering(search_object)
         search_object = self.add_pagination(search_object)
 
@@ -589,8 +739,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
             dimension_tuple: tuple = tuple(dimensions.items())
             result[dimension_tuple] = aggregation
 
-    def date_histogram(self, interval: str = "auto", group_by: list[str] = None):
-        interval = self.calculate_agg_interval(self.start_time, self.end_time, interval)
+    def date_histogram(self, interval: str = "auto", group_by: list[str] | None = None, bucket_size: int = 100):
+        new_interval: int = self.calculate_agg_interval(self.start_time, self.end_time, interval)
 
         # 默认按status聚合
         if group_by is None:
@@ -614,9 +764,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
         group_by = sorted(group_by, key=lambda x: x.startswith("tags."))
 
         # 查询时间对齐
-        start_time = self.start_time // interval * interval
-        end_time = self.end_time // interval * interval + interval
-        now_time = int(time.time()) // interval * interval + interval
+        start_time = self.start_time // new_interval * new_interval
+        end_time = self.end_time // new_interval * new_interval + new_interval
+        now_time = int(time.time()) // new_interval * new_interval + new_interval
 
         search_object = self.get_search_object(start_time=start_time, end_time=end_time)
         search_object = self.add_conditions(search_object)
@@ -637,24 +787,24 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
         # 时间聚合
         ended_object = ended_object.bucket(
-            "time", "date_histogram", field="end_time", fixed_interval=f"{interval}s"
+            "time", "date_histogram", field="end_time", fixed_interval=f"{new_interval}s"
         ).bucket("status", "terms", field="status")
         new_anomaly_object = new_anomaly_object.bucket(
-            "time", "date_histogram", field="begin_time", fixed_interval=f"{interval}s"
+            "time", "date_histogram", field="begin_time", fixed_interval=f"{new_interval}s"
         )
 
         # 维度聚合
         for field in group_by:
-            ended_object = self.add_agg_bucket(ended_object, field)
-            new_anomaly_object = self.add_agg_bucket(new_anomaly_object, field)
-            old_anomaly_object = self.add_agg_bucket(old_anomaly_object, field)
+            ended_object = self.add_agg_bucket(ended_object, field, size=bucket_size)
+            new_anomaly_object = self.add_agg_bucket(new_anomaly_object, field, size=bucket_size)
+            old_anomaly_object = self.add_agg_bucket(old_anomaly_object, field, size=bucket_size)
 
         # 查询
         search_result = search_object[:0].execute()
 
         result = defaultdict(
             lambda: {
-                status: {ts * 1000: 0 for ts in range(start_time, min(now_time, end_time), interval)}
+                status: {ts * 1000: 0 for ts in range(start_time, min(now_time, end_time), new_interval)}
                 for status in EVENT_STATUS_DICT
             }
         )
@@ -742,12 +892,6 @@ class AlertQueryHandler(BaseBizQueryHandler):
             )
         elif condition["key"] == "alert_name":
             condition["key"] = "alert_name.raw"
-        elif condition["key"] == "id" and condition["origin_key"] == "action_id":
-            # 处理动作ID不是告警的标准字段，需要从动作ID中提取出告警ID，再将其作为查询条件
-            alert_ids = get_alert_ids_by_action_id(condition["value"])
-            if not alert_ids:
-                alert_ids = [0]
-            return Q("ids", values=alert_ids)
 
         elif condition["origin_key"] == "action_name" and condition["key"] == "id":
             # 用于支持对处理套餐名称查询
@@ -755,6 +899,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 "action_names": condition["value"],
                 "bk_biz_ids": self.bk_biz_ids,
                 "start_time": self.start_time,
+                "end_time": self.end_time,
+                "page": self.page,
+                "page_size": self.page_size,
                 "include": condition["method"] == "include",
                 "exclude": condition["method"] == "exclude",
             }
@@ -765,6 +912,22 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 alert_ids = [0]
 
             return Q("ids", values=alert_ids)
+        elif condition["key"] == "query_string":
+            con_q = None
+            for query_string in condition["value"]:
+                if query_string.strip():
+                    query_dsl = self.query_transformer.transform_query_string(query_string, self.query_context)
+                    if isinstance(query_dsl, str):
+                        temp_q = Q("query_string", query=query_dsl)
+                    else:
+                        temp_q = Q(query_dsl)
+
+                    if con_q is None:
+                        con_q = temp_q
+                    else:
+                        con_q = con_q | temp_q
+
+            return con_q
         return super().parse_condition_item(condition)
 
     def add_biz_condition(self, search_object):
@@ -1052,9 +1215,36 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
     def export_with_docs(self) -> tuple[list[AlertDocument], list[dict]]:
         """导出告警数据，并附带原始文档。"""
-        raw_docs = [AlertDocument(**hit.to_dict()) for hit in self.scan()]
+        raw_docs = [AlertDocument(**hit.to_dict()) for hit in self.scan(source_fields=self.get_export_fields())]
         cleaned_docs = (self.clean_document(doc, exclude=["extra_info"]) for doc in raw_docs)
         return raw_docs, list(self.translate_field_names(cleaned_docs))
+
+    def get_export_fields(self):
+        """
+        获取导出时需要查询的字段列表
+        """
+        fields = set()
+
+        # 从 query_fields 中提取需要的字段，排除无用字段
+        for field in self.query_transformer.query_fields:
+            if field.field in self.EXCLUDED_EXPORT_FIELDS:
+                continue
+            if field.es_field:
+                fields.add(field.es_field)
+            elif field.field:
+                fields.add(field.field)
+
+        # 关联信息AlertRelatedInfo依赖的字段
+        fields.update({"extra_info", "dimensions"})
+
+        # 添加排序字段
+        for field in self.ordering:
+            field = field.lstrip("-")
+            es_field = self.query_transformer.transform_field_to_es_field(field)
+            if es_field:
+                fields.add(es_field)
+
+        return list(fields)
 
     @classmethod
     def handle_hit(cls, hit):
@@ -1068,15 +1258,69 @@ class AlertQueryHandler(BaseBizQueryHandler):
         data = doc.to_dict()
         cleaned_data = {}
 
-        # 固定字段
+        # 固定字段（跳过无用字段）
         for field in cls.query_transformer.query_fields:
+            if field.field in cls.EXCLUDED_EXPORT_FIELDS:
+                continue
             cleaned_data[field.field] = field.get_value_by_es_field(data)
 
-        # 去掉无用字段
-        cleaned_data.pop("action_id", None)
-        cleaned_data.pop("action_name", None)
-        cleaned_data.pop("module_id", None)
-        cleaned_data.pop("set_id", None)
+        condition_mapping = {
+            "bk_agent_id": "Agent ID",
+            "bk_biz_id": "业务ID",
+            "bk_cloud_id": "采集器云区域ID",
+            "bk_host_id": "采集主机ID",
+            "bk_target_cloud_id": "云区域ID",
+            "bk_target_host_id": "目标主机ID",
+            "bk_target_ip": "目标IP",
+            "device_name": "设备名",
+            "device_type": "设备类型",
+            "hostname": "主机名",
+            "ip": "采集器IP",
+            "mount_point": "挂载点",
+        }
+
+        dimension_translation = data.get("extra_info", {}).get("origin_alarm", {}).get("dimension_translation", {})
+        items = []
+        for item in data.get("extra_info", {}).get("strategy", {}).get("items", []):
+            query_configs = []
+            for config in item.get("query_configs", []):
+                agg_dimension = {
+                    d: dimension_translation.get(
+                        d,
+                        {
+                            "value": d,
+                            "display_name": d,
+                            "display_value": d,
+                        },
+                    )
+                    for d in config.get("agg_dimension", [])
+                }
+
+                for condition in config.get("agg_condition", []):
+                    condition["dimension_name"] = condition_mapping.get(condition["key"], condition["key"])
+
+                query_configs.append(
+                    {
+                        "alias": config.get("alias", ""),
+                        "metric_id": config.get("metric_id", ""),
+                        "functions": config.get("functions", []),
+                        "agg_method": config.get("agg_method"),
+                        "agg_interval": config.get("agg_interval"),
+                        "agg_dimension": agg_dimension,
+                        "agg_condition": config.get("agg_condition", []),
+                    }
+                )
+
+            items.append(
+                {
+                    "id": item.get("id"),
+                    "name": item.get("name", ""),
+                    "expression": item.get("expression", ""),
+                    "functions": item.get("functions", []),
+                    "origin_sql": item.get("origin_sql", ""),
+                    "query_configs": query_configs,
+                }
+            )
 
         # 额外字段
         cleaned_data.update(
@@ -1095,6 +1339,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 "target_key": AlertDimensionFormatter.get_target_key(
                     cleaned_data.get("target_type"), data.get("dimensions")
                 ),
+                "items": items,
             }
         )
 
@@ -1123,7 +1368,28 @@ class AlertQueryHandler(BaseBizQueryHandler):
             "category": CategoryTranslator(),
             "plugin_id": PluginTranslator(),
         }
-        return super().top_n(fields, size, translators, char_add_quotes)
+
+        result = super().top_n(fields, size, translators, char_add_quotes)
+
+        # 对metric字段进行特殊处理
+        # metric对应的id可能是promql语句，需要进行转义
+        if "metric" not in fields:
+            return result
+
+        regex = r'([+\-=&|><!(){}[\]^"~*?\\:\/ ])'
+        special_chars = re.compile(regex)
+        for field in result["fields"]:
+            if field["field"] != "metric":
+                continue
+
+            for bucket in field["buckets"]:
+                bucket_id = bucket["id"]
+                if not is_include_promql(bucket_id):
+                    continue
+                bucket_id = bucket_id.strip("'\"")
+                bucket["id"] = special_chars.sub(r"\\\1", bucket_id)
+
+        return result
 
     def list_tags(self):
         """

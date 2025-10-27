@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import OrderedDict
+from typing import Any
 
 from django.conf import settings
 from django.db import transaction
@@ -18,6 +19,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.serializers import TenantIdField
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import Resource
 from metadata import config, models
@@ -28,6 +30,7 @@ from metadata.service.vm_storage import (
     query_bcs_cluster_vm_rts,
     query_vm_datalink_all,
 )
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 logger = logging.getLogger("metadata")
 
@@ -40,19 +43,21 @@ class CreateVmCluster(Resource):
         description = serializers.CharField(required=False, label="集群描述", default="vm 集群")
         is_default_cluster = serializers.BooleanField(required=False, label="是否设置为默认集群", default=False)
 
-    def perform_request(self, data: OrderedDict) -> dict:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict:
+        bk_tenant_id = get_request_tenant_id()
+
         # 如果不设置为默认集群，则直接创建记录即可
-        data["cluster_type"] = models.ClusterInfo.TYPE_VM
-        if not data["is_default_cluster"]:
-            obj = models.ClusterInfo.objects.create(**data)
+        validated_request_data["cluster_type"] = models.ClusterInfo.TYPE_VM
+        if not validated_request_data["is_default_cluster"]:
+            obj = models.ClusterInfo.objects.create(bk_tenant_id=bk_tenant_id, **validated_request_data)
             return {"cluster_id": obj.cluster_id}
 
         # 否则，需要先把已有的默认集群设置为False，并且在集群创建后刷新空间使用的默认集群信息
         with atomic(config.DATABASE_CONNECTION_NAME):
-            models.ClusterInfo.objects.filter(cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True).update(
-                is_default_cluster=False
-            )
-            obj = models.ClusterInfo.objects.create(**data)
+            models.ClusterInfo.objects.filter(
+                bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True
+            ).update(is_default_cluster=False)
+            obj = models.ClusterInfo.objects.create(bk_tenant_id=bk_tenant_id, **validated_request_data)
             # 刷新空间使用的 vm 集群
             # NOTE: 注意排除掉使用特定集群的空间
             models.SpaceVMInfo.objects.exclude(space_id__in=settings.SINGLE_VM_SPACE_ID_LIST).update(
@@ -185,17 +190,18 @@ class NotifyDataLinkVmChange(Resource):
         vmrt = serializers.CharField(required=True, label="VM结果表ID")
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = get_request_tenant_id()
         cluster_name = validated_request_data.get("cluster_name")
         vmrt = validated_request_data.get("vmrt")
         logger.info("NotifyDataLinkChangeStorageCluster: vmrt->[%s] will change to cluster->[%s]", vmrt, cluster_name)
 
         try:
-            vm_cluster = models.ClusterInfo.objects.get(cluster_name=cluster_name)
+            vm_cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=cluster_name)
         except models.ClusterInfo.DoesNotExist:
             logger.error("NotifyDataLinkChangeStorageCluster: can't find vm cluster name [%s]", cluster_name)
             raise ValidationError(f"can't find vm cluster name [{cluster_name}]")
 
-        vm_records = models.AccessVMRecord.objects.filter(vm_result_table_id=vmrt)
+        vm_records = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, vm_result_table_id=vmrt)
         if not vm_records.exists():
             logger.warning("NotifyDataLinkChangeStorageCluster: no record for vm result table [%s]", vmrt)
             raise ValidationError(f"no record for vm result table [{vmrt}]")
@@ -234,3 +240,50 @@ class QueryMetaInfoByVmrt(Resource):
             "vm_result_table_id": vmrt,
             "bk_biz_id": result_table.bk_biz_id,
         }
+
+
+class ModifyClusterByVmrts(Resource):
+    """
+    根据VMRT批量修改存储集群
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        vmrts = serializers.ListField(required=True, label="VM结果表ID列表")
+        cluster_name = serializers.CharField(required=True, label="集群名称")
+        bk_tenant_id = TenantIdField(label="租户ID")
+
+    def perform_request(self, validated_request_data):
+        vmrts = validated_request_data["vmrts"]
+        cluster_name = validated_request_data["cluster_name"]
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
+
+        logger.info("ModifyClusterByVmrts: vmrts->[%s] will change to cluster->[%s]", vmrts, cluster_name)
+
+        try:
+            vm_cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=cluster_name)
+        except models.ClusterInfo.DoesNotExist:
+            logger.error("ModifyClusterByVmrts: can't find vm cluster name [%s]", cluster_name)
+            raise ValidationError(f"can't find vm cluster name [{cluster_name}]")
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("ModifyClusterByVmrts: get vm cluster name [%s] error: %s", cluster_name, e)
+            raise ValidationError(f"get vm cluster name [{cluster_name}] error: {e}")
+
+        # 查找关联的VM接入记录
+        vm_queryset = models.AccessVMRecord.objects.filter(vm_result_table_id__in=vmrts, bk_tenant_id=bk_tenant_id)
+
+        # 事务操作,批量更新集群ID
+        with transaction.atomic():
+            vm_queryset.update(vm_cluster_id=vm_cluster.cluster_id)
+
+        logger.info("ModifyClusterByVmrts: vmrts->[%s] has changed to cluster->[%s]", vmrts, cluster_name)
+
+        # 统计监控侧RT列表,执行更新
+        result_table_ids = list(vm_queryset.values_list("result_table_id", flat=True))
+
+        # 推送路由
+        client = SpaceTableIDRedis()
+        client.push_table_id_detail(table_id_list=result_table_ids, is_publish=True, bk_tenant_id=bk_tenant_id)
+
+        logger.info("ModifyClusterByVmrts: vmrts->[%s] push router successfully", vmrts)
+
+        return True

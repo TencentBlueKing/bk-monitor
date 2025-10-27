@@ -1,59 +1,134 @@
 /*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
+ * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for BK-LOG 蓝鲸日志平台:
+ * --------------------------------------------------------------------
  *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial
+ * portions of the Software.
  *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+ * LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+ * NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
+
+// ESLint v9 扁平配置（Flat Config）
+
+const { FlatCompat } = require('@eslint/eslintrc');
+const js = require('@eslint/js');
+
+const compat = new FlatCompat({ baseDirectory: __dirname });
+
 module.exports = [
-  ...require('@blueking/bkui-lint/eslint'),
+  js.configs.recommended,
+
+  // 兼容旧版共享配置
+  ...compat.extends('tencent'),
+  ...compat.extends('plugin:vue/recommended'),
+
+  // 基础语言选项与全局
   {
+    files: ['**/*.{js,ts,tsx,vue}'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        NODE_ENV: 'readonly',
+        __webpack_public_path__: 'readonly',
+      },
+    },
+
     rules: {
-      'vue/multi-word-component-names': 'off',
-      'vue/no-reserved-component-names': 'off',
-      'vue/no-deprecated-v-bind-sync': 'off',
-      'vue/require-explicit-emits': 'off',
-      '@typescript-eslint/no-require-imports': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-var-requires': 'off',
-      '@typescript-eslint/dot-notation': [
+      // 统一使用单引号
+      quotes: [
         'error',
-        {
-          allowKeywords: true,
-        },
+        'single',
+        { avoidEscape: true, allowTemplateLiterals: false },
       ],
-      'perfectionist/sort-classes': 'off',
-      'declaration-no-important': 'off',
+      // JSX 属性使用单引号
+      'jsx-quotes': ['error', 'prefer-single'],
+      'no-param-reassign': 'off',
+      'prefer-destructuring': 'off',
+      'no-underscore-dangle': 'off',
+      'no-restricted-syntax': 'off',
+      'array-callback-return': 'off',
+      'no-nested-ternary': 'off',
+      'arrow-body-style': 'off',
+      'no-restricted-properties': 'off',
+      'function-paren-newline': 'off',
+      'linebreak-style': 'off',
     },
   },
+
+  // TypeScript / TSX
   {
-    ignores: [
-      '**/node_modules',
-      '**/lib',
-      '**/dist',
-      '/dev',
-      '/docs',
-      '/plugins',
-      '/src/__tests__/demos',
-      'src/**/.config',
-    ],
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      parser: require('@typescript-eslint/parser'),
+      parserOptions: {
+        project: './tsconfig.json',
+        ecmaFeatures: { jsx: true },
+      },
+    },
+    plugins: {
+      '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
+    },
+  },
+
+  // Vue 文件
+  {
+    files: ['**/*.vue'],
+    languageOptions: {
+      parser: require('vue-eslint-parser'),
+      parserOptions: {
+        parser: require('@typescript-eslint/parser'),
+        project: './tsconfig.json',
+        extraFileExtensions: ['.vue'],
+        ecmaFeatures: { jsx: true },
+      },
+    },
+    plugins: {
+      vue: require('eslint-plugin-vue'),
+    },
+    rules: {
+      'vue/no-lone-template': 'off',
+      'vue/no-confusing-v-for-v-if': 'off',
+      'vue/multi-word-component-names': 'off',
+      'vue/order-in-components': [
+        'error',
+        {
+          order: [
+            'el',
+            'name',
+            'parent',
+            'functional',
+            ['delimiters', 'comments'],
+            ['components', 'directives', 'filters'],
+            'extends',
+            'mixins',
+            'inheritAttrs',
+            'model',
+            ['props', 'propsData'],
+            'data',
+            'computed',
+            'watch',
+            'LIFECYCLE_HOOKS',
+            'methods',
+            ['template', 'render'],
+            'renderError',
+          ],
+        },
+      ],
+      'vue/require-default-prop': 'off',
+      'vue/no-side-effects-in-computed-properties': 'off',
+    },
   },
 ];

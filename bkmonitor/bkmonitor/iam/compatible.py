@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 
 from common.log import logger
@@ -64,10 +64,10 @@ class CompatibleIAM(IAM):
 
     def _do_policy_query(self, request, with_resources=True):
         if not self.in_compatibility_mode():
-            return super(CompatibleIAM, self)._do_policy_query(request, with_resources)
+            return super()._do_policy_query(request, with_resources)
 
         data = request.to_dict()
-        logger.debug("the request: %s" % data)
+        logger.debug(f"the request: {data}")
 
         # NOTE: 不向服务端传任何resource, 用于统一类资源的批量鉴权
         # 将会返回所有策略, 然后遍历资源列表和策略列表, 逐一计算
@@ -109,10 +109,10 @@ class CompatibleIAM(IAM):
 
     def _do_policy_query_by_actions(self, request, with_resources=True):
         if not self.in_compatibility_mode():
-            return super(CompatibleIAM, self)._do_policy_query_by_actions(request, with_resources)
+            return super()._do_policy_query_by_actions(request, with_resources)
 
         data = request.to_dict()
-        logger.debug("the request: %s" % data)
+        logger.debug(f"the request: {data}")
 
         # NOTE: 不向服务端传任何resource, 用于统一类资源的批量鉴权
         # 将会返回所有策略, 然后遍历资源列表和策略列表, 逐一计算
@@ -131,7 +131,7 @@ class CompatibleIAM(IAM):
             v1_data["actions"] = [{"id": action_id.replace("_v2", "")} for action_id in v2_actions]
 
             v1_ok, v1_message, v1_action_policies = self._client.policy_query_by_actions(v1_data)
-            for v1_policy in v1_action_policies:
+            for v1_policy in v1_action_policies or []:
                 v1_policy["action"]["id"] += "_v2"
                 # 替换资源名称
                 self._patch_policy_expression(v1_policy["condition"])

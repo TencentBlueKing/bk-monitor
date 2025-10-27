@@ -6,8 +6,9 @@
     <span
       :style="{ color: badgeCount !== 0 ? 'red' : '' }"
       :class="`bklog-icon bklog-${badgeCount !== 0 ? 'gaojing-filled' : 'gaojing-line'}`"
-    ></span
-    >{{ $t('告警') }}
+      v-bk-tooltips.top="$t('告警')" 
+    ></span>
+    <span class='warn-table-text'>{{ $t('告警') }}</span>
     <bk-badge
       v-if="ownPendingCount !== 0"
       style="margin-top: -12px; margin-left: -3px"

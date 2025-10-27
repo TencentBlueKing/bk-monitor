@@ -1,0 +1,29 @@
+.service-config-log-relation-list-edit {
+  .list-edit-item {
+    display: flex;
+    align-items: center;
+
+    .bk-form-item {
+      margin: 0 !important;
+    }
+
+    .tooltips-icon {
+      right: 32px !important;
+    }
+  }
+
+  .icon-mc-plus-fill,
+  .icon-mc-minus-plus {
+    font-size: 16px;
+    color: #979BA5;
+    cursor: pointer;
+  }
+
+  .icon-mc-minus-plus {
+    margin-left: 6px;
+  }
+
+  .mt-8 {
+    margin-top: 8px;
+  }
+}

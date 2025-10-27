@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -70,7 +70,7 @@ class TestTopoInstance(django.test.TestCase):
             return_value={"bk_biz_id": BK_BIZ_ID, "app_name": APP_NAME},
         ).start()
 
-        mock.patch("apm.core.handlers.instance_handlers.InstanceHandler.get_cache_data", return_value={}).start()
+        mock.patch("apm.core.handlers.apm_cache_handler.ApmCacheHandler.get_cache_data", return_value={}).start()
 
         obj = QueryTopoInstanceResource()
 
@@ -96,13 +96,13 @@ class TestTopoInstance(django.test.TestCase):
             return_value={"bk_biz_id": BK_BIZ_ID, "app_name": APP_NAME},
         ).start()
 
-        mock.patch("apm.core.handlers.instance_handlers.InstanceHandler.get_cache_data", return_value={}).start()
+        mock.patch("apm.core.handlers.apm_cache_handler.ApmCacheHandler.get_cache_data", return_value={}).start()
 
         obj = QueryTopoInstanceResource()
 
         res = obj.perform_request(request_data)
 
-        len(res["data"]) == 4
+        assert len(res["data"]) == 4
 
     def test_query_topo_instance_page(self):
         """
@@ -123,7 +123,7 @@ class TestTopoInstance(django.test.TestCase):
             return_value={"bk_biz_id": BK_BIZ_ID, "app_name": APP_NAME},
         ).start()
 
-        mock.patch("apm.core.handlers.instance_handlers.InstanceHandler.get_cache_data", return_value={}).start()
+        mock.patch("apm.core.handlers.apm_cache_handler.ApmCacheHandler.get_cache_data", return_value={}).start()
 
         obj = QueryTopoInstanceResource()
 

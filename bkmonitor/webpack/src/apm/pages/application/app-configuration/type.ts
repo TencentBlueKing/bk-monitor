@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -72,6 +72,7 @@ export interface IAppInfo {
   is_enabled_profiling: boolean;
   is_enabled_trace: boolean;
   log_data_status: TDataStatus;
+  is_enabled_tail_sampling: boolean;
   // 类型状态
   metric_data_status: TDataStatus;
   no_data_period: number;

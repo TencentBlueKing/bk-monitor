@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Ref } from 'vue';
+import RetrieveHelper from '@/views/retrieve-helper';
 
 import JsonView from '../global/json-view';
 // import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
@@ -36,6 +36,8 @@ import {
 } from './hooks-helper';
 import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
+
+import type { Ref } from 'vue';
 
 export type FormatterConfig = {
   target: Ref<HTMLElement | null>;
@@ -119,7 +121,13 @@ export default class UseJsonFormatter {
   }
 
   handleSegmentClick(e: MouseEvent, value) {
-    if (!value.toString() || value === '--') return;
+    // 如果是点击划选文本，则不进行处理
+    if (RetrieveHelper.isClickOnSelection(e)) {
+      return;
+    }
+    if (!value.toString() || value === '--') {
+      return;
+    }
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
     const traceView = content.value.querySelector('.bklog-trace-view')?.closest('.segment-event-box') as HTMLElement;
     traceView?.style.setProperty('display', this.isValidTraceId(value) ? 'inline-flex' : 'none');
@@ -157,7 +165,7 @@ export default class UseJsonFormatter {
 
     return typeof val !== 'string'
       ? val
-      : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
+      : val.replace(new RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
   }
 
   getSplitList(field: any, content: any) {
@@ -196,7 +204,7 @@ export default class UseJsonFormatter {
       return mrkNode;
     }
 
-    if (!item.isNotParticiple && !item.isBlobWord) {
+    if (!(item.isNotParticiple || item.isBlobWord)) {
       const validTextNode = document.createElement('span');
       if (item.isCursorText) {
         validTextNode.classList.add('valid-text');
@@ -250,7 +258,7 @@ export default class UseJsonFormatter {
     appendText?: SegmentAppendText,
   ) {
     this.addWordSegmentClick(target);
-    target.querySelectorAll(valueSelector).forEach((element: HTMLElement) => {
+    for (const element of target.querySelectorAll(valueSelector)) {
       if (!element.getAttribute('data-has-word-split')) {
         const text = textValue ?? element.textContent;
         const field = this.getField(fieldName);
@@ -277,16 +285,16 @@ export default class UseJsonFormatter {
         element.append(segmentContent);
         setListItem(1000);
 
-        if (appendText) {
+        if (appendText !== undefined) {
           const appendElement = document.createElement('span');
           appendElement.textContent = appendText.text;
           if (appendText.onClick) {
             appendElement.addEventListener('click', appendText.onClick);
           }
 
-          Object.keys(appendText.attributes ?? {}).forEach(key => {
+          for (const key of Object.keys(appendText.attributes ?? {})) {
             appendElement.setAttribute(key, appendText.attributes[key]);
-          });
+          }
 
           element.firstChild.appendChild(appendElement);
         }
@@ -295,7 +303,7 @@ export default class UseJsonFormatter {
           element.style.removeProperty('min-height');
         });
       }
-    });
+    }
   }
 
   handleExpandNode(args) {

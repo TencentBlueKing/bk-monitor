@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -27,6 +27,11 @@ import { request } from '../base';
 
 export const serviceConfig = request('POST', 'apm/service/service/service_config/');
 export const serviceInfo = request('POST', 'apm/service/service/service_info/');
+export const listCodeRedefinedRule = request('POST', 'apm/service/service/list_code_redefined_rule/');
+export const setCodeRedefinedRule = request('POST', 'apm/service/service/set_code_redefined_rule/');
+export const deleteCodeRedefinedRule = request('POST', 'apm/service/service/delete_code_redefined_rule/');
+export const getCodeRemarks = request('POST', 'apm/service/service/get_code_remarks/');
+export const setCodeRemark = request('POST', 'apm/service/service/set_code_remark/');
 export const cmdbServiceTemplate = request('POST', 'apm/service/service/cmdb_service_template/');
 export const logServiceChoiceList = request('POST', 'apm/service/service/log_service_relation_choices/');
 export const appQueryByIndexSet = request('POST', 'apm/service/service/app_query_by_index_set/');
@@ -35,14 +40,16 @@ export const serviceUrlList = request('POST', 'apm/service/service/service_url_l
 export const pipelineOverview = request('POST', 'apm/service/service/pipeline_overview/');
 export const listPipeline = request('POST', 'apm/service/service/list_pipeline/');
 export const applicationList = request('POST', 'apm/service/application/application_list/');
-export const logServiceRelationBkLogIndexSet = request(
-  'POST',
-  'apm/service/application/log_service_relation_bk_log_index_set/'
-);
+export const logServiceRelationBkLogIndexSet = request('POST', 'apm/service/application/log_service_relation_bk_log_index_set/');
 
 export default {
   serviceConfig,
   serviceInfo,
+  listCodeRedefinedRule,
+  setCodeRedefinedRule,
+  deleteCodeRedefinedRule,
+  getCodeRemarks,
+  setCodeRemark,
   cmdbServiceTemplate,
   logServiceChoiceList,
   appQueryByIndexSet,
