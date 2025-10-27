@@ -145,8 +145,7 @@ export default defineComponent({
     const setAiStart = (sendMsg = false, args: IRowSendData) => {
       chatid = random(10);
       if (sendMsg) {
-        aiBlueking.value?.handleShow();
-        aiBlueking.value?.addNewSession().finally(() => {
+        aiBlueking.value?.handleShow(undefined, { isTemporary: true }).then(() => {
           const shortcut = structuredClone(AI_BLUEKING_SHORTCUTS[0]);
           shortcut.components.forEach((comp) => {
             const value = args[comp.key];
@@ -187,7 +186,7 @@ export default defineComponent({
      */
     const sendMessage = (msg: string) => {
       if (!isShow.value) {
-        aiBlueking.value?.handleShow();
+        aiBlueking.value?.handleShow(undefined, { isTemporary: true });
       }
 
       aiBlueking.value?.handleSendMessage(msg);
@@ -199,7 +198,7 @@ export default defineComponent({
      */
     const setCiteText = (text: string) => {
       if (!isShow.value) {
-        aiBlueking.value?.handleShow();
+        aiBlueking.value?.handleShow(undefined, { isTemporary: true });
       }
 
       aiBlueking.value?.setCiteText(text);
@@ -304,7 +303,7 @@ export default defineComponent({
       close: hiddenAiAssistant,
       sendMessage,
       setCiteText,
-      show: () => aiBlueking.value?.handleShow(),
+      show: () => aiBlueking.value?.handleShow(undefined, { isTemporary: true }),
       updateOptions,
       getOptions: () => aiAssitantOptions.value,
       isShown: () => isShow.value,
