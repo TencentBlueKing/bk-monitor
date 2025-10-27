@@ -39,12 +39,15 @@ interface IProps {
   strategies?: IStrategiesItem[];
   onGoAlarm?: (id: string) => void;
   onGoService?: (serviceName: string) => void;
+  onGoStrategy?: (strategyId: number | string) => void;
   onGoTemplatePush?: () => void;
+  onUnApply?: (params: { service_names: string[]; strategy_ids: number[] }) => void;
 }
 
 const Columns = {
   service_name: 'service_name',
   alert_number: 'alert_number',
+  operator: 'operator',
 } as const;
 
 @Component
@@ -58,7 +61,7 @@ export default class AlertServiceTable extends tsc<IProps> {
     {
       label: window.i18n.t('关联服务名称'),
       prop: Columns.service_name,
-      minWidth: 430,
+      minWidth: 216,
       width: null,
       props: { 'show-overflow-tooltip': true },
       formatter: (row: IStrategiesItem) => {
@@ -73,6 +76,16 @@ export default class AlertServiceTable extends tsc<IProps> {
       props: { 'show-overflow-tooltip': true, sortable: 'custom' },
       formatter: (row: IStrategiesItem) => {
         return this.tableFormatter(row, Columns.alert_number);
+      },
+    },
+    {
+      label: window.i18n.t('告警数量'),
+      prop: Columns.operator,
+      minWidth: 187,
+      width: null,
+      props: { 'show-overflow-tooltip': true },
+      formatter: (row: IStrategiesItem) => {
+        return this.tableFormatter(row, Columns.operator);
       },
     },
   ];
@@ -111,6 +124,15 @@ export default class AlertServiceTable extends tsc<IProps> {
   }
   handleGoTemplatePush() {
     this.$emit('goTemplatePush');
+  }
+  handleGoStrategy(strategyId: number | string) {
+    this.$emit('goStrategy', strategyId);
+  }
+  handleUnApply(row: IStrategiesItem) {
+    this.$emit('unApply', {
+      strategy_ids: [row.strategy_id],
+      service_names: [row.service_name],
+    });
   }
 
   handleOperation(type: EmptyStatusOperationType) {
@@ -158,6 +180,25 @@ export default class AlertServiceTable extends tsc<IProps> {
             onClick={() => this.handleGoAlarm(row.strategy_id)}
           >
             {row.alert_number}
+          </span>
+        );
+      case Columns.operator:
+        return (
+          <span>
+            <span
+              style='margin-right: 8px;'
+              class='table-link'
+              onClick={() => this.handleUnApply(row)}
+            >
+              {this.$t('解除关联')}
+            </span>
+            <span
+              style='margin-right: 8px;'
+              class='table-link'
+              onClick={() => this.handleGoStrategy(row.strategy_id)}
+            >
+              {this.$t('查看策略')}
+            </span>
           </span>
         );
       default:
