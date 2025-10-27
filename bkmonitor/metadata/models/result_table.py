@@ -577,10 +577,9 @@ class ResultTable(models.Model):
 
     def apply_datalink(self) -> None:
         """创建数据链路"""
-        from metadata.models.space import Space
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
         from metadata.task.datalink import apply_log_datalink
-        from metadata.task.tasks import access_bkdata_vm, push_and_publish_space_router
+        from metadata.task.tasks import access_bkdata_vm
 
         # 获取数据源ID
         datasource = self.get_related_datasource()
@@ -594,6 +593,8 @@ class ResultTable(models.Model):
             for option in ResultTableOption.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         }
 
+        # 如果是
+        refresh_consul_config = True
         if self.default_storage == ClusterInfo.TYPE_INFLUXDB:
             # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路
             # 2. 如果启用了新版数据链路，且etcl_config在启用的列表中，则使用vm存储，
@@ -601,6 +602,7 @@ class ResultTable(models.Model):
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
                 # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
                 # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
+                refresh_consul_config = False
                 try:
                     access_bkdata_vm.delay(
                         self.bk_tenant_id,
@@ -609,15 +611,12 @@ class ResultTable(models.Model):
                         datasource.bk_data_id,
                         is_v4_datalink_etl_config,
                     )
-
-                    # 推送空间路由
-                    space = Space.objects.get_space_info_by_biz_id(bk_biz_id=target_bk_biz_id)
-                    push_and_publish_space_router(space["space_type"], space["space_id"], table_id_list=[self.table_id])
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("create_result_table: access vm error: %s", e)
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
             # 如果存在日志V4数据链路配置，则创建日志V4数据链路
             if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
+                refresh_consul_config = False
                 apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         else:
             # 不支持的存储和选项组合
@@ -626,7 +625,8 @@ class ResultTable(models.Model):
             )
 
         # 更新数据源依赖的 consul
-        datasource.refresh_consul_config()
+        if refresh_consul_config:
+            datasource.refresh_consul_config()
 
     def check_and_create_storage(
         self,
