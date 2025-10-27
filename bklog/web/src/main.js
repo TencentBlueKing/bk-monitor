@@ -109,7 +109,7 @@ const mountedVueInstance = () => {
     store.dispatch('requestMenuList', spaceUid).then(() => {
       const menuList = store.state.topMenu ?? [];
       menuList
-        .find((item) => item.id === 'manage')
+        .find(item => item.id === 'manage')
         ?.children?.forEach((group) => {
           group?.children?.forEach((nav) => {
             if (nav.id === 'log-collection') {

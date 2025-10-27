@@ -861,6 +861,8 @@ export default {
   日志解读: 'Log interpretation',
   请输入需要解读的内容: 'Please enter the content to be interpreted',
   引用至小鲸: 'Quote to AI',
+  使用AI编辑: 'Use AI Edit',
+  AI编辑: 'AI Edit',
   '添加到仪表盘': 'Add to Dashboard',
   '图表名称': 'Chart Name',
   '请输入图表名称': 'Please enter chart name',
