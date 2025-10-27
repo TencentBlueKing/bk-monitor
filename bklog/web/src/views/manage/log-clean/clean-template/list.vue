@@ -46,6 +46,7 @@
           data-test-id="cleanTemplateBox_input_cleanTemplateSearch"
           @change="handleSearchChange"
           @enter="search"
+          :placeholder="$t('搜索 模版名称')"
         >
         </bk-input>
       </div>
