@@ -32,9 +32,9 @@ import useLocale from '@/hooks/use-locale';
 import useElementEvent from '@/hooks/use-element-event';
 import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
 import useStore from '@/hooks/use-store';
+import useResizeObserve from '@/hooks/use-resize-observe';
 
 import './index.scss';
-
 
 export default defineComponent({
   name: 'V3Searchbar',
@@ -95,7 +95,24 @@ export default defineComponent({
     });
 
 
+    /**
+     * 是否激活AI助手
+     */
     const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+
+    /**
+     * 更新AI助手位置
+     */
+    const updateAiAssitantPosition = () => {
+      if (RetrieveHelper.aiAssitantHelper.isShown()) {
+        const rect = searchBarRef.value?.getRect();
+        const left = rect?.left;
+        const top = rect?.top + rect?.height + 4;
+        const width = rect?.width;
+        const height = 480;
+        RetrieveHelper.aiAssitantHelper.setPosition(left, top, width, height);
+      }
+    };
 
     /**
      * 用于处理搜索栏高度变化
@@ -104,15 +121,13 @@ export default defineComponent({
     const handleHeightChange = (height) => {
       searchBarHeight.value = height;
       RetrieveHelper.setSearchBarHeight(height);
-
-      if (RetrieveHelper.aiAssitantHelper.isShown()) {
-        const rect = searchBarRef.value?.getRect();
-        const left = rect?.left;
-        const top = rect?.top + rect?.height + 4;
-
-        RetrieveHelper.aiAssitantHelper.setPosition(left, top);
-      }
+      updateAiAssitantPosition();
     };
+
+    /**
+     * 监听搜索栏Size变化，更新AI助手位置
+     */
+    useResizeObserve(() => searchBarRef.value, updateAiAssitantPosition);
 
     /**
      * 添加事件
@@ -122,6 +137,10 @@ export default defineComponent({
       RetrieveHelper.aiAssitantHelper.closeAiAssitantWithSearchBar(e);
     });
 
+    /**
+     * 使用AI编辑
+     * @param e 鼠标事件
+     */
     const handleAiSpanClick = (e: MouseEvent) => {
       e.stopPropagation();
       e.preventDefault();
@@ -166,7 +185,7 @@ export default defineComponent({
               if (isAiAssistantActive.value) {
                 return (
                   <span style={aiSpanWrapperStyle}>
-                    { slotProps.isEmptyText ? t('或') : '' }
+                    {slotProps.isEmptyText ? t('或') : ''}
                     <span style={aiSpanStyle} onClick={handleAiSpanClick}>
                       {t('使用AI编辑')}
                     </span>
