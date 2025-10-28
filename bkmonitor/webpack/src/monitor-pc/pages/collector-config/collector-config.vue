@@ -456,6 +456,7 @@ export default {
           'collect-config-node',
           'collect-config-update',
           'collect-config-operate-detail',
+          'collect-config-detail',
         ].includes(from.name)
       ) {
         vm.panel.keyword = '';
@@ -480,7 +481,7 @@ export default {
       }
     });
   },
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _fromm, next) {
     typeof this.cancelFetch === 'function' && this.cancelFetch();
     this.side.show = false;
     next();
@@ -744,6 +745,7 @@ export default {
         if (this.$route.query.id && this.table.data.length) {
           const [{ id, name, status }] = this.table.data;
           const params = { id, name, status };
+          this.$router.replace({ name: 'collect-config' });
           this.handleShowDetail(params);
         }
       });
