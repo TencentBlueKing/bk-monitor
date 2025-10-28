@@ -40,7 +40,7 @@
     .content-wrapper {
       .main-content.greeting-layout,
       .main-content.chat-layout {
-        .message-wrapper {
+        >.message-wrapper {
           margin-bottom: 120px;
         }
       }
