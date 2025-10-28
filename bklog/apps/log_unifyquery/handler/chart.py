@@ -16,7 +16,7 @@ from io import StringIO
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
-from apps.log_search.constants import MAX_RESULT_WINDOW, MAX_ASYNC_COUNT, STREAM_BATCH_SIZE
+from apps.log_search.constants import MAX_RESULT_WINDOW, MAX_ASYNC_COUNT
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
 
@@ -91,39 +91,28 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         fields = []
         row_buffer = StringIO()
         csv_writer = csv.writer(row_buffer)
-        batch_counter = 0  # 批量计数器
         while total_count < max_result_count:
             # 首次请求清空缓存
             search_params["clear_cache"] = total_count == 0
             search_result = UnifyQueryApi.query_ts_raw_with_scroll(search_params)
             if not search_result.get("list"):
                 break
-
+            # 写入表头
             if not header_written:
                 result_table_options = list(search_result.get("result_table_options", {}).values())
                 result_schema = result_table_options[0]["result_schema"] if result_table_options else []
                 fields = [field["field_alias"] for field in result_schema]
                 csv_writer.writerow(fields)
-                yield row_buffer.getvalue()
-                row_buffer.seek(0)
-                row_buffer.truncate()
                 header_written = True
-
+            # 写入数据行到缓冲区
             for record in search_result["list"]:
                 row_values = [record.get(field, "") for field in fields]
                 csv_writer.writerow(row_values)
-                batch_counter += 1
-                # 达到批量阈值时yield并清空缓冲区
-                if batch_counter >= STREAM_BATCH_SIZE:
-                    yield row_buffer.getvalue()
-                    row_buffer.seek(0)
-                    row_buffer.truncate()
-                    batch_counter = 0
+            # 获取缓冲区内容，重置缓冲区
+            yield row_buffer.getvalue()
+            row_buffer.seek(0)
+            row_buffer.truncate()
 
             total_count += len(search_result["list"])
             if search_result.get("done", False):
                 break
-
-        # 处理剩余未yield的数据
-        if batch_counter > 0:
-            yield row_buffer.getvalue()
