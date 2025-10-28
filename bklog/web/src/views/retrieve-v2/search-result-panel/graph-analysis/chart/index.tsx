@@ -283,7 +283,6 @@ export default defineComponent({
       }
       try {
         return axiosInstance(params).then((response) => {
-          console.log('response', response.data);
           blobDownload(response?.data, filename)
         })
       } catch (error) {
