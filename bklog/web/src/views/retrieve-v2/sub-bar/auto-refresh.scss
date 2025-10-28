@@ -7,8 +7,8 @@
             align-items: center;
             justify-content: center;
             width: 44px;
-            height: 24px;
-            line-height: 24px;
+            height: 20px;
+            line-height: 20px;
             border-radius: 2px;
             margin: 0 2px;
 
@@ -18,16 +18,16 @@
             }
 
             i {
-                width: 13.97px;
-                height: 13.99px;
-                line-height: 20px;
+                width: 14px;
+                height: 20px;
+                line-height: 25px;
                 margin: 0 4px 2px 4px;
                 flex-shrink: 0;
                 font-size: 14px;
             }
 
             span {
-                width: 16px;
+                width: auto;
                 height: 20px;
                 font-family: MicrosoftYaHei;
                 font-size: 12px;
