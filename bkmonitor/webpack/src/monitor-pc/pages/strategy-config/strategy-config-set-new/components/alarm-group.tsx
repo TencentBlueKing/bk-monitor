@@ -272,7 +272,17 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                           <span class='item-person-title'>{`${
                             option.needDuty ? `${window.i18n.t('当前轮值')}：` : ''
                           }`}</span>
-                          {option.receiver.join(',') || `(${window.i18n.t('空')})`}
+                          {option?.receiver?.length
+                            ? option?.receiver?.map?.((e, index, arr) => {
+                                return [
+                                  <bk-user-display-name
+                                    key={`${e}-${index}`}
+                                    user-id={e}
+                                  />,
+                                  index < arr.length - 1 ? ',' : '',
+                                ];
+                              })
+                            : `(${window.i18n.t('空')})`}
                         </div>
                       </div>
                       {this.localValue.includes(option.id) ? <i class='bk-icon icon-check-1 check-icon' /> : undefined}

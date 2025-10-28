@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -22,6 +21,7 @@ class AlertInfoViewSet(ResourceViewSet):
 
     resource_routes = [
         ResourceRoute("POST", resource.alert.search_alert_by_event, endpoint="search_alert_by_event"),
+        ResourceRoute("POST", resource.alert.list_alert_tags, endpoint="list_alert_tags"),
     ]
 
 
