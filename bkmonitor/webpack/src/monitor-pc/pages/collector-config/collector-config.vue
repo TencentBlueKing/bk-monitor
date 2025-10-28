@@ -109,7 +109,7 @@
         <bk-input
           v-model="panel.keyword"
           class="tool-search"
-          :placeholder="$t('采集配置名称/ID')"
+          :placeholder="$t('搜素 ID、名称')"
           right-icon="bk-icon icon-search"
           @change="handleSearch"
         />

@@ -677,7 +677,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                   },
                 ]}
                 modelValue={this.searchCondition}
-                placeholder={this.$t('ID / 告警组名称 / 轮值规则 / 通知对象')}
+                placeholder={this.$t('搜索 ID、告警组名称、轮值规则、通知对象')}
                 uniqueSelect={true}
                 onChange={this.handleSearchCondition}
               />
