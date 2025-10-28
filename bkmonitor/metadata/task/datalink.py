@@ -92,7 +92,9 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
                 data_link_strategy=DataLink.BK_LOG,
             )
         else:
-            datalink = DataLink.objects.get(bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name)
+            datalink = DataLink.objects.get(
+                bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name, namespace="bklog"
+            )
         datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
 
         # TODO: 清理多余的存储链路

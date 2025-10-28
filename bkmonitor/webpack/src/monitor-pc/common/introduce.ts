@@ -74,7 +74,7 @@ class IntroduceStore {
     if (this.data[tag].loading) {
       await new Promise(resolve => {
         const interval = setInterval(() => {
-          if (this.data[tag].introduce) {
+          if (!this.data[tag].loading && this.data[tag].introduce) {
             clearInterval(interval);
             resolve(undefined);
           }
@@ -95,8 +95,8 @@ class IntroduceStore {
       is_no_data: true,
       is_no_source: true,
     }));
-    this.data[tag].loading = false;
     this.data[tag].introduce = data;
+    this.data[tag].loading = false;
   }
 
   // 获取路由对应的 getIntroduce 方法
