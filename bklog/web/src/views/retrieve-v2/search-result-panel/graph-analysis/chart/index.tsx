@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, type Ref, ref, watch } from 'vue';
 
-import { formatDateTimeField, getRegExp } from '@/common/util';
+import { formatDateTimeField, getRegExp, blobDownload } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import dayjs from 'dayjs';
@@ -34,7 +34,8 @@ import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useEditor from '@/views/retrieve-v2/search-result-panel/graph-analysis/sql-editor/use-editor';
 import ChartRoot from './chart-root';
 import useChartRender from './use-chart-render';
-import $http from '@/api/index';
+// import $http from '@/api/index';
+import { axiosInstance } from '@/api';
 import './index.scss';
 export default defineComponent({
   props: {
@@ -251,9 +252,12 @@ export default defineComponent({
     // };
     // 异步下载
     const handleAsyncDownloadData = async () => {
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
+      const searchUrl = `/search/index_set/${indexSetId.value}/export_chart_data/`;
+      const filename = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
       const { start_time, end_time, keyword } = retrieveParams.value;
-      const data = {
-        index_set_id: indexSetId.value,
+      
+      const requestData = {
         start_time,
         end_time,
         query_mode: 'sql',
@@ -262,15 +266,42 @@ export default defineComponent({
         sql: sqlContent.value || '',
         alias_settings: alias_settings.value || '',
       }
+
+      const params: any = {
+        method: 'post',
+        url: searchUrl,
+        withCredentials: true,
+        baseURL: baseUrl,
+        responseType: 'blob',
+        data: requestData,
+        headers: {},
+      };
+      if (store.state.isExternal) {
+        params.headers = {
+          'X-Bk-Space-Uid': store.state.spaceUid,
+        };
+      }
       try {
-        return $http.request(`graphAnalysis/asyncDownload`, {
-          params: {
-            index_set_id: indexSetId.value,
-          }, data
+        return axiosInstance(params).then((response) => {
+          console.log('response', response.data);
+          blobDownload(response?.data, filename)
         })
       } catch (error) {
         console.error(error);
       }
+
+      // try {
+      //   return $http.request(`graphAnalysis/asyncDownload`, {
+      //     params: {
+      //       index_set_id: indexSetId.value,
+      //     }, data
+      //   }).then(response => {
+      //     console.log('response', response);
+      //     blobDownload(response, filename)
+      //   });
+      // } catch (error) {
+      //   console.error(error);
+      // }
     };
     const rendChildNode = () => {
       if (showNumber.value) {
