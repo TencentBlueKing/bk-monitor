@@ -27,9 +27,11 @@ import { type PropType, computed, defineComponent, onMounted, provide, shallowRe
 
 import { random } from 'monitor-common/utils';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
+import { storeToRefs } from 'pinia';
 
 import { DEFAULT_TIME_RANGE } from '../../../../../components/time-range/utils';
 import { createAutoTimeRange } from '../../../../../plugins/charts/failure-chart/failure-alarm-chart';
+import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import { getHostSceneView } from '../../../services/alarm-detail';
 import PanelHostDashboard from './components/panel-host-dashboard/panel-host-dashboard';
@@ -45,13 +47,14 @@ export default defineComponent({
   props: {
     detail: {
       type: Object as PropType<AlarmDetail>,
-      default: () => ({}),
     },
   },
   setup(props) {
     /** 图表联动Id */
     const dashboardId = random(10);
 
+    /** 业务ID */
+    const { bizId } = storeToRefs(useAlarmCenterDetailStore());
     /** host 场景指标视图配置信息 */
     const hostSceneData = shallowRef<IBookMark>({ id: '', panels: [], name: '' });
     /** 图表请求参数变量 */
@@ -63,7 +66,7 @@ export default defineComponent({
 
     /** 数据时间间隔 */
     const timeRange = computed(() => {
-      const interval = props.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
+      const interval = props.detail?.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
       const { startTime, endTime } = createAutoTimeRange(props.detail?.begin_time, props.detail?.end_time, interval);
       return startTime && endTime ? [startTime, endTime] : DEFAULT_TIME_RANGE;
     });
@@ -79,12 +82,14 @@ export default defineComponent({
     provide('refreshImmediate', refreshImmediate);
     onMounted(() => {
       getDashboardPanels();
+      init();
     });
 
     /**
      * @description 初始化 数据时间间隔 & 图表请求参数变量
      */
     function init() {
+      if (!props.detail) return;
       const currentTarget: Record<string, any> = {
         bk_target_ip: '0.0.0.0',
         bk_target_cloud_id: '0',
@@ -113,14 +118,14 @@ export default defineComponent({
         }
       }
 
-      const interval = props.detail.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
+      const interval = props.detail?.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
 
       viewOptions.value = {
         method: 'AVG',
-        variables,
         interval,
         group_by: [],
         current_target: currentTarget,
+        ...variables,
       };
     }
 
@@ -129,7 +134,7 @@ export default defineComponent({
      */
     async function getDashboardPanels() {
       loading.value = true;
-      const sceneView = await getHostSceneView(props.detail?.bk_biz_id);
+      const sceneView = await getHostSceneView(bizId.value);
 
       hostSceneData.value = sceneView;
       echartsConnect(dashboardId);
@@ -148,9 +153,7 @@ export default defineComponent({
 
       // 跳转至容器监控时的详情Id
       const detailId = bkHostId ? bkHostId : `${ip}-${cloudId}`;
-      window.open(
-        `${location.origin}${location.pathname}?bizId=${props.detail.bk_biz_id}#/performance/detail/${detailId}`
-      );
+      window.open(`${location.origin}${location.pathname}?bizId=${bizId.value}#/performance/detail/${detailId}`);
     }
     return { hostSceneData, dashboardId, viewOptions, handleToPerformance };
   },

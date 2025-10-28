@@ -29,7 +29,7 @@ import { type IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { getVariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
 import ChartCollapse from '../../../trace-explore/components/explore-chart/chart-collapse';
-import ExploreChart from '../../../trace-explore/components/explore-chart/explore-chart';
+import AlarmLazyChart from './components/alarm-lazy-chart';
 
 import './alarm-metrics-dashboard.scss';
 
@@ -118,7 +118,7 @@ export default defineComponent({
         >
           <div class='alarm-metrics-chart-container'>
             {this.panels.map(panel => (
-              <ExploreChart
+              <AlarmLazyChart
                 key={panel.id}
                 panel={panel}
                 params={this.params}

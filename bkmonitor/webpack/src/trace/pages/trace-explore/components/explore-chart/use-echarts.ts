@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { inject, type MaybeRef, type Ref, watch } from 'vue';
+import { type MaybeRef, type Ref, inject, watch } from 'vue';
 import { shallowRef } from 'vue';
 import { computed } from 'vue';
 
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
+import { random } from 'monitor-common/utils';
 import { arraysEqual } from 'monitor-common/utils/equal';
 import { COLOR_LIST_BAR } from 'monitor-ui/chart-plugins/constants/charts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
@@ -41,7 +42,6 @@ import { useChartTooltips } from './use-chart-tooltips';
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
 import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
-import { random } from 'monitor-common/utils';
 
 export const useEcharts = (
   panel: MaybeRef<PanelModel>,
@@ -51,7 +51,7 @@ export const useEcharts = (
   formatterSeriesData = res => res
 ) => {
   /** 图表id，每次重新请求会修改该值 */
-  const chartId = shallowRef(random(8))
+  const chartId = shallowRef(random(8));
   const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
   const refreshImmediate = inject('refreshImmediate');
 
@@ -73,25 +73,25 @@ export const useEcharts = (
   const series = shallowRef([]);
 
   const getEchartOptions = async () => {
-    const startDate = +new Date();
+    const startDate = Date.now();
     loading.value = true;
     metricList.value = [];
     targets.value = [];
     const [startTime, endTime] = handleTransformToTimestamp(get(timeRange));
-    const promiseList = get(panel).targets.map(target => {
+    const promiseList = get(panel)?.targets?.map?.(target => {
       return $api[target.apiModule]
-      [target.apiFunc](
-        {
-          ...target.data,
-          ...get(params),
-          start_time: startTime,
-          end_time: endTime,
-        },
-        {
-          cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
-          needMessage: false,
-        }
-      )
+        [target.apiFunc](
+          {
+            ...target.data,
+            ...get(params),
+            start_time: startTime,
+            end_time: endTime,
+          },
+          {
+            cancelToken: new CancelToken((cb: () => void) => cancelTokens.push(cb)),
+            needMessage: false,
+          }
+        )
         .then(res => {
           const { series, metrics, query_config } = formatterSeriesData(res);
           for (const metric of metrics) {
@@ -102,23 +102,23 @@ export const useEcharts = (
           targets.value.push({ ...target, data: query_config });
           return series?.length
             ? series.map(item => ({
-              ...item,
-              alias: target.alias || item.alias,
-              type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
-              stack: target.data?.stack || item.stack,
-            }))
+                ...item,
+                alias: target.alias || item.alias,
+                type: target.chart_type || get(panel).options?.time_series?.type || item.type || 'line',
+                stack: target.data?.stack || item.stack,
+              }))
             : [];
         })
         .catch(() => []);
     });
-    const resList = await Promise.allSettled(promiseList).finally(() => {
+    const resList = await Promise.allSettled(promiseList ?? []).finally(() => {
       loading.value = false;
     });
     const seriesList = [];
     for (const item of resList) {
       Array.isArray(item?.value) && item.value.length && seriesList.push(...item.value);
     }
-    duration.value = +new Date() - startDate;
+    duration.value = Date.now() - startDate;
     series.value = seriesList;
     if (!seriesList.length) {
       return undefined;
