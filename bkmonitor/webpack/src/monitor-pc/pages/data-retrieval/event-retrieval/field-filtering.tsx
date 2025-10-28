@@ -164,6 +164,7 @@ export default class FieldFiltering extends tsc<FieldFilteringType.IProps, Field
         <div class='field-filtering-title'>{this.$t('维度过滤')}</div>
         <div class='field-search-row'>
           <bk-input
+            placeholder={this.$t('搜索')}
             right-icon='bk-icon icon-search'
             value={this.searchKeyword}
             onChange={this.handleSearchChange}
