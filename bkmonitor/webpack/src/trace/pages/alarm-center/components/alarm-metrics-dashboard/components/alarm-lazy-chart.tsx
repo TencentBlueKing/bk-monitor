@@ -81,9 +81,9 @@ export default defineComponent({
     const hasPanelChange = shallowRef(true);
     /** 根元素容器是否在可视区域 */
     const isInViewport = shallowRef(false);
-    /** 兼容视口懒加载逻辑，对 timeRange 进行拦截 */
+    /** 数据时间范围，兼容视口懒加载逻辑，对 timeRange 进行拦截 */
     const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
-    /** 兼容视口懒加载逻辑，对 refreshImmediate 进行拦截 */
+    /** 是否立即刷新图表数据，兼容视口懒加载逻辑，对 refreshImmediate 进行拦截 */
     const refreshImmediate = inject('refreshImmediate', '');
 
     provide('timeRange', viewerTimeRange);

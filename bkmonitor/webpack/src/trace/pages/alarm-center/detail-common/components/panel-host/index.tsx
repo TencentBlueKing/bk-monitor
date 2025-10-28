@@ -25,6 +25,7 @@
  */
 import { type PropType, computed, defineComponent, onMounted, provide, shallowRef, watch } from 'vue';
 
+import { get } from '@vueuse/core';
 import { random } from 'monitor-common/utils';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 import { storeToRefs } from 'pinia';
@@ -57,77 +58,56 @@ export default defineComponent({
     const { bizId } = storeToRefs(useAlarmCenterDetailStore());
     /** host 场景指标视图配置信息 */
     const hostSceneData = shallowRef<IBookMark>({ id: '', panels: [], name: '' });
-    /** 图表请求参数变量 */
-    const viewOptions = shallowRef<Record<string, any>>({});
     /** 是否处于请求加载状态 */
     const loading = shallowRef(false);
     /** 是否立即刷新图表数据 */
     const refreshImmediate = shallowRef('');
 
-    /** 数据时间间隔 */
+    /** 图表数据的时间间隔 */
+    const interval = computed(
+      () => props.detail?.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60
+    );
+    /** 默认监控的目标配置 */
+    const defaultCurrentTarget = computed(() => {
+      const currentTarget: Record<string, any> = {
+        bk_target_ip: '0.0.0.0',
+        bk_target_cloud_id: '0',
+      };
+      for (const item of props.detail?.dimensions ?? []) {
+        if (item.key === 'bk_host_id') {
+          currentTarget.bk_host_id = item.value;
+        }
+        if (['bk_target_ip', 'ip', 'bk_host_id'].includes(item.key)) {
+          currentTarget.bk_target_ip = item.value;
+        }
+        if (['bk_cloud_id', 'bk_target_cloud_id', 'bk_host_id'].includes(item.key)) {
+          currentTarget.bk_target_cloud_id = item.value;
+        }
+      }
+      return currentTarget;
+    });
+    /** 数据时间范围 */
     const timeRange = computed(() => {
-      const interval = props.detail?.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-      const { startTime, endTime } = createAutoTimeRange(props.detail?.begin_time, props.detail?.end_time, interval);
+      const { startTime, endTime } = createAutoTimeRange(
+        props.detail?.begin_time,
+        props.detail?.end_time,
+        get(interval)
+      );
       return startTime && endTime ? [startTime, endTime] : DEFAULT_TIME_RANGE;
     });
-
-    watch(
-      () => props.detail,
-      () => {
-        init();
-      }
-    );
+    /** 图表请求参数变量 */
+    const viewOptions = computed(() => ({
+      method: 'AVG',
+      interval: get(interval),
+      group_by: [],
+      current_target: get(defaultCurrentTarget),
+    }));
 
     provide('timeRange', timeRange);
     provide('refreshImmediate', refreshImmediate);
     onMounted(() => {
       getDashboardPanels();
-      init();
     });
-
-    /**
-     * @description 初始化 数据时间间隔 & 图表请求参数变量
-     */
-    function init() {
-      if (!props.detail) return;
-      const currentTarget: Record<string, any> = {
-        bk_target_ip: '0.0.0.0',
-        bk_target_cloud_id: '0',
-      };
-      const variables: Record<string, any> = {
-        bk_target_ip: '0.0.0.0',
-        bk_target_cloud_id: '0',
-        ip: '0.0.0.0',
-        bk_cloud_id: '0',
-      };
-
-      for (const item of props.detail?.dimensions ?? []) {
-        if (item.key === 'bk_host_id') {
-          variables.bk_host_id = item.value;
-          currentTarget.bk_host_id = item.value;
-        }
-        if (['bk_target_ip', 'ip', 'bk_host_id'].includes(item.key)) {
-          variables.bk_target_ip = item.value;
-          variables.ip = item.value;
-          currentTarget.bk_target_ip = item.value;
-        }
-        if (['bk_cloud_id', 'bk_target_cloud_id', 'bk_host_id'].includes(item.key)) {
-          variables.bk_target_cloud_id = item.value;
-          variables.bk_cloud_id = item.value;
-          currentTarget.bk_target_cloud_id = item.value;
-        }
-      }
-
-      const interval = props.detail?.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60;
-
-      viewOptions.value = {
-        method: 'AVG',
-        interval,
-        group_by: [],
-        current_target: currentTarget,
-        ...variables,
-      };
-    }
 
     /**
      * @description 获取仪表盘数据数组
@@ -135,7 +115,6 @@ export default defineComponent({
     async function getDashboardPanels() {
       loading.value = true;
       const sceneView = await getHostSceneView(bizId.value);
-
       hostSceneData.value = sceneView;
       echartsConnect(dashboardId);
       loading.value = false;
@@ -146,16 +125,15 @@ export default defineComponent({
      */
     function handleToPerformance() {
       const currentTarget = viewOptions.value?.current_target;
-
       const ip = currentTarget?.bk_target_ip ?? '0.0.0.0';
       const cloudId = currentTarget?.bk_target_cloud_id ?? '0';
       const bkHostId = currentTarget?.bk_host_id ?? 0;
-
       // 跳转至容器监控时的详情Id
       const detailId = bkHostId ? bkHostId : `${ip}-${cloudId}`;
       window.open(`${location.origin}${location.pathname}?bizId=${bizId.value}#/performance/detail/${detailId}`);
     }
-    return { hostSceneData, dashboardId, viewOptions, handleToPerformance };
+
+    return { loading, hostSceneData, dashboardId, viewOptions, handleToPerformance };
   },
   render() {
     return (
