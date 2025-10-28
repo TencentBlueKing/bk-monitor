@@ -1470,7 +1470,7 @@ const store = new Vuex.Store({
           const result = {
             is_error: state.indexSetQueryResult.is_error,
             exception_msg: state.indexSetQueryResult.exception_msg,
-            begin: queryData.begin,
+            begin: queryData.begin > 0 ? 1 : 0,
           };
 
           reportRouteLog({
