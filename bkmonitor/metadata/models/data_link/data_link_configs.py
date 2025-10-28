@@ -10,16 +10,21 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
-from typing import ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.conf import settings
 from django.db import models
+from typing_extensions import deprecated
 
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from metadata.models.data_link import constants, utils
 from metadata.models.data_link.constants import DataLinkKind
+from metadata.models.space.constants import LOG_EVENT_ETL_CONFIGS
 
 logger = logging.getLogger("metadata")
+
+if TYPE_CHECKING:
+    from metadata.models.data_source import DataSource
 
 
 class DataLinkResourceConfigBase(models.Model):
@@ -97,6 +102,66 @@ class DataIdConfig(DataLinkResourceConfigBase):
     class Meta:
         verbose_name = "数据源配置"
         verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+    def compose_predefined_config(self, data_source: "DataSource") -> dict[str, Any]:
+        """
+        组装预定义数据源配置
+        """
+        tpl = """
+        {
+            "kind": "DataId",
+            "metadata": {
+                "name": "{{name}}",
+                {% if tenant %}
+                "tenant": "{{ tenant }}",
+                {% endif %}
+                "namespace": "{{namespace}}",
+                "labels": {"bk_biz_id": "{{bk_biz_id}}"}
+            },
+            "spec": {
+                "alias": "{{name}}",
+                "bizId": {{monitor_biz_id}},
+                "description": "{{name}}",
+                "maintainers": {{maintainers}},
+                "predefined": {
+                    "dataId": {{bk_data_id}},
+                    "channel": {
+                        "kind": "KafkaChannel",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
+                        "namespace": "{{namespace}}",
+                        "name": "{{kafka_name}}"
+                    },
+                    "topic": "{{topic_name}}"
+                },
+                "eventType": "{{event_type}}"
+            }
+        }
+        """
+        maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
+
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
+            "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
+            "bk_data_id": data_source.bk_data_id,
+            "topic_name": data_source.mq_config.topic,
+            "kafka_name": data_source.mq_cluster.cluster_name,
+            "maintainers": json.dumps(maintainer),
+            "event_type": "log" if data_source.etl_config in LOG_EVENT_ETL_CONFIGS else "metric",
+        }
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            render_params["tenant"] = self.bk_tenant_id
+
+        return utils.compose_config(
+            tpl=tpl,
+            render_params=render_params,
+            err_msg_prefix="compose predefined data_id config",
+        )
 
     def compose_config(self, event_type="metric") -> dict:
         """
@@ -148,7 +213,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
         )
 
 
-class VMResultTableConfig(DataLinkResourceConfigBase):
+class ResultTableConfig(DataLinkResourceConfigBase):
     """
     链路VM结果表配置
     """
@@ -158,10 +223,12 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
     data_type = models.CharField(verbose_name="结果表类型", max_length=64, default="metric")
 
     class Meta:
-        verbose_name = "VM结果表配置"
+        verbose_name = "结果表配置"
         verbose_name_plural = verbose_name
+        db_table = "metadata_vmresulttableconfig"
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_config(self) -> dict:
+    def compose_config(self, fields: list[dict[str, Any]] | None = None) -> dict:
         """
         组装数据源结果表配置
         """
@@ -177,6 +244,9 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
+                    {% if fields %}
+                    "fields": {{fields}},
+                    {% endif %}
                     "alias": "{{name}}",
                     "bizId": {{monitor_biz_id}},
                     "dataType": "{{data_type}}",
@@ -193,88 +263,17 @@ class VMResultTableConfig(DataLinkResourceConfigBase):
             "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
             "data_type": self.data_type,
             "maintainers": json.dumps(maintainer),
+            "fields": json.dumps(fields, ensure_ascii=False) if fields else None,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
             render_params["tenant"] = self.bk_tenant_id
 
         return utils.compose_config(
             tpl=tpl,
             render_params=render_params,
             err_msg_prefix="compose bkdata es table_id config",
-        )
-
-
-class LogResultTableConfig(DataLinkResourceConfigBase):
-    """
-    日志链路结果表配置
-    """
-
-    kind = DataLinkKind.RESULTTABLE.value
-    name = models.CharField(verbose_name="结果表名称", max_length=64, db_index=True, unique=True)
-    data_type = models.CharField(verbose_name="结果表类型", max_length=64, default="log")
-
-    class Meta:
-        verbose_name = "日志结果表配置"
-        verbose_name_plural = verbose_name
-
-    def compose_config(self, fields):
-        """
-        组装数据源结果表配置
-        @param fields: 字段列表
-        """
-        tpl = """
-            {
-                "kind": "ResultTable",
-                "metadata": {
-                    "name": "{{name}}",
-                    {% if tenant %}
-                    "tenant": "{{ tenant }}",
-                    {% endif %}
-                    "namespace": "{{namespace}}",
-                    "labels": {"bk_biz_id": "{{bk_biz_id}}"}
-                },
-                "spec": {
-                    "alias": "{{name}}",
-                    "bizId": {{monitor_biz_id}},
-                    "dataType": "{{data_type}}",
-                    "description": "{{name}}",
-                    "maintainers": {{maintainers}},
-                    "fields": {{fields}}
-                }
-            }
-            """
-        maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
-
-        render_params = {
-            "name": self.name,
-            "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
-            "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
-            "data_type": self.data_type,
-            "maintainers": json.dumps(maintainer),
-            "fields": json.dumps(fields, ensure_ascii=False),
-        }
-
-        # 现阶段仅在多租户模式下添加tenant字段
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
-            render_params["tenant"] = self.bk_tenant_id
-
-        return utils.compose_config(
-            tpl=tpl,
-            render_params=render_params,
-            err_msg_prefix="compose bkdata table_id config",
         )
 
 
@@ -297,6 +296,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
         storage_cluster_name,
         write_alias_format,
         unique_field_list,
+        json_field_list: list[str] | None = None,
     ):
         """
         结果表- ES存储关联关系
@@ -337,6 +337,9 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
                         }
                     },
                     "unique_field_list": {{unique_field_list}},
+                    {% if json_field_list %}
+                    "json_field_list": {{json_field_list}},
+                    {% endif %}
                     "maintainers": {{maintainers}}
                 }
             }
@@ -351,6 +354,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
             "write_alias_format": write_alias_format,
             "timezone": self.timezone,
             "maintainers": json.dumps(maintainer),
+            "json_field_list": json.dumps(json_field_list) if json_field_list else None,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -381,6 +385,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
     class Meta:
         verbose_name = "VM存储配置"
         verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
 
     def compose_config(
         self,
@@ -459,6 +464,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
     class Meta:
         verbose_name = "清洗任务配置"
         verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
 
     def compose_config(
         self,
@@ -539,46 +545,56 @@ class DataBusConfig(DataLinkResourceConfigBase):
             err_msg_prefix="compose vm databus config",
         )
 
-
-class ConditionalSinkConfig(DataLinkResourceConfigBase):
-    """
-    条件处理配置
-    """
-
-    kind = DataLinkKind.CONDITIONALSINK.value
-    name = models.CharField(verbose_name="条件处理配置名称", max_length=64, db_index=True, unique=True)
-
-    class Meta:
-        verbose_name = "条件处理配置"
-        verbose_name_plural = verbose_name
-
-    def compose_conditional_sink_config(self, conditions: list) -> dict:
+    def compose_log_config(self, sinks: list[dict[str, Any]], rules: list[dict[str, Any]]) -> dict[str, Any]:
         """
-        组装条件处理配置
-        @param conditions: 条件列表
+        常规日志清洗总线配置
         """
         tpl = """
         {
-            "kind": "ConditionalSink",
+            "kind": "Databus",
             "metadata": {
-                "namespace": "{{namespace}}",
                 "name": "{{name}}",
                 {% if tenant %}
                 "tenant": "{{ tenant }}",
                 {% endif %}
+                "namespace": "{{namespace}}",
                 "labels": {"bk_biz_id": "{{bk_biz_id}}"}
             },
             "spec": {
-                "conditions": {{conditions}}
+                "maintainers": {{maintainers}},
+                "sinks": {{sinks}},
+                "sources": [
+                    {
+                        "kind": "DataId",
+                        "name": "{{data_id_name}}",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
+                        "namespace": "{{namespace}}"
+                    }
+                ],
+                "transforms": [
+                    {
+                        "kind": "Clean",
+                        "rules": {{rules}},
+                        "filter_rules": "True",
+                        "context_map": {
+                            "use_default_value": "__parse_failure"
+                        }
+                    }
+                ]
             }
         }
         """
-
+        maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
         render_params = {
             "name": self.name,
-            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
-            "conditions": json.dumps(conditions),
+            "maintainers": json.dumps(maintainer),
+            "sinks": json.dumps(sinks),
+            "rules": json.dumps(rules),
+            "data_id_name": self.data_id_name,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -593,22 +609,8 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
         return utils.compose_config(
             tpl=tpl,
             render_params=render_params,
-            err_msg_prefix="compose vm conditional sink config",
+            err_msg_prefix="compose data_id config",
         )
-
-
-class LogDataBusConfig(DataLinkResourceConfigBase):
-    """
-    日志/事件/Trace 等非时序链路清洗总线配置
-    """
-
-    kind = DataLinkKind.DATABUS.value
-    name = models.CharField(verbose_name="清洗任务名称", max_length=64, db_index=True, unique=True)
-    data_id_name = models.CharField(verbose_name="关联消费数据源名称", max_length=64)
-
-    class Meta:
-        verbose_name = "非指标数据清洗总线配置"
-        verbose_name_plural = verbose_name
 
     def compose_base_event_config(self):
         """
@@ -675,8 +677,186 @@ class LogDataBusConfig(DataLinkResourceConfigBase):
             err_msg_prefix="compose data_id config",
         )
 
-    def compose_config(self):
+
+class ConditionalSinkConfig(DataLinkResourceConfigBase):
+    """
+    条件处理配置
+    """
+
+    kind = DataLinkKind.CONDITIONALSINK.value
+    name = models.CharField(verbose_name="条件处理配置名称", max_length=64, db_index=True, unique=True)
+
+    class Meta:
+        verbose_name = "条件处理配置"
+        verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+    def compose_conditional_sink_config(self, conditions: list) -> dict:
         """
-        常规日志清洗总线配置
+        组装条件处理配置
+        @param conditions: 条件列表
         """
-        pass
+        tpl = """
+        {
+            "kind": "ConditionalSink",
+            "metadata": {
+                "namespace": "{{namespace}}",
+                "name": "{{name}}",
+                {% if tenant %}
+                "tenant": "{{ tenant }}",
+                {% endif %}
+                "labels": {"bk_biz_id": "{{bk_biz_id}}"}
+            },
+            "spec": {
+                "conditions": {{conditions}}
+            }
+        }
+        """
+
+        render_params = {
+            "name": self.name,
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
+            "conditions": json.dumps(conditions),
+        }
+
+        # 现阶段仅在多租户模式下添加tenant字段
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            logger.info(
+                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
+                self.bk_tenant_id,
+                self.kind,
+            )
+            render_params["tenant"] = self.bk_tenant_id
+
+        return utils.compose_config(
+            tpl=tpl,
+            render_params=render_params,
+            err_msg_prefix="compose vm conditional sink config",
+        )
+
+
+class DorisStorageBindingConfig(DataLinkResourceConfigBase):
+    """
+    Doris存储绑定配置
+
+    storage_config: [
+        "table_type", // primary_table, duplicate_table
+        "db", // 集群？
+        "table",
+        "storage_keys", // 唯一键？
+        "json_fields", // JSON字段
+        "original_json_fields",
+        "field_config_group", // 字段配置，search_en: ["log"]
+        "expires", // 保留时间, 7d, 30d
+        "is_profiling", // 是否为profiling, true/false
+        "unique_partition_table", // 是否为unique partition table, true/false
+        "sample_table_name", // 采样表名
+        "label_table_name", // 标签表名
+        "flush_timeout", // 刷新时间
+    ]
+    """
+
+    kind = DataLinkKind.DORISBINDING.value
+    name = models.CharField(verbose_name="Doris存储绑定配置名称", max_length=64, db_index=True, unique=True)
+
+    class Meta:
+        verbose_name: ClassVar[str] = "Doris存储绑定配置"
+        verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+    def compose_config(
+        self,
+        storage_cluster_name: str,
+        storage_keys: list[str],
+        json_fields: list[str],
+        field_config_group: dict[str, Any],
+        expires: str,
+        flush_timeout: int | None,
+    ) -> dict[str, Any]:
+        """
+        组装Doris存储绑定配置
+        """
+        tpl = """
+        {
+            "kind": "DorisBinding",
+            "metadata": {
+                "labels": {"bk_biz_id": "{{monitor_biz_id}}"}},
+                "name": "{{name}}",
+                "namespace": "{{namespace}}"
+            },
+            "spec": {
+                "data": {
+                    "name": "{{name}}",
+                    "namespace": "{{namespace}}",
+                    "kind": "ResultTable"
+                },
+                "storage": {
+                    "name": "{{storage_cluster_name}}",
+                    "namespace": "{{namespace}}",
+                    "kind": "Doris"
+                },
+                "storage_config": {
+                    "table_type": "primary_table",
+                    "is_profiling": false,
+                    "unique_partition_table": true,
+                    "db": "mapleleaf_{{bk_biz_id}}",
+                    "table": "{{name}}_{{bk_biz_id}}",
+                    "storage_keys": {{storage_keys}},
+                    "json_fields": {{json_fields}},
+                    "field_config_group": {{field_config_group}},
+                    "expires": "{{expires}}",
+                    "flush_timeout": {{flush_timeout}}
+                }
+            }
+        }
+        """
+
+        render_params = {
+            "name": self.name,
+            "namespace": self.namespace,
+            "bk_biz_id": self.datalink_biz_ids.data_biz_id,
+            "monitor_biz_id": self.datalink_biz_ids.label_biz_id,
+            "storage_cluster_name": storage_cluster_name,
+            "storage_keys": json.dumps(storage_keys),
+            "json_fields": json.dumps(json_fields),
+            "field_config_group": json.dumps(field_config_group),
+            "expires": expires,
+            "flush_timeout": json.dumps(flush_timeout),
+        }
+        return utils.compose_config(
+            tpl=tpl,
+            render_params=render_params,
+            err_msg_prefix="compose doris storage binding config",
+        )
+
+
+@deprecated("已废弃，统一使用DataBusConfig替代")
+class LogDataBusConfig(DataLinkResourceConfigBase):
+    """
+    日志/事件/Trace 等非时序链路清洗总线配置
+    """
+
+    kind = DataLinkKind.DATABUS.value
+    name = models.CharField(verbose_name="清洗任务名称", max_length=64, db_index=True, unique=True)
+    data_id_name = models.CharField(verbose_name="关联消费数据源名称", max_length=64)
+
+    class Meta:
+        verbose_name = "非指标数据清洗总线配置"
+        verbose_name_plural = verbose_name
+
+
+@deprecated("已废弃，统一使用ResultTableConfig替代")
+class LogResultTableConfig(DataLinkResourceConfigBase):
+    """
+    日志链路结果表配置（已废弃）
+    """
+
+    kind = DataLinkKind.RESULTTABLE.value
+    name = models.CharField(verbose_name="结果表名称", max_length=64, db_index=True, unique=True)
+    data_type = models.CharField(verbose_name="结果表类型", max_length=64, default="log")
+
+    class Meta:
+        verbose_name = "日志结果表配置"
+        verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "name"),)

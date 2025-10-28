@@ -112,7 +112,7 @@
           :render-header="$renderHeader"
         >
           <template #default="props">
-            {{ props.row.updated_by }}
+            <bk-user-display-name :user-id="props.row.updated_by"></bk-user-display-name>
           </template>
         </bk-table-column>
         <bk-table-column

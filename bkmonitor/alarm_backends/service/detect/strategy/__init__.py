@@ -135,7 +135,9 @@ class Algorithms:
         for data_point in data_points:
             try:
                 check_result = self.detect(data_point)
-            except Exception:
+            except Exception as e:
+                logger.debug(e)
+                # 这里记录数据点异常检测的异常堆栈，默认不开
                 continue
             if check_result:
                 ap = self.gen_anomaly_point(data_point, check_result, level)

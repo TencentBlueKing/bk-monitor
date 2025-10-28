@@ -265,7 +265,7 @@ export default defineComponent({
     };
 
     const { addEvent } = useRetrieveEvent();
-    addEvent([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE], handleRequestResult);
+    addEvent([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE,RetrieveEvent.AUTO_REFRESH], handleRequestResult);
     addEvent([RetrieveEvent.SEARCHING_CHANGE, RetrieveEvent.INDEX_SET_ID_CHANGE], handleSearchingChange);
 
     const handleParamsChange = ({ isParamsChange, option }: { isParamsChange: boolean; option: any }) => {

@@ -250,6 +250,8 @@ export default {
   '搜索 索引 / 索引集名称': 'Support Index/Indices name',
   '搜索 模板名称、模板别名、模板说明、创建人、更新人':
     'Search template name, template alias, template description, creator, updater',
+  '搜索 模板名称、模板类型、最近更新人、关联服务、告警组、启停':
+    'Search template name, template type, last updater, associated service, alarm team, start/stop',
   '搜索 消费场景': 'Search consumption scenario',
 
   你可以将该搜索内容直接自定义为指标选项: 'You can directly customize the search content as a metric option',

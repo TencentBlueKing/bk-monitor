@@ -2,15 +2,7 @@
 
 策略订阅列表
 
-#### 请求方法
-
-GET
-
-#### 请求路径
-
-`/app/subscribe/list/`
-
-#### 接口参数
+### 请求参数
 
 | 字段        | 类型    | 必须 | 默认值 | 描述           |
 |-----------|-------|----|-----|--------------|
@@ -20,7 +12,7 @@ GET
 | page      | int   | 否  | 1   | 页码，最小值为1     |
 | page_size | int   | 否  | 100 | 每页数量，范围1-500 |
 
-#### 请求示例
+### 请求参数示例
 
 ```
 # 基本查询
@@ -65,7 +57,7 @@ GET /app/subscribe/list/?sub_username=admin&bk_biz_id=2&is_enable=true&page=2&pa
 | user_type  | string       | 用户类型   |
 | is_enable  | bool         | 是否启用   |
 
-#### 示例数据
+### 响应参数示例
 
 ```json
 {

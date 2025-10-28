@@ -63,8 +63,11 @@ class BaseScenario:
         history_dimensions = self.get_history_dimensions()
         missing_target_instances = []
 
-        # 如果有监控目标，则需要根据监控目标过滤无数据维度
-        if target_instances:
+        # 如果有配置监控目标
+        if len(self.item.target[0]) > 0:
+            if not target_instances:
+                # 配置的监控范围不存在实例，则不做无数据告警后续处理
+                return [], missing_target_instances
             # 如果无数据维度和监控目标维度一致，则使用监控目标作为无数据维度
             if set(self.get_no_data_dimensions()) == set(target_instances[0].keys()):
                 self.add_no_data_tag(target_instances)

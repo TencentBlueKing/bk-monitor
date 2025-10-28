@@ -52,6 +52,7 @@ from metadata.models.vm.constants import (
     QUERY_VM_SPACE_UID_CHANNEL_KEY,
     QUERY_VM_SPACE_UID_LIST_KEY,
 )
+from metadata.task.tasks import check_bkcc_space_builtin_datalink
 from metadata.task.utils import bulk_handle
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
@@ -60,7 +61,7 @@ logger = logging.getLogger("metadata")
 
 
 @share_lock(identify="metadata__sync_bkcc_space")
-def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False):
+def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create_builtin_data_link_delay=True):
     """同步 bkcc 的业务，自动创建对应的空间
 
     TODO: 是否由服务方调用接口创建或者服务方可以被 watch
@@ -134,7 +135,7 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False):
 
         # 创建空间
         try:
-            create_bkcc_spaces(diff_biz_list)
+            create_bkcc_spaces(diff_biz_list, create_builtin_data_link_delay=create_builtin_data_link_delay)
         except Exception:
             logger.exception("create bkcc biz space error")
             return
@@ -143,6 +144,11 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False):
         RedisTools.publish(QUERY_VM_SPACE_UID_CHANNEL_KEY, [json.dumps({"time": time.time()})])
 
         logger.info("create bkcc space successfully, space: %s", json.dumps(diff_biz_list))
+
+    # 检查V4链路配置，需要排除新增的业务
+    check_bkcc_space_builtin_datalink(
+        biz_list=[(b.bk_tenant_id, b.bk_biz_id) for b in biz_list if str(b.bk_biz_id) in diff]
+    )
 
     cost_time = time.time() - start_time
 

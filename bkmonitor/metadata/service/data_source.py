@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
-from typing import Dict, List, Optional
 
 import kafka
 from kafka.admin import KafkaAdminClient, NewPartitions
@@ -22,7 +21,7 @@ from metadata.utils import consul_tools
 logger = logging.getLogger("metadata")
 
 
-def modify_transfer_cluster_id(bk_data_id: int, transfer_cluster_id: str) -> Dict:
+def modify_transfer_cluster_id(bk_data_id: int, transfer_cluster_id: str) -> dict:
     """更改数据源使用的transfer 集群 ID"""
     qs = models.DataSource.objects.filter(bk_data_id=bk_data_id)
     qs.update(transfer_cluster_id=transfer_cluster_id)
@@ -32,13 +31,13 @@ def modify_transfer_cluster_id(bk_data_id: int, transfer_cluster_id: str) -> Dic
     return {"bk_data_id": record.bk_data_id, "transfer_cluster_id": record.transfer_cluster_id}
 
 
-def modify_kafka_cluster_id(bk_data_id: int, topic: Optional[str] = None, partition: Optional[int] = None):
+def modify_kafka_cluster_id(bk_data_id: int, topic: str | None = None, partition: int | None = None):
     # 获取 kafka 集群信息
     record = models.DataSource.objects.filter(bk_data_id=bk_data_id).first()
     if not record:
         raise Exception("data id: %s not found", bk_data_id)
     mq_cluster = record.mq_cluster
-    kafka_hosts = "{}:{}".format(mq_cluster.domain_name, mq_cluster.port)
+    kafka_hosts = f"{mq_cluster.domain_name}:{mq_cluster.port}"
 
     # 创建 topic 及 partition
     client = kafka.SimpleClient(hosts=kafka_hosts)
@@ -56,9 +55,9 @@ def modify_kafka_cluster_id(bk_data_id: int, topic: Optional[str] = None, partit
     models.DataSource.refresh_outer_config()
 
 
-def get_transfer_cluster() -> List[str]:
+def get_transfer_cluster() -> list[str]:
     """通过 consul 路径获取 transfer 集群"""
-    prefix_path = "%s/v1/" % config.CONSUL_PATH
+    prefix_path = f"{config.CONSUL_PATH}/v1/"
     # 根据前缀，返回路径
     hash_consul = consul_tools.HashConsul()
     result_data = hash_consul.list(prefix_path)
@@ -72,7 +71,7 @@ def get_transfer_cluster() -> List[str]:
     return list(set(ret_data))
 
 
-def filter_data_id_and_transfer() -> Dict:
+def filter_data_id_and_transfer() -> dict:
     records = models.DataSource.objects.values("bk_data_id", "transfer_cluster_id")
     data = {}
     for r in records:
@@ -80,10 +79,10 @@ def filter_data_id_and_transfer() -> Dict:
     return data
 
 
-def stop_or_enable_datasource(data_id_list: List[int], is_enabled: bool) -> bool:
+def stop_or_enable_datasource(bk_tenant_id: str, data_id_list: list[int], is_enabled: bool) -> bool:
     """停止或启用数据源"""
     # 校验数据源存在
-    datasources = models.DataSource.objects.filter(bk_data_id__in=data_id_list)
+    datasources = models.DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_id_list)
     exist_data_ids = set(datasources.values_list("bk_data_id", flat=True))
     diff_data_ids = set(data_id_list) - exist_data_ids
     # 如果存在不匹配的数据源，则需要返回
@@ -109,7 +108,7 @@ def stop_or_enable_datasource(data_id_list: List[int], is_enabled: bool) -> bool
     return True
 
 
-def query_biz_plugin_data_id_list(biz_id_list: List) -> Dict:
+def query_biz_plugin_data_id_list(biz_id_list: list) -> dict:
     """过滤业务下的数据源 ID
 
     插件现阶段仅在业务下可用
@@ -145,10 +144,10 @@ def query_biz_plugin_data_id_list(biz_id_list: List) -> Dict:
     return biz_data_ids
 
 
-def modify_data_id_source(data_id_list: List[int], source_type: str) -> bool:
+def modify_data_id_source(bk_tenant_id: str, data_id_list: list[int], source_type: str) -> bool:
     """更新数据源的来源平台"""
     logger.info("modify_data_id_source:data_id: %s target_source_type: %s", data_id_list, source_type)
-    datasources = models.DataSource.objects.filter(bk_data_id__in=data_id_list)
+    datasources = models.DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=data_id_list)
     exist_data_ids = set(datasources.values_list("bk_data_id", flat=True))
     diff_data_ids = set(data_id_list) - exist_data_ids
     # 如果存在不匹配的数据源，则需要返回

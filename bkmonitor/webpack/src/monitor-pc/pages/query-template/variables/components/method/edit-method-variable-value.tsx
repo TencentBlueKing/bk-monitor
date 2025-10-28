@@ -27,8 +27,8 @@
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { CP_METHOD_LIST, METHOD_LIST } from '../../../../../constant/constant';
 import EditVariableValue from '../common-form/edit-variable-value';
-import { CP_METHOD_LIST, METHOD_LIST } from '@/constant/constant';
 
 import type { MethodVariableModel } from '../../index';
 interface MethodValueEvents {
@@ -38,12 +38,14 @@ interface MethodValueEvents {
 }
 
 interface MethodValueProps {
+  showLabel?: boolean;
   variable: MethodVariableModel;
 }
 
 @Component
 export default class EditMethodVariableValue extends tsc<MethodValueProps, MethodValueEvents> {
   @Prop({ type: Object, required: true }) variable!: MethodVariableModel;
+  @Prop({ default: true }) showLabel!: boolean;
 
   get methodList() {
     return [...METHOD_LIST, ...CP_METHOD_LIST];
@@ -64,7 +66,10 @@ export default class EditMethodVariableValue extends tsc<MethodValueProps, Metho
 
   render() {
     return (
-      <EditVariableValue data={this.variable.data}>
+      <EditVariableValue
+        data={this.variable.data}
+        showLabel={this.showLabel}
+      >
         <bk-select
           clearable={false}
           value={this.variable.value}

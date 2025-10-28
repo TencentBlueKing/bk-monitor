@@ -1,3 +1,5 @@
+/** biome-ignore-all lint/complexity/noStaticOnlyClass: <explanation> */
+/** biome-ignore-all lint/correctness/noInvalidUseBeforeDeclaration: <explanation> */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,7 +25,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import type { VueConstructor } from 'vue';
+
+import { getUserCacheName } from 'monitor-pc/common/user-display-name';
 
 interface WatermarkOptions {
   font: string; // canvas font
@@ -43,12 +48,13 @@ export default class WatermarkDirective {
           textColor: '#f1f1f1',
         };
         const options: WatermarkOptions = { ...defaults, ...binding.value };
+        const userName = getUserCacheName(options.text);
         const canvas: HTMLCanvasElement = document.createElement('canvas');
         const ctx: CanvasRenderingContext2D | null = canvas.getContext('2d');
         canvas.style.display = 'none';
         ctx.globalAlpha = 0.5;
         if (ctx) {
-          const textWidth: number = ctx.measureText(options.text).width;
+          const textWidth: number = ctx.measureText(userName).width;
           const offsetX: number = Math.ceil(textWidth * 3);
           canvas.width = offsetX;
           canvas.height = offsetX;
@@ -59,7 +65,7 @@ export default class WatermarkDirective {
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
 
-          ctx.fillText(options.text, 0, 120 / 2 + 5);
+          ctx.fillText(userName, 0, 120 / 2 + 5);
         }
         el.style.backgroundImage = `url(${canvas.toDataURL('image/png')})`;
       },

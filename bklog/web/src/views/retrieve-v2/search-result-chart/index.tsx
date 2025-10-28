@@ -374,6 +374,7 @@ export default defineComponent({
         RetrieveEvent.TREND_GRAPH_SEARCH,
         RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
         RetrieveEvent.INDEX_SET_ID_CHANGE,
+        RetrieveEvent.AUTO_REFRESH
       ],
       loadTrendData,
     );

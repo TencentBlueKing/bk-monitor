@@ -345,14 +345,14 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 1.2.8-beta.3
-        version: 1.2.8-beta.3(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(highlight.js@10.7.3)(markdown-it@13.0.2)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+        specifier: 1.2.8-beta.14
+        version: 1.2.8-beta.14(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(highlight.js@10.7.3)(markdown-it@13.0.2)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
       '@blueking/bk-user-display-name':
         specifier: 1.0.3-beta.5
         version: 1.0.3-beta.5
       '@blueking/bk-user-selector':
-        specifier: 0.0.35-beta.1
-        version: 0.0.35-beta.1(@blueking/bkui-library@0.0.0-beta.4)
+        specifier: 0.0.38-beta.1
+        version: 0.0.38-beta.1(@blueking/bkui-library@0.0.0-beta.4)
       '@blueking/bk-weweb':
         specifier: 0.0.35-beta.7
         version: 0.0.35-beta.7
@@ -605,8 +605,8 @@ importers:
         specifier: 1.0.3-beta.3
         version: 1.0.3-beta.3
       '@blueking/bk-user-selector':
-        specifier: 0.0.35-beta.1
-        version: 0.0.35-beta.1(@blueking/bkui-library@0.0.0-beta.6)
+        specifier: 0.0.38-beta.1
+        version: 0.0.38-beta.1(@blueking/bkui-library@0.0.0-beta.6)
       '@blueking/date-picker':
         specifier: 2.0.0-beta.48
         version: 2.0.0-beta.48(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@3.5.15(typescript@5.9.2)))(dayjs@1.11.18)(vue@3.5.15(typescript@5.9.2))
@@ -1455,15 +1455,15 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@1.2.8-beta.3':
-    resolution: {integrity: sha512-j7OIUAaazCWRw0JwstYT8BSUu3ZGtTsnkwSO9TGPRuvuTBe0y6KtoU9leVeNjon0wUT/5HNdSpHE+y1A+M5pow==}
+  '@blueking/ai-blueking@1.2.8-beta.14':
+    resolution: {integrity: sha512-PpXUhCMgRghMQ6HyrV4mQmC9nTY0vEWt2AogpmcI3ZOeu4RMXkqgSKBB9uX84kXOfJvl428eytgwyFh1Qr0PlA==}
     peerDependencies:
       dayjs: ^1.10.7
       highlight.js: ^11.5.1
       markdown-it: ^13.0.1
 
-  '@blueking/ai-ui-sdk@0.1.18-beta.18':
-    resolution: {integrity: sha512-MvVCcz5/ofMi2pgF5iUxtWm2R8kI1UAkOEfyOIHKtvZpyA5ng3bPZxAyig9PBVk3mndgbjq5+3+InvW93oNaLg==}
+  '@blueking/ai-ui-sdk@0.1.18-beta.21':
+    resolution: {integrity: sha512-suMTd8kz6MOG1NuzluC6I7idYP05bSaK8G5iwhVLCrHQf2gGuEUclDesVul3TBC5opbEcmeJ8wKqVmhXTDrtMg==}
     peerDependencies:
       bkui-vue: '*'
       dayjs: ^1.11.13
@@ -1482,8 +1482,8 @@ packages:
   '@blueking/bk-user-display-name@1.0.3-beta.5':
     resolution: {integrity: sha512-Qzlu8rf5hbi7/p72+oJacZ38WNcN6MMsIbhfH9NNNZ1jAUZgwHC2dX8P5c839ugkP1TvNvQ90uALfIPfgcjf3A==}
 
-  '@blueking/bk-user-selector@0.0.35-beta.1':
-    resolution: {integrity: sha512-7izFZWS6ZSh2lKpisdSB5E0MM6fQChMGBuCahwg6MZm1N6rX9yT3y00I3X+gcB5ULMcoOjuDurOMsNig/jl5rA==}
+  '@blueking/bk-user-selector@0.0.38-beta.1':
+    resolution: {integrity: sha512-RzdNVsqjru61wXKY8/fVggTK+9Tg/sUW+UtO7oFg7wcmryJrh8WH0a4ObkO1kkzdbqsGPgqIprcD4KwAYfNdOg==}
     engines: {node: '>=18.16.0'}
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
@@ -8527,6 +8527,9 @@ packages:
     resolution: {integrity: sha512-h3Fbisa2nKGPxCpm89Hk33lBLsnaGBvctQopaBSOW/uIs6FTe1ATyAnKFJrzVs9vpGdsTe73WF3V4lIsk4Gacw==}
     engines: {node: '>=18'}
 
+  x-mavon-editor@0.0.15:
+    resolution: {integrity: sha512-8fKxyCpMNJoXjfZBxSvheEWtGzqkKgsFyX6AK4tpQdulGoBqcI59m25iTUTLek7mdVYoSBUHRziVGo6dTfAp0g==}
+
   xlsx@0.18.5:
     resolution: {integrity: sha512-dmg3LCjBPHZnQp5/F/+nnTa+miPJxUXB6vtk42YjBBKayDNagxGEeIdWApkYPOf3Z3pm3k62Knjzp7lMeTEtFQ==}
     engines: {node: '>=0.8'}
@@ -9527,9 +9530,9 @@ snapshots:
   '@biomejs/cli-win32-x64@2.2.4':
     optional: true
 
-  '@blueking/ai-blueking@1.2.8-beta.3(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(highlight.js@10.7.3)(markdown-it@13.0.2)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ai-blueking@1.2.8-beta.14(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(highlight.js@10.7.3)(markdown-it@13.0.2)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
     dependencies:
-      '@blueking/ai-ui-sdk': 0.1.18-beta.18(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+      '@blueking/ai-ui-sdk': 0.1.18-beta.21(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
       '@blueking/bkui-library': 0.0.0-beta.6
       dayjs: 1.11.18
       dompurify: 3.2.6
@@ -9540,6 +9543,7 @@ snapshots:
       motion-v: 0.11.3(vue@2.7.16)
       tippy.js: 6.3.7
       vue-draggable-resizable: 3.0.0(vue@2.7.16)
+      x-mavon-editor: 0.0.15
     transitivePeerDependencies:
       - '@emotion/is-prop-valid'
       - '@vue/composition-api'
@@ -9551,7 +9555,7 @@ snapshots:
       - vue
       - vue-router
 
-  '@blueking/ai-ui-sdk@0.1.18-beta.18(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ai-ui-sdk@0.1.18-beta.21(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(dayjs@1.11.18)(postcss@8.5.6)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
     dependencies:
       bkui-vue: 2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16)
       dayjs: 1.11.18
@@ -9574,13 +9578,13 @@ snapshots:
 
   '@blueking/bk-user-display-name@1.0.3-beta.5': {}
 
-  '@blueking/bk-user-selector@0.0.35-beta.1(@blueking/bkui-library@0.0.0-beta.4)':
+  '@blueking/bk-user-selector@0.0.38-beta.1(@blueking/bkui-library@0.0.0-beta.4)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.4
       lodash: 4.17.21
       sortablejs: 1.15.6
 
-  '@blueking/bk-user-selector@0.0.35-beta.1(@blueking/bkui-library@0.0.0-beta.6)':
+  '@blueking/bk-user-selector@0.0.38-beta.1(@blueking/bkui-library@0.0.0-beta.6)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       lodash: 4.17.21
@@ -17813,6 +17817,10 @@ snapshots:
   wsl-utils@0.1.0:
     dependencies:
       is-wsl: 3.1.0
+
+  x-mavon-editor@0.0.15:
+    dependencies:
+      xss: 1.0.15
 
   xlsx@0.18.5:
     dependencies:

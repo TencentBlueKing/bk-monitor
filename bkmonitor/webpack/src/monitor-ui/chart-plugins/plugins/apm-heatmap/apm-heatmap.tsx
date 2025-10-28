@@ -351,6 +351,7 @@ class ApmHeatmap extends CommonSimpleChart {
           needMoreMenu={false}
           showAddMetric={false}
           showMore={true}
+          showTitleIcon={false}
           subtitle={this.panel.subTitle || ''}
           title={this.panel.title}
         />

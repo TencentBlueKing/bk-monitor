@@ -24,10 +24,13 @@ logger = logging.getLogger("metadata")
 
 
 @share_lock(ttl=3600, identify="metadata_check_access_vm_task")
-def check_access_vm_task():
+def check_access_vm_task(only_v4=False):
     """检测遗漏或者失败的接入 vm 的结果表
 
     NOTE: 因为需要调用vm的接口，建议是需要单个单个执行
+
+    Args:
+        only_v4: 是否只重新接入V4（BKDATA）的数据源，默认为False，即V3和V4都接入
     """
     # 统计&上报 任务状态指标
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
@@ -87,9 +90,23 @@ def check_access_vm_task():
             # Note: 应根据data_id的来源决定接入链路的版本是V3还是V4
             ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
             if ds.created_from == DataIdCreatedFromSystem.BKGSE.value:
-                access_bkdata(ds.bk_tenant_id, bk_biz_id, rt, bk_data_id)
+                # 如果指定了 only_v4，则跳过 V3 的接入
+                if only_v4:
+                    logger.info(
+                        "check_access_vm_task: skip v3 datalink due to only_v4=True, table_id->[%s],data_id->[%s]",
+                        rt,
+                        bk_data_id,
+                    )
+                    continue
+                logger.info(
+                    "check_access_vm_task: try to access v3 datalink,table_id->[%s],data_id->[%s]", rt, bk_data_id
+                )
+                access_bkdata(bk_tenant_id=ds.bk_tenant_id, bk_biz_id=bk_biz_id, table_id=rt, data_id=bk_data_id)
             if ds.created_from == DataIdCreatedFromSystem.BKDATA.value:
-                access_v2_bkdata_vm(ds.bk_tenant_id, bk_biz_id, rt, bk_data_id)
+                logger.info(
+                    "check_access_vm_task: try to access v4 datalink,table_id->[%s],data_id->[%s]", rt, bk_data_id
+                )
+                access_v2_bkdata_vm(bk_tenant_id=ds.bk_tenant_id, bk_biz_id=bk_biz_id, table_id=rt, data_id=bk_data_id)
         except Exception as e:
             logger.error("access bkdata vm error, error: %s", e)
 

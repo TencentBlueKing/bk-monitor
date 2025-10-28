@@ -94,9 +94,8 @@ export default defineComponent({
     `;
 
     let styleElement: any = null;
-    let isInit = false;
     let begin = 0;
-    let size = 50;
+    const size = 50;
     let total = 0;
 
     watch(
@@ -113,7 +112,7 @@ export default defineComponent({
       listLoading.value = true;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const searchUrl = `/search/index_set/${props.indexSetId}/search/`;
-      size = isInit ? 50 : props.logIndex > 50 ? props.logIndex + 20 : 50;
+      // size = props.logIndex > 50 ? props.logIndex + 20 : 50;
       const requestData = {
         ...requestOtherparams,
         sort_list: store.state.indexFieldInfo.default_sort_list.filter(item => item.length > 0 && !!item[1]) || [],
@@ -139,23 +138,13 @@ export default defineComponent({
           if (resp.data && !resp.message) {
             readBlobRespToJson(resp.data).then(({ data, result }) => {
               if (result) {
+                begin += size;
                 total = data.total.toNumber();
                 const list = parseBigNumberList(data.list);
                 logList.value.push(...list);
                 if (isManualSearch) {
                   choosedIndex.value = -1;
                   handleChooseRow(0);
-                }
-                if (!isInit) {
-                  setTimeout(() => {
-                    // 自动定位到选中行
-                    const isChoosedRow = Array.from(tableRef.value.querySelectorAll('.is-choosed'))[0];
-                    const positionInfo = isChoosedRow.getBoundingClientRect();
-                    if (positionInfo.top > window.innerHeight) {
-                      isChoosedRow.scrollIntoView();
-                    }
-                  });
-                  isInit = true;
                 }
               }
             });
@@ -312,52 +301,16 @@ export default defineComponent({
     };
 
     const handleSearch = (mode: string, isManualSearch = true) => {
-      if (!isInit) {
-        const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
-        searchBarRef.value.setLocalMode(modeIndex);
-        requestOtherparams.search_mode = modeIndex === 0 ? 'ui' : 'sql';
-        const addition = props.retrieveParams.addition;
-        // 初始化带上常用查询设置
-        if (modeIndex === 0) {
-          // ui 模式
-          const searchValue = searchBarRef.value.getValue();
-          if (addition.length > 0 && !searchValue.length) {
-            // 常用设置项回填到搜索框
-            const addAdditionList = addition.map(item => ({
-              disabled: false,
-              field: item.field,
-              field_type: fieldsMap.value[item.field].field_type,
-              operator: item.operator,
-              value: item.value,
-              relation: 'OR',
-              showAll: true,
-            }));
-            addAdditionList.forEach(addition => {
-              searchBarRef.value.addValue(addition);
-            });
-          }
-          requestOtherparams.addition = addition;
-          requestOtherparams.keyword = '*';
-        } else {
-          // sql 模式
-          const keyword = props.retrieveParams.keyword;
-          requestOtherparams.keyword = keyword;
-          if (addition.length) {
-            requestOtherparams.addition = addition;
-          }
-        }
+      requestOtherparams.search_mode = mode;
+      const searchValue = searchBarRef.value.getValue();
+      if (mode === 'ui') {
+        requestOtherparams.addition = getValidUISearchValue(searchValue);
+        requestOtherparams.keyword = '*';
       } else {
-        requestOtherparams.search_mode = mode;
-        const searchValue = searchBarRef.value.getValue();
-        if (mode === 'ui') {
-          requestOtherparams.addition = getValidUISearchValue(searchValue);
-          requestOtherparams.keyword = '*';
-        } else {
-          requestOtherparams.addition = [];
-          requestOtherparams.keyword = !searchValue ? '*' : searchValue;
-        }
-        handleReset();
+        requestOtherparams.addition = [];
+        requestOtherparams.keyword = !searchValue ? '*' : searchValue;
       }
+      handleReset();
 
       requestLogList(isManualSearch);
     };
@@ -400,14 +353,7 @@ export default defineComponent({
 
       const { scrollTop, scrollHeight, clientHeight } = e.target;
       if (scrollHeight - scrollTop - clientHeight <= 1) {
-        if (size !== 50) {
-          // 从50条以上进来的
-          begin = size;
-          size = 50;
-        } else {
-          begin += size;
-        }
-        requestLogList();
+        requestLogList(false);
       }
     }, 600);
 
@@ -448,7 +394,56 @@ export default defineComponent({
     });
 
     expose({
-      init: () => handleSearch(requestOtherparams.search_mode, false),
+      // init: () => handleSearch(requestOtherparams.search_mode, false),
+      init: () => {
+        // 初始化搜索框
+        const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
+        searchBarRef.value.setLocalMode(modeIndex);
+        requestOtherparams.search_mode = modeIndex === 0 ? 'ui' : 'sql';
+        const addition = props.retrieveParams.addition;
+        // 初始化带上常用查询设置
+        if (modeIndex === 0) {
+          // ui 模式
+          const searchValue = searchBarRef.value.getValue();
+          if (addition.length > 0 && !searchValue.length) {
+            // 常用设置项回填到搜索框
+            const addAdditionList = addition.map(item => ({
+              disabled: false,
+              field: item.field,
+              field_type: fieldsMap.value[item.field].field_type,
+              operator: item.operator,
+              value: item.value,
+              relation: 'OR',
+              showAll: true,
+            }));
+            addAdditionList.forEach(addition => {
+              searchBarRef.value.addValue(addition);
+            });
+          }
+          requestOtherparams.addition = addition;
+          requestOtherparams.keyword = '*';
+        } else {
+          // sql 模式
+          const keyword = props.retrieveParams.keyword;
+          requestOtherparams.keyword = keyword;
+          if (addition.length) {
+            requestOtherparams.addition = addition;
+          }
+        }
+        // 设置外部数据
+        const outerLogResult = store.state.indexSetQueryResult;
+        total = outerLogResult.total;
+        logList.value = outerLogResult.list.slice();
+        begin = logList.value.length;
+        setTimeout(() => {
+          // 自动定位到选中行
+          const isChoosedRow = Array.from(tableRef.value.querySelectorAll('.is-choosed'))[0];
+          const positionInfo = isChoosedRow.getBoundingClientRect();
+          if (positionInfo.top > window.innerHeight - 70) {
+            isChoosedRow.scrollIntoView();
+          }
+        });
+      },
       reset: handleReset,
     });
 

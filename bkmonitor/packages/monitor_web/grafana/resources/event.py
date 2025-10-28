@@ -254,7 +254,9 @@ class QueryAlarmEventGraph(Resource):
             end_time=validated_request_data["end_time"],
         )
 
-        data = handler.date_histogram(validated_request_data["interval"], validated_request_data["group_by"])
+        data = handler.date_histogram(
+            validated_request_data["interval"], validated_request_data["group_by"], bucket_size=1000
+        )
 
         series = []
         for dimension_tuple, status_mapping in data.items():

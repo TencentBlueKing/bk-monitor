@@ -59,7 +59,12 @@ class BaseSender:
     Utf8Encoding = "utf-8"
 
     def __init__(
-        self, context=None, title_template_path="", content_template_path="", notice_type=NoticeType.ALERT_NOTICE
+        self,
+        context=None,
+        title_template_path="",
+        content_template_path="",
+        notice_type=NoticeType.ALERT_NOTICE,
+        bk_tenant_id=None,
     ):
         """
         :param context: EventContext or dict
@@ -67,6 +72,7 @@ class BaseSender:
         :param content_template_path: 通知content的模板路径
         """
         self.context = context
+        self.bk_tenant_id = bk_tenant_id
         try:
             self.bk_biz_id = int(self.context.get("target").business.bk_biz_id)
         except Exception as error:
@@ -308,6 +314,7 @@ class Sender(BaseSender):
             # 用白名单控制
             # 需要判断是否有通知人员，才进行通知发送
             api_result = api.cmsi.send_wecom_app(
+                bk_tenant_id=self.bk_tenant_id,
                 # 这里receiver 也是用户名
                 receiver=notice_receivers,
                 sender=sender_name,
@@ -321,7 +328,7 @@ class Sender(BaseSender):
                 )
             )
             api_result = api.cmsi.send_weixin(
-                # 用户名
+                bk_tenant_id=self.bk_tenant_id,
                 receiver__username=",".join(notice_receivers),
                 heading=self.title,
                 message=self.content,
@@ -362,7 +369,7 @@ class Sender(BaseSender):
 
         logger.info("send.mail({}): \ntitle: {}".format(",".join(notice_receivers), self.title))
 
-        api_result = api.cmsi.send_mail(**params)
+        api_result = api.cmsi.send_mail(bk_tenant_id=self.bk_tenant_id, **params)
         return self.handle_api_result(api_result, notice_receivers)
 
     def send_sms(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
@@ -381,6 +388,7 @@ class Sender(BaseSender):
         )
         self.content = self.get_notice_content(NoticeWay.SMS, self.content)
         api_result = api.cmsi.send_sms(
+            bk_tenant_id=self.bk_tenant_id,
             receiver__username=",".join(notice_receivers),
             content=self.content,
             is_content_base64=True,
@@ -405,6 +413,7 @@ class Sender(BaseSender):
 
         try:
             msg_result = api.cmsi.send_voice(
+                bk_tenant_id=self.bk_tenant_id,
                 receiver__username=notice_receivers,
                 auto_read_message=self.content,
             )
@@ -609,7 +618,7 @@ class Sender(BaseSender):
         if sender:
             msg_data.update({"sender": sender})
 
-        api_result = api.cmsi.send_msg(**msg_data)
+        api_result = api.cmsi.send_msg(bk_tenant_id=self.bk_tenant_id, **msg_data)
         return self.handle_api_result(api_result, notice_receivers)
 
 

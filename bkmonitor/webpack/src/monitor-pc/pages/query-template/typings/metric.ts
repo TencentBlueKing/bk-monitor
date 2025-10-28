@@ -25,7 +25,7 @@
  * IN THE SOFTWARE.
  */
 
-import { CP_METHOD_LIST, METHOD_LIST } from '@/constant/constant';
+import { CP_METHOD_LIST, METHOD_LIST } from '../../../constant/constant';
 
 import type { AggCondition } from './query-config';
 

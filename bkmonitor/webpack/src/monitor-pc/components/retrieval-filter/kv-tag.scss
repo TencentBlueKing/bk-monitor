@@ -31,7 +31,9 @@
         color: #3a84ff;
 
         &.exclude,
-        &.ne {
+        &.ne,
+        &.neq,
+        &.nreg {
           color: #ea3636;
         }
       }

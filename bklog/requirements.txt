@@ -122,13 +122,14 @@ bk-crypto-python-sdk==2.0.0
 bk-notice-sdk==1.3.2
 
 # apigw
+tiktoken==0.11.0
 apigw-manager==4.1.0
 
 # 日志聚类
 jieba-fast==0.53
 
 # bkaidev
-aidev-agent==1.0.0b39
+aidev-agent==1.0.0b49
 langfuse==2.60.5
 
 # 各自环境所需的不同依赖, 通过 sites/${env}/deploy/requirements_env.txt得到

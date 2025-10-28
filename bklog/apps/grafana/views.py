@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import json
 
@@ -31,6 +31,7 @@ from rest_framework import serializers
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.response import Response
 
+from apps.api import MonitorApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.generic import APIViewSet
@@ -47,6 +48,9 @@ from apps.grafana.serializers import (
     QuerySerializer,
     TargetTreeSerializer,
     TracesSerializer,
+    GetDashboardDirectoryTreeSerializer,
+    CreateDashboardOrFolderSerializer,
+    SaveToDashboardSerializer,
 )
 from apps.grafana.utils import XNDJSONParser
 from apps.iam import ActionEnum, Permission, ResourceEnum
@@ -61,7 +65,7 @@ from bk_dataview.grafana.views import ProxyView, SwitchOrgView
 
 class GrafanaProxyView(ProxyView):
     def get_request_headers(self, request):
-        headers = super(GrafanaProxyView, self).get_request_headers(request)
+        headers = super().get_request_headers(request)
 
         is_dashboard_api = request.path.rstrip("/").endswith("/api/dashboards/db")
         is_folder_api = request.path.rstrip("/").endswith("/api/folders")
@@ -80,7 +84,7 @@ class GrafanaProxyView(ProxyView):
 
     @method_decorator(csrf_exempt)
     def dispatch(self, request, *args, **kwargs):
-        response = super(GrafanaProxyView, self).dispatch(request, *args, **kwargs)
+        response = super().dispatch(request, *args, **kwargs)
 
         # 这里对 Home 仪表盘进行 patch，替换为指定的面板
         if request.method == "GET" and request.path.rstrip("/").endswith("/grafana/api/dashboards/home"):
@@ -89,7 +93,7 @@ class GrafanaProxyView(ProxyView):
                 patched_content = json.dumps(patch_home_panels(origin_content))
                 return HttpResponse(patched_content, status=response.status_code)
             except Exception as e:  # pylint: disable=broad-except
-                logger.exception("patch home panels error: {}".format(e))
+                logger.exception(f"patch home panels error: {e}")
                 # 异常则不替换了
                 return response
         return response
@@ -152,7 +156,7 @@ class GrafanaViewSet(APIViewSet):
         return [BusinessActionPermission([ActionEnum.VIEW_DASHBOARD])]
 
     def get_authenticators(self):
-        authenticators = super(GrafanaViewSet, self).get_authenticators()
+        authenticators = super().get_authenticators()
         authenticators = [
             authenticator for authenticator in authenticators if not isinstance(authenticator, SessionAuthentication)
         ]
@@ -168,6 +172,9 @@ class GrafanaViewSet(APIViewSet):
             "query": QuerySerializer,
             "query_log": QueryLogSerializer,
             "dimension": DimensionSerializer,
+            "get_dashboard_directory_tree": GetDashboardDirectoryTreeSerializer,
+            "create_dashboard_or_folder": CreateDashboardOrFolderSerializer,
+            "save_to_dashboard": SaveToDashboardSerializer,
         }
         return action_serializer_map.get(self.action, serializers.Serializer)
 
@@ -465,6 +472,97 @@ class GrafanaViewSet(APIViewSet):
         data = GrafanaQueryHandler(params["bk_biz_id"]).get_variable_value(params["type"], params["params"])
         return Response(data)
 
+    @list_route(methods=["GET"])
+    def get_dashboard_directory_tree(self, request):
+        """
+        @api {get} /grafana/get_dashboard_directory_tree/ 09_获取仪表盘目录树
+        @apiName grafana_get_dashboard_directory_tree
+        @apiDescription 获取目录树
+        @apiGroup 30_Grafana
+        @apiParam {Int} bk_biz_id 业务ID
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": [
+                {
+                  "id": 0,
+                  "uid": "",
+                  "title": "General",
+                  "uri": "",
+                  "url": "",
+                  "slug": "",
+                  "tags": [],
+                  "isStarred": false,
+                  "dashboards": [
+                    {
+                      "id": 426,
+                      "uid": "Eoyo0MhHz",
+                      "title": "名称",
+                      "uri": "db/xxxxx",
+                      "url": "/grafana/xxxxxxx",
+                      "slug": "",
+                      "tags": [],
+                      "isStarred": false,
+                      "sortMeta": 0,
+                      "editable": true,
+                      "has_permission": true
+                    }
+                  ]
+                }
+            ],
+            "result": true
+        }
+        """
+        params = self.get_validated_data()
+        data = MonitorApi.get_dashboard_directory_tree(params)
+        return Response(data)
+
+    @list_route(methods=["POST"])
+    def create_dashboard_or_folder(self, request):
+        """
+        @api {post} /grafana/create_dashboard_or_folder/ 10_创建仪表盘或目录
+        @apiName grafana_create_dashboard_or_folder
+        @apiDescription 创建仪表盘或目录
+        @apiGroup 30_Grafana
+        @apiParam {Int} bk_biz_id 业务Id
+        @apiParam {String} title 仪表盘或目录名称
+        @apiParam {String} type 类型，dashboard或folder
+        @apiParam {Int} folderId 目录Id，创建仪表盘时必填
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": "",
+            "result": true
+        }
+        """
+        params = self.get_validated_data()
+        data = MonitorApi.create_dashboard_or_folder(params)
+        return Response(data)
+
+    @list_route(methods=["POST"])
+    def save_to_dashboard(self, request):
+        """
+        @api {post} /grafana/save_to_dashboard/ 11_保存到仪表盘
+        @apiName grafana_save_to_dashboard
+        @apiDescription 保存到仪表盘
+        @apiGroup 30_Grafana
+        @apiParam {Int} bk_biz_id 业务Id
+        @apiParam {List} panels 面板列表
+        @apiParam {List} dashboard_uids 仪表盘UID列表
+        @apiSuccessExample {json} 成功返回:
+        {
+            "message": "",
+            "code": 0,
+            "data": "",
+            "result": true
+        }
+        """
+        params = self.get_validated_data()
+        data = MonitorApi.save_to_dashboard(params)
+        return Response(data)
+
 
 class ExploreViewSet(SwitchOrgView):
     permission_classes = ["apps.grafana.permissions.ExplorePermission"]
@@ -476,7 +574,7 @@ class CustomESDatasourceViewSet(APIViewSet):
     parser_classes = (XNDJSONParser,)
 
     def get_authenticators(self):
-        authenticators = super(CustomESDatasourceViewSet, self).get_authenticators()
+        authenticators = super().get_authenticators()
         authenticators = [
             authenticator for authenticator in authenticators if not isinstance(authenticator, SessionAuthentication)
         ]

@@ -321,12 +321,12 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
    * @param row
    */
   handleConfig(id: string, row: IAppListItem) {
-    if (id === 'appTopo') {
+    if (['appTopo', 'appAlarmTemplate'].includes(id)) {
       this.$router.push({
         name: 'application',
         query: {
           'filter-app_name': row.app_name,
-          dashboardId: 'topo',
+          dashboardId: id === 'appTopo' ? 'topo' : 'alarm_template',
           sceneId: 'apm_application',
           sceneType: 'overview',
         },

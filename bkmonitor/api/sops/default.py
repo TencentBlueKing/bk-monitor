@@ -238,3 +238,34 @@ class ImportProjectTemplate(SopsBaseResource):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
         project_id = serializers.IntegerField(label="项目ID", required=True)
         template_data = serializers.CharField(label="模版的编码", required=True)
+
+
+class GetCommonTemplateListResource(SopsBaseResource):
+    """
+    获取公共流程列表
+    """
+
+    @property
+    def action(self) -> str:
+        if self.use_apigw:
+            return "/system/get_common_template_list/"
+        return "get_common_template_list"
+
+    method = "GET"
+
+
+class GetCommonTemplateInfoResource(SopsBaseResource):
+    """
+    获取公共流程详情
+    """
+
+    @property
+    def action(self) -> str:
+        if self.use_apigw:
+            return "/system/get_common_template_info/{template_id}/"
+        return "get_common_template_info"
+
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        template_id = serializers.IntegerField(label="模板ID", required=True)

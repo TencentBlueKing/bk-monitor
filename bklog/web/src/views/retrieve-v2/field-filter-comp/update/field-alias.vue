@@ -50,7 +50,7 @@ const handleOpenSidebar = async () => {
 };
 
 const { addEvent } =  useRetrieveEvent();
-addEvent(RetrieveEvent.ALIAS_CONFIG_OPEN, () => {
+addEvent(RetrieveEvent.ALIAS_CONFIG_OPEN, (val) => {
    if (val) {
       handleOpenSidebar();
     }

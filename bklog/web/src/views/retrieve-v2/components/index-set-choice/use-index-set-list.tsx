@@ -78,7 +78,8 @@ export default (props, { emit }) => {
 
     // 如果是取消选中
     for (const v of props.value) {
-      if (v !== item.unique_id) {
+      const uniqueId = v?.unique_id ?? v;
+      if (uniqueId !== item.unique_id) {
         targetValue.push(v);
       }
     }

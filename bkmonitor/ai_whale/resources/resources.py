@@ -47,17 +47,21 @@ class CreateChatSessionResource(Resource):
     class RequestSerializer(serializers.Serializer):
         session_code = serializers.CharField(label="会话代码", required=True)
         session_name = serializers.CharField(label="会话名称", required=True)
+        is_temporary = serializers.BooleanField(label="是否是临时会话", required=False, default=False)
         agent_code = serializers.CharField(label="Agent代码", required=False, default=settings.AIDEV_AGENT_APP_CODE)
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         session_name = validated_request_data.get("session_name")
+        is_temporary = validated_request_data.get("is_temporary", False)
         username = get_request_username()
         logger.info(
-            "CreateChatSessionResource: try to create session with session_code->[%s], session_name->[%s]",
+            "CreateChatSessionResource: try to create session with session_code->[%s], session_name->[%s], "
+            "is_temporary->[%s]",
             session_code,
             session_name,
+            is_temporary,
         )
         session_res = aidev_interface.create_chat_session(params=validated_request_data, username=username)
         return session_res

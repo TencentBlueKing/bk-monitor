@@ -18,6 +18,7 @@ class DataLinkKind(Enum):
     RESULTTABLE = "ResultTable"
     VMSTORAGEBINDING = "VmStorageBinding"
     ESSTORAGEBINDING = "ElasticSearchBinding"
+    DORISBINDING = "DorisBinding"
     DATABUS = "Databus"
     CONDITIONALSINK = "ConditionalSink"
     SINK = "Sink"
@@ -30,6 +31,7 @@ class DataLinkKind(Enum):
         (RESULTTABLE, "resulttables"),
         (VMSTORAGEBINDING, "vmstoragebindings"),
         (ESSTORAGEBINDING, "elasticsearchbindings"),
+        (DORISBINDING, "dorisbindings"),
         (DATABUS, "databuses"),
         (CONDITIONALSINK, "conditionalsinks"),
         (SINK, "sinks"),

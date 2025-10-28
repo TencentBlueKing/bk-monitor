@@ -698,6 +698,7 @@ export default defineComponent({
                 min-width='80'
                 prop='cluster_config.creator'
                 renderHeader={renderHeader}
+                scopedSlots={{ default: (props: any) => <bk-user-display-name user-id={props.row.cluster_config.creator}></bk-user-display-name> }}
               />
             )}
             {checkcFields('create_time') && (

@@ -91,36 +91,6 @@
     height: calc(100% - 40px);
   }
 
-  .exception-wrap {
-    position: absolute;
-    top: 40%;
-    left: 50%;
-    transform: translate(-50%, -40%);
-
-    .bk-exception-img {
-      height: 100px;
-
-      .custom-icon {
-        width: 220px;
-      }
-    }
-
-    .bk-exception-footer {
-      margin-top: 12px;
-    }
-
-    .exception-title {
-      font-size: 14px;
-    }
-
-    .exception-desc {
-      max-width: 600px;
-      padding: 0 20px;
-      margin-top: 8px;
-      overflow-wrap: break-word;
-    }
-  }
-
   .topo-graph-wrapper {
     position: relative;
     display: flex;
@@ -215,6 +185,7 @@
 }
 
 .failure-topo-play {
+
   .aggregation-select,
   .topo-tools-list {
     pointer-events: none;
@@ -240,6 +211,7 @@
 
 .node-message-tooltip {
   transform: translateY(var(--offset, 0));
+
   .node-detail-tips {
     z-index: 999;
     border: 1px solid #454547 !important;

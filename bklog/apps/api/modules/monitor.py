@@ -27,7 +27,14 @@ from django.utils.translation import gettext_lazy as _  # noqa
 
 from apps.api.base import DataAPI  # noqa
 from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter  # noqa
+from apps.utils.function import ignored
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW  # noqa
+
+
+def save_to_dashboard_after(response_result):
+    with ignored(Exception):
+        response_result["data"] = [item["data"] for item in response_result["data"]]
+    return response_result
 
 
 class _MonitorApi:
@@ -137,6 +144,34 @@ class _MonitorApi:
             description="获取告警详情",
             default_return_value=None,
             before_request=add_esb_info_before_request,
+        )
+        self.get_dashboard_directory_tree = DataAPI(
+            method="GET",
+            url=self._build_url("dashboard/get_dashboard_directory_tree/", "get_dashboard_directory_tree/"),
+            module=self.MODULE,
+            description="获取仪表盘目录树",
+            default_return_value=None,
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
+        )
+        self.create_dashboard_or_folder = DataAPI(
+            method="POST",
+            url=self._build_url("dashboard/create_dashboard_or_folder/", "create_dashboard_or_folder/"),
+            module=self.MODULE,
+            description="创建仪表盘或目录",
+            default_return_value=None,
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
+        )
+        self.save_to_dashboard = DataAPI(
+            method="POST",
+            url=self._build_url("dashboard/save_to_dashboard/", "save_to_dashboard/"),
+            module=self.MODULE,
+            description="保存到仪表盘",
+            default_return_value=None,
+            before_request=add_esb_info_before_request,
+            after_request=save_to_dashboard_after,
+            bk_tenant_id=biz_to_tenant_getter(),
         )
 
     @property

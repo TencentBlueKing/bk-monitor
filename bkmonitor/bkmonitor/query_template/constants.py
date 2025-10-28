@@ -23,19 +23,13 @@ class Namespace(CachedEnum):
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
-        return [(cls.APM.value, cls.APM.label), (cls.K8S.value, cls.K8S.label), (cls.DEFAULT.value, cls.DEFAULT.label)]
+        return [(member.value, member.label) for member in cls]
 
     @cached_property
     def label(self) -> str:
         return str(
             {self.APM: _("APM 内置"), self.K8S: _("容器监控内置"), self.DEFAULT: _("默认")}.get(self, self.value)
         )
-
-    @classmethod
-    def get_default(cls, value) -> "Namespace":
-        default = super().get_default(value)
-        default.label = value
-        return default
 
 
 class VariableType(CachedEnum):
@@ -69,15 +63,7 @@ class VariableType(CachedEnum):
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
-        return [
-            (cls.METHOD.value, cls.METHOD.label),
-            (cls.GROUP_BY.value, cls.GROUP_BY.label),
-            (cls.TAG_VALUES.value, cls.TAG_VALUES.label),
-            (cls.CONDITIONS.value, cls.CONDITIONS.label),
-            (cls.FUNCTIONS.value, cls.FUNCTIONS.label),
-            (cls.CONSTANTS.value, cls.CONSTANTS.label),
-            (cls.EXPRESSION_FUNCTIONS.value, cls.EXPRESSION_FUNCTIONS.label),
-        ]
+        return [(member.value, member.label) for member in cls]
 
     @cached_property
     def label(self) -> str:
@@ -92,9 +78,3 @@ class VariableType(CachedEnum):
                 self.EXPRESSION_FUNCTIONS: _("表达式函数"),
             }.get(self, self.value)
         )
-
-    @classmethod
-    def get_default(cls, value) -> "VariableType":
-        default = super().get_default(value)
-        default.label = value
-        return default

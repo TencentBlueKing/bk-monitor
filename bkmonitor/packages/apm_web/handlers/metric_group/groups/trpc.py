@@ -337,22 +337,22 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             params_list=[
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": RPCMetricTag.CALLER_SERVER,
+                    "field": RPCMetricTag.CALLER_SERVER.value,
                     "filter_dict": filter_dict,
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": RPCMetricTag.CALLEE_SERVER,
+                    "field": RPCMetricTag.CALLEE_SERVER.value,
                     "filter_dict": filter_dict,
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": RPCMetricTag.SERVICE_NAME,
+                    "field": RPCMetricTag.SERVICE_NAME.value,
                     "filter_dict": filter_dict,
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": RPCMetricTag.SERVICE_NAME,
+                    "field": RPCMetricTag.SERVICE_NAME.value,
                     "filter_dict": filter_dict,
                 },
             ],
@@ -368,18 +368,18 @@ class TrpcMetricGroup(base.BaseMetricGroup):
             params_list=[
                 {
                     "metric_field": TRPCMetricField.RPC_CLIENT_HANDLED_TOTAL,
-                    "field": RPCMetricTag.SERVER,
+                    "field": RPCMetricTag.SERVER.value,
                     "filter_dict": q_to_dict(
-                        Q(**{f"{RPCMetricTag.CALLER_SERVER}__eq": server})
-                        | Q(**{f"{RPCMetricTag.SERVICE_NAME}__eq": server})
+                        Q(**{f"{RPCMetricTag.CALLER_SERVER.value}__eq": server})
+                        | Q(**{f"{RPCMetricTag.SERVICE_NAME.value}__eq": server})
                     ),
                 },
                 {
                     "metric_field": TRPCMetricField.RPC_SERVER_HANDLED_TOTAL,
-                    "field": RPCMetricTag.SERVER,
+                    "field": RPCMetricTag.SERVER.value,
                     "filter_dict": q_to_dict(
-                        Q(**{f"{RPCMetricTag.CALLEE_SERVER}__eq": server})
-                        | Q(**{f"{RPCMetricTag.SERVICE_NAME}__eq": server})
+                        Q(**{f"{RPCMetricTag.CALLEE_SERVER.value}__eq": server})
+                        | Q(**{f"{RPCMetricTag.SERVICE_NAME.value}__eq": server})
                     ),
                 },
             ],

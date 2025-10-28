@@ -3,26 +3,23 @@
 修改一个单业务结果表，使之升级为全业务结果表
 
 
-#### 接口参数
+### 请求参数
 
 | 字段           | 类型   | 必选 | 描述        |
 | -------------- | ------ | ---- | ----------- |
 | table_id_list | list | 是   | 结果表ID列表 |
 | operator | string | 是 | 操作者  |
 
-#### 请求示例
+### 请求参数示例
 
 ```json
 {
-    "bk_app_code": "xxx",
-  	"bk_app_secret": "xxxxx",
-  	"bk_token": "xxxx",
     "operator": "admin",
 	"table_id_list": ["2_system.cpu", "3_system.cpu"],
 }
 ```
 
-### 返回结果
+### 响应参数
 
 | 字段       | 类型   | 描述         |
 | ---------- | ------ | ------------ |
@@ -32,7 +29,7 @@
 | data       | null   | 数据         |
 | request_id | string | 请求ID       |
 
-#### 结果示例
+### 响应参数示例
 
 ```json
 {

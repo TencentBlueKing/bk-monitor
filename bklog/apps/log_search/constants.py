@@ -170,6 +170,8 @@ HAVE_DATA_ID = "have_data_id"
 BKDATA_OPEN = "bkdata"
 NOT_CUSTOM = "not_custom"
 IGNORE_DISPLAY_CONFIG = "ignore_display_config"
+# 异步导出滚动查询超时时间
+ASYNC_EXPORT_SCROLL = "5m"
 
 FIND_MODULE_WITH_RELATION_FIELDS = ["bk_module_id", "bk_module_name", "service_template_id"]
 

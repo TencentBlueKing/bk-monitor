@@ -125,7 +125,14 @@ class RouteUrlResolver {
   }
 
   private objectResolver(str) {
-    return this.commonResolver(str, val => JSON.parse(decodeURIComponent(val)));
+    return this.commonResolver(str, val => {
+      try {
+        return JSON.parse(decodeURIComponent(val ?? ''));
+      } catch (error) {
+        console.warn('route url resolver objectResolver error', error);
+        return val;
+      }
+    });
   }
 
   private arrayResolver(str) {
@@ -278,12 +285,12 @@ class RetrieveUrlResolver {
 
         return isEmpty ? undefined : getEncodeString(val);
       },
-      start_time: () => this.routeQueryParams.datePickerValue[0],
-      end_time: () => this.routeQueryParams.datePickerValue[1],
-      keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : val),
+      start_time: () => encodeURIComponent(this.routeQueryParams.datePickerValue[0]),
+      end_time: () => encodeURIComponent(this.routeQueryParams.datePickerValue[1]),
+      keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : encodeURIComponent(val)),
       unionList: val => {
         if (this.routeQueryParams.isUnionIndex && val?.length) {
-          return getEncodeString(val);
+          return encodeURIComponent(getEncodeString(val));
         }
 
         return;
@@ -291,11 +298,11 @@ class RetrieveUrlResolver {
       default: val => {
         if (typeof val === 'object' && val !== null) {
           if (Array.isArray(val) && val.length) {
-            return getEncodeString(val);
+            return encodeURIComponent(getEncodeString(val));
           }
 
           if (Object.keys(val).length) {
-            return getEncodeString(val);
+            return encodeURIComponent(getEncodeString(val));
           }
 
           return;

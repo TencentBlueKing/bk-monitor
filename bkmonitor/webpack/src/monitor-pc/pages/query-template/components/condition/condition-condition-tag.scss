@@ -1,0 +1,43 @@
+.template-config-page-condition-tag-component {
+  .template-config-page-condition-tag-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 40px;
+    margin: 0 4px 4px 0;
+    cursor: pointer;
+    background: #fdeed8;
+    border-radius: 2px;
+
+    .name-wrap {
+      font-family: RobotoMono-Medium, Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: #f59500;
+    }
+  }
+
+  .condition-options {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    max-height: 210px;
+    padding: 6px 0;
+    overflow: auto;
+
+    .condition-option {
+      display: flex;
+      flex: 0 0 32px;
+      align-items: center;
+      padding: 0 15px;
+
+      &:hover,
+      &.active {
+        color: #3a84ff;
+        cursor: pointer;
+        background-color: #e1ecff;
+      }
+    }
+  }
+}

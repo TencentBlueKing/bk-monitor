@@ -341,7 +341,7 @@ export default {
       min-height: 16px;
       padding: 8px 15px 8px 55px;
       margin: 0;
-      font-family: "Roboto Mono", monospace;
+      font-family: var(--bklog-v3-row-ctx-font);
       font-size: 12px;
       line-height: 24px;
       border-top: 1px solid transparent;
@@ -368,11 +368,11 @@ export default {
       min-width: 38px;
       padding-right: 12px;
       margin-left: -36px;
+      font-weight: 400;
       line-height: 24px;
       color: #eaebf0;
       text-align: right;
       user-select: none;
-      font-weight: 400;
     }
 
     .line-text {

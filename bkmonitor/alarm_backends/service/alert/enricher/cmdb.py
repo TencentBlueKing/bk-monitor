@@ -128,19 +128,24 @@ class CMDBEnricher(BaseEventEnricher):
             ip = ip_with_cloud_id[0]
             bk_cloud_id = 0
             host = None
-            for h in self.get_host_by_ip(event.bk_tenant_id, ip):
-                if event.bk_biz_id and int(event.bk_biz_id) > 0 and h.bk_biz_id != event.bk_biz_id:
-                    continue
-                # 1. 如果提供了业务ID，且主机的业务ID跟事件提供的业务ID相同，则匹配成功
-                # 2. 如果没有提供业务ID，则直接匹配成功
-                if host:
-                    # 如果已经有一台机器匹配过了，那么就发生冲突，清洗失败
-                    logger.warning(
-                        "[enrich_host] host(%s) conflict, multiple cloud regions exist for this IP", event.target
-                    )
-                    event.drop()
-                    return event
-                host = h
+            target_hosts = self.get_host_by_ip(event.bk_tenant_id, ip)
+            if len(target_hosts) == 1:
+                # 0. 如果 ip 下只有一台机器，则直接匹配成功
+                host = target_hosts[0]
+            else:
+                for h in target_hosts:
+                    if event.bk_biz_id and int(event.bk_biz_id) > 0 and h.bk_biz_id != event.bk_biz_id:
+                        continue
+                    # 1. 如果提供了业务ID，且主机的业务ID跟事件提供的业务ID相同，则匹配成功
+                    # 2. 如果没有提供业务ID，则直接匹配成功
+                    if host:
+                        # 如果已经有一台机器匹配过了，那么就发生冲突，清洗失败
+                        logger.warning(
+                            "[enrich_host] host(%s) conflict, multiple cloud regions exist for this IP", event.target
+                        )
+                        event.drop()
+                        return event
+                    host = h
             event.set("target", f"{ip}|{bk_cloud_id}")
         else:
             # 存在IP和云区域

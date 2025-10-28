@@ -63,7 +63,8 @@ export const NUMBER_CONDITION_METHOD_LIST = [
   { id: 'reg', name: 'regex' },
   { id: 'nreg', name: 'nregex' },
 ];
-export const NEW_NUMBER_CONDITION_METHOD_LIST = [ // 原版引入地方较多
+export const NEW_NUMBER_CONDITION_METHOD_LIST = [
+  // 原版引入地方较多
   { id: 'eq', name: 'in' },
   { id: 'gt', name: '>' },
   { id: 'gte', name: '>=' },
@@ -89,7 +90,8 @@ export const STRING_CONDITION_METHOD_LIST = [
   { id: 'reg', name: 'regex' },
   { id: 'nreg', name: 'nregex' },
 ];
-export const NEW_STRING_CONDITION_METHOD_LIST = [ // 原版引入地方较多
+export const NEW_STRING_CONDITION_METHOD_LIST = [
+  // 原版引入地方较多
   { id: 'eq', name: 'in' },
   { id: 'neq', name: 'not in' },
   { id: 'include', name: 'like' },

@@ -276,9 +276,12 @@ export default defineComponent({
     /** 获取故障流转列表 */
     const getIncidentOperations = () => {
       operationsLoading.value = true;
-      incidentOperations({
-        incident_id: incidentDetailData.value?.incident_id,
-      })
+      incidentOperations(
+        {
+          incident_id: incidentDetailData.value?.incident_id,
+        },
+        { needMessage: false }
+      )
         .then(res => {
           res.map(item => {
             const { operation_type, extra_info } = item;
@@ -394,7 +397,7 @@ export default defineComponent({
     };
     const goAlertList = data => {
       refContent.value?.goAlertDetail(data);
-    }
+    };
     const handleCollapseChange = val => {
       isCollapsed.value = val;
     };

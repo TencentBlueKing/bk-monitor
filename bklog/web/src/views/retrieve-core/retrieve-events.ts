@@ -128,6 +128,16 @@ enum RetrieveEvent {
    * 打开别名配置
    */
   ALIAS_CONFIG_OPEN = 'alias_config_open',
+
+  /**
+   * 自动刷新日志
+   */
+  AUTO_REFRESH = 'auto_refresh',
+
+  /**
+   * 排序列表变化
+   */
+  SORT_LIST_CHANGED = 'sort-list-changed',
 }
 
 export default RetrieveEvent;

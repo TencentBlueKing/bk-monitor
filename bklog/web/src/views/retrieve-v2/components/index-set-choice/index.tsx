@@ -131,7 +131,7 @@ export default defineComponent({
         if (props.activeTab === 'union') {
           emit(
             'value-change',
-            unionListValue.length ? unionListValue : props.indexSetValue,
+            (unionListValue.length ? unionListValue : props.indexSetValue).map(v => v?.unique_id ?? v),
             'union',
           );
         }
@@ -202,7 +202,7 @@ export default defineComponent({
     ) => {
       // 如果是单选操作直接抛出事件
       if (['single', 'history', 'favorite'].includes(props.activeTab)) {
-        emit('value-change', value, type, id);
+        emit('value-change', value.unique_id ?? value, type, id);
         refRootElement.value?.hide();
         return;
       }
@@ -213,8 +213,8 @@ export default defineComponent({
         unionListValue = value;
         const flatList = getFlatList();
         selectedValues.value = value.map((v) =>
-          flatList.find((i) => i.unique_id === v),
-        );
+          flatList.find((i) => i.unique_id === (v?.unique_id ?? v)),
+        ).filter(v => v !== undefined);
       }
     };
 

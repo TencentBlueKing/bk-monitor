@@ -363,8 +363,8 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAttrSerializer)
-        search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
+            search_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(search_handler.scroll_search())
 
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
@@ -372,6 +372,7 @@ class SearchViewSet(APIViewSet):
             query_handler = UnifyQueryHandler(data)
             return Response(query_handler.search())
         else:
+            search_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="search/original")
