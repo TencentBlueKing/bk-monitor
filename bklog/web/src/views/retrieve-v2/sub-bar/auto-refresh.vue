@@ -64,11 +64,10 @@ const handleRefresh = () => {
 let timerId = null;
 const createRefreshTimerTask = () => {
   const interval = getTimeInMs(selectedValue.value);
+  timerId && clearTimeout(timerId);
   if (interval === 0) {
     return;
   }
-
-  timerId && clearTimeout(timerId);
   timerId = setTimeout(() => {
     handleRefresh();
     createRefreshTimerTask();
