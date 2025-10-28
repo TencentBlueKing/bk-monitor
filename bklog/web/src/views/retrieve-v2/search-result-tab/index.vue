@@ -153,21 +153,29 @@ onMounted(() => {
 </script>
 <template>
   <div class="retrieve2-tab">
-    <div>
-      <span v-for="(item, index) in renderPanelList" :key="item.label"
+    <span
+      v-for="(item, index) in renderPanelList"
+      :key="item.label"
       :class="['retrieve-panel', { active: value === item.name }, ...tabClassList[index]]"
-      @click="handleActive(item.name)">{{ item.label }}</span>
+      @click="handleActive(item.name)"
+      >{{ item.label }}</span
+    >
+    <!-- <div class="btn-alert-dashboard" @click="handleAddAlertDashboard">
+      <span class="bklog-icon bklog-yibiaopan" style="font-size: 16px"></span>
+      <span>{{ $t('添加到仪表盘') }}</span>
+    </div> -->
+    <div
+      class="btn-alert-policy"
+      @click="handleAddAlertPolicy"
+      v-if="!isExternal"
+    >
+      <span
+        class="bklog-icon bklog--celve"
+        style="font-size: 16px"
+      ></span>
+      <span>{{ $t('添加告警策略') }}</span>
     </div>
-    <div class="tab-right-operate">
-      <div class="btn-alert-dashboard" @click="handleAddAlertDashboard" v-if="false">
-        <span class="bklog-icon bklog-yibiaopan" style="font-size: 16px"></span>
-        <span>{{ $t('添加到仪表盘') }}</span>
-      </div>
-      <div class="btn-alert-policy" @click="handleAddAlertPolicy" v-if="!isExternal">
-        <span class="bklog-icon bklog--celve" style="font-size: 16px"></span>
-        <span>{{ $t('添加告警策略') }}</span>
-      </div>
-    </div>
+  
      <DashboardDialog
       :is-show="showDialog"
       @update:isShow="handleDialogUpdate"
