@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import base64
+import os
 from pathlib import Path
 
 import yaml
@@ -201,11 +202,9 @@ class ScriptPluginManager(PluginManager):
 
         collector_json = {}
         for os_name, file_info in list(meta_dict["scripts"].items()):
-            script_path = Path(OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"])
-            if script_path not in self.plugin_configs:
-                raise PluginParseError({"msg": _(f"无法找到脚本文件, path: {script_path}")})
+            script_path = os.path.join(OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"])
 
-            script_content = self._decode_file(self.plugin_configs[script_path])
+            script_content = self._decode_file(self.plugin_configs[Path(script_path)])
             collector_json[os_name] = {
                 "filename": file_info["filename"],
                 "type": file_info["type"],
