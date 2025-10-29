@@ -1741,14 +1741,14 @@ class BaseIndexSetHandler:
                 table_info = [{
                     "storage_type": "doris",
                     "bkbase_table_id": doris_result_table.rsplit(".", maxsplit=1)[0],
-                    "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table.rsplit('.', maxsplit=1)[0]}.__analysis__",
+                    "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table.rsplit('.', maxsplit=1)[0]}.__doris__",
                     "source_type": "bkdata",
                     "need_create_index": False,
                 } for doris_result_table in doris_table_id_list]
                 doris_params = {
                     "space_type": index_set.space_uid.split("__")[0],
                     "space_id": index_set.space_uid.split("__")[-1],
-                    "data_label": f"bklog_index_set_{index_set.index_set_id}_analysis",
+                    "data_label": f"bklog_index_set_{index_set.index_set_id}",
                     "table_info": table_info,
                 }
                 if query_alias_settings := index_set.query_alias_settings:
