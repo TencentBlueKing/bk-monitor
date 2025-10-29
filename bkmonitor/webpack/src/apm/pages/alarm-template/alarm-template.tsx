@@ -396,6 +396,38 @@ export default class AlarmTemplate extends tsc<object> {
         });
       });
   }
+
+  /**
+   * @description 表格开关改变事件回调
+   * @param id 模板id 或 模板id数组
+   * @param updateValue 需要更新的数据
+   * @returns
+   */
+  handleSwitchChangeFn(
+    id: AlarmTemplateListItem['id'] | AlarmTemplateListItem['id'][],
+    updateValue: Partial<AlarmTemplateListItem>
+  ) {
+    const ids = Array.isArray(id) ? id : [id];
+    return new Promise((resolve, reject) => {
+      updateAlarmTemplateByIds({ ids, app_name: this.viewOptions.filters?.app_name, edit_data: updateValue })
+        .then(() => {
+          this.$bkMessage({
+            message: this.$t('更新成功'),
+            theme: 'success',
+          });
+          resolve(true);
+          this.handleRefresh();
+        })
+        .catch(() => {
+          this.$bkMessage({
+            message: this.$t('更新失败'),
+            theme: 'error',
+          });
+          reject();
+        });
+    });
+  }
+
   /**
    * @description 表格分页页码改变事件回调
    * @param {number} currentPage 改值后的页码
@@ -469,6 +501,7 @@ export default class AlarmTemplate extends tsc<object> {
             selectedRowKeys={this.selectedRowKeys}
             selectOptionMap={this.selectOptionsMap}
             sort={this.sort}
+            switchChangeFn={this.handleSwitchChangeFn}
             tableData={this.tableData}
             total={this.total}
             onBatchUpdate={this.handleBatchUpdate}
