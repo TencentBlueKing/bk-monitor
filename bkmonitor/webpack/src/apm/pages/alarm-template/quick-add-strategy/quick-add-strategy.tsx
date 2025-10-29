@@ -39,7 +39,7 @@ import JudgmentConditions from './judgment-conditions';
 import TemplateList from './template-list';
 
 import type {
-  AlgorithmItem,
+  AlgorithmItemUnion,
   DetectConfig,
   EditTemplateFormData,
   TemplateDetail,
@@ -199,7 +199,7 @@ class QuickAddStrategy extends Mixins(
   }
 
   /** 检测规则修改 */
-  handleAlgorithmsChange(val: AlgorithmItem[]) {
+  handleAlgorithmsChange(val: AlgorithmItemUnion[]) {
     const currentTemplateData = this.templateFormData[this.cursorId];
     const detailData = this.templateDetail[this.cursorId];
     currentTemplateData.algorithms = val;

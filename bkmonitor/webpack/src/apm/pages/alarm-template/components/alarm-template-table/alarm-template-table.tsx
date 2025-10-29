@@ -197,7 +197,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     algorithms: {
       id: 'algorithms',
       label: this.$t('检测规则'),
-      width: 250,
+      width: 400,
       resizable: false,
       showOverflowTooltip: false,
       formatter: this.algorithmsColRenderer,
@@ -699,7 +699,10 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     const value = row[columnKey];
     return (
       <div class='algorithms-col'>
-        <DetectionAlgorithmsGroup algorithms={value} />
+        <DetectionAlgorithmsGroup
+          algorithms={value}
+          connector={row.detect?.connector}
+        />
         <div
           class='edit-btn'
           onClick={() =>
