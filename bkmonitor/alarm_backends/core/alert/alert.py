@@ -1112,14 +1112,16 @@ class AlertCache:
                     # 其他异常，记录日志但允许更新
                     logger.warning("load alert failed: %s, origin data: %s", e, cached_data)
 
-            if should_update:
-                if not alert.is_abnormal():
-                    # 如果告警已经结束，不做删除，更新告警内容
-                    finished_count += 1
-                else:
-                    # 如果告警未结束就更新
-                    update_count += 1
-                pipeline.set(key, json.dumps(alert.to_dict()), ALERT_DEDUPE_CONTENT_KEY.ttl)
+            if not should_update:
+                continue
+
+            if alert.is_end():
+                # 如果告警已经结束，不做删除，更新告警内容
+                finished_count += 1
+            else:
+                # 如果告警未结束就更新
+                update_count += 1
+            pipeline.set(key, json.dumps(alert.to_dict()), ALERT_DEDUPE_CONTENT_KEY.ttl)
 
         pipeline.execute()
         logger.debug(
