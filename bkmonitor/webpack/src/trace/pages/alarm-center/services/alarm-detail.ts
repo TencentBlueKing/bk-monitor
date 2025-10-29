@@ -26,6 +26,7 @@
 
 import { alertDetail, listAlertFeedback } from 'monitor-api/modules/alert';
 import { getSceneView } from 'monitor-api/modules/scene_view';
+import { BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
 import { AlarmDetail } from '../typings/detail';
 
@@ -49,12 +50,33 @@ export const fetchListAlertFeedback = (id: string, bizId: number) => {
  * @param bizId 业务ID
  */
 export const getHostSceneView = async (bizId: number) => {
-  const sceneView = await getSceneView({
+  const sceneData = await getSceneView({
     bk_biz_id: bizId,
     scene_id: 'host',
     type: 'detail',
     id: 'host',
   }).catch(() => ({ id: '', panels: [], name: '' }));
 
-  return sceneView;
+  // 过滤未分组
+  const transformData = new BookMarkModel(sceneData || { id: '', panels: [], name: '' });
+  const unGroupKey = '__UNGROUP__';
+  const panels = transformData.panels;
+  /** 处理只有一个分组且为未分组时则不显示组名 */
+  const rowPanels = panels.filter(item => item.type === 'row');
+  let resultPanels = panels;
+  if (rowPanels.length === 1 && rowPanels[0]?.id === unGroupKey) {
+    resultPanels = panels.reduce((prev, curr) => {
+      if (curr.type === 'row') {
+        prev.push(...curr.panels);
+      } else {
+        prev.push(curr);
+      }
+      return prev;
+    }, []);
+  } else if (panels.length > 1 && panels.some(item => item.id === unGroupKey)) {
+    /* 当有多个分组且未分组为空的情况则不显示未分组 */
+    resultPanels = panels.filter(item => (item.id === unGroupKey ? !!item.panels?.length : true));
+  }
+  transformData.panels = resultPanels;
+  return transformData;
 };

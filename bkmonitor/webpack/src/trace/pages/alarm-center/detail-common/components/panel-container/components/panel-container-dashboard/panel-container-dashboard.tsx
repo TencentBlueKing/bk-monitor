@@ -24,78 +24,35 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, provide, shallowRef, toRef, watch } from 'vue';
+import { defineComponent, shallowRef } from 'vue';
 
 import { random } from 'monitor-common/utils';
-import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
-import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
-import { createAutoTimeRange } from '../../../../../../../plugins/charts/failure-chart/failure-alarm-chart';
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
-import { useHostSceneView } from '../../../../../composables/use-host-scene-view';
 
-import './panel-host-dashboard.scss';
+import './panel-container-dashboard.scss';
 
 export default defineComponent({
-  name: 'PanelHostDashboard',
-  props: {
-    /** 业务ID */
-    bizId: {
-      type: Number,
-    },
-    /** 图表数据的时间间隔 */
-    interval: {
-      type: Number,
-      default: 60,
-    },
-    /** 图表需要请求的数据的开始时间 */
-    beginTime: {
-      type: Number,
-    },
-    /** 图表需要请求的数据的结束时间 */
-    endTime: {
-      type: Number,
-    },
-    /** 图表请求参数变量 */
-    viewOptions: {
-      type: Object as PropType<Record<string, unknown>>,
-      default: () => ({}),
-    },
-  },
-  setup(props) {
+  name: 'PanelContainerDashboard',
+  props: {},
+  setup(_props) {
     /** 图表联动Id */
     const dashboardId = shallowRef(random(10));
-    /** 主机监控 需要渲染的仪表盘面板配置数组 */
-    const { hostSceneView, loading } = useHostSceneView(toRef(props, 'bizId'));
-    /** 是否立即刷新图表数据 */
-    const refreshImmediate = shallowRef('');
-    /** 数据时间范围 */
-    const timeRange = computed(() => {
-      const { startTime, endTime } = createAutoTimeRange(props.beginTime, props.endTime, props.interval);
-      return startTime && endTime ? [startTime, endTime] : DEFAULT_TIME_RANGE;
-    });
-    provide('timeRange', timeRange);
-    provide('refreshImmediate', refreshImmediate);
-    watch(
-      () => hostSceneView.value,
-      () => {
-        dashboardId.value = random(10);
-        echartsConnect(dashboardId.value);
-      }
-    );
+    /** 需要渲染的仪表盘面板配置数组 */
+    const sceneView = { panels: [] };
 
-    return { dashboardId, hostSceneView, loading };
+    return { dashboardId, sceneView };
   },
   render() {
     return (
-      <div class='panel-host-dashboard'>
-        {this.hostSceneView?.panels?.map?.(dashboard => (
+      <div class='panel-container-dashboard'>
+        {this.sceneView?.panels?.map?.(dashboard => (
           <AlarmMetricsDashboard
             key={dashboard.id}
             dashboardId={this.dashboardId}
             dashboardTitle={dashboard?.title}
+            gridCol={1}
             panelModels={dashboard?.panels}
-            viewOptions={this.viewOptions}
           />
         ))}
       </div>

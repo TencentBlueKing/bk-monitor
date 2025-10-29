@@ -23,18 +23,73 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
+
+import { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
+
+import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
+import K8sSceneSelector from './components/k8s-scene-selector/k8s-scene-selector';
+import PanelContainerDashboard from './components/panel-container-dashboard/panel-container-dashboard';
+
+import './index.scss';
 
 export default defineComponent({
   name: 'PanelContainer',
   props: {
     id: String as PropType<string>,
   },
-  setup(props) {
-    console.log(props.id);
-    return () => (
-      <div class='alarm-center-detail-panel-alarm'>
-        <div>hello alarm</div>
+  setup(_props) {
+    /** 场景 */
+    const scene = shallowRef<SceneEnum>(SceneEnum.Performance);
+
+    /**
+     * @description 切换场景回调
+     */
+    function handleSceneChange(val: SceneEnum) {
+      scene.value = val;
+    }
+
+    /**
+     * @description 跳转容器监控页面
+     */
+    function handleToK8s(v) {
+      console.log('================ v ================', v);
+    }
+
+    return { scene, handleToK8s, handleSceneChange };
+  },
+  render() {
+    return (
+      <div class='alarm-center-detail-panel-k8s'>
+        <div class='panel-k8s-white-bg-container'>
+          <div class='k8s-condition-wrap'>
+            <div class='k8s-condition-container'>
+              <span>pod = authmanager-debug-5586485485-848qx</span>
+            </div>
+            <div
+              class='k8s-link-btn'
+              onClick={this.handleToK8s}
+            >
+              <span class='link-text'>{window.i18n.t('容器监控')}</span>
+              <i class='icon-monitor icon-mc-goto' />
+            </div>
+          </div>
+          <div class='ai-hight-card-wrap'>
+            <AiHighlightCard
+              content={`tE monitor_web，incident，resources, fronted_resources. IncidentHandlersResource 这个 span 中，发生了一个类型为 TypeError 的异常。异常信息为'<' not supported between instances of 'str' and 'int'. 这表明在代表中存在一个比较操作。试图将字符串和整数进行比较，导致了类型错误。`}
+              title={`${window.i18n.t('AI 分析结论')}：`}
+            />
+          </div>
+          <div class='k8s-scene-selector-wrap'>
+            <K8sSceneSelector
+              scene={this.scene}
+              onSceneChange={this.handleSceneChange}
+            />
+          </div>
+        </div>
+        <div class='panel-k8s-chart-wrap'>
+          <PanelContainerDashboard />
+        </div>
       </div>
     );
   },

@@ -23,23 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, provide, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { get } from '@vueuse/core';
-import { random } from 'monitor-common/utils';
-import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 import { storeToRefs } from 'pinia';
 
-import { DEFAULT_TIME_RANGE } from '../../../../../components/time-range/utils';
-import { createAutoTimeRange } from '../../../../../plugins/charts/failure-chart/failure-alarm-chart';
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
-import { getHostSceneView } from '../../../services/alarm-detail';
 import PanelHostDashboard from './components/panel-host-dashboard/panel-host-dashboard';
 import PanelHostSelector from './components/panel-host-selector/panel-host-selector';
 
 import type { AlarmDetail } from '../../../typings';
-import type { IBookMark } from 'monitor-ui/chart-plugins/typings';
 
 import './index.scss';
 
@@ -51,17 +45,10 @@ export default defineComponent({
     },
   },
   setup(props) {
-    /** 图表联动Id */
-    const dashboardId = random(10);
-
     /** 业务ID */
     const { bizId } = storeToRefs(useAlarmCenterDetailStore());
-    /** host 场景指标视图配置信息 */
-    const hostSceneData = shallowRef<IBookMark>({ id: '', panels: [], name: '' });
     /** 是否处于请求加载状态 */
     const loading = shallowRef(false);
-    /** 是否立即刷新图表数据 */
-    const refreshImmediate = shallowRef('');
 
     /** 图表数据的时间间隔 */
     const interval = computed(
@@ -86,19 +73,9 @@ export default defineComponent({
       }
       return currentTarget;
     });
-    /** 数据时间范围 */
-    const timeRange = computed(() => {
-      const { startTime, endTime } = createAutoTimeRange(
-        props.detail?.begin_time,
-        props.detail?.end_time,
-        get(interval)
-      );
-      return startTime && endTime ? [startTime, endTime] : DEFAULT_TIME_RANGE;
-    });
     /** 图表请求参数变量 */
     const viewOptions = computed(() => {
       const currentTarget = get(defaultCurrentTarget);
-
       return {
         method: 'AVG',
         interval: get(interval),
@@ -110,33 +87,19 @@ export default defineComponent({
       };
     });
 
-    provide('timeRange', timeRange);
-    provide('refreshImmediate', refreshImmediate);
-    onMounted(() => {
-      getDashboardPanels();
-    });
-
-    /**
-     * @description 获取仪表盘数据数组
-     */
-    async function getDashboardPanels() {
-      loading.value = true;
-      const sceneView = await getHostSceneView(bizId.value);
-      hostSceneData.value = sceneView;
-      echartsConnect(dashboardId);
-      loading.value = false;
-    }
-
     /**
      * @description 跳转主机检索页面
      */
     function handleToPerformance() {
-      const currentTarget = viewOptions.value?.current_target;
+      const currentTarget = get(defaultCurrentTarget);
       const ip = currentTarget?.bk_target_ip ?? '0.0.0.0';
       const cloudId = currentTarget?.bk_target_cloud_id ?? '0';
       const bkHostId = currentTarget?.bk_host_id ?? 0;
       // 跳转至容器监控时的详情Id
       const detailId = bkHostId ? bkHostId : `${ip}-${cloudId}`;
+      // TODO : 待确认 跳转至主机监控时的路径参数
+      // 模块级别 ?filter-bk_inst_id=190&filter-bk_obj_id=module
+      // 主机级别 ?filter-bk_target_ip=10.0.7.4&filter-bk_target_cloud_id=0&filter-bk_host_id=8
       window.open(`${location.origin}${location.pathname}?bizId=${bizId.value}#/performance/detail/${detailId}`);
     }
 
@@ -147,7 +110,7 @@ export default defineComponent({
       return <div class='alarm-detail-panel-host-skeleton-dom skeleton-element' />;
     }
 
-    return { loading, hostSceneData, dashboardId, viewOptions, handleToPerformance, createSkeletonDom };
+    return { bizId, interval, loading, viewOptions, handleToPerformance, createSkeletonDom };
   },
   render() {
     return (
@@ -156,7 +119,7 @@ export default defineComponent({
           <div class='host-selector-wrap'>
             <div class='host-selector-container'>
               <PanelHostSelector class='host-selector' />
-              {this.createSkeletonDom()}
+              {/* {this.createSkeletonDom()} */}
             </div>
             <div
               class='host-explore-link-btn'
@@ -171,13 +134,15 @@ export default defineComponent({
               content='该模块哈哈哈哈哈，我是一段随意的文本占位。'
               title={`${window.i18n.t('AI 分析结论')}：`}
             />
-            {this.createSkeletonDom()}
+            {/* {this.createSkeletonDom()} */}
           </div>
         </div>
         <div class='panel-host-chart-wrap'>
           <PanelHostDashboard
-            dashboardId={this.dashboardId}
-            sceneData={this.hostSceneData}
+            beginTime={this.detail?.begin_time}
+            bizId={this.bizId}
+            endTime={this.detail?.end_time}
+            interval={this.interval}
             viewOptions={this.viewOptions}
           />
         </div>
