@@ -246,7 +246,7 @@ export default defineComponent({
       );
     return (
       <div class='event-detail-head-main'>
-        {this.getTagComponent(this.alarmDetail.severity)}
+        {this.getTagComponent(this.alarmDetail?.severity)}
         <div class='event-detail-head-content'>
           <span class='event-id'>
             ID: {this.alarmId}
