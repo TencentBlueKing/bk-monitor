@@ -100,8 +100,11 @@ export default defineComponent({
         )}
         <Tab
           class='panel-tab'
-          v-model:active={currentPanel.value}
+          active={currentPanel.value}
           type='unborder-card'
+          onUpdate:active={v => {
+            currentPanel.value = v;
+          }}
         >
           {alarmCenterDetailStore.alarmDetail?.alarmTabList?.map(item => (
             <Tab.TabPanel
@@ -112,7 +115,6 @@ export default defineComponent({
           ))}
         </Tab>
         <KeepAlive>{getPanelComponent()}</KeepAlive>
-
         <AlarmConfirmDialog
           alarmBizId={bizId.value}
           alarmIds={[alarmId.value]}

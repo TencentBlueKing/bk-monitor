@@ -302,12 +302,7 @@ export default defineComponent({
                   key={ind}
                   class={['item-col', item.extCls]}
                 >
-                  <div
-                    class='item-label'
-                    v-en-class='fb-146'
-                  >
-                    {item.title}：
-                  </div>
+                  <div class='item-label'>{item.title}：</div>
                   {item.content ? (
                     <div class='item-content'>{item.content()}</div>
                   ) : (

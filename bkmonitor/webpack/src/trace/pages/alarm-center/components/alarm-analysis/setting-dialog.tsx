@@ -24,16 +24,16 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, shallowRef, TransitionGroup, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+import type { PropType } from 'vue';
 
 import { useThrottleFn } from '@vueuse/core';
 import { Button, Checkbox, Dialog, Input } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { useAlarmCenterStore } from '../../../../store/modules/alarm-center';
 
 import type { QuickFilterItem } from '../../typings';
-import type { PropType } from 'vue';
 
 import './setting-dialog.scss';
 
@@ -109,7 +109,7 @@ export default defineComponent({
     };
 
     const handleDeleteItem = (index: number) => {
-      localSelectValue.value = localSelectValue.value.filter((id, i) => i !== index);
+      localSelectValue.value = localSelectValue.value.filter((_id, i) => i !== index);
     };
 
     const handleClearSelect = () => {
@@ -158,7 +158,7 @@ export default defineComponent({
       const dragDom = target.closest('.target-item');
       if (dragDom) {
         dragDom?.classList.remove('dragging');
-        // @ts-ignore
+        // @ts-expect-error
         dragDom.draggable = false;
       }
       draggingField.value = '';
@@ -172,7 +172,7 @@ export default defineComponent({
       draggingField.value = field;
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', field);
-      // @ts-ignore
+      // @ts-expect-error
       e.target.closest('.target-item').classList.add('dragging');
     }
 
@@ -181,7 +181,7 @@ export default defineComponent({
      *
      */
     function dragHandleMouseOperation(e: MouseEvent, draggable) {
-      // @ts-ignore
+      // @ts-expect-error
       e.target.closest('.target-item').draggable = draggable;
     }
 
@@ -224,14 +224,9 @@ export default defineComponent({
       <Dialog
         width={960}
         class='alarm-analysis-setting-dialog'
-        isShow={this.show}
-        quickClose
-        onConfirm={this.handleConfirm}
-        onUpdate:isShow={this.handleShowChange}
-      >
-        {{
+        v-slots={{
           header: () => <div class='title'>{this.t('告警分析设置')}</div>,
-          default: (
+          default: () => (
             <div class='content'>
               <div class='field-select-wrap'>
                 {this.alarmStore.alarmType === 'alert' && (
@@ -327,7 +322,11 @@ export default defineComponent({
             </div>
           ),
         }}
-      </Dialog>
+        isShow={this.show}
+        quickClose
+        onConfirm={this.handleConfirm}
+        onUpdate:isShow={this.handleShowChange}
+      />
     );
   },
 });
