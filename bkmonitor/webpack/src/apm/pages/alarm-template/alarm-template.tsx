@@ -533,6 +533,7 @@ export default class AlarmTemplate extends tsc<object> {
             this.editTemplateShow = true;
           }}
           onShowPush={params => {
+            this.templateDetailObj.show = false;
             this.templatePushObj = {
               show: true,
               params,
