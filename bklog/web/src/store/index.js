@@ -998,7 +998,7 @@ const store = new Vuex.Store({
      *
      * @return {Promise} promise 对象
      */
-    getMenuList({ }, spaceUid) {
+    getMenuList(_, spaceUid) {
       return http.request('meta/menu', {
         query: {
           space_uid: spaceUid,
@@ -1243,8 +1243,7 @@ const store = new Vuex.Store({
      * @param {Number} payload.searchCount - 自定义的查询计数器。
      *
      */
-    requestIndexSetQuery(
-      { commit, state, getters, dispatch },
+    requestIndexSetQuery({ commit, state, getters },
       payload = {
         isPagination: false,
         cancelToken: null,
@@ -1829,8 +1828,8 @@ const store = new Vuex.Store({
 
     requestSearchTotal({ state, getters }) {
       state.searchTotal = 0;
-      const start_time = Math.floor(getters.retrieveParams.start_time);
-      const end_time = Math.ceil(getters.retrieveParams.end_time);
+      const startTime = Math.floor(getters.retrieveParams.start_time);
+      const endTime = Math.ceil(getters.retrieveParams.end_time);
       return http
         .request(
           'retrieve/fieldStatisticsTotal',
@@ -1839,8 +1838,8 @@ const store = new Vuex.Store({
               ...getters.retrieveParams,
               bk_biz_id: state.bkBizId,
               index_set_ids: state.indexItem.ids,
-              start_time,
-              end_time,
+              start_time: startTime,
+              end_time: endTime,
               addition: [
                 ...getters.requestAddition,
                 ...getCommonFilterAdditionWithValues(state),
@@ -1855,21 +1854,25 @@ const store = new Vuex.Store({
           const { data } = res;
           if (res.result === true) state.searchTotal = data.total_count;
           return res;
+        })
+        .catch((err) => {
+          console.error(err);
+          return Promise.reject(err);
         });
     },
 
     handleTrendDataZoom({ commit, getters }, payload) {
-      const { start_time, end_time, format } = payload;
+      const { start_time: startTime, end_time: endTime, format } = payload;
       const formatStr = getters.retrieveParams.format;
 
       const [startTimeStamp, endTimeStamp] = format
-        ? handleTransformToTimestamp([start_time, end_time], formatStr)
-        : [start_time, end_time];
+        ? handleTransformToTimestamp([startTime, endTime], formatStr)
+        : [startTime, endTime];
 
       commit('updateIndexItem', {
         start_time: startTimeStamp,
         end_time: endTimeStamp,
-        datePickerValue: [start_time, end_time],
+        datePickerValue: [startTime, endTime],
       });
 
       return Promise.resolve(true);

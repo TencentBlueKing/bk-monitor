@@ -142,6 +142,17 @@ const mountedVueInstance = () => {
         components: {
           App,
         },
+        created() {
+          const spaceId = this.$store.state.spaceUid;
+          if (!spaceId) {
+            this.$router.push({
+              path: '/un-authorized',
+              query: {
+                type: 'space',
+              },
+            });
+          }
+        },
         mounted() {
           // 对于手动输入URL，直接刷新页面重置所有参数和状态
           window.addEventListener('hashchange', this.reset);

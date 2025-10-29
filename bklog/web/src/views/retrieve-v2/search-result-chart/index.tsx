@@ -84,7 +84,7 @@ export default defineComponent({
     let runningTimer: any = null; // 定时器
 
     // 初始化、设置、重绘图表
-    const handleChartDataZoom = inject('handleChartDataZoom', () => {});
+    const handleChartDataZoom = inject('handleChartDataZoom', () => { });
     const { initChartData, setChartData, backToPreChart, canGoBack } = useTrendChart({
       target: trendChartCanvas,
       handleChartDataZoom,
@@ -94,7 +94,7 @@ export default defineComponent({
     // 监听store中interval变化，自动同步到chartInterval
     watch(
       () => store.getters.retrieveParams.interval,
-      newVal => {
+      (newVal) => {
         chartInterval.value = newVal;
       },
       { immediate: true },
@@ -114,9 +114,9 @@ export default defineComponent({
     const beforePopoverHide = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (
-        ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default')) &&
-          target.closest('.bk-select-dropdown-content.bklog-popover-stop')) ||
-        target.classList.contains('bklog-popover-stop')
+        ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default'))
+          && target.closest('.bk-select-dropdown-content.bklog-popover-stop'))
+        || target.classList.contains('bklog-popover-stop')
       ) {
         return false;
       }
@@ -262,10 +262,10 @@ export default defineComponent({
           Object.assign(queryData, { index_set_ids: unionIndexList.value });
         }
         if (
-          gradeOptions.value &&
-          !gradeOptions.value.disabled &&
-          gradeOptions.value.type === 'custom' &&
-          gradeOptions.value.field
+          gradeOptions.value
+          && !gradeOptions.value.disabled
+          && gradeOptions.value.type === 'custom'
+          && gradeOptions.value.field
         ) {
           Object.assign(queryData, { group_field: gradeOptions.value.field });
         }
@@ -343,7 +343,6 @@ export default defineComponent({
       runningTimer && clearTimeout(runningTimer); // 清理上一次的定时器
 
       // 开始拉取新一轮趋势数据
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       runningTimer = setTimeout(async () => {
         finishPolling.value = false;
         // isInit = true;
@@ -353,16 +352,22 @@ export default defineComponent({
           store.commit('retrieve/updateTrendDataLoading', false);
           return;
         }
-        // 1. 先请求总数
-        const res = await store.dispatch('requestSearchTotal');
-        // 2. 判断总数是否为0或请求是否失败
-        if (store.state.searchTotal === 0 || res.result === false) {
-          isStart.value = false;
+
+        try {
+          // 1. 先请求总数
+          const res = await store.dispatch('requestSearchTotal');
+          // 2. 判断总数是否为0或请求是否失败
+          if (store.state.searchTotal === 0 || res.result === false) {
+            isStart.value = false;
+            store.commit('retrieve/updateTrendDataLoading', false);
+            return;
+          }
+          // 3. 有数据才请求趋势图
+          getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time).catch(e => console.log(e));
+        } catch (e) {
+          console.error(e);
           store.commit('retrieve/updateTrendDataLoading', false);
-          return;
         }
-        // 3. 有数据才请求趋势图
-        getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time).catch(e => console.log(e));
       });
     };
 
@@ -374,7 +379,7 @@ export default defineComponent({
         RetrieveEvent.TREND_GRAPH_SEARCH,
         RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
         RetrieveEvent.INDEX_SET_ID_CHANGE,
-        RetrieveEvent.AUTO_REFRESH
+        RetrieveEvent.AUTO_REFRESH,
       ],
       loadTrendData,
     );
