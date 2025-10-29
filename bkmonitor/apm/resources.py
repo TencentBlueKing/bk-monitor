@@ -792,7 +792,14 @@ class QueryTopoInstanceResource(PageListResource):
         for instance in instance_list:
             key = str(instance["id"]) + ":" + instance["instance_id"]
             if key in cache_data:
-                instance["updated_at"] = str(datetime.datetime.fromtimestamp(cache_data.get(key)))
+                instance["updated_at"] = datetime.datetime.fromtimestamp(cache_data.get(key)).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+            else:
+                # 缓存中没有命中，使用数据库中的时间
+                instance["updated_at"] = (
+                    instance["updated_at"].astimezone().replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
+                )
             merge_data.append(instance)
         return merge_data
 
