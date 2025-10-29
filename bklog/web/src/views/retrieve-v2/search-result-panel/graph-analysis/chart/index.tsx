@@ -252,7 +252,7 @@ export default defineComponent({
     // };
     // 异步下载
     const handleAsyncDownloadData = async () => {
-      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX.replace(/\/$/,'');
       const searchUrl = `/search/index_set/${indexSetId.value}/export_chart_data/`;
       const fileName = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
       const { start_time, end_time, keyword } = retrieveParams.value;
