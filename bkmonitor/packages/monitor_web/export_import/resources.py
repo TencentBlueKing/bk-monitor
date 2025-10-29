@@ -783,55 +783,6 @@ class UploadPackageResource(Resource):
                 file_id=self.file_id,
             )
 
-    @classmethod
-    def get_configs(cls, file_path_content_map: dict[str, bytes]) -> dict:
-        """
-        获取配置文件
-        :param file_path_content_map: 文件路径和内容的映射
-        :return: 包含各类配置的字典
-        """
-        collect_configs: dict[Path, dict] = {}
-        plugin_configs: dict[Path, bytes] = {}
-        strategy_configs: dict[Path, dict] = {}
-        view_configs: dict[Path, dict] = {}
-        for file_path, content in file_path_content_map.items():
-            config_directory_name = Path(file_path).parts[0]
-            file_path = Path(Path(file_path).relative_to(config_directory_name))
-
-            # 过滤 dotfiles
-            if file_path.name.startswith("."):
-                continue
-            match config_directory_name:
-                case ConfigDirectoryName.collect:
-                    if file_path.name.endswith(".json"):
-                        collect_configs[file_path] = json.loads(content.decode("utf-8"))
-                case ConfigDirectoryName.strategy:
-                    if file_path.name.endswith(".json"):
-                        strategy_configs[file_path] = json.loads(content.decode("utf-8"))
-                case ConfigDirectoryName.view:
-                    if file_path.name.endswith(".json"):
-                        view_configs[file_path] = json.loads(content.decode("utf-8"))
-                case ConfigDirectoryName.plugin:
-                    # 因为插件文件含更多不同类型的文件，
-                    # 所以不做特定类型解析
-                    try:
-                        # 对插件配置文件所在路径进行特殊处理
-                        # 去除最外层配置"插件ID"目录名
-                        file_path = cls._process_plugin_config_path(file_path)
-                    except Exception:
-                        pass
-                    else:
-                        plugin_configs[file_path] = content
-                case _:
-                    pass
-
-        return {
-            "collect_configs": collect_configs,
-            "plugin_configs": plugin_configs,
-            "strategy_configs": strategy_configs,
-            "view_configs": view_configs,
-        }
-
     def parse_package(self, file_path_content_map: dict[str, bytes]):
         # 区分成四个配置目录
         # 并且去掉最外层配置类型的文件夹
