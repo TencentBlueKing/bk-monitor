@@ -215,6 +215,7 @@ class CreateApplicationResource(Resource):
             data = super().to_representation(instance)
             application = Application.objects.filter(application_id=instance.application_id).first()
             data["plugin_config"] = application.plugin_config
+            data["es_storage_index_name"] = instance.trace_result_table_id.replace(".", "_")
             return data
 
     def perform_request(self, validated_request_data):
