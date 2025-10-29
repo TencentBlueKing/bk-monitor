@@ -1969,7 +1969,7 @@ class SearchViewSet(APIViewSet):
         file_name = f"bklog_{index_set_id}_{arrow.now().format('YYYYMMDD_HHmmss')}.csv"
         response = StreamingHttpResponse(
             query_handler.export_chart_data(),
-            content_type="text/csv; charset=utf-8",
+            content_type="application/octet-stream",
         )
         response["Content-Disposition"] = f'attachment; filename="{file_name}"'
         return response
