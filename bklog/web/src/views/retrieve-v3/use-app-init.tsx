@@ -221,13 +221,12 @@ export default () => {
     }
   };
 
-  setSearchMode();
-  reoverRouteParams();
 
   /**
    * 拉取索引集列表
+   * @param beforeResolveFn 在结果返回解析之后，尚未进行路由解析之前的处理函数
    */
-  const getIndexSetList = () => {
+  const getIndexSetList = (beforeResolveFn?: () => void) => {
     store.commit('updateIndexSetQueryResult', {
       origin_log_list: [],
       list: [],
@@ -279,10 +278,14 @@ export default () => {
             params: {
               type: 'index',
             },
+            query: {
+              page_from: route.name,
+            },
           });
           return;
         }
 
+        beforeResolveFn?.();
         isPreApiLoaded.value = true;
 
         // 在路由不带indexId的情况下 检查 unionList 和 tags 参数 是否存在联合查询索引集参数
@@ -492,8 +495,11 @@ export default () => {
     });
   };
 
-  setDefaultRouteUrl();
-  getIndexSetList();
+  getIndexSetList(() => {
+    setSearchMode();
+    reoverRouteParams();
+    setDefaultRouteUrl();
+  });
 
   const handleSpaceIdChange = () => {
     const { start_time, end_time, timezone, datePickerValue } = store.state.indexItem;
