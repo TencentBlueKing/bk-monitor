@@ -412,6 +412,7 @@ export default class CalendarList extends tsc<IProps, IEvents> {
           <bk-input
             class='search-input'
             v-model={this.searchKeyword}
+            placeholder={this.$t('搜索 事项')}
             right-icon='bk-icon icon-search'
             clearable
             onChange={this.handleSearch}

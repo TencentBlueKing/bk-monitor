@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import os
 
@@ -28,15 +26,13 @@ MIGRATION_CONSUL_PATH = "{}_{}_{}/{}".format(
     settings.BACKEND_APP_CODE, settings.PLATFORM, settings.ENVIRONMENT, "metadata"
 )
 # consul data_id 路径模板
-CONSUL_DATA_ID_PATH_FORMAT = "{consul_path}/v1/{{transfer_cluster_id}}/data_id/{{data_id}}".format(
-    consul_path=CONSUL_PATH
-)
+CONSUL_DATA_ID_PATH_FORMAT = f"{CONSUL_PATH}/v1/{{transfer_cluster_id}}/data_id/{{data_id}}"
 
 # consul transfer 路径模板
-CONSUL_TRANSFER_PATH = "{consul_service_path}/v1/".format(consul_service_path=CONSUL_SERVICE_PATH)
+CONSUL_TRANSFER_PATH = f"{CONSUL_SERVICE_PATH}/v1/"
 
 # 配置CRONTAB任务定时任务锁的路径
-CONSUL_CRON_LOCK_PATH = "%s/cron_lock" % CONSUL_PATH
+CONSUL_CRON_LOCK_PATH = f"{CONSUL_PATH}/cron_lock"
 # 配置CONSUL定时更新的间隔时间, 单位秒
 CONSUL_UPDATE_GAP = 60
 
@@ -58,7 +54,7 @@ DEFAULT_GSE_API_PLAT_NAME = "bkmonitor"  # GSE分配给监控的平台名称，�
 KAFKA_TOPIC_PREFIX = "0bkmonitor_"
 # 自行存储的topic需要区别，主要是因为topic拼接与table_id相关
 # 3.1与3.2环境可能存在table_id冲突，因此需要增加app_code隔离
-KAFKA_TOPIC_PREFIX_STORAGE = "0{}_storage_".format(settings.APP_CODE)
+KAFKA_TOPIC_PREFIX_STORAGE = f"0{settings.APP_CODE}_storage_"
 
 # Redis的key前缀
 # 配置理由，同KAFKA_TOPIC_PREFIX_STORAGE
@@ -92,8 +88,6 @@ ES_CLUSTER_VERSION_DEFAULT = 7
 
 ES_SHARDS_CONFIG = os.environ.get("ES_SHARDS_NUMBER", 1)
 ES_REPLICAS_CONFIG = os.environ.get("ES_REPLICAS_CONFIG", 0)
-
-BCS_TABLE_ID_PREFIX = "bkmonitor_bcs"
 
 # 容器配置相关内容
 # 资源组名

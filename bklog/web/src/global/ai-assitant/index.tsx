@@ -23,16 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, nextTick } from 'vue';
+import { defineComponent, nextTick, ref } from 'vue';
 
 import AIBlueking from '@blueking/ai-blueking/vue2';
 
 import { random } from '@/common/util';
 import { AI_BLUEKING_QUERY_STRING, AI_BLUEKING_SHORTCUTS } from './ai-type';
 
-import './ai-assistant.scss';
 import '@blueking/ai-blueking/dist/vue2/style.css';
 import { isEqual } from 'lodash-es';
+import './ai-assistant.scss';
 
 export interface IRowSendData {
   space_uid: string;
@@ -145,13 +145,12 @@ export default defineComponent({
     const setAiStart = (sendMsg = false, args: IRowSendData) => {
       chatid = random(10);
       if (sendMsg) {
-        aiBlueking.value?.handleShow();
-        aiBlueking.value?.addNewSession().finally(() => {
+        aiBlueking.value?.handleShow(undefined, { isTemporary: true }).then(() => {
           const shortcut = structuredClone(AI_BLUEKING_SHORTCUTS[0]);
           shortcut.components.forEach((comp) => {
             const value = args[comp.key];
             if (value) {
-              comp.default =                typeof value === 'object'
+              comp.default = typeof value === 'object'
                 ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
                 : value;
             }
@@ -187,7 +186,7 @@ export default defineComponent({
      */
     const sendMessage = (msg: string) => {
       if (!isShow.value) {
-        aiBlueking.value?.handleShow();
+        aiBlueking.value?.handleShow(undefined, { isTemporary: true });
       }
 
       aiBlueking.value?.handleSendMessage(msg);
@@ -199,7 +198,7 @@ export default defineComponent({
      */
     const setCiteText = (text: string) => {
       if (!isShow.value) {
-        aiBlueking.value?.handleShow();
+        aiBlueking.value?.handleShow(undefined, { isTemporary: true });
       }
 
       aiBlueking.value?.setCiteText(text);
@@ -277,13 +276,12 @@ export default defineComponent({
      * @param args
      */
     const queryStringShowAiAssistant = (args: IQueryStringSendData) => {
-      aiBlueking.value?.handleShow();
-      aiBlueking.value?.addNewSession().finally(() => {
+      aiBlueking.value?.handleShow(undefined, { isTemporary: true }).then(() => {
         const shortcut = structuredClone(AI_BLUEKING_QUERY_STRING[0]);
         shortcut.components.forEach((comp) => {
           const value = args[comp.key];
           if (value) {
-            comp.default =              typeof value === 'object'
+            comp.default = typeof value === 'object'
               ? JSON.stringify(value).replace(/<\/?mark>/gim, '')
               : value;
           }
@@ -305,7 +303,7 @@ export default defineComponent({
       close: hiddenAiAssistant,
       sendMessage,
       setCiteText,
-      show: () => aiBlueking.value?.handleShow(),
+      show: () => aiBlueking.value?.handleShow(undefined, { isTemporary: true }),
       updateOptions,
       getOptions: () => aiAssitantOptions.value,
       isShown: () => isShow.value,
@@ -340,6 +338,7 @@ export default defineComponent({
             url={apiUrl}
             onClose={handleClose}
             onShow={handleShow}
+            extCls='bklog-ai-blueking-container'
             defaultWidth={aiAssitantOptions.value.defaultWidth}
             defaultHeight={aiAssitantOptions.value.defaultHeight}
             defaultTop={aiAssitantOptions.value.defaultTop}

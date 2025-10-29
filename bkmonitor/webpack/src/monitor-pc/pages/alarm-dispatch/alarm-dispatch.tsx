@@ -675,7 +675,7 @@ export default class AlarmDispatch extends tsc<object> {
             <bk-input
               class='search-input'
               v-model={this.search}
-              placeholder={`ID/${this.$t('告警组名称')}`}
+              placeholder={this.$t('搜索 告警组名称')}
               right-icon='bk-icon icon-search'
               clearable
               onInput={this.handleSearch}

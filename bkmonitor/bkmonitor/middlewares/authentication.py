@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from apigw_manager.apigw.authentication import ApiGatewayJWTMiddleware
 from apigw_manager.apigw.providers import PublicKeyProvider
 from blueapps.account import get_user_model
@@ -87,10 +87,18 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
         if "HTTP_AUTHORIZATION" in request.META and request.META["HTTP_AUTHORIZATION"].startswith("Bearer "):
             result = self.api_token_auth(request, view, *args, **kwargs)
         else:
-            result = super(ApiTokenAuthenticationMiddleware, self).process_view(request, view, *args, **kwargs)
+            result = super().process_view(request, view, *args, **kwargs)
 
-        # 在不开启租户的情况下，确保user.tenant_id为system，确保后续处理逻辑的统一性
         if request.user:
+            # 验证存储的租户ID是否正确，如果不正确则更新存储的租户ID
+            if settings.ENABLE_MULTI_TENANT_MODE and hasattr(request.user, "tenant_id"):
+                db_user = get_user_model().objects.get(username=request.user.username)
+                if db_user.tenant_id != request.user.tenant_id:
+                    logger.error(f"user tenant_id is {db_user.tenant_id} not match {request.user.tenant_id}")
+                    db_user.tenant_id = request.user.tenant_id
+                    db_user.save()
+
+            # 在不开启租户的情况下，确保user.tenant_id为system，确保后续处理逻辑的统一性
             if not getattr(request.user, "tenant_id", None) or (
                 not settings.ENABLE_MULTI_TENANT_MODE and request.user.tenant_id != DEFAULT_TENANT_ID
             ):

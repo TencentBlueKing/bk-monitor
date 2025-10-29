@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, type Ref, ref, watch } from 'vue';
 
-import { formatDateTimeField, getRegExp } from '@/common/util';
+import { formatDateTimeField, getRegExp, blobDownload } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import dayjs from 'dayjs';
@@ -34,7 +34,8 @@ import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useEditor from '@/views/retrieve-v2/search-result-panel/graph-analysis/sql-editor/use-editor';
 import ChartRoot from './chart-root';
 import useChartRender from './use-chart-render';
-import $http from '@/api/index';
+// import $http from '@/api/index';
+import { axiosInstance } from '@/api';
 import './index.scss';
 export default defineComponent({
   props: {
@@ -251,9 +252,12 @@ export default defineComponent({
     // };
     // 异步下载
     const handleAsyncDownloadData = async () => {
-      const { start_time, end_time, keyword } = retrieveParams.value;
-      const data = {
-        index_set_id: indexSetId.value,
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX.replace(/\/$/,'');
+      const searchUrl = `/search/index_set/${indexSetId.value}/export_chart_data/`;
+      const fileName = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
+      const { start_time, end_time, keyword,sort_list } = retrieveParams.value;
+
+      const requestData = {
         start_time,
         end_time,
         query_mode: 'sql',
@@ -261,16 +265,74 @@ export default defineComponent({
         addition: requestAddition.value || '',
         sql: sqlContent.value || '',
         alias_settings: alias_settings.value || '',
+        sort_list
       }
+
+      // const params: any = {
+      //   method: 'post',
+      //   url: searchUrl,
+      //   withCredentials: true,
+      //   baseURL: baseUrl,
+      //   responseType: 'blob',
+      //   data: requestData,
+      //   headers: {},
+      // };
+      // if (store.state.isExternal) {
+      //   params.headers = {
+      //     'X-Bk-Space-Uid': store.state.spaceUid,
+      //   };
+      // }
       try {
-        return $http.request(`graphAnalysis/asyncDownload`, {
-          params: {
-            index_set_id: indexSetId.value,
-          }, data
-        })
+        const response = await fetch(`${baseUrl}${searchUrl}`, {
+          method: 'POST',
+          body: JSON.stringify(requestData),
+          headers: {
+            // 'Accept': 'application/octet-stream', // 关键：覆盖默认的 text/*
+            'Content-Type': 'application/json', // 明确设置请求类型
+            //  mode: 'cors',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`下载失败: ${response.status} ${response.statusText}`);
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = fileName || 'download';
+        document.body.appendChild(a);
+        a.click();
+
+        // 清理
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(downloadUrl);
       } catch (error) {
-        console.error(error);
+        console.error('下载出错:', error);
+        throw error;
       }
+      // try {
+      //   return axiosInstance(params).then((response) => {
+      //     blobDownload(response?.data, filename)
+      //   })
+      // } catch (error) {
+      //   console.error(error);
+      // }
+
+      // try {
+      //   return $http.request(`graphAnalysis/asyncDownload`, {
+      //     params: {
+      //       index_set_id: indexSetId.value,
+      //     }, data
+      //   }).then(response => {
+      //     console.log('response', response);
+      //     blobDownload(response, filename)
+      //   });
+      // } catch (error) {
+      //   console.error(error);
+      // }
     };
     const rendChildNode = () => {
       if (showNumber.value) {

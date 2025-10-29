@@ -761,7 +761,7 @@ export default class ApmServiceList extends tsc<
                   <div class='app-list-search'>
                     <bk-input
                       v-model={this.searchKeyWord}
-                      placeholder={this.$t('请输入服务搜索')}
+                      placeholder={this.$t('搜索 服务名称')}
                       right-icon='bk-icon icon-search'
                       clearable
                       show-clear-only-hover

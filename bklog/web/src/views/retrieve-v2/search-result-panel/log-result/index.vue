@@ -29,38 +29,73 @@
     <div class="original-log-panel-tools">
       <div class="left-operate">
         <div class="bk-button-group">
-          <span v-for="type in ['original', 'table']" class="option"
-            :class="contentType === type ? 'option-selected' : ''" :key="type" @click="handleClickTableBtn(type)">
+          <span
+            v-for="type in ['original', 'table']"
+            :key="type"
+            class="option"
+            :class="contentType === type ? 'option-selected' : ''"
+            @click="handleClickTableBtn(type)"
+          >
             {{ type === 'table' ? $t('表格') : $t('原始') }}
           </span>
         </div>
-        <ResultStorage></ResultStorage>
+        <ResultStorage />
       </div>
       <div class="tools-more">
         <div class="operation-icons">
           <div class="group-text light-search">
             <label class="light-search-label">{{ $t('高亮') }}</label>
-            <bklogTagChoice :foucsFixed="true" :onTagRender="handleTagRender" class="bklog-v3-tag-highlight"
-              focusBorderColor="#c4c6cc" minHeight="32px" :maxWidth="highlightStyle.width"
-              :minWidth="highlightStyle.width" :value="highlightValue" :placeholder="$t('输入后按 Enter...')"
-              template="tag-input" @change="handleHighlightEnter">
-            </bklogTagChoice>
-            <MatchMode class="bklog-v3-match-mode" :border="true" :match-mode="matchMode" @change="handleMatchModeChange"></MatchMode>
+            <bklogTagChoice
+              :foucs-fixed="true"
+              :on-tag-render="handleTagRender"
+              class="bklog-v3-tag-highlight"
+              focus-border-color="#c4c6cc"
+              min-height="32px"
+              :max-width="highlightStyle.width"
+              :min-width="highlightStyle.width"
+              :value="highlightValue"
+              :placeholder="$t('输入后按 Enter...')"
+              template="tag-input"
+              @change="handleHighlightEnter"
+            />
+            <MatchMode
+              class="bklog-v3-match-mode"
+              :border="true"
+              :match-mode="matchMode"
+              @change="handleMatchModeChange"
+            />
           </div>
 
-          <export-log v-if="!isMonitorTrace" :async-export-usable="asyncExportUsable"
-            :async-export-usable-reason="asyncExportUsableReason" :index-set-list="indexSetList"
-            :queue-status="queueStatus" :retrieve-params="retrieveParams" :total-count="totalCount">
-          </export-log>
-          <BkLogPopover ref="refFieldsSettingPopper" content-class="bklog-v3-select-dropdown" :options="tippyOptions"
-            :beforeHide="handleBeforeHide">
+          <export-log
+            v-if="!isMonitorTrace"
+            :async-export-usable="asyncExportUsable"
+            :async-export-usable-reason="asyncExportUsableReason"
+            :index-set-list="indexSetList"
+            :queue-status="queueStatus"
+            :retrieve-params="retrieveParams"
+            :total-count="totalCount"
+          />
+          <BkLogPopover
+            ref="refFieldsSettingPopper"
+            content-class="bklog-v3-select-dropdown"
+            :options="tippyOptions"
+            :before-hide="handleBeforeHide"
+          >
             <div class="operation-icon">
-              <span style="font-size: 16px" class="icon bklog-icon bklog-shezhi"></span>
+              <span
+                style="font-size: 16px"
+                class="icon bklog-icon bklog-shezhi"
+              />
             </div>
             <template #content>
               <div class="fields-setting-container">
-                <fields-setting :field-alias-map="fieldAliasMap" :is-show="true" :retrieve-params="retrieveParams"
-                  config-type="list" @cancel="cancelModifyFields" />
+                <fields-setting
+                  :field-alias-map="fieldAliasMap"
+                  :is-show="true"
+                  :retrieve-params="retrieveParams"
+                  config-type="list"
+                  @cancel="cancelModifyFields"
+                />
               </div>
             </template>
           </BkLogPopover>
@@ -76,22 +111,22 @@
 </template>
 
 <script>
-import { mapGetters, mapState } from 'vuex';
 import { debounce } from 'lodash-es';
+import { mapGetters, mapState } from 'vuex';
 // MONITOR_APP !== 'trace'
 import ExportLog from '../../result-comp/export-log.vue';
 // #else
 // #code const ExportLog = () => null;
 // #endif
-import FieldsSetting from '../../result-comp/update/fields-setting';
-import TableLog from './log-result.vue';
-import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
-import bklogTagChoice from '../../search-bar/bklog-tag-choice';
-import ResultStorage from '../../components/result-storage/index';
-import BkLogPopover from '../../../../components/bklog-popover/index';
-import { BK_LOG_STORAGE } from '@/store/store.type';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import MatchMode from '@/global/match-mode';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import { BK_LOG_STORAGE } from '@/store/store.type';
+import BkLogPopover from '../../../../components/bklog-popover/index';
+import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
+import ResultStorage from '../../components/result-storage/index';
+import FieldsSetting from '../../result-comp/update/fields-setting';
+import bklogTagChoice from '../../search-bar/bklog-tag-choice';
+import TableLog from './log-result.vue';
 
 let logResultResizeObserver;
 let logResultResizeObserverFn;

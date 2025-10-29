@@ -1,30 +1,31 @@
 /* stylelint-disable declaration-no-important */
-@import '../../../../theme/index.scss';
+@import '../../../../theme/index';
 
 .tcp-target {
   &-btns {
     display: flex;
     align-items: center;
     margin-bottom: 8px;
-    
-    .add-btn {
 
-      margin-right: 16px;
-      position: relative;
-      height: 30px;
+    .uptime-check-form-custom-btn {
+      &.add-btn {
+        position: relative;
+        height: 30px;
+        margin-right: 16px;
 
-      &:nth-child(n + 2) {
-        margin-left: 16px;
-      }
+        &:nth-child(n + 2) {
+          margin-left: 16px;
+        }
 
-      &:not(:last-child) {
-        &::after {
-          content: ' ';
-          width: 1px;
-          height: 16px;
-          background-color: #dcdee5;
-          position: absolute;
-          right: -16px;
+        &:not(:last-child) {
+          &::after {
+            position: absolute;
+            right: -16px;
+            width: 1px;
+            height: 16px;
+            content: ' ';
+            background-color: #dcdee5;
+          }
         }
       }
     }
@@ -34,10 +35,10 @@
     width: 1000px;
 
     .collapse-header-count {
+      display: inline-flex;
+      margin: 0 4px;
       font-weight: bold;
       color: #3a84ff;
-      margin: 0 4px;
-      display: inline-flex;
     }
   }
 
@@ -55,13 +56,12 @@
       align-items: center;
       width: 408px;
       margin-top: 18px;
-
     }
 
     .domain-item {
       display: flex;
-      flex-direction: column;
       flex: 1;
+      flex-direction: column;
 
       .bk-checkbox-text,
       .bk-radio-text {
@@ -77,8 +77,8 @@
       }
 
       .domain-input {
-        height: 176px;
         width: 100%;
+        height: 176px;
 
         &.is-error {
           .bk-textarea-wrapper {
@@ -99,8 +99,8 @@
 
       .validate-tips {
         margin-top: 2px;
-        color: #ea3636;
         line-height: 18px;
+        color: #ea3636;
       }
     }
   }
@@ -114,7 +114,7 @@
       display: flex;
       align-items: center;
       margin-right: 40px;
-      color: #63656e ;
+      color: #63656e;
     }
 
     .setting-text {
@@ -123,34 +123,32 @@
       height: 42px;
       color: #313238;
     }
-
   }
 
   .domain-edit {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-    margin-left: auto;
     margin-right: 4px;
+    margin-left: auto;
+    font-size: 24px;
   }
 }
 
 .domain-select-tips {
   * {
+    transition: none !important;
     transition-duration: 0ms !important;
-    transition: none !important
   }
 
   .tippy-tooltip {
+    min-width: 68px;
     padding: 0 !important;
     pointer-events: all;
-    min-width: 68px;
-    border-radius: 2px !important;
     background-color: white !important;
     border: 1px solid #dcdee5;
-    box-shadow: 0 2px 6px 0 rgba(0,0,0,.1);
-
+    border-radius: 2px !important;
+    box-shadow: 0 2px 6px 0 rgb(0 0 0 / 10%);
 
     .domain-select-list {
       @include common-list(88px);
@@ -159,10 +157,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
-        margin-left: auto;
-        color: #3a84ff;
         margin-right: -8px;
+        margin-left: auto;
+        font-size: 24px;
+        color: #3a84ff;
       }
     }
   }

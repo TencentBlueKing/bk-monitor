@@ -33,9 +33,9 @@ import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import DOMPurify from 'dompurify';
 import { escape as _escape } from 'lodash-es';
 
-import { BK_LOG_STORAGE } from '../../../store/store.type';
 import $http from '@/api';
 import store from '@/store';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 
 import './agg-chart.scss';
 
@@ -55,6 +55,7 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData!: any;
   @Prop({ type: Number, default: 5 }) limit!: number;
   @Prop({ type: Array }) colorList!: string[];
+  @Prop({ type: Boolean, default: false }) showSearchKeyword!: boolean;
 
   // 状态变量
   showAllList = false;
@@ -75,8 +76,8 @@ export default class AggChart extends tsc<object> {
   searchKeyword = '';
 
   // 缓存计算
-  private cachedTopFiveList: [string, number][] = [];
-  private cachedShowFiveList: [string, number][] = [];
+  private cachedTopFiveList: [string, unknown][] = [];
+  private cachedShowFiveList: [string, unknown][] = [];
   private cachedShowValidCount = 0;
   private cachedShowTotalCount = 0;
 
@@ -344,14 +345,17 @@ export default class AggChart extends tsc<object> {
 
     return (
       <div class='retrieve-v2 field-data'>
-        <div style={{ marginBottom: '10px' }}>
-          <bk-input
-            v-model={this.searchKeyword}
-            placeholder={this.$t('搜索')}
-            clearable
-            right-icon='icon-search'
-          />
-        </div>
+        {
+        this.showSearchKeyword
+          ? <div style={{ marginBottom: '10px' }}>
+            <bk-input
+              v-model={this.searchKeyword}
+              placeholder={this.$t('搜索')}
+              clearable
+              right-icon='icon-search'
+            />
+          </div> : null
+        }
         {this.listLoading ? (
           <ItemSkeleton
             columns={2}
@@ -361,7 +365,7 @@ export default class AggChart extends tsc<object> {
         ) : hasData ? (
           <ul class='chart-list'>
             {this.filterList.map((item, index) => {
-              const [value, count] = item;
+              const [value, count] = item as [string, number];
               const percent = this.computePercent(count);
               const percentValue = this.getPercentValue(count);
               const isFiltered = this.filterIsExist('is', value, this.fieldName);

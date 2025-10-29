@@ -43,7 +43,7 @@ export default class AddBtn extends tsc<
   render() {
     return (
       <span
-        class='add-btn'
+        class='uptime-check-form-custom-btn add-btn'
         onClick={e => this.$emit('click', e)}
       >
         <i class='bk-icon icon-plus-circle-shape' />

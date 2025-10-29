@@ -49,6 +49,7 @@ import Vuex from 'vuex';
 import collect from './collect.js';
 import { ConditionOperator } from './condition-operator.ts';
 
+import http, { axiosInstance } from '@/api';
 import {
   BkLogGlobalStorageKey,
   IndexFieldInfo,
@@ -65,11 +66,10 @@ import {
   getCommonFilterAdditionWithValues,
   isAiAssistantActive,
 } from './helper.ts';
+import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
-import { reportRouteLog } from './modules/report-helper.ts';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
-import http, { axiosInstance } from '@/api';
 if (pinyin.isSupported() && patcher56L.shouldPatch(pinyin.genToken)) {
   pinyin.patchDict(patcher56L);
 }
@@ -1470,10 +1470,10 @@ const store = new Vuex.Store({
           const result = {
             is_error: state.indexSetQueryResult.is_error,
             exception_msg: state.indexSetQueryResult.exception_msg,
+            first_page: queryData.begin === 0 ? 1 : 0,
           };
 
           reportRouteLog({
-            ...queryData,
             ...result,
           }, state);
         });
