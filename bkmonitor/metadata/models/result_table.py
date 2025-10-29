@@ -15,7 +15,6 @@ import logging
 import re
 import time
 import traceback
-from functools import cache
 from typing import Any, Self
 
 import pydantic
@@ -276,11 +275,14 @@ class ResultTable(models.Model):
         )
         return table_id_cutter
 
-    @cache
     def get_related_datasource(self) -> DataSource:
         """获取结果表相关的数据源"""
+        if getattr(self, "_related_datasource", None) is not None:
+            return getattr(self, "_related_datasource")
         dsrt = DataSourceResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
-        return DataSource.objects.get(bk_data_id=dsrt.bk_data_id, bk_tenant_id=self.bk_tenant_id)
+        related_datasource = DataSource.objects.get(bk_data_id=dsrt.bk_data_id, bk_tenant_id=self.bk_tenant_id)
+        setattr(self, "_related_datasource", related_datasource)
+        return related_datasource
 
     def get_target_bk_biz_id(self) -> int:
         """获取结果表所属业务ID"""
