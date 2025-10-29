@@ -233,6 +233,7 @@ export default {
   服务名: 'Service Name',
   域名: 'Domain Name',
   搜索收藏名: 'Search Favorites',
+  '搜索 收藏名': 'Search Favorites',
   别名: 'Alias',
   组名: 'Group Name',
   收藏名: 'Favorite Name',
@@ -1303,7 +1304,8 @@ export default {
   命令行参数: 'Command-line Parameters',
   被关联插件: 'Associated Plugin',
   进程采集插件: 'Process collection plugin',
-  '插件名称(ID或别名)': 'Plugin Name (ID or Alias)',
+  // '插件名称(ID或别名)': 'Plugin Name (ID or Alias)',
+  '搜索 插件名称': 'Search Plugin Name',
   环境变量参数: 'Environment Variable Parameters',
   非官方插件: 'Unofficial Plugin',
   结合插件提供本地和远程采集两种方式: 'Combined with the plugin to provide local and remote collection two ways', // 确定位置
@@ -1536,8 +1538,9 @@ export default {
   审批成功: 'Approval successful',
   审批失败: 'Approval failed',
   服务类型: 'Service Type',
-  应用名或ID: 'Application name or ID',
+  '应用名、ID': 'Application name、ID',
   请输入服务搜索: 'Please enter a service search',
+  '搜索 服务名称': 'Search service name',
   接入中: 'Connecting',
   '确认删除应用？': 'Are you sure to delete the app?',
 
@@ -1702,7 +1705,8 @@ export default {
 
   '业务/集群/节点': 'Business/Cluster/Node',
   显示高级选项: 'Advanced',
-  '采集配置名称/ID': 'Collection configuration name/ID',
+  // '采集配置名称/ID': 'Collection configuration name/ID',
+  '搜素 ID、名称': 'Search ID, Name',
   '主机&云平台': 'Host & Cloud Platform',
   指标选择器: 'Metric Selector',
 

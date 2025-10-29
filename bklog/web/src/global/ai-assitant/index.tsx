@@ -338,6 +338,7 @@ export default defineComponent({
             url={apiUrl}
             onClose={handleClose}
             onShow={handleShow}
+            extCls='bklog-ai-blueking-container'
             defaultWidth={aiAssitantOptions.value.defaultWidth}
             defaultHeight={aiAssitantOptions.value.defaultHeight}
             defaultTop={aiAssitantOptions.value.defaultTop}
