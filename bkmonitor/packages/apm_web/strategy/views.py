@@ -14,7 +14,6 @@ from typing import Any
 from collections.abc import Iterable
 
 from django.db.models import Q, QuerySet
-from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from rest_framework.decorators import action
@@ -215,16 +214,15 @@ class StrategyTemplateViewSet(GenericViewSet):
             service_name__in=entity_set.service_names,
             strategy_template_id__in=self.query_data["strategy_template_ids"],
         )
-        with transaction.atomic():
-            # 先删除策略
-            resource.strategies.delete_strategy_v2(
-                {
-                    "bk_biz_id": self.query_data["bk_biz_id"],
-                    "ids": list(strategy_instance_qs.values_list("strategy_id", flat=True)),
-                }
-            )
-            # 再删除策略实例
-            strategy_instance_qs.delete()
+        # 先删除策略
+        resource.strategies.delete_strategy_v2(
+            {
+                "bk_biz_id": self.query_data["bk_biz_id"],
+                "ids": list(strategy_instance_qs.values_list("strategy_id", flat=True)),
+            }
+        )
+        # 再删除策略实例
+        strategy_instance_qs.delete()
 
         return Response({})
 
