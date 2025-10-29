@@ -204,7 +204,7 @@ class EsSnapshot(models.Model):
         return result
 
     @classmethod
-    def batch_get_recent_state(cls, table_ids: list, bk_tenant_id=DEFAULT_TENANT_ID):
+    def batch_get_recent_state(cls, bk_tenant_id: str, table_ids: list):
         """批量获取最近一次的状态"""
         from metadata.models import ESStorage
 
@@ -617,6 +617,7 @@ class EsSnapshotRestore(models.Model):
     @atomic(config.DATABASE_CONNECTION_NAME)
     def retry_restore(
             cls,
+            bk_tenant_id: str,
             restore_id,
             operator,
             indices: list = None,
@@ -624,7 +625,7 @@ class EsSnapshotRestore(models.Model):
             is_force: bool | None = False,
     ):
         try:
-            restore = cls.objects.get(restore_id=restore_id)
+            restore = cls.objects.get(restore_id=restore_id, bk_tenant_id=bk_tenant_id)
         except cls.DoesNotExist:
             raise ValueError(_("回溯不存在"))
         if restore.is_deleted:
@@ -777,10 +778,13 @@ class EsSnapshotRestore(models.Model):
         ]
 
     @classmethod
-    def batch_get_indices(cls, restore_ids: list):
+    def batch_get_indices(cls, bk_tenant_id: str, restore_ids: list):
         # 过滤掉已删除和过期的回溯
         restores = cls.objects.filter(
-            restore_id__in=restore_ids, is_deleted=False, expired_delete=False
+            restore_id__in=restore_ids,
+            is_deleted=False,
+            expired_delete=False,
+            bk_tenant_id=bk_tenant_id,
         )
         rt_restore_mappings = defaultdict(list)
         es_storage_query = Q()

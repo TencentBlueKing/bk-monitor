@@ -2098,18 +2098,11 @@ class RetryResultTableSnapshotResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_id = serializers.CharField(required=True, label="结果表ID")
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info("RetryResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         models.EsSnapshot.retry_snapshot(**validated_request_data)
         return validated_request_data
 
@@ -2181,19 +2174,10 @@ class GetResultTableSnapshotRecentStateResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         table_ids = serializers.ListField(required=True, label="结果表ids")
 
     def perform_request(self, validated_request_data):
-        # 若开启多租户模式，需要获取租户ID
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            bk_tenant_id = get_request_tenant_id()
-            logger.info(
-                "GetResultTableSnapshotRecentStateResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
-            )
-        else:
-            bk_tenant_id = DEFAULT_TENANT_ID
-
-        validated_request_data["bk_tenant_id"] = bk_tenant_id
         return models.EsSnapshot.batch_get_recent_state(**validated_request_data)
 
 
@@ -2263,6 +2247,7 @@ class RetryRestoreResultTableSnapshotResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         restore_id = serializers.IntegerField(required=True, label="快照恢复任务id")
         operator = serializers.CharField(required=True, label="操作者")
         indices = serializers.ListField(required=False, label="重试索引列表",  default=[])
@@ -2311,6 +2296,7 @@ class GetRestoreResultTableSnapshotIndicesResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
         restore_ids = serializers.ListField(required=True, label="快照回溯任务ids")
 
     def perform_request(self, validated_request_data):
