@@ -232,7 +232,7 @@ class ExporterPluginManager(PluginManager):
         for sys_name, sys_dir in list(OS_TYPE_TO_DIRNAME.items()):
             # 获取不同操作系统下的文件名
             collector_name = f"{self.plugin.plugin_id}.exe" if sys_name == "windows" else self.plugin.plugin_id
-            collector_path = Path(self.plugin.plugin_id, sys_dir, self.plugin.plugin_id, collector_name)
+            collector_path = Path(sys_dir, self.plugin.plugin_id, collector_name)
             if collector_path not in self.plugin_configs:
                 raise PluginParseError(_(f"未找到采集器文件,path:{collector_path}"))
 
