@@ -96,12 +96,19 @@ export default defineComponent({
       return startTime && endTime ? [startTime, endTime] : DEFAULT_TIME_RANGE;
     });
     /** 图表请求参数变量 */
-    const viewOptions = computed(() => ({
-      method: 'AVG',
-      interval: get(interval),
-      group_by: [],
-      current_target: get(defaultCurrentTarget),
-    }));
+    const viewOptions = computed(() => {
+      const currentTarget = get(defaultCurrentTarget);
+
+      return {
+        method: 'AVG',
+        interval: get(interval),
+        group_by: [],
+        current_target: currentTarget,
+        ip: currentTarget?.bk_target_ip,
+        bk_cloud_id: currentTarget?.bk_target_cloud_id,
+        ...currentTarget,
+      };
+    });
 
     provide('timeRange', timeRange);
     provide('refreshImmediate', refreshImmediate);
@@ -133,14 +140,24 @@ export default defineComponent({
       window.open(`${location.origin}${location.pathname}?bizId=${bizId.value}#/performance/detail/${detailId}`);
     }
 
-    return { loading, hostSceneData, dashboardId, viewOptions, handleToPerformance };
+    /**
+     * @description 创建骨架屏 dom 元素
+     */
+    function createSkeletonDom() {
+      return <div class='alarm-detail-panel-host-skeleton-dom skeleton-element' />;
+    }
+
+    return { loading, hostSceneData, dashboardId, viewOptions, handleToPerformance, createSkeletonDom };
   },
   render() {
     return (
-      <div class='alarm-center-detail-panel-host'>
+      <div class={['alarm-center-detail-panel-host', this.loading ? 'is-loading' : '']}>
         <div class='panel-host-white-bg-container'>
           <div class='host-selector-wrap'>
-            <PanelHostSelector class='host-selector' />
+            <div class='host-selector-container'>
+              <PanelHostSelector class='host-selector' />
+              {this.createSkeletonDom()}
+            </div>
             <div
               class='host-explore-link-btn'
               onClick={this.handleToPerformance}
@@ -149,10 +166,13 @@ export default defineComponent({
               <i class='icon-monitor icon-mc-goto' />
             </div>
           </div>
-          <AiHighlightCard
-            content='该模块哈哈哈哈哈，我是一段随意的文本占位。'
-            title={`${window.i18n.t('AI 分析结论')}：`}
-          />
+          <div class='ai-hight-card-wrap'>
+            <AiHighlightCard
+              content='该模块哈哈哈哈哈，我是一段随意的文本占位。'
+              title={`${window.i18n.t('AI 分析结论')}：`}
+            />
+            {this.createSkeletonDom()}
+          </div>
         </div>
         <div class='panel-host-chart-wrap'>
           <PanelHostDashboard
