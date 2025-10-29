@@ -51,6 +51,7 @@ export default defineComponent({
   },
   emits: ['sql-change'],
   setup(props, { slots }) {
+
     const refRootElement: Ref<HTMLElement> = ref();
     const sqlContent = computed(() => store.state.indexItem.chart_params.sql);
     const { alias_settings } = useFieldAliasRequestParams();
@@ -250,12 +251,35 @@ export default defineComponent({
 
     //   blobDownload(csvContent, filename);
     // };
+    /**
+  * 使用现代 File System Access API 下载（内存高效）
+  */
+
+    async function downloadWithFileSystemAPI(response, filename) {
+      try {
+        const fileHandle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{
+            description: '下载文件',
+            accept: { 'application/octet-stream': ['*'] }
+          }]
+        });
+        const writable = await fileHandle.createWritable();
+        await response.body.pipeTo(writable);
+        return { success: true, message: '文件保存成功' };
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          return { success: false, message: '用户取消了保存' };
+        }
+        throw error;
+      }
+    }
     // 异步下载
     const handleAsyncDownloadData = async () => {
-      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX.replace(/\/$/,'');
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX.replace(/\/$/, '');
       const searchUrl = `/search/index_set/${indexSetId.value}/export_chart_data/`;
       const fileName = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
-      const { start_time, end_time, keyword,sort_list } = retrieveParams.value;
+      const { start_time, end_time, keyword, sort_list } = retrieveParams.value;
 
       const requestData = {
         start_time,
@@ -283,7 +307,7 @@ export default defineComponent({
       //   };
       // }
       try {
-        const response = await fetch(`${baseUrl}${searchUrl}`, {
+        fetch(`${baseUrl}${searchUrl}`, {
           method: 'POST',
           body: JSON.stringify(requestData),
           headers: {
@@ -291,24 +315,26 @@ export default defineComponent({
             'Content-Type': 'application/json', // 明确设置请求类型
             //  mode: 'cors',
           }
-        });
+        }).then(response => {
+          downloadWithFileSystemAPI(response, fileName)
+        })
 
-        if (!response.ok) {
-          throw new Error(`下载失败: ${response.status} ${response.statusText}`);
-        }
+        // if (!response.ok) {
+        //   throw new Error(`下载失败: ${response.status} ${response.statusText}`);
+        // }
 
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
+        // const blob = await response.blob();
+        // const downloadUrl = window.URL.createObjectURL(blob);
 
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = fileName || 'download';
-        document.body.appendChild(a);
-        a.click();
+        // const a = document.createElement('a');
+        // a.href = downloadUrl;
+        // a.download = fileName || 'download';
+        // document.body.appendChild(a);
+        // a.click();
 
-        // 清理
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(downloadUrl);
+        // // 清理
+        // document.body.removeChild(a);
+        // window.URL.revokeObjectURL(downloadUrl);
       } catch (error) {
         console.error('下载出错:', error);
         throw error;
