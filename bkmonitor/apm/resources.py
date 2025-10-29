@@ -920,11 +920,23 @@ class QueryEndpointResource(Resource):
         app_name = serializers.CharField(label="应用名称", max_length=50)
         # start_time = serializers.IntegerField(required=True, label="数据开始时间")
         # end_time = serializers.IntegerField(required=True, label="数据开始时间")
-        category = serializers.CharField(required=False, label="类别", default="")
+        category = serializers.ListField(child=serializers.CharField(), required=False, label="类别", default=list)
         category_kind_value = serializers.CharField(required=False, label="类型具体值", default="")
         service_name = serializers.CharField(required=False, label="服务名称", allow_blank=True, default="")
         bk_instance_id = serializers.CharField(required=False, label="实例id", allow_blank=True, default="")
         filters = serializers.DictField(label="查询条件", required=False)
+
+        def to_internal_value(self, data):
+            """
+            允许 "category:xxx"（单个字符串），
+            也可以 "category:[]"（列表）
+            """
+            if isinstance(data, dict):
+                category = data.get("category")
+                # 单个字符串时转成列表
+                if isinstance(category, str):
+                    data["category"] = [category]
+            return super().to_internal_value(data)
 
     def perform_request(self, data):
         # 获取过期时间分界线，确保使用UTC时区
@@ -938,7 +950,7 @@ class QueryEndpointResource(Resource):
         }
         endpoints = Endpoint.objects.filter(**filter_params)
         if data["category"]:
-            endpoints = endpoints.filter(category_id=data["category"])
+            endpoints = endpoints.filter(category_id__in=data["category"])
         if data["category_kind_value"]:
             endpoints = endpoints.filter(category_kind_value=data["category_kind_value"])
         if data["service_name"]:
@@ -978,6 +990,8 @@ class QueryEndpointResource(Resource):
                         "category_kind": {"key": endpoint.category_kind_key, "value": endpoint.category_kind_value},
                         "category": endpoint.category_id,
                         "extra_data": endpoint.extra_data,
+                        "app_name": endpoint.app_name,
+                        "created_at": endpoint.created_at,
                         "updated_at": updated_at,
                     }
                 )
