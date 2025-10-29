@@ -255,7 +255,7 @@ export default defineComponent({
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX.replace(/\/$/,'');
       const searchUrl = `/search/index_set/${indexSetId.value}/export_chart_data/`;
       const fileName = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
-      const { start_time, end_time, keyword } = retrieveParams.value;
+      const { start_time, end_time, keyword,sort_list } = retrieveParams.value;
 
       const requestData = {
         start_time,
@@ -265,6 +265,7 @@ export default defineComponent({
         addition: requestAddition.value || '',
         sql: sqlContent.value || '',
         alias_settings: alias_settings.value || '',
+        sort_list
       }
 
       // const params: any = {
@@ -286,9 +287,9 @@ export default defineComponent({
           method: 'POST',
           body: JSON.stringify(requestData),
           headers: {
-            'Accept': 'application/octet-stream', // 关键：覆盖默认的 text/*
-            'Content-Type': 'application/octet-stream', // 明确设置请求类型
-             mode: 'cors',
+            // 'Accept': 'application/octet-stream', // 关键：覆盖默认的 text/*
+            'Content-Type': 'application/json', // 明确设置请求类型
+            //  mode: 'cors',
           }
         });
 
