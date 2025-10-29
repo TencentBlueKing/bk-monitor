@@ -2092,6 +2092,28 @@ class DeleteResultTableSnapshotResource(Resource):
         return validated_request_data
 
 
+class RetryResultTableSnapshotResource(Resource):
+    """
+    重试es快照配置
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        table_id = serializers.CharField(required=True, label="结果表ID")
+        is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+
+    def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info("RetryResultTableSnapshotResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id)
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
+        models.EsSnapshot.retry_snapshot(**validated_request_data)
+        return validated_request_data
+
+
 class ListResultTableSnapshotResource(Resource):
     """
     Es结果表快照列表
@@ -2151,6 +2173,28 @@ class GetResultTableSnapshotStateResource(Resource):
         return models.EsSnapshot.batch_get_state(
             bk_tenant_id=validated_request_data["bk_tenant_id"], table_ids=validated_request_data["table_ids"]
         )
+
+
+class GetResultTableSnapshotRecentStateResource(Resource):
+    """
+    Es结果表最近一次快照状态
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        table_ids = serializers.ListField(required=True, label="结果表ids")
+
+    def perform_request(self, validated_request_data):
+        # 若开启多租户模式，需要获取租户ID
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+            logger.info(
+                "GetResultTableSnapshotRecentStateResource: enable multi tenant mode,bk_tenant_id->[%s]", bk_tenant_id
+            )
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
+
+        validated_request_data["bk_tenant_id"] = bk_tenant_id
+        return models.EsSnapshot.batch_get_recent_state(**validated_request_data)
 
 
 class RestoreResultTableSnapshotResource(Resource):

@@ -13,6 +13,9 @@ import itertools
 import logging
 from typing import Any
 
+import elasticsearch
+import elasticsearch5
+import elasticsearch6
 from curator import utils
 from django.db import models
 from django.db.models import Count, Sum
@@ -32,6 +35,12 @@ from metadata.utils.es_tools import (
 )
 
 logger = logging.getLogger("metadata")
+
+
+class EsSearchCodes:
+    SUCCESS = "success"
+    NOT_FOUND = "not_found"
+    FAIL = "fail"
 
 
 class EsSnapshot(models.Model):
@@ -140,6 +149,31 @@ class EsSnapshot(models.Model):
         snapshot.delete()
 
     @classmethod
+    @atomic(config.DATABASE_CONNECTION_NAME)
+    def retry_snapshot(cls, table_id, is_sync: bool | None = False, bk_tenant_id=DEFAULT_TENANT_ID):
+        from metadata.task.tasks import retry_es_result_table_snapshot
+
+        try:
+            snapshot = cls.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+        except cls.DoesNotExist:
+            logger.exception("ES SnapShot does not exists, table_id(%s)", table_id)
+            raise ValueError(_("快照配置不存在或已经被删除"))
+
+        if is_sync:
+            logger.info("table_id %s sync to retry snapshot %s", table_id, snapshot.target_snapshot_repository_name)
+            retry_es_result_table_snapshot(
+                table_id=table_id,
+                target_snapshot_repository_name=snapshot.target_snapshot_repository_name,
+                bk_tenant_id=bk_tenant_id, )
+        else:
+            logger.info("table_id %s async to retry snapshot %s", table_id, snapshot.target_snapshot_repository_name)
+            retry_es_result_table_snapshot.delay(
+                table_id=table_id,
+                target_snapshot_repository_name=snapshot.target_snapshot_repository_name,
+                bk_tenant_id=bk_tenant_id,
+            )
+
+    @classmethod
     def batch_get_state(cls, bk_tenant_id: str, table_ids: list):
         from metadata.models import ESStorage
 
@@ -166,6 +200,47 @@ class EsSnapshot(models.Model):
                         "duration": snapshot.get("duration_in_millis"),
                     }
                 )
+        return result
+
+    @classmethod
+    def batch_get_recent_state(cls, table_ids: list, bk_tenant_id=DEFAULT_TENANT_ID):
+        """批量获取最近一次的状态"""
+        from metadata.models import ESStorage
+
+        es_storages = ESStorage.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
+        result = []
+
+        for es_storage in es_storages:
+            snapshots = []
+            failures = []
+            search_code = EsSearchCodes.SUCCESS
+            try:
+                snapshots = es_storage.es_client.snapshot.get(
+                    es_storage.snapshot_obj.target_snapshot_repository_name, es_storage.search_snapshot
+                ).get("snapshots", [])
+            except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+                search_code = EsSearchCodes.NOT_FOUND
+            except Exception as e:  # noqa
+                logger.exception(
+                    "batch get es snapshots error, target_snapshot_repository_name({}), search_snapshot({})".format(
+                        es_storage.snapshot_obj.target_snapshot_repository_name, es_storage.search_snapshot
+                    )
+                )
+                search_code = EsSearchCodes.FAIL
+                failures.append(str(e))
+
+            max_datetime, max_snapshot = es_storage.get_max_snapshot(snapshots)
+            result.append(
+                {
+                    "table_id": es_storage.table_id,
+                    "snapshot_name": max_snapshot.get("snapshot"),
+                    "state": max_snapshot.get("state"),
+                    "duration": max_snapshot.get("duration_in_millis"),
+                    "failures": max_snapshot.get("failures") or failures,
+                    "code": search_code,
+                }
+            )
+
         return result
 
     def is_permanent(self):

@@ -4247,6 +4247,10 @@ class ESStorage(models.Model, StorageResultTable):
         return "SUCCESS"
 
     @property
+    def snapshot_in_progress_state(self):
+        return "IN_PROGRESS"
+
+    @property
     def restore_index_prefix(self):
         return "restore_"
 
@@ -4317,13 +4321,7 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("get_activated_index_list: table_id->[%s],got activate index list->[%s]", self.table_id, index_list)
         return index_list
 
-    def current_snapshot_info(self):
-        try:
-            snapshots = self.es_client.snapshot.get(
-                self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
-            ).get("snapshots", [])
-        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
-            snapshots = []
+    def get_max_snapshot(self, snapshots: list):
         snapshot_re = self.snapshot_re
         max_datetime = None
         max_snapshot = {}
@@ -4345,6 +4343,18 @@ class ESStorage(models.Model, StorageResultTable):
 
                 max_datetime = current_datetime
                 max_snapshot = snapshot
+
+        return max_datetime, max_snapshot
+
+    def current_snapshot_info(self):
+        try:
+            snapshots = self.es_client.snapshot.get(
+                self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
+            ).get("snapshots", [])
+        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+            snapshots = []
+
+        max_datetime, max_snapshot = self.get_max_snapshot(snapshots)
 
         return {
             "datetime": max_datetime,
@@ -4576,6 +4586,36 @@ class ESStorage(models.Model, StorageResultTable):
         # 删除残留的快照物理索引记录
         EsSnapshotIndice.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).delete()
         logger.info("table_id -> [%s] has delete all snapshot", self.table_id)
+
+    @atomic(config.DATABASE_CONNECTION_NAME)
+    def retry_snapshot(self, target_snapshot_repository_name):
+        if not self.can_snapshot:
+            return
+
+        # 如果是停用状态，则不能重试快照
+        if self.is_snapshot_stopped:
+            return
+
+        # 检查快照是否可重试
+        try:
+            snapshots = self.es_client.snapshot.get(
+                self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
+            ).get("snapshots", [])
+        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+            snapshots = []
+
+        max_datetime, max_snapshot = self.get_max_snapshot(snapshots)
+        if max_datetime is None:
+            raise ValueError(_("table_id -> [%s] current snapshot is not exist") % self.table_id)
+        # 成功(SUCCESS)或归档中(IN_PROGRESS)，不可重试状态
+        if max_snapshot.get("state") in [self.snapshot_complete_state, self.snapshot_in_progress_state]:
+            raise ValueError(
+                _("table_id -> [%s] current snapshot is success or in progress, can not retry") % self.table_id
+            )
+
+        snapshot_name = max_snapshot.get("snapshot")
+        # 删除异常快照
+        self.delete_snapshot(snapshot_name, target_snapshot_repository_name)
 
 
 class DataBusStatus:
