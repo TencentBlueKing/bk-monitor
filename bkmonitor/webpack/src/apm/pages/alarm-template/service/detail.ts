@@ -30,6 +30,7 @@ import {
   compareStrategyTemplate,
   previewStrategyTemplate,
   retrieveStrategyTemplate,
+  unapplyStrategyTemplate,
 } from 'monitor-api/modules/model';
 import { getCreateVariableParams, getVariableModel } from 'monitor-pc/pages/query-template/variables';
 
@@ -114,5 +115,16 @@ export const getCompareStrategyTemplate = async (params: {
   strategy_template_id: number;
 }) => {
   const data = await compareStrategyTemplate(params).catch(() => null);
+  return data;
+};
+
+export const setUnApplyStrategyTemplate = async (params: {
+  app_name: string;
+  service_names: string[];
+  strategy_template_ids: (number | string)[];
+}) => {
+  const data = await unapplyStrategyTemplate(params)
+    .then(() => true)
+    .catch(() => false);
   return data;
 };
