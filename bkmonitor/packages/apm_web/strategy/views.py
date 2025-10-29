@@ -58,7 +58,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         return self._query_data
 
     def get_permissions(self) -> list[InstanceActionForDataPermission]:
-        if self.action in ["update", "destroy", "apply", "clone", "batch_partial_update"]:
+        if self.action in ["update", "destroy", "apply", "clone", "batch_partial_update", "unapply"]:
             return [
                 InstanceActionForDataPermission(
                     "app_name",
