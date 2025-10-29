@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import datetime
 import itertools
 import logging
+from collections import defaultdict
 from typing import Any
 
 import elasticsearch
@@ -18,7 +19,7 @@ import elasticsearch5
 import elasticsearch6
 from curator import utils
 from django.db import models
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Q
 from django.db.transaction import atomic, on_commit
 from django.forms import model_to_dict
 from django.utils import timezone
@@ -613,6 +614,135 @@ class EsSnapshotRestore(models.Model):
         restore.save()
 
     @classmethod
+    @atomic(config.DATABASE_CONNECTION_NAME)
+    def retry_restore(
+            cls,
+            restore_id,
+            operator,
+            indices: list = None,
+            is_sync: bool | None = False,
+            is_force: bool | None = False,
+    ):
+        try:
+            restore = cls.objects.get(restore_id=restore_id)
+        except cls.DoesNotExist:
+            raise ValueError(_("回溯不存在"))
+        if restore.is_deleted:
+            raise ValueError(_("回溯已经删除"))
+        if restore.is_expired():
+            raise ValueError(_("回溯已经过期"))
+
+        from metadata.models import ESStorage
+
+        es_storage = ESStorage.objects.filter(
+            table_id=restore.table_id, bk_tenant_id=restore.bk_tenant_id
+        ).first()
+        if not es_storage:
+            raise ValueError(_("结果表不存在"))
+        if not es_storage.have_snapshot_conf:
+            raise ValueError(_("结果表不存在快照配置"))
+
+        restore_indices = restore.indices.split(",")
+        indices = indices or []
+        # 判断索引是否属于该回溯任务
+        if not set(indices).issubset(set(restore_indices)):
+            raise ValueError(_("索引不属于该回溯"))
+
+        each_complete_doc_count = restore.get_each_complete_doc_count(filter_indices=indices)
+        retry_snapshot_indices = []
+        pre_delete_indices = []
+        completed_indices = []
+        incomplete_indices = []
+
+        for restore_index, complete_info in each_complete_doc_count.items():
+            snapshot_index = complete_info.get("snapshot_index")
+            # 快照已不存在，无法重试
+            if not snapshot_index:
+                raise ValueError(_("部分索引的快照已不存在，无法重试"))
+
+            is_restored = complete_info.get("is_restored")
+            # 快照已经完成，无需重试
+            if is_restored and snapshot_index.doc_count == complete_info.get("complete_doc_count"):
+                completed_indices.append(model_to_dict(snapshot_index))
+                continue
+            # 已经回溯的，需先删除
+            if is_restored:
+                # 非强制模式，跳过重试回溯中的索引
+                incomplete_indices.append({
+                    **model_to_dict(snapshot_index),
+                    "complete_doc_count": complete_info.get("complete_doc_count", 0)
+                })
+                if not is_force:
+                    continue
+                pre_delete_indices.append(restore_index)
+            retry_snapshot_indices.append(snapshot_index)
+
+        retry_details = {
+            "completed": completed_indices,
+            "incomplete": incomplete_indices,
+            "pre_delete": pre_delete_indices,
+            "retry": [model_to_dict(snapshot_index) for snapshot_index in retry_snapshot_indices]
+        }
+        if not retry_snapshot_indices:
+            return {
+                "restore_id": restore.restore_id,
+                "retry_store_size": 0,
+                "retry_doc_count": 0,
+                "retry_details": retry_details
+            }
+
+        # 存在回溯中的索引
+        if pre_delete_indices:
+            es_client = get_client(bk_tenant_id=restore.bk_tenant_id, cluster_id=es_storage.storage_cluster_id)
+            # es index 删除是通过url带参数 防止索引太多超过url长度限制 所以进行多批删除
+            indices_chunks = utils.chunk_index_list(pre_delete_indices)
+            for indices_chunk in indices_chunks:
+                try:
+                    # 静默跳过不存在的索引，因indices每次操作可能是不幂等的，含有实际已删除的索引时将一直异常
+                    es_client.indices.delete(utils.to_csv(indices_chunk), ignore_unavailable=True)
+                except Exception as e:
+                    logger.error(
+                        "retry restore -> [%s] delete indices [%s] failed -> %s",
+                        restore.restore_id, ",".join(indices_chunk), e
+                    )
+                    raise ValueError(_("回溯索引删除失败"))
+                logger.info(
+                    "retry restore -> [%s] has delete indices [%s]",
+                    restore.restore_id, ",".join(indices_chunk)
+                )
+
+        retry_store_size = sum([snapshot_index.store_size for snapshot_index in retry_snapshot_indices])
+        cluster_total_size = get_cluster_disk_size(es_storage.es_client, kind="total")
+        cluster_used_size = get_cluster_disk_size(es_storage.es_client, kind="used")
+        if cluster_used_size + retry_store_size > cluster_total_size * cls.NOT_OVER_ES_CLUSTER_SIZE_PERCENT:
+            raise ValueError(_("重试回溯的索引大小加集群已经使用的容量已经超过了集群总容量的{}").format(
+                cls.NOT_OVER_ES_CLUSTER_SIZE_PERCENT))
+
+        # 异步任务执行创建操作 需要多次调用es请求
+        indices_group_by_snapshot = array_group(
+            [model_to_dict(snapshot_index) for snapshot_index in retry_snapshot_indices], "snapshot_name"
+        )
+        from metadata.task.tasks import restore_result_table_snapshot
+
+        # 根据参数进行同步或者异步操作的处理
+        if is_sync:
+            logger.info("restore id %s sync to retry restore %s", restore.restore_id, indices_group_by_snapshot)
+            restore_result_table_snapshot(indices_group_by_snapshot, restore.restore_id)
+        else:
+            logger.info("restore id %s async to retry restore %s", restore.restore_id, indices_group_by_snapshot)
+            on_commit(lambda: restore_result_table_snapshot.delay(indices_group_by_snapshot, restore.restore_id))
+
+        restore.last_modify_user = operator
+        restore.save()
+
+        return {
+            "restore_id": restore.restore_id,
+            "retry_store_size": retry_store_size,
+            "retry_doc_count": sum([snapshot_index.doc_count for snapshot_index in retry_snapshot_indices]),
+            "retry_details": retry_details,
+        }
+
+    @classmethod
     def clean_expired_restore(cls):
         now = datetime.datetime.utcnow()
         expired_restores = (
@@ -645,6 +775,53 @@ class EsSnapshotRestore(models.Model):
             }
             for restore in restores
         ]
+
+    @classmethod
+    def batch_get_indices(cls, restore_ids: list):
+        # 过滤掉已删除和过期的回溯
+        restores = cls.objects.filter(
+            restore_id__in=restore_ids, is_deleted=False, expired_delete=False
+        )
+        rt_restore_mappings = defaultdict(list)
+        es_storage_query = Q()
+        for _restore in restores:
+            rt_restore_mappings[(_restore.table_id, _restore.bk_tenant_id)].append(_restore)
+            es_storage_query |= Q(table_id=_restore.table_id, bk_tenant_id=_restore.bk_tenant_id)
+
+        from metadata.models import ESStorage
+        es_storages = ESStorage.objects.filter(es_storage_query)
+        storage_rt_mappings = defaultdict(list)
+        for _storage in es_storages:
+            storage_rt_mappings[(_storage.storage_cluster_id, _storage.bk_tenant_id)].extend(
+                rt_restore_mappings.get((_storage.table_id, _storage.bk_tenant_id), [])
+            )
+
+        data = []
+        # 根据集群查询回溯索引
+        for (storage_cluster_id, bk_tenant_id), restores in storage_rt_mappings.items():
+            es_client = get_client(bk_tenant_id=bk_tenant_id, cluster_id=storage_cluster_id)
+            if not restores:
+                continue
+            try:
+                es_indices = es_client.cat.indices(f"{cls.RESTORE_INDEX_PREFIX}*", format="json")
+            except Exception as e:
+                logger.error("restore get complete doc count cat indices error as [%s]", e)
+                raise ValueError(_("获取elasticsearch回溯索引失败"))
+            for restore in restores:
+                restore_indices = restore.get_each_complete_doc_count(cat_indices=es_indices)
+                indices_details = []
+                for restore_index, complete_info in restore_indices.items():
+                    snapshot_index = complete_info.pop("snapshot_index", None)
+                    indices_details.append({
+                        **complete_info, **(model_to_dict(snapshot_index) if snapshot_index else {})
+                    })
+                data.append({
+                    **model_to_dict(restore),
+                    "indices_details": indices_details,
+                })
+
+        data.sort(key=lambda x: x['restore_id'], reverse=True)
+        return data
 
     @classmethod
     def is_restored_index(cls, index, now, restore_id=None, bk_tenant_id=DEFAULT_TENANT_ID):
@@ -700,7 +877,9 @@ class EsSnapshotRestore(models.Model):
         es_client = get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=es_storage.storage_cluster_id)
 
         # es index 删除是通过url带参数 防止索引太多超过url长度限制 所以进行多批删除
-        indices_chunks = utils.chunk_index_list([self.build_restore_index_name(indice) for indice in indices])
+        indices_chunks = utils.chunk_index_list(
+            [self.build_restore_index_name(indice) for indice in indices]
+        ) if indices else []
         logger.info("restore -> [%s] need delete indices [%s]", self.restore_id, ",".join(indices))
         for indices_chunk in indices_chunks:
             try:
@@ -741,6 +920,49 @@ class EsSnapshotRestore(models.Model):
         self.complete_doc_count = complete_doc_count
         self.save()
         return self.complete_doc_count
+
+    def get_each_complete_doc_count(self, filter_indices: list = None, cat_indices: list = None):
+        """获取每个回溯索引的完成量"""
+        indices = filter_indices or self.indices.split(",")
+        snapshot_indices = EsSnapshotIndice.objects.filter(
+            start_time__lt=self.end_time,
+            end_time__gte=self.start_time,
+            table_id=self.table_id,
+            index_name__in=indices,
+            bk_tenant_id=self.bk_tenant_id,
+        )
+
+        is_completed = self.complete_doc_count >= self.total_doc_count
+
+        restore_indices_mapping = {
+            self.build_restore_index_name(snapshot_index.index_name): {
+                "index_name": snapshot_index.index_name,
+                "snapshot_index": snapshot_index,
+                "is_restored": True if is_completed else False,
+                "complete_doc_count": snapshot_index.doc_count if is_completed else 0,
+            } for snapshot_index in snapshot_indices
+        }
+
+        if is_completed:
+            return restore_indices_mapping
+
+        # 如果未查询索引，需查询索引
+        if not cat_indices:
+            from metadata.models import ESStorage
+            es_storage = ESStorage.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+            try:
+                cat_indices = es_storage.get_client().cat.indices(f"{self.RESTORE_INDEX_PREFIX}*", format="json")
+            except Exception as e:
+                logger.error("restore get complete doc count cat indices error as [%s]", e)
+                raise ValueError(_("获取elasticsearch回溯索引失败"))
+
+        for es_index in cat_indices:
+            if es_index["index"] in restore_indices_mapping:
+                restore_indices_mapping[es_index["index"]].update({
+                    "is_restored": True,
+                    "complete_doc_count": int(get_value_if_not_none(es_index["docs.count"], 0)),
+                })
+        return restore_indices_mapping
 
     def is_expired(self) -> bool:
         return timezone.now() > self.expired_time
