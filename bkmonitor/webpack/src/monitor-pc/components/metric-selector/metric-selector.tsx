@@ -968,7 +968,7 @@ class MetricSelector extends Mixins(metricTipsContentMixin) {
             <bk-input
               ref='searchInput'
               v-model={this.search}
-              placeholder={this.$t('搜索指标')}
+              placeholder={this.$t('搜索 指标')}
               rightIcon={'bk-icon icon-search'}
               onInput={this.handleSearch}
             />

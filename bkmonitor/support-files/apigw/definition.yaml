@@ -93,6 +93,19 @@ grant_permissions:
       - query_bcs_metrics
       - metadata_query_bcs_related_data_link_info
       - metadata_query_data_source
+  - bk_app_code: bk_paas3
+    grant_dimension: "resource"
+    resource_names:
+      - create_apm_application
+      - apm_create_application
+      - metadata_create_space
+      - metadata_update_space
+      - metadata_get_space_detail
+      - search_alert
+      - search_alarm_strategy_v3
+      - graph_promql_query
+      - as_code_import_config
+      - quick_import_dashboard
 
 # 应用申请指定网关所有资源的权限，待网关管理员审批后，应用才可访问网关资源；
 # 用于命令 `apply_apigw_permissions`

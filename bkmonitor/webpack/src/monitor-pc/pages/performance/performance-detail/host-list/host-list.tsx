@@ -203,7 +203,7 @@ export default class HostList extends tsc<IProps, IEvents> {
 
   /** 搜索框占位提示 */
   get placeholder() {
-    return this.panel.options?.target_list?.placeholder || this.$t('搜索IP / 主机名');
+    return this.panel.options?.target_list?.placeholder || this.$t('搜索 IP、主机名');
   }
 
   /** 列表高度 */
