@@ -136,7 +136,6 @@ export default {
   'route-增删监控目标': 'Change Scope',
   'route-配置升级': 'Upgrade',
   'route-增删目标': 'Targets',
-  'route-无权限': 'No Permission',
   'route-链路管理': 'Link Management',
   'route-加载中...': 'Loading...',
   'route-数据源管理': 'DataSource Management',
@@ -155,6 +154,10 @@ export default {
   'route-可视化': 'Visualize',
   'route-任务': 'Checks',
   'route-拨测任务': 'Checks',
+  'route-无权限': 'No Permission',
+  'route-监控平台': 'BK Monitor',
+  'route-临时分享': 'Temporary Share',
+  'route-外部授权': 'External Authorization',
 
   // 专有名词缩写
   ESB: 'ESB',
