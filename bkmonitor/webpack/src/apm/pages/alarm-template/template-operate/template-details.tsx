@@ -178,7 +178,7 @@ export default class TemplateDetails extends tsc<IProps> {
     }
   }
 
-  handleUnApply(params: { service_names: string[]; strategy_ids: number[] }) {
+  handleUnApply(params: { service_names: string[] }) {
     const h = this.$createElement;
     this.$bkInfo({
       type: 'warning',
@@ -196,7 +196,7 @@ export default class TemplateDetails extends tsc<IProps> {
         const success = await setUnApplyStrategyTemplate({
           app_name: this.params?.app_name,
           service_names: params.service_names,
-          strategy_template_ids: params.strategy_ids,
+          strategy_template_ids: this.params?.ids,
         });
         if (!success) {
           this.$bkMessage({

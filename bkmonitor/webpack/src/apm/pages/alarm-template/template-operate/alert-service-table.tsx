@@ -41,7 +41,7 @@ interface IProps {
   onGoService?: (serviceName: string) => void;
   onGoStrategy?: (strategyId: number | string) => void;
   onGoTemplatePush?: () => void;
-  onUnApply?: (params: { service_names: string[]; strategy_ids: number[] }) => void;
+  onUnApply?: (params: { service_names: string[] }) => void;
 }
 
 const Columns = {
@@ -130,7 +130,6 @@ export default class AlertServiceTable extends tsc<IProps> {
   }
   handleUnApply(row: IStrategiesItem) {
     this.$emit('unApply', {
-      strategy_ids: [row.strategy_id],
       service_names: [row.service_name],
     });
   }
