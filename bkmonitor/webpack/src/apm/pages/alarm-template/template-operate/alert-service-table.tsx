@@ -79,7 +79,7 @@ export default class AlertServiceTable extends tsc<IProps> {
       },
     },
     {
-      label: window.i18n.t('告警数量'),
+      label: window.i18n.t('操作'),
       prop: Columns.operator,
       minWidth: 187,
       width: null,

@@ -31,7 +31,7 @@ import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 
 import TemplateFormDetail from '../components/template-form/template-form-detail';
-import { getAlarmTemplateDetail, getAlertsStrategyTemplate } from '../service';
+import { getAlarmTemplateDetail, getAlertsStrategyTemplate, setUnApplyStrategyTemplate } from '../service';
 import AlertServiceTable from './alert-service-table';
 import { type IAlertStrategiesItem, type IStrategiesItem, type TDetailsTabValue, detailsTabColumn } from './typings';
 
@@ -179,11 +179,10 @@ export default class TemplateDetails extends tsc<IProps> {
   }
 
   handleUnApply(params: { service_names: string[]; strategy_ids: number[] }) {
-    console.log(params);
     const h = this.$createElement;
     this.$bkInfo({
       type: 'warning',
-      title: this.$t('确定解除关联'),
+      title: this.$t('确定解除关联?'),
       okText: this.$t('确定'),
       width: 480,
       closeFn: () => {
@@ -194,13 +193,19 @@ export default class TemplateDetails extends tsc<IProps> {
       },
       confirmLoading: true,
       confirmFn: async () => {
-        await new Promise(resolve => {
-          setTimeout(() => {
-            resolve(true);
-          }, 1500);
+        const success = await setUnApplyStrategyTemplate({
+          app_name: this.params?.app_name,
+          service_names: params.service_names,
+          strategy_template_ids: params.strategy_ids,
         });
+        if (!success) {
+          this.$bkMessage({
+            message: this.$t('解除关联失败'),
+            theme: 'error',
+          });
+          return false;
+        }
         this.$bkMessage({
-          // this.$t('解除关联失败’)
           message: this.$t('解除关联成功'),
           theme: 'success',
         });
