@@ -14,6 +14,9 @@ import logging
 from collections import defaultdict
 from typing import Any
 
+import elasticsearch
+import elasticsearch5
+import elasticsearch6
 from curator import utils
 from django.db import models
 from django.db.models import Count, Sum, Q
@@ -36,9 +39,9 @@ logger = logging.getLogger("metadata")
 
 
 class EsSearchCodes:
-    SUCCESS = 200
-    NOT_FOUND = 404
-    FAIL = 500
+    SUCCESS = "success"
+    NOT_FOUND = "not_found"
+    FAIL = "fail"
 
 
 class EsSnapshot(models.Model):
@@ -203,10 +206,6 @@ class EsSnapshot(models.Model):
     @classmethod
     def batch_get_recent_state(cls, table_ids: list, bk_tenant_id=DEFAULT_TENANT_ID):
         """批量获取最近一次的状态"""
-        import elasticsearch
-        import elasticsearch5
-        import elasticsearch6
-
         from metadata.models import ESStorage
 
         es_storages = ESStorage.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id)
