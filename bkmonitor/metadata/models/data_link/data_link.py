@@ -95,7 +95,7 @@ class DataLink(models.Model):
         BASE_EVENT_V1: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
         SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, DataBusConfig],
         SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, DataBusConfig],
-        BK_LOG: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
+        BK_LOG: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
         BK_STANDARD_V2_EVENT: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
     }
 
@@ -130,6 +130,15 @@ class DataLink(models.Model):
     class Meta:
         verbose_name = "数据链路"
         verbose_name_plural = verbose_name
+
+    def delete_data_link(self):
+        """删除数据链路"""
+        component_classes = self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]
+        for component_class in reversed(component_classes):
+            components = component_class.objects.filter(data_link_name=self.data_link_name)
+            for component in components:
+                component.delete_config()
+        self.delete()
 
     def compose_configs(self, *args, **kwargs):
         """
