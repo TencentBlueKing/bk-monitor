@@ -201,9 +201,7 @@ class ScriptPluginManager(PluginManager):
 
         collector_json = {}
         for os_name, file_info in list(meta_dict["scripts"].items()):
-            script_path = Path(
-                self.plugin.plugin_id, OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"]
-            )
+            script_path = Path(OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"])
             if script_path not in self.plugin_configs:
                 raise PluginParseError({"msg": _(f"无法找到脚本文件, path: {script_path}")})
 
