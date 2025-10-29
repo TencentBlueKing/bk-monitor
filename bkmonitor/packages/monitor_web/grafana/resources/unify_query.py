@@ -211,17 +211,24 @@ class AddNullDataProcessor:
         else:
             null_threshold = 2 * interval
 
-        # 起止时间周期对齐
-        start_time = time_interval_align(params["start_time"], interval // 1000) * 1000
-        end_time = time_interval_align(params["end_time"], interval // 1000) * 1000
+        # 根据 not_time_align 参数决定是否进行时间对齐
+        not_time_align = params.get("not_time_align", False)
+        if not_time_align:
+            # 不对齐时间窗口，使用原始时间范围
+            start_time = params["start_time"] * 1000
+            end_time = params["end_time"] * 1000
+        else:
+            # 起止时间周期对齐
+            start_time = time_interval_align(params["start_time"], interval // 1000) * 1000
+            end_time = time_interval_align(params["end_time"], interval // 1000) * 1000
 
-        # 日志、事件场景在部分展示场景下不进行时间对齐，避免 drop 掉不完整周期的数据点，从而保证数据统计准确性。
-        time_alignment: bool = params.get("time_alignment", True)
-        if not time_alignment:
-            if start_time > params["start_time"] * 1000:
-                start_time -= interval
-            if end_time < params["end_time"] * 1000:
-                end_time += interval
+            # 日志、事件场景在部分展示场景下不进行时间对齐，避免 drop 掉不完整周期的数据点，从而保证数据统计准确性。
+            time_alignment: bool = params.get("time_alignment", True)
+            if not time_alignment:
+                if start_time > params["start_time"] * 1000:
+                    start_time -= interval
+                if end_time < params["end_time"] * 1000:
+                    end_time += interval
 
         for row in data:
             time_to_value = defaultdict(lambda: None)
