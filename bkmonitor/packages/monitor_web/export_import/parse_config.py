@@ -118,13 +118,16 @@ class CollectConfigParse(BaseParse):
         """获取 meta.yaml 的路径"""
         meta_path = ""
         for file_path in self.plugin_configs.keys():
-            if (
-                Path(file_path).parts[0] == plugin_id
-                and file_path.parent.name == "info"
-                and file_path.name == "meta.yaml"
-            ):
-                meta_path = file_path
-                break
+            try:
+                if (
+                    Path(file_path).parts[1] == plugin_id
+                    and file_path.parent.name == "info"
+                    and file_path.name == "meta.yaml"
+                ):
+                    meta_path = file_path
+                    break
+            except IndexError:
+                continue
         return meta_path
 
     def parse_plugin_msg(self, plugin_id) -> dict[str, PluginVersionHistory | str]:
@@ -166,8 +169,11 @@ class CollectConfigParse(BaseParse):
         """获取插件的文件列表"""
         filename_list = []
         for file_path in self.plugin_configs.keys():
-            if str(file_path).split("/")[0] == plugin_id:
-                filename_list.append(file_path)
+            try:
+                if Path(file_path).parts[1] == plugin_id:
+                    filename_list.append(file_path)
+            except IndexError:
+                continue
 
         return filename_list
 
@@ -177,9 +183,12 @@ class CollectConfigParse(BaseParse):
         """
         result = False
         for config_path in self.plugin_configs.keys():
-            if str(config_path).split("/")[0] == plugin_id:
-                result = True
-                break
+            try:
+                if Path(config_path).parts[1] == plugin_id:
+                    result = True
+                    break
+            except IndexError:
+                continue
         return result
 
 
