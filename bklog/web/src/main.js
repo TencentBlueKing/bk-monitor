@@ -144,7 +144,8 @@ const mountedVueInstance = () => {
         },
         created() {
           const spaceId = this.$store.state.spaceUid;
-          if (!spaceId) {
+          const spaceList = this.$store.state.mySpaceList;
+          if (!spaceId || spaceList.length === 0) {
             this.$router.push({
               path: '/un-authorized',
               query: {

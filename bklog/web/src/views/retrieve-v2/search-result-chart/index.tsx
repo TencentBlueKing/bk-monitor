@@ -247,7 +247,7 @@ export default defineComponent({
       let localIsInit = true; // 添加初始化标志，控制图表首次渲染
 
       // 组装请求参数方法
-      const buildQueryParams = (start_time, end_time) => {
+      const buildQueryParams = (startTime, endTime) => {
         const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
         const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
         const queryData = {
@@ -255,12 +255,14 @@ export default defineComponent({
           addition: [...requestAddition.value, ...getCommonFilterAddition(store.state)],
           time_range: 'customized',
           interval: runningInterval,
-          start_time,
-          end_time,
+          start_time: startTime,
+          end_time: endTime,
         };
+
         if (isUnionSearch.value) {
           Object.assign(queryData, { index_set_ids: unionIndexList.value });
         }
+
         if (
           gradeOptions.value
           && !gradeOptions.value.disabled
@@ -274,24 +276,24 @@ export default defineComponent({
 
       while (currentTimeStamp > startTimeStamp) {
         // 计算本轮请求结束时间
-        const end_time = requestInterval === 0 ? endTimeStamp : currentTimeStamp;
+        const endTime = requestInterval === 0 ? endTimeStamp : currentTimeStamp;
 
         // 计算本轮请求开始时间
-        let start_time = requestInterval === 0 ? startTimeStamp : end_time - requestInterval;
+        let startTime = requestInterval === 0 ? startTimeStamp : endTime - requestInterval;
 
         // 边界条件处理
-        if (start_time < startTimeStamp) {
-          start_time = startTimeStamp;
+        if (startTime < startTimeStamp) {
+          startTime = startTimeStamp;
         }
-        if (start_time < retrieveParams.value.start_time) {
-          start_time = retrieveParams.value.start_time;
+        if (startTime < retrieveParams.value.start_time) {
+          startTime = retrieveParams.value.start_time;
         }
-        if (start_time > end_time) {
+        if (startTime > endTime) {
           return;
         }
 
         // 获取请求参数
-        const params = buildQueryParams(start_time, end_time);
+        const params = buildQueryParams(startTime, endTime);
 
         if ((!isUnionSearch.value && !!params.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
           yield { ...params, isInit: localIsInit };
@@ -305,7 +307,7 @@ export default defineComponent({
           }
 
           // 如果已经到达起始时间，结束生成yield
-          if (start_time === startTimeStamp) {
+          if (startTime === startTimeStamp) {
             return;
           }
 
