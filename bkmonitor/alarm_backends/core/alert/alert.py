@@ -1099,19 +1099,18 @@ class AlertCache:
 
             if cached_data:
                 try:
-                    cached_alert_data = Alert(json.loads(cached_data))
+                    cached_alert_data = Alert(data=json.loads(cached_data))
                     cached_alert_id = cached_alert_data.id
                     if cached_alert_id and cached_alert_id != alert.id:
                         # 如果缓存中的告警ID与当前告警ID不一致，跳过更新
                         should_update = False
                         skip_count += 1
-                except (json.JSONDecodeError, KeyError):
+                except (json.JSONDecodeError, KeyError) as e:
                     # 如果解析失败，允许更新
-                    pass
+                    logger.warning("load alert failed: invalid json data: %s, origin data: %s", e, cached_data)
                 except Exception as e:
                     # 其他异常，记录日志但允许更新
                     logger.warning("load alert failed: %s, origin data: %s", e, cached_data)
-                    pass
 
             if should_update:
                 if not alert.is_abnormal():
