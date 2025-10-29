@@ -218,4 +218,5 @@ export default {
   固定IP: 'Static IP',
   'IP-静态拓扑': 'IP-Static Topo',
   问问小鲸: 'Ask AI',
+  '确定解除关联?': 'Are you sure you want to disassociate?',
 };

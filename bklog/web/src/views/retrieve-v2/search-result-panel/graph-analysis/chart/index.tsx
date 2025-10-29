@@ -252,11 +252,11 @@ export default defineComponent({
     // };
     // 异步下载
     const handleAsyncDownloadData = async () => {
-      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX.replace(/\/$/,'');
       const searchUrl = `/search/index_set/${indexSetId.value}/export_chart_data/`;
-      const filename = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
-      const { start_time, end_time, keyword } = retrieveParams.value;
-      
+      const fileName = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
+      const { start_time, end_time, keyword,sort_list } = retrieveParams.value;
+
       const requestData = {
         start_time,
         end_time,
@@ -265,29 +265,61 @@ export default defineComponent({
         addition: requestAddition.value || '',
         sql: sqlContent.value || '',
         alias_settings: alias_settings.value || '',
+        sort_list
       }
 
-      const params: any = {
-        method: 'post',
-        url: searchUrl,
-        withCredentials: true,
-        baseURL: baseUrl,
-        responseType: 'blob',
-        data: requestData,
-        headers: {},
-      };
-      if (store.state.isExternal) {
-        params.headers = {
-          'X-Bk-Space-Uid': store.state.spaceUid,
-        };
-      }
+      // const params: any = {
+      //   method: 'post',
+      //   url: searchUrl,
+      //   withCredentials: true,
+      //   baseURL: baseUrl,
+      //   responseType: 'blob',
+      //   data: requestData,
+      //   headers: {},
+      // };
+      // if (store.state.isExternal) {
+      //   params.headers = {
+      //     'X-Bk-Space-Uid': store.state.spaceUid,
+      //   };
+      // }
       try {
-        return axiosInstance(params).then((response) => {
-          blobDownload(response?.data, filename)
-        })
+        const response = await fetch(`${baseUrl}${searchUrl}`, {
+          method: 'POST',
+          body: JSON.stringify(requestData),
+          headers: {
+            // 'Accept': 'application/octet-stream', // 关键：覆盖默认的 text/*
+            'Content-Type': 'application/json', // 明确设置请求类型
+            //  mode: 'cors',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`下载失败: ${response.status} ${response.statusText}`);
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = fileName || 'download';
+        document.body.appendChild(a);
+        a.click();
+
+        // 清理
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(downloadUrl);
       } catch (error) {
-        console.error(error);
+        console.error('下载出错:', error);
+        throw error;
       }
+      // try {
+      //   return axiosInstance(params).then((response) => {
+      //     blobDownload(response?.data, filename)
+      //   })
+      // } catch (error) {
+      //   console.error(error);
+      // }
 
       // try {
       //   return $http.request(`graphAnalysis/asyncDownload`, {

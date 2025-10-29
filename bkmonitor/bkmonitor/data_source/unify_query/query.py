@@ -337,7 +337,7 @@ class UnifyQuery:
         }
 
         if start_time and end_time:
-            if time_alignment:
+            if time_alignment and not not_time_align:
                 params["start_time"] = str(time_interval_align(start_time // 1000, step))
                 params["end_time"] = str(time_interval_align(end_time // 1000, step))
             else:
@@ -530,6 +530,9 @@ class UnifyQuery:
         if self.use_unify_query():
             labels["api"] = "unify_query"
             try:
+                time_alignment = kwargs.get("time_alignment", True)
+                if not_time_align:
+                    time_alignment = False
                 with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
                     data, is_partial = self._query_unify_query(
                         start_time=start_time,
@@ -537,7 +540,7 @@ class UnifyQuery:
                         limit=limit,
                         slimit=slimit,
                         down_sample_range=down_sample_range,
-                        time_alignment=kwargs.get("time_alignment", True),
+                        time_alignment=time_alignment,
                         instant=kwargs.get("instant"),
                         not_time_align=not_time_align,
                     )
