@@ -38,7 +38,7 @@ from apps.log_search.constants import (
     MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
     ASYNC_EXPORT_SCROLL,
 )
-from apps.log_search.exceptions import BaseSearchResultAnalyzeException
+from apps.log_search.exceptions import BaseSearchResultAnalyzeException, PreCheckSortFieldException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
@@ -549,6 +549,24 @@ class UnifyQueryHandler:
 
         # 反转结果，因为是从最低位开始计算的
         return "".join(reversed(result))
+
+    @staticmethod
+    def check_sort_list(fields: list, sort_list: list, raise_exception: bool = True) -> list:
+        """
+        校验前端传递的字段是否支持排序
+        @param {list} fields 索引集字段列表 [{"field_name": "test", "es_doc_values": True}]
+        @param {list} sort_list 排序字段列表 [["field_name", "asc"]]
+        """
+        agg_fields = {field["field_name"] for field in fields if field.get("es_doc_values", False)}
+        sort_fields = {item[0] for item in sort_list}
+        unsupported_fields = sort_fields - agg_fields
+        if unsupported_fields:
+            if raise_exception:
+                raise PreCheckSortFieldException(
+                    PreCheckSortFieldException.MESSAGE.format(fields=", ".join(unsupported_fields))
+                )
+            return list(unsupported_fields)
+        return []
 
     def init_base_dict(self):
         # 自动周期处理

@@ -42,7 +42,6 @@ from apps.log_search.exceptions import (
     MissAsyncExportException,
     PreCheckAsyncExportException,
     DuplicateUnifyQueryExportException,
-    PreCheckSortFieldException,
 )
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler, UnionSearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet
@@ -99,17 +98,10 @@ class UnifyQueryAsyncExportHandlers:
         if self.search_dict.get("sort_list"):
             fields_result = self.unify_query_handler.fields()
             fields = fields_result["fields"]
-            agg_fields = {field["field_name"] for field in fields if field.get("es_doc_values", False)}
-            sort_fields = {item[0] for item in self.search_dict["sort_list"]}
-            unsupported_fields = sort_fields - agg_fields
-            if unsupported_fields:
-                raise PreCheckSortFieldException(
-                    PreCheckSortFieldException.MESSAGE.format(fields=", ".join(unsupported_fields))
-                )
+            UnifyQueryHandler.check_sort_list(fields, self.search_dict["sort_list"])
 
-        sorted_list = self.unify_query_handler.origin_order_by
         result = self.unify_query_handler.pre_get_result(
-            sorted_fields=sorted_list,
+            sorted_fields=self.unify_query_handler.origin_order_by,
             size=ASYNC_COUNT_SIZE,
         )
         # 判断是否进行导出
@@ -120,7 +112,7 @@ class UnifyQueryAsyncExportHandlers:
         async_task = AsyncTask.objects.create(
             **{
                 "request_param": self.search_dict,
-                "sorted_param": [field[0] for field in sorted_list],
+                "sorted_param": self.unify_query_handler.origin_order_by,
                 "scenario_id": self.unify_query_handler.index_info_list[0]["scenario_id"],
                 "index_set_id": self.index_set_id,
                 "bk_biz_id": self.bk_biz_id,
@@ -136,7 +128,7 @@ class UnifyQueryAsyncExportHandlers:
 
         async_export.delay(
             unify_query_handler=self.unify_query_handler,
-            sorted_fields=sorted_list,
+            sorted_fields=self.unify_query_handler.origin_order_by,
             async_task_id=async_task.id,
             url_path=url,
             search_url_path=search_url,
@@ -336,13 +328,7 @@ class UnifyQueryUnionAsyncExportHandlers:
             search_handler = UnionSearchHandler(search_dict=search_dict)
             fields_result = search_handler.union_search_fields(data=search_dict)
             fields = fields_result["fields"]
-            agg_fields = {field["field_name"] for field in fields if field.get("es_doc_values", False)}
-            sort_fields = {item[0] for item in self.search_dict["sort_list"]}
-            unsupported_fields = sort_fields - agg_fields
-            if unsupported_fields:
-                raise PreCheckSortFieldException(
-                    PreCheckSortFieldException.MESSAGE.format(fields=", ".join(unsupported_fields))
-                )
+            UnifyQueryHandler.check_sort_list(fields, self.search_dict["sort_list"])
 
         # 预查询，判断是否进行导出
         result = self.unify_query_handler.pre_get_result(
