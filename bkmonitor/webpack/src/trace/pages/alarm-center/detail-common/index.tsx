@@ -32,6 +32,7 @@ import { storeToRefs } from 'pinia';
 import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
 import { useAlarmBasicInfo } from '../composables/use-alarm-baseinfo';
 import { AlarmDetail } from '../typings';
+import { ALARM_CENTER_PANEL_TAB_MAP } from '../utils/constant';
 import AlarmAlert from './components/alarm-alert';
 import AlarmConfirmDialog from './components/alarm-confirm-dialog';
 import AlarmInfo from './components/alarm-info';
@@ -63,9 +64,9 @@ export default defineComponent({
       switch (currentPanel.value) {
         case 'view':
           return <PanelView />;
-        case 'log':
+        case ALARM_CENTER_PANEL_TAB_MAP.LOG:
           return <PanelLog detail={alarmCenterDetailStore.alarmDetail} />;
-        case 'link':
+        case ALARM_CENTER_PANEL_TAB_MAP.TRACE:
           return <PanelLink />;
         case 'host':
           return <PanelHost detail={alarmCenterDetailStore.alarmDetail} />;
