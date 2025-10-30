@@ -305,6 +305,14 @@ class CloseStatusChecker(BaseChecker):
             host = None
             if ip and bk_cloud_id != "":
                 host = HostManager.get(bk_tenant_id=alert.bk_tenant_id, ip=ip, bk_cloud_id=int(bk_cloud_id))
+            else:
+                # 如果event的类型是HOST，但是没有ip和bk_cloud_id，说明数据补全存在问题，为了避免告警反复关闭导致告警风暴，这里不能进行告警关闭
+                logger.error(
+                    f"[close 处理结果] (closed) alert({alert.id}), strategy({alert.strategy_id}), "
+                    f"event类型为HOST，但是没有ip和bk_cloud_id，说明数据补全存在问题，为了避免告警反复关闭导致告警风暴，这里不能进行告警关闭"
+                )
+                return False
+
             if not host:
                 # 如果主机在缓存中不存在，则直接恢复告警
                 # 需要考虑一个问题，如何判断缓存未刷新的情况
