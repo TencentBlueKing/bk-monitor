@@ -29,7 +29,7 @@ import { type PropType, computed, defineComponent, provide, shallowRef, toRef, w
 import { random } from 'monitor-common/utils';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
-import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
+import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
 import { createAutoTimeRange } from '../../../../../../../plugins/charts/failure-chart/failure-alarm-chart';
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
 import { useHostSceneView } from '../../../../../composables/use-host-scene-view';
@@ -43,18 +43,10 @@ export default defineComponent({
     bizId: {
       type: Number,
     },
-    /** 图表数据的时间间隔 */
-    interval: {
-      type: Number,
-      default: 60,
-    },
     /** 图表需要请求的数据的开始时间 */
-    beginTime: {
-      type: Number,
-    },
-    /** 图表需要请求的数据的结束时间 */
-    endTime: {
-      type: Number,
+    timeRange: {
+      type: Array as PropType<TimeRangeType>,
+      default: () => DEFAULT_TIME_RANGE,
     },
     /** 图表请求参数变量 */
     viewOptions: {
@@ -69,12 +61,8 @@ export default defineComponent({
     const { hostSceneView, loading } = useHostSceneView(toRef(props, 'bizId'));
     /** 是否立即刷新图表数据 */
     const refreshImmediate = shallowRef('');
-    /** 数据时间范围 */
-    const timeRange = computed(() => {
-      const { startTime, endTime } = createAutoTimeRange(props.beginTime, props.endTime, props.interval);
-      return startTime && endTime ? [startTime, endTime] : DEFAULT_TIME_RANGE;
-    });
-    provide('timeRange', timeRange);
+
+    provide('timeRange', toRef(props, 'timeRange'));
     provide('refreshImmediate', refreshImmediate);
     watch(
       () => hostSceneView.value,

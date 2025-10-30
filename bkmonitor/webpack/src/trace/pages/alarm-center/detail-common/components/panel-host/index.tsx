@@ -45,15 +45,17 @@ export default defineComponent({
     },
   },
   setup(props) {
-    /** 业务ID */
-    const { bizId } = storeToRefs(useAlarmCenterDetailStore());
+    const {
+      /** 业务ID */
+      bizId,
+      /** 图表数据的时间间隔 */
+      interval,
+      /** 数据时间范围 */
+      timeRange,
+    } = storeToRefs(useAlarmCenterDetailStore());
     /** 是否处于请求加载状态 */
     const loading = shallowRef(false);
 
-    /** 图表数据的时间间隔 */
-    const interval = computed(
-      () => props.detail?.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60
-    );
     /** 默认监控的目标配置 */
     const defaultCurrentTarget = computed(() => {
       const currentTarget: Record<string, any> = {
@@ -110,7 +112,7 @@ export default defineComponent({
       return <div class='alarm-detail-panel-host-skeleton-dom skeleton-element' />;
     }
 
-    return { bizId, interval, loading, viewOptions, handleToPerformance, createSkeletonDom };
+    return { bizId, timeRange, loading, viewOptions, handleToPerformance, createSkeletonDom };
   },
   render() {
     return (
@@ -139,10 +141,8 @@ export default defineComponent({
         </div>
         <div class='panel-host-chart-wrap'>
           <PanelHostDashboard
-            beginTime={this.detail?.begin_time}
             bizId={this.bizId}
-            endTime={this.detail?.end_time}
-            interval={this.interval}
+            timeRange={this.timeRange}
             viewOptions={this.viewOptions}
           />
         </div>
