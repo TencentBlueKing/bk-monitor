@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import copy
 import datetime
@@ -32,7 +30,7 @@ from api.cmdb.define import Host
 from .config import RAW_DATA, STRATEGY_CONFIG
 
 
-class TestExpireFilter(object):
+class TestExpireFilter:
     def test_filter(self, mocker):
         get_strategy_by_id = mocker.patch.object(StrategyCacheManager, "get_strategy_by_id")
         get_strategy_by_id.return_value = STRATEGY_CONFIG
@@ -67,7 +65,7 @@ class TestExpireFilter(object):
         assert f.filter(record) is True
 
 
-class TestRangeFilter(object):
+class TestRangeFilter:
     def test_ip_filter(self, mocker):
         get_strategy_by_id = mocker.patch.object(StrategyCacheManager, "get_strategy_by_id")
         get_strategy_by_id.return_value = copy.deepcopy(STRATEGY_CONFIG)
@@ -114,8 +112,14 @@ class TestRangeFilter(object):
         get_strategy_by_id = mocker.patch.object(StrategyCacheManager, "get_strategy_by_id")
         get_strategy_by_id.return_value = copy.deepcopy(STRATEGY_CONFIG)
 
-        get_dynamic_group = mocker.patch.object(DynamicGroupManager, "multi_get")
-        get_dynamic_group.return_value = [{"bk_obj_id": "host", "bk_inst_ids": [1, 2, 3], "id": "xxx"}]
+        get_dynamic_group = mocker.patch.object(DynamicGroupManager, "mget")
+        get_dynamic_group.return_value = {
+            "xxx": {
+                "bk_obj_id": "host",
+                "bk_inst_ids": [1, 2, 3],
+                "id": "xxx",
+            }
+        }
 
         strategy_id = 1
         strategy = Strategy(strategy_id)
@@ -178,7 +182,7 @@ class TestRangeFilter(object):
         assert record.is_retains[STRATEGY_CONFIG["items"][0]["id"]] is True
 
 
-class TestHostStatusFilter(object):
+class TestHostStatusFilter:
     def test_filter(self, mocker):
         get_host = mocker.patch.object(HostManager, "get")
         get_host.return_value = Host(

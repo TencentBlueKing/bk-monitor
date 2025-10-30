@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 
 import pytest
@@ -23,6 +23,7 @@ from api.kubernetes.default import FetchK8sClusterListResource
 pytestmark = pytest.mark.django_db
 
 STRATEGY = {
+    "bk_biz_id": 1,
     "source": "bk_monitorv3",
     "scenario": "kubernetes",
     "items": [
@@ -78,14 +79,14 @@ class TestBcsClusterTranslator:
         }
         actual = translate(dimensions)
         expect = {
-            'bcs_cluster_id': {
-                'display_name': 'bcs_cluster_id',
-                'display_value': 'BCS-K8S-00000(蓝鲸社区版7.0)',
-                'value': 'BCS-K8S-00000',
+            "bcs_cluster_id": {
+                "display_name": "bcs_cluster_id",
+                "display_value": "BCS-K8S-00000(蓝鲸社区版7.0)",
+                "value": "BCS-K8S-00000",
             },
-            'container': {'display_name': 'container', 'display_value': 'container_name', 'value': 'container_name'},
-            'namespace': {'display_name': 'namespace', 'display_value': 'default', 'value': 'default'},
-            'pod': {'display_name': 'pod', 'display_value': 'pod_name', 'value': 'pod_name'},
+            "container": {"display_name": "container", "display_value": "container_name", "value": "container_name"},
+            "namespace": {"display_name": "namespace", "display_value": "default", "value": "default"},
+            "pod": {"display_name": "pod", "display_value": "pod_name", "value": "pod_name"},
         }
         assert actual == expect
 
@@ -97,13 +98,13 @@ class TestBcsClusterTranslator:
         }
         actual = translate(dimensions_2)
         expect = {
-            'bcs_cluster_id': {
-                'display_name': 'bcs_cluster_id',
-                'display_value': 'BCS-K8S-00001',
-                'value': 'BCS-K8S-00001',
+            "bcs_cluster_id": {
+                "display_name": "bcs_cluster_id",
+                "display_value": "BCS-K8S-00001",
+                "value": "BCS-K8S-00001",
             },
-            'container': {'display_name': 'container', 'display_value': 'container_name', 'value': 'container_name'},
-            'namespace': {'display_name': 'namespace', 'display_value': 'default', 'value': 'default'},
-            'pod': {'display_name': 'pod', 'display_value': 'pod_name', 'value': 'pod_name'},
+            "container": {"display_name": "container", "display_value": "container_name", "value": "container_name"},
+            "namespace": {"display_name": "namespace", "display_value": "default", "value": "default"},
+            "pod": {"display_name": "pod", "display_value": "pod_name", "value": "pod_name"},
         }
         assert actual == expect

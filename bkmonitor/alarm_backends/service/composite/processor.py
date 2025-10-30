@@ -615,7 +615,6 @@ class CompositeProcessor:
 
                 if cached_result and not self.alert_status == EventStatus.ABNORMAL:
                     # 当前有异常，但告警已经是非异常状态，需要发信号
-                    # 注意：无数据告警不需要发送恢复和关闭信号
                     if self.alert_status == EventStatus.RECOVERED:
                         signal = ActionSignal.RECOVERED
                     else:
