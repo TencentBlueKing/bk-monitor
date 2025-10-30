@@ -139,6 +139,13 @@ def delete_es_result_table_snapshot(table_id, target_snapshot_repository_name, b
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def retry_es_result_table_snapshot(table_id, target_snapshot_repository_name, bk_tenant_id=DEFAULT_TENANT_ID):
+    models.ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id).retry_snapshot(
+        target_snapshot_repository_name
+    )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def restore_result_table_snapshot(indices_group_by_snapshot, restore_id):
     try:
         restore = models.EsSnapshotRestore.objects.get(restore_id=restore_id)

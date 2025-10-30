@@ -308,7 +308,14 @@
               :key="item.key"
             >
               <span>{{ item.label }}</span>
-              <span>{{ item.value }}</span>
+              <span>
+                <template v-if="item.isUserAccount">
+                  <bk-user-display-name :user-id="item.value"></bk-user-display-name>
+                </template>
+                <template v-else>
+                  {{ item.value }}
+                </template>
+              </span>
             </div>
           </div>
         </template>
@@ -422,6 +429,7 @@
             {
               key: 'updated_by',
               label: this.$t('更新人'),
+              isUserAccount: true
             },
             {
               key: 'updated_at',
@@ -430,6 +438,7 @@
             {
               key: 'created_by',
               label: this.$t('创建人'),
+              isUserAccount: true
             },
             {
               key: 'created_at',
