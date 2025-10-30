@@ -424,4 +424,6 @@ export default {
   '再次勾选「已配置」的策略，可重新下发，覆盖原有的策略':
     'After checking the strategy that has been applied, you can re-issue it to override the existing strategy',
   请先选择模版: 'Please select a template first',
+  '经过 {0} 分析，发现以下可疑维度（组合）：':
+    'After {0} analysis, the following suspicious dimensions (combinations) were found:',
 };
