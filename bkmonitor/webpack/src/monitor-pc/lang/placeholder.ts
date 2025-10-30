@@ -366,4 +366,8 @@ export default {
   '搜索 屏蔽ID、策略ID': 'Search Shield ID, probe task ID',
   '搜索 事项': 'Search Items',
   '搜索 空间名': 'Search Space Name',
+  '搜索 函数': 'Search Function',
+  '搜索 分组名': 'Search Groups Name',
+  '搜索 收藏名称': 'Search Favorite Name',
+  '请输入 关键字': 'Please enter keywords',
 };

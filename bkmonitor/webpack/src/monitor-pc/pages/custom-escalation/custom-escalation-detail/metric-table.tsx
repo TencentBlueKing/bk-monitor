@@ -1087,7 +1087,7 @@ export default class IndicatorTable extends tsc<any, any> {
             ext-cls='search-table'
             data={this.metricSearchData}
             modelValue={this.search}
-            placeholder={this.$t('搜索指标')}
+            placeholder={this.$t('搜索')}
             show-popover-tag-change
             on-change={this.handleSearchChange}
           />

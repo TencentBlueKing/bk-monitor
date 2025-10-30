@@ -260,6 +260,7 @@ export default class PeripheralSystem extends tsc<IProps, IEvents> {
                   behavior='simplicity'
                   clearable={false}
                   placeholder={this.$tc('选择')}
+                  search-placeholder={this.$tc('请输入 关键字')}
                   searchable={true}
                   value={this.formTemplateId}
                   onSelected={this.handleFormDataChange}

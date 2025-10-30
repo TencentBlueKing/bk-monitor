@@ -1493,7 +1493,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
                 <i class='icon-monitor icon-mc-search menu-search-icon' />
                 <input
                   class='menu-search-input'
-                  placeholder={String(this.$t('请输入关键字'))}
+                  placeholder={String(this.$t('请输入 关键字'))}
                   type='text'
                   value={this.searchText}
                   onInput={e => {
