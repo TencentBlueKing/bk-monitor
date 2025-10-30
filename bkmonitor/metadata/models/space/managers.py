@@ -92,6 +92,7 @@ class SpaceManager(models.Manager):
                 "time_zone",
                 "language",
                 "is_bcs_valid",
+                "is_global",
             )
         )
         space_type_id_name = space_type_id_name or {}
