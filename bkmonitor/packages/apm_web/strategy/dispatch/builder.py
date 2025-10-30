@@ -15,7 +15,12 @@ from collections.abc import Callable
 from django.conf import settings
 
 from apm_web.models import StrategyTemplate, Application
-from apm_web.strategy.constants import StrategyTemplateSystem
+from apm_web.strategy.constants import (
+    StrategyTemplateSystem,
+    AlgorithmType,
+    ALGORITHM_METHOD_CONFIG_MAPPING,
+    DetectConnector,
+)
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
 from constants.apm import DEFAULT_DATA_LABEL, CommonMetricTag
@@ -26,8 +31,6 @@ from monitor_web.strategies.default_settings.common import (
     algorithms_config,
     detects_config,
 )
-
-from bkmonitor.models import AlgorithmModel
 
 from .base import DispatchConfig
 
@@ -56,6 +59,7 @@ class StrategyBuilder:
                     trigger_check_window=detect_config["trigger_check_window"],
                     trigger_count=detect_config["trigger_count"],
                     level=level,
+                    connector=detect.get("connector", DetectConnector.AND.value),
                 )
             )
 
@@ -87,10 +91,30 @@ class StrategyBuilder:
         )
 
     @classmethod
+    def _year_round_and_ring_ratio_algorithm_config(cls, algorithm: dict[str, Any]) -> list[dict[str, Any]]:
+        algorithm_config = algorithm["config"]
+        method_config = ALGORITHM_METHOD_CONFIG_MAPPING[algorithm_config["method"]]
+        return [
+            {
+                "config": {
+                    "floor": algorithm_config["floor"],
+                    "ceil": algorithm_config["ceil"],
+                    "ceil_interval": method_config["ceil_interval"],
+                    "floor_interval": method_config["floor_interval"],
+                    "fetch_type": method_config["fetch_type"],
+                },
+                "level": algorithm["level"],
+                "type": method_config["type"],
+                "unit_prefix": "",
+            }
+        ]
+
+    @classmethod
     def _prepare_algorithms(cls, algorithms: list[dict[str, Any]]) -> list[dict[str, Any]]:
         config_getter_map: dict[str, Callable[[dict[str, Any]], list[dict[str, Any]]]] = {
-            AlgorithmModel.AlgorithmChoices.Threshold: cls._threshold_algorithm_config,
-            AlgorithmModel.AlgorithmChoices.AdvancedYearRound: cls._year_round_algorithm_config,
+            AlgorithmType.THRESHOLD.value: cls._threshold_algorithm_config,
+            AlgorithmType.ADVANCED_YEAR_ROUND.value: cls._year_round_algorithm_config,
+            AlgorithmType.YEAR_ROUND_AND_RING_RATIO.value: cls._year_round_and_ring_ratio_algorithm_config,
         }
         prepared_algorithms: list[dict[str, Any]] = []
         for algorithm in algorithms:
