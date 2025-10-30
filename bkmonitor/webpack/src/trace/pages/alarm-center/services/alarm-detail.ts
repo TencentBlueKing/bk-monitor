@@ -25,7 +25,9 @@
  */
 
 import { alertDetail, listAlertFeedback } from 'monitor-api/modules/alert';
+import { scenarioMetricList } from 'monitor-api/modules/k8s';
 import { getSceneView } from 'monitor-api/modules/scene_view';
+import { type SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 import { BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
 import { AlarmDetail } from '../typings/detail';
@@ -79,4 +81,16 @@ export const getHostSceneView = async (bizId: number) => {
   }
   transformData.panels = resultPanels;
   return transformData;
+};
+
+/**
+ * @description 容器监控场景指标列表
+ * @param scene 场景
+ */
+export const getK8sScenarioMetricList = async (scene: SceneEnum) => {
+  const data = await scenarioMetricList({ scenario: scene }).catch(() => []);
+  return data.map(item => ({
+    ...item,
+    count: item.children.length,
+  }));
 };

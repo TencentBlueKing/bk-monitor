@@ -14,6 +14,10 @@
       align-items: center;
       margin-bottom: 12px;
 
+      .k8s-condition-container {
+        color: #313238;
+      }
+
       .k8s-link-btn {
         display: flex;
         flex-shrink: 0;

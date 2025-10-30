@@ -88,7 +88,7 @@ export default defineComponent({
           </div>
         </div>
         <div class='panel-k8s-chart-wrap'>
-          <PanelContainerDashboard />
+          <PanelContainerDashboard scene={this.scene} />
         </div>
       </div>
     );

@@ -30,10 +30,9 @@ import { storeToRefs } from 'pinia';
 
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
+import { type AlarmDetail, AlertDetailHostSelectorTypeEnum } from '../../../typings';
 import PanelHostDashboard from './components/panel-host-dashboard/panel-host-dashboard';
 import PanelHostSelector from './components/panel-host-selector/panel-host-selector';
-
-import type { AlarmDetail } from '../../../typings';
 
 import './index.scss';
 
@@ -55,6 +54,12 @@ export default defineComponent({
     } = storeToRefs(useAlarmCenterDetailStore());
     /** 是否处于请求加载状态 */
     const loading = shallowRef(false);
+    /** 选择器类型(主机|模块) */
+    const selectorType = computed(
+      () =>
+        // TODO: 判断逻辑待补充
+        AlertDetailHostSelectorTypeEnum.HOST
+    );
 
     /** 默认监控的目标配置 */
     const defaultCurrentTarget = computed(() => {
@@ -112,7 +117,7 @@ export default defineComponent({
       return <div class='alarm-detail-panel-host-skeleton-dom skeleton-element' />;
     }
 
-    return { bizId, timeRange, loading, viewOptions, handleToPerformance, createSkeletonDom };
+    return { bizId, timeRange, selectorType, loading, viewOptions, handleToPerformance, createSkeletonDom };
   },
   render() {
     return (
@@ -120,7 +125,10 @@ export default defineComponent({
         <div class='panel-host-white-bg-container'>
           <div class='host-selector-wrap'>
             <div class='host-selector-container'>
-              <PanelHostSelector class='host-selector' />
+              <PanelHostSelector
+                class='host-selector'
+                selectorType={this.selectorType}
+              />
               {/* {this.createSkeletonDom()} */}
             </div>
             <div

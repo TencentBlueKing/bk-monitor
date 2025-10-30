@@ -24,50 +24,33 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef, toRef, unref, watch } from 'vue';
+/** 模块级别mock数据 */
+const moduleLevelList = new Array(Math.floor(Math.random() * 100)).fill(0).map((_, i) => ({
+  bk_inst_id: i,
+  bk_inst_name: `k8s-node-${i}`,
+  bk_obj_id: 'module',
+  bk_obj_name: '模块',
+  id: `module|${i}`,
+  bk_biz_id: 2,
+  name: `k8s-node-${i}`,
+}));
 
-import { random } from 'monitor-common/utils';
-import { type SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
+/** 主机级别mock数据 */
+const hostLevelList = new Array(Math.floor(Math.random() * 100)).fill(0).map((_, i) => ({
+  bk_host_id: i,
+  display_name: `10.0.7.${i}`,
+  ip: `10.0.7.${i}`,
+  bk_host_innerip: `10.0.7.${i}`,
+  bk_host_innerip_v6: '',
+  bk_cloud_id: 0,
+  bk_host_name: `VM-7-4-centos-${i}`,
+  os_type: 'linux',
+  bk_biz_id: 2,
+  id: i,
+  name: `10.0.7.${i}`,
+  alias_name: `VM-7-4-centos-${i}`,
+}));
 
-import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
-import { useK8sChartPanel } from '../../../../../composables/use-k8s-chart-panel';
-
-import './panel-container-dashboard.scss';
-
-export default defineComponent({
-  name: 'PanelContainerDashboard',
-  props: {
-    scene: {
-      type: String as PropType<SceneEnum>,
-      required: true,
-    },
-  },
-  setup(props) {
-    /** 图表联动Id */
-    const dashboardId = shallowRef(random(10));
-    /** 需要渲染的仪表盘面板配置数组 */
-    const { panels } = useK8sChartPanel(toRef(props, 'scene'));
-
-    return { dashboardId, panels };
-  },
-  render() {
-    return (
-      <div class='panel-container-dashboard'>
-        {this.panels?.map?.(dashboard => (
-          <AlarmMetricsDashboard
-            key={dashboard.id}
-            viewOptions={{
-              interval: 60,
-              method: 'sum',
-              unit: undefined,
-            }}
-            dashboardId={this.dashboardId}
-            dashboardTitle={dashboard?.title}
-            gridCol={1}
-            panelModels={dashboard?.panels}
-          />
-        ))}
-      </div>
-    );
-  },
-});
+export function getMockData(level: string) {
+  return level === 'module' ? moduleLevelList : hostLevelList;
+}
