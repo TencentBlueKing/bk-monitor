@@ -378,6 +378,7 @@ class UnionSearchExportSerializer(serializers.Serializer):
         label=_("下载文件类型"), required=False, choices=ExportFileType.get_choices(), default=ExportFileType.LOG.value
     )
     is_quick_export = serializers.BooleanField(label=_("是否快速下载"), required=False, default=False)
+    sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -537,6 +538,7 @@ class SearchExportSerializer(serializers.Serializer):
     )
     # 自定义索引列表 Eg. -> "2_bklog.0001,2_bklog.0002"
     custom_indices = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="")
+    sort_list = serializers.ListField(required=False, allow_null=True, allow_empty=True, child=serializers.ListField())
 
 
 class UnionSearchSearchExportSerializer(SearchExportSerializer):

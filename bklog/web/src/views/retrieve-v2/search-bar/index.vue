@@ -31,6 +31,7 @@
   import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from "../../../store/store.type";
   import { handleTransformToTimestamp } from "@/components/time-range/utils";
   import useRetrieveEvent from "@/hooks/use-retrieve-event";
+  import RequestPool from "@/store/request-pool";
 
   const props = defineProps({
     // activeFavorite: {
@@ -116,6 +117,15 @@
   const indexFieldInfo = computed(() => store.state.indexFieldInfo);
   const isInputLoading = computed(() => {
     return indexFieldInfo.value.is_loading;
+  });
+
+
+  const isSearching = computed(() => {
+    return store.state.indexSetQueryResult.is_loading;
+  });
+
+  const btnIconName = computed(() => {
+    return isSearching.value ? " bklog-icon bklog-zanting" : " bklog-icon bklog-shoudongchaxun";
   });
 
   const isCopyBtnActive = computed(() => {
@@ -263,6 +273,12 @@
    */
   const handleBtnQueryClick = () => {
     if (isGloalUsage.value) {
+      if (isSearching.value) {
+        RequestPool.execCanceToken("requestIndexSetQueryCancelToken");
+        RetrieveHelper.fire(RetrieveEvent.SEARCH_CANCEL);
+        return;
+      }
+
       if (!isInputLoading.value) {
         const { datePickerValue, format } = store.state.indexItem;
         const result = handleTransformToTimestamp(datePickerValue, format);
@@ -290,6 +306,7 @@
       }
       return;
     }
+    
     emit(
       "search",
       searchMode.value,
@@ -724,7 +741,7 @@
             @save-current-active-favorite="saveCurrentActiveFavorite" />
         </div>
         <div class="search-tool search-btn" @click="handleBtnQueryClick">
-          <bk-button :loading="isInputLoading" icon="search" size="small" theme="primary" />
+          <bk-button :icon="btnIconName" size="small" theme="primary" />
         </div>
       </div>
     </div>

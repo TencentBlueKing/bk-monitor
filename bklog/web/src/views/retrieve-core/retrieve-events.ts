@@ -26,6 +26,11 @@
 /* eslint-disable no-unused-vars */
 enum RetrieveEvent {
   /**
+   * 取消查询
+   */
+  SEARCH_CANCEL = 'search-cancel',
+
+  /**
    * 展示收藏内容
    */
   FAVORITE_ACTIVE_CHANGE = 'favorite-active-change',

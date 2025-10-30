@@ -34,9 +34,11 @@ import VueRouter from 'vue-router';
 
 import reportLogStore from '@/store/modules/report-log';
 import exception from '@/views/404';
+import unAuthorized from '@/views/un-authorized';
 
 import dashboardRoutes from './dashboard';
-import monitorRoutes from './dashboard';
+import monitorRoutes from './monitor';
+
 // 1.导入各业务模块的路由（检索、监控、仪表盘、管理）
 import manageRoutes from './manage';
 import retrieveRoutes from './retrieve';
@@ -104,14 +106,23 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
         title: '无权限页面',
       },
     },
+    {
+      path: '/un-authorized/:type?',
+      name: 'un-authorized',
+      component: unAuthorized,
+      meta: {
+        navId: 'un-authorized',
+        title: '无权限页面',
+      },
+    },
   ];
 };
 
 // 4.根据 navId 获取路由配置
-export function getRouteConfigById(id, space_uid, bk_biz_id, externalMenu) {
-  const flatConfig = getRoutes(space_uid, bk_biz_id, externalMenu).flatMap(config => {
+export function getRouteConfigById(id, spaceUid, bkBizId, externalMenu) {
+  const flatConfig = getRoutes(spaceUid, bkBizId, externalMenu).flatMap((config) => {
     if (config.children?.length) {
-      return config.children.flatMap(set => {
+      return config.children.flatMap((set) => {
         if (set.children?.length) {
           return set.children;
         }
@@ -154,9 +165,9 @@ export default (spaceId, bkBizId, externalMenu) => {
       );
     }
     if (
-      window.IS_EXTERNAL &&
-      JSON.parse(window.IS_EXTERNAL) &&
-      !['retrieve', 'extract-home', 'extract-create', 'extract-clone'].includes(to.name)
+      window.IS_EXTERNAL
+      && JSON.parse(window.IS_EXTERNAL)
+      && !['retrieve', 'extract-home', 'extract-create', 'extract-clone'].includes(to.name)
     ) {
       // 非外部版路由重定向
       const routeName = store.state.externalMenu.includes('retrieve') ? 'retrieve' : 'manage';
@@ -174,7 +185,7 @@ export default (spaceId, bkBizId, externalMenu) => {
   }
 
   // 路由后置钩子：每次路由切换后上报路由日志
-  router.afterEach(to => {
+  router.afterEach((to) => {
     if (to.name === 'exception') {
       return;
     }

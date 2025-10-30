@@ -48,8 +48,7 @@ export default defineComponent({
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const isFormatDate = computed(() => store.state.isFormatDate);
 
-    const activeSortField = computed(() =>
-      store.state.indexFieldInfo.default_sort_list?.length > 0 ? 'default_sort_list' : 'sort_list',
+    const activeSortField = computed(() => (store.state.indexFieldInfo.default_sort_list?.length > 0 ? 'default_sort_list' : 'sort_list'),
     );
 
     const sortField = computed(() => store.state.indexFieldInfo[activeSortField.value]?.[0] || []);
@@ -67,13 +66,13 @@ export default defineComponent({
       store.commit('updateStorage', { [key]: val });
     };
 
-    const handleJsonFormatDeepChange = val => {
+    const handleJsonFormatDeepChange = (val) => {
       const value = Number(val);
       const target = value > 15 ? 15 : value < 1 ? 1 : value;
       store.commit('updateStorage', { [BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]: target });
     };
 
-    const handleFormatDate = val => {
+    const handleFormatDate = (val) => {
       store.commit('updateState', { isFormatDate: val });
     };
     const handleShowLogTimeChange = (e, sort) => {
@@ -82,7 +81,7 @@ export default defineComponent({
         ascending: 'asc',
         descending: 'desc',
       };
-      const getNextSortOrder = current => {
+      const getNextSortOrder = (current) => {
         const sortOrderSequence = ['asc', 'desc', undefined];
         const currentIndex = sortOrderSequence.indexOf(current);
         const nextIndex = (currentIndex + 1) % sortOrderSequence.length;

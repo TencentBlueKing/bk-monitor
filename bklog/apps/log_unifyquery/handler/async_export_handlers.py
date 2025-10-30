@@ -43,7 +43,7 @@ from apps.log_search.exceptions import (
     PreCheckAsyncExportException,
     DuplicateUnifyQueryExportException,
 )
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
+from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler, UnionSearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.models import model_to_dict
@@ -93,12 +93,15 @@ class UnifyQueryAsyncExportHandlers:
                 export_status=ExportStatus.DOWNLOAD_LOG,
             ).exists():
                 raise DuplicateUnifyQueryExportException()
-        # 判断fields是否支持
-        fields = self._pre_check_fields()
-        # 获取排序字段
-        sorted_list = self.unify_query_handler._get_user_sorted_list(fields["async_export_fields"])
+
+        # 判断字段是否支持排序
+        if self.search_dict.get("sort_list"):
+            fields_result = self.unify_query_handler.fields()
+            fields = fields_result["fields"]
+            UnifyQueryHandler.check_sort_list(fields, self.search_dict["sort_list"])
+
         result = self.unify_query_handler.pre_get_result(
-            sorted_fields=sorted_list,
+            sorted_fields=self.unify_query_handler.origin_order_by,
             size=ASYNC_COUNT_SIZE,
         )
         # 判断是否进行导出
@@ -109,7 +112,7 @@ class UnifyQueryAsyncExportHandlers:
         async_task = AsyncTask.objects.create(
             **{
                 "request_param": self.search_dict,
-                "sorted_param": fields["async_export_fields"],
+                "sorted_param": self.unify_query_handler.origin_order_by,
                 "scenario_id": self.unify_query_handler.index_info_list[0]["scenario_id"],
                 "index_set_id": self.index_set_id,
                 "bk_biz_id": self.bk_biz_id,
@@ -125,7 +128,7 @@ class UnifyQueryAsyncExportHandlers:
 
         async_export.delay(
             unify_query_handler=self.unify_query_handler,
-            sorted_fields=sorted_list,
+            sorted_fields=self.unify_query_handler.origin_order_by,
             async_task_id=async_task.id,
             url_path=url,
             search_url_path=search_url,
@@ -136,14 +139,6 @@ class UnifyQueryAsyncExportHandlers:
             external_user_email=get_request_external_user_email(),
         )
         return async_task.id, self.search_dict.get("size", 30)
-
-    def _pre_check_fields(self):
-        fields = self.unify_query_handler.fields()
-        for config in fields["config"]:
-            if config["name"] == "async_export":
-                if not config["is_active"]:
-                    raise MissAsyncExportException(config["extra"]["usable_reason"])
-                return {"async_export_fields": config["extra"]["fields"]}
 
     def _get_url(self):
         url = reverse("tasks-download-file", request=get_request())
@@ -322,32 +317,24 @@ class UnifyQueryUnionAsyncExportHandlers:
                 export_status=ExportStatus.DOWNLOAD_LOG,
             ).exists():
                 raise DuplicateUnifyQueryExportException()
-        sort_fields_flag = []
-        sort_fields_list = []
-        for index_info in self.unify_query_handler.index_info_list:
-            index_set_id = index_info["index_set_id"]
-            search_handler = SearchHandler(
-                index_set_id=index_set_id,
-                search_dict={
-                    "start_time": self.search_dict.get("start_time"),
-                    "end_time": self.search_dict.get("end_time"),
-                },
-            )
-            # 判断fields是否支持
-            fields = self._pre_check_fields(search_handler)
-            # 获取排序字段
-            sorted_list = search_handler._get_user_sorted_list(fields["async_export_fields"])
-            # 整合排序字段
-            for fields_list in sorted_list:
-                field = fields_list[0]
-                if field not in sort_fields_flag:
-                    sort_fields_flag.append(field)
-                    sort_fields_list.append(fields_list)
+
+        # 判断字段是否支持排序
+        if self.search_dict.get("sort_list"):
+            search_dict = {
+                "index_set_ids": self.index_set_ids,
+                "start_time": self.search_dict.get("start_time"),
+                "end_time": self.search_dict.get("end_time"),
+            }
+            search_handler = UnionSearchHandler(search_dict=search_dict)
+            fields_result = search_handler.union_search_fields(data=search_dict)
+            fields = fields_result["fields"]
+            UnifyQueryHandler.check_sort_list(fields, self.search_dict["sort_list"])
+
+        # 预查询，判断是否进行导出
         result = self.unify_query_handler.pre_get_result(
-            sorted_fields=sort_fields_list,
+            sorted_fields=self.unify_query_handler.origin_order_by,
             size=ASYNC_COUNT_SIZE,
         )
-        # 判断是否进行导出
         if not result["list"]:
             logger.error("can not create async_export task, reason: no data")
             raise PreCheckAsyncExportException()
@@ -355,7 +342,7 @@ class UnifyQueryUnionAsyncExportHandlers:
         async_task = AsyncTask.objects.create(
             **{
                 "request_param": self.search_dict,
-                "sorted_param": sort_fields_list,
+                "sorted_param": self.unify_query_handler.origin_order_by,
                 "index_set_ids": self.index_set_ids,
                 "index_set_type": IndexSetType.UNION.value,
                 "bk_biz_id": self.bk_biz_id,
@@ -371,7 +358,7 @@ class UnifyQueryUnionAsyncExportHandlers:
 
         union_async_export.delay(
             unify_query_handler=self.unify_query_handler,
-            sorted_fields=sort_fields_list,
+            sorted_fields=self.unify_query_handler.origin_order_by,
             async_task_id=async_task.id,
             url_path=url,
             search_url_path=search_url,
