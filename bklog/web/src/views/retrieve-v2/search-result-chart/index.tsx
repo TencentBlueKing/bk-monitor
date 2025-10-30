@@ -82,6 +82,7 @@ export default defineComponent({
     let logChartCancel: any = null; // 取消请求的方法
     // let isInit = true; // 是否为首次请求
     let runningTimer: any = null; // 定时器
+    let isCancelled = false; // 是否已取消
 
     // 初始化、设置、重绘图表
     const handleChartDataZoom = inject('handleChartDataZoom', () => {});
@@ -203,6 +204,11 @@ export default defineComponent({
 
     // 趋势图数据请求主函数
     const getSeriesData = async (startTimeStamp, endTimeStamp) => {
+      // 如果已经取消，直接返回，不执行任何操作
+      if (isCancelled) {
+        return;
+      }
+
       finishPolling.value = false;
       store.commit('retrieve/updateTrendDataLoading', true);
 
@@ -215,6 +221,10 @@ export default defineComponent({
         let result: IteratorResult<{ urlStr: string; indexId: string | string[]; queryData: any; isInit: boolean }>;
         result = gen.next();
         while (!result.done) {
+          if (isCancelled) {
+            break;
+          }
+
           const { urlStr, indexId, queryData, isInit: currentIsInit } = result.value;
           try {
             const res = await fetchTrendChartData(urlStr, indexId, queryData);
@@ -336,6 +346,7 @@ export default defineComponent({
     // 加载趋势图数据
     const loadTrendData = () => {
       store.commit('retrieve/updateTrendDataLoading', true); // 开始加载前，打开loading
+      isCancelled = false; // 重置取消标志
 
       logChartCancel?.(); // 取消上一次未完成的趋势图请求
       setChartData(null, null, true); // 清空图表数据, 重置为初始状态
@@ -379,6 +390,14 @@ export default defineComponent({
       ],
       loadTrendData,
     );
+
+    addEvent(RetrieveEvent.SEARCH_CANCEL, () => {
+      isCancelled = true; // 设置取消标志，终止 getSeriesData 递归调用
+      runningTimer && clearTimeout(runningTimer); // 清除定时器，防止新的请求被触发
+      logChartCancel?.();
+      isStart.value = false;
+      store.commit('retrieve/updateTrendDataLoading', false);
+    });
 
     onMounted(() => {
       // 初始化折叠状态
