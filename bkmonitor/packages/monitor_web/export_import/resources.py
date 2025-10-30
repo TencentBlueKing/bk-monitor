@@ -810,7 +810,12 @@ class UploadPackageResource(Resource):
                 case ConfigDirectoryName.plugin:
                     # 因为插件文件含更多不同类型的文件，
                     # 所以不做特定类型解析
-                    plugin_configs[file_path] = content
+                    try:
+                        file_path = self._process_plugin_config_path(file_path)
+                    except Exception:
+                        continue
+                    else:
+                        plugin_configs[file_path] = content
                 case _:
                     pass
 
