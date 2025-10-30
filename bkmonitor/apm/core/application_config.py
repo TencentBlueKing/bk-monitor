@@ -170,6 +170,12 @@ class ApplicationConfig(BkCollectorConfig):
         db_slow_command_config = self.get_config(
             ConfigTypes.DB_SLOW_COMMAND_CONFIG, DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG
         )
+
+        # 增加all_app_config的配置将覆盖对应的原有配置
+        all_app_config = self.get_config(ConfigTypes.ALL_APP_CONFIG, {})
+        if all_app_config:
+            config.update(all_app_config)
+
         profiles_drop_sampler_config = self.get_profiles_drop_sampler_config()
         traces_drop_sampler_config = self.get_traces_drop_sampler_config()
         metrics_filter_config = self.get_metrics_filter_config()
@@ -215,6 +221,20 @@ class ApplicationConfig(BkCollectorConfig):
         instance_configs = self.get_sub_configs("id", ApdexConfig.INSTANCE_LEVEL)
         if instance_configs:
             config["instance_configs"] = instance_configs
+
+        # 增加all_service_configs的配置将覆盖对应的原有的service_configs配置
+        all_service_configs = self.get_all_service_configs()
+        all_service_configs = self.validate_all_service_configs(all_service_configs)
+        if all_service_configs:
+            old_service_configs = config.get("service_configs", [])
+            config["service_configs"] = self.update_all_configs(old_service_configs, all_service_configs, "unique_key")
+
+        # 增加all_instance_configs的配置将覆盖对应的原有的service_configs配置
+        all_instance_configs = self.get_all_instance_configs()
+        all_instance_configs = self.validate_all_instance_configs(all_instance_configs)
+        if all_instance_configs:
+            old_instance_configs = config.get("instance_configs", [])
+            config["instance_configs"] = self.update_all_configs(old_instance_configs, all_instance_configs, "id")
 
         return config
 
@@ -609,3 +629,55 @@ class ApplicationConfig(BkCollectorConfig):
                 logger.info(f"run apm application config subscription result:{result}")
             except Exception as e:  # noqa
                 logger.exception(f"create apm application config subscription error{e}, params:{subscription_params}")
+
+    def get_all_service_configs(self):
+        all_service_configs = (
+            NormalTypeValueConfig.service_configs(self._application.bk_biz_id, self._application.app_name)
+            .filter(config_key=ConfigTypes.ALL_SERVICE_CONFIG, type=ConfigTypes.ALL_SERVICE_CONFIG)
+            .first()
+        )
+        if all_service_configs:
+            return json.loads(all_service_configs.value)
+        return {}
+
+    def get_all_instance_configs(self):
+        all_instance_configs = (
+            NormalTypeValueConfig.instance_configs(self._application.bk_biz_id, self._application.app_name)
+            .filter(config_key=ConfigTypes.ALL_INSTANCE_CONFIG, type=ConfigTypes.ALL_INSTANCE_CONFIG)
+            .first()
+        )
+        if all_instance_configs:
+            return json.loads(all_instance_configs.value)
+        return {}
+
+    @classmethod
+    def update_all_configs(cls, configs, all_configs, key):
+        """使用all_*_configs的配置替换configs中同 key 的配置"""
+        help_merge_dict = {configs[key]: configs for configs in configs}
+        for all_config in all_configs:
+            help_merge_dict[all_config[key]] = all_config
+        return list(help_merge_dict.values())
+
+    @classmethod
+    def validate_all_service_configs(cls, all_service_configs):
+        """检查all_service_configs是否合法并更新键名为‘unique_key’，非法返回空list"""
+        if not isinstance(all_service_configs, list):
+            return []
+        elif not all(x.get("service_name") for x in all_service_configs):
+            logger.error("非法的all_service_configs， 有配置缺乏主键：'service_name'")
+            return []
+
+        for all_service_config in all_service_configs:
+            all_service_config["unique_key"] = all_service_config.pop("service_name")
+
+        return all_service_configs
+
+    @classmethod
+    def validate_all_instance_configs(cls, all_service_configs):
+        """检查all_instance_configs是否合法，非法返回空list"""
+        if not isinstance(all_service_configs, list):
+            return []
+        elif not all(x.get("id") for x in all_service_configs):
+            logger.error("非法的all_service_configs， 有配置缺乏主键：'id'")
+            return []
+        return all_service_configs
