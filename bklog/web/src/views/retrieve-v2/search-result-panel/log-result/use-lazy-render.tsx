@@ -112,7 +112,7 @@ export default ({
 
   const debounceComputeRect = debounce(computeRect, 300);
 
-  useIntersectionObserver(refLoadMoreElement, inter => {
+  useIntersectionObserver(refLoadMoreElement, (inter) => {
     if (inter.isIntersecting) {
       loadMoreFn?.();
     }

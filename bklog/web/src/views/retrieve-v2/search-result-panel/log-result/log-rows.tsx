@@ -193,6 +193,7 @@ export default defineComponent({
       resetPageState();
       store.dispatch('requestIndexSetQuery');
     });
+
     const setRenderList = (length?: number) => {
       const arr: Record<string, any>[] = [];
       const endIndex = length ?? tableDataSize.value;
@@ -882,9 +883,9 @@ export default defineComponent({
     });
 
     const renderHeadVNode = () => {
-      if (isFirstPageLoading.value) {
-        return null;
-      }
+      // if (isFirstPageLoading.value) {
+      //   return null;
+      // }
 
       const columnLength = allColumns.value.length;
       let hasFullWidth = false;
@@ -953,7 +954,7 @@ export default defineComponent({
     });
 
     const renderRowCells = (row, rowIndex) => {
-      const { expand } = tableRowConfig.get(row).value;
+      const { expand } = tableRowConfig.get(row)?.value ?? {};
       const columnLength = allColumns.value.length;
       let hasFullWidth = false;
 

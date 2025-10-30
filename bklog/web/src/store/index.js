@@ -530,11 +530,12 @@ const store = new Vuex.Store({
           } else {
             state.indexSetQueryResult[key].length = 0;
             state.indexSetQueryResult[key] = [];
-            state.indexSetQueryResult[key].push(
-              ...(payload[key] ?? []).filter(
-                v => v !== null && v !== undefined,
-              ),
-            );
+
+            const filteredData = (payload[key] ?? []).filter(v => v !== null && v !== undefined);
+            const length = filteredData.length;
+            for (let i = 0; i < length; i++) {
+              state.indexSetQueryResult[key].push(filteredData[i]);
+            }
           }
         } else {
           set(state.indexSetQueryResult, key, payload[key]);
@@ -1246,14 +1247,6 @@ const store = new Vuex.Store({
         defaultSortList: undefined,
       },
     ) {
-      if (!payload?.isPagination) {
-        commit('updateIndexSetQueryResult', {
-          origin_log_list: [],
-          list: [],
-          total: 0,
-        });
-      }
-
       if (
         (!state.indexItem.isUnionIndex && !state.indexId)
         || (state.indexItem.isUnionIndex && !state.indexItem.ids.length)
@@ -1295,16 +1288,7 @@ const store = new Vuex.Store({
         }
       }
 
-      const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
-      commit(
-        payload.isPagination
-          ? 'updateIndexSetQueryResult'
-          : 'resetIndexSetQueryResult',
-        {
-          is_loading: true,
-          search_count: searchCount,
-        },
-      );
+      commit('updateIndexSetQueryResult', { is_loading: true });
 
       const baseUrl = process.env.NODE_ENV === 'development'
         ? 'api/v1'
@@ -1377,22 +1361,22 @@ const store = new Vuex.Store({
           if (resp.data && !resp.message) {
             return readBlobRespToJson(resp.data).then(
               ({ code, data, result, message }) => {
-                const rsolvedData = data;
+                const resolvedData = data;
                 if (result) {
                   const indexSetQueryResult = state.indexSetQueryResult;
-                  const logList = parseBigNumberList(rsolvedData.list);
+                  const logList = parseBigNumberList(resolvedData.list);
                   const originLogList = parseBigNumberList(
-                    rsolvedData.origin_log_list,
+                    resolvedData.origin_log_list,
                   );
-                  rsolvedData.total = rsolvedData.total.toNumber();
+                  resolvedData.total = resolvedData.total.toNumber();
                   const size = logList.length;
 
-                  rsolvedData.list = Object.freeze(
+                  resolvedData.list = Object.freeze(
                     payload.isPagination
                       ? indexSetQueryResult.list.concat(logList)
                       : logList,
                   );
-                  rsolvedData.origin_log_list = Object.freeze(
+                  resolvedData.origin_log_list = Object.freeze(
                     payload.isPagination
                       ? indexSetQueryResult.origin_log_list.concat(
                         originLogList,
@@ -1401,7 +1385,7 @@ const store = new Vuex.Store({
                   );
 
                   const catchUnionBeginList = parseBigNumberList(
-                    rsolvedData?.union_configs || [],
+                    resolvedData?.union_configs || [],
                   );
                   state.tookTime = payload.isPagination
                     ? state.tookTime + Number(data?.took || 0)
@@ -1416,7 +1400,9 @@ const store = new Vuex.Store({
                     catchUnionBeginList,
                     begin: payload.isPagination ? begin : 0,
                   });
-                  commit('updateIndexSetQueryResult', rsolvedData);
+
+                  resolvedData.search_count = payload.isPagination ? state.indexSetQueryResult.search_count + 1 : 0;
+                  commit('updateIndexSetQueryResult', resolvedData);
 
                   return {
                     data,
@@ -1432,6 +1418,8 @@ const store = new Vuex.Store({
                   exception_msg: message,
                   is_error: !result,
                   total: 0,
+                  origin_log_list: [],
+                  list: [],
                 });
 
                 return {
@@ -1456,6 +1444,8 @@ const store = new Vuex.Store({
               is_error: true,
               exception_msg: e?.message ?? e?.toString(),
               total: 0,
+              origin_log_list: [],
+              list: [],
             });
           }
         })

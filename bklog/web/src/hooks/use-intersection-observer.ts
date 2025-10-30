@@ -46,7 +46,7 @@ export default (
 
   const createObserver = () => {
     observer = new IntersectionObserver(
-      entries => {
+      (entries) => {
         for (const entry of entries) {
           isIntersecting.value = entry.isIntersecting;
           debounceCallback(entry);
