@@ -384,6 +384,7 @@ export default class ConditionInput extends tsc<
             clearable={false}
             popover-min-width={200}
             popover-width={getPopoverWidth(this.dimensionsList)}
+            search-placeholder={this.$t('请输入 关键字')}
             value={item.key}
             searchable
             on-change={v => this.handleKeyChange(item, v)}

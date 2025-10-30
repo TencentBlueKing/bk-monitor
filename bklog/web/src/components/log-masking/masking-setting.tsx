@@ -759,7 +759,7 @@ export default class MaskingSetting extends tsc<IProps> {
           </Button>
           <Input
             v-model={this.searchStr}
-            placeholder={this.$t('请输入脱敏规则')}
+            placeholder={this.$t('搜索 规则名称')}
             right-icon='bk-icon icon-search'
             onChange={this.handleSearchChange}
             onEnter={this.searchRule}

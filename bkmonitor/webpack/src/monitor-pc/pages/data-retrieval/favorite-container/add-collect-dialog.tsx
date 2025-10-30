@@ -404,6 +404,7 @@ export default class CollectDialog extends tsc<IProps, IEvent> {
               vModel={this.favoriteData.group_id}
               clearable={false}
               ext-popover-cls='add-new-page-container'
+              search-placeholder={this.$t('请输入 关键字')}
               searchable
             >
               {this.allGroupList.map(item => (

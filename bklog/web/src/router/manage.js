@@ -36,39 +36,26 @@ const LogDesensitizeView = { name: 'LogDesensitizeView', template: '<router-view
 
 // 管理模块各组件异步声明（用于路由懒加载）
 const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
-const CollectionItem = () =>
-  import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
-const ManageCollection = () =>
-  import(
-    /* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection'
-  );
+const CollectionItem = () => import(/* webpackChunkName: 'collection-item' */ '@/views/manage/manage-access/log-collection/collection-item');
+const ManageCollection = () => import(
+  /* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection'
+);
 const AccessSteps = () => import(/* webpackChunkName: 'access-steps' */ '@/components/collection-access');
-const IndexList = () =>
-  import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');
-const ManageIndex = () =>
-  import(/* webpackChunkName: 'mange-index' */ '@/views/manage/manage-access/components/index-set/manage');
-const CreateIndex = () =>
-  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/components/index-set/create');
-const CustomReportList = () =>
-  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/list');
-const CustomReportCreate = () =>
-  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/create');
-const CustomReportDetail = () =>
-  import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/detail');
-const CollectionTrack = () =>
-  import(/* webpackChunkName: 'collection-track' */ '@/views/manage/trace-track/collection-track');
+const IndexList = () => import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');
+const ManageIndex = () => import(/* webpackChunkName: 'mange-index' */ '@/views/manage/manage-access/components/index-set/manage');
+const CreateIndex = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/components/index-set/create');
+const CustomReportList = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/list');
+const CustomReportCreate = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/create');
+const CustomReportDetail = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/custom-report/detail');
+const CollectionTrack = () => import(/* webpackChunkName: 'collection-track' */ '@/views/manage/trace-track/collection-track');
 const SdkTrack = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/trace-track/sdk-track');
 const cleanList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-manage/list');
 const cleanCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-manage/create');
-const cleanTempCreate = () =>
-  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/create');
+const cleanTempCreate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/create');
 const cleanTemplate = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage/log-clean/clean-template/list');
-const ArchiveRepository = () =>
-  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-repository/index.tsx');
-const ArchiveList = () =>
-  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-list/index.tsx');
-const ArchiveRestore = () =>
-  import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-restore/index.tsx');
+const ArchiveRepository = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-repository/index.tsx');
+const ArchiveList = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-list/index.tsx');
+const ArchiveRestore = () => import(/* webpackChunkName: 'sdk-track' */ '@/views/manage-v2/log-archive/archive-restore/index.tsx');
 const ReportManage = () => import(/* webpackChunkName: 'report-manage' */ '@/views/manage/report-management');
 const ExtractConfig = () => import(/* webpackChunkName: 'manage-extract-permission' */ '@/views/manage-v2/log-extract/extract-config/index.tsx');
 const extract = () => import(/* webpackChunkName: 'logExtract' */ '@/views/manage-v2/log-extract/extract-task/index.tsx');
@@ -88,7 +75,7 @@ const getManageRoutes = () => [
     name: 'manage',
     component: Manage,
     // 根据当前环境（外部版/内部版）自动重定向到管理页默认子页面
-    redirect: to => {
+    redirect: (to) => {
       // 外部版:跳转到“日志提取任务”
       if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL)) {
         return {

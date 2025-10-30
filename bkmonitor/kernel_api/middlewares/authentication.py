@@ -14,9 +14,9 @@ import random
 import time
 
 import jwt
+from blueapps.account.models import User
 from django.conf import settings
 from django.contrib import auth
-from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from django.core.cache import caches
 from django.http import HttpRequest, HttpResponseForbidden
@@ -24,6 +24,7 @@ from django.utils.deprecation import MiddlewareMixin
 from rest_framework.authentication import SessionAuthentication
 
 from bkmonitor.models import ApiAuthToken, AuthType
+from bkmonitor.utils.user import get_admin_username
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -98,7 +99,7 @@ class BkJWTClient:
 
         # jwt headers解析
         try:
-            headers = jwt.get_unverified_header(raw_content)
+            headers: dict[str, str] = jwt.get_unverified_header(raw_content)
         except Exception as e:  # pylint: disable=broad-except
             return False, f"jwt content parse header error: {e}"
 
@@ -106,7 +107,7 @@ class BkJWTClient:
         algorithm = headers.get("alg") or self.ALGORITHM
 
         # 根据app_code获取公钥
-        public_key = self.public_keys.get(headers.get("kid"))
+        public_key = self.public_keys.get(headers.get("kid", ""))
         if not public_key:
             return False, f"public key of {headers.get('kid')} not found"
 
@@ -139,16 +140,30 @@ class KernelSessionAuthentication(SessionAuthentication):
 
 class AppWhiteListModelBackend(ModelBackend):
     # 经过esb 鉴权， bktoken已经丢失，因此不再对用户名进行校验。
-    def authenticate(self, request=None, username=None, bk_tenant_id=None, **kwargs):
+    def authenticate(self, request=None, username=None, bk_tenant_id: str = DEFAULT_TENANT_ID, **kwargs):  # pyright: ignore[reportIncompatibleMethodOverride]
         if username is None:
             return None
-        try:
-            user, _ = get_user_model().objects.get_or_create(username=username, defaults={"nickname": username})
 
-            # 如果用户没有租户id，则设置租户id
-            if not user.tenant_id or (not settings.ENABLE_MULTI_TENANT_MODE and user.tenant_id != DEFAULT_TENANT_ID):
-                user.tenant_id = bk_tenant_id
+        try:
+            user, _ = User.objects.get_or_create(
+                username=username, defaults={"nickname": username, "tenant_id": bk_tenant_id}
+            )
+
+            # 如果未开启多租户，默认使用system租户
+            if not settings.ENABLE_MULTI_TENANT_MODE and user.tenant_id != DEFAULT_TENANT_ID:
+                user.tenant_id = DEFAULT_TENANT_ID
                 user.save()
+
+            # 如果开启了多租户，且用户租户id不匹配，则尝试更新用户租户id
+            # NOTE: apigw在应用态下不会校验用户名与租户ID是否对应，因此需要通过查询api确认用户属于当前租户
+            # 如果确认用户属于当前租户下的虚拟管理用户或从当前租户下查询到了用户，则更新用户租户id为当前租户id
+            if settings.ENABLE_MULTI_TENANT_MODE and user.tenant_id != bk_tenant_id:
+                if user.username == get_admin_username(bk_tenant_id) or api.bk_login.batch_query_user_display_info(
+                    bk_tenant_id=bk_tenant_id, bk_usernames=[user.username]
+                ):
+                    user.tenant_id = bk_tenant_id
+                    user.save()
+
         except Exception as e:
             logger.error(f"Auto create & update UserModel fail, username: {username}, error: {e}")
             return None

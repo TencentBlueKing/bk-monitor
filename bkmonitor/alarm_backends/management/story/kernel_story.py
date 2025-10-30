@@ -12,13 +12,25 @@ import datetime
 import json
 import time
 from collections import defaultdict
+from typing import cast
 
 import arrow
 from django.conf import settings
 from kafka import KafkaConsumer, TopicPartition
 
 from alarm_backends.core.cache import key as cache_key
+from alarm_backends.core.cache.cmdb import (
+    BusinessManager,
+    HostManager,
+    ModuleManager,
+    ServiceInstanceManager,
+    ServiceTemplateManager,
+    SetManager,
+    SetTemplateManager,
+    TopoManager,
+)
 from alarm_backends.core.cache.cmdb.base import CMDBCacheManager
+from alarm_backends.core.cache.cmdb.host import HostAgentIDManager, HostIPManager
 from alarm_backends.core.cache.key import ALERT_HOST_DATA_ID_KEY
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.storage.kafka import KafkaQueue
@@ -35,6 +47,7 @@ from bkmonitor.models import StrategyModel
 from bkmonitor.utils.common_utils import get_local_ip
 from constants.action import ActionPluginType
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from core.drf_resource import api
 from metadata.models import DataSource
 
 
@@ -74,8 +87,9 @@ class PollEventDelayCheck(CheckStep):
 
     def check(self):
         threshold = 100000
-        from alarm_backends.service.access.event.event_poller import EventPoller
         from kafka.structs import TopicPartition
+
+        from alarm_backends.service.access.event.event_poller import EventPoller
 
         ep = EventPoller()
         consumer = ep.get_consumer()
@@ -146,37 +160,45 @@ class CacheCronJobCheck(CheckStep):
     name = "check cron job cache"
 
     def check(self):
-        cache = Cache("cache-cmdb")
         p_list = []
+
         # 1. cmdb
-        cmdb_cache_types = [
-            "host",
-            "service_instance",
-            "agent_id",
-            "host_ip",
-            "service_template",
-            "business",
-            "set_template",
-            "set",
-            "module",
-            "topo",
+        cmdb_cache_managers: list[type[CMDBCacheManager]] = [
+            HostManager,
+            ServiceInstanceManager,
+            HostAgentIDManager,
+            HostIPManager,
+            ServiceTemplateManager,
+            BusinessManager,
+            SetTemplateManager,
+            SetManager,
+            ModuleManager,
+            TopoManager,
         ]
-        for cmdb_cache_type in cmdb_cache_types:
-            key = f"{cache_key.KEY_PREFIX}.cache.cmdb.{cmdb_cache_type}"
-            ttl = cache.ttl(key)
+        bk_tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
+        for cmdb_cache_manager in cmdb_cache_managers:
+            cache_type = cmdb_cache_manager.cache_type
 
-            if not ttl:
-                p = CMDBCacheCronError(f"cmdb缓存任务{cmdb_cache_type}未正常运行, key: {key}", self.story)
-                p_list.append(p)
-                continue
+            # 检查所有租户的缓存
+            for bk_tenant_id in bk_tenant_ids:
+                key = cmdb_cache_manager.get_cache_key(bk_tenant_id)
+                ttl = cast(int, cmdb_cache_manager.cache.ttl(key))
 
-            last_cache_duration = CMDBCacheManager.CACHE_TIMEOUT - ttl
-            if last_cache_duration > 6 * 60 * 60:
-                p = CMDBCacheCronError(f"cmdb缓存任务{cmdb_cache_type}在6小时内未刷新, key: {key}", self.story)
-                p_list.append(p)
-                continue
+                # 如果缓存不存在，则不进行判定
+                if ttl < 0:
+                    self.story.info(f"cmdb缓存任务{cache_type}缓存不存在，请关注, 租户: {bk_tenant_id}, key: {key}")
+                    continue
 
-            self.story.info(f"cmdb cron job {cmdb_cache_type} executed {last_cache_duration}s ago!")
+                # 检查缓存是否在6小时内未刷新
+                last_cache_duration = CMDBCacheManager.CACHE_TIMEOUT - ttl
+                if last_cache_duration > 6 * 60 * 60:
+                    p = CMDBCacheCronError(
+                        f"cmdb缓存任务{cache_type}在6小时内未刷新, 租户: {bk_tenant_id}, key: {key}", self.story
+                    )
+                    p_list.append(p)
+                    continue
+
+                self.story.info(f"cmdb cron job {cache_type} executed {last_cache_duration}s ago!")
 
         # 2. strategy
         # 随机抽取一条策略缓存

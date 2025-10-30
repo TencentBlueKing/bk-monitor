@@ -46,6 +46,8 @@
           data-test-id="cleaningListBox_input_searchCleaningList"
           @change="handleSearchChange"
           @enter="search"
+          :placeholder="$t('搜索 任务名称、存储索引名称')"
+          
         >
         </bk-input>
         <div

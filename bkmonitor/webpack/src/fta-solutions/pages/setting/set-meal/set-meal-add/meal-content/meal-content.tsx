@@ -346,6 +346,7 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
               clearable={false}
               ext-popover-cls='meal-select-popover-warp'
               placeholder={this.$tc('选择')}
+              search-placeholder={this.$tc('请输入 关键字')}
               searchable={true}
               value={this.data.id}
               onSelected={this.mealTypeChange}

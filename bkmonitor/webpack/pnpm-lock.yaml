@@ -369,8 +369,8 @@ importers:
         specifier: 0.0.1-beta.14
         version: 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
       '@blueking/ip-selector':
-        specifier: 0.3.0-beta.50
-        version: 0.3.0-beta.50(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
+        specifier: 0.3.0-beta.51
+        version: 0.3.0-beta.51(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(vue@2.7.16)
       '@blueking/login-modal':
         specifier: ^1.0.6
         version: 1.0.6
@@ -614,8 +614,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/ip-selector':
-        specifier: 0.3.0-beta.50
-        version: 0.3.0-beta.50(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.15(typescript@5.9.2)))(vue@3.5.15(typescript@5.9.2))
+        specifier: 0.3.0-beta.51
+        version: 0.3.0-beta.51(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@3.5.15(typescript@5.9.2)))(vue@3.5.15(typescript@5.9.2))
       '@blueking/login-modal':
         specifier: ^1.0.6
         version: 1.0.6
@@ -1529,8 +1529,8 @@ packages:
       bkui-vue: ^1.0.3-beta.38
       vue: ^3
 
-  '@blueking/ip-selector@0.3.0-beta.50':
-    resolution: {integrity: sha512-84lmQN0q7ojF0k8hkUxD6Ir4fUmI4c6U8SumgxN0KbF6ahTNoWE0rZQI5WHVOvaz9+enz/BxVLktgPu34tANrg==}
+  '@blueking/ip-selector@0.3.0-beta.51':
+    resolution: {integrity: sha512-n6MX69zSmDqx5tZSS3Fn19IadhERYZnxpC4/lFoKcFIRBVS5teeLeFLsrrneXbhwx5Ecv8vw3lAy+pqu3u3YlA==}
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
 
   '@blueking/login-modal@1.0.6':
@@ -9770,7 +9770,7 @@ snapshots:
       bkui-vue: 2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16)
       vue: 2.7.16
 
-  '@blueking/ip-selector@0.3.0-beta.50(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ip-selector@0.3.0-beta.51(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@2.7.16))(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -9779,7 +9779,7 @@ snapshots:
       - bkui-vue
       - vue
 
-  '@blueking/ip-selector@0.3.0-beta.50(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.15(typescript@5.9.2)))(vue@3.5.15(typescript@5.9.2))':
+  '@blueking/ip-selector@0.3.0-beta.51(bkui-vue@2.0.2-beta.63(highlight.js@10.7.3)(vue@3.5.15(typescript@5.9.2)))(vue@3.5.15(typescript@5.9.2))':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.15(typescript@5.9.2)))(vue@3.5.15(typescript@5.9.2))

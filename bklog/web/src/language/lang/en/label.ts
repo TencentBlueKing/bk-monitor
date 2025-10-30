@@ -861,6 +861,8 @@ export default {
   日志解读: 'Log interpretation',
   请输入需要解读的内容: 'Please enter the content to be interpreted',
   引用至小鲸: 'Quote to AI',
+  使用AI编辑: 'Use AI Edit',
+  AI编辑: 'AI Edit',
   '添加到仪表盘': 'Add to Dashboard',
   '图表名称': 'Chart Name',
   '请输入图表名称': 'Please enter chart name',
@@ -881,5 +883,13 @@ export default {
   '创建仪表盘': 'Create dashboard',
   '添加到仪表盘保存成功': 'Successfully added to dashboard',
   '添加到仪表盘保存失败': 'Failed to add to dashboard',
-  '保存到仪表盘失败，请稍后重试': 'Failed to save to dashboard, please try again later'
-};
+  '保存到仪表盘失败，请稍后重试': 'Failed to save to dashboard, please try again later',
+  "搜索 任务名称、存储索引名称" : "Search Task Name, Storage Index Name",
+  "搜索 模版名称" : "Search Template Name",
+  "搜索 规则名称" : "Search Rule Name",
+  "搜索 仓库名称" : "Search Store Name",
+  "搜索 归档项"   : "Search Archive Item",
+  "搜索 名称"     : "Search Name", 
+  "搜索 文件名、创建人" : "Search Filename, Created By",
+  "搜索ES源名称、地址、创建人" : "Search ES Source Name, Address, Created By",
+ };

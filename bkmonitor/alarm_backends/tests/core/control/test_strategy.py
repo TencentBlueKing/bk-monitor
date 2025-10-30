@@ -40,17 +40,6 @@ STRATEGY = {
 
 
 class TestStrategy(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.BusinessManager = mock.patch(
-            "alarm_backends.core.control.strategy.BusinessManager.get_tenant_id", return_value="system"
-        )
-        cls.BusinessManager.start()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.BusinessManager.stop()
-
     def test_in_alarm_time__no_calendar(self):
         strategy = Strategy(1, STRATEGY)
         self.assertTrue(strategy.in_alarm_time(datetime.strptime("2022-01-01 01:00:00", "%Y-%m-%d %H:%M:%S"))[0])

@@ -681,7 +681,7 @@ export default defineComponent({
                 class='width-350'
                 data={this.searchData.data}
                 modelValue={this.searchData.value}
-                placeholder={`ID / ${this.t('规则名称')}`}
+                placeholder={this.t('搜索 ID、规则名称')}
                 onUpdate:modelValue={v => this.handleSearch(v)}
               />
             </div>

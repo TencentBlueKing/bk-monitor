@@ -560,16 +560,20 @@ class IncidentSnapshot:
         for entity_id, entity in self.incident_graph_entities.items():
             if aggregate_config is None:
                 # 如果没有聚合配置，则执行自动聚合的逻辑
+                source_dependency = frozenset(self.entity_sources[entity_id][IncidentGraphEdgeType.DEPENDENCY])
+                target_dependency = frozenset(self.entity_targets[entity_id][IncidentGraphEdgeType.DEPENDENCY])
+                dependency_location = any([source_dependency, target_dependency])
                 key = (
-                    frozenset(self.entity_sources[entity_id][IncidentGraphEdgeType.DEPENDENCY]),
-                    frozenset(self.entity_targets[entity_id][IncidentGraphEdgeType.DEPENDENCY]),
+                    source_dependency,
+                    target_dependency,
                     entity.entity_type,
                     entity.logic_key(),
                     entity_id
-                    if entity.is_on_alert
-                    or entity.is_root
-                    or getattr(incident.feedback, "incident_root", None) == entity.entity_id
-                    else ("anomaly" if entity.is_anomaly else "normal"),
+                    if entity.is_on_alert  # 告警中
+                    or entity.is_root  # 根因
+                    or getattr(incident.feedback, "incident_root", None) == entity.entity_id  # 反馈根因
+                    or dependency_location is False  # 无法定位从属关系
+                    else ("anomaly" if entity.is_anomaly else "normal"),  # 按照状态聚合
                 )
             else:
                 # 按照聚合配置进行聚合

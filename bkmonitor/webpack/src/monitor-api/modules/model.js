@@ -234,6 +234,7 @@ export const optionValuesStrategyTemplate = request('POST', 'apm/strategy/strate
 export const previewStrategyTemplate = request('POST', 'apm/strategy/strategy_template/preview/');
 export const retrieveStrategyTemplate = request('GET', 'apm/strategy/strategy_template/{pk}/');
 export const searchStrategyTemplate = request('POST', 'apm/strategy/strategy_template/search/');
+export const unapplyStrategyTemplate = request('POST', 'apm/strategy/strategy_template/unapply/');
 export const updateStrategyTemplate = request('PUT', 'apm/strategy/strategy_template/{pk}/');
 
 export default {
@@ -419,5 +420,6 @@ export default {
   previewStrategyTemplate,
   retrieveStrategyTemplate,
   searchStrategyTemplate,
+  unapplyStrategyTemplate,
   updateStrategyTemplate,
 };

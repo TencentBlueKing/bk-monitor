@@ -20,6 +20,7 @@ from alarm_backends.core.alert import Alert
 from alarm_backends.core.cache.cmdb import HostIPManager, HostManager
 from alarm_backends.service.alert.enricher.base import BaseAlertEnricher
 from api.cmdb.define import Host
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import api
 
@@ -44,13 +45,18 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
 
         # 解析出告警ip对应的ip信息
         self.alert_relations = {}
-        ips = self.get_node_ips()
+        tenant_ips: dict[str, set[str]] = self.get_node_ips()
         # 根据ip获取对应的 ip + 云区域 的组合
-        self.ip_cache = HostIPManager.multi_get_with_dict(ips)
+        self.tenant_ip_cache: dict[str, dict[str, list[str]]] = {
+            bk_tenant_id: HostIPManager.mget(bk_tenant_id=bk_tenant_id, ips=list(ips))
+            for bk_tenant_id, ips in tenant_ips.items()
+        }
 
         # 根据ip和云区域ID获取对应的主机列表（带业务特性）
-        hosts = {host for host in chain(*[ips for ips in self.ip_cache.values() if ips])}
-        self.hosts_cache = HostManager.multi_get_with_dict(hosts)
+        self.hosts_cache: dict[str, dict[str, Host]] = {}
+        for bk_tenant_id, ip_cache in self.tenant_ip_cache.items():
+            host_keys = {host_key for host_key in chain(*[ips for ips in ip_cache.values() if ips])}
+            self.hosts_cache[bk_tenant_id] = HostManager.mget(bk_tenant_id=bk_tenant_id, host_keys=list(host_keys))
 
         # 容器场景告警和主机创建时间相近，差量同步不存在主机避免缓存刷新不及时导致维度无法正常补充的问题
         try:
@@ -62,7 +68,6 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
             )
 
     def refresh_host_by_increment(self):
-        total_host_keys: set[str] = set(self.hosts_cache.keys())
         to_be_refresh_ips_gby_biz_id: dict[int, set[str]] = defaultdict(set)
         for alert in self.alerts:
             bk_biz_id: int = int(alert.bk_biz_id)
@@ -74,11 +79,17 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
 
             ip_list: list[str] = self.alert_relations[alert.id]["ip_list"]
             for ip in ip_list:
-                host_keys: list[str] | None = self.ip_cache.get(ip)
+                host_keys: list[str] | None = self.tenant_ip_cache.get(alert.bk_tenant_id, {}).get(ip)
                 if not host_keys:
-                    # 主机 IP - Host Keys 缓存不存在
+                    # host key不存在或是匹配不到任何主机
                     to_be_refresh_ips_gby_biz_id[bk_biz_id].add(ip)
-                elif not set(host_keys) & total_host_keys:
+                    continue
+
+                for host_key in host_keys:
+                    if host_key in self.hosts_cache[alert.bk_tenant_id]:
+                        # 匹配到主机，跳出循环
+                        break
+                else:
                     # Host Keys 匹配不到任何主机
                     to_be_refresh_ips_gby_biz_id[bk_biz_id].add(ip)
 
@@ -92,8 +103,9 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
         )
 
         for bk_biz_id, to_be_refresh_ips in to_be_refresh_ips_gby_biz_id.items():
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
             try:
-                partial_hosts: list = api.cmdb.get_host_by_ip(
+                partial_hosts: list[Host] = api.cmdb.get_host_by_ip(
                     ips=[{"ip": ip} for ip in to_be_refresh_ips], bk_biz_id=bk_biz_id
                 )
                 HostManager.fill_attr_to_hosts(bk_biz_id, partial_hosts, with_world_ids=False)
@@ -108,17 +120,20 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
                 )
                 continue
 
-            partial_host_key__obj_map: dict[str, Host] = HostManager.to_kv(partial_hosts)
-
             # 补充到主机缓存
-            self.hosts_cache.update(partial_host_key__obj_map)
+            partial_host_map: dict[str, Host] = {
+                HostManager.get_host_key(host.bk_host_innerip, host.bk_cloud_id): host for host in partial_hosts
+            }
+            self.hosts_cache[bk_tenant_id].update(partial_host_map)
             # 补充 IP - IP Keys 缓存
-            partial_host_keys_gby_ip: dict[str, list[str]] = HostIPManager.to_kv(list(partial_host_key__obj_map.keys()))
+            partial_host_keys_gby_ip: dict[str, list[str]] = HostIPManager.to_kv(list(partial_host_map.keys()))
             # 不同业务可能存在同 IP 不同管控区域主机的场景
             # 采取在原有基础上合并列表更新的方式，避免上述场景下导致同 IP 的 Host Keys 相互覆盖
             for ip, host_keys in partial_host_keys_gby_ip.items():
-                self.ip_cache[ip] = list(set(self.ip_cache.get(ip) or [] + host_keys))
-            self.ip_cache.update(HostIPManager.to_kv(list(partial_host_key__obj_map.keys())))
+                self.tenant_ip_cache[bk_tenant_id][ip] = list(
+                    set(self.tenant_ip_cache[bk_tenant_id].get(ip) or [] + host_keys)
+                )
+            self.tenant_ip_cache[bk_tenant_id].update(HostIPManager.to_kv(list(partial_host_map.keys())))
 
         logger.info(
             "[KubernetesCMDBEnricher][refresh_by_increment] alerts(%s) end.",
@@ -178,12 +193,13 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
                 continue
             self.biz_resource_info[bk_biz_id] = result["data"]
 
-    def get_node_ips(self):
+    def get_node_ips(self) -> dict[str, set[str]]:
         """
         通过接口返回的信息解析所有的ip
         """
-        ips = []
+        tenant_ips = defaultdict(set)
         for bk_biz_id, biz_results in self.biz_resource_info.items():
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
             biz_alerts = self.kubernetes_alerts[bk_biz_id]
             for index, result in enumerate(biz_results):
                 alert = biz_alerts[index]
@@ -197,16 +213,16 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
                 ip_list = [target["bk_target_ip"] for target in result["target_list"]]
                 result["ip_list"] = ip_list
                 self.alert_relations[alert.id] = result
-                ips.extend(ip_list)
-        return set(ips)
+                tenant_ips[bk_tenant_id].update(ip_list)
+        return tenant_ips
 
-    def get_host_by_ip(self, ip):
-        keys = self.ip_cache.get(ip) or []
-        return [self.hosts_cache[key] for key in keys if self.hosts_cache.get(key)]
+    def get_host_by_ip(self, bk_tenant_id: str, ip: str):
+        keys = self.tenant_ip_cache.get(bk_tenant_id, {}).get(ip) or []
+        return [self.hosts_cache[bk_tenant_id][key] for key in keys if self.hosts_cache[bk_tenant_id].get(key)]
 
-    def get_host(self, ip, bk_cloud_id):
-        key = HostManager.key_to_internal_value(ip, bk_cloud_id)
-        return self.hosts_cache.get(key)
+    def get_host(self, bk_tenant_id: str, ip: str, bk_cloud_id: int):
+        key = HostManager.get_host_key(ip, bk_cloud_id)
+        return self.hosts_cache[bk_tenant_id].get(key)
 
     def enrich_alert(self, alert: Alert):
         if alert.id not in self.alert_relations:
@@ -235,7 +251,7 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
                     "ignore to enrich alert(%s) because ip(%s) not found in cache(%s)",
                     alert.id,
                     ip,
-                    ("host_ip", "host")[ip in self.ip_cache],
+                    ("host_ip", "host")[ip in self.tenant_ip_cache],
                 )
                 continue
             self.enrich_host(alert, host)
@@ -291,7 +307,7 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
         根据ip信息获取告警对应的主机
         """
         host = None
-        for h in self.get_host_by_ip(ip):
+        for h in self.get_host_by_ip(alert.bk_tenant_id, ip):
             # 1. 如果提供了业务ID，且主机的业务ID跟事件提供的业务ID相同，则匹配成功
             if int(alert.bk_biz_id) > 0 and h.bk_biz_id != alert.bk_biz_id:
                 # 告警的业务ID 与 主机的业务ID 不一致，忽略
