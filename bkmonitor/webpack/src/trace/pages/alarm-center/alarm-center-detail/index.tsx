@@ -29,8 +29,11 @@ import { Sideslider } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 
 import DetailCommon from '../detail-common';
+import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
+
+import './alarm-center-detail.scss';
 
 export default defineComponent({
   name: 'AlarmCenterDetail',
@@ -82,7 +85,12 @@ export default defineComponent({
               }}
             />
           ),
-          default: () => <DetailCommon />,
+          default: () => (
+            <div class='alarm-center-detail-wrapper'>
+              <DetailCommon />
+              <DiagnosticAnalysis />
+            </div>
+          ),
         }}
         isShow={this.show}
         onUpdate:isShow={this.handleShowChange}
