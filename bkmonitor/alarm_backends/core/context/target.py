@@ -77,14 +77,14 @@ class Target(BaseContextObject):
                 set_names.add(topo_link[1].bk_inst_name)
         result.module_string = ",".join(module_names)
         result.set_string = ",".join(set_names)
-        result.bk_env_string = self.get_host_env_string(result)
+        result.bk_env_string = self.get_host_env_string(result, event.bk_tenant_id)
         return result
 
-    def get_host_env_string(self, host):
+    def get_host_env_string(self, host, bk_tenant_id: str):
         environment_mapping = {"1": _("测试"), "2": _("体验"), "3": _("正式")}
         env_set = set()
         for set_id in host.bk_set_ids:
-            bk_set = SetManager.get(set_id)
+            bk_set = SetManager.get(bk_tenant_id=bk_tenant_id, bk_set_id=set_id)
             if not bk_set:
                 continue
             # 检查bk_set_env是否存在且不为None，允许"0"等值
@@ -121,7 +121,7 @@ class Target(BaseContextObject):
                         set_names.add(topo_link[1].bk_inst_name)
                 host.module_string = module_names
                 host.set_string = set_names
-                host.bk_env_string = self.get_host_env_string(host)
+                host.bk_env_string = self.get_host_env_string(host, event.bk_tenant_id)
                 hosts.append(host)
 
         return MultiInstanceDisplay(hosts)
