@@ -46,6 +46,7 @@
           data-test-id="storehouseContainer_input_searchTableItem"
           @change="handleSearchChange"
           @enter="handleSearch"
+
         >
         </bk-input>
       </div>

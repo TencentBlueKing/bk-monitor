@@ -51,7 +51,7 @@ import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 // #endif
 
 // import spaceData from './space';
-import { isInCommonRoute, setLocalStoreRoute } from './router-config';
+import { getRouteConfigById, getRouteRootName, isInCommonRoute, setLocalStoreRoute } from './router-config';
 import { getAuthById, setAuthById } from '../common/auth-store';
 
 const EmailSubscriptionsName = 'email-subscriptions';
@@ -199,6 +199,25 @@ router.beforeEach(async (to, from, next) => {
 router.afterEach(to => {
   store.commit('app/SET_PADDING_ROUTE', to);
   store.commit('app/SET_NAV_TITLE', to.params.title || to.meta.title);
+  let title = '';
+  let subtitle = '';
+  // 首页 仪表盘 显示原始标题
+  if (to.name === 'home' || to.path.includes('/grafana')) {
+    title = '';
+    subtitle = window.i18n.t(to.params.title || to.meta.title) as string;
+  } else if (to.path.includes('/event-center') || to.name === 'incident-detail') {
+    // 事件中心 故障详情 显示告警事件 告警
+    title = window.i18n.t('route-告警事件') as string;
+    subtitle = window.i18n.t('告警') as string;
+  } else {
+    // 其他路由 显示根路由名称 和 当前路由名称
+    const parentRoute = getRouteRootName(to.meta?.route?.parent);
+    title = parentRoute ? (window.i18n.t(`route-${getRouteRootName(to.meta.route.parent)}`) as string) : '';
+    subtitle = window.i18n.t(
+      `route-${getRouteConfigById(to.meta.navId)?.name || to.params.title || to.meta.title}`
+    ) as string;
+  }
+  document.title = title ? `${title} | ${subtitle}` : subtitle;
   if (['error-exception', 'no-business'].includes(to.name)) return;
   reportLogStore.reportRouteLog({
     nav_id: to.meta.navId,

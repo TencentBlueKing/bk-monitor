@@ -1555,8 +1555,8 @@ const store = new Vuex.Store({
         keyword: '*',
         fields,
         addition: payload?.addition ?? [],
-        start_time: formatDate(start_time),
-        end_time: formatDate(end_time),
+        start_time: formatDate(startTime),
+        end_time: formatDate(endTime),
         size: payload?.size ?? 100,
       };
 

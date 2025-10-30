@@ -337,7 +337,7 @@ class UnifyQuery:
         }
 
         if start_time and end_time:
-            if time_alignment:
+            if time_alignment and not not_time_align:
                 params["start_time"] = str(time_interval_align(start_time // 1000, step))
                 params["end_time"] = str(time_interval_align(end_time // 1000, step))
             else:
