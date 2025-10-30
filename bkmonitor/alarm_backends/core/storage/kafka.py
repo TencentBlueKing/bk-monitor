@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -15,15 +14,14 @@ import arrow
 import kafka
 import kafka.errors
 from django.conf import settings
-from six.moves import map, range
 
-from alarm_backends.constants import CONST_ONE_DAY
+from alarm_backends.constants import CONST_ONE_DAY, KAFKA_MAX_BUFFER_SIZE
 from alarm_backends.core.storage.redis import Cache
 
 logger = logging.getLogger("core.storage.kafka")
 
 
-class KafkaQueue(object):
+class KafkaQueue:
     reconnect_seconds = getattr(settings, "KAFKA_RECONNECT_SECONDS", 60)
     msg_push_batch_size = 1000
 
@@ -69,7 +67,7 @@ class KafkaQueue(object):
         if topic:
             self.topic = topic
         if group_prefix:
-            self.group_name = "{}{}".format(group_prefix, settings.KAFKA_CONSUMER_GROUP)
+            self.group_name = f"{group_prefix}{settings.KAFKA_CONSUMER_GROUP}"
 
     def get_producer(self):
         if hasattr(self, "producer"):
@@ -78,7 +76,7 @@ class KafkaQueue(object):
         return self.producer
 
     def get_consumer(self):
-        consumer_pool_key = "{}-{}".format(self.topic, self.group_name)
+        consumer_pool_key = f"{self.topic}-{self.group_name}"
         # 增加初始化判断机制 关键值未赋值 则初始化不成功
         consumer = self.consumer_pool.get(consumer_pool_key)
         if not consumer:
@@ -87,7 +85,7 @@ class KafkaQueue(object):
         return consumer
 
     def get_offset_manager(self):
-        offset_manager_pool_key = "{}-{}".format(self.topic, self.group_name)
+        offset_manager_pool_key = f"{self.topic}-{self.group_name}"
         # 增加初始化判断机制 关键值未赋值 则初始化不成功
         if self.offset_manager_pool.get(offset_manager_pool_key):
             offset_manager = self.offset_manager_pool.get(offset_manager_pool_key)
@@ -101,7 +99,11 @@ class KafkaQueue(object):
         for i in range(3):
             try:
                 consumer = kafka.consumer.SimpleConsumer(
-                    self.client, group_name, topic, auto_commit=settings.KAFKA_AUTO_COMMIT, max_buffer_size=None
+                    self.client,
+                    group_name,
+                    topic,
+                    auto_commit=settings.KAFKA_AUTO_COMMIT,
+                    max_buffer_size=KAFKA_MAX_BUFFER_SIZE,
                 )
             except Exception as e:
                 logger.exception(
@@ -118,7 +120,7 @@ class KafkaQueue(object):
                 continue
         else:
             logger.error("topic %s load metadata failed", topic)
-            raise Exception("topic {} load metadata failed".format(topic))
+            raise Exception(f"topic {topic} load metadata failed")
 
     def _put(self, value, topic=""):
         try:
@@ -171,9 +173,9 @@ class KafkaQueue(object):
         return [m.message.value for m in self.take_raw(count, timeout)]
 
 
-class KafkaOffsetManager(object):
+class KafkaOffsetManager:
     TIMEOUT = CONST_ONE_DAY
-    KEY_PREFIX = "{}_kafka_offset".format(settings.APP_CODE)
+    KEY_PREFIX = f"{settings.APP_CODE}_kafka_offset"
 
     def __init__(self, consumer):
         self.consumer = consumer
@@ -187,7 +189,7 @@ class KafkaOffsetManager(object):
 
     @property
     def reset_key(self):
-        return "RESET_%s" % self.key
+        return f"RESET_{self.key}"
 
     def _get_offset(self):
         return self.cache.get(self.key)
