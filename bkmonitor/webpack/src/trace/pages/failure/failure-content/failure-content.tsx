@@ -109,7 +109,7 @@ export default defineComponent({
     const active = ref<string>(FailureContentTabView.FAILURE_TOPO);
     const alertIdsObject = ref<IAlertObj | string>();
     const playLoading = inject<Ref<boolean>>('playLoading');
-    const activeTab = ref<string>('FailureView');
+    const activeTab = ref<string>('AlarmDetail');
     provide('activeName', active);
     const incidentResults = inject<Ref<object>>('incidentResults');
     const searchValidate = ref<boolean>(true);

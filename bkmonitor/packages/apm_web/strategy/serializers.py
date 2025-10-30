@@ -157,6 +157,13 @@ class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSeria
         return super().validate(attrs)
 
 
+class StrategyTemplateUnapplyResponseSerializer(BaseAppStrategyTemplateRequestSerializer):
+    service_names = serializers.ListField(label=_("服务名称列表"), child=serializers.CharField())
+    strategy_template_ids = serializers.ListField(
+        label=_("策略模板 ID 列表"), child=serializers.IntegerField(min_value=1)
+    )
+
+
 class StrategyTemplateCheckRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
     # TODO 默认值暂时改为 true 以供联调
     is_check_diff = serializers.BooleanField(label=_("是否检查变更"), default=True)

@@ -204,19 +204,18 @@ export function json2Query(param, key) {
   let paramStr = '';
 
   if (
-    param instanceof String ||
-    typeof param === 'string' ||
-    param instanceof Number ||
-    typeof param === 'number' ||
-    param instanceof Boolean ||
-    typeof param === 'boolean'
+    param instanceof String
+    || typeof param === 'string'
+    || param instanceof Number
+    || typeof param === 'number'
+    || param instanceof Boolean
+    || typeof param === 'boolean'
   ) {
     paramStr += separator + key + mappingOperator + encodeURIComponent(param);
   } else {
-    Object.keys(param).forEach(p => {
+    Object.keys(param).forEach((p) => {
       const value = param[p];
-      const k =
-        key === null || key === '' || key === undefined ? p : key + (param instanceof Array ? `[${p}]` : `.${p}`);
+      const k = key === null || key === '' || key === undefined ? p : key + (param instanceof Array ? `[${p}]` : `.${p}`);
       paramStr += separator + json2Query(value, k);
     });
   }
@@ -348,8 +347,7 @@ export function getScrollTop() {
  * @return {number} 浏览器视口的高度
  */
 export function getWindowHeight() {
-  const windowHeight =
-    document.compatMode === 'CSS1Compat' ? document.documentElement.clientHeight : document.body.clientHeight;
+  const windowHeight = document.compatMode === 'CSS1Compat' ? document.documentElement.clientHeight : document.body.clientHeight;
 
   return windowHeight;
 }
@@ -357,9 +355,9 @@ export function getWindowHeight() {
 export function projectManage(menuProject, projectName, childName) {
   let project = '';
   try {
-    menuProject.forEach(res => {
+    menuProject.forEach((res) => {
       if (res.id === projectName && res.children) {
-        res.children.forEach(item => {
+        res.children.forEach((item) => {
           if (item.id === childName) {
             project = item.project_manage;
           }
@@ -402,7 +400,7 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
   // })
   const rowObj = {};
   const rowWidth = [];
-  visibleFieldsList.forEach(item => {
+  visibleFieldsList.forEach((item) => {
     const key = item.field_name;
 
     const mlength = fieldsWidthInfo[key]?.max_length || 0;
@@ -416,7 +414,7 @@ export function setFieldsWidth(visibleFieldsList, fieldsWidthInfo, minWidth = 10
   const rowNum = rowWidth.length;
   const allWidth = rowWidth.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
   if (Math.ceil(allWidth * 6.5) <= minWidth - rowNum * 20) {
-    visibleFieldsList.forEach(fieldInfo => {
+    visibleFieldsList.forEach((fieldInfo) => {
       const key = fieldInfo.field_name;
       rowObj[key] = rowObj[key] < 9 ? 9 : rowObj[key];
       rowObj[key] = rowObj[key] > 30 ? rowObj[key] / 1.5 : rowObj[key];
@@ -495,15 +493,21 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
  * 将ISO 8601格式 2024-04-09T13:02:11.502064896Z 转换成 普通日期格式 2024-04-09 13:02:11.502064896
  */
 export function formatDateNanos(val) {
-  if (/^\d+$/.test(`${val}`)) {
+  const strVal = `${val}`;
+  if (/^\d+$/.test(strVal)) {
     return formatDate(Number(val), true, `${val}`.length > 10);
   }
 
+  if (/null|undefined/.test(strVal) || strVal === '') {
+    return '--';
+  }
+
   // dayjs不支持纳秒 从符串中提取毫秒之后的纳秒部分
-  const nanoseconds = `${val}`.slice(23, -1);
+  const nanoseconds = strVal.slice(23, -1);
 
   // 使用dayjs解析字符串到毫秒 包含时区处理
-  const dateTimeToMilliseconds = dayjs(val).tz(window.timezone).format('YYYY-MM-DD HH:mm:ss.SSS');
+  const dateTimeToMilliseconds = dayjs(val).tz(window.timezone)
+    .format('YYYY-MM-DD HH:mm:ss.SSS');
   // 获取微秒并且判断是否是000，也就是纳秒部分的最后三位
   const microseconds = nanoseconds % 1000;
   const newNanoseconds = microseconds !== 0 ? nanoseconds : nanoseconds.slice(0, 3);
@@ -575,11 +579,10 @@ export function formatBigNumListValue(value) {
     if (value instanceof Array) {
       return (obj[value] = parseBigNumberList(value));
     }
-    Object.keys(value).forEach(opt => {
-      obj[opt] =
-        Object.prototype.toString.call(obj[opt]) === '[object Object]' && obj[opt] !== null && !obj[opt]._isBigNumber
-          ? formatBigNumListValue(obj[opt])
-          : bigNumberToString(value[opt] ?? '');
+    Object.keys(value).forEach((opt) => {
+      obj[opt] = Object.prototype.toString.call(obj[opt]) === '[object Object]' && obj[opt] !== null && !obj[opt]._isBigNumber
+        ? formatBigNumListValue(obj[opt])
+        : bigNumberToString(value[opt] ?? '');
     });
     return obj;
   }
@@ -587,13 +590,12 @@ export function formatBigNumListValue(value) {
 }
 
 export function parseBigNumberList(lsit) {
-  return (lsit || []).map(item =>
-    Object.keys(item || {}).reduce((output, key) => {
-      return {
-        ...output,
-        [key]: formatBigNumListValue(item[key]),
-      };
-    }, {}),
+  return (lsit || []).map(item => Object.keys(item || {}).reduce((output, key) => {
+    return {
+      ...output,
+      [key]: formatBigNumListValue(item[key]),
+    };
+  }, {}),
   );
 }
 
@@ -637,7 +639,7 @@ export const copyMessage = (val, alertMsg = undefined) => {
  * @desc: 字符串转base64
  * @param { String } str
  */
-export const base64Encode = str => {
+export const base64Encode = (str) => {
   return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode(`0x${p1}`)));
 };
 
@@ -645,7 +647,7 @@ export const base64Encode = str => {
  * @desc: base64转字符串
  * @param { String } str
  */
-export const base64Decode = str => {
+export const base64Decode = (str) => {
   return decodeURIComponent(
     atob(str)
       .split('')
@@ -661,8 +663,8 @@ export const makeMessage = (message, traceId) => {
     ${id || '--'} ：
     ${message}
   `;
-  message &&
-    console.log(`
+  message
+    && console.log(`
   ------------------【日志】------------------
   【TraceID】：${id}
   【Message】：${message}
@@ -713,14 +715,13 @@ export const deepClone = (obj, hash = new WeakMap()) => {
   if (Object(obj) !== obj) return obj;
   if (obj instanceof Set) return new Set(obj);
   if (hash.has(obj)) return hash.get(obj);
-  const result =
-    obj instanceof Date
-      ? new Date(obj)
-      : obj instanceof RegExp
-        ? new RegExp(obj.source, obj.flags)
-        : obj.constructor
-          ? new obj.constructor()
-          : Object.create(null);
+  const result = obj instanceof Date
+    ? new Date(obj)
+    : obj instanceof RegExp
+      ? new RegExp(obj.source, obj.flags)
+      : obj.constructor
+        ? new obj.constructor()
+        : Object.create(null);
   hash.set(obj, result);
   if (obj instanceof Map) {
     Array.from(obj, ([key, val]) => result.set(key, deepClone(val, hash)));
@@ -732,7 +733,7 @@ export const deepClone = (obj, hash = new WeakMap()) => {
  * @desc: 清空bk-table表头的过滤条件
  * @param {HTMLElement} refInstance ref实例
  */
-export const clearTableFilter = refInstance => {
+export const clearTableFilter = (refInstance) => {
   if (refInstance.$refs.tableHeader.filterPanels) {
     const { filterPanels } = refInstance.$refs.tableHeader;
     for (const key in filterPanels) {
@@ -814,23 +815,21 @@ export const setDefaultSettingSelectFiled = (key, filed) => {
  * 防抖装饰器
  * @param delay
  */
-export const Debounce =
-  (delay = 200) =>
-  (target, key, descriptor) => {
-    const originFunction = descriptor.value;
-    const getNewFunction = () => {
-      let timer;
-      const newFunction = function (...args) {
-        if (timer) window.clearTimeout(timer);
-        timer = setTimeout(() => {
-          originFunction.call(this, ...args);
-        }, delay);
-      };
-      return newFunction;
+export const Debounce = (delay = 200) => (target, key, descriptor) => {
+  const originFunction = descriptor.value;
+  const getNewFunction = () => {
+    let timer;
+    const newFunction = function (...args) {
+      if (timer) window.clearTimeout(timer);
+      timer = setTimeout(() => {
+        originFunction.call(this, ...args);
+      }, delay);
     };
-    descriptor.value = getNewFunction();
-    return descriptor;
+    return newFunction;
   };
+  descriptor.value = getNewFunction();
+  return descriptor;
+};
 
 export const formatDateTimeField = (data, fieldType) => {
   if (fieldType === 'date') {
@@ -884,8 +883,7 @@ export const parseTableRowData = (
         // 这里用于处理nested field
         if (Array.isArray(data)) {
           data = data
-            .map(item =>
-              parseTableRowData(item, keyArr.slice(index).join('.'), fieldType, isFormatDate, emptyCharacter),
+            .map(item => parseTableRowData(item, keyArr.slice(index).join('.'), fieldType, isFormatDate, emptyCharacter),
             )
             .filter(item => item !== emptyCharacter);
           break;
@@ -982,8 +980,8 @@ export const calculateTableColsWidth = (field, list) => {
   // 通过排序获取最大的字段值
   firstLoadList.sort((a, b) => {
     return (
-      (parseTableRowData(b, field.field_name, field.field_type)?.length ?? 0) -
-      (parseTableRowData(a, field.field_name, field.field_type)?.length ?? 0)
+      (parseTableRowData(b, field.field_name, field.field_type)?.length ?? 0)
+      - (parseTableRowData(a, field.field_name, field.field_type)?.length ?? 0)
     );
   });
 
@@ -1079,7 +1077,7 @@ export const flatObjTypeFiledKeys = (currentObject = {}, newFlatObj, previousKey
 
 export const TABLE_LOG_FIELDS_SORT_REGULAR = /^[_]{1,2}|[_]{1,2}/g;
 
-export const utcFormatDate = val => {
+export const utcFormatDate = (val) => {
   const date = new Date(val);
 
   if (isNaN(date.getTime())) {
@@ -1094,7 +1092,7 @@ export const utcFormatDate = val => {
 export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, staticWidth = 50) => {
   try {
     if (tableData.length && visibleFields.length) {
-      visibleFields.forEach(field => {
+      visibleFields.forEach((field) => {
         const [fieldWidth, minWidth] = calculateTableColsWidth(field, tableData);
         let width = fieldWidth < minWidth ? minWidth : fieldWidth;
         if (catchFieldsWidthObj) {
@@ -1118,12 +1116,12 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
         const longFiels = visibleFields.filter(item => item.width >= 800);
         if (longFiels.length) {
           const addWidth = (availableWidth - columnsWidth) / longFiels.length;
-          longFiels.forEach(item => {
+          longFiels.forEach((item) => {
             set(item, 'width', item.width + Math.ceil(addWidth));
           });
         } else {
           const addWidth = (availableWidth - columnsWidth) / visibleFields.length;
-          visibleFields.forEach(field => {
+          visibleFields.forEach((field) => {
             set(field, 'width', field.width + Math.ceil(addWidth));
           });
         }
@@ -1155,12 +1153,12 @@ export const blobDownload = (data, fileName = 'default', type = 'text/plain') =>
   window.URL.revokeObjectURL(href); // 释放掉blob对象
 };
 
-export const xssFilter = str => {
+export const xssFilter = (str) => {
   return DOMPurify.sanitize(str);
 };
 /** 数字千分位处理 */
-export const formatNumberWithRegex = number => {
-  var parts = number.toString().split('.');
+export const formatNumberWithRegex = (number) => {
+  const parts = number.toString().split('.');
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return parts.join('.');
 };
@@ -1203,7 +1201,7 @@ export const getOperatorKey = operator => `operator:${operator}`;
  * @param str 需要计算长度的字符
  * @returns 字符长度
  */
-export const getCharLength = str => {
+export const getCharLength = (str) => {
   const len = str.length;
   let bitLen = 0;
 
@@ -1222,7 +1220,7 @@ export const getRegExp = (searchValue, flags = 'ig') => {
 };
 
 /** url中没有索引集indexID时候，拿浏览器存储的最后一次选中的索引集进行初始化 */
-export const getStorageIndexItem = indexList => {
+export const getStorageIndexItem = (indexList) => {
   const catchIndexSetStr = localStorage.getItem('CATCH_INDEX_SET_ID_LIST');
   if (catchIndexSetStr) {
     const catchIndexSetList = JSON.parse(catchIndexSetStr);
@@ -1235,7 +1233,7 @@ export const getStorageIndexItem = indexList => {
 };
 
 /** 获取非无数据的索引集 */
-export const getHaveValueIndexItem = indexList => {
+export const getHaveValueIndexItem = (indexList) => {
   return (
     indexList.find(item => !item.tags.map(item => item.tag_id).includes(4))?.index_set_id || indexList[0].index_set_id
   );

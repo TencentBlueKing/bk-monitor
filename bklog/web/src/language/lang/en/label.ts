@@ -883,5 +883,13 @@ export default {
   '创建仪表盘': 'Create dashboard',
   '添加到仪表盘保存成功': 'Successfully added to dashboard',
   '添加到仪表盘保存失败': 'Failed to add to dashboard',
-  '保存到仪表盘失败，请稍后重试': 'Failed to save to dashboard, please try again later'
-};
+  '保存到仪表盘失败，请稍后重试': 'Failed to save to dashboard, please try again later',
+  "搜索 任务名称、存储索引名称" : "Search Task Name, Storage Index Name",
+  "搜索 模版名称" : "Search Template Name",
+  "搜索 规则名称" : "Search Rule Name",
+  "搜索 仓库名称" : "Search Store Name",
+  "搜索 归档项"   : "Search Archive Item",
+  "搜索 名称"     : "Search Name", 
+  "搜索 文件名、创建人" : "Search Filename, Created By",
+  "搜索ES源名称、地址、创建人" : "Search ES Source Name, Address, Created By",
+ };
