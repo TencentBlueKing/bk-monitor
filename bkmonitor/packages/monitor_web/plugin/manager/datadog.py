@@ -101,28 +101,31 @@ class DataDogPluginManager(PluginManager):
 
         for sys_name, sys_dir in list(OS_TYPE_TO_DIRNAME.items()):
             # 获取不同操作系统下的文件名
-            tmp_sys_plugin_path = Path(self.plugin.plugin_id, sys_dir, self.plugin.plugin_id)
-            lib_path = tmp_sys_plugin_path / "lib"
-            config_yaml_path = tmp_sys_plugin_path / "etc" / "conf.yaml.tpl"
+            tmp_sys_plugin_path = os.path.join(sys_dir, self.plugin.plugin_id)
+            if not any([tmp_sys_plugin_path in str(i) for i in self.filename_list]):
+                continue
 
-            if config_yaml_path not in self.filename_list:
-                raise PluginParseError({"msg": _("缺少 conf.yaml.tpl 配置模板文件")})
+            lib_path = os.path.join(tmp_sys_plugin_path, "lib")
+            if not any([lib_path in str(i) for i in self.filename_list]):
+                raise PluginParseError({"msg": _("缺少 lib 文件夹")})
+
+            lib_tar_name = f"{self.plugin.plugin_id}-lib-{sys_name}"
 
             file_dict: dict[Path, bytes] = {}
             for filename in self.filename_list:
-                if str(filename).startswith(str(lib_path)):
+                if str(filename).startswith(lib_path):
                     file_dict[filename] = self.plugin_configs[filename]
 
-            if not file_dict:
-                raise PluginParseError({"msg": _(f"缺少 lib 文件夹,path:{tmp_sys_plugin_path}/lib")})
-
-            lib_tar_name = f"{self.plugin.plugin_id}-lib-{sys_name}"
             file_manager = PluginFileManager.save_from_memory(file_dict=file_dict, dir_name=lib_tar_name)
             collector_json[sys_name] = {
                 "file_id": file_manager.file_obj.id,
                 "file_name": file_manager.file_obj.actual_filename,
                 "md5": file_manager.file_obj.file_md5,
             }
+
+            config_yaml_path = Path(tmp_sys_plugin_path, "etc", "conf.yaml.tpl")
+            if config_yaml_path not in self.filename_list:
+                raise PluginParseError({"msg": _("缺少 conf.yaml.tpl 配置模板文件")})
 
             config_template_content = self._decode_file(self.plugin_configs[config_yaml_path])
             collector_json["config_yaml"] = config_template_content

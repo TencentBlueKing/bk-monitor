@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import itertools
 from collections import defaultdict
-from threading import Lock
 from typing import Any
 from collections.abc import Iterable
 
@@ -30,6 +29,7 @@ from bkmonitor.iam.drf import InstanceActionForDataPermission
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.query_template.constants import VariableType
+from core.drf_resource import resource
 from constants.alert import EventStatus
 from utils import count_md5
 
@@ -57,7 +57,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         return self._query_data
 
     def get_permissions(self) -> list[InstanceActionForDataPermission]:
-        if self.action in ["update", "destroy", "apply", "clone", "batch_partial_update"]:
+        if self.action in ["update", "destroy", "apply", "clone", "batch_partial_update", "unapply"]:
             return [
                 InstanceActionForDataPermission(
                     "app_name",
@@ -185,73 +185,44 @@ class StrategyTemplateViewSet(GenericViewSet):
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateApplyRequestSerializer)
     @user_visit_record
     def apply(self, *args, **kwargs) -> Response:
+        strategy_templates: list[StrategyTemplate] = list(
+            self.get_queryset().filter(id__in=self.query_data["strategy_template_ids"])
+        )
         extra_configs_map: dict[int, list[dispatch.DispatchExtraConfig]] = defaultdict(list)
         for extra_config in self.query_data["extra_configs"]:
             strategy_template_id: int = extra_config.pop("strategy_template_id", 0)
             extra_configs_map[strategy_template_id].append(dispatch.DispatchExtraConfig(**extra_config))
+        global_config = dispatch.DispatchGlobalConfig(**self.query_data["global_config"])
+        apply_data = handler.StrategyTemplateHandler.apply(
+            bk_biz_id=self.query_data["bk_biz_id"],
+            app_name=self.query_data["app_name"],
+            service_names=self.query_data["service_names"],
+            strategy_templates=strategy_templates,
+            extra_configs_map=extra_configs_map,
+            global_config=global_config,
+        )
+        return Response({"app_name": self.query_data["app_name"], "list": apply_data})
 
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateUnapplyResponseSerializer)
+    def unapply(self, *args, **kwargs) -> Response:
         entity_set: dispatch.EntitySet = dispatch.EntitySet(
             self.query_data["bk_biz_id"], self.query_data["app_name"], self.query_data["service_names"]
         )
-        strategy_templates: list[StrategyTemplate] = list(
-            self.get_queryset().filter(id__in=self.query_data["strategy_template_ids"])
+        strategy_instance_qs = StrategyInstance.objects.filter(
+            bk_biz_id=self.query_data["bk_biz_id"],
+            app_name=self.query_data["app_name"],
+            service_name__in=entity_set.service_names,
+            strategy_template_id__in=self.query_data["strategy_template_ids"],
         )
+        ids: list[int] = list(strategy_instance_qs.values_list("strategy_id", flat=True))
+        if not ids:
+            return Response({})
+        # 先删除策略
+        resource.strategies.delete_strategy_v2({"bk_biz_id": self.query_data["bk_biz_id"], "ids": ids})
+        # 再删除策略实例
+        strategy_instance_qs.delete()
 
-        def _apply(_obj: StrategyTemplate) -> dict[str, int | dict[str, int]]:
-            try:
-                _dispatcher = dispatch.StrategyDispatcher(
-                    _obj, handler.StrategyTemplateHandler.get_query_template_or_none(_obj, query_template_map)
-                )
-                _service_strategy_id_map: dict[str, int] = _dispatcher.dispatch(
-                    entity_set, global_config, extra_configs_map.get(_obj.pk, [])
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                # 由于异常会中断其他线程的下发，这里捕获所有异常，最后统一抛出，避免中断带来的不一致问题。
-                with lock:
-                    error_msgs.append(_("模板【{}】下发失败, {}").format(_obj.name, str(e)))
-                return {"strategy_template_id": _obj.pk, "service_strategy_id_map": {}}
-
-            return {"strategy_template_id": _obj.pk, "service_strategy_id_map": _service_strategy_id_map}
-
-        query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = (
-            handler.StrategyTemplateHandler.get_query_template_map(strategy_templates)
-        )
-        global_config = dispatch.DispatchGlobalConfig(**self.query_data["global_config"])
-
-        # 批量进行模板下发
-        lock: Lock = Lock()
-        error_msgs: list[str] = []
-        pool = ThreadPool(8)
-        dispatch_results_iter: Iterable[dict[str, int | dict[str, int]]] = pool.imap_unordered(
-            lambda _obj: _apply(_obj), strategy_templates
-        )
-        pool.close()
-
-        strategy_ids: list[int] = []
-        template_dispatch_map: dict[int, dict[str, int]] = {}
-        for dispatch_result in dispatch_results_iter:
-            service_strategy_id_map: dict[str, int] = dispatch_result["service_strategy_id_map"]
-            strategy_ids.extend(list(service_strategy_id_map.values()))
-            template_dispatch_map[dispatch_result["strategy_template_id"]] = service_strategy_id_map
-
-        if error_msgs:
-            raise ValueError("\n".join(error_msgs))
-
-        apply_data: list[dict[str, Any]] = []
-        id_strategy_map = self._get_id_strategy_map(strategy_ids)
-        for strategy_template_id, service_strategy_map in template_dispatch_map.items():
-            for service_name, strategy_id in service_strategy_map.items():
-                apply_data.append(
-                    {
-                        "service_name": service_name,
-                        "strategy_template_id": strategy_template_id,
-                        "strategy": {
-                            "id": strategy_id,
-                            "name": id_strategy_map.get(strategy_id, {}).get("name", ""),
-                        },
-                    }
-                )
-        return Response({"app_name": self.query_data["app_name"], "list": apply_data})
+        return Response({})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCheckRequestSerializer)
     def check(self, *args, **kwargs) -> Response:

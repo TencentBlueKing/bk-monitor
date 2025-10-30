@@ -1721,8 +1721,6 @@ class SearchHandler:
             zero_index: int = analyze_result_dict.get("zero_index", -1)
             count_start: int = analyze_result_dict.get("count_start", -1)
 
-            new_list = self._analyze_empty_log(new_list)
-            origin_log_list = self._analyze_empty_log(origin_log_list)
             return {
                 "total": total,
                 "took": took,
@@ -1748,8 +1746,8 @@ class SearchHandler:
             )
             result_up.update(
                 {
-                    "list": self._analyze_empty_log(result_up.get("list")),
-                    "origin_log_list": self._analyze_empty_log(result_up.get("origin_log_list")),
+                    "list": result_up.get("list"),
+                    "origin_log_list": result_up.get("origin_log_list"),
                 }
             )
             return result_up
@@ -1764,8 +1762,8 @@ class SearchHandler:
             result_down.update({"list": result_down.get("list"), "origin_log_list": result_down.get("origin_log_list")})
             result_down.update(
                 {
-                    "list": self._analyze_empty_log(result_down.get("list")),
-                    "origin_log_list": self._analyze_empty_log(result_down.get("origin_log_list")),
+                    "list": result_down.get("list"),
+                    "origin_log_list": result_down.get("origin_log_list"),
                 }
             )
             return result_down
@@ -1888,8 +1886,8 @@ class SearchHandler:
                 )
             result.update(
                 {
-                    "list": self._analyze_empty_log(result.get("list")),
-                    "origin_log_list": self._analyze_empty_log(result.get("origin_log_list")),
+                    "list": result.get("list"),
+                    "origin_log_list": result.get("origin_log_list"),
                 }
             )
             return result
@@ -2560,37 +2558,6 @@ class SearchHandler:
 
         _count_start = _index
         return {"list": log_list_reversed, "zero_index": _index, "count_start": _count_start}
-
-    def _analyze_empty_log(self, log_list: list[dict[str, Any]]):
-        log_not_empty_list: list[dict[str, Any]] = []
-        for item in log_list:
-            a_item_dict: dict[str:Any] = item
-
-            # 只要存在log字段则直接显示
-            if "log" in a_item_dict:
-                log_not_empty_list.append(a_item_dict)
-                continue
-            # 递归打平每条记录
-            new_log_context_list: list[str] = []
-
-            def get_field_and_get_context(_item: dict, fater: str = ""):
-                for key in _item:
-                    _key: str = ""
-                    if isinstance(_item[key], dict):
-                        get_field_and_get_context(_item[key], key)
-                    else:
-                        if fater:
-                            _key = f"{fater}.{key}"
-                        else:
-                            _key = f"{key}"
-                    if _key:
-                        a_context: str = f"{_key}: {_item[key]}"
-                        new_log_context_list.append(a_context)
-
-            get_field_and_get_context(a_item_dict)
-            a_item_dict.update({"log": " ".join(new_log_context_list)})
-            log_not_empty_list.append(a_item_dict)
-        return log_not_empty_list
 
     def _combine_addition_ip_chooser(self, attrs: dict, include_bk_host_id: bool = True):
         """

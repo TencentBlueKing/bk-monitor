@@ -200,13 +200,30 @@ class EndpointDiscover(DiscoverBase):
         name = ApmCacheHandler.get_endpoint_cache_key(self.bk_biz_id, self.app_name)
         ApmCacheHandler().refresh_data(name, cache_data, DEFAULT_ENDPOINT_EXPIRE)
 
+    def get_remain_data(self):
+        return self.list_exists()
+
+    def discover_with_remain_data(self, origin_data, remain_data):
+        """
+        Endpoint name according to endpoint_key in discover rule
+        """
+        exists_endpoints, instance_data = remain_data
+        self._do_discover(exists_endpoints, instance_data, origin_data)
+
     def discover(self, origin_data):
         """
         Endpoint name according to endpoint_key in discover rule
         """
-        rules, other_rule = self.get_rules()
-
         exists_endpoints, instance_data = self.list_exists()
+        self._do_discover(exists_endpoints, instance_data, origin_data)
+
+    def _do_discover(
+        self,
+        exists_endpoints,
+        instance_data,
+        origin_data,
+    ):
+        rules, other_rule = self.get_rules()
 
         need_update_instances = list()
         need_create_instances = set()

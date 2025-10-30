@@ -29,6 +29,7 @@ import { Input, Popover, Switcher, Tree } from 'bkui-vue';
 import { Search } from 'bkui-vue/lib/icon';
 import { useI18n } from 'vue-i18n';
 
+import ExceptionComp from '../../../components/exception';
 import Collapse from '../components/collapse';
 
 import './aggregation-select.scss';
@@ -143,27 +144,36 @@ export default defineComponent({
                         onEnter={value => (this.treeSearchValue = value)}
                       />
                     </div>
-                    <Tree
-                      search={{
-                        value: this.treeSearchValue,
-                        match: 'fuzzy',
-                        resultType: 'tree',
-                        showChildNodes: false,
-                      }}
-                      checked={this.checkedIds}
-                      // biome-ignore lint/correctness/noChildrenProp: <explanation>
-                      children={'children'}
-                      data={this.treeData}
-                      empty-text={this.t('没有数据')}
-                      expandAll={true}
-                      indent={36}
-                      label='name'
-                      levelLine={false}
-                      nodeKey='id'
-                      showCheckbox={true}
-                      showNodeTypeIcon={false}
-                      onNodeChecked={this.handleNodeCheck}
-                    />
+                    {this.treeData.length > 0 ? (
+                      <Tree
+                        search={{
+                          value: this.treeSearchValue,
+                          match: 'fuzzy',
+                          resultType: 'tree',
+                          showChildNodes: false,
+                        }}
+                        checked={this.checkedIds}
+                        // biome-ignore lint/correctness/noChildrenProp: <explanation>
+                        children={'children'}
+                        data={this.treeData}
+                        expandAll={true}
+                        indent={36}
+                        label='name'
+                        levelLine={false}
+                        nodeKey='id'
+                        showCheckbox={true}
+                        showNodeTypeIcon={false}
+                        onNodeChecked={this.handleNodeCheck}
+                      />
+                    ) : (
+                      <ExceptionComp
+                        class='aggregation-select-empty'
+                        imgHeight={'auto'}
+                        isDarkTheme={true}
+                        isError={false}
+                        title={this.t('暂无可聚合节点')}
+                      />
+                    )}
                   </div>
                 </Collapse>
               </div>

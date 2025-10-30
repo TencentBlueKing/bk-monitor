@@ -727,7 +727,7 @@ export default defineComponent({
                 class='shield-search'
                 data={this.searchData}
                 modelValue={this.searchValues}
-                placeholder={this.t('输入屏蔽内容、ID、策略ID')}
+                placeholder={this.t('搜索 屏蔽ID、策略ID')}
                 onUpdate:modelValue={v => this.handleSearchCondition(v)}
               />
             </div>

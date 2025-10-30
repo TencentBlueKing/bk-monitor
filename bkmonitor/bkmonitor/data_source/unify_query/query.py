@@ -298,6 +298,7 @@ class UnifyQuery:
         end_time: int = None,
         time_alignment: bool = True,
         order_by: list[str] | None = None,
+        not_time_align: bool = False,
     ):
         """
         生成查询参数
@@ -332,10 +333,11 @@ class UnifyQuery:
             "step": f"{step}s",
             "space_uid": self.space_uid,
             "bk_tenant_id": self.bk_tenant_id,
+            "not_time_align": not_time_align,
         }
 
         if start_time and end_time:
-            if time_alignment:
+            if time_alignment and not not_time_align:
                 params["start_time"] = str(time_interval_align(start_time // 1000, step))
                 params["end_time"] = str(time_interval_align(end_time // 1000, step))
             else:
@@ -354,12 +356,13 @@ class UnifyQuery:
         down_sample_range: int | None = "",
         time_alignment: bool = True,
         instant: bool = None,
+        not_time_align: bool = False,
     ) -> tuple[list[dict], bool]:
         """
         使用统一查询模块进行查询
         """
         is_partial = False
-        params = self.get_unify_query_params(start_time, end_time, time_alignment)
+        params = self.get_unify_query_params(start_time, end_time, time_alignment, not_time_align=not_time_align)
         if not params["query_list"]:
             return [], is_partial
 
@@ -509,6 +512,7 @@ class UnifyQuery:
         slimit: int | None = settings.SQL_MAX_LIMIT,
         offset: int | None = None,
         down_sample_range: str | None = "",
+        not_time_align: bool = False,
         *args,
         **kwargs,
     ) -> list[dict]:
@@ -526,6 +530,9 @@ class UnifyQuery:
         if self.use_unify_query():
             labels["api"] = "unify_query"
             try:
+                time_alignment = kwargs.get("time_alignment", True)
+                if not_time_align:
+                    time_alignment = False
                 with metrics.DATASOURCE_QUERY_TIME.labels(**labels).time():
                     data, is_partial = self._query_unify_query(
                         start_time=start_time,
@@ -533,8 +540,9 @@ class UnifyQuery:
                         limit=limit,
                         slimit=slimit,
                         down_sample_range=down_sample_range,
-                        time_alignment=kwargs.get("time_alignment", True),
+                        time_alignment=time_alignment,
                         instant=kwargs.get("instant"),
+                        not_time_align=not_time_align,
                     )
                     self.is_partial = is_partial
             except Exception as e:

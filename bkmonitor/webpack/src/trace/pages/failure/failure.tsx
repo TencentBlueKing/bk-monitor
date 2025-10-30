@@ -251,9 +251,12 @@ export default defineComponent({
       analyzeTagList.value = list;
     };
     const getIncidentOperationTypes = () => {
-      incidentOperationTypes({
-        incident_id: incidentDetailData.value?.incident_id,
-      })
+      incidentOperationTypes(
+        {
+          incident_id: incidentDetailData.value?.incident_id,
+        },
+        { needMessage: false }
+      )
         .then(res => {
           res.map(item => {
             item.id = item.operation_class;

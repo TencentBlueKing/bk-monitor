@@ -371,4 +371,7 @@ export default {
   当前已关联其他模版: 'Current associated other templates',
   下发将被覆盖: 'Pushing will override the existing association',
   查看策略: 'View strategy',
+  关联服务名称: 'Associated service name',
+  策略下发: 'Push strategy',
+  解除关联: 'Unassociate',
 };
