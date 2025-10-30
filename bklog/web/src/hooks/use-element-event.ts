@@ -27,7 +27,7 @@ import { onBeforeUnmount, onMounted } from 'vue';
  */
 export default () => {
   const events = [];
-  const addElementEvent = (element, eventName, callback) => {
+  const addElementEvent = (element: HTMLElement, eventName: string, callback: (e: MouseEvent) => void) => {
     events.push({ element, eventName, callback });
   };
 

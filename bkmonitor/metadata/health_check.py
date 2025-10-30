@@ -151,7 +151,9 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
     data_id_status.kafka_data_exists = bool(result)
     if isinstance(result, list) and len(result) > 0:
         data_record = result[0]
-        time_info = data_record.get("timestamp") or data_record.get("data", {}).get("utctime")
+        time_info = (
+            data_record.get("timestamp") or data_record.get("data", {}).get("utctime") or data_record.get("utctime")
+        )
         if time_info:
             data_id_status.kafka_latest_time = arrow.get(time_info).datetime
 
@@ -471,7 +473,7 @@ def explain_datalink_status(data_link_status: DataLinkStatus) -> str:
 是否平台数据: {data_link_status.is_platform_data_id}
 来源: {data_link_status.data_id_status.created_from.value if data_link_status.data_id_status.created_from else "未知"}
 Kafka是否有数据: {data_link_status.data_id_status.kafka_data_exists}
-kafka最新数据时间: {data_link_status.data_id_status.kafka_latest_time.strftime("%Y-%m-%d %H:%M:%S") if data_link_status.data_id_status.kafka_latest_time else "未知"}
+kafka最新数据时间: {data_link_status.data_id_status.kafka_latest_time.strftime("%Y-%m-%d %H:%M:%S %Z%z") if data_link_status.data_id_status.kafka_latest_time else "未知"}
 
 """
 

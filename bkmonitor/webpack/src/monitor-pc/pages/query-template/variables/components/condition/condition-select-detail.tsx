@@ -26,6 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { xssFilter } from 'monitor-common/utils/xss';
 import { CONDITIONS } from 'monitor-pc/pages/query-template/constants';
 
 import { STRING_CONDITION_METHOD_LIST } from '../../../../../constant/constant';
@@ -71,6 +72,13 @@ export default class ConditionSelectDetail extends tsc<ConditionSelectDetailProp
               <div
                 key={`${item.name}__${index}`}
                 class='condition-tag'
+                v-bk-tooltips={{
+                  content: `<div style="max-width: 600px;">${item.name} ${item.operation?.id || 'AND'} ${xssFilter(
+                    item.value.map(val => val || '""').join(' OR ')
+                  )}<div>`,
+                  delay: [300, 0],
+                  allowHTML: true,
+                }}
               >
                 <div class='key-wrap'>
                   <span class='key-name'>{item.name}</span>

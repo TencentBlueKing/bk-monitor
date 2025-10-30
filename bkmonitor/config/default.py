@@ -1635,6 +1635,9 @@ APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 # APM 调用分析启用全局指标的应用列表
 APM_RPC_GLOBAL_METRIC_ENABLE_APP_LIST = []
 
+# APM 按服务缓存指标的灰度应用列表，格式：["业务ID-应用名1", "业务ID-应用名2"]
+APM_SERVICE_CACHE_APPLICATIONS = []
+
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
 

@@ -24,16 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Emit, Watch, Ref } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { blobDownload } from '@/common/util';
 import { debounce } from 'lodash-es';
 
+import { axiosInstance } from '@/api';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import AggChart from './agg-chart';
 import FieldAnalysis from './field-analysis';
-import { axiosInstance } from '@/api';
 
 import './field-item.scss';
 @Component
@@ -96,9 +96,9 @@ export default class FieldItem extends tsc<object> {
   get isShowFieldsAnalysis() {
     const validTypes = ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'];
     return (
-      validTypes.includes(this.fieldItem.field_type) &&
-      this.fieldItem.es_doc_values &&
-      !/^__dist_/.test(this.fieldItem.field_name)
+      validTypes.includes(this.fieldItem.field_type)
+      && this.fieldItem.es_doc_values
+      && !/^__dist_/.test(this.fieldItem.field_name)
     );
   }
   /** 冲突字段索引集名称*/
@@ -227,11 +227,11 @@ export default class FieldItem extends tsc<object> {
     return this.isUnionSearch && fieldType === 'conflict';
   }
 
-  getFieldIconColor = type => {
+  getFieldIconColor = (type) => {
     return this.fieldTypeMap?.[type] ? this.fieldTypeMap?.[type]?.color : '#EAEBF0';
   };
 
-  getFieldIconTextColor = type => {
+  getFieldIconTextColor = (type) => {
     return this.fieldTypeMap?.[type]?.textColor;
   };
   /** 下载 */
@@ -250,7 +250,7 @@ export default class FieldItem extends tsc<object> {
     };
     axiosInstance
       .post(downRequestUrl, data)
-      .then(res => {
+      .then((res) => {
         if (typeof res !== 'string') {
           this.$bkMessage({
             theme: 'error',
@@ -333,7 +333,7 @@ export default class FieldItem extends tsc<object> {
               <div
                 class='operation-icon-box'
                 v-bk-tooltips={{ content: this.$t('图表分析') }}
-                onClick={e => {
+                onClick={(e) => {
                   e.stopPropagation();
                   this.handleClickAnalysisItem();
                 }}
@@ -346,7 +346,7 @@ export default class FieldItem extends tsc<object> {
               v-bk-tooltips={{
                 content: this.type === 'visible' ? this.$t('隐藏') : this.$t('显示'),
               }}
-              onClick={e => {
+              onClick={(e) => {
                 e.stopPropagation();
                 this.handleShowOrHiddenItem();
               }}
@@ -391,7 +391,7 @@ export default class FieldItem extends tsc<object> {
                     loading={this.btnLoading}
                     size='small'
                     text
-                    onClick={e => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       this.downloadFieldStatistics();
                     }}
@@ -415,6 +415,7 @@ export default class FieldItem extends tsc<object> {
                   parent-expand={this.isExpand}
                   retrieve-params={this.retrieveParams}
                   statistical-field-data={this.statisticalFieldData}
+                  show-search-keyword={true}
                   onDistinctCount={this.getDistinctCount}
                 />
               </div>

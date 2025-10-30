@@ -23,19 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, type Ref, ref, watch } from 'vue';
 
 import { formatDateTimeField, getRegExp, blobDownload } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import dayjs from 'dayjs';
 import { debounce } from 'lodash-es';
-
+import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
+import useEditor from '@/views/retrieve-v2/search-result-panel/graph-analysis/sql-editor/use-editor';
 import ChartRoot from './chart-root';
 import useChartRender from './use-chart-render';
-
+// import $http from '@/api/index';
+import { axiosInstance } from '@/api';
 import './index.scss';
-
 export default defineComponent({
   props: {
     chartOptions: {
@@ -48,13 +49,18 @@ export default defineComponent({
       default: 0,
     },
   },
+  emits: ['sql-change'],
   setup(props, { slots }) {
-    const refRootElement = ref();
+    const refRootElement: Ref<HTMLElement> = ref();
+    const sqlContent = computed(() => store.state.indexItem.chart_params.sql);
+    const { alias_settings } = useFieldAliasRequestParams();
     const refRootContent = ref();
     const searchValue = ref('');
     const { $t } = useLocale();
     const store = useStore();
-
+    const indexSetId = computed(() => store.state.indexId);
+    const retrieveParams = computed(() => store.getters.retrieveParams);
+    const requestAddition = computed(() => store.getters.requestAddition);
     const { setChartOptions, destroyInstance, getChartInstance } = useChartRender({
       target: refRootElement,
       type: props.chartOptions.type,
@@ -148,7 +154,7 @@ export default defineComponent({
         const length = showNumber.value
           ? (props.chartOptions.yFields ?? []).length
           : [...props.chartOptions.dimensions, ...props.chartOptions.xFields].length *
-            props.chartOptions.xFields.length;
+          props.chartOptions.xFields.length;
 
         tableData.value.splice(0, tableData.value.length, ...result.flat(length + 1));
         return;
@@ -219,32 +225,115 @@ export default defineComponent({
       searchValue.value = value;
     };
 
-    const replacer = (_key, value) => {
-      // 处理undefined或null等特殊值，转化为字符串
-      return value === null ? '' : value;
-    };
+    // const replacer = (_key, value) => {
+    //   // 处理undefined或null等特殊值，转化为字符串
+    //   return value === null ? '' : value;
+    // };
 
-    const handleDownloadData = () => {
-      const filename = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
+    // const handleDownloadData = () => {
+    //   const filename = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
 
-      // 如果数据是一个对象数组并且需要提取表头
-      if (tableData.value.length === 0) {
-        console.error('No data to export');
-        return;
+    //   // 如果数据是一个对象数组并且需要提取表头
+    //   if (tableData.value.length === 0) {
+    //     console.error('No data to export');
+    //     return;
+    //   }
+
+    //   // 提取表头
+    //   const headers = columns.value;
+
+    //   // 生成 CSV 字符串
+    //   const csvContent = [
+    //     headers.join(','), // 表头行
+    //     ...tableData.value.map(row => headers.map(header => JSON.stringify(row[header], replacer)).join(',')), // 数据行
+    //   ].join('\n');
+
+    //   blobDownload(csvContent, filename);
+    // };
+    // 异步下载
+    const handleAsyncDownloadData = async () => {
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX.replace(/\/$/,'');
+      const searchUrl = `/search/index_set/${indexSetId.value}/export_chart_data/`;
+      const fileName = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
+      const { start_time, end_time, keyword,sort_list } = retrieveParams.value;
+
+      const requestData = {
+        start_time,
+        end_time,
+        query_mode: 'sql',
+        keyword,
+        addition: requestAddition.value || '',
+        sql: sqlContent.value || '',
+        alias_settings: alias_settings.value || '',
+        sort_list
       }
 
-      // 提取表头
-      const headers = columns.value;
+      // const params: any = {
+      //   method: 'post',
+      //   url: searchUrl,
+      //   withCredentials: true,
+      //   baseURL: baseUrl,
+      //   responseType: 'blob',
+      //   data: requestData,
+      //   headers: {},
+      // };
+      // if (store.state.isExternal) {
+      //   params.headers = {
+      //     'X-Bk-Space-Uid': store.state.spaceUid,
+      //   };
+      // }
+      try {
+        const response = await fetch(`${baseUrl}${searchUrl}`, {
+          method: 'POST',
+          body: JSON.stringify(requestData),
+          headers: {
+            // 'Accept': 'application/octet-stream', // 关键：覆盖默认的 text/*
+            'Content-Type': 'application/json', // 明确设置请求类型
+            //  mode: 'cors',
+          }
+        });
 
-      // 生成 CSV 字符串
-      const csvContent = [
-        headers.join(','), // 表头行
-        ...tableData.value.map(row => headers.map(header => JSON.stringify(row[header], replacer)).join(',')), // 数据行
-      ].join('\n');
+        if (!response.ok) {
+          throw new Error(`下载失败: ${response.status} ${response.statusText}`);
+        }
 
-      blobDownload(csvContent, filename);
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = fileName || 'download';
+        document.body.appendChild(a);
+        a.click();
+
+        // 清理
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(downloadUrl);
+      } catch (error) {
+        console.error('下载出错:', error);
+        throw error;
+      }
+      // try {
+      //   return axiosInstance(params).then((response) => {
+      //     blobDownload(response?.data, filename)
+      //   })
+      // } catch (error) {
+      //   console.error(error);
+      // }
+
+      // try {
+      //   return $http.request(`graphAnalysis/asyncDownload`, {
+      //     params: {
+      //       index_set_id: indexSetId.value,
+      //     }, data
+      //   }).then(response => {
+      //     console.log('response', response);
+      //     blobDownload(response, filename)
+      //   });
+      // } catch (error) {
+      //   console.error(error);
+      // }
     };
-
     const rendChildNode = () => {
       if (showNumber.value) {
         return (
@@ -290,7 +379,7 @@ export default defineComponent({
               {tableData.value.length > 0 ? (
                 <span
                   style='font-size: 12px; color: #3A84FF; cursor: pointer;'
-                  onClick={handleDownloadData}
+                  onClick={handleAsyncDownloadData}
                 >
                   <i
                     style='font-size: 14px;'
@@ -299,6 +388,19 @@ export default defineComponent({
                   {$t('下载')}
                 </span>
               ) : null}
+              {/* {tableData.value.length > 0 ? (
+                <span
+                  style='font-size: 12px; color: #3A84FF; cursor: pointer;margin-left: 5px;'
+                  onClick={handleDownloadData}
+                >
+                  <i
+                    style='font-size: 14px;'
+                    class='bklog-icon bklog-download'
+                  />
+                  {$t('下载')}
+                </span>
+              ) : null} */}
+
               <bk-pagination
                 style='display: inline-flex'
                 class='top-pagination'

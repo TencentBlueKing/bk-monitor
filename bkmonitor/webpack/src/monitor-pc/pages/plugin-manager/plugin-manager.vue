@@ -75,7 +75,7 @@
         <div class="right">
           <bk-input
             :clearable="true"
-            :placeholder="$t('插件名称(ID或别名)')"
+            :placeholder="$t('搜索 插件名称')"
             :value="header.keyword"
             right-icon="bk-icon icon-search"
             @change="handleSearchKey"

@@ -35,6 +35,9 @@ from metadata.utils.redis_tools import RedisTools, bkbase_redis_client
 logger = logging.getLogger("metadata")
 
 
+DEFAULT_VM_EXPIRES_MS = 24 * 3600 * 90 * 1000
+
+
 def watch_bkbase_meta_redis_task():
     """
     任务入口 计算平台元数据Redis键变化事件
@@ -215,16 +218,31 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
     """通用集群信息同步函数"""
     for cluster_data in cluster_list:
         try:
-            cluster_auth_info = cluster_data.get("spec", {})
+            cluster_spec = cluster_data.get("spec", {})
             cluster_metadata = cluster_data.get("metadata", {})
 
             # 动态获取字段映射（支持不同存储类型的字段差异）
             cluster_name = cluster_metadata["name"]
-            domain_name = cluster_auth_info.get(field_mappings["domain_name"])
-            port = cluster_auth_info.get(field_mappings["port"])
-            username = cluster_auth_info.get(field_mappings["username"])
-            password = cluster_auth_info.get(field_mappings["password"])
-            update_fields = {"domain_name": domain_name, "port": port, "username": username, "password": password}
+            domain_name = cluster_spec.get(field_mappings["domain_name"])
+            port = cluster_spec.get(field_mappings["port"])
+            username = cluster_spec.get(field_mappings["username"])
+            password = cluster_spec.get(field_mappings["password"])
+
+            default_settings = {}
+            # 如果是VictoriaMetrics集群，需要获取过期时间
+            if cluster_type == models.ClusterInfo.TYPE_VM:
+                # 记录过期时间，单位为秒
+                default_settings["retention_time"] = (cluster_spec.get("expiresMs") or DEFAULT_VM_EXPIRES_MS) // 1000
+                # 记录集群所属业务ID，只有业务独立集群才会有对应字段，默认为None
+                default_settings["bk_biz_id"] = cluster_spec.get("bkBizId")
+
+            update_fields = {
+                "domain_name": domain_name,
+                "port": port,
+                "username": username,
+                "password": password,
+                "default_settings": default_settings,
+            }
 
             with transaction.atomic():
                 cluster = models.ClusterInfo.objects.filter(
@@ -253,6 +271,7 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                         username=username,
                         password=password,
                         is_default_cluster=False,
+                        default_settings=default_settings,
                     )
                     logger.info(f"sync_bkbase_cluster_info: created new {cluster_type} cluster: {cluster_name}")
         except Exception as e:

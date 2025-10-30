@@ -48,7 +48,7 @@ export default defineComponent({
     },
     // 图片显示高度
     imgHeight: {
-      type: Number,
+      type: [Number, String],
       default: 100,
     },
     // 主标题文本

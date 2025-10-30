@@ -5,7 +5,7 @@
     "name": "自定义指标",
     "variables": [
         {
-            "title": "自定义指标维度列表",
+            "title": "_(自定义指标维度列表)",
             "type": "dimension_list",
             "targets": [
                 {
