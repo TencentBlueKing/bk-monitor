@@ -190,8 +190,13 @@ export function useAlarmLog(detail: AlarmDetail) {
     return data;
   }
 
+  function resetTableData() {
+    tableData = [];
+  }
+
   return {
     getIndexSetList,
     updateTableData,
+    resetTableData,
   };
 }

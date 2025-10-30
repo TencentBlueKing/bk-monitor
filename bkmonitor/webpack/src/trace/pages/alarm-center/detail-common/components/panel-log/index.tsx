@@ -49,7 +49,7 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const { getIndexSetList, updateTableData } = useAlarmLog(props.detail);
+    const { getIndexSetList, updateTableData, resetTableData } = useAlarmLog(props.detail);
     const selectLoading = shallowRef(false);
     const indexSetList = shallowRef([]);
     const selectIndexSet = shallowRef<number | string>('');
@@ -61,6 +61,7 @@ export default defineComponent({
       offset: 0,
     });
     const tableLoading = shallowRef(false);
+    const scrollLoading = shallowRef(false);
 
     async function init() {
       selectLoading.value = true;
@@ -70,24 +71,47 @@ export default defineComponent({
       getTableData();
     }
 
-    async function getTableData() {
-      tableLoading.value = true;
+    async function getTableData(
+      params = {
+        limit: tableData.limit,
+        offset: tableData.offset,
+      }
+    ) {
+      tableData.limit = params.limit;
+      tableData.offset = params.offset;
+      if (tableData.offset) {
+        scrollLoading.value = true;
+      } else {
+        tableLoading.value = true;
+      }
+
       const data = await updateTableData({
         index_set_id: selectIndexSet.value,
         keyword: '',
         limit: tableData.limit,
         offset: tableData.offset,
       });
-      console.log(data);
       tableData.data = data?.data || [];
       tableData.total = data?.total || 0;
       tableData.columns = data?.columns || [];
-      tableLoading.value = false;
+      if (tableData.offset) {
+        scrollLoading.value = false;
+      } else {
+        tableLoading.value = false;
+      }
     }
 
     function handleChangeIndexSet(indexSetId: number | string) {
       selectIndexSet.value = indexSetId;
-      getTableData();
+      resetTableData();
+      getTableData({
+        limit: tableData.limit,
+        offset: 0,
+      });
+    }
+
+    function handleTableScroll(params: { limit: number; offset: number }) {
+      getTableData(params);
     }
 
     init();
@@ -98,8 +122,10 @@ export default defineComponent({
       selectIndexSet,
       tableLoading,
       selectLoading,
+      scrollLoading,
       handleChangeIndexSet,
       t,
+      handleTableScroll,
     };
   },
   render() {
@@ -127,7 +153,15 @@ export default defineComponent({
         <div class='panel-log-filter'>
           <RetrievalFilter zIndex={4000} />
         </div>
-        {this.tableLoading ? <TableSkeleton type={4} /> : <LogTable tableData={this.tableData} />}
+        {this.tableLoading ? (
+          <TableSkeleton type={4} />
+        ) : (
+          <LogTable
+            scrollLoading={this.scrollLoading}
+            tableData={this.tableData}
+            onScroll={this.handleTableScroll}
+          />
+        )}
       </div>
     );
   },

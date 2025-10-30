@@ -1,3 +1,15 @@
 .panel-log-log-table {
-    position: relative;
+  position: relative;
+
+  .panel-log-log-table-scroll-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 160px;
+    height: 32px;
+    margin: 16px auto;
+    color: #979ba5;
+    background-color: #ebedf0;
+    border-radius: 2px;
+  }
 }

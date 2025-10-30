@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent, onMounted, shallowRef, useTemplateRef } from 'vue';
 
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { useI18n } from 'vue-i18n';
@@ -51,10 +51,18 @@ export default defineComponent({
         offset: 0,
       }),
     },
+    scrollLoading: {
+      type: Boolean,
+      default: false,
+    },
   },
-  setup() {
+  emits: {
+    scroll: (_params: { limit: number; offset: number }) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
-
+    const loadingRef = useTemplateRef('scrollLoading');
+    const isEnd = shallowRef(false);
     const columns = shallowRef<TdPrimaryTableProps['columns']>([
       {
         colKey: 'date',
@@ -83,6 +91,32 @@ export default defineComponent({
       return <span class='icon-monitor icon-mc-arrow-right' />;
     });
 
+    onMounted(() => {
+      init();
+    });
+
+    function init() {
+      const observer = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            handleScroll();
+          }
+        }
+      });
+      observer.observe(loadingRef.value as any);
+    }
+
+    function handleScroll() {
+      isEnd.value = props.tableData.data.length < props.tableData.limit + props.tableData.offset;
+      if (!props.tableData.data.length || isEnd.value) {
+        return;
+      }
+      emit('scroll', {
+        limit: props.tableData.limit,
+        offset: props.tableData.data.length,
+      });
+    }
+
     function handleExpandChange(keys: (number | string)[]) {
       console.log(keys);
       expandedRowKeys.value = keys;
@@ -93,24 +127,34 @@ export default defineComponent({
       expandedRowKeys,
       expandIcon,
       expandedRow,
+      isEnd,
       t,
       handleExpandChange,
     };
   },
   render() {
     return (
-      <PrimaryTable
-        class='panel-log-log-table'
-        columns={this.columns}
-        data={this.tableData.data}
-        expandedRow={this.expandedRow}
-        expandedRowKeys={this.expandedRowKeys}
-        expandIcon={this.expandIcon}
-        expandOnRowClick={true}
-        rowKey={'index'}
-        size={'small'}
-        onExpandChange={this.handleExpandChange}
-      />
+      <div class='panel-log-log-table'>
+        <PrimaryTable
+          class='panel-log-log-table'
+          columns={this.columns}
+          data={this.tableData.data}
+          expandedRow={this.expandedRow}
+          expandedRowKeys={this.expandedRowKeys}
+          expandIcon={this.expandIcon}
+          expandOnRowClick={true}
+          rowKey={'index'}
+          size={'small'}
+          onExpandChange={this.handleExpandChange}
+        />
+        <div
+          ref='scrollLoading'
+          style={{ display: this.tableData.data.length ? 'flex' : 'none' }}
+          class='panel-log-log-table-scroll-loading'
+        >
+          <span>{this.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…')}</span>
+        </div>
+      </div>
     );
   },
 });
