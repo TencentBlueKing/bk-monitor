@@ -259,7 +259,10 @@ export default defineComponent({
           suggestedName: filename,
           types: [{
             description: '下载文件',
-            accept: { 'application/octet-stream': ['*'] }
+            accept: {
+              'text/csv': ['.csv'],
+              'application/vnd.ms-excel': ['.csv']
+            }
           }]
         });
         const writable = await fileHandle.createWritable();
