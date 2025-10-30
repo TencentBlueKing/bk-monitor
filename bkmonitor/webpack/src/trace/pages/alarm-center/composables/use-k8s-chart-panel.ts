@@ -23,51 +23,44 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { type MaybeRef, shallowRef, watch, watchEffect } from 'vue';
 
-import { type PropType, defineComponent, shallowRef, toRef, unref, watch } from 'vue';
+import { get } from '@vueuse/core';
 
-import { random } from 'monitor-common/utils';
-import { type SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
+import { getK8sScenarioMetricList } from '../services/alarm-detail';
 
-import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
-import { useK8sChartPanel } from '../../../../../composables/use-k8s-chart-panel';
+import type { IK8SMetricItem, SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 
-import './panel-container-dashboard.scss';
+/**
+ * @description 容器监控图表面板 panel hook
+ */
+export function useK8sChartPanel(scene: MaybeRef<SceneEnum>) {
+  /** 容器监控-场景需要展示的指标项数组 */
+  let _metricList: IK8SMetricItem[] = [];
+  const panels = shallowRef([]);
+  /** 是否处于请求加载状态 */
+  const loading = shallowRef(false);
+  /**
+   * @description 获取场景指标列表
+   */
+  async function getScenarioMetricList() {
+    console.log('getScenarioMetricList');
+    loading.value = true;
+    _metricList = await getK8sScenarioMetricList(get(scene));
+    loading.value = false;
+  }
 
-export default defineComponent({
-  name: 'PanelContainerDashboard',
-  props: {
-    scene: {
-      type: String as PropType<SceneEnum>,
-      required: true,
-    },
-  },
-  setup(props) {
-    /** 图表联动Id */
-    const dashboardId = shallowRef(random(10));
-    /** 需要渲染的仪表盘面板配置数组 */
-    const { panels } = useK8sChartPanel(toRef(props, 'scene'));
-
-    return { dashboardId, panels };
-  },
-  render() {
-    return (
-      <div class='panel-container-dashboard'>
-        {this.panels?.map?.(dashboard => (
-          <AlarmMetricsDashboard
-            key={dashboard.id}
-            viewOptions={{
-              interval: 60,
-              method: 'sum',
-              unit: undefined,
-            }}
-            dashboardId={this.dashboardId}
-            dashboardTitle={dashboard?.title}
-            gridCol={1}
-            panelModels={dashboard?.panels}
-          />
-        ))}
-      </div>
-    );
-  },
-});
+  async function _createPanelList(hasLoading = true) {
+    if (hasLoading) {
+      loading.value = true;
+    }
+  }
+  watch(
+    () => scene,
+    () => {
+      console.log('scene change');
+    }
+  );
+  watchEffect(getScenarioMetricList);
+  return { panels };
+}

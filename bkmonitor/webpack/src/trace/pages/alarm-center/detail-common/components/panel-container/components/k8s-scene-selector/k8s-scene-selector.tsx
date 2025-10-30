@@ -35,9 +35,18 @@ import './k8s-scene-selector.scss';
 const SCENE_DIMENSIONS = [SceneEnum.Performance, SceneEnum.Network, SceneEnum.Capacity];
 /** 场景别名映射表 */
 export const SceneAliasMap = {
-  [SceneEnum.Performance]: window.i18n.t('性能'),
-  [SceneEnum.Network]: window.i18n.t('网络'),
-  [SceneEnum.Capacity]: window.i18n.t('容量'),
+  [SceneEnum.Performance]: {
+    alias: window.i18n.t('性能'),
+    icon: 'icon-monitor icon-xingneng1',
+  },
+  [SceneEnum.Network]: {
+    alias: window.i18n.t('网络'),
+    icon: 'icon-monitor icon-wangluo',
+  },
+  [SceneEnum.Capacity]: {
+    alias: window.i18n.t('容量'),
+    icon: 'icon-monitor icon-rongliang',
+  },
 };
 
 export default defineComponent({
@@ -75,7 +84,10 @@ export default defineComponent({
             class='k8s-scene-selector-item'
             label={scene}
           >
-            {SceneAliasMap[scene]}
+            <div class='item-container'>
+              <i class={['item-prefix-icon', SceneAliasMap[scene].icon]} />
+              <span class='item-alias'>{SceneAliasMap[scene].alias}</span>
+            </div>
           </Radio.Button>
         ))}
       </Radio.Group>

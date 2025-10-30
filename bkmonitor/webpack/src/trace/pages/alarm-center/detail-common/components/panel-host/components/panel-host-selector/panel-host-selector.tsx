@@ -24,21 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
+import { get } from '@vueuse/core';
 import { Select } from 'bkui-vue';
 
 import { AlertDetailHostSelectorTypeEnum } from '../../../../../typings/constants';
+import { getMockData } from './mock-data';
 
 import './panel-host-selector.scss';
 
 export default defineComponent({
   name: 'PanelHostSelector',
   props: {
-    /** 选择器类型 */
-    type: {
+    /** 选择器类型(主机|模块) */
+    selectorType: {
       type: String as PropType<AlertDetailHostSelectorTypeEnum>,
-      default: AlertDetailHostSelectorTypeEnum.HOST,
     },
     /** 选择器选中值 */
     value: {
@@ -50,35 +51,74 @@ export default defineComponent({
     change: (selectedId: string) => typeof selectedId === 'string',
   },
   setup(props, { emit }) {
+    /** 选择器列表 */
+    const hostList = getMockData(props.selectorType);
+    /** 选择器配置 */
+    const selectConfig = computed(() =>
+      props.selectorType === AlertDetailHostSelectorTypeEnum.MODULE
+        ? {
+            idKey: 'bk_inst_id',
+            displayKey: 'bk_inst_name',
+          }
+        : {
+            idKey: 'bk_host_id',
+            displayKey: 'display_name',
+            descriptionKey: 'alias_name',
+          }
+    );
+
     /**
      * @description 选择器值改变事件
      * @param selected Id 选择器选中值
      */
-    function handleSelectChange(selectedId: string) {
+    function handleSelected(selectedId: string) {
+      const idKey = get(selectConfig)?.idKey;
+      const targetItem = hostList.find(e => e?.[get(selectConfig)?.idKey] === selectedId);
+      console.log('================ selectedId ================', selectedId);
+      console.log('================ item ================', targetItem);
+
       emit('change', selectedId);
     }
-    return { handleSelectChange };
+    return { hostList, selectConfig, handleSelected };
   },
   render() {
+    /** 是否展示描述 */
+    const showDescription = this.selectConfig?.descriptionKey;
+
     return (
-      <Select class='panel-host-selector'>
-        {{
-          trigger: () => (
-            <div class='host-selector-trigger-container'>
-              <div class='trigger-prefix'>
-                <span>主机：</span>
+      <div class='panel-host-selector'>
+        <Select
+          list={this.hostList}
+          popoverOptions={{ boundary: 'parent' }}
+          {...this.selectConfig}
+          onSelect={this.handleSelected}
+        >
+          {{
+            trigger: () => (
+              <div class='host-selector-trigger-container'>
+                <div class='trigger-prefix'>
+                  <span>主机：</span>
+                </div>
+                <div class='trigger-main'>
+                  <span class='selected-text'>demo_k8s / k8s / 9.146.98.234</span>
+                  {showDescription ? <span class='selected-description'>{'(VM-980-234-Host)'}</span> : null}
+                </div>
+                <div class='trigger-suffix'>
+                  <i class='icon-monitor icon-mc-triangle-down' />
+                </div>
               </div>
-              <div class='trigger-main'>
-                <span class='selected-text'>demo_k8s / k8s / 9.146.98.234</span>
-                <span class='selected-description'>{'(VM-980-234-Host)'}</span>
+            ),
+            optionRender: ({ item }) => (
+              <div class='host-selector-item'>
+                <span class='item-display-name'>{item?.[this.selectConfig?.displayKey]}</span>
+                {showDescription ? (
+                  <span class='item-description'>{`(${item?.[this.selectConfig?.descriptionKey]})`}</span>
+                ) : null}
               </div>
-              <div class='trigger-suffix'>
-                <i class='icon-monitor icon-mc-triangle-down' />
-              </div>
-            </div>
-          ),
-        }}
-      </Select>
+            ),
+          }}
+        </Select>
+      </div>
     );
   },
 });

@@ -28,6 +28,8 @@ import { computed, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { defineStore } from 'pinia';
 
+import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { createAutoTimeRange } from '../../plugins/charts/failure-chart/failure-alarm-chart';
 import { useAppStore } from './app';
 import { fetchAlarmDetail } from '@/pages/alarm-center/services/alarm-detail';
 
@@ -41,6 +43,19 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   /** 加载状态 */
   const loading = shallowRef<boolean>(false);
   const appStore = useAppStore();
+  /** 数据间隔 */
+  const interval = computed(
+    () => alarmDetail.value.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60
+  );
+  /** 时间范围 */
+  const timeRange = computed(() => {
+    const { startTime, endTime } = createAutoTimeRange(
+      alarmDetail.value.begin_time,
+      alarmDetail.value.end_time,
+      interval.value
+    );
+    return startTime && endTime ? [startTime, endTime] : DEFAULT_TIME_RANGE;
+  });
   const bizId = computed(() => {
     return alarmDetail.value?.bk_biz_id || (window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined;
   });
@@ -81,5 +96,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     loading,
     bizId,
     bizItem,
+    interval,
+    timeRange,
   };
 });
