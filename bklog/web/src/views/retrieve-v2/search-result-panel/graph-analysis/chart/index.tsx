@@ -51,6 +51,7 @@ export default defineComponent({
   },
   emits: ['sql-change'],
   setup(props, { slots }) {
+
     const refRootElement: Ref<HTMLElement> = ref();
     const sqlContent = computed(() => store.state.indexItem.chart_params.sql);
     const { alias_settings } = useFieldAliasRequestParams();
@@ -224,38 +225,59 @@ export default defineComponent({
     const handleSearchClick = value => {
       searchValue.value = value;
     };
+    /**
+    * 检查浏览器是否支持 File System Access API
+    */
+    function supportsFileSystemAccess() {
+      return 'showSaveFilePicker' in window;
+    }
+    async function downloadWithBlob(response, filename) {
+      const blob = await response.blob();
+      // 创建下载链接
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
 
-    // const replacer = (_key, value) => {
-    //   // 处理undefined或null等特殊值，转化为字符串
-    //   return value === null ? '' : value;
-    // };
+      // 清理
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
 
-    // const handleDownloadData = () => {
-    //   const filename = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
-
-    //   // 如果数据是一个对象数组并且需要提取表头
-    //   if (tableData.value.length === 0) {
-    //     console.error('No data to export');
-    //     return;
-    //   }
-
-    //   // 提取表头
-    //   const headers = columns.value;
-
-    //   // 生成 CSV 字符串
-    //   const csvContent = [
-    //     headers.join(','), // 表头行
-    //     ...tableData.value.map(row => headers.map(header => JSON.stringify(row[header], replacer)).join(',')), // 数据行
-    //   ].join('\n');
-
-    //   blobDownload(csvContent, filename);
-    // };
+      return { success: true, message: '文件下载完成' };
+    }
+    /**
+    * 使用现代 File System Access API 下载（内存高效）
+    */
+    async function downloadWithFileSystemAPI(response, filename) {
+      try {
+        const fileHandle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{
+            description: '下载文件',
+            accept: { 'application/octet-stream': ['*'] }
+          }]
+        });
+        const writable = await fileHandle.createWritable();
+        await response.body.pipeTo(writable);
+        return { success: true, message: '文件保存成功' };
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          return { success: false, message: '用户取消了保存' };
+        }
+        throw error;
+      }
+    }
     // 异步下载
     const handleAsyncDownloadData = async () => {
-      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX.replace(/\/$/,'');
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX.replace(/\/$/, '');
       const searchUrl = `/search/index_set/${indexSetId.value}/export_chart_data/`;
       const fileName = `bklog_${store.state.indexId}_${dayjs(new Date()).format('YYYYMMDD_HHmmss')}.csv`;
-      const { start_time, end_time, keyword,sort_list } = retrieveParams.value;
+      const { start_time, end_time, keyword, sort_list } = retrieveParams.value;
 
       const requestData = {
         start_time,
@@ -267,72 +289,28 @@ export default defineComponent({
         alias_settings: alias_settings.value || '',
         sort_list
       }
-
-      // const params: any = {
-      //   method: 'post',
-      //   url: searchUrl,
-      //   withCredentials: true,
-      //   baseURL: baseUrl,
-      //   responseType: 'blob',
-      //   data: requestData,
-      //   headers: {},
-      // };
-      // if (store.state.isExternal) {
-      //   params.headers = {
-      //     'X-Bk-Space-Uid': store.state.spaceUid,
-      //   };
-      // }
       try {
-        const response = await fetch(`${baseUrl}${searchUrl}`, {
+        fetch(`${baseUrl}${searchUrl}`, {
           method: 'POST',
           body: JSON.stringify(requestData),
           headers: {
-            // 'Accept': 'application/octet-stream', // 关键：覆盖默认的 text/*
             'Content-Type': 'application/json', // 明确设置请求类型
-            //  mode: 'cors',
           }
-        });
-
-        if (!response.ok) {
-          throw new Error(`下载失败: ${response.status} ${response.statusText}`);
-        }
-
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = fileName || 'download';
-        document.body.appendChild(a);
-        a.click();
-
-        // 清理
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(downloadUrl);
+        }).then((response) => {
+          if (!response.ok) {
+            throw new Error(`下载失败: ${response.status} ${response.statusText}`);
+          }
+          // 检查浏览器是否支持 File System Access API
+          if (supportsFileSystemAccess()) {
+            downloadWithFileSystemAPI(response, fileName);
+          } else {
+            downloadWithBlob(response, fileName)
+          }
+        })
       } catch (error) {
         console.error('下载出错:', error);
         throw error;
       }
-      // try {
-      //   return axiosInstance(params).then((response) => {
-      //     blobDownload(response?.data, filename)
-      //   })
-      // } catch (error) {
-      //   console.error(error);
-      // }
-
-      // try {
-      //   return $http.request(`graphAnalysis/asyncDownload`, {
-      //     params: {
-      //       index_set_id: indexSetId.value,
-      //     }, data
-      //   }).then(response => {
-      //     console.log('response', response);
-      //     blobDownload(response, filename)
-      //   });
-      // } catch (error) {
-      //   console.error(error);
-      // }
     };
     const rendChildNode = () => {
       if (showNumber.value) {
