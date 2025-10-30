@@ -3486,6 +3486,14 @@ class ESStorage(models.Model, StorageResultTable):
             filter_result,
         )
 
+        check_index_names = list(filter_result.keys())
+        # 存在快照记录的索引
+        snapshot_index_records = list(
+            EsSnapshotIndice.objects.filter(
+                table_id=self.table_id, index_name__in=check_index_names, bk_tenant_id=self.bk_tenant_id
+            ).values_list("index_name", flat=True)
+        )
+
         for index_name, alias_info in filter_result.items():
             # 回溯的索引不经过正常删除的逻辑删除
             if index_name.startswith(self.restore_index_prefix):
@@ -3535,6 +3543,14 @@ class ESStorage(models.Model, StorageResultTable):
                 self.table_id,
                 index_name,
             )
+            # 如果配置了快照，但是索引没有在快照记录中，跳过索引删除，等待第二天执行快照后再删除
+            if self.have_snapshot_conf and index_name not in snapshot_index_records:
+                logger.info(
+                    "table_id->[%s], index->[%s] not snapshot, skip delete ",
+                    self.table_id,
+                    index_name,
+                )
+                continue
             try:
                 self.es_client.indices.delete(index=index_name)
                 logger.info("clean_index_v2:table_id->[%s] index->[%s] is deleted.", self.table_id, index_name)
