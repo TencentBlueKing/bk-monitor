@@ -87,6 +87,9 @@ class HostIPManager(CMDBCacheManager):
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, ips: list[str]) -> dict[str, list[str]]:
+        if not ips:
+            return {}
+
         cache_key = cls.get_cache_key(bk_tenant_id)
         result: list[str | None] = cast(list[str | None], cls.cache.hmget(cache_key, ips))
         return {ip: json.loads(result) if result else [] for ip, result in zip(ips, result) if result}
