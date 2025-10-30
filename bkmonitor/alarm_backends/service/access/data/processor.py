@@ -508,9 +508,9 @@ class AccessDataProcess(BaseAccessDataProcess):
         过滤重复数据并实例化
         """
         first_item = self.items[0]
-
+        max_agg_interval = max(query_config["agg_interval"] for query_config in first_item.query_configs)
         records = []
-        dup_obj = Duplicate(self.strategy_group_key, strategy_id=first_item.strategy.id)
+        dup_obj = Duplicate(self.strategy_group_key, strategy_id=first_item.strategy.id, ttl=max_agg_interval * 10)
         duplicate_counts = none_point_counts = 0
 
         # 是否有优先级

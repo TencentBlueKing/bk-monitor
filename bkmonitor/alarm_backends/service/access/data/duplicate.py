@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,15 +7,17 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from alarm_backends.core.cache import key
 
 
 class Duplicate:
-    def __init__(self, strategy_group_key, strategy_id=None):
+    def __init__(self, strategy_group_key, strategy_id=None, ttl=None):
         self.strategy_group_key = strategy_group_key
         self.record_ids_cache = {}
         self.pending_to_add = {}
         self.strategy_id = strategy_id
+        self.ttl = ttl if ttl is not None else key.ACCESS_DUPLICATE_KEY.ttl
 
         self.client = key.ACCESS_DUPLICATE_KEY.client
 
@@ -64,5 +65,5 @@ class Duplicate:
         # duplicate point 对应过期时间也同步刷新
         for ttl_dup_key in self.record_ids_cache:
             ttl_dup_key.strategy_id = self.strategy_id
-            pipeline.expire(ttl_dup_key, key.ACCESS_DUPLICATE_KEY.ttl)
+            pipeline.expire(ttl_dup_key, self.ttl)
         pipeline.execute()
