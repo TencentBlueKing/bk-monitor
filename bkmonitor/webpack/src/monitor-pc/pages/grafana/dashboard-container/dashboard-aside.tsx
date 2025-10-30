@@ -785,6 +785,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                   v-model={this.keywork}
                   right-icon='bk-icon icon-search'
                   onInput={this.handleSearchInput}
+                  placeholder="搜索 仪表盘"
                 />
               </div>
             </Collapse>

@@ -284,6 +284,7 @@ class QuickAddStrategy extends Mixins(
         return pre;
       }, []),
       global_config: this.globalParams || undefined,
+      is_reuse_instance_config: true,
     };
     const res = await applyStrategyTemplate(params)
       .then(() => {

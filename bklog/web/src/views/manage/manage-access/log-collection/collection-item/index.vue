@@ -327,7 +327,9 @@
           min-width="55"
         >
           <template #default="props">
-            <span :class="{ 'text-disabled': props.row.status === 'stop' }">{{ props.row.updated_by }}</span>
+            <span :class="{ 'text-disabled': props.row.status === 'stop' }">
+              <bk-user-display-name :user-id="props.row.updated_by"></bk-user-display-name>
+            </span>
           </template>
         </bk-table-column>
         <bk-table-column

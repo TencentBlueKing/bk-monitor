@@ -407,7 +407,7 @@ class PatternHandler:
             )
             records = []
         for record in records:
-            record["pattern"] = re.sub(r"\$([a-zA-Z-_]+)", r"#\1#", record["pattern"])
+            record["pattern"] = re.sub(r"\$([a-zA-Z0-9-_]+)", r"#\1#", record["pattern"])
         return records
 
     def set_clustering_owner(self, params: dict):

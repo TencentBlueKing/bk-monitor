@@ -202,17 +202,23 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             )
             if "fpp_snapshot_id" in sync_info and sync_info["fpp_snapshot_id"] != "fpp:None":
                 snapshot_info = api.bkdata.get_incident_snapshot(snapshot_id=sync_info["fpp_snapshot_id"])
+            else:
+                snapshot_info = {
+                    "bk_biz_id": incident_info["bk_biz_id"],
+                    "incident_alerts": [{"id": alert_id} for alert_id in sync_info.get("scope", {}).get("alerts", [])],
+                    "rca_summary": {"bk_biz_ids": [incident_info["bk_biz_id"]]},
+                }
 
-                snapshot = IncidentSnapshotDocument(
-                    incident_id=sync_info["incident_id"],
-                    bk_biz_ids=sync_info["scope"]["bk_biz_ids"],
-                    status=incident_info["status"],
-                    alerts=sync_info["scope"]["alerts"],
-                    events=sync_info["scope"]["events"],
-                    create_time=sync_info["rca_time"],
-                    content=snapshot_info,
-                    fpp_snapshot_id=sync_info["fpp_snapshot_id"],
-                )
+            snapshot = IncidentSnapshotDocument(
+                incident_id=sync_info["incident_id"],
+                bk_biz_ids=sync_info["scope"]["bk_biz_ids"],
+                status=incident_info["status"],
+                alerts=sync_info["scope"]["alerts"],
+                events=sync_info["scope"]["events"],
+                create_time=sync_info["rca_time"],
+                content=snapshot_info,
+                fpp_snapshot_id=sync_info.get("fpp_snapshot_id") or "fpp:None",
+            )
 
             logger.info(f"[UPDATE]Success to init incident[{sync_info['incident_id']}] data")
         except IncidentNotFoundError as e:

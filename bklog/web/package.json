@@ -24,7 +24,7 @@
   "dependencies": {
     "@babel/helper-module-imports": "7.24.7",
     "@babel/runtime": "7.26.10",
-    "@blueking/ai-blueking": "1.2.6-beta.3",
+    "@blueking/ai-blueking": "1.3.0-beta.2",
     "@blueking/bk-user-display-name": "1.0.3-beta.5",
     "@blueking/bk-user-selector": "0.0.38-beta.5",
     "@blueking/bkmonitor-cli": "^7.0.1",

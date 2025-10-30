@@ -297,7 +297,7 @@ export default defineComponent({
           <div class='repository-search fr'>
             <bk-input
               data-test-id='storehouseContainer_input_searchTableItem'
-              placeholder={t('请输入仓库名称')}
+              placeholder={t('搜索 仓库名称')}
               right-icon='bk-icon icon-search'
               value={params.keyword}
               clearable
