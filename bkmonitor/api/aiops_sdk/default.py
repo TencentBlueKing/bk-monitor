@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.conf import settings
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
@@ -74,7 +75,7 @@ class SdkInitDependResource(APIResource):
 
 class TfSdkResource(SdkResource):
     # 时序预测远程访问地址
-    base_url = "http://bk-aiops-serving-tf:8000"
+    base_url = settings.AIOPS_SERVER_TF_URL
 
 
 class TfPredictResource(TfSdkResource, SdkPredictResource):
@@ -97,7 +98,7 @@ class TfGroupPredictResource(TfSdkResource, SdkGroupPredictResource):
 
 class KpiSdkResource(SdkResource):
     # 智能异常检测远程访问地址
-    base_url = "http://bk-aiops-serving-kpi:8000"
+    base_url = settings.AIOPS_SERVER_KPI_URL
 
 
 class BKFaraGrayMixin:
