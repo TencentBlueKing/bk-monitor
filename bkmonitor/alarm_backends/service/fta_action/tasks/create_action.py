@@ -806,7 +806,7 @@ class CreateActionProcessor:
                 setattr(alert, key, value)
             update_alerts.append(AlertDocument(**update_data))
         cached_alerts = [Alert(data=alert.to_dict()) for alert in self.alerts]
-        AlertCache.save_alert_to_cache(cached_alerts)
+        AlertCache.update_alert_to_cache(cached_alerts)
         AlertCache.save_alert_snapshot(cached_alerts)
         retry_times = 0
         while retry_times < 3:

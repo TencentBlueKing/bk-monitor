@@ -1070,6 +1070,71 @@ class AlertCache:
         pipeline.execute()
         return update_count, finished_count
 
+    # 仅id一致更新，否则跳过
+    @staticmethod
+    def update_alert_to_cache(alerts: list[Alert]):
+        alerts_to_saved = {}
+        for alert in alerts:
+            current_alert = alerts_to_saved.get(alert.dedupe_md5)
+            if not current_alert or alert.create_time > current_alert.create_time:
+                # 哪些告警需要刷新到缓存呢？
+                # 1. 从未出现过的维度
+                # 2. 维度已经出现过，但告警的创建时间更加新
+                alerts_to_saved[alert.dedupe_md5] = alert
+
+        update_count = 0
+        finished_count = 0
+        skip_count = 0
+
+        # 先获取现有缓存中的告警数据，检查ID是否一致
+        cache_keys = []
+        for alert in alerts_to_saved.values():
+            key = ALERT_DEDUPE_CONTENT_KEY.get_key(strategy_id=alert.strategy_id or 0, dedupe_md5=alert.dedupe_md5)
+            cache_keys.append((key, alert))
+
+        # 批量获取缓存中的数据
+        pipeline_get = ALERT_DEDUPE_CONTENT_KEY.client.pipeline(transaction=False)
+        for key, _value in cache_keys:
+            pipeline_get.get(key)
+        cached_data_list = pipeline_get.execute()
+
+        # 通过 pipeline 批量更新告警，只更新ID一致的告警
+        pipeline = ALERT_DEDUPE_CONTENT_KEY.client.pipeline(transaction=False)
+        for (key, alert), cached_data in zip(cache_keys, cached_data_list):
+            should_update = True
+
+            if cached_data:
+                try:
+                    cached_alert_data = Alert(data=json.loads(cached_data))
+                    cached_alert_id = cached_alert_data.id
+                    if cached_alert_id and cached_alert_id != alert.id:
+                        # 如果缓存中的告警ID与当前告警ID不一致，跳过更新
+                        should_update = False
+                        skip_count += 1
+                except (json.JSONDecodeError, KeyError) as e:
+                    # 如果解析失败，允许更新
+                    logger.warning("load alert failed: invalid json data: %s, origin data: %s", e, cached_data)
+                except Exception as e:
+                    # 其他异常，记录日志但允许更新
+                    logger.warning("load alert failed: %s, origin data: %s", e, cached_data)
+
+            if not should_update:
+                continue
+
+            if alert.is_end():
+                # 如果告警已经结束，不做删除，更新告警内容
+                finished_count += 1
+            else:
+                # 如果告警未结束就更新
+                update_count += 1
+            pipeline.set(key, json.dumps(alert.to_dict()), ALERT_DEDUPE_CONTENT_KEY.ttl)
+
+        pipeline.execute()
+        logger.debug(
+            "update_alert_to_cache: updated=%d, finished=%d, skipped=%d", update_count, finished_count, skip_count
+        )
+        return update_count, finished_count
+
     @staticmethod
     def save_alert_snapshot(alerts: list[Alert]):
         if not alerts:
