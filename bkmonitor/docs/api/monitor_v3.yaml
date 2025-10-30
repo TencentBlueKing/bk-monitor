@@ -2725,6 +2725,17 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
+  dest_path: /api/v4/service_web/service_config/
+  is_hidden: true
+  label: 【APM】应用下服务配置修改
+  label_en: update apm service config
+  name: apm_update_service_config
+  path: /v2/monitor_v3/apm/service/update_service_config/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
   dest_path: /api/v4/application_web/create_application/
   is_hidden: true
   label: 【APM】应用创建
