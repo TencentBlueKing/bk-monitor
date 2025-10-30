@@ -840,7 +840,7 @@ export default defineComponent({
               attrs: {
                 x: -w / 2 - 60,
                 y: comboxHeight / 2 + 14, // 定位在combo底部
-                width: w + 120,
+                width: w + 260,
                 height: 1,
                 fill: '#14161A',
               },
@@ -1309,22 +1309,24 @@ export default defineComponent({
             const prevBox = filterCombos[index - 1]?.getBBox();
             const padding = prevBox ? prevBox.y + prevBox.height : '';
             if (maxWidth > graphWidth) {
+              // 增加170的combo宽度，确保combo展开时不会挡在左侧标题栏
+              const mainWidth = maxWidth + 170;
               graph.updateItem(combo, {
-                size: [maxWidth, comboxHeight],
-                x: (maxWidth > graphWidth ? maxWidth : graphWidth) / 2 + 20,
+                size: [mainWidth, comboxHeight],
+                x: (maxWidth > graphWidth ? mainWidth : graphWidth) / 2,
                 y: bbox.height / 2 + Number(padding) + 5,
               });
               let shape = null;
               /** 宽度变化后修复左侧标题栏位置 */
               group.find((e): any => {
                 if (e.get('name') === 'resource-combo-count-text') {
-                  e.attr({ x: -maxWidth / 2 - 8 + (model.anomaly_count ? 10 : 0) });
+                  e.attr({ x: -maxWidth / 2 - 73 + (model.anomaly_count ? 10 : 0) });
                 } else if (e.get('name') === 'resource-combo-bg') {
-                  e.attr({ x: -maxWidth / 2 + 80 });
+                  e.attr({ x: -maxWidth / 2 + 15 });
                 } else if (e.get('name') === 'resource-combo-bottom-border') {
-                  e.attr({ x: -maxWidth / 2 - 60 });
+                  e.attr({ x: -maxWidth / 2 - 120 });
                 } else if (e.get('name') !== 'resource-combo-shape') {
-                  e.attr({ x: -maxWidth / 2 - 8 });
+                  e.attr({ x: -maxWidth / 2 - 73 });
                 } else {
                   shape = e;
                 }
@@ -1344,7 +1346,7 @@ export default defineComponent({
                 }
                 if (nodes.length === 1) {
                   graph.updateItem(node, {
-                    x: graphWidth / 2 + 80,
+                    x: graphWidth / 2 + 60,
                   });
                 }
               }
