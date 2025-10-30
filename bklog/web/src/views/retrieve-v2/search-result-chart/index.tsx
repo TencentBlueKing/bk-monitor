@@ -94,7 +94,7 @@ export default defineComponent({
     // 监听store中interval变化，自动同步到chartInterval
     watch(
       () => store.getters.retrieveParams.interval,
-      newVal => {
+      (newVal) => {
         chartInterval.value = newVal;
       },
       { immediate: true },
@@ -114,9 +114,9 @@ export default defineComponent({
     const beforePopoverHide = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (
-        ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default')) &&
-          target.closest('.bk-select-dropdown-content.bklog-popover-stop')) ||
-        target.classList.contains('bklog-popover-stop')
+        ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default'))
+          && target.closest('.bk-select-dropdown-content.bklog-popover-stop'))
+        || target.classList.contains('bklog-popover-stop')
       ) {
         return false;
       }
@@ -247,7 +247,7 @@ export default defineComponent({
       let localIsInit = true; // 添加初始化标志，控制图表首次渲染
 
       // 组装请求参数方法
-      const buildQueryParams = (start_time, end_time) => {
+      const buildQueryParams = (startTime, endTime) => {
         const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
         const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
         const queryData = {
@@ -255,17 +255,17 @@ export default defineComponent({
           addition: [...requestAddition.value, ...getCommonFilterAddition(store.state)],
           time_range: 'customized',
           interval: runningInterval,
-          start_time,
-          end_time,
+          start_time: startTime,
+          end_time: endTime,
         };
         if (isUnionSearch.value) {
           Object.assign(queryData, { index_set_ids: unionIndexList.value });
         }
         if (
-          gradeOptions.value &&
-          !gradeOptions.value.disabled &&
-          gradeOptions.value.type === 'custom' &&
-          gradeOptions.value.field
+          gradeOptions.value
+          && !gradeOptions.value.disabled
+          && gradeOptions.value.type === 'custom'
+          && gradeOptions.value.field
         ) {
           Object.assign(queryData, { group_field: gradeOptions.value.field });
         }
@@ -274,24 +274,24 @@ export default defineComponent({
 
       while (currentTimeStamp > startTimeStamp) {
         // 计算本轮请求结束时间
-        const end_time = requestInterval === 0 ? endTimeStamp : currentTimeStamp;
+        const endTime = requestInterval === 0 ? endTimeStamp : currentTimeStamp;
 
         // 计算本轮请求开始时间
-        let start_time = requestInterval === 0 ? startTimeStamp : end_time - requestInterval;
+        let startTime = requestInterval === 0 ? startTimeStamp : endTime - requestInterval;
 
         // 边界条件处理
-        if (start_time < startTimeStamp) {
-          start_time = startTimeStamp;
+        if (startTime < startTimeStamp) {
+          startTime = startTimeStamp;
         }
-        if (start_time < retrieveParams.value.start_time) {
-          start_time = retrieveParams.value.start_time;
+        if (startTime < retrieveParams.value.start_time) {
+          startTime = retrieveParams.value.start_time;
         }
-        if (start_time > end_time) {
+        if (startTime > endTime) {
           return;
         }
 
         // 获取请求参数
-        const params = buildQueryParams(start_time, end_time);
+        const params = buildQueryParams(startTime, endTime);
 
         if ((!isUnionSearch.value && !!params.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
           yield { ...params, isInit: localIsInit };
@@ -305,7 +305,7 @@ export default defineComponent({
           }
 
           // 如果已经到达起始时间，结束生成yield
-          if (start_time === startTimeStamp) {
+          if (startTime === startTimeStamp) {
             return;
           }
 
@@ -343,7 +343,7 @@ export default defineComponent({
       runningTimer && clearTimeout(runningTimer); // 清理上一次的定时器
 
       // 开始拉取新一轮趋势数据
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       runningTimer = setTimeout(async () => {
         finishPolling.value = false;
         // isInit = true;
@@ -374,7 +374,8 @@ export default defineComponent({
         RetrieveEvent.TREND_GRAPH_SEARCH,
         RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
         RetrieveEvent.INDEX_SET_ID_CHANGE,
-        RetrieveEvent.AUTO_REFRESH
+        RetrieveEvent.AUTO_REFRESH,
+        RetrieveEvent.SORT_LIST_CHANGED,
       ],
       loadTrendData,
     );
