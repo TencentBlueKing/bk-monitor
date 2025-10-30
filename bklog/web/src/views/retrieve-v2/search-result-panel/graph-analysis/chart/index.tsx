@@ -252,9 +252,33 @@ export default defineComponent({
     //   blobDownload(csvContent, filename);
     // };
     /**
+   * 检查浏览器是否支持 File System Access API
+   */
+    function supportsFileSystemAccess() {
+      return 'showSaveFilePicker' in window;
+    }
+    async function downloadWithBlob(response, filename) {
+      const blob = await response.blob();
+      // 创建下载链接
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+
+      // 清理
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      return { success: true, message: '文件下载完成' };
+    }
+    /**
   * 使用现代 File System Access API 下载（内存高效）
   */
-
     async function downloadWithFileSystemAPI(response, filename) {
       try {
         const fileHandle = await window.showSaveFilePicker({
@@ -315,8 +339,13 @@ export default defineComponent({
             'Content-Type': 'application/json', // 明确设置请求类型
             //  mode: 'cors',
           }
-        }).then(response => {
-          downloadWithFileSystemAPI(response, fileName)
+        }).then((response) => {
+          // 检查浏览器是否支持 File System Access API
+          if (supportsFileSystemAccess()) {
+            downloadWithFileSystemAPI(response, fileName);
+          } else {
+            downloadWithBlob(response, fileName)
+          }
         })
 
         // if (!response.ok) {
