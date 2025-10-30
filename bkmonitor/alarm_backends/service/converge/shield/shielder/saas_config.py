@@ -273,7 +273,7 @@ class HostShielder(BaseShielder):
         else:
             # 不是host类型告警也不是容器相关的，忽略，不做判断
             return False
-        bk_cloud_id = int(bk_cloud_id)
+        bk_cloud_id = int(bk_cloud_id or 0)
         host = HostManager.get(
             bk_tenant_id=str(self.alert.bk_tenant_id),
             ip=ip,

@@ -107,6 +107,14 @@ class TopoNode:
                 node_attrs[key] = value
         return node_attrs
 
+    def to_dict(self):
+        return {
+            "bk_obj_id": self.bk_obj_id,
+            "bk_inst_id": self.bk_inst_id,
+            "bk_obj_name": self.bk_obj_name,
+            "bk_inst_name": self.bk_inst_name,
+        }
+
 
 class Business(TopoNode):
     """
@@ -712,7 +720,7 @@ class ServiceInstance:
         self.bk_module_id = int(bk_module_id or 0)
         self.service_category_id = int(service_category_id or 0)
         self.labels = labels or {}
-        self.topo_link = {}
+        self.topo_link: dict[str, list[TopoNode]] = {}
 
         if topo_link:
             for node_id, nodes in topo_link.items():
@@ -748,7 +756,7 @@ class ServiceInstance:
             "bk_module_id": self.bk_module_id,
             "service_category_id": self.service_category_id,
             "labels": self.labels,
-            "topo_link": self.topo_link,
+            "topo_link": {node_id: [node.to_dict() for node in nodes] for node_id, nodes in self.topo_link.items()},
             **self._extra_attr,
         }
 
