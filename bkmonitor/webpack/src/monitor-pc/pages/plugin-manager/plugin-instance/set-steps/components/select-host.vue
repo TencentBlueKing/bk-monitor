@@ -41,7 +41,7 @@
         ref="selectInput"
         v-model.trim="keyword"
         class="body-search"
-        :placeholder="$t('输入')"
+        :placeholder="$t('搜索')"
         right-icon="bk-icon icon-search"
         clearable
         @input="handleKeywordChange"

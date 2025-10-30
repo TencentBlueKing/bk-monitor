@@ -887,6 +887,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
                 <bk-select
                   v-model={this.formData.dir}
                   placeholder={this.$t(`请选择${this.isCopyDashboard ? '目标目录' : '所属目录'}`)}
+                  search-placeholder={this.$t('请输入 关键字')}
                   searchable
                 >
                   {this.dirList.map(item => (

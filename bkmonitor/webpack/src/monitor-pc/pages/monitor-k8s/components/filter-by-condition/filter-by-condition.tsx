@@ -1255,7 +1255,7 @@ export default class FilterByCondition extends tsc<IProps> {
                       behavior='simplicity'
                       clearable={true}
                       left-icon='bk-icon icon-search'
-                      placeholder={this.$t('请输入关键字')}
+                      placeholder={this.$t('请输入 关键字')}
                       value={this.searchValue}
                       onChange={this.handleSearchChangeDebounce}
                       onEnter={this.handleSearchEnter}
