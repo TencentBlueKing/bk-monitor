@@ -25,7 +25,6 @@
 | type                   | str        | 否  | 类型，可选值为`instant`、`range`(默认)。                  |
 | series_num             | int        | 否  | 查询数据条数                                         |
 | not_time_align         | bool       | 否  | 是否不进行时间对齐，默认值为`false`                          |
-| time_alignment         | str        | 否  | 是否对齐时间窗口，默认值`true`                             |
 
 #### query_configs
 
@@ -82,7 +81,6 @@
   "expression": "a",
   "format": "time_series",
   "not_time_align": false,
-  "time_alignment": true,
   "query_configs": [
     {
       "data_source_label": "bk_monitor",
