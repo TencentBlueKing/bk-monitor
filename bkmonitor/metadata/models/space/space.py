@@ -56,6 +56,7 @@ class Space(BaseModel):
     time_zone = models.CharField("时区", max_length=32, default="Asia/Shanghai", help_text="时区，默认为Asia/Shanghai")
     language = models.CharField("默认语言", max_length=16, default="zh-hans", help_text="使用的语言")
     is_bcs_valid = models.BooleanField("BCS 是否可用", default=False)
+    is_global = models.BooleanField("跨业务管理可用", default=False)
 
     objects: ClassVar[SpaceManager] = SpaceManager()
 
