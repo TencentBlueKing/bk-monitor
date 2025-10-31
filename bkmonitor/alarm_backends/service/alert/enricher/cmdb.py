@@ -148,8 +148,8 @@ class CMDBEnricher(BaseEventEnricher):
                         event.drop()
                         return event
                     host = h
-                    if not host:
-                        logger.warning("[enrich_host] host not found for event(%s) target(%s)", event.id, event.target)
+            if not host:
+                logger.warning("[enrich_host] host not found for event(%s) target(%s)", event.id, event.target)
             event.set("target", f"{ip}|{bk_cloud_id}")
         else:
             # 存在IP和云区域
