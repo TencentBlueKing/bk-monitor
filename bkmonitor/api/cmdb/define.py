@@ -749,7 +749,7 @@ class ServiceInstance:
         return f"<ServiceInstance: {self.name}({self.service_instance_id})>"
 
     def to_dict(self):
-        return {
+        data = {
             "service_instance_id": self.service_instance_id,
             "name": self.name,
             "bk_host_id": self.bk_host_id,
@@ -759,6 +759,11 @@ class ServiceInstance:
             "topo_link": {node_id: [node.to_dict() for node in nodes] for node_id, nodes in self.topo_link.items()},
             **self._extra_attr,
         }
+        if hasattr(self, "ip"):
+            data["ip"] = self.ip
+        if hasattr(self, "bk_cloud_id"):
+            data["bk_cloud_id"] = self.bk_cloud_id
+        return data
 
 
 class ServiceCategoryNode:
