@@ -26,7 +26,7 @@ from bkmonitor.models import NO_DATA_TAG_DIMENSION, MetricListCache
 from bkmonitor.utils.range import load_agg_condition_instance
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
-from constants.data_source import TS_MAX_SLIMIT, DataSourceLabel
+from constants.data_source import TS_MAX_SLIMIT, DataSourceLabel, BK_LOG_SEARCH_GRAFANA_DATA_SOURCE_NAME
 from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
 from monitor_web.grafana.data_migrate import TimeSeriesPanel
@@ -1156,7 +1156,7 @@ class SaveToDashboard(Resource):
         )
 
         # datasource可以传名称或者UID，目前直接用名称
-        if panel_config.get("datasource", "") == "日志平台":
+        if panel_config.get("datasource", "") == BK_LOG_SEARCH_GRAFANA_DATA_SOURCE_NAME:
             for query in panel_config["queries"]:
                 for query_config in query["query_configs"]:
                     panel.targets.append({
