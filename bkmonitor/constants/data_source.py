@@ -46,10 +46,6 @@ DATA_SOURCE_LABEL_ALIAS={
 }
 
 
-# 仪表盘 日志平台数据源名称
-BK_LOG_SEARCH_GRAFANA_DATA_SOURCE_NAME = "日志平台"
-
-
 # 数据类型标签，例如：时序数据(time_series)，事件数据(event)，日志数据(log)
 class DataTypeLabel(object):
     TIME_SERIES = "time_series"
