@@ -345,9 +345,35 @@ export default class OptimizedHighlighter {
   }
 
   /**
+   * 检查文本是否匹配某个关键词
+   * @param text 要检查的文本
+   * @returns 匹配的关键词项，如果没有匹配则返回 null
+   */
+  private findMatchedKeyword(text: string): KeywordItem | null {
+    if (!text) {
+      return null;
+    }
+
+    const normalizedText = text.trim();
+    // 首先尝试精确匹配
+    const exactMatch = this.currentKeywords.find((k) => {
+      const normalizedKeyword = k.text.trim();
+      return normalizedText === normalizedKeyword || normalizedText.toLowerCase() === normalizedKeyword.toLowerCase();
+    });
+
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    // 如果没有精确匹配，尝试正则匹配
+    return this.currentKeywords.find(k => k.textReg.test(normalizedText)) || null;
+  }
+
+  /**
    * 处理连续的 mark 元素，统一应用颜色
-   * 当文本被拆分成多个 span 元素时（如 uin:838867826 被拆成 uin, :, 838867826），
+   * 当文本被拆分成多个 span 元素时（如 19:06:24 被拆成 19, :, 06, :, 24），
    * 需要检测连续的 mark 元素，组合它们的内容来匹配完整的关键字
+   * 对于独立的相邻关键词（如 INFO 和 Error），即使它们在 DOM 中连续，也应该分别处理
    * @param container 包含 mark 元素的容器
    */
   private processConsecutiveMarks(container: HTMLElement): void {
@@ -372,43 +398,132 @@ export default class OptimizedHighlighter {
       return 0;
     });
 
-    // 分组连续的 mark 元素
-    const consecutiveGroups: HTMLElement[][] = [];
-    let currentGroup: HTMLElement[] = [];
+    // 第一步：找出所有连续的区域（不考虑匹配）
+    const consecutiveRanges: Array<{ start: number; end: number }> = [];
+    let rangeStart = 0;
 
     for (let i = 0; i < sortedMarks.length; i++) {
-      const current = sortedMarks[i];
-      const previous = sortedMarks[i - 1];
-
-      if (i === 0 || this.areConsecutiveElements(previous, current)) {
-        currentGroup.push(current);
+      if (i === 0) {
+        rangeStart = 0;
       } else {
-        if (currentGroup.length > 0) {
-          consecutiveGroups.push([...currentGroup]);
+        const previous = sortedMarks[i - 1];
+        const current = sortedMarks[i];
+        if (!this.areConsecutiveElements(previous, current)) {
+          // 不连续，保存之前的范围
+          if (i > rangeStart) {
+            consecutiveRanges.push({ start: rangeStart, end: i - 1 });
+          }
+          rangeStart = i;
         }
-        currentGroup = [current];
       }
     }
-
-    if (currentGroup.length > 0) {
-      consecutiveGroups.push(currentGroup);
+    // 保存最后一个范围
+    if (rangeStart < sortedMarks.length) {
+      consecutiveRanges.push({ start: rangeStart, end: sortedMarks.length - 1 });
     }
 
-    // 处理每个连续的组
-    for (const group of consecutiveGroups) {
-      // 组合所有元素的文本内容
+    // 第二步：对每个连续范围进行智能分组（使用动态规划找到最优分组）
+    const finalGroups: HTMLElement[][] = [];
+
+    for (const range of consecutiveRanges) {
+      const rangeMarks = sortedMarks.slice(range.start, range.end + 1);
+      if (rangeMarks.length === 0) {
+        continue;
+      }
+
+      // 使用动态规划找到最优分组
+      // dp[i] 表示处理到第 i 个元素时的最优分组方案
+      interface DpState {
+        groups: HTMLElement[][];
+        matchedCount: number;
+        score: number; // 综合评分：匹配数量 + 优先级
+      }
+
+      const dp: DpState[] = [];
+      dp[0] = { groups: [], matchedCount: 0, score: 0 };
+
+      for (let i = 1; i <= rangeMarks.length; i++) {
+        let best: DpState = { groups: [], matchedCount: 0, score: -1 };
+
+        // 尝试所有可能的结束位置 j，将 [j, i) 作为一个组
+        for (let j = 0; j < i; j++) {
+          const group = rangeMarks.slice(j, i);
+          const groupText = group.map(el => el.textContent || '').join('');
+          const match = this.findMatchedKeyword(groupText);
+
+          const prevState = dp[j];
+          const newGroups: HTMLElement[][] = [...prevState.groups];
+          let newMatchedCount = prevState.matchedCount;
+          let newScore = prevState.score;
+
+          if (match) {
+            // 这个组能匹配一个关键词，加入分组
+            newGroups.push(group);
+            newMatchedCount += 1;
+            newScore += 10000; // 匹配的关键词优先级最高
+          } else {
+            // 这个组不能匹配
+            if (group.length === 1) {
+              // 单个元素
+              const singleMatch = this.findMatchedKeyword(group[0].textContent || '');
+              if (singleMatch) {
+                // 单个元素能匹配，加入分组
+                newGroups.push(group);
+                newMatchedCount += 1;
+                newScore += 10000;
+              } else {
+                // 单个元素不能匹配，也要加入（可能是分隔符等）
+                newGroups.push(group);
+              }
+            } else {
+              // 多个元素且不能匹配
+              // 检查是否每个元素单独都能匹配（独立关键词的情况）
+              const allSeparateMatch = group.every((el) => {
+                const elText = el.textContent || '';
+                return this.findMatchedKeyword(elText) !== null;
+              });
+
+              if (allSeparateMatch) {
+                // 每个元素单独都能匹配，应该分开处理
+                for (const el of group) {
+                  newGroups.push([el]);
+                }
+                newMatchedCount += group.length;
+                newScore += group.length * 10000;
+              } else {
+                // 不是所有元素都能单独匹配，可能是被拆分的关键词的一部分
+                // 暂时作为一个组，但不增加匹配计数（可能是部分匹配）
+                newGroups.push(group);
+                // 不增加匹配计数，也不增加评分
+              }
+            }
+          }
+
+          // 更新最佳方案：优先匹配数量，其次评分
+          if (
+            newMatchedCount > best.matchedCount
+            || (newMatchedCount === best.matchedCount && newScore > best.score)
+          ) {
+            best = {
+              groups: newGroups,
+              matchedCount: newMatchedCount,
+              score: newScore,
+            };
+          }
+        }
+
+        dp[i] = best;
+      }
+
+      // 将最优分组加入最终结果
+      finalGroups.push(...dp[rangeMarks.length].groups);
+    }
+
+    // 第三步：为每个组应用颜色
+    for (const group of finalGroups) {
       const combinedText = group.map(el => el.textContent || '').join('');
+      const matchedKeywordItem = this.findMatchedKeyword(combinedText);
 
-      // 查找匹配的关键字
-      const matchedKeywordItem =        this.currentKeywords.find((k) => {
-        const normalizedText = combinedText.trim();
-        const normalizedKeyword = k.text.trim();
-        return (
-          normalizedText === normalizedKeyword || normalizedText.toLowerCase() === normalizedKeyword.toLowerCase()
-        );
-      }) || this.currentKeywords.find(k => k.textReg.test(combinedText));
-
-      // 为组内所有元素应用相同的颜色
       if (matchedKeywordItem?.backgroundColor) {
         for (const element of group) {
           element.style.backgroundColor = matchedKeywordItem.backgroundColor;
