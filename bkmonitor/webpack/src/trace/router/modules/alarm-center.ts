@@ -32,9 +32,10 @@ export default [
     component: () => import(/* webpackChunkName: "alarm-center" */ '../../pages/alarm-center/alarm-center'),
   },
   {
-    path: '/alarm-center/detail/:id',
+    path: '/alarm-center/detail/:alarmId',
     name: 'alarm-center-detail',
+    props: true,
     component: () =>
-      import(/* webpackChunkName: "alarm-center-detail" */ '../../pages/alarm-center/alarm-center-detail'),
+      import(/* webpackChunkName: "alarm-center-detail" */ '../../pages/alarm-center/alarm-detail/alarm-detail-page'),
   },
 ] as RouteRecordRaw[];

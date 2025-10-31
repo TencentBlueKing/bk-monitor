@@ -35,7 +35,6 @@ import {
   watch,
 } from 'vue';
 
-import MonitorVue2 from '@blueking/monitor-vue2-components';
 import { Message } from 'bkui-vue';
 import { listApplicationInfo } from 'monitor-api/modules/apm_meta';
 import { listTraceViewConfig, traceGenerateQueryString } from 'monitor-api/modules/apm_trace';
@@ -919,11 +918,11 @@ export default defineComponent({
   render() {
     return (
       <div class='trace-explore'>
-        <MonitorVue2
+        {/* <MonitorVue2
           getMetricList={this.getMetricList}
           queryConfig={this.queryConfig}
           onSelectMetric={this.handleSelectMetric}
-        />
+        /> */}
         <div
           style={{ display: this.isShowFavorite ? 'block' : 'none' }}
           class='favorite-panel'

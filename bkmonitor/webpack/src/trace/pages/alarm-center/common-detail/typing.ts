@@ -23,19 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType } from 'vue';
+import type { IDimension } from '../typings';
 
-export default defineComponent({
-  name: 'PanelView',
-  props: {
-    id: String as PropType<string>,
-  },
-  setup(props) {
-    console.log(props.id);
-    return () => (
-      <div class='alarm-center-detail-panel-alarm'>
-        <div>hello alarm</div>
-      </div>
-    );
-  },
-});
+export interface AlarmShieldDetail {
+  alertId: string;
+  bkHostId?: number | string;
+  bkTopoNode?: IBkTopoNodeItem[];
+  dimension?: IDimension[];
+  hideBkTopoNodeTagIndex?: number;
+  hideDimensionTagIndex?: number;
+  isModified?: boolean;
+  severity: number;
+  shieldCheckedId?: string;
+  shieldRadioData?: IshieldRadioDataItem[];
+  trigger?: string;
+  strategy?: {
+    id?: number;
+    name?: string;
+  };
+}
+export interface IBkTopoNodeItem {
+  bk_inst_id: string;
+  bk_obj_id: string;
+  node_name?: string;
+}
+export interface IshieldRadioDataItem {
+  id: string;
+  name: string;
+}

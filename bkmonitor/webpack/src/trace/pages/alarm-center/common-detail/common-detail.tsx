@@ -36,6 +36,7 @@ import { ALARM_CENTER_PANEL_TAB_MAP } from '../utils/constant';
 import AlarmAlert from './components/alarm-alert';
 import AlarmConfirmDialog from './components/alarm-confirm-dialog';
 import AlarmInfo from './components/alarm-info';
+import AlarmView from './components/alarm-view/alarm-view';
 import PanelAlarm from './components/panel-alarm';
 import PanelContainer from './components/panel-container';
 import PanelEvent from './components/panel-event';
@@ -43,12 +44,11 @@ import PanelHost from './components/panel-host';
 import PanelLink from './components/panel-link';
 import PanelLog from './components/panel-log';
 import PanelMetric from './components/panel-metric';
-import PanelView from './components/panel-view';
 
-import './index.scss';
+import './common-detail.scss';
 
 export default defineComponent({
-  name: 'DetailCommon',
+  name: 'AlarmDetail',
   setup() {
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const { alarmDetail, loading, bizId, alarmId } = storeToRefs(alarmCenterDetailStore);
@@ -62,8 +62,8 @@ export default defineComponent({
 
     const getPanelComponent = () => {
       switch (currentPanel.value) {
-        case 'view':
-          return <PanelView />;
+        case ALARM_CENTER_PANEL_TAB_MAP.VIEW:
+          return <AlarmView />;
         case ALARM_CENTER_PANEL_TAB_MAP.LOG:
           return <PanelLog detail={alarmCenterDetailStore.alarmDetail} />;
         case ALARM_CENTER_PANEL_TAB_MAP.TRACE:
