@@ -33,7 +33,7 @@ import { mergeWhereList } from '../../components/retrieval-filter/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { getDefaultTimezone } from '../../i18n/dayjs';
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
-import AlarmCenterDetail from './alarm-center-detail';
+import AlarmCenterDetail from './alarm-detail/alarm-detail-sideslider';
 import AlarmAnalysis from './components/alarm-analysis/alarm-analysis';
 import AlarmCenterHeader from './components/alarm-center-header';
 import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retrieval-filter';

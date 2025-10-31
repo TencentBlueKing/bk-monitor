@@ -75,7 +75,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   };
 
   watch(
-    alarmId,
+    () => alarmId.value,
     newVal => {
       if (newVal && !loading.value) {
         getAlertDetailData(newVal);

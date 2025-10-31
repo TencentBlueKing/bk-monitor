@@ -23,17 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, watch } from 'vue';
+import { defineComponent, watch } from 'vue';
 
-import { Sideslider } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 
-import DetailCommon from '../detail-common';
+import DetailCommon from '../common-detail/common-detail';
 import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
-import './alarm-center-detail.scss';
+import './alarm-detail-page.scss';
 
 export default defineComponent({
   name: 'AlarmCenterDetail',
@@ -42,16 +41,10 @@ export default defineComponent({
       type: String,
       required: true,
     },
-    show: {
-      type: Boolean,
-      required: true,
-    },
   },
-  emits: ['update:show'],
-  setup(props, { emit }) {
-    const isFullscreen = shallowRef(false);
+  setup(props) {
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmId } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, alarmDetail } = storeToRefs(alarmCenterDetailStore);
 
     watch(
       () => props.alarmId,
@@ -62,39 +55,20 @@ export default defineComponent({
       },
       { immediate: true }
     );
-
-    const handleShowChange = (isShow: boolean) => {
-      emit('update:show', isShow);
-    };
-
     return {
-      isFullscreen,
-      handleShowChange,
+      alarmDetail,
     };
   },
   render() {
+    if (!this.alarmDetail) return null;
     return (
-      <Sideslider
-        width={this.isFullscreen ? '100%' : 1280}
-        v-slots={{
-          header: () => (
-            <EventDetailHead
-              isFullscreen={this.isFullscreen}
-              onToggleFullscreen={val => {
-                this.isFullscreen = val;
-              }}
-            />
-          ),
-          default: () => (
-            <div class='alarm-center-detail-wrapper'>
-              <DetailCommon />
-              <DiagnosticAnalysis />
-            </div>
-          ),
-        }}
-        isShow={this.show}
-        onUpdate:isShow={this.handleShowChange}
-      />
+      <div class='alarm-center-detail-page'>
+        <EventDetailHead isFullscreen={true} />
+        <div class='alarm-center-detail-page-content'>
+          <DetailCommon />
+          <DiagnosticAnalysis />
+        </div>
+      </div>
     );
   },
 });

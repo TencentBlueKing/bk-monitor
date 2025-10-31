@@ -30,8 +30,8 @@ import dayjs from 'dayjs';
 import { bulkAddAlertShield } from 'monitor-api/modules/shield';
 import { useI18n } from 'vue-i18n';
 
-import { type IDimension } from '../../typings';
-import { type AlarmShieldDetail, type IBkTopoNodeItem } from '../typeing';
+import type { IDimension } from '../../typings';
+import type { AlarmShieldDetail, IBkTopoNodeItem } from '../typing';
 
 import './quick-shield-dialog.scss';
 export default defineComponent({
