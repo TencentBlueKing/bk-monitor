@@ -100,6 +100,8 @@ export default class AlarmTemplateConfigDialog extends tsc<
 
   alarmGroupLoading = false;
 
+  connector = 'and';
+
   /** dialog 是否显示 */
   get dialogShow() {
     return this.templateId && ['algorithms', 'user_group_list'].includes(this.activeType);
@@ -158,6 +160,11 @@ export default class AlarmTemplateConfigDialog extends tsc<
     this.value = structuredClone(this.defaultValue || []);
   }
 
+  @Watch('row')
+  rowChange() {
+    this.connector = this.row?.detect?.connector || 'and';
+  }
+
   /**
    * @description 保存事件回调
    */
@@ -179,12 +186,19 @@ export default class AlarmTemplateConfigDialog extends tsc<
       .catch(() => {
         this.loading = false;
       });
-    this.$emit(
-      'confirm',
-      this.templateId,
-      { [this.activeType]: this.value },
-      { promiseEvent, successCallback, errorCallback }
-    );
+    let updateValue: Partial<AlarmTemplateListItem>;
+    if (this.activeType === 'algorithms') {
+      updateValue = {
+        [this.activeType]: this.value as AlarmTemplateListItem['algorithms'],
+        detect: {
+          ...this.row.detect,
+          connector: this.connector,
+        },
+      };
+    } else {
+      updateValue = { [this.activeType]: this.value as AlarmTemplateListItem['user_group_list'] };
+    }
+    this.$emit('confirm', this.templateId, updateValue, { promiseEvent, successCallback, errorCallback });
   }
 
   /**
@@ -217,6 +231,10 @@ export default class AlarmTemplateConfigDialog extends tsc<
     this.value = v;
   }
 
+  handleConnectorChange(val: string) {
+    this.connector = val;
+  }
+
   /**
    * @description 告警组选择事件回调
    */
@@ -237,8 +255,9 @@ export default class AlarmTemplateConfigDialog extends tsc<
           <AlgorithmRules
             algorithms={this.value as AlarmTemplateListItem['algorithms']}
             algorithmsUnit={(this.defaultValue as AlarmTemplateListItem['algorithms'])?.[0]?.unit_prefix}
-            connector={this.row?.detect?.connector}
+            connector={this.connector}
             onChange={this.handleDefaultChange}
+            onConnectorChange={this.handleConnectorChange}
           />
         );
       case 'user_group_list':
