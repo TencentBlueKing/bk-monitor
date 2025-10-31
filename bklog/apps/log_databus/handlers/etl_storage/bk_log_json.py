@@ -265,7 +265,12 @@ class BkLogJsonEtlStorage(EtlStorage):
         
         return {
             "rules": rules,
-            "filter_rules": []
+            "filter_rules": [],
+            "es_storage_config": {
+                "unique_field_list": built_in_config["option"]["es_unique_field_list"],
+                "timezone": 8
+            },
+            "doris_storage_config": None
         }
 
     def _to_bkdata_assign_json(self, field):
