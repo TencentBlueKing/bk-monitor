@@ -160,6 +160,9 @@ class HostManager(CMDBCacheManager):
         """
         :rtype: Host
         """
+        if not ip:
+            return None
+
         if not (using_mem or using_api):
             return cls._get(bk_tenant_id=bk_tenant_id, ip=ip, bk_cloud_id=bk_cloud_id)
 
@@ -216,10 +219,13 @@ class HostManager(CMDBCacheManager):
             return host
 
     @classmethod
-    def get_by_id(cls, *, bk_tenant_id: str, bk_host_id: int | str, using_mem=False) -> Host | None:
+    def get_by_id(cls, *, bk_tenant_id: str, bk_host_id: int | str | None, using_mem=False) -> Host | None:
         """
         :rtype: Host
         """
+        if not bk_host_id:
+            return None
+
         bk_host_id = str(bk_host_id)
 
         # 尝试从本地缓存中获取
