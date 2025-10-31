@@ -98,7 +98,7 @@ class ResultTable(models.Model):
     # 数据表标签，默认是其他类型
     label = models.CharField(verbose_name="结果表标签", max_length=128, default=Label.RESULT_TABLE_LABEL_OTHER)
     # 数据标签
-    data_label = models.CharField("数据标签", max_length=128, default="", null=True, blank=True)
+    data_label: str = models.CharField("数据标签", max_length=128, default="", null=True, blank=True)  # pyright: ignore [reportAssignmentType]
     is_builtin = models.BooleanField("是否内置", default=False)
     bk_biz_id_alias = models.CharField("业务ID别名", max_length=128, default="", null=True, blank=True)
 
@@ -1671,7 +1671,9 @@ class ResultTable(models.Model):
     def to_json(self):
         query_alias_settings = None
         if self.default_storage == ClusterInfo.TYPE_ES:
-            query_alias_settings = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+            query_alias_settings = ESFieldQueryAliasOption.generate_query_alias_settings(
+                bk_tenant_id=self.bk_tenant_id, table_id=self.table_id
+            )
         data = {
             "table_id": self.table_id,
             "bk_tenant_id": self.bk_tenant_id,
@@ -3172,7 +3174,7 @@ class ESFieldQueryAliasOption(BaseModel):
     is_deleted = models.BooleanField("是否已删除", default=False)
 
     @classmethod
-    def generate_query_alias_settings(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
+    def generate_query_alias_settings(cls, table_id: str, bk_tenant_id: str):
         """
         生成指定 table_id 的别名配置
         :param table_id: 结果表ID
@@ -3209,37 +3211,6 @@ class ESFieldQueryAliasOption(BaseModel):
                 str(e),
                 exc_info=True,
             )
-            raise
-
-    @classmethod
-    def generate_alias_path_type_settings(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
-        """
-        生成指定table_id的别名路径类型配置
-        :param table_id: 结果表ID
-        :param bk_tenant_id: 租户ID
-        :return: dict -> {field_path: path_type}
-        """
-        try:
-            alias_records = cls.objects.filter(table_id=table_id, is_deleted=False, bk_tenant_id=bk_tenant_id)
-
-            # 获取ResultTableField中的所有field_name
-            existing_field_names = set(
-                ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values_list(
-                    "field_name", flat=True
-                )
-            )
-
-            path_type_map = {
-                record.field_path: {
-                    "type": record.path_type,
-                }
-                for record in alias_records
-                if record.field_path
-                not in existing_field_names  # 只包括那些field_path不在ResultTableField中作为field_name的记录
-            }
-            return path_type_map
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("Error generating alias path type configuration for table_id->[%s],error->[%s]", table_id, e)
             raise
 
     @staticmethod
