@@ -308,7 +308,7 @@ class CloseStatusChecker(BaseChecker):
             else:
                 # 如果event的类型是HOST，但是没有ip和bk_cloud_id，说明数据补全存在问题，为了避免告警反复关闭导致告警风暴，这里不能进行告警关闭
                 logger.error(
-                    f"[close 处理结果] (closed) alert({alert.id}), strategy({alert.strategy_id}), "
+                    f"[close 处理结果] (skipped) alert({alert.id}), strategy({alert.strategy_id}), "
                     f"event类型为HOST，但是没有ip和bk_cloud_id，说明数据补全存在问题，为了避免告警反复关闭导致告警风暴，这里不能进行告警关闭"
                 )
                 return False
