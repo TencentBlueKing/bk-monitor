@@ -1827,6 +1827,17 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
+  dest_path: /api/v4/alert/alert/close/
+  is_hidden: true
+  label: 关闭告警
+  label_en: close alert
+  name: close_alert
+  path: /v2/monitor_v3/close_alert/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
   dest_path: /api/v4/action_config/save/
   is_hidden: false
   label: 保存处理套餐
@@ -2758,6 +2769,17 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
+  dest_path: /api/v4/service_web/service_config/
+  is_hidden: true
+  label: 【APM】应用下服务配置修改
+  label_en: update apm service config
+  name: apm_update_service_config
+  path: /v2/monitor_v3/apm/service/update_service_config/
+  suggest_method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
   dest_path: /api/v4/application_web/create_application/
   is_hidden: true
   label: 【APM】应用创建
@@ -2798,6 +2820,39 @@
   name: apm_check_duplicate_app_name
   path: /v2/monitor_v3/apm/check_duplicate_app_name/
   method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /api/v4/application_web/list_application_info/
+  is_hidden: true
+  label: 【APM】应用列表详情查询
+  label_en: apm list application info
+  name: apm_application_info
+  path: /v2/monitor_v3/apm/list_application_info/
+  suggest_method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/trace_query_web/list_traces/
+  is_hidden: true
+  label: 【APM】trace 列表查询
+  label_en: trace query list traces
+  name: trace_query_list_traces
+  path: /v2/monitor_v3/trace_query/list_traces/
+  suggest_method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /api/v4/trace_query_web/list_spans/
+  is_hidden: true
+  label: 【APM】span 列表查询
+  label_en: trace query list spans
+  name: trace_query_list_spans
+  path: /v2/monitor_v3/trace_query/list_spans/
+  suggest_method: POST
 
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component

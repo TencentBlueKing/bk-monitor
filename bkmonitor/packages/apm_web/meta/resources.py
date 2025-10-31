@@ -218,6 +218,7 @@ class CreateApplicationResource(Resource):
             data = super().to_representation(instance)
             application = Application.objects.filter(application_id=instance.application_id).first()
             data["plugin_config"] = application.plugin_config
+            data["es_storage_index_name"] = instance.trace_result_table_id.replace(".", "_")
             return data
 
     def perform_request(self, validated_request_data):
@@ -287,6 +288,13 @@ class ListApplicationInfoResource(Resource):
             ref_name = "list_application_info"
             model = Application
             fields = "__all__"
+
+        def to_representation(self, instance):
+            data = super(ListApplicationInfoResource.ApplicationInfoResponseSerializer, self).to_representation(instance)
+            data["es_storage_index_name"] = instance.trace_result_table_id.replace(".", "_")
+            config_dict = {config.config_key: config.config_value for config in instance.get_all_config()}
+            data.update(config_dict)
+            return data
 
     def perform_request(self, validated_request_data):
         # 过滤掉没有 metricTable 和 traceTable 的应用(接入中应用)
