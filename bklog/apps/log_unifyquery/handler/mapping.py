@@ -173,6 +173,12 @@ class UnifyQueryMappingHandler:
     def get_final_fields(self):
         """获取最终字段"""
         fields_result = self.get_all_index_fields()
+        if not fields_result:
+            # 如果一个字段都不存在，就用快照字段兜底
+            if self.index_set.fields_snapshot:
+                return self.index_set.fields_snapshot.get("fields", [])
+            return []
+
         fields_list: list = [
             {
                 "field_type": field["field_type"],
