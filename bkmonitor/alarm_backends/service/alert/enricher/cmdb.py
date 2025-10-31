@@ -148,6 +148,8 @@ class CMDBEnricher(BaseEventEnricher):
                         event.drop()
                         return event
                     host = h
+            if not host:
+                logger.warning("[enrich_host] host not found for event(%s) target(%s)", event.id, event.target)
             event.set("target", f"{ip}|{bk_cloud_id}")
         else:
             # 存在IP和云区域
@@ -157,7 +159,7 @@ class CMDBEnricher(BaseEventEnricher):
 
         # 主机信息找不到
         if not host:
-            logger.warning("[enrich_host] host not found for event(%s) target(%s)", event.id, event.target)
+            # logger.warning("[enrich_host] host not found for event(%s) target(%s)", event.id, event.target)
             if event.bk_biz_id is None:
                 # 如果事件也没有提供业务，则丢弃
                 logger.warning("[enrich_host] biz is empty for host target(%s)", event.target)
