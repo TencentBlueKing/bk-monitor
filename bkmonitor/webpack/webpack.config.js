@@ -139,7 +139,7 @@ module.exports = async (baseConfig, { production, app }) => {
         ...vueAlias,
       },
     },
-    devtool: 'source-map',
+    devtool: production ? false : 'source-map',
     cache: production ? false : config.cache,
   };
 };
