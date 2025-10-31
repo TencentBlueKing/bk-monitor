@@ -1154,7 +1154,7 @@ class SaveToDashboard(Resource):
             min_y=0 if panel_config["min_y_zero"] else None,
             fill_opacity=50 if panel_config["fill"] else 0,
             draw_style="line",
-            datasource=panel_config["datasource"],
+            datasource=panel_config.get("datasource"),
         )
 
         # datasource可以传名称或者UID，目前直接用名称
