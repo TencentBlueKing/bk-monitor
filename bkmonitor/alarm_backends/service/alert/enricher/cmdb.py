@@ -64,8 +64,10 @@ class CMDBEnricher(BaseEventEnricher):
 
         # 根据IP+云区域ID获取主机
         self.hosts_cache: dict[str, dict[str, Host]] = defaultdict(dict)
-        for bk_tenant_id, hosts in tenant_hosts.items():
-            hosts = list(hosts) + [host for host in chain(*list(self.ip_cache[bk_tenant_id].values()))]
+        for bk_tenant_id in set(tenant_hosts.keys()) | set(self.ip_cache.keys()):
+            hosts = list(tenant_hosts.get(bk_tenant_id, [])) + [
+                host for host in chain(*list(self.ip_cache[bk_tenant_id].values()))
+            ]
             self.hosts_cache[bk_tenant_id] = HostManager.mget(bk_tenant_id=bk_tenant_id, host_keys=hosts)
 
     def get_host_by_ip(self, bk_tenant_id: str, ip: str):
