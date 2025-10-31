@@ -36,7 +36,7 @@ export type ObserverPriority = 'order' | 'visible-first';
 export interface ChunkSizeConfig {
   auto?: { maxTextLength: number };
   fixed?: { nodesPerChunk: number };
-  custom?: (elements: Element[]) => Element[];
+  custom?: (_elements: Element[]) => Element[];
 }
 
 export interface ObserverConfig {
@@ -333,6 +333,131 @@ export default class OptimizedHighlighter {
     this.isProcessing = false;
   }
 
+  /**
+   * 检查关键字是否包含可能导致 mark.js 拆分的特殊字符
+   * @param keyword 关键字
+   * @returns 是否包含特殊字符
+   */
+  private hasSpecialChars(keyword: string): boolean {
+    // 检查是否包含可能被 mark.js 当作单词边界处理的字符
+    // 包括 : - _ 等，这些字符可能导致关键字被拆分成多个部分
+    return /[:;_-]/.test(keyword);
+  }
+
+  /**
+   * 处理连续的 mark 元素，统一应用颜色
+   * 当文本被拆分成多个 span 元素时（如 uin:838867826 被拆成 uin, :, 838867826），
+   * 需要检测连续的 mark 元素，组合它们的内容来匹配完整的关键字
+   * @param container 包含 mark 元素的容器
+   */
+  private processConsecutiveMarks(container: HTMLElement): void {
+    if (!container) {
+      return;
+    }
+
+    const markElements = Array.from(container.querySelectorAll('mark')) as HTMLElement[];
+    if (markElements.length === 0) {
+      return;
+    }
+
+    // 按 DOM 顺序排序
+    const sortedMarks = markElements.sort((a, b) => {
+      const position = a.compareDocumentPosition(b);
+      if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
+        return -1;
+      }
+      if (position & Node.DOCUMENT_POSITION_PRECEDING) {
+        return 1;
+      }
+      return 0;
+    });
+
+    // 分组连续的 mark 元素
+    const consecutiveGroups: HTMLElement[][] = [];
+    let currentGroup: HTMLElement[] = [];
+
+    for (let i = 0; i < sortedMarks.length; i++) {
+      const current = sortedMarks[i];
+      const previous = sortedMarks[i - 1];
+
+      if (i === 0 || this.areConsecutiveElements(previous, current)) {
+        currentGroup.push(current);
+      } else {
+        if (currentGroup.length > 0) {
+          consecutiveGroups.push([...currentGroup]);
+        }
+        currentGroup = [current];
+      }
+    }
+
+    if (currentGroup.length > 0) {
+      consecutiveGroups.push(currentGroup);
+    }
+
+    // 处理每个连续的组
+    for (const group of consecutiveGroups) {
+      // 组合所有元素的文本内容
+      const combinedText = group.map(el => el.textContent || '').join('');
+
+      // 查找匹配的关键字
+      const matchedKeywordItem =        this.currentKeywords.find((k) => {
+        const normalizedText = combinedText.trim();
+        const normalizedKeyword = k.text.trim();
+        return (
+          normalizedText === normalizedKeyword || normalizedText.toLowerCase() === normalizedKeyword.toLowerCase()
+        );
+      }) || this.currentKeywords.find(k => k.textReg.test(combinedText));
+
+      // 为组内所有元素应用相同的颜色
+      if (matchedKeywordItem?.backgroundColor) {
+        for (const element of group) {
+          element.style.backgroundColor = matchedKeywordItem.backgroundColor;
+        }
+      }
+    }
+  }
+
+  /**
+   * 判断两个元素是否连续（相邻）
+   * @param el1 第一个元素
+   * @param el2 第二个元素
+   * @returns 是否连续
+   */
+  private areConsecutiveElements(el1: HTMLElement, el2: HTMLElement): boolean {
+    // 检查是否是同一个父元素的相邻子节点
+    if (el1.parentElement === el2.parentElement) {
+      let node = el1.nextSibling;
+      while (node) {
+        if (node === el2) {
+          return true;
+        }
+        // 跳过文本节点（即使包含非空白字符，只要不是其他元素节点就继续）
+        if (node.nodeType === Node.TEXT_NODE) {
+          node = node.nextSibling;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          // 如果是 mark 元素，继续查找（因为可能跨多个 mark 元素）
+          if ((node as HTMLElement).tagName === 'MARK') {
+            node = node.nextSibling;
+          } else {
+            // 遇到非 mark 元素节点，说明不连续
+            break;
+          }
+        } else {
+          break;
+        }
+      }
+    }
+
+    // 如果 el1 和 el2 不在同一个父元素下，检查 el1 的最后一个文本节点是否紧接着 el2
+    // 这种情况可能发生在跨元素匹配时
+    const range = document.createRange();
+    range.setStartAfter(el1);
+    range.setEndBefore(el2);
+    const text = range.toString();
+    // 如果两个元素之间的文本只包含空白字符或空，则认为连续
+    return !text || !text.trim();
+  }
+
   private instanceExecMark(instance: Mark, resolve?: () => void): void {
     if (this.regExpMark) {
       const flag = this.caseSensitive ? 'g' : 'gi';
@@ -357,13 +482,105 @@ export default class OptimizedHighlighter {
       return;
     }
 
+    // 检查是否有包含特殊字符的关键字
+    const hasSpecialCharKeywords = this.markKeywords.some(keyword => this.hasSpecialChars(keyword));
+
+    // 如果有包含特殊字符的关键字，使用正则表达式模式来确保完整匹配
+    if (hasSpecialCharKeywords) {
+      const flag = this.caseSensitive ? 'g' : 'gi';
+
+      // 将多个关键字合并成一个正则表达式，使用 | 分隔
+      // 使用命名捕获组来标识匹配的关键字
+      // 手动转义特殊字符，确保完整匹配（不拆分）
+      const combinedPattern = this.currentKeywords
+        .map((keywordItem, index) => {
+          const escapedKeyword = keywordItem.text.replace(/([.*+?^${}()|[\]\\])/g, '\\$1');
+          return `(?<keyword${index}>${escapedKeyword})`;
+        })
+        .join('|');
+
+      const combinedRegex = new RegExp(combinedPattern, flag);
+
+      instance.markRegExp(combinedRegex, {
+        element: 'mark',
+        exclude: ['mark'],
+        acrossElements: true,
+        done: () => {
+          // 在所有标记完成后，处理连续的 mark 元素
+          // 从 sections 中查找对应的容器元素
+          let container: HTMLElement | null = null;
+          for (const section of this.sections) {
+            const chunk = this.chunkMap.get(section);
+            if (chunk?.instance === instance) {
+              container = section;
+              break;
+            }
+          }
+
+          // 如果找不到，尝试从第一个 mark 元素获取容器
+          // 检查 instance.context 是否存在，可能在处理过程中 DOM 已被移除或替换
+          if (!container && instance.context) {
+            const firstMark = instance.context.querySelector('mark') as HTMLElement;
+            if (firstMark) {
+              container = (firstMark.closest('[data-chunk-id]') as HTMLElement) || (instance.context as HTMLElement);
+            } else {
+              // 如果找不到 mark 元素，使用 context 本身作为容器
+              container = instance.context as HTMLElement;
+            }
+          }
+
+          if (container) {
+            this.processConsecutiveMarks(container);
+          }
+          resolve?.();
+        },
+        each: (element: HTMLElement) => {
+          if (element.parentElement?.classList.contains('valid-text')) {
+            element.classList.add('valid-text');
+          }
+
+          // 初始颜色设置，后续会在 processConsecutiveMarks 中统一处理
+          const matchedText = element.textContent || '';
+          const matchedKeywordItem = this.currentKeywords.find((k) => {
+            const normalizedText = matchedText.trim();
+            const normalizedKeyword = k.text.trim();
+            return (
+              normalizedText === normalizedKeyword || normalizedText.toLowerCase() === normalizedKeyword.toLowerCase()
+            );
+          });
+
+          const keywordItem = matchedKeywordItem || this.currentKeywords.find(k => k.textReg.test(matchedText));
+
+          if (keywordItem?.backgroundColor) {
+            element.style.backgroundColor = keywordItem.backgroundColor;
+          }
+        },
+      });
+
+      return;
+    }
+
+    // 没有特殊字符时，使用原来的字符串匹配方式
     instance.mark(this.markKeywords, {
       element: 'mark',
       exclude: ['mark'],
       caseSensitive: this.caseSensitive ?? false,
       accuracy: this.accuracy ?? 'partially',
       acrossElements: true,
-      done: resolve ?? (() => {}),
+      done: () => {
+        // 在所有标记完成后，处理连续的 mark 元素
+        // 获取容器元素（通过查找第一个 mark 元素的根容器）
+        // 检查 instance.context 是否存在，可能在处理过程中 DOM 已被移除或替换
+        if (instance.context) {
+          const firstMark = instance.context.querySelector('mark') as HTMLElement;
+          if (firstMark) {
+            // 获取包含所有 mark 元素的容器
+            const container = instance.context as HTMLElement;
+            this.processConsecutiveMarks(container);
+          }
+        }
+        resolve?.();
+      },
       each: (element: HTMLElement) => {
         if (element.parentElement?.classList.contains('valid-text')) {
           element.classList.add('valid-text');
@@ -381,12 +598,29 @@ export default class OptimizedHighlighter {
       return Promise.resolve();
     }
 
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       this.instanceExecMark(instance, resolve);
     });
   }
 
   private getBackgroundColor(keyword: string): string {
+    if (!keyword) {
+      return '';
+    }
+
+    // 首先尝试精确匹配（文本内容与关键字文本完全相等）
+    const exactMatch = this.currentKeywords.find((k) => {
+      const normalizedText = keyword.trim();
+      const normalizedKeyword = k.text.trim();
+      return normalizedText === normalizedKeyword || normalizedText.toLowerCase() === normalizedKeyword.toLowerCase();
+    });
+
+    if (exactMatch) {
+      return exactMatch.backgroundColor;
+    }
+
+    // 如果没有精确匹配，按关键字在数组中的顺序查找第一个匹配的正则表达式
+    // 这样可以保持用户输入的顺序，确保颜色匹配的一致性
     return this.currentKeywords.find(k => k.textReg.test(keyword))?.backgroundColor || '';
   }
 
