@@ -706,7 +706,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         <div
           class='edit-btn'
           onClick={() =>
-            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value, row })
           }
         >
           <i class='icon-monitor icon-bianji' />
@@ -727,7 +727,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
               <div
                 class='edit-btn'
                 onClick={() =>
-                  this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+                  this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value, row })
                 }
               >
                 <i class='icon-monitor icon-bianji' />
@@ -916,6 +916,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
           <AlarmTemplateConfigDialog
             activeType={this.templateDialogConfig?.activeType}
             defaultValue={this.templateDialogConfig?.defaultValue}
+            row={this.templateDialogConfig?.row}
             templateId={this.templateDialogConfig?.templateId}
             onCancel={() => this.handleDialogConfigChange(null)}
             onConfirm={this.handleBatchUpdate}

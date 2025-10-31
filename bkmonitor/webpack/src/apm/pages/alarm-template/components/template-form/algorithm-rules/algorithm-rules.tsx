@@ -215,8 +215,10 @@ export default class AlgorithmRules extends tsc<AlgorithmRulesProps, AlgorithmRu
         break;
       }
     }
-    this.isShowAlgorithmsSelect = false;
     this.handleAlgorithmsChange();
+    setTimeout(() => {
+      this.isShowAlgorithmsSelect = false;
+    }, 16);
   }
 
   /** 静态阈值规则变更 */
@@ -230,6 +232,8 @@ export default class AlgorithmRules extends tsc<AlgorithmRulesProps, AlgorithmRu
     this.localAlgorithms[index] = val;
     this.handleAlgorithmsChange();
   }
+
+  handleShowAlgorithmsSelect() {}
 
   mounted() {
     this.init();

@@ -74,13 +74,13 @@ export default class DetectionAlgorithm extends tsc<DetectionAlgorithmProps> {
       case AlgorithmEnum.YearRoundAndRingRatio:
         return (
           <div class='year-round-and-ring-ratio-algorithm-content'>
-            (
+            {index > 0 && '('}
             <i18n path='{0}上升{1}%或下降{2}%'>
               <span>{YEAR_ROUND_AND_RING_RATION_ALGORITHM_MAP[algorithm.config.method]}</span>
               <span class='bold'>{algorithm.config.ceil}</span>
               <span class='bold'>{algorithm.config.floor}</span>
             </i18n>
-            )
+            {index > 0 && ')'}
           </div>
         );
       default:

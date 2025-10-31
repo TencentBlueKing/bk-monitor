@@ -57,6 +57,8 @@ export interface AlarmTemplateConfigDialogProps {
   activeType: 'algorithms' | 'user_group_list';
   /** 默认值 */
   defaultValue: AlarmTemplateListItem['algorithms'] | AlarmTemplateListItem['user_group_list'];
+  /** 当前行数据 */
+  row: AlarmTemplateListItem;
   /** 当前操作的模板 id */
   templateId: AlarmTemplateListItem['id'];
 }
@@ -85,6 +87,7 @@ export default class AlarmTemplateConfigDialog extends tsc<
     | AlarmTemplateListItem['user_group_list'];
   /** 当前操作的模板 id */
   @Prop({ type: Number }) templateId: AlarmTemplateListItem['id'];
+  @Prop({ type: Object }) row: AlarmTemplateListItem;
 
   @Ref('form') formRef;
 
@@ -234,6 +237,7 @@ export default class AlarmTemplateConfigDialog extends tsc<
           <AlgorithmRules
             algorithms={this.value as AlarmTemplateListItem['algorithms']}
             algorithmsUnit={(this.defaultValue as AlarmTemplateListItem['algorithms'])?.[0]?.unit_prefix}
+            connector={this.row?.detect?.connector}
             onChange={this.handleDefaultChange}
           />
         );
