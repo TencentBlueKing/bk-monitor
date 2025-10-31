@@ -27,6 +27,8 @@
 import { type PropType, defineComponent, onMounted, shallowRef, useTemplateRef } from 'vue';
 
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
+import { Message } from 'bkui-vue';
+import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 
@@ -82,7 +84,11 @@ export default defineComponent({
     const expandedRowKeys = shallowRef([]);
     const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row }): any => {
       return (
-        <div>
+        <div class='table-expand-content'>
+          <span
+            class='icon-monitor icon-mc-copy'
+            onClick={() => handleCopy(row.source)}
+          />
           <JsonPretty data={row.source} />
         </div>
       );
@@ -120,6 +126,20 @@ export default defineComponent({
     function handleExpandChange(keys: (number | string)[]) {
       console.log(keys);
       expandedRowKeys.value = keys;
+    }
+
+    function handleCopy(value: Record<string, any>) {
+      copyText(JSON.stringify(value), msg => {
+        Message({
+          message: msg,
+          theme: 'error',
+        });
+        return;
+      });
+      Message({
+        message: t('复制成功'),
+        theme: 'success',
+      });
     }
 
     return {
