@@ -27,6 +27,7 @@ import { type PropType, defineComponent, shallowReactive } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Button } from 'bkui-vue';
+import { EMode } from 'trace/components/retrieval-filter/typing';
 import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
 
@@ -51,8 +52,12 @@ export default defineComponent({
     const { t } = useI18n();
     const { getIndexSetList, updateTableData, resetTableData } = useAlarmLog(props.detail);
     const selectLoading = shallowRef(false);
+    /** 索引集列表 */
     const indexSetList = shallowRef([]);
+    const relatedBkBizId = shallowRef(-1);
+    /** 选中的索引集ID */
     const selectIndexSet = shallowRef<number | string>('');
+    /** 表格数据 */
     const tableData = shallowReactive({
       data: [],
       total: 0,
@@ -60,17 +65,28 @@ export default defineComponent({
       limit: 30,
       offset: 0,
     });
+    const keyword = shallowRef('');
+    const filterMode = shallowRef<EMode>(EMode.ui);
+    /** 表格加载状态 */
     const tableLoading = shallowRef(false);
+    /** 滚动加载状态 */
     const scrollLoading = shallowRef(false);
 
     async function init() {
       selectLoading.value = true;
-      indexSetList.value = await getIndexSetList();
+      tableLoading.value = true;
+      const data = await getIndexSetList();
+      relatedBkBizId.value = data?.relatedBkBizId || -1;
+      indexSetList.value = data?.relatedIndexSetList || [];
       selectIndexSet.value = indexSetList.value[0]?.index_set_id || '';
       selectLoading.value = false;
       getTableData();
     }
 
+    /**
+     * 获取日志列表
+     * @param params
+     */
     async function getTableData(
       params = {
         limit: tableData.limit,
@@ -87,7 +103,7 @@ export default defineComponent({
 
       const data = await updateTableData({
         index_set_id: selectIndexSet.value,
-        keyword: '',
+        keyword: keyword.value,
         limit: tableData.limit,
         offset: tableData.offset,
       });
@@ -101,6 +117,10 @@ export default defineComponent({
       }
     }
 
+    /**
+     * 切换索引集
+     * @param indexSetId 索引集ID
+     */
     function handleChangeIndexSet(indexSetId: number | string) {
       selectIndexSet.value = indexSetId;
       resetTableData();
@@ -110,8 +130,51 @@ export default defineComponent({
       });
     }
 
+    /**
+     * 日志列表滚动加载
+     * @param params
+     */
     function handleTableScroll(params: { limit: number; offset: number }) {
       getTableData(params);
+    }
+
+    /**
+     * 跳转日志搜索页
+     */
+    function handleGoLog() {
+      const url = `${window.bk_log_search_url}#/retrieve/${selectIndexSet.value}?bizId=${props.detail?.bk_biz_id || (relatedBkBizId.value === -1 ? window.cc_biz_id : relatedBkBizId.value)}`;
+      window.open(url, '_blank');
+    }
+
+    /**
+     * 日志搜索
+     */
+    function handleSearch() {
+      resetTableData();
+      getTableData({
+        limit: tableData.limit,
+        offset: 0,
+      });
+    }
+
+    /**
+     * 日志搜索关键词改变
+     * @param queryString 关键词
+     */
+    function handleQueryStringChange(queryString: string) {
+      keyword.value = queryString;
+    }
+
+    /**
+     * 日志搜索模式改变
+     * @param mode 模式
+     */
+    function handleModeChange(mode: EMode) {
+      filterMode.value = mode;
+      if (mode === EMode.ui) {
+        keyword.value = '';
+      }
+      handleSearch();
     }
 
     init();
@@ -123,9 +186,15 @@ export default defineComponent({
       tableLoading,
       selectLoading,
       scrollLoading,
+      keyword,
+      filterMode,
       handleChangeIndexSet,
       t,
       handleTableScroll,
+      handleGoLog,
+      handleSearch,
+      handleQueryStringChange,
+      handleModeChange,
     };
   },
   render() {
@@ -145,13 +214,21 @@ export default defineComponent({
             class='ml-16'
             theme='primary'
             text
+            onClick={this.handleGoLog}
           >
             <span>{this.t('更多日志')}</span>
             <span class='icon-monitor icon-fenxiang ml-5' />
           </Button>
         </div>
         <div class='panel-log-filter'>
-          <RetrievalFilter zIndex={4000} />
+          <RetrievalFilter
+            filterMode={this.filterMode}
+            queryString={this.keyword}
+            zIndex={4000}
+            onModeChange={this.handleModeChange}
+            onQueryStringChange={this.handleQueryStringChange}
+            onSearch={this.handleSearch}
+          />
         </div>
         {this.tableLoading ? (
           <TableSkeleton type={4} />

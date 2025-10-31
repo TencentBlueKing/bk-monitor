@@ -67,6 +67,7 @@ export function useAlarmLog(detail: AlarmDetail) {
   let sceneViewData = null;
   let timeRange = [];
   let tableData = [];
+  let relatedBkBizId = -1;
 
   async function getSceneData() {
     variables = {
@@ -107,10 +108,35 @@ export function useAlarmLog(detail: AlarmDetail) {
     return data;
   }
   async function getIndexSetList() {
-    let relatedIndexSetList = [];
     if (!sceneViewData) {
       sceneViewData = await getSceneData();
     }
+    let predicateLogData = null;
+    const predicateLogTarget = sceneViewData?.overview_panels?.[0]?.targets?.find(
+      item => item.dataType === 'log_predicate'
+    );
+    if (predicateLogTarget) {
+      const variablesService = new VariablesService({
+        ...viewOptions,
+      });
+      const apiStr = predicateLogTarget?.api || '';
+      const apiFunc = apiStr?.split('.')[1] || '';
+      const apiModule = apiStr?.split('.')[0] || '';
+      const payload = variablesService.transformVariables(predicateLogTarget.data);
+      predicateLogData = await api[apiModule]?.[apiFunc](payload, {
+        needMessage: false,
+      })
+        .then(res => {
+          return res;
+        })
+        .catch(() => null);
+    }
+    if (!predicateLogData) {
+      return null;
+    }
+    relatedBkBizId = predicateLogData?.related_bk_biz_id || -1;
+    let relatedIndexSetList = [];
+
     const curTarget = sceneViewData?.overview_panels?.[0]?.targets?.find(item => item.dataType === 'condition');
     if (curTarget) {
       const apiStr = curTarget?.api || '';
@@ -127,7 +153,10 @@ export function useAlarmLog(detail: AlarmDetail) {
         return res || [];
       });
     }
-    return relatedIndexSetList;
+    return {
+      relatedIndexSetList,
+      relatedBkBizId,
+    };
   }
 
   async function updateTableData(_params: {
