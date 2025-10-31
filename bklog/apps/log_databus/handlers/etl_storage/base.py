@@ -112,7 +112,7 @@ class EtlStorage:
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):
         raise NotImplementedError(_("功能暂未实现"))
 
-    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X"):
+    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X", bk_biz_id=None):
         """
         配置清洗入库策略，需兼容新增、编辑
         """
@@ -884,7 +884,8 @@ class EtlStorage:
             sort_fields=sort_fields,
             target_fields=target_fields,
         )
-        result_table_config = self.get_result_table_config(fields, etl_params, built_in_config, es_version=es_version)
+        result_table_config = self.get_result_table_config(fields, etl_params, built_in_config,
+                                                           es_version=es_version, bk_biz_id=instance.get_bk_biz_id())
 
         # 添加元数据路径配置到结果表配置中
         etl_path_regexp = etl_params.get("path_regexp", "")
