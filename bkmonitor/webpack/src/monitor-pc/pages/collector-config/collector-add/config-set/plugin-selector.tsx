@@ -175,6 +175,7 @@ export default class PluginSelector extends tsc<IProps, IEvents> {
           disabled={this.disabled}
           ext-popover-cls='collector-plugin-selector-component-options'
           loading={this.loading}
+          search-placeholder={this.$t('请输入 关键字')}
           value={this.pluginId}
           searchable
           on-selected={value => this.handleSelector(value)}

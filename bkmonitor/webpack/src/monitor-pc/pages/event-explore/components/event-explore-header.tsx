@@ -229,6 +229,7 @@ class EventRetrievalHeader extends Mixins(UserConfigMixin) {
               class='data-id-select'
               clearable={false}
               ext-popover-cls={'new-event-retrieval-data-id-select-popover'}
+              search-placeholder={this.$t('请输入 关键字')}
               value={this.dataId}
               searchable
               onSelected={this.handleDataIdChange}

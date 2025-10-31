@@ -886,8 +886,6 @@ class ResultTable(models.Model):
             logger.error(f"storage->[{storage}] now is not supported.")
             raise ValueError(_("存储[{}]暂不支持，请确认后重试").format(self.default_storage))
 
-        if self.default_storage == ClusterInfo.TYPE_ES:
-            storage_config["enable_create_index"] = False
         real_storage.create_table(
             table_id=self.table_id, bk_tenant_id=bk_tenant_id, is_sync_db=is_sync_db, **storage_config
         )

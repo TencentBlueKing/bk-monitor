@@ -8,43 +8,50 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from alarm_backends.core.cache.cmdb.base import CMDBCacheManager, RefreshByBizMixin
+import json
+from typing import cast
+
 from api.cmdb.define import Module
-from core.drf_resource import api
+
+from .base import CMDBCacheManager
 
 
-class ModuleManager(RefreshByBizMixin, CMDBCacheManager):
+class ModuleManager(CMDBCacheManager):
     """
     CMDB 模块缓存
     """
 
-    type = "module"
-    CACHE_KEY = f"{CMDBCacheManager.CACHE_KEY_PREFIX}.cmdb.module"
-    ObjectClass = Module
+    cache_type = "module"
 
     @classmethod
-    def key_to_internal_value(cls, bk_module_id):
-        return str(bk_module_id)
+    def get_cache_key(cls, bk_tenant_id: str) -> str:
+        return f"{cls._get_cache_key_prefix(bk_tenant_id)}.module"
 
     @classmethod
-    def key_to_representation(cls, origin_key):
+    def mget(cls, *, bk_tenant_id: str, bk_module_ids: list[int]) -> dict[int, Module]:
         """
-        取出key时进行转化
+        批量获取模块
+        :param bk_tenant_id: 租户ID
+        :param bk_module_ids: 模块ID列表
         """
-        return int(origin_key)
+        if not bk_module_ids:
+            return {}
+
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        result: list[str | None] = cast(
+            list[str | None], cls.cache.hmget(cache_key, [str(bk_module_id) for bk_module_id in bk_module_ids])
+        )
+        return {bk_module_id: Module(**json.loads(r)) for bk_module_id, r in zip(bk_module_ids, result) if r}
 
     @classmethod
-    def get(cls, bk_module_id):
+    def get(cls, *, bk_tenant_id: str, bk_module_id: int, **kwargs) -> Module | None:
         """
+        获取单个模块
+        :param bk_tenant_id: 租户ID
         :param bk_module_id: 模块ID
-        :rtype: Module
         """
-        return super().get(bk_module_id)
-
-    @classmethod
-    def refresh_by_biz(cls, bk_biz_id):
-        """
-        按业务ID刷新缓存
-        """
-        modules = api.cmdb.get_module(bk_biz_id=bk_biz_id)  # type: list[Module]
-        return {cls.key_to_internal_value(module.bk_module_id): module for module in modules}
+        cache_key = cls.get_cache_key(bk_tenant_id)
+        result: str | None = cast(str | None, cls.cache.hget(cache_key, str(bk_module_id)))
+        if not result:
+            return None
+        return Module(**json.loads(result))

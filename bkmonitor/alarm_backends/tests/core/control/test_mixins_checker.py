@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,8 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from unittest.mock import MagicMock, patch
+
 from django.test import TestCase
-from mock import MagicMock, patch
 
 from alarm_backends.constants import NO_DATA_LEVEL, NO_DATA_TAG_DIMENSION
 from alarm_backends.core.cache import key
@@ -88,9 +88,7 @@ ANOMALY_INFO = [
 def mock_anomaly_info(self, check_timestamp, target_dimension, target_dms_md5):
     return {
         "data": {
-            "record_id": "{dimensions_md5}.{timestamp}".format(
-                dimensions_md5=target_dms_md5, timestamp=check_timestamp
-            ),
+            "record_id": f"{target_dms_md5}.{check_timestamp}",
             "value": None,
             "values": {"timestamp": check_timestamp, "loads": None},
             "dimensions": target_dimension,
@@ -118,7 +116,8 @@ class TestChecker(TestCase):
     databases = {"monitor_api", "default"}
 
     def setUp(self):
-        class Strategy(object):
+        class Strategy:
+            bk_biz_id = 2
             id = 100
             scenario = "host_process"
 

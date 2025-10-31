@@ -20,6 +20,7 @@ from alarm_backends.core.control.mixins.double_check import DoubleCheckStrategy
 from alarm_backends.core.control.record_parser import EventIDParser
 from alarm_backends.core.storage.kafka import KafkaQueue
 from bkmonitor.models import NO_DATA_TAG_DIMENSION
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.alert import EventStatus, EventTargetType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
@@ -142,6 +143,7 @@ class MonitorEventAdapter:
             "bk_ingest_time": now_time,
             "bk_clean_time": now_time,
             "bk_biz_id": self.strategy["bk_biz_id"],
+            "bk_tenant_id": bk_biz_id_to_bk_tenant_id(self.strategy["bk_biz_id"]),
             "extra_info": {
                 "origin_alarm": {
                     "trigger_time": now_time,
