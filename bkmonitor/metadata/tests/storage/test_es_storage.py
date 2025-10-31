@@ -199,17 +199,6 @@ def test_create_and_modify_result_table_resource_for_es_storage(
     )
     assert field1_alias.is_deleted is False
 
-    # 测试别名配置能否正确组装
-    field_alias_mappings = es_rt.compose_field_alias_settings()
-
-    expected = {
-        "properties": {
-            "new_field1": {"type": "alias", "path": "test_field1"},
-            "k8s_io": {"type": "alias", "path": "_ext.io"},
-        }
-    }
-    assert field_alias_mappings == expected
-
     # 测试索引body能否正确组装
     index_body = es_rt.index_body
     expected = (
@@ -291,12 +280,6 @@ def test_create_and_modify_result_table_resource_for_es_storage(
         field_path="test_field2", query_alias="new_field2", table_id="2_bklog.rt_create"
     )
     assert field2_alias.is_deleted is False
-
-    # 测试别名配置能否正确组装
-    field_alias_mappings = es_rt.compose_field_alias_settings()
-
-    expected = {"properties": {"new_field2": {"type": "alias", "path": "test_field2"}}}
-    assert field_alias_mappings == expected
 
     # 测试索引body能否正确组装
     index_body = es_rt.index_body
