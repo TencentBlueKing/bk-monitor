@@ -1120,13 +1120,6 @@ class SaveToDashboard(Resource):
                     "mode": "code",
                 }
             )
-        elif query_configs[0]["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH:
-            panel.targets.append(
-                {
-                    "data": query_configs[0],
-                    "refId": chr(ord("A") + len(panel.targets)),
-                }
-            )
         else:
             new_query_configs = json.loads(json.dumps(query_configs))
             if len(new_query_configs) == 1 and not functions:
@@ -1159,9 +1152,29 @@ class SaveToDashboard(Resource):
             min_y=0 if panel_config["min_y_zero"] else None,
             fill_opacity=50 if panel_config["fill"] else 0,
             draw_style="line",
+            datasource=panel_config["datasource"],
         )
-        if panel_config.get("datasource"):
-            panel.datasource = panel_config["datasource"]
+
+        # datasource可以传名称或者UID，目前直接用名称
+        if panel_config.get("datasource", "") == "日志平台":
+            for query in panel_config["queries"]:
+                for query_config in query["query_configs"]:
+                    panel.targets.append({
+                        "data": {
+                            "data_source_label": query_config["data_source_label"],
+                            "data_type_label": query_config["data_type_label"],
+                            "index": query_config["index"],
+                            "queryString": query_config["query_string"],
+                            "metric": query_config.get("metric", ""),
+                            "method": query_config.get("method", "value_count"),
+                            "periodUnitSet": {
+                                "periodUnit": query_config["interval_unit"],
+                                "timeNum": query_config["interval"]
+                            }
+                        },
+                        "refId": chr(ord("A") + len(panel.targets)),
+                    })
+            return panel
 
         for query in panel_config["queries"]:
             # 解析时间对比参数
@@ -1180,21 +1193,6 @@ class SaveToDashboard(Resource):
                             "data_type_label": query_config["data_type_label"],
                             "interval": query_config["interval"],
                             "promql": query_config["promql"],
-                        }
-                    )
-                elif query_config["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH:
-                    query_configs.append(
-                        {
-                            "data_source_label": query_config["data_source_label"],
-                            "data_type_label": query_config["data_type_label"],
-                            "index": query_config["index"],
-                            "queryString": query_config["query_string"],
-                            "metric": query_config.get("metric", ""),
-                            "method": query_config.get("method", "value_count"),
-                            "periodUnitSet": {
-                                "periodUnit": query_config["interval_unit"],
-                                "timeNum": query_config["interval"]
-                            },
                         }
                     )
                 else:
