@@ -24,13 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, provide, shallowRef, toRef, watch } from 'vue';
+import { type PropType, defineComponent, provide, shallowRef, toRef, watch } from 'vue';
 
 import { random } from 'monitor-common/utils';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
 import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
-import { createAutoTimeRange } from '../../../../../../../plugins/charts/failure-chart/failure-alarm-chart';
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
 import { useHostSceneView } from '../../../../../composables/use-host-scene-view';
 

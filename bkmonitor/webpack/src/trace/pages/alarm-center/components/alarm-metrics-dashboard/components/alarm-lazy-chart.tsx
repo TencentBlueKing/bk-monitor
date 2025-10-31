@@ -89,7 +89,7 @@ export default defineComponent({
     provide('timeRange', viewerTimeRange);
     provide('refreshImmediate', viewerRefreshImmediate);
 
-    watch([refreshImmediate, timeRange, props.panel, props.params], () => {
+    watch([refreshImmediate, timeRange, () => props.panel, () => props.params], () => {
       hasPanelChange.value = true;
       refreshChart();
     });
