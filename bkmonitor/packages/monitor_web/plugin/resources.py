@@ -20,11 +20,13 @@ import shutil
 import subprocess
 import tarfile
 import time
+import zipfile
 from collections import namedtuple
 from distutils.version import StrictVersion
 from uuid import uuid4
 
 import yaml
+from django.db.models.fields.files import FieldFile
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db import IntegrityError
@@ -442,16 +444,6 @@ class PluginImportResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True)
         file_data = serializers.FileField(required=True)
 
-    def un_tar_gz_file(self, tar_obj):
-        # 免解压读取文件内容到内存
-        with tarfile.open(fileobj=tar_obj) as package_file:
-            for member in package_file.getmembers():
-                # 取代 tarfile.extractall 的 filter="data"
-                if not member.isreg():
-                    continue
-                with package_file.extractfile(member) as f:
-                    self.filename_dict[Path(member.name)] = f.read()
-
     def get_plugin(self):
         meta_yaml_path = ""
         # 获取plugin_id,meta.yaml必要信息
@@ -593,10 +585,56 @@ class PluginImportResource(Resource):
             except CollectorPluginMeta.DoesNotExist:
                 self.create_params["duplicate_type"] = "custom"
 
+    # 检查目录结构
+    def check_directory_structure(self, file_path_content_map):
+        """
+        检查目录结构
+        所有路径都必须以相同的目录开头
+        :param file_path_content_map:
+        :return:
+        """
+        os_list = set()
+        for file_path in file_path_content_map.keys():
+            os_list.add(Path(file_path).parts[0])
+
+        if len(os_list) > 1:
+            raise PluginParseError(_(f"只支持单个操作系统，当前存在多个操作系统：{os_list}，必须以操作系统目录开头"))
+
+        if len(os_list) == 0:
+            raise PluginParseError(_("未找到操作系统目录"))
+
+        if os_list.pop() not in list(OS_TYPE_TO_DIRNAME.values()):
+            raise PluginParseError(_(f"不支持的操作系统：{os_list[1]},必须以操作系统目录开头"))
+
+    @classmethod
+    def parse_package_without_decompress(cls, file: FieldFile) -> dict[str, bytes]:
+        """
+        针对zip 和tar相关的压缩包进行处理
+        """
+        # 解压到内存中，获取文件的路径已经对应的内容
+        file_path_content_map: dict[str, bytes] = {}
+        if file.name.endswith(".zip"):
+            with zipfile.ZipFile(file.file, "r") as package_file:
+                for file_info in package_file.infolist():
+                    with package_file.open(file_info) as f:
+                        file_path_content_map[Path(file_info.filename)] = f.read()
+        else:
+            with tarfile.open(fileobj=file.file) as package_file:
+                for member in package_file.getmembers():
+                    # 取代 tarfile.extractall 的 filter="data"
+                    if not member.isreg():
+                        continue
+                    with package_file.extractfile(member) as f:
+                        file_path_content_map[Path(member.name)] = f.read()
+
+        return file_path_content_map
+
     def perform_request(self, validated_request_data):
         try:
-            # 解压插件包
-            self.un_tar_gz_file(validated_request_data["file_data"])
+            file_path_content_map = self.parse_package_without_decompress(validated_request_data["file_data"])
+            self.check_directory_structure(file_path_content_map)
+            self.filename_dict = file_path_content_map
+
             # 获取插件ID
             self.get_plugin()
             # 创建插件记录
@@ -605,7 +643,7 @@ class PluginImportResource(Resource):
                 plugin=self.plugin_id,
                 plugin_type=self.plugin_type,
                 tmp_path=self.tmp_path,
-                plugin_configs=self.filename_dict,
+                plugin_configs=file_path_content_map,
             )
             self.tmp_version = import_manager.get_tmp_version()
             self.check_duplicate()
