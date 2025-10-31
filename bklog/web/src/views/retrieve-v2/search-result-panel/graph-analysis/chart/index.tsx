@@ -23,19 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, type Ref, ref, watch } from 'vue';
+import { computed, defineComponent, ref, watch, type Ref } from 'vue';
 
-import { formatDateTimeField, getRegExp, blobDownload } from '@/common/util';
+import { formatDateTimeField, getRegExp } from '@/common/util';
+import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import dayjs from 'dayjs';
 import { debounce } from 'lodash-es';
-import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
-import useEditor from '@/views/retrieve-v2/search-result-panel/graph-analysis/sql-editor/use-editor';
 import ChartRoot from './chart-root';
 import useChartRender from './use-chart-render';
 // import $http from '@/api/index';
-import { axiosInstance } from '@/api';
 import './index.scss';
 export default defineComponent({
   props: {
@@ -51,10 +49,9 @@ export default defineComponent({
   },
   emits: ['sql-change'],
   setup(props, { slots }) {
-
     const refRootElement: Ref<HTMLElement> = ref();
     const sqlContent = computed(() => store.state.indexItem.chart_params.sql);
-    const { alias_settings } = useFieldAliasRequestParams();
+    const { alias_settings: aliasSettings } = useFieldAliasRequestParams();
     const refRootContent = ref();
     const searchValue = ref('');
     const { $t } = useLocale();
@@ -73,13 +70,13 @@ export default defineComponent({
     const formatListData = computed(() => {
       const {
         list = [],
-        result_schema = [],
-        select_fields_order = [],
-        total_records = 0,
+        result_schema: resultSchema = [],
+        select_fields_order: selectFieldsOrder = [],
+        total_records: totalRecords = 0,
       } = props.chartOptions.data ?? {};
-      const timeFields = result_schema.filter(item => /^date/.test(item.field_type));
+      const timeFields = resultSchema.filter(item => /^date/.test(item.field_type));
       return {
-        list: list.map(item => {
+        list: list.map((item) => {
           return {
             ...item,
             ...timeFields.reduce((acc, cur) => {
@@ -88,9 +85,9 @@ export default defineComponent({
             }, {}),
           };
         }),
-        result_schema,
-        select_fields_order,
-        total_records,
+        result_schema: resultSchema,
+        select_fields_order: selectFieldsOrder,
+        total_records: totalRecords,
       };
     });
 
@@ -107,9 +104,8 @@ export default defineComponent({
     const getChildNodes = (parent, index) => {
       const field = props.chartOptions.xFields[index];
       if (field) {
-        return (formatListData.value?.list ?? []).map(item =>
-          getChildNodes({ ...parent, [field]: item[field] }, index + 1),
-        );
+        const list = formatListData.value?.list ?? [];
+        return list.map(item => getChildNodes({ ...parent, [field]: item[field] }, index + 1));
       }
 
       return parent;
@@ -127,11 +123,11 @@ export default defineComponent({
           return;
         }
 
-        const result = (props.chartOptions.yFields ?? []).map(yField => {
+        const result = (props.chartOptions.yFields ?? []).map((yField) => {
           const groups = showNumber.value ? [] : [...props.chartOptions.dimensions, props.chartOptions.xFields[0]];
           return [groups].map(([timeField, xField]) => {
             if (timeField || xField) {
-              return (formatListData.value?.list ?? []).map(row => {
+              return (formatListData.value?.list ?? []).map((row) => {
                 const targetValue = [timeField, xField, yField].reduce((acc, cur) => {
                   if (cur && row[cur]) {
                     acc[cur] = row[cur];
@@ -154,8 +150,8 @@ export default defineComponent({
 
         const length = showNumber.value
           ? (props.chartOptions.yFields ?? []).length
-          : [...props.chartOptions.dimensions, ...props.chartOptions.xFields].length *
-          props.chartOptions.xFields.length;
+          : [...props.chartOptions.dimensions, ...props.chartOptions.xFields].length
+          * props.chartOptions.xFields.length;
 
         tableData.value.splice(0, tableData.value.length, ...result.flat(length + 1));
         return;
@@ -183,11 +179,11 @@ export default defineComponent({
       limit: 20,
     });
 
-    const handlePageChange = newPage => {
+    const handlePageChange = (newPage) => {
       pagination.value.current = newPage;
     };
 
-    const handlePageLimitChange = limit => {
+    const handlePageLimitChange = (limit) => {
       pagination.value.current = 1;
       pagination.value.limit = limit;
     };
@@ -222,13 +218,14 @@ export default defineComponent({
       getChartInstance()?.resize();
     });
 
-    const handleSearchClick = value => {
+    const handleSearchClick = (value) => {
       searchValue.value = value;
     };
     /**
     * 检查浏览器是否支持 File System Access API
     */
     function supportsFileSystemAccess() {
+      // @ts-ignore - File System Access API 可能不存在于类型定义中
       return 'showSaveFilePicker' in window;
     }
     async function downloadWithBlob(response, filename) {
@@ -252,26 +249,50 @@ export default defineComponent({
     }
     /**
     * 使用现代 File System Access API 下载（内存高效）
+    * 使用手动读写方式，确保在 Mac 上正常工作
     */
     async function downloadWithFileSystemAPI(response, filename) {
       try {
+        // @ts-ignore - File System Access API 可能不存在于类型定义中
         const fileHandle = await window.showSaveFilePicker({
           suggestedName: filename,
           types: [{
-            description: '下载文件',
+            description: 'CSV 文件',
             accept: {
               'text/csv': ['.csv'],
-              'application/vnd.ms-excel': ['.csv']
-            }
-          }]
+              'application/vnd.ms-excel': ['.csv'],
+            },
+          }],
         });
+
         const writable = await fileHandle.createWritable();
-        await response.body.pipeTo(writable);
+        const reader = response.body.getReader();
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+              break;
+            }
+
+            // 写入数据块
+            await writable.write(value);
+          }
+        } finally {
+          // 确保读取器释放
+          reader.releaseLock();
+        }
+
+        // 重要：必须关闭可写流，否则文件可能不会保存（在 Mac 上尤其重要）
+        await writable.close();
+
         return { success: true, message: '文件保存成功' };
       } catch (error) {
         if (error.name === 'AbortError') {
           return { success: false, message: '用户取消了保存' };
         }
+        console.error('File System API 错误:', error);
         throw error;
       }
     }
@@ -289,27 +310,33 @@ export default defineComponent({
         keyword,
         addition: requestAddition.value || '',
         sql: sqlContent.value || '',
-        alias_settings: alias_settings.value || '',
-        sort_list
-      }
+        alias_settings: aliasSettings.value || '',
+        sort_list,
+      };
       try {
-        fetch(`${baseUrl}${searchUrl}`, {
+        const response = await fetch(`${baseUrl}${searchUrl}`, {
           method: 'POST',
           body: JSON.stringify(requestData),
           headers: {
             'Content-Type': 'application/json', // 明确设置请求类型
-          }
-        }).then((response) => {
-          if (!response.ok) {
-            throw new Error(`下载失败: ${response.status} ${response.statusText}`);
-          }
-          // 检查浏览器是否支持 File System Access API
-          if (supportsFileSystemAccess()) {
-            downloadWithFileSystemAPI(response, fileName);
-          } else {
-            downloadWithBlob(response, fileName)
-          }
-        })
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`下载失败: ${response.status} ${response.statusText}`);
+        }
+
+        // 检查浏览器是否支持 File System Access API
+        let result;
+        if (supportsFileSystemAccess()) {
+          result = await downloadWithFileSystemAPI(response, fileName);
+        } else {
+          result = await downloadWithBlob(response, fileName);
+        }
+
+        if (!result.success) {
+          console.warn('下载警告:', result.message);
+        }
       } catch (error) {
         console.error('下载出错:', error);
         throw error;
