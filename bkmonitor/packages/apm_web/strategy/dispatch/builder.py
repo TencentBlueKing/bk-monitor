@@ -18,8 +18,8 @@ from apm_web.models import StrategyTemplate, Application
 from apm_web.strategy.constants import (
     StrategyTemplateSystem,
     AlgorithmType,
-    ALGORITHM_METHOD_CONFIG_MAPPING,
     DetectConnector,
+    AlgorithmYearRoundAndRingRatioMethod,
 )
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
@@ -93,7 +93,7 @@ class StrategyBuilder:
     @classmethod
     def _year_round_and_ring_ratio_algorithm_config(cls, algorithm: dict[str, Any]) -> list[dict[str, Any]]:
         algorithm_config = algorithm["config"]
-        method_config = ALGORITHM_METHOD_CONFIG_MAPPING[algorithm_config["method"]]
+        method_config = AlgorithmYearRoundAndRingRatioMethod.from_value(algorithm_config["method"]).config
         return [
             {
                 "config": {

@@ -79,33 +79,34 @@ class AlgorithmYearRoundAndRingRatioMethod(CachedEnum):
             }.get(self, self.value)
         )
 
-
-ALGORITHM_METHOD_CONFIG_MAPPING: dict[str, dict[str, Any]] = {
-    AlgorithmYearRoundAndRingRatioMethod.FIVE_MINUTE_RING_RATIO.value: {
-        "ceil_interval": 5,
-        "floor_interval": 5,
-        "fetch_type": "last",
-        "type": AlgorithmModel.AlgorithmChoices.AdvancedRingRatio,
-    },
-    AlgorithmYearRoundAndRingRatioMethod.YESTERDAY_COMPARISON.value: {
-        "ceil_interval": 1,
-        "floor_interval": 1,
-        "fetch_type": "avg",
-        "type": AlgorithmModel.AlgorithmChoices.AdvancedYearRound,
-    },
-    AlgorithmYearRoundAndRingRatioMethod.WEEKLY_AVERAGE_COMPARISON.value: {
-        "ceil_interval": 7,
-        "floor_interval": 7,
-        "fetch_type": "avg",
-        "type": AlgorithmModel.AlgorithmChoices.AdvancedYearRound,
-    },
-    AlgorithmYearRoundAndRingRatioMethod.LAST_WEEK_COMPARISON.value: {
-        "ceil_interval": 7,
-        "floor_interval": 7,
-        "fetch_type": "last",
-        "type": AlgorithmModel.AlgorithmChoices.AdvancedYearRound,
-    },
-}
+    @cached_property
+    def config(self) -> dict[str, Any]:
+        return {
+            self.FIVE_MINUTE_RING_RATIO: {
+                "ceil_interval": 5,
+                "floor_interval": 5,
+                "fetch_type": "last",
+                "type": AlgorithmModel.AlgorithmChoices.AdvancedRingRatio,
+            },
+            self.YESTERDAY_COMPARISON: {
+                "ceil_interval": 1,
+                "floor_interval": 1,
+                "fetch_type": "avg",
+                "type": AlgorithmModel.AlgorithmChoices.AdvancedYearRound,
+            },
+            self.LAST_WEEK_COMPARISON: {
+                "ceil_interval": 7,
+                "floor_interval": 7,
+                "fetch_type": "last",
+                "type": AlgorithmModel.AlgorithmChoices.AdvancedYearRound,
+            },
+            self.WEEKLY_AVERAGE_COMPARISON: {
+                "ceil_interval": 7,
+                "floor_interval": 7,
+                "fetch_type": "avg",
+                "type": AlgorithmModel.AlgorithmChoices.AdvancedYearRound,
+            },
+        }.get(self, {})
 
 
 class DetectConnector(CachedEnum):

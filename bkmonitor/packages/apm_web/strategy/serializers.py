@@ -79,19 +79,18 @@ class AlgorithmSerializer(serializers.Serializer):
     unit_prefix = serializers.CharField(label=_("单位前缀"), default="", allow_blank=True)
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        if attrs["type"] in self.TYPE_SERIALIZER_MAP:
-            s = self.TYPE_SERIALIZER_MAP[attrs["type"]](data=attrs["config"])
-            s.is_valid(raise_exception=True)
-            attrs["config"] = s.validated_data
+        s = self.TYPE_SERIALIZER_MAP[attrs["type"]](data=attrs["config"])
+        s.is_valid(raise_exception=True)
+        attrs["config"] = s.validated_data
         return super().validate(attrs)
 
 
 class AlgorithmListSerializer(serializers.Serializer):
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        algorithms: list[dict[str, Any]] = attrs.get("algorithms", [])
+        algorithms: list[dict[str, Any]] | None = attrs.get("algorithms")
         if not algorithms:
             return super().validate(attrs)
-        level_type_set = set()
+        level_type_set: set[tuple[str, str]] = set()
         for algorithm in algorithms:
             level_type = (algorithm["level"], algorithm["type"])
             if level_type not in level_type_set:

@@ -386,6 +386,10 @@ class StrategyTemplateViewSet(GenericViewSet):
             else:
                 current = current_dict.get(field_name)
                 applied = getattr(applied_instance_obj, field_name)
+                if field_name == "detect":
+                    # 向前兼容
+                    current.setdefault("connector", constants.DetectConnector.AND.value)
+                    applied.setdefault("connector", constants.DetectConnector.AND.value)
 
             # 第二步比较
             if count_md5(current) == count_md5(applied):
