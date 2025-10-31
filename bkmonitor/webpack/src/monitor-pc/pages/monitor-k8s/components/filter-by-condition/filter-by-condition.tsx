@@ -1063,11 +1063,15 @@ export default class FilterByCondition extends tsc<IProps> {
                 >
                   {item.name}
                 </span>
-                {!this.isSelectedWorkload && (
+                {/* {!this.isSelectedWorkload && (
                   <span class='value-item-checked'>
                     {item.checked && <span class='icon-monitor icon-mc-check-small' />}
                   </span>
-                )}
+                )} */}
+                <span class='value-item-checked'>
+                  {item.checked && <span class='icon-monitor icon-mc-check-small' />}
+                </span>
+                
               </div>
             )),
           ]
