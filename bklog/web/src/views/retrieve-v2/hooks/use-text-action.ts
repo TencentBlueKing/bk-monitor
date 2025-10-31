@@ -34,7 +34,7 @@ import { useRoute, useRouter } from 'vue-router/composables';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { getConditionRouterParams } from '../search-result-panel/panel-util';
 
-export default (emit?: (event: string, ...args: any[]) => void, from?: string) => {
+export default (emit?: (_event: string, ..._args: any[]) => void, from?: string) => {
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
