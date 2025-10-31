@@ -55,6 +55,9 @@ export default class TraceRetrieval extends tsc<object> {
     return {
       host: this.traceHost,
       baseroute: '/trace/',
+      get enableAiAssistant() {
+        return aiWhaleStore.enableAiAssistant;
+      },
       setUnmountCallback: (callback: () => void) => {
         this.unmountCallback = callback;
       },
