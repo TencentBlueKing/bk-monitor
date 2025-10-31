@@ -87,6 +87,9 @@ class HostIPManager(CMDBCacheManager):
 
     @classmethod
     def mget(cls, *, bk_tenant_id: str, ips: list[str]) -> dict[str, list[str]]:
+        if not ips:
+            return {}
+
         cache_key = cls.get_cache_key(bk_tenant_id)
         result: list[str | None] = cast(list[str | None], cls.cache.hmget(cache_key, ips))
         return {ip: json.loads(result) if result else [] for ip, result in zip(ips, result) if result}
@@ -157,11 +160,14 @@ class HostManager(CMDBCacheManager):
         """
         :rtype: Host
         """
+        if not ip:
+            return None
+
         if not (using_mem or using_api):
             return cls._get(bk_tenant_id=bk_tenant_id, ip=ip, bk_cloud_id=bk_cloud_id)
 
         host_key = cls.get_host_key(ip, bk_cloud_id)
-        cache_key = f"{bk_tenant_id}.{host_key}"
+        cache_key = f"{cls.get_cache_key(bk_tenant_id=bk_tenant_id)}.{host_key}"
         if using_mem:
             # 如果使用本地内存，那么在逻辑结束后，需要调用clear_mem_cache函数清理
             host = local.host_cache.get(cache_key, None)
@@ -213,10 +219,13 @@ class HostManager(CMDBCacheManager):
             return host
 
     @classmethod
-    def get_by_id(cls, *, bk_tenant_id: str, bk_host_id: int | str, using_mem=False) -> Host | None:
+    def get_by_id(cls, *, bk_tenant_id: str, bk_host_id: int | str | None, using_mem=False) -> Host | None:
         """
         :rtype: Host
         """
+        if not bk_host_id:
+            return None
+
         bk_host_id = str(bk_host_id)
 
         # 尝试从本地缓存中获取

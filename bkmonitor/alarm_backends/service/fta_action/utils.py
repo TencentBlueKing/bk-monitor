@@ -636,7 +636,7 @@ class AlertAssignee:
                 return group_users
 
             host = HostManager.get_by_id(
-                bk_tenant_id=str(self.alert.bk_tenant_id), bk_host_id=str(self.alert.event.bk_host_id)
+                bk_tenant_id=str(self.alert.bk_tenant_id), bk_host_id=getattr(self.alert.event, "bk_host_id", "")
             )
             for operator_attr in ["operator", "bk_bak_operator"]:
                 group_users[operator_attr] = self.get_host_operator(host, operator_attr)
