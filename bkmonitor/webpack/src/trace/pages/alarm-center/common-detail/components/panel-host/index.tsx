@@ -23,14 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 import { storeToRefs } from 'pinia';
 
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
-import { type AlarmDetail, AlertDetailHostSelectorTypeEnum } from '../../../typings';
+import {
+  type AlarmDetail,
+  type HostLevelChartParams,
+  type ModuleLevelChartParams,
+  AlertDetailHostSelectorTypeEnum,
+} from '../../../typings';
 import PanelHostDashboard from './components/panel-host-dashboard/panel-host-dashboard';
 import PanelHostSelector from './components/panel-host-selector/panel-host-selector';
 
@@ -44,6 +49,8 @@ export default defineComponent({
     },
   },
   setup(props) {
+    /** 监控目标 */
+    const currentTarget = shallowRef<HostLevelChartParams | ModuleLevelChartParams>(null);
     const {
       /** 业务ID */
       bizId,
@@ -58,50 +65,60 @@ export default defineComponent({
     const selectorType = computed(
       () =>
         // TODO: 判断逻辑待补充
-        AlertDetailHostSelectorTypeEnum.HOST
+        AlertDetailHostSelectorTypeEnum.MODULE
+    );
+    /** 图表请求参数变量 */
+    const viewOptions = computed(() => {
+      const target = get(currentTarget) ?? {};
+      return {
+        method: 'AVG',
+        interval: get(interval),
+        group_by: [],
+        current_target: target,
+        ip: target?.bk_target_ip,
+        bk_cloud_id: target?.bk_target_cloud_id,
+        ...target,
+      };
+    });
+
+    watch(
+      () => props.detail,
+      () => {
+        initTarget();
+      },
+      { immediate: true }
     );
 
-    /** 默认监控的目标配置 */
-    const defaultCurrentTarget = computed(() => {
-      const currentTarget: Record<string, any> = {
+    /**
+     * @description 初始化监控目标对象 currentTarget
+     */
+    function initTarget() {
+      const target: HostLevelChartParams | ModuleLevelChartParams = {
         bk_target_ip: '0.0.0.0',
         bk_target_cloud_id: '0',
       };
       for (const item of props.detail?.dimensions ?? []) {
         if (item.key === 'bk_host_id') {
-          currentTarget.bk_host_id = item.value;
+          target.bk_host_id = item.value;
         }
         if (['bk_target_ip', 'ip', 'bk_host_id'].includes(item.key)) {
-          currentTarget.bk_target_ip = item.value;
+          target.bk_target_ip = item.value;
         }
         if (['bk_cloud_id', 'bk_target_cloud_id', 'bk_host_id'].includes(item.key)) {
-          currentTarget.bk_target_cloud_id = item.value;
+          target.bk_target_cloud_id = item.value;
         }
       }
-      return currentTarget;
-    });
-    /** 图表请求参数变量 */
-    const viewOptions = computed(() => {
-      const currentTarget = get(defaultCurrentTarget);
-      return {
-        method: 'AVG',
-        interval: get(interval),
-        group_by: [],
-        current_target: currentTarget,
-        ip: currentTarget?.bk_target_ip,
-        bk_cloud_id: currentTarget?.bk_target_cloud_id,
-        ...currentTarget,
-      };
-    });
+      currentTarget.value = target;
+    }
 
     /**
      * @description 跳转主机检索页面
      */
     function handleToPerformance() {
-      const currentTarget = get(defaultCurrentTarget);
-      const ip = currentTarget?.bk_target_ip ?? '0.0.0.0';
-      const cloudId = currentTarget?.bk_target_cloud_id ?? '0';
-      const bkHostId = currentTarget?.bk_host_id ?? 0;
+      const target = get(currentTarget);
+      const ip = target?.bk_target_ip ?? '0.0.0.0';
+      const cloudId = target?.bk_target_cloud_id ?? '0';
+      const bkHostId = target?.bk_host_id ?? 0;
       // 跳转至容器监控时的详情Id
       const detailId = bkHostId ? bkHostId : `${ip}-${cloudId}`;
       // TODO : 待确认 跳转至主机监控时的路径参数
@@ -111,13 +128,31 @@ export default defineComponent({
     }
 
     /**
+     * @description 监控目标切换
+     * @param {HostLevelChartParams | ModuleLevelChartParams} target 监控目标
+     */
+    function handleCurrentTargetChange(target: HostLevelChartParams | ModuleLevelChartParams) {
+      currentTarget.value = target;
+    }
+
+    /**
      * @description 创建骨架屏 dom 元素
      */
     function createSkeletonDom() {
       return <div class='alarm-detail-panel-host-skeleton-dom skeleton-element' />;
     }
 
-    return { bizId, timeRange, selectorType, loading, viewOptions, handleToPerformance, createSkeletonDom };
+    return {
+      currentTarget,
+      bizId,
+      timeRange,
+      selectorType,
+      loading,
+      viewOptions,
+      handleToPerformance,
+      createSkeletonDom,
+      handleCurrentTargetChange,
+    };
   },
   render() {
     return (
@@ -127,7 +162,9 @@ export default defineComponent({
             <div class='host-selector-container'>
               <PanelHostSelector
                 class='host-selector'
+                currentTarget={this.currentTarget}
                 selectorType={this.selectorType}
+                onChange={this.handleCurrentTargetChange}
               />
               {/* {this.createSkeletonDom()} */}
             </div>

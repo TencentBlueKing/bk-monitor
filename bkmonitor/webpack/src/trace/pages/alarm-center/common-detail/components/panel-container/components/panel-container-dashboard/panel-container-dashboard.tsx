@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef, toRef, unref, watch } from 'vue';
+import { type PropType, defineComponent, shallowRef, toRef } from 'vue';
 
 import { random } from 'monitor-common/utils';
-import { type SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
 import { useK8sChartPanel } from '../../../../../composables/use-k8s-chart-panel';
+
+import type { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 
 import './panel-container-dashboard.scss';
 

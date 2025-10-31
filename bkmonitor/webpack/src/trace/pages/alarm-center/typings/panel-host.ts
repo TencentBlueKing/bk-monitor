@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,8 +23,34 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export * from './constants';
-export * from './detail';
-export * from './panel-host';
-export * from './services';
-export * from './table';
+
+export interface HostLevelChartParams {
+  [key: string]: unknown;
+  bk_target_cloud_id?: number | string;
+  bk_target_ip?: number | string;
+}
+
+export interface ModuleLevelChartParams {
+  [key: string]: unknown;
+  bk_inst_id?: number;
+  bk_obj_id?: string;
+}
+
+export interface TreeNodeItem {
+  alias_name?: string;
+  bk_cloud_id?: number | string;
+  bk_host_id?: number | string;
+  bk_host_name?: string;
+  bk_inst_id?: number;
+  bk_inst_name?: string;
+  bk_obj_id?: string;
+  bk_obj_name?: string;
+  children?: TreeNodeItem[];
+  display_name?: string;
+  id: number | string;
+  ip?: string;
+  name: string;
+  os_type?: string;
+  service_instance_id?: number; // 服务实例ID
+  status?: number | string;
+}

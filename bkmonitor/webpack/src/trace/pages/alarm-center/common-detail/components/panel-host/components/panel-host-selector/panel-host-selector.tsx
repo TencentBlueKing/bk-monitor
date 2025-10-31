@@ -29,10 +29,31 @@ import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 import { get } from '@vueuse/core';
 import { Select } from 'bkui-vue';
 
-import { AlertDetailHostSelectorTypeEnum } from '../../../../../typings/constants';
+import {
+  type HostLevelChartParams,
+  type ModuleLevelChartParams,
+  type TreeNodeItem,
+  AlertDetailHostSelectorTypeEnum,
+} from '../../../../../typings';
 import { getMockData } from './mock-data';
 
 import './panel-host-selector.scss';
+
+/** 不同级别的select配置 */
+const HOST_SELECTOR_CONFIG_MAP = {
+  [AlertDetailHostSelectorTypeEnum.HOST]: {
+    idKey: 'bk_target_ip',
+    displayKey: 'display_name',
+    descriptionKey: 'alias_name',
+    prefixText: '主机',
+  },
+  [AlertDetailHostSelectorTypeEnum.MODULE]: {
+    idKey: 'bk_inst_id',
+    displayKey: 'bk_inst_name',
+    descriptionKey: '',
+    prefixText: '模块',
+  },
+};
 
 export default defineComponent({
   name: 'PanelHostSelector',
@@ -42,53 +63,73 @@ export default defineComponent({
       type: String as PropType<AlertDetailHostSelectorTypeEnum>,
     },
     /** 选择器选中值 */
-    value: {
-      type: String,
-      default: '',
+    currentTarget: {
+      type: Object as PropType<HostLevelChartParams | ModuleLevelChartParams>,
     },
   },
   emits: {
-    change: (selectedId: string) => typeof selectedId === 'string',
+    change: (selectedTarget: HostLevelChartParams | ModuleLevelChartParams) => selectedTarget,
   },
   setup(props, { emit }) {
+    /** 上游路径 */
+    const upstreamPath = shallowRef('demo_k8s / k8s / ');
     /** 选择器列表 */
-    const hostList = getMockData(props.selectorType);
+    const hostList = shallowRef<TreeNodeItem[]>(getMockData(props.selectorType));
+    /** 是否为模块选择器 */
+    const isModuleLevel = computed(() => props.selectorType === AlertDetailHostSelectorTypeEnum.MODULE);
     /** 选择器配置 */
-    const selectConfig = computed(() =>
-      props.selectorType === AlertDetailHostSelectorTypeEnum.MODULE
-        ? {
-            idKey: 'bk_inst_id',
-            displayKey: 'bk_inst_name',
-          }
-        : {
-            idKey: 'bk_host_id',
-            displayKey: 'display_name',
-            descriptionKey: 'alias_name',
-          }
-    );
+    const selectConfig = computed(() => HOST_SELECTOR_CONFIG_MAP[props.selectorType]);
+    /** 当前选择器选中的节点对象 */
+    const selectedItem = computed(() => convertChartParamToNode(props.currentTarget));
+
+    /**
+     * @description 将图表接口所需结构转换为节点数据结构
+     * @param {HostLevelChartParams | ModuleLevelChartParams} target 图表接口所需结构
+     */
+    function convertChartParamToNode(target: HostLevelChartParams | ModuleLevelChartParams) {
+      const id = isModuleLevel.value ? target?.bk_inst_id : target?.bk_target_ip;
+      const idKey = get(selectConfig)?.idKey;
+      return hostList.value.find(e => e?.[idKey] === id);
+    }
+
+    /**
+     * @description 将节点数据结构转换为图表接口所需结构
+     * @param {TreeNodeItem} nodeItem 节点数据
+     */
+    function convertNodeToCharParam(nodeItem: TreeNodeItem): HostLevelChartParams | ModuleLevelChartParams {
+      if (props.selectorType === AlertDetailHostSelectorTypeEnum.MODULE) {
+        return {
+          bk_inst_id: nodeItem.bk_inst_id,
+          bk_obj_id: nodeItem.bk_obj_id,
+        };
+      }
+      return {
+        bk_target_ip: nodeItem.bk_host_id,
+        bk_target_cloud_id: nodeItem.bk_cloud_id,
+      };
+    }
 
     /**
      * @description 选择器值改变事件
-     * @param selected Id 选择器选中值
+     * @param {string} selected Id 选择器选中值
      */
     function handleSelected(selectedId: string) {
       const idKey = get(selectConfig)?.idKey;
-      const targetItem = hostList.find(e => e?.[get(selectConfig)?.idKey] === selectedId);
-      console.log('================ selectedId ================', selectedId);
-      console.log('================ item ================', targetItem);
-
-      emit('change', selectedId);
+      const targetItem = hostList.value.find(e => e?.[idKey] === selectedId);
+      const transformItem = convertNodeToCharParam(targetItem);
+      emit('change', transformItem);
     }
-    return { hostList, selectConfig, handleSelected };
+
+    return { selectedItem, isModuleLevel, upstreamPath, hostList, selectConfig, handleSelected };
   },
   render() {
-    /** 是否展示描述 */
-    const showDescription = this.selectConfig?.descriptionKey;
-
+    const { idKey, displayKey, descriptionKey } = this.selectConfig;
     return (
       <div class='panel-host-selector'>
         <Select
+          filterable={true}
           list={this.hostList}
+          modelValue={this.selectedItem?.[idKey]}
           popoverOptions={{ boundary: 'parent' }}
           {...this.selectConfig}
           onSelect={this.handleSelected}
@@ -97,11 +138,13 @@ export default defineComponent({
             trigger: () => (
               <div class='host-selector-trigger-container'>
                 <div class='trigger-prefix'>
-                  <span>主机：</span>
+                  <span>{this.selectConfig.prefixText}：</span>
                 </div>
                 <div class='trigger-main'>
-                  <span class='selected-text'>demo_k8s / k8s / 9.146.98.234</span>
-                  {showDescription ? <span class='selected-description'>{'(VM-980-234-Host)'}</span> : null}
+                  <span class='selected-text'>{`${this.upstreamPath}${this.selectedItem?.[displayKey] ?? '--'}`}</span>
+                  {!this.isModuleLevel && this.selectedItem?.[descriptionKey] ? (
+                    <span class='selected-description'>{`(${this.selectedItem?.[descriptionKey]})`}</span>
+                  ) : null}
                 </div>
                 <div class='trigger-suffix'>
                   <i class='icon-monitor icon-mc-triangle-down' />
@@ -110,10 +153,8 @@ export default defineComponent({
             ),
             optionRender: ({ item }) => (
               <div class='host-selector-item'>
-                <span class='item-display-name'>{item?.[this.selectConfig?.displayKey]}</span>
-                {showDescription ? (
-                  <span class='item-description'>{`(${item?.[this.selectConfig?.descriptionKey]})`}</span>
-                ) : null}
+                <span class='item-display-name'>{item?.[displayKey]}</span>
+                {!this.isModuleLevel ? <span class='item-description'>{`(${item?.[descriptionKey]})`}</span> : null}
               </div>
             ),
           }}
