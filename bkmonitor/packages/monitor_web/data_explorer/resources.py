@@ -1077,6 +1077,9 @@ class SaveToDashboard(Resource):
                     # 日志平台配置
                     query_string = serializers.CharField(default="", allow_blank=True, label="日志查询语句")
                     index_set_id = serializers.IntegerField(required=False, label="索引集ID", allow_null=True)
+                    index = serializers.DictField(required=False, label="索引集配置")
+                    metric = serializers.CharField(required=False, label="指标")
+                    method = serializers.CharField(required=False, label="汇聚方法")
 
                     # 计算函数参数
                     functions = serializers.ListField(label="计算函数参数", default=[], child=FunctionSerializer())
@@ -1093,6 +1096,7 @@ class SaveToDashboard(Resource):
             queries = serializers.ListField(label="查询配合", allow_empty=False, child=QuerySerializer())
             fill = serializers.BooleanField(default=False)
             min_y_zero = serializers.BooleanField(default=False)
+            datasource = serializers.CharField(required=False, label="数据源")
 
         bk_biz_id = serializers.IntegerField()
         panels = serializers.ListField(allow_empty=False, child=PanelSerializer())
@@ -1114,6 +1118,13 @@ class SaveToDashboard(Resource):
                     "format": "time_series",
                     "type": "range",
                     "mode": "code",
+                }
+            )
+        elif query_configs[0]["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH:
+            panel.targets.append(
+                {
+                    "data": query_configs[0],
+                    "refId": chr(ord("A") + len(panel.targets)),
                 }
             )
         else:
@@ -1149,6 +1160,8 @@ class SaveToDashboard(Resource):
             fill_opacity=50 if panel_config["fill"] else 0,
             draw_style="line",
         )
+        if panel_config.get("datasource"):
+            panel.datasource = panel_config["datasource"]
 
         for query in panel_config["queries"]:
             # 解析时间对比参数
@@ -1167,6 +1180,21 @@ class SaveToDashboard(Resource):
                             "data_type_label": query_config["data_type_label"],
                             "interval": query_config["interval"],
                             "promql": query_config["promql"],
+                        }
+                    )
+                elif query_config["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH:
+                    query_configs.append(
+                        {
+                            "data_source_label": query_config["data_source_label"],
+                            "data_type_label": query_config["data_type_label"],
+                            "index": query_config["index"],
+                            "queryString": query_config["query_string"],
+                            "metric": query_config.get("metric", ""),
+                            "method": query_config.get("method", "value_count"),
+                            "periodUnitSet": {
+                                "periodUnit": query_config["interval_unit"],
+                                "timeNum": query_config["interval"]
+                            },
                         }
                     )
                 else:
