@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, onBeforeUnmount, onMounted, nextTick } from 'vue';
+import { defineComponent, ref, computed, onBeforeUnmount, onMounted, nextTick, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -89,7 +89,7 @@ export default defineComponent({
   name: 'FieldList',
   props: {
     data: {
-      type: Array,
+      type: Array as PropType<FieldItem[]>,
       default: () => [],
     },
     tableType: {
@@ -97,6 +97,9 @@ export default defineComponent({
       default: 'edit',
       validator: (v: string) => ['edit', 'preview'].includes(v),
     },
+    /**
+     * 默认分词符
+     */
     originalTextTokenizeOnChars: {
       type: String,
       default: '',
@@ -123,10 +126,18 @@ export default defineComponent({
       default: 'bk_log_json',
       validator: (v: string) => ['bk_log_json', 'bk_log_delimiter', 'bk_log_regexp'].includes(v),
     },
+    builtInFieldsList: {
+      type: Array,
+      default: () => [],
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: [''],
+  emits: ['change'],
 
-  setup(props) {
+  setup(props, { emit }) {
     // 最大 int 类型值
     const MAX_INT_VALUE = 2_147_483_647;
     const { t } = useLocale();
@@ -140,7 +151,11 @@ export default defineComponent({
     const isPreviewMode = computed(() => props.tableType === 'preview');
     const isAdd = computed(() => props.selectEtlConfig === 'bk_log_json');
     const currentParticipleState = ref('default');
-    const currentTokenizeOnChars = ref('');
+    const cacheData = ref({
+      is_analyzed: false,
+      tokenize_on_chars: '',
+      is_case_sensitive: false,
+    });
     // 分词选项列表
     const participleList = [
       {
@@ -174,7 +189,7 @@ export default defineComponent({
      */
     const handleChangeParticipleState = (state: string) => {
       currentParticipleState.value = state;
-      currentTokenizeOnChars.value = state === 'custom' ? props.originalTextTokenizeOnChars : '';
+      cacheData.value.tokenize_on_chars = state === 'custom' ? props.originalTextTokenizeOnChars : '';
     };
     /**
      * 取消分词符popover
@@ -182,6 +197,21 @@ export default defineComponent({
     const handleWordBreakerCancelClick = () => {
       // 关闭 tippy
       tippyInstances.forEach(i => i?.hide());
+    };
+    /**
+     * 更新列表的内容
+     * @param list
+     * @param row
+     * @param updateCallback
+     * @returns
+     */
+    const updateList = (list: FieldItem[], row: FieldItem, updateCallback: (item: FieldItem) => FieldItem) => {
+      return list.map(item => {
+        if (item.field_index === row.field_index && item.field_name === row.field_name) {
+          return updateCallback(item);
+        }
+        return { ...item };
+      });
     };
     /**
      * 分词符render
@@ -192,8 +222,19 @@ export default defineComponent({
       if (row.field_type === 'string' && !row.is_built_in) {
         return (
           <span>
-            <span class='word-breaker word-breaker-edit'>
-              {row.word_breaker}
+            <span
+              class='word-breaker word-breaker-edit'
+              data-field-index={row.field_index}
+              data-field-name={row.field_name}
+            >
+              {row.is_analyzed ? (
+                <div class='analyzed-box'>
+                  {row.tokenize_on_chars ? row.tokenize_on_chars : t('自然语言分词')}
+                  {t('大小写敏感')}: {row.is_case_sensitive ? t('是') : t('否')}
+                </div>
+              ) : (
+                <span>{t('不分词')}</span>
+              )}
               <i class='select-angle bk-icon icon-angle-down' />
             </span>
             <div
@@ -204,9 +245,12 @@ export default defineComponent({
                 <div class='menu-item'>
                   <span class='menu-item-label'>{t('分词')}</span>
                   <bk-switcher
-                    // v-model={currentIsAnalyzed.value}
                     // disabled={getCustomizeDisabled(props.row, 'analyzed')}
                     theme='primary'
+                    value={cacheData.value.is_analyzed}
+                    on-change={value => {
+                      cacheData.value.is_analyzed = value;
+                    }}
                     // on-change={handelChangeAnalyzed}
                   />
                 </div>
@@ -221,6 +265,7 @@ export default defineComponent({
                           'is-selected': currentParticipleState.value === option.id,
                         }}
                         data-test-id={`fieldExtractionBox_button_filterMethod${option.id}`}
+                        disabled={!cacheData.value.is_analyzed && option.id === 'custom'}
                         size='small'
                         // disabled={getCustomizeDisabled(props.row)}
                         on-click={() => handleChangeParticipleState(option.id)}
@@ -232,7 +277,10 @@ export default defineComponent({
                   {currentParticipleState.value === 'custom' && (
                     <bk-input
                       class='custom-input'
-                      // v-model={currentTokenizeOnChars.value}
+                      value={cacheData.value.tokenize_on_chars}
+                      on-change={value => {
+                        cacheData.value.tokenize_on_chars = value;
+                      }}
                       // disabled={getCustomizeDisabled(props.row)}
                     />
                   )}
@@ -240,15 +288,32 @@ export default defineComponent({
                 <div class='menu-item'>
                   <span class='menu-item-label'>{t('大小写敏感')}</span>
                   <bk-switcher
-                    // v-model={currentIsCaseSensitive.value}
                     // disabled={getCustomizeDisabled(props.row)}
                     theme='primary'
+                    // v-model={currentIsCaseSensitive.value}
+                    value={cacheData.value.is_case_sensitive}
+                    on-change={value => {
+                      cacheData.value.is_case_sensitive = value;
+                    }}
                   />
                 </div>
                 <div class='menu-footer'>
                   <bk-button
+                    data-row-index={row.field_index}
+                    data-row-name={row.field_name}
                     size='small'
                     theme='primary'
+                    on-click={() => {
+                      handleWordBreakerCancelClick();
+                      // 通过按钮的 data 属性重新找到行数据（确保使用的是最新数据）
+                      const targetRow = props.data.find(
+                        item => item.field_index === row.field_index && item.field_name === row.field_name,
+                      );
+                      if (targetRow) {
+                        const newList = updateList(props.data, targetRow, item => ({ ...item, ...cacheData.value }));
+                        emit('change', newList);
+                      }
+                    }}
                   >
                     {t('确定')}
                   </bk-button>
@@ -273,7 +338,7 @@ export default defineComponent({
      */
     const renderValue = (row: any) => {
       if (!row.is_built_in) {
-        return <span class='word-breaker bg-gray'>{String(row.is_built_in)}</span>;
+        return <span class='word-breaker bg-gray'>{row.value}</span>;
       }
       return <span class='disabled-work'>{t('暂无预览')}</span>;
     };
@@ -298,7 +363,27 @@ export default defineComponent({
         hideOnClick: true,
         appendTo: () => document.body,
         onShow(instance) {
-          (instance.reference as HTMLElement).classList.add('is-hover');
+          const reference = instance.reference as HTMLElement;
+          reference.classList.add('is-hover');
+
+          // 通过 data 属性获取当前行的标识信息
+          const fieldIndex = reference.dataset.fieldIndex;
+          const fieldName = reference.dataset.fieldName;
+
+          // 根据标识找到对应的行数据
+          const currentRow = props.data.find(
+            item => String(item.field_index) === fieldIndex && item.field_name === fieldName,
+          );
+
+          // 如果有行数据，初始化 cacheData
+          if (currentRow) {
+            cacheData.value = {
+              is_analyzed: currentRow.is_analyzed,
+              tokenize_on_chars: currentRow.tokenize_on_chars || '',
+              is_case_sensitive: currentRow.is_case_sensitive,
+            };
+            currentParticipleState.value = currentRow.tokenize_on_chars ? 'custom' : 'default';
+          }
         },
         onHide(instance) {
           (instance.reference as HTMLElement).classList.remove('is-hover');
@@ -338,7 +423,7 @@ export default defineComponent({
      * 刷新值
      */
     const handleFreshValue = () => {
-      console.log('刷新值');
+      // TODO: 实现刷新值的逻辑
     };
 
     /**
@@ -393,7 +478,6 @@ export default defineComponent({
      * @returns
      */
     const renderFieldName = row => {
-      console.log('row', row);
       if (isPreviewMode.value || row.is_objectKey) {
         return (
           <div
@@ -429,8 +513,9 @@ export default defineComponent({
           {row.is_built_in && row.alias_name ? (
             <bk-input
               class='participle-field-name-input-pl5'
-              value={row.field_name}
               // disabled={() => getFieldEditDisabled(row)}
+              // disabled={row.is_built_in}
+              value={row.field_name}
               // on-blur={() => checkFieldNameItem(row)}
             />
           ) : (
@@ -439,8 +524,9 @@ export default defineComponent({
                 'participle-field-name-input': row.alias_name || row.alias_name_show,
                 // 'participle-field-name-input-pl5': true,
               }}
-              value={row.field_name}
               // disabled={() => getFieldEditDisabled(row)}
+              // disabled={row.is_built_in}
+              value={row.field_name}
               // on-blur={() => checkFieldNameItem(row)}
             />
           )}
@@ -533,16 +619,6 @@ export default defineComponent({
         prop: 'field_name',
         renderFn: renderFieldName,
       },
-      // {
-      //   label: t('别名'),
-      //   prop: 'alias_name',
-      //   renderFn: (row: any) => (
-      //     <bk-input
-      //       disabled={row.is_built_in}
-      //       value={row.alias_name}
-      //     />
-      //   ),
-      // },
       {
         label: t('类型'),
         prop: 'field_type',
@@ -551,6 +627,10 @@ export default defineComponent({
             clearable={false}
             disabled={row.is_built_in}
             value={row.field_type}
+            on-change={value => {
+              const newList = updateList(props.data, row, item => ({ ...item, field_type: value }));
+              emit('change', newList);
+            }}
           >
             {(globalsData.value.field_data_type || []).map(option => (
               <bk-option
@@ -623,7 +703,8 @@ export default defineComponent({
      * 是否显示内置字段
      */
     const showTableList = computed(() => {
-      return showBuiltIn.value ? showData.value : showData.value.filter(item => !item.is_built_in);
+      return showBuiltIn.value ? [...showData.value, ...props.builtInFieldsList] : showData.value;
+      // return showBuiltIn.value ? showData.value : showData.value.filter(item => !item.is_built_in);
     });
 
     const handleShowBuiltIn = () => {
@@ -634,14 +715,25 @@ export default defineComponent({
      * @param row 行数据
      */
     const deleteField = row => {
-      console.log(row);
+      // TODO: 实现删除字段的逻辑
+    };
+    /**
+     * 显示或者隐藏某个字段
+     * @param row
+     */
+    const isDisableOperate = (row: FieldItem) => {
+      const newList = updateList(props.data, row, item => ({ ...item, is_delete: !item.is_delete }));
+      emit('change', newList);
     };
     /**
      * 字段表格
      * @returns
      */
     const renderTable = () => (
-      <div class='fields-table'>
+      <div
+        class='fields-table'
+        v-bkloading={{ isLoading: props.loading, zIndex: 10 }}
+      >
         <bk-table
           ext-cls='fields-table-box'
           data={showTableList.value}
@@ -673,10 +765,13 @@ export default defineComponent({
               default: ({ row }) => {
                 return (
                   <div class='table-operation'>
-                    <i
-                      class={`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`}
-                      v-bk-tooltips={row.is_delete ? t('复原') : t('隐藏')}
-                    />
+                    {!row.is_built_in && (
+                      <i
+                        class={`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`}
+                        v-bk-tooltips={row.is_delete ? t('复原') : t('隐藏')}
+                        on-click={() => isDisableOperate(row)}
+                      />
+                    )}
                     {row.is_add_in && (
                       <i
                         class='bklog-icon bklog-log-delete icons del-icon'
@@ -697,7 +792,32 @@ export default defineComponent({
      * 新增字段
      */
     const handleAddField = () => {
-      console.log('新增字段', showTableList.value);
+      // 查找最大 field_index，确保新字段的索引唯一
+      const maxIndex: number = props.data.reduce((max: number, item: FieldItem) => {
+        return Math.max(max, item.field_index || 0);
+      }, 0);
+
+      // 创建新字段对象，field_name 默认为空
+      const newField: FieldItem = {
+        field_index: maxIndex + 1,
+        field_name: '', // 默认为空，由用户填写
+        field_type: 'string', // 默认类型为 string
+        is_built_in: false,
+        is_add_in: true,
+        is_objectKey: false,
+        is_delete: false,
+        is_time: false,
+        is_analyzed: false,
+        is_case_sensitive: false,
+        participleState: 'default',
+        alias_name_show: false,
+      };
+
+      // 将新字段添加到列表中
+      const newList = [...props.data, newField];
+
+      // 发送更新事件给父组件
+      emit('change', newList);
     };
 
     return () => (

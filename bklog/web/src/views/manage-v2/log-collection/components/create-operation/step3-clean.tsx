@@ -30,12 +30,10 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
 import { useOperation } from '../../hook/useOperation';
-import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
+import { showMessage } from '../../utils';
 import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import InfoTips from '../common-comp/info-tips';
-import { tableFieldData } from './detail';
-import { log } from './log';
 import { step3 } from './step3';
 import $http from '@/api';
 
@@ -62,19 +60,20 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const store = useStore();
-    const testConfigData = {
-      collector_config_id: 3240,
-      collector_config_name: 'win-0930-2',
-      bk_data_id: 1577598,
-      subscription_id: 33579,
-      task_id_list: ['29033233'],
-    };
     const { t } = useLocale();
-    const defaultRegex = '(?P<request_ip>[\d\.]+)[^[]+\[(?P<request_time>[^]]+)\]';
+    const defaultRegex = '(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]';
     const { cardRender } = useOperation();
-    const showCollectIssuedSlider = ref(false);
     const showReportLogSlider = ref(false);
     const jsonText = ref({});
+
+    const templateDialogVisible = ref(false);
+    const templateName = ref('');
+    /**
+     * 清洗模式 - 分隔符 - 选中的分隔符
+     */
+    const delimiter = ref();
+
+    const basicLoading = ref(false);
     /**
      * 指定日志时间校验报错信息
      */
@@ -119,8 +118,17 @@ export default defineComponent({
     ];
     const cleaningMode = ref('bk_log_json');
     const enableMetaData = ref(false);
+    /**
+     * 模版列表
+     */
+    const templateList = ref([]);
+    const templateListLoading = ref(false);
+
+    const builtInFieldsList = ref([]);
     const defaultParticipleStr = ref('@&()=\'",;:<>[]{}/ \\n\\t\\r\\\\');
     const globalsData = computed(() => store.getters['globals/globalsData']);
+    const curCollect = computed(() => store.getters['collect/curCollect']);
+    const bkBizId = computed(() => store.getters.bkBizId);
     /**
      * 分隔符
      */
@@ -133,6 +141,8 @@ export default defineComponent({
      * 时区
      */
     const timeZone = computed(() => (globalsData.value?.time_zone || []).toReversed());
+
+    const isTempField = ref(false);
 
     const formData = ref({
       // 最后一次正确的结果，保存以此数据为准
@@ -250,9 +260,56 @@ export default defineComponent({
     const showDebugPathRegexBtn = computed(() => formData.value.etl_params.path_regexp && pathExample.value);
 
     const fieldsObjectData = ref([]);
+
     onMounted(() => {
       // getDetail();
+      setDetail(step3.collector_config_id);
+      getTemplate();
     });
+
+    const getTemplate = (isSave = false) => {
+      templateListLoading.value = true;
+      $http
+        .request('clean/cleanTemplate', {
+          query: {
+            // bk_biz_id: bkBizId.value,
+            bk_biz_id: 100605,
+          },
+        })
+        .then(res => {
+          templateListLoading.value = false;
+          if (res.data) {
+            templateList.value = res.data;
+            console.log(res.data);
+            // this.currentTemplateList = res.data;
+          }
+        });
+    };
+
+    // 新建、编辑采集项时获取更新详情
+    const setDetail = id => {
+      if (!id) {
+        return;
+      }
+      basicLoading.value = true;
+      $http
+        .request('collect/details', {
+          params: { collector_config_id: id },
+        })
+        .then(res => {
+          if (res.data) {
+            store.commit('collect/setCurCollect', res.data);
+            console.log('res.data-----', res.data, curCollect.value);
+            builtInFieldsList.value = curCollect.value.fields;
+            // getDetail();
+            // await getCleanStash(id);
+            // getDataLog('init');
+          }
+        })
+        .finally(() => {
+          basicLoading.value = false;
+        });
+    };
     /**
      * 路径元数据 - 调试按钮
      */
@@ -267,9 +324,10 @@ export default defineComponent({
       };
       const urlParams = {};
       isDebugLoading.value = true;
-      urlParams.collector_config_id = props.configData.collector_config_id || step3.collector_config_id;
+      urlParams.collector_config_id = curCollect.value.collector_config_id;
       const updateData = { params: urlParams, data };
       // 先置空防止接口失败显示旧数据
+      formData.value.etl_params.metadata_fields = [];
       // formData.value.etl_params.metadata_fields?.splice(0, formData.value.etl_params.metadata_fields?.length);
       // this.metaDataList.splice(0, this.metaDataList.length);
       $http
@@ -282,26 +340,90 @@ export default defineComponent({
           isDebugLoading.value = false;
         });
     };
+
+    const judgeNumber = val => {
+      const { value } = val;
+      if (value === 0) {
+        return false;
+      }
+
+      return value && value !== ' ' ? isNaN(value) : true;
+    };
     /**
      * 清洗模式 - 清洗/调试按钮
      */
     const debugHandler = () => {
-      formData.value.fields.splice(0, formData.value.fields.length);
-      // this.isFinishCatchFrom = false;
-      // this.requestEtlPreview();
+      const { etl_params } = formData.value;
+      const data = {
+        etl_config: cleaningMode.value,
+        etl_params: {},
+        data: logOriginal.value,
+      };
+      if (cleaningMode.value === 'bk_log_delimiter') {
+        data.etl_params.separator = delimiter.value;
+      }
+      if (cleaningMode.value === 'bk_log_regexp') {
+        data.etl_params.separator_regexp = etl_params.separator_regexp;
+      }
+      let requestUrl = 'clean/getEtlPreview';
+      const urlParams = {};
+      isDebugLoading.value = true;
+      // 先置空防止接口失败显示旧数据
+      formData.value.etl_params.metadata_fields = [];
+      if (isTempField.value) {
+        requestUrl = 'clean/getEtlPreview';
+      } else {
+        urlParams.collector_config_id = curCollect.value.collector_config_id;
+        requestUrl = 'collect/getEtlPreview';
+      }
+      const updateData = { params: urlParams, data };
+      $http
+        .request(requestUrl, updateData)
+        .then(res => {
+          console.log('res.data=======', res.data);
+          const dataFields = res.data.fields;
+          const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
+          for (const item of dataFields) {
+            if (item.field_name && !validFieldPattern.test(item.field_name)) {
+              item.field_name = JSON.stringify(item.field_name);
+            }
+            item.verdict = judgeNumber(item);
+          }
+          const fields = formData.value.etl_fields;
+          const list = dataFields.reduce((arr, item) => {
+            const field = { ...structuredClone(rowTemplate.value), ...item };
+            arr.push(field);
+            return arr;
+          }, []);
+          formData.value.etl_fields.splice(0, fields.length, ...list);
+          console.log('list=====', list, formData.value.etl_fields);
+          // formData.value.etl_fields = res.data?.fields || [];
+          // const fields = res.data?.fields || [];
+          // formData.value.etl_params?.metadata_fields.push(...fields);
+        })
+        .finally(() => {
+          isDebugLoading.value = false;
+        });
     };
     /** 根据清洗模式，渲染不同的内容 */
     const renderCleaningMode = () => {
+      /**
+       * Json
+       */
       if (cleaningMode.value === 'bk_log_json') {
         return (
           <bk-button
             class='clean-btn'
+            disabled={!logOriginal.value}
             on-click={debugHandler}
           >
             {t('清洗')}
           </bk-button>
         );
       }
+      /**
+       * 分隔词
+       */
       if (cleaningMode.value === 'bk_log_delimiter') {
         return (
           <div class='separator-box select-group'>
@@ -310,6 +432,10 @@ export default defineComponent({
               <bk-select
                 class='select-box'
                 clearable={false}
+                value={delimiter.value}
+                on-change={val => {
+                  delimiter.value = val;
+                }}
               >
                 {globalDataDelimiter.value.map(option => (
                   <bk-option
@@ -322,6 +448,7 @@ export default defineComponent({
             </div>
             <bk-button
               class='clean-btn'
+              disabled={!logOriginal.value || !delimiter.value}
               on-click={debugHandler}
             >
               {t('调试')}
@@ -329,6 +456,9 @@ export default defineComponent({
           </div>
         );
       }
+      /**
+       * 正则表达式
+       */
       if (cleaningMode.value === 'bk_log_regexp') {
         return (
           <div class='regex-box-main'>
@@ -338,16 +468,25 @@ export default defineComponent({
                 class='bk-icon icon-info-circle tips-icon'
                 v-bk-tooltips={{
                   placement: 'right',
-                  content: `${t('正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容')}<br />${t(' - 日志内容：[2006-01-02 15:04:05] content')}<br /> ${t(' - 表达式：')} \[(?P<request_time>[^]]+)\] (?P<content>.+)`,
+                  content: `${t(
+                    '正则表达式(golang语法)需要匹配日志全文，如以下DEMO将从日志内容提取请求时间与内容',
+                  )}<br />${t(' - 日志内容：[2006-01-02 15:04:05] content')}<br /> ${t(
+                    ' - 表达式：',
+                  )} \[(?P<request_time>[^]]+)\] (?P<content>.+)`,
                 }}
               />
             </div>
             <bk-input
               placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
               type='textarea'
+              value={formData.value.etl_params.separator_regexp}
+              on-change={val => {
+                formData.value.etl_params.separator_regexp = val;
+              }}
             />
             <bk-button
               class='clean-btn'
+              disabled={!(logOriginal.value && formData.value.etl_params.separator_regexp)}
               on-click={debugHandler}
             >
               {t('调试')}
@@ -374,7 +513,7 @@ export default defineComponent({
       $http
         .request('source/dataList', {
           params: {
-            collector_config_id: props.configData.collector_config_id || testConfigData.collector_config_id,
+            collector_config_id: curCollect.value.collector_config_id,
           },
         })
         .then(res => {
@@ -412,13 +551,59 @@ export default defineComponent({
           // this.refresh = true;
         });
     };
-    /** 应用模版下拉框 */
+    /**
+     * 应用模版
+     * @param item
+     */
+    const applyTemplate = item => {
+      console.log(item, 'applyTemplate');
+      // if (this.isSaveTempDialog) {
+      //   if (this.saveTempName.trim() === '') {
+      //     this.$bkMessage({
+      //       theme: 'error',
+      //       message: this.$t('请输入模板名称'),
+      //     });
+      //     return;
+      //   }
+      //   this.templateDialogVisible = false;
+      //   this.fieldCollection(false);
+      // } else {
+      //   if (!this.selectTemplate) {
+      //     this.$bkMessage({
+      //       theme: 'error',
+      //       message: this.$t('请选择清洗模板'),
+      //     });
+      //     return;
+      //   }
+
+      //   // 应用模板设置
+      //   const curTemp = this.templateList.find(temp => temp.clean_template_id === this.selectTemplate);
+      //   this.formData.fields.splice(0, this.formData.fields.length);
+      //   this.setTempDetail(curTemp);
+      //   this.templateDialogVisible = false;
+      // }
+    };
+
+    /**
+     * 另存为模版确认  */
+    const handleTempConfirm = () => {
+      if (templateName.value.trim() === '') {
+        showMessage(t('请输入模板名称'), 'error');
+        return;
+      }
+      templateDialogVisible.value = false;
+      // this.fieldCollection(false);
+    };
+    /**
+     * 应用模版下拉框
+     *
+     */
     const renderTemplateSelect = () => (
       <bk-select
         class='template-select'
         ext-popover-cls={'template-select-popover'}
+        loading={templateListLoading.value}
         searchable
-        // on-selected={handleAddSortFields}
       >
         <span
           class='form-link'
@@ -427,17 +612,20 @@ export default defineComponent({
           <i class='bklog-icon bklog-app-store link-icon' />
           {t('应用模板')}
         </span>
-        {[
-          { id: 1, name: '模板名称' },
-          { id: 2, name: '模板名称' },
-        ].map(item => (
+        {templateList.value.map(item => (
           <bk-option
-            id={item.id}
-            key={item.id}
+            id={item.clean_template_id}
+            key={item.clean_template_id}
             name={item.name}
           >
             <div class='template-option'>
-              <span class='option-name'>{item.name}</span> <span class='option-btn'>{t('应用')}</span>
+              <span class='option-name'>{item.name}</span>{' '}
+              <span
+                class='option-btn'
+                on-click={() => applyTemplate(item)}
+              >
+                {t('应用')}
+              </span>
             </div>
           </bk-option>
         ))}
@@ -458,7 +646,7 @@ export default defineComponent({
       await $http
         .request('collect/getCheckTime', {
           params: {
-            collector_config_id: props.configData.collector_config_id || step3.collector_config_id,
+            collector_config_id: curCollect.value.collector_config_id,
           },
           data: {
             time_format,
@@ -583,7 +771,6 @@ export default defineComponent({
             </div>
             <bk-input
               type='textarea'
-              // logOriginal
               value={logOriginal.value}
               on-change={val => {
                 logOriginal.value = val;
@@ -620,9 +807,15 @@ export default defineComponent({
           <span class='label-title no-require'>{t('字段列表')}</span>
           <div class='form-box'>
             <FieldList
-              // data={tableFieldData.fields}
+              builtInFieldsList={builtInFieldsList.value}
               data={formData.value.etl_fields || []}
+              extractMethod={formData.value.etl_config}
+              loading={isDebugLoading.value}
+              originalTextTokenizeOnChars={defaultParticipleStr.value}
               selectEtlConfig={cleaningMode.value}
+              on-change={data => {
+                formData.value.etl_fields = data;
+              }}
             />
           </div>
         </div>
@@ -823,26 +1016,7 @@ export default defineComponent({
     ];
     return () => (
       <div class='operation-step3-clean'>
-        <div
-          class='status-box loading'
-          on-Click={() => {
-            showCollectIssuedSlider.value = true;
-          }}
-        >
-          <span class='status-icon-box' />
-          <i class='bklog-icon bklog-caijixiafazhong status-icon' />
-          {/* <i class='bklog-icon bklog-circle-correct-filled status-icon' /> */}
-          {/* <i class='bklog-icon bklog-shanchu status-icon' /> */}
-          <span class='status-txt'>{t('采集下发中...')}</span>
-        </div>
         {cardRender(cardConfig)}
-        <CollectIssuedSlider
-          data={log}
-          isShow={showCollectIssuedSlider.value}
-          on-change={value => {
-            showCollectIssuedSlider.value = value;
-          }}
-        />
         <ReportLogSlider
           isShow={showReportLogSlider.value}
           jsonText={jsonText.value}
@@ -863,19 +1037,56 @@ export default defineComponent({
             class='width-88 mr-8'
             theme='primary'
             on-click={() => {
-              // emit('next');
               /**
                * 校验时间格式， 校验通过之后，把指定的时间字段的 is_time 设置为 true
                */
-              requestCheckTime().then(res => {
-                console.log(res, 'res.value');
-              });
+              if (!formData.value.log_reporting_time) {
+                requestCheckTime().then(res => {
+                  if (res?.result) {
+                    const list = formData.value.etl_fields.map(item => ({
+                      ...item,
+                      is_time: item.field_name === formData.value.field_name,
+                    }));
+                    formData.value.etl_fields = list;
+                  }
+                });
+              }
+              /**
+               * 创建清洗
+               */
+              const { etl_params, etl_fields } = formData.value;
+              $http
+                .request('clean/updateCleanStash', {
+                  params: {
+                    collector_config_id: curCollect.value.collector_config_id,
+                  },
+                  data: {
+                    bk_biz_id: bkBizId.value,
+                    clean_type: cleaningMode.value,
+                    etl_params,
+                    etl_fields,
+                  },
+                })
+                .then(res => {
+                  if (res?.result) {
+                    emit('next');
+                  }
+                  console.log('res', res);
+                });
+
               console.log('formData.value', formData.value);
             }}
           >
             {t('下一步')}
           </bk-button>
-          <bk-button class='template-btn'>{t('另存为模板')}</bk-button>
+          <bk-button
+            class='template-btn'
+            on-click={() => {
+              templateDialogVisible.value = true;
+            }}
+          >
+            {t('另存为模板')}
+          </bk-button>
           <bk-button class='mr-8'>{t('重置')}</bk-button>
           <bk-button
             on-click={() => {
@@ -885,6 +1096,27 @@ export default defineComponent({
             {t('取消')}
           </bk-button>
         </div>
+        {/* 另存为模版弹窗 */}
+        <bk-dialog
+          width='480'
+          draggable={false}
+          header-position={'left'}
+          mask-close={false}
+          title={t('另存为模板')}
+          value={templateDialogVisible.value}
+          on-confirm-fn={handleTempConfirm}
+        >
+          <div class='template-content'>
+            <span style='color: #63656e'>{t('模板名称')}</span>
+            <bk-input
+              style='margin-top: 8px'
+              value={templateName.value}
+              on-change={val => {
+                templateName.value = val;
+              }}
+            />
+          </div>
+        </bk-dialog>
       </div>
     );
   },

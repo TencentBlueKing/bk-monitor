@@ -29,12 +29,15 @@ import { defineComponent, onBeforeUnmount, onMounted, ref, computed } from 'vue'
 import useLocale from '@/hooks/use-locale';
 
 import { useCollectList } from '../../hook/useCollectList';
+import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
+import { log } from './log';
 import StepClassify from './step1-classify';
 import StepBkDataCollection from './step2-bk-data-collection';
 import StepConfiguration from './step2-configuration';
 import StepCustomReport from './step2-custom-report';
 import StepClean from './step3-clean';
 import StepStorage from './step4-storage';
+import $http from '@/api';
 
 import './index.scss';
 
@@ -44,12 +47,13 @@ export default defineComponent({
   setup() {
     const { t } = useLocale();
     const mainRef = ref<HTMLDivElement>();
-    const DEFAULT_STEP = 2;
+    const DEFAULT_STEP = 3;
     const step = ref(DEFAULT_STEP);
     const typeKey = ref('std_log_config');
     const firstStep = { title: t('索引集分类'), icon: 1, components: StepClassify };
     const { goListPage } = useCollectList();
     const dataConfig = ref({});
+    const showCollectIssuedSlider = ref(false);
 
     const stepDesc = [
       firstStep,
@@ -124,6 +128,26 @@ export default defineComponent({
       goListPage();
     };
 
+    const getCollectList = (isLoading = true) => {
+      $http
+        .request('source/collectList', {
+          params: {
+            // collector_config_id: this.$route.params.collectorId,
+          },
+          manualSchema: true,
+        })
+        .then(res => {
+          console.log('getCollectList', res);
+        })
+        .catch(e => {
+          console.warn(e);
+          // this.reloadTable = false;
+        })
+        .finally(() => {
+          // this.basicLoading = false;
+        });
+    };
+
     return () => {
       const Component = currentStep.value.find(item => item.icon === step.value)?.components;
       return (
@@ -131,6 +155,25 @@ export default defineComponent({
           ref={mainRef}
           class='create-operation-main'
         >
+          <CollectIssuedSlider
+            data={log}
+            isShow={showCollectIssuedSlider.value}
+            on-change={value => {
+              showCollectIssuedSlider.value = value;
+            }}
+          />
+          <div
+            class='status-box loading'
+            on-Click={() => {
+              showCollectIssuedSlider.value = true;
+            }}
+          >
+            <span class='status-icon-box' />
+            <i class='bklog-icon bklog-caijixiafazhong status-icon' />
+            {/* <i class='bklog-icon bklog-circle-correct-filled status-icon' /> */}
+            {/* <i class='bklog-icon bklog-shanchu status-icon' /> */}
+            <span class='status-txt'>{t('采集下发中...')}</span>
+          </div>
           <div
             style={{ width: `${containerWidth.value - 60}px` }}
             class='create-step'

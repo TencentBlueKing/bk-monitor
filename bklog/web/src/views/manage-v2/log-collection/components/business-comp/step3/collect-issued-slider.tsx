@@ -23,12 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+/** biome-ignore-all lint/style/useCollapsedIf: <explanation> */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, computed, onMounted, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 
+import { showMessage } from '../../../utils';
 import HostDetail from '../../common-comp/host-detail';
+import $http from '@/api';
 
 import './collect-issued-slider.scss';
 /**
@@ -55,7 +59,161 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
+    const store = useStore();
     const collectionName = ref();
+    const loading = ref(false);
+    const curCollect = computed(() => store.getters['collect/curCollect']);
+    const curTaskIdList = ref([]);
+    const errorNum = ref(0);
+    // 节点管理准备好了吗
+    const notReady = ref(false);
+    const timerNum = ref(0);
+    const tableListAll = ref([]);
+    const tableList = ref([]);
+    const timer = ref();
+    const tabList = ref([
+      {
+        key: 'all',
+        label: t('全部'),
+        count: 0,
+      },
+      {
+        key: 'success',
+        label: t('成功'),
+        count: 0,
+      },
+      {
+        key: 'failed',
+        label: t('失败'),
+        count: 0,
+      },
+      {
+        key: 'running',
+        label: t('执行中'),
+        count: 0,
+      },
+    ]);
+
+    watch(
+      () => props.isShow,
+      val => {
+        if (val) {
+          for (const id of curCollect.value?.task_id_list ?? []) {
+            curTaskIdList.value.push(id);
+          }
+          requestIssuedClusterList();
+        }
+      },
+      {
+        immediate: true,
+        deep: true,
+      },
+    );
+    // onMounted(() => {});
+    const calcTabNum = () => {
+      const num = {
+        all: 0,
+        success: 0,
+        failed: 0,
+        running: 0,
+      };
+
+      // 遍历所有集群，计算各状态数量
+      for (const cluster of tableListAll.value) {
+        // 累加总数量（所有主机）
+        num.all += cluster.child.length;
+
+        // 遍历当前集群下的主机，按状态累加
+        for (const row of cluster.child) {
+          num[row.status] += 1;
+        }
+      }
+
+      // 更新标签页数量
+      for (const tab of tabList.value) {
+        tab.count = num[tab.key];
+      }
+      errorNum.value = num.failed;
+    };
+
+    const startStatusPolling = () => {
+      timerNum.value += 1;
+      // stopStatusPolling();
+      timer.value = setTimeout(() => {
+        if (this.isLeavePage) {
+          // stopStatusPolling();
+          return;
+        }
+        // this.elapsedSeconds += 0.5;
+        // if (this.elapsedSeconds % 1 !== 0.5) {
+        //   this.displaySeconds = this.elapsedSeconds.toFixed(0);
+        // }
+        requestIssuedClusterList('polling');
+      }, 500);
+    };
+    /**
+     *  集群list，与轮询共用
+     */
+    const requestIssuedClusterList = async (isPolling = '') => {
+      if (!isPolling) {
+        loading.value = true;
+      }
+
+      const params = {
+        collector_config_id: curCollect.value.collector_config_id,
+      };
+      const cacheTimeNum = timerNum.value;
+
+      try {
+        const res = await $http.request('collect/getIssuedClusterList', {
+          params,
+          query: { task_id_list: curTaskIdList.value },
+        });
+
+        // console.log('res', res);
+        const data = res.data.contents || [];
+        notReady.value = res.data.task_ready === false;
+
+        const processData = data => {
+          let collapseCount = 0;
+          // 遍历集群列表
+          for (const cluster of data) {
+            cluster.collapse = cluster.child.length && collapseCount < 5;
+            if (cluster.child.length) {
+              collapseCount++;
+            }
+            // 遍历集群下的主机列表
+            for (const host of cluster.child) {
+              host.status = host.status === 'PENDING' ? 'running' : host.status.toLowerCase();
+            }
+          }
+          tableListAll.value = [...data];
+          tableList.value = [...data];
+        };
+
+        if (isPolling === 'polling') {
+          if (cacheTimeNum === timerNum.value && !tableListAll.value.length) {
+            processData(data);
+          }
+          // 保留原业务逻辑注释
+          // syncHostStatus(data);
+          // tabHandler({ type: this.curTab }, true);
+          calcTabNum();
+          if (hasRunning.value) {
+            startStatusPolling();
+          }
+        } else {
+          processData(data);
+          calcTabNum();
+        }
+      } catch (err) {
+        showMessage(err.message, 'error');
+      } finally {
+        setTimeout(() => {
+          loading.value = false;
+        }, 500);
+      }
+    };
 
     const renderHeader = () => (
       <div>
@@ -75,11 +233,17 @@ export default defineComponent({
 
     const renderContent = () => (
       <div class='collect-issued-slider-content'>
-        <div class='collect-issued-slider-alert'>
-          <i class='bklog-icon bklog-alert alert-icon' />
-          {t('采集下发存在失败，请点击 重试，如再次失败请 联系助手。')}
-        </div>
-        <HostDetail log={props.data} />
+        {errorNum.value > 0 && (
+          <div class='collect-issued-slider-alert'>
+            <i class='bklog-icon bklog-alert alert-icon' />
+            {t('采集下发存在失败，请点击 重试，如再次失败请 联系助手。')}
+          </div>
+        )}
+        <HostDetail
+          list={tableListAll.value}
+          loading={loading.value}
+          tabList={tabList.value}
+        />
       </div>
     );
 

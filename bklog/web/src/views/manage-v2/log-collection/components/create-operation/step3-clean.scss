@@ -172,6 +172,20 @@
       color: #3a84ff;
       font-size: 12px;
       padding: 1px 15px;
+      &:hover {
+        border: 1px solid #3a84ff;
+        color: #3a84ff;
+      }
+      &.is-disabled {
+        background-color: #dcdee5;
+        border-color: #dcdee5;
+        color: #fff;
+        cursor: not-allowed;
+        &:hover {
+          background-color: #dcdee5 !important;
+          border-color: #dcdee5 !important;
+        }
+      }
     }
     .checkbox-box {
       display: flex;

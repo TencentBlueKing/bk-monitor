@@ -57,6 +57,89 @@
       margin-right: 5px;
     }
   }
+  .status-box {
+    width: 148px;
+    height: 40px;
+    background: #3d6099;
+    box-shadow: 0 2px 4px 0 #46495c3d;
+    border-radius: 25px;
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    z-index: 10;
+    cursor: pointer;
+    .status-icon-box {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      margin-right: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      will-change: transform;
+      transform-origin: 50% 50%;
+      backface-visibility: hidden;
+      transform: translateZ(0);
+    }
+    .spinner {
+      width: 30px;
+      height: 30px;
+      will-change: transform;
+      transform-origin: 50% 50%;
+      animation: spin 2s linear infinite;
+    }
+    .status-icon {
+      position: absolute;
+      left: 12px;
+    }
+    .status-txt {
+      color: #fff;
+      font-size: 14px;
+      text-align: center;
+    }
+    &.loading {
+      .status-icon-box {
+        background: url('@/images/log-collection/loading.svg') no-repeat center;
+        background-size: 32px 32px; /* 固定像素，避免 contain 的细微重采样 */
+        animation: spin 2s linear infinite;
+      }
+      .status-icon {
+        color: #fff;
+      }
+      
+    }
+    &.success {
+      background: #3d9399;
+      .status-icon-box {
+        background: #fff;
+      }
+      .status-icon {
+        font-size: 33px;
+        color: #00b38f;
+      }
+    }
+    &.failed {
+      background: #b34747;
+      .status-icon-box {
+        background: #fff;
+      }
+      .status-icon {
+        font-size: 38px;
+        color: #ea3636;
+      }
+    }
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+  }
 
   .create-operation {
     margin-top: 60px;

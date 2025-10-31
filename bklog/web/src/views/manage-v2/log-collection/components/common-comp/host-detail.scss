@@ -27,6 +27,7 @@
             border-radius: 2px;
             cursor: pointer;
             position: relative;
+            color: #4D4F56;
             &::after {
                 content: '';
                 display: inline-block;
@@ -60,6 +61,7 @@
                 height: 8px;
                 border-radius: 50%;
                 margin-right: 4px;
+                border: 1px solid #eee;
                 &.failed {
                     background: #FFDDDD;
                     border: 1px solid #EA3636;
@@ -71,11 +73,19 @@
             }
         }
     }
+    .host-detail-main-empty {
+        width: 100%;
+        height: calc(100vh - 160px);
+        padding-top: 150px;
+    }
     .host-detail-content {
         width: 100%;
         margin-top: 12px;
         display: flex;
         height: calc(100vh - 160px);
+        .detail-content-item {
+            height: 100%;
+        }
         .content-left {
             width: 320px;
             height: 100%;
@@ -129,11 +139,11 @@
                         height: 8px;
                         border-radius: 50%;
                         margin-right: 8px;
-                        &.SUCCESS {
+                        &.success {
                             background: #CBF0DA;
                             border: 1px solid #2CAF5E; 
                         }
-                        &.FAILED {
+                        &.failed {
                             background: #FFDDDD;
                             border: 1px solid #EA3636; 
                         }
@@ -145,6 +155,9 @@
             flex: 1;
             height: 100%;
             background: #1A1A1A;
+            .content-right-detail {
+               height: calc(100% - 42px);
+            }
             .content-right-title {
                 height: 42px;
                 line-height: 42px;

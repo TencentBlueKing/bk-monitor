@@ -27,6 +27,7 @@
 import { computed, defineComponent, onMounted, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 
 import { useCollectList } from '../../hook/useCollectList';
 import { useOperation } from '../../hook/useOperation';
@@ -53,16 +54,27 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
+    const store = useStore();
     const { cardRender, sortByPermission } = useOperation();
     const activeName = ref(['shared', 'exclusive']);
     const storageList = ref([]);
     const clusterSelect = ref();
     const loading = ref(false);
     const submitLoading = ref(false);
-    const formData = ref({});
+    const formData = ref({
+      ...{
+        storage_replies: 1,
+        retention: 7,
+        es_shards: 3,
+        need_assessment: false,
+      },
+      ...props.configData,
+    });
+    const cleanStash = ref({});
     // 是否是编辑
     const isEdit = ref(false);
     const { bkBizId, spaceUid, goListPage } = useCollectList();
+    const curCollect = computed(() => store.getters['collect/curCollect']);
     const collapseList = computed(() => [
       {
         title: t('共享集群'),
@@ -78,7 +90,7 @@ export default defineComponent({
     ]);
 
     const showGroupText = computed(() => {
-      return Number(bkBizId.value) > 0 ? `${bkBizId.value}_bklog_` : `space_${Math.abs(Number(bkBizId.value))}_bklog_`;
+      return curCollect.value.table_id ? curCollect.value.collector_config_name_en : '';
     });
     /**
      * 异步获取存储列表并按权限排序
@@ -101,12 +113,35 @@ export default defineComponent({
         loading.value = false;
       }
     };
-
+    /**
+     * 选择集群
+     * @param row
+     */
     const handleChooseCluster = row => {
       clusterSelect.value = row.storage_cluster_id;
+      console.log(row, 'row');
+    };
+    /**
+     * 获取采集项清洗缓存
+     */
+
+    const getCleanStash = async () => {
+      try {
+        const res = await $http.request('clean/getCleanStash', {
+          params: {
+            collector_config_id: curCollect.value.collector_config_id,
+          },
+        });
+        if (res.data) {
+          cleanStash.value = res.data;
+        }
+      } catch (error) {}
     };
     onMounted(() => {
       getStorage();
+      if (!['bkdata', 'es'].includes(props.scenarioId)) {
+        getCleanStash();
+      }
     });
 
     /** rCollapseItem的渲染 */
@@ -156,10 +191,10 @@ export default defineComponent({
           <bk-input
             class='storage-input'
             disabled={true}
-            value={props.configData.collector_config_name_en}
+            value={curCollect.value.collector_config_name_en}
           >
             <template slot='prepend'>
-              <div class='group-text'>{showGroupText.value}</div>
+              <div class='group-text'>{curCollect.value.table_id_prefix}</div>
             </template>
           </bk-input>
         </div>
@@ -168,7 +203,7 @@ export default defineComponent({
           <bk-input
             class='min-width'
             type='number'
-            value={props.configData.retention}
+            value={formData.value.retention}
             on-input={val => {
               formData.value.retention = val;
             }}
@@ -183,7 +218,7 @@ export default defineComponent({
           <bk-input
             class='min-width'
             type='number'
-            value={props.configData.storage_replies}
+            value={formData.value.storage_replies}
             on-input={val => {
               formData.value.storage_replies = val;
             }}
@@ -194,7 +229,7 @@ export default defineComponent({
           <bk-input
             class='min-width'
             type='number'
-            value={props.configData.es_shards}
+            value={formData.value.es_shards}
             on-input={val => {
               formData.value.es_shards = val;
             }}
@@ -232,7 +267,7 @@ export default defineComponent({
           data: {
             ...props.configData,
             ...formData.value,
-            collector_config_name: props.configData.index_set_name,
+            collector_config_name: formData.value.index_set_name,
             bk_biz_id: Number(bkBizId.value),
             // storage_replies: Number(formData.value.storage_replies),
             // allocation_min_days: Number(formData.value.allocation_min_days),
@@ -253,7 +288,38 @@ export default defineComponent({
      * 采集场景提交
      */
     const handleNormalSubmit = () => {
-      console.log('props.configData', props.configData);
+      submitLoading.value = true;
+      const { etl_params, etl_fields, clean_type } = cleanStash.value;
+
+      const data = {
+        etl_params,
+        fields: etl_fields,
+        etl_config: clean_type,
+        table_id: curCollect.value.collector_config_name_en,
+        storage_cluster_id: clusterSelect.value,
+        ...formData.value,
+        allocation_min_days: 0,
+      };
+      console.log(cleanStash.value, '----', formData.value, data, curCollect.value);
+      $http
+        .request('collect/fieldCollection', {
+          params: {
+            collector_config_id: curCollect.value.collector_config_id,
+          },
+          data,
+        })
+        .then(res => {
+          if (res.data) {
+            emit('cancel');
+            store.commit('collect/updateCurCollect', { ...formData.value, ...data, ...res.data });
+          }
+        })
+        .catch(() => {
+          console.log('error');
+        })
+        .finally(() => {
+          submitLoading.value = false;
+        });
     };
     /**
      * 保存配置

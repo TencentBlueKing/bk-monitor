@@ -24,67 +24,160 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, watch, type PropType } from 'vue';
 
 import { xssFilter } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 
-import { contents } from '../create-operation/log';
+import { showMessage } from '../../utils';
+import $http from '@/api';
 
 import './host-detail.scss';
+
+type IHostItem = {
+  host_id: number;
+  instance_id: string;
+  task_id: string;
+  ip: string;
+  status: string;
+  [key: string]: any;
+};
+
+type ILogItem = {
+  bk_obj_id: string;
+  bk_obj_name: string;
+  child: IHostItem[];
+  [key: string]: any;
+};
 
 export default defineComponent({
   name: 'HostDetail',
   props: {
-    log: {
-      type: Object,
-      default: () => ({}),
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+    list: {
+      type: Array as PropType<ILogItem[]>,
+      default: () => [],
+    },
+    tabList: {
+      type: Array as PropType<{ key: string; label: string; count: number }[]>,
+      default: () => [],
     },
   },
-  emits: [''],
 
-  setup(props, { emit }) {
+  setup(props) {
     const { t } = useLocale();
+    const store = useStore();
     const activeKey = ref('all');
-    const itemKey = ref(2000058532);
-    const tabList = computed(() => [
-      {
-        key: 'all',
-        label: t('全部'),
-        count: 1,
-      },
-      {
-        key: 'success',
-        label: t('成功'),
-        count: 1,
-      },
-      {
-        key: 'failed',
-        label: t('失败'),
-        count: 1,
-      },
-      {
-        key: 'running',
-        label: t('执行中'),
-        count: 0,
-      },
-    ]);
+    const currentItem = ref({});
+    const itemLoading = ref(false);
+    const log = ref('');
+    const detail = ref({});
+    const curCollect = computed(() => store.getters['collect/curCollect']);
 
+    const showList = computed(() => {
+      const list = props.list;
+      if (activeKey.value === 'all') {
+        return list;
+      }
+      return list.filter(item => {
+        const childList = item.child.filter(child => child.status === activeKey.value);
+        return childList.length > 0 && { ...item, child: childList };
+      });
+    });
+
+    /**
+     * 切换tab的时候默认选中第一个item
+     */
+    const setDefaultItem = () => {
+      if (showList.value.length === 0) {
+        return;
+      }
+      const firstItem = showList.value[0].child[0];
+      handleItemClick(firstItem);
+    };
+    /**
+     * 切换Tab
+     * @param item
+     */
     const handleTabClick = item => {
       if (item.count !== 0) {
+        log.value = '';
+        detail.value = {};
         activeKey.value = item.key;
       }
     };
-
-    const handleItemClick = item => {
-      console.log(item);
-      itemKey.value = item.host_id;
+    /**
+     * 获取选中的ip详情
+     * @param item
+     */
+    const getItemDetail = item => {
+      itemLoading.value = true;
+      $http
+        .request('collect/executDetails', {
+          params: {
+            collector_id: curCollect.value.collector_config_id,
+          },
+          query: {
+            instance_id: item.instance_id,
+            task_id: item.task_id,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            log.value = res.data.log_detail;
+            detail.value = res.data.log_result;
+          }
+        })
+        .catch(err => {
+          showMessage(err.message || err, 'error');
+        })
+        .finally(() => {
+          itemLoading.value = false;
+        });
     };
+    /**
+     * 选择某个ip
+     * @param item
+     */
+    const handleItemClick = item => {
+      currentItem.value = item;
+      getItemDetail(item);
+    };
+
+    const renderIcon = () => {
+      const statusIconMap = {
+        SUCCESS: 'bklog-circle-correct-filled',
+        FAILED: 'bklog-circle-alert-filled',
+      };
+      const iconClass = statusIconMap[detail.value.status];
+      return iconClass ? <i class={`bklog-icon ${iconClass} status-icon ${detail.value.status}`} /> : null;
+    };
+
+    watch(
+      () => props.loading,
+      val => {
+        !val && setDefaultItem();
+      },
+    );
+
+    watch(
+      () => activeKey.value,
+      () => {
+        setDefaultItem();
+      },
+      {
+        immediate: true,
+      },
+    );
 
     return () => (
       <div class='host-detail-main'>
         <span class='host-detail-tab'>
-          {tabList.value.map(item => (
+          {props.tabList.map(item => (
             <span
               key={item.key}
               class={{
@@ -100,33 +193,62 @@ export default defineComponent({
             </span>
           ))}
         </span>
-        <div class='host-detail-content'>
-          <div class='content-left'>
-            <div class='content-left-title'>{t('主机')}</div>
-            <div class='left-list'>
-              {contents[0].child.map(item => (
-                <div
-                  key={item.host_id}
-                  class={{ 'left-item': true, active: itemKey.value === item.host_id }}
-                  on-click={() => handleItemClick(item)}
-                >
-                  {item.status === 'running' ? <i class='running' /> : <span class={`item-circle ${item.status}`} />}
-                  {item.ip}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div class='content-right'>
-            <div class='content-right-title'>
-              <i class={`bklog-icon bklog-circle-correct-filled status-icon ${props.log.log_result.status}`} />
-              {t('采集详情 ')}
-              <i class='bklog-icon bklog-refresh2 refresh-icon' />
-            </div>
-            <div
-              class='content-box'
-              domPropsInnerHTML={xssFilter(props.log?.log_detail ?? '')}
+        <div v-bkloading={{ isLoading: props.loading }}>
+          {showList.value.length === 0 ? (
+            <bk-exception
+              class='host-detail-main-empty'
+              scene='part'
+              type='empty'
             />
-          </div>
+          ) : (
+            <div class='host-detail-content'>
+              <div class='content-left'>
+                {showList.value.map(logItem => (
+                  <div
+                    key={logItem.bk_obj_id}
+                    class='detail-content-item'
+                  >
+                    <div class='content-left-title'>{logItem.bk_obj_name}</div>
+                    <div class='left-list'>
+                      {logItem.child.map(item => (
+                        <div
+                          key={item.host_id}
+                          class={{ 'left-item': true, active: currentItem.value.host_id === item.host_id }}
+                          on-click={() => handleItemClick(item)}
+                        >
+                          {item.status === 'running' ? (
+                            <i class='running' />
+                          ) : (
+                            <span class={`item-circle ${item.status}`} />
+                          )}
+                          {item.ip}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div class='content-right'>
+                <div class='content-right-title'>
+                  {renderIcon()}
+                  {t('采集详情 ')}
+                  <i
+                    class='bklog-icon bklog-refresh2 refresh-icon'
+                    on-click={() => getItemDetail(currentItem.value)}
+                  />
+                </div>
+                <div
+                  class='content-right-detail'
+                  v-bkloading={{ isLoading: itemLoading.value, color: '#2E2E2E', zIndex: 10 }}
+                >
+                  <div
+                    class='content-box'
+                    domPropsInnerHTML={xssFilter(log.value || '')}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
