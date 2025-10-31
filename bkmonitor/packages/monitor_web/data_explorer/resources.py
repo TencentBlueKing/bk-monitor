@@ -1165,7 +1165,7 @@ class SaveToDashboard(Resource):
                         "data": {
                             "data_source_label": query_config["data_source_label"],
                             "data_type_label": query_config["data_type_label"],
-                            "index": query_config["index"],
+                            "index": query_config.get("index", {}),
                             "queryString": query_config["query_string"],
                             "metric": query_config.get("metric", ""),
                             "method": query_config.get("method", "value_count"),
