@@ -53,7 +53,7 @@ async def render_html(html_file_path: str) -> bytes | None:
 
     panel = await page.querySelector(".chart-contain")
     if not panel:
-        return
+        return b""
 
     # 截图
     img_bytes = await panel.screenshot({"type": "jpeg", "quality": 90})
