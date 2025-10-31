@@ -53,7 +53,7 @@ export default class Profiling extends tsc<object> {
   get profilingData(): Vue3WewebData {
     return {
       host: this.profilingHost,
-      baseroute: '/trace/',
+      parentRoute: '/trace/',
       get enableAiAssistant() {
         return aiWhaleStore.enableAiAssistant;
       },

@@ -663,7 +663,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
    */
   handleGoService(serviceName: string) {
     const { from, to } = this.$route.query;
-    let urlStr = `${window.__BK_WEWEB_DATA__?.baseroute || ''}service/?filter-service_name=${serviceName}&filter-app_name=${this.appName}`;
+    let urlStr = `${window.__BK_WEWEB_DATA__?.parentRoute || ''}service/?filter-service_name=${serviceName}&filter-app_name=${this.appName}`;
     urlStr += `&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
     const { href } = this.$router.resolve({
       path: urlStr,

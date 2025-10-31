@@ -27,7 +27,7 @@
 import type { AIBluekingShortcut } from '../../components/ai-whale/types';
 
 export type Vue3WewebData = {
-  baseroute: string;
+  parentRoute: string;
   enableAiAssistant?: boolean;
   handleAIBluekingShortcut?: (shortcut: AIBluekingShortcut) => void;
   host: string;

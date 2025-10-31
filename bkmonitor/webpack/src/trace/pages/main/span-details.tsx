@@ -680,7 +680,7 @@ export default defineComponent({
           break;
         }
         default: {
-          const hash = `#${window.__BK_WEWEB_DATA__?.baseroute || '/'}home/?app_name=${
+          const hash = `#${window.__BK_WEWEB_DATA__?.parentRoute || '/'}home/?app_name=${
             appName.value
           }&search_type=accurate&search_id=spanID&trace_id=${spanID}`;
           text = location.href.replace(location.hash, hash);
