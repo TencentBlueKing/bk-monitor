@@ -1123,6 +1123,8 @@ class StorageUsageSerializer(serializers.Serializer):
 
 
 class StrategyRecordSerializer(serializers.Serializer):
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
+    is_group = serializers.BooleanField(label=_("是否分组展示"), required=False, default=False)
     page = serializers.IntegerField(label=_("页数"), default=1, min_value=1)
     page_size = serializers.IntegerField(label=_("每页条数"), default=10, min_value=1, max_value=500)
 
