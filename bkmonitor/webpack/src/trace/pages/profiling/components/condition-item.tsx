@@ -182,6 +182,7 @@ export default defineComponent({
           <Select
             v-model={this.localValue.value}
             scroll-loading={this.scrollLoading}
+            search-placeholder={this.t('请输入 关键字')}
             allowCreate
             disableFocusBehavior
             filterable

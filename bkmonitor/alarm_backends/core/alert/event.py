@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import time
@@ -16,6 +16,7 @@ from alarm_backends.constants import DEFAULT_DEDUPE_FIELDS
 from bkmonitor.documents import EventDocument
 from bkmonitor.utils.common_utils import count_md5
 from constants.alert import EventStatus, EventTargetType
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import LABEL_ORDER_LIST, DataTypeLabel, ResultTableLabelObj
 
 
@@ -58,6 +59,7 @@ class Event:
         "ipv6",
         "bk_topo_node",
         "extra_info",
+        "bk_tenant_id",
     )
 
     def __init__(self, data: dict, do_clean=True):
@@ -90,6 +92,7 @@ class Event:
         self.data["time"] = self._clean_time()
         self.data["category"] = self._clean_category()
         self.data["id"] = self._clean_uid()
+        self.data["bk_tenant_id"] = self._clean_bk_tenant_id()
 
     def remove_none_fields(self):
         """
@@ -114,14 +117,17 @@ class Event:
     def _clean_bk_biz_id(self):
         return self.data.get("bk_biz_id")
 
+    def _clean_bk_tenant_id(self):
+        return self.data.get("bk_tenant_id") or DEFAULT_TENANT_ID
+
     def _clean_tags(self):
         tags = self.data.get("tags", [])
         cleaned_tags = []
         for tag in tags:
             if isinstance(tag["value"], dict):
                 value = json.dumps(tag["value"])
-            elif isinstance(tag["value"], (list, tuple)):
-                value = [json.dumps(v) if isinstance(v, (dict, list)) else v for v in tag["value"]]
+            elif isinstance(tag["value"], list | tuple):
+                value = [json.dumps(v) if isinstance(v, dict | list) else v for v in tag["value"]]
             else:
                 value = tag["value"]
             cleaned_tag = {
@@ -285,6 +291,10 @@ class Event:
     @property
     def id(self) -> str:
         return self.data["id"]
+
+    @property
+    def bk_tenant_id(self) -> str:
+        return self.data.get("bk_tenant_id") or DEFAULT_TENANT_ID
 
     @property
     def event_id(self) -> str:

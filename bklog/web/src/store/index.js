@@ -62,10 +62,7 @@ import {
   indexSetClusteringData,
 } from './default-values.ts';
 import globals from './globals.js';
-import {
-  getCommonFilterAdditionWithValues,
-  isAiAssistantActive,
-} from './helper.ts';
+import { getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper.ts';
 import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
@@ -233,8 +230,7 @@ const store = new Vuex.Store({
     maskingToggle: state => state.maskingToggle,
     isNotVisibleFieldsShow: state => state.isNotVisibleFieldsShow,
     /** 脱敏灰度判断 */
-    isShowMaskingTemplate: state => state.maskingToggle.toggleString === 'on'
-      || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
+    isShowMaskingTemplate: state => state.maskingToggle.toggleString === 'on' || state.maskingToggle.toggleList.includes(Number(state.bkBizId)),
     isLimitExpandView: state => state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW],
     custom_sort_list: state => state.retrieve.catchFieldCustomConfig.sortList ?? [],
 
@@ -263,13 +259,8 @@ const store = new Vuex.Store({
       // 操作符为"=~", "&=~", "!=~", "&!=~"  四者之一
       filterAddition.forEach((item) => {
         if (['=~', '&=~', '!=~', '&!=~'].includes(item.operator)) {
-          const field = (state.indexFieldInfo?.fields ?? []).find(
-            f => f.field_name === item.field,
-          );
-          if (
-            field?.field_type === 'text'
-            && !(field?.is_case_sensitive ?? true)
-          ) {
+          const field = (state.indexFieldInfo?.fields ?? []).find(f => f.field_name === item.field);
+          if (field?.field_type === 'text' && !(field?.is_case_sensitive ?? true)) {
             item.value = item.value.map(v => v?.toLowerCase() ?? '');
           }
         }
@@ -295,9 +286,7 @@ const store = new Vuex.Store({
       } = state.indexItem;
 
       const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
-      const searchParams = searchMode === 'sql'
-        ? { keyword, addition: [] }
-        : { addition: getters.originAddition, keyword: '*' };
+      const searchParams =        searchMode === 'sql' ? { keyword, addition: [] } : { addition: getters.originAddition, keyword: '*' };
 
       if (searchParams.keyword.replace(/\s*/, '') === '') {
         searchParams.keyword = '*';
@@ -334,19 +323,11 @@ const store = new Vuex.Store({
       }
 
       return getters.originAddition.reduce((output, current) => {
-        const {
-          field,
-          operator,
-          value,
-          hidden_values: hiddenValues = [],
-          disabled,
-        } = current;
+        const { field, operator, value, hidden_values: hiddenValues = [], disabled } = current;
         if (!disabled && field !== '_ip-select_') {
           const filterFn = v => !hiddenValues.includes(v);
 
-          const filterValue = Array.isArray(value)
-            ? value.filter(filterFn)
-            : [value].filter(filterFn);
+          const filterValue = Array.isArray(value) ? value.filter(filterFn) : [value].filter(filterFn);
           if (filterValue.length > 0) {
             output.push({
               field,
@@ -377,10 +358,7 @@ const store = new Vuex.Store({
       Object.keys(payload).forEach((key) => {
         state.storage[key] = payload[key];
       });
-      localStorage.setItem(
-        BkLogGlobalStorageKey,
-        JSON.stringify(state.storage),
-      );
+      localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(state.storage));
     },
 
     updateApiError(state, { apiName, errorMessage }) {
@@ -397,11 +375,7 @@ const store = new Vuex.Store({
     updateChartParams(state, params) {
       Object.keys(params).forEach((key) => {
         if (Array.isArray(state.indexItem.chart_params[key])) {
-          state.indexItem.chart_params[key].splice(
-            0,
-            state.indexItem.chart_params[key].length,
-            ...(params[key] ?? []),
-          );
+          state.indexItem.chart_params[key].splice(0, state.indexItem.chart_params[key].length, ...(params[key] ?? []));
         } else {
           set(state.indexItem.chart_params, key, params[key]);
         }
@@ -410,16 +384,11 @@ const store = new Vuex.Store({
     updateIndexItem(state, payload) {
       Object.keys(payload ?? {}).forEach((key) => {
         if (['ids', 'items', 'catchUnionBeginList'].includes(key)) {
-          if (
-            Array.isArray(state.indexItem[key])
-            && Array.isArray(payload?.[key] ?? false)
-          ) {
+          if (Array.isArray(state.indexItem[key]) && Array.isArray(payload?.[key] ?? false)) {
             state.indexItem[key].splice(
               0,
               state.indexItem[key].length,
-              ...(payload?.[key] ?? []).filter(
-                v => v !== '' && v !== null && v !== undefined,
-              ),
+              ...(payload?.[key] ?? []).filter(v => v !== '' && v !== null && v !== undefined),
             );
           } else {
             if (Object.prototype.hasOwnProperty.call(state.indexItem, key)) {
@@ -459,9 +428,7 @@ const store = new Vuex.Store({
           state.indexItem[key].splice(
             0,
             state.indexItem[key].length,
-            ...(payload?.[key] ?? []).filter(
-              v => v !== null && v !== undefined,
-            ),
+            ...(payload?.[key] ?? []).filter(v => v !== null && v !== undefined),
           );
         }
       });
@@ -483,9 +450,7 @@ const store = new Vuex.Store({
       }
 
       const copyValue = Object.keys(payload ?? {}).reduce((result, key) => {
-        if (
-          !['ids', 'items', 'catchUnionBeginList', 'addition'].includes(key)
-        ) {
+        if (!['ids', 'items', 'catchUnionBeginList', 'addition'].includes(key)) {
           Object.assign(result, { [key]: payload[key] });
         }
 
@@ -511,30 +476,19 @@ const store = new Vuex.Store({
     },
 
     resetIndexSetQueryResult(state, payload) {
-      Object.assign(
-        state.indexSetQueryResult,
-        IndexSetQueryResult,
-        payload ?? {},
-      );
+      Object.assign(state.indexSetQueryResult, IndexSetQueryResult, payload ?? {});
     },
 
     updateIndexSetQueryResult(state, payload) {
       Object.keys(payload ?? {}).forEach((key) => {
-        if (
-          Array.isArray(payload[key])
-          && Array.isArray(state.indexSetQueryResult[key])
-        ) {
+        if (Array.isArray(payload[key]) && Array.isArray(state.indexSetQueryResult[key])) {
           if (Object.isFrozen(state.indexSetQueryResult[key])) {
             state.indexSetQueryResult[key] = undefined;
             set(state.indexSetQueryResult, key, payload[key]);
           } else {
             state.indexSetQueryResult[key].length = 0;
             state.indexSetQueryResult[key] = [];
-            state.indexSetQueryResult[key].push(
-              ...(payload[key] ?? []).filter(
-                v => v !== null && v !== undefined,
-              ),
-            );
+            state.indexSetQueryResult[key].push(...(payload[key] ?? []).filter(v => v !== null && v !== undefined));
           }
         } else {
           set(state.indexSetQueryResult, key, payload[key]);
@@ -600,10 +554,7 @@ const store = new Vuex.Store({
       state.bkBizId = state.space?.bk_biz_id;
       state.spaceUid = state.space?.space_uid;
       state.isSetDefaultTableColumn = false;
-      state.features.isAiAssistantActive = isAiAssistantActive([
-        state.bkBizId,
-        state.spaceUid,
-      ]);
+      state.features.isAiAssistantActive = isAiAssistantActive([state.bkBizId, state.spaceUid]);
     },
     updateMySpaceList(state, spaceList) {
       state.mySpaceList = spaceList.map((item) => {
@@ -631,39 +582,21 @@ const store = new Vuex.Store({
       });
 
       const demoId = String(window.DEMO_BIZ_ID);
-      const demoProject = spaceList.find(
-        item => `${item.bk_biz_id}` === demoId,
-      );
+      const demoProject = spaceList.find(item => `${item.bk_biz_id}` === demoId);
       state.demoUid = demoProject ? demoProject.space_uid : '';
     },
     updateUnionIndexList(state, unionIndexList) {
       const updateIndexItem = unionIndexList.updateIndexItem ?? true;
-      const list = Array.isArray(unionIndexList)
-        ? unionIndexList
-        : unionIndexList.list;
+      const list = Array.isArray(unionIndexList) ? unionIndexList : unionIndexList.list;
 
-      state.unionIndexList.splice(
-        0,
-        state.unionIndexList.length,
-        ...list.filter(v => v !== null && v !== undefined),
-      );
+      state.unionIndexList.splice(0, state.unionIndexList.length, ...list.filter(v => v !== null && v !== undefined));
 
       if (updateIndexItem) {
-        state.indexItem.ids.splice(
-          0,
-          state.indexItem.ids.length,
-          ...list.filter(v => v !== null && v !== undefined),
-        );
+        state.indexItem.ids.splice(0, state.indexItem.ids.length, ...list.filter(v => v !== null && v !== undefined));
       }
 
-      const unionIndexItemList = state.retrieve.flatIndexSetList.filter(
-        item => list.includes(item.index_set_id),
-      );
-      state.unionIndexItemList.splice(
-        0,
-        state.unionIndexItemList.length,
-        ...unionIndexItemList,
-      );
+      const unionIndexItemList = state.retrieve.flatIndexSetList.filter(item => list.includes(item.index_set_id));
+      state.unionIndexItemList.splice(0, state.unionIndexItemList.length, ...unionIndexItemList);
     },
     updateGlobalsData(state, globalsData) {
       state.globalsData = globalsData;
@@ -682,15 +615,8 @@ const store = new Vuex.Store({
       state.visibleFields.splice(0, state.visibleFields.length, ...(val ?? []));
     },
     updateVisibleFieldMinWidth(state, tableList, fieldList) {
-      const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active
-        ? 84
-        : 58 + 50;
-      setDefaultTableWidth(
-        fieldList ?? state.visibleFields,
-        tableList,
-        null,
-        staticWidth,
-      );
+      const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 84 : 58 + 50;
+      setDefaultTableWidth(fieldList ?? state.visibleFields, tableList, null, staticWidth);
     },
     updateIndexFieldInfo(state, payload) {
       const HIDDEN_FIELDS = new Set(builtInInitHiddenList);
@@ -719,9 +645,7 @@ const store = new Vuex.Store({
       });
 
       const fieldAliasMap = new Map();
-      const aliasFieldList = state.indexFieldInfo.alias_field_list.map(
-        f => f.field_name,
-      );
+      const aliasFieldList = state.indexFieldInfo.alias_field_list.map(f => f.field_name);
       state.indexFieldInfo.fields.forEach((field) => {
         const fieldAlias = field.query_alias || field.field_alias || field.field_name;
 
@@ -772,9 +696,7 @@ const store = new Vuex.Store({
             if (typeof value === 'object') {
               recursiveIncreaseData(value, `${prefixFieldKey + field}.`);
             } else {
-              const fullFieldKey = prefixFieldKey
-                ? prefixFieldKey + field
-                : field;
+              const fullFieldKey = prefixFieldKey ? prefixFieldKey + field : field;
               let fieldData = target[fullFieldKey];
               if (fieldData) fieldData.__totalCount += 1;
               if (value || value === 0) {
@@ -804,10 +726,7 @@ const store = new Vuex.Store({
                 }
                 fieldData.__validCount += 1;
                 fieldData[value] += 1;
-                if (
-                  state.notTextTypeFields.includes(field)
-                  && !fieldData?.[value]
-                ) {
+                if (state.notTextTypeFields.includes(field) && !fieldData?.[value]) {
                   // 非 text 类型字段统计可选值，text 则由用户手动输入
                   fieldData[value] = 1;
                 }
@@ -834,9 +753,7 @@ const store = new Vuex.Store({
       state.notTextTypeFields = [];
 
       state.notTextTypeFields.push(
-        ...(payload.fields ?? [])
-          .filter(field => field.field_type !== 'text')
-          .map(item => item.field_name),
+        ...(payload.fields ?? []).filter(field => field.field_type !== 'text').map(item => item.field_name),
       );
     },
     updateTableLineIsWrap(state, payload) {
@@ -865,10 +782,7 @@ const store = new Vuex.Store({
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
       if (!state.isSetDefaultTableColumn) {
         const catchFieldsWidthObj = store.state.retrieve.catchFieldCustomConfig.fieldsWidth;
-        const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole
-          ?.is_active
-          ? 104
-          : 84;
+        const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 104 : 84;
         setDefaultTableWidth(
           state.visibleFields,
           payload?.list ?? state.indexSetQueryResult.list,
@@ -893,18 +807,13 @@ const store = new Vuex.Store({
     resetVisibleFields(state, payload) {
       const isVersion2Payload = payload?.version === 'v2';
       const catchDisplayFields = store.state.retrieve.catchFieldCustomConfig.displayFields;
-      const displayFields = catchDisplayFields.length
-        ? catchDisplayFields
-        : null;
+      const displayFields = catchDisplayFields.length ? catchDisplayFields : null;
       // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
-      const filterList = (isVersion2Payload
-        ? payload.displayFieldNames
-        : payload || displayFields) ?? state.indexFieldInfo.display_fields;
-      const visibleFields = filterList
+      const filterList =        (isVersion2Payload ? payload.displayFieldNames : payload || displayFields)
+        ?? state.indexFieldInfo.display_fields;
+      const visibleFields =        filterList
         .map((displayName) => {
-          const field = state.indexFieldInfo.fields.find(
-            field => field.field_name === displayName,
-          );
+          const field = state.indexFieldInfo.fields.find(field => field.field_name === displayName);
           if (field) {
             return field;
           }
@@ -942,9 +851,7 @@ const store = new Vuex.Store({
         contextAndRealtime,
         indexSetValue,
         toolMessage: {
-          webConsole: bcsWebConsole.is_active
-            ? 'WebConsole'
-            : bcsWebConsole?.extra?.reason,
+          webConsole: bcsWebConsole.is_active ? 'WebConsole' : bcsWebConsole?.extra?.reason,
           realTimeLog: contextAndRealtime.is_active
             ? window.mainComponent.$t('实时日志')
             : contextAndRealtime?.extra?.reason,
@@ -978,13 +885,11 @@ const store = new Vuex.Store({
      * @return {Promise} promise 对象
      */
     userInfo({ commit }, params, config = {}) {
-      return http
-        .request('userInfo/getUserInfo', { query: params, config })
-        .then((response) => {
-          const userData = response.data || {};
-          commit('updateState', { user: userData });
-          return userData;
-        });
+      return http.request('userInfo/getUserInfo', { query: params, config }).then((response) => {
+        const userData = response.data || {};
+        commit('updateState', { user: userData });
+        return userData;
+      });
     },
 
     /**
@@ -1041,9 +946,7 @@ const store = new Vuex.Store({
           if (oldMenu.children) {
             resMenu.children.forEach((item) => {
               item.id = routeMap[item.id] || item.id;
-              const menu = oldMenu.children.find(
-                menuItem => menuItem.id === item.id,
-              );
+              const menu = oldMenu.children.find(menuItem => menuItem.id === item.id);
               if (menu) {
                 deepUpdateMenu(menu, item);
               }
@@ -1067,9 +970,7 @@ const store = new Vuex.Store({
 
           menuList.forEach((child) => {
             child.id = routeMap[child.id] || child.id;
-            const menu = MENU_LISTS.find(
-              menuItem => menuItem.id === child.id,
-            );
+            const menu = MENU_LISTS.find(menuItem => menuItem.id === child.id);
             if (menu) {
               deepUpdateMenu(menu, child);
             }
@@ -1090,22 +991,24 @@ const store = new Vuex.Store({
     },
     // 判断有无权限
     checkAllowed(context, paramData) {
-      return http.request('auth/checkAllowed', {
-        data: paramData,
-      }).then((checkRes) => {
-        for (const item of checkRes.data) {
-          if (item.is_allowed === false) {
-            // 无权限
-            return {
-              isAllowed: false,
-            };
+      return http
+        .request('auth/checkAllowed', {
+          data: paramData,
+        })
+        .then((checkRes) => {
+          for (const item of checkRes.data) {
+            if (item.is_allowed === false) {
+              // 无权限
+              return {
+                isAllowed: false,
+              };
+            }
           }
-        }
-        // 有权限
-        return {
-          isAllowed: true,
-        };
-      })
+          // 有权限
+          return {
+            isAllowed: true,
+          };
+        })
         .catch((err) => {
           // 请求出错
           return Promise.reject(err);
@@ -1119,27 +1022,31 @@ const store = new Vuex.Store({
     },
     // 判断有无权限，无权限获取相关信息
     checkAndGetData(context, paramData) {
-      return http.request('auth/checkAllowed', {
-        data: paramData,
-      }).then((checkRes) => {
-        for (const item of checkRes.data) {
-          if (item.is_allowed === false) {
-            // 无权限
-            return http.request('auth/getApplyData', {
-              data: paramData,
-            }).then((applyDataRes) => {
-              return {
-                isAllowed: false,
-                data: applyDataRes.data,
-              };
-            });
+      return http
+        .request('auth/checkAllowed', {
+          data: paramData,
+        })
+        .then((checkRes) => {
+          for (const item of checkRes.data) {
+            if (item.is_allowed === false) {
+              // 无权限
+              return http
+                .request('auth/getApplyData', {
+                  data: paramData,
+                })
+                .then((applyDataRes) => {
+                  return {
+                    isAllowed: false,
+                    data: applyDataRes.data,
+                  };
+                });
+            }
           }
-        }
-        // 有权限
-        return {
-          isAllowed: true,
-        };
-      })
+          // 有权限
+          return {
+            isAllowed: true,
+          };
+        })
         .catch((err) => {
           // 请求出错
           return Promise.reject(err);
@@ -1149,12 +1056,7 @@ const store = new Vuex.Store({
     /** 请求字段config信息 */
     requestIndexSetFieldInfo({ commit, state }) {
       // @ts-ignore
-      const {
-        ids = [],
-        start_time = '',
-        end_time = '',
-        isUnionIndex,
-      } = state.indexItem;
+      const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
       commit('resetIndexFieldInfo');
       commit('updataOperatorDictionary', {});
       commit('updateNotTextTypeFields', {});
@@ -1165,9 +1067,7 @@ const store = new Vuex.Store({
         return;
       }
       commit('resetIndexFieldInfo', { is_loading: true });
-      const urlStr = isUnionIndex
-        ? 'unionSearch/unionMapping'
-        : 'retrieve/getLogTableHead';
+      const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
       !isUnionIndex && commit('deleteApiError', urlStr);
       const queryData = {
         start_time,
@@ -1194,9 +1094,7 @@ const store = new Vuex.Store({
         .then((res) => {
           const { default_sort_list: defaultSortListData = [], sort_list: sortListData = [] } = res.data ?? {};
           const defaultSortList = (
-            ((defaultSortListData?.length ?? 0) > 0
-              ? defaultSortListData
-              : sortListData) ?? []
+            ((defaultSortListData?.length ?? 0) > 0 ? defaultSortListData : sortListData) ?? []
           ).map(([fieldName]) => [fieldName, undefined]);
           commit(
             'updateIndexFieldInfo',
@@ -1207,22 +1105,15 @@ const store = new Vuex.Store({
           commit('updataOperatorDictionary', res.data ?? {});
           commit('updateNotTextTypeFields', res.data ?? {});
           commit('updateIndexSetFieldConfig', res.data ?? {});
-          commit(
-            'retrieve/updateFiledSettingConfigID',
-            res.data?.config_id ?? -1,
-          ); // 当前字段配置configID
-          commit(
-            'retrieve/updateCatchFieldCustomConfig',
-            res.data.user_custom_config,
-          ); // 更新用户个人配置
+          commit('retrieve/updateFiledSettingConfigID', res.data?.config_id ?? -1); // 当前字段配置configID
+          commit('retrieve/updateCatchFieldCustomConfig', res.data.user_custom_config); // 更新用户个人配置
           commit('resetVisibleFields');
           commit('resetIndexSetOperatorConfig');
           commit('updateIsSetDefaultTableColumn');
           return res;
         })
         .catch((err) => {
-          !isUnionIndex
-            && commit('updateApiError', { apiName: urlStr, errorMessage: err });
+          !isUnionIndex && commit('updateApiError', { apiName: urlStr, errorMessage: err });
           commit('updateIndexFieldInfo', { is_loading: false });
         })
         .finally(() => {
@@ -1238,14 +1129,18 @@ const store = new Vuex.Store({
      * @param {Number} payload.searchCount - 自定义的查询计数器。
      *
      */
-    requestIndexSetQuery({ commit, state, getters },
+    requestIndexSetQuery(
+      { commit, state, getters },
       payload = {
         isPagination: false,
         cancelToken: null,
         searchCount: undefined,
         defaultSortList: undefined,
+        from: undefined, // auto_refresh: 自动刷新;
       },
     ) {
+      let cachedQueryResult = structuredClone(state.indexSetQueryResult);
+
       if (!payload?.isPagination) {
         commit('updateIndexSetQueryResult', {
           origin_log_list: [],
@@ -1275,9 +1170,7 @@ const store = new Vuex.Store({
       // 分页请求后面请求{ start_time, end_time }要保证和初始值一致
       if (!payload?.isPagination) {
         if (payload?.defaultSortList) {
-          dateFieldSortList = payload?.defaultSortList?.filter(
-            ([fieldName, sort]) => fieldName && sort,
-          );
+          dateFieldSortList = payload?.defaultSortList?.filter(([fieldName, sort]) => fieldName && sort);
         }
 
         // 每次请求这里需要根据选择日期时间这里计算最新的timestamp
@@ -1296,19 +1189,12 @@ const store = new Vuex.Store({
       }
 
       const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
-      commit(
-        payload.isPagination
-          ? 'updateIndexSetQueryResult'
-          : 'resetIndexSetQueryResult',
-        {
-          is_loading: true,
-          search_count: searchCount,
-        },
-      );
+      commit(payload.isPagination ? 'updateIndexSetQueryResult' : 'resetIndexSetQueryResult', {
+        is_loading: true,
+        search_count: searchCount,
+      });
 
-      const baseUrl = process.env.NODE_ENV === 'development'
-        ? 'api/v1'
-        : window.AJAX_URL_PREFIX;
+      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const cancelTokenKey = 'requestIndexSetQueryCancelToken';
       RequestPool.execCanceToken(cancelTokenKey);
       const requestCancelToken = payload.cancelToken ?? RequestPool.getCancelToken(cancelTokenKey);
@@ -1326,21 +1212,14 @@ const store = new Vuex.Store({
         ...otherPrams,
         start_time,
         end_time,
-        addition: [
-          ...requestAddition,
-          ...getCommonFilterAdditionWithValues(state),
-        ],
-        sort_list:
-          dateFieldSortList
-          ?? (state.localSort ? otherPrams.sort_list : getters.custom_sort_list),
+        addition: [...requestAddition, ...getCommonFilterAdditionWithValues(state)],
+        sort_list: dateFieldSortList ?? (state.localSort ? otherPrams.sort_list : getters.custom_sort_list),
       };
 
       // 更新联合查询的begin
       const unionConfigs = state.unionIndexList.map(item => ({
         begin: payload?.isPagination
-          ? state.indexItem.catchUnionBeginList.find(
-            cItem => String(cItem?.index_set_id) === item,
-          )?.begin ?? 0
+          ? (state.indexItem.catchUnionBeginList.find(cItem => String(cItem?.index_set_id) === item)?.begin ?? 0)
           : 0,
         index_set_id: item,
       }));
@@ -1375,75 +1254,63 @@ const store = new Vuex.Store({
       return axiosInstance(params)
         .then((resp) => {
           if (resp.data && !resp.message) {
-            return readBlobRespToJson(resp.data).then(
-              ({ code, data, result, message }) => {
-                const rsolvedData = data;
-                if (result) {
-                  const indexSetQueryResult = state.indexSetQueryResult;
-                  const logList = parseBigNumberList(rsolvedData.list);
-                  const originLogList = parseBigNumberList(
-                    rsolvedData.origin_log_list,
-                  );
-                  rsolvedData.total = rsolvedData.total.toNumber();
-                  const size = logList.length;
+            return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
+              const rsolvedData = data;
+              if (result) {
+                const indexSetQueryResult = state.indexSetQueryResult;
+                const logList = parseBigNumberList(rsolvedData.list);
+                const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
+                rsolvedData.total = rsolvedData.total.toNumber();
+                const size = logList.length;
 
-                  rsolvedData.list = Object.freeze(
-                    payload.isPagination
-                      ? indexSetQueryResult.list.concat(logList)
-                      : logList,
-                  );
-                  rsolvedData.origin_log_list = Object.freeze(
-                    payload.isPagination
-                      ? indexSetQueryResult.origin_log_list.concat(
-                        originLogList,
-                      )
-                      : originLogList,
-                  );
+                rsolvedData.list = Object.freeze(
+                  payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList,
+                );
+                rsolvedData.origin_log_list = Object.freeze(
+                  payload.isPagination ? indexSetQueryResult.origin_log_list.concat(originLogList) : originLogList,
+                );
 
-                  const catchUnionBeginList = parseBigNumberList(
-                    rsolvedData?.union_configs || [],
-                  );
-                  state.tookTime = payload.isPagination
-                    ? state.tookTime + Number(data?.took || 0)
-                    : Number(data?.took || 0);
+                const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
+                state.tookTime = payload.isPagination
+                  ? state.tookTime + Number(data?.took || 0)
+                  : Number(data?.took || 0);
 
-                  if (!payload?.isPagination) {
-                    commit('updateIsSetDefaultTableColumn', { list: logList });
-                  }
-                  // 更新页数
-                  commit('updateSqlQueryFieldList', logList);
-                  commit('updateIndexItem', {
-                    catchUnionBeginList,
-                    begin: payload.isPagination ? begin : 0,
-                  });
-                  commit('updateIndexSetQueryResult', rsolvedData);
-
-                  return {
-                    data,
-                    message,
-                    code,
-                    result,
-                    length: logList.length,
-                    size,
-                  };
+                if (!payload?.isPagination) {
+                  commit('updateIsSetDefaultTableColumn', { list: logList });
                 }
-
-                commit('updateIndexSetQueryResult', {
-                  exception_msg: message,
-                  is_error: !result,
-                  total: 0,
+                // 更新页数
+                commit('updateSqlQueryFieldList', logList);
+                commit('updateIndexItem', {
+                  catchUnionBeginList,
+                  begin: payload.isPagination ? begin : 0,
                 });
+                commit('updateIndexSetQueryResult', rsolvedData);
 
                 return {
                   data,
                   message,
                   code,
                   result,
-                  length: 0,
-                  size: 0,
+                  length: logList.length,
+                  size,
                 };
-              },
-            );
+              }
+
+              commit('updateIndexSetQueryResult', {
+                exception_msg: message,
+                is_error: !result,
+                total: 0,
+              });
+
+              return {
+                data,
+                message,
+                code,
+                result,
+                length: 0,
+                size: 0,
+              };
+            });
           }
 
           return { result: false };
@@ -1458,18 +1325,30 @@ const store = new Vuex.Store({
               total: 0,
             });
           }
+
+          if (e.code === 'ERR_CANCELED') {
+            cachedQueryResult.is_loading = false;
+            commit('updateIndexSetQueryResult', cachedQueryResult);
+          }
         })
         .finally(() => {
           commit('updateIndexSetQueryResult', { is_loading: false });
-          const result = {
-            is_error: state.indexSetQueryResult.is_error,
-            exception_msg: state.indexSetQueryResult.exception_msg,
-            first_page: queryData.begin === 0 ? 1 : 0,
-          };
+          cachedQueryResult = null;
 
-          reportRouteLog({
-            ...result,
-          }, state);
+          if (payload?.from !== 'auto_refresh') {
+            const result = {
+              is_error: state.indexSetQueryResult.is_error,
+              exception_msg: state.indexSetQueryResult.exception_msg,
+              first_page: queryData.begin === 0 ? 1 : 0,
+            };
+
+            reportRouteLog(
+              {
+                ...result,
+              },
+              state,
+            );
+          }
         });
     },
 
@@ -1509,9 +1388,7 @@ const store = new Vuex.Store({
 
       const cancelTokenKey = 'requestIndexSetValueListCancelToken';
       RequestPool.execCanceToken(cancelTokenKey);
-      const requestCancelToken = payload.cancelToken
-        ? RequestPool.getCancelToken(cancelTokenKey)
-        : null;
+      const requestCancelToken = payload.cancelToken ? RequestPool.getCancelToken(cancelTokenKey) : null;
 
       // 本次请求与上次请求时间范围不一致，重置缓存数据
       if (state.indexFieldInfo.last_eggs_request_token !== lastQueryTimerange) {
@@ -1534,17 +1411,13 @@ const store = new Vuex.Store({
         && !/^__dist_/.test(field.field_name);
 
       const mapFn = field => field.field_name;
-      const fields = (
-        payload?.fields?.length ? payload.fields : state.indexFieldInfo.fields
-      )
+      const fields = (payload?.fields?.length ? payload.fields : state.indexFieldInfo.fields)
         .filter(filterFn)
         .map(mapFn);
 
       if (!fields.length) return Promise.resolve(true);
 
-      const urlStr = state.indexItem.isUnionIndex
-        ? 'unionSearch/unionTerms'
-        : 'retrieve/getAggsTerms';
+      const urlStr = state.indexItem.isUnionIndex ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
 
       const queryData = {
         keyword: '*',
@@ -1589,9 +1462,7 @@ const store = new Vuex.Store({
         .request('favorite/getFavoriteByGroupList', {
           query: {
             space_uid: payload?.spaceUid ?? state.spaceUid,
-            order_type:
-              payload?.sort
-              ?? (localStorage.getItem('favoriteSortType') || 'NAME_ASC'),
+            order_type: payload?.sort ?? (localStorage.getItem('favoriteSortType') || 'NAME_ASC'),
           },
         })
         .then((resp) => {
@@ -1748,15 +1619,9 @@ const store = new Vuex.Store({
               value,
             });
             if (targetField?.is_virtual_obj_node) {
-              newSearchValue = Object.assign(
-                { field: '*', value },
-                { operator: mapOperator },
-              );
+              newSearchValue = Object.assign({ field: '*', value }, { operator: mapOperator });
             } else {
-              newSearchValue = Object.assign(
-                { field, value },
-                { operator: mapOperator },
-              );
+              newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
             }
           }
           if (searchMode === 'sql') {
@@ -1788,24 +1653,17 @@ const store = new Vuex.Store({
         if (searchMode === 'sql') {
           const keyword = state.indexItem.keyword.replace(/^\s*\*\s*$/, '');
           const keywords = keyword.length > 0 ? [keyword] : [];
-          const newSearchKeywords = filterQueryList.filter(
-            item => keyword.indexOf(item) === -1,
-          );
+          const newSearchKeywords = filterQueryList.filter(item => keyword.indexOf(item) === -1);
           if (newSearchKeywords.length) {
             const lastIndex = newSearchKeywords.length - 1;
-            newSearchKeywords[lastIndex] = newSearchKeywords[lastIndex].replace(
-              /\s*$/,
-              ' ',
-            );
+            newSearchKeywords[lastIndex] = newSearchKeywords[lastIndex].replace(/\s*$/, ' ');
           }
 
           if (keywords.length > 0 && !/\s$/.test(keywords[0])) {
             keywords[0] = `${keywords[0]} `;
           }
 
-          const newSearchKeyword = (keywords ?? [])
-            .concat(newSearchKeywords)
-            .join('AND ');
+          const newSearchKeyword = (keywords ?? []).concat(newSearchKeywords).join('AND ');
           state.indexItem.keyword = newSearchKeyword;
 
           if (from === 'origin') {
@@ -1836,10 +1694,7 @@ const store = new Vuex.Store({
               index_set_ids: state.indexItem.ids,
               start_time: startTime,
               end_time: endTime,
-              addition: [
-                ...getters.requestAddition,
-                ...getCommonFilterAdditionWithValues(state),
-              ],
+              addition: [...getters.requestAddition, ...getCommonFilterAdditionWithValues(state)],
             },
           },
           {
@@ -1895,18 +1750,17 @@ const store = new Vuex.Store({
         delete queryParams.index_set_id;
         queryParams.index_set_ids = state.unionIndexList;
       }
-      return http.request(
-        'retrieve/updateUserFiledTableConfig',
-        {
+      return http
+        .request('retrieve/updateUserFiledTableConfig', {
           data: queryParams,
-        },
-      ).then((res) => {
-        if (res.code === 0 && !userConfig.isUpdate) {
-          const updatedUserConfig = res.data.index_set_config;
-          commit('retrieve/updateCatchFieldCustomConfig', updatedUserConfig);
-        }
-        return res;
-      })
+        })
+        .then((res) => {
+          if (res.code === 0 && !userConfig.isUpdate) {
+            const updatedUserConfig = res.data.index_set_config;
+            commit('retrieve/updateCatchFieldCustomConfig', updatedUserConfig);
+          }
+          return res;
+        })
         .catch((err) => {
           return Promise.reject(err);
         });
@@ -1950,9 +1804,7 @@ store.dispatch = function (_type, _payload, config = {}) {
     .forEach(sub => sub.before(action, store.state));
   // store._actionSubscribers.forEach(sub => sub(action, store.state));
 
-  return entry.length > 1
-    ? Promise.all(entry.map(handler => handler(payload, config)))
-    : entry[0](payload, config);
+  return entry.length > 1 ? Promise.all(entry.map(handler => handler(payload, config))) : entry[0](payload, config);
 };
 
 export default store;

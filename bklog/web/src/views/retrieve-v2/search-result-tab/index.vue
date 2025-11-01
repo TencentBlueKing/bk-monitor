@@ -20,22 +20,26 @@ const route = useRoute();
 
 const emit = defineEmits(['input']);
 
-const indexSetId = computed(() => store.state.indexId);
+const indexSetIds = computed(() => store.state.indexItem.ids);
 const bkBizId = computed(() => store.state.bkBizId);
 
-const indexSetItem = computed(() =>
-  store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
+const indexSetItems = computed(() =>
+  store.state.retrieve.flatIndexSetList?.filter(item => indexSetIds.value.includes(`${item.index_set_id}`)),
 );
 
 const retrieveParams = computed(() => store.getters.retrieveParams);
 const requestAddition = computed(() => store.getters.requestAddition);
 
 const isAiopsToggle = computed(() => {
+  if (store.getters.isUnionSearch) {
+    return false;
+  }
+
   // 日志聚类总开关
   const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
   const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
-  const isLocalToggle = (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
-    indexSetItem.value?.scenario_id === 'bkdata'
+  const isLocalToggle = (indexSetItems.value?.some(i => i.scenario_id === 'log' && i.collector_config_id !== null)) ||
+    indexSetItems.value?.some(i => i.scenario_id === 'bkdata');
 
   switch (bkdataAiopsToggle) {
     case 'on':
@@ -47,7 +51,8 @@ const isAiopsToggle = computed(() => {
   }
 });
 
-const isChartEnable = computed(() => indexSetItem.value?.support_doris && !store.getters.isUnionSearch);
+const isChartEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris);
+const isGrepEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris);
 
 const isExternal = computed(() => window.IS_EXTERNAL === true);
 // 可切换Tab数组
@@ -56,7 +61,7 @@ const panelList = computed(() => {
     { name: 'origin', label: $t('原始日志'), disabled: false },
     { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
     { name: 'graphAnalysis', label: $t('图表分析'), disabled: !isChartEnable.value },
-    { name: 'grep', label: $t('Grep模式'), disabled: !indexSetItem.value?.support_doris },
+    { name: 'grep', label: $t('Grep模式'), disabled:  !isGrepEnable.value },
   ];
 });
 
@@ -130,7 +135,7 @@ const handleActive = panel => {
 };
 
 watch(
-  () => [indexSetItem.value?.support_doris, isChartEnable.value, isAiopsToggle.value],
+  () => [isGrepEnable.value, isChartEnable.value, isAiopsToggle.value],
   ([grepEnable, graphEnable, aiopsEnable]) => {
     if (['clustering', 'graphAnalysis', 'grep'].includes(route.query.tab)) {
       if (

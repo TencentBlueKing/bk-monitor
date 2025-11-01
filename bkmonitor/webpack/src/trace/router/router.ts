@@ -38,7 +38,7 @@ const router = createRouter({
     ...[...homeRoutes, ...alarmShield, ...rotationRoutes, ...profilingRoutes, ...Report, ...failureRoutes].map(
       item => ({
         ...item,
-        path: `${window.__BK_WEWEB_DATA__?.baseroute || '/'}${item.path}`.replace(/\/\//gim, '/'),
+        path: `${window.__BK_WEWEB_DATA__?.parentRoute || '/'}${item.path}`.replace(/\/\//gim, '/'),
       })
     ),
     {

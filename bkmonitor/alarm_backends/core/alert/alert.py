@@ -35,6 +35,7 @@ from bkmonitor.utils import extended_json
 from bkmonitor.utils.common_utils import count_md5
 from constants.action import ActionSignal, AssignMode
 from constants.alert import EventStatus
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataTypeLabel
 from core.prometheus import metrics
 
@@ -381,6 +382,10 @@ class Alert:
         self.logs.append(params)
 
     @property
+    def bk_tenant_id(self) -> str:
+        return self.data.get("bk_tenant_id") or DEFAULT_TENANT_ID
+
+    @property
     def alert_name(self) -> str:
         return self.data["alert_name"]
 
@@ -696,6 +701,7 @@ class Alert:
         """
         create_time = int(time.time())
         data = {
+            "bk_tenant_id": event.bk_tenant_id,
             "dedupe_md5": event.dedupe_md5,
             "create_time": create_time,
             "update_time": create_time,

@@ -79,7 +79,7 @@ class ExceptionGuide extends CommonSimpleChart {
 
       if (link.target === 'self') {
         this.$router.push({
-          path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${urlStr}`.replace(/\/\//g, '/'),
+          path: `${window.__BK_WEWEB_DATA__?.parentRoute || ''}${urlStr}`.replace(/\/\//g, '/'),
         });
         return;
       }

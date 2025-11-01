@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from collections import defaultdict
 
 from alarm_backends.core.cache.base import CacheManager
@@ -16,6 +16,7 @@ from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
 from bkmonitor.models.fta.assign import AlertAssignGroup, AlertAssignRule
 from bkmonitor.utils import extended_json
 from bkmonitor.utils.local import local
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import GLOBAL_BIZ_ID
 
 setattr(local, "assign_cache", {})
@@ -104,15 +105,17 @@ class AssignCacheManager(CacheManager):
         return local.assign_cache[cache_key]
 
     @classmethod
-    def parse_dynamic_group(cls, condition):
+    def parse_dynamic_group(cls, bk_tenant_id: str, condition: dict) -> dict:
         if condition["field"] != "dynamic_group":
             return condition
+
         # 将动态分组解析成主机id列表
-        dynamic_groups = DynamicGroupManager.multi_get(condition["value"])
+        dynamic_groups = DynamicGroupManager.mget(bk_tenant_id=bk_tenant_id, dynamic_group_ids=condition["value"])
         bk_host_ids = set()
-        for dynamic_group in dynamic_groups:
-            if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
+        for dynamic_group in dynamic_groups.values():
+            if dynamic_group.get("bk_obj_id") == "host":
                 bk_host_ids.update(dynamic_group["bk_inst_ids"])
+
         condition["field"] = "bk_host_id"
         condition["value"] = list(bk_host_ids)
         return condition
@@ -141,23 +144,24 @@ class AssignCacheManager(CacheManager):
         biz_priority_groups = defaultdict(set)
         group_base_info = defaultdict(dict)
         for group in groups:
-            biz_priority[f'biz_{group["bk_biz_id"]}'].add(group["priority"])
-            biz_priority_groups[f'biz_priority_{group["bk_biz_id"]}_{group["priority"]}'].add(group["id"])
+            biz_priority[f"biz_{group['bk_biz_id']}"].add(group["priority"])
+            biz_priority_groups[f"biz_priority_{group['bk_biz_id']}_{group['priority']}"].add(group["id"])
             group_base_info[group["id"]] = group
         group_rules = defaultdict(list)
         for rule in rules:
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(rule["bk_biz_id"])
             group_id = rule["assign_group_id"]
             rule["group_name"] = group_base_info[group_id]["name"]
             # 动态分组转换，将动态分组转换成主机列表
             conditions = []
             for condition in rule["conditions"]:
-                conditions.append(cls.parse_dynamic_group(condition))
+                conditions.append(cls.parse_dynamic_group(bk_tenant_id=bk_tenant_id, condition=condition))
 
             group_rules[rule["assign_group_id"]].append(rule)
 
         pipeline = cls.cache.pipeline()
         for bk_biz_id in biz_id_list:
-            biz_key = f'biz_{bk_biz_id}'
+            biz_key = f"biz_{bk_biz_id}"
             if biz_key in biz_priority:
                 #
                 pipeline.set(
@@ -166,7 +170,7 @@ class AssignCacheManager(CacheManager):
                     cls.CACHE_TIMEOUT,
                 )
                 for priority in biz_priority[biz_key]:
-                    biz_priority_key = f'biz_priority_{bk_biz_id}_{priority}'
+                    biz_priority_key = f"biz_priority_{bk_biz_id}_{priority}"
                     if biz_priority_key in biz_priority_groups:
                         pipeline.set(
                             cls.PRIORITY_CACHE_KEY_TEMPLATE.format(bk_biz_id=bk_biz_id, priority=priority),

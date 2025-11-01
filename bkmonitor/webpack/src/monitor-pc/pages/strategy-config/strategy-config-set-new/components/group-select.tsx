@@ -202,7 +202,7 @@ export default class GroupSelect extends tsc<IGroupSelect, IGroupSelectEvent> {
               class='panel-search'
               behavior='simplicity'
               leftIcon='bk-icon icon-search'
-              placeholder={this.$t('输入关键字')}
+              placeholder={this.$t('请输入 关键字')}
               value={this.keyword}
               on-change={this.handleKeywordChange}
             />
