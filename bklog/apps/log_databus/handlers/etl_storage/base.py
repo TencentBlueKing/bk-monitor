@@ -45,6 +45,7 @@ from apps.log_databus.exceptions import (
     HotColdCheckException,
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
+from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
 from apps.log_databus.models import CollectorConfig, CollectorPlugin
 from apps.log_databus.utils.es_config import get_es_config, is_version_less_than
 from apps.log_search.constants import (
@@ -533,31 +534,8 @@ class EtlStorage:
             index_settings.update({"index.routing.allocation.total_shards_per_node": total_shards_per_node})
         params["default_storage_config"]["index_settings"].update(index_settings)
 
-        # 是否启用冷热集群
-        if allocation_min_days:
-            if not hot_warm_config or not hot_warm_config.get("is_enabled"):
-                # 检查集群是否支持冷热数据功能
-                raise HotColdCheckException()
-
-            # 对于新数据，路由到热节点
-            params["default_storage_config"]["index_settings"].update(
-                {
-                    f"index.routing.allocation.include.{hot_warm_config['hot_attr_name']}": hot_warm_config[
-                        "hot_attr_value"
-                    ],
-                }
-            )
-            # n天后的数据，路由到冷节点
-            params["default_storage_config"].update(
-                {
-                    "warm_phase_days": allocation_min_days,
-                    "warm_phase_settings": {
-                        "allocation_attr_name": hot_warm_config["warm_attr_name"],
-                        "allocation_attr_value": hot_warm_config["warm_attr_value"],
-                        "allocation_type": "include",
-                    },
-                }
-            )
+        # 增加冷热集群配置参数
+        params = self._deal_hot_warm_config(allocation_min_days, hot_warm_config, params)
 
         # 获取清洗配置
         collector_scenario = CollectorScenario.get_instance(collector_scenario_id=instance.collector_scenario_id)
@@ -944,3 +922,199 @@ class EtlStorage:
             },
         }
         bkdata_json_config["extract"]["next"]["next"].append(path_config)
+
+    @classmethod
+    def _deal_hot_warm_config(cls, allocation_min_days: int, hot_warm_config: dict, params: dict) -> dict:
+        # 是否启用冷热集群
+        if not allocation_min_days:
+            return params
+
+        if not hot_warm_config or not hot_warm_config.get("is_enabled"):
+            # 检查集群是否支持冷热数据功能
+            raise HotColdCheckException()
+
+        # 对于新数据，路由到热节点
+        params["default_storage_config"]["index_settings"].update(
+            {
+                f"index.routing.allocation.include.{hot_warm_config['hot_attr_name']}": hot_warm_config[
+                    "hot_attr_value"
+                ],
+            }
+        )
+        # n天后的数据，路由到冷节点
+        params["default_storage_config"].update(
+            {
+                "warm_phase_days": allocation_min_days,
+                "warm_phase_settings": {
+                    "allocation_attr_name": hot_warm_config["warm_attr_name"],
+                    "allocation_attr_value": hot_warm_config["warm_attr_value"],
+                    "allocation_type": "include",
+                },
+            }
+        )
+        return params
+
+    @classmethod
+    def update_or_create_pattern_result_table(
+        cls,
+        instance: CollectorConfig,
+        table_id: str,
+        storage_cluster_id: int,
+        allocation_min_days: int,
+        storage_replies: int,
+        es_version: str = "5.X",
+        hot_warm_config: dict = None,
+        es_shards: int = settings.ES_SHARDS,
+        index_settings: dict = None,
+        total_shards_per_node: int = None,
+        retention: int = 180,
+    ):
+        """
+        创建或更新 Pattern 结果表
+        :param instance: 采集项配置/采集插件
+        :param table_id: 结果表ID
+        :param storage_cluster_id: 存储集群id
+        :param retention: 数据保留时间
+        :param allocation_min_days: 执行分配的等待天数
+        :param storage_replies: 存储副本数量
+        :param es_version: es
+        :param hot_warm_config: 冷热数据配置
+        :param es_shards: es分片数
+        :param index_settings: 索引配置
+        :param total_shards_per_node: 每个节点的分片总数
+        """
+
+        # ES 配置
+        es_config = get_es_config(instance.get_bk_biz_id())
+
+        # 时间格式
+        date_format = es_config["ES_DATE_FORMAT"]
+
+        # 需要切分的大小阈值，单位（GB）
+        storage_shards_size = instance.storage_shards_size or es_config["ES_SHARDS_SIZE"]
+        slice_size = es_shards * storage_shards_size
+
+        # index分片时间间隔，单位（分钟）
+        slice_gap = es_config["ES_SLICE_GAP"]
+
+        # ES兼容—mapping设置
+        param_mapping = {
+            "dynamic_templates": [
+                {
+                    "strings_as_keywords": {
+                        "match_mapping_type": "string",
+                        "mapping": {"norms": "false", "type": "keyword"},
+                    }
+                }
+            ],
+        }
+        if es_version.startswith("5."):
+            param_mapping["_all"] = {"enabled": True}
+            param_mapping["include_in_all"] = False
+
+        params = {
+            "bk_data_id": instance.bk_data_id,
+            # 必须为 库名.表名
+            "table_id": table_id,
+            "is_enable": True,
+            "table_name_zh": f"{instance.get_name()}_Pattern",
+            "is_custom_table": True,
+            "schema_type": "free",
+            "default_storage": "elasticsearch",
+            "default_storage_config": {
+                "cluster_id": storage_cluster_id,
+                "storage_cluster_id": storage_cluster_id,
+                "retention": retention,
+                "date_format": date_format,
+                "slice_size": slice_size,
+                "slice_gap": slice_gap,
+                "mapping_settings": param_mapping,
+                "index_settings": {
+                    "number_of_shards": es_shards,
+                    "number_of_replicas": storage_replies,
+                },
+            },
+            "is_time_field_only": True,
+            "bk_biz_id": instance.get_bk_biz_id(),
+            "label": instance.category_id,
+            "option": {
+                "time_field": {"unit": "millisecond", "name": "dtEventTimeStamp", "type": "date"},
+                "es_unique_field_list": ["signature"],
+            },
+            "time_alias_name": "utctime",
+            "time_option": {
+                "es_type": "date",
+                "es_format": "epoch_millis",
+                "time_format": "yyyy-MM-dd HH:mm:ss",
+                "time_zone": 0,
+            },
+            "field_list": [
+                {
+                    "field_name": "dtEventTimeStamp",
+                    "field_type": "timestamp",
+                    "tag": "dimension",
+                    "alias_name": "utctime",
+                    "description": "数据时间",
+                    "option": {
+                        "es_type": "date",
+                        "es_format": "epoch_millis",
+                        "time_format": "yyyy-MM-dd HH:mm:ss",
+                        "time_zone": 0,
+                    },
+                },
+                {
+                    "field_name": "log",
+                    "field_type": "string",
+                    "tag": "metric",
+                    "alias_name": "data",
+                    "description": "log",
+                    "option": build_es_option_type("text", es_version),
+                },
+                {
+                    "field_name": "pattern",
+                    "field_type": "string",
+                    "tag": "metric",
+                    "alias_name": "pattern",
+                    "description": "pattern",
+                    "option": build_es_option_type("keyword", es_version),
+                },
+                {
+                    "field_name": "signature",
+                    "field_type": "string",
+                    "tag": "metric",
+                    "alias_name": "signature",
+                    "description": "signature",
+                    "option": build_es_option_type("keyword", es_version),
+                },
+            ],
+            "warm_phase_days": 0,
+            "warm_phase_settings": {},
+        }
+        index_settings = index_settings or {}
+        if total_shards_per_node is not None and total_shards_per_node > 0:
+            index_settings.update({"index.routing.allocation.total_shards_per_node": total_shards_per_node})
+        params["default_storage_config"]["index_settings"].update(index_settings)
+
+        # 增加冷热集群配置参数
+        params = cls._deal_hot_warm_config(allocation_min_days, hot_warm_config, params)
+
+        # 获取结果表是否已经创建，如果创建则选择更新
+        table_id = ""
+        try:
+            table_id = TransferApi.get_result_table({"table_id": params["table_id"]}).get("table_id")
+        except ApiResultError:
+            pass
+
+        # 兼容插件与采集项
+        if not table_id:
+            # 创建结果表
+            table_id = TransferApi.create_result_table(params)["table_id"]
+        else:
+            # 更新结果表
+            params["table_id"] = table_id
+            from apps.log_databus.tasks.collector import modify_result_table
+
+            modify_result_table.delay(params)
+            cache.delete(CACHE_KEY_CLUSTER_INFO.format(table_id))
+
+        return {"table_id": table_id, "params": params}
