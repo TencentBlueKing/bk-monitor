@@ -177,7 +177,23 @@ class StrategyTemplateViewSet(GenericViewSet):
         strategy_template_obj: StrategyTemplate = get_object_or_404(
             self.get_queryset(), id=self.query_data["strategy_template_id"]
         )
-        return Response(self._preview(strategy_template_obj, self.query_data["service_name"]))
+        preview_data = self._preview(strategy_template_obj, self.query_data["service_name"])
+        strategy_instance_obj: StrategyInstance = StrategyInstance.objects.filter(
+            bk_biz_id=self.query_data["bk_biz_id"],
+            app_name=self.query_data["app_name"],
+            strategy_template_id=strategy_template_obj.pk,
+            service_name=self.query_data["service_name"],
+        ).first()
+        if strategy_instance_obj:
+            preview_data["detect"] = strategy_instance_obj.detect
+            preview_data["algorithms"] = strategy_instance_obj.algorithms
+            preview_data["user_group_list"] = list(
+                helper.get_user_groups(strategy_instance_obj.user_group_ids).values()
+            )
+            preview_data["context"] = {
+                k: strategy_instance_obj.context.get(k, v) for k, v in preview_data["context"].items()
+            }
+        return Response(preview_data)
 
     def _get_id_strategy_map(self, ids: Iterable[int]) -> dict[int, dict[str, Any]]:
         return helper.get_id_strategy_map(self.query_data["bk_biz_id"], ids)
