@@ -28,7 +28,7 @@ from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.functional import cached_property
 
-from apps.api import MonitorApi
+from apps.api import MonitorApi, UnifyQueryApi
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_ACTION_NOTICE,
@@ -52,6 +52,7 @@ from apps.log_clustering.models import (
     ClusteringConfig,
     ClusteringRemark,
 )
+from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
 from apps.models import model_to_dict
 from apps.utils.bkdata import BkData
@@ -109,10 +110,7 @@ class PatternHandler:
         year_on_year_result = result.get("year_on_year_result", {})
         new_class = result.get("new_class", set())
         # 同步的pattern保存信息
-        if self._clustering_config.use_mini_link:
-            # TODO: 查询 UQ 获取 pattern 信息
-            pattern_map = []
-        elif self._clustering_config.signature_pattern_rt:
+        if self._clustering_config.signature_pattern_rt:
             pattern_map = self._get_pattern_data(patterns=list({p["key"] for p in pattern_aggs}))
         elif self._clustering_config.model_output_rt:
             # 在线训练逻辑适配
@@ -389,6 +387,19 @@ class PatternHandler:
     def _get_pattern_data(self, patterns):
         if not patterns:
             return []
+
+        if self._clustering_config.use_mini_link:
+            records = self._get_pattern_data_for_mini_link(patterns)
+        else:
+            records = self._get_pattern_data_for_bkbase_link(patterns)
+        for record in records:
+            record["pattern"] = re.sub(r"\$([a-zA-Z0-9-_]+)", r"#\1#", record["pattern"])
+        return records
+
+    def _get_pattern_data_for_bkbase_link(self, patterns):
+        """
+        获取 bkbase 链路的 pattern 数据
+        """
         start_time, end_time = generate_time_range(
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
@@ -411,9 +422,44 @@ class PatternHandler:
                 e,
             )
             records = []
-        for record in records:
-            record["pattern"] = re.sub(r"\$([a-zA-Z0-9-_]+)", r"#\1#", record["pattern"])
         return records
+
+    def _get_pattern_data_for_mini_link(self, patterns):
+        """
+        获取 小型化 链路的 pattern 数据
+        """
+        result = UnifyQueryApi.query_ts_raw(
+            {
+                "bk_biz_id": self._clustering_config.bk_biz_id,
+                "query_list": [
+                    {
+                        "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
+                        "table_id": BaseIndexSetHandler.get_data_label(
+                            self._index_set_id,
+                            pattern_rt=True,
+                        ),
+                    }
+                ],
+                "conditions": {
+                    "field_list": {
+                        "field_name": "signature",
+                        "op": "eq",
+                        "value": patterns,
+                    }
+                },
+                "limit": 10000,
+                "start_time": self._query["start_time"],
+                "end_time": self._query["end_time"],
+            }
+        )
+        return [
+            {
+                "signature": record["signature"],
+                "pattern": record["pattern"],
+                "origin_log": record["log"],
+            }
+            for record in result["list"]
+        ]
 
     def set_clustering_owner(self, params: dict):
         """
