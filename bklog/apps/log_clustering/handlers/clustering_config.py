@@ -45,7 +45,6 @@ from apps.log_clustering.exceptions import (
 )
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
-from apps.log_clustering.handlers.mini_link import MiniLinkAccessHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
 from apps.log_clustering.handlers.regex_template import RegexTemplateHandler
 from apps.log_clustering.models import ClusteringConfig, RegexTemplate
@@ -118,6 +117,8 @@ class ClusteringConfigHandler:
                 MINI_CLUSTERING_CONFIG, biz_id=space_uid_to_bk_biz_id(log_index_set.space_uid)
             )
             if use_mini_link:
+                from apps.log_clustering.handlers.mini_link import MiniLinkAccessHandler
+
                 return MiniLinkAccessHandler(index_set_id=index_set_id).access(params)
 
         collector_config_id = log_index_set.collector_config_id
