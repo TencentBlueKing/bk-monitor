@@ -19,12 +19,10 @@ from django.db.models import QuerySet
 from rest_framework import serializers
 from django.utils.functional import cached_property
 
-from bkmonitor.models import AlgorithmModel
 from bkmonitor.strategy.serializers import allowed_threshold_method
-
-from . import constants
 from apm_web.models import StrategyTemplate, StrategyInstance
 from apm_web.strategy.helper import get_user_groups, simplify_conditions
+from . import constants
 
 
 class DetectSerializer(serializers.Serializer):
@@ -35,13 +33,18 @@ class DetectSerializer(serializers.Serializer):
 
     type = serializers.CharField(label=_("类型"), default=constants.DEFAULT_DETECT_TYPE)
     config = serializers.DictField(label=_("判断条件配置"), default={})
+    connector = serializers.ChoiceField(
+        label=_("同级别告警连接关系"),
+        choices=constants.DetectConnector.choices(),
+        default=constants.DetectConnector.AND.value,
+    )
 
-    def validate(self, attrs: dict) -> dict:
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         if attrs["type"] == constants.DEFAULT_DETECT_TYPE:
             s = self.DefaultDetectConfigSerializer(data=attrs["config"])
             s.is_valid(raise_exception=True)
             attrs["config"] = s.validated_data
-        return attrs
+        return super().validate(attrs)
 
 
 class UserGroupSerializer(serializers.Serializer):
@@ -54,21 +57,52 @@ class AlgorithmSerializer(serializers.Serializer):
         method = serializers.ChoiceField(label=_("检测方法"), choices=allowed_threshold_method)
         threshold = serializers.FloatField(label=_("阈值"))
 
+    class YearRoundAndRingRatioAlgorithmConfigSerializer(serializers.Serializer):
+        method = serializers.ChoiceField(
+            label=_("检测方法"), choices=constants.AlgorithmYearRoundAndRingRatioMethod.choices()
+        )
+        ceil = serializers.FloatField(label=_("上升"))
+        floor = serializers.FloatField(label=_("下降"))
+
+    TYPE_SERIALIZER_MAP = {
+        constants.AlgorithmType.THRESHOLD.value: ThresholdAlgorithmConfigSerializer,
+        constants.AlgorithmType.YEAR_ROUND_AND_RING_RATIO.value: YearRoundAndRingRatioAlgorithmConfigSerializer,
+    }
+
     level = serializers.ChoiceField(label=_("级别"), choices=constants.ThresholdLevel.choices())
     type = serializers.ChoiceField(
         label=_("检测算法类型"),
-        choices=AlgorithmModel.ALGORITHM_CHOICES,
-        default=AlgorithmModel.AlgorithmChoices.Threshold,
+        choices=constants.AlgorithmType.choices(),
+        default=constants.AlgorithmType.THRESHOLD.value,
     )
     config = serializers.DictField(label=_("检测算法配置"), default={})
     unit_prefix = serializers.CharField(label=_("单位前缀"), default="", allow_blank=True)
 
-    def validate(self, attrs: dict) -> dict:
-        if attrs["type"] == AlgorithmModel.AlgorithmChoices.Threshold:
-            s = self.ThresholdAlgorithmConfigSerializer(data=attrs["config"])
-            s.is_valid(raise_exception=True)
-            attrs["config"] = s.validated_data
-        return attrs
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        s = self.TYPE_SERIALIZER_MAP[attrs["type"]](data=attrs["config"])
+        s.is_valid(raise_exception=True)
+        attrs["config"] = s.validated_data
+        return super().validate(attrs)
+
+
+class AlgorithmListSerializer(serializers.Serializer):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        algorithms: list[dict[str, Any]] | None = attrs.get("algorithms")
+        if not algorithms:
+            return super().validate(attrs)
+        level_type_set: set[tuple[str, str]] = set()
+        for algorithm in algorithms:
+            level_type = (algorithm["level"], algorithm["type"])
+            if level_type not in level_type_set:
+                level_type_set.add(level_type)
+            else:
+                raise serializers.ValidationError(
+                    _("「{}」级别「{}」算法至多选一次").format(
+                        constants.ThresholdLevel.from_value(algorithm["level"]).label,
+                        constants.AlgorithmType.from_value(algorithm["type"]).label,
+                    )
+                )
+        return super().validate(attrs)
 
 
 class BaseAppStrategyTemplateRequestSerializer(serializers.Serializer):
@@ -80,8 +114,8 @@ class BaseServiceStrategyTemplateRequestSerializer(BaseAppStrategyTemplateReques
     service_name = serializers.CharField(label=_("服务名称"))
 
 
-class BaseEditDataSerializer(serializers.Serializer):
-    def validate(self, attrs: dict) -> dict:
+class BaseEditDataSerializer(AlgorithmListSerializer):
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         if attrs.get("is_enabled") is False:
             if attrs.get("is_auto_apply"):
                 raise serializers.ValidationError(_("策略模板禁用时，不允许配置自动下发"))
@@ -115,7 +149,7 @@ class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSeria
         detect = DetectSerializer(label=_("判断条件"), required=False)
         user_group_list = serializers.ListField(label=_("用户组列表"), child=UserGroupSerializer(), required=False)
 
-    class ExtraConfigSerializer(GlobalConfigSerializer):
+    class ExtraConfigSerializer(GlobalConfigSerializer, AlgorithmListSerializer):
         strategy_template_id = serializers.IntegerField(label=_("策略模板 ID"), min_value=1)
         service_name = serializers.CharField(label=_("服务名称"))
         context = serializers.DictField(label=_("查询模板的变量上下文"), required=False)
@@ -210,7 +244,7 @@ class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSeri
         )
         value = serializers.ListField(label=_("字段值"), child=serializers.JSONField())
 
-        def validate(self, attrs: dict) -> dict:
+        def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
             error_message: str = _("查询字段为 {key} 时，字段值类型必须为 {value_type}")
             for rule in self.FIELD_TYPE_VALIDATION_RULES:
                 if attrs["key"] not in rule["fields"]:
@@ -221,7 +255,7 @@ class StrategyTemplateSearchRequestSerializer(BaseAppStrategyTemplateRequestSeri
                             error_message.format(key=attrs["key"], value_type=rule["type_alias"])
                         )
                 break
-            return attrs
+            return super().validate(attrs)
 
     conditions = serializers.ListField(label=_("查询条件"), child=ConditionSerializer(), default=[], allow_empty=True)
     page = serializers.IntegerField(label=_("页码"), min_value=1, default=1)
@@ -480,6 +514,7 @@ class StrategyTemplateSearchModelSerializer(StrategyTemplateBaseModelSerializer)
             "type",
             "is_enabled",
             "is_auto_apply",
+            "detect",
             "algorithms",
             "user_group_list",
             "applied_service_names",

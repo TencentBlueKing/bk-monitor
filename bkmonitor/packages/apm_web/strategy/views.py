@@ -377,6 +377,7 @@ class StrategyTemplateViewSet(GenericViewSet):
 
         diff_data: list[dict[str, Any]] = []
         current_dict: dict[str, Any] = self._preview(strategy_template_obj, self.query_data["service_name"])
+        is_connector_update: bool = False
         for field_name in ["detect", "algorithms", "user_group_list", "context"]:
             # 第一步取值
             if field_name == "user_group_list":
@@ -386,9 +387,16 @@ class StrategyTemplateViewSet(GenericViewSet):
             else:
                 current = current_dict.get(field_name)
                 applied = getattr(applied_instance_obj, field_name)
+                if field_name == "detect":
+                    # 向前兼容
+                    current.setdefault("connector", constants.DetectConnector.AND.value)
+                    applied.setdefault("connector", constants.DetectConnector.AND.value)
+                    is_connector_update = current["connector"] != applied["connector"]
 
             # 第二步比较
-            if count_md5(current) == count_md5(applied):
+            # 如果检测算法关系发生变化，同时返回 algorithms
+            is_algorithm_connector_changed = field_name == "algorithms" and is_connector_update
+            if not is_algorithm_connector_changed and count_md5(current) == count_md5(applied):
                 continue
 
             # 第三步对差异值进行排序处理
