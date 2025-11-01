@@ -415,6 +415,12 @@ class ReleaseAppConfigResource(Resource):
 
         qps = serializers.IntegerField(label="qps", min_value=1, required=False)
 
+        all_app_config = serializers.DictField(required=False, allow_null=True, default=None)
+
+        all_service_configs = serializers.ListSerializer(child=serializers.DictField(), required=False, default=None)
+
+        all_instance_configs = serializers.ListSerializer(child=serializers.DictField(), required=False, default=None)
+
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         app_name = validated_request_data["app_name"]
@@ -422,6 +428,9 @@ class ReleaseAppConfigResource(Resource):
         application = ApmApplication.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
         if not application:
             raise CustomException(_("业务下的应用: {} 不存在").format(app_name))
+
+        self.validate_all_service_configs(validated_request_data.get("all_service_configs"))
+        self.validate_all_instance_configs(validated_request_data.get("all_instance_configs"))
 
         service_configs = validated_request_data.get("service_configs", [])
         instance_configs = validated_request_data.get("instance_configs", [])
@@ -440,9 +449,15 @@ class ReleaseAppConfigResource(Resource):
         for service_config in service_configs:
             self.set_config(bk_biz_id, app_name, app_name, ApdexConfig.SERVICE_LEVEL, service_config)
 
+        all_service_configs = validated_request_data.get("all_service_configs")
+        self.set_all_service_configs(bk_biz_id, app_name, all_service_configs)
+
         # 目前暂无实例配置
         for instance_config in instance_configs:
             self.set_config(bk_biz_id, app_name, instance_config["id"], ApdexConfig.INSTANCE_LEVEL, instance_config)
+
+        all_instance_configs = validated_request_data.get("all_instance_configs")
+        self.set_all_instance_configs(bk_biz_id, app_name, all_instance_configs)
 
         from apm.task.tasks import refresh_apm_application_config
 
@@ -476,6 +491,7 @@ class ReleaseAppConfigResource(Resource):
             db_config = config.get("db_config", {})
             probe_config = config.get("probe_config", {})
             db_slow_command_config = config.get("db_slow_command_config", {})
+            all_app_config = config.get("all_app_config")
 
             self.set_apdex_configs(bk_biz_id, app_name, config_key, config_level, apdex_configs)
             self.set_sampler_configs(bk_biz_id, app_name, config_key, config_level, sampler_config)
@@ -485,6 +501,7 @@ class ReleaseAppConfigResource(Resource):
             self.set_db_config(bk_biz_id, app_name, config_key, config_level, db_config)
             self.set_probe_config(bk_biz_id, app_name, config_key, config_level, probe_config)
             self.set_db_slow_command_config(bk_biz_id, app_name, config_key, config_level, db_slow_command_config)
+            self.set_all_app_config(bk_biz_id, app_name, config_key, config_level, all_app_config)
         elif config_level == AppConfigBase.SERVICE_LEVEL:
             self.set_apdex_configs(
                 bk_biz_id, app_name, config["service_name"], AppConfigBase.SERVICE_LEVEL, config["apdex_config"]
@@ -543,6 +560,56 @@ class ReleaseAppConfigResource(Resource):
         NormalTypeValueConfig.refresh_config(
             bk_biz_id, app_name, config_level, config_key, [type_value_config], need_delete_config=False
         )
+
+    def set_all_app_config(self, bk_biz_id, app_name, config_key, config_level, all_app_config):
+        if all_app_config is None:
+            return
+        type_value_config = {"type": ConfigTypes.ALL_APP_CONFIG, "value": json.dumps(all_app_config)}
+        NormalTypeValueConfig.refresh_config(
+            bk_biz_id, app_name, config_level, config_key, [type_value_config], need_delete_config=False
+        )
+
+    def set_all_service_configs(self, bk_biz_id, app_name, all_service_configs):
+        if all_service_configs is None:
+            return
+        type_value_config = {"type": ConfigTypes.ALL_SERVICE_CONFIG, "value": json.dumps(all_service_configs)}
+        NormalTypeValueConfig.refresh_config(
+            bk_biz_id,
+            app_name,
+            AppConfigBase.SERVICE_LEVEL,
+            ConfigTypes.ALL_SERVICE_CONFIG,
+            [type_value_config],
+            need_delete_config=False,
+        )
+
+    def set_all_instance_configs(self, bk_biz_id, app_name, all_instance_configs):
+        if all_instance_configs is None:
+            return
+        type_value_config = {"type": ConfigTypes.ALL_INSTANCE_CONFIG, "value": json.dumps(all_instance_configs)}
+        NormalTypeValueConfig.refresh_config(
+            bk_biz_id,
+            app_name,
+            AppConfigBase.INSTANCE_LEVEL,
+            ConfigTypes.ALL_INSTANCE_CONFIG,
+            [type_value_config],
+            need_delete_config=False,
+        )
+
+    def validate_all_service_configs(self, all_service_configs):
+        if all_service_configs is None:
+            return
+        if not isinstance(all_service_configs, list):
+            raise ValueError("all_service_configs 应当为list类型")
+        if not all(all_service_config.get("service_name") for all_service_config in all_service_configs):
+            raise ValueError("all_service_configs 中有配置缺乏键：service_name")
+
+    def validate_all_instance_configs(self, all_instance_configs):
+        if all_instance_configs is None:
+            return
+        if not isinstance(all_instance_configs, list):
+            raise ValueError("all_instance_configs 应当为list类型")
+        if not all(all_instance_config.get("id") for all_instance_config in all_instance_configs):
+            raise ValueError("all_instance_configs 中有配置缺乏键：id")
 
 
 class DeleteAppConfigResource(Resource):
@@ -792,7 +859,14 @@ class QueryTopoInstanceResource(PageListResource):
         for instance in instance_list:
             key = str(instance["id"]) + ":" + instance["instance_id"]
             if key in cache_data:
-                instance["updated_at"] = datetime.datetime.fromtimestamp(cache_data.get(key), tz=pytz.UTC)
+                instance["updated_at"] = datetime.datetime.fromtimestamp(cache_data.get(key)).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+            else:
+                # 缓存中没有命中，使用数据库中的时间
+                instance["updated_at"] = (
+                    instance["updated_at"].astimezone().replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
+                )
             merge_data.append(instance)
         return merge_data
 
@@ -810,9 +884,10 @@ class QueryTopoInstanceResource(PageListResource):
         return page, page_size, query_fields
 
     def perform_request(self, validated_request_data):
-        filter_params = DiscoverHandler.get_retention_utc_filter_params(
+        filter_params = DiscoverHandler.get_retention_filter_params(
             validated_request_data["bk_biz_id"], validated_request_data["app_name"]
         )
+        filter_params["updated_at__gte"] = str(filter_params["updated_at__gte"])
         service_name = validated_request_data["service_name"]
         if service_name:
             filter_params["topo_node_key__in"] = service_name
@@ -920,11 +995,23 @@ class QueryEndpointResource(Resource):
         app_name = serializers.CharField(label="应用名称", max_length=50)
         # start_time = serializers.IntegerField(required=True, label="数据开始时间")
         # end_time = serializers.IntegerField(required=True, label="数据开始时间")
-        category = serializers.CharField(required=False, label="类别", default="")
+        category = serializers.ListField(child=serializers.CharField(), required=False, label="类别", default=list)
         category_kind_value = serializers.CharField(required=False, label="类型具体值", default="")
         service_name = serializers.CharField(required=False, label="服务名称", allow_blank=True, default="")
         bk_instance_id = serializers.CharField(required=False, label="实例id", allow_blank=True, default="")
         filters = serializers.DictField(label="查询条件", required=False)
+
+        def to_internal_value(self, data):
+            """
+            允许 "category:xxx"（单个字符串），
+            也可以 "category:[]"（列表）
+            """
+            if isinstance(data, dict):
+                category = data.get("category")
+                # 单个字符串时转成列表
+                if isinstance(category, str):
+                    data["category"] = [category]
+            return super().to_internal_value(data)
 
     def perform_request(self, data):
         # 获取过期时间分界线，确保使用UTC时区
@@ -938,7 +1025,7 @@ class QueryEndpointResource(Resource):
         }
         endpoints = Endpoint.objects.filter(**filter_params)
         if data["category"]:
-            endpoints = endpoints.filter(category_id=data["category"])
+            endpoints = endpoints.filter(category_id__in=data["category"])
         if data["category_kind_value"]:
             endpoints = endpoints.filter(category_kind_value=data["category_kind_value"])
         if data["service_name"]:
@@ -978,6 +1065,8 @@ class QueryEndpointResource(Resource):
                         "category_kind": {"key": endpoint.category_kind_key, "value": endpoint.category_kind_value},
                         "category": endpoint.category_id,
                         "extra_data": endpoint.extra_data,
+                        "app_name": endpoint.app_name,
+                        "created_at": endpoint.created_at,
                         "updated_at": updated_at,
                     }
                 )
