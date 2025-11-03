@@ -23,10 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Prop } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { random } from 'monitor-common/utils';
 import ThresholdIcon from 'monitor-pc/static/images/svg/threshold.svg';
 import AdvancedIcon from 'monitor-pc/static/images/svg/year-round.svg';
 
@@ -94,6 +93,11 @@ export default class AlgorithmRules extends tsc<AlgorithmRulesProps, AlgorithmRu
   /** 展示选择 */
   isShowAlgorithmsSelect = false;
 
+  @Watch('algorithms')
+  watchAlgorithmsChange(val: AlgorithmItemUnion[]) {
+    this.init();
+  }
+
   @Emit('change')
   handleAlgorithmsChange(): AlgorithmItemUnion[] {
     return this.localAlgorithms.reduce((pre, cur) => {
@@ -114,15 +118,15 @@ export default class AlgorithmRules extends tsc<AlgorithmRulesProps, AlgorithmRu
   }
 
   init() {
-    this.localAlgorithms = [];
+    const algorithms = [];
     this.isShowAlgorithmsSelect = this.algorithms.length === 0;
     for (const item of this.algorithms) {
       switch (item.type) {
         case AlgorithmEnum.Threshold: {
-          const threshold = this.localAlgorithms.find(item => item.type === AlgorithmEnum.Threshold);
+          const threshold = algorithms.find(item => item.type === AlgorithmEnum.Threshold);
           if (!threshold) {
-            this.localAlgorithms.push({
-              id: random(8),
+            algorithms.push({
+              id: AlgorithmEnum.Threshold,
               type: AlgorithmEnum.Threshold,
               data: [item],
             });
@@ -132,15 +136,16 @@ export default class AlgorithmRules extends tsc<AlgorithmRulesProps, AlgorithmRu
           break;
         }
         case AlgorithmEnum.YearRoundAndRingRatio:
-          this.localAlgorithms.push({
+          algorithms.push({
             ...item,
-            id: random(8),
+            id: `${AlgorithmEnum.YearRoundAndRingRatio}_${item.level}`,
           });
           break;
         default:
           break;
       }
     }
+    this.localAlgorithms = algorithms;
   }
 
   /** 渲染检测规则 */
@@ -182,7 +187,7 @@ export default class AlgorithmRules extends tsc<AlgorithmRulesProps, AlgorithmRu
     switch (item.id) {
       case AlgorithmEnum.Threshold: {
         this.localAlgorithms.push({
-          id: random(8),
+          id: AlgorithmEnum.Threshold,
           type: item.id,
           data: [
             {
@@ -202,7 +207,7 @@ export default class AlgorithmRules extends tsc<AlgorithmRulesProps, AlgorithmRu
         const algorithms = this.localAlgorithms.filter(item => item.type === AlgorithmEnum.YearRoundAndRingRatio);
         const level = [1, 2, 3].find(item => !algorithms.some(algorithms => algorithms.level === item)) || 1;
         this.localAlgorithms.push({
-          id: random(8),
+          id: `${AlgorithmEnum.YearRoundAndRingRatio}_${level}`,
           type: item.id,
           unit_prefix: '',
           level: level as 1 | 2 | 3,
@@ -232,8 +237,6 @@ export default class AlgorithmRules extends tsc<AlgorithmRulesProps, AlgorithmRu
     this.localAlgorithms[index] = val;
     this.handleAlgorithmsChange();
   }
-
-  handleShowAlgorithmsSelect() {}
 
   mounted() {
     this.init();

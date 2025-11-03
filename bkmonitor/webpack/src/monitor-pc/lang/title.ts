@@ -218,4 +218,5 @@ export default {
   固定IP: 'Static IP',
   'IP-静态拓扑': 'IP-Static Topo',
   问问小鲸: 'Ask AI',
+  同环比: 'Year-on-year',
 };
