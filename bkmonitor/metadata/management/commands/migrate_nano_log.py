@@ -120,7 +120,7 @@ class Command(BaseCommand):
 
         # 设置新表时间字段别名
         models.ESFieldQueryAliasOption.objects.create(
-            table_id=new_table_id, query_alias="dtEventTimeStamp", field_path="dtEventTimeStampNanos"
+            table_id=new_table_id, query_alias="dtEventTimeStamp", field_path="dtEventTimeStampNanos", bk_tenant_id=bk_tenant_id
         )
 
         # 增加新表集群迁移记录，为了确保数据能够正常被查询，将enable_time设置为当前时间的前两年
