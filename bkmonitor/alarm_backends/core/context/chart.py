@@ -143,8 +143,9 @@ def get_chart_data(item: Item, source_time, title=""):
                 if isinstance(value, int | float):
                     value = round(value, int(settings.POINT_PRECISION))
             except Exception:
-                # 忽略 round 过程中出现的异常，保留原值
-                pass
+                # 非预期的数据，直接抛异常并记录日志
+                logger.exception(f"[render_alarm_graph] round value error: {value}, type: {type(value)}")
+                raise Exception(f"[render_alarm_graph] round value error: {value}, type: {type(value)}")
             data.append([record["_time_"] - offset * CONST_ONE_DAY * 1000, value])
 
         # 在 data 中根据查询配置的 interval 补充空点None，以免图表无法显示出数据断点的情况
