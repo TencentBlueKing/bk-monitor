@@ -321,6 +321,7 @@ class EtlStorage:
 
         # 默认使用上报时间做为数据时间
         time_field = built_in_config["time_field"]
+        nano_time_field = None
         built_in_keys = FieldBuiltInEnum.get_choices()
 
         etl_field_index = 1
@@ -396,9 +397,14 @@ class EtlStorage:
                 # 时间精度设置
                 time_fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
                 time_fmt = time_fmts.get(field["option"]["time_format"], {})
-                time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
-                time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
-                time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
+                if time_field["option"]["es_format"] == "strict_date_optional_time_nanos":
+                    time_field["option"]["es_format"] = "epoch_millis"
+                    time_field["option"]["es_type"] = "date"
+                    time_field["option"]["timestamp_unit"] = "ms"
+                else:
+                    time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
+                    time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
+                    time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
                 if time_fmt.get("is_custom"):
                     # 如果是自定义时间格式,加入time_layout字段
                     time_field["option"]["time_layout"] = time_fmt.get("description", "")
@@ -408,6 +414,11 @@ class EtlStorage:
 
                 # 删除原时间字段配置
                 field_option["es_doc_values"] = False
+
+                nano_time_field = copy.deepcopy(time_field)
+                nano_time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
+                nano_time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
+                nano_time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
 
             # 加入字段列表
             field_list.append(
@@ -421,6 +432,8 @@ class EtlStorage:
             )
 
         field_list.append(time_field)
+        if nano_time_field:
+            field_list.append(nano_time_field)
         return {"fields": field_list, "time_field": time_field}
 
     def update_or_create_result_table(
