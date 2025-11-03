@@ -520,7 +520,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                 v-model={this.searchValue}
                 behavior='simplicity'
                 left-icon='bk-icon icon-search'
-                placeholder={this.$t('请输入关键字')}
+                placeholder={this.$t('请输入 关键字')}
                 onChange={this.handleSearchChangeDebounce}
               />
             </div>

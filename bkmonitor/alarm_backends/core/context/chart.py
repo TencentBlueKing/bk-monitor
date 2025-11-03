@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import asyncio
 import base64
 import datetime
@@ -15,7 +15,6 @@ import json
 import logging
 import os
 import tempfile
-from typing import Optional
 
 import arrow
 import pytz
@@ -36,7 +35,7 @@ from core.unit import load_unit
 logger = logging.getLogger("fta_action.run")
 
 
-async def render_html(html_file_path: str) -> Optional[bytes]:
+async def render_html(html_file_path: str) -> bytes | None:
     """
     渲染html字符串为图片
     """
@@ -54,7 +53,7 @@ async def render_html(html_file_path: str) -> Optional[bytes]:
 
     panel = await page.querySelector(".chart-contain")
     if not panel:
-        return
+        return b""
 
     # 截图
     img_bytes = await panel.screenshot({"type": "jpeg", "quality": 90})
@@ -142,6 +141,77 @@ def get_chart_data(item: Item, source_time, title=""):
             if value:
                 value = round(value, settings.POINT_PRECISION)
             data.append([record["_time_"] - offset * CONST_ONE_DAY * 1000, value])
+
+        # 在 data 中根据查询配置的 interval 补充空点None，以免图表无法显示出数据断点的情况
+        if data and interval > 0:
+            # 按时间戳排序数据点
+            data.sort(key=lambda x: x[0])
+
+            # 计算时间范围
+            # 注意：由于数据时间戳已经通过 `record["_time_"] - offset * CONST_ONE_DAY * 1000` 调整到同一时间轴
+            # 因此时间范围也应该基于 offset=0 的时间（即今天的时间范围），这样所有时间段的数据才能对齐
+            chart_start_time = start_time.timestamp * 1000  # 使用基准时间（offset=0）
+            # 结束时间也要使用基准时间，与查询逻辑保持一致
+            if offset == 0:
+                chart_end_time = source_time.replace(seconds=interval).timestamp * 1000
+            else:
+                # 对于昨天和上周，查询时使用的是 end_time.replace(days=offset)
+                # 数据调整后对应到基准的 end_time
+                chart_end_time = end_time.timestamp * 1000
+
+            # 补齐空点
+            # 优化：使用更精确的匹配逻辑，确保数据点时间对齐，避免重复和错位
+            # 同时考虑时间偏移，确保昨天和上周的数据与今天的数据在同一时间轴上对齐显示
+            filled_data = []
+            interval_ms = interval * 1000  # interval 单位为秒，转换为毫秒
+            tolerance_ms = interval_ms // 2  # 允许的时间误差：半个间隔
+
+            current_time = chart_start_time
+            data_index = 0
+
+            while current_time <= chart_end_time:
+                # 查找最接近当前时间点的数据点（在误差范围内）
+                matched_index = None
+                min_diff = tolerance_ms + 1
+
+                # 从当前位置开始查找，直到数据点时间超过当前时间+误差范围
+                # 优化：由于数据已排序，可以提前终止搜索
+                search_index = data_index
+                while search_index < len(data):
+                    data_time = data[search_index][0]
+                    diff = data_time - current_time
+
+                    # 如果数据点时间已经超出误差范围且大于当前时间，停止搜索
+                    if diff > tolerance_ms:
+                        break
+
+                    # 检查是否在误差范围内（包括负的差值，即数据点在当前时间之前）
+                    abs_diff = abs(diff)
+                    if abs_diff <= tolerance_ms and abs_diff < min_diff:
+                        min_diff = abs_diff
+                        matched_index = search_index
+
+                    search_index += 1
+
+                if matched_index is not None:
+                    # 找到匹配的数据点，使用实际数据，并将时间戳对齐到当前时间点
+                    matched_data = data[matched_index]
+                    filled_data.append([current_time, matched_data[1]])
+                    # 跳过已匹配的数据点（注意：这里直接跳到 matched_index + 1，因为数据已排序）
+                    data_index = matched_index + 1
+                else:
+                    # 无数据点，补充空点
+                    filled_data.append([current_time, None])
+
+                current_time += interval_ms
+
+            # 优化：不再添加时间范围外的数据点，避免图表时间轴扩展
+            # 如果需要显示范围外的数据，可以取消下面的注释
+            # while data_index < len(data):
+            #     filled_data.append(data[data_index])
+            #     data_index += 1
+
+            data = filled_data
 
         series.append({"name": name, "data": data})
     timezone = i18n.get_timezone()

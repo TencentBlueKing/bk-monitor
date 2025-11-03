@@ -439,7 +439,7 @@ export default class RelationSelectPanel extends tsc<
           <bk-input
             clearable={true}
             left-icon='bk-icon icon-search'
-            placeholder={this.$t('请输入关键字')}
+            placeholder={this.$t('请输入 关键字')}
             value={this.searchVal}
             onChange={this.handleSearch}
           />

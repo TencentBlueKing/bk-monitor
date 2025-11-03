@@ -109,7 +109,12 @@ export default defineComponent({
           {props.list.map((option) => (
             <bk-option key={option.id} id={option.id} name={option.name}>
               <bk-checkbox checked={localValue.value.includes(option.id)} />
-              <span class="option-name">{option.name}</span>
+              <span v-bk-tooltips={{
+                content: option.name,
+                placement: "top",
+              }} class="option-name">
+                {option.name}
+              </span>
             </bk-option>
           ))}
           <div slot="extension" class="operate-btns">

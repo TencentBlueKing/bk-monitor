@@ -86,7 +86,7 @@ class Algorithms:
                 raise InvalidDataPoint(data_point=data_point)
 
         context = self.get_context(data_point)
-        if not hasattr(data_point, "__debug__"):
+        if "__debug__" not in data_point.as_dict():
             return eval(self.byte_code, {}, context)
         # debug only
         ret = False

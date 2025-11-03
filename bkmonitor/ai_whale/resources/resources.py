@@ -162,8 +162,8 @@ class CreateFeedbackResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        comment = serializers.CharField(label="评论内容", required=False)
-        labels = serializers.ListField(label="标签", required=False)
+        comment = serializers.CharField(label="评论内容", required=False, allow_blank=True, default="")
+        labels = serializers.ListField(label="标签", required=False, allow_empty=True, default=[])
         rate = serializers.IntegerField(label="评分", required=True)
         session_code = serializers.CharField(label="会话代码", required=True)
         session_content_ids = serializers.ListField(label="会话内容ID", required=False)

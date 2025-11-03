@@ -550,7 +550,7 @@ export default defineComponent({
               style='float: right; width: 360px'
               clearable={true}
               data-test-id='esAccessBox_input_search'
-              placeholder={t('搜索ES源名称，地址，创建人')}
+              placeholder={t('搜索ES源名称、地址、创建人')}
               right-icon='bk-icon icon-search'
               value={params.value.keyword}
               on-right-icon-click={handleSearch}

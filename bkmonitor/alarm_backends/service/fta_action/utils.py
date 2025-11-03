@@ -28,9 +28,11 @@ from alarm_backends.core.context.utils import (
 from alarm_backends.core.i18n import i18n
 from alarm_backends.service.converge.dimension import DimensionCalculator
 from alarm_backends.service.converge.tasks import run_converge
+from api.cmdb.define import Host
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.models import ActionInstance, DutyArrange, DutyPlan, UserGroup
 from bkmonitor.utils import time_tools
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import (
     ACTION_DISPLAY_STATUS_DICT,
     ActionNoticeType,
@@ -199,6 +201,7 @@ def to_document(action_instance: ActionInstance, current_time, alerts=None):
 
     converge_info = getattr(action_instance, "converge_info", {})
     action_info = dict(
+        bk_tenant_id=bk_biz_id_to_bk_tenant_id(action_instance.bk_biz_id),
         id=f"{create_timestamp}{action_instance.id}",
         raw_id=action_instance.id,
         create_time=create_timestamp,
@@ -328,7 +331,7 @@ class AlertAssignee:
     告警负责人
     """
 
-    def __init__(self, alert, user_groups, follow_groups=None):
+    def __init__(self, alert: AlertDocument, user_groups, follow_groups=None):
         self.alert = alert
         self.user_groups = user_groups
         self.follow_groups = follow_groups or []
@@ -632,7 +635,9 @@ class AlertAssignee:
                 # 无监控对象， 不需要获取负责人
                 return group_users
 
-            host = HostManager.get_by_id(self.alert.event.bk_host_id)
+            host = HostManager.get_by_id(
+                bk_tenant_id=str(self.alert.bk_tenant_id), bk_host_id=getattr(self.alert.event, "bk_host_id", "")
+            )
             for operator_attr in ["operator", "bk_bak_operator"]:
                 group_users[operator_attr] = self.get_host_operator(host, operator_attr)
         except AttributeError:
@@ -640,20 +645,18 @@ class AlertAssignee:
         return group_users
 
     @classmethod
-    def get_host_operator(cls, host, operator_attr="operator"):
+    def get_host_operator(cls, host: Host | None, operator_attr="operator"):
         """
         获取主机负责人，如果没有则尝试获取第一个模块负责人
         :param host: 主机
         :return: list
         """
-
         if not host:
             return []
-
         return getattr(host, operator_attr, []) or cls.get_host_module_operator(host)
 
     @classmethod
-    def get_host_module_operator(cls, host, operator_attr="operator"):
+    def get_host_module_operator(cls, host: Host, operator_attr="operator"):
         """
         获取主机第一个模块的负责人
         :param operator_attr: 模块负责人类型
@@ -662,10 +665,12 @@ class AlertAssignee:
         :param host: 主机
         :return: 人员列表
         """
-        for bk_module_id in host.bk_module_ids:
-            module = ModuleManager.get(bk_module_id)
-            if module:
-                return getattr(module, operator_attr, [])
+        bk_biz_id: int = host.bk_biz_id
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+
+        modules = ModuleManager.mget(bk_tenant_id=bk_tenant_id, bk_module_ids=host.bk_module_ids)
+        for module in modules.values():
+            return getattr(module, operator_attr, [])
         return []
 
 

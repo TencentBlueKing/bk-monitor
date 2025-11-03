@@ -39,12 +39,10 @@ export function useNavMenu(options: {
   http: any;
   emit?: (event: string, ...args: any[]) => void;
 }) {
-  const { t, bkInfo, http, emit } = options;
+  const { t, bkInfo } = options;
   const store = useStore();
   const route = useRoute();
   const router = useRouter();
-
-  // data
   const isFirstLoad = ref(true);
 
   // computed
@@ -55,51 +53,6 @@ export function useNavMenu(options: {
   const mySpaceList = computed(() => store.state.mySpaceList);
   const isExternal = computed(() => store.state.isExternal);
   const externalMenu = computed(() => store.state.externalMenu);
-
-  /**
-   * 将空间对象标准化为字符串字段，返回是否拥有 view_business_v2 权限
-   */
-  function normalizeSpaceAndCheckPermission(space: any): boolean {
-    space.bk_biz_id = `${space.bk_biz_id}`;
-    space.space_uid = `${space.space_uid}`;
-    space.space_full_code_name = `${space.space_name}(#${space.space_id})`;
-    return Boolean(space.permission?.view_business_v2);
-  }
-
-  /**
-   * 依据 query / storage 确定要切换的 spaceUid
-   */
-  function resolveTargetSpaceUid(spaceList: any[], queryObj: any, storageSpaceUid: string | undefined, demoId: string) {
-    const { bizId, spaceUid: querySpaceUid } = queryObj;
-    const firstRealSpaceUid = spaceList.find((item: any) => item.bk_biz_id !== demoId)?.space_uid;
-    if (querySpaceUid || bizId) {
-      const matched = spaceList.find((item: any) => item.space_uid === querySpaceUid || item.bk_biz_id === `${bizId}`);
-      return matched ? matched.space_uid : firstRealSpaceUid;
-    }
-    if (storageSpaceUid) {
-      const exists = spaceList.some((item: any) => item.space_uid === storageSpaceUid);
-      if (exists) return storageSpaceUid;
-    }
-    return firstRealSpaceUid;
-  }
-
-  /**
-   * 获取查看业务权限的申请地址
-   */
-  async function fetchViewBusinessApplyUrl(query: any) {
-    const res = await store.dispatch('getApplyData', {
-      action_ids: [authorityMap.VIEW_BUSINESS],
-      resources: query?.space_uid
-        ? [
-            {
-              type: 'space',
-              id: query.space_uid,
-            },
-          ]
-        : [],
-    });
-    return res?.data?.apply_url;
-  }
 
   // methods
   const getDemoProjectUrl = (id: string) => {
@@ -229,65 +182,6 @@ export function useNavMenu(options: {
     spaceChange(newSpaceUid);
   };
 
-  const requestMySpaceList = async () => {
-    try {
-      const queryObj = structuredClone(route.query);
-      if (queryObj.from) {
-        store.commit('updateIframeQuery', queryObj);
-      }
-
-      const spaceList = store.state.mySpaceList;
-      let isHaveViewBusiness = false;
-      for (const item of spaceList) {
-        if (normalizeSpaceAndCheckPermission(item)) isHaveViewBusiness = true;
-      }
-
-      const { bizId, spaceUid: newSpaceUid } = queryObj;
-      const demoId = String((window as any).DEMO_BIZ_ID);
-      const demoProject = spaceList.find((item: any) => `${item.bk_biz_id}` === demoId);
-      const demoProjectUrl = demoProject ? getDemoProjectUrl(demoProject.space_uid) : '';
-      store.commit('updateState', { demoUid: demoProject ? demoProject.space_uid : '' });
-      const isOnlyDemo = demoProject && spaceList.length === 1;
-      if (!isHaveViewBusiness || isOnlyDemo) {
-        const args: any = {
-          newBusiness: { url: (window as any).BIZ_ACCESS_URL },
-          getAccess: {},
-        };
-        if (isOnlyDemo) {
-          if (bizId === demoProject.bk_biz_id || newSpaceUid === demoProject.space_uid) {
-            return checkSpaceChange(demoProject.space_uid);
-          }
-          args.demoBusiness = {
-            url: demoProjectUrl,
-          };
-        }
-        if (newSpaceUid || bizId) {
-          const query = newSpaceUid ? { space_uid: newSpaceUid } : { bk_biz_id: bizId };
-          const [betaRes, applyUrl] = await Promise.all([
-            http.request('/meta/getMaintainerApi', { query }),
-            fetchViewBusinessApplyUrl(undefined),
-          ]);
-          args.getAccess.businessName = betaRes.data.bk_biz_name;
-          args.getAccess.url = applyUrl;
-        } else {
-          args.getAccess.url = await fetchViewBusinessApplyUrl(undefined);
-        }
-        checkSpaceChange();
-        emit?.('welcome', args);
-      } else {
-        const targetSpaceUid = resolveTargetSpaceUid(
-          spaceList,
-          queryObj,
-          store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
-          demoId,
-        );
-        checkSpaceChange(targetSpaceUid);
-      }
-    } catch (e) {
-      console.warn(e);
-    }
-  };
-
   return {
     // state
     topMenu,
@@ -297,8 +191,6 @@ export function useNavMenu(options: {
     mySpaceList,
     isExternal,
     externalMenu,
-    // methods
-    requestMySpaceList,
     getDemoProjectUrl,
     checkSpaceChange,
     spaceChange,

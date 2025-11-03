@@ -344,9 +344,9 @@
 </template>
 
 <script>
-  import { projectManages, deepEqual } from '@/common/util';
-  import storageMixin from '@/mixins/storage-mixin';
-  import { mapGetters } from 'vuex';
+  import { deepEqual, projectManages } from '@/common/util';
+import storageMixin from '@/mixins/storage-mixin';
+import { mapGetters } from 'vuex';
 
   import ClusterTable from './components/cluster-table';
 
@@ -568,7 +568,10 @@
             params: {
               collector_config_id: this.curCollect.collector_config_id,
             },
-            data,
+            data: {
+              ...data,
+              bk_biz_id: this.$store.state.bkBizId,
+            },
           })
           .then(res => {
             if (res.code === 0) {

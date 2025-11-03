@@ -1216,21 +1216,18 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         if table["event_group_id"] != 0:
             dimensions_set = set()
             dimensions_set.add("event_name")
+            limit = 100
             for event_info in table["event_info_list"]:
-                if len(dimensions_set) >= 100:
+                # 合并维度与条件字段后统一处理，避免重复的长度判断
+                merged_fields = (event_info.get("dimension_list") or []) + (
+                    event_info.get("condition_field_list") or []
+                )
+                for field_name in merged_fields:
+                    dimensions_set.add(field_name)
+                    if len(dimensions_set) >= limit:
+                        break
+                if len(dimensions_set) >= limit:
                     break
-                # 处理维度字段
-                if event_info.get("dimension_list"):
-                    for dimension in event_info["dimension_list"]:
-                        if len(dimensions_set) >= 100:
-                            break
-                        dimensions_set.add(dimension)
-                # 处理条件字段
-                if event_info.get("condition_field_list"):
-                    for condition in event_info["condition_field_list"]:
-                        if len(dimensions_set) >= 100:
-                            break
-                        dimensions_set.add(condition)
 
             dimensions = [{"id": dimension, "name": dimension} for dimension in dimensions_set]
 

@@ -38,6 +38,7 @@ from apps.generic import APIViewSet
 from apps.grafana.authentication import NoCsrfSessionAuthentication
 from apps.grafana.data_source import CustomESDataSourceHandler
 from apps.grafana.handlers.home_dashboard import patch_home_panels
+from apps.grafana.handlers.monitor import MonitorGrafanaHandler
 from apps.grafana.handlers.query import GrafanaQueryHandler
 from apps.grafana.serializers import (
     DimensionSerializer,
@@ -560,7 +561,7 @@ class GrafanaViewSet(APIViewSet):
         }
         """
         params = self.get_validated_data()
-        data = MonitorApi.save_to_dashboard(params)
+        data = MonitorGrafanaHandler.save_to_dashboard(params)
         return Response(data)
 
 

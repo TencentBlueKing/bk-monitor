@@ -20,19 +20,19 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
  */
 
-import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
+import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import $http from '../../../../api';
 import { Debounce } from '../../../../common/util';
 import {
-  type btnType,
-  type ISelectItem,
-  type ITableRowItem,
-  operatorSelectList,
   btnGroupList,
   operatorMapping,
+  operatorSelectList,
   tableRowBaseObj,
+  type ISelectItem,
+  type ITableRowItem,
+  type btnType,
 } from './type';
 import ValidatorInput from './validator-input';
 
@@ -303,7 +303,7 @@ export default class LogFilter extends tsc<object> {
           catchIsShowMessage: false,
         },
       )
-      .then(res => {
+      .then((res) => {
         if (res.data?.length) {
           const firstData = res.data[0];
           this.logOriginal = firstData.etl.data || '';
@@ -324,6 +324,7 @@ export default class LogFilter extends tsc<object> {
           etl_config: 'bk_log_delimiter',
           etl_params: { separator: this.separator },
           data: this.logOriginal,
+          bk_biz_id: this.$store.state.bkBizId,
         },
       });
       this.originalFilterItemSelect = res.data.fields.map(item => ({
@@ -341,7 +342,7 @@ export default class LogFilter extends tsc<object> {
   }
 
   render() {
-    const fieldIndexInputSlot = groupid => {
+    const fieldIndexInputSlot = (groupid) => {
       return {
         default: ({ $index, row }) => (
           <ValidatorInput
@@ -357,7 +358,7 @@ export default class LogFilter extends tsc<object> {
         ),
       };
     };
-    const valueInputSlot = groupId => {
+    const valueInputSlot = (groupId) => {
       return {
         default: ({ $index, row }) => (
           <div>

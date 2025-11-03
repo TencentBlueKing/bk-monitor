@@ -40,12 +40,16 @@
       .option-name {
         color: #63656e;
         margin-left: 6px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     }
   }
 
   .bk-select-extension {
     background: #fff;
+
     &:hover {
       background: #fff;
     }
@@ -56,6 +60,14 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+
+      .bk-button-text.bk-button-small {
+        padding: 0 8px !important;
+      }
     }
   }
+}
+
+.bk-form-checkbox {
+  flex-shrink: 0 !important;
 }

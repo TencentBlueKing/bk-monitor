@@ -354,8 +354,8 @@ importers:
         specifier: 0.0.38-beta.1
         version: 0.0.38-beta.1(@blueking/bkui-library@0.0.0-beta.4)
       '@blueking/bk-weweb':
-        specifier: 0.0.35-beta.7
-        version: 0.0.35-beta.7
+        specifier: 0.0.35-beta.11
+        version: 0.0.35-beta.11
       '@blueking/bkui-library':
         specifier: 0.0.0-beta.4
         version: 0.0.0-beta.4
@@ -369,8 +369,8 @@ importers:
         specifier: 0.0.1-beta.14
         version: 0.0.1-beta.14(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
       '@blueking/ip-selector':
-        specifier: 0.3.0-beta.50
-        version: 0.3.0-beta.50(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
+        specifier: 0.3.0-beta.51
+        version: 0.3.0-beta.51(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
       '@blueking/login-modal':
         specifier: ^1.0.6
         version: 1.0.6
@@ -614,8 +614,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/ip-selector':
-        specifier: 0.3.0-beta.50
-        version: 0.3.0-beta.50(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.15(typescript@5.9.2)))(vue@3.5.15(typescript@5.9.2))
+        specifier: 0.3.0-beta.51
+        version: 0.3.0-beta.51(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.15(typescript@5.9.2)))(vue@3.5.15(typescript@5.9.2))
       '@blueking/login-modal':
         specifier: ^1.0.6
         version: 1.0.6
@@ -1488,6 +1488,10 @@ packages:
     peerDependencies:
       '@blueking/bkui-library': ^0.0.0-beta.4
 
+  '@blueking/bk-weweb@0.0.35-beta.11':
+    resolution: {integrity: sha512-qZ4i0xPyAel1v130FlO3MOB8W45DmHE4Z7VwA+Z8P9R1Zl+tB7uPX2Nj1KZoHNqWwGFLvZ/KZ/GJ5qXL6M2Usw==}
+    engines: {node: '>=14.18.1'}
+
   '@blueking/bk-weweb@0.0.35-beta.7':
     resolution: {integrity: sha512-kaRlM71vXwF97KxMe0tx2HCq3phN3m+heJPyXqu4YsYLne3OgG/JQjFVZaUvonxZ0cJTdt/2orW5HEz3XRXFFQ==}
     engines: {node: '>=14.18.1'}
@@ -1529,8 +1533,8 @@ packages:
       bkui-vue: ^1.0.3-beta.38
       vue: ^3
 
-  '@blueking/ip-selector@0.3.0-beta.50':
-    resolution: {integrity: sha512-84lmQN0q7ojF0k8hkUxD6Ir4fUmI4c6U8SumgxN0KbF6ahTNoWE0rZQI5WHVOvaz9+enz/BxVLktgPu34tANrg==}
+  '@blueking/ip-selector@0.3.0-beta.51':
+    resolution: {integrity: sha512-n6MX69zSmDqx5tZSS3Fn19IadhERYZnxpC4/lFoKcFIRBVS5teeLeFLsrrneXbhwx5Ecv8vw3lAy+pqu3u3YlA==}
     engines: {node: '>= 14.7.0', npm: '>= 6.0.0'}
 
   '@blueking/login-modal@1.0.6':
@@ -9581,6 +9585,8 @@ snapshots:
       lodash: 4.17.21
       sortablejs: 1.15.6
 
+  '@blueking/bk-weweb@0.0.35-beta.11': {}
+
   '@blueking/bk-weweb@0.0.35-beta.7': {}
 
   '@blueking/bkmonitor-cli@7.0.1-beta.8(@types/node@24.0.14)(@vue/compiler-sfc@3.5.15)(babel-helper-vue-jsx-merge-props@2.0.3)(lodash@4.17.21)(monaco-editor@0.44.0)(prettier@3.6.2)(vue@2.7.16)':
@@ -9770,7 +9776,7 @@ snapshots:
       bkui-vue: 2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16)
       vue: 2.7.16
 
-  '@blueking/ip-selector@0.3.0-beta.50(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ip-selector@0.3.0-beta.51(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -9779,7 +9785,7 @@ snapshots:
       - bkui-vue
       - vue
 
-  '@blueking/ip-selector@0.3.0-beta.50(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.15(typescript@5.9.2)))(vue@3.5.15(typescript@5.9.2))':
+  '@blueking/ip-selector@0.3.0-beta.51(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.15(typescript@5.9.2)))(vue@3.5.15(typescript@5.9.2))':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.15(typescript@5.9.2)))(vue@3.5.15(typescript@5.9.2))

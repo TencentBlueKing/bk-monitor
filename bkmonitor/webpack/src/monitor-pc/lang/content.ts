@@ -376,4 +376,7 @@ export default {
   上周同期: 'Same period last week',
   前七天同期均值: 'Average of the same period in the last 7 days',
   组合: 'Combination',
+  关联服务名称: 'Associated service name',
+  策略下发: 'Push strategy',
+  解除关联: 'Unassociate',
 };

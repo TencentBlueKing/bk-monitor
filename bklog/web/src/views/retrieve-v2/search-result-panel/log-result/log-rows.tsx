@@ -105,7 +105,9 @@ export default defineComponent({
 
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
+      aiBluekingEnabled: store.state.features.isAiAssistantActive,
       stopPropagation: true,
+      highlightEnabled: true,
       onclick: (...args) => {
         const type = args[1];
         if (type === 'add-to-ai') {
@@ -190,7 +192,7 @@ export default defineComponent({
 
     addEvent(RetrieveEvent.AUTO_REFRESH, () => {
       resetPageState();
-      store.dispatch('requestIndexSetQuery');
+      store.dispatch('requestIndexSetQuery', { from: 'auto_refresh' });
     });
     const setRenderList = (length?: number) => {
       const arr: Record<string, any>[] = [];
@@ -686,6 +688,10 @@ export default defineComponent({
       ],
       handleResultBoxResize,
     );
+
+    addEvent(RetrieveEvent.AI_CLOSE, () => {
+      refResultRowBox.value?.querySelector('.ai-active')?.classList.remove('ai-active');
+    });
 
     const handleColumnWidthChange = (w, col) => {
       const width = w > 40 ? w : 40;

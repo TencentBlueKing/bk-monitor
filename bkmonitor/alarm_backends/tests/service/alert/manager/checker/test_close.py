@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -14,7 +13,7 @@ import datetime
 import json
 
 import arrow
-import mock
+from unittest import mock
 import pytest
 from django.test import TestCase
 
@@ -53,13 +52,25 @@ class TestCloseStatusChecker(TestCase):
             StrategyCacheManager.CACHE_KEY_TEMPLATE.format(strategy_id=STRATEGY["id"]), json.dumps(STRATEGY)
         )
 
+        self.host_manager_patch = mock.patch("alarm_backends.service.alert.manager.checker.close.HostManager")
+        self.host_manager = self.host_manager_patch.start()
+        self.host_manager.get.return_value = Host(
+            bk_host_innerip="10.0.0.1",
+            bk_cloud_id=0,
+            bk_cloud_name="default area",
+            bk_host_id=1,
+            bk_biz_id=2,
+        )
+
     def tearDown(self) -> None:
-        pass
+        self.host_manager_patch.stop()
 
     @classmethod
     def get_alert(cls, strategy=None, event=None):
         event = MonitorEventAdapter(event or ANOMALY_EVENT, strategy or STRATEGY).adapt()
         event["extra_info"]["strategy"] = strategy or STRATEGY
+        event["ip"] = "10.0.0.1"
+        event["bk_cloud_id"] = "1"
         alert = Alert.from_event(Event(event))
         ALERT_DEDUPE_CONTENT_KEY.client.set(
             ALERT_DEDUPE_CONTENT_KEY.get_key(strategy_id=alert.strategy_id, dedupe_md5=alert.dedupe_md5),

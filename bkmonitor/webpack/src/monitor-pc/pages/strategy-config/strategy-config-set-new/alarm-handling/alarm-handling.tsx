@@ -359,6 +359,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                 clearable={false}
                 popover-min-width={140}
                 readonly={this.readonly}
+                search-placeholder={this.$tc('请输入 关键字')}
                 size='small'
                 searchable
                 on-change={this.handleChange}

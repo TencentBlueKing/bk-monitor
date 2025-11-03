@@ -33,9 +33,9 @@ import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import DOMPurify from 'dompurify';
 import { escape as _escape } from 'lodash-es';
 
-import { BK_LOG_STORAGE } from '../../../store/store.type';
 import $http from '@/api';
 import store from '@/store';
+import { BK_LOG_STORAGE } from '../../../store/store.type';
 
 import './agg-chart.scss';
 
@@ -55,6 +55,7 @@ export default class AggChart extends tsc<object> {
   @Prop({ type: Object, default: () => ({}) }) statisticalFieldData!: any;
   @Prop({ type: Number, default: 5 }) limit!: number;
   @Prop({ type: Array }) colorList!: string[];
+  @Prop({ type: Boolean, default: false }) showSearchKeyword!: boolean;
 
   // 状态变量
   showAllList = false;
@@ -72,10 +73,11 @@ export default class AggChart extends tsc<object> {
   };
   // 获取翻译函数
   t = window.mainComponent.$t.bind(window.mainComponent);
+  searchKeyword = '';
 
   // 缓存计算
-  private cachedTopFiveList: [string, number][] = [];
-  private cachedShowFiveList: [string, number][] = [];
+  private cachedTopFiveList: [string, unknown][] = [];
+  private cachedShowFiveList: [string, unknown][] = [];
   private cachedShowValidCount = 0;
   private cachedShowTotalCount = 0;
 
@@ -141,6 +143,10 @@ export default class AggChart extends tsc<object> {
    */
   get searchMode() {
     return store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
+  }
+
+  get filterList() {
+    return this.showFiveList?.filter(item => item[0]?.includes(this.searchKeyword)) || [];
   }
 
   @Watch('watchQueryParams', { deep: true })
@@ -244,16 +250,16 @@ export default class AggChart extends tsc<object> {
 
     if (this.searchMode === 0) {
       const mappedOperator = OPERATOR_MAPPING[operator] || operator;
-      return store.getters.retrieveParams?.addition?.some(addition => {
+      return store.getters.retrieveParams?.addition?.some((addition) => {
         return (
-          addition.field === fieldName &&
-          addition.operator === mappedOperator &&
-          addition.value.toString() === value.toString()
+          addition.field === fieldName
+          && addition.operator === mappedOperator
+          && addition.value.toString() === value.toString()
         );
       });
     }
 
-    const formatJsonString = formatResult => {
+    const formatJsonString = (formatResult) => {
       if (typeof formatResult === 'string') {
         return DOMPurify.sanitize(formatResult);
       }
@@ -266,7 +272,7 @@ export default class AggChart extends tsc<object> {
       const textType = this.fieldType;
 
       // biome-ignore lint/nursery/noShadow: reason
-      const formatValue = value => {
+      const formatValue = (value) => {
         let formatResult = value;
         if (['text', 'string', 'keyword'].includes(textType)) {
           if (Array.isArray(formatResult)) {
@@ -335,10 +341,21 @@ export default class AggChart extends tsc<object> {
 
   // 渲染函数
   render() {
-    const hasData = !!this.showFiveList.length;
+    const hasData = !!this.filterList.length;
 
     return (
       <div class='retrieve-v2 field-data'>
+        {
+        this.showSearchKeyword
+          ? <div style={{ marginBottom: '10px' }}>
+            <bk-input
+              v-model={this.searchKeyword}
+              placeholder={this.$t('搜索')}
+              clearable
+              right-icon='icon-search'
+            />
+          </div> : null
+        }
         {this.listLoading ? (
           <ItemSkeleton
             columns={2}
@@ -347,8 +364,8 @@ export default class AggChart extends tsc<object> {
           />
         ) : hasData ? (
           <ul class='chart-list'>
-            {this.showFiveList.map((item, index) => {
-              const [value, count] = item;
+            {this.filterList.map((item, index) => {
+              const [value, count] = item as [string, number];
               const percent = this.computePercent(count);
               const percentValue = this.getPercentValue(count);
               const isFiltered = this.filterIsExist('is', value, this.fieldName);

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -25,6 +24,7 @@ def item():
     CacheNode.refresh_from_settings()
 
     class Strategy:
+        bk_tenant_id = "test"
         config = {"detect": [{"level": 1, "connector": "and"}, {"level": 2, "connector": ""}]}
         id = 1
         bk_biz_id = 2

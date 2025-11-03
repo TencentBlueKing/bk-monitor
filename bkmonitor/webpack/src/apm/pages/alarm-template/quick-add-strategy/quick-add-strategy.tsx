@@ -113,7 +113,7 @@ class QuickAddStrategy extends Mixins(
     // todo
     const { app_name: appName } = this.params;
     const { from, to } = this.$route.query;
-    let urlStr = `${window.__BK_WEWEB_DATA__?.baseroute || ''}application/?filter-app_name=${appName}&dashboardId=alarm_template&strategy_template_details_id=${this.cursorId}`;
+    let urlStr = `${window.__BK_WEWEB_DATA__?.parentRoute || ''}application/?filter-app_name=${appName}&dashboardId=alarm_template&strategy_template_details_id=${this.cursorId}`;
     urlStr += `&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
     const { href } = this.$router.resolve({
       path: urlStr,
@@ -285,6 +285,7 @@ class QuickAddStrategy extends Mixins(
         return pre;
       }, []),
       global_config: this.globalParams || undefined,
+      is_reuse_instance_config: true,
     };
     const res = await applyStrategyTemplate(params)
       .then(() => {

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,12 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import time
 from unittest import TestCase
 
-import mock
+from unittest import mock
 import pytest
 from django.conf import settings
 
@@ -738,6 +738,7 @@ class TestProcessor(TestCase):
         action = processor.process_single_strategy()
         self.assertIsNone(action)
 
+        # 无数据关闭告警也需要发送信号
         no_data_alert.update(
             Event(
                 {
@@ -759,7 +760,7 @@ class TestProcessor(TestCase):
         )
         processor = CompositeProcessor(no_data_alert)
         action = processor.process_single_strategy()
-        self.assertIsNone(action)
+        self.assertIsNotNone(action)
 
     def test_qos(self):
         success = failed = 0

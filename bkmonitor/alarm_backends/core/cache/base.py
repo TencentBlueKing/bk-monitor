@@ -11,14 +11,13 @@ specific language governing permissions and limitations under the License.
 import abc
 import logging
 
-import six
 
 from alarm_backends.constants import CONST_ONE_DAY
 from alarm_backends.core.cache.key import PUBLIC_KEY_PREFIX
 from alarm_backends.core.storage.redis import Cache
 
 
-class CacheManager(six.with_metaclass(abc.ABCMeta, object)):
+class CacheManager(metaclass=abc.ABCMeta):
     """
     缓存管理基类
     """

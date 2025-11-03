@@ -33,10 +33,15 @@ import './list.scss';
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 export enum ETagsType {
+  // eslint-disable-next-line no-unused-vars
   BCS = 'bcs',
+  // eslint-disable-next-line no-unused-vars
   BKCC = 'bkcc',
+  // eslint-disable-next-line no-unused-vars
   BKCI = 'bkci',
+  // eslint-disable-next-line no-unused-vars
   BKSAAS = 'bksaas',
+  // eslint-disable-next-line no-unused-vars
   MONITOR = 'monitor',
 }
 
