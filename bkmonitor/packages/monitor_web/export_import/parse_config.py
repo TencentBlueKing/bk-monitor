@@ -134,7 +134,7 @@ class CollectConfigParse(BaseParse):
         meta_path = self.get_meta_path(plugin_id)
 
         if not meta_path:
-            return {"error_msg": "关联插件信息不完整,缺少'meta.yaml'文件路径"}
+            return {"error_msg": _("关联插件信息不完整,缺少'meta.yaml'文件路径")}
 
         try:
             meta_content = self.plugin_configs[meta_path]

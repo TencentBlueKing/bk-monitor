@@ -17,7 +17,6 @@ import os
 import shutil
 import tarfile
 import uuid
-import zipfile
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -783,7 +782,7 @@ class UploadPackageResource(Resource):
                 file_id=self.file_id,
             )
 
-    def parse_package(self, file_path_content_map: dict[str, bytes]):
+    def parse_package(self, file_path_content_map: dict[Path, bytes]):
         # 区分成四个配置目录
         # 并且去掉最外层配置类型的文件夹
         collect_configs: dict[Path, dict] = {}
@@ -813,6 +812,7 @@ class UploadPackageResource(Resource):
                     try:
                         file_path = self._process_plugin_config_path(file_path)
                     except Exception:
+                        logger.warning(f"无法处理插件配置文件: {file_path}")
                         continue
                     else:
                         plugin_configs[file_path] = content
@@ -852,36 +852,18 @@ class UploadPackageResource(Resource):
         return file_path
 
     @classmethod
-    def parse_package_without_decompress(cls, file: FieldFile) -> dict[str, bytes]:
+    def parse_package_without_decompress(cls, file: FieldFile) -> dict[Path, bytes]:
         """
         针对zip 和tar相关的压缩包进行处理
         """
+        from monitor_web.plugin.resources import PluginImportResource
 
-        # 解压到内存中，获取文件的路径已经对应的内容
-        file_path_content_map: dict[str, bytes] = {}
-        if file.name.endswith(".zip"):
-            with zipfile.ZipFile(file.file, "r") as package_file:
-                for file_info in package_file.infolist():
-                    with package_file.open(file_info) as f:
-                        file_path_content_map[file_info.filename] = f.read()
-        else:
-            with tarfile.open(fileobj=file.file) as package_file:
-                for member in package_file.getmembers():
-                    # 取代 tarfile.extractall 的 filter="data"
-                    if not member.isreg():
-                        continue
-                    with package_file.extractfile(member) as f:
-                        file_path_content_map[member.name] = f.read()
+        file_path_content_map = PluginImportResource().parse_package_without_decompress(file)
 
         # 校验包目录结构
-        if not any(
-            list(
-                [
-                    x in list(set(filepath.split("/")[0] for filepath in file_path_content_map.keys()))
-                    for x in DIRECTORY_LIST
-                ]
-            )
-        ):
+        top_level_directories = {Path(filepath).parts[0] for filepath in file_path_content_map.keys()}
+
+        if not top_level_directories.intersection(DIRECTORY_LIST):
             raise UploadPackageError({"msg": _("导入包目录结构不对")})
 
         return file_path_content_map
@@ -927,7 +909,7 @@ class UploadPackageResource(Resource):
 
             if self.file_id not in upload_file_ids:
                 file = self.file_manager.file_obj.file_data
-                file_path_content_map: dict[str, bytes] = self.parse_package_without_decompress(file)
+                file_path_content_map: dict[Path, bytes] = self.parse_package_without_decompress(file)
                 self.parse_package(file_path_content_map)
 
             config_list = list(map(self.handle_return_data, ImportParse.objects.filter(file_id=self.file_id)))
