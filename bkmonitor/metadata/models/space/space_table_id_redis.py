@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections import defaultdict
 import datetime
 import itertools
 import json
@@ -134,38 +133,6 @@ class SpaceTableIDRedis:
                     push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
             RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
-    def _get_es_related_data_label_table_ids(self, bk_tenant_id: str) -> dict[str, list[str]]:
-        """获取ES关联查询的data_label及对应的结果表"""
-        es_related_query_record: dict[str, str] = {
-            record.table_id: record.value
-            for record in models.ResultTableOption.objects.filter(
-                name="es_related_query_table_id", bk_tenant_id=bk_tenant_id
-            )
-        }
-
-        # 查询关联的虚拟路由 data_label
-        virtual_data_label_related_tables: dict[str, list[str]] = {}
-        if es_related_query_record:
-            virtual_rt_table_ids = models.ESStorage.objects.filter(
-                origin_table_id__in=list(es_related_query_record.values())
-            ).values_list("table_id", flat=True)
-            virtual_rt_data_label_map: dict[str, str] = {
-                record.table_id: record.data_label
-                for record in models.ResultTable.objects.filter(
-                    table_id__in=virtual_rt_table_ids, bk_tenant_id=bk_tenant_id
-                )
-            }
-
-            # 需要关联查询的表与data_label的映射关系
-            virtual_data_label_related_tables = defaultdict(list)
-            for table_id, data_label in virtual_rt_data_label_map.items():
-                for data_label in data_label.split(","):
-                    if not data_label:
-                        continue
-                    virtual_data_label_related_tables[data_label].append(es_related_query_record[table_id])
-
-        return virtual_data_label_related_tables
-
     def push_data_label_table_ids(
         self,
         data_label_list: list | None = None,
@@ -212,12 +179,6 @@ class SpaceTableIDRedis:
                 if not data_label or data_label not in data_labels:
                     continue
                 rt_dl_map.setdefault(data_label, []).append(data["table_id"])
-
-        # 特殊逻辑，es关联查询
-        virtual_data_label_related_tables = self._get_es_related_data_label_table_ids(bk_tenant_id)
-        for data_label in rt_dl_map:
-            if data_label in virtual_data_label_related_tables:
-                rt_dl_map[data_label].extend(virtual_data_label_related_tables.get(data_label, []))
 
         # 若开启多租户模式,则data_label都需要在前面拼接bk_tenant_id
         if settings.ENABLE_MULTI_TENANT_MODE:
