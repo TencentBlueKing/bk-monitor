@@ -304,6 +304,7 @@ class StrategyTemplateBatchPartialUpdateRequestSerializer(BaseAppStrategyTemplat
         user_group_list = serializers.ListField(
             label=_("用户组列表"), child=UserGroupSerializer(), required=False, allow_empty=False
         )
+        detect = DetectSerializer(label=_("判断条件"), required=False)
         algorithms = serializers.ListField(
             label=_("检测算法列表"), child=AlgorithmSerializer(), required=False, allow_empty=False
         )
