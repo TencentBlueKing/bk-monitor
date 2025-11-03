@@ -4,6 +4,12 @@
   flex-direction: column;
   min-height: 0;
 
+  .bk-table-body {
+    td {
+      background-color: #fff;
+    }
+  }
+
   .alarm-template-table {
     display: flex;
     flex-direction: column;

@@ -28,36 +28,87 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { ConditionMethodAliasMap } from 'monitor-pc/pages/query-template/constants';
 
-import { DetectionAlgorithmLevelMap } from '../../constant';
-
-import type { AlarmAlgorithmItem } from '../../typing';
+import {
+  ALGORITHM_RELATIONSHIP_MAP,
+  ALGORITHM_TYPE_MAP,
+  LEVEL_LIST,
+  YEAR_ROUND_AND_RING_RATION_ALGORITHM_MAP,
+} from '../template-form/constant';
+import { type AlgorithmItemUnion, AlgorithmEnum } from '../template-form/typing';
 
 import './detection-algorithms.scss';
 
 interface DetectionAlgorithmProps {
   /** 检测算法数据 */
-  algorithm: AlarmAlgorithmItem;
+  algorithm: AlgorithmItemUnion[];
+  connector?: string;
 }
 
 @Component
 export default class DetectionAlgorithm extends tsc<DetectionAlgorithmProps> {
   /** 检测算法数据 */
-  @Prop({ type: Object, default: () => {} }) algorithm!: AlarmAlgorithmItem;
+  @Prop({ type: Array, default: () => [] }) algorithm!: AlgorithmItemUnion[];
+  @Prop({ type: String, default: 'and' }) connector!: string;
+
+  get algorithmDisplayConfig() {
+    const level = LEVEL_LIST.find(item => item.id === this.algorithm[0]?.level);
+    return {
+      algorithmLabel: this.algorithm.length > 1 ? this.$t('组合') : ALGORITHM_TYPE_MAP[this.algorithm[0]?.type],
+      levelIcon: level.icon,
+      levelName: level.name,
+    };
+  }
+
+  renderAlgorithmContent(algorithm: AlgorithmItemUnion, index: number) {
+    switch (algorithm.type) {
+      case AlgorithmEnum.Threshold:
+        return (
+          <div class='threshold-algorithm-content'>
+            <span class='method'>{ConditionMethodAliasMap[algorithm.config?.method]}</span>
+            <span class='bold'>
+              {algorithm.config?.threshold}
+              {algorithm.unit_prefix}
+            </span>
+          </div>
+        );
+      case AlgorithmEnum.YearRoundAndRingRatio:
+        return (
+          <div class='year-round-and-ring-ratio-algorithm-content'>
+            {index > 0 && '（'}
+            <i18n path='{0}上升{1}%或下降{2}%'>
+              <span>{YEAR_ROUND_AND_RING_RATION_ALGORITHM_MAP[algorithm.config.method]}</span>
+              <span class='bold'>{algorithm.config.ceil}</span>
+              <span class='bold'>{algorithm.config.floor}</span>
+            </i18n>
+            {index > 0 && '）'}
+          </div>
+        );
+      default:
+        return null;
+    }
+  }
+
   render() {
     return (
       <div class='detection-algorithms'>
-        <div class='detection-algorithms-label'>{this.$t('静态阈值')},</div>
+        <div class='detection-algorithms-label'>{this.algorithmDisplayConfig.algorithmLabel},</div>
         <div class='detection-algorithms-content'>
-          <span class='method'>{ConditionMethodAliasMap[this.algorithm?.config?.method]}</span>
-          <span class='threshold'>
-            {this.algorithm?.config?.threshold}
-            {this.algorithm?.unit_prefix}
-          </span>
-          <span>,</span>
+          {this.algorithm.map((algorithm, index) => [
+            index > 0 && (
+              <span
+                key='connector'
+                class='connector'
+              >
+                {ALGORITHM_RELATIONSHIP_MAP[this.connector]}
+              </span>
+            ),
+            this.renderAlgorithmContent(algorithm, index),
+            <span key='comma'>,</span>,
+          ])}
         </div>
-        <div class='detection-algorithms-lever'>
-          <i class={['icon-monitor', DetectionAlgorithmLevelMap[this.algorithm?.level]?.icon]} />
-          <span class='lever-text'>{DetectionAlgorithmLevelMap[this.algorithm?.level]?.name}</span>
+        <div class='detection-algorithms-level'>
+          <i class={['icon-monitor', this.algorithmDisplayConfig.levelIcon]} />
+          <span class='level-text'>{this.algorithmDisplayConfig.levelName}</span>
         </div>
       </div>
     );

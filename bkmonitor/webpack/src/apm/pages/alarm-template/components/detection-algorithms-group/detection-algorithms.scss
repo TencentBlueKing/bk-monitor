@@ -5,16 +5,18 @@
   line-height: 20px;
 
   .detection-algorithms-content {
+    display: flex;
+
     .method {
       margin-right: 4px;
     }
 
-    .threshold {
+    .bold {
       font-weight: 700;
     }
   }
 
-  .detection-algorithms-lever {
+  .detection-algorithms-level {
     .icon-monitor {
       margin-right: 2px;
       font-size: 14px;

@@ -206,7 +206,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     algorithms: {
       id: 'algorithms',
       label: this.$t('检测规则'),
-      width: 250,
+      width: 400,
       resizable: false,
       showOverflowTooltip: false,
       formatter: this.algorithmsColRenderer,
@@ -775,11 +775,14 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     const value = row[columnKey];
     return (
       <div class='algorithms-col'>
-        <DetectionAlgorithmsGroup algorithms={value} />
+        <DetectionAlgorithmsGroup
+          algorithms={value}
+          connector={row.detect?.connector}
+        />
         <div
           class='edit-btn'
           onClick={() =>
-            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value, row })
           }
         >
           <i class='icon-monitor icon-bianji' />
@@ -800,7 +803,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
               <div
                 class='edit-btn'
                 onClick={() =>
-                  this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+                  this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value, row })
                 }
               >
                 <i class='icon-monitor icon-bianji' />
@@ -989,6 +992,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
           <AlarmTemplateConfigDialog
             activeType={this.templateDialogConfig?.activeType}
             defaultValue={this.templateDialogConfig?.defaultValue}
+            row={this.templateDialogConfig?.row}
             templateId={this.templateDialogConfig?.templateId}
             onCancel={() => this.handleDialogConfigChange(null)}
             onConfirm={this.handleBatchUpdate}
