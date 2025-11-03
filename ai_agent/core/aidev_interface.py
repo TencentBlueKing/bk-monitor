@@ -35,6 +35,7 @@ class AIDevInterface:
             if isinstance(data, dict) and "prompt_setting" in data:
                 # 避免提示词泄漏
                 del data["prompt_setting"]
+            del data["saas_url"]  # TODO 移除 ping url,后续完善后补充
         except Exception as e:  # 出现异常不应影响主流程
             logger.warning("get_agent_info: failed to strip prompt_setting: %s", e)
         return res
@@ -63,6 +64,20 @@ class AIDevInterface:
             "create_chat_session: create session and add system prompt successfully,session_code->[%s]", session_code
         )
         return session_res
+
+    def create_chat_session_feedback(self, params, username):
+        """
+        会话反馈（点赞/点踩）
+        """
+        res = self.api_client.api.create_feedback(json=params, headers={"X-BKAIDEV-USER": username})
+        return res
+
+    def get_feedback_reasons(self, params):
+        """
+        获取反馈原因
+        """
+        res = self.api_client.api.get_feedback_reasons(params=params)
+        return res
 
     def retrieve_chat_session(self, session_code):
         """获取单个会话"""

@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import itertools
 from collections import defaultdict
 from typing import Any
 from collections.abc import Iterable
@@ -21,13 +22,14 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.generics import get_object_or_404
 from rest_framework.serializers import Serializer, ValidationError
 
-from core.drf_resource import resource
+from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.query_template.constants import VariableType
+from core.drf_resource import resource
 from constants.alert import EventStatus
 from utils import count_md5
 
@@ -55,7 +57,7 @@ class StrategyTemplateViewSet(GenericViewSet):
         return self._query_data
 
     def get_permissions(self) -> list[InstanceActionForDataPermission]:
-        if self.action in ["update", "destroy", "apply", "clone", "batch_partial_update"]:
+        if self.action in ["update", "destroy", "apply", "clone", "batch_partial_update", "unapply"]:
             return [
                 InstanceActionForDataPermission(
                     "app_name",
@@ -178,61 +180,49 @@ class StrategyTemplateViewSet(GenericViewSet):
         return Response(self._preview(strategy_template_obj, self.query_data["service_name"]))
 
     def _get_id_strategy_map(self, ids: Iterable[int]) -> dict[int, dict[str, Any]]:
-        strategies: list[dict[str, Any]] = resource.strategies.plain_strategy_list_v2(
-            {"bk_biz_id": self.query_data["bk_biz_id"], "ids": list(ids)}
-        )
-        return {
-            strategy_dict["id"]: {"id": strategy_dict["id"], "name": strategy_dict["name"]}
-            for strategy_dict in strategies
-        }
+        return helper.get_id_strategy_map(self.query_data["bk_biz_id"], ids)
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateApplyRequestSerializer)
     @user_visit_record
     def apply(self, *args, **kwargs) -> Response:
+        strategy_templates: list[StrategyTemplate] = list(
+            self.get_queryset().filter(id__in=self.query_data["strategy_template_ids"])
+        )
         extra_configs_map: dict[int, list[dispatch.DispatchExtraConfig]] = defaultdict(list)
         for extra_config in self.query_data["extra_configs"]:
             strategy_template_id: int = extra_config.pop("strategy_template_id", 0)
             extra_configs_map[strategy_template_id].append(dispatch.DispatchExtraConfig(**extra_config))
+        global_config = dispatch.DispatchGlobalConfig(**self.query_data["global_config"])
+        apply_data = handler.StrategyTemplateHandler.apply(
+            bk_biz_id=self.query_data["bk_biz_id"],
+            app_name=self.query_data["app_name"],
+            service_names=self.query_data["service_names"],
+            strategy_templates=strategy_templates,
+            extra_configs_map=extra_configs_map,
+            global_config=global_config,
+        )
+        return Response({"app_name": self.query_data["app_name"], "list": apply_data})
 
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateUnapplyResponseSerializer)
+    def unapply(self, *args, **kwargs) -> Response:
         entity_set: dispatch.EntitySet = dispatch.EntitySet(
             self.query_data["bk_biz_id"], self.query_data["app_name"], self.query_data["service_names"]
         )
-        strategy_templates: list[StrategyTemplate] = list(
-            self.get_queryset().filter(id__in=self.query_data["strategy_template_ids"])
+        strategy_instance_qs = StrategyInstance.objects.filter(
+            bk_biz_id=self.query_data["bk_biz_id"],
+            app_name=self.query_data["app_name"],
+            service_name__in=entity_set.service_names,
+            strategy_template_id__in=self.query_data["strategy_template_ids"],
         )
+        ids: list[int] = list(strategy_instance_qs.values_list("strategy_id", flat=True))
+        if not ids:
+            return Response({})
+        # 先删除策略
+        resource.strategies.delete_strategy_v2({"bk_biz_id": self.query_data["bk_biz_id"], "ids": ids})
+        # 再删除策略实例
+        strategy_instance_qs.delete()
 
-        strategy_ids: list[int] = []
-        template_dispatch_map: dict[int, dict[str, int]] = {}
-        query_template_map: dict[tuple[int, str], QueryTemplateWrapper] = (
-            handler.StrategyTemplateHandler.get_query_template_map(strategy_templates)
-        )
-        global_config = dispatch.DispatchGlobalConfig(**self.query_data["global_config"])
-        for strategy_template_obj in strategy_templates:
-            qtw = handler.StrategyTemplateHandler.get_query_template_or_none(strategy_template_obj, query_template_map)
-            dispatcher = dispatch.StrategyDispatcher(strategy_template_obj, qtw)
-            service_strategy_map: dict[str, int] = dispatcher.dispatch(
-                entity_set,
-                global_config,
-                extra_configs_map.get(strategy_template_obj.pk, []),
-            )
-            strategy_ids.extend(list(service_strategy_map.values()))
-            template_dispatch_map[strategy_template_obj.pk] = service_strategy_map
-
-        apply_data: list[dict[str, Any]] = []
-        id_strategy_map = self._get_id_strategy_map(strategy_ids)
-        for strategy_template_id, service_strategy_map in template_dispatch_map.items():
-            for service_name, strategy_id in service_strategy_map.items():
-                apply_data.append(
-                    {
-                        "service_name": service_name,
-                        "strategy_template_id": strategy_template_id,
-                        "strategy": {
-                            "id": strategy_id,
-                            "name": id_strategy_map.get(strategy_id, {}).get("name", ""),
-                        },
-                    }
-                )
-        return Response({"app_name": self.query_data["app_name"], "list": apply_data})
+        return Response({})
 
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateCheckRequestSerializer)
     def check(self, *args, **kwargs) -> Response:
@@ -248,22 +238,23 @@ class StrategyTemplateViewSet(GenericViewSet):
             )
         )
 
-        # 批量进行模板下发检查
-        # TODO 此处可以改成多线程
-        results: list[dict[str, Any]] = []
-        for strategy_template_obj in strategy_templates:
-            qtw = query_template_map[
-                (strategy_template_obj.query_template["bk_biz_id"], strategy_template_obj.query_template["name"])
-            ]
-            dispatcher: dispatch.StrategyDispatcher = dispatch.StrategyDispatcher(strategy_template_obj, qtw)
-            results.extend(dispatcher.check(entity_set, self.query_data["is_check_diff"]))
+        def _check(_obj: StrategyTemplate) -> list[dict[str, Any]]:
+            return dispatch.StrategyDispatcher(
+                _obj, query_template_map[(_obj.query_template["bk_biz_id"], _obj.query_template["name"])]
+            ).check(entity_set, self.query_data["is_check_diff"])
 
-        # 填充模板、策略信息
-        strategy_ids: set[int] = set()
+        # 批量进行模板下发检查
+        pool = ThreadPool(5)
+        check_results_iter: Iterable[list[dict[str, Any]]] = pool.imap_unordered(
+            lambda _obj: _check(_obj), strategy_templates
+        )
+        pool.close()
+
+        results: list[dict[str, Any]] = list(itertools.chain.from_iterable(check_results_iter))
+
+        # 填充模板信息
         strategy_template_ids: set[int] = set()
         for result in results:
-            if result.get("strategy"):
-                strategy_ids.add(result["strategy"]["id"])
             if result.get("same_origin_strategy_template"):
                 strategy_template_ids.add(result["same_origin_strategy_template"]["id"])
 
@@ -273,13 +264,11 @@ class StrategyTemplateViewSet(GenericViewSet):
             except (KeyError, TypeError):
                 pass
 
-        id_strategy_map: dict[int, dict[str, Any]] = self._get_id_strategy_map(strategy_ids)
         id_strategy_template_map: dict[int, dict[str, Any]] = {
             strategy_template["id"]: strategy_template
             for strategy_template in self.get_queryset().filter(id__in=strategy_template_ids).values("id", "name")
         }
         for result in results:
-            _set_name(result, "strategy", id_strategy_map)
             _set_name(result, "same_origin_strategy_template", id_strategy_template_map)
 
         return Response({"list": results})
@@ -388,6 +377,7 @@ class StrategyTemplateViewSet(GenericViewSet):
 
         diff_data: list[dict[str, Any]] = []
         current_dict: dict[str, Any] = self._preview(strategy_template_obj, self.query_data["service_name"])
+        is_connector_update: bool = False
         for field_name in ["detect", "algorithms", "user_group_list", "context"]:
             # 第一步取值
             if field_name == "user_group_list":
@@ -397,9 +387,16 @@ class StrategyTemplateViewSet(GenericViewSet):
             else:
                 current = current_dict.get(field_name)
                 applied = getattr(applied_instance_obj, field_name)
+                if field_name == "detect":
+                    # 向前兼容
+                    current.setdefault("connector", constants.DetectConnector.AND.value)
+                    applied.setdefault("connector", constants.DetectConnector.AND.value)
+                    is_connector_update = current["connector"] != applied["connector"]
 
             # 第二步比较
-            if count_md5(current) == count_md5(applied):
+            # 如果检测算法关系发生变化，同时返回 algorithms
+            is_algorithm_connector_changed = field_name == "algorithms" and is_connector_update
+            if not is_algorithm_connector_changed and count_md5(current) == count_md5(applied):
                 continue
 
             # 第三步对差异值进行排序处理

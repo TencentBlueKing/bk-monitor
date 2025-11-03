@@ -45,10 +45,10 @@ export default class TraceRetrieval extends tsc<object> {
   get alarmShieldData() {
     return JSON.stringify({
       host: this.alarmShieldHost,
-      baseroute: '/trace/',
+      parentRoute: '/trace/',
     });
   }
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _fromm, next) {
     next();
   }
   render() {
@@ -58,7 +58,7 @@ export default class TraceRetrieval extends tsc<object> {
           id={wewebId}
           class='alarm-shield-wrap-iframe'
           data={this.alarmShieldData}
-          setShodowDom={true}
+          setShadowDom={true}
           showSourceCode={true}
           url={this.alarmShieldUrl}
         />

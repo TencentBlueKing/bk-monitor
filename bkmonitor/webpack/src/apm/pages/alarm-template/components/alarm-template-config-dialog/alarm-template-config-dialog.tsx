@@ -29,10 +29,11 @@ import { Component as tsc } from 'vue-tsx-support';
 import { listUserGroup } from 'monitor-api/modules/model';
 import AlarmGroup from 'monitor-pc/pages/strategy-config/strategy-config-set-new/components/alarm-group';
 
-import Threshold from '../template-form/detect-rules/threshold';
+import AlgorithmRules from '../template-form/algorithm-rules/algorithm-rules';
+import { AlgorithmEnum } from '../template-form/typing';
 
 import type { IAlarmGroupList } from '../../quick-add-strategy/typing';
-import type { AlarmAlgorithmItem, AlarmTemplateListItem } from '../../typing';
+import type { AlarmTemplateListItem } from '../../typing';
 import type { AlarmDeleteConfirmEvent } from '../alarm-delete-confirm/alarm-delete-confirm';
 
 import './alarm-template-config-dialog.scss';
@@ -42,7 +43,7 @@ const TYPE_MAP = {
   algorithms: {
     title: window.i18n.tc('修改检测规则'),
     label: window.i18n.tc('检测规则'),
-    width: 480,
+    width: 600,
   },
   user_group_list: {
     title: window.i18n.tc('修改告警组'),
@@ -56,6 +57,8 @@ export interface AlarmTemplateConfigDialogProps {
   activeType: 'algorithms' | 'user_group_list';
   /** 默认值 */
   defaultValue: AlarmTemplateListItem['algorithms'] | AlarmTemplateListItem['user_group_list'];
+  /** 当前行数据 */
+  row: AlarmTemplateListItem;
   /** 当前操作的模板 id */
   templateId: AlarmTemplateListItem['id'];
 }
@@ -84,6 +87,7 @@ export default class AlarmTemplateConfigDialog extends tsc<
     | AlarmTemplateListItem['user_group_list'];
   /** 当前操作的模板 id */
   @Prop({ type: Number }) templateId: AlarmTemplateListItem['id'];
+  @Prop({ type: Object }) row: AlarmTemplateListItem;
 
   @Ref('form') formRef;
 
@@ -95,6 +99,8 @@ export default class AlarmTemplateConfigDialog extends tsc<
   alarmGroupList: IAlarmGroupList[] = [];
 
   alarmGroupLoading = false;
+
+  connector = 'and';
 
   /** dialog 是否显示 */
   get dialogShow() {
@@ -131,7 +137,15 @@ export default class AlarmTemplateConfigDialog extends tsc<
   }
 
   validAlgorithms(value: AlarmTemplateListItem['algorithms']) {
-    return value.every(item => item.config.threshold || item.config.threshold === 0);
+    return value.every(item => {
+      if (item.type === AlgorithmEnum.Threshold) {
+        return item.config.threshold || item.config.threshold === 0;
+      }
+      if (item.type === AlgorithmEnum.YearRoundAndRingRatio) {
+        return item.config.ceil >= 1 && item.config.ceil <= 100 && item.config.floor >= 1 && item.config.floor <= 100;
+      }
+      return true;
+    });
   }
 
   @Watch('dialogShow')
@@ -144,6 +158,11 @@ export default class AlarmTemplateConfigDialog extends tsc<
       await this.getAlarmGroupList();
     }
     this.value = structuredClone(this.defaultValue || []);
+  }
+
+  @Watch('row')
+  rowChange() {
+    this.connector = this.row?.detect?.connector || 'and';
   }
 
   /**
@@ -167,12 +186,19 @@ export default class AlarmTemplateConfigDialog extends tsc<
       .catch(() => {
         this.loading = false;
       });
-    this.$emit(
-      'confirm',
-      this.templateId,
-      { [this.activeType]: this.value },
-      { promiseEvent, successCallback, errorCallback }
-    );
+    let updateValue: Partial<AlarmTemplateListItem>;
+    if (this.activeType === 'algorithms') {
+      updateValue = {
+        [this.activeType]: this.value as AlarmTemplateListItem['algorithms'],
+        detect: {
+          ...this.row.detect,
+          connector: this.connector,
+        },
+      };
+    } else {
+      updateValue = { [this.activeType]: this.value as AlarmTemplateListItem['user_group_list'] };
+    }
+    this.$emit('confirm', this.templateId, updateValue, { promiseEvent, successCallback, errorCallback });
   }
 
   /**
@@ -205,6 +231,10 @@ export default class AlarmTemplateConfigDialog extends tsc<
     this.value = v;
   }
 
+  handleConnectorChange(val: string) {
+    this.connector = val;
+  }
+
   /**
    * @description 告警组选择事件回调
    */
@@ -222,10 +252,12 @@ export default class AlarmTemplateConfigDialog extends tsc<
     switch (this.activeType) {
       case 'algorithms':
         return (
-          <Threshold
-            data={this.value as AlarmTemplateListItem['algorithms']}
-            defaultUnit={(this.defaultValue?.[0] as AlarmAlgorithmItem)?.unit_prefix}
+          <AlgorithmRules
+            algorithms={this.value as AlarmTemplateListItem['algorithms']}
+            algorithmsUnit={(this.defaultValue as AlarmTemplateListItem['algorithms'])?.[0]?.unit_prefix}
+            connector={this.connector}
             onChange={this.handleDefaultChange}
+            onConnectorChange={this.handleConnectorChange}
           />
         );
       case 'user_group_list':

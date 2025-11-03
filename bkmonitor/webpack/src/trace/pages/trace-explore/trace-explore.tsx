@@ -652,7 +652,9 @@ export default defineComponent({
       if (data) {
         const favoriteConfig = data?.config;
         where.value = favoriteConfig?.queryParams?.filters || [];
-        commonWhere.value = favoriteConfig?.componentData?.commonWhere || [];
+        // commonWhere.value = favoriteConfig?.componentData?.commonWhere || [];
+        // 收藏的filters字段已经包含了commonWhere的条件，所以这里不需要再设置commonWhere
+        commonWhere.value = [];
         queryString.value = favoriteConfig?.queryParams?.query || '';
         filterMode.value = favoriteConfig?.componentData?.filterMode || EMode.ui;
         if (favoriteConfig?.componentData?.tableFieldsConfig?.key) {

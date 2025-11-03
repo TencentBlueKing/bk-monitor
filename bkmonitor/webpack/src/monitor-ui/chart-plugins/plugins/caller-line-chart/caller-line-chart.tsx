@@ -1454,6 +1454,7 @@ class CallerLineChart extends CommonSimpleChart {
           params={{
             app_name: this.viewOptions.filters?.app_name,
             service_name: this.viewOptions.filters?.service_name,
+            strategy_template_codes: this.panel.options?.strategy_template_codes?.[this.callOptions?.kind] || [],
           }}
           show={this.quickAddStrategyObj.show}
           onShowChange={this.handleQuickAddStrategyShowChange}

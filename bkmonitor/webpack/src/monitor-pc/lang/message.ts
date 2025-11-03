@@ -540,4 +540,6 @@ export default {
 
   修改备注成功: 'Remark modified successfully',
   克隆模板成功: 'Cloned template successfully',
+  解除关联成功: 'Unassociation successful',
+  解除关联失败: 'Unassociation failed',
 };

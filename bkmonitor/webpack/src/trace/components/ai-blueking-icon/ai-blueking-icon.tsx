@@ -55,7 +55,7 @@ export default defineComponent({
     },
   },
   setup(props) {
-    if (!window.__BK_WEWEB_DATA__?.handleAIBluekingShortcut) {
+    if (!window.__BK_WEWEB_DATA__?.handleAIBluekingShortcut || !window.__BK_WEWEB_DATA__?.enableAiAssistant) {
       return () => null;
     }
     return () => (

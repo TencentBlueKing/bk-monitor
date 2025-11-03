@@ -873,7 +873,7 @@ class ServiceListResource(PageListResource):
                     res.append(
                         {
                             "id": f["id"],
-                            "name": f["name"],
+                            "name": _(f["name"]),
                             "count": count_mapping[f["id"]],
                         }
                     )
@@ -1038,7 +1038,7 @@ class ServiceListResource(PageListResource):
         fields = field_groups.get(mode) or [field for group in field_groups.values() for field in group]
         res = []
         for f in fields:
-            res.append({"id": f.key, "name": f.name, "data": f.list_filter_fields(services)})
+            res.append({"id": f.key, "name": _(f.name), "data": f.list_filter_fields(services)})
         return res
 
     def _filter_by_fields(self, services, field_conditions):

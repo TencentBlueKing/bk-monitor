@@ -20,7 +20,7 @@
     "variable_editable": false,
     "alert_filterable": true,
     "overview_panel": {
-      "title": "主机概览",
+      "title": "_(主机概览)",
       "type": "dict",
       "targets": [
         {
@@ -37,7 +37,7 @@
       ]
     },
     "overview_detail_panel": {
-      "title": "主机详情",
+      "title": "_(主机详情)",
       "type": "info",
       "targets": [
         {
@@ -52,7 +52,7 @@
       ]
     },
     "selector_panel": {
-      "title": "主机列表",
+      "title": "_(主机列表)",
       "type": "target_list",
       "targets": [
         {

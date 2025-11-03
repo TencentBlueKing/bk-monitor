@@ -402,7 +402,7 @@ class ApplicationConfig(BkCollectorConfig):
         enabled_apps = settings.APM_RESOURCE_FILTER_METRICS_ENABLED_APPS
 
         # 只有在白名单中的应用才启用该功能
-        if enabled_apps and self._application.app_name in enabled_apps.get(self._application.bk_biz_id, []):
+        if enabled_apps and self._application.app_name in enabled_apps.get(str(self._application.bk_biz_id), []):
             extra_config = {
                 "from_record": [
                     {

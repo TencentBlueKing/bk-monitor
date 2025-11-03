@@ -198,7 +198,7 @@ export default defineComponent({
             <Input
               class='searach-input'
               v-model={favoriteSerach.value}
-              placeholder={t('搜索收藏名')}
+              placeholder={t('搜索 收藏名称')}
             />
           </div>
           <PrimaryTable

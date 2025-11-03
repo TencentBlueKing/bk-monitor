@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from apm_web.models import StrategyTemplate
+from apm_web.strategy.constants import DetectConnector
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from utils import count_md5
 
@@ -62,11 +63,21 @@ class DispatchConfig:
     ) -> "DispatchConfig":
         data: dict[str, Any] = {}
         for field in ["service_name", "context", "detect", "algorithms", "user_group_ids"]:
-            # 优先级：额外配置 > 策略模板 > 查询模板。
+            # 优先级：策略模板 < 额外配置 < 全局配置。
             for obj in [strategy_template, extra_config, global_config]:
-                if getattr(obj, field, None) is not None:
+                if getattr(obj, field, None) is None:
+                    continue
+
+                if field != "context":
                     # 深拷贝，防止后续修改对象属性时影响到原对象。
                     data[field] = copy.deepcopy(getattr(obj, field))
+                else:
+                    if field not in data:
+                        data[field] = {}
+
+                    # context 需要合并。
+                    for k, v in getattr(obj, field).items():
+                        data.setdefault(field, {})[k] = copy.deepcopy(v)
 
         for k, v in default_context.items():
             # strategy_template 的 context 一定存在，所以这里不需要判断 data 是否存在 context 字段。
@@ -75,15 +86,18 @@ class DispatchConfig:
                 # default_context 是一个共享的全局变量，必须深拷贝。
                 data["context"][k] = copy.deepcopy(v)
 
-        # 变量的填写范围，必须是查询模板所暴露出来的变量。
-
         return cls(**data)
 
 
 def calculate_strategy_md5_by_dispatch_config(
     config: DispatchConfig, query_template_wrapper: QueryTemplateWrapper
 ) -> str:
-    return count_md5(
+    origin_detect = config.detect
+    # 向前兼容，connector 为 AND 时，不计算 connector
+    if config.detect.get("connector") == DetectConnector.AND.value:
+        config.detect = copy.deepcopy(origin_detect)
+        config.detect.pop("connector", None)
+    md5: str = count_md5(
         {
             "detect": config.detect,
             "algorithms": config.algorithms,
@@ -92,3 +106,5 @@ def calculate_strategy_md5_by_dispatch_config(
             "query_template": {"name": query_template_wrapper.name, "bk_biz_id": query_template_wrapper.bk_biz_id},
         }
     )
+    config.detect = origin_detect
+    return md5

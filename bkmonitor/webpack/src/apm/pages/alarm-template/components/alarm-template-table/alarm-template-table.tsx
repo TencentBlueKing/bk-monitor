@@ -118,6 +118,10 @@ interface AlarmTemplateTableProps {
   tableData: AlarmTemplateListItem[];
   /** 总数 */
   total: number;
+  switchChangeFn?: (
+    id: AlarmTemplateListItem['id'] | AlarmTemplateListItem['id'][],
+    updateValue: Partial<AlarmTemplateListItem>
+  ) => Promise<unknown>;
 }
 
 @Component
@@ -146,6 +150,11 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   @Prop({ type: Object, default: () => {} }) selectOptionMap: Record<AlarmTemplateField, AlarmTemplateOptionsItem[]>;
   /** 排序 */
   @Prop({ type: String }) sort: `-${string}` | string;
+  /** 切换模板状态事件回调 */
+  @Prop({ type: Function }) switchChangeFn: (
+    id: AlarmTemplateListItem['id'] | AlarmTemplateListItem['id'][],
+    updateValue: Partial<AlarmTemplateListItem>
+  ) => Promise<unknown>;
 
   /** 强制刷新表格(主要处理表格表头筛选没有响应式问题) */
   refreshKey = random(8);
@@ -197,7 +206,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     algorithms: {
       id: 'algorithms',
       label: this.$t('检测规则'),
-      width: 250,
+      width: 400,
       resizable: false,
       showOverflowTooltip: false,
       formatter: this.algorithmsColRenderer,
@@ -553,25 +562,92 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
   /**
    * @description: switcher 状态改变回调(启用/停止 & 自动下发)
    */
-  handleSwitcherChange(
-    templateId: AlarmTemplateListItem['id'],
-    value: boolean,
-    columnKey: 'is_auto_apply' | 'is_enabled'
-  ) {
-    let successCallback = null;
-    let errorCallback = null;
-    const promiseEvent = new Promise((res, rej) => {
-      successCallback = res;
-      errorCallback = rej;
-    })
-      .then(() => {
-        this.loading = false;
-      })
-      .catch(() => {
-        this.loading = false;
+  handleSwitcherChange(row: AlarmTemplateListItem, value: boolean, columnKey: 'is_auto_apply' | 'is_enabled') {
+    const subTitleTextMap = {
+      is_auto_apply: {
+        true: this.$t('开启「自动下发」功能后，新增服务将自动配置该策略并生效'),
+        false: this.$t('关闭「自动下发」功能，新增服务将不会自动配置该策略'),
+      },
+      is_enabled: {
+        true: this.$t('开启后，该策略模板可以下发到需要的服务'),
+        false: this.$t('禁用后，该策略模板不可被下发到服务'),
+      },
+    };
+    return new Promise((resolve, reject) => {
+      const h = this.$createElement;
+      this.$bkInfo({
+        title: value ? this.$t('是否开启该功能?') : this.$t('是否关闭该功能?'),
+        okText: this.$t('确定'),
+        cancelText: this.$t('取消'),
+        width: 480,
+        extCls: 'alarm-template-container-table-switcher-info',
+        confirmLoading: true,
+        subHeader: h(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              'flex-direction': 'column',
+              'align-items': 'flex-start',
+            },
+          },
+          [
+            h(
+              'div',
+              {
+                style: {
+                  color: '#313238',
+                  'font-size': '14px',
+                  'line-height': '22px',
+                  'margin-bottom': '16px',
+                  'word-break': 'break-word',
+                },
+              },
+              `${this.$t('模板')}: ${row?.name}`
+            ),
+            h(
+              'div',
+              {
+                style: {
+                  'min-height': '46px',
+                  background: '#F5F7FA',
+                  display: 'flex',
+                  'font-size': '14px',
+                  alignItems: 'center',
+                  color: '#4D4F56',
+                  'line-height': '22px',
+                  'justify-content': 'flex-start',
+                  'border-radius': '2px',
+                  width: '100%',
+                  padding: '12px 16px',
+                  'word-break': 'break-word',
+                },
+              },
+              `${value ? subTitleTextMap[columnKey].true : subTitleTextMap[columnKey].false}`
+            ),
+          ]
+        ),
+        closeFn: () => {
+          reject('close');
+          return true;
+        },
+        cancelFn: () => {
+          reject('cancel');
+          return true;
+        },
+        confirmFn: async () => {
+          const success = await this.switchChangeFn?.(row.id, { [columnKey]: value }).catch(() => {
+            return false;
+          });
+          if (success) {
+            resolve(true);
+          } else {
+            reject('error');
+          }
+          return !!success;
+        },
       });
-    this.handleBatchUpdate(templateId, { [columnKey]: value }, { promiseEvent, successCallback, errorCallback });
-    return promiseEvent;
+    });
   }
 
   /**
@@ -587,7 +663,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
    */
   handleGoService(serviceName: string) {
     const { from, to } = this.$route.query;
-    let urlStr = `${window.__BK_WEWEB_DATA__?.baseroute || ''}service/?filter-service_name=${serviceName}&filter-app_name=${this.appName}`;
+    let urlStr = `${window.__BK_WEWEB_DATA__?.parentRoute || ''}service/?filter-service_name=${serviceName}&filter-app_name=${this.appName}`;
     urlStr += `&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
     const { href } = this.$router.resolve({
       path: urlStr,
@@ -699,11 +775,14 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     const value = row[columnKey];
     return (
       <div class='algorithms-col'>
-        <DetectionAlgorithmsGroup algorithms={value} />
+        <DetectionAlgorithmsGroup
+          algorithms={value}
+          connector={row.detect?.connector}
+        />
         <div
           class='edit-btn'
           onClick={() =>
-            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value, row })
           }
         >
           <i class='icon-monitor icon-bianji' />
@@ -724,7 +803,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
               <div
                 class='edit-btn'
                 onClick={() =>
-                  this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+                  this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value, row })
                 }
               >
                 <i class='icon-monitor icon-bianji' />
@@ -758,7 +837,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         <bk-switcher
           v-bk-tooltips={{ content: this.$t('该模板已禁用，无法下发'), disabled: !switcherDisabled }}
           disabled={switcherDisabled}
-          pre-check={lastValue => this.handleSwitcherChange(row.id, lastValue, columnKey)}
+          pre-check={lastValue => this.handleSwitcherChange(row, lastValue, columnKey)}
           size='small'
           theme='primary'
           value={value}
@@ -913,6 +992,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
           <AlarmTemplateConfigDialog
             activeType={this.templateDialogConfig?.activeType}
             defaultValue={this.templateDialogConfig?.defaultValue}
+            row={this.templateDialogConfig?.row}
             templateId={this.templateDialogConfig?.templateId}
             onCancel={() => this.handleDialogConfigChange(null)}
             onConfirm={this.handleBatchUpdate}

@@ -458,7 +458,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
               <div class='form-item-label'>{this.$t('条件')}</div>
               <div class='form-item-content mt-6'>
                 <bk-select
-                  ext-cls={['method-select', this.method]}
+                  ext-cls={`method-select ${this.method}`}
                   v-model={this.method}
                   popover-options={{
                     appendTo: 'parent',
@@ -520,7 +520,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                 v-model={this.searchValue}
                 behavior='simplicity'
                 left-icon='bk-icon icon-search'
-                placeholder={this.$t('请输入关键字')}
+                placeholder={this.$t('请输入 关键字')}
                 onChange={this.handleSearchChangeDebounce}
               />
             </div>

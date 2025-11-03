@@ -100,7 +100,7 @@ TRACE_SPAN_TOTAL_QUERY_TEMPLATE: dict[str, Any] = {
             "alias": "a",
             "interval": 60,
             "promql": "sum(count_over_time(bklog:bklog_index_set_${INDEX_SET_ID}:"
-            '_index{resource__bk_46__service__bk_46__name="${SERVICE_NAME}"}[1m]))',
+            '_index{resource__bk_46__service__bk_46__name="${SERVICE_NAME}"}[1m])) or vector(0)',
         }
     ],
     "variables": [
@@ -137,7 +137,7 @@ LOG_TOTAL_QUERY_TEMPLATE: dict[str, Any] = {
             # 目前日志数据源不支持 or vector(0) 的补 0 写法，暂时通过 PromQL 直接复用 UnifyQuery 的能力。
             # 等后续 SaaS 数据源统一切换到 UnifyQuery 时，改回结构体。
             "promql": "sum(count_over_time(bklog:bklog_index_set_${INDEX_SET_ID}:"
-            '_index{resource__bk_46__service__bk_46__name="${SERVICE_NAME}"}[1m]))',
+            '_index{resource__bk_46__service__bk_46__name="${SERVICE_NAME}"}[1m])) or vector(0)',
         }
     ],
     "variables": [

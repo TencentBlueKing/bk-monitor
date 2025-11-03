@@ -1,3 +1,4 @@
+import type { QueryTemplateDetail } from 'monitor-pc/pages/query-template/typings';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,7 +24,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { QueryTemplateDetail } from 'monitor-pc/pages/query-template/typings';
+import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
 
 /** 策略模板类型 */
 export type TemplateType = 'EVENT' | 'K8S' | 'LOG' | 'METRIC' | 'RPC' | 'TRACE';
@@ -49,33 +50,70 @@ export const TemplateTypeMap = {
 };
 
 /** 检测算法类型 */
-export type AlgorithmType = 'Threshold';
+export type AlgorithmType = GetEnumTypeTool<typeof AlgorithmEnum>;
 
 /** 检测算法枚举 */
 export const AlgorithmEnum = {
   Threshold: 'Threshold',
+  YearRoundAndRingRatio: 'YearRoundAndRingRatio',
 } as const;
+
+/** 同环比检测算法类型 */
+export const YearRoundAndRingRatioAlgorithmEnum = {
+  /** 前五分钟 */
+  FiveMinuteRingRatio: 'FiveMinuteRingRatio',
+  /** 昨天同期 */
+  YesterdayComparison: 'YesterdayComparison',
+  /** 上周同期 */
+  LastWeekComparison: 'LastWeekComparison',
+  /** 前七天同期均值 */
+  WeeklyAverageComparison: 'WeeklyAverageComparison',
+} as const;
+
+export type SelectAlgorithmConfig = {
+  disabled: boolean;
+  disabledTips: string;
+  icon: any;
+  id: AlgorithmType;
+  name: string;
+};
+
+export type YearRoundAndRingRatioAlgorithmType = GetEnumTypeTool<typeof YearRoundAndRingRatioAlgorithmEnum>;
 
 /** 算法告警级别 */
 export const LevelMap = {
-  1: window.i18n.tc('致命'),
-  2: window.i18n.tc('预警'),
-  3: window.i18n.tc('提醒'),
+  1: window.i18n.t('致命') as string,
+  2: window.i18n.t('预警') as string,
+  3: window.i18n.t('提醒') as string,
 };
 
-/** 检测算法 */
-export interface AlgorithmItem {
-  level: 1 | 2 | 3;
-  type: AlgorithmType;
-  unit_prefix?: string;
-  config: {
+export type AlgorithmConfigs = {
+  [AlgorithmEnum.Threshold]: {
     method: string;
     threshold: number;
   };
-}
+  [AlgorithmEnum.YearRoundAndRingRatio]: {
+    ceil: number;
+    floor: number;
+    method: YearRoundAndRingRatioAlgorithmType;
+  };
+};
+/** 检测算法 */
+export type AlgorithmItem<T extends AlgorithmType> = {
+  config: AlgorithmConfigs[T];
+  level: 1 | 2 | 3;
+  type: T;
+  unit_prefix?: string;
+};
+
+/** 检测算法联合类型 */
+export type AlgorithmItemUnion = {
+  [K in AlgorithmType]: AlgorithmItem<K>;
+}[AlgorithmType];
 
 /** 触发条件 */
 export interface DetectConfig {
+  connector: string;
   type: string;
   config: {
     recovery_check_window: number;
@@ -83,6 +121,9 @@ export interface DetectConfig {
     trigger_count: number;
   };
 }
+
+/** 同环比算法 */
+export type FluctuateAlgorithm = Exclude<AlgorithmItemUnion, AlgorithmItem<'Threshold'>> & { id: string };
 
 /** 策略模板分类 */
 export type TemplateCategoryType = 'CALLEE' | 'CALLER' | 'DEFAULT';
@@ -114,7 +155,7 @@ export type EditTemplateFormData = Pick<
 
 /** 策略模板详情 */
 export interface TemplateDetail {
-  algorithms: AlgorithmItem[];
+  algorithms: AlgorithmItemUnion[];
   app_name: string;
   category: TemplateCategoryType;
   context: Record<string, any>;

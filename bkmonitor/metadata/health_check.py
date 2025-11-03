@@ -20,10 +20,12 @@ specific language governing permissions and limitations under the License.
 6. APM - bk_biz_id, app_name
 """
 
+from datetime import datetime
 import enum
 import json
 from typing import Any
 
+import arrow
 from django.conf import settings
 from pydantic import BaseModel
 from pydantic.fields import Field
@@ -73,7 +75,7 @@ class DataIdStatus(BaseModel):
     bkbase_config: dict[str, Any] = Field(description="bkbase配置", default={})
 
     kafka_data_exists: bool = Field(description="Kafka是否存在数据", default=False)
-    kafka_latest_timestamp: int = Field(description="Kafka最新数据时间", default=0)
+    kafka_latest_time: datetime | None = Field(description="Kafka最新数据时间", default=None)
     kafka_latest_data: list[dict[str, Any]] = Field(description="Kafka最新数据", default=[])
 
     finished: bool = Field(description="是否检查完成", default=False)
@@ -148,9 +150,13 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
         return data_id_status
     data_id_status.kafka_data_exists = bool(result)
     if isinstance(result, list) and len(result) > 0:
-        data_id_status.kafka_latest_timestamp = result[0].get("timestamp", 0)
-    else:
-        data_id_status.kafka_latest_timestamp = 0
+        data_record = result[0]
+        time_info = (
+            data_record.get("timestamp") or data_record.get("data", {}).get("utctime") or data_record.get("utctime")
+        )
+        if time_info:
+            data_id_status.kafka_latest_time = arrow.get(time_info).datetime
+
     if with_detail:
         data_id_status.kafka_latest_data = result
 
@@ -467,7 +473,7 @@ def explain_datalink_status(data_link_status: DataLinkStatus) -> str:
 是否平台数据: {data_link_status.is_platform_data_id}
 来源: {data_link_status.data_id_status.created_from.value if data_link_status.data_id_status.created_from else "未知"}
 Kafka是否有数据: {data_link_status.data_id_status.kafka_data_exists}
-kafka最新数据时间: {data_link_status.data_id_status.kafka_latest_timestamp}
+kafka最新数据时间: {data_link_status.data_id_status.kafka_latest_time.strftime("%Y-%m-%d %H:%M:%S %Z%z") if data_link_status.data_id_status.kafka_latest_time else "未知"}
 
 """
 
@@ -580,8 +586,6 @@ def check_datalink_health(
     """
     检查数据链路健康状态
     """
-    from monitor_web.models.uptime_check import UptimeCheckTask
-
     if isinstance(scene, str):
         try:
             scene = DataScene(scene)
@@ -605,13 +609,6 @@ def check_datalink_health(
         messages.append(
             "服务拨测的数据链路是按业务进行创建，只有在对应类型的拨测任务第一次创建时才会创建数据链路，分为tcp、udp、http、icmp四种类型"
         )
-
-        # 获取服务拨测任务类型
-        protocols: list[str] = list(
-            UptimeCheckTask.objects.filter(bk_biz_id=bk_biz_id).values_list("protocol", flat=True).distinct()
-        )
-        protocols = [protocol.lower() for protocol in protocols]
-        messages.append(f"当前业务 {bk_biz_id} 已创建了 {'、'.join(protocols)} 四种类型的拨测任务")
     elif scene == DataScene.HOST:
         messages.append("主机的数据链路是按业务进行创建，包括系统基础指标、进程端口和进程性能指标")
     elif scene == DataScene.K8S:

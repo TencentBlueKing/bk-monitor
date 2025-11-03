@@ -226,4 +226,6 @@ export default {
 
   主机检索: 'Host Search',
   'AI 分析结论': 'AI Analysis Conclusion',
+  同环比: 'Year-on-year',
+  '确定解除关联?': 'Are you sure you want to disassociate?',
 };

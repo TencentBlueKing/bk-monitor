@@ -761,6 +761,11 @@ export default defineComponent({
       dialog.quickShield.show = v;
     };
     const handleGetTable = () => {
+      // 如果 bkzIds 为空，不发送请求
+      if (!bkzIds.value || bkzIds.value.length === 0) {
+        return;
+      }
+
       tableLoading.value = true;
       // 重置异常状态
       exceptionData.value.isError = false;
@@ -768,7 +773,7 @@ export default defineComponent({
 
       const queryString = typeof alertIdsData.value === 'object' ? alertIdsData.value?.ids || '' : alertIdsData.value;
       const params = {
-        bk_biz_ids: bkzIds.value || [],
+        bk_biz_ids: bkzIds.value,
         id: incidentId.value,
         query_string: queryString,
       };
@@ -793,7 +798,6 @@ export default defineComponent({
       if (alarmDetailRef.value) {
         alarmDetailHeight.value = alarmDetailRef.value.offsetHeight;
       }
-      props.searchValidate && handleGetTable();
       document.body.addEventListener('click', handleHideMoreOperate);
     });
     onUnmounted(() => {
@@ -832,6 +836,17 @@ export default defineComponent({
         validate && handleGetTable();
       },
       { deep: true }
+    );
+
+    watch(
+      () => bkzIds.value,
+      (newVal, oldVal) => {
+        // 当 bkzIds 有值并发生变化，且searchValidate为true时，重新请求数据
+        if (newVal && newVal.length > 0 && props.searchValidate) {
+          handleGetTable();
+        }
+      },
+      { immediate: true }
     );
     return {
       t,

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,9 +7,10 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
+from collections import defaultdict
 from itertools import chain
-from typing import List
 
 from alarm_backends.core.alert import Event
 from alarm_backends.core.cache.cmdb import (
@@ -19,19 +19,20 @@ from alarm_backends.core.cache.cmdb import (
     ServiceInstanceManager,
 )
 from alarm_backends.service.alert.enricher.base import BaseEventEnricher
+from api.cmdb.define import Host, ServiceInstance
 from constants.alert import EventTargetType
 
 logger = logging.getLogger("alert.enricher")
 
 
 class CMDBEnricher(BaseEventEnricher):
-    def __init__(self, events: List[Event]):
-        super(CMDBEnricher, self).__init__(events)
+    def __init__(self, events: list[Event]):
+        super().__init__(events)
 
-        # 缓存准备，批量查询避免重复请求redis
-        ips = set()
-        hosts = set()
-        service_instance_ids = set()
+        # 缓存准备，批量查询避免重复请求redis，按租户分组
+        tenant_ips: dict[str, set[str]] = defaultdict(set)
+        tenant_hosts: dict[str, set[str]] = defaultdict(set)
+        tenant_service_instance_ids: dict[str, set[int]] = defaultdict(set)
 
         for event in self.events:
             if not event.target:
@@ -42,30 +43,47 @@ class CMDBEnricher(BaseEventEnricher):
                 if not ip_with_cloud_id[0]:
                     continue
                 if len(ip_with_cloud_id) == 1:
-                    ips.add(HostIPManager.key_to_internal_value(ip_with_cloud_id[0]))
+                    # 如果缺少云区域信息，后续会使用IP进行查询
+                    tenant_ips[event.bk_tenant_id].add(ip_with_cloud_id[0])
                 else:
-                    hosts.add(HostManager.key_to_internal_value(ip_with_cloud_id[0], ip_with_cloud_id[1]))
+                    tenant_hosts[event.bk_tenant_id].add(f"{ip_with_cloud_id[0]}|{ip_with_cloud_id[1]}")
             elif event.target_type == EventTargetType.SERVICE:
-                service_instance_ids.add(ServiceInstanceManager.key_to_internal_value(event.target))
+                tenant_service_instance_ids[event.bk_tenant_id].add(int(event.target))
 
-        self.ip_cache = HostIPManager.multi_get_with_dict(ips)
-        self.service_instance_cache = ServiceInstanceManager.multi_get_with_dict(service_instance_ids)
+        # 根据IP获取IP+云区域ID
+        self.ip_cache: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+        for bk_tenant_id, ips in tenant_ips.items():
+            self.ip_cache[bk_tenant_id] = HostIPManager.mget(bk_tenant_id=bk_tenant_id, ips=list(ips))
 
-        # 加上从 ip_cache 拿到的 IP 列表
-        hosts |= {host for host in chain(*[ips for ips in self.ip_cache.values() if ips])}
-        self.hosts_cache = HostManager.multi_get_with_dict(hosts)
+        # 根据服务实例ID获取服务实例
+        self.service_instance_cache: dict[str, dict[int, ServiceInstance]] = {}
+        for bk_tenant_id, service_instance_ids in tenant_service_instance_ids.items():
+            self.service_instance_cache[bk_tenant_id] = ServiceInstanceManager.mget(
+                bk_tenant_id=bk_tenant_id, service_instance_ids=list(service_instance_ids)
+            )
 
-    def get_host_by_ip(self, ip):
-        keys = self.ip_cache.get(HostIPManager.key_to_internal_value(ip)) or []
-        return list({self.hosts_cache[key] for key in keys if self.hosts_cache.get(key)})
+        # 根据IP+云区域ID获取主机
+        self.hosts_cache: dict[str, dict[str, Host]] = defaultdict(dict)
+        for bk_tenant_id in set(tenant_hosts.keys()) | set(self.ip_cache.keys()):
+            hosts = list(tenant_hosts.get(bk_tenant_id, [])) + [
+                host for host in chain(*list(self.ip_cache[bk_tenant_id].values()))
+            ]
+            self.hosts_cache[bk_tenant_id] = HostManager.mget(bk_tenant_id=bk_tenant_id, host_keys=hosts)
 
-    def get_host(self, ip, bk_cloud_id):
-        key = HostManager.key_to_internal_value(ip, bk_cloud_id)
-        return self.hosts_cache.get(key)
+    def get_host_by_ip(self, bk_tenant_id: str, ip: str):
+        keys = self.ip_cache.get(bk_tenant_id, {}).get(ip) or []
+        return list({self.hosts_cache[bk_tenant_id][key] for key in keys if self.hosts_cache[bk_tenant_id].get(key)})
 
-    def get_service_instance(self, service_instance_id):
-        key = ServiceInstanceManager.key_to_internal_value(service_instance_id)
-        return self.service_instance_cache.get(key)
+    def get_host(self, bk_tenant_id: str, ip: str, bk_cloud_id: int):
+        return self.hosts_cache[bk_tenant_id].get(f"{ip}|{bk_cloud_id}")
+
+    def get_service_instance(self, bk_tenant_id: str, service_instance_id: str):
+        try:
+            _service_instance_id = int(service_instance_id)
+        except (ValueError, TypeError):
+            return None
+
+        return self.service_instance_cache[bk_tenant_id].get(_service_instance_id)
 
     def enrich_event(self, event: Event):
         if event.is_dropped():
@@ -100,7 +118,7 @@ class CMDBEnricher(BaseEventEnricher):
             ip_with_cloud_id = event.target.split("|")
 
         if bk_host_id:
-            host = HostManager.get_by_id(bk_host_id)
+            host = HostManager.get_by_id(bk_tenant_id=event.bk_tenant_id, bk_host_id=bk_host_id)
             if not host:
                 ip = ""
                 bk_cloud_id = 0
@@ -112,28 +130,36 @@ class CMDBEnricher(BaseEventEnricher):
             ip = ip_with_cloud_id[0]
             bk_cloud_id = 0
             host = None
-            for h in self.get_host_by_ip(ip):
-                if event.bk_biz_id and int(event.bk_biz_id) > 0 and h.bk_biz_id != event.bk_biz_id:
-                    continue
-                # 1. 如果提供了业务ID，且主机的业务ID跟事件提供的业务ID相同，则匹配成功
-                # 2. 如果没有提供业务ID，则直接匹配成功
-                if host:
-                    # 如果已经有一台机器匹配过了，那么就发生冲突，清洗失败
-                    logger.warning(
-                        "[enrich_host] host(%s) conflict, multiple cloud regions exist for this IP", event.target
-                    )
-                    event.drop()
-                    return event
-                host = h
+            target_hosts = self.get_host_by_ip(event.bk_tenant_id, ip)
+            if len(target_hosts) == 1:
+                # 0. 如果 ip 下只有一台机器，则直接匹配成功
+                host = target_hosts[0]
+            else:
+                for h in target_hosts:
+                    if event.bk_biz_id and int(event.bk_biz_id) > 0 and h.bk_biz_id != event.bk_biz_id:
+                        continue
+                    # 1. 如果提供了业务ID，且主机的业务ID跟事件提供的业务ID相同，则匹配成功
+                    # 2. 如果没有提供业务ID，则直接匹配成功
+                    if host:
+                        # 如果已经有一台机器匹配过了，那么就发生冲突，清洗失败
+                        logger.warning(
+                            "[enrich_host] host(%s) conflict, multiple cloud regions exist for this IP", event.target
+                        )
+                        event.drop()
+                        return event
+                    host = h
+            if not host:
+                logger.warning("[enrich_host] host not found for event(%s) target(%s)", event.id, event.target)
             event.set("target", f"{ip}|{bk_cloud_id}")
         else:
             # 存在IP和云区域
             ip = ip_with_cloud_id[0]
             bk_cloud_id = ip_with_cloud_id[1]
-            host = self.get_host(ip, bk_cloud_id)
+            host = self.get_host(bk_tenant_id=event.bk_tenant_id, ip=ip, bk_cloud_id=int(bk_cloud_id))
 
         # 主机信息找不到
         if not host:
+            # logger.warning("[enrich_host] host not found for event(%s) target(%s)", event.id, event.target)
             if event.bk_biz_id is None:
                 # 如果事件也没有提供业务，则丢弃
                 logger.warning("[enrich_host] biz is empty for host target(%s)", event.target)
@@ -159,7 +185,7 @@ class CMDBEnricher(BaseEventEnricher):
         return event
 
     def enrich_service(self, event: Event):
-        instance = self.get_service_instance(event.target)
+        instance = self.get_service_instance(event.bk_tenant_id, event.target)
 
         if not instance:
             if event.bk_biz_id is None:

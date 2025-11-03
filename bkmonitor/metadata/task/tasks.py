@@ -39,6 +39,7 @@ from metadata.models.data_link.constants import BASEREPORT_SOURCE_SYSTEM, BASERE
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.service import get_data_link_component_status
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
+from metadata.models.space.space import Space
 from metadata.models.vm.record import AccessVMRecord
 from metadata.models.vm.utils import (
     create_fed_bkbase_data_link,
@@ -133,6 +134,13 @@ def create_es_storage_index(table_id):
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def delete_es_result_table_snapshot(table_id, target_snapshot_repository_name, bk_tenant_id=DEFAULT_TENANT_ID):
     models.ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id).delete_all_snapshot(
+        target_snapshot_repository_name
+    )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def retry_es_result_table_snapshot(table_id, target_snapshot_repository_name, bk_tenant_id=DEFAULT_TENANT_ID):
+    models.ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id).retry_snapshot(
         target_snapshot_repository_name
     )
 
@@ -509,8 +517,6 @@ def access_bkdata_vm(
     bk_biz_id: int,
     table_id: str,
     data_id: int,
-    space_type: str | None = None,
-    space_id: str | None = None,
     allow_access_v2_data_link: bool = False,
 ):
     """接入计算平台 VM 任务"""
@@ -542,16 +548,12 @@ def access_bkdata_vm(
         )
         return
 
-    push_and_publish_space_router(space_type, space_id, table_id_list=[table_id])
-
-    # 更新数据源依赖的 consul
-    try:
-        # 保证有 backend，才进行更新
-        if settings.ENABLE_V2_VM_DATA_LINK and models.DataSourceResultTable.objects.filter(bk_data_id=data_id).exists():
-            data_source = models.DataSource.objects.get(bk_data_id=data_id, is_enable=True)
-            data_source.refresh_consul_config()
-    except models.DataSource.DoesNotExist:
-        logger.error("data_id: %s not found for vm link, please check data_id status", data_id)
+    # 推送空间路由
+    if bk_biz_id != 0:
+        space = Space.objects.get_space_info_by_biz_id(bk_biz_id=bk_biz_id)
+        push_and_publish_space_router(space["space_type"], space["space_id"], table_id_list=[table_id])
+    else:
+        push_and_publish_space_router(table_id_list=[table_id])
 
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s end access bkdata vm", bk_biz_id, table_id, data_id)
 
@@ -1466,14 +1468,14 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         bk_biz_id,
         data_name,
     )
-    data_link_ins, created = models.DataLink.objects.get_or_create(
+    data_link_ins, _ = models.DataLink.objects.get_or_create(
         data_link_name=data_name,
-        namespace="bkmonitor",
         data_link_strategy=models.DataLink.BASE_EVENT_V1,
         bk_tenant_id=bk_tenant_id,
+        defaults={"namespace": "bklog"},
     )
 
-    # 2. 申请数据链路配置 LogResultTableConfig,ESStorageBindingConfig,LogDataBusConfig
+    # 2. 申请数据链路配置 ResultTableConfig,ESStorageBindingConfig,DataBusConfig
     try:
         data_link_ins.apply_data_link(
             data_source=data_source, table_id=table_id, storage_cluster_name=storage_cluster_name, bk_biz_id=bk_biz_id
@@ -1796,7 +1798,7 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
     """
 
     # 如果未开启新版数据链路或空间内置数据链路，则不检查
-    if not (settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK):
+    if not (settings.ENABLE_V2_VM_DATA_LINK and settings.ENABLE_SPACE_BUILTIN_DATA_LINK) or not biz_list:
         return
 
     logger.info("check_bkcc_space_builtin_datalink: start to check bkcc space builtin datalink")
@@ -1812,21 +1814,19 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
     )
 
     # 获取已存在的DataLink名称
-    exists_data_link_names: set[str] = set(DataLink.objects.values_list("data_link_name", flat=True))
+    data_link_name_to_namespaces: dict[str, str] = dict(DataLink.objects.values_list("data_link_name", "namespace"))
 
     # 数据源名称模板到任务的映射
-    data_name_tpl_to_task = {
-        ("{bk_tenant_id}_{bk_biz_id}_sys_base",): create_basereport_datalink_for_bkcc,
-        ("base_{bk_biz_id}_agent_event",): create_base_event_datalink_for_bkcc,
-        (
-            "base_{bk_biz_id}_system_proc_port",
-            "base_{bk_biz_id}_system_proc_perf",
-        ): create_system_proc_datalink_for_bkcc,
+    data_name_tpl_to_task: dict[tuple[str, tuple[str, ...]], Any] = {
+        ("bkmonitor", ("{bk_tenant_id}_{bk_biz_id}_sys_base",)): create_basereport_datalink_for_bkcc,
+        ("bklog", ("base_{bk_biz_id}_agent_event",)): create_base_event_datalink_for_bkcc,
+        ("bkmonitor", ("base_{bk_biz_id}_system_proc_port",)): create_system_proc_datalink_for_bkcc,
+        ("bkmonitor", ("base_{bk_biz_id}_system_proc_perf",)): create_system_proc_datalink_for_bkcc,
     }
 
     # 遍历业务列表，检查是否存在对应的数据源名称，如果不存在，则执行对应任务创建数据源
     for bk_tenant_id, bk_biz_id in biz_list:
-        for data_name_tpls, task in data_name_tpl_to_task.items():
+        for (namespace, data_name_tpls), task in data_name_tpl_to_task.items():
             data_names: list[str] = [
                 data_name_tpl.format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id) for data_name_tpl in data_name_tpls
             ]
@@ -1842,7 +1842,8 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
                     task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
                     break
 
-                if data_name not in exists_data_link_names:
+                if data_name not in data_link_name_to_namespaces:
+                    # 如果数据链路不存在，则创建数据链路
                     logger.info(
                         "check_bkcc_space_builtin_datalink: data_link(%s) not found, bk_tenant_id->[%s], bk_biz_id->[%s], run task->[%s] to create",
                         data_name,
@@ -1851,5 +1852,20 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
                     )
                     task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
                     break
+                elif data_link_name_to_namespaces[data_name] != namespace:
+                    # 如果数据链路存在，但命名空间不匹配，则调整命名空间后重建
+                    datalink_ins = DataLink.objects.get(data_link_name=data_name)
+                    datalink_ins.namespace = namespace
+                    datalink_ins.save()
+                    logger.info(
+                        "check_bkcc_space_builtin_datalink: data_link(%s) namespace mismatch, bk_tenant_id->[%s], bk_biz_id->[%s], run task->[%s] to rebuild",
+                        data_name,
+                        bk_tenant_id,
+                        bk_biz_id,
+                        task,
+                    )
+                    for component_class in DataLink.STRATEGY_RELATED_COMPONENTS[datalink_ins.data_link_strategy]:
+                        component_class.objects.filter(data_link_name=data_name).update(namespace=namespace)
+                    task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 
     logger.info("check_bkcc_space_builtin_datalink: check bkcc space builtin datalink success")

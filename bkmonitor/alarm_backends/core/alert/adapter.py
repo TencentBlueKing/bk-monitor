@@ -20,6 +20,7 @@ from alarm_backends.core.control.mixins.double_check import DoubleCheckStrategy
 from alarm_backends.core.control.record_parser import EventIDParser
 from alarm_backends.core.storage.kafka import KafkaQueue
 from bkmonitor.models import NO_DATA_TAG_DIMENSION
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.alert import EventStatus, EventTargetType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
@@ -142,6 +143,7 @@ class MonitorEventAdapter:
             "bk_ingest_time": now_time,
             "bk_clean_time": now_time,
             "bk_biz_id": self.strategy["bk_biz_id"],
+            "bk_tenant_id": bk_biz_id_to_bk_tenant_id(self.strategy["bk_biz_id"]),
             "extra_info": {
                 "origin_alarm": {
                     "trigger_time": now_time,
@@ -199,7 +201,13 @@ class MonitorEventAdapter:
                 return EventTargetType.HOST, str(bk_host_id), data_dimensions
             elif "bk_target_ip" in agg_dimensions:
                 bk_target_ip = data_dimensions.pop("bk_target_ip")
+                # 兼容 云区域配置 bk_cloud_id 的情况, 采集器和采集目标的云区域都是一致的
+                # 优先获取 bk_target_cloud_id，如果不存在则尝试获取 bk_cloud_id 作为备选
+                # 注意：使用 is None 判断而不是 or 运算符，确保云区域ID为0时能正确处理
+                # 云区域ID为0通常表示直连区域，是一个有效值，不应被当作无效值处理
                 bk_target_cloud_id = data_dimensions.pop("bk_target_cloud_id", None)
+                if bk_target_cloud_id is None:
+                    bk_target_cloud_id = data_dimensions.pop("bk_cloud_id", None)
                 if bk_target_cloud_id is None:
                     return EventTargetType.HOST, f"{bk_target_ip}", data_dimensions
                 return EventTargetType.HOST, f"{bk_target_ip}|{bk_target_cloud_id}", data_dimensions

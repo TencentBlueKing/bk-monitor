@@ -426,4 +426,16 @@ export default {
   请先选择模版: 'Please select a template first',
   '经过 {0} 分析，发现以下可疑维度（组合）：':
     'After {0} analysis, the following suspicious dimensions (combinations) were found:',
+  '解除关联后，{0}服务下将不会配置该策略':
+    'After unassociating, the strategy will not be configured on the {0} service',
+  模板: 'Template',
+  '是否开启该功能?': 'Are you sure you want to enable this feature?',
+  '是否关闭该功能?': 'Are you sure you want to disable this feature?',
+  '开启后，该策略模板可以下发到需要的服务':
+    'After enabling, this strategy template can be issued to the required services',
+  '禁用后，该策略模板不可被下发到服务': 'After disabling, this strategy template cannot be issued to services',
+  '开启「自动下发」功能后，新增服务将自动配置该策略并生效':
+    'After enabling the automatic issuance feature, new services will automatically configure this strategy and take effect',
+  '关闭「自动下发」功能，新增服务将不会自动配置该策略':
+    'After disabling the automatic issuance feature, new services will not automatically configure this strategy',
 };

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -43,3 +42,6 @@ TIME_SERIES_FIELD_TYPE = ["integer", "long", "float", "double", "int"]
 
 # 日志检索内置维度字段
 LOG_SEARCH_DIMENSION_LIST = ["cloudId", "gseIndex", "iterationIndex", "container_id", "_iteration_idx"]
+
+LOG_GRAFANA_DATA_SOURCE_IN_MONITOR = "日志平台"
+LOG_DATA_SOURCE_LABEL_IN_MONITOR = "bk_log_search"

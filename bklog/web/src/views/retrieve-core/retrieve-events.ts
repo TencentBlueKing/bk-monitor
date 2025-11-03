@@ -23,7 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+/* eslint-disable no-unused-vars */
 enum RetrieveEvent {
+  /**
+   * 取消查询
+   */
+  SEARCH_CANCEL = 'search-cancel',
+
   /**
    * 展示收藏内容
    */
@@ -133,6 +139,16 @@ enum RetrieveEvent {
    * 自动刷新日志
    */
   AUTO_REFRESH = 'auto_refresh',
+
+  /**
+   * 排序列表变化
+   */
+  SORT_LIST_CHANGED = 'sort-list-changed',
+
+  /**
+   * AI 助手关闭
+   */
+  AI_CLOSE = 'ai-close',
 }
 
 export default RetrieveEvent;

@@ -33,6 +33,7 @@ class AlertDocument(BaseDocument):
     REINDEX_ENABLED = True
     REINDEX_QUERY = Search().filter("term", status=EventStatus.ABNORMAL).to_dict()
 
+    bk_tenant_id = field.Keyword()
     id = field.Keyword(required=True)
     seq_id = field.Long()
 

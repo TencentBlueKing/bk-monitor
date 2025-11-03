@@ -42,6 +42,7 @@ export interface ITempLateItem {
   category: string;
   category_alias?: string;
   checked?: boolean;
+  code?: string;
   has_been_applied?: boolean; // 已配置
   icon?: string;
   id: number;

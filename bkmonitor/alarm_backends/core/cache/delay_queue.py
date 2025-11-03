@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,12 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
 import logging
 import time
-
-from six.moves import zip
 
 from alarm_backends.constants import CONST_MINUTES
 from alarm_backends.core.cache.key import KEY_PREFIX
@@ -23,7 +19,7 @@ from alarm_backends.core.storage.redis import CACHE_BACKEND_CONF_MAP, Cache
 logger = logging.getLogger("cache.delay_queue")
 
 
-class DelayQueueManager(object):
+class DelayQueueManager:
     TASK_STORAGE_QUEUE = KEY_PREFIX + "task_storage"
     TASK_DELAY_QUEUE = KEY_PREFIX + "task_delay_queue"
 
@@ -74,7 +70,7 @@ class DelayQueueManager(object):
                 try:
                     cls.refresh_single_db(backend)
                 except Exception as e:
-                    logger.exception("redo push(backend:{}), error({})" "".format(backend, e))
+                    logger.exception(f"redo push(backend:{backend}), error({e})")
             time.sleep(1)
 
 

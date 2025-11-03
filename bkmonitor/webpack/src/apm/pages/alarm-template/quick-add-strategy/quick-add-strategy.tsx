@@ -39,7 +39,7 @@ import JudgmentConditions from './judgment-conditions';
 import TemplateList from './template-list';
 
 import type {
-  AlgorithmItem,
+  AlgorithmItemUnion,
   DetectConfig,
   EditTemplateFormData,
   TemplateDetail,
@@ -94,6 +94,8 @@ class QuickAddStrategy extends Mixins(
   @Watch('show')
   handleWatchShowChange(v: boolean) {
     if (v) {
+      this.getAlarmGroupList();
+      this.getFunctions();
       this.getTemplateList();
     } else {
       this.templateDetail = {};
@@ -107,16 +109,11 @@ class QuickAddStrategy extends Mixins(
     }
   }
 
-  created() {
-    this.getAlarmGroupList();
-    this.getFunctions();
-  }
-
   handleShowTemplateDetails() {
     // todo
     const { app_name: appName } = this.params;
     const { from, to } = this.$route.query;
-    let urlStr = `${window.__BK_WEWEB_DATA__?.baseroute || ''}application/?filter-app_name=${appName}&dashboardId=alarm_template&strategy_template_details_id=${this.cursorId}`;
+    let urlStr = `${window.__BK_WEWEB_DATA__?.parentRoute || ''}application/?filter-app_name=${appName}&dashboardId=alarm_template&strategy_template_details_id=${this.cursorId}`;
     urlStr += `&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
     const { href } = this.$router.resolve({
       path: urlStr,
@@ -130,6 +127,9 @@ class QuickAddStrategy extends Mixins(
   }
 
   getAlarmGroupList() {
+    if (this.alarmGroupList.length) {
+      return;
+    }
     this.alarmGroupLoading = true;
     return listUserGroup({ exclude_detail_info: 1 })
       .then(data => {
@@ -147,6 +147,9 @@ class QuickAddStrategy extends Mixins(
   }
 
   getFunctions() {
+    if (this.metricFunctions.length) {
+      return;
+    }
     getFunctions().then(data => {
       this.metricFunctions = data;
     });
@@ -196,7 +199,7 @@ class QuickAddStrategy extends Mixins(
   }
 
   /** 检测规则修改 */
-  handleAlgorithmsChange(val: AlgorithmItem[]) {
+  handleAlgorithmsChange(val: AlgorithmItemUnion[]) {
     const currentTemplateData = this.templateFormData[this.cursorId];
     const detailData = this.templateDetail[this.cursorId];
     currentTemplateData.algorithms = val;
@@ -221,7 +224,8 @@ class QuickAddStrategy extends Mixins(
     currentTemplateData.detect = val;
     if (
       val.type === detailData.detect.type &&
-      Object.keys(val.config).every(key => val.config[key] === detailData.detect.config[key])
+      Object.keys(val.config).every(key => val.config[key] === detailData.detect.config[key]) &&
+      val.connector === detailData.detect.connector
     ) {
       delete this.editTemplateFormData[this.cursorId].detect;
     } else {
@@ -270,17 +274,18 @@ class QuickAddStrategy extends Mixins(
       app_name: this.params?.app_name,
       service_names: [this.params?.service_name],
       strategy_template_ids: this.checkedList,
-      extra_configs: Object.keys(this.editTemplateFormData).reduce((pre, cur) => {
-        if (Object.keys(this.editTemplateFormData[cur]).length > 0) {
+      extra_configs: Object.entries(this.editTemplateFormData).reduce((pre, [id, value]) => {
+        if (Object.keys(value).length > 0) {
           pre.push({
-            ...this.editTemplateFormData[cur],
-            strategy_template_id: cur,
+            ...value,
+            strategy_template_id: id,
             service_name: this.params?.service_name,
           });
         }
         return pre;
       }, []),
       global_config: this.globalParams || undefined,
+      is_reuse_instance_config: true,
     };
     const res = await applyStrategyTemplate(params)
       .then(() => {
@@ -386,7 +391,7 @@ class QuickAddStrategy extends Mixins(
       ],
       simple: true,
     }).catch(() => ({ list: [] }));
-    this.templateList = await this.checkTemplateList(
+    const templateList = await this.checkTemplateList(
       (data?.list || []).map(item => {
         const system = item.system;
         const category = item.category;
@@ -405,8 +410,44 @@ class QuickAddStrategy extends Mixins(
         };
       })
     );
+    // 检查是否有system为'RPC'的项，如果有则移动到首位
+    const rpcIndex = templateList.findIndex(item => item.system === 'RPC');
+    if (rpcIndex > 0) {
+      const rpcItem = templateList.splice(rpcIndex, 1)[0];
+      templateList.unshift(rpcItem);
+    }
+    this.templateList = templateList;
     if (this.templateList.length) {
-      this.handleCursorChange(this.templateList[0].id);
+      // strategy_template_codes 包含 code 时，默认选中这一个 优先选中 type=builtin
+      let id = null;
+      const checkIds = new Set();
+      let needCheck = true;
+      for (const temp of this.templateList) {
+        if (temp?.type === 'builtin' && this.params?.strategy_template_codes?.includes(temp?.code)) {
+          if (!id) {
+            id = temp.id;
+          }
+          checkIds.add(temp.id);
+        }
+      }
+      if (!id) {
+        for (const temp of this.templateList) {
+          if (this.params?.strategy_template_codes?.includes(temp?.code)) {
+            if (!id) {
+              id = temp.id;
+            }
+            checkIds.add(temp.id);
+          }
+        }
+        if (!id) {
+          id = this.templateList[0].id;
+          needCheck = false;
+        }
+      }
+      this.handleCursorChange(id);
+      if (needCheck) {
+        this.handleCheckedChange(Array.from(checkIds));
+      }
     }
     this.templateListLoading = false;
   }

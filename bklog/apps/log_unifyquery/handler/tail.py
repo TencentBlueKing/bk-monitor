@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,12 +7,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
-from typing import Dict, List, Any
 
 from apps.log_search.models import Scenario
-from apps.log_unifyquery.builder.tail import CreateSearchTailBodyCustomField, CreateSearchTailBodyScenarioBkData, \
-    CreateSearchTailBodyScenarioLog
+from apps.log_unifyquery.builder.tail import (
+    CreateSearchTailBodyCustomField,
+    CreateSearchTailBodyScenarioBkData,
+    CreateSearchTailBodyScenarioLog,
+)
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
 
@@ -45,13 +47,13 @@ class UnifyQueryTailHandler(UnifyQueryHandler):
 
     def search(self, *args):
         base_params = copy.deepcopy(self.base_dict)
-        body: Dict = {}
+        body: dict = {}
         target_fields = self.index_set.get("target_fields", [])
         sort_fields = self.index_set.get("sort_fields", [])
 
         if sort_fields:
             time_field, _, _ = UnifyQueryHandler.init_time_field(self.index_set["index_set_id"], self.scenario_id)
-            body: Dict = CreateSearchTailBodyCustomField(
+            body: dict = CreateSearchTailBodyCustomField(
                 start=self.search_params.get("start", 0),
                 size=self.search_params.get("size", 30),
                 zero=self.zero,
@@ -63,7 +65,7 @@ class UnifyQueryTailHandler(UnifyQueryHandler):
             ).body
 
         elif self.scenario_id == Scenario.BKDATA:
-            body: Dict = CreateSearchTailBodyScenarioBkData(
+            body: dict = CreateSearchTailBodyScenarioBkData(
                 sort_list=["dtEventTimeStamp", "gseindex", "_iteration_idx"],
                 size=self.search_params.get("size", 30),
                 start=self.search_params.get("start", 0),
@@ -77,7 +79,7 @@ class UnifyQueryTailHandler(UnifyQueryHandler):
                 base_params=base_params,
             ).body
         elif self.scenario_id == Scenario.LOG:
-            body: Dict = CreateSearchTailBodyScenarioLog(
+            body: dict = CreateSearchTailBodyScenarioLog(
                 sort_list=["dtEventTimeStamp", "gseIndex", "iterationIndex"],
                 size=self.search_params.get("size", 30),
                 start=self.search_params.get("start", 0),
@@ -103,40 +105,8 @@ class UnifyQueryTailHandler(UnifyQueryHandler):
             )
         result.update(
             {
-                "list": self._analyze_empty_log(result.get("list")),
-                "origin_log_list": self._analyze_empty_log(result.get("origin_log_list")),
+                "list": result.get("list"),
+                "origin_log_list": result.get("origin_log_list"),
             }
         )
         return result
-
-    @staticmethod
-    def _analyze_empty_log(log_list: List[Dict[str, Any]]):
-        log_not_empty_list: List[Dict[str, Any]] = []
-        for item in log_list:
-            a_item_dict: Dict[str:Any] = item
-
-            # 只要存在log字段则直接显示
-            if "log" in a_item_dict:
-                log_not_empty_list.append(a_item_dict)
-                continue
-            # 递归打平每条记录
-            new_log_context_list: List[str] = []
-
-            def get_field_and_get_context(_item: dict, fater: str = ""):
-                for key in _item:
-                    _key: str = ""
-                    if isinstance(_item[key], dict):
-                        get_field_and_get_context(_item[key], key)
-                    else:
-                        if fater:
-                            _key = "{}.{}".format(fater, key)
-                        else:
-                            _key = "%s" % key
-                    if _key:
-                        a_context: str = "{}: {}".format(_key, _item[key])
-                        new_log_context_list.append(a_context)
-
-            get_field_and_get_context(a_item_dict)
-            a_item_dict.update({"log": " ".join(new_log_context_list)})
-            log_not_empty_list.append(a_item_dict)
-        return log_not_empty_list

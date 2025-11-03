@@ -10,6 +10,7 @@
   box-shadow: 0 2px 4px 0 #1919290d;
 
   .alarm-template-header {
+    z-index: 1;
     display: flex;
     flex-shrink: 0;
     column-gap: 8px;

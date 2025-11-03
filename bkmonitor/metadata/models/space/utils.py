@@ -785,7 +785,6 @@ def get_project_clusters(bk_tenant_id: str, project_id: str) -> list:
         return []
 
 
-@atomic(config.DATABASE_CONNECTION_NAME)
 def create_bkcc_spaces(biz_list: list[dict], create_builtin_data_link_delay: bool = True) -> bool:
     """创建业务对应的空间信息
 

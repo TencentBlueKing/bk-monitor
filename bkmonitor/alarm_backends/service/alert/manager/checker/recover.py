@@ -120,10 +120,16 @@ class RecoverStatusChecker(BaseChecker):
         window_unit = Strategy.get_check_window_unit(item, self.DEFAULT_CHECK_WINDOW_UNIT)
         recovery_with_nodata = False
         try:
+            recovery_configs_map = Strategy.get_recovery_configs(strategy)
             if self.check_is_multi_indicator_strategy(item):
-                recovery_configs = list(Strategy.get_recovery_configs(strategy).values())[0]
+                recovery_configs = list(recovery_configs_map.values())[0]
             else:
-                recovery_configs = Strategy.get_recovery_configs(strategy)[str(alert.event_severity)]
+                for level in map(str, [alert.event_severity, alert.severity]):
+                    if level in recovery_configs_map:
+                        recovery_configs = recovery_configs_map[level]
+                        break
+                else:
+                    recovery_configs = recovery_configs_map[str(alert.event_severity)]
             recovery_window_size = recovery_configs["check_window_size"]
             status_setter = recovery_configs["status_setter"]
             # 新增无数据恢复配置: "recovery-nodata"

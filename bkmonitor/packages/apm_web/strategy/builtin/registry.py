@@ -140,8 +140,6 @@ class BuiltinStrategyTemplateRegistry:
     def register(self):
         """注册内置告警策略模板"""
 
-        # 创建/更新默认告警组
-        user_group_id: int = self.apply_default_notice_group(self.application)
         if not self.systems:
             logger.info(
                 "[BuiltinStrategyTemplateRegistry] no supported system, skip register: bk_biz_id=%s, app_name=%s",
@@ -156,6 +154,9 @@ class BuiltinStrategyTemplateRegistry:
             self.app_name,
             self.systems,
         )
+
+        # 创建/更新默认告警组
+        user_group_id: int = self.apply_default_notice_group(self.application)
 
         code_tmpl_map: dict[str, dict[str, Any]] = {
             tmpl["code"]: tmpl
