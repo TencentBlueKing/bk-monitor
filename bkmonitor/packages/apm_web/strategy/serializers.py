@@ -293,6 +293,7 @@ class StrategyTemplateCloneRequestSerializer(BaseAppStrategyTemplateRequestSeria
 class StrategyTemplateBatchPartialUpdateRequestSerializer(BaseAppStrategyTemplateRequestSerializer):
     EDITABLE_FIELDS: list[str] = [
         "user_group_ids",
+        "detect",
         "algorithms",
         "is_enabled",
         "is_auto_apply",
