@@ -138,8 +138,13 @@ def get_chart_data(item: Item, source_time, title=""):
         )
         for record in records:
             value = record["_result_"]
-            if value:
-                value = round(value, settings.POINT_PRECISION)
+            try:
+                # 只有当 value 为数字时才进行 round
+                if isinstance(value, int | float):
+                    value = round(value, int(settings.POINT_PRECISION))
+            except Exception:
+                # 忽略 round 过程中出现的异常，保留原值
+                pass
             data.append([record["_time_"] - offset * CONST_ONE_DAY * 1000, value])
 
         # 在 data 中根据查询配置的 interval 补充空点None，以免图表无法显示出数据断点的情况
@@ -215,7 +220,11 @@ def get_chart_data(item: Item, source_time, title=""):
 
         series.append({"name": name, "data": data})
     timezone = i18n.get_timezone()
-    timezone_offset = -int(datetime.datetime.now(pytz.timezone(timezone)).utcoffset().total_seconds()) // 60
+    utcoffset = datetime.datetime.now(pytz.timezone(timezone)).utcoffset()
+    if utcoffset is not None:
+        timezone_offset = -int(utcoffset.total_seconds()) // 60
+    else:
+        timezone_offset = 0
 
     return {
         "unit": unit.suffix,
