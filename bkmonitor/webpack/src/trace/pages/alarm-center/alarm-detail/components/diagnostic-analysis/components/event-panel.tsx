@@ -23,36 +23,45 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { type PropType, defineComponent } from 'vue';
 
-import type { DiagnosticTypeEnum } from './constant';
-import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
-export type DiagnosticTypeEnumType = GetEnumTypeTool<typeof DiagnosticTypeEnum>;
+import { useI18n } from 'vue-i18n';
 
-export interface IDiagnosticAnalysisItem {
-  list: ISuspiciousGroup[];
-  type: DiagnosticTypeEnumType;
-}
+import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
-/** 可疑分析组 */
-export interface ISuspiciousGroup {
-  /** 错误内容 */
-  errorContent: { title: string; value: string[] }[];
-  /** 错误信息 */
-  errorInfo: { name: string; value: string }[];
-  id: string;
-  groupHeader: {
-    detail?: {
-      link: string;
-      title: string;
+import type { ISuspiciousGroup } from '../typing';
+
+import './dimension-panel.scss';
+
+export default defineComponent({
+  name: 'EventPanel',
+  props: {
+    data: {
+      type: Array as PropType<ISuspiciousGroup[]>,
+      default: () => [],
+    },
+  },
+  setup() {
+    const { t } = useI18n();
+
+    return {
+      t,
     };
-    name: {
-      link?: string;
-      title: string;
-    };
-  };
-  /** 原因 */
-  reason?: {
-    content: string;
-    link?: string;
-  };
-}
+  },
+
+  render() {
+    return (
+      <div class='suspicious-dimension-panel'>
+        <span>{this.t('通过分析告警产生前 1 小时时间窗口事件，可疑事件为：')}</span>
+        <div class='dimension-group-list'>
+          {this.data.map(item => (
+            <SuspiciousAnalysisGroup
+              key={item.id}
+              data={item}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  },
+});

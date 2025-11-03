@@ -23,36 +23,35 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { type PropType, defineComponent } from 'vue';
 
-import type { DiagnosticTypeEnum } from './constant';
-import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
-export type DiagnosticTypeEnumType = GetEnumTypeTool<typeof DiagnosticTypeEnum>;
+import SuspiciousAnalysisGroup from './suspicious-analysis-group';
 
-export interface IDiagnosticAnalysisItem {
-  list: ISuspiciousGroup[];
-  type: DiagnosticTypeEnumType;
-}
+import type { ISuspiciousGroup } from '../typing';
 
-/** 可疑分析组 */
-export interface ISuspiciousGroup {
-  /** 错误内容 */
-  errorContent: { title: string; value: string[] }[];
-  /** 错误信息 */
-  errorInfo: { name: string; value: string }[];
-  id: string;
-  groupHeader: {
-    detail?: {
-      link: string;
-      title: string;
-    };
-    name: {
-      link?: string;
-      title: string;
-    };
-  };
-  /** 原因 */
-  reason?: {
-    content: string;
-    link?: string;
-  };
-}
+export default defineComponent({
+  name: 'LogPanel',
+  props: {
+    data: {
+      type: Array as PropType<ISuspiciousGroup[]>,
+      default: () => [],
+    },
+  },
+  setup() {
+    return {};
+  },
+  render() {
+    return (
+      <div class='suspicious-log-panel'>
+        <div class='log-group-list'>
+          {this.data.map(item => (
+            <SuspiciousAnalysisGroup
+              key={item.id}
+              data={item}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  },
+});

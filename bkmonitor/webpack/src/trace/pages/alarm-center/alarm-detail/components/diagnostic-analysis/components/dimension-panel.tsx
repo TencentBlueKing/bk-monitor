@@ -23,27 +23,29 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, reactive } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { useI18n } from 'vue-i18n';
+
+import SuspiciousAnalysisGroup from './suspicious-analysis-group';
+
+import type { ISuspiciousGroup } from '../typing';
 
 import './dimension-panel.scss';
 
 export default defineComponent({
   name: 'DimensionPanel',
+  props: {
+    data: {
+      type: Array as PropType<ISuspiciousGroup[]>,
+      default: () => [],
+    },
+  },
   setup() {
     const { t } = useI18n();
 
-    const expandMap = reactive(new Map());
-
-    const toggleExpand = (key: string) => {
-      expandMap.set(key, !expandMap.get(key));
-    };
-
     return {
       t,
-      expandMap,
-      toggleExpand,
     };
   },
 
@@ -58,41 +60,12 @@ export default defineComponent({
           <span class='link-text'>{this.t('维度下钻分析')}</span>
         </i18n-t>
         <div class='dimension-group-list'>
-          <div class={['dimension-group-item', { expand: this.expandMap.get('group1') }]}>
-            <div class='group-wrapper'>
-              <div
-                class='group-header'
-                onClick={() => {
-                  this.toggleExpand('group1');
-                }}
-              >
-                <i class='icon-monitor icon-arrow-down' />
-                <span class='group-name'>异常维度（组合）1</span>
-                <div class='abnormal-degree'>异常程度 90%</div>
-              </div>
-              <div class='group-content'>
-                <div class='dimension-item'>
-                  <div class='dimension-name'>主机名</div>
-                  <div class='dimension-value'>VM-156-110-centos</div>
-                </div>
-                <div class='dimension-item even'>
-                  <div class='dimension-name'>目标IP</div>
-                  <div class='dimension-value'>11.185.157.110</div>
-                </div>
-                <div class='dimension-item'>
-                  <div class='dimension-name'>管控区域</div>
-                  <div class='dimension-value'>0</div>
-                </div>
-              </div>
-              <div class='group-footer'>
-                <span class='question-reason'>可疑原因：主调成功率 17%</span>
-                <span class='link-text link-detail'>
-                  <i class='icon-monitor icon-xiangqing1' />
-                  {this.t('分析详情')}
-                </span>
-              </div>
-            </div>
-          </div>
+          {this.data.map(item => (
+            <SuspiciousAnalysisGroup
+              key={item.id}
+              data={item}
+            />
+          ))}
         </div>
       </div>
     );

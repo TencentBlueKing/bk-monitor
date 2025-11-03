@@ -24,35 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import type { DiagnosticTypeEnum } from './constant';
-import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
-export type DiagnosticTypeEnumType = GetEnumTypeTool<typeof DiagnosticTypeEnum>;
+export const DiagnosticTypeEnum = {
+  DIMENSION: 'dimension',
+  LINK: 'link',
+  LOG: 'log',
+  EVENT: 'event',
+} as const;
 
-export interface IDiagnosticAnalysisItem {
-  list: ISuspiciousGroup[];
-  type: DiagnosticTypeEnumType;
-}
-
-/** 可疑分析组 */
-export interface ISuspiciousGroup {
-  /** 错误内容 */
-  errorContent: { title: string; value: string[] }[];
-  /** 错误信息 */
-  errorInfo: { name: string; value: string }[];
-  id: string;
-  groupHeader: {
-    detail?: {
-      link: string;
-      title: string;
-    };
-    name: {
-      link?: string;
-      title: string;
-    };
-  };
-  /** 原因 */
-  reason?: {
-    content: string;
-    link?: string;
-  };
-}
+export const DiagnosticTypeMap = {
+  [DiagnosticTypeEnum.DIMENSION]: window.i18n.t('可疑维度'),
+  [DiagnosticTypeEnum.LINK]: window.i18n.t('可疑调用链'),
+  [DiagnosticTypeEnum.LOG]: window.i18n.t('可疑日志'),
+  [DiagnosticTypeEnum.EVENT]: window.i18n.t('可疑事件'),
+};

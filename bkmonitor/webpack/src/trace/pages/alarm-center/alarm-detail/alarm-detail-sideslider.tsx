@@ -76,6 +76,7 @@ export default defineComponent({
     return (
       <Sideslider
         width={this.isFullscreen ? '100%' : 1280}
+        extCls='alarm-detail-sideslider'
         v-slots={{
           header: () => (
             <EventDetailHead

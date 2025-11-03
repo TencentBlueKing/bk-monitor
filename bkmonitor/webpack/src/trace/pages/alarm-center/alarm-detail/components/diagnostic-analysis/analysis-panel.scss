@@ -1,11 +1,20 @@
 .analysis-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  grid-template-columns: 100%;
   width: 100%;
   padding: 12px 16px;
+  overflow: hidden;
   background: #fff;
   border-radius: 4px;
   box-shadow: 0 2px 4px 0 #1919290d;
+  transition: grid-template-rows 0.6s ease;
 
-  .analysis-panel-header {
+  .analysis-panel-wrapper {
+    min-height: 20px;
+  }
+
+  .analysis-panel-wrapper-header {
     display: flex;
     align-items: center;
     height: 20px;
@@ -22,5 +31,9 @@
       font-weight: 600;
       color: #313238;
     }
+  }
+
+  &.expand {
+    grid-template-rows: 1fr;
   }
 }
