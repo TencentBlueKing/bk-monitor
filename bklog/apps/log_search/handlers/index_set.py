@@ -1774,7 +1774,7 @@ class BaseIndexSetHandler:
                     time_field_type = obj.time_field_type or index_set.time_field_type
                     nano_migrate_map = {}
                     from apps.feature_toggle.models import FeatureToggle
-                    if FeatureToggle.objects.filter(name="nano_migrate_list").is_exist():
+                    if FeatureToggle.objects.filter(name="nano_migrate_list").exists():
                         nano_migrate_map = FeatureToggle.objects.filter(name="nano_migrate_list")[0]\
                             .feature_config.get("nano_migrate_map", {})
 
