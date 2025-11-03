@@ -18,7 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
+import copy
 import json
 import re
 from collections import defaultdict
@@ -1772,6 +1772,12 @@ class BaseIndexSetHandler:
                 for obj in objs:
                     time_field = obj.time_field or index_set.time_field
                     time_field_type = obj.time_field_type or index_set.time_field_type
+                    nano_migrate_map = {}
+                    from apps.feature_toggle.models import FeatureToggle
+                    if FeatureToggle.objects.filter(name="nano_migrate_list").is_exist():
+                        nano_migrate_map = FeatureToggle.objects.filter(name="nano_migrate_list")[0]\
+                            .feature_config.get("nano_migrate_map", {})
+
                     table_info = {
                         "table_id": cls.get_rt_id(index_set.index_set_id, obj.result_table_id),
                         "index_set": obj.result_table_id.replace(".", "_"),
@@ -1803,6 +1809,16 @@ class BaseIndexSetHandler:
                     if query_alias_settings := index_set.query_alias_settings:
                         table_info["query_alias_settings"] = query_alias_settings
                     request_params["table_info"].append(table_info)
+
+                    # 纳秒采集新旧链路迁移路由补充
+                    if obj.result_table_id in nano_migrate_map:
+                        old_nano_table_info = copy.deepcopy(table_info)
+                        old_nano_table_info.update({
+                            "table_id": cls.get_rt_id(index_set.index_set_id, nano_migrate_map[obj.result_table_id]),
+                            "index_set": nano_migrate_map[obj.result_table_id].replace(".", "_"),
+                            "origin_table_id": nano_migrate_map[obj.result_table_id]
+                        })
+                        request_params["table_info"].append(old_nano_table_info)
                 multi_execute_func.append(
                     result_key=index_set.index_set_id,
                     func=TransferApi.bulk_create_or_update_log_router,
