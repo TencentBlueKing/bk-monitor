@@ -149,7 +149,7 @@ export default defineComponent({
 
     const { t } = useLocale();
 
-    useResizeObserve(refRootElement, entry => {
+    useResizeObserve(refRootElement, (entry) => {
       const newWidth = (entry.target as HTMLElement).offsetWidth;
 
       if (newWidth !== containerWidth.value) {
@@ -184,7 +184,7 @@ export default defineComponent({
       };
     });
 
-    const stopDefaultPrevented = e => {
+    const stopDefaultPrevented = (e) => {
       e.stopPropagation?.();
       e.stopImmediatePropagation?.();
       e.preventDefault?.();
@@ -252,9 +252,9 @@ export default defineComponent({
 
     const valueWithInputList = computed(() => {
       if (
-        typeof tagInputIndex.value === 'number' &&
-        tagInputIndex.value >= 0 &&
-        tagInputIndex.value < valueList.value.length
+        typeof tagInputIndex.value === 'number'
+        && tagInputIndex.value >= 0
+        && tagInputIndex.value < valueList.value.length
       ) {
         return [
           ...valueList.value.slice(0, tagInputIndex.value),
@@ -269,7 +269,7 @@ export default defineComponent({
     const optionList = computed(() => {
       return (props.list ?? [])
         .filter(({ selected }) => !selected)
-        .map(item => {
+        .map((item) => {
           return {
             item,
             selected: valueList.value.some(v => getListItemId(v) === getListItemId(item)),
@@ -295,7 +295,7 @@ export default defineComponent({
      * 获取抛出事件
      * @param value
      */
-    const emitValue = value => {
+    const emitValue = (value) => {
       const itemId = getListItemId(value);
       // 避免重复添加
       if (valueList.value.some(item => getListItemId(item) === itemId)) {
@@ -316,7 +316,7 @@ export default defineComponent({
      * 鼠标点击空白位置执行当前focused的 edit input blur行为
      */
     const handleEditInputBlur = () => {
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         if (editItemOption.value.index !== null) {
           let isUpdate = false;
 
@@ -353,7 +353,7 @@ export default defineComponent({
      * 当绑定的数据改变时，销毁当前弹出内容，根据Vue渲染出来的结果进行弹出内容的更新
      */
     const updateFiexedInstanceContent = () => {
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         nextTick(() => {
           setFixedValueContent();
           fixedInstance.setContent(focusFixedElement);
@@ -367,7 +367,7 @@ export default defineComponent({
       });
     };
 
-    const emitDeleteItem = val => {
+    const emitDeleteItem = (val) => {
       const targetValue: any[] = [];
       for (const v of valueList.value) {
         if (v !== val) {
@@ -384,7 +384,7 @@ export default defineComponent({
       refTagInputElement.value?.focus();
     };
 
-    const handleOptionItemClick = val => {
+    const handleOptionItemClick = (val) => {
       emitValue(getListItemId(val));
       if (props.foucsFixed) {
         updateFiexedInstanceContent();
@@ -448,7 +448,7 @@ export default defineComponent({
       }
     };
 
-    const handleDeleteAllClick = e => {
+    const handleDeleteAllClick = (e) => {
       stopDefaultPrevented(e);
       emit('change', []);
     };
@@ -469,6 +469,71 @@ export default defineComponent({
     };
 
     /**
+     * 处理编辑输入框的input事件
+     * @param e
+     */
+    const handleEditInputChange = (e: InputEvent) => {
+      const input = e.target as HTMLInputElement;
+      inputTagValue.value = input.value;
+    };
+
+    /**
+     * 处理编辑输入框的blur事件（非 fixed 模式使用，Vue 直接绑定）
+     * @param e
+     */
+    const handleEditInputBlurEvent = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      // 只在编辑输入框失焦时处理
+      if (!target || !target.hasAttribute('data-bklog-choice-value-edit-input')) {
+        return;
+      }
+
+      // 确保目标元素属于当前组件（非 fixed 模式，Vue 绑定已经确保这一点，但为了安全起见仍然检查）
+      if (!refTagInputContainer.value?.contains(target)) {
+        return;
+      }
+
+      handleEditInputBlur().then((update: boolean) => {
+        if (update) {
+          calcItemEllipsis().then(() => {
+            setFixedOverflowY();
+          });
+        }
+      });
+    };
+
+    /**
+     * 处理编辑输入框的keyup事件
+     * @param e
+     */
+    const handleEditInputKeyup = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        stopDefaultPrevented(e);
+        handleEditInputBlur().then((update: boolean) => {
+          if (props.foucsFixed) {
+            setFixedOverflowY();
+            if (update) {
+              updateFiexedInstanceContent().then(() => {
+                autoFocusInput();
+              });
+            } else {
+              autoFocusInput();
+            }
+          } else {
+            if (update) {
+              calcItemEllipsis().then(() => {
+                setFixedOverflowY();
+                autoFocusInput();
+              });
+            } else {
+              autoFocusInput();
+            }
+          }
+        });
+      }
+    };
+
+    /**
      * Fixed 模式Input事件添加监听
      * @param e
      */
@@ -484,6 +549,65 @@ export default defineComponent({
       }
     };
 
+    /**
+     * 为克隆节点中的编辑输入框绑定事件
+     */
+    const bindEditInputEvents = (container: HTMLElement) => {
+      const editInput = container.querySelector('[data-bklog-choice-value-edit-input]') as HTMLInputElement;
+      if (editInput) {
+        // 检查是否已经绑定过事件（通过检查是否有自定义属性标记）
+        if (editInput.hasAttribute('data-bklog-edit-bound')) {
+          return;
+        }
+
+        // 标记已绑定事件
+        editInput.setAttribute('data-bklog-edit-bound', 'true');
+
+        // 绑定事件处理器
+        const inputHandler = (e: InputEvent) => {
+          handleEditInputChange(e);
+        };
+
+        const blurHandler = (e: FocusEvent) => {
+          // 只处理当前输入框的 blur，确保是编辑输入框
+          if (e.target === editInput) {
+            handleEditInputBlur().then((update: boolean) => {
+              setFixedOverflowY();
+              if (update) {
+                updateFiexedInstanceContent();
+              }
+            });
+          }
+        };
+
+        const keyupHandler = (e: KeyboardEvent) => {
+          if (e.target === editInput && e.key === 'Enter') {
+            stopDefaultPrevented(e);
+            handleEditInputBlur().then((update: boolean) => {
+              setFixedOverflowY();
+              if (update) {
+                updateFiexedInstanceContent().then(() => {
+                  autoFocusInput();
+                });
+              } else {
+                autoFocusInput();
+              }
+            });
+          }
+        };
+
+        const keydownHandler = (e: KeyboardEvent) => {
+          // 阻止事件冒泡，避免触发容器的点击事件
+          e.stopPropagation();
+        };
+
+        editInput.addEventListener('input', inputHandler);
+        editInput.addEventListener('blur', blurHandler);
+        editInput.addEventListener('keyup', keyupHandler);
+        editInput.addEventListener('keydown', keydownHandler);
+      }
+    };
+
     const setFocuseFixedPopEvent = () => {
       if (focusFixedElement) {
         focusFixedElement.addEventListener('click', handleFixedValueListClick);
@@ -496,8 +620,14 @@ export default defineComponent({
     const setFixedValueContent = () => {
       const copyNode = refTagInputContainer.value.cloneNode(true) as HTMLElement;
       copyNode.style.width = `${refTagInputContainer.value.offsetWidth + 4}px`;
+
+      // 为克隆节点中的编辑输入框绑定事件
+      bindEditInputEvents(copyNode);
+
       if (focusFixedElement) {
         focusFixedElement.childNodes[0].replaceWith(copyNode);
+        // 重新绑定新节点的事件
+        bindEditInputEvents(copyNode);
       } else {
         focusFixedElement = document.createElement('div');
         focusFixedElement.classList.add('bklog-choice-fixed-content');
@@ -525,8 +655,8 @@ export default defineComponent({
 
       const target = e?.target as HTMLElement;
       if (
-        target.hasAttribute('[data-bklog-choice-text-input]') ||
-        target?.classList.contains('bklog-choice-value-edit-input')
+        target.hasAttribute('[data-bklog-choice-text-input]')
+        || target?.classList.contains('bklog-choice-value-edit-input')
       ) {
         return;
       }
@@ -608,6 +738,8 @@ export default defineComponent({
           setFixedOverflowY();
           setTimeout(autoFocusInput);
         }
+      } else if (target.hasAttribute('data-bklog-choice-value-edit-input')) {
+        handleEditInputKeyup(e);
       }
     };
 
@@ -641,7 +773,7 @@ export default defineComponent({
       hiddenItemIndex.value.length = 0;
       hiddenItemIndex.value = [];
 
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         nextTick(() => {
           const maxWidth = getMaxWidth();
           const { offsetHeight, scrollHeight } = (refRootElement.value ?? {}) as HTMLElement;
@@ -657,7 +789,7 @@ export default defineComponent({
 
                 if (avalibleWidth - width < lastTagWidth + inputWidth) {
                   hiddenItemIndex.value.push(index);
-                  hiddenItemCount.value++;
+                  hiddenItemCount.value += 1;
                 }
               }
             });
@@ -881,8 +1013,15 @@ export default defineComponent({
           <input
             style={{ width: `${editItemOption.value.width}px` }}
             class='bklog-choice-value-edit-input'
-            value={getListItemId(item)}
+            value={inputTagValue.value}
             data-bklog-choice-value-edit-input
+            onInput={handleEditInputChange}
+            onBlur={handleEditInputBlurEvent}
+            onKeyup={handleEditInputKeyup}
+            onKeydown={(e) => {
+              // 阻止事件冒泡，避免触发容器的点击事件
+              e.stopPropagation();
+            }}
           />
         );
       }

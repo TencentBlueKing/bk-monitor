@@ -107,6 +107,7 @@ export default defineComponent({
       delineate: true,
       aiBluekingEnabled: store.state.features.isAiAssistantActive,
       stopPropagation: true,
+      highlightEnabled: true,
       onclick: (...args) => {
         const type = args[1];
         if (type === 'add-to-ai') {
