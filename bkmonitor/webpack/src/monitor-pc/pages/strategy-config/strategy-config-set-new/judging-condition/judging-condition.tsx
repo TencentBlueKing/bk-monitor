@@ -632,6 +632,7 @@ export default class JudgingCondition extends tsc<Idata, IEvent> {
                       popover-min-width={140}
                       remote-method={this.handleSearchDim}
                       size={'small'}
+                      search-placeholder={this.$t('请输入 关键字')}
                       searchable
                       show-select-all
                       on-change={this.emitValueChange}

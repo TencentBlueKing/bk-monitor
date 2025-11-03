@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Prop, Watch, Ref, Emit } from 'vue-property-decorator';
+import { Component, Emit, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import VueDraggable from 'vuedraggable';
 
+import $http from '@/api';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import FieldSelectConfig from '../../retrieve-v2/field-filter-comp/components/field-select-config.vue';
 import FieldFilterPopover from './field-filter-popover';
 import FieldItem from './field-item';
-import $http from '@/api';
 
 import './index.scss';
 
@@ -263,14 +263,13 @@ export default class FieldFilterComp extends tsc<object> {
     const { polymerizable, fieldType, searchKeyword } = this;
     for (const fieldList of [this.visibleFields, this.hiddenFields]) {
       for (const fieldItem of fieldList) {
-        fieldItem.filterVisible =
-          fieldItem.field_name.includes(searchKeyword) &&
-          !(
-            (polymerizable === '1' && !fieldItem.es_doc_values) ||
-            (polymerizable === '2' && fieldItem.es_doc_values) ||
-            (fieldType === 'number' && !['long', 'integer'].includes(fieldItem.field_type)) ||
-            (fieldType === 'date' && !['date', 'date_nanos'].includes(fieldItem.field_type)) ||
-            (!['any', 'number', 'date'].includes(fieldType) && fieldItem.field_type !== fieldType)
+        fieldItem.filterVisible =          fieldItem.field_name.includes(searchKeyword)
+          && !(
+            (polymerizable === '1' && !fieldItem.es_doc_values)
+            || (polymerizable === '2' && fieldItem.es_doc_values)
+            || (fieldType === 'number' && !['long', 'integer'].includes(fieldItem.field_type))
+            || (fieldType === 'date' && !['date', 'date_nanos'].includes(fieldItem.field_type))
+            || (!['any', 'number', 'date'].includes(fieldType) && fieldItem.field_type !== fieldType)
           );
       }
     }
@@ -318,7 +317,7 @@ export default class FieldFilterComp extends tsc<object> {
           index_set_type: this.isUnionSearch ? 'union' : 'single',
         },
       })
-      .catch(e => {
+      .catch((e) => {
         console.warn(e);
       });
   }

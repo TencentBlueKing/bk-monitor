@@ -927,6 +927,7 @@ export default class BasicInfo extends tsc<object> {
                 <bk-select
                   vModel={this.localRelationInfo.cmdb}
                   searchable
+                  search-placeholder={this.$t('请输入 关键字')}
                   onChange={v => this.handleCmdbChange(v)}
                 >
                   {this.cmdbInfoList.map(option => (
@@ -1012,6 +1013,7 @@ export default class BasicInfo extends tsc<object> {
                   vModel={this.localRelationInfo.bizId}
                   display-key='name'
                   id-Key='id'
+                  search-placeholder={this.$t('请输入 关键字')}
                   list={this.bizSelectList}
                   enable-virtual-scroll
                   searchable
@@ -1030,6 +1032,7 @@ export default class BasicInfo extends tsc<object> {
                     <bk-select
                       style='width:290px'
                       vModel={this.localRelationInfo.appId}
+                      search-placeholder={this.$t('请输入 关键字')}
                       searchable
                     >
                       {this.appList.map(option => (

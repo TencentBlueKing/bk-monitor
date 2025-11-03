@@ -10,12 +10,12 @@ specific language governing permissions and limitations under the License.
 
 import copy
 
-import six
 from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.country import CHINESE_PROVINCE_MAP, COUNTRY_MAP, ISP_MAP
+from constants.common import DEFAULT_TENANT_ID
 
 
 def _split_member_list(member_str):
@@ -26,7 +26,7 @@ def _split_member_list(member_str):
     """
     if not member_str:
         return []
-    if not isinstance(member_str, six.string_types):
+    if not isinstance(member_str, str):
         return member_str
     return [member for member in member_str.split(",") if member]
 
@@ -107,6 +107,14 @@ class TopoNode:
                 node_attrs[key] = value
         return node_attrs
 
+    def to_dict(self):
+        return {
+            "bk_obj_id": self.bk_obj_id,
+            "bk_inst_id": self.bk_inst_id,
+            "bk_obj_name": self.bk_obj_name,
+            "bk_inst_name": self.bk_inst_name,
+        }
+
 
 class Business(TopoNode):
     """
@@ -140,6 +148,7 @@ class Business(TopoNode):
         bk_biz_productor=None,
         operator=None,
         time_zone="Asia/Shanghai",
+        bk_tenant_id=DEFAULT_TENANT_ID,
         **kwargs,
     ):
         """
@@ -151,6 +160,8 @@ class Business(TopoNode):
         super().__init__(
             bk_obj_id="biz", bk_obj_name="business", bk_inst_id=bk_biz_id, bk_inst_name=bk_biz_name, **kwargs
         )
+
+        self.bk_tenant_id = bk_tenant_id
         self.bk_biz_id = int(bk_biz_id)
         if not bk_biz_name:
             space_name = kwargs.get("space_name", "")
@@ -620,7 +631,7 @@ class Process:
         """
         检查端口号是否合法
         """
-        if isinstance(port_num, six.string_types) and port_num.strip().isdigit():
+        if isinstance(port_num, str) and port_num.strip().isdigit():
             port_num = int(port_num)
         elif isinstance(port_num, int):
             pass
@@ -687,7 +698,7 @@ class ServiceInstance:
     def __init__(
         self,
         service_instance_id,
-        name=None,
+        name: str | None = None,
         bk_host_id=None,
         bk_module_id=None,
         service_category_id=0,
@@ -709,7 +720,7 @@ class ServiceInstance:
         self.bk_module_id = int(bk_module_id or 0)
         self.service_category_id = int(service_category_id or 0)
         self.labels = labels or {}
-        self.topo_link = {}
+        self.topo_link: dict[str, list[TopoNode]] = {}
 
         if topo_link:
             for node_id, nodes in topo_link.items():
@@ -738,16 +749,21 @@ class ServiceInstance:
         return f"<ServiceInstance: {self.name}({self.service_instance_id})>"
 
     def to_dict(self):
-        return {
+        data = {
             "service_instance_id": self.service_instance_id,
             "name": self.name,
             "bk_host_id": self.bk_host_id,
             "bk_module_id": self.bk_module_id,
             "service_category_id": self.service_category_id,
             "labels": self.labels,
-            "topo_link": self.topo_link,
+            "topo_link": {node_id: [node.to_dict() for node in nodes] for node_id, nodes in self.topo_link.items()},
             **self._extra_attr,
         }
+        if hasattr(self, "ip"):
+            data["ip"] = self.ip
+        if hasattr(self, "bk_cloud_id"):
+            data["bk_cloud_id"] = self.bk_cloud_id
+        return data
 
 
 class ServiceCategoryNode:

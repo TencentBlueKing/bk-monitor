@@ -14,7 +14,7 @@
     justify-content: center;
     height: 100%;
 
-    > div {
+    >div {
       display: flex;
       align-items: center;
       cursor: pointer;
@@ -140,4 +140,11 @@
       }
     }
   }
+}
+
+.custom-border {
+  width: 1px;
+  height: 14px;
+  transform: scaleX(-1);
+  background: #DCDEE5;
 }

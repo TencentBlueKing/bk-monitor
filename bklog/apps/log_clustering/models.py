@@ -37,6 +37,7 @@ from apps.log_clustering.constants import (
     YearOnYearEnum,
 )
 from apps.log_clustering.exceptions import ClusteringConfigNotExistException
+from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.models import SoftDeleteModel
 from apps.utils.local import get_external_app_code
 
@@ -111,6 +112,7 @@ class ClusteringConfig(SoftDeleteModel):
     model_id = models.CharField(_("模型id"), max_length=128, null=True, blank=True)
     min_members = models.IntegerField(_("最小日志数量"))
     max_dist_list = models.CharField(_("敏感度"), max_length=128)
+    st_list = models.CharField(_("相似度阈值"), max_length=128, default=OnlineTaskTrainingArgs.ST_LIST)
     predefined_varibles = models.TextField(_("预先定义的正则表达式"))
     delimeter = models.TextField(_("分词符"))
     max_log_length = models.IntegerField(_("最大日志长度"))
@@ -175,6 +177,10 @@ class ClusteringConfig(SoftDeleteModel):
         default=RegexRuleTypeEnum.CUSTOMIZE.value,
     )
     regex_template_id = models.IntegerField(_("模板ID"), default=0)
+
+    # 小型化链路
+    use_mini_link = models.BooleanField(_("是否启用小型化链路"), default=False)
+    predict_cluster = models.CharField(_("预测集群名称"), max_length=64, default="", null=True, blank=True)
 
     @classmethod
     def get_by_index_set_id(cls, index_set_id: int, raise_exception: bool = True) -> "ClusteringConfig":

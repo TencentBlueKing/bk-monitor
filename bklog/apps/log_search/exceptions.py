@@ -603,6 +603,11 @@ class DuplicateUnifyQueryExportException(BaseException):
     MESSAGE = _("已有相同检索参数正在下载中，请勿重复下载")
 
 
+class PreCheckSortFieldException(BaseSearchException):
+    ERROR_CODE = "507"
+    MESSAGE = _("导出失败，字段({fields})不支持排序")
+
+
 # =================================================
 # JWT
 # =================================================

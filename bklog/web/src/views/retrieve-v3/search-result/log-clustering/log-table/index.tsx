@@ -37,7 +37,6 @@ import useLocale from '@/hooks/use-locale';
 import MainHeader from './main-header';
 import $http from '@/api';
 import ClusteringLoader from '@/skeleton/clustering-loader.vue';
-import AiAssitant from '@/global/ai-assitant.tsx';
 import ContentTable, { IPagination, GroupListState } from './content-table';
 import { type LogPattern } from '@/services/log-clustering';
 import { type IResponseData } from '@/services/type';
@@ -74,7 +73,6 @@ export default defineComponent({
     MainHeader,
     ClusteringLoader,
     ContentTable,
-    AiAssitant,
   },
   props: {
     clusterSwitch: {
@@ -116,7 +114,7 @@ export default defineComponent({
     const logTableRef = ref<HTMLElement>();
     const tablesRef = ref<any>(null);
     const mainHeaderRef = ref<any>();
-    const aiAssitantRef = ref<any>(null);
+    // const aiAssitantRef = ref<any>(null);
     const tableLoading = ref(false);
     const widthList = ref<Record<string, string>>({});
     const filterSortMap = ref(initFilterSortMap());
@@ -578,15 +576,6 @@ export default defineComponent({
       updateTableList();
     };
 
-    const handleOpenAi = (row: LogPattern, index: number) => {
-      aiAssitantRef.value.open(true, {
-        space_uid: store.getters.spaceUid,
-        index_set_id: store.getters.indexId,
-        log_data: row,
-        index,
-      });
-    };
-
     /**
      * 拖拽改变列宽
      */
@@ -774,7 +763,6 @@ export default defineComponent({
                 groupListState={groupListState.value}
                 pagination={pagination.value}
                 indexId={props.indexId}
-                on-open-ai={handleOpenAi}
                 on-open-cluster-config={() => emit('open-cluster-config')}
                 on-group-state-change={handleGroupStateChange}
               />,
@@ -788,7 +776,6 @@ export default defineComponent({
             <span>loading ...</span>
           </div>
         </div>
-        <AiAssitant ref={aiAssitantRef} on-close='handleAiClose' />
         <ScrollTop on-scroll-top={handleScrollTop}></ScrollTop>
         <ScrollXBar
           ref={refScrollXBar}

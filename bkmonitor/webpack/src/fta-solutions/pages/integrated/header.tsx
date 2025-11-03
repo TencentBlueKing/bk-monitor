@@ -149,7 +149,7 @@ export default class ContentHeader extends tsc<{ filterWidth: number; searchValu
           </div>
           <bk-input
             class='search'
-            placeholder={this.$t('搜索事件源名称、ID、分类、方式、作者、创建人、更新人')}
+            placeholder={this.$t('搜索 事件源名称、ID、分类、方式、作者、创建人、更新人')}
             right-icon='bk-icon icon-search'
             value={this.searchValue}
             onChange={this.handleSearchValueChange}

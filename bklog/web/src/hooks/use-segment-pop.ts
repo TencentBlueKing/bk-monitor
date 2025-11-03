@@ -38,7 +38,7 @@ class TaskEventManager {
     this.activeKey = null;
   }
 
-  appendEvent(key: object, fn: (...agrs: any) => void) {
+  appendEvent(key: object, fn: (..._args: any) => void) {
     this.taskEventPool.set(key, fn);
   }
 
@@ -56,25 +56,40 @@ class TaskEventManager {
 }
 
 const taskEventManager = new TaskEventManager();
+
+export interface UseSegmentPropOptions {
+  delineate?: boolean;
+  onclick?: (..._args: any) => void;
+  stopPropagation?: boolean;
+  aiBluekingEnabled?: boolean;
+  highlightEnabled?: boolean;
+}
+
 class UseSegmentProp {
   private className = 'bklog-segment-pop-content';
   private wrapperClassName = 'bklog-pop-wrapper';
   private wrapperIdName = 'bklog_pop_wrapper';
   private refContent: Ref<HTMLElement>;
   private delineate: boolean;
-  private $t: (str: string) => string;
-  private onclick: (...args: any) => void;
+  private $t: (_str: string) => string;
+  private onclick: (..._args: any) => void;
   private stopPropagation: boolean;
+  private aiBluekingEnabled: boolean;
+  private highlightEnabled: boolean;
 
   constructor({
     delineate = false,
     onclick,
     stopPropagation = false,
-  }: { delineate?: boolean; onclick?: (...args: any) => void; stopPropagation?: boolean } = {}) {
+    aiBluekingEnabled = true,
+    highlightEnabled = true,
+  }: UseSegmentPropOptions = {}) {
     const { $t } = useLocale();
     this.$t = $t;
     this.refContent = ref();
     this.delineate = delineate;
+    this.aiBluekingEnabled = aiBluekingEnabled;
+    this.highlightEnabled = highlightEnabled;
     this.onclick = onclick;
     this.stopPropagation = stopPropagation;
     if (!this.delineate) {
@@ -101,13 +116,13 @@ class UseSegmentProp {
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'add-to-ai'),
         svg: AiSvg,
         text: this.$t('引用至小鲸'),
-        disabled: !this.delineate,
+        disabled: !this.delineate || !this.aiBluekingEnabled,
       },
       {
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'highlight'),
         iconName: 'icon bklog-icon bklog-highlight',
         text: this.$t('高亮'),
-        disabled: this.delineate,
+        disabled: !this.highlightEnabled,
       },
       {
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'is'),
@@ -117,7 +132,7 @@ class UseSegmentProp {
         link: {
           tooltip: this.$t('新开标签页'),
           iconName: 'bklog-icon bklog-jump',
-          onClick: e => {
+          onClick: (e) => {
             e.stopPropagation();
             taskEventManager.executeFn('is', true);
           },
@@ -131,7 +146,7 @@ class UseSegmentProp {
         link: {
           tooltip: this.$t('新开标签页'),
           iconName: 'bklog-icon bklog-jump',
-          onClick: e => {
+          onClick: (e) => {
             e.stopPropagation();
             taskEventManager.executeFn('not', true);
           },
@@ -156,13 +171,13 @@ class UseSegmentProp {
         },
       },
     ]
-      .filter(item => {
+      .filter((item) => {
         if (window?.__IS_MONITOR_TRACE__) {
           return item.text !== this.$t('新建检索');
         }
         return !item.disabled;
       })
-      .map(item => {
+      .map((item) => {
         if (window?.__IS_MONITOR_TRACE__) {
           return {
             ...item,
@@ -173,50 +188,49 @@ class UseSegmentProp {
       });
 
     return h('div', { class: 'segment-event-icons event-tippy-content', ref: refName }, [
-      eventBoxList.map(item =>
-        h(
-          'div',
-          {
-            class: 'segment-event-box',
-            on: {
-              click: item.onClick,
-            },
+      eventBoxList.map(item => h(
+        'div',
+        {
+          class: 'segment-event-box',
+          on: {
+            click: item.onClick,
           },
-          [
-            h(
-              'span',
-              {
-                class: 'segment-event-btn',
-              },
-              [
-                h('span', { class: 'segment-btn-left', style: { display: 'inline-flex' } }, [
-                  item.svg
-                    ? h('img', { attrs: { src: item.svg }, style: 'width: 16px; height: 16px; margin-right: 4px;' })
-                    : h('i', { class: item.iconName }),
-                  h('span', {}, [item.text]),
-                ]),
-                item.link
-                  ? h(
-                      'div',
-                      {
-                        class: 'segment-new-link',
-                        on: { ...(item.link.onClick ? { click: item.link.onClick } : {}) },
-                        directives: item.link.tooltip
-                          ? [
-                              {
-                                name: 'bk-tooltips',
-                                value: item.link.tooltip,
-                              },
-                            ]
-                          : [],
-                      },
-                      [h('i', { class: item.link.iconName })],
-                    )
-                  : null,
-              ],
-            ),
-          ],
-        ),
+        },
+        [
+          h(
+            'span',
+            {
+              class: 'segment-event-btn',
+            },
+            [
+              h('span', { class: 'segment-btn-left', style: { display: 'inline-flex' } }, [
+                item.svg
+                  ? h('img', { attrs: { src: item.svg }, style: 'width: 16px; height: 16px; margin-right: 4px;' })
+                  : h('i', { class: item.iconName }),
+                h('span', {}, [item.text]),
+              ]),
+              item.link
+                ? h(
+                  'div',
+                  {
+                    class: 'segment-new-link',
+                    on: { ...(item.link.onClick ? { click: item.link.onClick } : {}) },
+                    directives: item.link.tooltip
+                      ? [
+                        {
+                          name: 'bk-tooltips',
+                          value: item.link.tooltip,
+                        },
+                      ]
+                      : [],
+                  },
+                  [h('i', { class: item.link.iconName })],
+                )
+                : null,
+            ],
+          ),
+        ],
+      ),
       ),
     ]);
   }
@@ -248,7 +262,7 @@ class UseSegmentProp {
     }
   };
 
-  getSegmentContent(keyRef: Ref<HTMLElement | null>, onSegmentEnumClick: (...args) => void) {
+  getSegmentContent(keyRef: Ref<HTMLElement | null>, onSegmentEnumClick: (..._args: any) => void) {
     taskEventManager.appendEvent(keyRef, onSegmentEnumClick);
     taskEventManager.setActiveKey(keyRef);
     return this.refContent;

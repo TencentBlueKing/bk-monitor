@@ -70,6 +70,10 @@ USER ${username}
 # set workdir
 WORKDIR /app/code
 
+# set locale for UTF-8 support
+ENV LANG=en_US.utf8
+ENV LC_ALL=en_US.utf8
+
 # set python env
 ENV VIRTUAL_ENV=/app/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"

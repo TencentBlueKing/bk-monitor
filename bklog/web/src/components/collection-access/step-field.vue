@@ -921,12 +921,12 @@
 </template>
 <script>
   import { projectManages } from '@/common/util';
-  import AuthContainerPage from '@/components/common/auth-container-page';
-  import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
-  import { mapGetters, mapState } from 'vuex';
-  import * as authorityMap from '../../common/authority-map';
-  import { deepEqual } from '../../common/util';
-  import fieldTable from './field-table';
+import AuthContainerPage from '@/components/common/auth-container-page';
+import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
+import { mapGetters, mapState } from 'vuex';
+import * as authorityMap from '../../common/authority-map';
+import { deepEqual } from '../../common/util';
+import fieldTable from './field-table';
 
   export default {
     components: {
@@ -1525,6 +1525,7 @@
             separator_regexp: this.formData.etl_params?.path_regexp,
           },
           data: this.pathExample,
+          bk_biz_id: this.$store.state.bkBizId,
         };
         const urlParams = {};
         this.isDebugLoading = true;
@@ -1692,6 +1693,7 @@
           etl_config: etlConfig,
           fields: etlFields,
           etl_params: etlParams,
+          bk_biz_id: this.$store.state.bkBizId,
         };
 
         const updateData = {
@@ -2032,6 +2034,7 @@
           etl_config,
           etl_params: etlParams,
           data: this.logOriginal,
+          bk_biz_id: this.$store.state.bkBizId,
         };
 
         if (this.isTempField) {

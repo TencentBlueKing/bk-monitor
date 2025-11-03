@@ -9,9 +9,10 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import csv
 import time
+from io import StringIO
 
-import ujson
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
@@ -85,17 +86,32 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         search_params["limit"] = MAX_RESULT_WINDOW
         max_result_count = MAX_ASYNC_COUNT
         total_count = 0
+
+        header_written = False  # 表头是否已经写入
+        fields = []
+        row_buffer = StringIO()
+        csv_writer = csv.writer(row_buffer)
         while total_count < max_result_count:
             # 首次请求清空缓存
             search_params["clear_cache"] = total_count == 0
             search_result = UnifyQueryApi.query_ts_raw_with_scroll(search_params)
             if not search_result.get("list"):
                 break
+            # 写入表头
+            if not header_written:
+                result_table_options = list(search_result.get("result_table_options", {}).values())
+                result_schema = result_table_options[0]["result_schema"] if result_table_options else []
+                fields = [field["field_alias"] for field in result_schema]
+                csv_writer.writerow(fields)
+                header_written = True
+            # 写入数据行到缓冲区
             for record in search_result["list"]:
-                # 删除内置字段
-                for key in ["__data_label", "__index", "__result_table"]:
-                    record.pop(key, None)
-                yield f"{ujson.dumps(record, ensure_ascii=False)}\n"
+                row_values = [record.get(field, "") for field in fields]
+                csv_writer.writerow(row_values)
+            # 获取缓冲区内容，重置缓冲区
+            yield row_buffer.getvalue()
+            row_buffer.seek(0)
+            row_buffer.truncate()
 
             total_count += len(search_result["list"])
             if search_result.get("done", False):

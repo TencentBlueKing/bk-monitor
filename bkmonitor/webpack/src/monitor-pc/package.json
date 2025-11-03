@@ -11,15 +11,15 @@
     "fix": "npm run lint"
   },
   "dependencies": {
-    "@blueking/ai-blueking": "1.2.8-beta.14",
+    "@blueking/ai-blueking": "1.2.9",
     "@blueking/bk-user-display-name": "1.0.3-beta.5",
     "@blueking/bk-user-selector": "0.0.38-beta.1",
-    "@blueking/bk-weweb": "0.0.35-beta.7",
+    "@blueking/bk-weweb": "0.0.35-beta.11",
     "@blueking/bkui-library": "0.0.0-beta.4",
     "@blueking/date-picker": "2.0.0-beta.48",
     "@blueking/fork-resize-detector": "^0.0.2",
     "@blueking/functional-dependency": "0.0.1-beta.14",
-    "@blueking/ip-selector": "0.3.0-beta.50",
+    "@blueking/ip-selector": "0.3.0-beta.51",
     "@blueking/login-modal": "^1.0.6",
     "@blueking/notice-component-vue2": "^2.0.7",
     "@blueking/platform-config": "^1.0.5",

@@ -3008,7 +3008,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
                 class='header-search'
                 data={this.conditionList}
                 modelValue={this.header.keywordObj}
-                placeholder={this.$t('任务ID / 告警组名称 / IP / 指标ID')}
+                placeholder={this.$t('搜索 策略ID、策略名、告警组、服务分类、拨测任务ID')}
                 uniqueSelect={true}
                 clearable
                 onChange={this.handleSearchChange}

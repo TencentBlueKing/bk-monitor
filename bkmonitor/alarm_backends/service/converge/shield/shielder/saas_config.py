@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 from datetime import datetime
@@ -50,7 +50,7 @@ class AlertShieldConfigShielder(BaseShielder):
         config_ids = client.get(key)
         if config_ids:
             # 已经进行过屏蔽匹配了， 这里直接返回
-            config_ids: [str] = json.loads(config_ids)
+            config_ids: list[str] = json.loads(config_ids)
             return [AlertShieldObj(config) for config in self.configs if str(config["id"]) in config_ids]
         return None
 
@@ -60,7 +60,7 @@ class AlertShieldConfigShielder(BaseShielder):
         if key is None:
             return False
         client = ALERT_SHIELD_SNAPSHOT.client
-        config_ids: [str] = [str(shield_obj.config["id"]) for shield_obj in self.shield_objs]
+        config_ids: list[str] = [str(shield_obj.config["id"]) for shield_obj in self.shield_objs]
         client.set(key, json.dumps(config_ids), ex=ALERT_SHIELD_SNAPSHOT.ttl)
         return True
 
@@ -68,7 +68,7 @@ class AlertShieldConfigShielder(BaseShielder):
         self.alert = alert
         try:
             self.configs = ShieldCacheManager.get_shields_by_biz_id(self.alert.event.bk_biz_id)
-            config_ids: [str] = ",".join([str(config["id"]) for config in self.configs])
+            config_ids: list[str] = ",".join([str(config["id"]) for config in self.configs])
             logger.debug(
                 "[load shield] alert(%s) strategy(%s) ids:(%s)",
                 self.alert.id,
@@ -96,7 +96,7 @@ class AlertShieldConfigShielder(BaseShielder):
 
         if not self.shield_objs:
             # 记录未匹配屏蔽的告警信息
-            detail = "%s 条屏蔽配置全部未匹配" % len(self.configs)
+            detail = f"{len(self.configs)} 条屏蔽配置全部未匹配"
             if len(self.configs) == 0:
                 detail = "无生效屏蔽配置"
             if not from_cache:
@@ -183,7 +183,11 @@ class AlarmTimeShielder(BaseShielder):
             # 情况2：开始时间 > 结束时间，属于跨天的情况
             return True
         self.detail = extended_json.dumps(
-            {"message": _("当前时间({})不在设置的处理时间范围[{}]内").format(now_time, self.action.inputs.get("time_range"))}
+            {
+                "message": _("当前时间({})不在设置的处理时间范围[{}]内").format(
+                    now_time, self.action.inputs.get("time_range")
+                )
+            }
         )
         return False
 
@@ -252,8 +256,8 @@ class HostShielder(BaseShielder):
     def _is_matched(self):
         if getattr(self.alert.event, "target_type", None) == "HOST":
             using_api = False
-            ip = self.alert.event.ip
-            bk_cloud_id = self.alert.event.bk_cloud_id
+            ip = str(getattr(self.alert.event, "ip", ""))
+            bk_cloud_id = str(getattr(self.alert.event, "bk_cloud_id", "0"))
         elif "bcs_cluster_id" in getattr(self.alert.extra_info, "agg_dimensions", []):
             # 容器可补全IP告警
             dimension_dict = {dimension["key"]: dimension["value"] for dimension in self.alert.dimensions}
@@ -270,7 +274,14 @@ class HostShielder(BaseShielder):
             # 不是host类型告警也不是容器相关的，忽略，不做判断
             return False
 
-        host = HostManager.get(ip=ip, bk_cloud_id=bk_cloud_id, using_mem=True, using_api=using_api)
+        bk_cloud_id = int(bk_cloud_id or 0)
+        host = HostManager.get(
+            bk_tenant_id=str(self.alert.bk_tenant_id),
+            ip=ip,
+            bk_cloud_id=bk_cloud_id,
+            using_mem=True,
+            using_api=using_api,
+        )
 
         if host and any([host.is_shielding, host.ignore_monitoring]):
             # 如果当前主机处于不监控（容器告警机器信息后期补全，所以在这里也进要行配置）或者不告警的状态，都统一屏蔽掉
@@ -281,6 +292,6 @@ class HostShielder(BaseShielder):
                 "[host not shield] alert(%s) strategy(%s) because of host(%s) not found",
                 self.alert.id,
                 self.alert.strategy_id,
-                HostManager.key_to_internal_value(ip, bk_cloud_id),
+                HostManager.get_host_key(ip, bk_cloud_id),
             )
         return False

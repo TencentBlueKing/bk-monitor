@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from apm_web.models import StrategyTemplate
+from apm_web.strategy.constants import DetectConnector
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from utils import count_md5
 
@@ -91,7 +92,12 @@ class DispatchConfig:
 def calculate_strategy_md5_by_dispatch_config(
     config: DispatchConfig, query_template_wrapper: QueryTemplateWrapper
 ) -> str:
-    return count_md5(
+    origin_detect = config.detect
+    # 向前兼容，connector 为 AND 时，不计算 connector
+    if config.detect.get("connector") == DetectConnector.AND.value:
+        config.detect = copy.deepcopy(origin_detect)
+        config.detect.pop("connector", None)
+    md5: str = count_md5(
         {
             "detect": config.detect,
             "algorithms": config.algorithms,
@@ -100,3 +106,5 @@ def calculate_strategy_md5_by_dispatch_config(
             "query_template": {"name": query_template_wrapper.name, "bk_biz_id": query_template_wrapper.bk_biz_id},
         }
     )
+    config.detect = origin_detect
+    return md5

@@ -5,7 +5,7 @@ import $http from "@/api";
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 import { bkMessage } from 'bk-magic-vue';
 import useLocale from '@/hooks/use-locale';
-const  { t } = useLocale();
+const { t } = useLocale();
 const store = useStore();
 const props = defineProps({
   isShow: {
@@ -100,7 +100,7 @@ watch(
       directory: '',
       dashboard: ''
     };
-    formRef.value.clearError();
+    formRef.value?.clearError();
     if (newVal) {
       directoryRawData.value = [];
       basicLoading.value = false;
@@ -275,8 +275,8 @@ const handleClose = () => {
 
 const handleSubmit = async () => {
   try {
-   const validationResult = await formRef.value.validate();
-   if (!validationResult) return;
+    const validationResult = await formRef.value.validate();
+    if (!validationResult) return;
     basicLoading.value = true;
     const selectedDashboard = filteredDashboards.value.find(
       dashboard => dashboard.id === formData.value.dashboard
@@ -331,6 +331,8 @@ const saveChartToDashboard = async (dashboardUids) => {
         message: '添加到仪表盘保存成功',
       });
       handleClose();
+      const url = `${window.MONITOR_URL}${result.data[0]?.url}`;
+      window.open(url, '_blank');
     } else {
       bkMessage({
         theme: 'error',
@@ -349,11 +351,11 @@ const saveChartToDashboard = async (dashboardUids) => {
 <template>
   <bk-dialog v-model="visible" theme="primary" :mask-close="false" :title="t('添加到仪表盘')" header-position="left"
     @close="handleClose" width="480px" @after-leave="handleClose">
-    <bk-form :model="formData" ref="formRef" :label-width="100" form-type="vertical" :rules ="rules"
+    <bk-form :model="formData" ref="formRef" :label-width="100" form-type="vertical" :rules="rules"
       v-bkloading="{ isLoading: basicLoading, zIndex: 10 }">
       <bk-form-item :label="t('图表名称')" required property="chartName">
-        <bk-input class="dashboard-input-full" v-model="formData.chartName" :placeholder="t('请输入图表名称')"
-          maxlength="255" :clearable="true"></bk-input>
+        <bk-input class="dashboard-input-full" v-model="formData.chartName" :placeholder="t('请输入图表名称')" maxlength="255"
+          :clearable="true"></bk-input>
       </bk-form-item>
       <bk-form-item :label="t('所属目录')" required property="directory">
         <bk-select v-model="formData.directory" class="dashboard-input-full" :search-with-pinyin="true" searchable>
