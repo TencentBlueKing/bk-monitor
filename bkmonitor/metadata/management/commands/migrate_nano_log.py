@@ -74,26 +74,6 @@ class Command(BaseCommand):
             record.table_id = new_table_id
             record.save()
 
-        # 旧表需要添加必要的option保证后续能够正常被查询
-        models.ResultTableOption.objects.update_or_create(
-            table_id=table_id,
-            name="time_field",
-            bk_tenant_id=bk_tenant_id,
-            defaults={
-                "value_type": "dict",
-                "value": '{"name": "dtEventTimeStamp", "type": "date", "unit": "millisecond"}',
-            },
-        )
-        models.ResultTableOption.objects.update_or_create(
-            table_id=table_id,
-            name="need_add_time",
-            bk_tenant_id=bk_tenant_id,
-            defaults={
-                "value_type": "bool",
-                "value": "true",
-            },
-        )
-
         # 增加dtEventTimestampNanos字段，将旧的时间字段变更为毫秒
         models.ResultTableField.objects.create(
             table_id=new_table_id,
@@ -159,15 +139,9 @@ class Command(BaseCommand):
             defaults={"value": new_table_id},
         )
 
-        # 将原本的索引集关联的虚拟RT进行迁移
+        # 将原本的索引集关联的虚拟RT进行复制
         virtual_es_storages = models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, origin_table_id=table_id)
         virtual_table_ids = [es_storage.table_id for es_storage in virtual_es_storages]
-
-        for virtual_es_storage in virtual_es_storages:
-            virtual_es_storage.table_id = virtual_es_storage.table_id.split(".")[0] + "_nano" + ".__default__"
-            virtual_es_storage.origin_table_id = new_table_id
-            virtual_es_storage.save()
-
         virtual_result_tables = models.ResultTable.objects.filter(
             table_id__in=virtual_table_ids, bk_tenant_id=bk_tenant_id
         )
@@ -191,6 +165,7 @@ class Command(BaseCommand):
         virtual_data_labels = list(virtual_result_tables.values_list("data_label", flat=True))
 
         new_records_list = [
+            *virtual_es_storages,
             *virtual_result_tables,
             *virtual_result_table_options,
             *virtual_result_table_fields,
@@ -199,6 +174,9 @@ class Command(BaseCommand):
             *virtual_es_field_query_alias_options,
         ]
         for record in new_records_list:
+            record.pk = None
+            if hasattr(record, "origin_table_id"):
+                record.origin_table_id = new_table_id
             record.table_id = record.table_id.split(".")[0] + "_nano" + ".__default__"
             record.save()
 
