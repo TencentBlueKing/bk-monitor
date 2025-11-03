@@ -34,7 +34,6 @@ import { showMessage } from '../../utils';
 import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import InfoTips from '../common-comp/info-tips';
-import { step3 } from './step3';
 import $http from '@/api';
 
 import type { ISelectItem } from '../../utils';
@@ -263,7 +262,7 @@ export default defineComponent({
 
     onMounted(() => {
       // getDetail();
-      setDetail(step3.collector_config_id);
+      setDetail(curCollect.value.collector_config_id || 3247);
       getTemplate();
     });
 
@@ -314,7 +313,7 @@ export default defineComponent({
      * 路径元数据 - 调试按钮
      */
     const debuggerPathRegex = () => {
-      console.log('debugHandler', props.configData, step3);
+      console.log('debugHandler', props.configData);
       const data = {
         etl_config: 'bk_log_regexp',
         etl_params: {

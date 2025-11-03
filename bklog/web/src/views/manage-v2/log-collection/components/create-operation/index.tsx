@@ -30,7 +30,6 @@ import useLocale from '@/hooks/use-locale';
 
 import { useCollectList } from '../../hook/useCollectList';
 import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
-import { log } from './log';
 import StepClassify from './step1-classify';
 import StepBkDataCollection from './step2-bk-data-collection';
 import StepConfiguration from './step2-configuration';
@@ -156,7 +155,7 @@ export default defineComponent({
           class='create-operation-main'
         >
           <CollectIssuedSlider
-            data={log}
+            // data={log}
             isShow={showCollectIssuedSlider.value}
             on-change={value => {
               showCollectIssuedSlider.value = value;
