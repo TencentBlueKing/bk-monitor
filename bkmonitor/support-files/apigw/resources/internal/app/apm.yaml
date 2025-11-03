@@ -1007,3 +1007,111 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "list trace view config"
+  /app/apm/service/update_service_config/:
+    get:
+      operationId: update_service_config
+      description: 【APM】应用下服务配置修改
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/service_web/service_config/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "update service config"
+  /app/apm/list_spans/:
+    post:
+      operationId: list_spans
+      description: 查询 span
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/trace_query_web/list_spans/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query span list"
+  /app/apm/list_traces/:
+    post:
+      operationId: list_traces
+      description: 查询 span
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/trace_query_web/list_traces/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query span list"
+  /app/apm/application_info_by_id/:
+    get:
+      operationId: apm_application_info_by_id
+      description: 【APM】应用详情查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/application_web/{application_id}/application_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: apm application info
+  /app/apm/list_application_info/:
+    get:
+      operationId: apm_list_application_info
+      description: 【APM】应用列表详情查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/application_web/list_application_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: apm list application info
+  /app/apm/query_bk_data_token_by_id/:
+    get:
+      operationId: query_bk_data_token_by_id
+      description: 【APM】应用token查询
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/application_web/{application_id}/query_bk_data_token/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query bk data token by id
