@@ -25,12 +25,12 @@
  */
 
 import { defineComponent, ref, reactive, computed, watch, onMounted } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import http from '@/api';
 import * as authorityMap from '@/common/authority-map';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import http from '@/api';
 import { InfoBox, Message } from 'bk-magic-vue';
-import ValidateUserSelector from '@/views/manage/manage-extract/manage-extract-permission/validate-user-selector.vue';
+import ValidateUserSelector from '@/components/user-selector';
 
 import './restore-slider.scss';
 
@@ -67,7 +67,6 @@ export default defineComponent({
 
     const confirmLoading = ref(false); // 确认按钮加载状态
     const sliderLoading = ref(false); // 侧滑内容加载状态
-    const userApi = ref((window as any).BK_LOGIN_URL); // 用户API
     const archiveList = ref<any[]>([]); // 归档列表
     const retentionDaysList = ref<any[]>([]); // 过期天数列表
 
@@ -183,8 +182,8 @@ export default defineComponent({
         };
 
         // 删除不需要的字段
-        delete paramsData.datePickerValue;
-        delete paramsData.datePickerExpired;
+        const { datePickerValue: _datePickerValue, datePickerExpired: _datePickerExpired, ...other } = paramsData;
+        paramsData = other;
 
         // 编辑模式下的参数调整
         if (isEdit.value) {
@@ -229,9 +228,9 @@ export default defineComponent({
     const renderArchiveOptions = () => {
       return archiveList.value.map(option => (
         <bk-option
-          disabled={!option.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
           id={option.archive_config_id}
           key={option.archive_config_id}
+          disabled={!option.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
           name={option.instance_name}
         >
           {option.instance_name}
@@ -345,9 +344,9 @@ export default defineComponent({
                 <bk-form
                   ref={validateForm}
                   class='king-form'
-                  label-width={150}
                   data-test-id='restore_div_addNewRestore'
                   form-type='vertical'
+                  label-width={150}
                   {...{
                     props: {
                       model: formData,
@@ -362,9 +361,9 @@ export default defineComponent({
                     required
                   >
                     <bk-input
-                      value={formData.index_set_name}
-                      disabled={isEdit.value}
                       data-test-id='addNewRestore_input_indexSetName'
+                      disabled={isEdit.value}
+                      value={formData.index_set_name}
                       onChange={(val: string) => (formData.index_set_name = val)}
                     />
                   </bk-form-item>
@@ -376,9 +375,9 @@ export default defineComponent({
                     required
                   >
                     <bk-select
-                      value={formData.archive_config_id}
-                      disabled={isEdit.value}
                       data-test-id='addNewRestore_select_selectCollector'
+                      disabled={isEdit.value}
+                      value={formData.archive_config_id}
                       onChange={(val: any) => {
                         formData.archive_config_id = val;
                         handleArchiveChange(val);
@@ -395,11 +394,11 @@ export default defineComponent({
                     required
                   >
                     <bk-date-picker
-                      value={formData.datePickerValue}
                       disabled={isEdit.value}
+                      format='yyyy-MM-dd HH:mm'
                       placeholder={t('选择日期时间范围')}
                       type='datetimerange'
-                      format='yyyy-MM-dd HH:mm'
+                      value={formData.datePickerValue}
                       onChange={val => {
                         formData.datePickerValue = val;
                         handleTimeChange(val);
@@ -414,10 +413,10 @@ export default defineComponent({
                     required
                   >
                     <bk-date-picker
-                      value={formData.datePickerExpired}
-                      options={expiredDatePicker}
                       data-test-id='addNewRestore_div_datePickerExpired'
                       format='yyyy-MM-dd HH:mm'
+                      options={expiredDatePicker}
+                      value={formData.datePickerExpired}
                       onChange={val => {
                         formData.datePickerExpired = val;
                         handleExpiredChange(val);
@@ -432,11 +431,9 @@ export default defineComponent({
                     required
                   >
                     <ValidateUserSelector
-                      style='width: 500px'
-                      // @ts-ignore
+                      customStyle='width: 500px'
                       value={formData.notice_user}
-                      onChange={(val: any) => (formData.notice_user = val)}
-                      api={userApi.value}
+                      onChange={(val: string[]) => (formData.notice_user = val)}
                       disabled={isEdit.value}
                       data-test-id='addNewRestore_input_notifiedUser'
                     />
@@ -446,8 +443,8 @@ export default defineComponent({
                   <bk-form-item style='margin-top: 30px'>
                     <bk-button
                       class='king-button mr10'
-                      loading={confirmLoading.value}
                       data-test-id='addNewRestore_button_submit'
+                      loading={confirmLoading.value}
                       theme='primary'
                       onClick={handleConfirm}
                     >

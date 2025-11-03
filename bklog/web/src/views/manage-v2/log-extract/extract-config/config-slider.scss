@@ -48,6 +48,19 @@
           }
         }
 
+        .execute-people {
+          height: 30px;
+          width: 256px;
+          background-color: #fafbfd;
+          border: 1px solid #dcdee5;
+          margin-right: 10px;
+          color: #63656e;
+          font-size: 12px;
+          padding: 0 10px 0 8px;
+          display: flex;
+          align-items: center;
+        }
+
         .is-input-error.bk-form-control {
           .bk-form-input {
             /* stylelint-disable-next-line declaration-no-important */

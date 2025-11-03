@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -726,7 +726,6 @@ class UploadPackageResource(Resource):
                     # 日志关键字类导入不存储插件信息，在创建时需要新建（它是虚拟插件）
                     pass
             else:
-                pass
                 ImportParse.objects.create(
                     name=parse_result["name"],
                     label=parse_result["collect_config"].get("label", ""),
@@ -782,16 +781,16 @@ class UploadPackageResource(Resource):
                 file_id=self.file_id,
             )
 
-    def parse_package(self, file_list: dict[str, bytes]):
+    def parse_package(self, file_path_content_map: dict[str, bytes]):
         # 区分成四个配置目录
         # 并且去掉最外层配置类型的文件夹
         collect_configs: dict[Path, dict] = {}
         plugin_configs: dict[Path, bytes] = {}
         strategy_configs: dict[Path, dict] = {}
         view_configs: dict[Path, dict] = {}
-        for file_name, content in file_list.items():
-            config_directory_name, file_path = file_name.split("/", 1)
-            file_path = Path(file_path)
+        for file_path, content in file_path_content_map.items():
+            config_directory_name = Path(file_path).parts[0]
+            file_path = Path(Path(file_path).relative_to(config_directory_name))
 
             # 过滤 dotfiles
             if file_path.name.startswith("."):
@@ -817,18 +816,19 @@ class UploadPackageResource(Resource):
         self.parse_strategy_config(strategy_configs)
         self.parse_view_config(view_configs)
 
-    def parse_package_without_decompress(self, file: FieldFile) -> None:
+    @classmethod
+    def parse_package_without_decompress(cls, file: FieldFile) -> dict[str, bytes]:
         """
         针对zip 和tar相关的压缩包进行处理
         """
 
         # 解压到内存中，获取文件的路径已经对应的内容
-        file_list: dict[str, bytes] = {}
+        file_path_content_map: dict[str, bytes] = {}
         if file.name.endswith(".zip"):
             with zipfile.ZipFile(file.file, "r") as package_file:
                 for file_info in package_file.infolist():
                     with package_file.open(file_info) as f:
-                        file_list[file_info.filename] = f.read()
+                        file_path_content_map[file_info.filename] = f.read()
         else:
             with tarfile.open(fileobj=file.file) as package_file:
                 for member in package_file.getmembers():
@@ -836,15 +836,20 @@ class UploadPackageResource(Resource):
                     if not member.isreg():
                         continue
                     with package_file.extractfile(member) as f:
-                        file_list[member.name] = f.read()
+                        file_path_content_map[member.name] = f.read()
 
         # 校验包目录结构
         if not any(
-            list([x in list(set(filepath.split("/")[0] for filepath in file_list.keys())) for x in DIRECTORY_LIST])
+            list(
+                [
+                    x in list(set(filepath.split("/")[0] for filepath in file_path_content_map.keys()))
+                    for x in DIRECTORY_LIST
+                ]
+            )
         ):
             raise UploadPackageError({"msg": _("导入包目录结构不对")})
 
-        return file_list
+        return file_path_content_map
 
     def handle_return_data(self, model_obj):
         if model_obj.type == ConfigType.VIEW:
@@ -887,8 +892,8 @@ class UploadPackageResource(Resource):
 
             if self.file_id not in upload_file_ids:
                 file = self.file_manager.file_obj.file_data
-                file_list: dict[str, str] = self.parse_package_without_decompress(file)
-                self.parse_package(file_list)
+                file_path_content_map: dict[str, bytes] = self.parse_package_without_decompress(file)
+                self.parse_package(file_path_content_map)
 
             config_list = list(map(self.handle_return_data, ImportParse.objects.filter(file_id=self.file_id)))
             return {

@@ -42,7 +42,7 @@
 
   const retrieveParams = computed(() => store.getters.retrieveParams);
   const requestAddition = computed(() => store.getters.requestAddition);
-  const isNoIndexSet = computed(() => !store.state.retrieve.indexSetList.length);
+  const isNoIndexSet = computed(() => !store.state.retrieve.flatIndexSetList.length);
   const isOriginShow = computed(() => props.activeTab === 'origin');
   const pageLoading = computed(
     () => isFilterLoading.value || isSearchRersultLoading.value || store.state.retrieve.isIndexSetLoading,

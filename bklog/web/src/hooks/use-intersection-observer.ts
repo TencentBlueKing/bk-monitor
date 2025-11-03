@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onBeforeUnmount, onMounted, ref, Ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue';
 
 import { debounce } from 'lodash-es';
 
@@ -34,7 +34,7 @@ export default (
   callback: (entry: IntersectionObserverEntry) => void,
   options?: IntersectionObserverInit,
 ) => {
-  let observer = null;
+  let observer: IntersectionObserver | null = null;
   const destroyObserver = () => {
     if (observer) {
       observer.disconnect();
@@ -47,10 +47,10 @@ export default (
   const createObserver = () => {
     observer = new IntersectionObserver(
       entries => {
-        entries.forEach(entry => {
+        for (const entry of entries) {
           isIntersecting.value = entry.isIntersecting;
           debounceCallback(entry);
-        });
+        }
       },
       {
         root: null,

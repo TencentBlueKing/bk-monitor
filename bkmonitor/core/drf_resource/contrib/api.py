@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -91,31 +91,15 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def module_name(self):
-        """
-        在apigw中的模块名
-        """
-        raise NotImplementedError
-
-    @property
-    @abc.abstractmethod
     def action(self):
         """
         url的后缀，通常是指定特定资源
         """
         raise NotImplementedError
 
-    @property
-    @abc.abstractmethod
-    def method(self):
-        """
-        请求方法，仅支持GET或POST
-        """
-        raise NotImplementedError
+    module_name: str
 
-    @method.setter
-    def method(self, value):
-        pass
+    method: str
 
     @staticmethod
     def split_request_data(data):

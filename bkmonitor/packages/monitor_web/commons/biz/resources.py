@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -23,7 +23,8 @@ from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import safe_int
-from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
+from bkmonitor.utils.request import get_request, get_request_username
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_local_username
 from bkmonitor.views import serializers
 from core.drf_resource import CacheResource, api, resource
@@ -122,6 +123,7 @@ class FetchBusinessInfoResource(Resource):
 
 class ListSpacesResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField()
         show_all = serializers.BooleanField(required=False, default=False, allow_null=True)
         show_detail = serializers.BooleanField(required=False, default=False, allow_null=True)
 
@@ -134,7 +136,7 @@ class ListSpacesResource(Resource):
     def perform_request(self, validated_request_data) -> list[dict]:
         request = get_request(peaceful=True)
         username = get_request_username()
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
 
         if request and getattr(request, "external_user", None):
             spaces: list[dict] = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)
@@ -355,9 +357,16 @@ class SpaceIntroduceResource(CacheResource):
                     ],
                     "buttons": [{"name": _("新建应用"), "url": "#/apm/application/add"}, {"name": "DEMO", "url": ""}],
                     "links": [
-                        {"name": _("开启APM"), "url": "ProductFeatures/scene-apm/apm_monitor_overview.md"},
-                        {"name": _("APM指标说明"), "url": "ProductFeatures/scene-apm/apm_metrics.md"},
-                        {"name": _("APM策略说明"), "url": "ProductFeatures/scene-apm/apm_default_rules.md"},
+                        {
+                            "name": _("产品白皮书"),
+                            "url": settings.APM_FUNC_INTRODUCTION_URL
+                            or "ProductFeatures/scene-apm/apm_monitor_overview.md",
+                        },
+                        {
+                            "name": _("接入指引"),
+                            "url": settings.APM_ACCESS_URL
+                            or "ProductFeatures/integrations-traces/opentelemetry_overview.md",
+                        },
                     ],
                 },
             }

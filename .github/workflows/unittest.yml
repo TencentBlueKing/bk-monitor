@@ -32,6 +32,8 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
+    - name: Create symlink for ai_agent
+      run: ln -s ../ai_agent ./ai_agent
     - name: Setup Python environment
       uses: actions/setup-python@v5
       with:
@@ -41,7 +43,7 @@ jobs:
         source scripts/test_env.sh
         sed -i '/APIGW_ENABLED/d' dev.env.yml
         pip install --upgrade pip setuptools
-        pip install -r requirements.txt
+        pip install -r requirements.txt -i https://mirrors.tencent.com/pypi/simple/ --extra-index-url https://pypi.org/simple/
         pip install coverage
         pip uninstall pycrypto -y
         pip uninstall pycryptodome -y

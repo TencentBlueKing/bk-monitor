@@ -25,11 +25,13 @@
  */
 
 import { defineComponent, ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import http from '@/api';
+
 import * as authorityMap from '@/common/authority-map';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import { InfoBox, Message } from 'bk-magic-vue';
+
+import http from '@/api';
 
 import './list-slider.scss';
 
@@ -90,7 +92,7 @@ export default defineComponent({
 
     // 仓库渲染列表 - 根据采集项关联的仓库列表
     const repositoryRenderList = computed(() => {
-      let list = [];
+      let list: any[] = [];
       const collectorId = formData.instance_id;
       if (collectorId && collectorList.value.length && repositoryOriginList.value.length) {
         const targetList = collectorList.value.find(item => item.id === collectorType.value)?.list || [];
@@ -106,7 +108,7 @@ export default defineComponent({
       if (String(formData.snapshot_days) === '0') {
         return t('永久');
       }
-      return !!formData.snapshot_days ? formData.snapshot_days + t('天') : '';
+      return formData.snapshot_days ? formData.snapshot_days + t('天') : '';
     });
 
     // 获取采集项列表
@@ -188,7 +190,7 @@ export default defineComponent({
 
     // 输入自定义过期天数
     const enterCustomDay = (val: string) => {
-      const numberVal = parseInt(val.trim(), 10);
+      const numberVal = Number.parseInt(val.trim(), 10);
       const stringVal = numberVal.toString();
       if (numberVal) {
         if (!retentionDaysList.value.some(item => item.id === stringVal)) {
@@ -274,9 +276,9 @@ export default defineComponent({
         >
           {item.list.map((option: any) => (
             <bk-option
-              disabled={!option.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
               id={option.id}
               key={option.id}
+              disabled={!option.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]}
               name={option.name}
             >
               {option.name}
@@ -290,9 +292,9 @@ export default defineComponent({
     const renderRepositoryOptions = () => {
       return repositoryRenderList.value.map(option => (
         <bk-option
-          disabled={!option.permission[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]}
           id={option.repository_name}
           key={option.repository_name}
+          disabled={!option.permission[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]}
           name={option.repository_name}
         >
           {option.repository_name}
@@ -302,10 +304,10 @@ export default defineComponent({
 
     // 渲染过期时间选项
     const renderRetentionDaysOptions = () => {
-      return retentionDaysList.value.map((option, index) => (
+      return retentionDaysList.value.map(option => (
         <bk-option
           id={option.id}
-          key={index}
+          key={option.id}
           name={option.name}
         />
       ));
@@ -380,9 +382,9 @@ export default defineComponent({
                 <bk-form
                   ref={validateForm}
                   class='king-form'
-                  label-width={350}
                   data-test-id='addNewArchive_div_formContainer'
                   form-type='vertical'
+                  label-width={350}
                   {...{
                     props: {
                       model: formData,
@@ -397,10 +399,10 @@ export default defineComponent({
                     required
                   >
                     <bk-select
-                      value={formData.instance_id}
                       clearable={false}
-                      disabled={isEdit.value}
                       data-test-id='formContainer_select_selectCollector'
+                      disabled={isEdit.value}
+                      value={formData.instance_id}
                       searchable
                       onChange={val => {
                         formData.instance_id = val;
@@ -418,10 +420,10 @@ export default defineComponent({
                     required
                   >
                     <bk-select
+                      data-test-id='formContainer_select_selectStorehouse'
+                      disabled={isEdit.value || !formData.instance_id}
                       value={formData.target_snapshot_repository_name}
                       onChange={val => (formData.target_snapshot_repository_name = val)}
-                      disabled={isEdit.value || !formData.instance_id}
-                      data-test-id='formContainer_select_selectStorehouse'
                     >
                       {renderRepositoryOptions()}
                     </bk-select>
@@ -435,26 +437,26 @@ export default defineComponent({
                   >
                     <bk-select
                       style='width: 300px'
-                      value={formData.snapshot_days}
-                      onChange={val => (formData.snapshot_days = val)}
-                      clearable={false}
-                      data-test-id='formContainer_select_selectExpireDate'
                       scopedSlots={{
                         trigger: () => <div class='bk-select-name'>{getDaysStr.value}</div>,
                         extension: () => (
                           <div style='padding: 8px 0'>
                             <bk-input
-                              value={customRetentionDay.value}
-                              onChange={val => (customRetentionDay.value = val)}
                               placeholder={t('输入自定义天数，按 Enter 确认')}
                               show-controls={false}
                               size='small'
                               type='number'
+                              value={customRetentionDay.value}
+                              onChange={val => (customRetentionDay.value = val)}
                               onEnter={(val: string) => enterCustomDay(val)}
                             />
                           </div>
                         ),
                       }}
+                      clearable={false}
+                      data-test-id='formContainer_select_selectExpireDate'
+                      value={formData.snapshot_days}
+                      onChange={val => (formData.snapshot_days = val)}
                     >
                       {renderRetentionDaysOptions()}
                     </bk-select>
@@ -464,8 +466,8 @@ export default defineComponent({
                   <bk-form-item style='margin-top: 40px'>
                     <bk-button
                       class='king-button mr10'
-                      loading={confirmLoading.value}
                       data-test-id='formContainer_button_handleSubmit'
+                      loading={confirmLoading.value}
                       theme='primary'
                       onClick={handleConfirm}
                     >

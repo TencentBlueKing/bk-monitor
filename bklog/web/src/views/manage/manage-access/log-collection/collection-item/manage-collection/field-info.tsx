@@ -82,7 +82,7 @@ export default class FieldInfo extends tsc<IProps> {
 
   // cmdb元数据
   get extra_labels() {
-    return (this.collectorData as any).extra_labels?.map(item => '__ext.' + item.key);
+    return (this.collectorData as any).extra_labels?.map(item => `__ext.${item.key}`);
   }
 
   operatorMap = {
@@ -100,7 +100,7 @@ export default class FieldInfo extends tsc<IProps> {
       const fieldConfigs = await this.matchMaskingRule(maskingConfigs);
       const previewConfigs = await this.getConfigPreview(fieldConfigs);
       this.questFieldsList(previewConfigs);
-    } catch (err) {
+    } catch {
       this.tableLoading = false;
     } finally {
       this.tableLoading = false;
@@ -166,7 +166,7 @@ export default class FieldInfo extends tsc<IProps> {
         { catchIsShowMessage: false },
       );
       return res.data.field_configs;
-    } catch (err) {
+    } catch {
       return [];
     }
   }
@@ -209,14 +209,16 @@ export default class FieldInfo extends tsc<IProps> {
           return newObject;
         });
         this.fieldOriginValueList = (flatJsonParseList as any).reduce((pre, cur) => {
-          Object.entries(cur).forEach(([fieldKey, fieldVal]) => {
-            if (!pre[fieldKey]) pre[fieldKey] = [];
+          for (const [fieldKey, fieldVal] of Object.entries(cur)) {
+            if (!pre[fieldKey]) {
+              pre[fieldKey] = [];
+            }
             pre[fieldKey].push(fieldVal ?? '');
-          });
+          }
           return pre;
         }, {});
       }
-    } catch (err) {
+    } catch {
       return '';
     } finally {
     }
@@ -228,7 +230,9 @@ export default class FieldInfo extends tsc<IProps> {
    * @returns {Object}
    */
   async getConfigPreview(fieldList = []) {
-    if (!this.jsonParseList.length) return fieldList;
+    if (!this.jsonParseList.length) {
+      return fieldList;
+    }
     const fieldConfigs = fieldList
       .filter(item => item.previewRules.length)
       .map(item => ({
@@ -245,7 +249,9 @@ export default class FieldInfo extends tsc<IProps> {
           return { rule_id: rItem.rule_id };
         }),
       }));
-    if (!fieldConfigs.length) return fieldList;
+    if (!fieldConfigs.length) {
+      return fieldList;
+    }
     try {
       const res = await $http.request('masking/getConfigPreview', {
         data: {
@@ -261,7 +267,7 @@ export default class FieldInfo extends tsc<IProps> {
           preview: this.getFieldPreview(field.field_name, fieldPreview),
         };
       });
-    } catch (err) {
+    } catch {
       return fieldList;
     }
   }
@@ -273,10 +279,16 @@ export default class FieldInfo extends tsc<IProps> {
    * @returns {Array}
    */
   getFieldPreview(fieldName = '', previewResult = []) {
-    if (!previewResult.length) return [];
-    if (!this.jsonParseList.length || !fieldName) return [];
-    if (!this.fieldOriginValueList[fieldName]) return [];
-    const previewList = [];
+    if (!previewResult.length) {
+      return [];
+    }
+    if (!(this.jsonParseList.length && fieldName)) {
+      return [];
+    }
+    if (!this.fieldOriginValueList[fieldName]) {
+      return [];
+    }
+    const previewList: Record<string, any>[] = [];
     const filterResult = previewResult.filter(item => item !== null);
     this.fieldOriginValueList[fieldName].forEach((item, index) => {
       const maskingValue = filterResult[index] ?? '';
@@ -303,7 +315,9 @@ export default class FieldInfo extends tsc<IProps> {
 
     const fields = [...new Set(allFields)];
 
-    if (!fields.length) return maskingConfigs;
+    if (!fields.length) {
+      return maskingConfigs;
+    }
 
     try {
       const res = await $http.request('masking/matchMaskingRule', {
@@ -317,19 +331,21 @@ export default class FieldInfo extends tsc<IProps> {
       return maskingConfigs.map(item => ({
         ...item,
         previewRules: item.rules.filter(rItem => {
-          if (!matchRuleObj[rItem.field_name]) return false;
-          const ruleIdList = matchRuleObj[rItem.field_name].map(item => item.rule_id);
+          if (!matchRuleObj[rItem.field_name]) {
+            return false;
+          }
+          const ruleIdList = matchRuleObj[rItem.field_name].map(mItem => mItem.rule_id);
           return ruleIdList.includes(rItem.rule_id);
         }),
       }));
-    } catch (err) {
+    } catch {
       return maskingConfigs;
     }
   }
 
   handleClickEdit() {
     if (!this.editAuth && this.editAuthData) {
-      this.$store.commit('updateAuthDialogData', this.editAuthData);
+      this.$store.commit('updateState', { authDialogData: this.editAuthData });
       return;
     }
     const params = {
@@ -388,7 +404,9 @@ export default class FieldInfo extends tsc<IProps> {
     };
 
     const getMaskingPopover = row => {
-      if (!row.desensitize_config?.length) return;
+      if (!row.desensitize_config?.length) {
+        return;
+      }
       return (
         <Popover
           ext-cls='masking-tag'
@@ -406,7 +424,7 @@ export default class FieldInfo extends tsc<IProps> {
               <div class='label'>{this.$t('脱敏算子')}:&nbsp;</div>
               <div class='rule'>
                 {row.desensitize_config.map(item => (
-                  <span>{this.getMaskingRuleStr(item)}</span>
+                  <span key={item}>{this.getMaskingRuleStr(item)}</span>
                 ))}
               </div>
             </div>
@@ -415,7 +433,10 @@ export default class FieldInfo extends tsc<IProps> {
               <div class='rule'>
                 {row.preview.length
                   ? row.preview.map(item => (
-                      <div class='preview-result'>
+                      <div
+                        key={item}
+                        class='preview-result'
+                      >
                         {/* 脱敏权限未实现 先不展示脱敏前的结果 */}
                         {/* <span class="old title-overflow" v-bk-overflow-tips>{item.origin}</span>
                       <i class="bk-icon icon-arrows-right"></i> */}
@@ -485,19 +506,19 @@ export default class FieldInfo extends tsc<IProps> {
             key={'field_name'}
             label={this.$t('字段名')}
             scopedSlots={fieldNameSlot}
-          ></TableColumn>
+          />
 
           <TableColumn
             key={'field_alias'}
             label={this.$t('别名')}
             scopedSlots={nickNameSlot}
-          ></TableColumn>
+          />
 
           <TableColumn
             key={'field_type'}
             label={this.$t('数据类型')}
             prop={'field_type'}
-          ></TableColumn>
+          />
 
           {/* <TableColumn
             label={this.$t('结果样例')}
@@ -510,14 +531,14 @@ export default class FieldInfo extends tsc<IProps> {
               key={'masking_state'}
               label={this.$t('脱敏状态')}
               scopedSlots={maskingStateSlot}
-            ></TableColumn>
+            />
           )}
 
           <TableColumn
             key={'tokenize_on_chars'}
             label={this.$t('分词符')}
             scopedSlots={tokenizeSlot}
-          ></TableColumn>
+          />
         </Table>
       </div>
     );

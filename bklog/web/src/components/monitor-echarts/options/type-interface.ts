@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { EChartOption } from 'echarts';
+import type { EChartOption } from 'echarts';
 
 export interface ILegendItem {
   name: string;

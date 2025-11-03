@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -45,7 +45,7 @@ _ORG_CACHE = {}
 _USER_CACHE = {}
 
 
-def get_or_create_user(username: str) -> dict:
+def get_or_create_user(username: str, display_name: str | None = None) -> dict:
     """
     创建用户
     """
@@ -64,9 +64,15 @@ def get_or_create_user(username: str) -> dict:
                 login=username,
                 version=0,
                 email=email,
+                name=display_name or "",
             )
         except IntegrityError:
             user = User.objects.get(login=username)
+
+    # 更新用户名
+    if display_name and user.name != display_name:
+        user.name = display_name
+        user.save()
 
     _USER_CACHE[username] = {
         "id": user.id,

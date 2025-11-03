@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-/* eslint-disable @typescript-eslint/ban-types */
 import dayjs from 'dayjs';
 export interface DateTimeBuiltinFormat {
   __momentBuiltinFormatBrand: any;
@@ -73,7 +72,7 @@ export interface DateTimeDuration {
   asSeconds: () => number;
 }
 
-export interface DateTime extends Object {
+export interface DateTime {
   add: (amount?: DateTimeInput, unit?: DurationUnit) => DateTime;
   set: (unit: DurationUnit, amount: DateTimeInput) => void;
   diff: (amount: DateTimeInput, unit?: DurationUnit, truncate?: boolean) => number;

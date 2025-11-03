@@ -23,6 +23,7 @@ the project delivered to anyone in the future.
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
+from apps.api.constants import CACHE_TIME_FIVE_MINUTES
 from apps.api.modules.utils import add_esb_info_before_request
 from config.domains import BK_PAAS_APIGATEWAY_ROOT, BK_PAAS_V3_APIGATEWAY_ROOT
 
@@ -54,6 +55,7 @@ class _BKPAASApi:
             module=self.MODULE,
             description="通过app_id查看app信息",
             before_request=add_esb_info_before_request,
+            cache_time=CACHE_TIME_FIVE_MINUTES,
         )
 
 

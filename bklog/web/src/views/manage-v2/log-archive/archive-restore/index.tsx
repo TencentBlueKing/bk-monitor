@@ -25,14 +25,16 @@
  */
 
 import { defineComponent, ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import http from '@/api';
+
 import * as authorityMap from '@/common/authority-map';
 import { formatFileSize } from '@/common/util';
-import RestoreSlider from './restore-slider.tsx';
 import EmptyStatus from '@/components/empty-status/index.vue';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import { InfoBox, Message } from 'bk-magic-vue';
+
+import RestoreSlider from './restore-slider.tsx';
+import http from '@/api';
 
 import './index.scss';
 
@@ -118,7 +120,7 @@ export default defineComponent({
         if (currentTimerNum === timerNum.value && restoreIds.value.length) {
           requestRestoreStatus(true);
         }
-      }, 10000);
+      }, 10_000);
     };
 
     // 停止状态轮询
@@ -143,11 +145,11 @@ export default defineComponent({
         const { data } = res;
         restoreIds.value = [];
         pagination.count = data.total;
-        data.list.forEach((row: any) => {
+        for (const row of data.list) {
           row.status = '';
           row.status_name = '';
           restoreIds.value.push(row.restore_config_id);
-        });
+        }
         dataList.value.splice(0, dataList.value.length, ...data.list);
         return res;
       } catch (error) {
@@ -168,7 +170,7 @@ export default defineComponent({
         if (restoreIds.value.length) {
           requestRestoreStatus();
         }
-      } catch (error) {
+      } catch {
         emptyType.value = '500';
       } finally {
         isTableLoading.value = false;
@@ -199,9 +201,10 @@ export default defineComponent({
     };
 
     // 状态处理
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const statusHandler = (data: any[]) => {
-      data.forEach(item => {
-        dataList.value.forEach(row => {
+      for (const item of data) {
+        for (const row of dataList.value) {
           if (row.restore_config_id === item.restore_config_id) {
             const completeCount = item.complete_doc_count;
             const totalCount = item.total_doc_count;
@@ -220,38 +223,37 @@ export default defineComponent({
               row.status_name = `${t('回溯中')}(${percent})`;
             }
           }
-        });
-      });
+        }
+      }
     };
 
     // 操作处理
-    const operateHandler = async (row: any, operateType: string) => {
-      if (operateType === 'search') {
-        if (!row.permission?.[authorityMapComputed.value.SEARCH_LOG_AUTH]) {
-          return getOptionApplyData({
-            action_ids: [authorityMapComputed.value.SEARCH_LOG_AUTH],
-            resources: [
-              {
-                type: 'indices',
-                id: row.index_set_id,
-              },
-            ],
-          });
-        }
+    const operateHandler = (row: any, operateType: string) => {
+      if (operateType === 'search' && !row.permission?.[authorityMapComputed.value.SEARCH_LOG_AUTH]) {
+        return getOptionApplyData({
+          action_ids: [authorityMapComputed.value.SEARCH_LOG_AUTH],
+          resources: [
+            {
+              type: 'indices',
+              id: row.index_set_id,
+            },
+          ],
+        });
       }
 
-      if (operateType === 'edit' || operateType === 'delete') {
-        if (!row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]) {
-          return getOptionApplyData({
-            action_ids: [authorityMapComputed.value.MANAGE_COLLECTION_AUTH],
-            resources: [
-              {
-                type: 'collection',
-                id: row.instance_id,
-              },
-            ],
-          });
-        }
+      if (
+        (operateType === 'edit' || operateType === 'delete') &&
+        !row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]
+      ) {
+        return getOptionApplyData({
+          action_ids: [authorityMapComputed.value.MANAGE_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'collection',
+              id: row.instance_id,
+            },
+          ],
+        });
       }
 
       if (operateType === 'search') {
@@ -312,7 +314,7 @@ export default defineComponent({
       try {
         isTableLoading.value = true;
         const res = await store.dispatch('getApplyData', paramData);
-        store.commit('updateAuthDialogData', res.data);
+        store.commit('updateState', { authDialogData: res.data });
       } catch (err) {
         console.warn('权限申请失败:', err);
       } finally {
@@ -366,13 +368,13 @@ export default defineComponent({
           </bk-button>
           <div class='restore-search fr'>
             <bk-input
+              data-test-id='restoreContainer_input_searchRestoreItem'
+              right-icon='bk-icon icon-search'
               value={keyword.value}
               clearable
-              right-icon='bk-icon icon-search'
-              data-test-id='restoreContainer_input_searchRestoreItem'
+              on-right-icon-click={search}
               onChange={val => (keyword.value = val)}
               onEnter={search}
-              on-right-icon-click={search}
             />
           </div>
         </section>
@@ -382,11 +384,6 @@ export default defineComponent({
           <bk-table
             class='restore-table'
             v-bkloading={{ isLoading: isTableLoading.value }}
-            data={dataList.value}
-            limit-list={pagination.limitList}
-            pagination={pagination}
-            onPage-change={handlePageChange}
-            onPage-limit-change={handleLimitChange}
             scopedSlots={{
               empty: () => (
                 <div>
@@ -397,11 +394,16 @@ export default defineComponent({
                 </div>
               ),
             }}
+            data={dataList.value}
+            limit-list={pagination.limitList}
+            pagination={pagination}
+            onPage-change={handlePageChange}
+            onPage-limit-change={handleLimitChange}
           >
             <bk-table-column
               label={t('索引集名称')}
-              renderHeader={renderHeader}
               min-width='200'
+              renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => props.row.index_set_name }}
             />
             <bk-table-column
@@ -411,33 +413,33 @@ export default defineComponent({
             />
             <bk-table-column
               label={t('时间范围')}
-              renderHeader={renderHeader}
               min-width='240'
+              renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => `${props.row.start_time} - ${props.row.end_time}` }}
             />
             <bk-table-column
+              class-name='filter-column'
               label={t('资源占用')}
               renderHeader={renderHeader}
-              class-name='filter-column'
               scopedSlots={{ default: (props: any) => getFileSize(props.row.total_store_size) }}
             />
             <bk-table-column
               label={t('过期时间')}
-              renderHeader={renderHeader}
               min-width='120'
+              renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => props.row.expired_time }}
             />
             <bk-table-column
-              label={t('回溯状态')}
-              renderHeader={renderHeader}
               scopedSlots={{
                 default: (props: any) => (
                   <div class='restore-status'>
-                    <span class={`status-icon is-${props.row.status}`}></span>
+                    <span class={`status-icon is-${props.row.status}`} />
                     <span class='status-text'>{props.row.status_name}</span>
                   </div>
                 ),
               }}
+              label={t('回溯状态')}
+              renderHeader={renderHeader}
             />
             <bk-table-column
               label={t('是否过期')}
@@ -446,23 +448,18 @@ export default defineComponent({
             />
             <bk-table-column
               width='180'
-              label={t('操作')}
-              renderHeader={renderHeader}
               scopedSlots={{
                 default: (props: any) => (
                   <div class='restore-table-operate'>
                     {/* 检索 */}
                     <bk-button
                       class='mr10 king-button'
+                      vCursor={{
+                        active: !props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH],
+                      }}
                       disabled={props.row.is_expired}
                       theme='primary'
                       text
-                      vCursor={{
-                        active: !(
-                          props.row.permission &&
-                          props.row.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]
-                        ),
-                      }}
                       onClick={() => operateHandler(props.row, 'search')}
                     >
                       {t('检索')}
@@ -470,15 +467,12 @@ export default defineComponent({
                     {/* 编辑 */}
                     <bk-button
                       class='mr10 king-button'
+                      vCursor={{
+                        active: !props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH],
+                      }}
                       disabled={props.row.is_expired}
                       theme='primary'
                       text
-                      vCursor={{
-                        active: !(
-                          props.row.permission &&
-                          props.row.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]
-                        ),
-                      }}
                       onClick={() => operateHandler(props.row, 'edit')}
                     >
                       {t('编辑')}
@@ -486,15 +480,12 @@ export default defineComponent({
                     {/* 删除 */}
                     <bk-button
                       class='mr10 king-button'
+                      vCursor={{
+                        active: !props.row.permission?.[authorityMapComputed.value.MANAGE_COLLECTION_AUTH],
+                      }}
                       disabled={props.row.is_expired}
                       theme='primary'
                       text
-                      vCursor={{
-                        active: !(
-                          props.row.permission &&
-                          props.row.permission[authorityMapComputed.value.MANAGE_COLLECTION_AUTH]
-                        ),
-                      }}
                       onClick={() => operateHandler(props.row, 'delete')}
                     >
                       {t('删除')}
@@ -502,16 +493,18 @@ export default defineComponent({
                   </div>
                 ),
               }}
+              label={t('操作')}
+              renderHeader={renderHeader}
             />
           </bk-table>
         </section>
 
         {/* 新增/编辑回溯侧滑 */}
         <RestoreSlider
-          onHandleCancelSlider={handleCancelSlider}
-          onHandleUpdatedTable={handleUpdatedTable}
           editRestore={editRestore.value}
           showSlider={showSlider.value}
+          onHandleCancelSlider={handleCancelSlider}
+          onHandleUpdatedTable={handleUpdatedTable}
         />
       </section>
     );

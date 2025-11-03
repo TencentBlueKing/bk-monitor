@@ -25,13 +25,14 @@
  */
 
 import { defineComponent, ref, computed, watch, nextTick } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import http from '@/api';
-import { formatDate } from '@/common/util';
 
+import { formatDate } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+
 import FileDatePicker from './file-date-picker.tsx';
+import http from '@/api';
 
 import './preview-files.scss';
 
@@ -116,7 +117,7 @@ export default defineComponent({
         // 返回上一级
         const cache = historyStack.value.pop();
         explorerList.value = cache.exploreList;
-        const { fileOrPath } = historyStack.value[historyStack.value.length - 1];
+        const { fileOrPath } = historyStack.value.at(-1);
         emit('update:fileOrPath', fileOrPath);
         return;
       }
@@ -146,8 +147,11 @@ export default defineComponent({
               path: '../',
             };
 
-            if (size === '0') explorerList.value = [temp, ...res.data];
-            else explorerList.value = [...res.data];
+            if (size === '0') {
+              explorerList.value = [temp, ...res.data];
+            } else {
+              explorerList.value = [...res.data];
+            }
           } else {
             // 搜索按钮
             historyStack.value = [];
@@ -165,8 +169,9 @@ export default defineComponent({
 
     // 获取选中的IP列表
     const getFindIpList = () => {
-      const ipList = [];
-      for (let i = 0; i < previewIp.value.length; i++) {
+      const ipList: any[] = [];
+      let i = 0;
+      for (; i < previewIp.value.length; i++) {
         const target = props.ipList.find(item => getIpListID(item) === previewIp.value[i]);
         ipList.push(target);
       }
@@ -213,14 +218,14 @@ export default defineComponent({
           historyStack.value = [];
           explorerList.value = res.data;
           nextTick(() => {
-            downloadFiles.forEach((path: string) => {
+            for (const newPath of downloadFiles) {
               for (const item of explorerList.value) {
-                if (item.path === path) {
+                if (item.path === newPath) {
                   previewTableRef.value?.toggleRowSelection(item, true);
                   break;
                 }
               }
-            });
+            }
           });
         })
         .catch(e => {
@@ -240,7 +245,9 @@ export default defineComponent({
           return ipList.find(dItem => {
             const hostMatch = item.bk_host_id === dItem.bk_host_id;
             const ipMatch = `${item.ip}_${item.bk_cloud_id}` === `${dItem.ip}_${dItem.bk_cloud_id}`;
-            if (item?.bk_host_id) return hostMatch || ipMatch;
+            if (item?.bk_host_id) {
+              return hostMatch || ipMatch;
+            }
             return ipMatch;
           });
         });
@@ -271,7 +278,7 @@ export default defineComponent({
     };
 
     // 暴露方法
-    expose({ getExplorerList, handleClone, getFindIpList,  timeRange, timeStringValue, isSearchChild });
+    expose({ getExplorerList, handleClone, getFindIpList, timeRange, timeStringValue, isSearchChild });
 
     // 主渲染函数
     return () => (
@@ -280,9 +287,9 @@ export default defineComponent({
           {/* 预览地址选择框 */}
           <bk-select
             style='width: 190px; margin-right: 20px; background-color: #fff'
-            value={previewIp.value}
             clearable={false}
             data-test-id='addNewExtraction_div_selectPreviewAddress'
+            value={previewIp.value}
             multiple
             show-select-all
             onChange={val => (previewIp.value = val)}
@@ -310,8 +317,8 @@ export default defineComponent({
           {/* 是否搜索子目录 */}
           <bk-checkbox
             style='margin-right: 20px'
-            value={isSearchChild.value}
             data-test-id='addNewExtraction_div_isSearchSubdirectory'
+            value={isSearchChild.value}
             {...{
               on: {
                 change: (val: boolean) => (isSearchChild.value = val),
@@ -321,9 +328,9 @@ export default defineComponent({
             {t('是否搜索子目录')}
           </bk-checkbox>
           <bk-button
-            disabled={!props.ipList.length || !props.fileOrPath}
-            loading={isLoading.value}
             data-test-id='addNewExtraction_button_searchFilterCondition'
+            disabled={!(props.ipList.length && props.fileOrPath)}
+            loading={isLoading.value}
             size='small'
             theme='primary'
             onClick={() => getExplorerList({})}
@@ -343,10 +350,8 @@ export default defineComponent({
           <bk-table
             ref={previewTableRef}
             style='background-color: #fff'
-            class='preview-scroll-table'
-            data={explorerList.value}
             height={360}
-            on-selection-change={handleSelect}
+            class='preview-scroll-table'
             scopedSlots={{
               empty: () => (
                 <div>
@@ -361,22 +366,18 @@ export default defineComponent({
                 </div>
               ),
             }}
+            data={explorerList.value}
+            on-selection-change={handleSelect}
           >
             {/* 选择列 */}
             <bk-table-column
               width={60}
-              type='selection'
               selectable={(row: any) => row.size !== '0'}
+              type='selection'
             />
 
             {/* 文件名列 */}
             <bk-table-column
-              label={t('文件名')}
-              renderHeader={() => <span>{t('文件名')}</span>}
-              sortBy={['path', 'mtime', 'size']}
-              min-width={400}
-              prop='path'
-              sortable
               scopedSlots={{
                 default: ({ row }: any) => (
                   <div class='table-ceil-container'>
@@ -394,25 +395,31 @@ export default defineComponent({
                   </div>
                 ),
               }}
+              label={t('文件名')}
+              min-width={400}
+              prop='path'
+              renderHeader={() => <span>{t('文件名')}</span>}
+              sortBy={['path', 'mtime', 'size']}
+              sortable
             />
 
             {/* 最后修改时间列 */}
             <bk-table-column
               label={t('最后修改时间')}
-              renderHeader={() => <span>{t('最后修改时间')}</span>}
-              sortBy={['mtime', 'path', 'size']}
               min-width={40}
               prop='mtime'
+              renderHeader={() => <span>{t('最后修改时间')}</span>}
+              sortBy={['mtime', 'path', 'size']}
               sortable
             />
 
             {/* 文件大小列 */}
             <bk-table-column
               label={t('文件大小')}
-              renderHeader={() => <span>{t('文件大小')}</span>}
-              sortBy={['size', 'mtime', 'path']}
               min-width={30}
               prop='size'
+              renderHeader={() => <span>{t('文件大小')}</span>}
+              sortBy={['size', 'mtime', 'path']}
               sortable
             />
           </bk-table>

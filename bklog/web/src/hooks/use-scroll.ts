@@ -45,8 +45,8 @@ export default (target, callback: (e: MouseEvent) => void) => {
   };
 
   const hasScrollX = () => {
-    const target = getScrollElement() as HTMLDivElement;
-    return target.scrollWidth > target.offsetWidth;
+    const newTarget = getScrollElement() as HTMLDivElement;
+    return newTarget.scrollWidth > newTarget.offsetWidth;
   };
 
   onMounted(() => {

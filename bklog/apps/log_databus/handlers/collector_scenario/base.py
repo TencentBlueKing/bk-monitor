@@ -128,6 +128,7 @@ class CollectorScenario:
         encoding=None,
         option: dict = None,
         mq_config: dict = None,
+        bk_biz_id=None,
     ):
         """
         创建或更新数据源
@@ -137,6 +138,7 @@ class CollectorScenario:
         :param description: 描述
         :param encoding: 字符集编码
         :param mq_config: mq配置
+        :param bk_biz_id: 业务id
         :param option: 附加参数 {"topic": "xxxx", "partition": 1}
         :return: bk_data_id
         """
@@ -164,6 +166,7 @@ class CollectorScenario:
                 "type_label": "log",
                 "mq_config": mq_config,
                 "option": default_option,
+                "bk_biz_id": bk_biz_id
             }
             if data_link_id:
                 data_link = DataLinkConfig.objects.filter(data_link_id=data_link_id).first()

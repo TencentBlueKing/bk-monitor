@@ -105,6 +105,7 @@ def get_toggle_data(request):
             "is_viewed": True,
             "feature_config": {"scenario_id_white_list": ["es", "log", "bkdata"]},
             "biz_id_white_list": [],
+            "biz_id_black_list": [],
         },
     )
     # 获取用户名
@@ -130,6 +131,13 @@ def get_toggle_data(request):
                 toggle.name: toggle.biz_id_white_list
                 for toggle in toggle_list
                 if isinstance(toggle.biz_id_white_list, list)
+            }
+        ),
+        "FEATURE_TOGGLE_BLACK_LIST": json.dumps(
+            {
+                toggle.name: toggle.biz_id_black_list
+                for toggle in toggle_list
+                if isinstance(toggle.biz_id_black_list, list)
             }
         ),
         "SPACE_UID_WHITE_LIST": json.dumps(

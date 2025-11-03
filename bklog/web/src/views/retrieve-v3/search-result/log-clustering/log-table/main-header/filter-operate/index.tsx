@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
-import useLocale from '@/hooks/use-locale';
-import './index.scss';
+import { defineComponent, ref } from "vue";
+import useLocale from "@/hooks/use-locale";
+import "./index.scss";
 
 export default defineComponent({
-  name: 'FilterOperate',
+  name: "FilterOperate",
   props: {
     list: {
       type: Array<{
@@ -50,21 +50,21 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const { t } = useLocale();
 
-    const selectRef = ref(null);
-    const localValue = ref([]);
+    const selectRef = ref<any>(null);
+    const localValue = ref<number[]>([]);
 
     const handleConfirm = () => {
-      emit('confirm', localValue.value);
+      emit("confirm", localValue.value);
       selectRef.value?.close();
     };
 
     const handleReset = () => {
       localValue.value = [];
-      emit('confirm', []);
+      emit("confirm", []);
       selectRef.value?.close();
     };
 
-    const handleSelectChange = (list: string[]) => {
+    const handleSelectChange = (list: number[]) => {
       if (props.multiple) {
         localValue.value = list;
         return;
@@ -83,55 +83,46 @@ export default defineComponent({
     });
 
     return () => (
-      <div class='filter-main'>
+      <div class="filter-main">
         <bk-select
           ref={selectRef}
           value={localValue.value}
-          size='small'
-          class='filter-select'
+          size="small"
+          class="filter-select"
           multiple
           searchable={props.searchable}
           popover-min-width={150}
           scroll-height={280}
-          ext-popover-cls='filter-select-ext-popover'
+          ext-popover-cls="filter-select-ext-popover"
           on-change={handleSelectChange}
         >
-          <div slot='trigger'>
+          <div slot="trigger">
             <log-icon
               common
-              type='funnel'
-              class={{ 'funnel-icon': true, 'is-funnel-active': localValue.value.length > 0 }}
+              type="funnel"
+              class={{
+                "funnel-icon": true,
+                "is-funnel-active": localValue.value.length > 0,
+              }}
             />
           </div>
-          {props.list.map(option => (
-            <bk-option
-              key={option.id}
-              id={option.id}
-              name={option.name}
-            >
+          {props.list.map((option) => (
+            <bk-option key={option.id} id={option.id} name={option.name}>
               <bk-checkbox checked={localValue.value.includes(option.id)} />
-              <span class='option-name'>{option.name}</span>
+              <span class="option-name">{option.name}</span>
             </bk-option>
           ))}
-          <div
-            slot='extension'
-            class='operate-btns'
-          >
+          <div slot="extension" class="operate-btns">
             <bk-button
-              size='small'
-              theme='primary'
+              size="small"
+              theme="primary"
               text
               on-click={handleConfirm}
             >
-              {t('确定')}
+              {t("确定")}
             </bk-button>
-            <bk-button
-              size='small'
-              theme='primary'
-              text
-              on-click={handleReset}
-            >
-              {t('重置')}
+            <bk-button size="small" theme="primary" text on-click={handleReset}>
+              {t("重置")}
             </bk-button>
           </div>
         </bk-select>

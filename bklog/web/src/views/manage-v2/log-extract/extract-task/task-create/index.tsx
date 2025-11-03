@@ -25,14 +25,15 @@
  */
 
 import { defineComponent, ref, computed, onMounted, nextTick } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import useRouter from '@/hooks/use-router';
-import useRoute from '@/hooks/use-route';
-import http from '@/api';
 
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
 import LogIpSelector, { toSelectorNode, toTransformNode } from '@/components/log-ip-selector/log-ip-selector';
+import useLocale from '@/hooks/use-locale';
+import useRoute from '@/hooks/use-route';
+import useRouter from '@/hooks/use-router';
+import useStore from '@/hooks/use-store';
+
+import http from '@/api';
 // #else
 // #code const LogIpSelector = () => null;
 // #endif
@@ -51,7 +52,7 @@ export default defineComponent({
     TextFilter,
     PreviewFiles,
   },
-  setup(props, { emit }) {
+  setup(_props, { emit }) {
     const store = useStore();
     const { t } = useLocale();
     const router = useRouter();
@@ -64,7 +65,7 @@ export default defineComponent({
     const downloadFiles = ref<any[]>([]); // 下载的文件
     const remark = ref(''); // 备注
     const extractLinks = ref<any[]>([]); // 提取链路
-    const link_id = ref<number | null>(null);
+    const link_id = ref<null | number>(null);
     const ipSelectorOriginalValue = ref<any>(null); // 编辑态ip选择器初始值
     const ipSelectNewNameList = ref<any[]>([]); // 生成新的展示所用的预览地址列表
     const isSubmitLoading = ref(false); // 提交按钮loading状态
@@ -74,7 +75,7 @@ export default defineComponent({
     const previewRef = ref<any>(null);
 
     const canSubmit = computed(() => {
-      return (!ipList.value.length || !downloadFiles.value.length) && link_id.value != null;
+      return !(ipList.value.length && downloadFiles.value.length) && link_id.value != null;
     });
 
     const isClone = computed(() => {
@@ -202,8 +203,17 @@ export default defineComponent({
     };
 
     // 初始化选择的新名称列表
-    const initSelectNewNameList = (hostList: any[], isClone = false) => {
-      if (!isClone) {
+    const initSelectNewNameList = (hostList: any[], newIsClone = false) => {
+      if (newIsClone) {
+        // 克隆 通过接口请求返回的display_name展示值
+        ipSelectNewNameList.value = hostList.map(item => ({
+          bk_host_id: item.bk_host_id,
+          ip: item.bk_host_innerip,
+          bk_cloud_id: item.bk_cloud_id,
+          selectID: `${item.bk_host_id ?? ''}_${item.bk_host_innerip ?? ''}_${item.bk_cloud_id ?? ''}`, // select唯一key
+          name: item.display_name,
+        }));
+      } else {
         // 新增 使用ip选择器里的值展示
         const priorityList = globalsData.value.host_identifier_priority ?? ['ip', 'host_name', 'ipv6'];
         ipSelectNewNameList.value = hostList.map(item => ({
@@ -212,15 +222,6 @@ export default defineComponent({
           bk_cloud_id: item.cloud_area.id,
           selectID: `${item.host_id ?? ''}_${item.ip ?? ''}_${item.cloud_area.id ?? ''}`, // select唯一key
           name: item[priorityList.find(pItem => Boolean(item[pItem]))] ?? '',
-        }));
-      } else {
-        // 克隆 通过接口请求返回的display_name展示值
-        ipSelectNewNameList.value = hostList.map(item => ({
-          bk_host_id: item.bk_host_id,
-          ip: item.bk_host_innerip,
-          bk_cloud_id: item.bk_cloud_id,
-          selectID: `${item.bk_host_id ?? ''}_${item.bk_host_innerip ?? ''}_${item.bk_cloud_id ?? ''}`, // select唯一key
-          name: item.display_name,
         }));
       }
     };
@@ -244,10 +245,10 @@ export default defineComponent({
         filter_content: textFilterRef.value.filterContent, // 过滤内容
         remark: remark.value, // 备注
         link_id: link_id.value,
-      }
+      };
       http
         .request('extract/createDownloadTask', {
-          data: requestData
+          data: requestData,
         })
         .then(() => {
           isSubmitLoading.value = false;
@@ -306,12 +307,12 @@ export default defineComponent({
             </div>
             <LogIpSelector
               height={670}
+              mode='dialog'
               original-value={ipSelectorOriginalValue.value}
               panel-list={['staticTopo']}
               show-dialog={showSelectDialog.value}
               show-view-diff={isClone.value}
               value={selectorNodes.value}
-              mode='dialog'
               allow-host-list-miss-host-id
               extract-scene
               keep-host-field-output
@@ -337,8 +338,8 @@ export default defineComponent({
           </div>
           <div class='content'>
             <FilesInput
-              value={fileOrPath.value}
               availablePaths={availablePaths.value}
+              value={fileOrPath.value}
               {...{
                 on: {
                   'update:value': (val: string) => (fileOrPath.value = val),
@@ -370,7 +371,7 @@ export default defineComponent({
         {/* 文本过滤 */}
         <div class='row-container'>
           <div class='title'>{t('文本过滤')}</div>
-          <div class='content'> 
+          <div class='content'>
             <TextFilter ref={textFilterRef} />
           </div>
         </div>
@@ -397,9 +398,9 @@ export default defineComponent({
           <div class='content'>
             <bk-select
               style='width: 250px; margin-right: 20px; background-color: #fff'
-              value={link_id.value}
               clearable={false}
               data-test-id='addNewExtraction_select_selectLink'
+              value={link_id.value}
               {...{
                 on: {
                   change: (val: number) => (link_id.value = val),
@@ -422,11 +423,11 @@ export default defineComponent({
         <div class='button-container'>
           <bk-button
             style='width: 120px; margin-right: 16px'
-            disabled={canSubmit.value}
             data-test-id='addNewExtraction_button_submitConfigure'
+            disabled={canSubmit.value}
+            loading={isSubmitLoading.value}
             theme='primary'
             onClick={handleSubmit}
-            loading={isSubmitLoading.value}
           >
             {t('提交下载任务')}
           </bk-button>

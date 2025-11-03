@@ -30,6 +30,10 @@
         "noConfusingVoidType": {
           "level": "warn",
           "fix": "none"
+        },
+        "noDebugger": {
+          "level": "error",
+          "fix": "none"
         }
       },
       "style": {

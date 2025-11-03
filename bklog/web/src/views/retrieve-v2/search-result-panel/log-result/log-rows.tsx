@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, h, Ref, onBeforeUnmount, nextTick } from 'vue';
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue';
 
 import { parseTableRowData, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -51,14 +51,13 @@ import {
   ROW_F_ORIGIN_TIME,
   ROW_INDEX,
   ROW_KEY,
-  SECTION_SEARCH_INPUT,
   ROW_SOURCE,
+  SECTION_SEARCH_INPUT,
 } from './log-row-attributes';
 import RowRender from './row-render';
-import ScrollXBar from './scroll-x-bar';
+import ScrollXBar from '../../components/scroll-x-bar';
 import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import './log-rows.scss';
 
@@ -104,9 +103,13 @@ export default defineComponent({
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
       stopPropagation: true,
-      onclick: (_, ...args) => {
-        const [type] = args;
-        handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
+      onclick: (...args) => {
+        const type = args[1];
+        if (type === 'add-to-ai') {
+          props.handleClickTools(type, savedSelection?.toString() ?? '');
+        } else {
+          handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
+        }
         popInstanceUtil.hide();
 
         if (savedSelection) {
@@ -127,7 +130,7 @@ export default defineComponent({
     // 前端本地分页loadmore触发器
     // renderList 没有使用响应式，这里需要手动触发更新，所以这里使用一个计数器来触发更新
     const localUpdateCounter = ref(0);
-
+    const hasMoreList = ref(true);
     let renderList = Object.freeze([]);
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
@@ -142,16 +145,13 @@ export default defineComponent({
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
-    const tableList = computed<Array<any>>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
+    const tableList = computed<any[]>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
 
     // 检索第一页数据时，loading状态
     const isFirstPageLoading = computed(() => isLoading.value && !isRequesting.value);
 
-    const hasMoreList = computed(() => {
-      return indexSetQueryResult.value.total > tableDataSize.value;
-    });
     const exceptionMsg = computed(() => {
       if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
         return $t('检索结果为空');
@@ -163,15 +163,21 @@ export default defineComponent({
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
 
-    const handleSearchingChange = isSearching => {
-      isPageLoading.value = isSearching;
-    };
-
     const { addEvent } = useRetrieveEvent();
-    addEvent(RetrieveEvent.SEARCHING_CHANGE, handleSearchingChange);
+    addEvent(RetrieveEvent.SEARCHING_CHANGE, isSearching => {
+      isPageLoading.value = isSearching;
+    });
+
+    addEvent(
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.TREND_GRAPH_SEARCH],
+      () => {
+        hasMoreList.value = true;
+        pageIndex.value = 1;
+      },
+    );
 
     const setRenderList = (length?: number) => {
-      const arr = [];
+      const arr: Record<string, any>[] = [];
       const endIndex = length ?? tableDataSize.value;
       const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
       for (let i = 0; i < lastIndex; i++) {
@@ -231,7 +237,7 @@ export default defineComponent({
                 jsonValue={row}
                 limitRow={null}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
-              ></JsonFormatter>
+              />
             );
           },
         },
@@ -254,7 +260,7 @@ export default defineComponent({
               fields={field}
               jsonValue={parseTableRowData(row, field.field_name, field.field_type, false) as any}
               onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, { row, field })}
-            ></JsonFormatter>
+            />
           );
         },
         renderHeaderCell: () => {
@@ -265,13 +271,14 @@ export default defineComponent({
               const updatedSortList = store.state.indexFieldInfo.sort_list.map(item => {
                 if (sortList.length > 0 && item[0] === field.field_name) {
                   return sortList[0];
-                } else if (sortList.length === 0 && item[0] === field.field_name) {
+                }
+                if (sortList.length === 0 && item[0] === field.field_name) {
                   return [field.field_name, 'desc'];
                 }
                 return item;
               });
               const temporarySortList = syncSpecifiedFieldSort(field.field_name, sortList);
-              store.commit('updateLocalSort', true);
+              store.commit('updateState', { localSort: true });
               store.commit('updateIndexFieldInfo', { sort_list: updatedSortList });
               store.commit('updateIndexItemParams', { sort_list: temporarySortList });
               store.dispatch('requestIndexSetQuery');
@@ -286,14 +293,15 @@ export default defineComponent({
       col.width = '100%';
     };
 
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const getFieldColumns = () => {
       if (showCtxType.value === 'table') {
-        const columnList = [];
+        const columnList: Record<string, any>[] = [];
         const columns = visibleFields.value.length > 0 ? visibleFields.value : fullColumns.value;
         let maxColWidth = operatorToolsWidth.value + 40;
-        let logField = null;
+        let logField: Record<string, any> | null = null;
 
-        columns.forEach(col => {
+        for (const col of columns) {
           const formatValue = formatColumn(col);
           if (col.field_name === 'log') {
             logField = formatValue;
@@ -301,10 +309,10 @@ export default defineComponent({
 
           columnList.push(formatValue);
           maxColWidth += formatValue.width;
-        });
+        }
 
         if (!logField && columnList.length > 0) {
-          logField = columnList[columnList.length - 1];
+          logField = columnList.at(-1);
         }
 
         if (logField && offsetWidth.value > maxColWidth) {
@@ -344,7 +352,7 @@ export default defineComponent({
               <i
                 style={{ color: '#4D4F56', fontSize: '9px' }}
                 class='bk-icon icon-play-shape'
-              ></i>
+              />
             </span>
           );
         },
@@ -370,7 +378,7 @@ export default defineComponent({
         align: 'left',
         resize: false,
         fixed: 'left',
-        disabled: !isShowSourceField.value || !indexSetType.value,
+        disabled: !(isShowSourceField.value && indexSetType.value),
         renderBodyCell: ({ row }) => {
           const indeSetName =
             unionIndexItemList.value.find(item => item.index_set_id === String(row.__index_set_id__))?.index_set_name ??
@@ -411,7 +419,7 @@ export default defineComponent({
           resize: false,
           renderBodyCell: ({ row }) => {
             return (
-              // @ts-ignore
+              // @ts-expect-error
               <OperatorTools
                 handle-click={(type, event) => {
                   if (type === 'ai') {
@@ -442,6 +450,7 @@ export default defineComponent({
 
     // 替换原有的handleMenuClick
     const handleMenuClick = (option, isLink, fieldOption?: { row: any; field: any }) => {
+      console.log('handleMenuClick = ', option);
       const timeTypes = ['date', 'date_nanos'];
 
       handleOperation(option.operation, {
@@ -458,12 +467,13 @@ export default defineComponent({
     };
 
     const { renderHead } = useHeaderRender();
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const setFullColumns = () => {
       /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
-      const dataFields = [];
-      const indexSetFields = [];
-      const logFields = [];
-      indexFieldInfo.value.fields.forEach(item => {
+      const dataFields: Record<string, any>[] = [];
+      const indexSetFields: Record<string, any>[] = [];
+      const logFields: Record<string, any>[] = [];
+      for (const item of indexFieldInfo.value.fields) {
         if (item.field_type === 'date') {
           dataFields.push(item);
         } else if (item.field_name === 'log' || item.field_alias === 'original_text') {
@@ -471,7 +481,7 @@ export default defineComponent({
         } else if (!(item.field_type === '__virtual__' || item.is_built_in)) {
           indexSetFields.push(item);
         }
-      });
+      }
       const sortIndexSetFieldsList = indexSetFields.sort((a, b) => {
         const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
         const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
@@ -487,10 +497,10 @@ export default defineComponent({
     };
 
     const getRowConfigWithCache = () => {
-      return [['expand', false]].reduce(
-        (cfg, item: [keyof RowConfig, any]) => Object.assign(cfg, { [item[0]]: item[1] }),
-        {},
-      );
+      return [['expand', false]].reduce((cfg, item: [keyof RowConfig, any]) => {
+        cfg[item[0]] = item[1];
+        return cfg;
+      }, {});
     };
 
     const updateTableRowConfig = (nextIdx = 0) => {
@@ -520,7 +530,7 @@ export default defineComponent({
     };
 
     const isRequesting = ref(false);
-    let requestingTimer = null;
+    let requestingTimer: any = null;
 
     const debounceSetLoading = (delay = 120) => {
       requestingTimer && clearTimeout(requestingTimer);
@@ -541,7 +551,7 @@ export default defineComponent({
             onValue-click={(type, content, isLink, field, depth, isNestedField) =>
               handleIconClick(type, content, field, row, isLink, depth, isNestedField)
             }
-          ></ExpandView>
+          />
         );
       },
     };
@@ -556,16 +566,19 @@ export default defineComponent({
       }
     };
 
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const syncSpecifiedFieldSort = (field_name, updatedSortList) => {
       const requiredFields = ['gseIndex', 'iterationIndex', 'dtEventTimeStamp'];
-      if (!requiredFields.includes(field_name) || !updatedSortList.length) {
+      if (!(requiredFields.includes(field_name) && updatedSortList.length)) {
         return updatedSortList;
       }
       const fields = store.state.indexFieldInfo.fields.map(item => item.field_name);
       const currentSort = updatedSortList.find(([key]) => key === field_name)[1];
 
-      requiredFields.forEach(field => {
-        if (field === field_name) return;
+      for (const field of requiredFields) {
+        if (field === field_name) {
+          continue;
+        }
         if (fields.includes(field)) {
           const index = updatedSortList.findIndex(([key]) => key === field);
           const sortItem = [field, currentSort];
@@ -576,7 +589,7 @@ export default defineComponent({
             updatedSortList.push(sortItem);
           }
         }
-      });
+      }
       return updatedSortList;
     };
     watch(
@@ -586,10 +599,12 @@ export default defineComponent({
       },
     );
 
-    const handleResultBoxResize = () => {
+    const handleResultBoxResize = (resetScroll = true) => {
       if (!RetrieveHelper.jsonFormatter.isExpandNodeClick) {
-        scrollXOffsetLeft = 0;
-        refScrollXBar.value?.scrollLeft(0);
+        if (resetScroll) {
+          scrollXOffsetLeft = 0;
+          refScrollXBar.value?.scrollLeft(0);
+        }
       }
 
       computeRect(refResultRowBox.value);
@@ -657,19 +672,19 @@ export default defineComponent({
 
       if (width < col.width && targetField.length) {
         if (logField) {
-          logField.width = logField.width + width;
+          logField.width += width;
         } else {
           const avgWidth = (col.width - width) / targetField.length;
-          targetField.forEach(field => {
-            field.width = field.width + avgWidth;
-          });
+          for (const field of targetField) {
+            field.width += avgWidth;
+          }
         }
       }
 
-      const sourceObj = visibleFields.value.reduce(
-        (acc, field) => Object.assign(acc, { [field.field_name]: field.width }),
-        {},
-      );
+      const sourceObj = visibleFields.value.reduce((acc, curField) => {
+        acc[curField.field_name] = curField.width;
+        return acc;
+      }, {});
       const { fieldsWidth } = userSettingConfig.value;
       const newFieldsWidthObj = Object.assign(fieldsWidth, sourceObj, {
         [col.field]: Math.ceil(width),
@@ -693,6 +708,7 @@ export default defineComponent({
       }
 
       if (pageIndex.value * pageSize.value < tableDataSize.value) {
+        hasMoreList.value = true;
         isRequesting.value = true;
         pageIndex.value++;
         const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
@@ -708,11 +724,12 @@ export default defineComponent({
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then(resp => {
-            if (resp?.size === 50) {
-              pageIndex.value++;
-            }
+            pageIndex.value++;
+            handleResultBoxResize(false);
 
-            handleResultBoxResize();
+            if (resp?.length !== pageSize.value) {
+              hasMoreList.value = false;
+            }
           })
           .finally(() => {
             debounceSetLoading(0);
@@ -734,6 +751,7 @@ export default defineComponent({
       pageIndex.value = 1;
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
       renderList = renderList.slice(0, maxLength);
+      localUpdateCounter.value++;
     };
 
     // 监听滚动条滚动位置
@@ -872,7 +890,7 @@ export default defineComponent({
     };
 
     const renderScrollTop = () => {
-      return <ScrollTop on-scroll-top={afterScrollTop}></ScrollTop>;
+      return <ScrollTop on-scroll-top={afterScrollTop} />;
     };
 
     const getColumnWidth = (column, fullWidth = false) => {
@@ -907,6 +925,7 @@ export default defineComponent({
 
       return [
         <div
+          key={`${rowIndex}-row`}
           class='bklog-list-row'
           data-row-index={rowIndex}
           data-row-click
@@ -1005,7 +1024,7 @@ export default defineComponent({
           innerWidth={scrollWidth.value}
           outerWidth={offsetWidth.value}
           onScroll-change={handleScrollXChanged}
-        ></ScrollXBar>
+        />
       );
     };
 
@@ -1018,7 +1037,7 @@ export default defineComponent({
         return 'Loading ...';
       }
 
-      if (!isRequesting.value && !hasMoreList.value && tableDataSize.value > 0) {
+      if (!(isRequesting.value || hasMoreList.value) || tableDataSize.value < pageSize.value) {
         return ` - 已加载所有数据: 共计 ${tableDataSize.value} 条 - `;
       }
 
@@ -1060,7 +1079,7 @@ export default defineComponent({
           ref={refLoadMoreElement}
           class='bklog-requsting-loading'
         >
-          <div style='min-width: 100%'></div>
+          <div style='min-width: 100%' />
         </div>
       );
     };
@@ -1070,7 +1089,7 @@ export default defineComponent({
         return null;
       }
       if (tableDataSize.value > 0 && showCtxType.value === 'table') {
-        return <div class='fixed-right-shadown'></div>;
+        return <div class='fixed-right-shadown' />;
       }
 
       return null;
@@ -1082,6 +1101,7 @@ export default defineComponent({
       );
     });
 
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const exceptionType = computed(() => {
       if (tableDataSize.value === 0 || indexFieldInfo.value.is_loading) {
         if (isRequesting.value || isLoading.value || isPageLoading.value) {
@@ -1111,7 +1131,7 @@ export default defineComponent({
         <LogResultException
           message={exceptionMsg.value}
           type={exceptionType.value}
-        ></LogResultException>
+        />
       );
     };
 
@@ -1166,7 +1186,7 @@ export default defineComponent({
         {this.renderLoader()}
         {this.renderScrollTop()}
         {this.renderDelineatePopContent()}
-        <div class='resize-guide-line'></div>
+        <div class='resize-guide-line' />
       </div>
     );
   },

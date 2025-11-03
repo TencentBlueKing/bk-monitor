@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -33,7 +33,6 @@ from apm_web.handlers.metric_group import GroupEnum as MetricGroupEnum
 from apm_web.handlers.metric_group import MetricHelper, TrpcMetricGroup
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.metric.constants import SeriesAliasType
-from apm_web.models import CodeRedefinedConfigRelation
 from bkmonitor.action.serializers import UserGroupDetailSlz
 from bkmonitor.data_source import q_to_dict
 from bkmonitor.models import UserGroup
@@ -316,15 +315,6 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
         group: metric_group.TrpcMetricGroup = self.rpc_metric_group_constructor()
         with_app_attr_services: set[str] = set(group.fetch_server_list(filter_dict={f"{RPCMetricTag.SERVER}__neq": ""}))
 
-        code_redefined_configs = CodeRedefinedConfigRelation.objects.filter(
-            bk_biz_id=self.bk_biz_id, app_name=self.app_name, service_name__in=callee_servers | caller_servers
-        )
-        ret_code_as_exception_services: list[str] = [
-            code_redefined_config.service_name
-            for code_redefined_config in code_redefined_configs
-            if code_redefined_config.ret_code_as_exception
-        ]
-
         service_infos: list[dict[str, Any]] = []
         for service in ServiceHandler.list_nodes(self.bk_biz_id, self.app_name):
             service_name: str = service["topo_key"]
@@ -343,7 +333,6 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                     SeriesAliasType.CALLER.value: caller_server_field,
                     SeriesAliasType.CALLEE.value: callee_server_field,
                 },
-                "ret_code_as_exception": service_name in ret_code_as_exception_services,
             }
 
             if service_name in with_app_attr_services:
@@ -409,7 +398,6 @@ class RPCStrategyGroup(base.BaseStrategyGroup):
                 },
                 "kind": kind,
                 "temporality": _service_info["temporality"],
-                "ret_code_as_exception": _service_info["ret_code_as_exception"],
             }
             _group: metric_group.BaseMetricGroup = self.rpc_metric_group_constructor(**_construct_config)
             logger.info(

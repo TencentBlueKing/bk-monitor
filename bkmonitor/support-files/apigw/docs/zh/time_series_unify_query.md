@@ -3,7 +3,7 @@
 统一查询接口 (适配图表展示)
 
 
-#### 接口参数
+### 请求参数
 
 | 字段                     | 类型         | 必选 | 描述                                             |
 |------------------------|------------|----|------------------------------------------------|
@@ -68,7 +68,7 @@
 | id     | str        | 函数名 | 是    |
 | params | list[dict] | 参数  | 是    |
 
-#### 请求示例
+### 请求参数示例
 
 ```json
 //以下查询基本等价于：sum(rate(bk_monitor:container_cpu_usage_seconds_total{pod=~"(bk-monitor-unify-query-7b8658dc5d-9j8jr|bk-monitor-unify-query-7b8658dc5d-z22pv)"}[2m])) by(pod)
@@ -203,7 +203,7 @@
 | is_dimension | bool | 是否为维度的标识 |
 | type         | str  | 维度的数据类型  |
 
-#### 响应示例
+### 响应参数示例
 
 ```json
 {

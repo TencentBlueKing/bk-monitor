@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Ref } from 'vue';
-
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import { getClickTargetElement, optimizedSplit, setPointerCellClickTargetHandler } from './hooks-helper';
 import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
+
+import type { Ref } from 'vue';
 
 export type FormatterConfig = {
   onSegmentClick: (args: any) => void;
@@ -93,7 +93,7 @@ export default class UseTextSegmentation {
         startIndex: start,
         endIndex: start + item.text.length,
       });
-      start = start + item.text.length;
+      start += item.text.length;
       return item;
     });
   }
@@ -148,7 +148,9 @@ export default class UseTextSegmentation {
   }
 
   private handleSegmentClick(target, value) {
-    if (!value.toString() || value === '--') return;
+    if (!value.toString() || value === '--') {
+      return;
+    }
 
     this.clickValue = value;
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
@@ -173,7 +175,9 @@ export default class UseTextSegmentation {
   private isJSONStructure(str: string) {
     const trimmed = str.trim();
     const len = trimmed.length;
-    if (len === 0) return false; // 空字符串直接返回
+    if (len === 0) {
+      return false;
+    } // 空字符串直接返回
 
     const first = trimmed[0];
     const last = trimmed[len - 1];
@@ -198,7 +202,7 @@ export default class UseTextSegmentation {
     const target = this.options.data[this.options.field.field_name] ?? this.convertJsonStrToObj(this.options.content);
 
     const convertObjToArray = (root: object, isValue = false) => {
-      const result = [];
+      const result: Record<string, any>[] = [];
 
       if (typeof root === 'object') {
         if (Array.isArray(root)) {
@@ -228,7 +232,7 @@ export default class UseTextSegmentation {
           isMark: false,
         });
 
-        Object.entries(root).forEach(([key, value]) => {
+        for (const [key, value] of Object.entries(root)) {
           result.push({
             text: `"${key}":`,
             isCursorText: false,
@@ -244,7 +248,7 @@ export default class UseTextSegmentation {
               isMark: false,
             });
           }
-        });
+        }
 
         const lastRow = result.at(-1);
         if (lastRow?.text === ',') {
@@ -267,9 +271,9 @@ export default class UseTextSegmentation {
 
       /** 检索高亮分词字符串 */
       const markRegStr = '<mark>(.*?)</mark>';
-      const value = this.escapeString(`${root}`);
-      const formatValue = value.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
-      const isMark = new RegExp(markRegStr).test(value);
+      const newValue = this.escapeString(`${root}`);
+      const formatValue = newValue.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
+      const isMark = new RegExp(markRegStr).test(newValue);
 
       result.push({
         text: '"',
@@ -318,7 +322,7 @@ export default class UseTextSegmentation {
 
     return typeof val !== 'string'
       ? `${val}`
-      : val.replace(RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
+      : val.replace(new RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
   }
 
   private getSplitList(field: any, content: any, forceSplit = false) {

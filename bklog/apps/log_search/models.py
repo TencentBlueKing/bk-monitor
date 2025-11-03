@@ -484,6 +484,8 @@ class LogIndexSet(SoftDeleteModel):
                 "source_id": self.source_id,
                 "source_name": source_name,
                 "result_table_id": data.result_table_id,
+                "scenario_id": data.scenario_id,
+                "storage_cluster_id": data.storage_cluster_id,
                 "time_field": data.time_field,
                 "result_table_name": data.result_table_name,
                 "apply_status": data.apply_status,
@@ -959,7 +961,7 @@ class FavoriteGroup(OperateRecordModel):
             space_uid=space_uid,
             created_by=username,
             source_app_code=source_app_code,
-            name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value)),
+            defaults={"name": FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value))},
         )
         return obj
 
@@ -970,7 +972,7 @@ class FavoriteGroup(OperateRecordModel):
             group_type=FavoriteGroupType.UNGROUPED.value,
             space_uid=space_uid,
             source_app_code=source_app_code,
-            name=FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value)),
+            defaults={"name": FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value))},
         )
         return obj
 
@@ -1261,32 +1263,51 @@ class Space(SoftDeleteModel):
 
     properties = models.JSONField(_("额外属性"), default=dict)
 
-    bk_tenant_id = models.CharField("租户ID", max_length=64, default=settings.DEFAULT_TENANT_ID, db_index=True)
+    bk_tenant_id = models.CharField("租户ID", max_length=64, default=settings.BK_APP_TENANT_ID, db_index=True)
 
     class Meta:
         verbose_name = _("空间信息")
         verbose_name_plural = _("空间信息")
 
     @classmethod
-    def get_all_spaces(cls, bk_tenant_id):
+    def get_all_spaces(cls, bk_tenant_id, space_uid: str = None):
         with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT id,
-                       space_type_id,
-                       space_type_name,
-                       space_id,
-                       space_name,
-                       space_uid,
-                       space_code,
-                       bk_biz_id,
-                       bk_tenant_id,
-                       JSON_EXTRACT(properties, '$.time_zone') AS time_zone
-                FROM log_search_space
-                WHERE bk_tenant_id = %s
-                """,
-                (bk_tenant_id,),
-            )
+            if space_uid:
+                cursor.execute(
+                    """
+                    SELECT id,
+                           space_type_id,
+                           space_type_name,
+                           space_id,
+                           space_name,
+                           space_uid,
+                           space_code,
+                           bk_biz_id,
+                           bk_tenant_id,
+                           JSON_EXTRACT(properties, '$.time_zone') AS time_zone
+                    FROM log_search_space
+                    WHERE bk_tenant_id = %s AND space_uid = %s
+                    """,
+                    (bk_tenant_id, space_uid),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT id,
+                           space_type_id,
+                           space_type_name,
+                           space_id,
+                           space_name,
+                           space_uid,
+                           space_code,
+                           bk_biz_id,
+                           bk_tenant_id,
+                           JSON_EXTRACT(properties, '$.time_zone') AS time_zone
+                    FROM log_search_space
+                    WHERE bk_tenant_id = %s
+                    """,
+                    (bk_tenant_id,),
+                )
             columns = [col[0] for col in cursor.description]
             spaces = [dict(zip(columns, row)) for row in cursor.fetchall()]
 

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -101,31 +101,28 @@ class DataDogPluginManager(PluginManager):
 
         for sys_name, sys_dir in list(OS_TYPE_TO_DIRNAME.items()):
             # 获取不同操作系统下的文件名
-            tmp_sys_plugin_path = os.path.join(sys_dir, self.plugin.plugin_id)
-            if not any([tmp_sys_plugin_path in str(i) for i in self.filename_list]):
-                continue
+            tmp_sys_plugin_path = Path(self.plugin.plugin_id, sys_dir, self.plugin.plugin_id)
+            lib_path = tmp_sys_plugin_path / "lib"
+            config_yaml_path = tmp_sys_plugin_path / "etc" / "conf.yaml.tpl"
 
-            lib_path = os.path.join(tmp_sys_plugin_path, "lib")
-            if not any([lib_path in str(i) for i in self.filename_list]):
-                raise PluginParseError({"msg": _("缺少 lib 文件夹")})
-
-            lib_tar_name = f"{self.plugin.plugin_id}-lib-{sys_name}"
+            if config_yaml_path not in self.filename_list:
+                raise PluginParseError({"msg": _("缺少 conf.yaml.tpl 配置模板文件")})
 
             file_dict: dict[Path, bytes] = {}
             for filename in self.filename_list:
-                if str(filename).startswith(lib_path):
+                if str(filename).startswith(str(lib_path)):
                     file_dict[filename] = self.plugin_configs[filename]
 
+            if not file_dict:
+                raise PluginParseError({"msg": _(f"缺少 lib 文件夹,path:{tmp_sys_plugin_path}/lib")})
+
+            lib_tar_name = f"{self.plugin.plugin_id}-lib-{sys_name}"
             file_manager = PluginFileManager.save_from_memory(file_dict=file_dict, dir_name=lib_tar_name)
             collector_json[sys_name] = {
                 "file_id": file_manager.file_obj.id,
                 "file_name": file_manager.file_obj.actual_filename,
                 "md5": file_manager.file_obj.file_md5,
             }
-
-            config_yaml_path = Path(tmp_sys_plugin_path, "etc", "conf.yaml.tpl")
-            if config_yaml_path not in self.filename_list:
-                raise PluginParseError({"msg": _("缺少 conf.yaml.tpl 配置模板文件")})
 
             config_template_content = self._decode_file(self.plugin_configs[config_yaml_path])
             collector_json["config_yaml"] = config_template_content

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -31,6 +31,7 @@ import { getCharLength } from './utils';
 import './value-tag-input.scss';
 
 interface IProps {
+  hasEdit?: boolean;
   isOneRow?: boolean;
   value: string;
   onChange?: (v: string) => void;
@@ -42,6 +43,7 @@ interface IProps {
 export default class ValueTagInput extends tsc<IProps> {
   @Prop({ type: String, default: '' }) value: string;
   @Prop({ type: Boolean, default: false }) isOneRow: boolean;
+  @Prop({ type: Boolean, default: true }) hasEdit: boolean;
   @Ref('input') inputRef: HTMLInputElement;
 
   localValue = '';
@@ -55,6 +57,9 @@ export default class ValueTagInput extends tsc<IProps> {
   }
 
   handleClick() {
+    if (!this.hasEdit) {
+      return;
+    }
     this.isEdit = true;
     this.inputFocus();
   }

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -125,9 +125,11 @@ def query_vm_datalink(bk_data_id: int) -> dict:
         )
     }
     # 批量获取结果表级别选项
-    table_id_option_dict = models.ResultTableOption.batch_result_table_option(real_table_id_list)
+    table_id_option_dict = models.ResultTableOption.batch_result_table_option(
+        real_table_id_list, bk_tenant_id=ds.bk_tenant_id
+    )
     # 获取字段信息
-    table_field_dict = models.ResultTableField.batch_get_fields(real_table_id_list, True)
+    table_field_dict = models.ResultTableField.batch_get_fields(real_table_id_list, True, bk_tenant_id=ds.bk_tenant_id)
     # 判断需要未删除，而且在启用状态的结果表
     for rt, rt_info in real_table_ids.items():
         result_table_list.append(

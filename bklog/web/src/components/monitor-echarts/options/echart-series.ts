@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { ILegendItem, ChartType } from './type-interface';
+import type { ILegendItem, ChartType } from './type-interface';
 export default class EchartsSeries {
   public chartType: Partial<ChartType>;
   public series = [];
@@ -56,7 +56,7 @@ export default class EchartsSeries {
           const curValue = +seriesItem[1];
           legendItem.max = Math.max(legendItem.max, curValue);
           legendItem.min = Math.min(+legendItem.min, curValue);
-          legendItem.total = legendItem.total + curValue;
+          legendItem.total += curValue;
           if (hasPlotBand && plotBands.some((set: any) => set.from === seriesItem[0])) {
             item.data[seriesIndex] = {
               symbolSize: 12,
@@ -90,7 +90,7 @@ export default class EchartsSeries {
       });
       legendItem.avg = +(legendItem.total / item.data.length).toFixed(2);
       legendItem.total = +legendItem.total.toFixed(2);
-      const seriesItem = {
+      const newSeriesItem = {
         ...item,
         type: this.chartType,
         showSymbol,
@@ -99,13 +99,13 @@ export default class EchartsSeries {
         smooth: 0.2,
       };
       if (thresholdLine?.length) {
-        seriesItem.markLine = this.handleSetThresholdLine(thresholdLine);
+        newSeriesItem.markLine = this.handleSetThresholdLine(thresholdLine);
       }
       if (plotBands?.length) {
-        seriesItem.markArea = this.handleSetThresholdBand(plotBands);
+        newSeriesItem.markArea = this.handleSetThresholdBand(plotBands);
       }
       legendData.push(legendItem);
-      return seriesItem;
+      return newSeriesItem;
     });
     return { legendData, series };
   }

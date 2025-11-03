@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -175,7 +175,7 @@ class ClusterInfo(models.Model):
     class Meta:
         verbose_name = "集群配置信息"
         verbose_name_plural = "集群配置信息"
-        unique_together = (("bk_tenant_id", "cluster_name"),)
+        unique_together = (("bk_tenant_id", "cluster_type", "cluster_name"),)
 
     def to_dict(self, fields: list | None = None, exclude: list | None = None) -> dict:
         data = {}
@@ -400,7 +400,7 @@ class ClusterInfo(models.Model):
 
         # 1. 判断请求的数据是否有冲突
         # 基本数据校验
-        if cls.objects.filter(cluster_name=cluster_name).exists():
+        if cls.objects.filter(bk_tenant_id=bk_tenant_id, cluster_name=cluster_name).exists():
             logger.error(
                 f"reg_system->[{registered_system}] try to add cluster with name->[{cluster_name}] which is already exists, nothing will do"
             )
@@ -414,7 +414,9 @@ class ClusterInfo(models.Model):
             raise ValueError(_("存储集群【{}】暂不支持，请确认后重试").format(cluster_type))
 
         # 判断集群信息是否有存在冲突的
-        if cls.objects.filter(domain_name=domain_name, port=port, username=username).exists():
+        if cls.objects.filter(
+            bk_tenant_id=bk_tenant_id, domain_name=domain_name, port=port, username=username
+        ).exists():
             logger.error(
                 f"reg_system->[{registered_system}] try to add cluster->[{cluster_type}] with domain->[{domain_name}] port->[{port}] username->[{username}] "
                 f"pass->[{password}] which already has the same cluster config , nothing will do."
@@ -423,6 +425,7 @@ class ClusterInfo(models.Model):
 
         # 2. 创建新的逻辑
         new_cluster = cls.objects.create(
+            bk_tenant_id=bk_tenant_id,
             cluster_name=cluster_name,
             cluster_type=cluster_type,
             domain_name=domain_name,

@@ -25,10 +25,13 @@
  */
 
 // 嵌套路由视图组件声明（用于实现多层嵌套路由结构时，多级 children 路由的占位）
-const DashboardTempView = { name: 'DashboardTempView', template: '<router-view></router-view>' };
+const DashboardTempView = () => import(/* webpackChunkName: 'dashboard' */ '@/views/dashboard/index');
 
 // 仪表盘模块各组件异步声明（用于路由懒加载）
-const dashboard = () => import(/* webpackChunkName: 'dashboard' */ '@/views/dashboard');
+const home = () => import(/* webpackChunkName: 'dashboard' */ '@/views/dashboard/home');
+
+// 仪表盘模块各组件异步声明（用于路由懒加载）
+const dashboard = () => import(/* webpackChunkName: 'dashboard' */ '@/views/dashboard/old-index.vue');
 
 // 仪表盘模块路由配置生成函数
 const getDashboardRoutes = () => [
@@ -36,8 +39,18 @@ const getDashboardRoutes = () => [
     path: '/dashboard',
     name: 'dashboard',
     component: DashboardTempView,
-    redirect: '/dashboard/default-dashboard',
+    redirect: '/dashboard/home',
     children: [
+      // 默认仪表盘
+      {
+        path: 'home',
+        name: 'home',
+        component: home,
+        meta: {
+          title: '仪表盘',
+          navId: 'dashboard-home',
+        },
+      },
       // 默认仪表盘
       {
         path: 'default-dashboard',

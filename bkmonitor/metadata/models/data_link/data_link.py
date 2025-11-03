@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -43,6 +43,7 @@ from metadata.models.storage import ClusterInfo
 
 if TYPE_CHECKING:
     from metadata.models import DataSource
+    from metadata.models.data_link.data_link_configs import DataLinkResourceConfigBase
 
 logger = logging.getLogger("metadata")
 
@@ -76,7 +77,7 @@ class DataLink(models.Model):
     )
 
     # 各个套餐所需要的链路资源
-    STRATEGY_RELATED_COMPONENTS = {
+    STRATEGY_RELATED_COMPONENTS: dict[str, list[type["DataLinkResourceConfigBase"]]] = {
         BK_STANDARD_V2_TIME_SERIES: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
         BK_EXPORTER_TIME_SERIES: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
         BK_STANDARD_TIME_SERIES: [VMResultTableConfig, VMStorageBindingConfig, DataBusConfig],
@@ -819,8 +820,7 @@ class DataLink(models.Model):
         @param configs: 链路资源配置
         """
         try:
-            response = api.bkdata.apply_data_link(bk_tenant_id=self.bk_tenant_id, config=configs)
-            return response
+            return api.bkdata.apply_data_link(bk_tenant_id=self.bk_tenant_id, config=configs)
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 "apply_data_link: data_link_name->[%s] apply error->[%s],configs->[%s]", self.data_link_name, e, configs

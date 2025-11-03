@@ -469,7 +469,7 @@
       },
       handleClickEdit() {
         if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateAuthDialogData', this.editAuthData);
+          this.$store.commit('updateState', { 'authDialogData': this.editAuthData});
           return;
         }
         const params = {};
@@ -487,7 +487,7 @@
       },
       async handleGetToken() {
         if (!this.editAuth && this.editAuthData) {
-          this.$store.commit('updateAuthDialogData', this.editAuthData);
+          this.$store.commit('updateState', { 'authDialogData': this.editAuthData});
           return;
         }
         try {

@@ -2,23 +2,17 @@
 
 查询插件详情
 
-
-#### 
+### 请求参数
 
 | 字段       | 类型   | 描述     |
 | ---------- | ------ | -------- |
 | plugin_id | string | 插件id |
 
 
-#### 示例数据
-`路径参数`
-
+### 请求参水示例
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
-    "plugin_id": "sss_script",
+    "plugin_id": "sss_script"
 }
 ```
 
@@ -32,7 +26,7 @@
 | data    | dict   | 插件信息     |
 
 
-#### 插件信息
+#### data 字段说明
 
 | 字段        | 类型 | 描述         |
 | ----------- | ---- | ------------ |
@@ -63,10 +57,10 @@
 | os_type_list | list  | 系统列表(如["linux","windows","linux_aarch64"]) |
 
 
-#### collector_json详情
+#### collector_json 字段说明
 > 字段与格式取决于实际插件类型
 
-#### config_json详情
+#### config_json 字段说明
 
 | 字段        | 类型 | 描述         |
 | ----------- | ---- | ------------ |
@@ -75,7 +69,7 @@
 | type       | string  | 值类型|
 | name       | string  |参数名|
 | mode       | string  |参数类型|
-#### metric_json详情
+#### metric_json 字段说明
 
 | 字段        | 类型 | 描述         |
 | ----------- | ---- | ------------ |
@@ -83,7 +77,7 @@
 | table_desc       | string  | 表描述|
 | fields       | list  | 字段列表|
 
-#### fields详情
+#### fields 字段说明
 
 | 字段        | 类型 | 描述         |
 | ----------- | ---- | ------------ |
@@ -97,7 +91,7 @@
 | type       | string  | 字段类型|
 | unit       | string  | 单位|
 
-#### 示例数据
+### 响应参数示例
 
 ```json
 {

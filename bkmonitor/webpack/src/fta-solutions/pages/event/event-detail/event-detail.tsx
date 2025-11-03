@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -108,6 +108,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
     dimension_message: '',
     overview: {}, // 处理状态数据
     assignee: [],
+    bk_host_id: '',
   };
   actions = []; // 处理记录数据
   total = 0; // 记录数据总条数
@@ -491,6 +492,7 @@ export default class EventDetail extends Mixins(authorityMixinCreate(eventAuth))
           id: this.basicInfo?.extra_info?.strategy?.id,
           name: this.basicInfo?.extra_info?.strategy?.name,
         },
+        bkHostId: this.basicInfo?.bk_host_id || '',
       },
     ];
     // EventModuleStore.setDimensionList(this.basicInfo?.dimensions || []);

@@ -28,7 +28,8 @@ import deepMerge from 'deepmerge';
 
 import MonitorBaseSeries from './base-chart-option';
 import { pieOptions } from './echart-options-config';
-import { ILegendItem, IChartInstance } from './type-interface';
+
+import type { ILegendItem, IChartInstance } from './type-interface';
 export default class MonitorPieSeries extends MonitorBaseSeries implements IChartInstance {
   public defaultOption: any;
   public constructor(props: any) {
@@ -53,7 +54,7 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
     const options = {
       series: hasSeries
         ? series.map((item: any, index: number) => {
-            item.data.forEach((seriesItem: any) => {
+            for (const seriesItem of item.data) {
               const legendItem: ILegendItem = {
                 name: '',
                 max: 0,
@@ -67,13 +68,13 @@ export default class MonitorPieSeries extends MonitorBaseSeries implements IChar
                 const curValue = +seriesItem.value;
                 legendItem.max = Math.max(legendItem.max, curValue);
                 legendItem.min = Math.min(+legendItem.min, curValue);
-                legendItem.total = legendItem.total + curValue;
+                legendItem.total += curValue;
                 legendItem.name = seriesItem.name;
               }
               legendItem.avg = +(legendItem.total / 1).toFixed(2);
               legendItem.total = +legendItem.total.toFixed(2);
               legendItem.name && legendData.push(legendItem);
-            });
+            }
             const seriesItem = {
               radius: ['50%', '70%'],
               avoidLabelOverlap: false,

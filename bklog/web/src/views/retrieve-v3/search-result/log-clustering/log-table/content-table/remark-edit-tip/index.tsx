@@ -24,14 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from 'vue';
-import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
-import { bkMessage } from 'bk-magic-vue';
-import { formatDate } from '@/common/util';
-import $http from '@/api';
+import { computed, defineComponent, ref, watch } from "vue";
+import useLocale from "@/hooks/use-locale";
+import useStore from "@/hooks/use-store";
+import { bkMessage } from "bk-magic-vue";
+import { formatDate } from "@/common/util";
+import $http from "@/api";
 
-import './index.scss';
+import "./index.scss";
 
 interface Remark {
   create_time: number; // 时间戳（毫秒）
@@ -41,7 +41,7 @@ interface Remark {
 }
 
 export default defineComponent({
-  name: 'RemarkEditTip',
+  name: "RemarkEditTip",
   props: {
     requestData: {
       type: Object,
@@ -60,14 +60,14 @@ export default defineComponent({
     const { t } = useLocale();
     const store = useStore();
 
-    const remarkTipsRef = ref(null);
-    const formRef = ref(null);
+    const remarkTipsRef = ref<HTMLElement>();
+    const formRef = ref<any>(null);
     const isShowEditRemarkDialog = ref(false);
     /** 当前备注信息 */
     const currentRemarkList = ref<Remark[]>([]);
     /** 输入框弹窗的字符串 */
     const verifyData = ref({
-      textInputStr: '',
+      textInputStr: "",
     });
 
     const username = computed(() => store.state.userMeta?.username);
@@ -76,14 +76,14 @@ export default defineComponent({
       textInputStr: [
         {
           validator: (value: string) => !!value,
-          trigger: 'blur',
-          message: t('不能为空'),
+          trigger: "blur",
+          message: t("不能为空"),
         },
       ],
     };
 
     let catchOperatorVal = {};
-    let currentOperateType = 'edit';
+    let currentOperateType = "edit";
 
     watch(
       () => props.rowData.remark,
@@ -92,33 +92,33 @@ export default defineComponent({
           return;
         }
         currentRemarkList.value = props.rowData.remark
-          .map(item => ({
+          .map((item) => ({
             ...item,
-            showTime: item.create_time > 0 ? formatDate(item.create_time) : '',
+            showTime: item.create_time > 0 ? formatDate(item.create_time) : "",
           }))
           .sort((a, b) => b.create_time - a.create_time);
       },
-      { immediate: true, deep: true },
+      { immediate: true, deep: true }
     );
 
-    const handleEditRemark = (remarkItem: Remark, type: string) => {
+    const handleEditRemark = (remarkItem: Remark | null, type: string) => {
       currentOperateType = type;
-      emit('hide-self');
-      if (type === 'delete') {
+      emit("hide-self");
+      if (type === "delete") {
         catchOperatorVal = {
-          remark: remarkItem.remark,
-          create_time: remarkItem.create_time,
+          remark: remarkItem!.remark,
+          create_time: remarkItem!.create_time,
         };
         updateRemark(type);
         return;
-      } else if (type === 'update') {
-        verifyData.value.textInputStr = remarkItem.remark;
+      } else if (type === "update") {
+        verifyData.value.textInputStr = remarkItem!.remark;
         catchOperatorVal = {
-          old_remark: remarkItem.remark,
-          create_time: remarkItem.create_time,
+          old_remark: remarkItem!.remark,
+          create_time: remarkItem!.create_time,
         };
       } else {
-        verifyData.value.textInputStr = '';
+        verifyData.value.textInputStr = "";
       }
       isShowEditRemarkDialog.value = true;
     };
@@ -129,40 +129,40 @@ export default defineComponent({
         .then(() => {
           updateRemark(currentOperateType);
         })
-        .catch(e => console.error(e));
+        .catch((e) => console.error(e));
     };
 
     // 将分组的数组改成对像
     const getGroupsValue = (group: string[]) => {
-      if (!props.requestData.group_by.length) return {};
+      if (!props.requestData?.group_by.length) return {};
       return props.requestData.group_by.reduce((acc, cur, index) => {
-        acc[cur] = group?.[index] ?? '';
+        acc[cur] = group?.[index] ?? "";
         return acc;
       }, {});
     };
 
     // 设置备注
-    const updateRemark = (markType = 'add') => {
+    const updateRemark = (markType = "add") => {
       let additionData;
       let queryStr;
       const inputRemark = verifyData.value.textInputStr.trim();
       switch (markType) {
-        case 'update':
-          queryStr = 'updateRemark';
+        case "update":
+          queryStr = "updateRemark";
           additionData = {
             new_remark: inputRemark,
             ...catchOperatorVal,
           };
           break;
-        case 'delete':
-          queryStr = 'deleteRemark';
+        case "delete":
+          queryStr = "deleteRemark";
           additionData = {
             remark: inputRemark,
             ...catchOperatorVal,
           };
           break;
-        case 'add':
-          queryStr = 'setRemark';
+        case "add":
+          queryStr = "setRemark";
           additionData = {
             remark: inputRemark,
           };
@@ -180,19 +180,19 @@ export default defineComponent({
             groups: getGroupsValue(props.rowData.group),
           },
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             const { remark } = res.data;
-            emit('update', remark);
+            emit("update", remark);
             bkMessage({
-              theme: 'success',
-              message: t('操作成功'),
+              theme: "success",
+              message: t("操作成功"),
             });
             isShowEditRemarkDialog.value = false;
           }
         })
         .finally(() => {
-          verifyData.value.textInputStr = '';
+          verifyData.value.textInputStr = "";
         });
     };
 
@@ -202,44 +202,29 @@ export default defineComponent({
 
     return () => (
       <div v-show={false}>
-        <div
-          class='remark-popover-main'
-          ref={remarkTipsRef}
-        >
-          <div
-            class='remark-list'
-            v-show={currentRemarkList.value.length}
-          >
+        <div class="remark-popover-main" ref={remarkTipsRef}>
+          <div class="remark-list" v-show={currentRemarkList.value.length}>
             {currentRemarkList.value.map((remark, index) => (
-              <div
-                key={index}
-                class='remark-item'
-              >
-                <div class='remark-main'>
-                  <div class='content'>{remark.remark}</div>
-                  <div class='relate-info'>
+              <div key={index} class="remark-item">
+                <div class="remark-main">
+                  <div class="content">{remark.remark}</div>
+                  <div class="relate-info">
                     {remark.username && (
                       <span>
                         <span>{remark.username}</span>
-                        <span class='split-line'>|</span>
+                        <span class="split-line">|</span>
                       </span>
                     )}
                     <span>{remark.showTime}</span>
                   </div>
                 </div>
                 {remark.username === username.value && (
-                  <div class='operates'>
-                    <span on-click={() => handleEditRemark(remark, 'update')}>
-                      <log-icon
-                        common
-                        type='edit-line'
-                      />
+                  <div class="operates">
+                    <span on-click={() => handleEditRemark(remark, "update")}>
+                      <log-icon common type="edit-line" />
                     </span>
-                    <span on-click={() => handleEditRemark(remark, 'delete')}>
-                      <log-icon
-                        common
-                        type='delete'
-                      />
+                    <span on-click={() => handleEditRemark(remark, "delete")}>
+                      <log-icon common type="delete" />
                     </span>
                   </div>
                 )}
@@ -247,21 +232,23 @@ export default defineComponent({
             ))}
           </div>
           <div
-            class='add-new-remark'
-            style={{ paddingBottom: currentRemarkList.value.length > 0 ? '4px' : '0px' }}
+            class="add-new-remark"
+            style={{
+              paddingBottom: currentRemarkList.value.length > 0 ? "4px" : "0px",
+            }}
           >
             <bk-button
               text
-              theme='primary'
-              size='small'
-              on-click={() => handleEditRemark(null, 'add')}
+              theme="primary"
+              size="small"
+              on-click={() => handleEditRemark(null, "add")}
             >
               <log-icon
                 common
-                type='plus'
-                style='font-size: 22px;margin-right: 6px;'
+                type="plus"
+                style="font-size: 22px;margin-right: 6px;"
               />
-              {t('新增备注')}
+              {t("新增备注")}
             </bk-button>
           </div>
         </div>
@@ -269,13 +256,13 @@ export default defineComponent({
           value={isShowEditRemarkDialog.value}
           confirm-fn={handleConfirmUpdateRemark}
           on-cancel={() => (isShowEditRemarkDialog.value = false)}
-          title={t('备注')}
+          title={t("备注")}
           width={480}
-          header-position='left'
+          header-position="left"
         >
           <bk-form
             ref={formRef}
-            style='width: 100%'
+            style="width: 100%"
             label-width={0}
             {...{
               props: {
@@ -284,17 +271,16 @@ export default defineComponent({
               },
             }}
           >
-            <bk-form-item
-              error-display-type='normal'
-              property='textInputStr'
-            >
+            <bk-form-item error-display-type="normal" property="textInputStr">
               <bk-input
                 value={verifyData.value.textInputStr}
                 // maxlength={100}
-                placeholder={t('请输入')}
+                placeholder={t("请输入")}
                 rows={5}
-                type='textarea'
-                on-change={val => (verifyData.value.textInputStr = val.trim())}
+                type="textarea"
+                on-change={(val) =>
+                  (verifyData.value.textInputStr = val.trim())
+                }
               />
             </bk-form-item>
           </bk-form>

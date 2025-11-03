@@ -24,17 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
-import Stratege from './strategy';
-import QuickFilter from './quick-filter';
-import useLocale from '@/hooks/use-locale';
-import EmailSubscription from './email-subscription';
-import ClusterConfig from './cluster-config';
+import { computed, defineComponent, ref } from "vue";
+import Stratege from "./strategy";
+import QuickFilter from "./quick-filter";
+import useLocale from "@/hooks/use-locale";
+import EmailSubscription from "./email-subscription";
+import ClusterConfig from "./cluster-config";
 
-import './index.scss';
+import "./index.scss";
 
 export default defineComponent({
-  name: 'TopOperation',
+  name: "TopOperation",
   components: {
     EmailSubscription,
     Stratege,
@@ -74,44 +74,54 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const { t } = useLocale();
 
-    const clusterConfigRef = ref(null);
+    const clusterConfigRef = ref<any>(null);
     /** 是否创建过策略 */
     const strategyHaveSubmit = ref(false);
 
     const getDimensionStr = computed(() =>
-      props.fingerOperateData.dimensionList.length
-        ? `${t('聚合维度')} : ${props.fingerOperateData.dimensionList.join(', ')}`
-        : '',
+      props.fingerOperateData?.dimensionList.length
+        ? `${t("聚合维度")} : ${props.fingerOperateData.dimensionList.join(
+            ", "
+          )}`
+        : ""
     );
     const getGroupStr = computed(() =>
-      props.fingerOperateData.selectGroupList.length
-        ? `${t('分组')} : ${props.fingerOperateData.selectGroupList.join(', ')}`
-        : '',
+      props.fingerOperateData?.selectGroupList.length
+        ? `${t("分组")} : ${props.fingerOperateData.selectGroupList.join(", ")}`
+        : ""
     );
     const getYearStr = computed(() =>
-      props.requestData.year_on_year_hour ? `${t('同比')} : ${props.requestData.year_on_year_hour}h` : '',
+      props.requestData?.year_on_year_hour
+        ? `${t("同比")} : ${props.requestData.year_on_year_hour}h`
+        : ""
     );
 
     const isShowGroupTag = computed(
       () =>
         props.clusterSwitch &&
         !props.isShowClusterStep &&
-        (getGroupStr.value || getDimensionStr.value || getYearStr.value),
+        (getGroupStr.value || getDimensionStr.value || getYearStr.value)
     );
 
-    const handleStrategySubmitStatus = v => {
+    const isExternal = window.IS_EXTERNAL === true;
+
+    const handleStrategySubmitStatus = (v) => {
       strategyHaveSubmit.value = v;
     };
 
     const handleCloseGroupTag = () => {
-      emit('close-group-tag');
+      emit("close-group-tag");
     };
     const handleCloseYearTag = () => {
-      emit('close-year-tag');
+      emit("close-year-tag");
     };
 
-    const handleFingerOperate = (operateType: string, val: any, isQuery: boolean) => {
-      emit('handle-finger-operate', operateType, val, isQuery);
+    const handleFingerOperate = (
+      operateType: string,
+      val: any,
+      isQuery: boolean
+    ) => {
+      emit("handle-finger-operate", operateType, val, isQuery);
     };
 
     expose({
@@ -119,15 +129,15 @@ export default defineComponent({
     });
 
     return () => (
-      <div class='clustering-nav'>
-        <div class='operations-main'>
+      <div class="clustering-nav">
+        <div class="operations-main">
           <stratege
             indexId={props.indexId}
             cluster-switch={props.clusterSwitch}
             is-cluster-active={props.isClusterActive}
             strategy-submit-status={handleStrategySubmitStatus}
           />
-          <div class='right-operation-main'>
+          <div class="right-operation-main">
             <QuickFilter
               indexId={props.indexId}
               finger-operate-data={props.fingerOperateData}
@@ -138,36 +148,34 @@ export default defineComponent({
               is-cluster-active={props.isClusterActive}
               on-handle-finger-operate={handleFingerOperate}
             />
-            <email-subscription
-              style='margin: 0 8px'
-              indexId={props.indexId}
-              isClusterActive={props.isClusterActive}
-            />
-            <ClusterConfig
-              ref={clusterConfigRef}
-              indexId={props.indexId}
-              total-fields={props.totalFields}
-            />
+            {!isExternal && (
+              <email-subscription
+                style="margin: 0 8px"
+                indexId={props.indexId}
+                isClusterActive={props.isClusterActive}
+              />
+            )}
+            {!isExternal && (
+              <ClusterConfig
+                ref={clusterConfigRef}
+                indexId={props.indexId}
+                total-fields={props.totalFields}
+              />
+            )}
           </div>
         </div>
         {isShowGroupTag.value && (
-          <div class='tags-main'>
-            {getDimensionStr.value && <bk-tag type='stroke'>{getDimensionStr.value}</bk-tag>}
+          <div class="tags-main">
+            {getDimensionStr.value && (
+              <bk-tag type="stroke">{getDimensionStr.value}</bk-tag>
+            )}
             {getGroupStr.value && (
-              <bk-tag
-                type='stroke'
-                closable
-                on-close={handleCloseGroupTag}
-              >
+              <bk-tag type="stroke" closable on-close={handleCloseGroupTag}>
                 {getGroupStr.value}
               </bk-tag>
             )}
             {getYearStr.value && (
-              <bk-tag
-                type='stroke'
-                closable
-                on-close={handleCloseYearTag}
-              >
+              <bk-tag type="stroke" closable on-close={handleCloseYearTag}>
                 {getYearStr.value}
               </bk-tag>
             )}

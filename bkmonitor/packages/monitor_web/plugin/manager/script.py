@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import base64
-import os
 from pathlib import Path
 
 import yaml
@@ -202,11 +201,13 @@ class ScriptPluginManager(PluginManager):
 
         collector_json = {}
         for os_name, file_info in list(meta_dict["scripts"].items()):
-            script_path = os.path.join(
-                OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"]
+            script_path = Path(
+                self.plugin.plugin_id, OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"]
             )
+            if script_path not in self.plugin_configs:
+                raise PluginParseError({"msg": _(f"无法找到脚本文件, path: {script_path}")})
 
-            script_content = self._decode_file(self.plugin_configs[Path(script_path)])
+            script_content = self._decode_file(self.plugin_configs[script_path])
             collector_json[os_name] = {
                 "filename": file_info["filename"],
                 "type": file_info["type"],

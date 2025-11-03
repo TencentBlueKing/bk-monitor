@@ -1,0 +1,122 @@
+/* stylelint-disable selector-class-pattern */
+.template-config__kv-tag-component {
+  overflow: hidden;
+
+  .retrieval-filter__kv-tag-component-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-width: 131px;
+    height: 40px;
+    padding: 4px;
+    margin: 0 4px 4px 0;
+    cursor: pointer;
+    background: #f0f1f5;
+    border-radius: 2px;
+
+    &.yellow-bg {
+      background: #fdf4e8;
+    }
+
+    .key-wrap {
+      display: flex;
+      align-items: center;
+      padding-right: 42px;
+      font-size: 12px;
+
+      .key-name {
+        color: #757880;
+      }
+
+      .key-method {
+        margin-left: 2px;
+        color: #3a84ff;
+
+        &.exclude,
+        &.ne,
+        &.neq,
+        &.nreg {
+          color: #ea3636;
+        }
+      }
+    }
+
+    .value-wrap {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      color: #313238;
+
+      .value-condition {
+        margin: 0 4px;
+        font-family: RobotoMono-Medium, Menlo, Monaco, Consolas, 'Courier New', monospace;
+        font-weight: 500;
+        color: #f59500;
+      }
+
+      .value-name {
+        font-family: RobotoMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace;
+        font-weight: 400;
+        color: #313238;
+      }
+
+      &.hide-value {
+        .value-name {
+          color: #979ba5;
+          text-decoration: line-through;
+        }
+      }
+    }
+
+    .btn-wrap {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      display: none;
+      align-items: center;
+
+      .hide-btn,
+      .delete-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        margin-left: 2px;
+        background: #fff;
+        border-radius: 2px;
+        box-shadow: 0 1px 2px 0 #00000014;
+
+        .icon-monitor {
+          font-size: 14px;
+          color: #4d4f56;
+        }
+      }
+    }
+
+    &:hover {
+      background: #eaebf0;
+
+      .btn-wrap {
+        display: flex;
+
+        .hide-btn {
+          &:hover {
+            .icon-monitor {
+              color: #3a84ff;
+            }
+          }
+        }
+
+        .delete-btn {
+          &:hover {
+            .icon-monitor {
+              color: #ea3636;
+            }
+          }
+        }
+      }
+    }
+  }
+}

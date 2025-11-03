@@ -1,13 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import logging
+
 from django.utils import translation
 from django.utils.functional import cached_property
 
@@ -22,6 +24,8 @@ from constants.data_source import DataSourceLabel
 from core.drf_resource import resource
 from core.statistics.metric import Metric, register
 from monitor_web.statistics.v2.base import BaseCollector
+
+logger = logging.getLogger(__name__)
 
 
 class StrategyCollector(BaseCollector):
@@ -141,8 +145,8 @@ class StrategyCollector(BaseCollector):
             status = "enabled" if strategy_config["is_enabled"] else "disabled"
             invalid_type = strategy_config.get("invalid_type")
             scenario = strategy_config["scenario"]
-            default_metric_key = f'{query_config["metric_id"]}--0'
-            biz_metric_key = f'{query_config["metric_id"]}--{strategy_config["bk_biz_id"]}'
+            default_metric_key = f"{query_config['metric_id']}--0"
+            biz_metric_key = f"{query_config['metric_id']}--{strategy_config['bk_biz_id']}"
             plugins = fta_metric_plugins.get(default_metric_key) or fta_metric_plugins.get(biz_metric_key, [])
             if not plugins:
                 # 没有匹配到的时候，plugin_id直接忽略, 数据来源于先前缓存的内容
@@ -177,16 +181,21 @@ class StrategyCollector(BaseCollector):
         """
         language = translation.get_language()
         translation.activate("en")
-        for strategy_config in self.strategy_configs_list:
-            level = set()
-            for detect in strategy_config["detects"]:
-                if detect["level"] not in level:
-                    level.add(detect["level"])
-                    metric.labels(
-                        bk_biz_id=strategy_config["bk_biz_id"],
-                        bk_biz_name=self.get_biz_name(strategy_config["bk_biz_id"]),
-                        level=EVENT_SEVERITY_DICT.get(detect["level"], detect["level"]),
-                    ).inc()
+
+        try:
+            for strategy_config in self.strategy_configs_list:
+                level = set()
+                for detect in strategy_config["detects"]:
+                    if detect["level"] not in level:
+                        level.add(detect["level"])
+                        metric.labels(
+                            bk_biz_id=strategy_config["bk_biz_id"],
+                            bk_biz_name=self.get_biz_name(strategy_config["bk_biz_id"]),
+                            level=EVENT_SEVERITY_DICT.get(detect["level"], detect["level"]),
+                        ).inc()
+        except Exception as e:
+            logger.exception(f"strategy_level_count error: {e}")
+
         translation.activate(language)
 
     @register(labelnames=("bk_biz_id", "bk_biz_name", "algorithm_type", "plan_id", "status", "valid_status"))

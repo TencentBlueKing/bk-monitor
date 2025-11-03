@@ -58,7 +58,7 @@ from apps.log_search.constants import (
     SQL_SUFFIX,
 )
 from apps.log_search.decorators import search_history_record
-from apps.log_search.exceptions import BaseSearchIndexSetException, TokenMissingException
+from apps.log_search.exceptions import BaseSearchIndexSetException
 from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
     IndexSetCustomConfigHandler,
@@ -149,6 +149,8 @@ class SearchViewSet(APIViewSet):
             "history",
             "chart",
             "generate_sql",
+            "grep_query",
+            "search_log_for_code",
         ]:
             return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
@@ -2053,10 +2055,10 @@ class SearchViewSet(APIViewSet):
         params = self.params_valid(AliasSettingsSerializer)
         return Response(IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params["alias_settings"]))
 
-    @list_route(methods=["POST"], url_path="search_log_for_code")
-    def search_log_for_code(self, request):
+    @detail_route(methods=["POST"], url_path="search_log_for_code")
+    def search_log_for_code(self, request, index_set_id):
         """
-        @api {post} /search/index_set/search_log_for_code/ CodeCC日志搜索
+        @api {post} /search/index_set/$index_set_id/search_log_for_code/ CodeCC日志搜索
         @apiDescription 根据CodeCC token进行日志搜索，需要在请求头中传入 X-BKLOG-TOKEN
         @apiParam 接口参数参考query_ts_raw
         @apiParamExample {Json} 请求参数
@@ -2103,7 +2105,4 @@ class SearchViewSet(APIViewSet):
             }
         """
         data = self.params_valid(SearchLogForCodeSerializer)
-        token = getattr(request, "token")
-        if not token:
-            raise TokenMissingException()
-        return Response(UnifyQueryHandler.search_log_for_code(token, data))
+        return Response(UnifyQueryHandler.search_log_for_code(index_set_id, data))

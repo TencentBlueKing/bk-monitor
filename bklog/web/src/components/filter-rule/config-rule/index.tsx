@@ -24,13 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, watch } from 'vue';
+import { defineComponent, ref, computed, watch, onMounted } from 'vue';
+
 import { getRegExp } from '@/common/util';
-import useStore from '@/hooks/use-store';
+import useFieldEgges from '@/hooks/use-field-egges';
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type';
-import RuleTrigger from './rule-trigger';
+
 import ControlOperate from './control-operate';
+import RuleTrigger from './rule-trigger';
 
 import './index.scss';
 
@@ -43,7 +46,7 @@ export default defineComponent({
   props: {
     data: {
       type: Object,
-      default: () => undefined,
+      default: () => {},
     },
     isCreate: {
       type: Boolean,
@@ -53,7 +56,9 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
+    const { isRequesting, isValidateItem, requestFieldEgges, setIsRequesting, isValidateEgges } = useFieldEgges();
 
+    const fieldListMainRef = ref(null);
     const popoverRef = ref(null);
     const formRef = ref(null);
     const controlOperateRef = ref(null);
@@ -75,7 +80,7 @@ export default defineComponent({
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
     const isFieldListEmpty = computed(() => !indexFieldInfo.value.fields.length);
-    const isSearchEmpty = computed(() => !isFieldListEmpty.value && !filterFieldList.value.length);
+    const isSearchEmpty = computed(() => !(isFieldListEmpty.value || filterFieldList.value.length));
     const exceptionType = computed(() => (isFieldListEmpty.value ? 'empty' : 'search-empty'));
     const textDir = computed(() => {
       const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
@@ -86,11 +91,18 @@ export default defineComponent({
       const filterFn = field =>
         !/^__dist/.test(field.field_name) &&
         field.field_type !== '__virtual__' &&
+        !['dtEventTimeStamp', 'time', 'iterationIndex', 'gseIndex'].includes(field.field_name) &&
         (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias));
       return indexFieldInfo.value.fields.filter(filterFn);
     });
     const isConfirmEnable = computed(() => formData.value.op && formData.value.values.length);
     const currentFieldInfo = computed(() => filterFieldList.value[activeIndex.value]);
+
+    const activeItemMatchList = computed(() =>
+      (store.state.indexFieldInfo.aggs_items[currentFieldInfo.value.field_name] ?? []).filter(
+        item => !(formData.value.values ?? []).includes(item),
+      ),
+    );
 
     const conditionList = [
       { id: '=', name: '=' },
@@ -113,42 +125,36 @@ export default defineComponent({
           message: t('必填项'),
           trigger: 'blur',
         },
-        // {
-        //   validator: (values: string[]) => {
-        //     if (['NOT LIKE', 'LIKE'].includes(formData.value.op)) {
-        //       return values.every(item => /%/.test(item));
-        //     }
-
-        //     return true;
-        //   },
-        //   message: t('使用LIKE、NOT LINK操作符时请在过滤值前后增加%'),
-        //   trigger: 'blur',
-        // },
       ],
+    };
+
+    const initData = () => {
+      if (props.data && filterFieldList.value.length) {
+        activeIndex.value =
+          filterFieldList.value.findIndex(
+            item => item.field_name === props.data.field_name || item.field_name === props.data.fields_name,
+          ) || 0;
+
+        hoverIndex.value = activeIndex.value;
+        formData.value = {
+          op: props.data.op,
+          values: props.data.value,
+        };
+
+        const fieldInfo = filterFieldList.value[activeIndex.value];
+        localFormData.value = {
+          op: props.data.op,
+          values: props.data.value,
+          field_name: fieldInfo.field_name,
+          field_alias: fieldInfo.field_alias,
+        };
+      }
     };
 
     watch(
       () => [props.data, filterFieldList.value],
       () => {
-        if (props.data && filterFieldList.value.length) {
-          activeIndex.value =
-            filterFieldList.value.findIndex(
-              item => item.field_name === props.data.field_name || item.field_name === props.data.fields_name,
-            ) || 0;
-          hoverIndex.value = activeIndex.value;
-          formData.value = {
-            op: props.data.op,
-            values: props.data.value,
-          };
-
-          const fieldInfo = filterFieldList.value[activeIndex.value];
-          localFormData.value = {
-            op: props.data.op,
-            values: props.data.value,
-            field_name: fieldInfo.field_name,
-            field_alias: fieldInfo.field_alias,
-          };
-        }
+        initData();
       },
       { immediate: true },
     );
@@ -165,9 +171,17 @@ export default defineComponent({
       return fieldTypeMap.value[type].textColor;
     };
 
-    const handleFieldItemClick = (fieldInfo: any, index: number) => {
+    const checkAndRequestEgges = () => {
+      if (isValidateEgges(currentFieldInfo.value)) {
+        setIsRequesting(true);
+        requestFieldEgges(currentFieldInfo.value);
+      }
+    };
+
+    const handleFieldItemClick = (index: number) => {
       activeIndex.value = index;
       hoverIndex.value = index;
+      checkAndRequestEgges();
     };
 
     const handelClickConfirm = () => {
@@ -194,21 +208,27 @@ export default defineComponent({
         });
     };
 
+    const handleChooseMatchItem = (e: any, item: string) => {
+      e.stopPropagation();
+      formData.value.values.push(item);
+    };
+
     const handleClickKeyUp = () => {
       if (hoverIndex.value > 0) {
-        hoverIndex.value = hoverIndex.value - 1;
+        hoverIndex.value -= 1;
       }
     };
 
     const handleClickKeyDown = () => {
       if (hoverIndex.value < filterFieldList.value.length - 1) {
-        hoverIndex.value = hoverIndex.value + 1;
+        hoverIndex.value += 1;
       }
     };
 
     const handelClickEnter = () => {
       if (activeIndex.value !== hoverIndex.value) {
         activeIndex.value = hoverIndex.value;
+        checkAndRequestEgges();
       }
     };
 
@@ -228,12 +248,22 @@ export default defineComponent({
     const handlePopoverShow = () => {
       formRef.value?.clearError();
       controlOperateRef.value.bindKeyEvent();
+      initData();
+      setTimeout(() => {
+        const selectItemDom = fieldListMainRef.value.querySelector('.is-active');
+        if (selectItemDom) {
+          selectItemDom.scrollIntoView();
+        }
+      });
     };
 
     const handlePopoverHide = () => {
-      // formData.value = { op: '', values: [] };
       controlOperateRef.value.unbindKeyEvent();
     };
+
+    onMounted(() => {
+      handleFieldItemClick(activeIndex.value);
+    });
 
     expose({
       hide: handleClickCancel,
@@ -242,20 +272,20 @@ export default defineComponent({
     return () => (
       <bk-popover
         ref={popoverRef}
-        placement='bottom'
-        ext-cls='config-rule-popover'
         width={720}
+        ext-cls='config-rule-popover'
         tippy-options={{
           theme: 'light',
           trigger: 'click',
           hideOnClick: false,
         }}
-        on-show={handlePopoverShow}
+        placement='bottom'
         on-hide={handlePopoverHide}
+        on-show={handlePopoverShow}
       >
         <RuleTrigger
-          isCreate={props.isCreate}
           data={localFormData.value}
+          isCreate={props.isCreate}
           on-click={handleClickTrigger}
           on-delete={handleClickDelete}
         />
@@ -266,17 +296,23 @@ export default defineComponent({
                 <div class='search-input'>
                   <bk-input
                     style='width: 100%'
-                    value={searchValue.value}
-                    clearable
-                    placeholder={t('请输入关键字')}
                     behavior='simplicity'
                     left-icon='bk-icon icon-search'
-                    on-change={value => (searchValue.value = value)}
+                    placeholder={t('请输入关键字')}
+                    value={searchValue.value}
+                    clearable
+                    on-change={value => {
+                      searchValue.value = value;
+                    }}
                   />
                 </div>
-                <div class='field-list-main'>
+                <div
+                  ref={fieldListMainRef}
+                  class='field-list-main'
+                >
                   {filterFieldList.value.map((item, index) => (
                     <div
+                      key={item.field_name}
                       class={[
                         'config-rule-field-row',
                         {
@@ -285,9 +321,10 @@ export default defineComponent({
                         },
                       ]}
                       data-tab-index={index}
-                      key={item.field_name}
-                      on-click={() => handleFieldItemClick(item, index)}
-                      on-mouseenter={() => (hoverIndex.value = activeIndex.value)}
+                      on-click={() => handleFieldItemClick(index)}
+                      on-mouseenter={() => {
+                        hoverIndex.value = activeIndex.value;
+                      }}
                     >
                       <span
                         style={{
@@ -295,23 +332,29 @@ export default defineComponent({
                           color: getFieldIconTextColor(item.field_type),
                         }}
                         class={[getFieldIcon(item.field_type), 'field-type-icon']}
-                      ></span>
+                      />
                       <div
                         class='display-container rtl-text'
                         dir={textDir.value}
                       >
-                        <bdi>
-                          <span class='field-alias'>{item.field_alias}</span>
-                          <span class='field-name'>({item.field_name})</span>
-                        </bdi>
+                        {item.field_alias !== '' ? (
+                          <bdi>
+                            <span class='field-alias'>{item.field_alias}</span>
+                            <span class='field-name'>({item.field_name})</span>
+                          </bdi>
+                        ) : (
+                          <bdi>
+                            <span class='field-alias'>{item.field_name}</span>
+                          </bdi>
+                        )}
                       </div>
                     </div>
                   ))}
                   {(isFieldListEmpty.value || isSearchEmpty.value) && (
                     <bk-exception
                       style='justify-content: center; height: 260px'
-                      type={exceptionType.value}
                       scene='part'
+                      type={exceptionType.value}
                     />
                   )}
                 </div>
@@ -330,20 +373,21 @@ export default defineComponent({
                   <bk-form-item
                     label={t('条件')}
                     property='op'
-                    error-display-type='normal'
                     required
                   >
                     <div class='setting-item'>
                       <bk-select
                         style='width: 314px'
-                        value={formData.value.op}
                         clearable={false}
-                        on-change={value => (formData.value.op = value)}
+                        value={formData.value.op}
+                        on-change={value => {
+                          formData.value.op = value;
+                        }}
                       >
                         {conditionList.map(option => (
                           <bk-option
-                            key={option.id}
                             id={option.id}
+                            key={option.id}
                             name={option.name}
                           />
                         ))}
@@ -353,18 +397,48 @@ export default defineComponent({
                   <bk-form-item
                     label={t('检索值')}
                     property='values'
-                    error-display-type='normal'
                     required
                   >
-                    <bk-tag-input
-                      value={formData.value.values}
-                      content-width={232}
-                      placeholder={t('请输入')}
-                      trigger='focus'
-                      allow-auto-match
-                      allow-create
-                      on-change={value => (formData.value.values = value)}
-                    />
+                    <div class='content-input-wraper'>
+                      <bk-tag-input
+                        clearable={false}
+                        content-width={232}
+                        placeholder={t('请输入')}
+                        separator='\n'
+                        trigger='focus'
+                        value={formData.value.values}
+                        allow-auto-match
+                        allow-create
+                        free-paste
+                        on-change={value => {
+                          formData.value.values = value;
+                        }}
+                      />
+                      {isValidateItem.value && (
+                        <div
+                          class='match-list-main'
+                          v-bkloading={{
+                            isLoading: isRequesting.value,
+                            size: 'small',
+                          }}
+                        >
+                          {activeItemMatchList.value.length > 0 ? (
+                            activeItemMatchList.value.map(item => (
+                              <div
+                                key={item}
+                                class='match-item'
+                                v-bk-overflow-tips
+                                on-click={e => handleChooseMatchItem(e, item)}
+                              >
+                                {item}
+                              </div>
+                            ))
+                          ) : (
+                            <span style='padding-left:8px'>{t('暂无数据')}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </bk-form-item>
                 </bk-form>
               </div>
@@ -372,13 +446,13 @@ export default defineComponent({
             <control-operate
               ref={controlOperateRef}
               confrim-enable={isConfirmEnable.value}
-              on-up={handleClickKeyUp}
-              on-down={handleClickKeyDown}
+              on-cancel={handleClickCancel}
+              on-confirm={handelClickConfirm}
               on-ctrlenter={handelClickConfirm}
+              on-down={handleClickKeyDown}
               on-enter={handelClickEnter}
               on-esc={handleClickCancel}
-              on-confirm={handelClickConfirm}
-              on-cancel={handleClickCancel}
+              on-up={handleClickKeyUp}
             />
           </div>
         </div>

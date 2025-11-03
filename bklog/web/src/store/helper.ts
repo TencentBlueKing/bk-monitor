@@ -62,7 +62,7 @@ export const getStorageCommonFilterAddition = () => {
     jsonValue = JSON.parse(value || '[]');
 
     if (!Array.isArray(jsonValue) && 'indexId' in jsonValue && 'value' in jsonValue) {
-      jsonValue = [{ indexSetIdList: [jsonValue.indexId], filterAddition: [jsonValue.value], t: new Date().getTime() }];
+      jsonValue = [{ indexSetIdList: [jsonValue.indexId], filterAddition: [jsonValue.value], t: Date.now() }];
     }
   } catch (e) {
     console.error('Failed to parse common filter addition:', e);
@@ -72,7 +72,7 @@ export const getStorageCommonFilterAddition = () => {
 };
 
 export const filterCommontAdditionByIndexSetId = (indexSetIdList: string[], list?: FilterAdditionStorageItem[]) => {
-  let jsonValue: FilterAdditionStorageItem[] = list ?? getStorageCommonFilterAddition();
+  const jsonValue: FilterAdditionStorageItem[] = list ?? getStorageCommonFilterAddition();
   const formatList = indexSetIdList.map(id => `${id}`);
   return jsonValue?.find(
     item =>
@@ -133,9 +133,9 @@ export const setStorageCommonFilterAddition = (state, filterAddition: Record<str
   const allStorage = getStorageCommonFilterAddition();
   const currentItem: FilterAdditionStorageItem = filterCommontAdditionByIndexSetId(state.indexItem.ids, allStorage);
 
-  if (currentItem) {
+  if (currentItem !== undefined) {
     currentItem.filterAddition = filterAddition;
-    currentItem.t = new Date().getTime();
+    currentItem.t = Date.now();
     sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(allStorage));
     return;
   }
@@ -143,7 +143,7 @@ export const setStorageCommonFilterAddition = (state, filterAddition: Record<str
   allStorage.push({
     indexSetIdList: state.indexItem.ids.map(id => `${id}`),
     filterAddition,
-    t: new Date().getTime(),
+    t: Date.now(),
   });
 
   /**
@@ -160,7 +160,7 @@ export const setStorageCommonFilterAddition = (state, filterAddition: Record<str
 export const clearStorageCommonFilterAddition = state => {
   const allStorage = getStorageCommonFilterAddition();
   const currentItem: FilterAdditionStorageItem = filterCommontAdditionByIndexSetId(state.indexItem.ids, allStorage);
-  if (currentItem) {
+  if (currentItem !== undefined) {
     const index = allStorage.indexOf(currentItem);
     if (index > -1) {
       allStorage.splice(index, 1);

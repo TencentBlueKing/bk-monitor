@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -136,7 +136,7 @@ class FrontendShieldListResource(Resource):
 
         return [shield for shield in shields if match(shield)]
 
-    def enrich_shields(self, bk_biz_id: int | None, shields: list, strategy_ids: list[int]) -> list:
+    def enrich_shields(self, bk_biz_id: int | None, shields: list[dict], strategy_ids: list[int]) -> list:
         """补充屏蔽记录的数据便于展示。"""
         if not shields:
             return []
@@ -194,7 +194,7 @@ class FrontendShieldDetailResource(Resource):
 
     def __init__(self):
         super().__init__()
-        self.bk_biz_id = None
+        self.bk_biz_id: int = 0
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="屏蔽id")
@@ -229,7 +229,7 @@ class FrontendShieldDetailResource(Resource):
         notice_config["notice_receiver"] = notice_receivers
         return notice_config
 
-    def handle_dimension_config(self, shield):
+    def handle_dimension_config(self, shield: dict):
         dimension_config = {}
         shield_display_manager = ShieldDisplayManager(self.bk_biz_id)
         if shield.get("scope_type"):
@@ -296,8 +296,8 @@ class FrontendShieldDetailResource(Resource):
         return dimension_config
 
     def perform_request(self, data):
-        result = resource.shield.shield_detail(**data)
-        self.bk_biz_id = data["bk_biz_id"]
+        result: dict = resource.shield.shield_detail(**data)
+        self.bk_biz_id: int = data["bk_biz_id"]
         dimension_config = self.handle_dimension_config(result)
         notice_config = self.handle_notice_config(result["notice_config"]) if result["notice_config"] else {}
         result.update(dimension_config=dimension_config, notice_config=notice_config)

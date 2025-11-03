@@ -1,4 +1,6 @@
 .log-content-table-main {
+  overflow-x: hidden;
+
   .collpase-main {
     width: 100%;
     height: 36px;
@@ -70,7 +72,6 @@
 
   .log-content-table-wraper {
     width: 100%;
-    overflow-x: hidden;
 
     .log-content-table {
       width: 100%;
@@ -104,6 +105,12 @@
               }
             }
 
+            .principal-tag-input {
+              .bk-tag-input {
+                background: #f5f7fa;
+              }
+            }
+
             .ai-assist-column {
               .ai-icon {
                 display: none;
@@ -112,6 +119,19 @@
                 display: block;
               }
             }
+          }
+
+          &.is-row-group {
+            border: none;
+            border-bottom: none;
+            td {
+              padding-left: 0;
+              padding: 0;
+            }
+          }
+
+          &.is-flatten-count {
+            height: 24px;
           }
         }
         td {
@@ -194,7 +214,7 @@
             .show-whole-btn {
               position: absolute;
               top: 100px;
-              width: 100%;
+              right: 0;
               height: 24px;
               font-size: 12px;
               color: #3a84ff;
@@ -204,7 +224,6 @@
             }
 
             .hide-whole-btn {
-              margin-top: 2px;
               line-height: 14px;
               color: #3a84ff;
               cursor: pointer;
@@ -235,6 +254,20 @@
                 }
               }
             }
+
+            .principal-tag-input {
+              .bk-tag-input {
+                border-color: transparent;
+
+                &:hover {
+                  background: #eaebf0;
+                }
+                &.active {
+                  border-color: #3a84ff;
+                  background: #fff;
+                }
+              }
+            }
           }
 
           .create-strategy-main {
@@ -251,10 +284,12 @@
           .remark-column {
             width: 100%;
             height: 26px;
+            line-height: 26px;
             border-radius: 2px;
-            display: flex;
-            align-items: center;
             padding-left: 8px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
 
             &:hover {
               background: #eaebf0;
@@ -277,6 +312,11 @@
           }
         }
       }
+    }
+
+    &.is-scroll-mode {
+      // max-height: 600px;
+      overflow-y: auto;
     }
   }
 }

@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -188,6 +188,23 @@ def refresh_all_log_config():
 
 
 @share_lock()
+def refresh_all_log_config_to_k8s():
+    """
+    刷新所有自定义日志的 K8s 配置（获取全部数据进行批量调度）
+    """
+    # 获取所有启用的日志组
+    log_groups = list(models.LogGroup.objects.filter(is_enable=True))
+    if not log_groups:
+        return
+
+    try:
+        models.LogSubscriptionConfig.refresh_k8s(log_groups)
+        logger.info(f"[refresh_all_log_config_to_k8s]: batch publish k8s config for {len(log_groups)} log groups")
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(f"[RefreshCustomLogK8sConfigFailed] Err => {str(e)}; LogGroup => {log_groups}")
+
+
+@share_lock()
 def refresh_custom_log_config(log_group_id=None):
     """
     下发单个自定义日志配置
@@ -202,7 +219,6 @@ def refresh_custom_log_config(log_group_id=None):
 
     try:
         models.LogSubscriptionConfig.refresh(log_group)
-        models.LogSubscriptionConfig.refresh_k8s(log_group)
     except Exception as err:  # pylint: disable=broad-except
         logger.exception("[RefreshCustomLogConfigFailed] Err => %s; LogGroup => %s", str(err), log_group.log_group_id)
 

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -54,7 +54,7 @@ class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
     return { application_name: this.$route.params?.appName || '' };
   }
 
-  beforeRouteEnter(from, to, next) {
+  beforeRouteEnter(_from, _too, next) {
     next((vm: ServiceAdd) => {
       vm.routeList = [
         {
@@ -73,12 +73,15 @@ class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
         <CommonNavBar
           class='service-configuration-nav'
           slot='nav'
+          callbackRouterBack={() => {
+            this.$router.push({ path: '/apm/home', query: { app_name: this.$route.params?.appName || '' } });
+          }}
           navMode={'display'}
           needBack={true}
           routeList={this.routeList}
         >
           <div slot='custom'>
-            {this.$t('接入服务')}
+            {this.$t('Quick Start')}
             <div
               class='service-add-link'
               onClick={() => this.guideUrl && window.open(this.guideUrl)}

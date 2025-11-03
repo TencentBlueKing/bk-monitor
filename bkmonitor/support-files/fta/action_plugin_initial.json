@@ -526,12 +526,9 @@
     "description": "标准运维是通过可视化的图形界面进行任务流程编排和执行的系统，是腾讯蓝鲸产品体系中一款轻量级的调度编排类 SaaS 产品。<a href=\"{plugin_url}\" target=\"_blank\">前往标准运维</a>\n\n* 在标准运维中创建一个流程\n\n* 流程里面可以添加各种原子\n\n* 处理套餐中可以上下文传参可以在标准运维流程中设置为 **全局变量**\n\n",
     "config_schema": {
       "template": {
-        "resource_class": "CommonBaseResource",
+        "resource_class": "GetCommonTemplateListResource",
         "name": "公共流程名称",
-        "init_kwargs": {
-          "url": "{{bk_paas_inner_host}}/api/c/compapi/v2/sops/get_common_template_list/"
-        },
-        "resource_module": "api.common.default",
+        "resource_module": "api.sops.default",
         "resource_data": "response[*]",
         "mapping": {
           "id": "{{id}}",
@@ -547,13 +544,10 @@
       },
       "detail": {
         "name": "任务参数",
-        "resource_class": "CommonBaseResource",
-        "resource_module": "api.common.default",
+        "resource_class": "GetCommonTemplateInfoResource",
+        "resource_module": "api.sops.default",
         "request_data_mapping": {
           "template_id": "{{template_id}}"
-        },
-        "init_kwargs": {
-          "url": "{{bk_paas_inner_host}}/api/c/compapi/v2/sops/get_common_template_info/"
         },
         "resource_data": "response.pipeline_tree.constants.* | [?show_type == 'show']",
         "mapping": {

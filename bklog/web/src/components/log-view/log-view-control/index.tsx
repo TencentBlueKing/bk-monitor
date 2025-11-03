@@ -31,13 +31,13 @@ import './index.scss';
 
 interface IProps {
   showType: string;
-  lightList: Array<[]>;
+  lightList: any[];
 }
 
 @Component
 export default class LogViewControl extends tsc<IProps> {
   @Prop({ default: 'log', type: String }) showType: string;
-  @Prop({ default: () => [], type: Array }) lightList: Array<[]>;
+  @Prop({ default: () => [], type: Array }) lightList: any[];
   @Ref('jumpInput') jumpInputRef: HTMLElement;
 
   currentViewIndex = 1;
@@ -85,7 +85,7 @@ export default class LogViewControl extends tsc<IProps> {
 
   @Watch('lightList', { deep: true })
   watchLightList(v) {
-    !!v.length ? this.initLightItemList() : this.clearLightCatch();
+    v.length ? this.initLightItemList() : this.clearLightCatch();
   }
   @Watch('showType')
   watchShowType() {
@@ -144,15 +144,19 @@ export default class LogViewControl extends tsc<IProps> {
 
   handleInputChange(event) {
     const $target = event.target;
-    const value = parseInt($target.textContent, 10);
+    const value = Number.parseInt($target.textContent, 10);
     // 无效值不抛出事件
-    if (!value || value < 1 || value > this.lightSize || value === this.currentViewIndex) return;
+    if (!value || value < 1 || value > this.lightSize || value === this.currentViewIndex) {
+      return;
+    }
     this.currentViewIndex = value;
   }
 
   handleBlur() {
     this.focus = false;
-    if (typeof this.catchViewIndex !== 'string') this.catchViewIndex = this.currentViewIndex;
+    if (typeof this.catchViewIndex !== 'string') {
+      this.catchViewIndex = this.currentViewIndex;
+    }
     this.handelChangeLight(this.currentViewIndex);
   }
 
@@ -173,14 +177,20 @@ export default class LogViewControl extends tsc<IProps> {
       <div class={['markdown-control', `control-${this.currentShowType}`]}>
         <div class='left'>
           {this.colorList.map((item, index) => {
-            if (!item.color.length) return undefined;
+            if (!item.color.length) {
+              return null;
+            }
             return (
-              <div class='color-item'>
+              <div
+                key={`${index}-${item}`}
+                class='color-item'
+              >
                 {item.color.map(cItem => (
                   <div
+                    key={cItem.dark}
                     style={{ backgroundColor: index === 3 ? cItem.dark : cItem[this.currentShowType] }}
                     class='color-block'
-                  ></div>
+                  />
                 ))}
                 <span>{item.name}</span>
               </div>
@@ -207,20 +217,24 @@ export default class LogViewControl extends tsc<IProps> {
               <div
                 class='jump-btn'
                 onClick={() => {
-                  if (this.currentViewIndex === 1) return;
+                  if (this.currentViewIndex === 1) {
+                    return;
+                  }
                   this.handelChangeLight(this.currentViewIndex - 1);
                 }}
               >
-                <i class='bk-icon icon-angle-up'></i>
+                <i class='bk-icon icon-angle-up' />
               </div>
               <div
                 class='jump-btn next'
                 onClick={() => {
-                  if (this.currentViewIndex === this.lightSize) return;
+                  if (this.currentViewIndex === this.lightSize) {
+                    return;
+                  }
                   this.handelChangeLight(this.currentViewIndex + 1);
                 }}
               >
-                <i class='bk-icon icon-angle-up'></i>
+                <i class='bk-icon icon-angle-up' />
               </div>
             </div>
           )}

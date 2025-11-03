@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -31,6 +31,7 @@ import type { IFilterItem } from './utils';
 import './kv-tag.scss';
 
 interface IProps {
+  hasHideBtn?: boolean;
   value: IFilterItem;
   onDelete?: () => void;
   onHide?: () => void;
@@ -40,6 +41,7 @@ interface IProps {
 export default class KvTag extends tsc<IProps> {
   @Prop({ type: Object, default: () => null }) value: IFilterItem;
   @Prop({ type: Boolean, default: false }) active: boolean;
+  @Prop({ type: Boolean, default: true }) hasHideBtn: boolean;
 
   localValue: IFilterItem = null;
   hideCount = 0;
@@ -155,16 +157,18 @@ export default class KvTag extends tsc<IProps> {
             {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}
           </div>
           <div class='btn-wrap'>
-            <div
-              class='hide-btn'
-              onClick={this.handleHide}
-            >
-              {this.isHide ? (
-                <span class='icon-monitor icon-mc-invisible' />
-              ) : (
-                <span class='icon-monitor icon-guanchazhong' />
-              )}
-            </div>
+            {this.hasHideBtn && (
+              <div
+                class='hide-btn'
+                onClick={this.handleHide}
+              >
+                {this.isHide ? (
+                  <span class='icon-monitor icon-mc-invisible' />
+                ) : (
+                  <span class='icon-monitor icon-guanchazhong' />
+                )}
+              </div>
+            )}
             <div
               class='delete-btn'
               onClick={this.handleDelete}

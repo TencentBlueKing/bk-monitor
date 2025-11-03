@@ -23,17 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import _ from 'lodash';
-import { defineComponent, ref } from 'vue';
-import SubscriptionContent from './subscription-content';
-import EmailConfig from './email-config';
-import SendConfig from './send-config';
-import useStore from '@/hooks/use-store';
-import { useRoute } from 'vue-router/composables';
-import './index.scss';
+import { mergeWith } from "lodash-es";
+import { defineComponent, ref } from "vue";
+import SubscriptionContent from "./subscription-content";
+import EmailConfig from "./email-config";
+import SendConfig from "./send-config";
+import useStore from "@/hooks/use-store";
+import { useRoute } from "vue-router/composables";
+import "./index.scss";
 
 export default defineComponent({
-  name: 'SubscriptionForm',
+  name: "SubscriptionForm",
   components: {
     SubscriptionContent,
     EmailConfig,
@@ -42,7 +42,7 @@ export default defineComponent({
   props: {
     mode: {
       type: String,
-      default: 'edit',
+      default: "edit",
     },
     indexId: {
       type: String,
@@ -50,16 +50,16 @@ export default defineComponent({
     },
     scenario: {
       type: String,
-      default: 'clustering',
+      default: "clustering",
     },
   },
   setup(props, { expose }) {
     const store = useStore();
     const route = useRoute();
 
-    const subscriptionContentRef = ref(null);
-    const emailConfigRef = ref(null);
-    const sendConfigRef = ref(null);
+    const subscriptionContentRef = ref<any>(null);
+    const emailConfigRef = ref<any>(null);
+    const sendConfigRef = ref<any>(null);
 
     const getValue = async () => {
       const formDataList = await Promise.all([
@@ -67,24 +67,27 @@ export default defineComponent({
         emailConfigRef.value.getValue(),
         sendConfigRef.value.getValue(),
       ]);
-      const formData = formDataList.reduce((data, item) => _.mergeWith(data, item), {});
+      const formData = formDataList.reduce(
+        (data, item) => mergeWith(data, item),
+        {},
+      );
 
-      const cloneFormData = _.cloneDeep(formData);
+      const cloneFormData = structuredClone(formData);
       delete cloneFormData.scenario_config__log_display_count;
       delete cloneFormData.content_config__title;
       delete cloneFormData.timerange;
-      if (cloneFormData.subscriber_type === 'self') {
+      if (cloneFormData.subscriber_type === "self") {
         cloneFormData.channels = [
           {
             is_enabled: true,
             subscribers: [
               {
-                id: store.state.userMeta?.username || '',
-                type: 'user',
+                id: store.state.userMeta?.username || "",
+                type: "user",
                 is_enabled: true,
               },
             ],
-            channel_name: 'user',
+            channel_name: "user",
           },
         ];
       }
@@ -97,21 +100,18 @@ export default defineComponent({
       getValue,
     });
     return () => (
-      <div class='quick-create-subscription-slider-container'>
+      <div class="quick-create-subscription-slider-container">
         <subscription-content
           ref={subscriptionContentRef}
           index-id={props.indexId}
-          mode='create'
+          mode="create"
           scenario={props.scenario}
         />
-        <email-config
-          ref={emailConfigRef}
-          scenario={props.scenario}
-        />
+        <email-config ref={emailConfigRef} scenario={props.scenario} />
         <send-config
           ref={sendConfigRef}
           index-id={props.indexId}
-          mode='create'
+          mode="create"
           scenario={props.scenario}
         />
       </div>

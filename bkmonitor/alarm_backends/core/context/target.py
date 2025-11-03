@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict, List
 
 from django.utils.functional import cached_property
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache.cmdb import (
     BusinessManager,
@@ -35,9 +34,9 @@ class MultiInstanceDisplay:
             if value is None:
                 continue
 
-            if isinstance(value, (str, float, int)):
+            if isinstance(value, str | float | int):
                 values.append(str(value))
-            elif isinstance(value, list) and value and isinstance(value[0], (str, float, int)):
+            elif isinstance(value, list) and value and isinstance(value[0], str | float | int):
                 values.extend([str(v) for v in value])
         return ",".join(values)
 
@@ -78,7 +77,24 @@ class Target(BaseContextObject):
                 set_names.add(topo_link[1].bk_inst_name)
         result.module_string = ",".join(module_names)
         result.set_string = ",".join(set_names)
+        result.bk_env_string = self.get_host_env_string(result)
         return result
+
+    def get_host_env_string(self, host):
+        environment_mapping = {"1": _("测试"), "2": _("体验"), "3": _("正式")}
+        env_set = set()
+        for set_id in host.bk_set_ids:
+            bk_set = SetManager.get(set_id)
+            if not bk_set:
+                continue
+            # 检查bk_set_env是否存在且不为None，允许"0"等值
+            if bk_set.bk_set_env is None or bk_set.bk_set_env == "":
+                continue
+            # 确保bk_set_env是字符串类型
+            env_value = str(bk_set.bk_set_env)
+            bk_env_name = environment_mapping.get(env_value, env_value)
+            env_set.add(bk_env_name)
+        return ",".join(sorted(env_set))
 
     @cached_property
     def hosts(self) -> MultiInstanceDisplay:
@@ -105,6 +121,7 @@ class Target(BaseContextObject):
                         set_names.add(topo_link[1].bk_inst_name)
                 host.module_string = module_names
                 host.set_string = set_names
+                host.bk_env_string = self.get_host_env_string(host)
                 hosts.append(host)
 
         return MultiInstanceDisplay(hosts)
@@ -118,7 +135,7 @@ class Target(BaseContextObject):
         return {process["bk_func_name"]: process for process in self.processes}
 
     @cached_property
-    def processes(self) -> List[Dict]:
+    def processes(self) -> list[dict]:
         """
         进程列表
         """

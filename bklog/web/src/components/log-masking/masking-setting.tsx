@@ -32,7 +32,7 @@ import { Alert, Button, Input, Table, TableColumn, Tag, Switcher, TableSettingCo
 
 import $http from '../../api';
 import * as authorityMap from '../../common/authority-map';
-import {  utcFormatDate } from '../../common/util';
+import { utcFormatDate } from '../../common/util';
 import i18n from '../../language/i18n';
 import EmptyStatus from '../empty-status/index.vue';
 import MaskingAddRule from './masking-add-rule';
@@ -45,7 +45,7 @@ interface IProps {
 
 interface IEditAccessValue {
   accessNum: number;
-  accessInfo: Array<any>;
+  accessInfo: any[];
 }
 
 const settingFields = [
@@ -281,7 +281,9 @@ export default class MaskingSetting extends tsc<IProps> {
       const updateSourceFiltersSet = new Set();
       this.tableList = res.data
         .map(item => {
-          if (!updateSourceFiltersSet.has(item.updated_by)) updateSourceFiltersSet.add(item.updated_by);
+          if (!updateSourceFiltersSet.has(item.updated_by)) {
+            updateSourceFiltersSet.add(item.updated_by);
+          }
           return {
             id: item.id,
             ruleName: item.rule_name,
@@ -297,7 +299,7 @@ export default class MaskingSetting extends tsc<IProps> {
             updatedAt: item.updated_at,
           };
         })
-        .sort((a, b) => (b.isPublic ? 1 : -1));
+        .sort((_a, b) => (b.isPublic ? 1 : -1));
       this.tableStrList = this.tableList.map(item => item.ruleName);
       this.tableSearchList = structuredClone(this.tableList);
       this.tableShowList = this.tableSearchList.slice(0, this.pagination.limit);
@@ -311,7 +313,7 @@ export default class MaskingSetting extends tsc<IProps> {
         value: item,
       }));
       this.emptyType = 'empty';
-    } catch (err) {
+    } catch {
       this.emptyType = '500';
     } finally {
       this.tableLoading = false;
@@ -368,7 +370,9 @@ export default class MaskingSetting extends tsc<IProps> {
       const res = await $http.request('masking/deleteRule', {
         params: { rule_id: this.changeRuleID },
       });
-      if (res.result) this.initTableList();
+      if (res.result) {
+        this.initTableList();
+      }
     }
   }
 
@@ -377,7 +381,9 @@ export default class MaskingSetting extends tsc<IProps> {
    * @param {Any} row
    */
   async handleChangeRuleSwitch(row) {
-    if (this.isDisabledClick(row)) return;
+    if (this.isDisabledClick(row)) {
+      return;
+    }
     if (!this.isAllowed) {
       this.getOptionApplyData();
       return;
@@ -421,13 +427,13 @@ export default class MaskingSetting extends tsc<IProps> {
     callback: (any) => void,
     list = [this.tableSearchList, this.tableList],
   ) {
-    list.forEach(lItem => {
-      lItem.forEach(item => {
+    for (const lItem of list) {
+      for (const item of lItem) {
         if (item.id === changeTableID) {
           callback(item);
         }
-      });
-    });
+      }
+    }
   }
   /**
    * @desc: 停删规则弹窗确认按钮
@@ -439,12 +445,15 @@ export default class MaskingSetting extends tsc<IProps> {
         const res = await $http.request('masking/deleteRule', {
           params: { rule_id: this.changeRuleID },
         });
-        if (res.result) this.initTableList();
+        if (res.result) {
+          this.initTableList();
+        }
       } else {
         const res = await this.requestStopOrStartRule(this.changeRuleID, 'stop');
-        if (res.result) this.initTableList();
+        if (res.result) {
+          this.initTableList();
+        }
       }
-    } catch (error) {
     } finally {
       this.isShowStopOrDeleteAccessDialog = false;
     }
@@ -563,7 +572,7 @@ export default class MaskingSetting extends tsc<IProps> {
   async getOptionApplyData() {
     try {
       const res = await this.$store.dispatch('getApplyData', this.authorityData);
-      this.$store.commit('updateAuthDialogData', res.data);
+      this.$store.commit('updateState', { 'authDialogData': res.data});
     } catch (err) {
       console.warn(err);
     }
@@ -594,7 +603,7 @@ export default class MaskingSetting extends tsc<IProps> {
           }}
         >
           {row.matchFields.length ? (
-            row.matchFields.map(item => <Tag>{item}</Tag>)
+            row.matchFields.map(item => <Tag key={item}>{item}</Tag>)
           ) : (
             <span style='padding-left: 10px;'>{'-'}</span>
           )}
@@ -706,7 +715,7 @@ export default class MaskingSetting extends tsc<IProps> {
           key={'scenario_name'}
           label={this.$t('日志来源')}
           prop={'scenario_name'}
-        ></TableColumn>
+        />
 
         <TableColumn
           key={'ids'}
@@ -725,7 +734,7 @@ export default class MaskingSetting extends tsc<IProps> {
           label={this.$t('接入项')}
           prop={'ids'}
           sortable
-        ></TableColumn>
+        />
       </Table>
     );
 
@@ -772,7 +781,7 @@ export default class MaskingSetting extends tsc<IProps> {
             label={this.$t('规则名称')}
             render-header={this.$renderHeader}
             scopedSlots={ruleNameSlot}
-          ></TableColumn>
+          />
 
           {this.checkFields('matchFields') ? (
             <TableColumn
@@ -781,7 +790,7 @@ export default class MaskingSetting extends tsc<IProps> {
               label={this.$t('匹配字段名')}
               render-header={this.$renderHeader}
               scopedSlots={matchFieldNameSlot}
-            ></TableColumn>
+            />
           ) : undefined}
 
           {this.checkFields('matchPattern') ? (
@@ -789,7 +798,7 @@ export default class MaskingSetting extends tsc<IProps> {
               key={'matchPattern'}
               label={this.$t('匹配正则表达式')}
               scopedSlots={matchExpressionSlot}
-            ></TableColumn>
+            />
           ) : undefined}
 
           {this.checkFields('maskingRules') ? (
@@ -803,7 +812,7 @@ export default class MaskingSetting extends tsc<IProps> {
               prop='operator'
               render-header={this.$renderHeader}
               scopedSlots={maskingRuleSlot}
-            ></TableColumn>
+            />
           ) : undefined}
 
           {this.checkFields('accessNum') ? (
@@ -816,7 +825,7 @@ export default class MaskingSetting extends tsc<IProps> {
               render-header={this.$renderHeader}
               scopedSlots={accessItemSlot}
               sortable
-            ></TableColumn>
+            />
           ) : undefined}
 
           {this.checkFields('updatedBy') ? (
@@ -825,6 +834,7 @@ export default class MaskingSetting extends tsc<IProps> {
               scopedSlots={{
                 default: ({ row }) => [
                   <span
+                    key={row}
                     class='overflow-tips'
                     v-bk-overflow-tips
                   >
@@ -838,7 +848,7 @@ export default class MaskingSetting extends tsc<IProps> {
               label={this.$t('变更人')}
               prop={'updatedBy'}
               render-header={this.$renderHeader}
-            ></TableColumn>
+            />
           ) : undefined}
 
           {this.checkFields('updatedAt') ? (
@@ -847,6 +857,7 @@ export default class MaskingSetting extends tsc<IProps> {
               scopedSlots={{
                 default: ({ row }) => [
                   <span
+                    key={row}
                     class='overflow-tips'
                     v-bk-overflow-tips
                   >
@@ -857,7 +868,7 @@ export default class MaskingSetting extends tsc<IProps> {
               label={this.$t('变更时间')}
               prop={'updatedAt'}
               render-header={this.$renderHeader}
-            ></TableColumn>
+            />
           ) : undefined}
 
           {this.checkFields('isActive') ? (
@@ -867,7 +878,7 @@ export default class MaskingSetting extends tsc<IProps> {
               align='center'
               label={this.$t('启/停')}
               scopedSlots={switcherSlot}
-            ></TableColumn>
+            />
           ) : undefined}
 
           <TableColumn
@@ -875,7 +886,7 @@ export default class MaskingSetting extends tsc<IProps> {
             width={this.getTableWidth.operate}
             label={this.$t('操作')}
             scopedSlots={operatorSlot}
-          ></TableColumn>
+          />
 
           <TableColumn type='setting'>
             <TableSettingContent
@@ -884,7 +895,7 @@ export default class MaskingSetting extends tsc<IProps> {
               fields={this.tableSetting.fields}
               selected={this.tableSetting.selectedFields}
               on-setting-change={this.handleSettingChange}
-            ></TableSettingContent>
+            />
           </TableColumn>
 
           <div slot='empty'>

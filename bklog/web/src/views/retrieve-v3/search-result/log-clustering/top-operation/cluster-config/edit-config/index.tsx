@@ -23,19 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import _ from 'lodash';
 import { defineComponent, onMounted, ref, computed, watch } from 'vue';
 import TextHighlight from 'vue-text-highlight';
-import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
-import RuleOperate from './rule-operate';
-import RuleTable from '@/components/rule-table';
-import $http from '@/api';
+
 import FilterRule from '@/components/filter-rule';
 import RuleConfigOperate from '@/components/rule-config-operate';
-import { type ConfigInfo } from '@/services/log-clustering';
-import { type IResponseData } from '@/services/type';
+import RuleTable from '@/components/rule-table';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import { bkNotify } from 'bk-magic-vue';
+
+import RuleOperate from './rule-operate';
+import $http from '@/api';
+
+import type { ConfigInfo } from '@/services/log-clustering';
+import type { IResponseData } from '@/services/type';
 
 import './index.scss';
 
@@ -62,17 +64,17 @@ export default defineComponent({
     const { t } = useLocale();
     const store = useStore();
 
-    const ruleConfigOperateRef = ref(null);
-    const ruleOperateRef = ref(null);
-    const ruleTableRef = ref(null);
+    const ruleConfigOperateRef = ref<any>(null);
+    const ruleOperateRef = ref<any>();
+    const ruleTableRef = ref<any>(null);
     const filterRuleRef = ref(null);
-    const formRef = ref(null);
+    const formRef = ref<any>(null);
     const formData = ref({
       max_dist_list: '', // 敏感度
       predefined_varibles: '', //	预先定义的正则表达式
       max_log_length: 1, // 最大日志长度
       clustering_fields: '', // 聚类字段
-      filter_rules: [], // 过滤规则
+      filter_rules: [] as any[], // 过滤规则
       signature_enable: false,
       regex_rule_type: 'customize',
       regex_template_id: 0,
@@ -167,7 +169,7 @@ export default defineComponent({
           regex_template_id,
         };
         Object.assign(formData.value, assignObj);
-        defaultData.value = _.cloneDeep(assignObj);
+        defaultData.value = structuredClone(assignObj);
         // 当前回填的字段如果在聚类字段列表里找不到则赋值为空需要用户重新赋值
         const isHaveFieldsItem = clusterField.value.find(item => item.id === res.data.clustering_fields);
         if (!isHaveFieldsItem) {
@@ -243,7 +245,7 @@ export default defineComponent({
     const handleReset = () => {
       formData.value.clustering_fields = defaultData.value.clustering_fields;
       formData.value.max_log_length = defaultData.value.max_log_length;
-      formData.value.filter_rules = _.cloneDeep(defaultData.value.filter_rules);
+      formData.value.filter_rules = structuredClone(defaultData.value.filter_rules);
       ruleOperateRef.value.reset();
       ruleTableRef.value.init();
     };
@@ -259,8 +261,8 @@ export default defineComponent({
       >
         <div class='setting-form-main'>
           <bk-form
-            class='setting-form'
             ref={formRef}
+            class='setting-form'
             label-width={200}
             {...{
               props: {
@@ -278,9 +280,11 @@ export default defineComponent({
               <div class='setting-item'>
                 <bk-select
                   style='width: 482px'
-                  value={formData.value.clustering_fields}
                   clearable={false}
-                  on-change={value => (formData.value.clustering_fields = value)}
+                  value={formData.value.clustering_fields}
+                  on-change={value => {
+                    formData.value.clustering_fields = value;
+                  }}
                 >
                   {clusterField.value.map(item => (
                     <bk-option
@@ -292,8 +296,8 @@ export default defineComponent({
                 </bk-select>
                 <span class='set-tip-main'>
                   <log-icon
-                    common
                     type='info'
+                    common
                   />
                   <span class='tip'>{t('只能基于 1 个字段进行聚类，并且字段是为text的分词类型，默认为log字段')}</span>
                 </span>
@@ -308,18 +312,20 @@ export default defineComponent({
                 <div class='setting-item'>
                   <bk-input
                     style='width: 94px'
-                    value={formData.value.max_log_length}
                     max={2000000}
                     min={1}
                     precision={0}
                     type='number'
-                    on-change={value => (formData.value.max_log_length = Number(value))}
+                    value={formData.value.max_log_length}
+                    on-change={value => {
+                      formData.value.max_log_length = Number(value);
+                    }}
                   />
                   <span style='margin-left: 8px'>{t('字节')}</span>
                   <span class='set-tip-main'>
                     <log-icon
-                      common
                       type='info'
+                      common
                     />
                     <span class='tip'>
                       {t('聚类字段的最大长度，如果超过这个长度将直接丢弃，设置越大将消耗更多的资源')}
@@ -338,16 +344,21 @@ export default defineComponent({
               <RuleOperate
                 ref={ruleOperateRef}
                 style='margin-bottom: 8px'
-                ruleList={ruleList.value}
                 defaultValue={defaultData.value}
+                ruleList={ruleList.value}
                 on-rule-list-change={handleRuleListChange}
-                on-rule-type-change={rule => (currentRuleType.value = rule)}
+                on-rule-type-change={rule => {
+                  currentRuleType.value = rule;
+                }}
                 on-search={handleSearchRuleList}
               />
               <RuleTable
                 ref={ruleTableRef}
                 readonly={isRuleTableReadonly.value}
                 ruleList={ruleList.value}
+                on-rule-list-change={list => {
+                  ruleList.value = list;
+                }}
               />
             </div>
           </bk-form>
@@ -355,8 +366,8 @@ export default defineComponent({
 
         <RuleConfigOperate
           ref={ruleConfigOperateRef}
-          ruleList={ruleList.value}
           max_log_length={formData.value.max_log_length}
+          ruleList={ruleList.value}
           on-reset={handleReset}
           on-submit={handleSubmit}
         />

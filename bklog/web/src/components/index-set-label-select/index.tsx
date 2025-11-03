@@ -48,9 +48,9 @@ interface IPropLabelList {
 
 @Component
 export default class QueryStatement extends tsc<IProps> {
-  @PropSync('label', { type: Array }) propLabelList: Array<IPropLabelList>;
+  @PropSync('label', { type: Array }) propLabelList: IPropLabelList[];
   @Prop({ type: Object, required: true }) rowData: any;
-  @Prop({ type: Array, required: true }) selectLabelList: Array<IPropLabelList>;
+  @Prop({ type: Array, required: true }) selectLabelList: IPropLabelList[];
 
   /** 是否展示添加标签 */
   isShowNewGroupInput = false;
@@ -133,7 +133,9 @@ export default class QueryStatement extends tsc<IProps> {
 
   /** 给索引集添加标签 */
   addLabelToIndexSet(tagID: number) {
-    if (!tagID) return;
+    if (!tagID) {
+      return;
+    }
     $http
       .request('unionSearch/unionAddLabel', {
         params: {
@@ -158,7 +160,7 @@ export default class QueryStatement extends tsc<IProps> {
   handleChangeLabelStatus(operate: string) {
     if (operate === 'add') {
       this.checkInputFormRef.validate().then(
-        async () => {
+        () => {
           $http
             .request('unionSearch/unionCreateLabel', {
               data: {
@@ -183,7 +185,9 @@ export default class QueryStatement extends tsc<IProps> {
   }
 
   handleLabelKeyDown(val: string) {
-    if (val) this.handleChangeLabelStatus('add');
+    if (val) {
+      this.handleChangeLabelStatus('add');
+    }
   }
 
   /** 删除采集项的标签 */
@@ -228,7 +232,10 @@ export default class QueryStatement extends tsc<IProps> {
           <span class='tag-container'>
             {this.filterLabelList.map((item, index) => {
               return (
-                <span class='tag-label-item'>
+                <span
+                  key={item.tag_id}
+                  class='tag-label-item'
+                >
                   <Tag>
                     <span class='label-tag'>
                       <span
@@ -240,7 +247,7 @@ export default class QueryStatement extends tsc<IProps> {
                       <i
                         class='bk-icon icon-close'
                         onClick={() => this.handleDeleteTag(item.tag_id)}
-                      ></i>
+                      />
                     </span>
                   </Tag>
                   {this.isShowMoreNum(index) && (
@@ -249,7 +256,7 @@ export default class QueryStatement extends tsc<IProps> {
                       v-bk-tooltips={{
                         content: `${this.showLabelList
                           .slice(3)
-                          .map(item => xssFilter(item.name))
+                          .map(newItem => xssFilter(newItem.name))
                           .join(', ')}`,
                       }}
                       onClick={() => (this.isShowAllLabel = true)}
@@ -278,7 +285,7 @@ export default class QueryStatement extends tsc<IProps> {
                     delay: 300,
                   }}
                 >
-                  <i class='bk-icon icon-plus-line'></i>
+                  <i class='bk-icon icon-plus-line' />
                 </div>
               ),
             }}
@@ -312,18 +319,18 @@ export default class QueryStatement extends tsc<IProps> {
                         vModel={this.verifyData.labelEditName}
                         clearable
                         onEnter={v => this.handleLabelKeyDown(v)}
-                      ></Input>
+                      />
                     </FormItem>
                   </Form>
                   <div class='operate-button'>
                     <span
                       class='bk-icon icon-check-line'
                       onClick={() => this.handleChangeLabelStatus('add')}
-                    ></span>
+                    />
                     <span
                       class='bk-icon icon-close-line-2'
                       onClick={() => this.handleChangeLabelStatus('cancel')}
-                    ></span>
+                    />
                   </div>
                 </div>
               ) : (
@@ -336,7 +343,7 @@ export default class QueryStatement extends tsc<IProps> {
                     });
                   }}
                 >
-                  <i class='bk-icon icon-plus-circle'></i>
+                  <i class='bk-icon icon-plus-circle' />
                   <span>{this.$t('新增标签')}</span>
                 </div>
               )}
@@ -345,10 +352,11 @@ export default class QueryStatement extends tsc<IProps> {
               {this.showGroupSelectLabelList.map(item => (
                 <Option
                   id={item.tag_id}
+                  key={item.tag_id}
                   class='label-option'
                   disabled={item.disabled}
                   name={item.name}
-                ></Option>
+                />
               ))}
             </div>
           </Select>

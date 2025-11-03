@@ -378,7 +378,7 @@
         this.confirmClusterStepStatus();
       },
       isShowClusterStep(v) {
-        this.$store.commit('updateStoreIsShowClusterStep', v);
+        this.$store.commit('updateState', {'storeIsShowClusterStep': v});
       },
       showFieldAlias() {
         this.filterGroupList();
@@ -458,7 +458,7 @@
           });
         }
         Object.assign(this.requestData, queryRequestData);
-        this.$store.commit('updateClusterParams', this.requestData);
+        this.$store.commit('updateState', {'clusterParams': this.requestData});
         this.setRouteParams();
         this.isInitPage = false;
       },
@@ -490,7 +490,7 @@
           case 'requestData': // 数据指纹的请求参数
             Object.assign(this.requestData, val);
             // 数据指纹对请求参数修改过的操作将数据回填到url上
-            this.$store.commit('updateClusterParams', this.requestData);
+            this.$store.commit('updateState', {'clusterParams': this.requestData});
             this.setRouteParams();
             break;
           case 'fingerOperateData': // 数据指纹操作的参数
@@ -703,7 +703,7 @@
           await this.confirmClusterStepStatus();
           if (this.isClickSearch && !this.isInitPage) this.requestFinger();
           if (!this.isInitPage) {
-            this.$store.commit('updateClusterParams', this.requestData);
+            this.$store.commit('updateState', {'clusterParams': this.requestData});
             this.setRouteParams();
           }
         }
@@ -711,7 +711,7 @@
       async onUnMountedLoad() {
         if (this.isClusterActive) {
           this.isClusterActive = false;
-          this.$store.commit('updateClusterParams', null);
+          this.$store.commit('updateState', {'clusterParams': null});
           this.setRouteParams();
           this.stopPolling(); // 停止状态轮询
         }
@@ -732,7 +732,7 @@
       this.onUnMountedLoad();
     },
     beforeDestroy() {
-      this.$store.commit('updateClusterParams', null);
+      this.$store.commit('updateState', {'clusterParams': null});
       this.stopPolling(); // 停止状态轮询
     },
   };

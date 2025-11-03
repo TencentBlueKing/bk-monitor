@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -191,7 +191,7 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
             .distinct()
             .prefetch_related(Prefetch("tasks", queryset=UptimeCheckTask.objects.only("id")))
         )
-        serializer = self.get_serializer(queryset, many=True)
+        serializer: UptimeCheckNodeSerializer = self.get_serializer(queryset, many=True)
         # 将节点解析成cmdb主机，存放在以host_id 和 ip+cloud_id 为key 的 字典里
         node_to_host = resource.uptime_check.get_node_host_dict(bk_tenant_id=get_request_tenant_id(), nodes=queryset)
 
@@ -248,7 +248,10 @@ class UptimeCheckNodeViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
                     "task_num": task_num,
                     "is_common": node["is_common"],
                     "gse_status": node_status.get("gse_status", BEAT_STATUS["RUNNING"]),
-                    "status": node_status.get("status", "0"),
+                    # TODO: 多租户环境下暂时跳过心跳检查
+                    "status": node_status.get("status", "0")
+                    if not settings.ENABLE_MULTI_TENANT_MODE
+                    else BEAT_STATUS["RUNNING"],
                     "version": node_status.get("version", "") if node_status.get("version", "") else beat_version,
                 }
             )
@@ -349,23 +352,36 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ModelViewSet, CountModelM
 
         # 如果传入plain参数，则返回简单数据
         if request.query_params.get("plain", False):
-            return Response(
-                [
-                    {
-                        "id": task.id,
-                        "name": task.name,
-                        "bk_biz_id": task.bk_biz_id,
-                        "status": task.status,
-                        "config": task.config,
-                        "protocol": task.protocol,
-                        "check_interval": task.check_interval,
-                        "location": task.location,
-                    }
-                    for task in queryset.only(
-                        "id", "name", "bk_biz_id", "status", "config", "protocol", "check_interval", "location"
-                    )
-                ]
-            )
+            task_id = request.query_params.get("id")
+            if task_id:
+                tasks = queryset.filter(id=task_id)
+                response = Response(
+                    [
+                        {
+                            "id": task.id,
+                            "name": task.name,
+                            "bk_biz_id": task.bk_biz_id,
+                            "status": task.status,
+                            "config": task.config,
+                            "protocol": task.protocol,
+                            "check_interval": task.check_interval,
+                            "location": task.location,
+                        }
+                        for task in tasks
+                    ]
+                )
+            else:
+                response = Response(
+                    [
+                        {
+                            "id": task.id,
+                            "name": task.name,
+                            "bk_biz_id": task.bk_biz_id,
+                        }
+                        for task in queryset.only("id", "name", "bk_biz_id")
+                    ]
+                )
+            return response
 
         bk_biz_id = int(request.query_params.get("bk_biz_id", 0))
         if bk_biz_id:

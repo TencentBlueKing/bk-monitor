@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import functools
 import logging
 
-from alarm_backends.core.storage.redis import Cache
+from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig
 from constants.bk_collector import BkCollectorComp
@@ -43,7 +43,7 @@ class BkCollectorInstaller:
     @classmethod
     def generator(cls):
         # 避免重复创建连接
-        cache = Cache("cache")
+        cache = ApmCacheHandler().get_redis_client()
         while True:
             yield functools.partial(cls, cache=cache)
 

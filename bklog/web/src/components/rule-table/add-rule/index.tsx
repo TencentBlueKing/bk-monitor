@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import _ from 'lodash';
 import { defineComponent, ref, watch } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
+
 import $http from '@/api';
 
 import './index.scss';
@@ -53,7 +54,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
 
-    const formRef = ref(null);
+    const formRef = ref<any>(null);
     const detectionStr = ref('');
     const isShow = ref(false);
     // 检测语法是否通过
@@ -112,12 +113,15 @@ export default defineComponent({
         if (!Object.keys(props.data).length) {
           return;
         }
-        const data = _.cloneDeep(props.data);
-        delete data.__Index__;
-        const key = Object.keys(data)[0];
-        const value = data[key];
+        const data = structuredClone(props.data);
+        const keys = Object.keys(data).filter(key => key !== '__Index__');
+        if (keys.length === 0) {
+          return;
+        }
+        const firstKey = keys[0];
+        const value = data[firstKey];
         formData.value.regular = value;
-        formData.value.placeholder = key;
+        formData.value.placeholder = firstKey;
       },
       {
         immediate: true,
@@ -149,7 +153,7 @@ export default defineComponent({
 
     // 检测规则和占位符是否重复
     const isRulesRepeat = (newRules = {}) => {
-      return props.ruleList.some(listItem => {
+      return props.ruleList.some((listItem: Record<string, any>) => {
         const [regexKey, regexVal] = Object.entries(newRules)[0];
         const [listKey, listVal] = Object.entries(listItem)[0];
         return regexKey === listKey && regexVal === listVal;
@@ -162,7 +166,7 @@ export default defineComponent({
         const { regular, placeholder } = formData.value;
         newRuleObj[placeholder] = regular;
         // 添加渲染列表时不重复的key值
-        newRuleObj.__Index__ = new Date().getTime();
+        newRuleObj.__Index__ = Date.now();
         if (props.isEdit) {
           // 编辑规则替换编辑对象
           emit('edit', newRuleObj);
@@ -180,8 +184,8 @@ export default defineComponent({
         isClickSubmit.value = true;
         detectionStr.value = t('检验中');
         setTimeout(() => {
-          formRef.value
-            .validate()
+          formRef
+            .value!.validate()
             .then(() => {
               isRuleCorrect.value = true;
               isDetection.value = false;
@@ -204,10 +208,10 @@ export default defineComponent({
       <bk-dialog
         width={640}
         ext-cls='edit-rule-main'
-        value={isShow.value}
+        header-position='left'
         mask-close={false}
         title={props.isEdit ? t('编辑规则') : t('添加规则')}
-        header-position='left'
+        value={isShow.value}
         on-value-change={handleOpenToggle}
       >
         <bk-form
@@ -233,7 +237,7 @@ export default defineComponent({
             />
             <div>
               {t('样例')}
-              {`：\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}`}
+              {'：\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}'}
             </div>
           </bk-form-item>
           <bk-form-item
@@ -266,7 +270,7 @@ export default defineComponent({
                         'bk-icon spin',
                         isRuleCorrect.value ? 'icon-check-circle-shape' : 'icon-close-circle-shape',
                       ]}
-                    ></span>
+                    />
                   )}
                   <span style='margin-left: 6px'>{detectionStr.value}</span>
                 </div>

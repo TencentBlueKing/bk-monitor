@@ -49,7 +49,7 @@ dayjs.locale({
 });
 window.timezone = dayjs.tz.guess();
 dayjs.tz.setDefault(window.timezone);
-export const updateTimezone = (tz?: string) => {
-  window.timezone = tz || dayjs.tz.guess();
+export const updateTimezone = (newTz?: string) => {
+  window.timezone = newTz || dayjs.tz.guess();
   dayjs.tz.setDefault(window.timezone);
 };

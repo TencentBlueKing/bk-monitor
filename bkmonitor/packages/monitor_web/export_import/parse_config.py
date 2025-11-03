@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -22,6 +22,7 @@ from core.errors.plugin import PluginParseError
 from monitor_web.export_import.constant import ImportDetailStatus
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, Signature
 from monitor_web.plugin.manager import PluginManagerFactory
+from monitor_web.models.plugin import PluginVersionHistory
 
 
 class BaseParse:
@@ -47,6 +48,17 @@ class BaseParse:
 class CollectConfigParse(BaseParse):
     check_field = ["id", "name", "label", "collect_type", "params", "plugin_id", "target_object_type"]
 
+    def parse_result(self, error_msg=None):
+        """统一解析结果"""
+        result = {
+            "file_status": ImportDetailStatus.SUCCESS if not error_msg else ImportDetailStatus.FAILED,
+            "name": self.file_content.get("name"),
+            "collect_config": self.file_content,
+            "error_msg": error_msg or "",
+        }
+
+        return result
+
     def only_check_fields(self):
         miss_filed = []
         for filed in self.check_field:
@@ -54,17 +66,9 @@ class CollectConfigParse(BaseParse):
                 miss_filed.append(filed)
 
         if miss_filed:
-            return {
-                "file_status": ImportDetailStatus.FAILED,
-                "name": self.file_content.get("name"),
-                "collect_config": self.file_content,
-                "error_msg": "miss filed {}".format(",".join(miss_filed)),
-            }
-        else:
-            return {
-                "file_status": ImportDetailStatus.SUCCESS,
-                "collect_config": self.file_content,
-            }
+            return self.parse_result(error_msg=_("miss filed {}".format(",".join(miss_filed))))
+
+        return self.parse_result()
 
     def check_msg(self):
         if self.file_content.get("name") is None:
@@ -80,15 +84,11 @@ class CollectConfigParse(BaseParse):
 
         plugin_id = self.file_content.get("plugin_id")
         if not self.get_plugin_path(plugin_id):
-            return {
-                "file_status": ImportDetailStatus.FAILED,
-                "name": self.file_content.get("name"),
-                "collect_config": self.file_content,
-                "error_msg": _("缺少依赖的插件"),
-            }
+            return self.parse_result(error_msg=_(f"缺少依赖的插件, plugin_id: {plugin_id}"))
+
         parse_plugin_config = self.parse_plugin_msg(plugin_id)
         if parse_plugin_config.get("tmp_version"):
-            tmp_version = parse_plugin_config["tmp_version"]
+            tmp_version: PluginVersionHistory = parse_plugin_config["tmp_version"]
             plugin_config = {}
             plugin_config.update(tmp_version.config.config2dict())
             plugin_config.update(tmp_version.info.info2dict())
@@ -106,20 +106,20 @@ class CollectConfigParse(BaseParse):
                     "is_safety": tmp_version.is_safety,
                 }
             )
-            return {
-                "file_status": ImportDetailStatus.SUCCESS,
-                "collect_config": self.file_content,
-                "plugin_config": plugin_config,
-            }
+
+            result = self.parse_result()
+            result["plugin_config"] = plugin_config
+
+            return result
         else:
-            return parse_plugin_config
+            return self.parse_result(error_msg=_(parse_plugin_config["error_msg"]))
 
     def get_meta_path(self, plugin_id):
         """获取 meta.yaml 的路径"""
         meta_path = ""
         for file_path in self.plugin_configs.keys():
             if (
-                str(file_path).split("/")[0] == plugin_id
+                Path(file_path).parts[0] == plugin_id
                 and file_path.parent.name == "info"
                 and file_path.name == "meta.yaml"
             ):
@@ -127,16 +127,12 @@ class CollectConfigParse(BaseParse):
                 break
         return meta_path
 
-    def parse_plugin_msg(self, plugin_id):
+    def parse_plugin_msg(self, plugin_id) -> dict[str, PluginVersionHistory | str]:
         meta_path = self.get_meta_path(plugin_id)
 
         if not meta_path:
-            return {
-                "file_status": ImportDetailStatus.FAILED,
-                "name": self.file_content.get("name"),
-                "config": self.file_content,
-                "error_msg": _("关联插件信息不完整"),
-            }
+            return {"error_msg": "关联插件信息不完整,缺少'meta.yaml'文件路径"}
+
         try:
             meta_content = self.plugin_configs[meta_path]
             meta_dict = yaml.load(meta_content, Loader=yaml.FullLoader)
@@ -146,7 +142,7 @@ class CollectConfigParse(BaseParse):
                     plugin_type = name
                     break
             else:
-                raise PluginParseError({"msg": _("无法解析插件类型")})
+                raise PluginParseError({"msg": _(f"无法解析插件类型, plugin_type: {plugin_type_display}")})
 
             import_manager = PluginManagerFactory.get_manager(
                 bk_tenant_id=get_request_tenant_id(),
@@ -161,15 +157,10 @@ class CollectConfigParse(BaseParse):
                 if file_path.parent.name == "info"
             }
 
-            tmp_version = import_manager.get_tmp_version(info_path=info_path)
+            tmp_version: PluginVersionHistory = import_manager.get_tmp_version(info_path=info_path)
             return {"tmp_version": tmp_version}
-        except Exception:
-            return {
-                "file_status": ImportDetailStatus.FAILED,
-                "name": self.file_content.get("name"),
-                "config": self.file_content,
-                "error_msg": _("关联插件信息解析失败"),
-            }
+        except Exception as e:
+            return {"error_msg": _(f"关联插件信息解析失败, error: {e}")}
 
     def get_filename_list(self, plugin_id: str) -> list[Path]:
         """获取插件的文件列表"""

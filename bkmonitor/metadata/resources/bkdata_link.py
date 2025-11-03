@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -525,3 +525,31 @@ class IntelligentDiagnosisMetadataResource(Resource):
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("metadata diagnose error, bk_data_id->[%s], error->[%s]", bk_data_id, e)
             return {"error": f"诊断过程中发生错误: {str(e)}"}
+
+
+class GseSlotResource(Resource):
+    """
+    接收GSE消息槽的异步处理接口
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        message_id = serializers.CharField(label="消息ID")
+        bk_agent_id = serializers.CharField(label="Agent ID")
+        content = serializers.CharField(required=False, label="请求内容")
+
+    def perform_request(self, validated_request_data: dict[str, str]):
+        if not settings.GSE_SLOT_ID or not settings.GSE_SLOT_TOKEN:
+            logger.warning("GseSlotResource: gse slot id or token is not set, skip")
+            return False
+
+        from metadata.task.tasks import process_gse_slot_message
+
+        logger.info("GseSlotResource: receive gse slot message, %s", validated_request_data)
+        process_gse_slot_message.delay(
+            message_id=validated_request_data["message_id"],
+            bk_agent_id=validated_request_data["bk_agent_id"],
+            content=validated_request_data["content"],
+            received_at=timezone.now().isoformat(),
+        )
+
+        return True

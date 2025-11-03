@@ -26,6 +26,7 @@
 
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
 import BizMenuSelect from '@/global/bk-space-choice/index';
 import { Alert, Message, Select, Option, Button, Input, Table, TableColumn, Tag } from 'bk-magic-vue';
 import dayjs from 'dayjs';
@@ -290,7 +291,7 @@ export default class AuthorizationList extends tsc<object> {
 
   // 实际展示列表列
   get currentColumns() {
-    return this.tableColumns[this.angleType].filter(item => !item.hidden && !item.authHidden);
+    return this.tableColumns[this.angleType].filter(item => !(item.hidden || item.authHidden));
   }
 
   // 实际展示的状态选项
@@ -303,26 +304,30 @@ export default class AuthorizationList extends tsc<object> {
     const filterList = this.totalListData.filter(item => {
       // 状态匹配
       const statusPick = this.statusActive === 'all' || item.status === this.statusActive;
-      if (!this.searchValue || !statusPick) return statusPick;
+      if (!(this.searchValue && statusPick)) {
+        return statusPick;
+      }
       // 关键字匹配
-      const { status, expire_time, created_at, ...searchKey } = TableColumnEnum;
+      const { status: _status, expire_time: _expire_time, created_at: _created_at, ...searchKey } = TableColumnEnum;
       return Object.keys(searchKey).some(key => {
-        if (!item[key]) return false;
+        if (!item[key]) {
+          return false;
+        }
         const val = Array.isArray(item[key]) ? item[key] : [item[key]];
         if (key === TableColumnEnum.resources || key === TableColumnEnum.resource_id) {
           return val.some(id => {
             const resourceList = this.resourceMaps[item[TableColumnEnum.action_id]] || [];
-            const { text } = resourceList.find(item => item.id === id);
+            const { text } = resourceList.find(rItem => rItem.id === id);
             return text?.includes(this.searchValue) ?? '';
           });
         }
         if (key === TableColumnEnum.action_id) {
           return val.some(id => {
-            const { name } = this.actionList.find(item => item.id === id);
+            const { name } = this.actionList.find(aItem => aItem.id === id);
             return name.includes(this.searchValue);
           });
         }
-        return val.some(val => val.toString().includes(this.searchValue));
+        return val.some(newVal => newVal.toString().includes(this.searchValue));
       });
     });
     const { current, limit } = this.pagination;
@@ -353,7 +358,7 @@ export default class AuthorizationList extends tsc<object> {
         ],
       });
       if (res.isAllowed === false) {
-        this.$store.commit('updateAuthDialogData', res.data);
+        this.$store.commit('updateState', { authDialogData: res.data });
         return false;
       }
       return true;
@@ -476,33 +481,36 @@ export default class AuthorizationList extends tsc<object> {
     this.changeEmptyStatusType();
   }
 
-  async getListData() {
+  async handleListDataAsync() {
+    this.loading = true;
+    this.pagination.current = 1;
+    let res: [boolean, any];
+    this.abortController = new AbortController();
+
+    if (this.angleType === 'approval') {
+      res = await this.getApprovalListData(this.abortController.signal);
+    } else {
+      res = await this.getAuthListData(this.abortController.signal);
+    }
+    const [isSuccess, data] = res;
+    if (isSuccess) {
+      this.totalListData = data;
+      this.pagination.count = this.totalListData.length;
+      this.emptyStatusType = 'empty';
+      this.changeEmptyStatusType();
+    } else {
+      this.emptyStatusType = '500';
+      this.totalListData = [];
+      this.pagination.count = 0;
+    }
+
+    this.loading = false;
+  }
+  getListData() {
     this.abortController?.abort();
 
-    setTimeout(async () => {
-      this.loading = true;
-      this.pagination.current = 1;
-      let res: [boolean, any];
-      this.abortController = new AbortController();
-
-      if (this.angleType === 'approval') {
-        res = await this.getApprovalListData(this.abortController.signal);
-      } else {
-        res = await this.getAuthListData(this.abortController.signal);
-      }
-      const [isSuccess, data] = res;
-      if (isSuccess) {
-        this.totalListData = data;
-        this.pagination.count = this.totalListData.length;
-        this.emptyStatusType = 'empty';
-        this.changeEmptyStatusType();
-      } else {
-        this.emptyStatusType = '500';
-        this.totalListData = [];
-        this.pagination.count = 0;
-      }
-
-      this.loading = false;
+    setTimeout(() => {
+      this.handleListDataAsync();
     });
   }
 
@@ -551,10 +559,10 @@ export default class AuthorizationList extends tsc<object> {
     }
   }
 
-  async getResources() {
+  getResources() {
     this.resourcesLoading = true;
     try {
-      this.actionList.forEach(item => {
+      for (const item of this.actionList) {
         (async () => {
           const res = await $http.request('authorization/getByAction', {
             query: {
@@ -564,10 +572,10 @@ export default class AuthorizationList extends tsc<object> {
           });
           this.resourceMaps[item.id] = res?.data || [];
         })();
-      });
+      }
 
       this.columnFilter();
-    } catch (error) {
+    } catch {
       this.resourceMaps = {};
     }
     this.resourcesLoading = false;
@@ -589,41 +597,47 @@ export default class AuthorizationList extends tsc<object> {
     this.pagination.limit = limit;
   }
 
+  getFilterConfig(prop: string, set: Set<any>) {
+    for (const newItem of this.totalListData) {
+      const data = Array.isArray(newItem[prop]) ? newItem[prop] : [newItem[prop]];
+      for (const val of data) {
+        if (prop === TableColumnEnum.resource_id || prop === TableColumnEnum.resources) {
+          // set.add(`${item[TableColumnEnum.action_id]}-${val}`);
+          set.add({ id: val, action: newItem[TableColumnEnum.action_id] });
+        } else {
+          set.add(val);
+        }
+      }
+    }
+  }
+  updateFilter(prop: string, valSet: any[]) {
+    if (prop === TableColumnEnum.resource_id || prop === TableColumnEnum.resources) {
+      return valSet.map((obj: { id: number; action: string }) => {
+        return {
+          text: this.resourceMaps[obj.action].find(rItem => rItem.id === obj.id)?.text,
+          value: obj.id,
+        };
+      });
+    }
+    if (prop === TableColumnEnum.action_id) {
+      return valSet.map((id: string) => ({
+        text: this.actionList.find(aItem => aItem.id === id)?.name,
+        value: id,
+      }));
+    }
+    return valSet.map(fItem => ({ text: fItem, value: fItem }));
+  }
   // 列表各字段的筛选项
   columnFilter() {
-    this.tableColumns[this.angleType].forEach(item => {
+    for (const item of this.tableColumns[this.angleType]) {
       if (item.props.filters) {
         const set = new Set();
         const { prop } = item;
-        this.totalListData.forEach(item => {
-          const data = Array.isArray(item[prop]) ? item[prop] : [item[prop]];
-          data.forEach(val => {
-            if (prop === TableColumnEnum.resource_id || prop === TableColumnEnum.resources) {
-              // set.add(`${item[TableColumnEnum.action_id]}-${val}`);
-              set.add({ id: val, action: item[TableColumnEnum.action_id] });
-            } else {
-              set.add(val);
-            }
-          });
-        });
+        this.getFilterConfig(prop, set);
         // 操作实例列需要通过ID在resourceList找到匹配的text
-        if (prop === TableColumnEnum.resource_id || prop === TableColumnEnum.resources) {
-          item.props.filters = Array.from(set).map((obj: { id: number; action: string }) => {
-            return {
-              text: this.resourceMaps[obj.action].find(item => item.id === obj.id)?.text,
-              value: obj.id,
-            };
-          });
-        } else if (prop === TableColumnEnum.action_id) {
-          item.props.filters = Array.from(set).map((id: string) => ({
-            text: this.actionList.find(item => item.id === id)?.name,
-            value: id,
-          }));
-        } else {
-          item.props.filters = Array.from(set).map(item => ({ text: item, value: item }));
-        }
+        item.props.filters = this.updateFilter(prop, Array.from(set));
       }
-    });
+    }
   }
 
   // 列表表头筛选
@@ -633,9 +647,9 @@ export default class AuthorizationList extends tsc<object> {
   }
 
   handleSettingChange({ fields }) {
-    this.tableColumns[this.angleType].forEach(item => {
+    for (const item of this.tableColumns[this.angleType]) {
       item.hidden = !fields.some(field => item.prop === field.prop);
-    });
+    }
   }
 
   // 自定义列渲染
@@ -653,7 +667,12 @@ export default class AuthorizationList extends tsc<object> {
             default: ({ row }) => (
               <div v-bk-overflow-tips={{ content: row.authorized_users?.join(',') }}>
                 {row.authorized_users?.map(item => (
-                  <Tag class='user-tag'>{item}</Tag>
+                  <Tag
+                    key={item}
+                    class='user-tag'
+                  >
+                    {item}
+                  </Tag>
                 ))}
               </div>
             ),
@@ -679,7 +698,12 @@ export default class AuthorizationList extends tsc<object> {
                   <div v-bkloading={{ isLoading: this.resourcesLoading }}>
                     {row.resources?.map((id, ind) =>
                       ind < 3 || row.isExpand ? (
-                        <div class='resource-item'>{resourceList.find(item => item.uid === id)?.text}</div>
+                        <div
+                          key={id}
+                          class='resource-item'
+                        >
+                          {resourceList.find(item => item.uid === id)?.text}
+                        </div>
                       ) : undefined,
                     )}
                     {row.resources?.length > 3 && (
@@ -754,14 +778,14 @@ export default class AuthorizationList extends tsc<object> {
         <div
           style={{ background: color1 }}
           class='point'
-        ></div>
+        />
       </div>
     );
   }
 
   // 状态列格式化
-  statusFormatter(row, column, cellValue) {
-    const item = STATUS_LIST.find(item => item.id === cellValue);
+  statusFormatter(_row, _column, cellValue) {
+    const item = STATUS_LIST.find(sItem => sItem.id === cellValue);
     return (
       <div class='status-wrap'>
         {this.statusPoint(item.color1, item.color2)}
@@ -771,7 +795,7 @@ export default class AuthorizationList extends tsc<object> {
   }
 
   // 截止时间列格式化
-  timeFormatter(row, column, cellValue) {
+  timeFormatter(_row, _column, cellValue) {
     return cellValue ? dayjs(cellValue).format('YYYY-MM-DD HH:mm:ss') : '-';
   }
   /**
@@ -790,7 +814,7 @@ export default class AuthorizationList extends tsc<object> {
         },
       });
       this.getListData();
-    } catch (error) {}
+    } catch {}
   }
 
   showDialog(row = null) {
@@ -817,7 +841,9 @@ export default class AuthorizationList extends tsc<object> {
 
   // 创建，修改成功跳转到审批记录tab栏
   handleSuccess(needApproval: boolean) {
-    if (needApproval) this.angleType = 'approval';
+    if (needApproval) {
+      this.angleType = 'approval';
+    }
     this.getListData();
   }
 
@@ -853,8 +879,9 @@ export default class AuthorizationList extends tsc<object> {
                   {this.bizCMDBRoleList.map(item => (
                     <Option
                       id={item}
+                      key={item}
                       name={item}
-                    ></Option>
+                    />
                   ))}
                 </Select>
                 <Button
@@ -890,7 +917,7 @@ export default class AuthorizationList extends tsc<object> {
               </div>
             )}
             <p class='hint'>
-              <i class='icon-monitor icon-tixing'></i>
+              <i class='icon-monitor icon-tixing' />
               <span>
                 {this.$t('授权人的空间权限会影响被授权人，被授权人的权限范围<=授权人的权限范围，请谨慎变更。')}
               </span>
@@ -960,7 +987,7 @@ export default class AuthorizationList extends tsc<object> {
                   right-icon='bk-icon icon-search'
                   value={this.searchValue}
                   onInput={this.handleSearchBlur}
-                ></Input>
+                />
               </div>
             </div>
 
@@ -1001,6 +1028,7 @@ export default class AuthorizationList extends tsc<object> {
                         ) : (
                           [
                             <bk-button
+                              key='edit'
                               style='margin-right: 16px'
                               text
                               onClick={() => this.showDialog(row)}
@@ -1008,6 +1036,7 @@ export default class AuthorizationList extends tsc<object> {
                               {this.$t('编辑')}
                             </bk-button>,
                             <bk-button
+                              key='delete'
                               text
                               onClick={() => this.handleDelete(row)}
                             >
@@ -1027,14 +1056,14 @@ export default class AuthorizationList extends tsc<object> {
                     selected={this.currentColumns}
                     value-key='prop'
                     on-setting-change={this.handleSettingChange}
-                  ></bk-table-setting-content>
+                  />
                 </TableColumn>
 
                 <EmptyStatus
                   slot='empty'
                   emptyType={this.emptyStatusType}
                   on-operation={this.emptyOperation}
-                ></EmptyStatus>
+                />
               </Table>
             </div>
           </div>

@@ -23,14 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { computed, onMounted, ref } from 'vue';
 
 import useStore from '@/hooks/use-store';
 import { debounce } from 'lodash-es';
 import * as monaco from 'monaco-editor';
 
-import { setDorisFields } from './lang';
 import useResizeObserve from '../../../../../hooks/use-resize-observe';
+import { setDorisFields } from './lang';
 
 export default ({ refRootElement, sqlContent, onValueChange }) => {
   const editorInstance = ref<monaco.editor.IStandaloneCodeEditor>();
@@ -102,7 +103,7 @@ export default ({ refRootElement, sqlContent, onValueChange }) => {
 
         // 插入新行并保持缩进
         const indentLevel = lineContent.match(/^\s*/)[0]; // 获取当前行的缩进
-        const newText = '\n' + indentLevel; // 新行内容
+        const newText = `\n${indentLevel}`; // 新行内容
 
         // 执行插入操作
         editorInstance.value.executeEdits(null, [

@@ -459,7 +459,7 @@
   const indexBuiltField = ref([]);
 
   const initFormData = async () => {
-    const indexSetList = store.state.retrieve.indexSetList;
+    const indexSetList = store.state.retrieve.flatIndexSetList;
     const indexSetId = route.params?.indexId;
     const currentIndexSet = indexSetList.find(item => item.index_set_id === `${indexSetId}`);
     if (!currentIndexSet?.collector_config_id) return;

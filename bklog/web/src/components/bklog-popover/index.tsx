@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, PropType, onMounted, onUnmounted } from 'vue';
-
-import { Props as TippyProps } from 'tippy.js';
+import { defineComponent, ref, type PropType, onMounted, onUnmounted } from 'vue';
 
 import PopInstanceUtil from '../../global/pop-instance-util';
+
+import type { Props as TippyProps } from 'tippy.js';
 
 import './index.scss';
 

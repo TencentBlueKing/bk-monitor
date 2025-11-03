@@ -27,9 +27,9 @@
 import { Component, Prop, Inject, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Input, Popover, Form, FormItem } from 'bk-magic-vue';
+import { Input, type Popover, Form, FormItem } from 'bk-magic-vue';
 
-import { IGroupItem, IFavoriteItem } from '../collect-index';
+import type { IGroupItem, IFavoriteItem } from '../collect-index';
 
 import './group-dropdown.scss';
 
@@ -104,7 +104,7 @@ export default class CollectGroup extends tsc<IProps> {
   }
 
   get isUnknownGroup() {
-    return this.data.group_id === this.groupList[this.groupList.length - 1]?.group_id;
+    return this.data.group_id === this.groupList.at(-1)?.group_id;
   }
 
   get showGroupList() {
@@ -129,9 +129,11 @@ export default class CollectGroup extends tsc<IProps> {
   }
 
   checkName() {
-    if (this.verifyData.groupEditName.trim() === '') return true;
+    if (this.verifyData.groupEditName.trim() === '') {
+      return true;
+    }
 
-    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
       this.verifyData.groupEditName.trim(),
     );
   }
@@ -267,9 +269,13 @@ export default class CollectGroup extends tsc<IProps> {
   }
 
   handleGroupKeyDown(value: string, type = 'add') {
-    if (!!value) {
-      if (type === 'add') this.handleChangeGroupInputStatus('add');
-      if (type === 'reset') this.handleResetGroupName();
+    if (value) {
+      if (type === 'add') {
+        this.handleChangeGroupInputStatus('add');
+      }
+      if (type === 'reset') {
+        this.handleResetGroupName();
+      }
     }
   }
 
@@ -298,21 +304,21 @@ export default class CollectGroup extends tsc<IProps> {
                     placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
                     clearable
                     onEnter={v => this.handleGroupKeyDown(v, 'reset')}
-                  ></Input>
+                  />
                 </FormItem>
               </Form>
               <div class='operate-button'>
                 <span
                   class='bk-icon icon-check-line'
                   onClick={this.handleResetGroupName}
-                ></span>
+                />
                 <span
                   class='bk-icon icon-close-line-2'
                   onClick={() => {
                     this.isShowResetGroupName = false;
                     this.verifyData.groupEditName = '';
                   }}
-                ></span>
+                />
               </div>
             </li>
           ) : (
@@ -341,11 +347,11 @@ export default class CollectGroup extends tsc<IProps> {
             onMouseenter={this.handleClickMoveGroup}
           >
             {this.$t('移动至分组')}
-            <span class='bk-icon icon-angle-right more-icon'></span>
+            <span class='bk-icon icon-angle-right more-icon' />
           </li>
-          {!this.isUnknownGroup ? (
+          {this.isUnknownGroup ? undefined : (
             <li onClick={() => this.handleClickLi('remove-group')}>{this.$t('从该组移除')}</li>
-          ) : undefined}
+          )}
           <li onClick={() => this.handleClickLi('new-link')}>{this.$t('新开标签页')}</li>
           <li
             class='eye-catching'
@@ -364,6 +370,7 @@ export default class CollectGroup extends tsc<IProps> {
         >
           {this.showGroupList.map(item => (
             <li
+              key={item.group_id}
               class={{ 'new-group-container': this.newGroupName === item.group_name }}
               onClick={() => this.handleClickLi('move-favorite', item.group_id)}
             >
@@ -391,18 +398,18 @@ export default class CollectGroup extends tsc<IProps> {
                       placeholder={this.$t('{n}, （长度30个字符）', { n: this.$t('请输入组名') })}
                       clearable
                       onEnter={v => this.handleGroupKeyDown(v, 'add')}
-                    ></Input>
+                    />
                   </FormItem>
                 </Form>
                 <div class='operate-button'>
                   <span
                     class='bk-icon icon-check-line'
                     onClick={() => this.handleChangeGroupInputStatus('add')}
-                  ></span>
+                  />
                   <span
                     class='bk-icon icon-close-line-2'
                     onClick={() => this.handleChangeGroupInputStatus('cancel')}
-                  ></span>
+                  />
                 </div>
               </li>
             ) : (
@@ -411,7 +418,7 @@ export default class CollectGroup extends tsc<IProps> {
                 onClick={() => (this.isShowNewGroupInput = true)}
               >
                 <span>
-                  <span class='bk-icon icon-close-circle'></span>
+                  <span class='bk-icon icon-close-circle' />
                   <span>{this.$t('新建分组')}</span>
                 </span>
               </li>
@@ -438,7 +445,7 @@ export default class CollectGroup extends tsc<IProps> {
                 class={['more-box', this.titlePopoverInstance !== null && 'is-click']}
                 v-show={this.isHoverTitle || this.titlePopoverInstance !== null}
               >
-                <span class='bk-icon icon-more'></span>
+                <span class='bk-icon icon-more' />
               </div>
             </div>
             {groupDropList()}
@@ -451,7 +458,7 @@ export default class CollectGroup extends tsc<IProps> {
                   class={['more-box', { 'is-click': !!this.operatePopoverInstance }]}
                   onClick={this.handleClickIcon}
                 >
-                  <span class='bk-icon icon-more'></span>
+                  <span class='bk-icon icon-more' />
                 </div>
               )}
             </div>

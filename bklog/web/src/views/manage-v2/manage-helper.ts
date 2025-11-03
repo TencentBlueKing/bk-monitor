@@ -36,7 +36,6 @@ const linkMap = {
 };
 
 class ManageHelper {
-
   handleGotoLink(id: string) {
     const link = linkMap[id];
     if (link) {

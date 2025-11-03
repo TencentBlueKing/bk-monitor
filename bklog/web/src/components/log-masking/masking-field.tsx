@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -56,9 +55,9 @@ interface IFieldItem {
   field_alias: string;
   field_class: string;
   field_type: string;
-  rules: Array<IRuleItem>;
-  operatorRules: Array<IRuleItem>;
-  preview?: Array<any>;
+  rules: IRuleItem[];
+  operatorRules: IRuleItem[];
+  preview?: any[];
   is_origin?: boolean;
 }
 
@@ -68,7 +67,7 @@ interface IRuleItem {
   rule_name: string;
   state: string;
   change_state: string;
-  match_fields: Array<string>;
+  match_fields: string[];
   match_pattern: string;
   masking_rule?: string;
   operator: TOperator;
@@ -269,11 +268,10 @@ export default class MaskingField extends tsc<IProps> {
       .filter(item => !item.field_class_islog)
       .reduce((pre, cur) => {
         let num = 0;
-        cur.fieldList.forEach(item => {
+        for (const item of cur.fieldList) {
           item.rules.length && (num += 1);
-        });
-        pre += num;
-        return pre;
+        }
+        return pre + num;
       }, 0);
   }
 
@@ -281,13 +279,13 @@ export default class MaskingField extends tsc<IProps> {
   get isShowSyncBtn() {
     let isHaveSync = false;
     const tableFields = this.reductionOriginTable(this.tableList);
-    tableFields.forEach(fItem => {
-      fItem.rules.forEach(rItem => {
-        if (rItem.state === 'update' || rItem.state === 'delate') {
-          if (!rItem?.change_state && !isHaveSync) isHaveSync = true;
+    for (const fItem of tableFields) {
+      for (const rItem of fItem.rules) {
+        if ((rItem.state === 'update' || rItem.state === 'delate') && !(rItem?.change_state || isHaveSync)) {
+          isHaveSync = true;
         }
-      });
-    });
+      }
+    }
     return isHaveSync && !this.isAllSync;
   }
 
@@ -296,7 +294,7 @@ export default class MaskingField extends tsc<IProps> {
   }
 
   get isShowConfigFiledEmptyTips() {
-    return !this.fieldTypeList.length && !this.jsonParseList.length;
+    return !(this.fieldTypeList.length || this.jsonParseList.length);
   }
 
   @Emit('changeData')
@@ -332,7 +330,6 @@ export default class MaskingField extends tsc<IProps> {
         this.tableList = this.initTableList(this.fieldTypeList, 'allClear');
         this.tableShowList = structuredClone(this.tableList);
       }
-    } catch (err) {
     } finally {
       this.tableLoading = false;
       this.$nextTick(() => {
@@ -347,12 +344,14 @@ export default class MaskingField extends tsc<IProps> {
   /** 获取字段列表样式 */
   getFieldItemStyle(fieldItem: IFieldItem) {
     let heightNum = fieldItem.rules.length || 1;
-    if (fieldItem?.is_origin && !this.isHiddenSyncNum) heightNum += 1;
+    if (fieldItem?.is_origin && !this.isHiddenSyncNum) {
+      heightNum += 1;
+    }
     const backgroundColor = this.hoverFieldName === fieldItem.field_name ? '#F5F7FA' : '#FFF';
     return `height:${heightNum * 30 + 12}px; background: ${backgroundColor}`;
   }
 
-  async handleMoveEnd(fieldItem: IFieldItem, fieldItemRules: Array<IRuleItem>) {
+  async handleMoveEnd(fieldItem: IFieldItem, fieldItemRules: IRuleItem[]) {
     this.tableValueChange(fieldItem, (fItem: IFieldItem) => (fItem.rules = structuredClone(fieldItemRules)));
     await this.updatePreview(fieldItem); // 更新脱敏预览
   }
@@ -362,6 +361,25 @@ export default class MaskingField extends tsc<IProps> {
     await this.updatePreview(fieldItem); // 更新脱敏预览
   }
 
+  updateFieldRules(map: Map<string, IFieldItem>, fieldItem: IFieldItem, ruleType: TRuleChangeType) {
+    // 已有字段, 更新规则
+    const catchField = map.get(fieldItem.field_name);
+    if (!catchField) {
+      return;
+    }
+    if (!catchField.is_origin) {
+      // 非原始日志的情况下采取合并推荐的规则
+      const pushRules = ruleType === 'merge' ? fieldItem?.operatorRules : fieldItem?.rules;
+      for (const tRItem of pushRules) {
+        // 从match接口返回的规则中 添加未生成的有的规则
+        if (!catchField.rules.some((cRItem: IRuleItem) => cRItem.rule_id === tRItem.rule_id)) {
+          catchField.rules.push(tRItem);
+        }
+      }
+    }
+    catchField.operatorRules = fieldItem.operatorRules ?? [];
+    map.set(fieldItem.field_name, catchField);
+  }
   /**
    * @desc: 合并两个脱敏字段列表
    * @param {Array<IFieldItem>} mergeTable 被合并的第一个列表
@@ -369,29 +387,16 @@ export default class MaskingField extends tsc<IProps> {
    * @param {TRuleChangeType} ruleType 合并类型 不同的类型合并的规则不同
    * @returns {Array}
    */
-  getMergeTableValue(mergeTable: Array<IFieldItem> = [], newTable: Array<IFieldItem> = [], ruleType: TRuleChangeType) {
+  getMergeTableValue(mergeTable: IFieldItem[], newTable: IFieldItem[], ruleType: TRuleChangeType) {
     const allTable = [...mergeTable, ...newTable];
     const map = new Map();
     // 这是字段
     for (const tItem of allTable) {
-      if (!map.has(tItem.field_name)) {
+      if (map.has(tItem.field_name)) {
+        this.updateFieldRules(map, tItem, ruleType);
+      } else {
         // 新字段 直接更新
         map.set(tItem.field_name, tItem);
-      } else {
-        // 已有字段, 更新规则
-        const catchField = map.get(tItem.field_name);
-        if (!catchField.is_origin) {
-          // 非原始日志的情况下采取合并推荐的规则
-          const pushRules = ruleType === 'merge' ? tItem?.operatorRules : tItem?.rules;
-          pushRules.forEach(tRItem => {
-            // 从match接口返回的规则中 添加未生成的有的规则
-            if (!catchField.rules.some((cRItem: IRuleItem) => cRItem.rule_id === tRItem.rule_id)) {
-              catchField.rules.push(tRItem);
-            }
-          });
-        }
-        catchField.operatorRules = tItem.operatorRules ?? [];
-        map.set(tItem.field_name, catchField);
       }
     }
     return [...map.values()];
@@ -404,8 +409,7 @@ export default class MaskingField extends tsc<IProps> {
    */
   reductionOriginTable(oldTableList = []) {
     return oldTableList.reduce((pre, cur) => {
-      pre = pre.concat(cur.fieldList);
-      return pre;
+      return pre.concat(cur.fieldList);
     }, []);
   }
 
@@ -427,7 +431,7 @@ export default class MaskingField extends tsc<IProps> {
       this.tableShowList = structuredClone(this.tableList);
       // 更新所有预览
       this.updatePreview();
-    } catch (err) {
+    } catch {
       this.tableLoading = false;
     } finally {
       this.tableLoading = false;
@@ -440,8 +444,12 @@ export default class MaskingField extends tsc<IProps> {
    * @param {Function} callback 更新的回调函数
    * @param {Array} list 更新的表格
    */
-  tableValueChange(fieldItem: IFieldItem, callback: (any) => void, list = [this.tableList, this.tableShowList]) {
-    list.forEach(lItem => {
+  tableValueChange(
+    fieldItem: IFieldItem,
+    callback: (any) => Promise<void> | void,
+    list = [this.tableList, this.tableShowList],
+  ) {
+    for (const lItem of list) {
       // 找到对应fieldClass的索引
       const typeIndex = lItem.findIndex(item => item.field_class === fieldItem.field_class);
       // 找到对应fieldName的索引
@@ -449,7 +457,7 @@ export default class MaskingField extends tsc<IProps> {
         (item: IFieldItem) => item.field_name === fieldItem.field_name,
       );
       callback(lItem[typeIndex].fieldList[fieldIndex]);
-    });
+    }
   }
 
   /**
@@ -458,7 +466,9 @@ export default class MaskingField extends tsc<IProps> {
    * @returns {Boolean} 是否展示
    */
   getIsShowAddRuleBtn(fieldItem: IFieldItem) {
-    if (fieldItem.rules.length >= 1) return true;
+    if (fieldItem.rules.length >= 1) {
+      return true;
+    }
     return false;
   }
 
@@ -466,7 +476,7 @@ export default class MaskingField extends tsc<IProps> {
    * @desc: 新增规则
    * @param {Array} selectList 选中的规则列表
    */
-  async handleSelectRule(selectList: Array<IRuleItem>) {
+  async handleSelectRule(selectList: IRuleItem[]) {
     // 这里先更新match匹配规则的接口
     await this.matchMaskingRule();
     // 把已删除的过滤掉
@@ -476,16 +486,17 @@ export default class MaskingField extends tsc<IProps> {
     const selectIdList = selectList.map(item => item.id);
     const differenceIdList = curIdList
       .concat(selectIdList)
-      .filter(v => !curIdList.includes(v) || !selectIdList.includes(v)); // 获取新增差集的rule_id
+      .filter(v => !(curIdList.includes(v) && selectIdList.includes(v))); // 获取新增差集的rule_id
 
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     this.tableValueChange(this.currentOperateField, async (fItem: IFieldItem) => {
-      differenceIdList.forEach(dItem => {
+      for (const dItem of differenceIdList) {
         const newRule = selectList.find((sItem: IRuleItem) => sItem.id === dItem);
         if (newRule) {
           newRule.masking_rule = this.getMaskingRuleStr(newRule); // 初始化脱敏规则
           newRule.change_state = 'add'; // 设置提交状态为新增
           newRule.rule_id = newRule.id;
-          if (!!this.recommendRuleIDMap[fItem.field_name]) {
+          if (this.recommendRuleIDMap[fItem.field_name]) {
             // 给match接口中不生效的规则变灰色
             newRule.disabled = !this.recommendRuleIDMap[fItem.field_name].includes(newRule.rule_id);
           } else if (JSON.stringify(this.recommendRuleIDMap) === '{}') {
@@ -495,9 +506,11 @@ export default class MaskingField extends tsc<IProps> {
         } else {
           // 除去已删除的 删除了的规则 直接删掉
           const spliceIndex = fItem.rules.findIndex(rItem => rItem.rule_id === dItem);
-          if (spliceIndex >= 0) fItem.rules.splice(spliceIndex, 1);
+          if (spliceIndex >= 0) {
+            fItem.rules.splice(spliceIndex, 1);
+          }
         }
-      });
+      }
       await this.updatePreview(fItem); // 更新脱敏预览
     });
 
@@ -515,7 +528,7 @@ export default class MaskingField extends tsc<IProps> {
       resetRule.masking_rule = this.getMaskingRuleStr(resetRule); // 初始化脱敏规则
       resetRule.change_state = 'add'; // 设置提交状态为新增
       resetRule.rule_id = resetRule.id;
-      if (!!this.recommendRuleIDMap[fItem.field_name]) {
+      if (this.recommendRuleIDMap[fItem.field_name]) {
         // 给match接口中不生效的规则变灰色
         resetRule.disabled = !this.recommendRuleIDMap[fItem.field_name].includes(resetRule.rule_id);
       } else if (JSON.stringify(this.recommendRuleIDMap) === '{}') {
@@ -591,15 +604,21 @@ export default class MaskingField extends tsc<IProps> {
    * @param {Number} syncIndex 同步的规则下标
    */
   handleCurrentSyncChange(syncField = {}, syncIndex = -1) {
-    if (JSON.stringify(syncField) === '{}') syncField = this.currentOperateField;
-    if (syncIndex === -1) syncIndex = this.currentOperateRuleIndex;
+    let newSyncField = syncField;
+    let newSyncIndex = syncIndex;
+    if (JSON.stringify(syncField) === '{}') {
+      newSyncField = this.currentOperateField;
+    }
+    if (syncIndex === -1) {
+      newSyncIndex = this.currentOperateRuleIndex;
+    }
 
-    this.tableValueChange(syncField as IFieldItem, async (fItem: IFieldItem) => {
-      const currentRule = structuredClone(fItem.rules[syncIndex]);
+    this.tableValueChange(newSyncField as IFieldItem, async (fItem: IFieldItem) => {
+      const currentRule = structuredClone(fItem.rules[newSyncIndex]);
 
       if (currentRule.state === 'delete') {
         // 删除状态 直接删除当前规则
-        fItem.rules.splice(syncIndex, 1);
+        fItem.rules.splice(newSyncIndex, 1);
         // 更新预览
         await this.updatePreview(fItem); // 更新脱敏预览
         return;
@@ -667,10 +686,13 @@ export default class MaskingField extends tsc<IProps> {
    * @param {number} syncID 同步规则ID列表
    */
   handleAllSync(syncID = -1) {
-    if (!this.tableList.length || this.isAllSync) return;
-    this.tableList.forEach(cItem => {
-      cItem.fieldList.forEach(field => {
-        const spliceIDList = [];
+    if (!this.tableList.length || this.isAllSync) {
+      return;
+    }
+    for (const cItem of this.tableList) {
+      for (const field of cItem.fieldList) {
+        const spliceIDList: any[] = [];
+        // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
         field.rules.forEach((item, index) => {
           if (syncID >= 0) {
             // 有同步规则
@@ -701,14 +723,16 @@ export default class MaskingField extends tsc<IProps> {
             };
           }
         });
-        spliceIDList.forEach(item => {
+        for (const item of spliceIDList) {
           const index = field.rules.findIndex(rItem => rItem.rule_id === item);
           field.rules.splice(index, 1); // 删除状态 直接删除当前规则
-        });
-      });
-    });
+        }
+      }
+    }
     this.tableShowList = structuredClone(this.tableList);
-    if (syncID === -1) this.isAllSync = true;
+    if (syncID === -1) {
+      this.isAllSync = true;
+    }
     // this.emitSyncRule();
     this.updatePreview();
   }
@@ -803,10 +827,12 @@ export default class MaskingField extends tsc<IProps> {
         return newObject;
       });
       this.fieldOriginValueList = (flatJsonParseList as any).reduce((pre, cur) => {
-        Object.entries(cur).forEach(([fieldKey, fieldVal]) => {
-          if (!pre[fieldKey]) pre[fieldKey] = [];
+        for (const [fieldKey, fieldVal] of Object.entries(cur)) {
+          if (!pre[fieldKey]) {
+            pre[fieldKey] = [];
+          }
           pre[fieldKey].push(fieldVal ?? '');
-        });
+        }
         return pre;
       }, {});
     }
@@ -836,7 +862,9 @@ export default class MaskingField extends tsc<IProps> {
       return res.data.fields.reduce(
         (pre, cur) => {
           // 虚拟字段不用展示
-          if (cur.field_type === '__virtual__') return pre;
+          if (cur.field_type === '__virtual__') {
+            return pre;
+          }
           pre.fieldObj[`${cur.field_name}`] = {
             field_alias: cur.field_alias,
             field_type: cur.field_type,
@@ -854,7 +882,7 @@ export default class MaskingField extends tsc<IProps> {
           fieldObj: {},
         },
       );
-    } catch (err) {
+    } catch {
       return {
         fieldList: [],
         fieldObj: {},
@@ -876,7 +904,7 @@ export default class MaskingField extends tsc<IProps> {
         { catchIsShowMessage: false },
       );
       return res.data.field_configs;
-    } catch (err) {
+    } catch {
       return [];
     }
   }
@@ -900,7 +928,7 @@ export default class MaskingField extends tsc<IProps> {
    * @desc: 获取内置字段列表
    * @returns {Array<number>}
    */
-  getBuiltInFields(): Array<number> {
+  getBuiltInFields(): number[] {
     return this.collectData?.fields?.filter(item => item.is_built_in) || [];
   }
 
@@ -912,7 +940,9 @@ export default class MaskingField extends tsc<IProps> {
    * @returns {Array}
    */
   initTableList(maskingList = [], changeRuleState: TRuleChangeType = 'merge') {
-    if (!maskingList.length) return [];
+    if (!maskingList.length) {
+      return [];
+    }
     try {
       const reduceInitList = [
         {
@@ -932,6 +962,7 @@ export default class MaskingField extends tsc<IProps> {
         },
       ];
 
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
       const initFieldList = maskingList.reduce((pre, cur) => {
         // 分类下标
         let preIndex = 1;
@@ -948,7 +979,7 @@ export default class MaskingField extends tsc<IProps> {
         cur.field_class = reduceInitList[preIndex].field_class;
         cur.field_alias = this.fieldTypeObj[cur.field_name]?.field_alias || '';
         cur.field_type = this.fieldTypeObj[cur.field_name]?.field_type || '';
-        cur.rules.forEach((rItem: IRuleItem) => {
+        for (const rItem of cur.rules) {
           // 获取脱敏规则tips弹窗字符串
           rItem.masking_rule = this.getMaskingRuleStr(rItem);
           // 更新状态 初始化为空字符串 旧的表格也需要缓存
@@ -956,11 +987,11 @@ export default class MaskingField extends tsc<IProps> {
           // 初始化都为false
           rItem.disabled = false;
           const isDeleteRule = rItem.state === 'delete' && rItem.change_state === '';
-          // 给match接口中不生效的规则变灰色 并且不为状态删除的时候
           if (!isDeleteRule && !!this.recommendRuleIDMap[cur.field_name]) {
+            // 给match接口中不生效的规则变灰色 并且不为状态删除的时候
             rItem.disabled = !this.recommendRuleIDMap[cur.field_name].includes(rItem.rule_id);
           }
-        });
+        }
         switch (changeRuleState) {
           case 'merge':
             break;
@@ -968,6 +999,8 @@ export default class MaskingField extends tsc<IProps> {
             break;
           case 'allClear':
             cur.rules = []; // 全清除
+            break;
+          default:
             break;
         }
 
@@ -977,7 +1010,7 @@ export default class MaskingField extends tsc<IProps> {
       }, reduceInitList);
 
       return initFieldList.filter(item => item.fieldList.length);
-    } catch (err) {
+    } catch {
       return [];
     } finally {
     }
@@ -988,7 +1021,9 @@ export default class MaskingField extends tsc<IProps> {
    * @param {Object} fieldItem 当前字段数据
    */
   async updatePreview(fieldItem?: IFieldItem) {
-    if (!this.previewSwitch) return; // 结果预览开关关闭 不更新预览
+    if (!this.previewSwitch) {
+      return;
+    } // 结果预览开关关闭 不更新预览
     try {
       this.isPreviewLoading = true;
       if (fieldItem) {
@@ -997,7 +1032,7 @@ export default class MaskingField extends tsc<IProps> {
         const previewList = await this.getConfigPreview([fieldItem]);
         const fieldPreview = previewList[fieldItem.field_name];
         const preview = this.getFieldPreview(fieldItem.field_name, fieldPreview);
-        this.tableValueChange(fieldItem, async (fItem: IFieldItem) => {
+        this.tableValueChange(fieldItem, (fItem: IFieldItem) => {
           fItem.preview = preview;
         });
       } else {
@@ -1009,7 +1044,6 @@ export default class MaskingField extends tsc<IProps> {
         this.updateAllFieldPreview(this.tableList, previewVal);
         this.updateAllFieldPreview(this.tableShowList, previewVal);
       }
-    } catch (err) {
     } finally {
       this.previewLoadingField = '';
       this.isPreviewLoading = false;
@@ -1022,13 +1056,13 @@ export default class MaskingField extends tsc<IProps> {
    * @param {Object} previewVal 预览对象
    */
   updateAllFieldPreview(list, previewVal): void {
-    list.forEach(cItem => {
-      cItem.fieldList.forEach((field: IFieldItem) => {
+    for (const cItem of list) {
+      for (const field of cItem.fieldList) {
         const fieldPreview = previewVal[field.field_name];
         const preview = this.getFieldPreview(field.field_name, fieldPreview);
         field.preview = preview;
-      });
-    });
+      }
+    }
   }
 
   /**
@@ -1038,10 +1072,16 @@ export default class MaskingField extends tsc<IProps> {
    * @returns {Array}
    */
   getFieldPreview(fieldName = '', previewResult = []) {
-    if (!previewResult.length) return [];
-    if (!this.jsonParseList.length || !fieldName) return [];
-    if (!this.fieldOriginValueList[fieldName]) return [];
-    const previewList = [];
+    if (!previewResult.length) {
+      return [];
+    }
+    if (!(this.jsonParseList.length && fieldName)) {
+      return [];
+    }
+    if (!this.fieldOriginValueList[fieldName]) {
+      return [];
+    }
+    const previewList: Record<string, any>[] = [];
     const filterResult = previewResult.filter(item => item !== null);
     this.fieldOriginValueList[fieldName].forEach((item, index) => {
       const maskingValue = filterResult[index] ?? '';
@@ -1060,7 +1100,9 @@ export default class MaskingField extends tsc<IProps> {
    * @returns {Object}
    */
   async getConfigPreview(fieldList = []) {
-    if (!this.jsonParseList.length || !fieldList.length) return {};
+    if (!(this.jsonParseList.length && fieldList.length)) {
+      return {};
+    }
     const fieldConfigs = fieldList
       .filter(item => {
         return item.rules.length && item.rules.some(rItem => !rItem.disabled);
@@ -1081,19 +1123,21 @@ export default class MaskingField extends tsc<IProps> {
             return { rule_id: rItem.rule_id };
           }),
       }));
-    if (!fieldConfigs.length) return {};
+    if (!fieldConfigs.length) {
+      return {};
+    }
     try {
       const res = await $http.request('masking/getConfigPreview', {
         data: {
           logs: this.jsonParseList,
           field_configs: fieldConfigs,
-          text_fields: !this.isHiddenSyncNum
-            ? this.tableList.find(item => item.field_class_islog)?.fieldList.map(item => item.field_name)
-            : [],
+          text_fields: this.isHiddenSyncNum
+            ? []
+            : this.tableList.find(item => item.field_class_islog)?.fieldList.map(item => item.field_name),
         },
       });
       return res.data;
-    } catch (err) {
+    } catch {
       return {};
     }
   }
@@ -1140,7 +1184,7 @@ export default class MaskingField extends tsc<IProps> {
         pre.push(fieldsObj);
         return pre;
       }, []);
-    } catch (err) {
+    } catch {
       return [];
     }
   }
@@ -1154,7 +1198,7 @@ export default class MaskingField extends tsc<IProps> {
     try {
       JSON.parse(str);
       return JSON.parse(str) && str !== '{}';
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -1168,10 +1212,10 @@ export default class MaskingField extends tsc<IProps> {
         .filter(item => item.rules?.length)
         .map(item => ({
           field_name: item.field_name,
-          rules: item.rules.map(item => {
+          rules: item.rules.map(newItem => {
             return {
-              rule_id: item.rule_id,
-              state: !!item.change_state ? item.change_state : 'normal',
+              rule_id: newItem.rule_id,
+              state: newItem.change_state ? newItem.change_state : 'normal',
             };
           }),
         }));
@@ -1181,9 +1225,9 @@ export default class MaskingField extends tsc<IProps> {
     return {
       space_uid: this.spaceUid,
       field_configs: fieldConfigs,
-      text_fields: !this.isHiddenSyncNum
-        ? this.tableList.find(item => item.field_class_islog)?.fieldList.map(item => item.field_name)
-        : [],
+      text_fields: this.isHiddenSyncNum
+        ? []
+        : this.tableList.find(item => item.field_class_islog)?.fieldList.map(item => item.field_name),
     };
   }
 
@@ -1226,8 +1270,10 @@ export default class MaskingField extends tsc<IProps> {
     this.isShowRuleSideslider = true;
   }
 
-  getMoveFillIcon(rules: Array<IRuleItem>) {
-    if (rules?.length === 1) return '';
+  getMoveFillIcon(rules: IRuleItem[]) {
+    if (rules?.length === 1) {
+      return '';
+    }
     return 'bk-icon icon-grag-fill';
   }
 
@@ -1259,9 +1305,10 @@ export default class MaskingField extends tsc<IProps> {
       default: ({ row }) => (
         <div class='field-info-box'>
           {this.isShowFieldClass && !!row.fieldList.length && <div class='type'>{row.field_class}</div>}
-          <div class={`field-box ${!this.isShowFieldClass ? 'not-class-width' : ''}`}>
+          <div class={`field-box ${this.isShowFieldClass ? '' : 'not-class-width'}`}>
             {row.fieldList.map(item => (
               <div
+                key={item}
                 style={this.getFieldItemStyle(item)}
                 class='field'
                 onMouseenter={() => this.handleHoverRow(item.field_name)}
@@ -1273,7 +1320,7 @@ export default class MaskingField extends tsc<IProps> {
                     content: fieldTypeMap[item.field_type]?.name,
                     disabled: !fieldTypeMap[item.field_type],
                   }}
-                ></i>
+                />
                 <span
                   class='title-overflow'
                   v-bk-overflow-tips={{ delay: 500 }}
@@ -1320,7 +1367,7 @@ export default class MaskingField extends tsc<IProps> {
           </Tag>
         );
       }
-      return undefined;
+      return;
     };
 
     const getMaskingRuleAddIcon = (fieldItem: IFieldItem, index: number) => {
@@ -1331,11 +1378,11 @@ export default class MaskingField extends tsc<IProps> {
             class='add-rule-icon'
             onClick={() => this.handleClickAddRuleIcon(fieldItem)}
           >
-            <i class='bk-icon left-icon icon-plus'></i>
+            <i class='bk-icon icon-plus left-icon' />
           </div>
         );
       }
-      return undefined;
+      return;
     };
 
     const getRuleItemDom = (fieldItem: IFieldItem, rItem: IRuleItem, rIndex: number) => {
@@ -1359,7 +1406,7 @@ export default class MaskingField extends tsc<IProps> {
             <i
               class='bk-icon icon-info-circle-shape'
               v-bk-tooltips={{ content: this.$t('脱敏规则暂未匹配到有效日志，无法预览结果') }}
-            ></i>
+            />
           )}
           {getMaskingRuleEndState(fieldItem, rItem, rIndex)}
           {getMaskingRuleAddIcon(fieldItem, rIndex)}
@@ -1370,8 +1417,9 @@ export default class MaskingField extends tsc<IProps> {
     const maskingRuleSlot = {
       default: ({ row }) => (
         <div class='masking-rule-box'>
-          {row.fieldList.map((item: IFieldItem) => (
+          {row.fieldList.map((item: IFieldItem, index: number) => (
             <div
+              key={`${index}-${item}`}
               style={this.getFieldItemStyle(item)}
               class='rule'
               onMouseenter={() => this.handleHoverRow(item.field_name)}
@@ -1383,7 +1431,7 @@ export default class MaskingField extends tsc<IProps> {
                     <div
                       key='-1'
                       class='tag-box sync'
-                    ></div>
+                    />
                   )}
                   <VueDraggable
                     v-model={item.rules}
@@ -1393,7 +1441,7 @@ export default class MaskingField extends tsc<IProps> {
                   >
                     <transition-group>
                       {item.rules.map((rItem: IRuleItem, rIndex: number) => (
-                        <div key={rIndex}>{getRuleItemDom(item, rItem, rIndex)}</div>
+                        <div key={`${rIndex}-${item}`}>{getRuleItemDom(item, rItem, rIndex)}</div>
                       ))}
                     </transition-group>
                   </VueDraggable>
@@ -1404,7 +1452,7 @@ export default class MaskingField extends tsc<IProps> {
                     text
                     onClick={() => this.handleClickAddRuleIcon(item)}
                   >
-                    <i class='bk-icon icon-plus push'></i>
+                    <i class='bk-icon icon-plus push' />
                     <span style='margin-left: 8px;'>{this.$t('添加规则')}</span>
                   </Button>
                 </div>
@@ -1419,21 +1467,26 @@ export default class MaskingField extends tsc<IProps> {
       const preview = fieldItem.preview;
       let rLength = fieldItem.rules.length;
       // 原始日志没有规则的时候，规则默认为1
-      if (fieldItem.is_origin && !fieldItem.rules.length) rLength = 1;
+      if (fieldItem.is_origin && !fieldItem.rules.length) {
+        rLength = 1;
+      }
       if (preview?.length) {
         return (
           <div class='result-box'>
             {preview.map((pItem, pIndex) => {
               if (pIndex <= rLength - 1) {
                 return (
-                  <div class='preview-result'>
+                  <div
+                    key={`${pIndex}-${pItem}`}
+                    class='preview-result'
+                  >
                     <span
                       class='old title-overflow'
                       v-bk-overflow-tips={{ delay: 500 }}
                     >
                       {pItem.origin}
                     </span>
-                    <i class='bk-icon icon-arrows-right'></i>
+                    <i class='bk-icon icon-arrows-right' />
                     <span
                       class='result title-overflow'
                       v-bk-overflow-tips={{ delay: 500 }}
@@ -1444,6 +1497,7 @@ export default class MaskingField extends tsc<IProps> {
                   </div>
                 );
               }
+              return null;
             })}
           </div>
         );
@@ -1471,17 +1525,19 @@ export default class MaskingField extends tsc<IProps> {
                 content: this.$t('该字段为原文字段，为防止脱敏规则遗漏，系统已帮您自动同步其他脱敏结果'),
                 width: 260,
               }}
-            ></i>
+            />
           </div>
         );
       }
     };
 
     const getMorePreviewNum = (previewList, rLength: number, pIndex: number) => {
-      if (previewList.length < rLength) return undefined;
+      if (previewList.length < rLength) {
+        return;
+      }
       const showNum = previewList.length - rLength;
       const showPreviewList = previewList.slice(rLength);
-      if (showNum > 0 && pIndex === rLength - 1)
+      if (showNum > 0 && pIndex === rLength - 1) {
         return (
           <Popover
             ext-cls='preview-prop'
@@ -1497,14 +1553,17 @@ export default class MaskingField extends tsc<IProps> {
               slot='content'
             >
               {showPreviewList.map(pItem => (
-                <div class='preview-result'>
+                <div
+                  key={pItem}
+                  class='preview-result'
+                >
                   <span
                     class='old title-overflow'
                     v-bk-overflow-tips={{ placement: 'top' }}
                   >
                     {pItem.origin}
                   </span>
-                  <i class='bk-icon icon-arrows-right'></i>
+                  <i class='bk-icon icon-arrows-right' />
                   <span
                     class='result title-overflow'
                     v-bk-overflow-tips={{ placement: 'top' }}
@@ -1516,7 +1575,8 @@ export default class MaskingField extends tsc<IProps> {
             </div>
           </Popover>
         );
-      return undefined;
+      }
+      return;
     };
 
     const maskingPreviewSlot = {
@@ -1527,6 +1587,7 @@ export default class MaskingField extends tsc<IProps> {
         >
           {row.fieldList.map(item => (
             <div
+              key={item}
               style={this.getFieldItemStyle(item)}
               class='preview'
               v-bkloading={{ isLoading: this.isPreviewLoading && this.previewLoadingField === row.field_name }}
@@ -1566,11 +1627,11 @@ export default class MaskingField extends tsc<IProps> {
                 clearable
                 onChange={this.handleSearchChange}
                 onEnter={this.searchField}
-              ></Input>
+              />
               <Switcher
                 v-model={this.previewSwitch}
                 theme='primary'
-              ></Switcher>
+              />
               <span>{this.$t('结果预览')}</span>
             </div>
           </div>
@@ -1584,20 +1645,20 @@ export default class MaskingField extends tsc<IProps> {
               key={'column_name'}
               label={this.$t('字段信息')}
               scopedSlots={fieldSlot}
-            ></TableColumn>
+            />
 
             <TableColumn
               key={'match_method'}
               render-header={this.renderHeaderRule}
               scopedSlots={maskingRuleSlot}
-            ></TableColumn>
+            />
 
             {this.previewSwitch && (
               <TableColumn
                 key={'match_content'}
                 render-header={this.renderHeaderPreview}
                 scopedSlots={maskingPreviewSlot}
-              ></TableColumn>
+              />
             )}
 
             <div slot='empty'>
@@ -1665,7 +1726,10 @@ export default class MaskingField extends tsc<IProps> {
             </span>
             <div class={`rule-change-container rule-${this.currentRuleState}`}>
               {Object.entries(this.ruleDialogBoxValue).map(([ruleKey, ruleValue], ruleIndex) => (
-                <div class='rule-box'>
+                <div
+                  key={ruleKey}
+                  class='rule-box'
+                >
                   <div class='title'>{this.ruleDialogI18nMap[ruleKey]}</div>
                   <div class={`rule-item-row row-${this.currentRuleState}`}>
                     {this.currentRuleState === 'delete' && ruleIndex === 1 ? (
@@ -1674,7 +1738,10 @@ export default class MaskingField extends tsc<IProps> {
                       Object.entries(ruleValue)
                         .filter(fItem => !!fItem[1])
                         .map(([matchKey, matchValue]) => (
-                          <div class='item'>
+                          <div
+                            key={matchKey}
+                            class='item'
+                          >
                             <span class='key'>{this.ruleDialogI18nMap[matchKey]} :</span>
                             <span
                               class='value title-overflow'

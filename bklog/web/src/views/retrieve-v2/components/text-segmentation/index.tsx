@@ -23,16 +23,27 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref, computed, watch, defineComponent, Ref, onMounted, onBeforeUnmount, onBeforeMount, nextTick } from 'vue';
+import {
+  ref,
+  computed,
+  watch,
+  defineComponent,
+  type Ref,
+  onMounted,
+  onBeforeUnmount,
+  onBeforeMount,
+  nextTick,
+} from 'vue';
 
 import { isNestedField, xssFilter } from '@/common/util';
 import { setScrollLoadCell } from '@/hooks/hooks-helper';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import UseTextSegmentation from '@/hooks/use-text-segmentation';
-import { WordListItem } from '@/hooks/use-text-segmentation';
 import RetrieveHelper from '@/views/retrieve-helper';
 import { debounce } from 'lodash-es';
+
+import type { WordListItem } from '@/hooks/use-text-segmentation';
 
 import './index.scss';
 
@@ -143,7 +154,7 @@ export default defineComponent({
       setWordList();
     });
 
-    let removeScrollEventFn = null;
+    let removeScrollEventFn: (() => void) | null = null;
     let cellScrollInstance: {
       setListItem: (size?: number, next?: () => void) => void;
       removeScrollEvent: () => void;
@@ -171,6 +182,7 @@ export default defineComponent({
           wordList,
           refContent.value,
           refSegmentContent.value,
+          // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
           (item: WordListItem) => {
             const child = document.createElement(getTagName(item));
             child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
@@ -209,7 +221,7 @@ export default defineComponent({
           <span
             ref={refSegmentContent}
             class='segment-content'
-          ></span>
+          />
         </div>
       );
     };
@@ -244,7 +256,7 @@ export default defineComponent({
       if (showMoreAction.value && !props.isLimitExpandView) {
         return (
           <span
-            class={['btn-more-action', `word-text`, 'is-show']}
+            class={['btn-more-action', 'word-text', 'is-show']}
             onClick={handleClickMore}
           >
             {btnText.value}

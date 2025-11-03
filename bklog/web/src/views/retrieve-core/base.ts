@@ -26,9 +26,10 @@
 import { formatDate, formatDateNanos, random } from '../../common/util';
 import { getRGBAColors } from './colors';
 import JsonFormatter from './json-formatter';
-import OptimizedHighlighter from './optimized-highlighter';
-import RetrieveEvent from './retrieve-events';
 import StaticUtil from './static.util';
+
+import type OptimizedHighlighter from './optimized-highlighter';
+import type RetrieveEvent from './retrieve-events';
 
 export default class {
   // 滚动条查询条件
@@ -124,16 +125,15 @@ export default class {
 
   on(fnName: RetrieveEvent | RetrieveEvent[], callbackFn: (...args) => void) {
     const targetEvents = Array.isArray(fnName) ? fnName : [fnName];
-    targetEvents.forEach(event => {
-      if (this.events.has(event)) {
-        if (!this.events.get(event).includes(callbackFn)) {
-          this.events.get(event)?.push(callbackFn);
-        }
-        return this;
+    for (const event of targetEvents) {
+      if (!this.events.has(event)) {
+        this.events.set(event, [callbackFn]);
       }
 
-      this.events.set(event, [callbackFn]);
-    });
+      if (this.events.has(event) && !this.events.get(event)?.includes(callbackFn)) {
+        this.events.get(event)?.push(callbackFn);
+      }
+    }
 
     return this;
   }
@@ -155,7 +155,7 @@ export default class {
    */
   off(eventName: RetrieveEvent, fn?: (...args) => void) {
     if (typeof fn === 'function') {
-      const index = this.events.get(eventName)?.findIndex(item => item === fn);
+      const index = this.events.get(eventName)?.indexOf(fn);
       if (index !== -1) {
         this.events.get(eventName)?.splice(index, 1);
       }
@@ -170,20 +170,20 @@ export default class {
    * @param fn
    */
   batchOff(eventNames: RetrieveEvent[], fn?: (...args) => void) {
-    eventNames.forEach(eventName => {
+    for (const eventName of eventNames) {
       this.off(eventName, fn);
-    });
+    }
   }
 
   runEvent(event: RetrieveEvent, ...args) {
-    this.events.get(event)?.forEach(item => {
+    for (const item of this.events.get(event) || []) {
       if (typeof item === 'function') {
         item(...args);
       }
-    });
+    }
   }
 
-  getRegExp(reg: RegExp | boolean | number | string, flgs?: string, fullMatch = false): RegExp {
-    return StaticUtil.getRegExp(reg, flgs, fullMatch);
+  getRegExp(reg: RegExp | boolean | number | string, flgs?: string, fullMatch = false, formatRegStr = true): RegExp {
+    return StaticUtil.getRegExp(reg, flgs, fullMatch, formatRegStr);
   }
 }

@@ -27,9 +27,9 @@
 import { Component, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Popover } from 'bk-magic-vue';
-
 import ClusterRuleDialog from './cluster-rule-dialog';
+
+import type { Popover } from 'bk-magic-vue';
 
 import './cluster-popover.scss';
 const { $i18n } = window.mainComponent;
@@ -71,9 +71,11 @@ export default class ClusterPopover extends tsc<object> {
     this.isShowRuleDialog = true;
   }
   checkName() {
-    if (this.feedRulesData.textInputStr.trim() === '') return true;
+    if (this.feedRulesData.textInputStr.trim() === '') {
+      return true;
+    }
 
-    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
+    return /^[\u4e00-\u9fa5_a-zA-Z0-9`~!\s@#$%^&*()_\-+=<>?:"{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：“”【】、；‘'，。、]+$/im.test(
       this.feedRulesData.textInputStr.trim(),
     );
   }
@@ -118,13 +120,11 @@ export default class ClusterPopover extends tsc<object> {
       this.unregisterOberver();
     }
     this.intersectionObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (this.intersectionObserver) {
-          if (entry.intersectionRatio <= 0) {
-            this.destroyPopover();
-          }
+      for (const entry of entries) {
+        if (this.intersectionObserver && entry.intersectionRatio <= 0) {
+          this.destroyPopover();
         }
-      });
+      }
     });
     this.intersectionObserver.observe(this.eventTippyRef);
   }
@@ -165,7 +165,7 @@ export default class ClusterPopover extends tsc<object> {
               placeholder={$i18n.t('请输入')}
               rows={5}
               type='textarea'
-            ></bk-input>
+            />
           </bk-form-item>
         </bk-form>
       </bk-dialog>
@@ -182,7 +182,7 @@ export default class ClusterPopover extends tsc<object> {
                 class='event-btn'
                 onClick={() => this.handleClick('copy')}
               >
-                <i class='icon bklog-icon bklog-copy'></i>
+                <i class='icon bklog-icon bklog-copy' />
                 <span>{$i18n.t('复制')}</span>
               </span>
             </div>
@@ -191,7 +191,7 @@ export default class ClusterPopover extends tsc<object> {
                 class='event-btn'
                 onClick={() => this.handleClick('show original')}
               >
-                <i class='icon bk-icon icon-eye'></i>
+                <i class='icon bk-icon icon-eye' />
                 <span>{$i18n.t('查询命中pattern的日志')}</span>
               </span>
               <div
@@ -202,7 +202,7 @@ export default class ClusterPopover extends tsc<object> {
                   this.handleClick('show original', true);
                 }}
               >
-                <i class='bklog-icon bklog-jump'></i>
+                <i class='bklog-icon bklog-jump' />
               </div>
             </div>
             {/* <div class='event-box'>

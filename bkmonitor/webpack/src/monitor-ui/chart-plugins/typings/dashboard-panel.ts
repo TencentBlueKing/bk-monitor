@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -356,7 +356,8 @@ export type PanelOption = {
   child_panels_selector_variables?: {
     id?: string;
     title?: string;
-  };
+  }[];
+  is_code_redefine?: boolean; // 是否有返回码重定义功能
   collect_interval_display?: string; // 数据步长（步长过大情况时需要，正常情况无此字段）
   enable_panels_selector?: boolean;
   header?: {
@@ -446,7 +447,9 @@ export class DataQuery implements IDataQuery {
     const result = localFieldsSort.reduce((total, cur) => {
       const [itemKey, filterDictKey] = cur;
       let value = data?.[itemKey];
-      value === undefined && isExist && (isExist = false);
+      if (value === undefined && isExist) {
+        isExist = false;
+      }
       value =
         this.isMultiple || ['pod_name_list'].includes(itemKey)
           ? Array.isArray(value)
@@ -466,7 +469,9 @@ export class DataQuery implements IDataQuery {
     const result = localFieldsSort.reduce((total, cur) => {
       const [itemKey, filterDictKey] = cur;
       let value = data?.[itemKey];
-      value === undefined && isExist && (isExist = false);
+      if (value === undefined && isExist) {
+        isExist = false;
+      }
       value = isObject(value) ? value.value : value; // 兼容对象结构的value
       total[filterDictKey] = value;
       return total;
@@ -499,7 +504,9 @@ export class DataQuery implements IDataQuery {
     const result = localFieldsSort.reduce((total, cur) => {
       const [itemKey, filterDictKey] = cur;
       let value = data?.[isFilterDict ? filterDictKey : itemKey];
-      value === undefined && isExist && (isExist = false);
+      if (value === undefined && isExist) {
+        isExist = false;
+      }
       value =
         this.isMultiple || ['pod_name_list'].includes(itemKey)
           ? Array.isArray(value)
@@ -522,7 +529,9 @@ export class DataQuery implements IDataQuery {
       const [itemKey, filterDictKey] = set;
       const key = isFilterDict ? filterDictKey : itemKey;
       let value = item[key];
-      value === undefined && isExist && (isExist = false);
+      if (value === undefined && isExist) {
+        isExist = false;
+      }
       value =
         this.isMultiple || ['pod_name_list'].includes(key)
           ? Array.isArray(value)
@@ -545,7 +554,9 @@ class VariableDataQuery extends DataQuery {
     const result = localFieldsSort.reduce((total, cur) => {
       const [itemKey, filterDictKey] = cur;
       let value = data?.[isFilterDict ? filterDictKey : itemKey];
-      value === undefined && isExist && (isExist = false);
+      if (value === undefined && isExist) {
+        isExist = false;
+      }
       value =
         this.isMultiple || ['pod_name_list'].includes(itemKey)
           ? Array.isArray(value)
@@ -770,11 +781,9 @@ export class PanelModel implements IPanelModel {
           const config = structuredClone(this.rawTargetQueryMap.get(set) || {});
           return {
             expression: set.expression || 'A',
-            query_configs: [
-              filterDictConvertedToWhere(
-                Array.isArray(config.query_configs) ? config.query_configs[0] : config.query_configs
-              ),
-            ],
+            query_configs: (Array.isArray(config.query_configs) ? config.query_configs : [config.query_configs]).map(
+              item => filterDictConvertedToWhere(item)
+            ),
           };
         }
         return undefined;
@@ -853,7 +862,9 @@ export class VariableModel implements IVariableModel {
     const resData = this.fieldsSort.reduce((total, item) => {
       const [itemKey, filterDictKey] = item;
       const value = srcData[isFilterDict ? filterDictKey : itemKey];
-      value === undefined && (isExits = false);
+      if (value === undefined && isExits) {
+        isExits = false;
+      }
       typeTools.isObject(value)
         ? total.push(
             ...Object.keys(value)

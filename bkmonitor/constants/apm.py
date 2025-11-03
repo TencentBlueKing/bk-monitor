@@ -21,6 +21,8 @@ DEFAULT_DATA_LABEL = "APM"  # 数据标签，用来查询数据时三段式前�
 
 APM_METRIC_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
 
+APM_TRACE_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?trace_.*")
+
 
 class TraceDataSourceConfig:
     """Trace数据源配置常量"""

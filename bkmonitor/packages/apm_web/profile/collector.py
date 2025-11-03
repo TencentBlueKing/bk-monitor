@@ -1,20 +1,21 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import binascii
 import datetime
 import gzip
 import logging
 import os
 from dataclasses import dataclass
+from datetime import UTC
 from io import BytesIO
-from typing import Tuple
 
 import requests
 from requests import RequestException
@@ -26,7 +27,7 @@ from core.drf_resource import api
 logger = logging.getLogger("root")
 
 
-def encode_multipart_form_data(data) -> Tuple[bytes, bytes]:
+def encode_multipart_form_data(data) -> tuple[bytes, bytes]:
     boundary = binascii.hexlify(os.urandom(16))
 
     # The body that is generated is very sensitive and must perfectly match what the server expects.
@@ -85,7 +86,7 @@ class CollectorHandler:
         server_url = f"{collector_http_host}/pyroscope/ingest"
 
         def _get_stamp_by_ns(time_ns: int) -> int:
-            return int(datetime.datetime.utcfromtimestamp(time_ns / 1e9).timestamp())
+            return int(datetime.datetime.fromtimestamp(time_ns / 1e9, UTC).timestamp())
 
         # simulating as pyroscope agent
         params = {

@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -10,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from core.drf_resource.base import Resource
-from core.drf_resource.contrib import APIResource, CacheResource
+from core.drf_resource.contrib import APIResource, CacheResource, FaultTolerantResource
 from core.drf_resource.management.root import adapter, api, resource
 
 __author__ = "蓝鲸智云"
@@ -32,4 +31,5 @@ __doc__ = """
         # 调用adapter.cc 既可访问对应文件下的resource，
         # 如果在${platform}/resources.py里面有相同定义，会重载default.py下的resource
     """
-__all__ = ["Resource", "CacheResource", "APIResource", "adapter", "api", "resource"]
+
+__all__ = ["Resource", "FaultTolerantResource", "CacheResource", "APIResource", "adapter", "api", "resource"]

@@ -31,6 +31,16 @@ import { messageError, messageSuccess } from '@/common/bkmagic';
 import $http from '../../../../api';
 export type IndexSetType = 'single' | 'union';
 export type IndexSetTabList = 'favorite' | 'history' | 'single' | 'union';
+export type TagItem = {
+  tag_id: number;
+  tag_name: string;
+};
+export type IndexSetItem = {
+  [key: string]: TagItem[] | boolean | number | string;
+  index_set_id: string;
+  unique_id: string;
+  tags: TagItem[];
+};
 
 export default (props, { emit }) => {
   const historyLoading = ref(false);
@@ -38,7 +48,7 @@ export default (props, { emit }) => {
   const favoriteLoading = ref(false);
 
   // 联合查询本地存储数据
-  const unionListValue = ref(props.value);
+  const unionListValue = ref((props.value ?? []).map(v => v.unique_id ?? v.index_set_id));
 
   const unionFavoriteList = ref([]);
   const singleFavoriteList = computed(() => {
@@ -98,12 +108,12 @@ export default (props, { emit }) => {
 
       return Promise.all([singleRequest, unionRequest])
         .then(resp => {
-          const list = [];
-          resp.forEach(rows => {
-            rows.forEach(row => {
+          const list: any[] = [];
+          for (const rows of resp) {
+            for (const row of rows) {
               list.push({ ...row, update_time: new Date(row.updated_at).getTime() });
-            });
-          });
+            }
+          }
           historyList.value = list.sort((a, b) => b.update_time - a.update_time).slice(0, 20);
         })
         .finally(() => {
@@ -149,12 +159,12 @@ export default (props, { emit }) => {
    */
   const handleHistoryItemClick = (item: any) => {
     if (item.index_set_type === 'single') {
-      unionListValue.value = [`${item.index_set_id}`];
-      emit('value-change', [`${item.index_set_id}`], 'single', item.id);
+      unionListValue.value = [`#_${item.index_set_id}`];
+      emit('value-change', [`#_${item.index_set_id}`], 'single', item.id);
       return;
     }
 
-    unionListValue.value = item.index_set_ids.map(id => `${id}`);
+    unionListValue.value = item.index_set_ids.map(id => `#_${id}`);
     emit('value-change', unionListValue.value, 'union', item.id);
   };
 
@@ -168,13 +178,13 @@ export default (props, { emit }) => {
       .then(resp => {
         if (resp.result) {
           if (item?.index_set_type === 'single') {
-            const index = historyList.value.findIndex((item: any) => item.id !== item.id);
+            const index = historyList.value.findIndex((newItem: any) => newItem.id !== item.id);
             historyList.value.splice(index, 1);
             return historyList.value;
           }
 
           if (item?.index_set_type === 'union') {
-            const index = historyList.value.findIndex((item: any) => item.id !== item.id);
+            const index = historyList.value.findIndex((newItem: any) => newItem.id !== item.id);
             historyList.value.splice(index, 1);
             return historyList.value;
           }
@@ -186,7 +196,7 @@ export default (props, { emit }) => {
         }
 
         messageError(resp.message);
-        return undefined;
+        return;
       })
       .catch(error => {
         messageError(error.message ?? error);
@@ -246,11 +256,11 @@ export default (props, { emit }) => {
    * @description 该方法用于在单选情况下设置索引集的收藏状态
    */
   const setSingleFavorite = (id: string, is_favorite = false) => {
-    const target = props.list.find(item => item.index_set_id === id);
+    const target = props.list.find(item => (item.unique_id ?? item.index_set_id) === id);
     if (target) {
       set(target, 'is_favorite', is_favorite);
       if (target.parent_node) {
-        const sourceNode = target.parent_node.children.find(child => child.index_set_id === id);
+        const sourceNode = target.parent_node.children.find(child => (child.unique_id ?? child.index_set_id) === id);
         if (sourceNode) {
           set(sourceNode, 'is_favorite', is_favorite);
         }
@@ -298,11 +308,11 @@ export default (props, { emit }) => {
         .then(resp => {
           if (resp.result) {
             if (from === 'single') {
-              setSingleFavorite(favorite.index_set_id, false);
+              setSingleFavorite(favorite.unique_id ?? favorite.index_set_id, false);
             }
 
             if (from === 'favorite') {
-              setSingleFavorite(favorite.index_set_id, false);
+              setSingleFavorite(favorite.unique_id ?? favorite.index_set_id, false);
             }
             return;
           }
@@ -345,10 +355,8 @@ export default (props, { emit }) => {
       .then(resp => {
         if (resp.result) {
           messageSuccess('收藏成功！');
-          if (unionFavoriteList.value.length > 0) {
-            if (!unionFavoriteList.value.some(item => item.id === resp.data.id)) {
-              unionFavoriteList.value.push(resp.data);
-            }
+          if (unionFavoriteList.value.length > 0 && !unionFavoriteList.value.some(item => item.id === resp.data.id)) {
+            unionFavoriteList.value.push(resp.data);
           }
 
           return true;
@@ -359,7 +367,7 @@ export default (props, { emit }) => {
   };
 
   /** 单选情况下的收藏 */
-  const singleFavorite = item => {
+  const singleFavorite = (item: any) => {
     $http
       .request('/indexSet/mark', {
         params: {
@@ -367,7 +375,7 @@ export default (props, { emit }) => {
         },
       })
       .then(() => {
-        setSingleFavorite(item.index_set_id, true);
+        setSingleFavorite(item.unique_id ?? item.index_set_id, true);
       });
   };
 

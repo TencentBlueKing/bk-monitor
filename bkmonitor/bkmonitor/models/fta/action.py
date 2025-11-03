@@ -1,23 +1,24 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
 from collections import defaultdict
 from datetime import datetime
 from importlib import import_module
+from typing import Any
 
 import jmespath
 from django.conf import settings
-from django.db import connections, models
+from django.db import models
 from django.utils.translation import gettext as _
 
 from bkmonitor.documents import AlertLog
@@ -105,7 +106,7 @@ class ActionPlugin(AbstractRecordModel):
     has_child = models.BooleanField("是否有子级联", default=False)
     category = models.CharField("插件分类", max_length=64, null=False)
     # 事件执行分类：回调类，轮询类，直调 需要放到这里吗？
-    config_schema = JsonField("参数配置格式")
+    config_schema: dict[str, Any] = JsonField("参数配置格式")  # type: ignore
     """
     比如标准运维：
     返回前端的样例
@@ -197,13 +198,14 @@ class ActionPlugin(AbstractRecordModel):
         return json.loads(Jinja2Renderer.render(json.dumps(data_mapping), validate_request_data))
 
     def perform_resource_request(self, req_type, **kwargs) -> list:
-        request_schema = self.config_schema[req_type]
+        request_schema: dict[str, Any] = self.config_schema[req_type]
 
         try:
-            resource_module = import_module(request_schema.get("resource_module"))
+            resource_module = import_module(request_schema.get("resource_module", ""))
         except ImportError as err:
             logger.exception(err)
             return []
+
         source_class = request_schema["resource_class"]
         if not hasattr(resource_module, source_class):
             return []
@@ -237,7 +239,7 @@ class ActionPlugin(AbstractRecordModel):
             try:
                 url_info = self.perform_resource_request("plugin_url", **kwargs)
             except BKAPIError as error:
-                logger.warning("failed to get_plugin_template_create_url: {}".format(error))
+                logger.warning(f"failed to get_plugin_template_create_url: {error}")
                 url_info = None
             url_info = url_info[0] if url_info else {}
         else:
@@ -549,7 +551,9 @@ class ActionInstance(AbstractRecordModel):
                 kwargs["url"] = "{bk_itsm_host}#/ticket/detail?id={ticket_id}".format(
                     bk_itsm_host=settings.BK_ITSM_HOST, ticket_id=approve_info.get("id")
                 )
-        content_template = content_template or _("%s执行{{status_display}}") % self.action_config.get("name", _("处理套餐"))
+        content_template = content_template or _("%s执行{{status_display}}") % self.action_config.get(
+            "name", _("处理套餐")
+        )
         text = Jinja2Renderer.render(content_template, kwargs)
 
         content = {
@@ -579,7 +583,7 @@ class ActionInstance(AbstractRecordModel):
 
     @property
     def es_action_id(self):
-        return "{}{}".format(int(self.create_time.timestamp()), self.id)
+        return f"{int(self.create_time.timestamp())}{self.id}"
 
     def insert_alert_log(self, description=None, content_template="", notice_way_display=""):
         if self.parent_action_id or not self.alerts or self.signal == ActionSignal.COLLECT:
@@ -666,10 +670,10 @@ class ConvergeInstance(AbstractRecordModel):
         ("network-attack", "success"),
         ("network-quality", "success"),
         ("host-quality", "success"),
-        ("analyze", u"success"),
-        ("collect_alarm", u"success"),
-        ("defence", u"danger"),
-        ("convergence", u"primary"),  # 优先显示主告警的状态
+        ("analyze", "success"),
+        ("collect_alarm", "success"),
+        ("defence", "danger"),
+        ("convergence", "primary"),  # 优先显示主告警的状态
     )
 
     NOTIFY_STATUSES = (
@@ -737,44 +741,6 @@ class ConvergeInstance(AbstractRecordModel):
         ordering = ("-id",)
 
 
-class BulkCreateIgnoreManager(ModelManager):
-    def bulk_insert_ignore(self, create_fields, values):
-        """
-        Bulk insert/ignore
-        @param create_fields : list, required, fields for the insert field declaration
-        @param values : list of tuples. each tuple must have same len() as create_fields
-        Notes on usage :
-            create_fields = ['f1', 'f2', 'f3']
-            values = [
-                (1, 2, 3),
-                (4, 5, 6),
-                (5, 3, 8)
-            ]
-        Example usage :
-            modelName.objects.bulk_insert_ignore(
-                create_fields,
-                values
-            )
-        Remember to add to model declarations:
-            objects = BulkInsertManager() # custom manager
-        @return False on fail
-        """
-
-        cursor = connections[settings.BACKEND_DATABASE_NAME].cursor()
-        values_sql = "({})".format(",".join([" %s " for i in range(len(create_fields))]))  # correct format
-
-        sql = "INSERT IGNORE INTO {} ({}) VALUES {}".format(
-            self.model._meta.db_table, ",".join(create_fields), values_sql
-        )
-        result = False
-        try:
-            cursor.executemany(sql, values)
-            result = True
-        except BaseException as error:
-            logger.exception("insert error : %s， format_sql %s, values %s", str(error), sql, values)
-        return result
-
-
 class ConvergeRelation(models.Model):
     """
     Converge 的 many_to_many 关联
@@ -796,7 +762,7 @@ class ConvergeRelation(models.Model):
     )
     alerts = JsonField("防御的告警列表", default=[])
 
-    objects = BulkCreateIgnoreManager()
+    objects = ModelManager()
 
     class Meta:
         unique_together = ("converge_id", "related_id", "related_type")
@@ -826,7 +792,7 @@ class ConvergeRelation(models.Model):
         return ConvergeInstance.objects.get(id=self.related_id)
 
     def __unicode__(self):
-        return "Inc-{} | relate_instance-{}({})".format(self.converge_id, self.relate_instance.id, self.relate_instance)
+        return f"Inc-{self.converge_id} | relate_instance-{self.relate_instance.id}({self.relate_instance})"
 
 
 class StrategyActionConfigRelation(AbstractRecordModel):

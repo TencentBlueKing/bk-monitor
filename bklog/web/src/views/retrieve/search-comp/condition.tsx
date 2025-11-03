@@ -34,8 +34,8 @@ import { Debounce, xssFilter } from '../../../common/util';
 import './condition.scss';
 
 // 使用 Number 类型处理的 32 位整数范围是安全的
-const INTEGER_MIN_NUMBER = -2147483648;
-const INTEGER_MAX_NUMBER = 2147483647;
+const INTEGER_MIN_NUMBER = -2_147_483_648;
+const INTEGER_MAX_NUMBER = 2_147_483_647;
 // 使用 BigInt 类型来处理 64 位整数范围，避免精度丢失
 const LONG_MIN_NUMBER = -9223372036854775808n;
 const LONG_MAX_NUMBER = 9223372036854775807n;
@@ -172,13 +172,17 @@ export default class Condition extends tsc<object> {
 
   /** 当前text字段类型操作符对应且/或的值 */
   get getAndOrValue() {
-    if (['contains match phrase', '=~', 'not contains match phrase', '!=~'].includes(this.operatorValue)) return 'or';
+    if (['contains match phrase', '=~', 'not contains match phrase', '!=~'].includes(this.operatorValue)) {
+      return 'or';
+    }
     return 'and';
   }
 
   @Watch('operatorValue', { immediate: true })
   watchOperator(val: string) {
-    if (this.conditionType === 'ip-select') return;
+    if (this.conditionType === 'ip-select') {
+      return;
+    }
     if (this.isTextField) {
       this.matchSwitch = ['&!=~', '!=~', '&=~', '=~'].includes(val);
       // 判断选中的是否是存在、不存在 如果是 则直接给操作符赋值
@@ -198,7 +202,9 @@ export default class Condition extends tsc<object> {
 
   @Watch('inputValue', { immediate: true })
   watchValue(val: any) {
-    if (this.conditionType === 'ip-select') return;
+    if (this.conditionType === 'ip-select') {
+      return;
+    }
     this.localValue = val;
   }
 
@@ -257,10 +263,8 @@ export default class Condition extends tsc<object> {
     // enter时 如果有输入的值 则不进行检索 如果无改变值 enter则进行检索
     !!this.tagInputRef &&
       (this.tagInputRef.$refs.input.onkeyup = v => {
-        if (v.code === 'Enter' || v.code === 'NumpadEnter') {
-          if (this.localValue.length && !this.isValueChange) {
-            this.handleAdditionChange({ value: this.localValue });
-          }
+        if ((v.code === 'Enter' || v.code === 'NumpadEnter') && this.localValue.length && !this.isValueChange) {
+          this.handleAdditionChange({ value: this.localValue });
         }
       });
   }
@@ -274,8 +278,8 @@ export default class Condition extends tsc<object> {
     this.labelActiveStatus = isOpen; // 不论打开或关闭，将已选择的值置底
     if (isOpen) {
       this.localFiledID = this.filed;
-    } else {
-      if (this.localFiledID !== this.filed) this.handleFiledChange();
+    } else if (this.localFiledID !== this.filed) {
+      this.handleFiledChange();
     }
   }
 
@@ -283,7 +287,7 @@ export default class Condition extends tsc<object> {
     this.labelHoverStatus = status;
   }
 
-  handleValueChange(val: Array<string>) {
+  handleValueChange(val: string[]) {
     this.isValueChange = true;
     clearTimeout(this.valueChangeTimer);
     this.valueChangeTimer = setTimeout(() => {
@@ -293,7 +297,7 @@ export default class Condition extends tsc<object> {
       this.handleAdditionChange({ value: [] });
       return;
     }
-    const newVal = val[val.length - 1];
+    const newVal = val.at(-1);
     if (['integer', 'long'].includes(this.fieldType)) {
       const matchList = newVal.match(/[-+]?[0-9]*\.?[0-9]+/g); // 获取有效的数字
       if (!matchList) {
@@ -320,14 +324,20 @@ export default class Condition extends tsc<object> {
     const maxVal = valMap.max;
     const minVal = valMap.min;
 
-    if (value > maxVal) return String(maxVal);
-    if (value < minVal) return String(minVal);
+    if (value > maxVal) {
+      return String(maxVal);
+    }
+    if (value < minVal) {
+      return String(minVal);
+    }
     return String(value);
   }
 
   // 当有对比的操作时 值改变
   handleValueBlur(val: string) {
-    if (val !== '' && this.isHaveCompared) this.localValue = [val];
+    if (val !== '' && this.isHaveCompared) {
+      this.localValue = [val];
+    }
     this.emitInputChange(this.catchTagInputStr);
     this.catchTagInputStr = '';
   }
@@ -351,7 +361,9 @@ export default class Condition extends tsc<object> {
    * @param {boolean} operatorItem 操作符元素
    */
   handleOperateChange(operatorItem: any) {
-    if (operatorItem.operator === this.localOperatorValue) return; // 选择相同 不请求
+    if (operatorItem.operator === this.localOperatorValue) {
+      return;
+    } // 选择相同 不请求
     let queryValue = this.localValue;
     const isExists = this.getIsExists(operatorItem.operator); // 是否有存在
     const isContinuousExists = this.getIsContinuousExists(operatorItem.operator); // 连续点击两次存在或不存在时 不用改变缓存的值;
@@ -362,10 +374,14 @@ export default class Condition extends tsc<object> {
     } else if (oldOperatorIsExists) {
       queryValue = this.catchValue;
     }
-    if (isCompared) this.localValue = this.localValue[0] ? [this.localValue[0]] : []; // 多输入的值变为单填时 拿下标为0的值
+    if (isCompared) {
+      this.localValue = this.localValue[0] ? [this.localValue[0]] : [];
+    } // 多输入的值变为单填时 拿下标为0的值
     const isQuery = !!this.localValue.length || isExists; // 值不为空 或 存在与不存在 的情况下才自动检索请求
     let newOperator = operatorItem.operator;
-    if (this.isTextField && !isExists) newOperator = this.getTextOperator({ operatorVal: operatorItem.operator });
+    if (this.isTextField && !isExists) {
+      newOperator = this.getTextOperator({ operatorVal: operatorItem.operator });
+    }
     this.handleAdditionChange(
       {
         value: isExists ? [''] : queryValue, // 更新值
@@ -407,8 +423,8 @@ export default class Condition extends tsc<object> {
   /** 获取text类型操作符所需的值 */
   getTextOperator(textTypeOperatorData: ITextTypeOperatorData) {
     const { andOrVal, operatorVal, matchVal } = textTypeOperatorData;
-    const andORor = !!andOrVal ? andOrVal : this.getAndOrValue;
-    const operatorValue = !!operatorVal ? operatorVal : this.operatorItem.operator;
+    const andORor = andOrVal ? andOrVal : this.getAndOrValue;
+    const operatorValue = operatorVal ? operatorVal : this.operatorItem.operator;
     const isMatch = typeof matchVal === 'boolean' ? matchVal : this.matchSwitch;
     let filterOperatorValueStr = '';
     // 首先判断是且还是或 如果是且则先加一个and
@@ -429,7 +445,7 @@ export default class Condition extends tsc<object> {
     return this.getIsExists(newOperator) && this.getIsExists(this.localOperatorValue);
   }
 
-  tpl(node, ctx, highlightKeyword) {
+  tpl(node, _ctx, highlightKeyword) {
     const parentClass = 'bk-selector-node';
     const textClass = 'text';
     const innerHtml = `${highlightKeyword(node.id)}`;
@@ -441,7 +457,7 @@ export default class Condition extends tsc<object> {
         <span
           class={textClass}
           domPropsInnerHTML={xssFilter(innerHtml)}
-        ></span>
+        />
       </div>
     );
   }
@@ -486,7 +502,7 @@ export default class Condition extends tsc<object> {
                       }}
                       disabled={option.disabled}
                       name={option.fullName}
-                    ></Option>
+                    />
                   ))}
                 </Select>
               </div>
@@ -519,7 +535,12 @@ export default class Condition extends tsc<object> {
               slot='dropdown-content'
             >
               {this.operatorList.map(item => (
-                <li onClick={() => this.handleOperateChange(item)}>{item.label}</li>
+                <li
+                  key={item}
+                  onClick={() => this.handleOperateChange(item)}
+                >
+                  {item.label}
+                </li>
               ))}
             </ul>
           </DropdownMenu>
@@ -552,7 +573,12 @@ export default class Condition extends tsc<object> {
                 slot='dropdown-content'
               >
                 {this.andOrList.map(item => (
-                  <li onClick={() => this.handleAndOrChange(item.id)}>{item.name}</li>
+                  <li
+                    key={item.id}
+                    onClick={() => this.handleAndOrChange(item.id)}
+                  >
+                    {item.name}
+                  </li>
                 ))}
               </ul>
             </DropdownMenu>
@@ -583,7 +609,7 @@ export default class Condition extends tsc<object> {
           <i
             class='bk-icon icon-delete'
             onClick={() => this.handleDelete(this.conditionType)}
-          ></i>
+          />
           <i
             class={['bk-icon include-icon', `${this.isInclude ? 'icon-eye' : 'icon-eye-slash'}`]}
             v-bk-tooltips={{
@@ -591,7 +617,7 @@ export default class Condition extends tsc<object> {
               delay: 200,
             }}
             onClick={() => this.handleIsIncludeChange(!this.isInclude)}
-          ></i>
+          />
         </div>
         {this.conditionType === 'filed' && !this.isHiddenInput && (
           <TagInput
@@ -613,20 +639,11 @@ export default class Condition extends tsc<object> {
             onInputchange={v => (this.catchTagInputStr = v)}
             onRemoveAll={this.handleValueRemoveAll}
             onSelect={this.handleValueSelect}
-          ></TagInput>
+          />
         )}
         {this.conditionType === 'ip-select' && (
           <div id='ip-filter-container'>
-            {!this.ipSelectLength ? (
-              <Button
-                class='add-ip-button'
-                text
-                onClick={() => this.handleIpChange()}
-              >
-                <i class='bk-icon icon-plus'></i>
-                <span>{this.$t('添加目标')}</span>
-              </Button>
-            ) : (
+            {this.ipSelectLength ? (
               <Button
                 class='add-ip-button'
                 text
@@ -636,6 +653,15 @@ export default class Condition extends tsc<object> {
                   <span>{this.nodeCount}</span>
                   <span>{this.nodeUnit}</span>
                 </i18n>
+              </Button>
+            ) : (
+              <Button
+                class='add-ip-button'
+                text
+                onClick={() => this.handleIpChange()}
+              >
+                <i class='bk-icon icon-plus' />
+                <span>{this.$t('添加目标')}</span>
               </Button>
             )}
           </div>

@@ -19,11 +19,11 @@
   // const spaceUid = computed(() => store.state.spaceUid);
   const indexSetId = computed(() => store.state.indexId);
   const indexSetItem = computed(() =>
-    store.state.retrieve.indexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
+    store.state.retrieve.flatIndexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
   );
   const isPopoverShow = ref(false);
   const spaceUid = computed(() => {
-    const indexSetList = store.state.retrieve.indexSetList;
+    const indexSetList = store.state.retrieve.flatIndexSetList;
     const indexSetId = route.params?.indexId;
     const currentIndexSet = indexSetList.find(item => `${item.index_set_id}` == indexSetId);
     return currentIndexSet?.space_uid;

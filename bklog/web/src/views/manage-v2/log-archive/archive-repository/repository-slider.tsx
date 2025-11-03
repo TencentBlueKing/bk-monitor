@@ -25,11 +25,13 @@
  */
 
 import { defineComponent, ref, reactive, computed, watch } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import http from '@/api';
+
 import * as authorityMap from '@/common/authority-map';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import { Message, InfoBox } from 'bk-magic-vue';
+
+import http from '@/api';
 
 import './repository-slider.scss';
 
@@ -168,7 +170,7 @@ export default defineComponent({
     };
 
     // 集群变更处理
-    const handleChangeCluster = (value: string) => {
+    const handleChangeCluster = (_value: string) => {
       // const curCluster = esClusterList.value.find(cluster => cluster.cluster_config.cluster_id === value);
       // esClusterSource.value = curCluster?.source_name || '';
     };
@@ -321,7 +323,14 @@ export default defineComponent({
           key={option.storage_cluster_id}
           name={option.storage_cluster_name}
         >
-          {!(option.permission && option.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]) ? (
+          {option.permission?.[authorityMap.MANAGE_ES_SOURCE_AUTH] ? (
+            <div
+              class='option-slot-container'
+              v-bk-overflow-tips
+            >
+              <span>{option.storage_cluster_name}</span>
+            </div>
+          ) : (
             <div
               class='option-slot-container no-authority'
               onClick={(e: Event) => e.stopPropagation()}
@@ -331,17 +340,10 @@ export default defineComponent({
               </span>
               <span
                 class='apply-text'
-                onClick={() => applyProjectAccess(option)}
+                onClick={() => applyProjectAccess(option)} // eslint-disable-line @typescript-eslint/no-misused-promises
               >
                 {t('申请权限')}
               </span>
-            </div>
-          ) : (
-            <div
-              class='option-slot-container'
-              v-bk-overflow-tips
-            >
-              <span>{option.storage_cluster_name}</span>
             </div>
           )}
         </bk-option>
@@ -352,17 +354,20 @@ export default defineComponent({
     const renderRepositoryCards = () => {
       return repository.value.map(card => (
         <div
+          key={card.name}
           class={{
             'repository-card': true,
             'is-active': formData.es_config.type === card.id,
           }}
           data-test-id={`addNewStorehouse_div_${card.id}`}
-          key={card.name}
           onClick={() => changeRepository(card)}
         >
           <span class='repository-name'>{card.name}</span>
+          {/** biome-ignore lint/performance/noImgElement: reason */}
+          {/** biome-ignore lint/nursery/useImageSize: reason */}
           <img
             class='card-image'
+            alt={card.name}
             src={card.image}
           />
         </div>
@@ -371,7 +376,9 @@ export default defineComponent({
 
     // 渲染HDFS配置
     const renderHdfsConfig = () => {
-      if (formData.es_config.type !== 'hdfs') return null;
+      if (formData.es_config.type !== 'hdfs') {
+        return null;
+      }
 
       return (
         <div key='hdfs'>
@@ -382,9 +389,9 @@ export default defineComponent({
             required
           >
             <bk-input
+              data-test-id='addNewStorehouse_input_archiveCatalog'
               value={formData.hdfsFormData.path}
               onChange={val => (formData.hdfsFormData.path = val)}
-              data-test-id='addNewStorehouse_input_archiveCatalog'
             />
           </bk-form-item>
           <bk-form-item
@@ -394,28 +401,28 @@ export default defineComponent({
             required
           >
             <bk-input
+              data-test-id='addNewStorehouse_input_HDFSurl'
               value={formData.hdfsFormData.uri}
               onChange={val => (formData.hdfsFormData.uri = val)}
-              data-test-id='addNewStorehouse_input_HDFSurl'
             />
           </bk-form-item>
           <bk-form-item
+            label='Principal'
             property={formData.hdfsFormData.security.principal}
             rules={basicRules.principal}
-            label='Principal'
             required
           >
             <div class='principal-item'>
               <bk-switcher
-                value={formData.hdfsFormData.isSecurity}
                 size='large'
                 theme='primary'
+                value={formData.hdfsFormData.isSecurity}
                 onChange={val => (formData.hdfsFormData.isSecurity = val)}
               />
               <bk-input
+                data-test-id='addNewStorehouse_input_principal'
                 value={formData.hdfsFormData.security.principal}
                 onChange={val => (formData.hdfsFormData.security.principal = val)}
-                data-test-id='addNewStorehouse_input_principal'
               />
             </div>
           </bk-form-item>
@@ -425,15 +432,17 @@ export default defineComponent({
 
     // 渲染FS配置
     const renderFsConfig = () => {
-      if (formData.es_config.type !== 'fs') return null;
+      if (formData.es_config.type !== 'fs') {
+        return null;
+      }
 
       return (
         <div key='fs'>
           <bk-form-item
+            data-test-id='addNewStorehouse_input_archiveCatalog'
             label={t('归档目录')}
             property={formData.fsFormData.location}
             rules={basicRules.location}
-            data-test-id='addNewStorehouse_input_archiveCatalog'
             required
           >
             <bk-input
@@ -447,7 +456,9 @@ export default defineComponent({
 
     // 渲染COS配置
     const renderCosConfig = () => {
-      if (formData.es_config.type !== 'cos') return null;
+      if (formData.es_config.type !== 'cos') {
+        return null;
+      }
 
       return (
         <div key='cos'>
@@ -458,9 +469,9 @@ export default defineComponent({
             required
           >
             <bk-input
+              data-test-id='addNewStorehouse_input_archiveCatalog'
               value={formData.cosFormData.base_path}
               onChange={val => (formData.cosFormData.base_path = val)}
-              data-test-id='addNewStorehouse_input_archiveCatalog'
             />
           </bk-form-item>
           <bk-form-item
@@ -470,46 +481,46 @@ export default defineComponent({
             required
           >
             <bk-input
+              data-test-id='addNewStorehouse_input_region'
               value={formData.cosFormData.region}
               onChange={val => (formData.cosFormData.region = val)}
-              data-test-id='addNewStorehouse_input_region'
             />
           </bk-form-item>
           <bk-form-item
+            label='Secretld'
             property={formData.cosFormData.access_key_id}
             rules={basicRules.access_key_id}
-            label='Secretld'
             required
           >
             <bk-input
+              data-test-id='addNewStorehouse_input_Secretld'
               value={formData.cosFormData.access_key_id}
               onChange={val => (formData.cosFormData.access_key_id = val)}
-              data-test-id='addNewStorehouse_input_Secretld'
             />
           </bk-form-item>
           <bk-form-item
+            label='SecretKey'
             property={formData.cosFormData.access_key_secret}
             rules={basicRules.access_key_secret}
-            label='SecretKey'
             required
           >
             <bk-input
-              value={formData.cosFormData.access_key_secret}
-              onChange={val => (formData.cosFormData.access_key_secret = val)}
               data-test-id='addNewStorehouse_input_SecretKey'
               type='password'
+              value={formData.cosFormData.access_key_secret}
+              onChange={val => (formData.cosFormData.access_key_secret = val)}
             />
           </bk-form-item>
           <bk-form-item
+            label='APPID'
             property={formData.cosFormData.app_id}
             rules={basicRules.app_id}
-            label='APPID'
             required
           >
             <bk-input
+              data-test-id='addNewStorehouse_input_APPID'
               value={formData.cosFormData.app_id}
               onChange={val => (formData.cosFormData.app_id = val)}
-              data-test-id='addNewStorehouse_input_APPID'
             />
           </bk-form-item>
           <bk-form-item
@@ -519,9 +530,9 @@ export default defineComponent({
             required
           >
             <bk-input
+              data-test-id='addNewStorehouse_input_BucketName'
               value={formData.cosFormData.bucket}
               onChange={val => (formData.cosFormData.bucket = val)}
-              data-test-id='addNewStorehouse_input_BucketName'
             />
           </bk-form-item>
         </div>
@@ -583,8 +594,8 @@ export default defineComponent({
                 <bk-form
                   ref={validateForm}
                   class='king-form'
-                  label-width={150}
                   form-type='vertical'
+                  label-width={150}
                   {...{
                     props: {
                       model: formData,
@@ -598,13 +609,13 @@ export default defineComponent({
                   <bk-form-item
                     ext-cls='es-cluster-item'
                     label={t('ES集群')}
-                    rules={basicRules.cluster_id}
                     property='cluster_id'
+                    rules={basicRules.cluster_id}
                     required
                   >
                     <bk-select
-                      value={formData.cluster_id}
                       data-test-id='addNewStorehouse_select_selectEsCluster'
+                      value={formData.cluster_id}
                       searchable
                       onChange={val => {
                         formData.cluster_id = val;
@@ -642,10 +653,10 @@ export default defineComponent({
                     required
                   >
                     <bk-input
+                      data-test-id='addNewStorehouse_input_repoName'
+                      placeholder={t('只能输入英文、数字或者下划线')}
                       value={formData.snapshot_repository_name}
                       onChange={val => (formData.snapshot_repository_name = val)}
-                      placeholder={t('只能输入英文、数字或者下划线')}
-                      data-test-id='addNewStorehouse_input_repoName'
                     />
                   </bk-form-item>
 
@@ -658,8 +669,8 @@ export default defineComponent({
                   <bk-form-item style='margin-top: 40px'>
                     <bk-button
                       class='king-button mr10'
-                      loading={confirmLoading.value}
                       data-test-id='addNewStorehouse_button_submit'
+                      loading={confirmLoading.value}
                       theme='primary'
                       onClick={handleConfirm}
                     >

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,21 +23,48 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, onMounted, reactive, shallowRef, watch } from 'vue';
+import {
+  type Ref,
+  computed,
+  defineComponent,
+  inject,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  shallowRef,
+  watch,
+} from 'vue';
 
-import { Collapse, Dropdown, Exception, Loading } from 'bkui-vue';
+import { bkTooltips, Collapse, Dropdown, Exception, Loading, Message, Popover, Sideslider } from 'bkui-vue';
 import { incidentDiagnosis } from 'monitor-api/modules/incident';
+import base64Svg from 'monitor-common/svg/base64';
+import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import MarkdownViewer from '../../../components/markdown-editor/viewer';
+import { EVENTS_TYPE_MAP } from '../constant';
+import { checkOverflow } from '../utils';
 
-import type { IAlertData, IAnomalyAnalysis, IContentList, IListItem, IStrategyMapItem } from '../types';
+import type {
+  IAlertData,
+  IAnomalyAnalysis,
+  IContentList,
+  IEventsAnalysis,
+  IEventsContentsData,
+  IListItem,
+  ILogAnalysis,
+  IStrategyMapItem,
+  ISummaryList,
+} from '../types';
 
 import './trouble-shooting.scss';
 
 export default defineComponent({
   name: 'TroubleShooting',
+  directives: {
+    bkTooltips,
+  },
   props: {
     panelConfig: {
       type: Object,
@@ -50,12 +77,22 @@ export default defineComponent({
     const route = useRoute();
     const isAllCollapsed = shallowRef(true);
     const contentList: IContentList = reactive({});
+    // 总结信息汇总
+    const summaryList: ISummaryList = reactive({});
+    // 事件分析数据整理
+    const eventsData = shallowRef<IEventsAnalysis[]>([]);
     const loadingList = reactive({
       summary: false,
     });
-    const activeIndex = shallowRef([]);
-    const childActiveIndex = shallowRef([0]);
+    const dimensionalActiveIndex = shallowRef([0]);
+    const eventActiveIndex = shallowRef([0]);
+    const eventChildActiveIndex = shallowRef<Record<string, number[]>>({});
+    const logActiveIndex = shallowRef([0]);
     const bkzIds = inject<Ref<string[]>>('bkzIds');
+    // 是否展示详情侧边栏
+    const showSideSlider = shallowRef(false);
+    // 当前选中的card
+    const curSliderId = shallowRef('');
     const subPanels = computed(() => {
       return props.panelConfig.sub_panels || {};
     });
@@ -67,35 +104,61 @@ export default defineComponent({
       return list.filter(item => subPanels.value?.[item.key]?.enabled);
     });
 
-    const dimensionalTitleSlot = (item: IAnomalyAnalysis) => (
-      <span class='dimensional-title'>
-        {item.name || `异常维度（组合）${item.$index + 1}`}
-        {/* <span class='red-font'>
-          {t('可疑程度')} {((item?.score || 0) * 100).toFixed(2)}%
-        </span> */}
-      </span>
-    );
+    const showPatternPop = reactive<Record<number, boolean>>({});
+    const patternOverflowMap = reactive<Record<number, boolean>>({});
+    // 每个示例日志项的popover展示状态
+    const showDemoLogPop = reactive<Record<number, boolean>>({});
+    // 存储每个示例日志项的溢出状态
+    const demoLogOverflowMap = reactive<Record<number, boolean>>({});
+
     /** 跳转到告警tab带上策路ID过滤 */
     const goDetail = (data: IStrategyMapItem) => {
       emit('strategy', data);
     };
+
     /** 跳转到告警tab */
     const goAlertList = (list: IAlertData[]) => {
       emit('alertList', list);
     };
+
+    /** 拷贝操作 */
+    const handleCopy = (text: string) => {
+      copyText(text);
+      Message({
+        theme: 'success',
+        message: t('复制成功'),
+      });
+    };
+
+    const dimensionalTitleSlot = (item: IAnomalyAnalysis) => (
+      <span class='dimensional-title'>
+        {item.name || `异常维度（组合）${item.$index + 1}`}
+        <i18n-t
+          class='red-font'
+          keypath='异常程度 {0}'
+          tag='span'
+        >
+          <span style='font-weight: 700;'> {((item?.score || 0) * 100).toFixed(2)}% </span>
+        </i18n-t>
+      </span>
+    );
+
     const dimensionalContentSlot = (item: IAnomalyAnalysis) => {
       return (
-        <span class='dimensional-content'>
+        <span class='table-content'>
           {Object.keys(item.dimension_values || {}).map(key => (
             <span
               key={key}
-              class='dimensional-content-item'
+              class='table-content-item'
             >
               <span
                 class='item-label'
-                title={key}
+                v-overflow-tips={{
+                  content: key,
+                  placement: 'top',
+                }}
               >
-                {key}：
+                {key}
               </span>
               <span
                 class='item-value'
@@ -105,29 +168,36 @@ export default defineComponent({
               </span>
             </span>
           ))}
+
           {item.alerts.length > 0 && (
-            <span class='content-title'>
-              {t('包含')}
-              <b
-                class='blue-txt'
-                onClick={() => goAlertList(item.alerts)}
+            <div class='dimensional-footer'>
+              <i18n-t
+                class='dimensional-footer-item'
+                keypath='包含 {0} 个告警，来源于以下 {1} 个策略：'
+                tag='span'
               >
-                {item.alert_count}
-              </b>
-              {t('个告警')}，{t('来源于以下 {0} 个策略', [Object.values(item.strategy_alerts_mapping || {}).length])}
-            </span>
+                <b
+                  class='blue-txt'
+                  onClick={() => goAlertList(item.alerts)}
+                >
+                  {item.alert_count}
+                </b>
+                <span style='font-weight: 700;'> {[Object.values(item.strategy_alerts_mapping || {}).length]} </span>
+              </i18n-t>
+
+              {Object.values(item.strategy_alerts_mapping || {}).map((ele: IStrategyMapItem) => (
+                <span
+                  key={ele.strategy_id}
+                  class='dimensional-footer-item'
+                  onClick={() => goDetail(ele)}
+                >
+                  <span class='blue-txt'>
+                    {ele.strategy_name} - {ele.strategy_id}
+                  </span>
+                </span>
+              ))}
+            </div>
           )}
-          {Object.values(item.strategy_alerts_mapping || {}).map((ele: IStrategyMapItem) => (
-            <span
-              key={ele.strategy_id}
-              class='dimensional-content-link'
-              onClick={() => goDetail(ele)}
-            >
-              <span class='blue-txt'>
-                {ele.strategy_name} - {ele.strategy_id}
-              </span>
-            </span>
-          ))}
         </span>
       );
     };
@@ -137,22 +207,379 @@ export default defineComponent({
     };
 
     const renderDimensional = () => {
-      const len = contentList?.anomaly_analysis?.length;
+      const len = contentList?.alerts_analysis?.length;
       return (
         <div>
-          <span>{t('故障关联的告警，统计出最异常的维度（组合）：')}</span>
+          <div class='mb-8'>{t('故障关联的告警，统计出最异常的维度（组合）：')}</div>
           {len > 0 && (
             <Collapse
-              class='dimensional-collapse'
-              v-model={childActiveIndex.value}
+              class='dimensional-collapse inner-collapse'
+              v-model={dimensionalActiveIndex.value}
               v-slots={{
                 default: item => dimensionalTitleSlot(item),
                 content: item => dimensionalContentSlot(item),
               }}
-              list={contentList?.anomaly_analysis || []}
+              header-icon='right-shape'
+              list={contentList?.alerts_analysis || []}
+              accordion
             />
           )}
         </div>
+      );
+    };
+
+    // 事件分析标题
+    const eventTitleSlot = (item: IEventsAnalysis, subContent = null) => {
+      const isChild = !!subContent;
+      const config = EVENTS_TYPE_MAP[item.type as keyof typeof EVENTS_TYPE_MAP];
+
+      const renderTitleInfo = () => {
+        // 父级Collapse title
+        if (!isChild) {
+          const keypath = item.total > 3 ? config.keypath : config.keypath2;
+          return (
+            <>
+              <span
+                style={{ fontWeight: '700' }}
+                class='mr-2'
+              >
+                {item.title}
+              </span>
+              <span style={{ fontWeight: 'normal' }}>
+                <i18n-t keypath={keypath}>
+                  <span style={{ fontWeight: '700' }}>{item.total}</span>
+                  <span>{item.unit}</span>
+                  {item.total > 3 && <span style={{ fontWeight: '700' }}>Top{item.top}</span>}
+                </i18n-t>
+              </span>
+            </>
+          );
+        }
+        // 子项Collapse根据类型返回title
+        if (item.type === 'tmp_events') {
+          return <span style={{ fontWeight: '600' }}>{subContent.event_name}</span>;
+        }
+        if (['k8s_warning_events', 'alert_system_events'].includes(item.type)) {
+          return (
+            <>
+              <span
+                style={{ fontWeight: '600' }}
+                class='mr-2'
+              >
+                {subContent.event_name}
+              </span>
+              <span style={{ fontWeight: 'normal' }}>
+                <i18n-t keypath={'（共 {0} 个{1}）'}>
+                  <span style={{ fontWeight: '700' }}>{subContent._sub_count}</span>
+                  <span>{subContent._sub_unit}</span>
+                </i18n-t>
+              </span>
+            </>
+          );
+        }
+        return (
+          <span style={{ fontWeight: '600' }}>
+            {`${item.total > 3 ? t('示例事件') : t('事件')} ${subContent.$index + 1}`}
+          </span>
+        );
+      };
+
+      return (
+        <span class='event-title'>
+          {/* 渲染标题icon */}
+          {!isChild && (
+            <span
+              style={{ backgroundImage: `url(${base64Svg[config.iconType]})` }}
+              class='event-icon'
+            />
+          )}
+          {/* 渲染标题内容 */}
+          {renderTitleInfo()}
+        </span>
+      );
+    };
+
+    // 事件分析内容
+    const eventContentSlot = (item: IEventsAnalysis) => {
+      // 确保当前项的展开状态已初始化
+      if (eventChildActiveIndex.value[item.$index] === undefined) {
+        eventChildActiveIndex.value[item.$index] = item.contents?.map((_, i) => i) || [];
+      }
+
+      return (
+        <Collapse
+          class='event-collapse inner-collapse'
+          v-model={eventChildActiveIndex.value[item.$index]}
+          v-slots={{
+            default: subContent => eventTitleSlot(item, subContent),
+            content: subContent => eventChildContentSlot(item, subContent),
+          }}
+          header-icon='right-shape'
+          list={item.contents || []}
+          accordion
+        />
+      );
+    };
+
+    // 事件分析子Collapse内容
+    const eventChildContentSlot = (item: IEventsAnalysis, subContent: IEventsContentsData) => (
+      <span class='table-content'>
+        {Object.entries(item.fields).map(([key, value]) => {
+          // tmp告警事件需要特殊处理，event_name已经作为子标题展示
+          if (
+            (item.type === 'tmp_events' && key === 'event_name') ||
+            (['k8s_warning_events', 'alert_system_events'].includes(item.type) &&
+              ['event_name', '_sub_unit', '_sub_count'].includes(key))
+          )
+            return;
+          return (
+            <span
+              key={key}
+              class='table-content-item'
+            >
+              {item.type !== 'tencent_cloud_notice_events' && (
+                <span
+                  class='item-label'
+                  v-overflow-tips={{
+                    content: value,
+                    placement: 'top',
+                  }}
+                >
+                  {value}
+                </span>
+              )}
+              <span class='item-value'>{subContent[key]}</span>
+            </span>
+          );
+        })}
+      </span>
+    );
+
+    // 渲染事件分析卡片
+    const renderEvent = () => {
+      const len = eventsData.value?.length || 0;
+      return (
+        <>
+          <div class='card-summary'>
+            <div class='card-summary-title'>{t('事件分析总结：')}</div>
+            <MarkdownViewer value={summaryList.events_analysis} />
+          </div>
+          {len > 0 && (
+            <Collapse
+              class='event-collapse'
+              v-model={eventActiveIndex.value}
+              v-slots={{
+                default: item => eventTitleSlot(item),
+                content: item => eventContentSlot(item),
+              }}
+              header-icon='right-shape'
+              list={eventsData.value}
+            />
+          )}
+        </>
+      );
+    };
+
+    const handleMouseEnter = async (event: MouseEvent, index: number, type: string) => {
+      if (!event.target) return;
+
+      const target = event.currentTarget as HTMLElement;
+      if (type === 'demo_log') {
+        if (!demoLogOverflowMap[index]) {
+          // 首次检查时计算并缓存
+          demoLogOverflowMap[index] = checkOverflow(target);
+        }
+        showDemoLogPop[index] = demoLogOverflowMap[index];
+        // 将Pattern项的popover隐藏，避免popover重叠
+        showPatternPop[index] = false;
+      } else {
+        if (!patternOverflowMap[index]) {
+          // 首次检查时计算并缓存
+          patternOverflowMap[index] = checkOverflow(target);
+        }
+        showPatternPop[index] = patternOverflowMap[index];
+        // 将示例日志项的popover隐藏，避免popover重叠
+        showDemoLogPop[index] = false;
+      }
+    };
+
+    // 响应窗口变化重新计算
+    const handleResize = () => {
+      for (const key of Object.keys(demoLogOverflowMap)) {
+        const index = Number(key);
+        const el = document.querySelector(`.log-tips__demo_log[data-index="${index}"]`);
+        if (el) demoLogOverflowMap[index] = checkOverflow(el as HTMLElement);
+      }
+
+      for (const key of Object.keys(patternOverflowMap)) {
+        const index = Number(key);
+        const el = document.querySelector(`.log-tips__pattern[data-index="${index}`);
+        if (el) patternOverflowMap[index] = checkOverflow(el as HTMLElement);
+      }
+    };
+
+    onMounted(() => {
+      window.addEventListener('resize', handleResize);
+    });
+
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', handleResize);
+    });
+
+    // 日志分析标题
+    const logTitleSlot = (item: ILogAnalysis, itemIndex: number) => (
+      <span class='log-title'>
+        {`聚类结果 ${itemIndex + 1}`}
+        <i18n-t
+          class='log-title-count'
+          keypath='（共 {0} 条日志）'
+          tag='span'
+        >
+          <span style='font-weight: 700;margin: 0 2px;'> {item.log_count} </span>
+        </i18n-t>
+      </span>
+    );
+
+    const renderLogJSONTips = (log: any, isChild = false, isArray = false) => {
+      if (!log) return 'null';
+      return (
+        <>
+          <span style='color: #9D694C;'>{`${isArray ? '[' : '{'}`}</span>
+          {Object.entries(log).map(([key, value]) => (
+            <div
+              key={key}
+              style={{ marginLeft: isChild ? '8px' : '28px' }}
+              class='log-popover-content_item'
+            >
+              <span class='item-label'>"{key}":</span>
+              <span class='item-value'>
+                {typeof value === 'number'
+                  ? value
+                  : typeof value === 'object'
+                    ? renderLogJSONTips(value, true, Array.isArray(value))
+                    : `"${value}"`}
+              </span>
+            </div>
+          ))}
+          <span style='color: #9D694C;'>{`${isArray ? ']' : '}'}`}</span>
+        </>
+      );
+    };
+
+    // 日志分析内容
+    const logContentSlot = (item: ILogAnalysis, index: number) => {
+      return (
+        <div class='log-content-warpper'>
+          <div class='log-content'>
+            <div class='log-content-title'>
+              <span>Pattern：</span>
+              {/* <i class='icon-monitor icon-fenxiang right-icon' /> */}
+            </div>
+            <Popover
+              key={`${index}-pattern`}
+              width={560}
+              extCls='log-content-tips_popover'
+              disabled={!item.pattern}
+              isShow={showPatternPop[index]}
+              placement='right-start'
+              popoverDelay={[500, 0]}
+              theme='light'
+              trigger='manual'
+              onClickoutside={() => {
+                showPatternPop[index] = false;
+              }}
+            >
+              {{
+                content: () => (
+                  <div class='log-popover-content'>
+                    <i
+                      class={['icon-monitor', 'copy-icon', 'icon-mc-copy']}
+                      onClick={handleCopy.bind(this, item.pattern)}
+                    />
+                    <div class='log-pattern'>{item.pattern}</div>
+                  </div>
+                ),
+                default: () => (
+                  <span
+                    class='log-tips__default log-tips__pattern'
+                    data-index={index}
+                    onMouseenter={e => handleMouseEnter(e, index, 'pattern')}
+                  >
+                    {item.pattern}
+                  </span>
+                ),
+              }}
+            </Popover>
+          </div>
+
+          <div class='log-content'>
+            <div class='log-content-title'>
+              <span>{t('示例日志：')}</span>
+              {/* <i class='icon-monitor icon-fenxiang right-icon' /> */}
+            </div>
+            <Popover
+              key={`${index}-demo_log`}
+              width={560}
+              extCls='log-content-tips_popover'
+              disabled={!item.demo_log || item.demo_log === '{}'}
+              isShow={showDemoLogPop[index]}
+              placement='right-start'
+              popoverDelay={[500, 0]}
+              theme='light'
+              trigger='manual'
+              onClickoutside={() => {
+                showDemoLogPop[index] = false;
+              }}
+            >
+              {{
+                content: () => (
+                  <div class='log-popover-content'>
+                    <i
+                      class={['icon-monitor', 'copy-icon', 'icon-mc-copy']}
+                      onClick={handleCopy.bind(this, item.demo_log)}
+                    />
+                    <div class='log-popover-content_json'>{renderLogJSONTips(JSON.parse(item.demo_log))}</div>
+                  </div>
+                ),
+                default: () => (
+                  <span
+                    class='log-tips__default log-tips__demo_log'
+                    data-index={index}
+                    onMouseenter={e => handleMouseEnter(e, index, 'demo_log')}
+                  >
+                    {item.demo_log}
+                  </span>
+                ),
+              }}
+            </Popover>
+          </div>
+        </div>
+      );
+    };
+
+    // 渲染日志分析卡片
+    const renderLog = () => {
+      const len = contentList.logs_analysis ? Object.keys(contentList.logs_analysis).length : 0;
+      return (
+        <>
+          <div class='card-summary'>
+            <div class='card-summary-title'>{t('日志分析总结：')}</div>
+            <MarkdownViewer value={summaryList.logs_analysis} />
+          </div>
+          {len > 0 && (
+            <Collapse
+              class='log-collapse inner-collapse'
+              v-model={logActiveIndex.value}
+              v-slots={{
+                default: (item, index) => logTitleSlot(item, index),
+                content: (item, index) => logContentSlot(item, index),
+              }}
+              header-icon='right-shape'
+              list={Object.values(contentList?.logs_analysis)[0] || []}
+              accordion
+            />
+          )}
+        </>
       );
     };
 
@@ -161,7 +588,7 @@ export default defineComponent({
         class='exception-wrap-item'
         description={data.message}
         scene='part'
-        title={t('超时错误')}
+        title={t('查询异常')}
         type='500'
       />
     );
@@ -175,10 +602,24 @@ export default defineComponent({
       },
       {
         name: t('告警异常维度分析'),
-        key: 'anomaly_analysis',
+        key: 'alerts_analysis',
         icon: 'icon-dimension-line',
         render: renderDimensional,
-        id: 'panel-anomaly_analysis',
+        id: 'panel-alerts_analysis',
+      },
+      {
+        name: t('事件分析'),
+        key: 'events_analysis',
+        icon: 'icon-shijianjiansuo',
+        render: renderEvent,
+        id: 'panel-events_analysis',
+      },
+      {
+        name: t('日志分析'),
+        key: 'logs_analysis',
+        icon: 'icon-a-logrizhi',
+        render: renderLog,
+        id: 'panel-logs_analysis',
       },
     ]);
     const aiConfig = reactive([
@@ -195,11 +636,45 @@ export default defineComponent({
         bk_biz_ids: bkzIds.value,
         id: route.params.id,
         sub_panel: key,
-      }).then(res => {
-        contentList[key] = res.contents || '';
-        const { sub_panels } = props.panelConfig;
-        loadingList[key] = sub_panels[key].status === 'running';
-      });
+      })
+        .then(res => {
+          if (key === 'events_analysis') {
+            eventsData.value = Object.keys(res.contents).length
+              ? Object.entries(res.contents)
+                  .map(([key, value]) => {
+                    return {
+                      type: key,
+                      title: res.display?.labels_mapping[key]?.label || '',
+                      top: res.display?.labels_mapping[key]?.top || 0,
+                      unit: res.display?.labels_mapping[key]?.unit || '',
+                      total: res.display?.statistics[key]?.total || 0,
+                      contents: (value as IEventsContentsData[]).slice(0, 3), // 只展示前3条
+                      fields: res.display?.fields[key] || {},
+                    };
+                  })
+                  .filter(Boolean)
+              : [];
+
+            // 事件分析模块第二层Collapse默认展开第一条
+            const newIndex: Record<string, number[]> = {};
+            eventsData.value.forEach((item, index) => {
+              if (item.contents?.length) {
+                newIndex[index] = [0];
+              }
+            });
+            eventChildActiveIndex.value = newIndex;
+          } else {
+            contentList[key] = res.contents || '';
+          }
+          summaryList[key] = res.individual_summary || '';
+          const { sub_panels } = props.panelConfig;
+          loadingList[key] = sub_panels[key].status === 'running';
+        })
+        .catch(() => {
+          contentList[key] = '';
+          summaryList[key] = '';
+          loadingList[key] = false;
+        });
     };
     /** 获取tab的展示内容 */
     const getTabContent = () => {
@@ -230,12 +705,6 @@ export default defineComponent({
 
     const handleToPanel = (key: string) => {
       const id = `panel-${key}`;
-      if (key !== 'summary') {
-        const idx = list.findIndex(item => item.key === key);
-        if (idx > -1 && !activeIndex.value.includes(idx)) {
-          activeIndex.value = [...activeIndex.value, idx];
-        }
-      }
       setTimeout(() => {
         const el = document.getElementById(id);
         if (el) {
@@ -243,13 +712,14 @@ export default defineComponent({
         }
       });
     };
-    onMounted(() => {
-      activeIndex.value = list.map((_, idx) => idx);
-    });
+
+    const toggleSlider = (id: string) => {
+      curSliderId.value = id;
+      showSideSlider.value = true;
+    };
 
     return {
       t,
-      activeIndex,
       list,
       isAllCollapsed,
       contentList,
@@ -260,17 +730,20 @@ export default defineComponent({
       subPanels,
       aiConfig,
       handleToPanel,
+      curSliderId,
+      showSideSlider,
+      toggleSlider,
     };
   },
   render() {
     const titleSlot = (item: IListItem) => (
-      <span
+      <div
         id={`panel-${item.key}`}
-        class='collapse-item-title'
+        class='failure-item-title'
       >
         <i class={`icon-monitor ${item.icon} title-icon-circle`} />
         <span class='field-name'>{item.name}</span>
-      </span>
+      </div>
     );
     const contentSlot = (item: IListItem) => {
       if (this.subPanels[item.key]?.status === 'failed') {
@@ -292,79 +765,129 @@ export default defineComponent({
       return !this.loadingList.summary && <MarkdownViewer value={this.contentList?.summary} />;
     };
     return (
-      <div class='failure-trouble-shooting'>
-        <div class='trouble-shooting-header'>
-          <Dropdown
-            v-slots={{
-              default: () => (
-                <span
-                  class='collapse-handle-btn'
-                  v-bk-tooltips={{
-                    content: this.t('快速定位'),
-                    placements: ['top'],
-                  }}
-                >
-                  <i class='icon-monitor icon-a-Contentmulu' />
-                </span>
-              ),
-              content: () => {
-                return (
-                  <Dropdown.DropdownMenu>
-                    {[...this.aiConfig, ...this.showList].map(item => (
-                      <Dropdown.DropdownItem
-                        key={item.key}
-                        extCls='text-active'
-                        onClick={() => this.handleToPanel(item.key)}
-                      >
-                        {item.name}
-                      </Dropdown.DropdownItem>
-                    ))}
-                  </Dropdown.DropdownMenu>
-                );
-              },
-            }}
-            popoverOptions={{
-              extCls: 'collapse-handle-popover',
-              clickContentAutoHide: true,
-            }}
-            placement='bottom-end'
-            trigger='click'
-          />
-        </div>
-        <div class='trouble-shooting-main'>
-          {this.subPanels.summary?.enabled && (
-            <div
-              id='panel-summary'
-              class='ai-card'
-            >
-              <div class='ai-card-title'>
-                <span class='ai-card-title-icon' />
-                {this.t('故障总结')}
-              </div>
-              <Loading
-                class={{ 'ai-card-loading': this.loadingList.summary }}
-                color={'#f3f6ff'}
-                loading={this.loadingList.summary}
+      <>
+        <div class='failure-trouble-shooting'>
+          <div class='trouble-shooting-header'>
+            <Dropdown
+              v-slots={{
+                default: () => (
+                  <span
+                    class='collapse-handle-btn'
+                    v-bk-tooltips={{
+                      content: this.t('快速定位'),
+                      placements: ['top'],
+                    }}
+                  >
+                    <i class='icon-monitor icon-a-Contentmulu' />
+                  </span>
+                ),
+                content: () => {
+                  return (
+                    <Dropdown.DropdownMenu>
+                      {[...this.aiConfig, ...this.showList].map(item => (
+                        <Dropdown.DropdownItem
+                          key={item.key}
+                          extCls='text-active'
+                          onClick={() => this.handleToPanel(item.key)}
+                        >
+                          {item.name}
+                        </Dropdown.DropdownItem>
+                      ))}
+                    </Dropdown.DropdownMenu>
+                  );
+                },
+              }}
+              popoverOptions={{
+                extCls: 'collapse-handle-popover',
+                clickContentAutoHide: true,
+              }}
+              placement='bottom-end'
+              trigger='click'
+            />
+          </div>
+          <div class='trouble-shooting-main'>
+            {this.subPanels.summary?.enabled && (
+              <div
+                id='panel-summary'
+                class='ai-card'
               >
-                <div class='ai-card-main'>
-                  {aiCardRender()}
-                  {this.subPanels.summary.status !== 'failed' && <span class='ai-bot-bg' />}
+                <i
+                  class='icon-monitor icon-chakan1 slider-icon'
+                  v-bk-tooltips={this.t('独立查看')}
+                  onClick={() => {
+                    this.toggleSlider('panel-summary');
+                  }}
+                />
+                <div class='ai-card-title'>
+                  <span class='ai-card-title-icon' />
+                  {this.t('故障总结')}
                 </div>
-              </Loading>
-            </div>
-          )}
-          <Collapse
-            class='failure-collapse'
-            v-model={this.activeIndex}
-            v-slots={{
-              default: item => titleSlot(item),
-              content: item => contentSlot(item),
-            }}
-            header-icon='right-shape'
-            list={this.showList}
-          />
+                <Loading
+                  class={{ 'ai-card-loading': this.loadingList.summary }}
+                  color={'#f3f6ff'}
+                  loading={this.loadingList.summary}
+                >
+                  <div class='ai-card-main'>
+                    {aiCardRender()}
+                    {this.subPanels.summary.status !== 'failed' && <span class='ai-bot-bg' />}
+                  </div>
+                </Loading>
+              </div>
+            )}
+            {this.showList.length > 0 &&
+              this.showList.map(item => {
+                return (
+                  <div
+                    id={item.id}
+                    key={item.id}
+                    class='failure-item-wrapper'
+                  >
+                    <i
+                      class='icon-monitor icon-chakan1 slider-icon'
+                      v-bk-tooltips={this.t('独立查看')}
+                      onClick={() => {
+                        this.toggleSlider(item.id);
+                      }}
+                    />
+                    {titleSlot(item)}
+                    <div class='failure-item-content'>{contentSlot(item)}</div>
+                  </div>
+                );
+              })}
+          </div>
         </div>
-      </div>
+        <Sideslider
+          width={640}
+          extCls={'trouble-shooting-slider'}
+          isShow={this.showSideSlider}
+          quickClose={true}
+          onClosed={() => {
+            this.showSideSlider = false;
+          }}
+        >
+          {{
+            header: () =>
+              this.curSliderId === 'panel-summary'
+                ? this.aiConfig[0].name
+                : this.showList.find(item => item.id === this.curSliderId).name,
+            default: () => (
+              <div class='trouble-shooting-main trouble-shooting-slider-main'>
+                {this.curSliderId === 'panel-summary'
+                  ? aiCardRender()
+                  : this.showList.map(item => {
+                      return (
+                        item.id === this.curSliderId && (
+                          <div class='failure-item-wrapper'>
+                            <div class='failure-item-content'>{contentSlot(item)}</div>
+                          </div>
+                        )
+                      );
+                    })}
+              </div>
+            ),
+          }}
+        </Sideslider>
+      </>
     );
   },
 });

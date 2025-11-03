@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -120,6 +120,7 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.ip import is_v6
+from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.user import (
     get_backend_username,
@@ -138,6 +139,7 @@ from constants.apm import (
     TailSamplingSupportMethod,
     TelemetryDataType,
 )
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import ApplicationsResultTableLabel, DataSourceLabel, DataTypeLabel
 from constants.result_table import ResultTableField
 from core.drf_resource import Resource, api, resource
@@ -224,7 +226,12 @@ class CreateApplicationResource(Resource):
         ).exists():
             raise ValueError(_("应用名称: {}已被创建").format(validated_request_data["app_name"]))
 
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            bk_tenant_id = get_request_tenant_id()
+        else:
+            bk_tenant_id = DEFAULT_TENANT_ID
         app = Application.create_application(
+            bk_tenant_id=bk_tenant_id,
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
             app_alias=validated_request_data["app_alias"],
@@ -1189,7 +1196,8 @@ class ServiceDetailResource(Resource):
                 }.items()
             ]
 
-        self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
+        # 暂时用不上，并需注意方法体逻辑已过时
+        # self.add_service_relation(data["bk_biz_id"], data["app_name"], node_info)
 
         return [
             {
@@ -1508,6 +1516,7 @@ class MetaConfigInfoResource(Resource):
         return {
             "guide_url": {
                 "access_url": settings.APM_ACCESS_URL,
+                "data_push_url_all": settings.APM_DATA_PUSH_URL,
                 "best_practice": settings.APM_BEST_PRACTICE_URL,
                 "metric_description": settings.APM_METRIC_DESCRIPTION_URL,
             },
@@ -1616,6 +1625,7 @@ class PushUrlResource(Resource):
         push_url = serializers.CharField(label="push_url")
         tags = serializers.ListField(label="地址标签")
         bk_cloud_id = serializers.IntegerField(label="云区域ID")
+        bk_cloud_alias = serializers.CharField(label="云区域别名", required=False, allow_blank=True)
 
     many_response_data = True
 
@@ -1623,6 +1633,8 @@ class PushUrlResource(Resource):
         {"tags": ["grpc", "opentelemetry"], "port": "4317", "path": ""},
         {"tags": ["http", "opentelemetry"], "port": "4318", "path": "/v1/traces"},
     ]
+    CLOUD_AREA_ZERO_ALIAS = "内网"
+    CLUSTER_PUSH_URL_ALIAS = "集群内服务"
 
     @classmethod
     def get_proxy_infos(cls, bk_biz_id):
@@ -1641,6 +1653,14 @@ class PushUrlResource(Resource):
             default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN
         for proxy_ip in default_cloud_display:
             proxy_host_infos.insert(0, {"ip": proxy_ip, "bk_cloud_id": 0})
+
+        # 添加集群内上报域名（在默认区域0之后）
+        cluster_domain = getattr(settings, "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE", "")
+        if cluster_domain:
+            proxy_host_infos.insert(
+                len(default_cloud_display) if default_cloud_display else 0, {"ip": cluster_domain, "bk_cloud_id": 0}
+            )
+
         return proxy_host_infos
 
     @classmethod
@@ -1659,14 +1679,51 @@ class PushUrlResource(Resource):
 
         return base_endpoint
 
+    def _get_cloud_alias_map(self) -> dict[int, str]:
+        """获取云区域别名映射"""
+        bk_tenant_id = get_request_tenant_id()
+        clouds = api.cmdb.search_cloud_area(bk_tenant_id=bk_tenant_id)
+        return {int(c.get("bk_cloud_id", 0)): c.get("bk_cloud_name", "") for c in clouds}
+
+    def _generate_alias(self, ip: str, bk_cloud_id: int, cloud_alias_map: dict[int, str]) -> str:
+        """生成别名"""
+        # 判断是否为中心化域名
+        default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
+        if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN:
+            default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN
+
+        if ip in (default_cloud_display or []):
+            return self.CLOUD_AREA_ZERO_ALIAS
+
+        # 判断是否为集群内域名
+        cluster_domain = getattr(settings, "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE", "")
+        if cluster_domain and ip == cluster_domain:
+            return self.CLUSTER_PUSH_URL_ALIAS
+
+        # 其他代理：使用云区域名称
+        if bk_cloud_id == 0:
+            return self.CLOUD_AREA_ZERO_ALIAS
+        else:
+            return cloud_alias_map.get(bk_cloud_id, "")
+
     def _get_default_endpoints(self, proxy_infos: list[dict[str, Any]]) -> list[dict[str, Any]]:
         endpoints: list[dict[str, Any]] = []
+        # 获取云区域别名映射
+        cloud_alias_map = self._get_cloud_alias_map()
+
         for proxy_info, config in itertools.product(proxy_infos, self.PUSH_URL_CONFIGS):
+            bk_cloud_id = proxy_info["bk_cloud_id"]
+            ip = proxy_info["ip"]
+
+            # 生成别名
+            alias = self._generate_alias(ip, bk_cloud_id, cloud_alias_map)
+
             endpoints.append(
                 {
-                    "push_url": self.generate_endpoint(proxy_info["ip"], config["port"], config["path"]),
+                    "push_url": self.generate_endpoint(ip, config["port"], config["path"]),
                     "tags": config["tags"],
-                    "bk_cloud_id": proxy_info["bk_cloud_id"],
+                    "bk_cloud_id": bk_cloud_id,
+                    "bk_cloud_alias": alias,
                 }
             )
         return endpoints
@@ -1674,17 +1731,27 @@ class PushUrlResource(Resource):
     def _get_simple_endpoints(self, proxy_infos: list[dict[str, Any]]):
         deplicate_keys: set[str] = set()
         endpoints: list[dict[str, Any]] = []
+        # 获取云区域别名映射
+        cloud_alias_map = self._get_cloud_alias_map()
+
         for proxy_info in proxy_infos:
             deplicate_key: str = f"{proxy_info['bk_cloud_id']}-{proxy_info['ip']}"
             if deplicate_key in deplicate_keys:
                 continue
             deplicate_keys.add(deplicate_key)
 
+            bk_cloud_id = proxy_info["bk_cloud_id"]
+            ip = proxy_info["ip"]
+
+            # 生成别名
+            alias = self._generate_alias(ip, bk_cloud_id, cloud_alias_map)
+
             endpoints.append(
                 {
-                    "push_url": self.generate_endpoint(proxy_info["ip"]),
+                    "push_url": self.generate_endpoint(ip),
                     "tags": [PluginEnum.OPENTELEMETRY.id],
-                    "bk_cloud_id": proxy_info["bk_cloud_id"],
+                    "bk_cloud_id": bk_cloud_id,
+                    "bk_cloud_alias": alias,
                 }
             )
         return endpoints

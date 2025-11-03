@@ -24,33 +24,33 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
-import useLocale from '@/hooks/use-locale';
+import { defineComponent, ref } from "vue";
+import useLocale from "@/hooks/use-locale";
 
-import './index.scss';
+import "./index.scss";
 
 export default defineComponent({
-  name: 'OccupyInput',
+  name: "OccupyInput",
   setup(_, { expose, emit }) {
     const { t } = useLocale();
 
     const occupyRef = ref(null);
-    const occupyFormRef = ref(null);
+    const occupyFormRef = ref<any>(null);
     const occupyData = ref({
-      textInputStr: '',
+      textInputStr: "",
     });
 
     const occupyRules = {
       textInputStr: [
         {
           validator: (value: string) => !!value,
-          message: t('必填项'),
-          trigger: 'blur',
+          message: t("必填项"),
+          trigger: "blur",
         },
         {
           validator: (value: string) => /^[A-Z_-]+$/.test(value),
-          message: t('{n}不规范, 包含特殊符号.', { n: t('占位符') }),
-          trigger: 'blur',
+          message: t("{n}不规范, 包含特殊符号.", { n: t("占位符") }),
+          trigger: "blur",
         },
       ],
     };
@@ -59,33 +59,30 @@ export default defineComponent({
       occupyFormRef.value
         .validate()
         .then(() => {
-          emit('submit', occupyData.value.textInputStr);
+          emit("submit", occupyData.value.textInputStr);
         })
-        .catch(e => console.error('Validation failed:', e));
+        .catch((e) => console.error("Validation failed:", e));
     };
 
     const handleCancelOccupy = () => {
-      occupyData.value.textInputStr = '';
-      emit('cancel');
+      occupyData.value.textInputStr = "";
+      emit("cancel");
     };
 
     expose({
       getRef: () => occupyRef.value,
       close: () => {
-        occupyData.value.textInputStr = '';
+        occupyData.value.textInputStr = "";
         occupyFormRef.value.clearError();
       },
     });
 
     return () => (
-      <div style='display: none'>
-        <div
-          ref={occupyRef}
-          class='occupy-popover'
-        >
+      <div style="display: none">
+        <div ref={occupyRef} class="occupy-popover">
           <bk-form
             ref={occupyFormRef}
-            form-type='vertical'
+            form-type="vertical"
             {...{
               props: {
                 model: occupyData.value,
@@ -93,31 +90,26 @@ export default defineComponent({
               },
             }}
           >
-            <bk-form-item
-              label={t('占位符')}
-              property='textInputStr'
-              required
-            >
+            <bk-form-item label={t("占位符")} property="textInputStr" required>
               <bk-input
                 value={occupyData.value.textInputStr}
-                placeholder={t('请输入')}
-                on-change={value => (occupyData.value.textInputStr = value.trim().toUpperCase())}
+                placeholder={t("请输入")}
+                on-change={(value) =>
+                  (occupyData.value.textInputStr = value.trim().toUpperCase())
+                }
                 onEnter={handleSubmitOccupy}
               />
             </bk-form-item>
-            <div class='btn-box'>
+            <div class="btn-box">
               <bk-button
-                size='small'
-                theme='primary'
+                size="small"
+                theme="primary"
                 onClick={handleSubmitOccupy}
               >
-                {t('确认提取')}
+                {t("确认提取")}
               </bk-button>
-              <bk-button
-                size='small'
-                onClick={handleCancelOccupy}
-              >
-                {t('取消')}
+              <bk-button size="small" onClick={handleCancelOccupy}>
+                {t("取消")}
               </bk-button>
             </div>
           </bk-form>

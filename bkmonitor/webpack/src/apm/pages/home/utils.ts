@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -111,29 +111,35 @@ export const charColor = (index: number) => {
 
 export const OPERATE_OPTIONS: IOperateOption[] = [
   {
-    id: 'appDetails',
-    name: window.i18n.t('应用详情'),
+    id: 'appTopo',
+    name: window.i18n.t('调用拓扑'),
     authority: true,
+    iconClassName: 'icon-mc-apm-topo',
   },
   {
     id: 'appConfig',
     name: window.i18n.t('应用配置'),
     authority: true,
+    iconClassName: 'icon-shezhi1',
   },
   {
     id: 'accessService',
     name: window.i18n.t('服务接入'),
     authority: true,
+    iconClassName: 'icon-a-1jiahao',
   },
   {
     id: 'noDataAlarm',
     name: window.i18n.t('新增无数据告警'),
     authority: true,
+    iconClassName: 'icon-mc-add-strategy',
   },
   {
     id: 'delete',
     name: window.i18n.t('删除'),
     authority: true,
+    iconClassName: 'icon-mc-delete-line',
+    isDanger: true,
   },
 ];
 

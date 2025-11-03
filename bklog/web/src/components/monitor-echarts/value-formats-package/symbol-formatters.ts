@@ -24,8 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { DecimalCount } from '../types/display-value';
-import { scaledUnits, ValueFormatter } from './value-formats';
+import { scaledUnits, type ValueFormatter } from './value-formats';
+
+import type { DecimalCount } from '../types/display-value';
 
 export function currency(symbol: string, asSuffix?: boolean): ValueFormatter {
   const units = ['', 'K', 'M', 'B', 'T'];
@@ -75,8 +76,9 @@ export function getOffsetFromSIPrefix(c: string): number {
       return 7;
     case 'Y':
       return 8;
+    default:
+      return 0;
   }
-  return 0;
 }
 
 export function binarySIPrefix(unit: string, offset = 0): ValueFormatter {

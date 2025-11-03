@@ -59,7 +59,7 @@ const MAX_UNION_INDEXSET_LIMIT = 20;
 @Component
 export default class QueryStatement extends tsc<object> {
   @Prop({ type: String, required: true }) indexId: string;
-  @Prop({ type: Array, required: true }) indexSetList: Array<any>;
+  @Prop({ type: Array, required: true }) indexSetList: any[];
   @Prop({ type: Boolean, required: true }) basicLoading: boolean;
 
   /** 表示集合数据是否正在加载 */
@@ -101,7 +101,7 @@ export default class QueryStatement extends tsc<object> {
   changeTypeCatchIDlist = [];
 
   /** 常用的标签 */
-  oftenTags: Array<number> = [];
+  oftenTags: number[] = [];
 
   /** 当前是否展示下拉列表 */
   isShowSelectPopover = false;
@@ -213,15 +213,17 @@ export default class QueryStatement extends tsc<object> {
       { name: '', children: [] },
       { name: this.$t('无数据'), children: [] },
     ];
-    const haveDataFavoriteList = [];
-    const haveDataList = [];
-    const notDataList = [];
-    this.indexSetList.forEach(item => {
+    const haveDataFavoriteList: any[] = [];
+    const haveDataList: any[] = [];
+    const notDataList: any[] = [];
+    for (const item of this.indexSetList) {
       const tagIDList = item.tags?.map(tag => tag.tag_id) || [];
       item.tagSearchName = item.tags?.map(tag => tag.name).join(',') || '';
       if (this.filterTagID) {
         const isFilterTagItem = tagIDList.includes(this.filterTagID);
-        if (!isFilterTagItem) return;
+        if (!isFilterTagItem) {
+          continue;
+        }
       }
 
       if (tagIDList.includes(4)) {
@@ -235,7 +237,7 @@ export default class QueryStatement extends tsc<object> {
         // 有数据的其他索引集
         haveDataList.push(item);
       }
-    });
+    }
     list[0].children = [...haveDataFavoriteList, ...haveDataList];
     list[1].children = notDataList;
     // 添加全选选项
@@ -258,22 +260,24 @@ export default class QueryStatement extends tsc<object> {
   /** 获取可选的标签过滤列表 */
   get labelSelectList() {
     const labelMap = new Map();
-    const favoriteList = [];
-    this.indexSetList.forEach(item => {
-      item.tags?.forEach(tag => {
+    const favoriteList: any[] = [];
+    for (const item of this.indexSetList) {
+      for (const tag of item.tags) {
         // 无数据 不加入标签
         if (tag.tag_id === 4) {
           item.isNotVal = true;
-          return;
+          continue;
         }
-        if (!labelMap.has(tag.tag_id)) labelMap.set(tag.tag_id, tag);
-      });
-      // 所有的收藏索引集
+        if (!labelMap.has(tag.tag_id)) {
+          labelMap.set(tag.tag_id, tag);
+        }
+      }
       if (item.is_favorite) {
+        // 所有的收藏索引集
         item.name = item.index_set_name;
         favoriteList.push(item);
       }
-    });
+    }
     // 单选收藏列表
     this.aloneFavorite = favoriteList;
     return [...labelMap.values()];
@@ -324,8 +328,8 @@ export default class QueryStatement extends tsc<object> {
 
   @Watch('unionIndexList', { immediate: true, deep: true })
   initUnionList(val) {
-    this.indexSearchType = !!val.length ? 'union' : 'single';
-    this.selectTagCatchIDList = !!val.length ? val : this.indexId ? [this.indexId] : [];
+    this.indexSearchType = val.length ? 'union' : 'single';
+    this.selectTagCatchIDList = val.length ? val : this.indexId ? [this.indexId] : [];
   }
 
   @Emit('selected')
@@ -338,14 +342,18 @@ export default class QueryStatement extends tsc<object> {
 
   /** 判断当前索引集是否有权限 */
   isHaveAuthority(item) {
-    if (item.tagAllID) return true;
+    if (item.tagAllID) {
+      return true;
+    }
     return item.permission?.[this.authorityMap.SEARCH_LOG_AUTH];
   }
 
   /** 选中索引集 */
   handleSelectIndex(val) {
     if (this.isAloneType) {
-      if (val[0]) this.selectAloneVal = [val[val.length - 1]];
+      if (val[0]) {
+        this.selectAloneVal = [val.at(-1)];
+      }
       this.handleCloseSelectPopover();
     } else {
       this.selectTagCatchIDList = val.filter(item => item !== '-1');
@@ -357,22 +365,23 @@ export default class QueryStatement extends tsc<object> {
   /** 选中全选时的数据过滤 */
   handelClickIndexSet(item) {
     if (item.index_set_id === '-1') {
-      const allIn = this.havValRenderIDSetList.every(item => this.selectedItemIDlist.includes(item));
-      if (!allIn) {
+      const allIn = this.havValRenderIDSetList.every(newItem => this.selectedItemIDlist.includes(newItem));
+      if (allIn) {
+        // 全选选中 清空 已有的过滤后的标签索引集id
+        this.selectTagCatchIDList = this.selectedItemIDlist
+          .filter(sItem => !this.havValRenderIDSetList.includes(sItem))
+          .slice(0, MAX_UNION_INDEXSET_LIMIT); // 最多选20条数据
+      } else {
         // 当前未全选中  则把过滤后的标签索引集id全放到缓存的id列表
         this.selectTagCatchIDList = [...new Set([...this.selectedItemIDlist, ...this.havValRenderIDSetList])].slice(
           0,
           MAX_UNION_INDEXSET_LIMIT,
         ); // 最多选10条数据
-      } else {
-        // 全选选中 清空 已有的过滤后的标签索引集id
-        this.selectTagCatchIDList = this.selectedItemIDlist
-          .filter(item => !this.havValRenderIDSetList.includes(item))
-          .slice(0, MAX_UNION_INDEXSET_LIMIT); // 最多选20条数据
       }
     }
   }
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   toggleSelect(val: boolean) {
     // 当前是否展示下拉列表
     this.isShowSelectPopover = val;
@@ -453,7 +462,9 @@ export default class QueryStatement extends tsc<object> {
 
   /** 获取checkbox的布尔值 */
   getCheckedVal(indexSetID: string) {
-    if (indexSetID === '-1') return this.getIsAllCheck;
+    if (indexSetID === '-1') {
+      return this.getIsAllCheck;
+    }
     return this.selectedItemIDlist.includes(indexSetID);
   }
 
@@ -482,7 +493,9 @@ export default class QueryStatement extends tsc<object> {
   /** 单选情况下的收藏 */
   async handleCollection(item, e?) {
     e?.stopPropagation();
-    if (this.isCollectionLoading) return;
+    if (this.isCollectionLoading) {
+      return;
+    }
 
     try {
       this.isCollectionLoading = true;
@@ -537,7 +550,7 @@ export default class QueryStatement extends tsc<object> {
       this.multipleFavoriteSelectID = null;
     } else {
       this.multipleFavoriteSelectID = item.id;
-      this.selectTagCatchIDList = item.index_set_ids.map(item => String(item));
+      this.selectTagCatchIDList = item.index_set_ids.map(newItem => String(newItem));
     }
   }
 
@@ -573,12 +586,14 @@ export default class QueryStatement extends tsc<object> {
   /** 点击历史记录 */
   handleClickHistory(item) {
     this.multipleHistorySelectID = item.id;
-    this.selectTagCatchIDList = item.index_set_ids.map(item => String(item));
+    this.selectTagCatchIDList = item.index_set_ids.map(newItem => String(newItem));
   }
 
   /** 多选情况下的取消收藏 */
   async handleMultipleCollection(item) {
-    if (this.isCollectionLoading) return;
+    if (this.isCollectionLoading) {
+      return;
+    }
 
     try {
       this.isCollectionLoading = true;
@@ -599,7 +614,7 @@ export default class QueryStatement extends tsc<object> {
   }
 
   /** 收藏该组合 */
-  async handleClickFavoritePopoverBtn(type: string) {
+  handleClickFavoritePopoverBtn(type: string) {
     if (type === 'add') {
       this.checkInputFormRef.validate().then(
         async () => {
@@ -661,14 +676,14 @@ export default class QueryStatement extends tsc<object> {
    * @desc: 存储并设置常用标签
    * @param {Number} expires 过期时间 单位：秒
    */
-  setTagLocal(expires = 259200) {
+  setTagLocal(expires = 259_200) {
     const tagCatchStr = localStorage.getItem('INDEX_SET_TAG_CATCH');
     const tagCatch = tagCatchStr ? JSON.parse(tagCatchStr) : {};
     Object.assign(tagCatch, {
       [this.spaceUid]: {
         spaceUid: this.spaceUid,
         oftenTags: this.oftenTags, // 缓存的标签
-        expires: new Date().getTime() + expires * 1000, // 过期时间
+        expires: Date.now() + expires * 1000, // 过期时间
       },
     });
     localStorage.setItem('INDEX_SET_TAG_CATCH', JSON.stringify(tagCatch));
@@ -681,7 +696,7 @@ export default class QueryStatement extends tsc<object> {
     const tagCatch = tagCatchStr ? JSON.parse(tagCatchStr) : {};
     // 更新标签时 删除已过期的业务标签
     const newTagCatch = Object.entries(tagCatch).reduce((pre, [curKey, curVal]) => {
-      if ((curVal as any).expires > new Date().getTime()) {
+      if ((curVal as any).expires > Date.now()) {
         pre[curKey] = curVal;
       }
       return pre;
@@ -720,7 +735,9 @@ export default class QueryStatement extends tsc<object> {
     // 判断当前历史记录数组是否需要请求
     const isShouldQuery = queryType === 'single' ? !!this.aloneHistory.length : !!this.multipleHistory.length;
     // 判断是否需要更新历史记录
-    if ((!isForceRequest && isShouldQuery) || this.historyLoading) return;
+    if ((!isForceRequest && isShouldQuery) || this.historyLoading) {
+      return;
+    }
 
     this.historyLoading = true;
     await $http
@@ -787,6 +804,7 @@ export default class QueryStatement extends tsc<object> {
           <div class='select-type-btn'>
             {this.typeBtnSelectList.map(item => (
               <div
+                key={item.id}
                 class={{ active: this.indexSearchType === item.id }}
                 onClick={() => this.handleClickSetType(item.id as IndexSetType)}
               >
@@ -801,7 +819,7 @@ export default class QueryStatement extends tsc<object> {
                 class='tag-box'
               >
                 {this.showLabelSelectList().map(item => (
-                  <div>
+                  <div key={item.tag_id}>
                     <span
                       class={[
                         'tag-item',
@@ -820,13 +838,13 @@ export default class QueryStatement extends tsc<object> {
                 class='move-icon left-icon'
                 onClick={() => this.scrollMove('left')}
               >
-                <i class='bk-icon icon-angle-left-line'></i>
+                <i class='bk-icon icon-angle-left-line' />
               </div>
               <div
                 class='move-icon right-icon'
                 onClick={() => this.scrollMove('right')}
               >
-                <i class='bk-icon icon-angle-right-line'></i>
+                <i class='bk-icon icon-angle-right-line' />
               </div>
             </div>
           )}
@@ -836,9 +854,10 @@ export default class QueryStatement extends tsc<object> {
     const favoriteListDom = () => {
       return (
         <ul class='favorite-list'>
-          {!!this.showFavoriteList.length ? (
+          {this.showFavoriteList.length ? (
             this.showFavoriteList.map(item => (
               <li
+                key={item}
                 class={[
                   'favorite-item',
                   {
@@ -848,7 +867,7 @@ export default class QueryStatement extends tsc<object> {
                 onClick={() => this.handleClickFavorite(item)}
               >
                 <span class='name title-overflow'>
-                  {item.isNotVal && <i class='not-val'></i>}
+                  {item.isNotVal && <i class='not-val' />}
                   <span>{item.name}</span>
                 </span>
                 <span
@@ -875,7 +894,7 @@ export default class QueryStatement extends tsc<object> {
                 class='clear-btn'
                 onClick={e => this.handleDeleteHistory(null, e, true)}
               >
-                <i class='bklog-icon bklog-brush'></i>
+                <i class='bklog-icon bklog-brush' />
                 <span>{this.$t('清空')}</span>
               </span>
             </div>
@@ -885,9 +904,10 @@ export default class QueryStatement extends tsc<object> {
               class='history-alone-list'
               v-bkloading={{ isLoading: this.historyLoading }}
             >
-              {!!this.aloneHistory.length ? (
+              {this.aloneHistory.length ? (
                 this.aloneHistory.map(item => (
                   <li
+                    key={item}
                     class={[
                       'history-alone-item',
                       {
@@ -900,7 +920,7 @@ export default class QueryStatement extends tsc<object> {
                     <i
                       class='bk-icon icon-close-circle-shape'
                       onClick={e => this.handleDeleteHistory(item, e)}
-                    ></i>
+                    />
                   </li>
                 ))
               ) : (
@@ -912,9 +932,10 @@ export default class QueryStatement extends tsc<object> {
               class='history-multiple-list'
               v-bkloading={{ isLoading: this.historyLoading }}
             >
-              {!!this.multipleHistory.length ? (
+              {this.multipleHistory.length ? (
                 this.multipleHistory.map(item => (
                   <li
+                    key={item}
                     class={[
                       'history-multiple-item',
                       {
@@ -926,6 +947,7 @@ export default class QueryStatement extends tsc<object> {
                     <div class='tag-box'>
                       {item.index_set_names?.map(setName => (
                         <Tag
+                          key={setName}
                           class='title-overflow'
                           ext-cls='tag-item'
                           v-bk-overflow-tips
@@ -937,7 +959,7 @@ export default class QueryStatement extends tsc<object> {
                     <i
                       class='bk-icon icon-close-circle-shape'
                       onClick={e => this.handleDeleteHistory(item, e)}
-                    ></i>
+                    />
                   </li>
                 ))
               ) : (
@@ -959,13 +981,13 @@ export default class QueryStatement extends tsc<object> {
             {this.tabPanels.map((panel, index) => (
               <TabPanel
                 {...{ props: panel }}
-                key={index}
+                key={`${index}-${panel}`}
               >
                 <div
                   class='top-label'
                   slot='label'
                 >
-                  <i class={panel.icon}></i>
+                  <i class={panel.icon} />
                   <span class='panel-name'>{panel.label}</span>
                 </div>
               </TabPanel>
@@ -1004,9 +1026,9 @@ export default class QueryStatement extends tsc<object> {
             <span class='favorite-btn'>
               <i
                 class={[
-                  !!this.multipleFavoriteSelectID ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star',
+                  this.multipleFavoriteSelectID ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star',
                 ]}
-              ></i>
+              />
               <span>{this.$t('收藏该组合')}</span>
             </span>
             <div slot='content'>
@@ -1027,7 +1049,7 @@ export default class QueryStatement extends tsc<object> {
                     vModel={this.verifyData.favoriteName}
                     clearable
                     onEnter={() => this.handleClickFavoritePopoverBtn('add')}
-                  ></Input>
+                  />
                 </FormItem>
               </Form>
               <div class='operate-button'>
@@ -1053,13 +1075,14 @@ export default class QueryStatement extends tsc<object> {
         >
           {this.selectedItemList.map(item => (
             <Tag
+              key={item}
               style='background: #FAFBFD;'
               type='stroke'
               closable
               onClose={() => this.handleCloseSelectTag(item)}
             >
               <span class='tag-name'>
-                {item.isNotVal && <i class='not-val'></i>}
+                {item.isNotVal && <i class='not-val' />}
                 <span
                   class='title-overflow'
                   v-bk-overflow-tips
@@ -1077,12 +1100,12 @@ export default class QueryStatement extends tsc<object> {
         <span
           class={[item.is_favorite ? 'bklog-icon bklog-lc-star-shape' : 'log-icon bk-icon icon-star']}
           onClick={e => this.handleCollection(item, e)}
-        ></span>
+        />
       ) : (
         <Checkbox
           checked={this.getCheckedVal(item.index_set_id)}
           disabled={this.getDisabled(item.index_set_id)}
-        ></Checkbox>
+        />
       );
     };
     const selectGroupDom = () => {
@@ -1094,6 +1117,7 @@ export default class QueryStatement extends tsc<object> {
           {this.renderOptionList.map(group => (
             <OptionGroup
               id={(group as any).id}
+              key={group.id}
               class={{ 'not-child': !group.children.length }}
               scopedSlots={{
                 'group-name': () => {
@@ -1111,6 +1135,7 @@ export default class QueryStatement extends tsc<object> {
               {group.children.map(item => (
                 <Option
                   id={String(item.index_set_id)}
+                  key={item.index_set_id}
                   class={['custom-no-padding-option', { 'union-select-item': !this.isAloneType }]}
                   disabled={this.getDisabled(item.index_set_id)}
                   name={this.getOptionName(item)}
@@ -1122,7 +1147,7 @@ export default class QueryStatement extends tsc<object> {
                     >
                       <span class='index-info'>
                         {indexHandDom(item)}
-                        {item.isNotVal && <i class='not-val'></i>}
+                        {item.isNotVal && <i class='not-val' />}
                         <span
                           class='index-name'
                           onMouseenter={e => this.handleHoverIndexName(e, item)}
@@ -1156,10 +1181,11 @@ export default class QueryStatement extends tsc<object> {
     const getLabelDom = tags => {
       const showTags = tags
         .filter(tag => tag.tag_id !== 4)
-        .sort((a, b) => (b.tag_id === this.filterTagID ? 1 : -1))
+        .sort((_a, b) => (b.tag_id === this.filterTagID ? 1 : -1))
         .slice(0, 2);
       return showTags.map(tag => (
         <span
+          key={tag.tag_id}
           class={['tag-card title-overflow', `tag-card-${tag.color}`]}
           v-bk-overflow-tips
         >

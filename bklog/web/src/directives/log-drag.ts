@@ -68,7 +68,9 @@ const getBindValue = (data: IBindValue): IBindValue => {
 };
 
 const handleMouseMove = throttle((event: MouseEvent) => {
-  if (!insertedEl) return;
+  if (!insertedEl) {
+    return;
+  }
   const { maxWidth, minWidth, placement, autoHidden, onHidden, onWidthChange } = getBindValue(
     insertedEl._bk_log_drag.value as IBindValue,
   );
@@ -78,8 +80,8 @@ const handleMouseMove = throttle((event: MouseEvent) => {
   if (maxWidth && width > maxWidth) {
     width = maxWidth;
   } else if (width < minWidth) {
-    width = !!autoHidden ? 0 : minWidth;
-    if (!!autoHidden) {
+    width = autoHidden ? 0 : minWidth;
+    if (autoHidden) {
       width = 0;
     } else {
       width = minWidth;
@@ -134,9 +136,10 @@ const logDrag: DirectiveOptions = {
     const dragEle = document.createElement('div');
     dragEle.dataset.dragKey = key;
     dragEle.className = theme === 'simple' ? 'bk-log-drag-simple' : 'bk-log-drag';
-    dragEle.style.cssText = Object.keys(style).reduce((pre, key) => {
-      pre += `${key}: ${style[key]};`;
-      return pre;
+    dragEle.style.cssText = Object.keys(style).reduce((pre, keyParam) => {
+      let savePre = pre;
+      savePre += `${keyParam}: ${style[keyParam]};`;
+      return savePre;
     }, '');
     dragEle.style.left = `${insertedEl.getBoundingClientRect().width - 10}px`;
     el.appendChild(dragEle);
@@ -176,7 +179,7 @@ const logDrag: DirectiveOptions = {
     el.removeChild(el._bk_log_drag.el);
     insertedEl = null;
     delete insertedElMap[dragKey];
-    delete el._bk_log_drag;
+    el._bk_log_drag = undefined;
   },
 };
 

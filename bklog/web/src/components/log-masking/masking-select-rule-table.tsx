@@ -49,12 +49,12 @@ interface IAddRuleFieldValue {
 @Component
 export default class MaskingSelectRuleTable extends tsc<IProps> {
   @Model('change', { type: Boolean, default: false }) value: IProps['value'];
-  @Prop({ type: Number, default: NaN }) tableMaxHeight: number;
+  @Prop({ type: Number, default: Number.NaN }) tableMaxHeight: number;
   @Prop({ type: Object, default: () => ({}) }) submitBoxStyle: object;
   @Prop({ type: Boolean, default: true }) isShowSubmitContent: boolean;
   @Prop({ type: Boolean, default: false }) isSyncSelect: boolean;
-  @Prop({ type: Array, default: () => [] }) defaultSelectRuleList: Array<number>;
-  @Prop({ type: Array, default: () => [] }) recommendRuleList: Array<number>;
+  @Prop({ type: Array, default: () => [] }) defaultSelectRuleList: number[];
+  @Prop({ type: Array, default: () => [] }) recommendRuleList: number[];
   @Prop({ type: Object, default: () => ({}) }) propPagination: object;
   @Prop({ type: Boolean, default: true }) isPublicList: boolean;
   @Prop({
@@ -171,7 +171,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
     if (!this.isAllowed) {
       try {
         const res = await this.$store.dispatch('getApplyData', this.authorityData);
-        this.$store.commit('updateAuthDialogData', res.data);
+        this.$store.commit('updateState', { 'authDialogData': res.data});
       } catch (err) {
         console.warn(err);
       }
@@ -223,24 +223,24 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
       const res = await $http.request('masking/getMaskingRuleList', {
         params,
       });
-      const selectList = [];
-      const otherList = [];
+      const selectList: any[] = [];
+      const otherList: any[] = [];
       const activeRule = res.data.filter(item => item.is_active);
-      activeRule.forEach(item => {
+      for (const item of activeRule) {
         // 给推荐规则排序
         this.recommendRuleList.includes(item.id) ? selectList.push(item) : otherList.push(item);
-      });
+      }
       // 全局规则优先排序
-      otherList.sort((a, b) => (b.is_public ? 1 : -1));
+      otherList.sort((_a, b) => (b.is_public ? 1 : -1));
 
       // 给当前选中了的规则排序到前面
       if (this.defaultSelectRuleList.length) {
-        otherList.sort((a, b) => (this.defaultSelectRuleList.includes(b.id) || b.is_public ? 1 : -1));
+        otherList.sort((_a, b) => (this.defaultSelectRuleList.includes(b.id) || b.is_public ? 1 : -1));
       }
 
       // 新增规则 把新的规则变绿
       if (newRuleId >= 0) {
-        otherList.sort((a, b) => (newRuleId === b.id ? 1 : -1));
+        otherList.sort((_a, b) => (newRuleId === b.id ? 1 : -1));
         otherList[0].is_add = true;
         !this.isSyncSelect && this.defaultSelectRuleList.push(otherList[0].id);
       }
@@ -261,7 +261,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
       });
       this.emptyType = 'empty';
       this.searchStr = '';
-    } catch (err) {
+    } catch {
       this.emptyType = '500';
     } finally {
       this.tableLoading = false;
@@ -281,11 +281,17 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   }
 
   getCheckBoxDisable(ruleID: number) {
-    if (!this.isSyncSelect) return false;
+    if (!this.isSyncSelect) {
+      return false;
+    }
     // 当前是同步重新选择选择列表 旧的规则禁用
-    if (this.defaultSelectRuleList.includes(ruleID)) return true;
+    if (this.defaultSelectRuleList.includes(ruleID)) {
+      return true;
+    }
     // 当前未选同步规则 或者选中同步规则 取消禁用
-    if (this.syncSelectRuleID === -1 || this.syncSelectRuleID === ruleID) return false;
+    if (this.syncSelectRuleID === -1 || this.syncSelectRuleID === ruleID) {
+      return false;
+    }
     // 已选同步规则 单选禁用其他规则
     return true;
   }
@@ -328,7 +334,9 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
 
   changeCheckValue(newLength) {
     // 单选时直接显示未选
-    if (this.isSyncSelect) return 0;
+    if (this.isSyncSelect) {
+      return 0;
+    }
     // 根据手动选择列表长度来判断全选框显示 全选 半选 不选
     if (!newLength) {
       this.checkValue = 0;
@@ -365,20 +373,29 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
   }
 
   getMatchMethodStr(row) {
-    if (row.match_fields.length && row.match_pattern) return this.$t('字段+正则匹配');
-    if (row.match_fields.length) return this.$t('字段匹配');
+    if (row.match_fields.length && row.match_pattern) {
+      return this.$t('字段+正则匹配');
+    }
+    if (row.match_fields.length) {
+      return this.$t('字段匹配');
+    }
     return this.$t('正则匹配');
   }
 
   getMatchContentStr(row) {
-    if (row.match_fields.length && row.match_pattern)
+    if (row.match_fields.length && row.match_pattern) {
       return `${row.match_fields.join(', ')} ${this.$t('且')} ${row.match_pattern}`;
-    if (row.match_fields.length) return row.match_fields.join(', ');
+    }
+    if (row.match_fields.length) {
+      return row.match_fields.join(', ');
+    }
     return row.match_pattern;
   }
 
   getShowRowStyle(rowObj: any) {
-    if (rowObj.row.is_add) return { background: '#F2FFF4' };
+    if (rowObj.row.is_add) {
+      return { background: '#F2FFF4' };
+    }
     return { background: this.recommendRuleList.includes(rowObj.row.id) ? '#F0F5FF' : '#FFF' };
   }
 
@@ -443,7 +460,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
           checked={this.getItemChecked(row.id)}
           disabled={this.getCheckBoxDisable(row.id)}
           onChange={(val: boolean) => this.handleSelectItem(val, row.id)}
-        ></Checkbox>
+        />
       ),
     };
     return (
@@ -456,7 +473,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
             outline
             onClick={() => this.handleAddNewRule()}
           >
-            <i class='bk-icon icon-plus push'></i>
+            <i class='bk-icon icon-plus push' />
             {this.$t('新建规则')}
           </Button>
           <div class='right-box'>
@@ -472,7 +489,7 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
               v-bk-tooltips={this.$t('刷新')}
               onClick={() => this.initTableList()}
             >
-              <i class='icon bk-icon icon-right-turn-line'></i>
+              <i class='icon bk-icon icon-right-turn-line' />
             </Button>
           </div>
         </div>
@@ -494,31 +511,31 @@ export default class MaskingSelectRuleTable extends tsc<IProps> {
             width='50'
             render-header={this.renderHeaderCheckBox}
             scopedSlots={checkBoxSlot}
-          ></TableColumn>
+          />
 
           <TableColumn
             key={'rule_name'}
             label={this.$t('规则名称')}
             scopedSlots={ruleNameSlot}
-          ></TableColumn>
+          />
 
           <TableColumn
             key={'match_method'}
             label={this.$t('匹配方式')}
             scopedSlots={matchingMethodSlot}
-          ></TableColumn>
+          />
 
           <TableColumn
             key={'match_content'}
             label={this.$t('匹配内容')}
             scopedSlots={matchingContentSlot}
-          ></TableColumn>
+          />
 
           <TableColumn
             key={'masking_result'}
             label={this.$t('脱敏算子')}
             scopedSlots={maskingRulesSlot}
-          ></TableColumn>
+          />
 
           <div slot='empty'>
             <EmptyStatus

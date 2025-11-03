@@ -154,7 +154,7 @@ export default class IndexImportModal extends tsc<IProps> {
               params,
               bk_data_id,
             } = item;
-            let paths = [];
+            let paths: string[] = [];
             try {
               const value = JSON.parse(this.pythonDictString(params));
               paths = value?.paths ?? [];
@@ -168,7 +168,7 @@ export default class IndexImportModal extends tsc<IProps> {
               storage_cluster_name: storage_cluster_name || '--',
               retention: retention ? `${retention}${$i18n.t('天')}` : '--',
               paths: paths?.join('; ') ?? '',
-              etl_config: this.etlConfigList.find(item => item.id === etl_config)?.name ?? '--',
+              etl_config: this.etlConfigList.find(newItem => newItem.id === etl_config)?.name ?? '--',
             };
           });
         }
@@ -198,7 +198,7 @@ export default class IndexImportModal extends tsc<IProps> {
     this.currentCheckImportID = row.collector_config_id;
   }
   handleConfirmDialog() {
-    if (!this.currentCheckImportID || !this.syncType.length) {
+    if (!(this.currentCheckImportID && this.syncType.length)) {
       if (!this.currentCheckImportID) {
         this.$bkMessage({
           theme: 'error',
@@ -222,7 +222,7 @@ export default class IndexImportModal extends tsc<IProps> {
           collector_config_id: this.currentCheckImportID,
         },
       })
-      .then(async res => {
+      .then(res => {
         if (res.data) {
           const collect = res.data;
           const isPhysics = collect.environment !== 'container';
@@ -262,7 +262,7 @@ export default class IndexImportModal extends tsc<IProps> {
           <bk-checkbox
             class='group-check-box'
             checked={this.getCheckedStatus(row)}
-          ></bk-checkbox>
+          />
         </div>
       ),
     };
@@ -309,7 +309,7 @@ export default class IndexImportModal extends tsc<IProps> {
                   right-icon='bk-icon icon-search'
                   on-change={this.handleSearchChange}
                   on-enter={this.search}
-                ></bk-input>
+                />
               </div>
             </bk-form-item>
             <bk-form-item label={this.$t('请选择目标索引集')}>
@@ -327,30 +327,30 @@ export default class IndexImportModal extends tsc<IProps> {
                   label=''
                   prop=''
                   scopedSlots={checkBoxSlot}
-                ></bk-table-column>
+                />
                 <bk-table-column
                   label='索引集'
                   prop='collector_config_name'
                   scopedSlots={spanSlot}
-                ></bk-table-column>
+                />
                 <bk-table-column
                   label='采集路径'
                   prop='paths'
                   scopedSlots={spanSlot}
-                ></bk-table-column>
+                />
                 <bk-table-column
                   label='采集模式'
                   prop='etl_config'
-                ></bk-table-column>
+                />
                 <bk-table-column
                   label='存储集群'
                   prop='storage_cluster_name'
                   scopedSlots={spanSlot}
-                ></bk-table-column>
+                />
                 <bk-table-column
                   label='存储时长'
                   prop='retention'
-                ></bk-table-column>
+                />
               </bk-table>
             </bk-form-item>
           </bk-form>

@@ -7,6 +7,8 @@
 {{ common_args_desc }}
 
 #### 接口参数
+接口验证用户权限
+head头中 X-Bkapi-Authorization 认证中需要传递 bk_username
 
 | 字段 | 类型   | 必选 | 描述   |
 | ---- | ------ | ---- | ------ |

@@ -30,8 +30,9 @@ import { Component as tsc } from 'vue-tsx-support';
 import { Popover } from 'bk-magic-vue';
 
 import { utcFormatDate } from '../../../common/util';
-import { IGroupItem, IFavoriteItem } from './collect-index';
 import GroupDropdown from './component/group-dropdown';
+
+import type { IGroupItem, IFavoriteItem } from './collect-index';
 
 import './collect-group.scss';
 
@@ -62,7 +63,9 @@ export default class CollectGroup extends tsc<ICollectProps> {
     setTimeout(() => {
       this.clickDrop = false;
     }, 100);
-    if (this.isCannotClickFavorite(item) || this.clickDrop) return;
+    if (this.isCannotClickFavorite(item) || this.clickDrop) {
+      return;
+    }
     this.handleUserOperate('click-favorite', item);
   }
   handleHoverTitle(type: boolean) {
@@ -110,15 +113,15 @@ export default class CollectGroup extends tsc<ICollectProps> {
 
   render() {
     const groupDropdownSlot = groupName => {
-      return !this.isCannotChange ? (
+      return this.isCannotChange ? (
+        <span class='title-number'>{this.collectItem.favorites.length}</span>
+      ) : (
         <GroupDropdown
           data={this.collectItem}
           group-list={this.groupList}
           group-name={groupName}
           is-hover-title={this.isHoverTitle}
         />
-      ) : (
-        <span class='title-number'>{this.collectItem.favorites.length}</span>
       );
     };
     const collectDropdownSlot = item => (
@@ -137,7 +140,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
             'group-title fl-jcsb',
             {
               'is-active': !this.isHiddenList,
-              'is-move-cur': !this.isSearchFilter && !this.isCannotChange,
+              'is-move-cur': !(this.isSearchFilter || this.isCannotChange),
             },
           ]}
           onMouseenter={() => this.handleHoverTitle(true)}
@@ -147,15 +150,15 @@ export default class CollectGroup extends tsc<ICollectProps> {
             class='group-cur'
             onClick={() => (this.isHiddenList = !this.isHiddenList)}
           >
-            <span class={['bk-icon icon-play-shape', { 'is-active': !this.isHiddenList }]}></span>
+            <span class={['bk-icon icon-play-shape', { 'is-active': !this.isHiddenList }]} />
             <span class='group-str'>{this.collectItem.group_name}</span>
           </span>
           {groupDropdownSlot(this.collectItem.group_name)}
         </div>
         <div class={['group-list', { 'list-hidden': this.isHiddenList }]}>
-          {this.collectItem.favorites.map((item, index) => (
+          {this.collectItem.favorites.map(item => (
             <div
-              key={index}
+              key={item.id}
               class={{
                 'group-item': true,
                 'is-disabled': this.isFailFavorite(item),
@@ -180,19 +183,20 @@ export default class CollectGroup extends tsc<ICollectProps> {
                       placement='bottom'
                       theme='light'
                     >
-                      <span class='bk-icon bklog-icon bklog-shixiao'></span>
+                      <span class='bk-icon bklog-icon bklog-shixiao' />
                       <div slot='content'>
                         {this.isMultiIndex(item) ? (
                           <ul>
                             {item.index_set_names.map((setItem, setIndex) => (
                               <li
+                                key={setItem}
                                 class={{
                                   'index-fail': !item.is_actives[setIndex],
                                 }}
                               >
                                 <span>
                                   <span>{setItem}</span>
-                                  {!item.is_actives[setIndex] ? <span>({this.$t('已失效')})</span> : undefined}
+                                  {item.is_actives[setIndex] ? undefined : <span>({this.$t('已失效')})</span>}
                                 </span>
                               </li>
                             ))}
@@ -210,7 +214,7 @@ export default class CollectGroup extends tsc<ICollectProps> {
                         placement: 'right',
                       }}
                     >
-                      <span class='bk-icon icon-panels'></span>
+                      <span class='bk-icon icon-panels' />
                     </span>
                   ) : undefined}
                 </div>

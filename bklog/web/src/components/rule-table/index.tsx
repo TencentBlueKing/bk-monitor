@@ -23,14 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import _ from 'lodash';
 import { defineComponent, ref, watch } from 'vue';
-import useLocale from '@/hooks/use-locale';
-import EmptyStatus from '@/components/empty-status/index.vue';
-import VueDraggable from 'vuedraggable';
-import Regexopover from './regex-popover';
+
 import { copyMessage, base64Encode } from '@/common/util';
+import EmptyStatus from '@/components/empty-status/index.vue';
+import useLocale from '@/hooks/use-locale';
+import VueDraggable from 'vuedraggable';
+
 import AddRule from './add-rule';
+import Regexopover from './regex-popover';
+
 import './index.scss';
 
 export default defineComponent({
@@ -57,17 +59,16 @@ export default defineComponent({
     const tableLoading = ref(false);
     const isShowAddRule = ref(false);
     const isEditRow = ref(false);
-    const ruleList = ref([]);
+    const ruleList = ref<any[]>([]);
     const currentRowData = ref({});
     const searchValue = ref('');
 
     let currentRowIndex = 0;
-    let localRuleList = [];
+    let localRuleList: any[] = [];
 
     const initTableList = () => {
-      ruleList.value = _.cloneDeep(props.ruleList);
-      localRuleList = _.cloneDeep(props.ruleList);
-      console.log('initTableList = ', ruleList.value);
+      ruleList.value = structuredClone(props.ruleList);
+      localRuleList = structuredClone(props.ruleList);
     };
 
     watch(
@@ -85,13 +86,13 @@ export default defineComponent({
         element: any;
       };
     }) => {
-      const tmpList = _.cloneDeep(ruleList.value);
+      const tmpList = structuredClone(ruleList.value);
       const { oldIndex, newIndex } = data.moved;
       const oldItem = tmpList[oldIndex];
       tmpList.splice(oldIndex, 1);
       tmpList.splice(newIndex, 0, oldItem);
       ruleList.value = tmpList;
-      localRuleList = _.cloneDeep(ruleList.value);
+      localRuleList = structuredClone(ruleList.value);
       emit('rule-list-change', ruleList.value);
     };
 
@@ -108,19 +109,19 @@ export default defineComponent({
 
     const handleAddRule = (item: any) => {
       ruleList.value.splice(currentRowIndex + 1, 0, item);
-      localRuleList = _.cloneDeep(ruleList.value);
+      localRuleList = structuredClone(ruleList.value);
       emit('rule-list-change', ruleList.value);
     };
 
     const handleEditRule = (item: any) => {
       ruleList.value[currentRowIndex] = item;
-      localRuleList = _.cloneDeep(ruleList.value);
+      localRuleList = structuredClone(ruleList.value);
       emit('rule-list-change', ruleList.value);
     };
 
     const handleClickRemoveRule = (index: number) => {
       ruleList.value.splice(index, 1);
-      localRuleList = _.cloneDeep(ruleList.value);
+      localRuleList = structuredClone(ruleList.value);
       emit('rule-list-change', ruleList.value);
     };
 
@@ -135,7 +136,7 @@ export default defineComponent({
         }, []);
         const ruleArrStr = `[${ruleNewList.join(' ,')}]`;
         return base64Encode(ruleArrStr);
-      } catch (error) {
+      } catch {
         return '';
       }
     };
@@ -143,7 +144,7 @@ export default defineComponent({
     const handleSearch = (keyword: string) => {
       searchValue.value = keyword;
       if (!keyword) {
-        ruleList.value = _.cloneDeep(localRuleList);
+        ruleList.value = structuredClone(localRuleList);
         return;
       }
 
@@ -183,14 +184,14 @@ export default defineComponent({
               <transition-group>
                 {ruleList.value.map((item, index) => (
                   <li
-                    class={['table-row-content', { 'is-readonly': props.readonly }]}
                     key={item.__Index__}
+                    class={['table-row-content', { 'is-readonly': props.readonly }]}
                   >
                     <div class='index-column'>
                       {!props.readonly && (
                         <log-icon
-                          type='drag-dots'
                           class='icon'
+                          type='drag-dots'
                         />
                       )}
                       <span>{index + 1}</span>
@@ -212,8 +213,8 @@ export default defineComponent({
                           on-click={() => handleClickEditRule(item, index)}
                         >
                           <log-icon
-                            type='edit'
                             class='opt-icon'
+                            type='edit'
                           />
                         </bk-button>
                         <bk-button
@@ -221,24 +222,24 @@ export default defineComponent({
                           on-click={() => handleClickEditRule(item, index, true)}
                         >
                           <log-icon
-                            common
-                            type='plus-circle'
                             class='opt-icon'
+                            type='plus-circle'
+                            common
                           />
                         </bk-button>
                         <bk-popconfirm
+                          width={280}
+                          content={t('删除操作无法撤回，请谨慎操作！')}
+                          placement='bottom'
                           title={t('确认删除该规则？')}
                           trigger='click'
-                          placement='bottom'
-                          content={t('删除操作无法撤回，请谨慎操作！')}
-                          width={280}
                           on-confirm={() => handleClickRemoveRule(index)}
                         >
                           <bk-button text>
                             <log-icon
-                              common
-                              type='minus-circle'
                               class='opt-icon'
+                              type='minus-circle'
+                              common
                             />
                           </bk-button>
                         </bk-popconfirm>
@@ -253,22 +254,22 @@ export default defineComponent({
           <div class='no-cluster-rule'>
             {searchValue.value ? (
               <bk-exception
-                type='search-empty'
                 scene='part'
+                type='search-empty'
               >
                 <span style='font-size:12px;'>{t('搜索为空')}</span>
               </bk-exception>
             ) : (
               <bk-exception
-                type='empty'
                 scene='part'
+                type='empty'
               >
                 <span style='font-size:12px;'>{t('暂无聚类规则')}，</span>
                 <bk-button
-                  text
-                  theme='primary'
-                  size='small'
                   style='padding:0;'
+                  size='small'
+                  theme='primary'
+                  text
                   on-click={() => handleClickEditRule(null, -1, true)}
                 >
                   {t('立即新建')}
@@ -278,13 +279,15 @@ export default defineComponent({
           </div>
         )}
         <add-rule
-          isShow={isShowAddRule.value}
-          isEdit={isEditRow.value}
-          ruleList={props.ruleList}
           data={currentRowData.value}
-          on-show-change={val => (isShowAddRule.value = val)}
+          isEdit={isEditRow.value}
+          isShow={isShowAddRule.value}
+          ruleList={props.ruleList}
           on-add={handleAddRule}
           on-edit={handleEditRule}
+          on-show-change={val => {
+            isShowAddRule.value = val;
+          }}
         />
       </div>
     );

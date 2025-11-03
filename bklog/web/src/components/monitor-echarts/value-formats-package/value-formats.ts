@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { DecimalCount } from '../types/display-value';
 import getCategories from './categories';
 import { toDateTimeValueFormatter } from './date-time-formatters';
 import { getOffsetFromSIPrefix, decimalSIPrefix, currency } from './symbol-formatters';
+
+import type { DecimalCount } from '../types/display-value';
 
 export interface FormattedValue {
   text: string;
@@ -74,7 +75,7 @@ export function toFixed(value: number, decimals?: DecimalCount): string {
     return value.toLocaleString();
   }
 
-  const factor = decimals ? Math.pow(10, Math.max(0, decimals)) : 1;
+  const factor = decimals ? 10 ** Math.max(0, decimals) : 1;
   const formatted = String(Math.round(value * factor) / factor);
 
   // if exponent return directly
@@ -135,27 +136,28 @@ export function scaledUnits(factor: number, extArray: string[]): ValueFormatter 
     if (size === null) {
       return { text: '' };
     }
-    if (size === Number.NEGATIVE_INFINITY || size === Number.POSITIVE_INFINITY || isNaN(size)) {
+    if (size === Number.NEGATIVE_INFINITY || size === Number.POSITIVE_INFINITY || Number.isNaN(size)) {
       return { text: size.toLocaleString() };
     }
 
     let steps = 0;
     const limit = extArray.length;
-
-    while (Math.abs(size) >= factor) {
+    let reSize = size;
+    while (Math.abs(reSize) >= factor) {
       steps += 1;
-      size /= factor;
+      reSize /= factor;
 
       if (steps >= limit) {
         return { text: 'NA' };
       }
     }
 
+    let reDecimals = decimals;
     if (steps > 0 && scaledDecimals !== null && scaledDecimals !== undefined) {
-      decimals = scaledDecimals + 3 * steps;
+      reDecimals = scaledDecimals + 3 * steps;
     }
 
-    return { text: toFixed(size, decimals), suffix: extArray[steps] };
+    return { text: toFixed(reSize, reDecimals), suffix: extArray[steps] };
   };
 }
 
@@ -191,12 +193,13 @@ function buildFormats() {
   }
 
   // Resolve units pointing to old IDs
-  [{ from: 'farenheit', to: 'fahrenheit' }].forEach(alias => {
+  const UNITS = [{ from: 'farenheit', to: 'fahrenheit' }];
+  for (const alias of UNITS) {
     const f = index[alias.to];
     if (f) {
       index[alias.from] = f;
     }
-  });
+  }
 
   hasBuiltIndex = true;
 }
@@ -268,11 +271,13 @@ export function getValueFormats() {
   }));
 }
 
-export function getCategoryListById(id: string): { id: string; name: string }[] {
+export function getCategoryListById(idParam: string): { id: string; name: string }[] {
   if (!hasBuiltIndex) {
     buildFormats();
   }
-  const category = categories.find(item => item.formats.some(child => child.id === id));
-  if (!category) return categories[0].formats.map(({ id, name }) => ({ id, name }));
+  const category = categories.find(item => item.formats.some(child => child.id === idParam));
+  if (!category) {
+    return categories[0].formats.map(({ id, name }) => ({ id, name }));
+  }
   return category.formats.map(({ id, name }) => ({ id, name }));
 }

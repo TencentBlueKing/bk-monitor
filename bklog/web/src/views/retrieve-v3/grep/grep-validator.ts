@@ -1,3 +1,28 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 /**
  * Grep 语法验证器
  * 根据 EBNF 语法定义验证 grep 命令的正确性
@@ -61,10 +86,8 @@ export class GrepValidator {
     let quoteChar = '';
     let escaped = false;
 
-    for (let i = 0; i < input.length; i++) {
-      const char = input[i];
-
-      if (escaped) {
+    for (const char of input) {
+      if (escaped === true) {
         current += char;
         escaped = false;
         continue;
@@ -83,7 +106,7 @@ export class GrepValidator {
         continue;
       }
 
-      if (inQuotes && char === quoteChar) {
+      if (inQuotes === true && char === quoteChar) {
         inQuotes = false;
         quoteChar = '';
         current += char;
@@ -113,7 +136,7 @@ export class GrepValidator {
     const errors: ValidationError[] = [];
     const tokens = this.tokenizeCommand(command);
 
-    let hasCommand = false;
+    let _hasCommand = false;
     let hasPattern = false;
 
     for (const token of tokens) {
@@ -121,19 +144,21 @@ export class GrepValidator {
 
       switch (token.type) {
         case 'command':
-          hasCommand = true;
+          _hasCommand = true;
           break;
 
-        case 'argument':
+        case 'argument': {
           const argErrors = this.validateArgument(token.value, position);
           errors.push(...argErrors);
           break;
+        }
 
-        case 'string':
+        case 'string': {
           hasPattern = true;
           const stringErrors = this.validateString(token.value, position);
           errors.push(...stringErrors);
           break;
+        }
 
         case 'pattern':
           hasPattern = true;
@@ -146,6 +171,8 @@ export class GrepValidator {
             length: token.value.length,
             type: 'error',
           });
+          break;
+        default:
           break;
       }
     }
@@ -227,7 +254,7 @@ export class GrepValidator {
       return errors; // 不是引号字符串
     }
 
-    if (str[str.length - 1] !== quote) {
+    if (str.at(-1) !== quote) {
       errors.push({
         message: `未闭合的${quote === '"' ? '双' : '单'}引号`,
         position,
@@ -241,7 +268,7 @@ export class GrepValidator {
     for (let i = 1; i < str.length - 1; i++) {
       if (str[i] === '\\' && i + 1 < str.length - 1) {
         const nextChar = str[i + 1];
-        if (!['"', "'", '\\', 'n', 't', 'r'].includes(nextChar) && !nextChar.match(/x[0-9a-fA-F]/)) {
+        if (!(['"', "'", '\\', 'n', 't', 'r'].includes(nextChar) || nextChar.match(/x[0-9a-fA-F]/))) {
           errors.push({
             message: `无效的转义字符: "\\${nextChar}"`,
             position: position + i,
@@ -263,8 +290,8 @@ export class GrepValidator {
 
     // 检查最后一个命令是否为 -v，如果是则提醒不会高亮
     if (commands.length > 0) {
-      const lastCommand = commands[commands.length - 1];
-      if (lastCommand.includes('-v')) {
+      const lastCommand = commands.at(-1);
+      if (lastCommand?.includes('-v')) {
         warnings.push({
           message: '最后一个命令包含 -v 参数，结果将不会高亮',
           position: 0,
@@ -278,7 +305,7 @@ export class GrepValidator {
     let hasIgnoreCase = false;
     for (const command of commands) {
       if (command.includes('-i')) {
-        if (hasIgnoreCase) {
+        if (hasIgnoreCase === true) {
           warnings.push({
             message: '检测到重复的 -i 参数',
             position: 0,
@@ -348,7 +375,9 @@ export class GrepValidator {
             end++;
           }
         }
-        if (end < len) end++; // 包含结束引号
+        if (end < len) {
+          end++;
+        } // 包含结束引号
 
         tokens.push({
           type: 'string',
@@ -396,7 +425,7 @@ export class GrepValidator {
     for (let i = 0; i < input.length; i++) {
       const char = input[i];
 
-      if (escaped) {
+      if (escaped === true) {
         escaped = false;
         continue;
       }
@@ -412,7 +441,7 @@ export class GrepValidator {
         continue;
       }
 
-      if (inQuotes && char === quoteChar) {
+      if (inQuotes === true && char === quoteChar) {
         inQuotes = false;
         quoteChar = '';
         continue;
@@ -429,7 +458,6 @@ export class GrepValidator {
           position++;
         }
         i = position - 1; // 因为循环会 i++
-        continue;
       }
     }
 

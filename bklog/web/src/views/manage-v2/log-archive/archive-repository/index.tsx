@@ -24,15 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import EmptyStatus from '@/components/empty-status/index.vue';
 import { defineComponent, ref, reactive, computed, onMounted } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import http from '@/api';
+
 import * as authorityMap from '@/common/authority-map';
-import RepositorySlider from './repository-slider.tsx';
 import { clearTableFilter } from '@/common/util';
+import EmptyStatus from '@/components/empty-status/index.vue';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 import { InfoBox, Message } from 'bk-magic-vue';
+
+import RepositorySlider from './repository-slider.tsx';
+import http from '@/api';
 
 import './index.scss';
 
@@ -49,7 +51,7 @@ export default defineComponent({
 
     const isTableLoading = ref(false); // 表格加载状态
     const showSlider = ref(false); // 侧滑弹窗显示状态
-    const editClusterId = ref<number | null>(null); // 当前编辑的集群ID
+    const editClusterId = ref<null | number>(null); // 当前编辑的集群ID
     const tableDataOrigin = ref<any[]>([]); // 原始表格数据
     const tableDataSearched = ref<any[]>([]); // 搜索/过滤后的表格数据
     const tableDataPaged = ref<any[]>([]); // 当前分页展示的数据
@@ -140,16 +142,22 @@ export default defineComponent({
 
     // 过滤条件变更处理
     const handleFilterChange = (data: Record<string, string[]>) => {
-      Object.keys(data).forEach(item => {
+      for (const item of Object.keys(data)) {
         tableDataSearched.value = tableDataOrigin.value.filter(repo => {
           filterConditions[item] = Object.values(data)[0][0];
           const { type, cluster_source_type: clusterType } = filterConditions;
-          if (!type && !clusterType) return true;
-          if (type && clusterType) return repo.type === type && repo.cluster_source_type === clusterType;
+          if (!(type || clusterType)) {
+            return true;
+          }
+          if (type && clusterType) {
+            return repo.type === type && repo.cluster_source_type === clusterType;
+          }
           return repo.type === type || repo.cluster_source_type === clusterType;
         });
-      });
-      Object.entries(data).forEach(([key, value]) => (filterSearchObj[key] = value.length));
+      }
+      for (const [key, value] of Object.entries(data)) {
+        filterSearchObj[key] = value.length;
+      }
       isFilterSearch.value = Object.values(filterSearchObj).reduce((pre, cur) => pre || !!cur, false);
       pagination.current = 1;
       pagination.count = tableDataSearched.value.length;
@@ -231,7 +239,7 @@ export default defineComponent({
       try {
         isTableLoading.value = true;
         const res = await store.dispatch('getApplyData', paramData);
-        store.commit('updateAuthDialogData', res.data);
+        store.commit('updateState', { authDialogData: res.data });
       } catch (err) {
         console.warn(err);
       } finally {
@@ -288,14 +296,14 @@ export default defineComponent({
           </bk-button>
           <div class='repository-search fr'>
             <bk-input
-              value={params.keyword}
-              clearable
-              right-icon='bk-icon icon-search'
               data-test-id='storehouseContainer_input_searchTableItem'
               placeholder={t('请输入仓库名称')}
+              right-icon='bk-icon icon-search'
+              value={params.keyword}
+              clearable
+              on-right-icon-click={handleSearch}
               onChange={val => (params.keyword = val)}
               onEnter={handleSearch}
-              on-right-icon-click={handleSearch}
             />
           </div>
         </section>
@@ -309,12 +317,6 @@ export default defineComponent({
             ref={repositoryTable}
             class='repository-table'
             v-bkloading={{ isLoading: isTableLoading.value }}
-            data={tableDataPaged.value}
-            limit-list={pagination.limitList}
-            pagination={pagination}
-            onFilter-change={handleFilterChange}
-            onPage-change={handlePageChange}
-            onPage-limit-change={handleLimitChange}
             scopedSlots={{
               empty: () => (
                 <div>
@@ -325,6 +327,12 @@ export default defineComponent({
                 </div>
               ),
             }}
+            data={tableDataPaged.value}
+            limit-list={pagination.limitList}
+            pagination={pagination}
+            onFilter-change={handleFilterChange}
+            onPage-change={handlePageChange}
+            onPage-limit-change={handleLimitChange}
           >
             <bk-table-column
               width='120'
@@ -343,23 +351,23 @@ export default defineComponent({
               scopedSlots={{ default: (props: any) => props.row.cluster_name }}
             />
             <bk-table-column
+              class-name='filter-column'
+              column-key='type'
               filter-multiple={false}
               filters={repositoryFilters.value}
               label={t('类型')}
-              renderHeader={renderHeader}
-              class-name='filter-column'
-              column-key='type'
               prop='type'
+              renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => repoTypeMap.value[props.row.type] }}
             />
             <bk-table-column
+              class-name='filter-column'
+              column-key='cluster_source_type'
               filter-multiple={false}
               filters={sourceFilters.value}
               label={t('来源')}
-              renderHeader={renderHeader}
-              class-name='filter-column'
-              column-key='cluster_source_type'
               prop='cluster_source_type'
+              renderHeader={renderHeader}
               scopedSlots={{ default: (props: any) => props.row.cluster_source_name }}
             />
             <bk-table-column
@@ -374,18 +382,12 @@ export default defineComponent({
             />
             <bk-table-column
               width='160'
-              label={t('操作')}
-              renderHeader={renderHeader}
               scopedSlots={{
                 default: (props: any) => (
                   <div class='repository-table-operate'>
                     <bk-button
                       class='mr10 king-button'
-                      disabled={
-                        !(
-                          props.row.permission && props.row.permission[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]
-                        )
-                      }
+                      disabled={!props.row.permission?.[authorityMapComputed.value.MANAGE_ES_SOURCE_AUTH]}
                       theme='primary'
                       text
                       onClick={() => operateHandler(props.row, 'delete')}
@@ -395,16 +397,18 @@ export default defineComponent({
                   </div>
                 ),
               }}
+              label={t('操作')}
+              renderHeader={renderHeader}
             />
           </bk-table>
         </section>
 
         {/* 新建/编辑归档仓库侧滑 */}
         <RepositorySlider
-          onHandleCancelSlider={handleCancelSlider}
-          onHandleUpdatedTable={handleUpdatedTable}
           editClusterId={editClusterId.value}
           showSlider={showSlider.value}
+          onHandleCancelSlider={handleCancelSlider}
+          onHandleUpdatedTable={handleUpdatedTable}
         />
       </section>
     );

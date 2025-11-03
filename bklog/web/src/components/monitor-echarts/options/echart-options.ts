@@ -28,7 +28,8 @@ import BarChartOption from './bar-chart-option';
 import MapChartOption from './echart-map-options';
 import LineChartOption from './line-chart-option';
 import PieChartOption from './pie-chart-option';
-import { IChartOptionPorps } from './type-interface';
+
+import type { IChartOptionPorps } from './type-interface';
 export default class MonitorChartOption {
   public chartOptionInstance: any = null;
   public constructor(props: IChartOptionPorps) {
@@ -42,7 +43,6 @@ export default class MonitorChartOption {
       case 'map':
         this.chartOptionInstance = new MapChartOption(props);
         break;
-      case 'line':
       default:
         this.chartOptionInstance = new LineChartOption(props);
     }

@@ -42,7 +42,7 @@ export default class TimeFormatterSwitcher extends tsc<object> {
 
   handleClickSwitcher(val) {
     jsCookie.set('operation', String(val));
-    this.$store.commit('updateIsFormatDate', val);
+    this.$store.commit('updateState', { isFormatDate: val });
   }
   render() {
     return (
@@ -59,7 +59,7 @@ export default class TimeFormatterSwitcher extends tsc<object> {
           // v-bk-tooltips={this.$t('开启后将表格内的 UNIX 时间戳格式化为可读时间')}
           show-text
           onChange={this.handleClickSwitcher}
-        ></Switcher>
+        />
       </div>
     );
   }

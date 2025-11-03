@@ -24,13 +24,20 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, ref, watch, computed } from 'vue';
-import useLocale from '@/hooks/use-locale';
+
 import * as authorityMap from '@/common/authority-map';
-import useStore from '@/hooks/use-store';
-import $http from '@/api';
 import { base64Decode } from '@/common/util';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+
+import $http from '@/api';
 
 import './index.scss';
+
+interface IndexSet {
+  name: string;
+  id: string;
+}
 
 export default defineComponent({
   name: 'OtherImport',
@@ -45,7 +52,7 @@ export default defineComponent({
     const store = useStore();
 
     const formRef = ref(null);
-    const indexSetList = ref([]);
+    const indexSetList = ref<IndexSet[]>([]);
     const isShow = ref(false);
     const confirmLoading = ref(false);
     const indexSetLoading = ref(false);
@@ -65,7 +72,7 @@ export default defineComponent({
 
     const configId = computed(() => store.state.indexSetFieldConfig.clean_config?.extra.collector_config_id);
 
-    let rulesList = [];
+    let rulesList: Record<string, any>[] = [];
 
     watch(
       () => props.isShow,
@@ -94,7 +101,7 @@ export default defineComponent({
           return pre;
         }, []);
         return ruleNewList;
-      } catch (e) {
+      } catch {
         return [];
       }
     };
@@ -109,9 +116,12 @@ export default defineComponent({
         })
         .then(res => {
           if (res.data.length) {
-            const list = [];
+            const list: IndexSet[] = [];
             for (const item of res.data) {
-              if (item.permission?.[authorityMap.SEARCH_LOG_AUTH] && item.tags.map(item => item.tag_id).includes(8)) {
+              if (
+                item.permission?.[authorityMap.SEARCH_LOG_AUTH] &&
+                item.tags.map(newItem => newItem.tag_id).includes(8)
+              ) {
                 list.push({
                   name: item.index_set_name,
                   id: item.index_set_id,
@@ -129,9 +139,9 @@ export default defineComponent({
         });
     };
 
-    const handleOpenToggle = (isShow: boolean) => {
-      emit('show-change', isShow);
-      if (isShow) {
+    const handleOpenToggle = (newIsShow: boolean) => {
+      emit('show-change', newIsShow);
+      if (newIsShow) {
         requestIndexSetList();
       } else {
         indexSetData.value.index_set_id = '';
@@ -156,8 +166,8 @@ export default defineComponent({
       // 创建一个集合用于去重
       const uniqueSet = new Set();
       // 结果数组
-      const resultArray = [];
-      combinedArray.forEach(item => {
+      const resultArray: any[] = [];
+      for (const item of combinedArray) {
         // 将对象转换为字符串进行比较，忽略 __Index__
         const key = Object.entries(item)
           .filter(([k]) => k !== '__Index__')
@@ -165,12 +175,12 @@ export default defineComponent({
           .sort()
           .join('|');
 
-        // 如果集合中没有该字符串，则添加到结果数组和集合中
         if (!uniqueSet.has(key)) {
+          // 如果集合中没有该字符串，则添加到结果数组和集合中
           uniqueSet.add(key);
           resultArray.push(item);
         }
-      });
+      }
       return resultArray;
     };
 
@@ -196,14 +206,14 @@ export default defineComponent({
       <bk-dialog
         width={640}
         ext-cls='add-rule'
-        value={isShow.value}
+        auto-close={false}
         header-position='left'
+        loading={confirmLoading.value}
         mask-close={false}
         title={t('其他索引集导入')}
-        auto-close={false}
-        loading={confirmLoading.value}
-        on-value-change={handleOpenToggle}
+        value={isShow.value}
         on-confirm={handleConfirm}
+        on-value-change={handleOpenToggle}
       >
         <bk-form
           ref={formRef}
@@ -222,9 +232,9 @@ export default defineComponent({
           >
             <bk-select
               style='width: 100%'
-              value={indexSetData.value.index_set_id}
               v-bkloading={{ isLoading: indexSetLoading.value, size: 'small' }}
               clearable={false}
+              value={indexSetData.value.index_set_id}
               searchable
               on-change={value => (indexSetData.value.index_set_id = value)}
             >
@@ -238,8 +248,8 @@ export default defineComponent({
             </bk-select>
           </bk-form-item>
           <bk-form-item
-            label={t('导入模式')}
             class='bk-form-control'
+            label={t('导入模式')}
             required
           >
             <bk-radio-group

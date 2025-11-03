@@ -909,7 +909,7 @@
     },
     created() {
       this.isClone = this.$route.query?.type === 'clone';
-      this.$store.commit('updateRouterLeaveTip', false);
+      this.$store.commit('updateState', { 'showRouterLeaveTip': false});
       this.configBaseObj = structuredClone(this.formData.configs[0]); // 生成配置项的基础对象
       this.getLinkData();
       // 克隆与编辑均进行数据回填

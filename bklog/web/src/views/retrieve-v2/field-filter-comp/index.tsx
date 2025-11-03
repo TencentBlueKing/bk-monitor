@@ -42,13 +42,13 @@ import './index.scss';
 
 @Component
 export default class FieldFilterComp extends tsc<object> {
-  @Prop({ type: Array, default: () => [] }) totalFields: Array<any>;
-  @Prop({ type: Array, default: () => [] }) visibleFields: Array<any>;
-  @Prop({ type: Array, default: () => [] }) sortList: Array<any>;
+  @Prop({ type: Array, default: () => [] }) totalFields: any[];
+  @Prop({ type: Array, default: () => [] }) visibleFields: any[];
+  @Prop({ type: Array, default: () => [] }) sortList: any[];
   @Prop({ type: Object, default: () => ({}) }) fieldAliasMap: object;
   @Prop({ type: Boolean, default: false }) showFieldAlias: object;
   @Prop({ type: Object, default: () => ({}) }) retrieveParams: object;
-  @Prop({ type: Array, default: () => [] }) datePickerValue: Array<any>;
+  @Prop({ type: Array, default: () => [] }) datePickerValue: any[];
   @Prop({ type: Object, default: () => ({}) }) indexSetItem: any;
   @Ref('filterPopover') readonly filterPopoverRef!: HTMLDivElement;
   @Ref('fieldFilter') readonly fieldFilterRef!: HTMLDivElement;
@@ -91,31 +91,31 @@ export default class FieldFilterComp extends tsc<object> {
 
   /** 内置字段 */
   indexSetFields() {
-    const underlineFieldList = []; // 下划线的字段
-    const otherList = []; // 其他字段
+    const underlineFieldList: any[] = []; // 下划线的字段
+    const otherList: any[] = []; // 其他字段
     const { indexHiddenFields } = this.hiddenFilterFields();
     // 类似__xxx__的字段放最后展示
-    indexHiddenFields.forEach(fieldItem => {
+    for (const fieldItem of indexHiddenFields) {
       if (/^[_]{1,2}/g.test(fieldItem.field_name)) {
         underlineFieldList.push(fieldItem);
-        return;
+        continue;
       }
       otherList.push(fieldItem);
-    });
+    }
     return this.sortHiddenList([otherList, underlineFieldList]);
   }
   /** 非已选字段 分别生成内置字段和索引字段 */
   hiddenFilterFields() {
-    const builtInHiddenFields = [];
-    const indexHiddenFields = [];
-    this.hiddenFields.forEach(item => {
+    const builtInHiddenFields: any[] = [];
+    const indexHiddenFields: any[] = [];
+    for (const item of this.hiddenFields) {
       // if (item.field_type === '__virtual__' || item.is_built_in) {
       if (this.builtInInitHiddenList.includes(item.field_name)) {
         builtInHiddenFields.push(item);
-        return;
+        continue;
       }
       indexHiddenFields.push(item);
-    });
+    }
     return {
       builtInHiddenFields,
       indexHiddenFields,
@@ -135,7 +135,9 @@ export default class FieldFilterComp extends tsc<object> {
             break;
           }
         }
-        if (!isHeaderItem) acc.filterHeaderBuiltFields.push(cur);
+        if (!isHeaderItem) {
+          acc.filterHeaderBuiltFields.push(cur);
+        }
         return acc;
       },
       {
@@ -143,14 +145,15 @@ export default class FieldFilterComp extends tsc<object> {
         filterHeaderBuiltFields: [],
       },
     );
-    let arr = [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
-    let result = this.objectHierarchy(arr);
+    const arr = [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
+    const result = this.objectHierarchy(arr);
     return result;
     // return [...headerList, ...this.sortHiddenList([filterHeaderBuiltFields])];
   }
   /** object格式字段的层级展示 */
   objectHierarchy(arrData) {
     const [objArr, otherArr] = arrData.reduce(
+      // biome-ignore lint/nursery/noShadow: reason
       ([objArr, otherArr], item) => {
         item.field_name.includes('.') ? objArr.push(item) : otherArr.push(item);
         return [objArr, otherArr];
@@ -160,10 +163,10 @@ export default class FieldFilterComp extends tsc<object> {
     if (!objArr.length) {
       return arrData;
     }
-    let objectField = [];
-    objArr.forEach(item => {
+    const objectField: any[] = [];
+    for (const item of objArr) {
       this.addToNestedStructure(objectField, item);
-    });
+    }
     return [
       ...objectField,
       ...otherArr.filter(item => {
@@ -175,7 +178,7 @@ export default class FieldFilterComp extends tsc<object> {
   addToNestedStructure(targetArray, originalObject) {
     const parts = originalObject.field_name.split('.');
     let currentLevel = targetArray;
-    let parentFieldName = null; // 用于存储父节点的名称
+    let parentFieldName: null | string = null; // 用于存储父节点的名称
     parts.forEach((part, index) => {
       let existingPart = currentLevel.find(item => item.field_name === part);
       if (!existingPart) {
@@ -201,7 +204,7 @@ export default class FieldFilterComp extends tsc<object> {
   /** 递归将tree变回数组 */
   convertNestedStructureToArray(nestedArray) {
     const flatten = nodes => {
-      let result = [];
+      const result: any[] = [];
       for (const node of nodes) {
         const currentPath = node.field_name;
         const { children, ...restProps } = node;
@@ -252,7 +255,9 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** 展示的可选字段 */
   get showIndexSetFields() {
-    if (this.searchKeyword) return this.objectHierarchy(this.indexSetFields());
+    if (this.searchKeyword) {
+      return this.objectHierarchy(this.indexSetFields());
+    }
     const result = this.objectHierarchy(
       this.isShowAllIndexSet ? this.indexSetFields() : this.sliceFields(this.indexSetFields()),
     );
@@ -262,10 +267,10 @@ export default class FieldFilterComp extends tsc<object> {
     // 过滤的条件数量
     let count = 0;
     if (this.polymerizable !== '0') {
-      count = count + 1;
+      count += 1;
     }
     if (this.fieldType !== 'any') {
-      count = count + 1;
+      count += 1;
     }
     return count;
   }
@@ -293,12 +298,13 @@ export default class FieldFilterComp extends tsc<object> {
       case 'off':
         isFront = true;
         break;
-      default:
+      default: {
         const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG;
         const { field_analysis_config: fieldAnalysisConfig } = (window as any).FEATURE_TOGGLE_WHITE_LIST;
         const scenarioID = this.indexSetItem.items?.[0]?.scenario_id;
         isFront = !(scenarioIdWhiteList?.includes(scenarioID) && fieldAnalysisConfig?.includes(Number(this.bkBizId)));
         break;
+      }
     }
     return isFront;
   }
@@ -339,22 +345,22 @@ export default class FieldFilterComp extends tsc<object> {
   filterListByCondition() {
     const { searchKeyword } = this;
     const regExp = getRegExp(searchKeyword.trim());
-    [this.visibleFields, this.hiddenFields].forEach(fieldList => {
-      fieldList.forEach(fieldItem => {
+    for (const fieldList of [this.visibleFields, this.hiddenFields]) {
+      for (const fieldItem of fieldList) {
         regExp.lastIndex = 0; // 重置lastIndex,这个正则有全局标志
         fieldItem.filterVisible =
           regExp.test(fieldItem.field_name) ||
           regExp.test(fieldItem.field_alias) ||
           regExp.test(fieldItem.query_alias || '');
-      });
-    });
+      }
+    }
     this.$nextTick(() => {
-      Object.keys(this.$refs).forEach(refName => {
+      for (const refName of Object.keys(this.$refs)) {
         if (refName.startsWith('bigTreeRef-')) {
           const bigTreeRef = this.$refs[refName];
           bigTreeRef?.filter(searchKeyword);
         }
-      });
+      }
     });
   }
   filterMethod(keyword, node) {
@@ -366,7 +372,7 @@ export default class FieldFilterComp extends tsc<object> {
     this.$emit('fields-updated', this.dragVisibleFields);
   }
   // 字段显示或隐藏
-  async handleToggleItem(type: string, fieldItem) {
+  handleToggleItem(type: string, fieldItem) {
     const displayFieldNames = this.visibleFields.map(item => item.field_name);
     // object格式单独处理
     if (fieldItem.field_type === 'object') {
@@ -385,15 +391,13 @@ export default class FieldFilterComp extends tsc<object> {
         }
         displayFieldNames.push(fieldName);
       }
+    } else if (type === 'visible') {
+      // 需要隐藏字段
+      const index = this.visibleFields.findIndex(item => fieldItem.field_name === item.field_name);
+      displayFieldNames.splice(index, 1);
     } else {
-      if (type === 'visible') {
-        // 需要隐藏字段
-        const index = this.visibleFields.findIndex(item => fieldItem.field_name === item.field_name);
-        displayFieldNames.splice(index, 1);
-      } else {
-        // 需要显示字段
-        displayFieldNames.push(fieldItem.field_name);
-      }
+      // 需要显示字段
+      displayFieldNames.push(fieldItem.field_name);
     }
     this.$emit('fields-updated', displayFieldNames);
   }
@@ -403,15 +407,15 @@ export default class FieldFilterComp extends tsc<object> {
    * @returns {Array}
    */
   sortHiddenList(list) {
-    const sortList = [];
-    list.forEach(item => {
+    const sortList: any[] = [];
+    for (const item of list) {
       const sortItem = item.sort((a, b) => {
         const sortA = a.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
         const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
         return sortA.localeCompare(sortB);
       });
       sortList.push(...sortItem);
-    });
+    }
     return sortList;
   }
   /**
@@ -484,7 +488,7 @@ export default class FieldFilterComp extends tsc<object> {
         options={{ nameKey: 'fullName', idKey: 'fullName', childrenKey: 'children' }}
         scopedSlots={scopedSlots}
         on-expand-change={node => this.expandChange(node, `bigTreeRef-${index}`)}
-      ></bk-big-tree>
+      />
     );
   }
   render() {
@@ -539,7 +543,7 @@ export default class FieldFilterComp extends tsc<object> {
                 <span>{this.$t('显示字段')}</span>
                 <FieldSetting />
               </div>
-              {!!this.visibleFields.filter(item => item.filterVisible).length ? (
+              {this.visibleFields.filter(item => item.filterVisible).length ? (
                 <VueDraggable
                   class='filed-list'
                   v-model={this.dragVisibleFields}
@@ -579,9 +583,10 @@ export default class FieldFilterComp extends tsc<object> {
                 <ul class='filed-list'>
                   {this.showIndexSetFields.map((item, index) =>
                     item.children?.length ? (
-                      this.bigTreeRender(item, index + 'select')
+                      this.bigTreeRender(item, `${index}select`)
                     ) : (
                       <FieldItem
+                        key={`${index}-${item}`}
                         v-show={item.filterVisible}
                         date-picker-value={this.datePickerValue}
                         field-alias-map={this.fieldAliasMap}
@@ -600,7 +605,7 @@ export default class FieldFilterComp extends tsc<object> {
                       class='expand-all'
                       onClick={() => (this.isShowAllIndexSet = !this.isShowAllIndexSet)}
                     >
-                      {!this.isShowAllIndexSet ? this.$t('展开全部') : this.$t('收起')}
+                      {this.isShowAllIndexSet ? this.$t('收起') : this.$t('展开全部')}
                     </div>
                   )}
                 </ul>
@@ -613,17 +618,16 @@ export default class FieldFilterComp extends tsc<object> {
                   class='title'
                   onClick={() => (this.isShowAllBuiltIn = !this.isShowAllBuiltIn)}
                 >
-                  <span
-                    class={['bklog-icon bklog-arrow-down-filled-2', { 'is-expand-all': this.isShowAllBuiltIn }]}
-                  ></span>
+                  <span class={['bklog-icon bklog-arrow-down-filled-2', { 'is-expand-all': this.isShowAllBuiltIn }]} />
                   {(this.$t('label-内置字段') as string).replace('label-', '')}
                 </div>
                 <ul class='filed-list'>
                   {this.builtInFieldsShowObj().builtInShowFields.map((item, index) =>
                     item.children?.length ? (
-                      this.bigTreeRender(item, index + 'built')
+                      this.bigTreeRender(item, `${index}built`)
                     ) : (
                       <FieldItem
+                        key={`${index}-${item}`}
                         v-show={item.filterVisible}
                         date-picker-value={this.datePickerValue}
                         field-alias-map={this.fieldAliasMap}

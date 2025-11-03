@@ -30,6 +30,7 @@ import { formatNumberWithRegex } from '@/common/util';
 import BklogPopover from '@/components/bklog-popover';
 import GradeOption from '@/components/monitor-echarts/components/grade-option';
 import useLocale from '@/hooks/use-locale';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import useTrendChart from '@/hooks/use-trend-chart';
 import { getCommonFilterAddition } from '@/store/helper';
@@ -37,7 +38,6 @@ import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { throttle } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
 import http from '@/api';
 
@@ -46,7 +46,7 @@ import './index.scss';
 export default defineComponent({
   name: 'SearchResultChart',
   emits: ['toggle-change'],
-  setup(props, { emit }) {
+  setup(_props, { emit }) {
     const store = useStore();
     const route = useRoute();
     const router = useRouter();
@@ -75,8 +75,8 @@ export default defineComponent({
     const unionIndexList = computed(() => store.getters.unionIndexList);
     const gradeOptions = computed(() => store.state.indexFieldInfo.custom_config?.grade_options);
 
-    let finishPolling = ref(false); // 是否完成轮询
-    let isStart = ref(false); // 是否开始轮询
+    const finishPolling = ref(false); // 是否完成轮询
+    const isStart = ref(false); // 是否开始轮询
     let runningInterval = 'auto'; // 当前实际使用的 interval
 
     let logChartCancel: any = null; // 取消请求的方法
@@ -191,10 +191,14 @@ export default defineComponent({
     // 根据时间范围决定是否分段请求
     const handleRequestSplit = (startTime, endTime) => {
       // if(chartInterval.value === 'auto') return 0; // 若需要auto模式下不分段请求，取消注释
-      const duration = (endTime - startTime) / 3600000; // 计算时间间隔,单位:小时
-      if (duration <= 6) return 0; // 0-6小时不分段请求
-      if (duration <= 48) return 21600 * 1000; // 6-48小时, 每6小时1段
-      return (86400 * 1000) / 2; // 超过48小时, 每12小时1段
+      const duration = (endTime - startTime) / 3_600_000; // 计算时间间隔,单位:小时
+      if (duration <= 6) {
+        return 0;
+      } // 0-6小时不分段请求
+      if (duration <= 48) {
+        return 21_600 * 1000;
+      } // 6-48小时, 每6小时1段
+      return (86_400 * 1000) / 2; // 超过48小时, 每12小时1段
     };
 
     // 趋势图数据请求主函数
@@ -216,7 +220,9 @@ export default defineComponent({
             const res = await fetchTrendChartData(urlStr, indexId, queryData);
             setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
 
-            if (!res?.result || requestInterval === 0) break;
+            if (!res?.result || requestInterval === 0) {
+              break;
+            }
           } catch {
             setChartData(null, null, true); // 清空图表数据
             break;
@@ -232,6 +238,7 @@ export default defineComponent({
     };
 
     // 趋势图数据请求生成器
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     function* getGenFn({ startTimeStamp, endTimeStamp, requestInterval }) {
       const { interval } = initChartData(); // 获取趋势图汇聚周期
       runningInterval = interval;
@@ -248,8 +255,8 @@ export default defineComponent({
           addition: [...requestAddition.value, ...getCommonFilterAddition(store.state)],
           time_range: 'customized',
           interval: runningInterval,
-          start_time: start_time,
-          end_time: end_time,
+          start_time,
+          end_time,
         };
         if (isUnionSearch.value) {
           Object.assign(queryData, { index_set_ids: unionIndexList.value });
@@ -267,7 +274,7 @@ export default defineComponent({
 
       while (currentTimeStamp > startTimeStamp) {
         // 计算本轮请求结束时间
-        let end_time = requestInterval === 0 ? endTimeStamp : currentTimeStamp;
+        const end_time = requestInterval === 0 ? endTimeStamp : currentTimeStamp;
 
         // 计算本轮请求开始时间
         let start_time = requestInterval === 0 ? startTimeStamp : end_time - requestInterval;
@@ -293,10 +300,14 @@ export default defineComponent({
           localIsInit = false;
 
           // 如果不分段，请求一次就直接结束
-          if (requestInterval === 0) break;
+          if (requestInterval === 0) {
+            break;
+          }
 
           // 如果已经到达起始时间，结束生成yield
-          if (start_time === startTimeStamp) return;
+          if (start_time === startTimeStamp) {
+            return;
+          }
 
           currentTimeStamp -= requestInterval;
         } else {
@@ -332,6 +343,7 @@ export default defineComponent({
       runningTimer && clearTimeout(runningTimer); // 清理上一次的定时器
 
       // 开始拉取新一轮趋势数据
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       runningTimer = setTimeout(async () => {
         finishPolling.value = false;
         // isInit = true;
@@ -355,17 +367,20 @@ export default defineComponent({
     };
 
     const { addEvent } = useRetrieveEvent();
-    addEvent([
-      RetrieveEvent.SEARCH_VALUE_CHANGE,
-      RetrieveEvent.SEARCH_TIME_CHANGE,
-      RetrieveEvent.TREND_GRAPH_SEARCH,
-      RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
-      RetrieveEvent.INDEX_SET_ID_CHANGE,
-    ], loadTrendData);
+    addEvent(
+      [
+        RetrieveEvent.SEARCH_VALUE_CHANGE,
+        RetrieveEvent.SEARCH_TIME_CHANGE,
+        RetrieveEvent.TREND_GRAPH_SEARCH,
+        RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
+        RetrieveEvent.INDEX_SET_ID_CHANGE,
+      ],
+      loadTrendData,
+    );
 
     onMounted(() => {
       // 初始化折叠状态
-      isFold.value = store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD] || false;
+      isFold.value = store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD];
       nextTick(() => {
         emit('toggle-change', !isFold.value, getOffsetHeight());
       });
@@ -393,7 +408,7 @@ export default defineComponent({
               class='title-click'
               onClick={() => toggleExpand(!isFold.value)}
             >
-              <span class={['bk-icon', 'icon-down-shape', { 'is-flip': isFold.value }]}></span>
+              <span class={['bk-icon', 'icon-down-shape', { 'is-flip': isFold.value }]} />
               <div class='title-name'>{t('总趋势')}</div>
               <i18n
                 class='time-result'
@@ -414,7 +429,7 @@ export default defineComponent({
                     <span
                       style={{ marginRight: '2px' }}
                       class='bk-icon icon-angle-left-line'
-                    ></span>
+                    />
                     {t('回退')}
                   </span>
                 )}
@@ -449,7 +464,7 @@ export default defineComponent({
                   content-class='bklog-v3-grade-setting'
                   options={tippyOptions as any}
                 >
-                  <span class='bklog-icon bklog-shezhi'></span>
+                  <span class='bklog-icon bklog-shezhi' />
                 </BklogPopover>
               </div>
             )}
@@ -472,7 +487,7 @@ export default defineComponent({
           {/* 1. 标题内容 */}
           {chartTitleContent()}
           {/* 2. 加载中动画 */}
-          {loading.value && !isFold.value && <bk-spin class='chart-spin'></bk-spin>}
+          {loading.value && !isFold.value && <bk-spin class='chart-spin' />}
         </div>
         {/* 图表部分 */}
         <div
@@ -483,7 +498,7 @@ export default defineComponent({
           <div
             ref={trendChartCanvas}
             style={{ height: `${dynamicHeight.value}px` }}
-          ></div>
+          />
         </div>
       </div>
     );

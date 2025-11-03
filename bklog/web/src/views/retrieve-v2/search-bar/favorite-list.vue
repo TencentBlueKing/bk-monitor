@@ -3,8 +3,7 @@
 
   // @ts-ignore
   import useStore from '@/hooks/use-store';
-  import { getRegExp } from '@/common/util';
-
+  
   const props = defineProps({
     searchValue: {
       type: String,

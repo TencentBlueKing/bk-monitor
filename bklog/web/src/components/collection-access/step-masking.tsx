@@ -62,7 +62,9 @@ export default class StepMasking extends tsc<IProps> {
 
   @Emit('step-change')
   emitStepChange() {
-    if (this.isApplicationSubmit && !this.isShowJump) (this as any).messageSuccess(this.$t('保存成功'));
+    if (this.isApplicationSubmit && !this.isShowJump) {
+      (this as any).messageSuccess(this.$t('保存成功'));
+    }
     return this.isShowJump ? '' : 'back';
   }
 
@@ -79,7 +81,9 @@ export default class StepMasking extends tsc<IProps> {
 
   getIsUpdateSubmitValue() {
     // 如果还在初始化的时候快速切换其他导航则直接跳转 不进行数据修改判断
-    if ((this.maskingFieldRef as any).tableLoading) return false;
+    if ((this.maskingFieldRef as any).tableLoading) {
+      return false;
+    }
     const params = (this.maskingFieldRef as any).getQueryConfigParams();
     return !deepEqual(this.editComparedData, params);
   }
@@ -92,7 +96,7 @@ export default class StepMasking extends tsc<IProps> {
   async submitSelectRule(stepChange = false, callback?) {
     const data = (this.maskingFieldRef as any).getQueryConfigParams();
     const isUpdate = (this.maskingFieldRef as any).isUpdate;
-    if (!data.field_configs.length && !isUpdate) {
+    if (!(data.field_configs.length || isUpdate)) {
       this.isApplicationSubmit = true;
       if (this.isFinishCreateStep) {
         this.cancelSelectRule();
@@ -103,7 +107,9 @@ export default class StepMasking extends tsc<IProps> {
       return;
     } // 非更新状态且没有任何字段选择规则 直接下一步
     let requestStr = isUpdate ? 'updateDesensitizeConfig' : 'createDesensitizeConfig';
-    if (!data.field_configs.length && isUpdate) requestStr = 'deleteDesensitizeConfig'; // 无任何字段且是更新时 则删除当前索引集配置
+    if (!data.field_configs.length && isUpdate) {
+      requestStr = 'deleteDesensitizeConfig';
+    } // 无任何字段且是更新时 则删除当前索引集配置
     try {
       this.submitLoading = true;
       const res = await $http.request(`masking/${requestStr}`, {
@@ -122,7 +128,7 @@ export default class StepMasking extends tsc<IProps> {
       } else {
         this.cancelSelectRule();
       }
-    } catch (err) {
+    } catch {
       callback?.(false);
       this.emitSubmitChange(false);
     } finally {

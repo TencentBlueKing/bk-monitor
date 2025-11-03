@@ -78,7 +78,9 @@ export default class HandleBtn extends tsc<object> {
 
   get getSearchType() {
     // 获取搜索按钮状态
-    if (this.tableLoading) return searchMap.searchIng;
+    if (this.tableLoading) {
+      return searchMap.searchIng;
+    }
     return searchMap[this.isAutoQuery ? 'autoSearch' : 'search'];
   }
 
@@ -97,7 +99,9 @@ export default class HandleBtn extends tsc<object> {
 
   get isFavoriteUpdate() {
     // 判断当前收藏是否有参数更新
-    if (this.tableLoading) return false;
+    if (this.tableLoading) {
+      return false;
+    }
     const { params: retrieveParams } = this.getRetrieveFavoriteData();
     const { params } = this.activeFavorite;
     const additions = params?.addition || [];
@@ -139,7 +143,9 @@ export default class HandleBtn extends tsc<object> {
 
   // 改检索类型
   handleChangeSearchType() {
-    if (this.tableLoading) return;
+    if (this.tableLoading) {
+      return;
+    }
     this.handleUserOperate('isAutoQuery', !this.isAutoQuery);
     localStorage.setItem('logAutoQuery', `${!this.isAutoQuery}`);
   }
@@ -183,7 +189,7 @@ export default class HandleBtn extends tsc<object> {
       is_enable_display_fields: false,
       params: {
         ip_chooser,
-        keyword: Boolean(keyword) ? keyword : '*',
+        keyword: keyword ? keyword : '*',
         addition,
         search_fields: [],
       },
@@ -215,7 +221,9 @@ export default class HandleBtn extends tsc<object> {
         keyword,
         search_fields: searchFilterList,
       };
-      if (!data.search_fields.length) this.handleUserOperate('isSqlSearchType', true);
+      if (!data.search_fields.length) {
+        this.handleUserOperate('isSqlSearchType', true);
+      }
       const res = await $http.request('favorite/updateFavorite', {
         params: { id },
         data,
@@ -235,7 +243,7 @@ export default class HandleBtn extends tsc<object> {
     }
   }
   /** 获取过滤条件中的值 如果是字符串就变成数组 */
-  getAdditionValue(value: Array<string> | string) {
+  getAdditionValue(value: string | string[]) {
     return Array.isArray(value) ? value : value.split(',');
   }
 
@@ -248,7 +256,7 @@ export default class HandleBtn extends tsc<object> {
             <div
               class='loading'
               v-bkloading={{ isLoading: true, theme: 'primary', mode: 'spin' }}
-            ></div>
+            />
           </div>
         ) : (
           <Button
@@ -256,7 +264,7 @@ export default class HandleBtn extends tsc<object> {
             v-bk-tooltips={{ content: this.getSearchType.changeBtnTips }}
             icon={this.getSearchType.icon}
             onClick={this.handleChangeSearchType}
-          ></Button>
+          />
         )}
 
         <Button
@@ -277,14 +285,14 @@ export default class HandleBtn extends tsc<object> {
             onClick={this.handleClickFavorite}
           >
             <span class='favorite-btn-text'>
-              <span class='icon bk-icon icon-star'></span>
+              <span class='icon bk-icon icon-star' />
               <span>{(this.$t('button-收藏') as string).replace('button-', '')}</span>
             </span>
           </Button>
           <span
             class='catching-ball'
             v-show={!this.isFavoriteNewSearch && this.isFavoriteUpdate}
-          ></span>
+          />
           <Button
             ext-cls='favorite-btn'
             v-show={!this.isFavoriteNewSearch}
@@ -296,9 +304,9 @@ export default class HandleBtn extends tsc<object> {
             >
               <span class='favorite-btn-text'>
                 <span
-                  class={['icon', !this.isFavoriteUpdate ? 'bklog-icon bklog-lc-star-shape' : 'bk-icon icon-save']}
-                ></span>
-                <span>{!this.isFavoriteUpdate ? this.$t('已收藏') : this.$t('保存')}</span>
+                  class={['icon', this.isFavoriteUpdate ? 'bk-icon icon-save' : 'bklog-icon bklog-lc-star-shape']}
+                />
+                <span>{this.isFavoriteUpdate ? this.$t('保存') : this.$t('已收藏')}</span>
               </span>
             </span>
           </Button>
@@ -308,8 +316,8 @@ export default class HandleBtn extends tsc<object> {
             class='clear-params-btn'
             onClick={() => this.handleClear()}
           >
-            <Button data-test-id='dataQuery_button_phrasesClear'></Button>
-            <span class='bklog-icon bklog-brush'></span>
+            <Button data-test-id='dataQuery_button_phrasesClear' />
+            <span class='bklog-icon bklog-brush' />
           </div>
         </span>
       </div>

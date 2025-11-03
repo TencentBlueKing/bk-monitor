@@ -31,7 +31,7 @@ export default defineComponent({
   name: 'HeadColumn',
   props: {
     width: {
-      type: [String, Number, undefined],
+      type: [String, Number],
       default: undefined,
     },
     minWidth: {
@@ -45,6 +45,10 @@ export default defineComponent({
     customStyle: {
       type: Object,
       default: () => ({}),
+    },
+    fieldName: {
+      type: String,
+      default: '',
     },
   },
   setup(props, { slots, emit }) {
@@ -73,7 +77,7 @@ export default defineComponent({
       return style;
     });
 
-    let interactjsInstance = null;
+    let interactjsInstance: any = null;
 
     onMounted(() => {
       if (props.resize) {
@@ -148,6 +152,7 @@ export default defineComponent({
         ref={refRoot}
         style={{ ...cellStyle.value, ...props.customStyle }}
         on-click={() => emit('click-column')}
+        data-field-name={props.fieldName}
       >
         {slots.default?.()}
       </th>

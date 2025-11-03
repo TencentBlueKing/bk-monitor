@@ -25,15 +25,16 @@
  */
 
 import { computed, defineComponent, nextTick, ref } from 'vue';
-import { bkMessage } from 'bk-magic-vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { bkMessage } from 'bk-magic-vue';
+
+import { parseTableRowData } from '../../../common/util';
+import { GradeFieldValueType, type GradeSetting } from '../../../views/retrieve-core/interface';
 import $http from '@/api';
 
 import './grade-option.scss';
-import { GradeFieldValueType, GradeSetting } from '../../../views/retrieve-core/interface';
-import { parseTableRowData } from '../../../common/util';
 
 const getDefaultGradeOption = () => {
   return {
@@ -136,7 +137,7 @@ export default defineComponent({
     const gradeOptionField = computed(() => fieldList.value.find(f => f.field_name === gradeOptionForm.value.field));
     const fieldSearchValueList = computed(() => {
       if (gradeOptionForm.value.valueType === GradeFieldValueType.VALUE && gradeOptionForm.value.field) {
-        const storedValues = gradeOptionForm.value.settings.map(item => item.fieldValue ?? []).flat();
+        const storedValues = gradeOptionForm.value.settings.flatMap(item => item.fieldValue ?? []);
         return Array.from(
           new Set([
             ...store.state.indexSetQueryResult.list.map(item =>
@@ -197,7 +198,7 @@ export default defineComponent({
     };
 
     const handleTypeChange = type => {
-      const target = Object.assign({}, gradeOptionForm.value, { type });
+      const target = { ...gradeOptionForm.value, type };
       if (type === 'normal') {
         target.settings = getDefaultGradeOption().settings;
       }
@@ -233,23 +234,23 @@ export default defineComponent({
           return (
             <bk-tag-input
               style='width: 100%;'
-              value={item.fieldValue}
-              searchable
-              trigger='focus'
-              multiple
-              allow-create
-              clearable
-              list={fieldSearchValueList.value}
-              onChange={v => handleSettingItemChange(index, 'fieldValue', v)}
               tpl={data => (
                 <div
-                  class='bklog-popover-stop'
                   style='line-height: 30px; padding: 0 12px; width: 100%;'
+                  class='bklog-popover-stop'
                 >
                   {data.name}
                 </div>
               )}
-            ></bk-tag-input>
+              list={fieldSearchValueList.value}
+              trigger='focus'
+              value={item.fieldValue}
+              allow-create
+              clearable
+              multiple
+              searchable
+              onChange={v => handleSettingItemChange(index, 'fieldValue', v)}
+            />
           );
         }
 
@@ -257,7 +258,7 @@ export default defineComponent({
           <bk-input
             value={item.regExp}
             on-change={v => handleSettingItemChange(index, 'regExp', v)}
-          ></bk-input>
+          />
         );
       }
 
@@ -274,8 +275,8 @@ export default defineComponent({
               theme='primary'
               value={!gradeOptionForm.value.disabled}
               on-change={v => handleGradeOptionFormChange('disabled', !v)}
-            ></bk-switcher>
-            <span class='bklog-icon bklog-info-fill'></span>
+            />
+            <span class='bklog-icon bklog-info-fill' />
             <span>{$t('指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段')}</span>
           </div>
         </div>
@@ -284,10 +285,10 @@ export default defineComponent({
           <div class='grade-field-setting'>
             <bk-select
               style='width: 240px'
-              value={gradeOptionForm.value.type}
-              ext-popover-cls='bklog-popover-stop'
-              searchable
               disabled={gradeOptionForm.value.disabled}
+              ext-popover-cls='bklog-popover-stop'
+              value={gradeOptionForm.value.type}
+              searchable
               on-change={handleTypeChange}
             >
               {gradeCategory.value.map(option => (
@@ -295,25 +296,25 @@ export default defineComponent({
                   id={option.id}
                   key={option.id}
                   name={option.name}
-                ></bk-option>
+                />
               ))}
             </bk-select>
             {gradeOptionForm.value.type === 'custom' && (
               <bk-select
                 style='width: 366px; margin-left: 10px'
+                disabled={gradeOptionForm.value.disabled}
                 ext-popover-cls='bklog-popover-stop'
+                placeholder={$t('请选择字段')}
                 value={gradeOptionForm.value.field}
                 searchable
-                disabled={gradeOptionForm.value.disabled}
                 on-change={val => handleSettingFieldChange(val)}
-                placeholder={$t('请选择字段')}
               >
                 {fieldList.value.map(option => (
                   <bk-option
                     id={option.field_name}
                     key={option.field_name}
                     name={`${option.field_name}(${option.field_alias || option.field_name})`}
-                  ></bk-option>
+                  />
                 ))}
               </bk-select>
             )}
@@ -344,15 +345,15 @@ export default defineComponent({
                   onChange={v => handleGradeOptionFormChange('valueType', v)}
                 >
                   <bk-radio
-                    value={GradeFieldValueType.VALUE}
                     disabled={gradeOptionForm.value.disabled || gradeOptionForm.value.type === 'normal'}
+                    value={GradeFieldValueType.VALUE}
                   >
                     {$t('快速选择')}
                   </bk-radio>
                   <bk-radio
-                    value={GradeFieldValueType.REGEXP}
                     style='margin-left: 14px;'
                     disabled={gradeOptionForm.value.disabled || gradeOptionForm.value.type === 'normal'}
+                    value={GradeFieldValueType.REGEXP}
                   >
                     {$t('正则表达式')}
                   </bk-radio>
@@ -368,14 +369,14 @@ export default defineComponent({
             <div class='grade-table-body'>
               {gradeOptionForm.value.settings.map((item, index) => (
                 <div
-                  class={['grade-table-row', { readonly: item.id === 'others' }]}
                   key={item.id}
+                  class={['grade-table-row', { readonly: item.id === 'others' }]}
                 >
                   <div
                     style='width: 46px'
                     class='grade-table-col col-color'
                   >
-                    <span style={{ width: '16px', height: '16px', background: item.color, borderRadius: '1px' }}></span>
+                    <span style={{ width: '16px', height: '16px', background: item.color, borderRadius: '1px' }} />
                   </div>
                   <div
                     style='width: 240px'
@@ -387,7 +388,7 @@ export default defineComponent({
                       <bk-input
                         value={item.name}
                         on-change={v => handleSettingItemChange(index, 'name', v)}
-                      ></bk-input>
+                      />
                     ) : (
                       item.name
                     )}
@@ -400,16 +401,16 @@ export default defineComponent({
                   </div>
                   {item.id !== 'others' && (
                     <div
-                      class='grade-table-col'
                       style='width: 60px'
+                      class='grade-table-col'
                     >
                       <bk-switcher
-                        value={item.enable}
-                        theme='primary'
-                        size='small'
                         disabled={gradeOptionForm.value.disabled}
+                        size='small'
+                        theme='primary'
+                        value={item.enable}
                         on-change={v => handleSettingItemChange(index, 'enable', v)}
-                      ></bk-switcher>
+                      />
                     </div>
                   )}
                 </div>

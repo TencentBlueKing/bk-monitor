@@ -25,9 +25,11 @@
  */
 
 import { defineComponent, ref, onMounted } from 'vue';
-import useLocale from '@/hooks/use-locale';
-import http from '@/api';
+
 import { formatFileSize } from '@/common/util';
+import useLocale from '@/hooks/use-locale';
+
+import http from '@/api';
 
 import './state-table.scss';
 
@@ -99,7 +101,7 @@ export default defineComponent({
 
     // 加载更多数据
     const loadMore = async () => {
-      curPage.value = curPage.value + 1;
+      curPage.value += 1;
       await requestData();
     };
 
@@ -143,41 +145,41 @@ export default defineComponent({
               label={t('索引名')}
               min-width='300'
               renderHeader={renderHeader}
-              scopedSlots={{ default: (props: any) => props.row.index_name }}
+              scopedSlots={{ default: (newProps: any) => newProps.row.index_name }}
             />
             <bk-table-column
               label={t('数据起止时间')}
               min-width='200'
               renderHeader={renderHeader}
-              scopedSlots={{ default: (props: any) => `${props.row.start_time} - ${props.row.end_time}` }}
+              scopedSlots={{ default: (newProps: any) => `${newProps.row.start_time} - ${newProps.row.end_time}` }}
             />
             <bk-table-column
               label={t('剩余')}
               renderHeader={renderHeader}
-              scopedSlots={{ default: (props: any) => props.row.expired_time }}
+              scopedSlots={{ default: (newProps: any) => newProps.row.expired_time }}
             />
             <bk-table-column
               label={t('大小')}
               renderHeader={renderHeader}
-              scopedSlots={{ default: (props: any) => getFileSize(props.row.store_size) }}
+              scopedSlots={{ default: (newProps: any) => getFileSize(newProps.row.store_size) }}
             />
             <bk-table-column
-              label={t('归档状态')}
-              renderHeader={renderHeader}
               scopedSlots={{
-                default: (props: any) => (
+                default: (newProps: any) => (
                   <div class='restore-status'>
-                    <span class={`status-icon is-${props.row.state}`}></span>
-                    <span class='status-text'>{stateMap[props.row.state]}</span>
+                    <span class={`status-icon is-${newProps.row.state}`} />
+                    <span class='status-text'>{stateMap[newProps.row.state]}</span>
                   </div>
                 ),
               }}
+              label={t('归档状态')}
+              renderHeader={renderHeader}
             />
             <bk-table-column
               width='200'
               label={t('是否已回溯')}
               renderHeader={renderHeader}
-              scopedSlots={{ default: (props: any) => (props.row.is_stored ? t('是') : t('否')) }}
+              scopedSlots={{ default: (newProps: any) => (newProps.row.is_stored ? t('是') : t('否')) }}
             />
           </bk-table>
           {dataList.value.length > 0 && (
@@ -185,7 +187,7 @@ export default defineComponent({
               style='height: 40px'
               v-bkloading={{ isLoading: true }}
               v-show={!isPageOver.value}
-            ></div>
+            />
           )}
         </section>
       </section>

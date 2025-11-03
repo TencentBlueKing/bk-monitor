@@ -239,8 +239,9 @@
 
 
 .node-message-tooltip {
+  transform: translateY(var(--offset, 0));
   .node-detail-tips {
-    position: relative;z-index: 999;
+    z-index: 999;
     border: 1px solid #454547 !important;
     border-radius: 2px !important;
     box-shadow: 0 2px 6px 0 #00000080 !important;

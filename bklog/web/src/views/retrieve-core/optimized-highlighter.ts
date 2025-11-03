@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Ref } from 'vue';
-
 import Mark from 'mark.js';
 
 import { getTargetElement } from '../../hooks/hooks-helper';
 import StaticUtil from './static.util';
+
+import type { Ref } from 'vue';
 // types.ts
 export type ChunkStrategy = 'auto' | 'custom' | 'fixed';
 export type ObserverPriority = 'order' | 'visible-first';
@@ -182,31 +182,31 @@ export default class OptimizedHighlighter {
       chunk.isIntersecting = false;
     }
   }
-
-  public async highlight(keywords: KeywordItem[], reset = true, afterMarkFn?: () => void): Promise<void> {
+  public highlight(keywords: KeywordItem[], reset = true, afterMarkFn?: () => void): Promise<void> {
     this.afterMarkFn = afterMarkFn;
     if (reset) {
       this.resetState();
       if (keywords.length === 0) {
-        return;
+        return Promise.resolve();
       }
       this.currentKeywords = keywords;
     }
 
     if (this.currentKeywords.length === 0) {
-      return;
+      return Promise.resolve();
     }
 
     this.markKeywords = this.currentKeywords.map(item => item.text);
     this.prepareSections();
     this.observeSections();
-    this.sections.forEach(element => {
+    for (const element of this.sections) {
       const chunk = this.chunkMap.get(element);
       if (chunk && !chunk.highlighted && chunk.isIntersecting) {
         this.instanceExecMark(chunk.instance);
         this.afterMarkFn?.();
       }
-    });
+    }
+    return Promise.resolve();
   }
 
   /**
@@ -264,11 +264,11 @@ export default class OptimizedHighlighter {
 
   private prepareSections(): void {
     const children = Array.from(this.rootElement()?.children || []) as HTMLElement[];
-    children.forEach(el => {
+    for (const el of children) {
       if (!this.sections.includes(el)) {
         this.sections.push(el);
       }
-    });
+    }
   }
 
   private observeSections(): void {
@@ -281,22 +281,26 @@ export default class OptimizedHighlighter {
   }
 
   private onIntersect(entries: IntersectionObserverEntry[]): void {
-    entries.forEach(entry => {
+    for (const entry of entries) {
       const wrapper = entry.target as HTMLElement;
-      const chunkId = parseInt(wrapper.dataset.chunkId);
+      const chunkId = Number.parseInt(wrapper.dataset.chunkId, 10);
 
-      if (chunkId === -1) return;
+      if (chunkId === -1) {
+        continue;
+      }
 
       if (entry.isIntersecting) {
         this.addToQueue(wrapper);
-        if (!this.isProcessing) this.processQueue();
+        if (!this.isProcessing) {
+          this.processQueue();
+        }
       }
 
       const chunk = this.chunkMap.get(wrapper);
       if (chunk) {
         chunk.isIntersecting = entry.isIntersecting;
       }
-    });
+    }
   }
 
   private addToQueue(target: HTMLElement): void {
@@ -311,15 +315,19 @@ export default class OptimizedHighlighter {
     this.isProcessing = true;
 
     while (this.pendingQueue.length > 0) {
-      const element = this.pendingQueue.shift()!;
-      if (this.chunkMap.get(element)?.highlighted) continue;
+      const element = this.pendingQueue.shift();
+      if (element) {
+        if (this.chunkMap.get(element)?.highlighted) {
+          continue;
+        }
 
-      if (!this.chunkMap.get(element)?.instance) {
-        const instance = this.initMarkInsntance(element);
-        this.chunkMap.set(element, { instance, highlighted: true, isIntersecting: true });
+        if (!this.chunkMap.get(element)?.instance) {
+          const instance = this.initMarkInsntance(element);
+          this.chunkMap.set(element, { instance, highlighted: true, isIntersecting: true });
+        }
+
+        await this.highlightChunk(element, this.chunkMap.get(element).instance);
       }
-
-      await this.highlightChunk(element, this.chunkMap.get(element).instance);
     }
 
     this.isProcessing = false;
@@ -327,7 +335,10 @@ export default class OptimizedHighlighter {
 
   private instanceExecMark(instance: Mark, resolve?: () => void): void {
     if (this.regExpMark) {
-      const regList = this.markKeywords.map(keyword => StaticUtil.getRegExp(keyword, this.caseSensitive ? 'g' : 'gi'));
+      const flag = this.caseSensitive ? 'g' : 'gi';
+      const fullMatch = this.accuracy === 'exactly';
+      const formatRegStr = false;
+      const regList = this.markKeywords.map(keyword => StaticUtil.getRegExp(keyword, flag, fullMatch, formatRegStr));
       instance.markRegExp(regList[0], {
         element: 'mark',
         exclude: ['mark'],
@@ -365,8 +376,10 @@ export default class OptimizedHighlighter {
     });
   }
 
-  private async highlightChunk(element: HTMLElement, instance: Mark): Promise<void> {
-    if (!element) return;
+  private highlightChunk(element: HTMLElement, instance: Mark): Promise<void> {
+    if (!element) {
+      return Promise.resolve();
+    }
 
     return new Promise(resolve => {
       this.instanceExecMark(instance, resolve);
@@ -385,12 +398,15 @@ export default class OptimizedHighlighter {
   }
 
   private unmarkChunks(): void {
-    this.sections.forEach(chunk => {
+    for (const chunk of this.sections) {
       if (this.chunkMap.has(chunk)) {
-        const { instance } = this.chunkMap.get(chunk)!;
-        instance.unmark();
-        this.chunkMap.get(chunk).highlighted = false;
+        const chunkInfo = this.chunkMap.get(chunk);
+        if (chunkInfo) {
+          const { instance } = chunkInfo;
+          instance.unmark();
+          this.chunkMap.get(chunk).highlighted = false;
+        }
       }
-    });
+    }
   }
 }

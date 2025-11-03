@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -22,6 +22,7 @@ from tenacity import RetryError
 
 from alarm_backends.service.scheduler.app import app
 from constants.common import DEFAULT_TENANT_ID
+from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
 from metadata.models import BkBaseResultTable, DataSource
@@ -1012,9 +1013,6 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
             return
         storage_cluster_name = cluster_info.cluster_name
 
-    space_ins = models.Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id=bk_biz_id)
-    bk_tenant_id = space_ins.bk_tenant_id
-
     # source -- 数据渠道 sys / dbm / devx / perforce
     source = BASEREPORT_SOURCE_SYSTEM
 
@@ -1038,7 +1036,7 @@ def create_basereport_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         )
         data_source = models.DataSource.create_data_source(
             data_name=data_name,
-            bk_tenant_id=space_ins.bk_tenant_id,
+            bk_tenant_id=bk_tenant_id,
             etl_config=EtlConfigs.BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG.value,
             operator="system",
             source_label="bk_monitor",
@@ -1259,8 +1257,6 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
         storage_cluster_name = default_es_cluster.cluster_name
         storage_cluster_id = default_es_cluster.cluster_id
 
-    space_ins = models.Space.objects.get(space_type_id=SpaceTypes.BKCC.value, space_id=bk_biz_id)
-    bk_tenant_id = space_ins.bk_tenant_id
     space_uid = f"{SpaceTypes.BKCC.value}__{bk_biz_id}"
 
     data_name = f"base_{bk_biz_id}_agent_event"
@@ -1491,6 +1487,133 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
     logger.info(
         "create_base_event_datalink_for_bkcc: create base event datalink for bk_biz_id->[%s] success", bk_biz_id
     )
+
+
+def _get_bk_biz_internal_data_ids(bk_tenant_id: str, bk_biz_id: int) -> list[dict[str, int | str]]:
+    """
+    获取业务内置数据ID
+    """
+    result: list[dict[str, int | str]] = []
+
+    # 系统指标
+    system_metric_data_source = DataSource.objects.filter(data_name=f"{bk_tenant_id}_{bk_biz_id}_sys_base").first()
+    if system_metric_data_source:
+        result.append({"task": "basereport", "dataid": system_metric_data_source.bk_data_id})
+
+    # 系统事件
+    system_event_data_source = DataSource.objects.filter(data_name=f"base_{bk_biz_id}_agent_event").first()
+    if system_event_data_source:
+        result.append({"task": "exceptionbeat", "dataid": system_event_data_source.bk_data_id})
+
+    # 系统进程
+    system_proc_data_source = DataSource.objects.filter(
+        data_name=SYSTEM_PROC_DATA_LINK_CONFIGS["perf"]["data_name_tpl"].format(bk_biz_id=bk_biz_id)
+    ).first()
+    if system_proc_data_source:
+        result.append({"task": "processbeat_perf", "dataid": system_proc_data_source.bk_data_id})
+
+    system_proc_port_data_source = DataSource.objects.filter(
+        data_name=SYSTEM_PROC_DATA_LINK_CONFIGS["port"]["data_name_tpl"].format(bk_biz_id=bk_biz_id)
+    ).first()
+    if system_proc_port_data_source:
+        result.append({"task": "processbeat_port", "dataid": system_proc_port_data_source.bk_data_id})
+
+    return result
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def process_gse_slot_message(message_id: str, bk_agent_id: str, content: str, received_at: str):
+    """
+    Celery异步任务--处理GSE投递的数据
+
+    {
+        # type 格式为 "动作名称"/"影响范围"/"操作内容"
+        "type": "fetch/host/dataid", # 请求类型，暂时只有一种，后续可能扩展
+        "cloudid": 0, # 发起请求的采集器主机 cloudid
+        "bk_agent_id": "02000000005254003dd2ea1700473962076n", # 发起请求的采集器主机 agentid
+        "ip": "127.0.0.1", # 发起请求的采集器主机 ip
+        "bk_tenant_id" : "my-tenant_id", # 采集器读到的 CMDB 下发的文件中的租户 ID
+        "params": "..." # 请求参数，不同的 type 对应着不同的参数
+    }
+
+    type: fetch/host/dataid
+    {
+        # metadata 可以内置这批 tasks 的数据格式以及元信息等，编写成一个独立的任务。
+        "tasks": [
+            "basereport", # 原 1001 dataid
+            "processbeat_perf", # 原 1007 dataid
+            "processbeat_port", # 原 1013 dataid
+            "global_heartbeat", # 原 1100001 dataid
+            "gather_up_beat",  # 原 1100017 dataid
+            "timesync", # 原 1100030 dataid
+            "dmesg", # 原 1100031 dataid
+            "exceptionbeat", # 原 1000 dataid
+        ]
+    }
+    """
+    from alarm_backends.core.cache.cmdb import HostManager
+
+    try:
+        content_data = json.loads(content)
+    except (ValueError, TypeError):
+        logger.error(
+            "process_gse_slot_message: content is not a valid json, message_id->%s, bk_agent_id->%s, content->%s",
+            message_id,
+            bk_agent_id,
+            content,
+        )
+        return
+
+    # 解析Content，Content内容为采集器与Metadata约定的协议
+    if content_data.get("type") == "fetch/host/dataid":
+        logger.info("process_gse_slot_message: start to fetch host dataid")
+
+        bk_tenant_id = content_data.get("bk_tenant_id")
+
+        if not bk_tenant_id:
+            logger.warning(
+                "process_gse_slot_message: bk_tenant_id is not found,message_id->%s,content->%s",
+                message_id,
+                content,
+            )
+            return
+
+        host = HostManager.get_by_agent_id(bk_tenant_id=bk_tenant_id, bk_agent_id=bk_agent_id)
+        if not host:
+            logger.warning(
+                "process_gse_slot_message: host not found,bk_tenant_id->%s,bk_agent_id->%s",
+                bk_tenant_id,
+                bk_agent_id,
+            )
+            return
+
+        result: list[dict[str, int | str]] = _get_bk_biz_internal_data_ids(
+            bk_tenant_id=bk_tenant_id, bk_biz_id=host.bk_biz_id
+        )
+
+        # 回调GSE接口,告知DataId
+        api.gse.dispatch_message(
+            bk_tenant_id=bk_tenant_id,
+            message_id=message_id,
+            agent_id_list=[bk_agent_id],
+            content=json.dumps({"code": 0, "data": result}),
+        )
+        logger.info(
+            "process_gse_slot_message: callback gse interface,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s,result->%s",
+            message_id,
+            bk_agent_id,
+            content,
+            received_at,
+            result,
+        )
+    else:
+        logger.warning(
+            "process_gse_slot_message: unknown content type,message_id->%s,bk_agent_id->%s,content->%s,received_at->%s",
+            message_id,
+            bk_agent_id,
+            content,
+            received_at,
+        )
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")

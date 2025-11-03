@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -29,6 +29,7 @@ from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSIO
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR
 from metadata.models.space.constants import (
     LOG_EVENT_ETL_CONFIGS,
     SPACE_UID_HYPHEN,
@@ -292,11 +293,14 @@ class DataSource(models.Model):
 
             real_table_id_list = list(real_table_ids.keys())
 
-            # TODO: 多租户 需要适配多租户查询RTField和Option
             # 批量获取结果表级别选项
-            table_id_option_dict = ResultTableOption.batch_result_table_option(real_table_id_list)
+            table_id_option_dict = ResultTableOption.batch_result_table_option(
+                real_table_id_list, bk_tenant_id=self.bk_tenant_id
+            )
             # 获取字段信息
-            table_field_dict = ResultTableField.batch_get_fields(real_table_id_list, is_consul_config)
+            table_field_dict = ResultTableField.batch_get_fields(
+                real_table_id_list, is_consul_config, bk_tenant_id=self.bk_tenant_id
+            )
             # 判断需要未删除，而且在启用状态的结果表
             for rt, rt_info in real_table_ids.items():
                 result_table_info_list.append(
@@ -363,8 +367,13 @@ class DataSource(models.Model):
         from metadata.models.data_link.constants import DataLinkResourceStatus
         from metadata.models.data_link.service import apply_data_id_v2, get_data_id_v2
 
+        # 根据数据类型确定命名空间
+        namespace = BKBASE_NAMESPACE_BK_LOG if event_type == "log" else BKBASE_NAMESPACE_BK_MONITOR
+
         try:
-            apply_data_id_v2(data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base, event_type=event_type)
+            apply_data_id_v2(
+                data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base, event_type=event_type, namespace=namespace
+            )
             # 写入记录
         except BKAPIError as e:
             logger.error("apply data id from bkdata error: %s", e)
@@ -374,7 +383,7 @@ class DataSource(models.Model):
             # 等待 3s 后查询一次，减少请求次数
             time.sleep(3)
             try:
-                data = get_data_id_v2(data_name=data_name, is_base=is_base, bk_biz_id=bk_biz_id)
+                data = get_data_id_v2(data_name=data_name, is_base=is_base, bk_biz_id=bk_biz_id, namespace=namespace)
             except BKAPIError as e:
                 logger.error("get data id from bkdata error: %s", e)
                 continue

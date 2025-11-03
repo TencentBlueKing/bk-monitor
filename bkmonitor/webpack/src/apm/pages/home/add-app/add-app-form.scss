@@ -50,7 +50,8 @@
         align-items: center;
         width: 100%;
         min-height: 56px;
-        padding: 8px 0 4px 0;
+        max-height: 68px;
+        padding: 0 12px 0 8px;
         margin-bottom: 10px;
         background: #fafbfd;
         border: 1px solid #dcdee5;
@@ -60,14 +61,22 @@
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 40px;
-          height: 40px;
-          margin: 8px;
+          margin: 8px 0;
+          width: 52px;
+          height: 52px;
           background: #e1ecff;
           border-radius: 2px;
+          transition: all .3s;
+
+          &.is-disabled {
+            background: #fff;
+            .icon-monitor {
+              color: #979ba5;
+            }  
+          }
   
           .icon-monitor {
-            font-size: 18px;
+            font-size: 32px;
             color: #699df4;
   
             &:not(:first-child) {
@@ -75,15 +84,13 @@
             }
           }
   
-          .icon-tiaoyonglian {
-            font-size: 24px;
-          }
         }
   
         .report-middle-content {
           display: flex;
           flex: 1;
           flex-direction: column;
+          margin-left: 8px;
   
           .middle-content-title {
             font-size: 12px;

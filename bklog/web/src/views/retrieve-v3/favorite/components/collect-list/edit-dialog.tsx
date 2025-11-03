@@ -29,7 +29,7 @@ import { computed, defineComponent, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
-import { useFavorite } from '../../hooks/useFavorite';
+import { useFavorite } from '../../hooks/use-favorite';
 import { IFavoriteItem, IGroupItem } from '../../types';
 import { getGroupNameRules } from '../../utils';
 import AddGroup from './add-group';

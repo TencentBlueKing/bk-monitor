@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
  *
@@ -27,7 +27,7 @@ import { defineComponent } from 'vue';
 
 import { Message, Popover } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
-import { AI_BLUEKING_SHORTCUTS_ID } from 'monitor-pc/components/ai-whale/types';
+import { AI_BLUEKING_SHORTCUTS_ID, getAIBluekingShortcutTips } from 'monitor-pc/components/ai-whale/types';
 // import { AI_BLUEKING_SHORTCUTS_ID } from 'monitor-pc/components/ai-whale/types';
 import { useI18n } from 'vue-i18n';
 
@@ -134,6 +134,7 @@ export default defineComponent({
               bk_biz_id: (window.bk_biz_id || window.cc_biz_id) as string,
             }}
             shortcutId={AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS}
+            tips={getAIBluekingShortcutTips(AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS)}
           />
         </div>
 

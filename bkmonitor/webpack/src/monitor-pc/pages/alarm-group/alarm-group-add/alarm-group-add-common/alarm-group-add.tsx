@@ -4,7 +4,7 @@ import type { VNode } from 'vue';
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -103,7 +103,7 @@ Component.registerHooks(['beforeRouteEnter']);
 // 群提醒人 需要有一个默认值
 const mentListDefaultItem = {
   id: 'all',
-  name: window.i18n.t('内部通知人'),
+  name: window.i18n.t('告警接收人'),
   logo: '',
   type: 'group',
   members: [],
@@ -177,7 +177,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   bizIdLIst = [];
   channels: string[] = ['user'];
   alertTypeList = [
-    { id: 'user', name: this.$t('内部通知对象'), selected: true, icon: 'icon-mc-internal-user', show: true },
+    { id: 'user', name: this.$t('默认通知渠道'), selected: true, icon: 'icon-mc-internal-user', show: true },
     { id: 'wxwork-bot', name: this.$t('群机器人'), selected: false, icon: 'icon-mc-robot', show: true },
     { id: 'bkchat', name: this.$t('蓝鲸信息流'), selected: false, icon: 'icon-inform-circle', show: true },
   ];
@@ -483,7 +483,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     for (const id of this.selectedMentionList) {
       const isGroup = groupMap.has(id);
       let type = isGroup ? 'group' : 'user';
-      // 特殊处理 内部通知人 的情况
+      // 特殊处理 告警接收人 的情况
       if (id === 'all') type = 'group';
       result.push({
         id,

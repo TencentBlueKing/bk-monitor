@@ -3,7 +3,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -420,6 +420,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             id: '',
             name: '',
           },
+          bkHostId: null,
         },
       ],
       ids: [],
@@ -1867,6 +1868,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               id: detail.strategy_id,
               name: detail.strategy_name,
             },
+            bkHostId: detail.bk_host_id,
           });
         }
         this.dialog.quickShield.details = details;
@@ -1948,6 +1950,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           id: v?.strategy_id as unknown as string,
           name: v?.strategy_name,
         },
+        bkHostId: v.bk_host_id,
       },
     ];
     // EventModuleStore.setDimensionList(v.dimensions || []);
@@ -2434,6 +2437,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   renderList() {
     return this.searchType === 'incident' ? (
       <IncidentTable
+        key='incident-table'
         bizIds={this.bizIds}
         doLayout={this.activePanel}
         loading={this.tableLoading}
@@ -2455,6 +2459,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
       />
     ) : (
       <EventTable
+        key='event-table'
         bizIds={this.bizIds}
         doLayout={this.activePanel}
         loading={this.tableLoading}

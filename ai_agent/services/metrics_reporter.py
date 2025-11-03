@@ -332,7 +332,6 @@ class EnhancedStreamingResponseWrapper:
                 if first_chunk:
                     self.metrics_tracker.on_first_chunk()
                     first_chunk = False
-
                 self.metrics_tracker.on_chunk_yield(chunk)
                 yield chunk
 

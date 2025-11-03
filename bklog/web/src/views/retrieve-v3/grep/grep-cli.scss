@@ -1,61 +1,61 @@
 .grep-cli-container {
-  width: 100%;
-  box-shadow: 0 2px 4px 0 #19192914;
-  border-radius: 2px;
+  position: sticky;
+  top: var(--top-searchbar-height);
+  right: 0;
+  left: 0;
+  z-index: 1;
   display: flex;
   align-items: stretch;
   justify-content: space-between;
+  width: 100%;
   // margin-bottom: 8px;
   min-height: 40px;
   background: #ffffff;
-  box-shadow: 0 2px 4px 0 #19192914;
-  position: sticky;
-  top: var(--top-searchbar-height);
-  left: 0;
-  right: 0;
-  z-index: 1;
   background: #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px 0 #19192914;
+  box-shadow: 0 2px 4px 0 #19192914;
 }
 
 .grep-cli-left {
+  // margin-right: 4px;
+  position: relative;
   display: flex;
   align-items: start;
   width: calc(100% - 370px);
-  border-radius: 2px;
-  min-height: 40px;
   height: 100%;
-  // margin-right: 4px;
-  position: relative;
+  min-height: 40px;
   background-color: rgba(255, 232, 195, 0.4);
+  border-radius: 2px;
 
   &::after {
     position: absolute;
-    content: '';
-    width: 4px;
     top: 0;
     right: 0;
     bottom: 0;
+    width: 4px;
+    content: '';
     background: #f5f7fa;
     transform: translateX(100%);
   }
 
   .grep-cli-label {
     min-width: 42px;
+    padding-top: 12px;
+    padding-left: 6px;
     // margin-right: 8px;
     font-size: 12px;
     color: #979ba5;
-    padding-top: 12px;
-    padding-left: 6px;
   }
 
   .grep-cli-editor {
-    padding-top: 6px;
-    border-left: solid 1px #eaebf0;
-    max-width: calc(100% - 128px);
     width: 100%;
-    min-height: 40px;
+    max-width: calc(100% - 128px);
     height: 100%;
+    min-height: 40px;
+    padding-top: 6px;
     background-color: #fff;
+    border-left: solid 1px #eaebf0;
   }
 }
 
@@ -63,31 +63,32 @@
 .grep-cli-right {
   display: flex;
   align-items: center;
-  padding: 0 6px;
-  min-height: 40px;
   height: 100%;
+  min-height: 40px;
+  padding: 0 6px;
 }
 
 .grep-cli-right {
-  width: 366px;
-  border-radius: 2px;
-  padding: 4px 8px;
   flex-direction: row;
-  align-items: center;
-  margin-left: 4px;
-  justify-content: space-between;
   gap: 12px;
-  height: 100%;
+  align-items: center;
   align-self: stretch;
+  justify-content: space-between;
+  width: 366px;
+  height: 100%;
+  padding: 4px 8px;
+  margin-left: 4px;
+  border-radius: 2px;
 }
 
 .grep-cli-select {
-  margin-right: 4px;
   margin-top: 8px;
+  margin-right: 4px;
 
   .bk-select-name {
     padding-left: 0;
   }
+
   &.is-focus {
     box-shadow: none;
   }
@@ -101,8 +102,8 @@
 // 搜索区域样式
 .grep-cli-search-section {
   display: flex;
-  align-items: center;
   gap: 8px;
+  align-items: center;
   width: 100%;
   height: 28px;
   background: #f0f1f5;
@@ -113,49 +114,13 @@
 
     .bk-input-text {
       input {
+        height: 26px;
+        font-size: 12px;
+        line-height: 26px;
         background-color: transparent;
         border-color: #f0f1f5;
         border-radius: 2px;
-        font-size: 12px;
-        height: 26px;
-        line-height: 26px;
       }
-    }
-  }
-
-  .grep-cli-tools {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding-right: 4px;
-  }
-
-  .grep-cli-tool-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    background: #fafbfd;
-    border: 1px solid #dcdee5;
-    border-radius: 2px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 14px;
-    color: #4d4f56;
-
-    &:hover {
-      border-color: #a3c5fd;
-      color: #3a84ff;
-    }
-
-    &.active {
-      width: 22px;
-      height: 22px;
-      background: #f0f5ff;
-      border: 1px solid #a3c5fd;
-      border-radius: 2px;
-      color: #3a84ff;
     }
   }
 }
@@ -163,17 +128,17 @@
 // 结果区域样式
 .grep-cli-result-section {
   display: flex;
-  align-items: center;
   gap: 8px;
+  align-items: center;
 
   .grep-cli-result-text {
-    font-size: 12px;
     min-width: 60px;
+    font-size: 12px;
     text-align: center;
 
     &.success {
-      color: #313238;
       font-weight: 500;
+      color: #313238;
     }
 
     &.no-result {
@@ -187,8 +152,8 @@
 
   .grep-cli-navigation {
     display: flex;
-    align-items: center;
     gap: 2px;
+    align-items: center;
   }
 
   .grep-cli-nav-icon {
@@ -197,18 +162,18 @@
     justify-content: center;
     width: 20px;
     height: 20px;
-    border: 1px solid #dcdee5;
-    border-radius: 2px;
-    cursor: pointer;
-    transition: all 0.2s ease;
     font-size: 12px;
     color: #4d4f56;
-    background: #ffffff;
+    cursor: pointer;
     user-select: none;
+    background: #ffffff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    transition: all 0.2s ease;
 
     &:hover:not(.disabled) {
-      border-color: #3a84ff;
       color: #3a84ff;
+      border-color: #3a84ff;
     }
 
     &:active:not(.disabled) {
@@ -231,56 +196,26 @@
 // 兼容原有样式
 .grep-cli-search-area {
   display: flex;
-  align-items: center;
   gap: 8px;
+  align-items: center;
+  padding: 6px;
   background: #f5f7fa;
   border-radius: 4px;
-  padding: 6px;
 
   .grep-cli-search-input {
     flex: 1;
 
     .bk-input-text {
       input {
+        font-size: 12px;
         background-color: transparent;
         border-color: transparent;
-        font-size: 12px;
 
         &:focus {
-          border-color: #3a84ff;
           background-color: #ffffff;
+          border-color: #3a84ff;
         }
       }
-    }
-  }
-
-  .grep-cli-tools {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .grep-cli-tool-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 14px;
-    color: #63656e;
-    background: transparent;
-
-    &:hover {
-      background-color: #e1ecff;
-      color: #3a84ff;
-    }
-
-    &.active {
-      background-color: #3a84ff;
-      color: #ffffff;
     }
   }
 }
@@ -310,8 +245,8 @@
 
 .grep-cli-ui-tools {
   display: flex;
-  align-items: center;
   gap: 8px;
+  align-items: center;
   background: #f0f1f5;
 
   .bk-input-text {
@@ -323,10 +258,10 @@
 
   .grep-cli-tool-btn {
     padding: 4px 8px;
-    border: none;
-    background: #f0f0f0;
-    border-radius: 2px;
     cursor: pointer;
+    background: #f0f0f0;
+    border: none;
+    border-radius: 2px;
   }
 }
 
@@ -337,11 +272,11 @@
 
 // 添加 mark.js 高亮样式
 :deep(.mark) {
-  background-color: #ffe58f;
   padding: 0 2px;
-  border-radius: 2px;
-  color: #000;
   font-weight: 500;
+  color: #000;
+  background-color: #ffe58f;
+  border-radius: 2px;
 }
 
 :deep(.mark.current) {
@@ -361,8 +296,8 @@
 
 .cli-result-line {
   display: flex;
-  align-items: flex-start;
   gap: 8px;
+  align-items: flex-start;
   padding: 4px 0;
   font-family: monospace;
   font-size: 12px;
@@ -373,8 +308,8 @@
 .cli-result-line-number {
   flex-shrink: 0;
   width: 42px;
-  text-align: right;
   color: #979ba5;
+  text-align: right;
   user-select: none;
 }
 
@@ -386,12 +321,12 @@
 
 .cli-result-line-content {
   display: inline;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-x: auto;
-  overflow-y: auto;
   max-height: 200px;
   padding: 4px 8px;
+  overflow-x: auto;
+  overflow-y: auto;
+  word-break: break-word;
+  white-space: pre-wrap;
   background: #fafbfd;
   border-radius: 2px;
   scroll-behavior: smooth;
@@ -399,20 +334,20 @@
 
 .log-line-item {
   display: inline;
-  white-space: pre-wrap;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .loading-more {
   display: inline-flex;
-  align-items: center;
   gap: 4px;
+  align-items: center;
   padding: 4px 8px;
-  color: #979ba5;
+  margin-left: 8px;
   font-size: 12px;
+  color: #979ba5;
   background: #f0f1f5;
   border-radius: 2px;
-  margin-left: 8px;
 }
 
 .loading-spinner {

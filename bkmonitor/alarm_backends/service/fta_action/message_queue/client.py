@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -50,10 +50,11 @@ class KafKaClient:
             bootstrap = f"{uri_obj.hostname}:{uri_obj.port}"
             producer_conf: dict[str, Any] = {"bootstrap.servers": bootstrap}
         elif isinstance(conf, dict):
-            self.topic = conf.pop("topic", "")
+            self.topic = conf.get("topic", "")
             if not self.topic:
                 raise ValueError(f"kafka config (dict) requires 'topic' config: {conf}")
-            producer_conf = dict(conf)
+            _conf = {k: v for k, v in conf.items() if k != "topic"}
+            producer_conf = dict(_conf)
         else:
             raise ValueError(f"unsupported kafka config type: {conf}")
 

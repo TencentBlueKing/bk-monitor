@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { IGroupNameRules } from '../types';
+import type { IGroupNameRules } from '../types';
 
 /**
  * 验证名称格式
@@ -32,10 +32,12 @@ import { IGroupNameRules } from '../types';
  * @returns 是否通过验证
  */
 export const validateName = (value: string): boolean => {
-  if (!value?.trim()) return false;
+  if (!value?.trim()) {
+    return false;
+  }
 
   const nameRegex =
-    /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,.\/;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：""【】、；''，。、]+$/im;
+    /^[\u4e00-\u9fa5_a-zA-Z0-9`~!@#$%^&*()_\-+=<>?:"\s{}|,./;'\\[\]·~！@#￥%……&*（）——\-+={}|《》？：""【】、；''，。、]+$/im;
   return nameRegex.test(value.trim());
 };
 

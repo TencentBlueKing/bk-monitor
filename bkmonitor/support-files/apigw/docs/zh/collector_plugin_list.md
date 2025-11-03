@@ -3,7 +3,7 @@
 查询插件列表
 
 
-#### 接口参数
+### 请求参数
 
 | 字段       | 类型   | 描述     |
 | ---------- | ------ | -------- |
@@ -16,14 +16,9 @@
 | page       | int    | 页数     |
 | page_size  | int    | 每页数量 |
 
-#### 示例数据
-`query_string`
-
+### 请求参数示例
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "bk_biz_id": 1,
     "search_key": "xxxexporter",
     "search_type": "Script",
@@ -43,13 +38,13 @@
 | message | string | 描述信息     |
 | data    | list   | data数据     |
 
-#### data详情
+#### data 字段说明
 
 | 字段        | 类型 | 描述         |
 | ----------- | ---- | ------------ |
 | count       | dict  | 插件类型数量 |
 | list | list | 插件列表 |
-#### 插件信息
+#### list 字段说明
 
 | 字段        | 类型 | 描述         |
 | ----------- | ---- | ------------ |
@@ -84,7 +79,7 @@
 | second_label       | string  | 插件标签|
 | second_label_name       | string  |插件标签名|
 
-#### 示例数据
+### 请求参数示例
 
 ```json
 {

@@ -25,11 +25,12 @@
  */
 
 import { defineComponent, ref, computed, nextTick } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
 
 export default defineComponent({
   name: 'TextFilter',
-  setup(_, {expose}) {
+  setup(_, { expose }) {
     const { t } = useLocale();
 
     const filterType = ref(''); // 过滤类型
@@ -133,17 +134,17 @@ export default defineComponent({
           <div style='display: flex; align-items: center'>
             <bk-input
               style='width: 300px'
-              value={filterContent.value.keyword}
+              data-test-id='addNewExtraction_input_filterKeyword'
               maxlength={64}
               placeholder={t('多个关键字用英文逗号')}
-              data-test-id='addNewExtraction_input_filterKeyword'
+              value={filterContent.value.keyword}
               onChange={(val: string) => (filterContent.value.keyword = val)}
             />
             <bk-select
               style='width: 70px; margin-right: 10px; background-color: #fff'
-              value={filterContent.value.keyword_type}
               clearable={false}
               data-test-id='addNewExtraction_select_filterCondition'
+              value={filterContent.value.keyword_type}
               onChange={(val: string) => (filterContent.value.keyword_type = val)}
             >
               {keywordTypeList.value.map(option => (
@@ -167,14 +168,14 @@ export default defineComponent({
             >
               <bk-input
                 style='width: 180px; margin: 0 6px'
-                value={filterContent.value.start}
                 maxlength={64}
+                value={filterContent.value.start}
                 onChange={(val: string) => (filterContent.value.start = val)}
               />
               <bk-input
                 style='width: 180px; margin: 0 6px'
-                value={filterContent.value.end}
                 maxlength={64}
+                value={filterContent.value.end}
                 onChange={(val: string) => (filterContent.value.end = val)}
               />
             </i18n>
@@ -188,8 +189,8 @@ export default defineComponent({
               style='width: 120px'
               placeholder={t('请输入整数')}
               precision={0}
-              value={filterContent.value.line_num}
               type='number'
+              value={filterContent.value.line_num}
               onChange={(val: any) => handleChangeNumber('line_num', val)}
             />
           </div>
@@ -206,16 +207,16 @@ export default defineComponent({
                 style='width: 120px; margin: 0 6px'
                 placeholder={t('请输入整数')}
                 precision={0}
-                value={filterContent.value.start_line}
                 type='number'
+                value={filterContent.value.start_line}
                 onChange={(val: any) => handleChangeNumber('start_line', val)}
               />
               <bk-input
                 style='width: 120px; margin: 0 6px'
                 placeholder={t('请输入整数')}
                 precision={0}
-                value={filterContent.value.end_line}
                 type='number'
+                value={filterContent.value.end_line}
                 onChange={(val: any) => handleChangeNumber('end_line', val)}
               />
             </i18n>
@@ -224,4 +225,4 @@ export default defineComponent({
       </div>
     );
   },
-}); 
+});

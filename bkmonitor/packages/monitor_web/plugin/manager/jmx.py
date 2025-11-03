@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -85,8 +85,9 @@ class JMXPluginManager(PluginManager):
             if os.path.basename(str(filename)) == file_name:
                 config_yaml_path = filename
                 break
+
         if not config_yaml_path:
-            raise PluginParseError({"msg": _("无法获取JMX对应的配置文件")})
+            raise PluginParseError({"msg": _(f"无法获取JMX对应的配置文件'{file_name}'")})
 
         content = self._decode_file(self.plugin_configs[config_yaml_path])
         jmx_collector_json = {

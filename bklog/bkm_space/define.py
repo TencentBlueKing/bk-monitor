@@ -36,7 +36,7 @@ class Space:
     bk_biz_id: int
     extend: dict
 
-    bk_tenant_id: str = settings.DEFAULT_TENANT_ID
+    bk_tenant_id: str = settings.BK_APP_TENANT_ID
 
     @classmethod
     def from_dict(cls, data):

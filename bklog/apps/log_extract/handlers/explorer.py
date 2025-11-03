@@ -178,7 +178,7 @@ class ExplorerHandler(object):
                         {
                             "ip": ip_log["ip"],
                             "bk_cloud_id": ip_log["bk_cloud_id"],
-                            "bk_host_id": ip_log["host_id"],
+                            "bk_host_id": ip_log.get("host_id") or ip_log.get("bk_host_id"),
                             "type": "dir" if file_type == "dirname" else "file",
                             "path": file_name,
                             "size": format_size(int(file_size[-1])) if file_type != "dirname" else "0",

@@ -123,7 +123,7 @@
                 width: 100%;
                 height: 100%;
                 text-align: center;
-                content: '*';
+                content: "*";
               }
             }
 
@@ -163,6 +163,39 @@
 
     .value-list {
       padding: 34px 24px 0 20px;
+
+      .content-input-wraper {
+        position: relative;
+
+        .match-list-main {
+          position: absolute;
+          width: 100%;
+          max-height: 150px;
+          min-height: 32px;
+          background: #ffffff;
+          border: 1px solid #c4c6cc;
+          border-radius: 2px;
+          margin-top: 5px;
+          box-shadow: 0 2px 6px 0 #0000001a;
+          overflow-y: auto;
+
+          .match-item {
+            width: 100%;
+            max-width: 312px;
+            height: 32px;
+            color: #63656e;
+            cursor: pointer;
+            padding: 0 8px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+
+            &:hover {
+              background: #f5f7fa;
+            }
+          }
+        }
+      }
     }
   }
   .bottom-main {

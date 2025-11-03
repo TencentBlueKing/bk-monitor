@@ -6,7 +6,7 @@
 
 在开始之前，请确保您已经安装了以下软件：
 * Git
-* Docker
+* Docker 或者其他平替的容器工具。
 
 
 ## 2. 初始化示例 demo
@@ -23,8 +23,6 @@ docker build -t helloworld-java:latest .
 复制以下命令参数在你的终端运行：
 
 ```shell
-# 如果本地该端口已被占用，请替换为其他可用端口
-DEMO_PORT=8080
 docker run -e TOKEN="{{access_config.token}}" \
 -e SERVICE_NAME="{{service_name}}" \
 -e OTLP_ENDPOINT="{{access_config.otlp.http_endpoint}}" \
@@ -32,9 +30,9 @@ docker run -e TOKEN="{{access_config.token}}" \
 -e ENABLE_TRACES="{{access_config.otlp.enable_traces}}" \
 -e ENABLE_METRICS="{{access_config.otlp.enable_metrics}}" \
 -e ENABLE_LOGS="{{access_config.otlp.enable_logs}}" \
--e ENABLE_PROFILING="{{access_config.profiling.enabled}}" \
--p $DEMO_PORT:8080 helloworld-java:latest
+-e ENABLE_PROFILING="{{access_config.profiling.enabled}}" helloworld-java:latest
 ```
+* 样例已设置定时请求以产生监控数据，如需本地访问调试，可增加运行参数 `-p {本地端口}:8080`。
 
 运行参数说明：
 

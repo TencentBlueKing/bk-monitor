@@ -17,7 +17,7 @@
   const spaceUid = computed(() => store.state.spaceUid);
   const indexSetId = computed(() => store.state.indexId);
   const indexSetItem = computed(() =>
-    store.state.retrieve.indexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
+    store.state.retrieve.flatIndexSetList.find(item => item.index_set_id === `${indexSetId.value}`),
   );
   const isPopoverShow = ref(false);
 

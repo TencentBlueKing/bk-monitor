@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -26,12 +26,16 @@
 import { type PropType, defineComponent, watch } from 'vue';
 import { computed, reactive, ref } from 'vue';
 
+import { type DateValue, DateRange } from '@blueking/date-picker/vue3';
 import { Button } from 'bkui-vue';
+import { getUrlHashValue } from 'monitor-common/utils/url';
+import { AI_BLUEKING_SHORTCUTS_ID, getAIBluekingShortcutTips } from 'monitor-pc/components/ai-whale/types';
 import { useI18n } from 'vue-i18n';
 
 import ProfilingGraph from '../../../plugins/charts/profiling-graph/profiling-graph';
 import ComparisonChart from './comparison-chart';
 import TrendChart from './trend-chart';
+import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 
 import type { IQueryParams } from '../../../typings/trace';
 import type { DataTypeItem, DateComparison, RetrievalFormData } from '../typings/profiling-retrieval';
@@ -160,7 +164,24 @@ export default defineComponent({
         diffEnd: Math.floor(comparisonPosition[1]?.[1] / 1000) * 1000000,
       };
     }
-
+    const getAiBluekingFillBackFieldMap = () => {
+      try {
+        const targetData = JSON.parse(decodeURIComponent(getUrlHashValue('target') || '{}'));
+        const dateRange = new DateRange([targetData.start || 'now-5m', targetData.end || 'now'] as DateValue);
+        return {
+          query_params: JSON.stringify({
+            ...graphQueryParams.value,
+            start_time: dateRange.startDate.unix(),
+            end_time: dateRange.endDate.unix(),
+            bk_biz_id: window.bk_biz_id || window.cc_biz_id,
+          }),
+        };
+      } catch {
+        return {
+          query_params: JSON.stringify(graphQueryParams.value),
+        };
+      }
+    };
     return {
       t,
       trendChartData,
@@ -170,6 +191,7 @@ export default defineComponent({
       handleChartData,
       handleBrushEnd,
       handleTrendLoading,
+      getAiBluekingFillBackFieldMap,
     };
   },
   render() {
@@ -218,6 +240,16 @@ export default defineComponent({
               })}
             </Button.ButtonGroup>
           </div>
+          <AiBluekingIcon
+            style={{
+              marginLeft: '16px',
+              display: this.graphQueryParams.is_compared ? 'none' : 'flex',
+            }}
+            shortcutId={AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS}
+            tips={getAIBluekingShortcutTips(AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS)}
+            title={this.t('AI 小鲸帮你分析')}
+            onGetFillBackFieldMap={this.getAiBluekingFillBackFieldMap}
+          />
         </div>
         <TrendChart
           comparisonDate={this.comparisonPosition}

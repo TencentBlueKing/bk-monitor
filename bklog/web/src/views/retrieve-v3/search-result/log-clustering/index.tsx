@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import _ from 'lodash';
 import { computed, defineComponent, ref, nextTick, watch, onMounted, onBeforeUnmount } from 'vue';
 import ClusteringLoader from '@/skeleton/clustering-loader.vue';
 import useStore from '@/hooks/use-store';
@@ -50,14 +49,8 @@ export default defineComponent({
     EmptyCluster,
     LogTable,
   },
-  props: {
-    retrieveParams: {
-      type: Object,
-      required: true,
-    },
-  },
-  setup(props) {
-    let statusTimer = null;
+  setup() {
+    let statusTimer: NodeJS.Timeout | null;
     const loadingWidthList = {
       global: [''],
       notCompared: [150, 90, 90, ''],
@@ -68,13 +61,13 @@ export default defineComponent({
     const route = useRoute();
     const router = useRouter();
 
-    const topOperationRef = ref(null);
-    const logTableRef = ref(null);
-    const stepRef = ref(null);
+    const topOperationRef = ref<any>(null);
+    const logTableRef = ref<any>(null);
+    const stepRef = ref<any>(null);
     const isFieldInit = ref(false);
     const isClusterActive = ref(true);
     const isShowClusterStep = ref(true);
-    const clusterStepData = ref({} as ClusteringConfigStatus);
+    const clusterStepData = ref<ClusteringConfigStatus | null>(null);
     const clusterStepDataLoading = ref(false);
     const isInitPage = ref(true); // 是否是第一次进入数据指纹
     const fingerOperateData = ref({
@@ -87,7 +80,10 @@ export default defineComponent({
       selectGroupList: [], // 选中的字段分组列表
       yearSwitch: false, // 同比开关
       yearOnYearHour: 0, // 同比的值
-      groupList: [], // 所有的字段分组列表
+      groupList: [] as {
+        id: string;
+        name: string;
+      }[], // 所有的字段分组列表
       alarmObj: {}, // 是否需要告警对象
     });
     const requestData = ref({
@@ -123,7 +119,7 @@ export default defineComponent({
     });
 
     watch(isShowClusterStep, () => {
-      store.commit('updateStoreIsShowClusterStep', isShowClusterStep.value);
+      store.commit('updateState', { storeIsShowClusterStep: isShowClusterStep.value });
     });
     const stopPolling = () => {
       // 清除定时器
@@ -135,7 +131,9 @@ export default defineComponent({
 
     const startPolling = (pollingTime = 10000) => {
       stopPolling();
-      statusTimer = setInterval(clusterPolling, pollingTime);
+      statusTimer = setInterval(() => {
+        void clusterPolling();
+      }, pollingTime);
     };
 
     const fieldsChangeQuery = async () => {
@@ -167,7 +165,10 @@ export default defineComponent({
         if (clusterSwitch.value) {
           const params = { index_set_id: indexSetId.value };
           const data = { collector_config_id: collectorConfigId.value };
-          const res = await $http.request('/logClustering/getConfig', { params, data });
+          const res = await $http.request('/logClustering/getConfig', {
+            params,
+            data,
+          });
           return res.data.group_fields;
         }
         return [];
@@ -201,7 +202,7 @@ export default defineComponent({
       };
       // 通过路由返回的值 初始化数据指纹的操作参数 url是否有缓存的值
       if (isInitPage.value && !!clusterParams.value) {
-        const paramData = _.cloneDeep(clusterParams.value);
+        const paramData = structuredClone(clusterParams.value);
         const findIndex = clusterLevel.findIndex(item => item === String(paramData.pattern_level));
         if (findIndex >= 0) patternLevel = findIndex + 1;
         Object.assign(queryRequestData, paramData, {
@@ -224,14 +225,16 @@ export default defineComponent({
       if (groupFields?.length) {
         const selectGroupList = fingerOperateData.value.selectGroupList.filter(item => !groupFields.includes(item));
         // 如果初始化时有默认维度的字段 将维度和分组分开来处理
-        Object.assign(queryRequestData, { group_by: [...groupFields, ...selectGroupList] });
+        Object.assign(queryRequestData, {
+          group_by: [...groupFields, ...selectGroupList],
+        });
         Object.assign(fingerOperateData.value, {
           dimensionList: groupFields,
           selectGroupList,
         });
       }
       Object.assign(requestData.value, queryRequestData);
-      store.commit('updateClusterParams', requestData.value);
+      store.commit('updateState', { clusterParams: requestData.value });
       setRouteParams();
       isInitPage.value = false;
     };
@@ -251,7 +254,7 @@ export default defineComponent({
         case 'requestData': // 数据指纹的请求参数
           Object.assign(requestData.value, val);
           // 数据指纹对请求参数修改过的操作将数据回填到url上
-          store.commit('updateClusterParams', requestData.value);
+          store.commit('updateState', { clusterParams: requestData.value });
           setRouteParams();
           break;
         case 'fingerOperateData': // 数据指纹操作的参数
@@ -350,24 +353,22 @@ export default defineComponent({
       },
     );
 
-    onMounted(async () => {
+    onMounted(() => {
       if (!isClusterActive.value) {
         isClusterActive.value = true;
-        await confirmClusterStepStatus();
-        // if (isClickSearch.value && !isInitPage.value) {
-        //   requestFinger();
-        // }
-        if (!isInitPage.value) {
-          store.commit('updateClusterParams', requestData.value);
-          setRouteParams();
-        }
+        confirmClusterStepStatus().then(() => {
+          if (!isInitPage.value) {
+            store.commit('updateState', { clusterParams: requestData.value });
+            setRouteParams();
+          }
+        });
       }
     });
 
     onBeforeUnmount(() => {
       if (isClusterActive.value) {
         isClusterActive.value = false;
-        store.commit('updateClusterParams', null);
+        store.commit('updateState', { clusterParams: null });
         setRouteParams();
         stopPolling(); // 停止状态轮询
       }
@@ -411,10 +412,9 @@ export default defineComponent({
                 } else if (!clusterSwitch.value) {
                   // 快速开启日志聚类
                   return (
-                    <quick-open-cluster
+                    <QuickOpenCluster
                       indexSetId={indexSetId.value}
-                      retrieve-params={props.retrieveParams}
-                      total-fields={totalFields.value}
+                      totalFields={totalFields.value}
                       on-create-cluster={handleClusterCreate}
                     />
                   );
@@ -426,10 +426,7 @@ export default defineComponent({
                       isShowClusterStep={isShowClusterStep.value}
                       cluster-switch={clusterSwitch.value}
                       is-cluster-active={isClusterActive.value}
-                      finger-operate-data={fingerOperateData.value}
                       request-data={requestData.value}
-                      total-fields={totalFields.value}
-                      retrieveParams={props.retrieveParams}
                       on-open-cluster-config={handleOpenClusterConfig}
                     />
                   );

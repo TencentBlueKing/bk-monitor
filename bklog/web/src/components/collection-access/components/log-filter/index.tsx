@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
 /*
  * Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -24,20 +23,20 @@
 import { Component, Prop, Emit, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { Form } from 'bk-magic-vue';
-
 import $http from '../../../../api';
 import { Debounce } from '../../../../common/util';
 import {
-  btnType,
-  ISelectItem,
-  ITableRowItem,
+  type btnType,
+  type ISelectItem,
+  type ITableRowItem,
   operatorSelectList,
   btnGroupList,
   operatorMapping,
   tableRowBaseObj,
 } from './type';
 import ValidatorInput from './validator-input';
+
+import type { Form } from 'bk-magic-vue';
 
 import './index.scss';
 
@@ -60,7 +59,7 @@ export default class LogFilter extends tsc<object> {
   /** 当前过滤的日志类型 字符串或分隔符  */
   activeType: btnType = 'match';
   separator = '|';
-  filterData: Array<Array<ITableRowItem>> = [
+  filterData: ITableRowItem[][] = [
     [
       {
         fieldindex: '',
@@ -75,7 +74,7 @@ export default class LogFilter extends tsc<object> {
     match: structuredClone(this.filterData),
     separator: structuredClone(this.filterData),
   };
-  originalFilterItemSelect: Array<ISelectItem> = [];
+  originalFilterItemSelect: ISelectItem[] = [];
   /** 分隔符原始日志 */
   logOriginal = '';
   logOriginalLoading = false;
@@ -101,10 +100,14 @@ export default class LogFilter extends tsc<object> {
 
   get operatorShowSelectList() {
     const showSelect = structuredClone(operatorSelectList);
-    showSelect.forEach(el => {
-      if (this.isMatchType && el.id === 'include') el.id = '=';
-      if (!this.isMatchType && el.id === 'eq') el.id = '=';
-    });
+    for (const el of showSelect) {
+      if (this.isMatchType && el.id === 'include') {
+        el.id = '=';
+      }
+      if (!this.isMatchType && el.id === 'eq') {
+        el.id = '=';
+      }
+    }
     return showSelect;
   }
 
@@ -136,7 +139,9 @@ export default class LogFilter extends tsc<object> {
         this.filterSwitcher = true;
         this.activeType = type;
         /** 旧数据当成一个新table来处理 */
-        if (!separatorFilters.length) {
+        if (separatorFilters.length) {
+          this.filterData = this.splitFilters(separatorFilters);
+        } else {
           const op = matchType === 'include' ? matchType : '=';
           this.filterData = [
             [
@@ -148,8 +153,6 @@ export default class LogFilter extends tsc<object> {
               },
             ],
           ];
-        } else {
-          this.filterData = this.splitFilters(separatorFilters);
         }
         break;
       case 'separator':
@@ -164,9 +167,9 @@ export default class LogFilter extends tsc<object> {
     }
   }
   /** 设置过滤分组 */
-  splitFilters(filters: Array<ITableRowItem>) {
-    const groups = [];
-    let currentGroup: Array<ITableRowItem> = [];
+  splitFilters(filters: ITableRowItem[]) {
+    const groups: ITableRowItem[][] = [];
+    let currentGroup: ITableRowItem[] = [];
 
     filters.forEach((filter, index) => {
       const mappingFilter = {
@@ -189,15 +192,21 @@ export default class LogFilter extends tsc<object> {
   }
   /** 删除分组 */
   handleClickDeleteGroup(index: number) {
-    if (this.filterData.length === 1) return;
+    if (this.filterData.length === 1) {
+      return;
+    }
     this.filterData.splice(index, 1);
     this.filterData.forEach((fItem, fIndex) => {
-      fItem.forEach(item => (item.tableIndex = fIndex));
+      for (const item of fItem) {
+        item.tableIndex = fIndex;
+      }
     });
   }
   /** 新增分组 */
   handleClickNewGroupBtn() {
-    if (this.filterData.length >= 10) return;
+    if (this.filterData.length >= 10) {
+      return;
+    }
     this.filterData.push([{ ...tableRowBaseObj, tableIndex: this.filterData.length }]);
   }
   /** 组内新增 */
@@ -206,7 +215,9 @@ export default class LogFilter extends tsc<object> {
     if (operateType === 'add') {
       currentGroup.push({ ...tableRowBaseObj, tableIndex });
     } else {
-      if (currentGroup.length === 1) return;
+      if (currentGroup.length === 1) {
+        return;
+      }
       currentGroup.splice(rowIndex, 1);
     }
   }
@@ -222,28 +233,30 @@ export default class LogFilter extends tsc<object> {
   }
   /** 输入框内数据Form验证 */
   async inputValidate() {
-    return new Promise(async (resolve, reject) => {
-      if (!this.filterSwitcher) {
-        resolve(true);
-        return;
-      }
-      let isCanSubmit = true;
+    if (!this.filterSwitcher) {
+      return true;
+    }
+    let isCanSubmit = true;
 
-      for (const fIndex in this.filterData) {
-        const container = this.$refs[`filterTableRef-${fIndex}`] as any;
-        for (const iIndex in this.filterData[fIndex]) {
-          let matchNotError = true;
+    for (const [fIndex, fItem] of Object.entries(this.filterData)) {
+      const container = this.$refs[`filterTableRef-${fIndex}`] as any;
+      for (let iIndex = 0; iIndex < fItem.length; iIndex++) {
+        let matchNotError = true;
 
+        if (this.activeType === 'separator') {
           // 字符串类型过滤暂时无过滤参数（全文）
-          if (this.activeType === 'separator') {
-            matchNotError = await (container?.$refs[`match-${fIndex}-${fIndex}-${iIndex}`] as Form)?.validate();
-          }
-          const valueNotError = await (container?.$refs[`value-${fIndex}-${fIndex}-${iIndex}`] as Form)?.validate();
-          if (isCanSubmit) isCanSubmit = matchNotError && valueNotError;
+          matchNotError = await (container?.$refs[`match-${fIndex}-${fIndex}-${iIndex}`] as Form)?.validate();
+        }
+        const valueNotError = await (container?.$refs[`value-${fIndex}-${fIndex}-${iIndex}`] as Form)?.validate();
+        if (isCanSubmit) {
+          isCanSubmit = matchNotError && valueNotError;
         }
       }
-      isCanSubmit ? resolve(true) : reject();
-    });
+    }
+    if (isCanSubmit) {
+      return true;
+    }
+    throw new Error('false');
   }
 
   /** 获取提交所需的conditions数据 */
@@ -254,7 +267,7 @@ export default class LogFilter extends tsc<object> {
       .filter(item => !!item.length)
       .map((fItem, fIndex) => {
         const newData = (fItem as any).map((item: ITableRowItem, index: number) => {
-          const { tableIndex, ...reset } = item;
+          const { tableIndex: _tableIndex, ...reset } = item;
           // 将数组中第一组的内容为and，后面的分组第一个logic_op参数为or来区分组与组
           return { ...reset, logic_op: fIndex === 0 || index !== 0 ? 'and' : 'or' };
         });
@@ -265,14 +278,14 @@ export default class LogFilter extends tsc<object> {
       submitFlatData = submitFlatData.map(item => ({ ...item, fieldindex: '-1' }));
     }
     let conditions = {};
-    if (!this.filterSwitcher || !submitFlatData.length) {
-      conditions = { type: 'none' };
-    } else {
+    if (this.filterSwitcher && submitFlatData.length) {
       conditions = {
         separator: this.separator,
         separator_filters: submitFlatData,
         type: this.activeType,
       };
+    } else {
+      conditions = { type: 'none' };
     }
     return conditions;
   }
@@ -294,7 +307,9 @@ export default class LogFilter extends tsc<object> {
         if (res.data?.length) {
           const firstData = res.data[0];
           this.logOriginal = firstData.etl.data || '';
-          if (this.logOriginal && isDebug) this.logOriginDebug();
+          if (this.logOriginal && isDebug) {
+            this.logOriginDebug();
+          }
         }
       })
       .catch(() => {});
@@ -316,7 +331,6 @@ export default class LogFilter extends tsc<object> {
         id: String(item.field_index),
         value: item.value,
       }));
-    } catch (error) {
     } finally {
       this.logOriginalLoading = false;
     }
@@ -368,6 +382,7 @@ export default class LogFilter extends tsc<object> {
             {this.operatorShowSelectList.map(option => (
               <bk-option
                 id={option.id}
+                key={option.id}
                 name={option.name}
               />
             ))}
@@ -397,7 +412,7 @@ export default class LogFilter extends tsc<object> {
             v-model={this.filterSwitcher}
             size='large'
             theme='primary'
-          ></bk-switcher>
+          />
           <div class='switcher-tips'>
             <i class='bk-icon icon-info-circle' />
             <span>{this.$t('过滤器支持采集时过滤不符合的日志内容，请保证采集器已升级到最新版本')}</span>
@@ -408,6 +423,7 @@ export default class LogFilter extends tsc<object> {
             <div class='bk-button-group'>
               {btnGroupList.map(item => (
                 <bk-button
+                  key={item.id}
                   class={{ 'is-selected': this.activeType === item.id }}
                   size='small'
                   onClick={() => this.handleClickFilterType(item.id as btnType)}
@@ -426,12 +442,13 @@ export default class LogFilter extends tsc<object> {
                     {this.globalDataDelimiter.map(option => (
                       <bk-option
                         id={option.id}
+                        key={option.id}
                         name={option.name}
                       />
                     ))}
                   </bk-select>
                   <bk-button
-                    disabled={!this.logOriginal || !this.separator || this.logOriginalLoading}
+                    disabled={!(this.logOriginal && this.separator) || this.logOriginalLoading}
                     theme='primary'
                     onClick={() => this.logOriginDebug()}
                   >
@@ -451,13 +468,16 @@ export default class LogFilter extends tsc<object> {
               </div>
             )}
             {this.filterData.map((item, index) => (
-              <div class='filter-group-table-container'>
+              <div
+                key={`${index}-${item}`}
+                class='filter-group-table-container'
+              >
                 <div class='group-table-head'>
                   <span>{this.$t('第{n}组', { n: index + 1 })}</span>
                   <i
                     class='bk-icon icon-delete'
                     onClick={() => this.handleClickDeleteGroup(index)}
-                  ></i>
+                  />
                 </div>
                 <bk-table
                   ref={`filterTableRef-${index}`}

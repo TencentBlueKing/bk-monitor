@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -75,7 +75,6 @@ from apm.serializers import (
 )
 from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
 from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
-from apm_web.constants import ServiceRelationLogTypeChoices
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_v1_token
@@ -135,7 +134,12 @@ class CreateApplicationResource(Resource):
         if not datasource_options:
             datasource_options = ApplicationHelper.get_default_storage_config(validated_data["bk_biz_id"])
 
+        bk_tenant_id = validated_data.get("bk_tenant_id")
+        if not bk_tenant_id:
+            bk_tenant_id = get_request_tenant_id()
+
         return ApmApplication.create_application(
+            bk_tenant_id=bk_tenant_id,
             bk_biz_id=validated_data["bk_biz_id"],
             app_name=validated_data["app_name"],
             app_alias=validated_data["app_alias"],
@@ -405,6 +409,10 @@ class ReleaseAppConfigResource(Resource):
 
         db_slow_command_config = DbSlowCommandConfigSerializer(label="慢命令配置", default={})
 
+        code_relabel_config = serializers.ListField(
+            label="返回码重定义配置", child=serializers.DictField(), required=False, default=list
+        )
+
         qps = serializers.IntegerField(label="qps", min_value=1, required=False)
 
     def perform_request(self, validated_request_data):
@@ -420,6 +428,14 @@ class ReleaseAppConfigResource(Resource):
         self.set_config(bk_biz_id, app_name, app_name, ApdexConfig.APP_LEVEL, validated_request_data)
         self.set_custom_service_config(bk_biz_id, app_name, validated_request_data.get("custom_service_config"))
         self.set_qps_config(bk_biz_id, app_name, app_name, ApdexConfig.APP_LEVEL, validated_request_data.get("qps"))
+        # 写入 code_relabel 列表
+        self.set_code_relabel_config(
+            bk_biz_id,
+            app_name,
+            app_name,
+            ApdexConfig.APP_LEVEL,
+            validated_request_data.get("code_relabel_config", []),
+        )
 
         for service_config in service_configs:
             self.set_config(bk_biz_id, app_name, app_name, ApdexConfig.SERVICE_LEVEL, service_config)
@@ -516,6 +532,14 @@ class ReleaseAppConfigResource(Resource):
         if not db_slow_command_config:
             return
         type_value_config = {"type": ConfigTypes.DB_SLOW_COMMAND_CONFIG, "value": json.dumps(db_slow_command_config)}
+        NormalTypeValueConfig.refresh_config(
+            bk_biz_id, app_name, config_level, config_key, [type_value_config], need_delete_config=False
+        )
+
+    def set_code_relabel_config(self, bk_biz_id, app_name, config_key, config_level, code_relabel_list):
+        if not code_relabel_list:
+            return
+        type_value_config = {"type": ConfigTypes.CODE_RELABEL_CONFIG, "value": json.dumps(code_relabel_list)}
         NormalTypeValueConfig.refresh_config(
             bk_biz_id, app_name, config_level, config_key, [type_value_config], need_delete_config=False
         )
@@ -903,9 +927,16 @@ class QueryEndpointResource(Resource):
         filters = serializers.DictField(label="查询条件", required=False)
 
     def perform_request(self, data):
-        filter_params = DiscoverHandler.get_retention_filter_params(data["bk_biz_id"], data["app_name"])
+        # 获取过期时间分界线，确保使用UTC时区
+        retention = DiscoverHandler.get_app_retention(data["bk_biz_id"], data["app_name"])
+        retention_cutoff = datetime.datetime.now(tz=pytz.UTC) - datetime.timedelta(retention)
 
-        endpoints = Endpoint.objects.filter(**filter_params).order_by("-updated_at")
+        # 获取数据库中的端点数据，不使用updated_at__gte过滤，避免过早过滤导致数据丢失
+        filter_params = {
+            "bk_biz_id": data["bk_biz_id"],
+            "app_name": data["app_name"],
+        }
+        endpoints = Endpoint.objects.filter(**filter_params)
         if data["category"]:
             endpoints = endpoints.filter(category_id=data["category"])
         if data["category_kind_value"]:
@@ -922,17 +953,39 @@ class QueryEndpointResource(Resource):
         if data.get("filters"):
             endpoints = endpoints.filter(**data["filters"])
 
-        return [
-            {
-                "endpoint_name": endpoint.endpoint_name,
-                "kind": endpoint.span_kind,
-                "service_name": endpoint.service_name,
-                "category_kind": {"key": endpoint.category_kind_key, "value": endpoint.category_kind_value},
-                "category": endpoint.category_id,
-                "extra_data": endpoint.extra_data,
-            }
-            for endpoint in endpoints
-        ]
+        # 从Redis缓存获取端点时间信息
+        cache_name = ApmCacheHandler.get_endpoint_cache_key(data["bk_biz_id"], data["app_name"])
+        cache_data = ApmCacheHandler().get_cache_data(cache_name)
+
+        # 构建端点数据并合并缓存时间信息，然后根据合并后的时间进行过期过滤
+        result = []
+        for endpoint in endpoints:
+            # 构建缓存key，格式：{id}:{service_name}:{endpoint_name}
+            cache_key = f"{endpoint.id}:{endpoint.service_name}:{endpoint.endpoint_name}"
+
+            # 获取时间戳，优先使用缓存中的时间，如果缓存中没有则使用数据库的updated_at
+            updated_at = endpoint.updated_at
+            if cache_key in cache_data:
+                updated_at = datetime.datetime.fromtimestamp(cache_data[cache_key], tz=pytz.UTC)
+
+            # 根据合并后的时间进行过期过滤
+            if updated_at >= retention_cutoff:
+                result.append(
+                    {
+                        "endpoint_name": endpoint.endpoint_name,
+                        "kind": endpoint.span_kind,
+                        "service_name": endpoint.service_name,
+                        "category_kind": {"key": endpoint.category_kind_key, "value": endpoint.category_kind_value},
+                        "category": endpoint.category_id,
+                        "extra_data": endpoint.extra_data,
+                        "updated_at": updated_at,
+                    }
+                )
+
+        # 按照更新时间倒序排序（最新的在前面）
+        result.sort(key=lambda x: x["updated_at"], reverse=True)
+
+        return result
 
 
 class QueryEventResource(Resource):
@@ -1472,11 +1525,7 @@ class QueryLogRelationByIndexSetIdResource(Resource):
         from apm_web.models import LogServiceRelation
 
         # Step: 从服务关联中找
-        log_relation = (
-            LogServiceRelation.objects.filter(log_type=ServiceRelationLogTypeChoices.BK_LOG, value=data["index_set_id"])
-            .order_by("created_at")
-            .first()
-        )
+        log_relation = LogServiceRelation.filter_by_index_set_id(data["index_set_id"]).order_by("created_at").first()
         if log_relation:
             return {
                 "bk_biz_id": log_relation.bk_biz_id,

@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -160,7 +160,7 @@ export default defineComponent({
           name: item.entity_type,
           key: item.entity_type,
           children: item.aggregate_bys?.map(child => {
-            const name = child.aggregate_key
+            const name = !child.is_anomaly
               ? `${t('按 {0} 聚合', [child.aggregate_key])}`
               : `${`${t('聚合异常')}${item.entity_type}`}`;
             return {
@@ -350,8 +350,12 @@ export default defineComponent({
               class={['resource-wrap', { selected: this.isResourceSelected }]}
               v-bk-tooltips={{ content: this.isResourceSelected ? this.t('收起资源拓扑') : this.t('展开资源拓扑') }}
               onClick={() => this.handleToggle('resource')}
-              onMouseenter={() => (this.isResourceHover = true)}
-              onMouseleave={() => (this.isResourceHover = false)}
+              onMouseenter={() => {
+                this.isResourceHover = true;
+              }}
+              onMouseleave={() => {
+                this.isResourceHover = false;
+              }}
             >
               <i class='icon-monitor icon-ziyuan' />
             </span>
@@ -361,8 +365,12 @@ export default defineComponent({
                 content: this.isServiceSelected ? this.t('收起节点/边概览') : this.t('展开节点/边概览'),
               }}
               onClick={() => this.handleToggle('service')}
-              onMouseenter={() => (this.isServiceHover = true)}
-              onMouseleave={() => (this.isServiceHover = false)}
+              onMouseenter={() => {
+                this.isServiceHover = true;
+              }}
+              onMouseleave={() => {
+                this.isServiceHover = false;
+              }}
             >
               <i class='icon-monitor icon-mc-overview' />
             </span>

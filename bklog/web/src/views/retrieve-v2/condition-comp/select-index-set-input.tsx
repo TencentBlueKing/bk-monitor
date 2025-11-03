@@ -32,7 +32,7 @@ import { getOsCommandLabel } from '@/common/util';
 import './select-index-set-input.scss';
 @Component
 export default class SelectIndexSetInput extends tsc<object> {
-  @Prop({ type: Array, required: true }) selectedItemList: Array<any>;
+  @Prop({ type: Array, required: true }) selectedItemList: any[];
   @Prop({ type: Boolean, required: true }) isShowSelectPopover: boolean;
   @Prop({ type: Boolean, required: true }) isAloneType: boolean;
   @Prop({ type: Object, required: true }) selectedItem: object;
@@ -50,12 +50,16 @@ export default class SelectIndexSetInput extends tsc<object> {
 
   @Watch('watchCalcOverflowVal', { immediate: true })
   initCalcOverflow() {
-    if (!this.isAloneType) this.calcOverflow();
+    if (!this.isAloneType) {
+      this.calcOverflow();
+    }
   }
 
   @Watch('isAloneType')
   watchCloseTagNode(val) {
-    if (val) this.removeOverflowTagNode();
+    if (val) {
+      this.removeOverflowTagNode();
+    }
   }
 
   getTagDOM(index?) {
@@ -66,7 +70,9 @@ export default class SelectIndexSetInput extends tsc<object> {
   // 计算第二行第一个的index，在其前方插入overflow tag
   calcOverflow() {
     this.removeOverflowTagNode();
-    if (this.selectedItemList.length < 2) return false;
+    if (this.selectedItemList.length < 2) {
+      return false;
+    }
     setTimeout(() => {
       const tags = this.getTagDOM();
       const tagIndexInSecondRow = tags.findIndex((currentUser, index) => {
@@ -129,7 +135,7 @@ export default class SelectIndexSetInput extends tsc<object> {
   }
 
   isShowNotVal(item) {
-    return item.tags.some(item => item.tag_id === 4);
+    return item.tags.some(tItem => tItem.tag_id === 4);
   }
 
   render() {
@@ -151,7 +157,7 @@ export default class SelectIndexSetInput extends tsc<object> {
                   marginTop: this.isShowSelectPopover ? '-8px' : '',
                 }}
                 class='bklog-icon bklog-arrow-down-filled'
-              ></span>
+              />
             </div>
             {!this.isShowSelectPopover && <span class='shortcut'>{shortcutKey}</span>}
           </div>
@@ -165,9 +171,12 @@ export default class SelectIndexSetInput extends tsc<object> {
           }}
         >
           {this.selectedItemList.map(item => (
-            <div class='select-tag width-limit-tag'>
+            <div
+              key={item}
+              class='select-tag width-limit-tag'
+            >
               <span class='tag-name'>
-                {this.isShowNotVal(item) && <i class='not-val'></i>}
+                {this.isShowNotVal(item) && <i class='not-val' />}
                 <span
                   class='title-overflow'
                   v-bk-overflow-tips={{
@@ -184,7 +193,7 @@ export default class SelectIndexSetInput extends tsc<object> {
               marginTop: this.isShowSelectPopover ? '-8px' : '',
             }}
             class='bklog-icon bklog-arrow-down-filled'
-          ></span>
+          />
         </div>
       );
     };

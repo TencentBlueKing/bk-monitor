@@ -29,7 +29,7 @@ import { Ref } from 'vue';
 import { parseTableRowData } from '@/common/util';
 
 import RetrieveBase from './retrieve-core/base';
-import { type GradeSetting, type GradeConfiguration, GradeFieldValueType } from './retrieve-core/interface';
+import { GradeFieldValueType, type GradeConfiguration, type GradeSetting } from './retrieve-core/interface';
 import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
 import RetrieveEvent from './retrieve-core/retrieve-events';
 import { RouteQueryTab } from './retrieve-v3/index.type';
@@ -40,7 +40,7 @@ export enum STORAGE_KEY {
   STORAGE_KEY_FAVORITE_WIDTH = 'STORAGE_KEY_FAVORITE_WIDTH',
 }
 
-export { RetrieveEvent, GradeSetting, GradeConfiguration };
+export { GradeConfiguration, GradeSetting, RetrieveEvent };
 // 滚动条查询条件
 const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 class RetrieveHelper extends RetrieveBase {
@@ -195,16 +195,17 @@ class RetrieveHelper extends RetrieveBase {
       return;
     }
 
-    const { caseSensitive } = this.markInstance.getMarkOptions();
+    const { caseSensitive, regExpMark, accuracy } = this.markInstance.getMarkOptions();
     this.markInstance.setObserverConfig({ root: document.getElementById(this.logRowsContainerId) });
     this.markInstance.unmark();
+    const formatRegStr = !regExpMark;
     this.markInstance.highlight(
       (keywords ?? []).map((keyword, index) => {
         return {
           text: keyword,
           className: `highlight-${index}`,
           backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
-          textReg: this.getRegExp(keyword, caseSensitive ? '' : 'i', true),
+          textReg: this.getRegExp(keyword, caseSensitive ? '' : 'i', accuracy === 'exactly', formatRegStr),
         };
       }),
       reset,
@@ -367,10 +368,10 @@ class RetrieveHelper extends RetrieveBase {
 
   /**
    * 检索值变化
-   * @param type 检索类型：ui/sql/filter
+   * @param type 检索类型：ui/sql/filter/cluster
    * @param value
    */
-  searchValueChange(type: 'filter' | 'sql' | 'ui', value: Array<any> | string) {
+  searchValueChange(type: 'filter' | 'sql' | 'ui' | 'cluster', value: Array<any> | string) {
     this.runEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, { type, value });
   }
 
@@ -516,7 +517,7 @@ class RetrieveHelper extends RetrieveBase {
     if (!this.scrollEventAdded) {
       const target = document.querySelector(this.globalScrollSelector);
       if (target) {
-        target.addEventListener('scroll', this.handleScroll);
+        target.addEventListener('scroll', e => this.handleScroll(e));
         this.scrollEventAdded = true;
       }
     }
@@ -547,13 +548,13 @@ class RetrieveHelper extends RetrieveBase {
     return null;
   }
 
-  private handleScroll = (e: MouseEvent) => {
+  private handleScroll = (e: Event) => {
     this.fire(RetrieveEvent.GLOBAL_SCROLL, e);
   };
 }
 
 const isFavoriteShow = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_SHOW) === 'true';
-const isViewCurrentIndex = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) !== 'false';
+const isViewCurrentIndex = localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE) === 'true';
 const favoriteWidth = Number(localStorage.getItem(STORAGE_KEY.STORAGE_KEY_FAVORITE_WIDTH) ?? 240);
 
 export default new RetrieveHelper({ isFavoriteShow, favoriteWidth, isViewCurrentIndex });

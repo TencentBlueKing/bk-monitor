@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -47,10 +47,15 @@ class UptimeCheckNodeSerializer(serializers.ModelSerializer):
     ip = serializers.CharField(required=False, allow_blank=True)
     plat_id = serializers.IntegerField(required=False, allow_null=True)
 
-    def node_beat_check(self, validated_data):
+    def node_beat_check(self, validated_data) -> bool:
         """
         检查当前节点心跳
         """
+
+        # TODO: 多租户环境下暂时跳过心跳检查
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return True
+
         if not is_ipv6_biz(validated_data["bk_biz_id"]):
             ip = validated_data.get("ip", "")
             bk_cloud_id = validated_data.get("plat_id", 0)

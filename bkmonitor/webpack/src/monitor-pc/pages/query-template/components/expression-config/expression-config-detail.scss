@@ -1,0 +1,27 @@
+.template-expression-config-detail-component {
+  display: flex;
+  width: 100%;
+  padding: 6px 12px;
+  line-height: 20px;
+  background: #f5f7fa;
+  border-radius: 2px;
+
+  .alias-wrap {
+    flex-shrink: 0;
+    width: 20px;
+    font-size: 12px;
+    color: #3a84ff;
+
+    .icon-arrow-turn {
+      font-size: 12px;
+    }
+  }
+
+  .expression-config-wrap {
+    display: flex;
+    flex-basis: auto;
+    flex-direction: column;
+    row-gap: 6px;
+    min-width: 0;
+  }
+}

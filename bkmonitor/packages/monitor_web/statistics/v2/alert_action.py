@@ -1,20 +1,20 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import logging
+
 import arrow
 from django.conf import settings
 from django.utils import translation
 from django.utils.functional import cached_property
 from elasticsearch_dsl import Q
-from fta_web.models.alert import SearchFavorite
-from monitor_web.statistics.v2.base import TIME_RANGE, BaseCollector
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.models import StrategyModel
@@ -23,6 +23,10 @@ from constants.action import ActionPluginType, ActionStatus
 from constants.alert import EVENT_SEVERITY_DICT
 from core.drf_resource import resource
 from core.statistics.metric import Metric, register
+from fta_web.models.alert import SearchFavorite
+from monitor_web.statistics.v2.base import TIME_RANGE, BaseCollector
+
+logger = logging.getLogger(__name__)
 
 
 class AlertActionCollector(BaseCollector):
@@ -167,36 +171,38 @@ class AlertActionCollector(BaseCollector):
 
             language = translation.get_language()
             translation.activate("en")
-            for biz_bucket in search_result.aggs.bk_biz_id.buckets:
-                for severity_bucket in biz_bucket.severity.buckets:
-                    for status_bucket in severity_bucket.status.buckets:
-                        for is_handled_bucket in status_bucket.is_handled.buckets:
-                            for is_ack_bucket in is_handled_bucket.is_ack.buckets:
-                                for is_shielded_bucket in is_ack_bucket.is_shielded.buckets:
-                                    # try:
-                                    #     strategy_id = int(strategy_bucket.key)
-                                    # except Exception:
-                                    #     strategy_id = 0
-                                    # strategy_name = strategy_mapping.get(strategy_id, {}).get("name", "无策略-第三方事件")
-                                    if is_handled_bucket.key:
-                                        stage = "handled"
-                                    elif is_ack_bucket.key:
-                                        stage = "ack"
-                                    elif is_shielded_bucket.key:
-                                        stage = "shielded"
-                                    else:
-                                        stage = "none"
-                                    metric.labels(
-                                        bk_biz_id=biz_bucket.key,
-                                        bk_biz_name=self.get_biz_name(biz_bucket.key),
-                                        # strategy_id=strategy_id,
-                                        # strategy_name=strategy_name,
-                                        severity=EVENT_SEVERITY_DICT.get(severity_bucket.key, severity_bucket.key),
-                                        stage=stage,
-                                        status=status_bucket.key,
-                                        time_range=le_en,
-                                    ).set(is_shielded_bucket.doc_count)
+            try:
+                self._generate_alert_count_metric(metric, search_result, le_en)
+            except Exception as e:
+                logger.error(f"generate alert count metric error: {e}")
             translation.activate(language)
+
+    def _generate_alert_count_metric(self, metric: Metric, search_result, le_en: str):
+        """
+        生成告警事件数指标
+        """
+        for biz_bucket in search_result.aggs.bk_biz_id.buckets:
+            for severity_bucket in biz_bucket.severity.buckets:
+                for status_bucket in severity_bucket.status.buckets:
+                    for is_handled_bucket in status_bucket.is_handled.buckets:
+                        for is_ack_bucket in is_handled_bucket.is_ack.buckets:
+                            for is_shielded_bucket in is_ack_bucket.is_shielded.buckets:
+                                if is_handled_bucket.key:
+                                    stage = "handled"
+                                elif is_ack_bucket.key:
+                                    stage = "ack"
+                                elif is_shielded_bucket.key:
+                                    stage = "shielded"
+                                else:
+                                    stage = "none"
+                                metric.labels(
+                                    bk_biz_id=biz_bucket.key,
+                                    bk_biz_name=self.get_biz_name(biz_bucket.key),
+                                    severity=EVENT_SEVERITY_DICT.get(severity_bucket.key, severity_bucket.key),
+                                    stage=stage,
+                                    status=status_bucket.key,
+                                    time_range=le_en,
+                                ).set(is_shielded_bucket.doc_count)
 
     @register(labelnames=("username", "search_type"))
     def search_favorite_item_count(self, metric: Metric):

@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import Vue, { h, ref, Ref } from 'vue';
+import Vue, { h, ref, type Ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import AiSvg from '@/images/ai/ai-bluking-2.svg';
 
 import TaskRunning from '../global/utils/task-pool';
 
@@ -67,7 +68,7 @@ class UseSegmentProp {
 
   constructor({
     delineate = false,
-    onclick = undefined,
+    onclick,
     stopPropagation = false,
   }: { delineate?: boolean; onclick?: (...args: any) => void; stopPropagation?: boolean } = {}) {
     const { $t } = useLocale();
@@ -95,6 +96,12 @@ class UseSegmentProp {
         iconName: 'icon bklog-icon bklog-copy-3',
         text: this.$t('复制'),
         disabled: false,
+      },
+      {
+        onClick: (e: MouseEvent) => this.executeClickEvent(e, 'add-to-ai'),
+        svg: AiSvg,
+        text: this.$t('引用至小鲸'),
+        disabled: !this.delineate,
       },
       {
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'highlight'),
@@ -182,8 +189,10 @@ class UseSegmentProp {
                 class: 'segment-event-btn',
               },
               [
-                h('span', { class: 'segment-btn-left' }, [
-                  h('i', { class: item.iconName }),
+                h('span', { class: 'segment-btn-left', style: { display: 'inline-flex' } }, [
+                  item.svg
+                    ? h('img', { attrs: { src: item.svg }, style: 'width: 16px; height: 16px; margin-right: 4px;' })
+                    : h('i', { class: item.iconName }),
                   h('span', {}, [item.text]),
                 ]),
                 item.link

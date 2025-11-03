@@ -1,0 +1,183 @@
+.filter-bar-main {
+  width: 100%;
+
+  .filter-item-top {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+
+    .filter-main {
+      flex: 1;
+      display: flex;
+
+      .filter-select-main {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        margin-right: -1px;
+
+        &.is-focus {
+          margin-right: 0;
+        }
+      }
+
+      .filter-key-input {
+        input {
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
+        }
+      }
+    }
+
+    .highlight-main {
+      flex: 1;
+      display: flex;
+      margin-left: 8px;
+      font-size: 12px;
+
+      .prefix-text {
+        width: 40px;
+        height: 32px;
+        background: #fafbfd;
+        border: 1px solid #c4c6cc;
+        border-right: none;
+        border-radius: 2px 0 0 2px;
+        border-radius: 2px 0 0 2px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .highlight-tag-input {
+        flex: 1;
+
+        .bk-tag-input {
+          border-radius: 0;
+        }
+      }
+    }
+
+    .realtime-control-main {
+      margin-left: 8px;
+      display: flex;
+      gap: 8px;
+
+      .control-item {
+        width: 32px;
+        height: 32px;
+        background: #f0f1f5;
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        cursor: pointer;
+
+        &:hover {
+          background: #e1ecff;
+        }
+
+        &.play-pause {
+          background: #e1ecff;
+          color: #3a84ff;
+          font-size: 18px;
+
+          &:hover {
+            background: #cddffe;
+          }
+        }
+      }
+    }
+  }
+
+  .filter-item-bottom {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .operate-left {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+
+      .row-control {
+        display: flex;
+        align-items: center;
+
+        .row-control-input {
+          width: 48px;
+          margin: 0 4px;
+
+          input {
+            border: none;
+            border-bottom: solid 1px #dcdee5;
+          }
+        }
+      }
+    }
+
+    .operate-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .color-tip-main {
+        display: flex;
+        align-items: center;
+
+        .color-item {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 12px;
+          color: #4d4f56;
+          margin-right: 24px;
+
+          .rect {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+          }
+        }
+      }
+
+      .log-display-type-main {
+        width: 104px;
+        height: 32px;
+        background: #f0f1f5;
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        padding: 4px;
+        font-size: 12px;
+        cursor: pointer;
+
+        .type-item {
+          width: 48px;
+          height: 24px;
+          border-radius: 2px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          &.is-selected {
+            background: #ffffff;
+            color: #3a84ff;
+          }
+        }
+      }
+
+      .setting-main {
+        width: 32px;
+        height: 32px;
+        background: #f0f1f5;
+        border-radius: 2px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+      }
+    }
+  }
+}

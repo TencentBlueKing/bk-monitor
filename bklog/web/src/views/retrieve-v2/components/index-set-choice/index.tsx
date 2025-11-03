@@ -24,15 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onBeforeUnmount, onMounted, PropType, Ref, ref } from 'vue';
-
-import { Props } from 'tippy.js';
+import {
+  computed,
+  defineComponent,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+  type PropType,
+  type Ref,
+} from 'vue';
 
 import { getOsCommandLabel } from '../../../../common/util';
 import BklogPopover from '../../../../components/bklog-popover';
 import EllipsisTagList from '../../../../components/ellipsis-tag-list';
 import Content from './content';
-import { IndexSetTabList, IndexSetType } from './use-choice';
+
+import type { IndexSetTabList, IndexSetType } from './use-choice';
+import type { Props } from 'tippy.js';
 
 import './index.scss';
 
@@ -74,7 +83,7 @@ export default defineComponent({
     },
     // 索引集值
     indexSetValue: {
-      type: Array,
+      type: Array as PropType<string[]>,
       default: () => [],
     },
     // 索引集列表
@@ -99,8 +108,9 @@ export default defineComponent({
     const refRootElement: Ref<any | null> = ref(null);
     const shortcutKey = `${getOsCommandLabel()}+O`;
     const refContentObject: Ref<any | null> = ref(null);
+    const selectedValues = ref([]);
 
-    let unionListValue = [];
+    let unionListValue: any[] = [];
 
     const tippyOptions: Props = {
       hideOnClick: false,
@@ -119,7 +129,11 @@ export default defineComponent({
         isOpened.value = false;
 
         if (props.activeTab === 'union') {
-          emit('value-change', unionListValue.length ? unionListValue : props.indexSetValue, 'union');
+          emit(
+            'value-change',
+            unionListValue.length ? unionListValue : props.indexSetValue,
+            'union',
+          );
         }
       },
     } as any;
@@ -127,18 +141,51 @@ export default defineComponent({
     const rootStyle = computed(() => {
       return {
         '--indexset-root-h': `${props.height}px`,
-        '--indexset-root-w': /^\d+\.?\d*$/.test(`${props.width}`) ? `${props.width}px` : props.width,
+        '--indexset-root-w': /^\d+\.?\d*$/.test(`${props.width}`)
+          ? `${props.width}px`
+          : props.width,
         '--indexset-root-max-w': `${props.maxWidth}px`,
         '--indexset-root-min-w': `${props.minWidth}px`,
       };
     });
 
-    const selectedValues = computed(() =>
-      props.indexSetValue
-        .map(v => props.indexSetList.find((i: any) => `${i.index_set_id}` === `${v}`))
-        .filter(c => c !== undefined),
+    /**
+     * 扁平化树形列表
+     */
+    const getFlatList = () =>
+      (props.indexSetList ?? []).map((t: any) => [t, t.children]).flat(3);
+
+    /**
+     * 查询选中结果值，新版索引ID格式为： pid_childId, 如果为根节点，格式为： #_childId
+     * 兼容旧版本索引ID格式, 旧版本只有 index_set_id, 适配逻辑为：v.split('_').at(-1) === index_set_id
+     */
+    const getSelectedValues = () => {
+      const flatList = getFlatList();
+      const values = props.indexSetValue.map((v) => {
+        const target = flatList.find((i: any) => `${i.unique_id}` === `${v}`);
+        if (!target) {
+          return flatList.find(
+            (i: any) => `${i.index_set_id}` === `${v.split('_').at(-1)}`,
+          );
+        }
+
+        return target;
+      });
+
+      return values;
+    };
+
+    watch(
+      () => props.indexSetValue,
+      () => {
+        selectedValues.value = getSelectedValues();
+      },
+      { immediate: true },
     );
 
+    /**
+     * 处理tab切换事件
+     */
     const handleTabChange = (type: string) => {
       emit('type-change', type);
     };
@@ -148,7 +195,11 @@ export default defineComponent({
      * @param value
      * @returns
      */
-    const handleValueChange = (value: any, type: 'single' | 'union', id: number | string) => {
+    const handleValueChange = (
+      value: any,
+      type: 'single' | 'union',
+      id: number | string,
+    ) => {
       // 如果是单选操作直接抛出事件
       if (['single', 'history', 'favorite'].includes(props.activeTab)) {
         emit('value-change', value, type, id);
@@ -160,10 +211,14 @@ export default defineComponent({
       // 在弹出关闭时抛出事件，触发外部事件监听
       if (props.activeTab === 'union') {
         unionListValue = value;
+        const flatList = getFlatList();
+        selectedValues.value = value.map((v) =>
+          flatList.find((i) => i.unique_id === v),
+        );
       }
     };
 
-    const handleKeyDown = event => {
+    const handleKeyDown = (event) => {
       // 检查是否按下了 ⌘/⌘/Ctrl + O 或 Cmd + O
       const isCtrlO = event.ctrlKey && event.key === 'o';
       const isCmdO = event.metaKey && event.key === 'o';
@@ -194,7 +249,7 @@ export default defineComponent({
       };
     });
 
-    const handleAuthRequest = item => {
+    const handleAuthRequest = (item) => {
       emit('auth-request', item);
       refRootElement.value?.hide();
     };
@@ -206,7 +261,10 @@ export default defineComponent({
           style={rootStyle.value}
           class={[
             'bklog-v3-indexset-container',
-            { 'is-opened': isOpened.value, 'is-multi': props.indexSetValue.length > 1 },
+            {
+              'is-opened': isOpened.value,
+              'is-multi': props.indexSetValue.length > 1,
+            },
           ]}
           data-shortcut-key={shortcutKey}
           options={tippyOptions}
@@ -220,12 +278,12 @@ export default defineComponent({
                   list={props.indexSetList}
                   spaceUid={props.spaceUid}
                   type={props.activeType}
-                  value={props.indexSetValue}
+                  value={selectedValues.value}
                   zIndex={props.zIndex}
                   on-auth-request={handleAuthRequest}
                   on-type-change={handleTabChange}
                   on-value-change={handleValueChange}
-                ></Content>
+                />
               ),
             },
           }}
@@ -237,7 +295,7 @@ export default defineComponent({
             placement='right'
             {...{
               scopedSlots: {
-                item: v => (
+                item: (v) => (
                   <span class='index-set-value-item'>
                     <span class='index-set-name'>{v.index_set_name}</span>
                     <span class='index-set-lighten-name'>{v.lightenName}</span>
@@ -245,8 +303,8 @@ export default defineComponent({
                 ),
               },
             }}
-          ></EllipsisTagList>
-          <span class='bklog-icon bklog-arrow-down-filled-2'></span>
+          />
+          <span class='bklog-icon bklog-arrow-down-filled-2' />
         </BklogPopover>
       );
     };

@@ -25,9 +25,11 @@
  */
 import { defineComponent, onMounted, ref, computed } from 'vue';
 import TextHighlight from 'vue-text-highlight';
+
+import { base64Encode } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { base64Encode } from '@/common/util';
+
 import $http from '@/api';
 
 import './index.scss';
@@ -44,7 +46,7 @@ export default defineComponent({
     },
     maxLogLength: {
       type: Number,
-      default: 10000,
+      default: 10_000,
     },
     collectorConfigId: {
       type: String,
@@ -65,7 +67,7 @@ export default defineComponent({
     // 获取原始日志内容
     const getLogOriginal = () => {
       const collectorConfigId = cleanConfig.value?.extra?.collector_config_id;
-      if (!collectorConfigId && !props.collectorConfigId) {
+      if (!(collectorConfigId || props.collectorConfigId)) {
         return;
       }
 
@@ -101,7 +103,7 @@ export default defineComponent({
         }, []);
         const ruleArrStr = `[${ruleNewList.join(' ,')}]`;
         return base64Encode(ruleArrStr);
-      } catch (error) {
+      } catch {
         return '';
       }
     };
@@ -137,26 +139,26 @@ export default defineComponent({
         <div v-bkloading={{ isLoading: logOriginalRequest.value }}>
           <bk-input
             class='log-original-main'
-            value={logOriginal.value}
             disabled={logOriginalRequest.value}
+            placeholder=' '
             rows={4}
             type='textarea'
-            placeholder=' '
+            value={logOriginal.value}
             on-change={value => (logOriginal.value = value)}
           />
         </div>
 
         <bk-button
           class='debug-btn'
-          disabled={!logOriginal.value || !props.ruleList.length}
+          disabled={!(logOriginal.value && props.ruleList.length)}
           loading={debugRequest.value}
           size='small'
           theme='primary'
           on-click={handleClickDebug}
         >
           <log-icon
-            type='bofang'
             class='play-icon'
+            type='bofang'
           />
         </bk-button>
         <div class='debug-title'>{t('效果预览')}</div>

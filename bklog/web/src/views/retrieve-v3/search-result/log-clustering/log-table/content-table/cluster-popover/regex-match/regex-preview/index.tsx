@@ -24,18 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
-import useLocale from '@/hooks/use-locale';
-import TextHighlight from 'vue-text-highlight';
-import { base64Encode } from '@/common/util';
-import $http from '@/api';
-import { type RowData } from '../regex-table';
-import CustomHighlight from './custom-highlight';
+import { computed, defineComponent, ref } from "vue";
+import TextHighlight from "vue-text-highlight";
 
-import './index.scss';
+import { base64Encode } from "@/common/util";
+import useLocale from "@/hooks/use-locale";
+
+import $http from "@/api";
+import { type RowData } from "../regex-table";
+import CustomHighlight from "./custom-highlight";
+
+import "./index.scss";
 
 export default defineComponent({
-  name: 'RegexPreview',
+  name: "RegexPreview",
   components: {
     TextHighlight,
     CustomHighlight,
@@ -43,7 +45,7 @@ export default defineComponent({
   props: {
     log: {
       type: String,
-      default: '',
+      default: "",
     },
     regexList: {
       type: Array<RowData>,
@@ -54,7 +56,7 @@ export default defineComponent({
     const { t } = useLocale();
 
     const regexPreviewRef = ref(null);
-    const effectOriginal = ref('');
+    const effectOriginal = ref("");
     const previewLoading = ref(false);
 
     const occupyColorMap = computed(() =>
@@ -63,32 +65,33 @@ export default defineComponent({
           Object.assign(map, {
             [`#${item.occupy}#`]: item.highlight,
           }),
-        {},
-      ),
+        {}
+      )
     );
 
     const handleClose = () => {
-      emit('close');
+      emit("close");
     };
 
     const ruleArrToBase64 = () => {
       try {
-        const ruleNewList = props.regexList.reduce((list, item) => {
+        const ruleNewList = props.regexList.reduce<string[]>((list, item) => {
           const rulesStr = JSON.stringify(`${item.occupy}:${item.pattern}`);
           list.push(rulesStr);
           return list;
         }, []);
-        const ruleArrStr = `[${ruleNewList.join(' ,')}]`;
+        const ruleArrStr = `[${ruleNewList.join(" ,")}]`;
         return base64Encode(ruleArrStr);
-      } catch (error) {
-        return '';
+      } catch (err) {
+        console.error(err);
+        return "";
       }
     };
 
     const getHeightLightList = (str: string) => str.match(/#.*?#/g) || [];
 
     const handleSelfShow = () => {
-      effectOriginal.value = '';
+      effectOriginal.value = "";
       const predefinedVariables = ruleArrToBase64();
       const query = {
         input_data: props.log,
@@ -97,8 +100,8 @@ export default defineComponent({
       };
       previewLoading.value = true;
       $http
-        .request('/logClustering/debug', { data: { ...query } })
-        .then(res => {
+        .request("/logClustering/debug", { data: { ...query } })
+        .then((res) => {
           effectOriginal.value = res.data;
         })
         .finally(() => {
@@ -112,26 +115,20 @@ export default defineComponent({
     });
 
     return () => (
-      <div style='display:none'>
-        <div
-          class='regex-preview-main'
-          ref={regexPreviewRef}
-        >
-          <div class='header-main'>
-            <div class='title-main'>{t('预览结果')}</div>
-            <div
-              class='close-main'
-              on-click={handleClose}
-            >
-              <log-icon type='close' />
+      <div style="display:none">
+        <div ref={regexPreviewRef} class="regex-preview-main">
+          <div class="header-main">
+            <div class="title-main">{t("预览结果")}</div>
+            <div class="close-main" on-click={handleClose}>
+              <log-icon type="close" />
             </div>
           </div>
           <div
-            class='preview-main'
+            class="preview-main"
             v-bkloading={{ isLoading: previewLoading.value }}
           >
             <text-highlight
-              style='word-break: break-all'
+              style="word-break: break-all"
               colorMap={occupyColorMap.value}
               highlightComponent={CustomHighlight}
               queries={getHeightLightList(effectOriginal.value)}

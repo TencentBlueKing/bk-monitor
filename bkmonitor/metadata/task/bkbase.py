@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -23,7 +23,7 @@ from alarm_backends.core.lock.service_lock import share_lock
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
-from metadata.models.space.constants import SpaceTypes, SpaceStatus
+from metadata.models.space.constants import SpaceStatus, SpaceTypes
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.tasks import sync_bkbase_v4_metadata
 from metadata.task.utils import chunk_list
@@ -219,20 +219,42 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
             cluster_metadata = cluster_data.get("metadata", {})
 
             # 动态获取字段映射（支持不同存储类型的字段差异）
+            cluster_name = cluster_metadata["name"]
             domain_name = cluster_auth_info.get(field_mappings["domain_name"])
-            if not models.ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, domain_name=domain_name).exists():
-                logger.info(f"sync_bkbase_cluster_info: create {cluster_type} cluster, domain_name->[{domain_name}]")
-                with transaction.atomic():
+            port = cluster_auth_info.get(field_mappings["port"])
+            username = cluster_auth_info.get(field_mappings["username"])
+            password = cluster_auth_info.get(field_mappings["password"])
+            update_fields = {"domain_name": domain_name, "port": port, "username": username, "password": password}
+
+            with transaction.atomic():
+                cluster = models.ClusterInfo.objects.filter(
+                    bk_tenant_id=bk_tenant_id, cluster_type=cluster_type, cluster_name=cluster_name
+                ).first()
+                if cluster:
+                    # 更新集群信息
+                    is_updated = False
+                    for field, value in update_fields.items():
+                        if getattr(cluster, field) != value:
+                            setattr(cluster, field, value)
+                            is_updated = True
+
+                    # 如果字段有更新，则保存模型
+                    if is_updated:
+                        logger.info(f"sync_bkbase_cluster_info: updated {cluster_type} cluster: {cluster_name}")
+                        cluster.save()
+                else:
+                    # 创建新集群，默认为非默认集群
                     models.ClusterInfo.objects.create(
                         bk_tenant_id=bk_tenant_id,
-                        domain_name=domain_name,
-                        port=cluster_auth_info.get(field_mappings["port"]),
-                        username=cluster_auth_info.get(field_mappings["username"]),
-                        password=cluster_auth_info.get(field_mappings["password"]),
-                        cluster_name=cluster_metadata.get("name"),
-                        is_default_cluster=False,
                         cluster_type=cluster_type,
+                        cluster_name=cluster_name,
+                        domain_name=domain_name,
+                        port=port,
+                        username=username,
+                        password=password,
+                        is_default_cluster=False,
                     )
+                    logger.info(f"sync_bkbase_cluster_info: created new {cluster_type} cluster: {cluster_name}")
         except Exception as e:
             logger.error(f"sync_bkbase_cluster_info: failed to sync {cluster_type} cluster info, error->[{e}]")
             continue

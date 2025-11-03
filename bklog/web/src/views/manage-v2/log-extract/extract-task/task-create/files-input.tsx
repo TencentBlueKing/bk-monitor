@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, ref, computed, watch } from 'vue';
+
 import useLocale from '@/hooks/use-locale';
 
 export default defineComponent({
@@ -111,20 +112,14 @@ export default defineComponent({
       <bk-popover
         ref={selectDropdownRef}
         class='bk-select-dropdown'
-        distance={16}
-        offset={-1}
-        animation='slide-toggle'
-        placement='bottom-start'
-        theme='light bk-select-dropdown'
-        trigger='click'
         scopedSlots={{
           // 默认插槽：输入框
           default: () => (
             <bk-input
               style='width: 669px'
-              value={showValue.value}
               class={isError.value ? 'is-error' : ''}
               data-test-id='addNewExtraction_input_specifyFolder'
+              value={showValue.value}
               onChange={val => {
                 showValue.value = val;
                 handleChange(val);
@@ -142,12 +137,12 @@ export default defineComponent({
                 style='height: 32px'
                 class='bk-select-search-wrapper'
               >
-                <i class='left-icon bk-icon icon-search'></i>
+                <i class='bk-icon icon-search left-icon' />
                 <input
                   class='bk-select-search-input'
-                  value={searchValue.value}
                   placeholder={t('输入关键字搜索')}
                   type='text'
+                  value={searchValue.value}
                   onInput={(e: any) => (searchValue.value = e.target.value)}
                 />
               </div>
@@ -163,8 +158,8 @@ export default defineComponent({
                   {/* 渲染过滤后的选项列表 */}
                   {filesSearchedPath.value.map((option: string) => (
                     <li
-                      class='bk-option'
                       key={option}
+                      class='bk-option'
                       onClick={() => handleSelectOption(option)}
                     >
                       <div class='bk-option-content'>{option}</div>
@@ -177,6 +172,12 @@ export default defineComponent({
             </div>
           ),
         }}
+        animation='slide-toggle'
+        distance={16}
+        offset={-1}
+        placement='bottom-start'
+        theme='light bk-select-dropdown'
+        trigger='click'
       />
     );
   },

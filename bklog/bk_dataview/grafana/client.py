@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import requests
 from django.utils.crypto import get_random_string
 
@@ -60,7 +60,7 @@ def get_organization_by_id(org_id: int):
 
 def get_all_organization(api_host: str = None):
     api_host = api_host or API_HOST
-    url = f"{api_host}/api/orgs/"
+    url = f"{api_host}/api/orgs/?perpage=1000000"
     resp = rpool.get(url, auth=grafana_settings.ADMIN, hooks={"response": requests_curl_log})
     return resp
 
@@ -183,10 +183,13 @@ def create_dashboard(org_id: int, dashboard_info: dict, panels: list, folder_uid
         "dashboard": {
             "id": None,
             "uid": None,
-            "title": dashboard_info['title'],
-            "tags": dashboard_info['tags'],
-            "timezone": dashboard_info['timezone'],
-            "refresh": dashboard_info['refresh'],
+            "title": dashboard_info["title"],
+            "tags": dashboard_info["tags"],
+            "timezone": dashboard_info["timezone"],
+            "refresh": dashboard_info["refresh"],
+            "templating": dashboard_info["templating"],
+            "time": dashboard_info["time"],
+            "timepicker": dashboard_info["timepicker"],
             "panels": panels,
         },
         "folderUid": folder_uid,

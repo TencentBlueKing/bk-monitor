@@ -156,6 +156,7 @@ class Command(BaseCommand):
             "bk_username": settings.SYSTEM_USE_API_ACCOUNT,
             "operator": settings.SYSTEM_USE_API_ACCOUNT,
             "bk_data_id": collect_config.bk_data_id,
+            "bk_biz_id": collect_config.bk_biz_id,
         }
         try:
             return TransferApi.create_data_id(params)

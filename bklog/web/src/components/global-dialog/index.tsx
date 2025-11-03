@@ -61,14 +61,14 @@ export default class MaskingDialog extends tsc<IProps> {
       >
         <div class='global-container'>
           <div class='global-title'>
-            <div></div>
+            <div />
             <span>{this.title}</span>
             <div
               class='bk-icon icon-close'
               onClick={() => {
                 this.$emit('change', false);
               }}
-            ></div>
+            />
           </div>
           <div class='center-box'>
             <div class='content-panel'>{this.$slots.default}</div>

@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, onMounted, ref, watch, onBeforeUnmount } from 'vue';
+
 import ConfigRule from './config-rule';
 
 import './index.scss';
@@ -111,10 +112,10 @@ export default defineComponent({
       const popover = e.target.closest('.config-rule-content');
       const otherPopover = e.target.closest('.tippy-popper');
       const isActiveOtherPopover = otherPopover?.className && !otherPopover.className.includes('config-rule-trigger');
-      if (!popoverTriger && !popover && !isActiveOtherPopover) {
-        configRulesRef.value.forEach(item => {
+      if (!(popoverTriger || popover || isActiveOtherPopover)) {
+        for (const item of configRulesRef.value) {
           item?.hide();
-        });
+        }
         addConfigRuleRef.value?.hide();
       }
     };
@@ -135,20 +136,23 @@ export default defineComponent({
       <div class='filter-rule'>
         {filterRules.value.map((item, index) => (
           <div
-            class='filter-rule-item'
             key={`${item.field_name}_${index}`}
+            class='filter-rule-item'
           >
             {filterRules.value.length && index > 0 && (
               <bk-select
                 class='icon-box'
-                value={item.logic_operator}
                 clearable={false}
                 popover-width={100}
-                on-change={value => (item.logic_operator = value)}
+                value={item.logic_operator}
+                on-change={value => {
+                  item.logic_operator = value;
+                }}
               >
                 {comparedList.map(option => (
                   <bk-option
                     id={option.id}
+                    key={option.id}
                     name={option.name}
                   />
                 ))}
@@ -158,16 +162,16 @@ export default defineComponent({
               ref={setConfigRulesRef(index)}
               data={item}
               is-create={false}
+              on-click-trigger={() => handleClickTrigger(index)}
               on-confirm={rule => handleConfirmConfig(rule, index)}
               on-delete={() => handleDeleteItem(index)}
-              on-click-trigger={() => handleClickTrigger(index)}
             />
           </div>
         ))}
         <config-rule
           ref={addConfigRuleRef}
-          on-confirm={handleConfirmConfig}
           on-click-trigger={() => handleClickTrigger(-1)}
+          on-confirm={handleConfirmConfig}
         />
       </div>
     );

@@ -135,7 +135,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
         }
       }
       this.handleBlurConfigInput(isPreview);
-    } catch (err) {
+    } catch {
       return '';
     } finally {
       this.inputLoading = false;
@@ -145,21 +145,25 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
   /**
    * @desc: 输入框失焦触发
    */
-  async handleBlurConfigInput(isPreview = true) {
+  handleBlurConfigInput(isPreview = true): Promise<void> {
     // 与缓存的字符串一样 不更新
-    if (this.activeJsonValue?.jsonStr === this.activeJsonValue?.catchJsonStr) return;
+    if (this.activeJsonValue?.jsonStr === this.activeJsonValue?.catchJsonStr) {
+      return Promise.resolve();
+    }
     this.activeJsonValue.catchJsonStr = this.activeJsonValue.jsonStr;
 
     this.handleBlurInput(isPreview);
+    return Promise.resolve();
   }
 
   /**
    * @desc: 一键生成规则
    */
-  async handleCreateRule() {
+  handleCreateRule(): Promise<void> {
     this.isShowCannotCreateRuleTips = !this.getJsonParseList.length;
     this.isJSONStrError = this.activeJsonValue.isJsonError;
     this.emitCreateRule();
+    return Promise.resolve();
   }
 
   /** 切换采样 */
@@ -188,15 +192,19 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
   closePanel(index: number) {
     const actIndex = Number(this.activeTab);
     // 当删除的下标和展示的下标相同时 直接展示第一个采样日志
-    if (actIndex === index) this.activeTab = '0';
+    if (actIndex === index) {
+      this.activeTab = '0';
+    }
     // 当删除的下标小于展示的下标时 当前活跃的下标要 -1
-    if (actIndex - index >= 1) this.activeTab = String(actIndex - 1);
+    if (actIndex - index >= 1) {
+      this.activeTab = String(actIndex - 1);
+    }
     this.jsonValueList.splice(index, 1);
     // 更新采样日志名
-    this.jsonValueList.forEach((item, index) => {
-      item.id = index;
-      item.name = String(index);
-      item.label = `${this.$t('采样日志')}${index + 1}`;
+    this.jsonValueList.forEach((item, newIndex) => {
+      item.id = newIndex;
+      item.name = String(newIndex);
+      item.label = `${this.$t('采样日志')}${newIndex + 1}`;
     });
     if (!this.jsonValueList.length) {
       this.isShowCannotCreateRuleTips = false;
@@ -214,7 +222,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
     try {
       JSON.parse(str);
       return JSON.parse(str) instanceof Object && str !== '{}';
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -238,7 +246,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
             closable
           >
             <div slot='title'>
-              <i class='bklog-icon bklog-log-loading'></i>
+              <i class='bklog-icon bklog-log-loading' />
               <span>{this.$t('正在下发采集配置，需要3-5分钟来生成采集日志，请稍后配置脱敏规则…')}</span>
             </div>
           </Alert>
@@ -256,7 +264,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
             class='right-fix'
             onClick={() => (this.inputFix = !this.inputFix)}
           >
-            <i class={['bklog-icon', this.inputFix ? 'bklog-fix-shape' : 'bklog-fix-line']}></i>
+            <i class={['bklog-icon', this.inputFix ? 'bklog-fix-shape' : 'bklog-fix-line']} />
             <span class='text'>{this.inputFix ? this.$t('取消钉住') : this.$t('钉住')}</span>
           </div>
         </div>
@@ -274,7 +282,7 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
             // eslint-disable-next-line @typescript-eslint/no-misused-promises
             onClick={() => this.handleRefreshConfigStr(true, true)}
           >
-            <i class='icon bk-icon icon-right-turn-line'></i>
+            <i class='icon bk-icon icon-right-turn-line' />
             <span class='text'>{this.$t('刷新')}</span>
           </div>
           <div
@@ -285,17 +293,17 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
               style='margin-left: 10px;'
               class='text-btn'
             >
-              <i class='icon bk-icon icon-plus push'></i>
+              <i class='icon bk-icon icon-plus push' />
               <span class='text'>{this.$t('新增采样')}</span>
             </div>
           </div>
           {this.jsonValueList.map((panel, index) => (
             <TabPanel
               {...{ props: panel }}
-              key={index}
+              key={`${index}-${panel}`}
             />
           ))}
-          {!!this.jsonValueList.length ? (
+          {this.jsonValueList.length ? (
             <div>
               <div
                 class='json-editor'
@@ -313,12 +321,12 @@ export default class MaskingFieldInput extends Mixins(classDragMixin) {
                   theme='vs'
                   on-blur={() => this.handleBlurConfigInput()}
                   on-get-problem-state={(err: boolean) => (this.activeJsonValue.isJsonError = err)}
-                ></MonacoEditor>
+                />
               </div>
               <div
                 class={['drag-bottom', { 'drag-ing': this.isChanging }]}
                 onMousedown={e => this.dragBegin(e, 'dragY')}
-              ></div>
+              />
             </div>
           ) : (
             <div class='no-data-tips'>

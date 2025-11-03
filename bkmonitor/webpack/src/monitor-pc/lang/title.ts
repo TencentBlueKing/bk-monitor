@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -155,8 +155,6 @@ export default {
   URI信息: 'URI Info',
   URI配置: 'URI Configuration',
   例如: 'For example',
-  请求数: 'Request Count',
-  CPU使用率: 'CPU Usage',
   响应耗时: 'Response Time',
 
   // 调用分析
@@ -195,5 +193,29 @@ export default {
     'After association, related observation data will be automatically obtained, including events, etc. Note: After the pipeline is selected, the startup parameters must be synchronized to configure.',
   新增流水线: 'Add Pipeline',
   批量编辑通知对象: 'Batch edit notification object',
-  事件分析: 'Event Analysis',
+  // 指标模版
+  函数变量: 'Function Variable',
+  维度变量: 'Dimension Variable',
+  维度值变量: 'Dimension Value Variable',
+  汇聚变量: 'Aggregation Variable',
+  条件变量: 'Condition Variable',
+  表达式函数变量: 'Expression Function Variable',
+  常规变量: 'General Variable',
+  变量管理: 'Variable Management',
+  如何使用变量: 'How to use variables',
+  使用变量: 'Use variable',
+  定义变量: 'Define variable',
+  后续消费: 'Subsequent consumption',
+  创建变量: 'Create variable',
+  变量配置框: 'Variable configuration box',
+  查询模板: 'Query template',
+  变量值: 'Variable value',
+  模板配置预览: 'Template configuration preview',
+  '应用一般是拥有独立的站点，由多个 Service 共同组成，提供完整的产品功能，拥有独立的软件架构。从技术方面来说应用是 Trace 数据的存储隔离，在同一个应用内的数据将进行统计和观测。':
+    'An application typically has an independent site, composed of multiple services, providing complete product functionality with its own software architecture. From a technical perspective, an application is a storage isolation for Trace data, where data within the same application is aggregated and monitored.',
+  返回码重定义: 'Redefine return code',
+  返回码备注说明: 'Return code remark description',
+  固定IP: 'Static IP',
+  'IP-静态拓扑': 'IP-Static Topo',
+  问问小鲸: 'Ask AI',
 };

@@ -374,7 +374,7 @@ export default [
 * Tencent is pleased to support the open source community by making
 * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
 *
-* Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+* Copyright (C) 2017-2025 Tencent.  All rights reserved.
 *
 * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
 *
@@ -484,9 +484,12 @@ export default [
           math: 'always',
         },
       ],
+      '@typescript-eslint/member-ordering': OFF,
       '@typescript-eslint/no-unused-expressions': OFF, // biome lint/style/noUnusedExpressions
       '@typescript-eslint/no-misused-promises': OFF, // biome lint/suspicious/noMisusedPromises
       'no-async-promise-executor': OFF, // biome lint/suspicious/noAsyncPromiseExecutor
+      '@typescript-eslint/no-unsafe-function-type': OFF, // biome lint/suspicious/noUnsafeFunctionType
+      'no-debugger': OFF, // biome lint/style/noDebugger
     },
   },
 ];

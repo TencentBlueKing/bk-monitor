@@ -27,10 +27,10 @@ import { computed, defineComponent, shallowRef, watch } from 'vue';
 
 import './chart-skeleton.scss';
 
-const Y_AXIS_LINES = Array(5).fill(null);
+const Y_AXIS_LINES = new Array(5).fill(null);
 
 function generateLinePath(length: number, height: number): string {
-  const points = [];
+  const points: string[] = [];
   const segmentWidth = 100 / (length - 1);
 
   for (let i = 0; i < length; i++) {
@@ -72,14 +72,14 @@ export default defineComponent({
 
     // 3. 生成柱状图高度（仅在 length 变化时重新计算）
     const updateBarHeights = () => {
-      barHeights.value = Array(props.length)
+      barHeights.value = new Array(props.length)
         .fill(0)
         .map(
           () => `${Math.floor(Math.random() * (BAR_HEIGHT_RANGE.max - BAR_HEIGHT_RANGE.min)) + BAR_HEIGHT_RANGE.min}%`,
         );
     };
 
-    const dynamicArray = computed(() => Array(props.length).fill(null));
+    const dynamicArray = computed(() => new Array(props.length).fill(null));
 
     watch(
       () => props.length,
@@ -101,7 +101,7 @@ export default defineComponent({
           <div class='chart-grid'>
             {Y_AXIS_LINES.map((_, index) => (
               <div
-                key={`grid-${index}`}
+                key={`${index}-grid-${_}`}
                 class='grid-line skeleton'
               />
             ))}
@@ -110,7 +110,7 @@ export default defineComponent({
           <div class='y-axis-labels'>
             {Y_AXIS_LINES.map((_, index) => (
               <div
-                key={`y-label-${index}`}
+                key={`${index}-y-label-${_}`}
                 class='y-label skeleton'
               />
             ))}
@@ -119,7 +119,7 @@ export default defineComponent({
           <div class='x-axis-labels'>
             {dynamicArray.value.map((_, index) => (
               <div
-                key={`x-label-${index}`}
+                key={`${index}-x-label-${_}`}
                 class='x-label skeleton'
               />
             ))}
@@ -135,6 +135,7 @@ export default defineComponent({
                   height='100%'
                   class='line-path'
                 >
+                  <title>折线图</title>
                   <path
                     d={generateLinePath(props.length, props.height)}
                     fill='none'
@@ -144,10 +145,10 @@ export default defineComponent({
                 <div class='line-point-box'>
                   {dynamicArray.value.map((_, i) => (
                     <div
-                      key={`point-${i}`}
+                      key={`${i}-point-${_}`}
                       class='line-point'
                     >
-                      <div class='line-point-shadow'></div>
+                      <div class='line-point-shadow' />
                     </div>
                   ))}
                 </div>
@@ -157,13 +158,13 @@ export default defineComponent({
               <div class='bar-skeleton'>
                 {dynamicArray.value.map((_, i) => (
                   <div
-                    key={`bar-${i}`}
+                    key={`${i}-bar-${_}`}
                     style={{
                       height: barHeights.value[i],
                     }}
                     class='bar-item'
                   >
-                    <div class='bar-item-shadow'></div>
+                    <div class='bar-item-shadow' />
                   </div>
                 ))}
               </div>

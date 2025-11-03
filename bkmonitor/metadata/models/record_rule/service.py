@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -44,6 +44,7 @@ class RecordRuleService:
         self.rule_type = rule_type
         self.rule_config = rule_config
         self.count_freq = count_freq
+        self.table_id = generate_pre_cal_table_id(self.space_type, self.space_id, self.record_name)
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def create_record_rule(self):
@@ -54,20 +55,15 @@ class RecordRuleService:
             logger.error("no valid table id found for record_name: %s", self.record_name)
             return
         # 转换到监控结果表
-        table_id = generate_pre_cal_table_id(self.space_type, self.space_id, self.record_name)
-        dst_rt = RecordRule.get_dst_table_id(table_id)
+        dst_rt = RecordRule.get_dst_table_id(self.table_id)
         # 创建预计算配置
-        self._create_result_table(space_type=self.space_type, space_id=self.space_id, table_id=table_id)
-        self._create_record_rule_record(
-            table_id, bksql_metrics["bksql"], bksql_metrics["rule_metrics"], src_rts, dst_rt, count_freq=self.count_freq
-        )
+        self._create_result_table()
+        self._create_record_rule_record(bksql_metrics["bksql"], bksql_metrics["rule_metrics"], src_rts, dst_rt)
         # 创建结果表对应的指标
-        self._create_table_id_fields(table_id, list(bksql_metrics["rule_metrics"].values()))
-        self._create_vm_storage(table_id, dst_rt)
+        self._create_table_id_fields(list(bksql_metrics["rule_metrics"].values()))
+        self._create_vm_storage(dst_rt)
 
-    def _create_record_rule_record(
-        self, table_id: str, bksql: list, rule_metrics: dict, src_table_ids: list, dst_rt: str, count_freq: int
-    ):
+    def _create_record_rule_record(self, bksql: list, rule_metrics: dict, src_table_ids: list, dst_rt: str):
         """创建预计算记录"""
         vm_info = vm_utils.get_vm_cluster_id_name(
             bk_tenant_id=self.bk_tenant_id, space_type=self.space_type, space_id=self.space_id
@@ -75,7 +71,7 @@ class RecordRuleService:
         record = {
             "space_type": self.space_type,
             "space_id": self.space_id,
-            "table_id": table_id,
+            "table_id": self.table_id,
             "record_name": self.record_name,
             "rule_type": self.rule_type,
             "rule_config": self.rule_config,
@@ -85,7 +81,7 @@ class RecordRuleService:
             "vm_cluster_id": vm_info["cluster_id"],
             "dst_vm_table_id": dst_rt,
             "status": RecordRuleStatus.CREATED.value,
-            "count_freq": count_freq,
+            "count_freq": self.count_freq,
             "bk_tenant_id": self.bk_tenant_id,
         }
         # 创建记录
@@ -95,12 +91,12 @@ class RecordRuleService:
             logger.error("create record rule error: %s", e)
             raise
 
-    def _create_result_table(self, space_type: str, space_id: str, table_id: str):
+    def _create_result_table(self):
         """创建结果表"""
-        biz_id = models.Space.objects.get_biz_id_by_space(space_type, space_id)
+        biz_id = models.Space.objects.get_biz_id_by_space(self.space_type, self.space_id)
         models.ResultTable.objects.create(
-            table_id=table_id,
-            table_name_zh=table_id,
+            table_id=self.table_id,
+            table_name_zh=self.table_id,
             is_custom_table=True,
             default_storage=models.ClusterInfo.TYPE_VM,
             creator="system",
@@ -108,14 +104,14 @@ class RecordRuleService:
             bk_tenant_id=self.bk_tenant_id,
         )
 
-    def _create_table_id_fields(self, table_id: str, metrics: list):
+    def _create_table_id_fields(self, metrics: list):
         """创建rt的字段"""
         objs = []
         for metric in metrics:
             objs.append(
                 models.ResultTableField(
                     bk_tenant_id=self.bk_tenant_id,
-                    table_id=table_id,
+                    table_id=self.table_id,
                     field_name=metric,
                     field_type=models.ResultTableField.FIELD_TYPE_STRING,
                     description=metric,
@@ -125,11 +121,11 @@ class RecordRuleService:
             )
         models.ResultTableField.objects.bulk_create(objs, batch_size=BULK_CREATE_BATCH_SIZE)
 
-    def _create_vm_storage(self, table_id: str, vm_table_id: str):
+    def _create_vm_storage(self, vm_table_id: str):
         """创建 vm 存储"""
         models.AccessVMRecord.objects.create(
             bk_tenant_id=self.bk_tenant_id,
-            result_table_id=table_id,
+            result_table_id=self.table_id,
             bk_base_data_id=0,  # 没有具体的计算平台ID，设置为 0
             vm_result_table_id=vm_table_id,
         )
@@ -163,7 +159,7 @@ class BkDataFlow:
         logger.info("create flow success: %s", self.table_id)
 
         try:
-            obj = ResultTableFlow.objects.get(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+            obj = ResultTableFlow.objects.get(table_id=self.table_id)
         except ResultTableFlow.DoesNotExist:
             logger.error("ResultTableFlow does not exist: %s", self.table_id)
             return False

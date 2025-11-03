@@ -50,16 +50,16 @@ interface IProps {
   retrieveParams: object;
   activeFavorite: object;
   isSqlSearchType: boolean;
-  visibleFields: Array<[]>;
-  indexSetList: Array<[]>;
-  historyRecords: Array<[]>;
+  visibleFields: any[];
+  indexSetList: any[];
+  historyRecords: any[];
   retrievedKeyword: string;
   isFavoriteSearch: boolean;
   isShowUiType: boolean;
-  favSearchList: Array<string>;
-  datePickerValue: Array<any>;
+  favSearchList: string[];
+  datePickerValue: any[];
   fieldAliasMap: object;
-  totalFields: Array<any>;
+  totalFields: any[];
 }
 
 interface ITagFocusInputObj {
@@ -77,18 +77,18 @@ export default class SearchComp extends tsc<IProps> {
   @Prop({ type: Object, required: true }) retrieveParams: any; // 检索条件参数
   @Prop({ type: String, required: true }) indexId: string; // 索引ID
   @Prop({ type: Object, required: true }) activeFavorite: object; // 当前活跃的收藏数据
-  @Prop({ type: Array, required: true }) visibleFields: Array<[]>; // 表格展示的字段列表
-  @Prop({ type: Array, required: true }) indexSetList: Array<[]>; // 索引列表
+  @Prop({ type: Array, required: true }) visibleFields: any[]; // 表格展示的字段列表
+  @Prop({ type: Array, required: true }) indexSetList: any[]; // 索引列表
   @Prop({ type: Boolean, required: true }) isSqlSearchType: boolean; // 是否是Sql搜索模式
-  @Prop({ type: Array, required: true }) historyRecords: Array<[]>; // 检索历史列表
+  @Prop({ type: Array, required: true }) historyRecords: any[]; // 检索历史列表
   @Prop({ type: String, required: true }) retrievedKeyword: string; // 检索语句
   @Prop({ type: Object, required: true }) retrieveDropdownData: any; // 检索框下拉数据
   @Prop({ type: Boolean, required: true }) isFavoriteSearch: boolean; // 当前是否是收藏检索
   @Prop({ type: Boolean, required: true }) isShowUiType: boolean; // 是否展示Sql / UI切换
-  @Prop({ type: Array, required: true }) favSearchList: Array<string>; // 收藏名称列表
-  @Prop({ type: Array, required: true }) datePickerValue: Array<any>; //
+  @Prop({ type: Array, required: true }) favSearchList: string[]; // 收藏名称列表
+  @Prop({ type: Array, required: true }) datePickerValue: any[]; //
   @Prop({ type: Object, required: true }) fieldAliasMap: object;
-  @Prop({ type: Array, required: true }) totalFields: Array<any>; // 所有字段
+  @Prop({ type: Array, required: true }) totalFields: any[]; // 所有字段
   @Prop({ type: Object, required: true }) catchIpChooser: object; // ip选择器缓存数据
 
   inputSearchList = []; // ui模式检索语句生成的键名
@@ -160,8 +160,9 @@ export default class SearchComp extends tsc<IProps> {
     // 所有的过滤条件列表
     // 判断当前列表是否需要展示ip选择器
     const isShowIpSelect = this.totalFields.some(item => item.field_name === '__ext.container_id');
-    const result = !isShowIpSelect
-      ? [
+    const result = isShowIpSelect
+      ? []
+      : [
           {
             id: 'ip-select',
             name: window.mainComponent.$t('IP目标'),
@@ -178,12 +179,13 @@ export default class SearchComp extends tsc<IProps> {
             valueList: [], // taginput的输入框列表
             esDocValues: false,
           },
-        ]
-      : [];
+        ];
 
-    this.totalFields.forEach(item => {
+    for (const item of this.totalFields) {
       // 操作符列表为undefined或者没数据时不加入过滤条件
-      if (!Array.isArray(item.field_operator) || !item.field_operator.length) return;
+      if (!(Array.isArray(item.field_operator) && item.field_operator.length)) {
+        continue;
+      }
       const fieldName = item.field_name;
       const alias = this.fieldAliasMap[fieldName];
       result.push({
@@ -202,10 +204,10 @@ export default class SearchComp extends tsc<IProps> {
         valueList: [],
         esDocValues: item.es_doc_values,
       });
-    });
+    }
 
     // 禁用排序
-    const disabledList = [];
+    const disabledList: Record<string, any>[] = [];
     const unDisabledList = result.reduce((pre, cur) => {
       cur.disabled ? disabledList.push(cur) : pre.push(cur);
       return pre;
@@ -339,25 +341,19 @@ export default class SearchComp extends tsc<IProps> {
   setRouteParams(retrieveParams = {} as any, deleteIpValue = false, linkAdditionList = null, isPromise = false) {
     const { params, query } = this.$route;
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const { ip_chooser, isIPChooserOpen, addition, ...reset } = query;
+    const { ip_chooser, isIPChooserOpen: _isIPChooserOpen, addition: _addition, ...reset } = query;
     const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
     Object.assign(filterQuery, retrieveParams);
     const newQueryObj = { addition: this.getFiledAdditionStr(linkAdditionList) }; // 新的query对象
     const { ipChooser } = retrieveParams;
     const newIPChooser = Object.keys(ipChooser || {}).length ? ipChooser : ip_chooser;
 
-    if (newIPChooser && Object.keys(newIPChooser).length) {
+    if (newIPChooser && Object.keys(newIPChooser).length && !deleteIpValue) {
       // ip值更新
       Object.assign(newQueryObj, {
         ip_chooser: this.getIPChooserStr(newIPChooser),
         isIPChooserOpen: this.ipChooserIsOpen,
       });
-    }
-
-    if (deleteIpValue) {
-      // 清空ip值
-      delete (newQueryObj as any).ip_chooser;
-      delete (newQueryObj as any).isIPChooserOpen;
     }
 
     Object.assign(filterQuery, newQueryObj);
@@ -366,8 +362,12 @@ export default class SearchComp extends tsc<IProps> {
       params,
       query: filterQuery,
     };
-    if (linkAdditionList) return this.$router.resolve(routeData).href;
-    if (!isPromise) return this.$router.replace(routeData);
+    if (linkAdditionList) {
+      return this.$router.resolve(routeData).href;
+    }
+    if (!isPromise) {
+      return this.$router.replace(routeData);
+    }
     // 如果相同，直接返回一个 resolved 的 Promise
     if (
       this.$route.name === routeData.name &&
@@ -386,12 +386,16 @@ export default class SearchComp extends tsc<IProps> {
     const filterAddition = this.conditionList.filter(item => {
       if (item.conditionType === 'filed') {
         // 如果是有exists操作符则不判断是否有值 直接回填路由
-        if (this.isExistsOperator(item.operator)) return true;
+        if (this.isExistsOperator(item.operator)) {
+          return true;
+        }
         return !!item.value.filter(Boolean).length;
       }
       return false;
     });
-    if (!filterAddition.length && !linkAdditionList) return undefined;
+    if (!(filterAddition.length || linkAdditionList)) {
+      return;
+    }
     const stringifyList = filterAddition.map(item => ({
       field: item.id,
       operator: item.operator,
@@ -405,14 +409,17 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   getIPChooserStr(ipChooser) {
-    if (typeof ipChooser === 'object') return JSON.stringify(ipChooser);
+    if (typeof ipChooser === 'object') {
+      return JSON.stringify(ipChooser);
+    }
     return ipChooser;
   }
 
   // 初始化或从外部下钻添加过来的交互下钻过来的条件
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   pushCondition(field: string, operator: string, value: any, isInclude: boolean, isSearchInit = false) {
     const findField = this.filterFields.find(item => item.id === field);
-    let findOperatorItem = null;
+    let findOperatorItem: any = null;
     // 字段类型并且是包含, 不包含的情况下才会去匹配当前展示的操作符列表元素
     if (findField?.fieldType === 'text' && !['exists', 'does not exists'].includes(operator)) {
       const containsItem = findField?.operatorList.find(item => item.operator === 'contains match phrase');
@@ -429,14 +436,12 @@ export default class SearchComp extends tsc<IProps> {
     // 检查条件列表中是否存在具有相同操作符和字段ID的条件
     const isExistCondition = this.conditionList.some(item => item.operator === operator && item.id === field);
     // 获取条件列表中的最后一个条件
-    const lastCondition = this.conditionList[this.conditionList.length - 1];
+    const lastCondition = this.conditionList.at(-1);
     // 检查操作符是否是包含或不包含匹配短语
     const isContainsType = this.allContainsStrList.includes(operator);
     if (!isSearchInit) {
       // 遍历条件列表
-      for (const cIndex in this.conditionList) {
-        // 获取当前遍历到的条件
-        const currentCondition = this.conditionList[cIndex];
+      for (const currentCondition of this.conditionList) {
         // 如果当前条件的操作符和字段与给定的匹配
         if (currentCondition.operator === operator && currentCondition.id === field && currentCondition.isInclude) {
           // 如果当前条件的值为空数组
@@ -474,9 +479,9 @@ export default class SearchComp extends tsc<IProps> {
 
   // 只清除条件的值 不删除条件
   clearValue() {
-    this.conditionList.forEach(item => {
+    for (const item of this.conditionList) {
       item.value = [];
-    });
+    }
     this.setRouteParams({}, true);
   }
 
@@ -486,10 +491,11 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   initAdditionDefault(addition = []) {
+    let newAdditions: Record<string, any>[] = addition;
     // 如果初始化时没有路由传过来的条件则默认展示path和log条件
-    if (!addition.length && !this.conditionList.length) {
+    if (!(newAdditions.length || this.conditionList.length)) {
       // log / path 操作默认展示
-      addition = this.filterFields
+      newAdditions = this.filterFields
         .filter(item => ['path', 'log'].includes(item.name))
         .map(item => ({
           field: item.name,
@@ -498,10 +504,10 @@ export default class SearchComp extends tsc<IProps> {
           isInclude: true,
         }));
     }
-    addition.forEach(el => {
+    for (const el of newAdditions) {
       const { field, operator, value, isInclude } = el;
       this.pushCondition(field, operator, value, isInclude, true);
-    });
+    }
   }
 
   /**
@@ -528,10 +534,10 @@ export default class SearchComp extends tsc<IProps> {
       this.handleIPSelectorValueChange({}, true); // 当前旧的条件是ip选择器则清空IP
     }
     const spliceItem = this.filterFields.find(item => item.id === id);
-    Object.entries(spliceItem).forEach(([key, val]) => {
+    for (const [key, val] of Object.entries(spliceItem)) {
       // 替换新的字段
       this.conditionList[index][key] = val;
-    });
+    }
     this.searchAdditionQuery(false); // 更新检索条件但不检索
     this.setRouteParams();
   }
@@ -541,7 +547,7 @@ export default class SearchComp extends tsc<IProps> {
     const condition = this.conditionList[index];
     condition.isInclude = v;
     if (condition.conditionType === 'ip-select') {
-      this.handleIPSelectorValueChange(!v ? {} : this.catchIpChooser);
+      this.handleIPSelectorValueChange(v ? this.catchIpChooser : {});
     } else if (this.isExistsOperator(condition.operator) || condition.value.length) {
       // 如果是有包含和非包含直接请求
       this.searchAdditionQuery();
@@ -566,13 +572,14 @@ export default class SearchComp extends tsc<IProps> {
   }
 
   async handleBlurSearchInput(keyword) {
-    keyword === '' && (keyword = '*');
+    let newKeyword = keyword;
+    newKeyword === '' && (newKeyword = '*');
     try {
       const res = await $http.request('favorite/getSearchFields', {
-        data: { keyword },
+        data: { keyword: newKeyword },
       });
       this.inputSearchList = res.data.map(item => item.name);
-    } catch (err) {
+    } catch {
       this.inputSearchList = [];
     }
   }
@@ -582,9 +589,16 @@ export default class SearchComp extends tsc<IProps> {
     // 获得当前开启的字段并且有有效值进行检索
     const addition = this.conditionList
       .filter(item => {
-        if (item.conditionType !== 'filed' || !item.isInclude) return false;
-        if (this.isExistsOperator(item.operator)) return true;
-        if (item.value.length) return true;
+        if (item.conditionType !== 'filed' || !item.isInclude) {
+          return false;
+        }
+        if (this.isExistsOperator(item.operator)) {
+          return true;
+        }
+        if (item.value.length) {
+          return true;
+        }
+        return false;
       })
       .map(item => ({
         field: item.id,
@@ -601,12 +615,14 @@ export default class SearchComp extends tsc<IProps> {
 
   async queryValueList(fieldsParams = []) {
     const fields = fieldsParams.length ? fieldsParams : this.fieldsKeyStrList;
-    if (!fields.length) return;
+    if (!fields.length) {
+      return;
+    }
     const tempList = handleTransformToTimestamp(this.datePickerValue, this.$store.getters.retrieveParams.format);
     try {
       const urlStr = this.isUnionSearch ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
       const queryData = {
-        keyword: !!this.retrievedKeyword ? this.retrievedKeyword : '*',
+        keyword: this.retrievedKeyword ? this.retrievedKeyword : '*',
         fields,
         start_time: formatDate(tempList[0]),
         end_time: formatDate(tempList[1]),
@@ -624,16 +640,20 @@ export default class SearchComp extends tsc<IProps> {
       });
       this.aggsItems = res.data.aggs_items;
       this.initValueList();
-    } catch (err) {
-      this.conditionList.forEach(item => (item.valueList = []));
+    } catch {
+      for (const item of this.conditionList) {
+        item.valueList = [];
+      }
     }
   }
 
   initValueList() {
-    this.conditionList.forEach(item => {
-      if (item.conditionType === 'ip-select') return;
+    for (const item of this.conditionList) {
+      if (item.conditionType === 'ip-select') {
+        continue;
+      }
       item.valueList = this.aggsItems[item.id] ?? [];
-    });
+    }
   }
 
   tagInputStrChange(index: number, str: string) {
@@ -699,6 +719,7 @@ export default class SearchComp extends tsc<IProps> {
         {/* 这里插入 condition 组件 */}
         {this.conditionList.map((item, index) => (
           <Condition
+            key={`${index}-${item}`}
             style='margin-bottom: 16px;'
             catchIpChooser={this.catchIpChooser}
             conditionType={item.conditionType}
@@ -732,7 +753,7 @@ export default class SearchComp extends tsc<IProps> {
             <i
               style='margin-right: 6px;'
               class='bk-icon icon-plus'
-            ></i>
+            />
             <span>{this.$t('添加条件')}</span>
           </Button>
 
@@ -755,7 +776,7 @@ export default class SearchComp extends tsc<IProps> {
                 }}
                 disabled={option.disabled}
                 name={option.fullName}
-              ></Option>
+              />
             ))}
           </Select>
         </div>

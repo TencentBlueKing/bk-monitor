@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
 import json
 import os
 import tarfile
@@ -33,6 +34,7 @@ from django.utils.translation import gettext as _
 
 from apps.constants import RemoteStorageType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH_EXPORT
 from apps.log_search.constants import (
     ASYNC_APP_CODE,
     ASYNC_DIR,
@@ -45,6 +47,7 @@ from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
     ExportStatus,
     MsgModel,
+    SCROLL,
 )
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_search.models import (
@@ -54,6 +57,7 @@ from apps.log_search.models import (
 from apps.utils.log import logger
 from apps.utils.notify import NotifyType
 from apps.utils.remote_storage import StorageType
+from apps.utils.thread import MultiExecuteFunc
 
 
 @app.task(ignore_result=True, queue="async_export")
@@ -378,10 +382,11 @@ class BaseExportUtils:
         将对应数据写到文件中
         """
         for res in result:
-            for item in res:
+            origin_result_list = res.get("origin_log_list")
+            for item in origin_result_list:
                 f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
 
-    def async_export(self):
+    def fetch_data_and_package(self):
         summary_file_path = f"{ASYNC_DIR}/{self.file_name}_summary.{self.export_file_type}"
 
         with open(summary_file_path, "a+", encoding="utf-8") as f:
@@ -404,7 +409,63 @@ class AsyncExportUtils(BaseExportUtils):
         """
         if not (os.path.exists(ASYNC_DIR) and os.path.isdir(ASYNC_DIR)):
             os.makedirs(ASYNC_DIR)
-        self.async_export()
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.unify_query_handler.bk_biz_id):
+            self.fetch_data_and_package()
+        else:
+            export_method = self.quick_export if self.is_quick_export else self.async_export
+            export_method()
+
+    def _async_export(self, file_path):
+        try:
+            index_set = self.unify_query_handler.index_info_list[0]["index_set_obj"]
+            max_result_window = index_set.result_window
+            result = self.unify_query_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
+            with open(file_path, "a+", encoding="utf-8") as f:
+                result_list = self.unify_query_handler._deal_query_result(result_dict=result).get("origin_log_list")
+                for item in result_list:
+                    f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
+                generate_result = self.unify_query_handler.search_after_result(result, self.sorted_fields)
+                self.write_file(f, generate_result)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("async export error: index_set_id: %s, reason: %s", index_set.index_set_id, e)
+            raise e
+
+        return file_path
+
+    def async_export(self):
+        summary_file_path = f"{ASYNC_DIR}/{self.file_name}_summary.{self.export_file_type}"
+        result = self._async_export(file_path=summary_file_path)
+        self.file_path_list.append(result)
+        with tarfile.open(self.tar_file_path, "w:gz") as tar:
+            tar.add(summary_file_path, arcname=os.path.basename(summary_file_path))
+            self.file_path_list.append(summary_file_path)
+
+    def _quick_export(self):
+        try:
+            index_set = self.unify_query_handler.index_info_list[0]["index_set_obj"]
+            max_result_window = index_set.result_window
+            file_path = f"{ASYNC_DIR}/{self.file_name}_summary.{self.export_file_type}"
+            result = self.unify_query_handler.pre_get_result(
+                sorted_fields=self.sorted_fields, size=max_result_window, scroll=SCROLL
+            )
+            with open(file_path, "a+", encoding="utf-8") as f:
+                result_list = self.unify_query_handler._deal_query_result(result_dict=result).get("origin_log_list")
+                for item in result_list:
+                    f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
+                generate_result = self.unify_query_handler.scroll_search(result)
+                self.write_file(f, generate_result)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("async export error: index_set_id: %s, reason: %s", index_set.index_set_id, e)
+            raise e
+
+        return file_path
+
+    def quick_export(self):
+        result = self._quick_export()
+        self.file_path_list.append(result)
+        with tarfile.open(self.tar_file_path, "w:gz") as tar:
+            for file_path in self.file_path_list:
+                tar.add(file_path, arcname=os.path.basename(file_path))
 
     def send_msg(
         self,
@@ -466,7 +527,78 @@ class UnionAsyncExportUtils(BaseExportUtils):
         """
         if not (os.path.exists(ASYNC_DIR) and os.path.isdir(ASYNC_DIR)):
             os.makedirs(ASYNC_DIR)
-        self.async_export()
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.unify_query_handler.bk_biz_id):
+            self.fetch_data_and_package()
+        else:
+            self.async_export()
+
+    def _async_export(self, file_path, unify_query_handler: UnifyQueryHandler):
+        try:
+            index_set = unify_query_handler.index_info_list[0]["index_set_obj"]
+            max_result_window = index_set.result_window
+            result = unify_query_handler.pre_get_result(sorted_fields=self.sorted_fields, size=max_result_window)
+            with open(file_path, "a+", encoding="utf-8") as f:
+                result_list = unify_query_handler._deal_query_result(result_dict=result).get("origin_log_list")
+                for item in result_list:
+                    f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
+                generate_result = unify_query_handler.search_after_result(result, self.sorted_fields)
+                self.write_file(f, generate_result)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("async export error: index_set_id: %s, reason: %s", index_set.index_set_id, e)
+            raise e
+
+        return file_path
+
+    def async_export(self):
+        index_info_list = copy.deepcopy(self.unify_query_handler.index_info_list)
+        multi_execute_func = MultiExecuteFunc()
+        export_method = self._quick_export if self.is_quick_export else self._async_export
+        for index_info in index_info_list:
+            self.unify_query_handler.index_info_list = [index_info]
+            # 基础查询参数初始化
+            self.unify_query_handler.base_dict = self.unify_query_handler.init_base_dict()
+            index_set_id = index_info["index_set_id"]
+            file_path = f"{ASYNC_DIR}/{self.file_name}_{index_set_id}.{self.export_file_type}"
+            multi_execute_func.append(
+                result_key=index_set_id,
+                func=export_method,
+                params={"file_path": file_path, "unify_query_handler": copy.deepcopy(self.unify_query_handler)},
+                multi_func_params=True,
+            )
+        multi_result = multi_execute_func.run(return_exception=True)
+        summary_file_path = f"{ASYNC_DIR}/{self.file_name}_summary.{self.export_file_type}"
+        with open(summary_file_path, "a+", encoding="utf-8") as summary_file:
+            for result_key, result in multi_result.items():
+                if isinstance(result, Exception):
+                    logger.exception("async export error: %s -- %s, reason: %s", self.file_name, result_key, result)
+                else:
+                    self.file_path_list.append(result)
+                    # 读取文件内容并写入汇总文件
+                    with open(result, encoding="utf-8") as f:
+                        for line in f:
+                            summary_file.write(line)
+        with tarfile.open(self.tar_file_path, "w:gz") as tar:
+            tar.add(summary_file_path, arcname=os.path.basename(summary_file_path))
+            self.file_path_list.append(summary_file_path)
+
+    def _quick_export(self, file_path, unify_query_handler: UnifyQueryHandler):
+        try:
+            index_set = unify_query_handler.index_info_list[0]["index_set_obj"]
+            max_result_window = index_set.result_window
+            result = unify_query_handler.pre_get_result(
+                sorted_fields=self.sorted_fields, size=max_result_window, scroll=SCROLL
+            )
+            with open(file_path, "a+", encoding="utf-8") as f:
+                result_list = unify_query_handler._deal_query_result(result_dict=result).get("origin_log_list")
+                for item in result_list:
+                    f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
+                generate_result = unify_query_handler.scroll_search(result)
+                self.write_file(f, generate_result)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.exception("async export error: index_set_id: %s, reason: %s", index_set.index_set_id, e)
+            raise e
+
+        return file_path
 
     def send_msg(
         self,

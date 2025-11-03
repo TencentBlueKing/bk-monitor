@@ -1,6 +1,6 @@
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
@@ -15,6 +15,8 @@ from django.db.transaction import atomic
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from bkm_space.api import SpaceApi
+from bkm_space.define import Space, SpaceTypeEnum
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_request_username
@@ -513,6 +515,7 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
                 label="存储类型",
                 default=models.ClusterInfo.TYPE_ES,
             )
+            is_enable = serializers.BooleanField(required=False, label="是否启用")
 
             class QueryAliasSettingSerializer(serializers.Serializer):
                 field_name = serializers.CharField(required=True, label="字段名", help_text="需要设置查询别名的字段名")
@@ -596,14 +599,14 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
                     )
                     raise e
 
+        # 清理data_label下多余的配置
+        if data_label:
+            self._cleanup_excess_data_label_config(bk_tenant_id, data_label, processed_table_ids)
+
         # 统一推送路由信息
         self._push_routes(
             bk_tenant_id, space_type, space_id, es_table_ids, doris_table_ids, data_label, need_refresh_data_label
         )
-
-        # 清理data_label下多余的配置
-        if data_label:
-            self._cleanup_excess_data_label_config(bk_tenant_id, data_label, processed_table_ids)
 
         logger.info(
             "CreateOrUpdateLogDataLink: successfully processed all %d table(s) for space [%s:%s]",
@@ -612,7 +615,9 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
             space_id,
         )
 
-    def _update_existing_table(self, bk_tenant_id: str, table_id: str, table_info: dict, data_label: str, result_table):
+    def _update_existing_table(
+        self, bk_tenant_id: str, table_id: str, table_info: dict, data_label: str, result_table: models.ResultTable
+    ):
         """更新现有结果表"""
         storage_type = table_info.get("storage_type", models.ClusterInfo.TYPE_ES)
 
@@ -620,6 +625,11 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
         if data_label and data_label != result_table.data_label:
             result_table.data_label = data_label
             result_table.save(update_fields=["data_label"])
+
+        # 更新结果表是否启用
+        if table_info.get("is_enable") is not None and table_info["is_enable"] != result_table.is_enable:
+            result_table.is_enable = table_info["is_enable"]
+            result_table.save(update_fields=["is_enable"])
 
         # 更新options
         if table_info.get("options"):
@@ -635,6 +645,11 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
         self, bk_tenant_id: str, space, table_id: str, table_info: dict, data_label: str, storage_type: str
     ):
         """创建新的结果表"""
+        # 如果结果表不启用，则不创建
+        is_enable = table_info.get("is_enable", True)
+        if is_enable is False:
+            return
+
         # 创建结果表
         models.ResultTable.objects.create(
             bk_tenant_id=bk_tenant_id,
@@ -736,6 +751,14 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
 
         # 推送空间路由
         SpaceTableIDRedis().push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
+
+        # 如果是非bkcc空间，推送关联的bkcc空间路由
+        if space_type != "bkcc":
+            related_space: Space = SpaceApi.get_related_space(f"{space_type}__{space_id}", SpaceTypeEnum.BKCC.value)
+            if related_space:
+                SpaceTableIDRedis().push_space_table_ids(
+                    space_type=related_space.space_type_id, space_id=related_space.space_id, is_publish=True
+                )
 
         # 批量推送ES表详情路由
         if es_table_ids:

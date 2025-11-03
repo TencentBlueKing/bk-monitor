@@ -26,6 +26,7 @@
 import { defineComponent, ref, computed } from 'vue';
 
 import BklogPopover from '@/components/bklog-popover';
+import MatchMode from '@/global/match-mode';
 import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash-es';
 import { useRoute } from 'vue-router/composables';
@@ -40,6 +41,7 @@ export default defineComponent({
   components: {
     GrepCliEditor,
     BklogPopover,
+    MatchMode,
   },
   props: {
     searchCount: {
@@ -61,36 +63,19 @@ export default defineComponent({
     const { t } = useLocale();
     const grepValue = ref((route.query.grep_query as string) ?? '');
 
-    const isCaseSensitive = ref(false);
-    const isRegexMode = ref(false);
-    const isWordMatch = ref(false);
-    // const currentMatchIndex = ref(1);
+    /**
+     * 高亮匹配规则
+     */
+    const matchMode = ref({
+      caseSensitive: false,
+      regexMode: false,
+      wordMatch: false,
+    });
 
     const store = useStore();
     const fieldList = computed(() =>
       (store.state.indexFieldInfo.fields ?? []).filter(field => field.field_type === 'text'),
     );
-
-    // 计算是否有搜索结果
-    // const hasResults = computed(() => {
-    //   return props.searchCount > 0;
-    // });
-
-    // 计算结果显示文本
-    // const resultText = computed(() => {
-    //   if (!props.searchCount || !props.searchValue) {
-    //     return { text: '无结果', type: 'placeholder' };
-    //   }
-
-    //   if (props.searchCount === 0) {
-    //     return { text: '无结果', type: 'no-result' };
-    //   }
-
-    //   return {
-    //     text: `${currentMatchIndex.value}/${props.searchCount}`,
-    //     type: 'success',
-    //   };
-    // });
 
     // 选择字段
     const handleFieldChange = (id: string) => {
@@ -107,90 +92,18 @@ export default defineComponent({
       emit('search-change', {
         content: value,
         searchValue: value,
-        matchMode: {
-          caseSensitive: isCaseSensitive.value,
-          regexMode: isRegexMode.value,
-          wordMatch: isWordMatch.value,
-        },
+        matchMode: matchMode.value,
       });
     }, 300);
 
-    // 切换大小写敏感
-    const toggleCaseSensitive = () => {
-      isCaseSensitive.value = !isCaseSensitive.value;
-      emit('match-mode', {
-        caseSensitive: isCaseSensitive.value,
-        regexMode: isRegexMode.value,
-        wordMatch: isWordMatch.value,
-      });
+    const handleMatchModeChange = args => {
+      Object.assign(matchMode.value, args);
+      emit('match-mode', matchMode.value);
     };
-
-    // 切换正则模式
-    const toggleRegexMode = () => {
-      isRegexMode.value = !isRegexMode.value;
-      emit('match-mode', {
-        caseSensitive: isCaseSensitive.value,
-        regexMode: isRegexMode.value,
-        wordMatch: isWordMatch.value,
-      });
-    };
-
-    // 切换整词匹配
-    const toggleWordMatch = () => {
-      isWordMatch.value = !isWordMatch.value;
-      emit('match-mode', {
-        caseSensitive: isCaseSensitive.value,
-        regexMode: isRegexMode.value,
-        wordMatch: isWordMatch.value,
-      });
-    };
-
-    // 上一个匹配
-    // const gotoPrevMatch = () => {
-    //   if (hasResults.value) {
-    //     emit('search-change', {
-    //       content: grepValue.value,
-    //       searchValue: props.searchValue,
-    //       matchMode: {
-    //         caseSensitive: isCaseSensitive.value,
-    //         regexMode: isRegexMode.value,
-    //         wordMatch: isWordMatch.value,
-    //       },
-    //     });
-    //   }
-    // };
-
-    // 下一个匹配
-    // const gotoNextMatch = () => {
-    //   if (hasResults.value) {
-    //     emit('search-change', {
-    //       content: grepValue.value,
-    //       searchValue: props.searchValue,
-    //       matchMode: {
-    //         caseSensitive: isCaseSensitive.value,
-    //         regexMode: isRegexMode.value,
-    //         wordMatch: isWordMatch.value,
-    //       },
-    //     });
-    //   }
-    // };
 
     const handleEditorEnter = (value: string) => {
       emit('grep-enter', value);
     };
-
-    // 处理导航点击事件
-    // const handlePrevClick = () => {
-    //   if (hasResults.value) {
-    //     gotoPrevMatch();
-    //   }
-    // };
-
-    // const handleNextClick = () => {
-    //   if (hasResults.value) {
-    //     gotoNextMatch();
-    //   }
-    // };
 
     return () => (
       <div class='grep-cli-container grep-cli-flex'>
@@ -240,61 +153,8 @@ export default defineComponent({
               value={props.searchValue}
               on-change={handleSearchInput}
             />
-            <div class='grep-cli-tools'>
-              <BklogPopover
-                content={t('大小写匹配')}
-                options={{ placement: 'top', theme: 'dark', appendTo: document.body } as any}
-                trigger='hover'
-              >
-                <span
-                  class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-daxiaoxie', { active: isCaseSensitive.value }]}
-                  onClick={toggleCaseSensitive}
-                />
-              </BklogPopover>
-
-              <BklogPopover
-                content={t('精确匹配')}
-                options={{ placement: 'top', theme: 'dark', appendTo: document.body } as any}
-                trigger='hover'
-              >
-                <span
-                  class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-ab', { active: isWordMatch.value }]}
-                  onClick={toggleWordMatch}
-                />
-              </BklogPopover>
-
-              <BklogPopover
-                content={t('正则匹配')}
-                options={{ placement: 'top', theme: 'dark', appendTo: document.body } as any}
-                trigger='hover'
-              >
-                <span
-                  class={['grep-cli-tool-icon', 'bklog-icon', 'bklog-tongpeifu', { active: isRegexMode.value }]}
-                  onClick={toggleRegexMode}
-                />
-              </BklogPopover>
-            </div>
+            <MatchMode on-change={handleMatchModeChange} />
           </div>
-
-          {/* <div class='grep-cli-result-section'>
-            <span class={['grep-cli-result-text', resultText.value.type]}>{resultText.value.text}</span>
-            <div class='grep-cli-navigation'>
-              <span
-                class={['grep-cli-nav-icon', 'grep-cli-nav-up', { disabled: !hasResults.value }]}
-                onClick={handlePrevClick}
-                title='上一个匹配'
-              >
-                ↑
-              </span>
-              <span
-                class={['grep-cli-nav-icon', 'grep-cli-nav-down', { disabled: !hasResults.value }]}
-                onClick={handleNextClick}
-                title='下一个匹配'
-              >
-                ↓
-              </span>
-            </div>
-          </div> */}
         </div>
       </div>
     );

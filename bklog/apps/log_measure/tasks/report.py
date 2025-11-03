@@ -74,6 +74,7 @@ def bk_monitor_report():
             # 初始化值默认为空列表
             "feature_config": {"import_paths": []},
             "biz_id_white_list": [],
+            "biz_id_black_list": [],
         },
     )
     # 如果为空列表，则默认全部执行
@@ -102,6 +103,7 @@ def bk_monitor_collect():
             # 初始化值默认为空列表
             "feature_config": {"import_paths": []},
             "biz_id_white_list": [],
+            "biz_id_black_list": [],
         },
     )
     if not feature_toggle_obj.status == "on":

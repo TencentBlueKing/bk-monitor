@@ -25,13 +25,12 @@ from multiprocessing.pool import ThreadPool
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from iam.api.http import http_post
 from iam.auth.models import Action
 from iam.auth.models import ApiBatchAuthRequest as OldApiBatchAuthRequest
 from iam.auth.models import ApiBatchAuthResourceWithPath, Subject
 from iam.contrib.iam_migration.migrator import IAMMigrator
-from iam.exceptions import AuthAPIError
 
+from apps.api import IAMApi
 from apps.api import TransferApi
 from apps.iam import ActionEnum, Permission, ResourceEnum
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
@@ -103,7 +102,7 @@ class Command(BaseCommand):
 
     def handle(self, action=None, concurrency=None, username=None, bk_tenant_id=None, **options):
         if not bk_tenant_id:
-            bk_tenant_id = settings.DEFAULT_TENANT_ID
+            bk_tenant_id = settings.BK_APP_TENANT_ID
         self.iam_client = Permission.get_iam_client(bk_tenant_id)
 
         start_time = time.time()
@@ -116,21 +115,21 @@ class Command(BaseCommand):
         if action:
             ACTIONS_TO_UPGRADE = [get_action_by_id(action)]
 
-        print("upgrade for actions: %s" % ",".join([action.id for action in ACTIONS_TO_UPGRADE]))
+        print("upgrade for actions: {}".format(",".join([action.id for action in ACTIONS_TO_UPGRADE])))
 
         # 并发数
         concurrency = int(concurrency) if concurrency else 50
-        print("upgrade with concurrency: %s" % concurrency)
+        print(f"upgrade with concurrency: {concurrency}")
 
         # 按用户名过滤
         self.username = username
         if username:
-            print("upgrade for user: %s" % username)
+            print(f"upgrade for user: {username}")
 
         self.upgrade_policy(concurrency)
 
         end_time = time.time()
-        print("[upgrade_iam_action_v2] ##### END #####, Cost: %d" % (end_time - start_time))
+        print(f"[upgrade_iam_action_v2] ##### END #####, Cost: {end_time - start_time}")
 
         check_result = self.check_upgrade_polices()
         if check_result:
@@ -173,7 +172,7 @@ class Command(BaseCommand):
         for action in ACTIONS_TO_UPGRADE:
             old_action_id = action.id.replace("_v2", "")
             policies = policies_by_actions[old_action_id]
-            print("[grant_resource] [START] action[%s], policy count: %d" % (action.id, len(policies)))
+            print(f"[grant_resource] [START] action[{action.id}], policy count: {len(policies)}")
 
             total = len(policies)
             progress = 0
@@ -201,19 +200,10 @@ class Command(BaseCommand):
             global_progress += len(resources)
 
             print(
-                "[grant_resource] [%d%%(%d/%d)] grant permission for action: %s, progress: %d%% (%d/%d)"
-                % (
-                    global_progress / global_total * 100 if global_total > 0 else 0,
-                    global_progress,
-                    global_total,
-                    action.id,
-                    progress / total * 100 if total > 0 else 0,
-                    progress,
-                    total,
-                )
+                f"[grant_resource] [{global_progress / global_total * 100 if global_total > 0 else 0}%({global_progress}/{global_total})] grant permission for action: {action.id}, progress: {progress / total * 100 if total > 0 else 0}% ({progress}/{total})"
             )
 
-            print("[grant_resource] [END] action[%s]" % action.id)
+            print(f"[grant_resource] [END] action[{action.id}]")
 
         print("[upgrade_policy] [END]")
 
@@ -234,8 +224,7 @@ class Command(BaseCommand):
                 # 新策略数量为0是不正常的
                 no_ok_actions.append(result[0])
             print(
-                "[check_upgrade_polices] action[%s] old count: %d, new count: %d, diff: %d"
-                % (result[0], result[1], result[2], result[2] - result[1])
+                f"[check_upgrade_polices] action[{result[0]}] old count: {result[1]}, new count: {result[2]}, diff: {result[2] - result[1]}"
             )
 
         print("##### CHECK RESULT #####")
@@ -243,7 +232,11 @@ class Command(BaseCommand):
             print("Congratulations! IAM upgrade successfully!!!")
             return True
 
-        print("Sorry, maybe something wrong with IAM upgrade. Following actions not OK: %s" % ", ".join(no_ok_actions))
+        print(
+            "Sorry, maybe something wrong with IAM upgrade. Following actions not OK: {}".format(
+                ", ".join(no_ok_actions)
+            )
+        )
         return False
 
     def query_polices(self, action_id):
@@ -394,8 +387,9 @@ class Command(BaseCommand):
                     results.append(self.grant_resource_chunked(resource, chunk))
         except Exception as e:  # pylint: disable=broad-except
             print(
-                "grant permission error for action[%s], subject[%s]: %s"
-                % (resource["actions"][0]["id"], resource["subject"], e)
+                "grant permission error for action[{}], subject[{}]: {}".format(
+                    resource["actions"][0]["id"], resource["subject"], e
+                )
             )
         return results
 
@@ -419,9 +413,4 @@ class Command(BaseCommand):
         return result
 
     def batch_path_authorization(self, request, bk_token=None, bk_username=None):
-        data = request.to_dict()
-        path = "/api/c/compapi/v2/iam/authorization/batch_path/"
-        ok, message, _data = self.iam_client._client._call_esb_api(http_post, path, data, bk_token, bk_username)
-        if not ok:
-            raise AuthAPIError(message)
-        return _data
+        return IAMApi.batch_path(request.to_dict())

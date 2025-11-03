@@ -3,7 +3,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
  *
@@ -57,10 +57,12 @@ import {
   type ITagsItem,
   EListItemType,
 } from '../../typings/trace';
-import { downFile, getSpanKindIcon } from '../../utils';
+import { downFile } from '../../utils';
+import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
-import DashboardPanel from './dashboard-panel/dashboard-panel';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
+import DashboardPanel from './dashboard-panel/dashboard-panel';
+import DecodeDialog from '@/components/decode-dialog/decode-dialog';
 
 import type { Span } from '../../components/trace-view/typings';
 import type { IFlameGraphDataItem } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
@@ -202,7 +204,6 @@ export default defineComponent({
 
     const spanId = computed(() => props.spanDetails.span_id);
     provide('spanId', spanId);
-
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
     /* 初始化 */
@@ -252,17 +253,6 @@ export default defineComponent({
       },
       { immediate: true, deep: true }
     );
-
-    /** 获取 span 类型icon */
-    function getTypeIcon() {
-      const { source, kind, ebpf_kind: ebpfKind } = props.spanDetails;
-      if (source === 'ebpf') {
-        // ebpf 类型
-        return ebpfKind === 'ebpf_system' ? 'System1' : 'Network1';
-      }
-
-      return getSpanKindIcon(kind);
-    }
 
     /** 获取 span 类型描述 */
     function getTypeText() {
@@ -357,8 +347,9 @@ export default defineComponent({
           {
             label: t('类型'),
             content: (
-              <span>
-                {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`} />}
+              <span class='content-detail-type'>
+                {/* {!isVirtual && <i class={`icon-monitor icon-type icon-${getTypeIcon()}`} />} */}
+                {!isVirtual && kind < 6 && (SPAN_KIND_MAPS_NEW[kind].prefixIcon as () => any)()}
                 <span>{getTypeText()}</span>
               </span>
             ),
@@ -396,7 +387,7 @@ export default defineComponent({
               attributes.map(
                 (item: { key: string; query_key: string; query_value: any; type: string; value: string }) => ({
                   label: item.key,
-                  content: item.value || '--',
+                  content: item.value === '' || item.value == null ? '--' : item.value,
                   type: item.type,
                   isFormat: false,
                   query_key: item.query_key,
@@ -489,7 +480,7 @@ export default defineComponent({
             list:
               processTags.map((item: { key: any; query_key: string; query_value: any; type: string; value: any }) => ({
                 label: item.key,
-                content: item.value || '--',
+                content: item.value === '' || item.value == null ? '--' : item.value,
                 type: item.type,
                 isFormat: false,
                 query_key: item.query_key,
@@ -520,7 +511,7 @@ export default defineComponent({
                 },
                 content: item.attributes.map(attribute => ({
                   label: attribute.key,
-                  content: attribute.value || '--',
+                  content: attribute.value === '' || attribute.value == null ? '--' : attribute.value,
                   type: attribute.type,
                   isFormat: false,
                   query_key: attribute?.query_key || '',
@@ -734,7 +725,6 @@ export default defineComponent({
       isExpan: boolean,
       title: string | undefined,
       content: any,
-      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -756,7 +746,6 @@ export default defineComponent({
       isExpan: boolean,
       title: string,
       content: any,
-      // biome-ignore lint/style/useDefaultParameterLast: <explanation>
       subTitle: any = '',
       expanChange: (v: boolean) => void
     ) => (
@@ -791,14 +780,18 @@ export default defineComponent({
       return false;
     };
 
-    const formatContent = (content?: string, isFormat?: boolean) => {
-      if (typeof content === 'number' || typeof content === 'undefined') return content;
-      if (!isJson(content)) return typeof content === 'string' ? content : JSON.stringify(content);
-      const data = JSON.parse(content || '');
+    const formatContent = (content?: number | string, isFormat?: boolean) => {
+      if ((typeof content === 'number' && content.toString().length < 10) || typeof content === 'undefined')
+        return content;
+      if (!isJson(content?.toString())) {
+        const str = typeof content === 'string' ? content : JSON.stringify(content);
+        return <DecodeDialog content={str} />;
+      }
+      const data = JSON.parse(content?.toString() || '');
       return isFormat ? <VueJsonPretty data={handleFormatJson(data)} /> : content;
     };
 
-    /** 导出原始数据josn */
+    /** 导出原始数据 json */
     const handleExportOriginData = () => {
       if (originalData.value) {
         const jsonString = JSON.stringify(originalData.value, null, 4);

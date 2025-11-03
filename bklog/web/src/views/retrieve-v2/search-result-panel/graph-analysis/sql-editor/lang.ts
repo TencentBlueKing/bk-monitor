@@ -25,10 +25,10 @@
  */
 import * as monaco from 'monaco-editor';
 
-import builtinFunctions from './builtinFunctions.json';
-import builtinVariables from './builtinVariables.json';
-import keywords from './keywords.json';
-import operators from './operators.json';
+import builtinFunctions from './builtinFunctions.json' with { type: 'json' };
+import builtinVariables from './builtinVariables.json' with { type: 'json' };
+import keywords from './keywords.json' with { type: 'json' };
+import operators from './operators.json' with { type: 'json' };
 
 type DorisField = {
   name: string;
@@ -122,7 +122,7 @@ monaco.languages.setMonarchTokensProvider('dorisSQL', {
     numbers: [
       [/0[xX][0-9a-fA-F]*/, 'number'],
       [/[$][+-]*\d*(\.\d*)?/, 'number'],
-      [/((\d+(\.\d*)?)|(\.\d+))([eE][\-+]?\d+)?/, 'number'],
+      [/((\d+(\.\d*)?)|(\.\d+))([eE][-+]?\d+)?/, 'number'],
     ],
     strings: [
       [/N'/, { token: 'string', next: '@string' }],
@@ -161,7 +161,7 @@ monaco.languages.setMonarchTokensProvider('dorisSQL', {
   },
 });
 
-let fetchDorisFieldsFn: () => DorisField[] | undefined = undefined;
+let fetchDorisFieldsFn: () => DorisField[] | undefined;
 
 const castFieldMapFn = (item, index) => {
   if (index === 0) {
@@ -172,7 +172,7 @@ const castFieldMapFn = (item, index) => {
 };
 
 const fetchDorisFieldsPromise = range => {
-  return (fetchDorisFieldsFn?.() ?? []).map((field, index) => {
+  return (fetchDorisFieldsFn?.() ?? []).map((field, _index) => {
     let insertText = field.name;
     if (field.name.indexOf('.') > 0) {
       const splitList = field.name.split('.');
@@ -189,7 +189,7 @@ const fetchDorisFieldsPromise = range => {
       detail: field.type, // 显示字段类型
       documentation: field.description, // 显示字段描述
       range,
-      sortText: `a`,
+      sortText: 'a',
     };
   });
 };
@@ -207,22 +207,22 @@ monaco.languages.registerCompletionItemProvider('dorisSQL', {
 
     const fieldSuggestions = fetchDorisFieldsPromise(range);
     const keywordAndFunctionSuggestions = [
-      ...keywords.map((keyword, index) => ({
+      ...keywords.map((keyword, _index) => ({
         label: keyword,
         kind: monaco.languages.CompletionItemKind.Keyword,
-        insertText: keyword + ' ',
+        insertText: `${keyword} `,
         filterText: keyword,
         range,
-        sortText: `b`,
+        sortText: 'b',
       })),
-      ...builtinFunctions.map((func, index) => ({
+      ...builtinFunctions.map((func, _index) => ({
         label: func,
         filterText: func,
         kind: monaco.languages.CompletionItemKind.Function,
         insertText: `${func}($0)`,
         insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
         range,
-        sortText: `c`,
+        sortText: 'c',
         command: {
           id: 'editor.action.triggerParameterHints',
           title: 'Trigger Parameter Hints',

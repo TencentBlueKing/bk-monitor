@@ -25,7 +25,7 @@
  * IN THE SOFTWARE.
  */
 
-import { ConsitionItem } from './store.type';
+import type { ConsitionItem } from './store.type';
 
 class ConditionOperator {
   item: ConsitionItem;
@@ -126,7 +126,7 @@ class ConditionOperator {
     // allContainsStrList 列表中包含的操作关系说明是 string | text 字段类型
     // 这些类型需要反向解析 FormatOpetatorFrontToApi 方法生成的语法
     if (!this.isFulltextField && this.allContainsStrList.includes(this.item.operator)) {
-      const value = this.allContainsStrList.find(value => value === this.item.operator);
+      const value = this.allContainsStrList.find(valueItem => valueItem === this.item.operator);
       // this.containOperatorList 列表中所包含的操作关系说明是 OR 操作
       // OR 操作才支持这些查询,已有组间关系则不通过操作符判断
       const relation = ['AND', 'OR'].includes(this.item.relation?.toLocaleUpperCase())
@@ -159,21 +159,21 @@ class ConditionOperator {
     // allContainsStrList 列表中包含的操作关系说明是 string | text 字段类型
     // 这些类型需要反向解析 FormatOpetatorFrontToApi 方法生成的语法
     if (!this.isFulltextField && this.allContainsStrList.includes(this.item.operator)) {
-      const value = this.allContainsStrList.find(value => value === this.item.operator);
+      const newValue = this.allContainsStrList.find(valueItem => valueItem === this.item.operator);
 
       // this.containOperatorList 列表中所包含的操作关系说明是 OR 操作
       // OR 操作才支持这些查询
-      const relation = ['AND', 'OR'].includes(this.item.relation?.toLocaleUpperCase())
+      const newRelation = ['AND', 'OR'].includes(this.item.relation?.toLocaleUpperCase())
         ? this.item.relation
-        : this.containOperatorList.includes(value)
+        : this.containOperatorList.includes(newValue)
           ? 'OR'
           : 'AND';
 
       // 如果是通配符这里不做转换
-      if (this.wildcardList.includes(value) || isInitializing) {
+      if (this.wildcardList.includes(newValue) || isInitializing) {
         return {
-          operator: value,
-          relation,
+          operator: newValue,
+          relation: newRelation,
           field: this.item.field,
           isInclude: this.isWildcardMatch,
           value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
@@ -183,11 +183,13 @@ class ConditionOperator {
       }
 
       // 包含和不包含操作符只有这两种，其他逻辑不走这个分支
-      const operator = this.containsStrList.includes(value) ? 'contains match phrase' : 'not contains match phrase';
+      const newOperator = this.containsStrList.includes(newValue)
+        ? 'contains match phrase'
+        : 'not contains match phrase';
 
       return {
-        operator,
-        relation,
+        operator: newOperator,
+        relation: newRelation,
         field: this.item.field,
         isInclude: this.isWildcardMatch,
         value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
