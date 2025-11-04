@@ -32,7 +32,7 @@ import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import useResizeObserve from '../../../hooks/use-resize-observe';
-import { getDefaultRetrieveParams, update_URL_ARGS } from '../../../store/default-values';
+import { getDefaultRetrieveParams, updateURLArgs } from '../../../store/default-values';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 
@@ -82,7 +82,7 @@ export default indexSetApi => {
    * 更新相关参数到store
    */
   const reoverRouteParams = () => {
-    update_URL_ARGS(route);
+    updateURLArgs(route);
     const routeParams = getDefaultRetrieveParams({
       spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
       bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],

@@ -25,12 +25,16 @@
  */
 import { defineComponent } from 'vue';
 import useRoute from '@/hooks/use-route';
+import useRouter from '@/hooks/use-router';
+import useStore from '@/hooks/use-store';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 
 export default defineComponent({
   name: 'UnAuthorized',
   setup() {
     const route = useRoute();
-
+    const router = useRouter();
+    const store = useStore();
     /**
      * 打开接入指引
      */
@@ -40,8 +44,40 @@ export default defineComponent({
       url && window.open(`${url}/${docPath}`);
     };
 
+    /**
+     * 移除业务参数重试
+     * @returns
+     */
+    const handleRetry = () => {
+      store.commit('updateStorage', {
+        [BK_LOG_STORAGE.BK_SPACE_UID]: undefined,
+        [BK_LOG_STORAGE.BK_BIZ_ID]: undefined,
+      });
+
+      const resolver = router.resolve({
+        name: 'retrieve',
+        params: {
+          indexId: undefined,
+        },
+        query: {
+          ...route.query,
+          spaceUid: undefined,
+          bizId: undefined,
+          bkBizId: undefined,
+          type: undefined,
+          page_from: undefined,
+        },
+      });
+
+      window.open(resolver.href, '_self');
+    };
+
     const exceptionMap = {
-      space: () => '当前无可用业务信息，请联系管理员申请',
+      space: () => [
+        <span>当前无可用业务信息，请联系管理员申请（空间UID：{route.query.spaceUid}，业务ID：{route.query.bizId}）</span>,
+        <span>或者移除业务参数重试</span>,
+        <span style={{ color: '#3a84ff', cursor: 'pointer' }} onClick={handleRetry}>重试</span>,
+      ],
       indexset: () => [
         <span>业务下无采集项，请按照指引完成接入，或联系管理员申请</span>,
         <span
