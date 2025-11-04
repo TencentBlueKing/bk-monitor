@@ -41,7 +41,7 @@ import VariableValueDetail from 'monitor-pc/pages/query-template/variables/compo
 
 import DetectionAlgorithmsGroup from '../components/detection-algorithms-group/detection-algorithms-group';
 
-import type { TemplateDetail } from '../components/template-form/typing';
+import type { AlgorithmItemUnion, TemplateDetail } from '../components/template-form/typing';
 import type { IRelationService, TCompareData } from './typings';
 import type { EmptyStatusOperationType } from 'monitor-pc/components/empty-status/types';
 import type { MetricDetailV2 } from 'monitor-pc/pages/query-template/typings/metric';
@@ -95,7 +95,7 @@ export default class RelationServiceTable extends tsc<IProps> {
     },
   ];
   // 选中tab
-  activeTab: string = RelationStatus.relation;
+  activeTab: string = RelationStatus.unRelation;
   relationServiceObj = {
     list: [],
     selectKeys: new Set(),
@@ -166,7 +166,7 @@ export default class RelationServiceTable extends tsc<IProps> {
   ];
   /* 展开差异对比数据 */
   expandContent: {
-    algorithms: TemplateDetail['algorithms'][];
+    algorithms: AlgorithmItemUnion[];
     detect: TemplateDetail['detect'];
     type: 'current' | 'relation';
     userGroupList: { id: number; name: string }[];
@@ -583,7 +583,10 @@ export default class RelationServiceTable extends tsc<IProps> {
                         key={'algorithm-02'}
                         class='content'
                       >
-                        <DetectionAlgorithmsGroup algorithms={item.algorithms as any[]} />
+                        <DetectionAlgorithmsGroup
+                          algorithms={item.algorithms}
+                          connector={item?.detect?.connector}
+                        />
                       </div>,
                     ]
                   : undefined}
