@@ -29,6 +29,7 @@ import { type PropType, defineComponent, onMounted, shallowRef, useTemplateRef }
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
+import EmptyStatus from 'trace/components/empty-status/empty-status';
 import { useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 
@@ -166,7 +167,11 @@ export default defineComponent({
           rowKey={'index'}
           size={'small'}
           onExpandChange={this.handleExpandChange}
-        />
+        >
+          {{
+            empty: () => <EmptyStatus type={'empty'} />,
+          }}
+        </PrimaryTable>
         <div
           ref='scrollLoading'
           style={{ display: this.tableData.data.length ? 'flex' : 'none' }}

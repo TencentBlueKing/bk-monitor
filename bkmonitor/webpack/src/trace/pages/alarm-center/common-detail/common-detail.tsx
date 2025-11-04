@@ -73,7 +73,7 @@ export default defineComponent({
         case 'container':
           return <PanelContainer />;
         case 'event':
-          return <PanelEvent />;
+          return <PanelEvent detail={alarmCenterDetailStore.alarmDetail} />;
         case 'metric':
           return <PanelMetric />;
         case 'alarm':

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowReactive } from 'vue';
+import { type PropType, defineComponent, shallowReactive, watch } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Button } from 'bkui-vue';
@@ -71,6 +71,16 @@ export default defineComponent({
     const tableLoading = shallowRef(false);
     /** 滚动加载状态 */
     const scrollLoading = shallowRef(false);
+
+    watch(
+      () => props.detail,
+      val => {
+        if (val) {
+          init();
+        }
+      },
+      { immediate: true }
+    );
 
     async function init() {
       selectLoading.value = true;
@@ -176,8 +186,6 @@ export default defineComponent({
       }
       handleSearch();
     }
-
-    init();
 
     return {
       indexSetList,
