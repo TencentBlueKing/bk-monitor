@@ -86,7 +86,14 @@ export default defineComponent({
 
     // 初始化、设置、重绘图表
     const handleChartDataZoom = inject('handleChartDataZoom', () => { });
-    const { initChartData, setChartData, backToPreChart, canGoBack } = useTrendChart({
+    const {
+      initChartData,
+      setChartData,
+      backToPreChart,
+      canGoBack,
+      cacheChartOptions,
+      restoreChartOptions,
+    } = useTrendChart({
       target: trendChartCanvas,
       handleChartDataZoom,
       dynamicHeight,
@@ -343,6 +350,7 @@ export default defineComponent({
 
     // 加载趋势图数据
     const loadTrendData = () => {
+      cacheChartOptions();
       store.commit('retrieve/updateTrendDataLoading', true); // 开始加载前，打开loading
 
       logChartCancel?.(); // 取消上一次未完成的趋势图请求
@@ -389,6 +397,7 @@ export default defineComponent({
         RetrieveEvent.FAVORITE_ACTIVE_CHANGE,
         RetrieveEvent.INDEX_SET_ID_CHANGE,
         RetrieveEvent.AUTO_REFRESH,
+        RetrieveEvent.SORT_LIST_CHANGED,
       ],
       loadTrendData,
     );
@@ -397,6 +406,9 @@ export default defineComponent({
       logChartCancel?.();
       isSearchingCanceled = true;
       runningTimer && clearTimeout(runningTimer); // 清理上一次的定时器
+      isStart.value = false;
+      store.commit('retrieve/updateTrendDataLoading', false);
+      restoreChartOptions();
     });
 
     onMounted(() => {
