@@ -95,7 +95,7 @@ export default class RelationServiceTable extends tsc<IProps> {
     },
   ];
   // 选中tab
-  activeTab: string = RelationStatus.relation;
+  activeTab: string = RelationStatus.unRelation;
   relationServiceObj = {
     list: [],
     selectKeys: new Set(),
@@ -583,7 +583,10 @@ export default class RelationServiceTable extends tsc<IProps> {
                         key={'algorithm-02'}
                         class='content'
                       >
-                        <DetectionAlgorithmsGroup algorithms={item.algorithms as any[]} />
+                        <DetectionAlgorithmsGroup
+                          algorithms={item.algorithms as any[]}
+                          connector={item?.detect?.connector}
+                        />
                       </div>,
                     ]
                   : undefined}
