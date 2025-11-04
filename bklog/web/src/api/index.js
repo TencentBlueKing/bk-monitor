@@ -60,7 +60,7 @@ export const axiosInstance = axios.create({
  * request interceptor
  */
 axiosInstance.interceptors.request.use(
-  config => {
+  (config) => {
     if (!/^(https|http)?:\/\//.test(config.url)) {
       // const prefix = config.url.indexOf('?') === -1 ? '?' : '&';
       config.url = config.url;
@@ -85,7 +85,7 @@ axiosInstance.interceptors.request.use(
  * @returns {Object|Promise} - 如果数据是 Blob 类型，则直接返回响应对象；否则返回处理后的响应数据。
  */
 axiosInstance.interceptors.response.use(
-  async response => {
+  async (response) => {
     const responsePromise = (respData = undefined, cfg = undefined) => {
       const config = response.config;
       return new Promise(async (resolve, reject) => {
@@ -104,7 +104,7 @@ axiosInstance.interceptors.response.use(
     };
     if (response.data instanceof Blob) {
       if (response.status !== 200) {
-        return readBlobRespToJson(response.data).then(resp => {
+        return readBlobRespToJson(response.data).then((resp) => {
           return responsePromise(resp, { globalError: true });
         });
       }
@@ -114,8 +114,8 @@ axiosInstance.interceptors.response.use(
 
     return responsePromise();
   },
-  error => {
-    const reject = e => {
+  (error) => {
+    const reject = (e) => {
       if (typeof e === 'object' && e !== null) {
         return Promise.reject(e);
       }
@@ -123,7 +123,7 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(new Error(`${e}`));
     };
     if (error?.response?.data instanceof Blob) {
-      return readBlobRespToJson(error.response.data).then(resp => {
+      return readBlobRespToJson(error.response.data).then((resp) => {
         return handleReject(
           {
             ...(error ?? {}),
@@ -231,10 +231,12 @@ function handleResponse({ config, response, resolve, reject, status }) {
   } else {
     if (code === '9900403') {
       reject({ message: response.message, code, data: response.data || {} });
-      store.commit('updateState', {'authDialogData': {
-        apply_url: response.data.apply_url,
-        apply_data: response.permission,
-      }});
+      store.commit('updateState', {
+        authDialogData: {
+          apply_url: response.data.apply_url,
+          apply_data: response.permission,
+        },
+      });
     } else if (code !== 0 && config.globalError) {
       handleReject({ message: response.message, code, data: response.data || {} }, config, reject);
     } else {
@@ -277,7 +279,8 @@ function handleReject(error, config, reject) {
         try {
           const { login_url: loginUrl } = loginData;
           showLoginModal({ loginUrl });
-        } catch (_) {
+        } catch (e) {
+          console.error('登录框弹出失败', e);
           handleLoginExpire();
         }
       } else {
@@ -369,7 +372,7 @@ function initConfig(method, url, userConfig) {
  */
 function getCancelToken() {
   let cancelExcutor;
-  const cancelToken = new axios.CancelToken(excutor => {
+  const cancelToken = new axios.CancelToken((excutor) => {
     cancelExcutor = excutor;
   });
   return {
