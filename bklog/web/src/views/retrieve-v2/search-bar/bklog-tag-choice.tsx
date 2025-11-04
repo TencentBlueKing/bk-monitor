@@ -102,6 +102,7 @@ export default defineComponent({
     },
     onTagRender: {
       type: Function,
+      default: undefined,
     },
     borderColor: {
       type: String,
@@ -113,6 +114,7 @@ export default defineComponent({
     },
     zIndex: {
       type: Number,
+      default: undefined,
     },
     bdiDir: {
       type: String,
@@ -315,19 +317,24 @@ export default defineComponent({
     /**
      * 鼠标点击空白位置执行当前focused的 edit input blur行为
      */
-    const handleEditInputBlur = () => {
+    const handleEditInputBlur = (editIndexOverride: number | null = null) => {
       return new Promise((resolve) => {
-        if (editItemOption.value.index !== null) {
+        // 如果传入了索引覆盖，优先使用；否则使用 editItemOption.value.index；如果都是 null，尝试从 DOM 获取
+        const currentEditIndex = editIndexOverride !== null ? editIndexOverride : editItemOption.value.index;
+
+        if (currentEditIndex !== null) {
           let isUpdate = false;
 
           const targetValue: any[] = [];
           valueList.value.forEach((v, index) => {
-            if (index !== editItemOption.value.index) {
+            if (index !== currentEditIndex) {
               targetValue.push(getListItemId(v));
             } else {
-              isUpdate = getListItemId(v) !== inputTagValue.value;
-              if (inputTagValue.value !== '') {
-                targetValue.push(inputTagValue.value);
+              const oldValue = getListItemId(v);
+              const newValue = inputTagValue.value;
+              isUpdate = oldValue !== newValue;
+              if (newValue !== '') {
+                targetValue.push(newValue);
               }
             }
           });
@@ -552,11 +559,17 @@ export default defineComponent({
     /**
      * 为克隆节点中的编辑输入框绑定事件
      */
-    const bindEditInputEvents = (container: HTMLElement) => {
+    const bindEditInputEvents = (container: HTMLElement, forceRebind = false) => {
       const editInput = container.querySelector('[data-bklog-choice-value-edit-input]') as HTMLInputElement;
       if (editInput) {
+        // 如果强制重新绑定，先清除属性标记（因为 clone 操作会复制属性，需要清除）
+        if (forceRebind) {
+          editInput.removeAttribute('data-bklog-edit-bound');
+        }
+
         // 检查是否已经绑定过事件（通过检查是否有自定义属性标记）
-        if (editInput.hasAttribute('data-bklog-edit-bound')) {
+        // 如果 forceRebind 为 true，则强制重新绑定（用于节点替换后的场景）
+        if (!forceRebind && editInput.hasAttribute('data-bklog-edit-bound')) {
           return;
         }
 
@@ -571,7 +584,23 @@ export default defineComponent({
         const blurHandler = (e: FocusEvent) => {
           // 只处理当前输入框的 blur，确保是编辑输入框
           if (e.target === editInput) {
-            handleEditInputBlur().then((update: boolean) => {
+            // 在 blur 时，确保从实际的 input 元素读取最新值
+            const currentValue = (e.target as HTMLInputElement).value;
+            // 从 DOM 元素获取编辑索引，而不是依赖可能被重置的 editItemOption.value.index
+            const itemElement = editInput.closest('[data-item-index]') as HTMLElement;
+            const editIndexFromDOM = itemElement ? Number.parseInt(itemElement.getAttribute('data-item-index') ?? '-1', 10) : -1;
+
+            inputTagValue.value = currentValue;
+
+            // 如果 editIndex 为 null，但从 DOM 中找到了索引，说明是节点替换导致的误重置，需要恢复
+            if (editItemOption.value.index === null && editIndexFromDOM >= 0) {
+              editItemOption.value.index = editIndexFromDOM;
+            }
+
+            // 使用从 DOM 获取的索引（如果有效），否则使用 editItemOption.value.index
+            const finalEditIndex = editIndexFromDOM >= 0 ? editIndexFromDOM : editItemOption.value.index;
+
+            handleEditInputBlur(finalEditIndex).then((update: boolean) => {
               setFixedOverflowY();
               if (update) {
                 updateFiexedInstanceContent();
@@ -583,7 +612,23 @@ export default defineComponent({
         const keyupHandler = (e: KeyboardEvent) => {
           if (e.target === editInput && e.key === 'Enter') {
             stopDefaultPrevented(e);
-            handleEditInputBlur().then((update: boolean) => {
+            // 在 Enter 时，确保从实际的 input 元素读取最新值
+            const currentValue = (e.target as HTMLInputElement).value;
+            // 从 DOM 元素获取编辑索引，而不是依赖可能被重置的 editItemOption.value.index
+            const itemElement = editInput.closest('[data-item-index]') as HTMLElement;
+            const editIndexFromDOM = itemElement ? Number.parseInt(itemElement.getAttribute('data-item-index') ?? '-1', 10) : -1;
+
+            inputTagValue.value = currentValue;
+
+            // 如果 editIndex 为 null，但从 DOM 中找到了索引，说明是节点替换导致的误重置，需要恢复
+            if (editItemOption.value.index === null && editIndexFromDOM >= 0) {
+              editItemOption.value.index = editIndexFromDOM;
+            }
+
+            // 使用从 DOM 获取的索引（如果有效），否则使用 editItemOption.value.index
+            const finalEditIndex = editIndexFromDOM >= 0 ? editIndexFromDOM : editItemOption.value.index;
+
+            handleEditInputBlur(finalEditIndex).then((update: boolean) => {
               setFixedOverflowY();
               if (update) {
                 updateFiexedInstanceContent().then(() => {
@@ -621,13 +666,20 @@ export default defineComponent({
       const copyNode = refTagInputContainer.value.cloneNode(true) as HTMLElement;
       copyNode.style.width = `${refTagInputContainer.value.offsetWidth + 4}px`;
 
-      // 为克隆节点中的编辑输入框绑定事件
-      bindEditInputEvents(copyNode);
+      // 如果正在编辑，确保 clone 的节点中的编辑输入框的 value 与 inputTagValue.value 同步
+      if (editItemOption.value.index !== null) {
+        const editInput = copyNode.querySelector('[data-bklog-choice-value-edit-input]') as HTMLInputElement;
+        if (editInput) {
+          editInput.value = inputTagValue.value;
+        }
+      }
 
       if (focusFixedElement) {
+        // 如果 focusFixedElement 已存在，先替换节点，再绑定事件
+        // 这样可以确保事件绑定到已插入 DOM 的节点上
         focusFixedElement.childNodes[0].replaceWith(copyNode);
-        // 重新绑定新节点的事件
-        bindEditInputEvents(copyNode);
+        // 强制重新绑定事件（因为节点已替换，需要确保事件正确绑定）
+        bindEditInputEvents(copyNode, true);
       } else {
         focusFixedElement = document.createElement('div');
         focusFixedElement.classList.add('bklog-choice-fixed-content');
@@ -635,6 +687,8 @@ export default defineComponent({
         focusFixedElement.appendChild(copyNode);
         focusFixedElement.appendChild(refChoiceList.value);
         setFocuseFixedPopEvent();
+        // 首次创建时绑定事件
+        bindEditInputEvents(copyNode);
       }
     };
 
@@ -655,7 +709,7 @@ export default defineComponent({
 
       const target = e?.target as HTMLElement;
       if (
-        target.hasAttribute('[data-bklog-choice-text-input]')
+        target.hasAttribute('data-bklog-choice-text-input')
         || target?.classList.contains('bklog-choice-value-edit-input')
       ) {
         return;
@@ -664,9 +718,11 @@ export default defineComponent({
       // 点击进行编辑
       if (target?.classList.contains('bklog-choice-value-span')) {
         const index = target.parentElement.getAttribute('data-item-index');
-        editItemOption.value.index = Number.parseInt(index, 10);
+        const indexNum = Number.parseInt(index, 10);
+        const originalText = target.innerText;
+        editItemOption.value.index = indexNum;
         editItemOption.value.width = target.parentElement.offsetWidth;
-        inputTagValue.value = target.innerText;
+        inputTagValue.value = originalText;
         updateFiexedInstanceContent().then(() => {
           autoFocusInput();
         });
