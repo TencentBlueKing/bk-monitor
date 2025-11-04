@@ -1,5 +1,5 @@
 .retrieve2-tab {
-  // position: relative;
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -29,9 +29,9 @@
   }
 
   .btn-alert-dashboard {
-    // position: absolute;
-    // top: 0px;
-    // right: 100px;
+    position: absolute;
+    top: 0px;
+    right: 100px;
     height: 42px;
     font-size: 12px;
     line-height: 42px;
@@ -41,9 +41,9 @@
   }
 
   .btn-alert-policy {
-    // position: absolute;
-    // top: 0px;
-    // right: -2px;
+    position: absolute;
+    top: 0px;
+    right: -2px;
     height: 42px;
     font-size: 12px;
     line-height: 42px;
