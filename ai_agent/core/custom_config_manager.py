@@ -14,26 +14,29 @@ import logging
 import requests
 import os
 from aidev_agent.services.config_manager import AgentConfigManager, AgentConfig, CachedEntry
+from django.conf import settings
 
 from aidev_agent.api.abstract_client import AbstractBKAidevResourceManager
 from aidev_agent.services.pydantic_models import AgentOptions, IntentRecognition, KnowledgebaseSettings
 from bkoauth.django_conf import ENV_NAME
 from blueapps.utils.request_provider import get_local_request
 from bkoauth.utils import get_client_ip
-from aidev_agent.enums import CredentialType
 
 logger = logging.getLogger("ai_whale")
 
-ACCESS_TOKEN_OAUTH_API_URL = os.environ.get("BK_ACCESS_TOKEN_OAUTH_API_URL")
-AI_AGENT_APP_CODE = os.environ.get("BK_AIDEV_AGENT_APP_CODE")
-AI_AGENT_APP_SECRET = os.environ.get("BK_AIDEV_AGENT_APP_SECRET")
+# TODO：内部版本使用BKOAUTH 社区版本使用SSM,后续统一迁移至BKAuth
+ACCESS_TOKEN_OAUTH_API_URL = os.environ.get("BK_ACCESS_TOKEN_OAUTH_API_URL")  # OAUTH API URL
+
+ENV_MODE = os.environ.get("BKAPP_ENVIRONMENT_CODE", "open")  # 运行环境
+AI_AGENT_APP_CODE = os.environ.get("BK_AIDEV_AGENT_APP_CODE")  # AIDEV 智能体 APP_CODE
+AI_AGENT_APP_SECRET = os.environ.get("BK_AIDEV_AGENT_APP_SECRET")  # AIDEV 智能体 APP_SECRET
 
 
-def _get_access_token(request, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
+def _get_access_token_ieod(request, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
     """
-    获取用户access_token凭证
+    获取用户access_token凭证(内部版）
     """
-
+    logger.info("_get_access_token_ieod: try to get access_token,using ieod env_mode")
     # 构建认证参数
     OAUTH_COOKIES_PARAMS = {"bk_ticket": "bk_ticket", "rtx": "bk_uid"}
     auth_params = dict()
@@ -59,6 +62,34 @@ def _get_access_token(request, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
     return result["data"]["access_token"]
 
 
+def _get_access_token_open(request, oauth_api_url=ACCESS_TOKEN_OAUTH_API_URL):
+    """
+    获取用户access_token凭证(外部版）
+    """
+    logger.info("_get_access_token_open: try to get access_token,using open env_mode")
+    OAUTH_COOKIES_PARAMS = {"bk_token": "bk_token"}
+    auth_params = dict()
+    for k, v in OAUTH_COOKIES_PARAMS.items():
+        auth_params[k] = request.COOKIES.get(v) or request.session.get(v) or request.GET.get(v, "")
+
+    payload = {
+        "grant_type": "authorization_code",
+        "id_provider": "bk_login",
+        **auth_params,
+    }
+
+    # 外部版使用SSM方式请求获取AccessToken
+    headers = {
+        "X-Bk-App-Code": settings.APP_CODE,
+        "X-Bk-App-Secret": settings.SECRET_KEY,
+    }
+    resp = requests.post(url=oauth_api_url, json=payload, headers=headers, timeout=30, verify=False)
+    result = resp.json()
+    if not result.get("code") == 0:
+        raise Exception(f"获取access_token失败: {result.get('message', '')}")
+    return result["data"]["access_token"]
+
+
 def _get_mcp_auth_info(request):
     """
     获取MCP认证信息
@@ -66,7 +97,7 @@ def _get_mcp_auth_info(request):
     auth_info = {
         "app_code": AI_AGENT_APP_CODE,
         "app_secret": AI_AGENT_APP_SECRET,
-        "access_token": _get_access_token(request),
+        "access_token": _get_access_token_ieod(request) if ENV_MODE == "ieod" else _get_access_token_open(request),
     }
     return auth_info
 
@@ -110,14 +141,14 @@ class CustomConfigManager(AgentConfigManager):
         request = get_local_request()  # 获取当前请求
         mcp_server_config = res.get("mcp_server_config", {}).get("mcpServers", {})
         for mcp_server, mcp_config in mcp_server_config.items():
-            if mcp_config.pop("credential_type") == CredentialType.BLUEAPPS.value:
-                # mcp_config["headers"] = json.dumps(_get_mcp_auth_info(request))
-                # 自定义请求头,鉴权+区分请求来源
-                mcp_config["headers"] = {
-                    "X-Bk-Request-Origin": "bkm-mcp-client",
-                    "X-Bkapi-Allowed-Headers": "X-Bk-Request-Origin",
-                    "X-Bkapi-Authorization": json.dumps(_get_mcp_auth_info(request)),
-                }
+            mcp_config.pop("credential_type", None)
+            # mcp_config["headers"] = json.dumps(_get_mcp_auth_info(request))
+            # 自定义请求头,鉴权+区分请求来源
+            mcp_config["headers"] = {
+                "X-Bk-Request-Origin": "bkm-mcp-client",
+                "X-Bkapi-Allowed-Headers": "X-Bk-Request-Origin",
+                "X-Bkapi-Authorization": json.dumps(_get_mcp_auth_info(request)),
+            }
 
         # 需要自定义重写鉴权Headers和特殊标识Headers
 

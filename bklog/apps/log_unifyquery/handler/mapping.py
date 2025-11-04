@@ -41,6 +41,7 @@ from apps.log_search.constants import (
     OPERATORS,
     FieldBuiltInEnum,
     SearchScopeEnum,
+    DorisFieldTypeEnum,
 )
 from apps.log_search.models import (
     IndexSetFieldsConfig,
@@ -48,6 +49,7 @@ from apps.log_search.models import (
     LogIndexSetData,
     Scenario,
     UserIndexSetFieldsConfig,
+    IndexSetTag,
 )
 from apps.log_search.utils import split_object_fields
 from apps.utils.cache import cache_one_minute, cache_ten_minute
@@ -197,6 +199,11 @@ class UnifyQueryMappingHandler:
             }
             for field in fields_result
         ]
+        # doris需要映射字段类型
+        is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.index_set.tag_ids)
+        if is_doris:
+            for field in fields_list:
+                field["field_type"] = DorisFieldTypeEnum.get_es_field_type(field["field_type"])
 
         for field in fields_list:
             # @TODO tag：兼容前端代码，后面需要删除
@@ -695,9 +702,9 @@ class UnifyQueryMappingHandler:
     def _analyze_fields_type(cls, final_fields_list: list[dict[str, Any]]):
         # 上下文实时日志校验字段类型
         fields_type = {
-            "gseindex": ["integer", "long"],
-            "iteration": ["integer", "long"],
-            "iterationIndex": ["integer", "long"],
+            "gseindex": ["integer", "long", "double"],
+            "iteration": ["integer", "long", "double"],
+            "iterationIndex": ["integer", "long", "double"],
         }
         for x in final_fields_list:
             field_name = x["field_name"]

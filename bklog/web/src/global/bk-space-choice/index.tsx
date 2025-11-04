@@ -92,7 +92,9 @@ export default defineComponent({
       }
       return mySpaceList.value.find(item => item.space_uid === spaceUid.value)?.space_name ?? '';
     });
-    const bizNameIcon = computed(() => bizName.value?.[0]?.toLocaleUpperCase() ?? '');
+    const bizNameIcon = computed(() => {
+      return bizName.value?.[0]?.toLocaleUpperCase() ?? '';
+    });
 
     // 是否展示空间类型列表
     const showSpaceTypeIdList = computed(() => !isExternal.value && spaceTypeIdList.value.length > 1);
@@ -140,30 +142,28 @@ export default defineComponent({
 
     const lowerCaseKeyword = computed(() => keyword.value.trim().toLocaleLowerCase());
 
-    const authorizedList = computed(() =>
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
-      mySpaceList.value.filter((item) => {
-        let show = false;
-        if (searchTypeId.value) {
-          show = searchTypeId.value === 'bcs'
-            ? item.space_type_id === 'bkci' && !!item.space_code
-            : item.space_type_id === searchTypeId.value;
-        }
-        if ((show && lowerCaseKeyword.value) || !(searchTypeId.value || show)) {
-          show = item.space_name.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1
-            || item.py_text.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1
-            || item.space_uid.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1
-            || `${item.bk_biz_id}`.includes(lowerCaseKeyword.value)
-            || `${item.space_code}`.includes(lowerCaseKeyword.value);
-        }
-        if (!show) {
-          return false;
-        }
-        if (!item.permission?.[authorityMap.VIEW_BUSINESS]) {
-          return false;
-        }
-        return true;
-      }),
+    const authorizedList = computed(() => mySpaceList.value.filter((item) => {
+      let show = false;
+      if (searchTypeId.value) {
+        show = searchTypeId.value === 'bcs'
+          ? item.space_type_id === 'bkci' && !!item.space_code
+          : item.space_type_id === searchTypeId.value;
+      }
+      if ((show && lowerCaseKeyword.value) || !(searchTypeId.value || show)) {
+        show = item.space_name.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1
+          || item.py_text.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1
+          || item.space_uid.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1
+          || `${item.bk_biz_id}`.includes(lowerCaseKeyword.value)
+          || `${item.space_code}`.includes(lowerCaseKeyword.value);
+      }
+      if (!show) {
+        return false;
+      }
+      if (!item.permission?.[authorityMap.VIEW_BUSINESS]) {
+        return false;
+      }
+      return true;
+    }),
     );
 
     const commonList = computed(
@@ -245,9 +245,13 @@ export default defineComponent({
     // 更新路由
     const debounceUpdateRouter = () => {
       return debounce(60, (space: any) => {
+        store.commit('updateSpace', space.space_uid);
+        store.commit('updateStorage', {
+          [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
+          [BK_LOG_STORAGE.BK_BIZ_ID]: space.bk_biz_id,
+        });
+
         if (`${space.bk_biz_id}` !== route.query.bizId || space.space_uid !== route.query.spaceUid) {
-          store.commit('updateSpace', space.space_uid);
-          store.commit('updateStorage', { [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid });
           const routeName = route.name === 'un-authorized' ? route.query.page_from as string : undefined;
           const appendOptions = routeName ? { name: routeName } : {};
           router.push({
