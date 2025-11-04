@@ -812,7 +812,7 @@ class UploadPackageResource(Resource):
                     try:
                         file_path = self._process_plugin_config_path(file_path)
                     except Exception:
-                        logger.warning(f"无法处理插件配置文件: {file_path}")
+                        logger.exception(f"无法处理插件配置文件: {file_path}")
                         continue
                     else:
                         plugin_configs[file_path] = content
