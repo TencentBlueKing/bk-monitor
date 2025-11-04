@@ -49,6 +49,7 @@ from apps.log_search.models import (
     LogIndexSetData,
     Scenario,
     UserIndexSetFieldsConfig,
+    IndexSetTag,
 )
 from apps.log_search.utils import split_object_fields
 from apps.utils.cache import cache_one_minute, cache_ten_minute
@@ -199,7 +200,8 @@ class UnifyQueryMappingHandler:
             for field in fields_result
         ]
         # doris需要映射字段类型
-        if self.index_set.support_doris:
+        is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.index_set.tag_ids)
+        if is_doris:
             for field in fields_list:
                 field["field_type"] = DorisFieldTypeEnum.get_es_field_type(field["field_type"])
 
