@@ -196,6 +196,10 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
     }
   }
 
+  /**
+   * @description 修改算法之间的关系
+   * @param value 算法关系(or || and)
+   */
   handleConnectorChange(value: string) {
     this.$emit('detectChange', {
       type: this.data?.detect?.type,
