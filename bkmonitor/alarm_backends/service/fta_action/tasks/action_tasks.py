@@ -177,6 +177,17 @@ def run_webhook_action(action_type, action_info):
     run_action(action_type, action_info)
 
 
+@app.task(ignore_result=True, queue="celery_notice_action")
+def run_notice_action(action_type, action_info):
+    """
+    通知专用队列
+    :param action_type:
+    :param action_info:
+    :return:
+    """
+    run_action(action_type, action_info)
+
+
 def sync_action_instances():
     """
     同步处理记录至ES
