@@ -23,7 +23,7 @@ import BarGlobalSetting from './bar-global-setting.tsx';
 import MoreSetting from './more-setting.vue';
 import TimeSetting from './time-setting';
 import WarningSetting from './warning-setting.vue';
-// import AutoRefresh from './auto-refresh'
+import AutoRefresh from './auto-refresh.vue';
 // #else
 // #code const TimeSetting = () => null;
 // #code const FieldSetting = () => null;
@@ -51,6 +51,7 @@ const router = useRouter();
 const store = useStore();
 
 const fieldSettingRef = ref(null);
+const timeSettingRef = ref(null);
 const isShowClusterSetting = ref(false);
 const indexSetParams = computed(() => store.state.indexItem);
 
@@ -155,7 +156,7 @@ const setRouteQuery = () => {
   });
 };
 
-const handleIndexSetSelected = async payload => {
+const handleIndexSetSelected = async (payload) => {
   if (!isEqual(indexSetParams.value.ids, payload.ids) || indexSetParams.value.isUnionIndex !== payload.isUnionIndex) {
     /** 索引集默认条件 */
     let indexSetDefaultCondition = {};
@@ -186,7 +187,7 @@ const handleIndexSetSelected = async payload => {
     store.commit('updateIndexItem', { ...payload, ...indexSetDefaultCondition });
 
     if (!payload.isUnionIndex) {
-      store.commit('updateState', { 'indexId': payload.ids[0] });
+      store.commit('updateState', { indexId: payload.ids[0] });
     }
 
     store.commit('updateSqlQueryFieldList', []);
@@ -197,7 +198,7 @@ const handleIndexSetSelected = async payload => {
       is_error: false,
     });
 
-    store.dispatch('requestIndexSetFieldInfo').then(resp => {
+    store.dispatch('requestIndexSetFieldInfo').then((resp) => {
       RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
 
       if (resp?.data?.fields?.length) {
@@ -217,23 +218,23 @@ const handleIndexSetSelected = async payload => {
     if (payload.pid?.length && !isEqual(payload.pid, indexSetPid.value)) {
       store.commit('updateIndexItem', { pid: payload.pid });
       router.replace({
-    // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-    params: {
-      ...route.params,
-    },
-    // #endif
-    query: {
-      ...route.query,
-      pid: JSON.stringify(payload.pid)
-    },
-  });
+        // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+        params: {
+          ...route.params,
+        },
+        // #endif
+        query: {
+          ...route.query,
+          pid: JSON.stringify(payload.pid),
+        },
+      });
     }
   }
 };
 
-const handleHistoryChange = payload => {
-  const { keyword, addition, ip_chooser, search_mode } = payload;
-  const foramtAddition = (addition ?? []).map(item => {
+const handleHistoryChange = (payload) => {
+  const { keyword, addition, ip_chooser, search_mode: searchMode } = payload;
+  const foramtAddition = (addition ?? []).map((item) => {
     const instance = new ConditionOperator(item);
     return instance.formatApiOperatorToFront();
   });
@@ -242,7 +243,7 @@ const handleHistoryChange = payload => {
     foramtAddition.unshift(getInputQueryIpSelectItem(ip_chooser));
   }
 
-  const mode = ['ui', 'sql'].includes(search_mode) ? search_mode : 'ui';
+  const mode = ['ui', 'sql'].includes(searchMode) ? searchMode : 'ui';
 
   store.commit('updateIndexItemParams', {
     keyword,
@@ -261,7 +262,7 @@ const handleHistoryChange = payload => {
   });
 };
 
-const handleActiveTypeChange = type => {
+const handleActiveTypeChange = (type) => {
   const storage = { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: type };
   if (['union', 'single'].includes(type)) {
     Object.assign(storage, { [BK_LOG_STORAGE.FAVORITE_ID]: undefined, [BK_LOG_STORAGE.HISTORY_ID]: undefined });
@@ -307,7 +308,7 @@ const handleIndexSetValueChange = (values, type, id) => {
   const items = indexSetList.value.filter(item => (values ?? []).includes(item.unique_id));
   const idxIdList = [];
   const idexPidList = [];
-  values.forEach(v => {
+  values.forEach((v) => {
     const [pid, id] = v.split('_');
     idxIdList.push(id);
     idexPidList.push(pid);
@@ -315,7 +316,7 @@ const handleIndexSetValueChange = (values, type, id) => {
   handleIndexSetSelected({ ids: idxIdList, isUnionIndex: indexSetType.value === 'union', items, pid: idexPidList });
 };
 
-const handleAuthRequest = item => {
+const handleAuthRequest = (item) => {
   try {
     store
       .dispatch('getApplyData', {
@@ -327,7 +328,7 @@ const handleAuthRequest = item => {
           },
         ],
       })
-      .then(res => {
+      .then((res) => {
         window.open(res.data.apply_url);
       });
   } catch (err) {
@@ -351,28 +352,66 @@ function handleIndexConfigSliderOpen() {
 </script>
 <template>
   <div class="subbar-container">
-    <div :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }" class="box-biz-select">
-      <IndexSetChoice width="100%" :active-tab="indexSetTab" :active-type="indexSetType" :index-set-list="indexSetList"
-        :index-set-value="indexSetUid" :space-uid="spaceUid" :text-dir="textDir" @auth-request="handleAuthRequest"
-        @type-change="handleActiveTypeChange" @value-change="handleIndexSetValueChange"></IndexSetChoice>
+    <div
+      :style="{ 'margin-left': props.showFavorites ? '4px' : '0' }"
+      class="box-biz-select"
+    >
+      <IndexSetChoice
+        width="100%"
+        :active-tab="indexSetTab"
+        :active-type="indexSetType"
+        :index-set-list="indexSetList"
+        :index-set-value="indexSetUid"
+        :space-uid="spaceUid"
+        :text-dir="textDir"
+        @auth-request="handleAuthRequest"
+        @type-change="handleActiveTypeChange"
+        @value-change="handleIndexSetValueChange"
+      />
 
-      <QueryHistory v-if="!isMonitorTraceComponent" @change="handleHistoryChange"></QueryHistory>
+      <QueryHistory
+        v-if="!isMonitorTraceComponent"
+        @change="handleHistoryChange"
+      />
     </div>
 
-    <div v-if="!isMonitorComponent" class="box-right-option">
-      <TimeSetting class="custom-border-right"></TimeSetting>
-      <!-- <AutoRefresh class="custom-border-right"></AutoRefresh> -->
-      <ShareLink v-if="!isExternal"></ShareLink>
-      <FieldSetting v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId" ref="fieldSettingRef"
-        class="custom-border-right" />
-      <WarningSetting v-if="!isExternal" class="custom-border-right"></WarningSetting>
-      <ClusterSetting class="custom-border-right" v-model="isShowClusterSetting"></ClusterSetting>
-      <BarGlobalSetting class="custom-border-right" @show-index-config-slider="handleIndexConfigSliderOpen">
-      </BarGlobalSetting>
-      <div v-if="!isExternal" class="more-setting">
-        <MoreSetting :is-show-cluster-setting.sync="isShowClusterSetting"></MoreSetting>
+    <div
+      v-if="!isMonitorComponent"
+      class="box-right-option"
+    >
+      <TimeSetting ref="timeSettingRef" />
+      <span class="custom-border" />
+      <AutoRefresh
+        class="custom-border-right"
+      />
+      <ShareLink v-if="!isExternal" />
+      <FieldSetting
+        v-if="isFieldSettingShow && store.state.spaceUid && hasCollectorConfigId"
+        ref="fieldSettingRef"
+        class="custom-border-right"
+      />
+      <WarningSetting
+        v-if="!isExternal"
+        class="custom-border-right"
+      />
+      <ClusterSetting
+        v-model="isShowClusterSetting"
+        class="custom-border-right"
+      />
+      <BarGlobalSetting
+        class="custom-border-right"
+        @show-index-config-slider="handleIndexConfigSliderOpen"
+      />
+      <div
+        v-if="!isExternal"
+        class="more-setting"
+      >
+        <MoreSetting :is-show-cluster-setting.sync="isShowClusterSetting" />
       </div>
-      <VersionSwitch style="border-left: 1px solid #eaebf0" version="v2" />
+      <VersionSwitch
+        style="border-left: 1px solid #eaebf0"
+        version="v2"
+      />
     </div>
   </div>
 </template>

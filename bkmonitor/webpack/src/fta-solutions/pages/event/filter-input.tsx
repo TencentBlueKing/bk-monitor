@@ -193,6 +193,19 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
   searchText = ''; //  菜单搜索框绑定值
   needSearch = false; // 是否需要搜索框
 
+  get searchPlaceholder() {
+    if (this.searchType === 'alert') {
+      return this.$t('搜索 告警ID、告警名称、状态、告警内容、级别') as string; 
+    }
+    if (this.searchType === 'incident') {
+      return this.$t('搜索 故障ID、故障名称、故障原因、业务ID、故障状态') as string; 
+    }
+    if (this.searchType === 'action') {
+      return this.$t('搜索 处理记录ID、套餐名称、套餐ID、策略名称、关联告警') as string; 
+    }
+    return '搜索';
+  }
+
   get isTopoList() {
     return ['set_id', 'module_id'].includes(this.focusData?.filedId);
   }
@@ -1382,7 +1395,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
             ref='input'
             class='search-input'
             v-model={this.inputValue}
-            placeholder={String(this.$t('输入搜索条件'))}
+            placeholder={this.searchPlaceholder}
             spellcheck={false}
             onBlur={this.handleBlur}
             onInput={this.handleInput}
@@ -1480,7 +1493,7 @@ export default class FilerInput extends tsc<IFilterInputProps, IFilterInputEvent
                 <i class='icon-monitor icon-mc-search menu-search-icon' />
                 <input
                   class='menu-search-input'
-                  placeholder={String(this.$t('请输入关键字'))}
+                  placeholder={String(this.$t('请输入 关键字'))}
                   type='text'
                   value={this.searchText}
                   onInput={e => {

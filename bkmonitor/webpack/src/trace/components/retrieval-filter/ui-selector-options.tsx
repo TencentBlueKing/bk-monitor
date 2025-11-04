@@ -681,7 +681,7 @@ export default defineComponent({
                 v-model={this.searchValue}
                 behavior='simplicity'
                 clearable={true}
-                placeholder={this.t('请输入关键字')}
+                placeholder={this.t('请输入 关键字')}
                 stopPropagation={false}
                 onClear={this.handleSearchChangeDebounce}
                 onInput={this.handleSearchChangeDebounce}

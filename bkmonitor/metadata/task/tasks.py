@@ -39,6 +39,7 @@ from metadata.models.data_link.constants import BASEREPORT_SOURCE_SYSTEM, BASERE
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.service import get_data_link_component_status
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
+from metadata.models.space.space import Space
 from metadata.models.vm.record import AccessVMRecord
 from metadata.models.vm.utils import (
     create_fed_bkbase_data_link,
@@ -516,8 +517,6 @@ def access_bkdata_vm(
     bk_biz_id: int,
     table_id: str,
     data_id: int,
-    space_type: str | None = None,
-    space_id: str | None = None,
     allow_access_v2_data_link: bool = False,
 ):
     """接入计算平台 VM 任务"""
@@ -549,16 +548,12 @@ def access_bkdata_vm(
         )
         return
 
-    push_and_publish_space_router(space_type, space_id, table_id_list=[table_id])
-
-    # 更新数据源依赖的 consul
-    try:
-        # 保证有 backend，才进行更新
-        if settings.ENABLE_V2_VM_DATA_LINK and models.DataSourceResultTable.objects.filter(bk_data_id=data_id).exists():
-            data_source = models.DataSource.objects.get(bk_data_id=data_id, is_enable=True)
-            data_source.refresh_consul_config()
-    except models.DataSource.DoesNotExist:
-        logger.error("data_id: %s not found for vm link, please check data_id status", data_id)
+    # 推送空间路由
+    if bk_biz_id != 0:
+        space = Space.objects.get_space_info_by_biz_id(bk_biz_id=bk_biz_id)
+        push_and_publish_space_router(space["space_type"], space["space_id"], table_id_list=[table_id])
+    else:
+        push_and_publish_space_router(table_id_list=[table_id])
 
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s end access bkdata vm", bk_biz_id, table_id, data_id)
 

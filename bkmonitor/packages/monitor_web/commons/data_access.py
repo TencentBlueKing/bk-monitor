@@ -147,50 +147,86 @@ class ResultTable:
         return cls(table_name=table_dict["table_name"], description=table_dict.get("table_desc", ""), fields=fields)
 
 
-class DataAccessor:
-    """
-    申请数据链路资源
-    """
+class PluginDataAccessor:
+    def __init__(self, plugin_version, operator: str, data_label: str | None = None):
+        def get_field_instance(field):
+            # 将field字典转化为ResultTableField对象
+            return ResultTableField(
+                field_name=field["name"],
+                tag=field["monitor_type"],
+                field_type=field["type"],
+                description=force_str(field.get("description", "")),
+                unit=field.get("unit", ""),
+                is_config_by_user=field.get("is_active", True),
+                alias_name=field.get("source_name", ""),
+            )
 
-    def __init__(
-        self,
-        bk_tenant_id: str,
-        bk_biz_id,
-        db_name,
-        tables,
-        etl_config,
-        operator,
-        type_label,
-        source_label,
-        label,
-        data_label: str | None = None,
-    ):
-        """
-        :param bk_biz_id: 业务ID
-        :param db_name: 数据库名
-        :param tables: ResultTable列表
-        :param etl_config: 清洗方式
-        :param operator: 操作人
-        """
-        self.bk_biz_id = bk_biz_id
-        self.bk_tenant_id = bk_tenant_id
+        self.metric_json = plugin_version.info.metric_json
+        self.enable_field_blacklist = plugin_version.info.enable_field_blacklist
+        # 获取表结构信息
+        tables = []
+
+        add_fields = []
+        add_fields_names = copy.deepcopy(PLUGIN_REVERSED_DIMENSION)
+        plugin_type = plugin_version.plugin.plugin_type
+        if plugin_type == PluginType.SNMP:
+            add_fields_names.append(("bk_target_device_ip", _("远程采集目标IP")))
+        config_json = plugin_version.config.config_json
+        self.dms_field = []
+
+        # 维度注入参数名称，更新至group的添加参数信息中
+        for param in config_json or []:
+            if param["mode"] == ParamMode.DMS_INSERT:
+                for dms_key in param["default"].keys():
+                    add_fields_names.append((dms_key, dms_key))
+                    self.dms_field.append((dms_key, dms_key))
+
+        for name, description in add_fields_names:
+            add_fields.append(
+                {"name": name, "description": force_str(description), "monitor_type": "group", "type": "string"}
+            )
+
+        for table in self.metric_json:
+            # 获取字段信息
+            fields = list(
+                map(
+                    get_field_instance,
+                    [i for i in table["fields"] if i["monitor_type"] == "dimension" or i.get("is_active")],
+                )
+            )
+            fields.extend(list(map(get_field_instance, add_fields)))
+            tables.append(ResultTable(table_name=table["table_name"], description=table["table_desc"], fields=fields))
+
+        db_name = f"{plugin_type}_{plugin_version.plugin.plugin_id}"
+        if plugin_type in [PluginType.SCRIPT, PluginType.DATADOG]:
+            etl_config = "bk_standard"
+        elif plugin_type == PluginType.K8S:
+            etl_config = "bk_standard_v2_time_series"
+        else:
+            etl_config = "bk_exporter"
+
+        self.bk_biz_id = plugin_version.plugin.bk_biz_id
+        self.bk_tenant_id = plugin_version.plugin.bk_tenant_id
         self.db_name = db_name.lower()
+        self.data_name = self.db_name
         self.data_label = data_label.lower() if data_label else self.db_name
         self.tables = tables
         self.operator = operator
         self.etl_config = etl_config
-        self.modify = False
-        self.type_label = type_label
-        self.source_label = source_label
-        self.label = label
+        self.type_label = "time_series"
+        self.source_label = "bk_monitor"
+        self.label = plugin_version.plugin.label
+
+        # 当前data_id信息
         try:
-            self.data_id = self.get_data_id()
+            data_id_info = api.metadata.get_data_id(
+                bk_tenant_id=self.bk_tenant_id, data_name=self.data_name, with_rt_info=False
+            )
+            self.data_id = safe_int(data_id_info["data_id"])
+            self.current_data_id_is_platform = data_id_info["is_platform_data_id"]
         except BKAPIError:
             self.data_id = None
-
-    @property
-    def data_name(self):
-        return f"{self.bk_biz_id}_{self.db_name}" if self.bk_biz_id else self.db_name
+            self.current_data_id_is_platform = False
 
     def create_dataid(self):
         """
@@ -205,6 +241,7 @@ class DataAccessor:
             "data_description": self.data_name,
             "type_label": self.type_label,
             "source_label": self.source_label,
+            "is_platform_data_id": self.bk_biz_id == 0,
             # 新增入库时间
             "option": {
                 "inject_local_time": True,
@@ -215,6 +252,21 @@ class DataAccessor:
         }
         self.data_id = api.metadata.create_data_id(param)["bk_data_id"]
         return self.data_id
+
+    def modify_dataid(self):
+        """
+        修改dataid，目前只有在插件的可见范围发生变化时，才需要修改dataid
+        """
+        is_platform_data_id = self.bk_biz_id == 0
+        if self.current_data_id_is_platform == is_platform_data_id:
+            return
+
+        api.metadata.modify_data_id(
+            bk_tenant_id=self.bk_tenant_id,
+            data_id=self.data_id,
+            operator=self.operator,
+            is_platform_data_id=is_platform_data_id,
+        )
 
     def contrast_rt(self) -> tuple[dict[str, Any], dict[str, ResultTable]]:
         """
@@ -349,24 +401,6 @@ class DataAccessor:
 
         return self.request_multi_thread(func_list, params_list, get_data=lambda x: x)
 
-    def access(self):
-        """
-        接入数据链路
-        :return: 创建的 data id
-        """
-        if not self.data_id:
-            self.create_dataid()
-
-        self.create_rt()
-        return self.data_id
-
-    def get_data_id(self):
-        data_id_info = api.metadata.get_data_id(
-            bk_tenant_id=self.bk_tenant_id, data_name=self.data_name, with_rt_info=False
-        )
-        self.data_id = safe_int(data_id_info["data_id"])
-        return self.data_id
-
     def modify_label(self, label):
         """
         修改label
@@ -421,77 +455,6 @@ class DataAccessor:
             else:
                 result.append(_result)
         return result
-
-
-class PluginDataAccessor(DataAccessor):
-    def __init__(self, plugin_version, operator: str, data_label: str | None = None):
-        def get_field_instance(field):
-            # 将field字典转化为ResultTableField对象
-            return ResultTableField(
-                field_name=field["name"],
-                tag=field["monitor_type"],
-                field_type=field["type"],
-                description=force_str(field.get("description", "")),
-                unit=field.get("unit", ""),
-                is_config_by_user=field.get("is_active", True),
-                alias_name=field.get("source_name", ""),
-            )
-
-        self.metric_json = plugin_version.info.metric_json
-        self.enable_field_blacklist = plugin_version.info.enable_field_blacklist
-        # 获取表结构信息
-        tables = []
-
-        add_fields = []
-        add_fields_names = copy.deepcopy(PLUGIN_REVERSED_DIMENSION)
-        plugin_type = plugin_version.plugin.plugin_type
-        if plugin_type == PluginType.SNMP:
-            add_fields_names.append(("bk_target_device_ip", _("远程采集目标IP")))
-        config_json = plugin_version.config.config_json
-        self.dms_field = []
-
-        # 维度注入参数名称，更新至group的添加参数信息中
-        for param in config_json or []:
-            if param["mode"] == ParamMode.DMS_INSERT:
-                for dms_key in param["default"].keys():
-                    add_fields_names.append((dms_key, dms_key))
-                    self.dms_field.append((dms_key, dms_key))
-
-        for name, description in add_fields_names:
-            add_fields.append(
-                {"name": name, "description": force_str(description), "monitor_type": "group", "type": "string"}
-            )
-
-        for table in self.metric_json:
-            # 获取字段信息
-            fields = list(
-                map(
-                    get_field_instance,
-                    [i for i in table["fields"] if i["monitor_type"] == "dimension" or i.get("is_active")],
-                )
-            )
-            fields.extend(list(map(get_field_instance, add_fields)))
-            tables.append(ResultTable(table_name=table["table_name"], description=table["table_desc"], fields=fields))
-
-        db_name = f"{plugin_type}_{plugin_version.plugin.plugin_id}"
-        if plugin_type in [PluginType.SCRIPT, PluginType.DATADOG]:
-            etl_config = "bk_standard"
-        elif plugin_type == PluginType.K8S:
-            etl_config = "bk_standard_v2_time_series"
-        else:
-            etl_config = "bk_exporter"
-        super().__init__(
-            bk_tenant_id=plugin_version.plugin.bk_tenant_id,
-            bk_biz_id=plugin_version.plugin.bk_biz_id,
-            db_name=db_name,
-            tables=tables,
-            etl_config=etl_config,
-            operator=operator,
-            type_label="time_series",
-            source_label="bk_monitor",
-            label=plugin_version.plugin.label,
-            data_label=data_label,
-        )
 
     def merge_dimensions(self, tag_list: list):
         """
@@ -551,10 +514,6 @@ class PluginDataAccessor(DataAccessor):
             option={"is_split_measurement": True},
         )
 
-    @property
-    def data_name(self):
-        return self.db_name
-
     def access(self):
         """
         接入数据链路
@@ -567,11 +526,13 @@ class PluginDataAccessor(DataAccessor):
         # 开启自动发现，一定是单指标单表
         is_split_measurement = self.enable_field_blacklist
 
+        # 如果data_id不存在，则创建data_id，否则修改data_id
         if not self.data_id:
             # 新增插件均为单指标单表
             is_split_measurement = True
             self.create_dataid()
-            # todo 当后续流程失败时，通过`ModifyDataIdResource`将 dataname 重名即可。
+        else:
+            self.modify_dataid()
 
         if not is_split_measurement:
             # 没开自动发现，且非新增插件
@@ -585,6 +546,7 @@ class PluginDataAccessor(DataAccessor):
             except Exception:
                 # 兼容非单指标单表插件
                 pass
+
         if is_split_measurement:
             self.modify_is_split_measurement()
             metric_info_list = self.format_time_series_metric_info_data(self.metric_json, self.enable_field_blacklist)

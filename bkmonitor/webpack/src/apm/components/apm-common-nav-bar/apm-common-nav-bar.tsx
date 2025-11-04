@@ -220,6 +220,7 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
                       allow-enter={false}
                       ext-popover-cls='nav-bar-select-popover'
                       popover-width={240}
+                      search-placeholder={this.$t('请输入 关键字')}
                       value={item.selectOption.value}
                       searchable
                       onChange={val => this.handleNavSelect(val, item)}

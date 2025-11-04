@@ -32,22 +32,22 @@ import { type AlgorithmItem, AlgorithmEnum, LevelMap } from '../typing';
 
 import './threshold.scss';
 
-interface ruleDataItem extends AlgorithmItem {
+interface RuleDataItem extends AlgorithmItem<'Threshold'> {
   show: boolean;
 }
 
 interface ThresholdEvents {
-  onChange: (value: AlgorithmItem[]) => void;
+  onChange: (value: AlgorithmItem<'Threshold'>[]) => void;
 }
 
 interface ThresholdProps {
-  data: AlgorithmItem[];
+  data: AlgorithmItem<'Threshold'>[];
   defaultUnit?: string;
 }
 
 @Component
 export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
-  @Prop({ default: () => [] }) data: AlgorithmItem[];
+  @Prop({ default: () => [] }) data: AlgorithmItem<'Threshold'>[];
 
   @Prop({ default: '' }) defaultUnit: string;
 
@@ -55,7 +55,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
 
   methodInstancePopover = null;
 
-  localData: ruleDataItem[] = [
+  localData: RuleDataItem[] = [
     { level: 1, show: false, type: AlgorithmEnum.Threshold, unit_prefix: '', config: { method: 'lte', threshold: 0 } },
     { level: 2, show: false, type: AlgorithmEnum.Threshold, unit_prefix: '', config: { method: 'lte', threshold: 0 } },
     { level: 3, show: false, type: AlgorithmEnum.Threshold, unit_prefix: '', config: { method: 'lte', threshold: 0 } },
@@ -68,7 +68,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
    * @param val 已选择的检测规则
    */
   @Watch('data', { immediate: true })
-  watchData(val: AlgorithmItem[]) {
+  watchData(val: AlgorithmItem<'Threshold'>[]) {
     const defaultUnit = this.defaultUnit || val.find(item => item.unit_prefix)?.unit_prefix;
     for (const item of this.localData) {
       const data = val.find(i => i.level === item.level);
@@ -91,12 +91,12 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
     }, {});
   }
 
-  handleShowChange(item: ruleDataItem) {
+  handleShowChange(item: RuleDataItem) {
     item.show = !item.show;
     this.handleChange();
   }
 
-  handleValueChange(item: ruleDataItem, value: number) {
+  handleValueChange(item: RuleDataItem, value: number) {
     item.config.threshold = value;
     this.handleChange();
   }
@@ -208,7 +208,6 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
             ]}
           </div>
         ))}
-        {}
         <div style='display: none'>
           <div
             ref='methodList'

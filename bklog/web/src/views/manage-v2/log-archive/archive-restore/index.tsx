@@ -375,6 +375,8 @@ export default defineComponent({
               on-right-icon-click={search}
               onChange={val => (keyword.value = val)}
               onEnter={search}
+              placeholder={t('搜索 归档项')}
+
             />
           </div>
         </section>

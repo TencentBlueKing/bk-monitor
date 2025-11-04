@@ -724,7 +724,7 @@ class StorageResultTable:
                         bk_tenant_id=self.bk_tenant_id, table_id=self.table_id, is_current=True
                     ).update(is_current=False, disable_time=result_table.last_modify_time)
 
-                    correct_record, _ = StorageClusterRecord.objects.get_or_create(
+                    StorageClusterRecord.objects.get_or_create(
                         table_id=self.table_id,
                         cluster_id=new_storage_cluster_id,
                         is_current=True,
@@ -2118,13 +2118,23 @@ class ESStorage(models.Model, StorageResultTable):
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)
         return new_record
 
+    def get_raw_data(self, index_name: str):
+        """查询原始数据，最新数据"""
+        return self.es_client.search(
+            index=index_name,
+            body={
+                "query": {"match_all": {}},
+                "sort": [{"dtEventTimeStamp": {"order": "desc"}}],
+            },
+        )
+
     @property
     def index_body(self):
         """
         ES创建索引的配置内容
         :return: dict, 可以直接
         """
-        from metadata.models import ESFieldQueryAliasOption, ResultTableField
+        from metadata.models import ResultTableField, ResultTableFieldOption
 
         logger.info("index_body: try to compose index_body for table_id->[%s]", self.table_id)
         body = {"settings": json.loads(self.index_settings), "mappings": json.loads(self.mapping_settings)}
@@ -2145,85 +2155,11 @@ class ESStorage(models.Model, StorageResultTable):
                     e,
                 )
 
-        try:
-            logger.info("index_body: try to add alias_config for table_id->[%s]", self.table_id)
-            # 别名-原字段配置
-            alias_config = ESFieldQueryAliasOption.generate_query_alias_settings(
-                self.table_id, bk_tenant_id=self.bk_tenant_id
-            )
-            logger.info("index_body: table_id->[%s] got alias_config->[%s]", self.table_id, alias_config)
-            # 别名原字段-字段类型配置
-            alias_path_type_config = ESFieldQueryAliasOption.generate_alias_path_type_settings(
-                table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
-            )
-            logger.info(
-                "index_body: table_id->[%s] got alias_path_type_config->[%s]", self.table_id, alias_path_type_config
-            )
-            properties.update(alias_config)
-            properties.update(alias_path_type_config)
-        except Exception as e:
-            logger.warning("index_body: add alias_config failed,table_id->[%s],error->[%s]", self.table_id, e)
-
         # 按ES版本返回构建body内容
         if self.es_version < self.ES_REMOVE_TYPE_VERSION:
             body["mappings"] = {self.table_id: body["mappings"]}
         logger.info("index_body: compose index_body for->[%s] success,body->[%s]", self.table_id, body)
         return body
-
-    def compose_field_alias_settings(self):
-        """
-        组装采集项的别名配置
-        :return: dict {"properties":{"alias":"type":"alias","path":"xxx"}}
-        """
-        from metadata.models import ESFieldQueryAliasOption
-
-        logger.info("compose_field_alias_settings: try to compose field alias mapping for->[%s]", self.table_id)
-        properties = ESFieldQueryAliasOption.generate_query_alias_settings(
-            table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
-        )
-        logger.info(
-            "compose_field_alias_settings: compose alias mapping for->[%s] of bk_tenant_id->[%s] success,"
-            "alias_settings->[%s]",
-            self.table_id,
-            self.bk_tenant_id,
-            properties,
-        )
-        return {"properties": properties}
-
-    def put_field_alias_mapping_to_es(self):
-        """
-        推送别名配置至ES
-        """
-        # 组装字段别名配置
-        properties = self.compose_field_alias_settings()
-        # 获取使用中的索引列表
-        activate_index_list = self.get_activate_index_list()
-        if not activate_index_list:
-            logger.info("put_field_alias_mapping_to_es: table_id->[%s],got no activate index,return", self.table_id)
-            return
-        logger.info("put_field_alias_mapping_to_es: try to put->[%s] for->[%s]", properties, activate_index_list)
-
-        # 循环遍历激活的索引列表，推送别名配置
-        for index in activate_index_list:
-            logger.info("put_field_alias_mapping_to_es: try to put alias->[%s] for index->[%s]", properties, index)
-            try:
-                response = self.es_client.indices.put_mapping(body=properties, index=index)
-                logger.info(
-                    "put_field_alias_mapping_to_es: put alias for index->[%s] success,response->[%s]", index, response
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "put_field_alias_mapping_to_es: failed to put alias->[%s] for index->[%s],error->[%s]",
-                    properties,
-                    index,
-                    e,
-                )
-                continue
-        logger.info(
-            "put_field_alias_mapping_to_es: put alias->[%s] for index_list->[%s] successfully",
-            properties,
-            activate_index_list,
-        )
 
     @property
     def index_re_v1(self):
@@ -2929,14 +2865,7 @@ class ESStorage(models.Model, StorageResultTable):
             self.table_id,
             is_moving_cluster,
         )
-        try:
-            # 0. 更新mapping配置
-            self.put_field_alias_mapping_to_es()
-            logger.info("update_index_and_aliases:put alias to es for table_id->[%s] success", self.table_id)
-        except Exception as e:
-            logger.error(
-                "update_index_and_aliases:failed to put field alias for table_id->[%s],error->[%s]", self.table_id, e
-            )
+
         # 1. 更新索引
         self.update_index_v2()
         # 2. 更新对应的别名<->索引绑定关系
@@ -4414,13 +4343,14 @@ class ESStorage(models.Model, StorageResultTable):
                     ]
                 )
                 logger.info(
-                    "table_id->[%s] has compensated local snapshot ->[%s]",
-                    self.table_id, current_snapshot_name
+                    "table_id->[%s] has compensated local snapshot ->[%s]", self.table_id, current_snapshot_name
                 )
             except Exception as e:
                 logger.exception(
                     "table_id->[%s] has compensated local snapshot ->[%s] failed e -> [%s]",
-                    self.table_id, current_snapshot_name, e
+                    self.table_id,
+                    current_snapshot_name,
+                    e,
                 )
             finally:
                 return
@@ -4519,9 +4449,9 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 获取本地残留的过期快照
         all_snapshots = list(
-            EsSnapshotIndice.objects.filter(
-                table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
-            ).values("snapshot_name")
+            EsSnapshotIndice.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).values(
+                "snapshot_name"
+            )
         )
         local_expired_snapshots = self.match_expired_snapshot(
             all_snapshots, expired_datetime_point, snapshot_name_key="snapshot_name"

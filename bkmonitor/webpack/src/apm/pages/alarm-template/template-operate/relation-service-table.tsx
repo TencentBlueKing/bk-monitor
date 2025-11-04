@@ -583,12 +583,7 @@ export default class RelationServiceTable extends tsc<IProps> {
                         key={'algorithm-02'}
                         class='content'
                       >
-                        <DetectionAlgorithmsGroup
-                          algorithms={item?.algorithms?.map(a => ({
-                            ...a,
-                            ...(a?.config || {}),
-                          }))}
-                        />
+                        <DetectionAlgorithmsGroup algorithms={item.algorithms as any[]} />
                       </div>,
                     ]
                   : undefined}

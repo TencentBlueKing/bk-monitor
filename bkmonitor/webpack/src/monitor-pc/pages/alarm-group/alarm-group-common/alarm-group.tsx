@@ -320,6 +320,20 @@ export default class AlarmGroup extends tsc<IGroupList> {
         key='2'
         class='col-btn'
         v-authority={{ active: !this.authority.MANAGE_AUTH }}
+        // disabled={}
+        text={true}
+        onClick={() =>
+          this.authority.MANAGE_AUTH
+            ? this.handleCloneRow(row.id)
+            : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH)
+        }
+      >
+        {this.$t('克隆')}
+      </bk-button>,
+      <bk-button
+        key='3'
+        class='col-btn'
+        v-authority={{ active: !this.authority.MANAGE_AUTH }}
         disabled={!row.delete_allowed}
         text={true}
         onClick={() =>
@@ -467,6 +481,20 @@ export default class AlarmGroup extends tsc<IGroupList> {
             this.$bkMessage({ theme: 'success', message: this.$t('删除成功') });
           })
           .finally(() => (this.loading = false));
+      },
+    });
+  }
+
+  /**
+   * @description: 克隆告警组
+   * @param {number} id
+   * @return {*}
+   */
+  handleCloneRow(id: number) {
+    this.$router.push({
+      name: 'alarm-group-clone',
+      params: {
+        id: String(id),
       },
     });
   }
@@ -677,7 +705,7 @@ export default class AlarmGroup extends tsc<IGroupList> {
                   },
                 ]}
                 modelValue={this.searchCondition}
-                placeholder={this.$t('ID / 告警组名称 / 轮值规则 / 通知对象')}
+                placeholder={this.$t('搜索 ID、告警组名称、轮值规则、通知对象')}
                 uniqueSelect={true}
                 onChange={this.handleSearchCondition}
               />

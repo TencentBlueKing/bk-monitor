@@ -371,4 +371,12 @@ export default {
   当前已关联其他模版: 'Current associated other templates',
   下发将被覆盖: 'Pushing will override the existing association',
   查看策略: 'View strategy',
+  前5分钟: 'Last 5 minutes',
+  昨天同期: 'Same period yesterday',
+  上周同期: 'Same period last week',
+  前七天同期均值: 'Average of the same period in the last 7 days',
+  组合: 'Combination',
+  关联服务名称: 'Associated service name',
+  策略下发: 'Push strategy',
+  解除关联: 'Unassociate',
 };

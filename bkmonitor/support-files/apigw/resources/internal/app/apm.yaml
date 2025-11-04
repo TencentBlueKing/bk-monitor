@@ -989,3 +989,21 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query apm field statistics graph
+  /app/apm/list_trace_view_config/:
+    get:
+      operationId: list_trace_view_config
+      description: 获取查询视图配置
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/trace_query_web/view_config/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "list trace view config"

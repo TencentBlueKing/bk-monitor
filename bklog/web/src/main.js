@@ -109,7 +109,7 @@ const mountedVueInstance = () => {
     store.dispatch('requestMenuList', spaceUid).then(() => {
       const menuList = store.state.topMenu ?? [];
       menuList
-        .find((item) => item.id === 'manage')
+        .find(item => item.id === 'manage')
         ?.children?.forEach((group) => {
           group?.children?.forEach((nav) => {
             if (nav.id === 'log-collection') {
@@ -141,6 +141,18 @@ const mountedVueInstance = () => {
         i18n,
         components: {
           App,
+        },
+        created() {
+          const spaceId = this.$store.state.spaceUid;
+          const spaceList = this.$store.state.mySpaceList;
+          if (!spaceId || spaceList.length === 0) {
+            this.$router.push({
+              path: '/un-authorized',
+              query: {
+                type: 'space',
+              },
+            });
+          }
         },
         mounted() {
           // 对于手动输入URL，直接刷新页面重置所有参数和状态
