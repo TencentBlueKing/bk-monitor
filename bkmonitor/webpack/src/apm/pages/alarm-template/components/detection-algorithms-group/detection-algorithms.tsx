@@ -93,18 +93,16 @@ export default class DetectionAlgorithm extends tsc<DetectionAlgorithmProps> {
       <div class='detection-algorithms'>
         <div class='detection-algorithms-label'>{this.algorithmDisplayConfig.algorithmLabel},</div>
         <div class='detection-algorithms-content'>
-          {this.algorithm.map((algorithm, index) => [
-            index > 0 && (
-              <span
-                key='connector'
-                class='connector'
-              >
-                {ALGORITHM_RELATIONSHIP_MAP[this.connector]}
-              </span>
-            ),
-            this.renderAlgorithmContent(algorithm, index),
-            <span key='comma'>,</span>,
-          ])}
+          {this.algorithm.map((algorithm, index) => (
+            <span
+              key={algorithm.type}
+              class='algorithm-item-text'
+            >
+              {index > 0 && <span class='connector'>{ALGORITHM_RELATIONSHIP_MAP[this.connector]}</span>}
+              {this.renderAlgorithmContent(algorithm, index)}
+              <span>,</span>
+            </span>
+          ))}
         </div>
         <div class='detection-algorithms-level'>
           <i class={['icon-monitor', this.algorithmDisplayConfig.levelIcon]} />

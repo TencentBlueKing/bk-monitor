@@ -49,7 +49,7 @@ export default class DetectionAlgorithmsGroup extends tsc<DetectionAlgorithmsGro
   /** 传入为空数组时显示的占位符，默认为 -- */
   @Prop({ type: String, default: '--' }) placeholder: string;
 
-  /** 算法排序，从低往高 */
+  /** 算法展示排序，从前往后，从低往高 */
   algorithmsTypeSort = {
     [AlgorithmEnum.Threshold]: 0,
     [AlgorithmEnum.YearRoundAndRingRatio]: 1,
@@ -57,8 +57,8 @@ export default class DetectionAlgorithmsGroup extends tsc<DetectionAlgorithmsGro
 
   /**
    * 根据检测算法的级别分类展示
-   * 判断一个告警级别是否配置了多个检测算法
-   * 配置了多个检测算法需要展示组合样式， 否则展示对应的算法即可
+   * 获取各个告警级别所拥有的算法
+   * 如果配置了多个检测算法需要展示组合样式， 否则展示对应的算法即可
    */
   get rulesLevelDisplayList() {
     return LEVEL_LIST.map(level => {

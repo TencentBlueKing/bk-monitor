@@ -83,10 +83,6 @@ export default class AlgorithmRules extends tsc<AlgorithmRulesProps, AlgorithmRu
     };
   }
 
-  get algorithmCategoryLevel() {
-    return {};
-  }
-
   /** 本地告警规则数据 */
   localAlgorithms: Array<LocalAlgorithm> = [];
 
