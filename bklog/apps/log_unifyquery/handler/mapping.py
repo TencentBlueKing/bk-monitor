@@ -41,6 +41,7 @@ from apps.log_search.constants import (
     OPERATORS,
     FieldBuiltInEnum,
     SearchScopeEnum,
+    DorisFieldTypeEnum,
 )
 from apps.log_search.models import (
     IndexSetFieldsConfig,
@@ -197,6 +198,10 @@ class UnifyQueryMappingHandler:
             }
             for field in fields_result
         ]
+        # doris需要映射字段类型
+        if self.index_set.support_doris:
+            for field in fields_list:
+                field["field_type"] = DorisFieldTypeEnum.get_es_field_type(field["field_type"])
 
         for field in fields_list:
             # @TODO tag：兼容前端代码，后面需要删除
