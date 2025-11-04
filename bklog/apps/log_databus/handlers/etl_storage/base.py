@@ -397,7 +397,7 @@ class EtlStorage:
                 # 时间精度设置
                 time_fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
                 time_fmt = time_fmts.get(field["option"]["time_format"], {})
-                if time_field["option"]["es_format"] == "strict_date_optional_time_nanos":
+                if time_fmt.get("es_format", "epoch_millis") == "strict_date_optional_time_nanos":
                     time_field["option"]["es_format"] = "epoch_millis"
                     time_field["option"]["es_type"] = "date"
                     time_field["option"]["timestamp_unit"] = "ms"
@@ -416,6 +416,7 @@ class EtlStorage:
                 field_option["es_doc_values"] = False
 
                 nano_time_field = copy.deepcopy(time_field)
+                nano_time_field["field_name"] = "dtEventTimeStampNanos"
                 nano_time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
                 nano_time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
                 nano_time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")

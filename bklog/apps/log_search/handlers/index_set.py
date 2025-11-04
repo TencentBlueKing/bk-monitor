@@ -1808,7 +1808,6 @@ class BaseIndexSetHandler:
                         table_info["origin_table_id"] = obj.result_table_id
                     if query_alias_settings := index_set.query_alias_settings:
                         table_info["query_alias_settings"] = query_alias_settings
-                    request_params["table_info"].append(table_info)
 
                     # 纳秒采集新旧链路迁移路由补充
                     if obj.result_table_id in nano_migrate_map:
@@ -1818,7 +1817,14 @@ class BaseIndexSetHandler:
                             "index_set": nano_migrate_map[obj.result_table_id].replace(".", "_"),
                             "origin_table_id": nano_migrate_map[obj.result_table_id]
                         })
+                        # 为纳秒字段新增别名
+                        table_info["query_alias_settings"].update({
+                            "field_name": "dtEventTimeStampNanos",
+                            "query_alias": "dtEventTimeStamp"
+                        })
                         request_params["table_info"].append(old_nano_table_info)
+
+                    request_params["table_info"].append(table_info)
                 multi_execute_func.append(
                     result_key=index_set.index_set_id,
                     func=TransferApi.bulk_create_or_update_log_router,
