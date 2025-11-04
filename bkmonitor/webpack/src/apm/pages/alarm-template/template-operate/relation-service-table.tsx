@@ -166,7 +166,7 @@ export default class RelationServiceTable extends tsc<IProps> {
   ];
   /* 展开差异对比数据 */
   expandContent: {
-    algorithms: TemplateDetail['algorithms'][];
+    algorithms: AlgorithmItemUnion[];
     detect: TemplateDetail['detect'];
     type: 'current' | 'relation';
     userGroupList: { id: number; name: string }[];
@@ -584,7 +584,7 @@ export default class RelationServiceTable extends tsc<IProps> {
                         class='content'
                       >
                         <DetectionAlgorithmsGroup
-                          algorithms={item.algorithms as any[]}
+                          algorithms={item.algorithms}
                           connector={item?.detect?.connector}
                         />
                       </div>,
