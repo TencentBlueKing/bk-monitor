@@ -2118,6 +2118,16 @@ class ESStorage(models.Model, StorageResultTable):
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)
         return new_record
 
+    def get_raw_data(self, index_name: str):
+        """查询原始数据，最新数据"""
+        return self.es_client.search(
+            index=index_name,
+            body={
+                "query": {"match_all": {}},
+                "sort": [{"dtEventTimeStamp": {"order": "desc"}}],
+            },
+        )
+
     @property
     def index_body(self):
         """

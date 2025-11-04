@@ -108,7 +108,6 @@ class Command(BaseCommand):
         update_field_options = [
             ("dtEventTimeStampNanos", "es_type", NANO_FORMAT),
             ("dtEventTimeStampNanos", "es_format", STRICT_NANO_ES_FORMAT),
-            ("time", "es_format", EPOCH_MILLIS_FORMAT),
             ("dtEventTimeStamp", "es_format", EPOCH_MILLIS_FORMAT),
             ("dtEventTimeStamp", "es_type", "date"),
         ]
@@ -117,11 +116,6 @@ class Command(BaseCommand):
             models.ResultTableFieldOption.objects.filter(
                 table_id=new_table_id, field_name=field_name, name=name, bk_tenant_id=bk_tenant_id
             ).update(value=value)
-
-        # 设置新表时间字段别名
-        models.ESFieldQueryAliasOption.objects.create(
-            table_id=new_table_id, query_alias="dtEventTimeStamp", field_path="dtEventTimeStampNanos", bk_tenant_id=bk_tenant_id
-        )
 
         # 增加新表集群迁移记录，为了确保数据能够正常被查询，将enable_time设置为当前时间的前两年
         models.StorageClusterRecord.objects.update_or_create(
@@ -179,6 +173,16 @@ class Command(BaseCommand):
                 record.origin_table_id = new_table_id
             record.table_id = record.table_id.split(".")[0] + "_nano" + ".__default__"
             record.save()
+
+        # 新rt对应的虚拟路由表需要增加时间字段别名，兼容新旧rt时间字段
+        for virtual_table_id in virtual_table_ids:
+            # 设置新表时间字段别名
+            models.ESFieldQueryAliasOption.objects.update_or_create(
+                table_id=virtual_table_id,
+                query_alias="dtEventTimeStamp",
+                field_path="dtEventTimeStampNanos",
+                bk_tenant_id=bk_tenant_id,
+            )
 
         # 停用旧表的索引轮转并删除datasource关联，并更新新表的datasource关联
         es_storage.need_create_index = False
