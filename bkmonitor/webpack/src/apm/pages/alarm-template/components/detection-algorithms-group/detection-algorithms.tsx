@@ -59,6 +59,12 @@ export default class DetectionAlgorithm extends tsc<DetectionAlgorithmProps> {
     };
   }
 
+  /**
+   * 展示不同算法类型所对应的内容
+   * @param algorithm 算法
+   * @param index 当前索引（用于控制一些算法是否要加括号等）
+   * @returns 具体展示的内容
+   */
   renderAlgorithmContent(algorithm: AlgorithmItemUnion, index: number) {
     switch (algorithm.type) {
       case AlgorithmEnum.Threshold:
