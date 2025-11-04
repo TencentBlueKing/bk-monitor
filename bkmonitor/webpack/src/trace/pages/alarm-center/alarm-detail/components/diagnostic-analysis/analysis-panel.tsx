@@ -23,10 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 
-// import DimensionPanel from './components/dimension-panel';
+import DimensionPanel from './components/dimension-panel';
 import LinkPanel from './components/link-panel';
+import LogPanel from './components/log-panel';
+import { DiagnosticTypeEnum, DiagnosticTypeMap } from './constant';
+
+import type { IDiagnosticAnalysisItem } from './typing';
 
 import './analysis-panel.scss';
 
@@ -35,26 +39,48 @@ export default defineComponent({
   name: 'AnalysisPanel',
   props: {
     data: {
-      type: Object,
+      type: Object as PropType<IDiagnosticAnalysisItem>,
       default: () => ({}),
     },
   },
   setup(props) {
+    const isExpand = shallowRef(true);
+
+    const toggleExpand = (expand: boolean) => {
+      isExpand.value = expand;
+    };
+
+    const renderAnalysisPanel = () => {
+      switch (props.data.type) {
+        case DiagnosticTypeEnum.DIMENSION:
+          return <DimensionPanel data={props.data.list} />;
+        case DiagnosticTypeEnum.LINK:
+          return <LinkPanel data={props.data.list} />;
+        case DiagnosticTypeEnum.LOG:
+          return <LogPanel data={props.data.list} />;
+        case DiagnosticTypeEnum.EVENT:
+          return <LogPanel data={props.data.list} />;
+      }
+    };
+
     return {
-      // renderAnalysisPanel,
+      isExpand,
+      toggleExpand,
+      renderAnalysisPanel,
     };
   },
   render() {
     return (
-      <div class='analysis-panel'>
-        <div class='analysis-panel-header'>
-          <i class='icon-monitor icon-mc-arrow-down' />
-          <span class='panel-title'>可疑维度</span>
-        </div>
-
-        <div class='analysis-panel-content'>
-          {/* <DimensionPanel /> */}
-          <LinkPanel />
+      <div class={['analysis-panel', { expand: this.isExpand }]}>
+        <div class='analysis-panel-wrapper'>
+          <div
+            class='analysis-panel-wrapper-header'
+            onClick={() => this.toggleExpand(!this.isExpand)}
+          >
+            <i class='icon-monitor icon-mc-arrow-down' />
+            <span class='panel-title'>{DiagnosticTypeMap[this.data.type]}</span>
+          </div>
+          <div class='analysis-panel-wrapper-content'>{this.renderAnalysisPanel()}</div>
         </div>
       </div>
     );
