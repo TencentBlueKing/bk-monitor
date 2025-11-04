@@ -2,7 +2,7 @@
   "id": "profiling",
   "type": "overview",
   "mode": "custom",
-  "name": "Profiling",
+  "name": "性能分析",
   "variables": [],
   "panels": [
     {
