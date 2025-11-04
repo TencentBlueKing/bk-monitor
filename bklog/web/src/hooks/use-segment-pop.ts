@@ -113,16 +113,16 @@ class UseSegmentProp {
         disabled: false,
       },
       {
-        onClick: (e: MouseEvent) => this.executeClickEvent(e, 'add-to-ai'),
-        svg: AiSvg,
-        text: this.$t('引用至小鲸'),
-        disabled: !this.delineate || !this.aiBluekingEnabled,
-      },
-      {
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'highlight'),
         iconName: 'icon bklog-icon bklog-highlight',
         text: this.$t('高亮'),
         disabled: !this.highlightEnabled,
+      },
+      {
+        onClick: (e: MouseEvent) => this.executeClickEvent(e, 'add-to-ai'),
+        svg: AiSvg,
+        text: this.$t('引用至小鲸'),
+        disabled: !this.delineate || !this.aiBluekingEnabled,
       },
       {
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'is'),
