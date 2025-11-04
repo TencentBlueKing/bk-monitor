@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, nextTick, onMounted, watch, onBeforeUnmount, inject } from 'vue';
+import { computed, defineComponent, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { formatNumberWithRegex } from '@/common/util';
 import BklogPopover from '@/components/bklog-popover';
@@ -78,6 +78,7 @@ export default defineComponent({
     const finishPolling = ref(false); // 是否完成轮询
     const isStart = ref(false); // 是否开始轮询
     let runningInterval = 'auto'; // 当前实际使用的 interval
+    let isSearchingCanceled = false; // 是否取消查询
 
     let logChartCancel: any = null; // 取消请求的方法
     // let isInit = true; // 是否为首次请求
@@ -215,6 +216,11 @@ export default defineComponent({
         let result: IteratorResult<{ urlStr: string; indexId: string | string[]; queryData: any; isInit: boolean }>;
         result = gen.next();
         while (!result.done) {
+          if (isSearchingCanceled) {
+            logChartCancel?.();
+            break;
+          }
+
           const { urlStr, indexId, queryData, isInit: currentIsInit } = result.value;
           try {
             const res = await fetchTrendChartData(urlStr, indexId, queryData);
@@ -347,6 +353,7 @@ export default defineComponent({
       // 开始拉取新一轮趋势数据
       runningTimer = setTimeout(async () => {
         finishPolling.value = false;
+        isSearchingCanceled = false;
         // isInit = true;
         // 若未选择索引集（无索引集或索引集为空数组），则直接关闭loading 并终止后续流程
         if (!store.state.indexItem.ids?.length) {
@@ -385,6 +392,12 @@ export default defineComponent({
       ],
       loadTrendData,
     );
+
+    addEvent(RetrieveEvent.SEARCH_CANCEL, () => {
+      logChartCancel?.();
+      isSearchingCanceled = true;
+      runningTimer && clearTimeout(runningTimer); // 清理上一次的定时器
+    });
 
     onMounted(() => {
       // 初始化折叠状态
