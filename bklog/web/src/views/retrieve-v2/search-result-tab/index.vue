@@ -21,6 +21,7 @@ const route = useRoute();
 const emit = defineEmits(['input']);
 
 const indexSetIds = computed(() => store.state.indexItem.ids);
+const indexSetId = computed(() => indexSetIds.value[0]);
 const bkBizId = computed(() => store.state.bkBizId);
 
 const indexSetItems = computed(() =>
