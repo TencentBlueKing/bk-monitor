@@ -272,6 +272,7 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                         password=password,
                         is_default_cluster=False,
                         default_settings=default_settings,
+                        registered_system=models.ClusterInfo.BKDATA_REGISTERED_SYSTEM,
                     )
                     logger.info(f"sync_bkbase_cluster_info: created new {cluster_type} cluster: {cluster_name}")
         except Exception as e:
