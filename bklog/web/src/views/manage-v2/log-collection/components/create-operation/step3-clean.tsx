@@ -37,7 +37,7 @@ import InfoTips from '../common-comp/info-tips';
 import $http from '@/api';
 
 import type { ISelectItem } from '../../utils';
-// // 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
+// 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
 // const iconsContext = (require as any).context('@/images/log-collection', false, /\.png$/);
 
 import './step3-clean.scss';
@@ -590,7 +590,23 @@ export default defineComponent({
         showMessage(t('请输入模板名称'), 'error');
         return;
       }
-      templateDialogVisible.value = false;
+      $http
+        .request('clean/createTemplate', {
+          data: {
+            name: templateName.value,
+            bk_biz_id: bkBizId.value,
+            clean_type: cleaningMode.value,
+            etl_params: formData.value.etl_params,
+            etl_fields: formData.value.etl_fields,
+          },
+        })
+        .then(res => {
+          templateDialogVisible.value = false;
+          console.log(res, 'createTemplate');
+        })
+        .catch(() => {})
+        .finally(() => {});
+
       // this.fieldCollection(false);
     };
     /**
