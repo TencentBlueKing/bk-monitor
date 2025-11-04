@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import re
 from enum import Enum
 
 from django.apps import apps
@@ -1810,3 +1811,56 @@ ES_ERROR_PATTERNS = [
     (r"too_many_buckets_exception.*?Trying to create too many buckets", TooManyBucketsException),
     (r"failed to parse date field", ParseDateFieldException),
 ]
+
+
+class DorisFieldTypeEnum(Enum):
+    BOOLEAN = "boolean"
+    TINYINT = "tinyint"
+    SMALLINT = "smallint"
+    INT = "int"
+    BIGINT = "bigint"
+    LARGEINT = "largeint"
+    FLOAT = "float"
+    DOUBLE = "double"
+    DECIMAL = "decimal"
+    DATE = "date"
+    DATETIME = "datetime"
+    CHAR = "char"
+    VARCHAR = "varchar"
+    STRING = "string"
+    ARRAY = "array"
+    MAP = "map"
+    STRUCT = "struct"
+    JSON = "json"
+    VARIANT = "variant"
+
+    @classmethod
+    def get_es_field_type(cls, field: dict) -> str:
+        """
+        获取ES字段类型，TINYINT、SMALLINT 先直接映射为integer
+        """
+        field_type_mapping = {
+            cls.BOOLEAN.value: "boolean",
+            cls.TINYINT.value: "integer",
+            cls.SMALLINT.value: "integer",
+            cls.INT.value: "integer",
+            cls.BIGINT.value: "long",
+            cls.FLOAT.value: "float",
+            cls.DOUBLE.value: "double",
+            cls.CHAR.value: "keyword",
+            cls.VARCHAR.value: "keyword",
+            cls.STRING.value: "keyword",
+            cls.DATE.value: "date",
+            cls.DATETIME.value: "date",
+            cls.VARIANT.value: "object",
+        }
+        if field.get("field_name") == "dtEventTimeStamp":
+            return "date"
+        if field.get("is_analyzed", False):
+            return "text"
+        field_type = field.get("field_type")
+        if not field_type:
+            return ""
+        # 去除字段长度信息 例如：varchar(32)、decimal(10,2)
+        cleaned_type = re.sub(r"\(.*?\)", "", field_type)
+        return field_type_mapping.get(cleaned_type, field_type)
