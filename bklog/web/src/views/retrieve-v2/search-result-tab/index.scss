@@ -1,14 +1,43 @@
 .retrieve2-tab {
   position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding-top: 8px;
   margin: 0px 8px 0 0;
   background: #f5f7fa;
   border-radius: 2px 2px 0 0;
 
-  & > span {
+  &>div>span {
     &:not(:last-child) {
       margin-right: 8px;
     }
+  }
+
+  .retrieve2-tab-left {
+    display: flex;
+    align-items: center;
+  }
+
+  .retrieve2-tab-right {
+    display: flex;
+    align-items: center;
+
+    .btn-spacing:first-child {
+      margin-right: 17px;
+    }
+  }
+
+  .btn-alert-dashboard {
+    position: absolute;
+    top: 0px;
+    right: 100px;
+    height: 42px;
+    font-size: 12px;
+    line-height: 42px;
+    color: #4d4f56;
+    cursor: pointer;
+    margin-right: 17px;
   }
 
   .btn-alert-policy {
@@ -33,8 +62,10 @@
     text-align: center;
     cursor: pointer;
     background-color: #dcdee5;
-    border-top-left-radius: 4px; /* 设置左上角圆角 */
-    border-top-right-radius: 4px; /* 设置右上角圆角 */
+    border-top-left-radius: 4px;
+    /* 设置左上角圆角 */
+    border-top-right-radius: 4px;
+    /* 设置右上角圆角 */
 
     &.active {
       font-weight: 700;
