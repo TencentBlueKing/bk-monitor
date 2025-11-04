@@ -702,9 +702,9 @@ class UnifyQueryMappingHandler:
     def _analyze_fields_type(cls, final_fields_list: list[dict[str, Any]]):
         # 上下文实时日志校验字段类型
         fields_type = {
-            "gseindex": ["integer", "long"],
-            "iteration": ["integer", "long"],
-            "iterationIndex": ["integer", "long"],
+            "gseindex": ["integer", "long", "double"],
+            "iteration": ["integer", "long", "double"],
+            "iterationIndex": ["integer", "long", "double"],
         }
         for x in final_fields_list:
             field_name = x["field_name"]
