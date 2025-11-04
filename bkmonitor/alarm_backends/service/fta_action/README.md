@@ -7,7 +7,7 @@
 - alarm-action-cron-worker: action 维护，同步至 ES， 轮值排班
 - alarm-action-worker: 自愈套餐执行
 - alarm-webhook-action-worker: webhook，队列 推送
-- alarm-notice-action-worker: 通知执行
+- alarm-notice-action-worker: 通知执行(配置环境变量启用: ENABLE_NOTICE_QUEUE)
 
 
 ## 功能
