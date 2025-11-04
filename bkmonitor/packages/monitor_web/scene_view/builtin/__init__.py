@@ -73,7 +73,7 @@ class BuiltinProcessor(metaclass=abc.ABCMeta):
         """
         国际化配置文件
         """
-        from django.utils.translation import gettext as _
+        from django.utils.translation import gettext_lazy as _
 
         if isinstance(config, dict):
             return {k: cls._translate_config(v) for k, v in config.items()}
