@@ -217,6 +217,13 @@ class AuthenticationMiddleware(MiddlewareMixin):
         # 如果请求来自apigw，并且携带了jwt，则使用apigw鉴权
         return request.META.get("HTTP_X_BKAPI_FROM") == "apigw" and request.META.get(BkJWTClient.JWT_KEY_NAME)
 
+    @staticmethod
+    def use_mcp_auth(request):
+        """
+        是否是MCP请求
+        """
+        return request.META.get("X-Bk-Request-Origin") == settings.AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE
+
     def process_view(self, request, view, *args, **kwargs):
         # 登录豁免
         if getattr(view, "login_exempt", False):

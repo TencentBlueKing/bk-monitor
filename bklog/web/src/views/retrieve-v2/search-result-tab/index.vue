@@ -21,6 +21,7 @@ const route = useRoute();
 const emit = defineEmits(['input']);
 
 const indexSetIds = computed(() => store.state.indexItem.ids);
+const indexSetId = computed(() => indexSetIds.value[0]);
 const bkBizId = computed(() => store.state.bkBizId);
 
 const indexSetItems = computed(() =>
@@ -125,7 +126,7 @@ const handleAddAlertPolicy = async () => {
   }
   window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
 };
-const handleAddAlertDashboard = async () => { 
+const handleAddAlertDashboard = async () => {
   showDialog.value = true;
 };
 const handleActive = panel => {
@@ -158,34 +159,23 @@ onMounted(() => {
 </script>
 <template>
   <div class="retrieve2-tab">
-    <span
-      v-for="(item, index) in renderPanelList"
-      :key="item.label"
+    <div class="retrieve2-tab-left">
+      <span v-for="(item, index) in renderPanelList" :key="item.label"
       :class="['retrieve-panel', { active: value === item.name }, ...tabClassList[index]]"
-      @click="handleActive(item.name)"
-      >{{ item.label }}</span
-    >
-    <!-- <div class="btn-alert-dashboard" @click="handleAddAlertDashboard">
-      <span class="bklog-icon bklog-yibiaopan" style="font-size: 16px"></span>
-      <span>{{ $t('添加到仪表盘') }}</span>
-    </div> -->
-    <div
-      class="btn-alert-policy"
-      @click="handleAddAlertPolicy"
-      v-if="!isExternal"
-    >
-      <span
-        class="bklog-icon bklog--celve"
-        style="font-size: 16px"
-      ></span>
-      <span>{{ $t('添加告警策略') }}</span>
+      @click="handleActive(item.name)">{{ item.label }}</span>
     </div>
-  
-     <DashboardDialog
-      :is-show="showDialog"
-      @update:isShow="handleDialogUpdate"
-      @on-collection-success="handleCollectionSuccess"
-    />
+    <div class="retrieve2-tab-right">
+      <div class="btn-alert-dashboard btn-spacing" @click="handleAddAlertDashboard">
+        <span class="bklog-icon bklog-yibiaopan" style="font-size: 16px"></span>
+        <span>{{ $t('添加到仪表盘') }}</span>
+      </div>
+      <div class="btn-alert-policy btn-spacing" @click="handleAddAlertPolicy" v-if="!isExternal">
+        <span class="bklog-icon bklog--celve" style="font-size: 16px"></span>
+        <span>{{ $t('添加告警策略') }}</span>
+      </div>
+    </div>
+    <DashboardDialog :is-show="showDialog" @update:isShow="handleDialogUpdate"
+      @on-collection-success="handleCollectionSuccess" />
   </div>
 </template>
 <style lang="scss">
