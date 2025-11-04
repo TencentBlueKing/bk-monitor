@@ -338,7 +338,7 @@ const saveChartToDashboard = async (dashboardUids) => {
         message: "添加到仪表盘保存成功",
       });
       handleClose();
-      const url = `${window.MONITOR_URL}${result.data[0]?.url}`;
+      const url = `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#${result.data[0]?.url}`;
       window.open(url, "_blank");
     } else {
       bkMessage({
