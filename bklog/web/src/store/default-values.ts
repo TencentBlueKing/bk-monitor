@@ -154,11 +154,8 @@ const getUrlArgs = (_route?) => {
 // eslint-disable-next-line import/no-mutable-exports
 let urlArgs = getUrlArgs();
 
-console.log('urlArgs---1', urlArgs);
-
 const updateURLArgs = (route) => {
   urlArgs = getUrlArgs(route);
-  console.log('urlArgs---2', urlArgs);
   return urlArgs;
 };
 

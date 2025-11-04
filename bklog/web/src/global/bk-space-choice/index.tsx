@@ -93,7 +93,6 @@ export default defineComponent({
       return mySpaceList.value.find(item => item.space_uid === spaceUid.value)?.space_name ?? '';
     });
     const bizNameIcon = computed(() => {
-      console.log('------------------', bizName.value);
       return bizName.value?.[0]?.toLocaleUpperCase() ?? '';
     });
 
