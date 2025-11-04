@@ -102,6 +102,7 @@ export default defineComponent({
     },
     onTagRender: {
       type: Function,
+      default: undefined,
     },
     borderColor: {
       type: String,
@@ -113,6 +114,7 @@ export default defineComponent({
     },
     zIndex: {
       type: Number,
+      default: undefined,
     },
     bdiDir: {
       type: String,
