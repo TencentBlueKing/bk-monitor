@@ -41,7 +41,7 @@ import VariableValueDetail from 'monitor-pc/pages/query-template/variables/compo
 
 import DetectionAlgorithmsGroup from '../components/detection-algorithms-group/detection-algorithms-group';
 
-import type { TemplateDetail } from '../components/template-form/typing';
+import type { AlgorithmItemUnion, TemplateDetail } from '../components/template-form/typing';
 import type { IRelationService, TCompareData } from './typings';
 import type { EmptyStatusOperationType } from 'monitor-pc/components/empty-status/types';
 import type { MetricDetailV2 } from 'monitor-pc/pages/query-template/typings/metric';
