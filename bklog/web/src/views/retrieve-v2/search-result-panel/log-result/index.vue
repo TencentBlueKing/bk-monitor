@@ -301,6 +301,7 @@ export default {
       };
     },
     handleHighlightEnter(valList) {
+      console.log('handleHighlightEnter', valList);
       this.highlightValue = [];
       for(let i = 0; i < valList.length; i++) {
         const val = valList[i];
