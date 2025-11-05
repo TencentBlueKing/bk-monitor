@@ -60,56 +60,98 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
+
+    // ==================== 响应式数据 ====================
+    /** 表单数据 */
     const formData = ref<IBaseInfo>({ index_set_name: '', parent_index_set_ids: [] });
-    /** 展示数据名的key */
-    const showNameKey = ['default', 'custom'];
-    /** 展示备注说明的key */
-    const showDescKey = ['default', 'custom'];
-    /** 展示数据分类的key */
-    const showCategoryKey = ['custom'];
+    /** 表单引用 */
     const formRef = ref();
+    /** 数据名格式校验状态 */
     const isTextValid = ref(true);
-    // 获取全局数据
+
+    // ==================== 配置项 ====================
+    /** 需要展示数据名的类型列表 */
+    const showNameKey = ['default', 'custom'];
+    /** 需要展示备注说明的类型列表 */
+    const showDescKey = ['default', 'custom'];
+    /** 需要展示数据分类的类型列表 */
+    const showCategoryKey = ['custom'];
+
+    // ==================== 全局数据 ====================
+    /** 全局数据（包含自定义上报类型列表） */
     const globalsData = computed(() => store.getters['globals/globalsData']);
+
+    // ==================== 校验相关 ====================
+    /** 数据名格式正则：只支持字母、数字、下划线 */
     const enNameRegex = /^[A-Za-z0-9_]+$/;
-    const checkEnNameValidator = val => {
-      isTextValid.value = enNameRegex.test(val);
-      console.log(val, isTextValid.value, 'eeeeee', enNameRegex.test(val));
-      return isTextValid.value;
+
+    /**
+     * 校验数据名格式（字母、数字、下划线）
+     * @param val - 待校验的值
+     * @returns 是否通过校验
+     */
+    const checkEnNameValidator = (val: string): boolean => {
+      const isValid = enNameRegex.test(val);
+      isTextValid.value = isValid;
+      return isValid;
     };
+
+    /**
+     * 获取数据名当前值
+     * @returns 数据名值
+     */
+    const getCollectorConfigNameEn = () => formData.value.collector_config_name_en || '';
+
+    /**
+     * 表单校验规则
+     */
     const ruleData = ref({
       index_set_name: [
         {
-          required: true,
           message: t('必填项'),
           trigger: 'blur',
+          validator: () => !!formData.value.index_set_name,
         },
       ],
       collector_config_name_en: [
-        // 采集数据名称
         {
-          required: true,
           message: t('必填项'),
           trigger: 'blur',
+          validator: () => !!getCollectorConfigNameEn(),
         },
         {
           max: 50,
           message: t('不能多于{n}个字符', { n: 50 }),
           trigger: 'blur',
+          validator: () => {
+            const value = getCollectorConfigNameEn();
+            return !value || value.length <= 50;
+          },
         },
         {
           min: 5,
           message: t('不能少于5个字符'),
           trigger: 'blur',
+          validator: () => {
+            const value = getCollectorConfigNameEn();
+            return !value || value.length >= 5;
+          },
         },
         {
-          validator: val => checkEnNameValidator(val),
           message: t('只支持输入字母，数字，下划线'),
           trigger: 'blur',
+          validator: () => {
+            const value = getCollectorConfigNameEn();
+            return !value || checkEnNameValidator(value);
+          },
         },
       ],
     });
 
+    // ==================== 监听器 ====================
+    /**
+     * 监听类型变化，初始化自定义类型
+     */
     watch(
       () => props.typeKey,
       val => {
@@ -123,42 +165,70 @@ export default defineComponent({
       { immediate: true },
     );
 
+    // ==================== 事件处理 ====================
+    /**
+     * 通知父组件表单数据变化
+     */
     const handleChange = () => {
       emit('change', formData.value);
     };
 
+    /**
+     * 更新表单字段值并触发变化事件
+     * @param field - 字段名
+     * @param value - 字段值
+     */
+    const updateFormField = <K extends keyof IBaseInfo>(field: K, value: IBaseInfo[K]) => {
+      formData.value[field] = value;
+      handleChange();
+    };
+
+    /**
+     * 表单校验
+     * @returns Promise - 校验结果
+     */
     const validate = () => {
       return formRef.value.validate();
     };
 
-    const handleChangeType = id => {
-      formData.value.custom_type = id;
-      handleChange();
-    };
     /**
-     * 数据名
+     * 处理数据分类类型变化
+     * @param id - 类型ID
      */
-    const handleCollectorConfigNameEnChange = (val: string) => {
-      const data = { ...formData.value, collector_config_name_en: val };
-      formData.value = data;
+    const handleChangeType = (id: string) => {
+      updateFormField('custom_type', id);
     };
+
     /**
-     * 格式转换
+     * 将字符串转换为符合格式要求的数据名
+     * - 将横线 '-' 转换为下划线 '_'
+     * - 移除非字母、数字、下划线的字符
+     * @param str - 原始字符串
+     * @returns 转换后的字符串
+     */
+    const convertToValidEnName = (str: string): string => {
+      let result = '';
+      for (let i = 0; i < str.length; i++) {
+        const char = str[i];
+        if (char === '-') {
+          result += '_';
+        } else if (/\w/.test(char)) {
+          result += char;
+        }
+      }
+      return result;
+    };
+
+    /**
+     * 自动转换数据名格式
      */
     const handleEnConvert = () => {
-      const str = formData.value.collector_config_name_en;
-      const convertStr = str.split('').reduce((pre, cur) => {
-        let newCur = cur;
-        if (newCur === '-') {
-          newCur = '_';
-        }
-        if (!/\w/.test(newCur)) {
-          newCur = '';
-        }
-        return pre + newCur;
-      }, '');
-      handleCollectorConfigNameEnChange(convertStr);
-      handleChange();
+      const originalStr = getCollectorConfigNameEn();
+      const convertStr = convertToValidEnName(originalStr);
+
+      updateFormField('collector_config_name_en', convertStr);
+
+      // 转换后重新校验
       nextTick(() => {
         formRef.value
           .validate()
@@ -166,7 +236,7 @@ export default defineComponent({
             isTextValid.value = true;
           })
           .catch(() => {
-            console.log('fail');
+            // 如果转换后长度不足5，仍然标记为有效（避免显示转换提示）
             if (convertStr.length < 5) {
               isTextValid.value = true;
             }
@@ -174,114 +244,135 @@ export default defineComponent({
       });
     };
 
+    // ==================== 暴露方法 ====================
     expose({ validate });
 
-    const renderBaseInfo = () => (
-      <bk-form
-        ref={formRef}
-        class='base-info-form'
-        label-width={100}
-        {...{
-          props: {
-            model: formData.value,
-            rules: ruleData.value,
-          },
-        }}
-      >
-        <bk-form-item
-          label={t('采集名')}
-          property='index_set_name'
-          required={true}
-        >
-          <bk-input
-            maxlength={50}
-            value={props.data.index_set_name}
-            onInput={val => {
-              formData.value.index_set_name = val;
-              handleChange();
-            }}
-          />
-        </bk-form-item>
-        {showCategoryKey.includes(props.typeKey) && (
-          <bk-form-item
-            class='category-form-item'
-            label={t('数据分类')}
-            property='name'
-            required={true}
+    // ==================== 渲染函数 ====================
+    /**
+     * 渲染数据分类选择按钮组
+     * @returns JSX元素数组
+     */
+    const renderCategoryButtons = () => {
+      const customTypes = globalsData.value.databus_custom || [];
+      const buttons = [];
+
+      for (let i = 0; i < customTypes.length; i++) {
+        const item = customTypes[i];
+        const isSelected = formData.value.custom_type === item.id;
+
+        buttons.push(
+          <bk-button
+            key={item.id}
+            class={isSelected ? 'is-selected' : ''}
+            on-click={() => handleChangeType(item.id)}
           >
-            <div class='bk-button-group'>
-              {globalsData.value.databus_custom.map(item => (
-                <bk-button
-                  // :disabled="isEdit"
-                  key={item.id}
-                  // data-test-id="`addNewCustomBox_button_typeTo${item.id}`"
-                  class={`${formData.value.custom_type === item.id ? 'is-selected' : ''}`}
-                  on-click={() => handleChangeType(item.id)}
-                >
-                  {item.name}
-                </bk-button>
-              ))}
-            </div>
-            <InfoTips
-              class='block'
-              tips={t(
-                '自定义上报数据，可以通过采集器，或者指定协议例如otlp等方式进行上报，自定义上报有一定的使用要求，具体可以查看使用说明',
-              )}
-            />
-          </bk-form-item>
-        )}
-        {showNameKey.includes(props.typeKey) && (
+            {item.name}
+          </bk-button>,
+        );
+      }
+
+      return buttons;
+    };
+
+    /**
+     * 渲染基础信息表单
+     */
+    const renderBaseInfo = () => {
+      const shouldShowCategory = showCategoryKey.includes(props.typeKey);
+      const shouldShowName = showNameKey.includes(props.typeKey);
+      const shouldShowDesc = showDescKey.includes(props.typeKey);
+
+      return (
+        <bk-form
+          ref={formRef}
+          class='base-info-form'
+          label-width={100}
+          {...{
+            props: {
+              model: formData.value,
+              rules: ruleData.value,
+            },
+          }}
+        >
+          {/* 采集名 */}
           <bk-form-item
-            label={t('数据名')}
-            property='collector_config_name_en'
+            label={t('采集名')}
+            property='index_set_name'
             required={true}
           >
             <bk-input
               maxlength={50}
-              minlength={5}
-              placeholder={t('用于索引和数据源，仅支持数字、字母、下划线，5～50 字符')}
-              value={formData.value.collector_config_name_en}
-              onInput={val => {
-                formData.value.collector_config_name_en = val;
-                handleChange();
-              }}
+              value={formData.value.index_set_name}
+              onInput={val => updateFormField('index_set_name', val)}
             />
-            {!isTextValid.value && (
-              <span v-bk-tooltips={{ content: t('自动转换成正确的数据名格式') }}>
-                <span
-                  class='auto-convert'
-                  on-click={handleEnConvert}
-                >
-                  {t('自动转换')}
+          </bk-form-item>
+
+          {/* 数据分类（仅自定义类型显示） */}
+          {shouldShowCategory && (
+            <bk-form-item
+              class='category-form-item'
+              label={t('数据分类')}
+              property='name'
+              required={true}
+            >
+              <div class='bk-button-group'>{renderCategoryButtons()}</div>
+              <InfoTips
+                class='block'
+                tips={t(
+                  '自定义上报数据，可以通过采集器，或者指定协议例如otlp等方式进行上报，自定义上报有一定的使用要求，具体可以查看使用说明',
+                )}
+              />
+            </bk-form-item>
+          )}
+
+          {/* 数据名（默认和自定义类型显示） */}
+          {shouldShowName && (
+            <bk-form-item
+              label={t('数据名')}
+              property='collector_config_name_en'
+              required={true}
+            >
+              <bk-input
+                maxlength={50}
+                minlength={5}
+                placeholder={t('用于索引和数据源，仅支持数字、字母、下划线，5～50 字符')}
+                value={formData.value.collector_config_name_en}
+                onInput={val => updateFormField('collector_config_name_en', val)}
+              />
+              {!isTextValid.value && (
+                <span v-bk-tooltips={{ content: t('自动转换成正确的数据名格式') }}>
+                  <span
+                    class='auto-convert'
+                    on-click={handleEnConvert}
+                  >
+                    {t('自动转换')}
+                  </span>
                 </span>
-              </span>
-            )}
+              )}
+            </bk-form-item>
+          )}
+
+          {/* 所属索引集 */}
+          <bk-form-item label={t('所属索引集')}>
+            <IndexSetSelect on-select={val => updateFormField('parent_index_set_ids', val)} />
           </bk-form-item>
-        )}
-        <bk-form-item label={t('所属索引集')}>
-          <IndexSetSelect
-            on-select={val => {
-              formData.value.parent_index_set_ids = val;
-              handleChange();
-            }}
-          />
-        </bk-form-item>
-        {showDescKey.includes(props.typeKey) && (
-          <bk-form-item label={t('备注说明')}>
-            <bk-input
-              maxlength={100}
-              type='textarea'
-              value={formData.value.description}
-              clearable
-              onInput={val => {
-                formData.value.description = val;
-                handleChange();
-              }}
-            />
-          </bk-form-item>
-        )}
-      </bk-form>
-    );
+
+          {/* 备注说明（默认和自定义类型显示） */}
+          {shouldShowDesc && (
+            <bk-form-item label={t('备注说明')}>
+              <bk-input
+                maxlength={100}
+                type='textarea'
+                value={formData.value.description}
+                clearable
+                onInput={val => updateFormField('description', val)}
+              />
+            </bk-form-item>
+          )}
+        </bk-form>
+      );
+    };
+
     return () => <div class='base-info-box'>{renderBaseInfo()}</div>;
   },
 });

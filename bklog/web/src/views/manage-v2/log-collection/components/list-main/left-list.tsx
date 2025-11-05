@@ -73,7 +73,10 @@ export default defineComponent({
         unEditable: true,
       },
     ]);
-    /** 过滤后的数据 */
+    /**
+     *
+     * 过滤后的数据
+     */
     const filterDataList = computed(() =>
       (listData.value || []).filter((item: IListItemData) => (item.index_set_name ?? '').includes(searchValue.value)),
     );
@@ -180,15 +183,19 @@ export default defineComponent({
           class='list-main-empty'
           type={searchValue.value ? 'search-empty' : 'empty'}
         >
-          {searchValue.value && <span>{t('搜索结果为空')}</span>}
-          <span
-            class='list-main-empty-text'
-            on-click={() => {
-              searchValue.value = '';
-            }}
-          >
-            {t('清空筛选条件')}
-          </span>
+          <span>{searchValue.value ? t('搜索结果为空') : t('暂无索引集')}</span>
+          {searchValue.value ? (
+            <span
+              class='list-main-empty-text'
+              on-click={() => {
+                searchValue.value = '';
+              }}
+            >
+              {t('清空筛选条件')}
+            </span>
+          ) : (
+            <p class='list-main-text'>{t('创建索引集可合并多采集项一同使用')}</p>
+          )}
         </bk-exception>
       );
     };

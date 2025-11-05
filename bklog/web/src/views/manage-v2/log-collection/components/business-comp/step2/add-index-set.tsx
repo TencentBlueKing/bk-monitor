@@ -56,8 +56,9 @@ export default defineComponent({
   setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
-    const inputRef = ref<any>();
+    const inputRef = ref();
     const editFormRef = ref();
+    const loading = ref(false);
     const editFormRules = {
       index_set_name: [
         {
@@ -86,6 +87,7 @@ export default defineComponent({
      * @param config
      */
     const handleRequest = async (config: { method: string; params?: any; data?: any; message: string }) => {
+      loading.value = true;
       const res = await $http.request(config.method, {
         params: config.params,
         data: config.data,
@@ -96,12 +98,16 @@ export default defineComponent({
         emit('submit', editData.value);
         handleEditGroupCancel();
       }
+      loading.value = false;
     };
 
     /**
      * 编辑索引集提交
      */
     const handleEditGroupSubmit = async () => {
+      if (loading.value) {
+        return;
+      }
       try {
         await editFormRef.value?.validate();
         const { index_set_id, index_set_name } = editData.value;
@@ -126,6 +132,9 @@ export default defineComponent({
     };
 
     const handleEditGroupCancel = () => {
+      if (loading.value) {
+        return;
+      }
       emit('cancel');
     };
     const autoFocus = () => {
@@ -144,13 +153,15 @@ export default defineComponent({
               class='mr8'
               size='small'
               theme='primary'
-              onClick={handleEditGroupSubmit}
+              loading={loading.value}
+              on-Click={handleEditGroupSubmit}
             >
               {t('确定')}
             </bk-button>
             <bk-button
               size='small'
-              onClick={handleEditGroupCancel}
+              loading={loading.value}
+              on-Click={handleEditGroupCancel}
             >
               {t('取消')}
             </bk-button>
@@ -159,7 +170,12 @@ export default defineComponent({
       }
       /** icon 模式 */
       return (
-        <span class='icon-btns'>
+        <span
+          class={{
+            'icon-btns': true,
+            disabled: loading.value,
+          }}
+        >
           <span
             class='bk-icon icon-check-line submit-icon'
             on-Click={handleEditGroupSubmit}

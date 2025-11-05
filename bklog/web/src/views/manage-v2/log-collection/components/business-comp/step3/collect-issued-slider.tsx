@@ -49,10 +49,6 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    data: {
-      type: Object,
-      default: () => ({}),
-    },
   },
 
   emits: ['change'],
@@ -261,8 +257,6 @@ export default defineComponent({
         is-show={props.isShow}
         quick-close
         transfer
-        // @animation-end="closeSlider"
-        // @shown="showSlider"
       />
     );
   },

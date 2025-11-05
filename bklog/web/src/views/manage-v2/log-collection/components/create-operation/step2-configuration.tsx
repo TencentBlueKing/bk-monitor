@@ -519,7 +519,7 @@ export default defineComponent({
               <bk-button
                 class='target-btn'
                 icon='plus'
-                onClick={() => {
+                on-Click={() => {
                   showSelectDialog.value = true;
                 }}
               >
@@ -817,6 +817,7 @@ export default defineComponent({
         paths: params?.paths.map(item => item.value),
       };
       console.log(newParams, '===');
+      return;
       $http
         .request('collect/addCollection', {
           data: { ...formData.value, params: newParams },

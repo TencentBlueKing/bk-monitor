@@ -93,14 +93,13 @@
     }
     .status-icon {
       position: absolute;
-      left: 12px;
     }
     .status-txt {
       color: #fff;
       font-size: 14px;
       text-align: center;
     }
-    &.loading {
+    &.running {
       .status-icon-box {
         background: url('@/images/log-collection/loading.svg') no-repeat center;
         background-size: 32px 32px; /* 固定像素，避免 contain 的细微重采样 */
@@ -108,6 +107,7 @@
       }
       .status-icon {
         color: #fff;
+        left: 12px;
       }
       
     }
@@ -123,6 +123,9 @@
     }
     &.failed {
       background: #b34747;
+      .status-icon {
+        left: 1px;
+      }
       .status-icon-box {
         background: #fff;
       }

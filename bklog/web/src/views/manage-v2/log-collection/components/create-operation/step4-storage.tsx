@@ -88,10 +88,18 @@ export default defineComponent({
         data: storageList.value.filter(item => !item.is_platform),
       },
     ]);
+    const isCustomReport = computed(() => props.scenarioId === 'custom_report');
 
     const showGroupText = computed(() => {
-      return curCollect.value.table_id ? curCollect.value.collector_config_name_en : '';
+      const custom =
+        Number(bkBizId.value) > 0 ? `${bkBizId.value}_bklog_` : `space_${Math.abs(Number(bkBizId.value))}_bklog_`;
+      return isCustomReport.value ? custom : curCollect.value.collector_config_name_en;
     });
+
+    const prependText = computed(() => {
+      return isCustomReport.value ? props.configData.collector_config_name_en : curCollect.value.table_id_prefix;
+    });
+
     /**
      * 异步获取存储列表并按权限排序
      * 功能：请求存储数据，将有管理权限的存储项优先展示，处理加载状态和错误提示
@@ -119,7 +127,6 @@ export default defineComponent({
      */
     const handleChooseCluster = row => {
       clusterSelect.value = row.storage_cluster_id;
-      console.log(row, 'row');
     };
     /**
      * 获取采集项清洗缓存
@@ -139,12 +146,14 @@ export default defineComponent({
     };
     onMounted(() => {
       getStorage();
-      if (!['bkdata', 'es'].includes(props.scenarioId)) {
+      if (!isCustomReport.value) {
         getCleanStash();
       }
     });
 
-    /** rCollapseItem的渲染 */
+    /**
+     * rCollapseItem的渲染
+     */
     const renderCollapseItem = item => (
       <bk-collapse-item
         hide-arrow={true}
@@ -191,10 +200,10 @@ export default defineComponent({
           <bk-input
             class='storage-input'
             disabled={true}
-            value={curCollect.value.collector_config_name_en}
+            value={showGroupText.value}
           >
             <template slot='prepend'>
-              <div class='group-text'>{curCollect.value.table_id_prefix}</div>
+              <div class='group-text'>{prependText.value}</div>
             </template>
           </bk-input>
         </div>
@@ -254,11 +263,8 @@ export default defineComponent({
      * @returns
      */
     const handleCustomSubmit = () => {
-      if (!clusterSelect.value) {
-        showMessage(t('请选择集群'), 'error');
-        return;
-      }
       submitLoading.value = true;
+      const { collector_config_name, index_set_name } = formData.value;
       $http
         .request(`custom/${isEdit.value ? 'setCustom' : 'createCustom'}`, {
           params: {
@@ -267,13 +273,8 @@ export default defineComponent({
           data: {
             ...props.configData,
             ...formData.value,
-            collector_config_name: formData.value.index_set_name,
+            collector_config_name: collector_config_name || index_set_name,
             bk_biz_id: Number(bkBizId.value),
-            // storage_replies: Number(formData.value.storage_replies),
-            // allocation_min_days: Number(formData.value.allocation_min_days),
-            // es_shards: Number(formData.value.es_shards),
-            // sort_fields: this.fieldSettingData.sortFields || [],
-            // target_fields: this.fieldSettingData.targetFields || [],
           },
         })
         .then(res => {
@@ -325,9 +326,19 @@ export default defineComponent({
      * 保存配置
      */
     const handleSubmit = () => {
-      if (props.scenarioId === 'custom_report') {
+      if (!clusterSelect.value) {
+        showMessage(t('请选择集群'), 'error');
+        return;
+      }
+      if (isCustomReport.value) {
+        /**
+         * 自定义上报存储保存
+         */
         handleCustomSubmit();
       } else {
+        /**
+         * 采集场景提交
+         */
         handleNormalSubmit();
       }
     };

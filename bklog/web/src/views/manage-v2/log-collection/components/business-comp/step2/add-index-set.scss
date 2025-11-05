@@ -14,6 +14,12 @@
     .icon-btns {
       display: flex;
       align-items: center;
+      &.disabled {
+        .submit-icon, .close-icon {
+          color: #c4c6cc;
+          cursor: not-allowed;
+        }
+      }
     }
     .submit-icon, .close-icon {
       display: inline-block;

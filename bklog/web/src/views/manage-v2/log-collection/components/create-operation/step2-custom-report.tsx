@@ -29,7 +29,6 @@ import { defineComponent, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
 
 import { useOperation } from '../../hook/useOperation';
-import { showMessage } from '../../utils';
 import BaseInfo from '../business-comp/step2/base-info';
 
 import './step2-custom-report.scss';
@@ -66,7 +65,6 @@ export default defineComponent({
         data={configData.value}
         typeKey='custom'
         on-change={data => {
-          console.log(data, 'data');
           configData.value = { ...configData.value, ...data };
         }}
       />
@@ -98,11 +96,10 @@ export default defineComponent({
               baseInfoRef.value
                 .validate()
                 .then(() => {
-                  // emit('next', configData.value);
+                  emit('next', configData.value);
                 })
                 .catch(() => {
                   console.log('error');
-                  // showMessage(t('请完善基本信息'), 'error');
                 });
             }}
           >

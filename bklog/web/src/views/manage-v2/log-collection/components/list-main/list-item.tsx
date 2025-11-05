@@ -57,9 +57,14 @@ export default defineComponent({
     const delPanelRef = ref<HTMLDivElement>();
     const addIndexSetRef = ref<any>();
     const isHover = ref(false);
-     // 防止重复操作
+    /**
+     * 防止重复操作
+     */
     const isProcessing = ref(false);
-    const clickTimer = ref<NodeJS.Timeout | null>(null); // 点击防抖定时器
+    /**
+     * 点击防抖定时器
+     */
+    const clickTimer = ref<NodeJS.Timeout | null>(null);
 
     const popoverOptions = {
       arrow: false,
@@ -80,7 +85,9 @@ export default defineComponent({
     let editGroupInstance: Instance | null = null;
     let delInstance: Instance | null = null;
 
-    // 清理所有弹窗实例
+    /**
+     * 清理所有弹窗实例
+     */
     const cleanupAllPopovers = () => {
       if (tippyInstance) {
         tippyInstance.hide();
@@ -105,7 +112,9 @@ export default defineComponent({
         return;
       }
 
-      // 清理已存在的实例
+      /**
+       * 清理已存在的实例
+       */
       if (tippyInstance) {
         tippyInstance.destroy();
       }
@@ -124,7 +133,9 @@ export default defineComponent({
       });
     };
 
-    /** 渲染相关操作 */
+    /**
+     * 渲染相关操作
+     */
     const initManagePop = (kind: 'delete' | 'edit') => {
       if (!isEnableGroupAction.value || isProcessing.value) {
         return;
@@ -137,7 +148,9 @@ export default defineComponent({
       const content = isEdit ? (groupNameEditPanelRef.value as any) : (delPanelRef.value as any);
       const theme = isEdit ? 'light group-item-edit-panel' : 'light group-item-del-panel';
 
-      // 清理已存在的实例
+      /**
+       * 清理已存在的实例
+       */
       if (isEdit && editGroupInstance) {
         editGroupInstance.destroy();
       } else if (!isEdit && delInstance) {
@@ -220,7 +233,9 @@ export default defineComponent({
       emit('delete', props.data);
     };
 
-    // 防抖处理的项目点击
+    /**
+     * 防抖处理的项目点击
+     */
     const handleItem = debounce(() => {
       if (isProcessing.value) {
         return;
@@ -244,7 +259,7 @@ export default defineComponent({
         class='popover-operations-box'
       >
         {menuList.map(menu => {
-          const isCanDel = menu.key === 'delete' && !!props.data.isDelete;
+          const isCanDel = menu.key === 'delete' && !props.data.deletable;
           return (
             <span
               key={menu.key}
