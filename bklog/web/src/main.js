@@ -50,12 +50,12 @@ import preload, {
 import getRouter from './router';
 import store from './store';
 
+import '@blueking/bk-user-selector/vue2/vue2.css';
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 import './scss/theme/theme-dark.scss';
 import './scss/theme/theme-light.scss';
 import './static/font-face/index.css';
 import './static/style.css';
-import '@blueking/bk-user-selector/vue2/vue2.css';
 import { BK_LOG_STORAGE } from './store/store.type.ts';
 
 // import { localSettings } from './local.po';
