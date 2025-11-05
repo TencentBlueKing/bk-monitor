@@ -23,15 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, nextTick, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent, inject, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { Button, DatePicker, Dialog, Input, Loading, Message, Radio, Tag } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { bulkAddAlertShield } from 'monitor-api/modules/shield';
 import { useI18n } from 'vue-i18n';
 
-import type { IDimension } from '../../typings';
-import type { AlarmShieldDetail, IBkTopoNodeItem } from '../typing';
+import DimensionTransfer from './dimension-transfer';
+import ShieldTreeComponent from './shield-tree-component';
+
+import type { AlarmShieldDetail, IBkTopoNodeItem, IDimension } from '../../../typings';
+import type { IAuthority } from '@/typings/authority';
 
 import './quick-shield-dialog.scss';
 export default defineComponent({
@@ -61,9 +64,9 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-
+    const authority = inject<IAuthority>('authority');
     const loading = shallowRef(false);
-    const contentRef = shallowRef(null);
+    const contentRef = useTemplateRef<HTMLDivElement>('contentRef');
     const timeList = [
       { name: `0.5${t('小时')}`, id: 18 },
       { name: `1${t('小时')}`, id: 36 },
@@ -114,6 +117,30 @@ export default defineComponent({
       }
     );
 
+    // 计算维度与范围屏蔽超出的tag索引，用于展示被省略的tag数量和tooltip
+    // 维度信息回显即为最大展示tag，只需要在第一次渲染时计算
+    const overviewCount = () => {
+      nextTick(() => {
+        for (let i = 0; i < backupDetails.value.length; i++) {
+          const dimensionTagWrap = contentRef.value.querySelector(`.dimension-sel-${i}`);
+          if (dimensionTagWrap) {
+            targetOverviewCount(dimensionTagWrap, i);
+          }
+        }
+      });
+    };
+
+    watch(
+      () => props.show,
+      show => {
+        if (show) {
+          setTimeout(() => {
+            overviewCount();
+          }, 16);
+        }
+      }
+    );
+
     watch(
       () => props.alarmShieldDetail,
       () => {
@@ -128,7 +155,6 @@ export default defineComponent({
             modified: false,
           };
         });
-        overviewCount();
       },
       { immediate: true }
     );
@@ -303,20 +329,20 @@ export default defineComponent({
                     <Button
                       key={index}
                       class={['width-item', { 'is-selected': timeValue.value === item.id }]}
-                      on-click={e => handleScopeChange(e, item.id)}
+                      onClick={e => handleScopeChange(e, item.id)}
                     >
                       {item.name}
                     </Button>
                   ))}
                   <Button
                     class={['width-item', { 'is-selected': timeValue.value === -1 }]}
-                    on-click={e => handleScopeChange(e, -1)}
+                    onClick={e => handleScopeChange(e, -1)}
                   >
                     {t('至次日')}
                   </Button>
                   <Button
                     class={['width-item', { 'is-selected': timeValue.value === 0 }]}
-                    on-click={e => handleScopeChange(e, 0)}
+                    onClick={e => handleScopeChange(e, 0)}
                   >
                     {t('button-自定义')}
                   </Button>
@@ -371,6 +397,7 @@ export default defineComponent({
                 <Input
                   v-model={desc.value}
                   maxlength={100}
+                  resize={false}
                   rows={3}
                   type='textarea'
                 />
@@ -404,7 +431,10 @@ export default defineComponent({
             <div class='column-item column-item-select'>
               <div class='column-label'>{`${t('屏蔽选择')}：`} </div>
               <div class='column-content'>
-                <Radio.Group v-model={detail.shieldCheckedId}>
+                <Radio.Group
+                  class='shield-radio-group'
+                  v-model={detail.shieldCheckedId}
+                >
                   {detail.shieldRadioData.map(item => (
                     <Radio
                       key={item.id}
@@ -434,7 +464,7 @@ export default defineComponent({
                             ) : undefined,
                             <Tag
                               key={dem.key + dimensionIndex}
-                              ext-cls='tag-theme'
+                              class='tag-theme'
                               type='stroke'
                               // closable
                               // on-close={() => this.handleTagClose(detail, dimensionIndex)}
@@ -482,7 +512,7 @@ export default defineComponent({
                                 ) : undefined,
                                 <Tag
                                   key={`${node.bk_inst_id}_${node.bk_obj_id}`}
-                                  ext-cls='tag-theme'
+                                  class='tag-theme'
                                   type='stroke'
                                 >
                                   {node.node_name}
@@ -515,7 +545,7 @@ export default defineComponent({
                 {detail.dimension?.map((dem, dimensionIndex) => (
                   <Tag
                     key={dem.key + dimensionIndex}
-                    ext-cls='tag-theme'
+                    class='tag-theme'
                     type='stroke'
                   >
                     {`${dem.display_key || dem.key}(${dem.display_value || dem.value})`}
@@ -635,19 +665,6 @@ export default defineComponent({
       editIndex.value = -1;
     };
 
-    // 计算维度与范围屏蔽超出的tag索引，用于展示被省略的tag数量和tooltip
-    // 维度信息回显即为最大展示tag，只需要在第一次渲染时计算
-    const overviewCount = () => {
-      nextTick(() => {
-        for (let i = 0; i < backupDetails.value.length; i++) {
-          const dimensionTagWrap = contentRef.value.querySelector(`.dimension-sel-${i}`) as any;
-          if (dimensionTagWrap) {
-            targetOverviewCount(dimensionTagWrap, i);
-          }
-        }
-      });
-    };
-
     // 单独计算指定告警内的维度屏蔽或告警屏蔽溢出
     const targetOverviewCount = (target, index) => {
       if (target) {
@@ -672,6 +689,7 @@ export default defineComponent({
             return;
           }
         }
+        console.log(hasHide, idx);
         backupDetails.value[index][targetIndex] = hasHide ? idx : -1;
       }
     };
@@ -682,6 +700,7 @@ export default defineComponent({
 
     return {
       t,
+      authority,
       loading,
       dimensionSelectShow,
       editIndex,
@@ -714,38 +733,36 @@ export default defineComponent({
               {/* 穿梭框 */}
               <Dialog
                 width={640}
-                ext-cls='quick-shield-dialog-wrap'
+                class='quick-shield-dialog-wrap'
                 v-model:is-show={this.dimensionSelectShow}
                 header-position='left'
-                mask-close={false}
-                show-footer={false}
+                quick-close={false}
                 title={this.t('选择维度信息')}
               >
-                {/* <DimensionTransfer
+                <DimensionTransfer
                   fields={this.transferDimensionList}
                   show={this.dimensionSelectShow}
                   value={this.transferTargetList}
                   onCancel={this.handleTransferCancel}
                   onConfirm={this.handleTransferConfirm}
-                /> */}
+                />
               </Dialog>
               {/* 选择屏蔽范围弹窗 */}
               <Dialog
                 width={480}
-                ext-cls='quick-shield-dialog-wrap'
+                class='quick-shield-dialog-wrap'
                 v-model:is-show={this.shieldTreeDialogShow}
                 header-position='left'
-                mask-close={false}
-                show-footer={false}
+                quick-close={false}
                 title={this.t('选择屏蔽范围')}
               >
-                {/* <ShieldTreeCompnent
+                <ShieldTreeComponent
                   bizId={this.alarmBizId}
                   bkHostId={this.alarmShieldDetail[this.editIndex]?.bkHostId || ''}
                   show={this.shieldTreeDialogShow}
                   onCancel={this.handleShieldCancel}
                   onConfirm={this.handleShieldConfirm}
-                /> */}
+                />
               </Dialog>
             </div>
           ),
@@ -753,18 +770,18 @@ export default defineComponent({
             <div class='footer-btn'>
               <Button
                 style='margin-right: 10px'
-                // v-authority={{ active: !this.authority?.ALARM_SHIELD_MANAGE_AUTH }}
+                v-authority={{ active: !this.authority?.auth.ALARM_SHIELD_MANAGE_AUTH }}
                 disabled={this.loading}
                 theme='primary'
-                // on-click={() =>
-                //   this.authority?.ALARM_SHIELD_MANAGE_AUTH
-                //     ? this.handleSubmit()
-                //     : this.handleShowAuthorityDetail?.(this.authority?.ALARM_SHIELD_MANAGE_AUTH)
-                // }
+                onClick={() =>
+                  this.authority?.auth.ALARM_SHIELD_MANAGE_AUTH
+                    ? this.handleSubmit()
+                    : this.authority.showDetail?.([this.authority.map.ALARM_SHIELD_MANAGE_AUTH])
+                }
               >
                 {this.t('确定')}
               </Button>
-              <Button on-click={() => this.handleShowChange(false)}>{this.t('取消')}</Button>
+              <Button onClick={() => this.handleShowChange(false)}>{this.t('取消')}</Button>
             </div>
           ),
         }}

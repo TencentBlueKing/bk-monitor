@@ -27,4 +27,5 @@ export * from './constants';
 export * from './detail';
 export * from './panel-host';
 export * from './services';
+export * from './shield';
 export * from './table';
