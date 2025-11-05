@@ -222,7 +222,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         """
         是否是MCP请求
         """
-        return request.META.get("X-Bk-Request-Origin") == settings.AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE
+        return request.META.get("HTTP_X_BK_REQUEST_SOURCE") == settings.AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE
 
     def _handle_mcp_auth(self, request, username=None):
         """
