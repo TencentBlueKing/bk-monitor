@@ -1,3 +1,6 @@
+/* stylelint-disable selector-class-pattern */
+
+/* stylelint-disable scss/no-global-function-names */
 .alarm-center-detail-panel-alarm-relation-event-table {
   .header-operate {
     display: flex;
@@ -33,6 +36,45 @@
 
         &.icon-explore-default {
           background-image: url('../../../../../../../monitor-common/svg/svg/default.svg');
+        }
+      }
+    }
+  }
+
+  .relation-event-table {
+    $statusColors: #ea3635 #ff9c00 #699df4;
+
+    @for $i from 1 through length($statusColors) {
+      .row-event-status-#{$i} {
+        .t-table__expandable-icon-cell {
+          position: relative;
+
+          &::before {
+            position: absolute;
+            top: 1px;
+            bottom: 1px;
+            left: 0;
+            width: 3px;
+            content: '';
+            background: nth($statusColors, $i);
+            border-top-right-radius: 2px;
+            border-bottom-right-radius: 2px;
+          }
+        }
+      }
+    }
+
+    .table-expand-icon {
+      font-size: 12px;
+      color: #4D4F56;
+    }
+
+    .t-table__expanded-row {
+      & > td {
+        padding: 0;
+
+        .t-table__row-full-element {
+          padding: 0;
         }
       }
     }
