@@ -73,7 +73,7 @@ class AlertStrategyViewSet(APIViewSet):
         """
 
         params = self.params_valid(AlertRecordSerializer)
-        data = AlertStrategyHandler(index_set_id=index_set_id, space_uid=params["space_uid"]).get_alert_records(
+        data = AlertStrategyHandler(index_set_id=index_set_id, space_uid=params.get("space_uid")).get_alert_records(
             params["status"],
             params["page"],
             params["page_size"],
@@ -110,7 +110,7 @@ class AlertStrategyViewSet(APIViewSet):
         """
 
         params = self.params_valid(StrategyRecordSerializer)
-        data = AlertStrategyHandler(index_set_id=index_set_id, space_uid=params["space_uid"]).get_strategy_records(
+        data = AlertStrategyHandler(index_set_id=index_set_id, space_uid=params.get("space_uid")).get_strategy_records(
             params["page"],
             params["page_size"],
         )

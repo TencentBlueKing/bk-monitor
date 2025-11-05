@@ -165,16 +165,16 @@ class AlertStrategyHandler:
         :return: space_uid or None
         """
 
-        if self.space_uid:
-            # 索引集与请求参数中的 space_uid 是否不相等
-            if self.log_index_set_obj.space_uid != self.space_uid:
-                # 获取关联的 space_uid 集合
-                related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
-                # 效验索引集与请求参数中的 space_uid 是否有关联
-                if self.log_index_set_obj.space_uid not in related_space_uids:
-                    # 无关联则返回空
-                    return None
-
-            return self.space_uid
-        else:
+        if not self.space_uid:
             return self.log_index_set_obj.space_uid
+
+        # 索引集与请求参数中的 space_uid 是否相等
+        if self.log_index_set_obj.space_uid == self.space_uid:
+            return self.space_uid
+
+        # 获取关联的 space_uid 集合
+        related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
+        # 效验索引集与请求参数中的 space_uid 是否有关联
+        if self.log_index_set_obj.space_uid not in related_space_uids:
+            # 无关联则返回空
+            return None
