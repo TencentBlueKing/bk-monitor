@@ -203,7 +203,7 @@ class UnifyQueryMappingHandler:
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.index_set.tag_ids)
         if is_doris:
             for field in fields_list:
-                field["field_type"] = DorisFieldTypeEnum.get_es_field_type(field["field_type"])
+                field["field_type"] = DorisFieldTypeEnum.get_es_field_type(field)
 
         for field in fields_list:
             # @TODO tag：兼容前端代码，后面需要删除
