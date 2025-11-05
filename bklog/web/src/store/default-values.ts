@@ -95,6 +95,10 @@ const getUrlArgs = (_route?) => {
 
   if (_route) {
     urlResolver = new RouteUrlResolver({ route: _route });
+    urlResolver.setResolver('from', () => {
+      return _route.query.from;
+    });
+
     urlResolver.setResolver('index_id', () => {
       // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
       return _route.params.indexId ? `${_route.params.indexId}` : '';
@@ -129,6 +133,10 @@ const getUrlArgs = (_route?) => {
       // #else
       // #code return route.resolved.query.indexId ? `${route.resolved.query.indexId}` : '';
       // #endif
+    });
+
+    urlResolver.setResolver('from', () => {
+      return route.resolved.query.from;
     });
   }
 
