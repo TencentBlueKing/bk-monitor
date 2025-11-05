@@ -175,7 +175,7 @@ class EntityHandlerFactory:
         根据 kind 获取对应的处理器
 
         Args:
-            kind: 实体类型（kind），支持 PascalCase 或 camelCase
+            kind: 实体类型
 
         Returns:
             EntityHandler 实例
@@ -194,6 +194,52 @@ class EntityHandlerFactory:
 class ApplyEntityResource(Resource):
     """
     应用实体资源（声明式API，通用接口）
+
+    @apiDescription 应用实体资源，支持创建或更新实体。如果实体已存在则更新，不存在则创建。
+    @api {POST} /api/v3/meta/entity/apply/ 应用实体资源
+    @apiName ApplyEntityResource
+    @apiGroup Entity
+    @apiParam {String} kind 实体类型
+    @apiParam {Object} metadata 资源元数据
+    @apiParam {String} metadata.namespace 命名空间
+    @apiParam {String} metadata.name 资源名称
+    @apiParam {Object} [metadata.labels={}] 标签，键值对格式
+    @apiParam {Object} spec 资源配置，根据不同的实体类型有不同的字段
+    @apiParamExample {json} Request-Example:
+        {
+            "kind": "CustomRelationStatus",
+            "metadata": {
+                "namespace": "default",
+                "name": "relation-001",
+                "labels": {
+                    "env": "production",
+                    "app": "monitor"
+                }
+            },
+            "spec": {
+                "from_resource": "source_entity",
+                "to_resource": "target_entity"
+            }
+        }
+    @apiSuccessExample {json} Success-Response:
+        {
+            "kind": "CustomRelationStatus",
+            "metadata": {
+                "namespace": "default",
+                "name": "relation-001",
+                "labels": {
+                    "env": "production",
+                    "app": "monitor"
+                },
+                "generation": 1,
+                "creation_timestamp": "2021-01-01T00:00:00Z",
+                "uid": "b194835f-7726-474d-b21f-cf5c859c11e6
+            },
+            "spec": {
+                "from_resource": "source_entity",
+                "to_resource": "target_entity"
+            }
+        }
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -218,7 +264,42 @@ class ApplyEntityResource(Resource):
 
 
 class GetEntityResource(Resource):
-    """获取实体资源（通用接口）"""
+    """
+    获取实体资源（通用接口）
+
+    @apiDescription 根据命名空间和名称获取单个实体资源的详细信息
+    @api {GET} /api/v3/meta/entity/get/ 获取实体资源
+    @apiName GetEntityResource
+    @apiGroup Entity
+    @apiParam {String} kind 实体类型
+    @apiParam {String} namespace 命名空间
+    @apiParam {String} name 资源名称
+    @apiParamExample {json} Request-Example:
+        {
+            "kind": "CustomRelationStatus",
+            "namespace": "default",
+            "name": "relation-001"
+        }
+    @apiSuccessExample {json} Success-Response:
+        {
+            "kind": "CustomRelationStatus",
+            "metadata": {
+                "namespace": "default",
+                "name": "relation-001",
+                "labels": {
+                    "env": "production",
+                    "app": "monitor"
+                },
+                "generation": 1,
+                "creation_timestamp": "2021-01-01T00:00:00Z",
+                "uid": "b194835f-7726-474d-b21f-cf5c859c11e6
+            },
+            "spec": {
+                "from_resource": "source_entity",
+                "to_resource": "target_entity"
+            }
+        }
+    """
 
     class RequestSerializer(serializers.Serializer):
         kind = serializers.CharField(required=True, label=_("实体类型"))
@@ -235,7 +316,48 @@ class GetEntityResource(Resource):
 
 
 class ListEntityResource(Resource):
-    """列表查询实体资源（通用接口）"""
+    """
+    列表查询实体资源（通用接口）
+
+    @apiDescription 查询实体资源列表，支持按命名空间和名称过滤
+    @api {GET} /api/v3/meta/entity/list/ 列表查询实体资源
+    @apiName ListEntityResource
+    @apiGroup Entity
+    @apiParam {String} kind 实体类型
+    @apiParam {String} [namespace=""] 命名空间，可选，用于过滤
+    @apiParam {String} [name=""] 资源名称，可选，用于过滤
+    @apiParamExample {json} Request-Example:
+        {
+            "kind": "CustomRelationStatus",
+            "namespace": "default",
+            "name": "relation-001"
+        }
+    @apiParamExample {json} Request-Example-All:
+        {
+            "kind": "CustomRelationStatus"
+        }
+    @apiSuccessExample {json} Success-Response:
+        [
+            {
+                "kind": "CustomRelationStatus",
+                "metadata": {
+                    "namespace": "default",
+                    "name": "relation-001",
+                    "labels": {
+                        "env": "production",
+                        "app": "monitor"
+                    },
+                    "generation": 1,
+                    "creation_timestamp": "2021-01-01T00:00:00Z",
+                    "uid": "b194835f-7726-474d-b21f-cf5c859c11e6
+                },
+                "spec": {
+                    "from_resource": "source_entity",
+                    "to_resource": "target_entity"
+                }
+            }
+        ]
+    """
 
     class RequestSerializer(serializers.Serializer):
         kind = serializers.CharField(required=True, label=_("实体类型"))
@@ -252,7 +374,23 @@ class ListEntityResource(Resource):
 
 
 class DeleteEntityResource(Resource):
-    """删除实体资源（通用接口）"""
+    """
+    删除实体资源（通用接口）
+
+    @apiDescription 根据命名空间和名称删除指定的实体资源
+    @api {POST} /api/v3/meta/entity/delete/ 删除实体资源
+    @apiName DeleteEntityResource
+    @apiGroup Entity
+    @apiParam {String} kind 实体类型
+    @apiParam {String} namespace 命名空间
+    @apiParam {String} name 资源名称
+    @apiParamExample {json} Request-Example:
+        {
+            "kind": "CustomRelationStatus",
+            "namespace": "default",
+            "name": "relation-001"
+        }
+    """
 
     class RequestSerializer(serializers.Serializer):
         kind = serializers.CharField(required=True, label=_("实体类型"))
