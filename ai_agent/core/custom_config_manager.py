@@ -145,11 +145,10 @@ class CustomConfigManager(AgentConfigManager):
             # mcp_config["headers"] = json.dumps(_get_mcp_auth_info(request))
             # 自定义请求头,鉴权+区分请求来源
             mcp_config["headers"] = {
-                "X-Bk-Request-Origin": "bkm-mcp-client",
-                "X-Bkapi-Allowed-Headers": "X-Bk-Request-Origin",
+                "X-Bk-Request-Source": "bkm-mcp-client",
+                "X-Bkapi-Allowed-Headers": "X-Bk-Request-Source",
                 "X-Bkapi-Authorization": json.dumps(_get_mcp_auth_info(request)),
             }
-
         # 需要自定义重写鉴权Headers和特殊标识Headers
 
         # 创建配置实例
