@@ -178,7 +178,7 @@ const mountedVueInstance = () => {
               this.$router.replace({
                 name: 'retrieve',
                 params: {
-                  ...this.$route.params,
+                  indexId: urlArgs.index_id,
                 },
                 query: {
                   ...queryObject,
