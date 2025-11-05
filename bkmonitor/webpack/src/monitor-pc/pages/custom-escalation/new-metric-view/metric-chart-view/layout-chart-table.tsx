@@ -462,7 +462,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
           >
             <div slot='aside'>{renderChart()}</div>
             <div
-              style={{ height: `${this.drag.height - 20}px` }}
+              // style={{ height: `${this.drag.height - 20}px` }}
               class='main-table'
               slot='main'
             >
