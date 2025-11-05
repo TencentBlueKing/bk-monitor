@@ -38,7 +38,7 @@ class AlertStrategyHandler:
 
         space_uid = self.check_space_uid()
 
-        if space_uid:
+        if not space_uid:
             return list()
 
         bk_biz_id = space_uid_to_bk_biz_id(space_uid)
@@ -97,7 +97,7 @@ class AlertStrategyHandler:
 
         space_uid = self.check_space_uid()
 
-        if space_uid:
+        if not space_uid:
             return list()
 
         bk_biz_id = space_uid_to_bk_biz_id(space_uid)
@@ -161,16 +161,16 @@ class AlertStrategyHandler:
         return strategy_config_list
 
     def check_space_uid(self) -> str | None:
-        """空间关联效验
+        """空间唯一标识效验
         :return: space_uid or None
         """
 
         if self.space_uid:
-            # 索引集的 space_uid 是否与请求参数中的 space_uid 不相等
+            # 索引集与请求参数中的 space_uid 是否不相等
             if self.log_index_set_obj.space_uid != self.space_uid:
-                # 获取与请求参数中 space_uid 有关联的 space_uid 集合
+                # 获取关联的 space_uid 集合
                 related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
-                # 效验是否有关联
+                # 效验索引集与请求参数中的 space_uid 是否有关联
                 if self.log_index_set_obj.space_uid not in related_space_uids:
                     # 无关联则返回空
                     return None

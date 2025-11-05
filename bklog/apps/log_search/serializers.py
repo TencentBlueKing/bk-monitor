@@ -1113,13 +1113,13 @@ class StorageUsageSerializer(serializers.Serializer):
 
 
 class StrategyRecordSerializer(serializers.Serializer):
-    space_uid = serializers.CharField(label=_("空间唯一标识"), required=False, allow_blank=True, default=None)
+    space_uid = serializers.CharField(label=_("空间唯一标识"), required=False, allow_null=True, default=None)
     page = serializers.IntegerField(label=_("页数"), default=1, min_value=1)
     page_size = serializers.IntegerField(label=_("每页条数"), default=10, min_value=1, max_value=500)
 
     def validate_space_uid(self, value):
         if value:
-            space_field = SpaceUIDField(label=_("空间唯一标识"), required=False)
+            space_field = SpaceUIDField(label=_("空间唯一标识"), required=True)
             return space_field.run_validation(value)
         return value
 
