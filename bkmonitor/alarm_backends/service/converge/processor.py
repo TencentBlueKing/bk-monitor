@@ -206,14 +206,14 @@ class ConvergeProcessor:
             )
             self.push_to_queue()
             return
-        except BaseException:
-            logger.exception(
-                "run converge failed: [%s]",
-                self.converge_config,
-            )
-            # 收敛失败的，则重新推入收敛队列, 1分钟之后再做收敛检测
-            self.push_converge_queue()
-            return
+        # except BaseException:
+        #     logger.exception(
+        #         "run converge failed: [%s]",
+        #         self.converge_config,
+        #     )
+        #     # 收敛失败的，则重新推入收敛队列, 1分钟之后再做收敛检测
+        #     self.push_converge_queue()
+        #     return
         finally:
             self.unlock()
 
