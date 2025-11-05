@@ -1078,8 +1078,8 @@ class SearchViewSet(APIViewSet):
             fields = self.get_object().get_fields(use_snapshot=True)
         elif FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
             if not start_time and not end_time:
-                start_time = arrow.now().int_timestamp
-                end_time = arrow.now().shift(days=-1).int_timestamp
+                start_time = arrow.now().shift(days=-1).int_timestamp * 1000
+                end_time = arrow.now().int_timestamp * 1000
             search_dict = {
                 "start_time": start_time,
                 "end_time": end_time,
