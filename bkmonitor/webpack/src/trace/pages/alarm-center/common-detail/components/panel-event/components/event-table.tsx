@@ -31,6 +31,8 @@ import { Button, Checkbox } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
+import EventTableExpandContent from './event-table-expand-content';
+
 import './event-table.scss';
 
 export enum SourceTypeEnum {
@@ -100,6 +102,7 @@ export default defineComponent({
           theme: 'light',
           placement: 'bottom',
         },
+        minWidth: 150,
         cell: (_h, { row }) => {
           return row.description;
         },
@@ -117,6 +120,13 @@ export default defineComponent({
         },
       },
     ]);
+    const expandIcon = shallowRef<TdPrimaryTableProps['expandIcon']>((_h, { _row }): any => {
+      return <span class='icon-monitor icon-mc-arrow-right table-expand-icon' />;
+    });
+    const expandedRowKeys = shallowRef([]);
+    const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row }): any => {
+      return <EventTableExpandContent data={row} />;
+    });
     const sourceType = shallowRef([]);
     const sourceTypeOptions = shallowRef([
       {
@@ -145,12 +155,21 @@ export default defineComponent({
       },
     ]);
 
+    const handleExpandChange = (keys: (number | string)[]) => {
+      console.log(keys);
+      expandedRowKeys.value = keys;
+    };
+
     const handleGoEvent = () => {};
 
     return {
       columns,
       sourceType,
       sourceTypeOptions,
+      expandIcon,
+      expandedRow,
+      expandedRowKeys,
+      handleExpandChange,
       t,
       handleGoEvent,
     };
@@ -191,9 +210,17 @@ export default defineComponent({
           </Button>
         </div>
         <PrimaryTable
+          class='relation-event-table'
           columns={this.columns}
           data={this.tableData.data}
+          expandedRow={this.expandedRow}
+          expandedRowKeys={this.expandedRowKeys}
+          expandIcon={this.expandIcon}
+          expandOnRowClick={true}
+          rowClassName={({ row }) => `row-event-status-${row.severity}`}
+          rowKey={'event_id'}
           size={'small'}
+          onExpandChange={this.handleExpandChange}
         />
       </div>
     );

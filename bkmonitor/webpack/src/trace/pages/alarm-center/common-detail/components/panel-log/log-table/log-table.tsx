@@ -95,7 +95,7 @@ export default defineComponent({
       );
     });
     const expandIcon = shallowRef<TdPrimaryTableProps['expandIcon']>((_h, { _row }): any => {
-      return <span class='icon-monitor icon-mc-arrow-right' />;
+      return <span class='icon-monitor icon-mc-arrow-right table-expand-icon' />;
     });
 
     onMounted(() => {
