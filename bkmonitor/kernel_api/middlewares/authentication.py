@@ -308,7 +308,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             # 打印关键请求头
             logger.info("MCPAuthentication: Request Headers:")
             key_headers = [
-                "X-Bk-Request-Origin",
+                "HTTP_X_BK_REQUEST_SOURCE",
                 "HTTP_X_BKAPI_FROM",
                 "HTTP_X_BK_TENANT_ID",
                 "HTTP_BK_USERNAME",
