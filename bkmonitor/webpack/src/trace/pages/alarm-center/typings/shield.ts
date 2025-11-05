@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,3 +23,38 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { IDimension } from './index';
+
+export interface AlarmShieldDetail {
+  alertId: string;
+  bkHostId?: number | string;
+  bkTopoNode?: IBkTopoNodeItem[];
+  dimension?: IDimension[];
+  hideBkTopoNodeTagIndex?: number;
+  hideDimensionTagIndex?: number;
+  isModified?: boolean;
+  severity: number;
+  shieldCheckedId?: string;
+  shieldRadioData?: IshieldRadioDataItem[];
+  trigger?: string;
+  strategy?: {
+    id?: number;
+    name?: string;
+  };
+}
+export interface IBkTopoNodeItem {
+  bk_inst_id: string;
+  bk_obj_id: string;
+  node_name?: string;
+}
+export interface IshieldRadioDataItem {
+  id: string;
+  name: string;
+}
+export interface ITopoNodeDataItem {
+  bk_inst_id: number;
+  bk_inst_name: string;
+  bk_obj_id: string;
+  bk_obj_name: string;
+  child?: ITopoNodeDataItem[];
+}

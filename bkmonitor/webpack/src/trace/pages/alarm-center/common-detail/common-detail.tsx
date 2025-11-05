@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, KeepAlive } from 'vue';
+import { computed, defineComponent, KeepAlive } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
@@ -33,8 +33,9 @@ import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-d
 import { useAlarmBasicInfo } from '../composables/use-alarm-baseinfo';
 import { AlarmDetail } from '../typings';
 import { ALARM_CENTER_PANEL_TAB_MAP } from '../utils/constant';
-import AlarmAlert from './components/alarm-alert';
-import AlarmConfirmDialog from './components/alarm-confirm-dialog';
+import AlarmAlert from './components/alarm-alert/alarm-alert';
+import AlarmConfirmDialog from './components/alarm-alert/alarm-confirm-dialog';
+import QuickShieldDialog from './components/alarm-alert/quick-shield-dialog';
 import AlarmInfo from './components/alarm-info';
 import AlarmView from './components/alarm-view/alarm-view';
 import PanelAlarm from './components/panel-alarm';
@@ -53,12 +54,32 @@ export default defineComponent({
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const { alarmDetail, loading, bizId, alarmId } = storeToRefs(alarmCenterDetailStore);
     const { alertActionOverview } = useAlarmBasicInfo();
+    /** 告警确认弹窗 */
     const alarmConfirmShow = shallowRef(false);
+    /** 快速屏蔽弹窗 */
+    const quickShieldShow = shallowRef(false);
     const currentPanel = shallowRef(alarmCenterDetailStore.alarmDetail?.alarmTabList?.[0]?.label);
 
     const handleAlarmConfirm = (val: boolean) => {
       alarmDetail.value = new AlarmDetail({ ...alarmDetail.value, is_ack: val });
     };
+
+    /** 告警屏蔽详情 */
+    const alarmShieldDetail = computed(() => {
+      return [
+        {
+          severity: alarmCenterDetailStore.alarmDetail?.severity,
+          dimension: alarmCenterDetailStore.alarmDetail?.dimensions || [],
+          trigger: alarmCenterDetailStore.alarmDetail?.description || '--',
+          alertId: alarmCenterDetailStore.alarmDetail?.id,
+          strategy: {
+            id: alarmCenterDetailStore.alarmDetail?.extra_info?.strategy?.id,
+            name: alarmCenterDetailStore.alarmDetail?.extra_info?.strategy?.name,
+          },
+          bkHostId: alarmCenterDetailStore.alarmDetail?.bk_host_id || '',
+        },
+      ];
+    });
 
     const getPanelComponent = () => {
       switch (currentPanel.value) {
@@ -89,7 +110,9 @@ export default defineComponent({
           onAlarmConfirm={() => {
             alarmConfirmShow.value = true;
           }}
-          onQuickShield={() => {}}
+          onQuickShield={() => {
+            quickShieldShow.value = true;
+          }}
         />
         {loading.value ? (
           <div class='alarm-basic-info' />
@@ -123,6 +146,15 @@ export default defineComponent({
           onConfirm={handleAlarmConfirm}
           onUpdate:show={v => {
             alarmConfirmShow.value = v;
+          }}
+        />
+        <QuickShieldDialog
+          alarmBizId={bizId.value}
+          alarmIds={[alarmId.value]}
+          alarmShieldDetail={alarmShieldDetail.value}
+          show={quickShieldShow.value}
+          onUpdate:show={v => {
+            quickShieldShow.value = v;
           }}
         />
       </div>

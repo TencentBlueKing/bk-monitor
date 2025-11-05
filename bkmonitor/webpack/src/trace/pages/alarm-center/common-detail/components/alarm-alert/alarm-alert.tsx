@@ -29,7 +29,7 @@ import { computed } from 'vue';
 import { Button } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { type AlarmDetail, AlarmStatusIconMap } from '../../typings';
+import { type AlarmDetail, AlarmStatusIconMap } from '../../../typings';
 
 import './alarm-alert.scss';
 
@@ -99,7 +99,10 @@ export default defineComponent({
       <div class={['alarm-center-detail-alarm-alert', this.status]}>
         <span class='status-icon'>
           <i class={['icon-monitor', this.statusIcon.icon]} />
-          <span class='status-text'>{this.statusIcon.name}</span>
+          <span class='status-text'>
+            {this.statusIcon.name}
+            {this.data?.is_ack ? `（${this.t('已确认')}）` : ''}
+          </span>
         </span>
         <div class='separator' />
         <div class='alert-content'>

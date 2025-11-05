@@ -277,10 +277,15 @@
     padding: 1px 24px 4px;
   }
 
+  .shield-radio-group {
+    display: inline-block;
+  }
+
   .shield-radio-item {
     display: flex;
     align-items: center;
     line-height: 26px;
+    margin-left: 0;
 
     & + .shield-radio-item {
       margin-top: 5px;
@@ -289,6 +294,10 @@
     input[type='radio'] {
       flex-shrink: 0;
       margin-right: 6px;
+    }
+
+    .bk-radio-label {
+      font-size: 14px;
     }
 
     .shield-radio-content {
@@ -302,6 +311,7 @@
       margin-left: 15px;
       overflow: hidden;
       vertical-align: middle;
+      white-space: normal;
     }
 
     .hide-count {
@@ -324,17 +334,20 @@
 
 .quick-shield-dialog {
   .monitor-dialog {
-    // max-height: 549px;
     .monitor-dialog-body {
-      // max-height: 455px;
       overflow-y: auto;
     }
   }
 }
 
 .quick-shield-dialog-wrap {
-  .bk-dialog-body {
+  .bk-modal-footer {
+    display: none;
+  }
+
+  .bk-dialog-content {
     padding: 0;
+    margin-bottom: 0;
   }
 
   .header-on-left {
