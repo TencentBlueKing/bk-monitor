@@ -23,18 +23,85 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType } from 'vue';
+import { type PropType, defineComponent, watch } from 'vue';
+import { shallowReactive } from 'vue';
+
+import { searchEvent } from 'monitor-api/modules/alert';
+
+import EventTable from './components/event-table';
+
+import type { AlarmDetail } from '../../../typings/detail';
+
+import './index.scss';
 
 export default defineComponent({
   name: 'PanelEvent',
   props: {
-    id: String as PropType<string>,
+    detail: {
+      type: Object as PropType<AlarmDetail>,
+      default: () => null,
+    },
   },
   setup(props) {
-    console.log(props.id);
-    return () => (
-      <div class='alarm-center-detail-panel-alarm'>
-        <div>hello alarm</div>
+    const tableData = shallowReactive({
+      page: 1,
+      pageSize: 10,
+      data: [],
+      total: 0,
+    });
+
+    const init = async () => {
+      const params = {
+        bk_biz_id: props.detail.bk_biz_id,
+        alert_id: props.detail.id,
+        query_string: '',
+        start_time: props.detail.begin_time,
+        end_time: props.detail.end_time,
+        page: tableData.page,
+        page_size: tableData.pageSize,
+        record_history: true,
+        ordering: ['create_time'],
+      };
+      const res = await searchEvent(params, { needRes: true })
+        .then(res => {
+          return (
+            res.data || {
+              events: [],
+              total: 0,
+            }
+          );
+        })
+        .catch(_res => {
+          return {
+            events: [],
+            total: 0,
+          };
+        })
+        .finally(() => {});
+      tableData.data = res.events;
+      tableData.total = res.total;
+    };
+
+    watch(
+      () => props.detail,
+      val => {
+        if (val) {
+          init();
+        }
+      },
+      {
+        immediate: true,
+      }
+    );
+
+    return {
+      tableData,
+    };
+  },
+  render() {
+    return (
+      <div class='alarm-center-detail-panel-alarm-relation-event'>
+        <EventTable tableData={this.tableData} />
       </div>
     );
   },
