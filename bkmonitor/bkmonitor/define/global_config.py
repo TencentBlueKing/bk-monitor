@@ -392,7 +392,7 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_WATCH_LOCK_EXPIRE_SECONDS", slz.IntegerField(label="Redis Watch锁过期时间(秒)", default=60)),
         (
             "BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS",
-            slz.IntegerField(label="计算平台Redis任务最大执行时间(秒)", default=86400),
+            slz.IntegerField(label="计算平台Redis任务最大执行时间(秒)", default=600),
         ),
         ("BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS", slz.IntegerField(label="计算平台Redis重连间隔(秒)", default=2)),
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
