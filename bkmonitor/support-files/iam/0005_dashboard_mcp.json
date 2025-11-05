@@ -29,20 +29,6 @@
         "description": "使用仪表盘MCP功能进行智能监控和数据分析",
         "description_en": "Use Dashboard MCP for intelligent monitoring and data analysis"
       }
-    },
-    {
-      "operation": "upsert_action_groups",
-      "data": [
-        {
-          "name": "监控平台MCP",
-          "name_en": "Monitor MCP",
-          "actions": [
-            {
-              "id": "using_dashboard_mcp"
-            }
-          ]
-        }
-      ]
     }
   ]
 }
