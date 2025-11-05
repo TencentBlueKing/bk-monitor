@@ -206,14 +206,14 @@ class ConvergeProcessor:
             )
             self.push_to_queue()
             return
-        except BaseException:
-            logger.exception(
-                "run converge failed: [%s]",
-                self.converge_config,
-            )
-            # 收敛失败的，则重新推入收敛队列, 1分钟之后再做收敛检测
-            self.push_converge_queue()
-            return
+        # except BaseException:
+        #     logger.exception(
+        #         "run converge failed: [%s]",
+        #         self.converge_config,
+        #     )
+        #     # 收敛失败的，则重新推入收敛队列, 1分钟之后再做收敛检测
+        #     self.push_converge_queue()
+        #     return
         finally:
             self.unlock()
 
@@ -450,6 +450,7 @@ class ConvergeProcessor:
             "alerts": self.alerts,
         }
         collect_key = ""
+        countdown = 0
         if plugin_type == ActionPluginType.NOTICE and self.instance.is_parent_action is False:
             # 通知子任务需要记录通知方式，触发信号，告警ID进行后续的汇总合并
             client = FTA_NOTICE_COLLECT_KEY.client
