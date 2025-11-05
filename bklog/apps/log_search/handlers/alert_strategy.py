@@ -3,17 +3,19 @@ import arrow
 from apps.api import MonitorApi
 from apps.log_search.constants import MAX_WORKERS, AlertStatusEnum
 from apps.log_search.exceptions import IndexSetDoseNotExistException
+from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_request_username
 from apps.utils.thread import MultiExecuteFunc
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
-class AlertStrategyHandler(object):
+class AlertStrategyHandler:
     DAYS = 7
 
-    def __init__(self, index_set_id):
+    def __init__(self, index_set_id, space_uid=None):
         self.index_set_id = index_set_id
+        self.space_uid = space_uid
 
         try:
             self.log_index_set_obj = LogIndexSet.objects.get(index_set_id=self.index_set_id)
@@ -31,8 +33,16 @@ class AlertStrategyHandler(object):
         :param page:  页数
         :param page_size:  每页条数
         """
-        bk_biz_id = space_uid_to_bk_biz_id(self.log_index_set_obj.space_uid)
+
         alert_status = []
+
+        space_uid = self.check_space_uid()
+
+        if not space_uid:
+            return list()
+
+        bk_biz_id = space_uid_to_bk_biz_id(space_uid)
+
         conditions = [{"key": "metric", "value": [f"bk_log_search.index_set.{self.index_set_id}"]}]
         username = get_request_username()
         if status == AlertStatusEnum.NOT_SHIELDED_ABNORMAL.value:
@@ -46,7 +56,7 @@ class AlertStrategyHandler(object):
         request_params = {
             "bk_biz_ids": [bk_biz_id],
             "status": alert_status,
-            "conditions": [{"key": "metric", "value": [f"bk_log_search.index_set.{self.index_set_id}"]}],
+            "conditions": conditions,
             "start_time": start_time,
             "end_time": end_time,
             "page": page,
@@ -84,7 +94,14 @@ class AlertStrategyHandler(object):
         :param page: 页数
         :param page_size: 每页条数
         """
-        bk_biz_id = space_uid_to_bk_biz_id(self.log_index_set_obj.space_uid)
+
+        space_uid = self.check_space_uid()
+
+        if not space_uid:
+            return list()
+
+        bk_biz_id = space_uid_to_bk_biz_id(space_uid)
+
         start_time = int(arrow.now().shift(days=-self.DAYS).timestamp())
         end_time = int(arrow.now().timestamp())
 
@@ -142,3 +159,22 @@ class AlertStrategyHandler(object):
             alerts = multi_result.get(strategy_id, {}).get("alerts")
             strategy_config.update({"latest_time": alerts[0].get("latest_time") if alerts else None})
         return strategy_config_list
+
+    def check_space_uid(self) -> str | None:
+        """空间唯一标识效验
+        :return: space_uid or None
+        """
+
+        if self.space_uid:
+            # 索引集与请求参数中的 space_uid 是否不相等
+            if self.log_index_set_obj.space_uid != self.space_uid:
+                # 获取关联的 space_uid 集合
+                related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
+                # 效验索引集与请求参数中的 space_uid 是否有关联
+                if self.log_index_set_obj.space_uid not in related_space_uids:
+                    # 无关联则返回空
+                    return None
+
+            return self.space_uid
+        else:
+            return self.log_index_set_obj.space_uid
