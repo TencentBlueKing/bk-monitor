@@ -508,6 +508,7 @@ const handelSaveBtnClick = () => {
   let result: any = {
     ...condition.value,
     field: activeFieldItem.value.field_name,
+    field_type: activeFieldItem.value.field_type,
   };
 
   // 如果是全文检索 | 字段列表为空 | 搜索结果为空

@@ -112,7 +112,7 @@ const getOperatorLabel = (item) => {
     return '';
   }
 
-  const key =    item.field === '*'
+  const key = item.field === '*'
     ? getOperatorKey(`*${item.operator}`)
     : getOperatorKey(item.operator);
   if (translateKeys.includes(operatorMapping[item.operator])) {
@@ -307,7 +307,7 @@ const handleSaveQueryClick = (payload) => {
   }
 
   const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
-  const isFulltextEnterVlaue =    isInputTextFocus.value && isPayloadValueEmpty && !payload?.field;
+  const isFulltextEnterVlaue = isInputTextFocus.value && isPayloadValueEmpty && !payload?.field;
 
   const inputVal = getSearchInputValue();
   // 如果是全文检索，未输入任何内容就点击回车

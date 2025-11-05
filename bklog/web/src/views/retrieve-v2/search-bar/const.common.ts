@@ -47,7 +47,7 @@ export const getInputQueryDefaultItem = (value: string[] = []) => {
   };
 };
 
-export const getInputQueryIpSelectItem = value => {
+export const getInputQueryIpSelectItem = (value) => {
   return {
     field: '_ip-select_',
     operator: '',
