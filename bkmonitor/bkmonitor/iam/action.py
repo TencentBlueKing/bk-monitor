@@ -102,7 +102,7 @@ class ActionEnum:
         name_en="Using Dashboard MCP",
         type="view",
         related_resource_types=[SPACE_RESOURCE],
-        related_actions=[],
+        related_actions=[VIEW_BUSINESS.id],
         version=1,
     )
 
