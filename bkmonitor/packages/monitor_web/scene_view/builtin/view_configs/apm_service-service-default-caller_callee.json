@@ -170,7 +170,7 @@
             "unit": "",
             "is_support_group_by": true,
             "is_support_compare": true,
-            "strategy_template_codes": {"callee": ["rpc_callee_success_rate"], "caller": ["rpc_caller_success_rate"]}
+            "strategy_template_codes": {"callee": ["rpc_callee_req_fluctuation", "rpc_callee_success_rate"], "caller": ["rpc_caller_success_rate"]}
           }
         },
         {
