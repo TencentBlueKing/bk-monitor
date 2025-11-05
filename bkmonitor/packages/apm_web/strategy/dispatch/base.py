@@ -43,6 +43,7 @@ class DispatchExtraConfig:
             self.user_group_ids = [user_group["id"] for user_group in self.user_group_list]
 
     def merge(self, other: "DispatchExtraConfig") -> "DispatchExtraConfig":
+        """合并配置，优先级 other > self"""
         for field in fields(self):
             if field.name == "context":
                 other_context: dict[str, Any] = copy.deepcopy(other.context or {})
