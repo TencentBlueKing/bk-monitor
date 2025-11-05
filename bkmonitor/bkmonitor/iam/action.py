@@ -96,6 +96,16 @@ class ActionEnum:
         version=1,
     )
 
+    USING_DASHBOARD_MCP = ActionMeta(
+        id="using_dashboard_mcp",
+        name=_("使用仪表盘MCP"),
+        name_en="Using Dashboard MCP",
+        type="view",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[],
+        version=1,
+    )
+
     EXPLORE_METRIC = ActionMeta(
         id="explore_metric_v2",
         name=_("指标检索"),
