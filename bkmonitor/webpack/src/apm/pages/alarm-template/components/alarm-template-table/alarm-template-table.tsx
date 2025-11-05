@@ -31,6 +31,7 @@ import { random } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
+import { isEnFn } from 'monitor-pc/utils';
 
 import {
   ALARM_TEMPLATE_TABLE_FILTER_FIELDS,
@@ -156,6 +157,8 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     updateValue: Partial<AlarmTemplateListItem>
   ) => Promise<unknown>;
 
+  isEn = isEnFn();
+
   /** 强制刷新表格(主要处理表格表头筛选没有响应式问题) */
   refreshKey = random(8);
   /** dialog 弹窗所需配置项 */
@@ -241,7 +244,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     operator: {
       id: 'operator',
       label: this.$t('操作'),
-      width: 160,
+      width: this.isEn ? 240 : 160,
       resizable: false,
       fixed: 'right',
       formatter: this.operatorColRenderer,
