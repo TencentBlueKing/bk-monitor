@@ -23,53 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, KeepAlive, shallowRef } from 'vue';
+import { defineComponent } from 'vue';
 
-import { Tab } from 'bkui-vue';
+import './chart-wrapper.scss';
 
-import AlarmRecords from './alarm-records';
-import ChartWrapper from './chart-wrapper';
-import DimensionWrapper from './dimension-wrapper';
-import { ALARM_CENTER_VIEW_TAB_MAP } from '@/pages/alarm-center/utils/constant';
-
-import './alarm-view.scss';
 export default defineComponent({
-  name: 'AlarmView',
+  name: 'ChartWrapper',
   setup() {
-    const activeTab = shallowRef('dimension');
-    const handleTabChange = (v: string) => {
-      activeTab.value = v;
-    };
-    return {
-      activeTab,
-      handleTabChange,
-    };
+    return {};
   },
   render() {
-    return (
-      <div class='alarm-view'>
-        <ChartWrapper />
-        <div class='alarm-view-tab'>
-          <Tab
-            active={this.activeTab}
-            type='unborder-card'
-            onUpdate:active={this.handleTabChange}
-          >
-            <Tab.TabPanel
-              label={this.$t('维度分析')}
-              name={ALARM_CENTER_VIEW_TAB_MAP.DIMENSION}
-            />
-            <Tab.TabPanel
-              label={this.$t('告警流转记录')}
-              name={ALARM_CENTER_VIEW_TAB_MAP.ALARM_RECORDS}
-            />
-          </Tab>
-          <KeepAlive>
-            {this.activeTab === 'dimension' && <DimensionWrapper />}
-            {this.activeTab === 'alarm_records' && <AlarmRecords />}
-          </KeepAlive>
-        </div>
-      </div>
-    );
+    return <div class='alarm-view-chart-wrapper'>hello chart wrapper</div>;
   },
 });

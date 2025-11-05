@@ -57,3 +57,8 @@ export const AlarmCenterPanelTabList: { label: string; name: AlarmCenterPanelTab
   label: ALARM_CENTER_PANEL_TAB_LABEL_MAP[name as AlarmCenterPanelTabType],
   name: name as AlarmCenterPanelTabType,
 }));
+
+export const ALARM_CENTER_VIEW_TAB_MAP = {
+  DIMENSION: 'dimension', // 维度分析
+  ALARM_RECORDS: 'alarm_records', // 告警流转记录
+} as const;

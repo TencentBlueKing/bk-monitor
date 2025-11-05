@@ -60,6 +60,7 @@ export default defineComponent({
       handleGetUserConfig: handleGetResidentSettingUserConfig,
       handleSetUserConfig: handleSetResidentSettingUserConfig,
     } = useUserConfig();
+    console.log('alarmStore', alarmStore, '================================');
     const { quickFilterList, quickFilterLoading } = useQuickFilter();
     const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
     const {
