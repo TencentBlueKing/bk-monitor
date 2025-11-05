@@ -128,6 +128,7 @@ class CustomRelationStatus(EntityMeta):
     class Meta:
         verbose_name = _("自定义关联关系状态")
         verbose_name_plural = _("自定义关联关系状态")
+        unique_together = ("namespace", "name")
 
     def __str__(self):
         return f"{self.namespace}/{self.name} -> {self.from_resource} -> {self.to_resource}"
