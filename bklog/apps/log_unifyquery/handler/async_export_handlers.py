@@ -157,6 +157,8 @@ class UnifyQueryAsyncExportHandlers:
             search_dict["bizId"] = search_dict["bk_biz_id"]
             search_dict["spaceUid"] = bk_biz_id_to_space_uid(search_dict["bk_biz_id"])
 
+        # 删除 sort_list 字段，不需要拼接在url
+        search_dict.pop("sort_list", None)
         url_params = urlencode(search_dict)
         # 这里是为了拼接前端检索请求
         search_url = (

@@ -317,7 +317,10 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         self, last_snapshot: IncidentSnapshotDocument, snapshot_alerts: dict[int, AlertDocument]
     ) -> None:
         """生成故障快照记录的告警操作记录."""
-        last_snapshot_alerts = {item["id"]: item for item in last_snapshot.content.incident_alerts}
+        last_snapshot_alerts = {
+            item["id"]: item.to_dict() if hasattr(item, "to_dict") else item
+            for item in last_snapshot.content.incident_alerts
+        }
         for alert_doc in snapshot_alerts.values():
             if alert_doc.id not in last_snapshot_alerts:
                 IncidentOperationManager.record_incident_alert_trigger(

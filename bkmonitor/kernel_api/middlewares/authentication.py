@@ -222,7 +222,53 @@ class AuthenticationMiddleware(MiddlewareMixin):
         """
         是否是MCP请求
         """
-        return request.META.get("X-Bk-Request-Origin") == settings.AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE
+        return request.META.get("HTTP_X_BK_REQUEST_SOURCE") == settings.AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE
+
+    def _handle_mcp_auth(self, request, username=None):
+        """
+        处理MCP权限校验
+        MCP请求已经通过API网关认证，这里只需要额外的MCP权限校验
+        """
+        # 导入放在这里避免循环依赖
+        from bkmonitor.iam.drf import MCPPermission
+
+        logger.info("MCPAuthentication: Handling MCP authentication")
+
+        # 获取业务ID（从GET或POST参数中获取）
+        bk_biz_id = request.GET.get("bk_biz_id")
+        if not bk_biz_id and request.method == "POST":
+            # 尝试从POST数据中获取
+            try:
+                bk_biz_id = request.POST.get("bk_biz_id")
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("MCPAuthentication: Failed to get bk_biz_id from POST data, error: %s", e)
+                pass
+
+        if not bk_biz_id:
+            logger.error("MCPAuthentication: Missing bk_biz_id in request parameters")
+            return HttpResponseForbidden("Missing bk_biz_id in request parameters")
+
+        try:
+            request.biz_id = int(bk_biz_id)
+        except (ValueError, TypeError):
+            logger.error(f"MCPAuthentication: Invalid bk_biz_id format: {bk_biz_id}")
+            return HttpResponseForbidden(f"Invalid bk_biz_id format: {bk_biz_id}")
+
+        # 使用 MCPPermission 进行权限校验
+        try:
+            permission = MCPPermission()
+            # 创建一个简单的 mock view 对象
+            mock_view = type("MockView", (), {"kwargs": {}})()
+
+            if not permission.has_permission(request, mock_view):
+                logger.warning(f"MCPAuthentication: Permission denied for user={username}, bk_biz_id={request.biz_id}")
+                return HttpResponseForbidden("Permission denied: insufficient MCP permissions")
+        except Exception as e:
+            logger.error(f"MCPAuthentication: Permission check failed: {e}")
+            return HttpResponseForbidden(f"Permission denied: {e}")
+
+        logger.info(f"MCPAuthentication: Authentication Success: user={username}, bk_biz_id={request.biz_id}")
+        return None
 
     def process_view(self, request, view, *args, **kwargs):
         # 登录豁免
@@ -247,6 +293,51 @@ class AuthenticationMiddleware(MiddlewareMixin):
             app_code = request.META.get("HTTP_BK_APP_CODE")
             username = request.META.get("HTTP_BK_USERNAME")
             bk_tenant_id = DEFAULT_TENANT_ID
+
+        # MCP权限校验（在用户认证完成后）
+        if self.use_mcp_auth(request):
+            logger.info("=" * 80)
+            logger.info("MCPAuthentication: Handling MCP authentication")
+
+            # 打印认证信息
+            logger.info(f"MCPAuthentication: app_code={app_code}, username={username}, tenant_id={bk_tenant_id}")
+
+            # 打印请求基本信息
+            logger.info(f"MCPAuthentication: method={request.method}, path={request.path}")
+
+            # 打印关键请求头
+            logger.info("MCPAuthentication: Request Headers:")
+            key_headers = [
+                "HTTP_X_BK_REQUEST_SOURCE",
+                "HTTP_X_BKAPI_FROM",
+                "HTTP_X_BK_TENANT_ID",
+                "HTTP_BK_USERNAME",
+                "HTTP_BK_APP_CODE",
+                "Content-Type",
+            ]
+            for header_key in key_headers:
+                header_value = request.META.get(header_key, "N/A")
+                logger.info(f"MCPAuthentication: Header - {header_key}: {header_value}")
+
+            # 打印GET参数
+            if request.GET:
+                logger.info(f"MCPAuthentication: GET params: {dict(request.GET)}")
+            else:
+                logger.info("MCPAuthentication: GET params: (empty)")
+
+            # 打印POST参数
+            if request.method == "POST":
+                try:
+                    if request.POST:
+                        logger.info(f"MCPAuthentication: POST params: {dict(request.POST)}")
+                    else:
+                        logger.info("MCPAuthentication: POST params: (empty)")
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning(f"MCPAuthentication: Failed to read POST params: {e}")
+
+            logger.info("=" * 80)
+
+            return self._handle_mcp_auth(request, username=username)
 
         # 后台仪表盘渲染豁免
         # TODO: 多租户支持验证
