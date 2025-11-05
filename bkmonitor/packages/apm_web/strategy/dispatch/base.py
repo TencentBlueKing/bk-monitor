@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any
 
 from apm_web.models import StrategyTemplate
@@ -41,6 +41,20 @@ class DispatchExtraConfig:
     def __post_init__(self):
         if self.user_group_list is not None:
             self.user_group_ids = [user_group["id"] for user_group in self.user_group_list]
+
+    def merge(self, other: "DispatchExtraConfig") -> "DispatchExtraConfig":
+        for field in fields(self):
+            if field.name == "context":
+                other_context: dict[str, Any] = copy.deepcopy(other.context or {})
+                if self.context is None:
+                    self.context = other_context
+                else:
+                    self.context.update(other_context)
+                continue
+
+            if getattr(other, field.name) is not None:
+                setattr(self, field.name, getattr(other, field.name))
+        return self
 
 
 @dataclass(slots=True)
