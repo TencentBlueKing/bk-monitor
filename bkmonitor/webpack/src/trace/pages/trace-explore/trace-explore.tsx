@@ -254,7 +254,7 @@ export default defineComponent({
       }));
     });
     useIsEnabledProfilingProvider(enableProfiling);
-
+    console.log('store.refreshInterval', store.refreshInterval);
     watch(
       () => store.refreshInterval,
       val => {
