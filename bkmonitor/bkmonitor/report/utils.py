@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 from collections import defaultdict
 
@@ -48,9 +48,9 @@ def parse_frequency(frequency, last_send_time=None) -> list:
                             # 当前这个小时，且在检测的这个分钟已经发送过，则不再检测发送
                             # 因为有一分钟裕量，否则有可能前后一分钟都会命中
                             continue
-                    run_time_strings.append(f'{today} {hour}:{minute}:00')
+                    run_time_strings.append(f"{today} {hour}:{minute}:00")
     else:
-        run_time_strings = [f'{datetime.datetime.today().strftime("%Y-%m-%d")} {frequency["run_time"]}']
+        run_time_strings = [f"{datetime.datetime.today().strftime('%Y-%m-%d')} {frequency['run_time']}"]
     return run_time_strings
 
 
@@ -117,10 +117,10 @@ def get_data_range(frequency: dict, bk_biz_id: int) -> dict:
 
     interval = now_time - from_time
     if interval.days:
-        interval = "{}天".format(interval.days)
+        interval = f"{interval.days}天"
     else:
         hour = interval.seconds / 60 / 60
-        interval = "{}小时".format(int(hour)) if hour > 1 else "{}分钟".format(int(hour * 60))
+        interval = f"{int(hour)}小时" if hour > 1 else f"{int(hour * 60)}分钟"
     time_fmt = "%Y-%m-%d %H:%M:%S"
     return {"start_time": from_time.strftime(time_fmt), "end_time": now_time.strftime(time_fmt), "interval": interval}
 
@@ -146,8 +146,9 @@ def create_send_record(channels, send_round):
     ReportSendRecord.objects.bulk_create(send_records)
 
 
-def send_email(context: dict, subscribers: list) -> dict:
+def send_email(bk_tenant_id: str, context: dict, subscribers: list) -> dict:
     sender = Sender(
+        bk_tenant_id=bk_tenant_id,
         title_template_path=context.get("title_template_path", ""),
         content_template_path=context["mail_template_path"],
         context=context,
@@ -163,8 +164,9 @@ def send_email(context: dict, subscribers: list) -> dict:
         logger.exception(e)
 
 
-def send_wxbot(context: dict, chatids: list):
+def send_wxbot(bk_tenant_id: str, context: dict, chatids: list):
     sender = Sender(
+        bk_tenant_id=bk_tenant_id,
         title_template_path=context.get("title_template_path", ""),
         content_template_path=context["wechat_template_path"],
         context=context,

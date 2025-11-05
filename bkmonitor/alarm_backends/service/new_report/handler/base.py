@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import json
 from abc import abstractmethod
@@ -27,7 +27,7 @@ from core.drf_resource import api
 from core.errors import logger
 
 
-class BaseReportHandler(object):
+class BaseReportHandler:
     """
     基础订阅管理器
     """
@@ -68,7 +68,9 @@ class BaseReportHandler(object):
             if error_msg or not send_check:
                 SendChannelHandler(channel).update_send_record(context, self.report.send_round, error_msg, send_check)
             else:
-                SendChannelHandler(channel).send(context, self.report.send_round, self.report.bk_biz_id)
+                SendChannelHandler(channel).send(
+                    context=context, send_round=self.report.send_round, bk_biz_id=self.report.bk_biz_id
+                )
 
     @abstractmethod
     def get_render_params(self) -> dict:
@@ -92,7 +94,7 @@ class BaseReportHandler(object):
         raise NotImplementedError("send_check() method is not implemented.")
 
 
-class SendChannelHandler(object):
+class SendChannelHandler:
     """
     订阅渠道处理器
     """
@@ -112,10 +114,9 @@ class SendChannelHandler(object):
             raise Exception(f"SEND_CLS_MAP doesn't have channel name: {channel.channel_name}")
         self.send_cls = self.SEND_CLS_MAP[channel.channel_name]
 
-    def send(self, context, send_round, bk_biz_id=None):
+    def send(self, context, send_round, bk_biz_id):
         subscribers = self.fetch_subscribers(bk_biz_id)
-        if bk_biz_id:
-            i18n.set_biz(bk_biz_id)
+        i18n.set_biz(bk_biz_id)
         # 补充提示词
         if self.channel.send_text:
             context["send_text"] = self.channel.send_text
