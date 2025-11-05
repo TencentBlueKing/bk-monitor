@@ -722,6 +722,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
         class='cluster-select'
         clearable={false}
         value={this.cluster}
+        search-placeholder={this.$t('请输入 关键字')}
         searchable
         onChange={this.handleClusterChange}
         onToggle={this.handleClusterToggle}

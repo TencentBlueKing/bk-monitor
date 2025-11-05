@@ -62,6 +62,7 @@ export interface UseSegmentPropOptions {
   onclick?: (..._args: any) => void;
   stopPropagation?: boolean;
   aiBluekingEnabled?: boolean;
+  highlightEnabled?: boolean;
 }
 
 class UseSegmentProp {
@@ -74,18 +75,21 @@ class UseSegmentProp {
   private onclick: (..._args: any) => void;
   private stopPropagation: boolean;
   private aiBluekingEnabled: boolean;
+  private highlightEnabled: boolean;
 
   constructor({
     delineate = false,
     onclick,
     stopPropagation = false,
     aiBluekingEnabled = true,
+    highlightEnabled = true,
   }: UseSegmentPropOptions = {}) {
     const { $t } = useLocale();
     this.$t = $t;
     this.refContent = ref();
     this.delineate = delineate;
     this.aiBluekingEnabled = aiBluekingEnabled;
+    this.highlightEnabled = highlightEnabled;
     this.onclick = onclick;
     this.stopPropagation = stopPropagation;
     if (!this.delineate) {
@@ -109,16 +113,16 @@ class UseSegmentProp {
         disabled: false,
       },
       {
+        onClick: (e: MouseEvent) => this.executeClickEvent(e, 'highlight'),
+        iconName: 'icon bklog-icon bklog-highlight',
+        text: this.$t('高亮'),
+        disabled: !this.highlightEnabled,
+      },
+      {
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'add-to-ai'),
         svg: AiSvg,
         text: this.$t('引用至小鲸'),
         disabled: !this.delineate || !this.aiBluekingEnabled,
-      },
-      {
-        onClick: (e: MouseEvent) => this.executeClickEvent(e, 'highlight'),
-        iconName: 'icon bklog-icon bklog-highlight',
-        text: this.$t('高亮'),
-        disabled: this.delineate,
       },
       {
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'is'),

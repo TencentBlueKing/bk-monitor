@@ -1526,11 +1526,12 @@ class CollectorHandler:
         return bk_data_name
 
     @classmethod
-    def build_result_table_id(cls, bk_biz_id: int, collector_config_name_en: str) -> str:
+    def build_result_table_id(cls, bk_biz_id: int, collector_config_name_en: str, is_pattern_rt: bool = False) -> str:
         """
         根据bk_biz_id和collector_config_name_en构建result_table_id
         @param bk_biz_id:
         @param collector_config_name_en:
+        @param is_pattern_rt: 是否为聚类结果表
         @return:
         """
         bk_biz_id = int(bk_biz_id)
@@ -1540,4 +1541,6 @@ class CollectorHandler:
             result_table_id = (
                 f"{settings.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{settings.TABLE_ID_PREFIX}.{collector_config_name_en}"
             )
+        if is_pattern_rt:
+            return f"{result_table_id}__pattern"
         return result_table_id

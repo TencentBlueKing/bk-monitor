@@ -29,15 +29,8 @@ import { VIEW_BUSINESS } from '@/common/authority-map';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
-import {
-  getDefaultRetrieveParams,
-  update_URL_ARGS as updateUrlArgs,
-} from '@/store/default-values';
-import {
-  BK_LOG_STORAGE,
-  RouteParams,
-  SEARCH_MODE_DIC,
-} from '@/store/store.type';
+import { getDefaultRetrieveParams, updateURLArgs as updateUrlArgs } from '@/store/default-values';
+import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '@/store/store.type';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -70,9 +63,7 @@ export default () => {
     const routeParams = getDefaultRetrieveParams({
       spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
       bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-      search_mode:
-        SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]]
-        ?? 'ui',
+      search_mode: SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui',
     });
     let activeTab = 'single';
     Object.assign(routeParams, { ids: [] });
@@ -130,12 +121,13 @@ export default () => {
   const spaceUid = computed(() => store.state.spaceUid);
   const bkBizId = computed(() => store.state.bkBizId);
 
-  const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false),
-  );
+  const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
   const fromMonitor = computed(() => route.query.from === 'monitor');
-  const flatIndexSetList = computed(
-    () => store.state.retrieve.flatIndexSetList,
-  );
+
+  /**
+   * 扁平化索引集列表
+   */
+  const flatIndexSetList = computed(() => store.state.retrieve.flatIndexSetList);
 
   const stickyStyle = computed(() => {
     return {
@@ -209,22 +201,17 @@ export default () => {
       router.push({
         query: {
           ...route.query,
-          search_mode:
-            store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1
-              ? 'sql'
-              : 'ui',
+          search_mode: store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
         },
       });
     }
   };
 
-  setSearchMode();
-  reoverRouteParams();
-
   /**
    * 拉取索引集列表
+   * @param beforeResolveFn 在结果返回解析之后，尚未进行路由解析之前的处理函数
    */
-  const getIndexSetList = () => {
+  const getIndexSetList = (beforeResolveFn?: () => void) => {
     store.commit('updateIndexSetQueryResult', {
       origin_log_list: [],
       list: [],
@@ -268,17 +255,29 @@ export default () => {
         is_group: true,
       })
       .then(() => {
+        // 如果扁平化索引集列表为空，则跳转到无权限页面
+        // 避免出现索引集列表为空导致的频繁错误请求和异常提示
+        if (flatIndexSetList.value.length === 0) {
+          router.push({
+            name: 'un-authorized',
+            query: {
+              page_from: route.name,
+              type: 'indexset',
+            },
+          });
+          return;
+        }
+
+        beforeResolveFn?.();
         isPreApiLoaded.value = true;
 
         // 在路由不带indexId的情况下 检查 unionList 和 tags 参数 是否存在联合查询索引集参数
         // tags 是 BCS索引集注入内置标签特殊检索
         if (!indexSetIdList.value.length && route.query.tags?.length) {
-          const tagList = Array.isArray(route.query.tags)
-            ? route.query.tags
-            : route.query.tags.split(',');
+          const tagList = Array.isArray(route.query.tags) ? route.query.tags : route.query.tags.split(',');
+
           const indexSetMatch = flatIndexSetList.value
-            .filter(item => item.tags.some(tag => tagList.includes(tag.name)),
-            )
+            .filter(item => item.tags.some(tag => tagList.includes(tag.name)))
             .map(val => val.index_set_id);
           if (indexSetMatch.length) {
             store.commit('updateIndexItem', {
@@ -298,17 +297,14 @@ export default () => {
         // 如果当前地址参数没有indexSetId，则默认取缓存中的索引信息
         // 同时，更新索引信息到store中
         if (!indexSetIdList.value.length) {
-          const lastIndexSetIds =            store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[
-            spaceUid.value
-          ];
+          const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
           if (lastIndexSetIds?.length) {
             const firstFilterFn = id => flatIndexSetList.value.some(item => filterFn(id, item));
             const validateIndexSetIds = lastIndexSetIds.filter(firstFilterFn);
             if (validateIndexSetIds.length) {
               commitIdexId(validateIndexSetIds);
               store.commit('updateStorage', {
-                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]:
-                  validateIndexSetIds.length > 1 ? 'union' : 'single',
+                [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: validateIndexSetIds.length > 1 ? 'union' : 'single',
               });
             } else {
               store.commit('updateStorage', {
@@ -327,8 +323,7 @@ export default () => {
 
         if (indexSetIdList.value.length) {
           indexSetIdList.value.forEach((id) => {
-            const item = flatIndexSetList.value.find(item => filterFn(id, item),
-            );
+            const item = flatIndexSetList.value.find(item => filterFn(id, item));
             if (!item) {
               emptyIndexSetList.push(id);
             }
@@ -342,10 +337,10 @@ export default () => {
           if (emptyIndexSetList.length) {
             store.commit('updateIndexItem', { ids: [], items: [] });
             store.commit('updateState', { indexId: '' });
-            store.commit('updateIndexSetQueryResult', {
-              is_error: true,
-              exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
-            });
+            // store.commit('updateIndexSetQueryResult', {
+            //   is_error: true,
+            //   exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
+            // });
           }
 
           if (indexSetItems.length) {
@@ -355,9 +350,8 @@ export default () => {
 
         // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
         if (!indexSetIdList.value.length) {
-          const defIndexItem =            flatIndexSetList.value.find(
-            item => item.permission?.[VIEW_BUSINESS]
-                && item.tags.every(tag => tag.tag_id !== 4),
+          const defIndexItem = flatIndexSetList.value.find(
+            item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
           ) ?? flatIndexSetList.value[0];
           const defaultId = [defIndexItem?.index_set_id];
 
@@ -368,17 +362,15 @@ export default () => {
           }
         }
 
-        const indexId =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
+        const indexId = store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
           ? store.state.indexItem.ids[0]
           : undefined;
-        const unionList =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union'
-          ? store.state.indexItem.ids
-          : undefined;
+        const unionList = store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
 
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
 
-          const type = indexId ?? route.params.indexId ? 'single' : 'union';
+          const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
           if (indexId && type === 'single') {
             store.commit('updateState', { indexId });
             store.commit('updateUnionIndexList', {
@@ -448,14 +440,16 @@ export default () => {
           store.getters.isUnionSearch,
         );
 
-        router.replace({
-          params: { ...route.params, indexId },
-          query: {
-            ...route.query,
-            ...queryTab,
-            unionList: unionList ? JSON.stringify(unionList) : undefined,
-          },
-        });
+        if (indexId) {
+          router.replace({
+            params: { ...route.params, indexId },
+            query: {
+              ...route.query,
+              ...queryTab,
+              unionList: unionList ? JSON.stringify(unionList) : undefined,
+            },
+          });
+        }
       });
   };
 
@@ -474,15 +468,14 @@ export default () => {
     });
   };
 
-  const beforeMounted = () => {
+  getIndexSetList(() => {
+    setSearchMode();
+    reoverRouteParams();
     setDefaultRouteUrl();
-    getIndexSetList();
-  };
-
-  beforeMounted();
+  });
 
   const handleSpaceIdChange = () => {
-    const { start_time, end_time, timezone, datePickerValue } =      store.state.indexItem;
+    const { start_time, end_time, timezone, datePickerValue } = store.state.indexItem;
     store.commit('resetIndexsetItemParams', {
       start_time,
       end_time,
@@ -509,14 +502,7 @@ export default () => {
           indexId: undefined,
         },
         query: {
-          ...resolver.getDefUrlQuery([
-            'start_time',
-            'end_time',
-            'format',
-            'interval',
-            'search_mode',
-            'timezone',
-          ]),
+          ...resolver.getDefUrlQuery(['start_time', 'end_time', 'format', 'interval', 'search_mode', 'timezone']),
           spaceUid: spaceUid.value,
           bizId: bkBizId.value,
         },
@@ -541,7 +527,7 @@ export default () => {
 
   addEvent(RetrieveEvent.GLOBAL_SCROLL, (event) => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
-    paddingTop.value =      scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
+    paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 
     const diff = subBarHeight.value + trendGraphHeight.value;
     searchResultTop.value = scrollTop > diff ? diff : scrollTop;
@@ -566,9 +552,7 @@ export default () => {
    * 计算检索结果列表的滚动位置，监听是否滚动到顶部
    */
   const isSearchResultStickyTop = computed(() => {
-    return (
-      searchResultTop.value === subBarHeight.value + trendGraphHeight.value
-    );
+    return searchResultTop.value === subBarHeight.value + trendGraphHeight.value;
   });
 
   /** * 结束计算 ***/

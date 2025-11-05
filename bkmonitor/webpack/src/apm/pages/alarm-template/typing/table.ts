@@ -24,18 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { AlgorithmType } from '../components/template-form/typing';
-import type { DetectionAlgorithmLevelEnumType } from './constants';
-
-export interface AlarmAlgorithmItem {
-  level: DetectionAlgorithmLevelEnumType;
-  type: AlgorithmType;
-  unit_prefix?: string;
-  config: {
-    method: string;
-    threshold: number;
-  };
-}
+import type { AlgorithmItemUnion, DetectConfig } from '../components/template-form/typing';
 
 export interface AlarmListRequestParams {
   /** apm 应用名称 */
@@ -83,10 +72,11 @@ export type AlarmTemplateField = string;
 export interface AlarmTemplateListItem {
   /** 关联告警数 */
   alert_number?: number;
-  algorithms: AlarmAlgorithmItem[];
+  algorithms: AlgorithmItemUnion[];
   applied_service_names: string[];
   create_time: string;
   create_user: string;
+  detect: DetectConfig;
   id: number;
   is_auto_apply: boolean;
   is_enabled: boolean;

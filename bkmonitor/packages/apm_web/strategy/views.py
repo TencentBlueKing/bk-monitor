@@ -177,7 +177,22 @@ class StrategyTemplateViewSet(GenericViewSet):
         strategy_template_obj: StrategyTemplate = get_object_or_404(
             self.get_queryset(), id=self.query_data["strategy_template_id"]
         )
-        return Response(self._preview(strategy_template_obj, self.query_data["service_name"]))
+        preview_data: dict[str, Any] = self._preview(strategy_template_obj, self.query_data["service_name"])
+        strategy_instance_obj: StrategyInstance = StrategyInstance.objects.filter(
+            bk_biz_id=self.query_data["bk_biz_id"],
+            app_name=self.query_data["app_name"],
+            strategy_template_id=strategy_template_obj.pk,
+            service_name=self.query_data["service_name"],
+        ).first()
+        if not strategy_instance_obj:
+            return Response(preview_data)
+        preview_data["detect"] = strategy_instance_obj.detect
+        preview_data["algorithms"] = strategy_instance_obj.algorithms
+        preview_data["user_group_list"] = list(helper.get_user_groups(strategy_instance_obj.user_group_ids).values())
+        preview_data["context"] = {
+            k: strategy_instance_obj.context.get(k, v) for k, v in preview_data["context"].items()
+        }
+        return Response(preview_data)
 
     def _get_id_strategy_map(self, ids: Iterable[int]) -> dict[int, dict[str, Any]]:
         return helper.get_id_strategy_map(self.query_data["bk_biz_id"], ids)
@@ -377,6 +392,7 @@ class StrategyTemplateViewSet(GenericViewSet):
 
         diff_data: list[dict[str, Any]] = []
         current_dict: dict[str, Any] = self._preview(strategy_template_obj, self.query_data["service_name"])
+        is_connector_update: bool = False
         for field_name in ["detect", "algorithms", "user_group_list", "context"]:
             # 第一步取值
             if field_name == "user_group_list":
@@ -386,9 +402,16 @@ class StrategyTemplateViewSet(GenericViewSet):
             else:
                 current = current_dict.get(field_name)
                 applied = getattr(applied_instance_obj, field_name)
+                if field_name == "detect":
+                    # 向前兼容
+                    current.setdefault("connector", constants.DetectConnector.AND.value)
+                    applied.setdefault("connector", constants.DetectConnector.AND.value)
+                    is_connector_update = current["connector"] != applied["connector"]
 
             # 第二步比较
-            if count_md5(current) == count_md5(applied):
+            # 如果检测算法关系发生变化，同时返回 algorithms
+            is_algorithm_connector_changed = field_name == "algorithms" and is_connector_update
+            if not is_algorithm_connector_changed and count_md5(current) == count_md5(applied):
                 continue
 
             # 第三步对差异值进行排序处理

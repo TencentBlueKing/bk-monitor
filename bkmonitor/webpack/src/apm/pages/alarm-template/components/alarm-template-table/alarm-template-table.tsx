@@ -31,6 +31,7 @@ import { random } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
+import { isEnFn } from 'monitor-pc/utils';
 
 import {
   ALARM_TEMPLATE_TABLE_FILTER_FIELDS,
@@ -156,6 +157,8 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     updateValue: Partial<AlarmTemplateListItem>
   ) => Promise<unknown>;
 
+  isEn = isEnFn();
+
   /** 强制刷新表格(主要处理表格表头筛选没有响应式问题) */
   refreshKey = random(8);
   /** dialog 弹窗所需配置项 */
@@ -206,7 +209,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     algorithms: {
       id: 'algorithms',
       label: this.$t('检测规则'),
-      width: 250,
+      width: 400,
       resizable: false,
       showOverflowTooltip: false,
       formatter: this.algorithmsColRenderer,
@@ -241,7 +244,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     operator: {
       id: 'operator',
       label: this.$t('操作'),
-      width: 160,
+      width: this.isEn ? 240 : 160,
       resizable: false,
       fixed: 'right',
       formatter: this.operatorColRenderer,
@@ -663,7 +666,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
    */
   handleGoService(serviceName: string) {
     const { from, to } = this.$route.query;
-    let urlStr = `${window.__BK_WEWEB_DATA__?.baseroute || ''}service/?filter-service_name=${serviceName}&filter-app_name=${this.appName}`;
+    let urlStr = `${window.__BK_WEWEB_DATA__?.parentRoute || ''}service/?filter-service_name=${serviceName}&filter-app_name=${this.appName}`;
     urlStr += `&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
     const { href } = this.$router.resolve({
       path: urlStr,
@@ -775,11 +778,14 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
     const value = row[columnKey];
     return (
       <div class='algorithms-col'>
-        <DetectionAlgorithmsGroup algorithms={value} />
+        <DetectionAlgorithmsGroup
+          algorithms={value}
+          connector={row.detect?.connector}
+        />
         <div
           class='edit-btn'
           onClick={() =>
-            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+            this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value, row })
           }
         >
           <i class='icon-monitor icon-bianji' />
@@ -800,7 +806,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
               <div
                 class='edit-btn'
                 onClick={() =>
-                  this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value })
+                  this.handleDialogConfigChange({ templateId: row.id, activeType: columnKey, defaultValue: value, row })
                 }
               >
                 <i class='icon-monitor icon-bianji' />
@@ -989,6 +995,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
           <AlarmTemplateConfigDialog
             activeType={this.templateDialogConfig?.activeType}
             defaultValue={this.templateDialogConfig?.defaultValue}
+            row={this.templateDialogConfig?.row}
             templateId={this.templateDialogConfig?.templateId}
             onCancel={() => this.handleDialogConfigChange(null)}
             onConfirm={this.handleBatchUpdate}

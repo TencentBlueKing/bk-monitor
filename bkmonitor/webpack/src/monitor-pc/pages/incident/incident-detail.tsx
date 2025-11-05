@@ -58,7 +58,7 @@ export default class IncidentDetail extends tsc<{ id: string }> {
   get incidentDetailData() {
     return {
       host: this.incidentDetailHost,
-      baseroute: '/trace/',
+      parentRoute: '/trace/',
       showDetailSlider: this.handleShowDetail,
     };
   }
@@ -77,7 +77,7 @@ export default class IncidentDetail extends tsc<{ id: string }> {
   async mounted() {
     const data = {
       host: this.incidentDetailHost,
-      baseroute: '/trace/',
+      parentRoute: '/trace/',
       showDetailSlider: this.handleShowDetail,
       setUnmountCallback: (callback: () => void) => {
         this.unmountCallback = callback;
@@ -89,7 +89,7 @@ export default class IncidentDetail extends tsc<{ id: string }> {
         container: this.incidentDetailRef.shadowRoot,
         data,
         id: this.randomKey,
-        setShodowDom: true,
+        setShadowDom: true,
         showSourceCode: false,
         url: this.incidentDetailUrl,
       });
@@ -130,7 +130,9 @@ export default class IncidentDetail extends tsc<{ id: string }> {
           eventId={this.detailInfo.id}
           isShow={this.detailInfo.isShow}
           type={this.detailInfo.type}
-          onShowChange={v => (this.detailInfo.isShow = v)}
+          onShowChange={v => {
+            this.detailInfo.isShow = v;
+          }}
         />
       </div>
     );

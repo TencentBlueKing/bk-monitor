@@ -143,7 +143,7 @@ export default defineComponent({
             </CreateGroupPopover>
             <Input
               v-model={groupSearchKey.value}
-              placeholder={t('搜索分组名')}
+              placeholder={t('搜索')}
             />
           </div>
           <div class='group-custom-wrapper'>

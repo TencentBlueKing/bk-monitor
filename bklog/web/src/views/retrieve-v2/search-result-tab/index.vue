@@ -20,22 +20,26 @@ const route = useRoute();
 
 const emit = defineEmits(['input']);
 
-const indexSetId = computed(() => store.state.indexId);
+const indexSetIds = computed(() => store.state.indexItem.ids);
+const indexSetId = computed(() => indexSetIds.value[0]);
 const bkBizId = computed(() => store.state.bkBizId);
 
-const indexSetItem = computed(() =>
-  store.state.retrieve.indexSetList?.find(item => `${item.index_set_id}` === `${indexSetId.value}`),
+const indexSetItems = computed(() => store.state.retrieve.flatIndexSetList?.filter(item => indexSetIds.value.includes(`${item.index_set_id}`)),
 );
 
 const retrieveParams = computed(() => store.getters.retrieveParams);
 const requestAddition = computed(() => store.getters.requestAddition);
 
 const isAiopsToggle = computed(() => {
+  if (store.getters.isUnionSearch) {
+    return false;
+  }
+
   // 日志聚类总开关
   const { bkdata_aiops_toggle: bkdataAiopsToggle } = window.FEATURE_TOGGLE;
   const aiopsBizList = window.FEATURE_TOGGLE_WHITE_LIST?.bkdata_aiops_toggle;
-  const isLocalToggle = (indexSetItem.value?.scenario_id === 'log' && indexSetItem.value.collector_config_id !== null) ||
-    indexSetItem.value?.scenario_id === 'bkdata'
+  const isLocalToggle = (indexSetItems.value?.some(i => i.scenario_id === 'log' && i.collector_config_id !== null))
+    || indexSetItems.value?.some(i => i.scenario_id === 'bkdata');
 
   switch (bkdataAiopsToggle) {
     case 'on':
@@ -47,7 +51,8 @@ const isAiopsToggle = computed(() => {
   }
 });
 
-const isChartEnable = computed(() => indexSetItem.value?.support_doris && !store.getters.isUnionSearch);
+const isChartEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris);
+const isGrepEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris);
 
 const isExternal = computed(() => window.IS_EXTERNAL === true);
 // 可切换Tab数组
@@ -56,7 +61,7 @@ const panelList = computed(() => {
     { name: 'origin', label: $t('原始日志'), disabled: false },
     { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value },
     { name: 'graphAnalysis', label: $t('图表分析'), disabled: !isChartEnable.value },
-    { name: 'grep', label: $t('Grep模式'), disabled: !indexSetItem.value?.support_doris },
+    { name: 'grep', label: $t('Grep模式'), disabled: !isGrepEnable.value },
   ];
 });
 
@@ -75,7 +80,6 @@ const tabClassList = computed(() => {
   });
 });
 const handleDialogUpdate = (newVal) => {
-  console.log('handleDialogUpdate', newVal);
   showDialog.value = newVal;
 };
 
@@ -91,7 +95,7 @@ const handleAddAlertPolicy = async () => {
     dimension: [], // 监控维度
     condition: [], // 监控条件
   };
-  const indexSet = (store.state.retrieve.indexSetList ?? []).find(item => item.index_set_id === indexSetId);
+  const indexSet = (store.state.retrieve.indexSetList ?? []).find(item => item.index_set_id === indexSetId.value);
   if (indexSet) {
     params.scenarioId = indexSet.category_id;
   }
@@ -120,23 +124,23 @@ const handleAddAlertPolicy = async () => {
   }
   window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
 };
-const handleAddAlertDashboard = async () => { 
+const handleAddAlertDashboard = async () => {
   showDialog.value = true;
 };
-const handleActive = panel => {
+const handleActive = (panel) => {
   if (props.value === panel) return;
 
   emit('input', panel, panel === 'origin');
 };
 
 watch(
-  () => [indexSetItem.value?.support_doris, isChartEnable.value, isAiopsToggle.value],
+  () => [isGrepEnable.value, isChartEnable.value, isAiopsToggle.value],
   ([grepEnable, graphEnable, aiopsEnable]) => {
     if (['clustering', 'graphAnalysis', 'grep'].includes(route.query.tab)) {
       if (
-        (!grepEnable && route.query.tab === 'grep') ||
-        (!graphEnable && route.query.tab === 'graphAnalysis') ||
-        (!aiopsEnable && route.query.tab === 'clustering')
+        (!grepEnable && route.query.tab === 'grep')
+        || (!graphEnable && route.query.tab === 'graphAnalysis')
+        || (!aiopsEnable && route.query.tab === 'clustering')
       ) {
         handleActive('origin');
       }
@@ -153,30 +157,38 @@ onMounted(() => {
 </script>
 <template>
   <div class="retrieve2-tab">
-    <span
-      v-for="(item, index) in renderPanelList"
-      :key="item.label"
-      :class="['retrieve-panel', { active: value === item.name }, ...tabClassList[index]]"
-      @click="handleActive(item.name)"
-      >{{ item.label }}</span
-    >
-    <!-- <div class="btn-alert-dashboard" @click="handleAddAlertDashboard">
-      <span class="bklog-icon bklog-yibiaopan" style="font-size: 16px"></span>
-      <span>{{ $t('添加到仪表盘') }}</span>
-    </div> -->
-    <div
-      class="btn-alert-policy"
-      @click="handleAddAlertPolicy"
-      v-if="!isExternal"
-    >
+    <div class="retrieve2-tab-left">
       <span
-        class="bklog-icon bklog--celve"
-        style="font-size: 16px"
-      ></span>
-      <span>{{ $t('添加告警策略') }}</span>
+        v-for="(item, index) in renderPanelList"
+        :key="item.label"
+        :class="['retrieve-panel', { active: value === item.name }, ...tabClassList[index]]"
+        @click="handleActive(item.name)"
+      >{{ item.label }}</span>
     </div>
-  
-     <DashboardDialog
+    <div class="retrieve2-tab-right">
+      <div
+        class="btn-alert-dashboard btn-spacing"
+        @click="handleAddAlertDashboard"
+      >
+        <span
+          class="bklog-icon bklog-yibiaopan"
+          style="font-size: 16px"
+        />
+        <span>{{ $t('添加到仪表盘') }}</span>
+      </div>
+      <div
+        v-if="!isExternal"
+        class="btn-alert-policy btn-spacing"
+        @click="handleAddAlertPolicy"
+      >
+        <span
+          class="bklog-icon bklog--celve"
+          style="font-size: 16px"
+        />
+        <span>{{ $t('添加告警策略') }}</span>
+      </div>
+    </div>
+    <DashboardDialog
       :is-show="showDialog"
       @update:isShow="handleDialogUpdate"
       @on-collection-success="handleCollectionSuccess"

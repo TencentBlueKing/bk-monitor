@@ -24,7 +24,7 @@ export default function useInputState() {
   };
 
   // 更新输入状态
-  const updateInputState = state => {
+  const updateInputState = (state) => {
     const currentPos = state.selection.main.to;
     const currentValue = state.doc.toString();
 

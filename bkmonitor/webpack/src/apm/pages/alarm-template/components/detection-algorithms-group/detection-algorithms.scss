@@ -1,35 +1,44 @@
+@mixin ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .detection-algorithms {
-  display: flex;
-  column-gap: 4px;
   align-items: center;
   line-height: 20px;
 
-  .detection-algorithms-content {
-    .method {
-      margin-right: 4px;
-    }
+  @include ellipsis;
 
-    .threshold {
-      font-weight: 700;
-    }
+  .method {
+    margin-right: 4px;
   }
 
-  .detection-algorithms-lever {
-    .icon-monitor {
-      margin-right: 2px;
-      font-size: 14px;
+  .bold {
+    font-weight: 700;
+  }
 
-      &.icon-danger {
-        color: #e71818;
-      }
+  .detection-algorithms-label {
+    margin-left: 4px;
+  }
 
-      &.icon-mind-fill {
-        color: #f59500;
-      }
+  .algorithm-item-text {
+    margin: 0 4px;
+  }
 
-      &.icon-tips {
-        color: #3a84ff;
-      }
+  .detection-algorithms-level {
+    font-size: 14px;
+
+    &.icon-danger {
+      color: #e71818;
+    }
+
+    &.icon-mind-fill {
+      color: #f59500;
+    }
+
+    &.icon-tips {
+      color: #3a84ff;
     }
   }
 }

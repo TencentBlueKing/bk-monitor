@@ -107,6 +107,7 @@ export default defineComponent({
       delineate: true,
       aiBluekingEnabled: store.state.features.isAiAssistantActive,
       stopPropagation: true,
+      highlightEnabled: true,
       onclick: (...args) => {
         const type = args[1];
         if (type === 'add-to-ai') {
@@ -191,7 +192,7 @@ export default defineComponent({
 
     addEvent(RetrieveEvent.AUTO_REFRESH, () => {
       resetPageState();
-      store.dispatch('requestIndexSetQuery');
+      store.dispatch('requestIndexSetQuery', { from: 'auto_refresh' });
     });
     const setRenderList = (length?: number) => {
       const arr: Record<string, any>[] = [];

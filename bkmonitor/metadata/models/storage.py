@@ -724,7 +724,7 @@ class StorageResultTable:
                         bk_tenant_id=self.bk_tenant_id, table_id=self.table_id, is_current=True
                     ).update(is_current=False, disable_time=result_table.last_modify_time)
 
-                    correct_record, _ = StorageClusterRecord.objects.get_or_create(
+                    StorageClusterRecord.objects.get_or_create(
                         table_id=self.table_id,
                         cluster_id=new_storage_cluster_id,
                         is_current=True,
@@ -2118,13 +2118,23 @@ class ESStorage(models.Model, StorageResultTable):
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)
         return new_record
 
+    def get_raw_data(self, index_name: str):
+        """查询原始数据，最新数据"""
+        return self.es_client.search(
+            index=index_name,
+            body={
+                "query": {"match_all": {}},
+                "sort": [{"dtEventTimeStamp": {"order": "desc"}}],
+            },
+        )
+
     @property
     def index_body(self):
         """
         ES创建索引的配置内容
         :return: dict, 可以直接
         """
-        from metadata.models import ESFieldQueryAliasOption, ResultTableField
+        from metadata.models import ResultTableField, ResultTableFieldOption
 
         logger.info("index_body: try to compose index_body for table_id->[%s]", self.table_id)
         body = {"settings": json.loads(self.index_settings), "mappings": json.loads(self.mapping_settings)}
@@ -2145,85 +2155,11 @@ class ESStorage(models.Model, StorageResultTable):
                     e,
                 )
 
-        try:
-            logger.info("index_body: try to add alias_config for table_id->[%s]", self.table_id)
-            # 别名-原字段配置
-            alias_config = ESFieldQueryAliasOption.generate_query_alias_settings(
-                self.table_id, bk_tenant_id=self.bk_tenant_id
-            )
-            logger.info("index_body: table_id->[%s] got alias_config->[%s]", self.table_id, alias_config)
-            # 别名原字段-字段类型配置
-            alias_path_type_config = ESFieldQueryAliasOption.generate_alias_path_type_settings(
-                table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
-            )
-            logger.info(
-                "index_body: table_id->[%s] got alias_path_type_config->[%s]", self.table_id, alias_path_type_config
-            )
-            properties.update(alias_config)
-            properties.update(alias_path_type_config)
-        except Exception as e:
-            logger.warning("index_body: add alias_config failed,table_id->[%s],error->[%s]", self.table_id, e)
-
         # 按ES版本返回构建body内容
         if self.es_version < self.ES_REMOVE_TYPE_VERSION:
             body["mappings"] = {self.table_id: body["mappings"]}
         logger.info("index_body: compose index_body for->[%s] success,body->[%s]", self.table_id, body)
         return body
-
-    def compose_field_alias_settings(self):
-        """
-        组装采集项的别名配置
-        :return: dict {"properties":{"alias":"type":"alias","path":"xxx"}}
-        """
-        from metadata.models import ESFieldQueryAliasOption
-
-        logger.info("compose_field_alias_settings: try to compose field alias mapping for->[%s]", self.table_id)
-        properties = ESFieldQueryAliasOption.generate_query_alias_settings(
-            table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
-        )
-        logger.info(
-            "compose_field_alias_settings: compose alias mapping for->[%s] of bk_tenant_id->[%s] success,"
-            "alias_settings->[%s]",
-            self.table_id,
-            self.bk_tenant_id,
-            properties,
-        )
-        return {"properties": properties}
-
-    def put_field_alias_mapping_to_es(self):
-        """
-        推送别名配置至ES
-        """
-        # 组装字段别名配置
-        properties = self.compose_field_alias_settings()
-        # 获取使用中的索引列表
-        activate_index_list = self.get_activate_index_list()
-        if not activate_index_list:
-            logger.info("put_field_alias_mapping_to_es: table_id->[%s],got no activate index,return", self.table_id)
-            return
-        logger.info("put_field_alias_mapping_to_es: try to put->[%s] for->[%s]", properties, activate_index_list)
-
-        # 循环遍历激活的索引列表，推送别名配置
-        for index in activate_index_list:
-            logger.info("put_field_alias_mapping_to_es: try to put alias->[%s] for index->[%s]", properties, index)
-            try:
-                response = self.es_client.indices.put_mapping(body=properties, index=index)
-                logger.info(
-                    "put_field_alias_mapping_to_es: put alias for index->[%s] success,response->[%s]", index, response
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "put_field_alias_mapping_to_es: failed to put alias->[%s] for index->[%s],error->[%s]",
-                    properties,
-                    index,
-                    e,
-                )
-                continue
-        logger.info(
-            "put_field_alias_mapping_to_es: put alias->[%s] for index_list->[%s] successfully",
-            properties,
-            activate_index_list,
-        )
 
     @property
     def index_re_v1(self):
@@ -2929,14 +2865,7 @@ class ESStorage(models.Model, StorageResultTable):
             self.table_id,
             is_moving_cluster,
         )
-        try:
-            # 0. 更新mapping配置
-            self.put_field_alias_mapping_to_es()
-            logger.info("update_index_and_aliases:put alias to es for table_id->[%s] success", self.table_id)
-        except Exception as e:
-            logger.error(
-                "update_index_and_aliases:failed to put field alias for table_id->[%s],error->[%s]", self.table_id, e
-            )
+
         # 1. 更新索引
         self.update_index_v2()
         # 2. 更新对应的别名<->索引绑定关系
@@ -4247,6 +4176,10 @@ class ESStorage(models.Model, StorageResultTable):
         return "SUCCESS"
 
     @property
+    def snapshot_in_progress_state(self):
+        return "IN_PROGRESS"
+
+    @property
     def restore_index_prefix(self):
         return "restore_"
 
@@ -4317,13 +4250,7 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info("get_activated_index_list: table_id->[%s],got activate index list->[%s]", self.table_id, index_list)
         return index_list
 
-    def current_snapshot_info(self):
-        try:
-            snapshots = self.es_client.snapshot.get(
-                self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
-            ).get("snapshots", [])
-        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
-            snapshots = []
+    def get_max_snapshot(self, snapshots: list):
         snapshot_re = self.snapshot_re
         max_datetime = None
         max_snapshot = {}
@@ -4346,9 +4273,22 @@ class ESStorage(models.Model, StorageResultTable):
                 max_datetime = current_datetime
                 max_snapshot = snapshot
 
+        return max_datetime, max_snapshot
+
+    def current_snapshot_info(self):
+        try:
+            snapshots = self.es_client.snapshot.get(
+                self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
+            ).get("snapshots", [])
+        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+            snapshots = []
+
+        max_datetime, max_snapshot = self.get_max_snapshot(snapshots)
+
         return {
             "datetime": max_datetime,
             "snapshot": max_snapshot.get("snapshot"),
+            "indices": max_snapshot.get("indices", []),
             "is_success": max_snapshot.get("state") == self.snapshot_complete_state,
         }
 
@@ -4361,16 +4301,27 @@ class ESStorage(models.Model, StorageResultTable):
             return
 
         current_snapshot_info = self.current_snapshot_info()
+        current_snapshot_name = current_snapshot_info["snapshot"]
         now = self.now
+        local_create = False
 
         # 如果最新快照不存在 直接创建
         if current_snapshot_info["datetime"]:
-            # 当天快照已经创建不再创建
-            if current_snapshot_info["datetime"].day == now.day:
+            local_snapshot_exists = EsSnapshotIndice.objects.filter(
+                table_id=self.table_id,
+                snapshot_name=current_snapshot_name,
+                bk_tenant_id=self.bk_tenant_id,
+            ).exists()
+            es_snapshot_exists = current_snapshot_info["datetime"].day == now.day
+            current_snapshot_is_success = current_snapshot_info["is_success"]
+
+            # 当天快照已经创建或快照未完成，不创建新的快照
+            skip_create = es_snapshot_exists or not current_snapshot_is_success
+            # 本地存在快照，且无需创建新的快照，跳过
+            if local_snapshot_exists and skip_create:
                 return
-            # 快照未完成 不创建新的快照
-            if not current_snapshot_info["is_success"]:
-                return
+            # 无需创建新的快照，但需要补偿创建本地记录
+            local_create = not local_snapshot_exists
 
         new_snapshot_name = self.make_snapshot_name(now, self.index_name)
         expired_index = self.expired_index()
@@ -4378,6 +4329,32 @@ class ESStorage(models.Model, StorageResultTable):
         # 如果当天没有需要删除的索引 不进行快照
         if not expired_index:
             return
+
+        # 补偿创建本地记录
+        if local_create:
+            try:
+                es_snapshot_indices = current_snapshot_info["indices"]
+                # 获取当前过期索引及ES中最近一次快照的物理索引列表交集
+                expired_index = list(set(expired_index) & set(es_snapshot_indices))
+                EsSnapshotIndice.objects.bulk_create(
+                    [
+                        self.create_target_index_meta_info(_expired_index, current_snapshot_name)
+                        for _expired_index in expired_index
+                    ]
+                )
+                logger.info(
+                    "table_id->[%s] has compensated local snapshot ->[%s]", self.table_id, current_snapshot_name
+                )
+            except Exception as e:
+                logger.exception(
+                    "table_id->[%s] has compensated local snapshot ->[%s] failed e -> [%s]",
+                    self.table_id,
+                    current_snapshot_name,
+                    e,
+                )
+            finally:
+                return
+
         try:
             with atomic(config.DATABASE_CONNECTION_NAME):
                 EsSnapshotIndice.objects.bulk_create(
@@ -4440,21 +4417,12 @@ class ESStorage(models.Model, StorageResultTable):
         expired_datetime_point = snapshot_datetime + datetime.timedelta(days=self.snapshot_obj.snapshot_days)
         return expired_datetime_point.timestamp()
 
-    def get_expired_snapshot(self, expired_days: int):
-        logger.info("table_id -> [%s] filter expired snapshot before %s days", self.table_id, expired_days)
-        expired_datetime_point = self.now - datetime.timedelta(days=expired_days)
-
-        try:
-            snapshots = self.es_client.snapshot.get(
-                self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
-            ).get("snapshots", [])
-        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
-            snapshots = []
+    def match_expired_snapshot(self, snapshots: list, expired_datetime_point, snapshot_name_key="snapshot") -> list:
         snapshot_re = self.snapshot_re
         expired_snapshots = []
 
         for snapshot in snapshots:
-            snapshot_name = snapshot.get("snapshot")
+            snapshot_name = snapshot.get(snapshot_name_key)
             re_result = snapshot_re.match(snapshot_name)
 
             if re_result:
@@ -4463,18 +4431,51 @@ class ESStorage(models.Model, StorageResultTable):
                     snapshot_datetime_str, self.snapshot_date_format, self.time_zone
                 )
                 if snapshot_datetime < expired_datetime_point:
-                    expired_snapshots.append(snapshot)
+                    expired_snapshots.append(snapshot_name)
         return expired_snapshots
+
+    def get_expired_snapshot(self, expired_days: int):
+        logger.info("table_id -> [%s] filter expired snapshot before %s days", self.table_id, expired_days)
+        expired_datetime_point = self.now - datetime.timedelta(days=expired_days)
+
+        # 获取实际存在ES中的过期快照
+        try:
+            snapshots = self.es_client.snapshot.get(
+                self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
+            ).get("snapshots", [])
+        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+            snapshots = []
+        expired_snapshots = self.match_expired_snapshot(snapshots, expired_datetime_point)
+
+        # 获取本地残留的过期快照
+        all_snapshots = list(
+            EsSnapshotIndice.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).values(
+                "snapshot_name"
+            )
+        )
+        local_expired_snapshots = self.match_expired_snapshot(
+            all_snapshots, expired_datetime_point, snapshot_name_key="snapshot_name"
+        )
+        residual_expired_snapshots = list(set(local_expired_snapshots) - set(expired_snapshots))
+
+        return expired_snapshots, residual_expired_snapshots
 
     def clean_snapshot(self):
         if not self.can_delete_snapshot:
             return
 
-        expired_snapshots = self.get_expired_snapshot(self.snapshot_obj.snapshot_days)
         logger.debug("table_id->[%s] need delete snapshot ", self.table_id)
 
-        for expired_snapshot in expired_snapshots:
-            snapshot_name = expired_snapshot.get("snapshot")
+        expired_snapshots, residual_expired_snapshots = self.get_expired_snapshot(self.snapshot_obj.snapshot_days)
+        if residual_expired_snapshots:
+            EsSnapshotIndice.objects.filter(
+                table_id=self.table_id,
+                snapshot_name__in=residual_expired_snapshots,
+                bk_tenant_id=self.bk_tenant_id,
+            ).delete()
+            logger.info("table_id->[%s] has clean residual snapshot %s", self.table_id, residual_expired_snapshots)
+
+        for snapshot_name in expired_snapshots:
             try:
                 self.delete_snapshot(snapshot_name, self.snapshot_obj.target_snapshot_repository_name)
             except Exception as e:  # pylint: disable=broad-except
@@ -4492,16 +4493,59 @@ class ESStorage(models.Model, StorageResultTable):
 
     def delete_all_snapshot(self, target_snapshot_repository_name):
         logger.info("table_id -> [%s] will delete all snapshot", self.table_id)
-        all_snapshots = self.es_client.snapshot.get(target_snapshot_repository_name, self.search_snapshot).get(
-            "snapshots", []
-        )
+        try:
+            all_snapshots = self.es_client.snapshot.get(target_snapshot_repository_name, self.search_snapshot).get(
+                "snapshots", []
+            )
+        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+            all_snapshots = []
+
+        delete_exception_snapshots = []
         for snapshot in all_snapshots:
             snapshot_name = snapshot.get("snapshot")
             try:
                 self.delete_snapshot(snapshot_name, target_snapshot_repository_name)
             except Exception as e:  # pylint: disable=broad-except
+                delete_exception_snapshots.append(snapshot_name)
                 logger.exception("delete snapshot [%s] failed => %s", snapshot_name, e)
+
+        # 若有快照删除异常，则抛出异常
+        if delete_exception_snapshots:
+            raise ValueError(_("delete all snapshot has failed %s") % delete_exception_snapshots)
+
+        # 删除残留的快照物理索引记录
+        EsSnapshotIndice.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).delete()
         logger.info("table_id -> [%s] has delete all snapshot", self.table_id)
+
+    @atomic(config.DATABASE_CONNECTION_NAME)
+    def retry_snapshot(self, target_snapshot_repository_name):
+        if not self.can_snapshot:
+            return
+
+        # 如果是停用状态，则不能重试快照
+        if self.is_snapshot_stopped:
+            return
+
+        # 检查快照是否可重试
+        try:
+            snapshots = self.es_client.snapshot.get(
+                self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
+            ).get("snapshots", [])
+        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+            snapshots = []
+
+        max_datetime, max_snapshot = self.get_max_snapshot(snapshots)
+        if max_datetime is None:
+            raise ValueError(_("table_id -> [%s] current snapshot is not exist") % self.table_id)
+        # 成功(SUCCESS)或归档中(IN_PROGRESS)，不可重试状态
+        if max_snapshot.get("state") in [self.snapshot_complete_state, self.snapshot_in_progress_state]:
+            raise ValueError(
+                _("table_id -> [%s] current snapshot is success or in progress, can not retry") % self.table_id
+            )
+
+        snapshot_name = max_snapshot.get("snapshot")
+        # 删除异常快照
+        self.delete_snapshot(snapshot_name, target_snapshot_repository_name)
 
 
 class DataBusStatus:

@@ -29,16 +29,22 @@ import { Component as tsc } from 'vue-tsx-support';
 import { listUserGroup } from 'monitor-api/modules/model';
 import VariablePanel from 'monitor-pc/pages/query-template/variables/components/variable-panel/variable-panel';
 
-import Threshold from './detect-rules/threshold';
+import AlgorithmRules from './algorithm-rules/algorithm-rules';
+import {
+  type AlgorithmItemUnion,
+  type DetectConfig,
+  type EditTemplateFormData,
+  type UserGroupItem,
+  AlgorithmEnum,
+} from './typing';
 
-import type { AlgorithmItem, DetectConfig, EditTemplateFormData, UserGroupItem } from './typing';
 import type { VariableModelType } from 'monitor-pc/pages/query-template/variables';
 
 import './template-form.scss';
 
 interface TemplateFormEvents {
   onAlarmGroupChange: (alarmGroup: UserGroupItem[]) => void;
-  onAlgorithmsChange: (algorithms: AlgorithmItem[]) => void;
+  onAlgorithmsChange: (algorithms: AlgorithmItemUnion[]) => void;
   onAutoApplyChange: (autoApply: boolean) => void;
   onCancel: () => void;
   onDetectChange: (detect: DetectConfig) => void;
@@ -93,7 +99,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
     algorithms: [
       {
         required: true,
-        message: this.$t('检测规则必须开启一个级别'),
+        message: this.$t('必须选择一个检测规则'),
         trigger: 'change',
       },
       {
@@ -147,7 +153,15 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
 
   /** 校验检测规则 */
   validAlgorithms() {
-    return this.data.algorithms.every(item => item.config.threshold || item.config.threshold === 0);
+    return this.data.algorithms.every(item => {
+      if (item.type === AlgorithmEnum.Threshold) {
+        return item.config.threshold || item.config.threshold === 0;
+      }
+      if (item.type === AlgorithmEnum.YearRoundAndRingRatio) {
+        return item.config.ceil >= 1 && item.config.ceil <= 100 && item.config.floor >= 1 && item.config.floor <= 100;
+      }
+      return true;
+    });
   }
 
   /** 校验判断条件 */
@@ -175,11 +189,23 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
    * @description 修改检测规则
    * @param value 检测规则
    */
-  handleAlgorithmsChange(value: AlgorithmItem[]) {
+  handleAlgorithmsChange(value: AlgorithmItemUnion[]) {
     if (JSON.stringify(value) !== JSON.stringify(this.data.algorithms)) {
       this.$emit('algorithmsChange', value);
       this.formRef?.validateField('algorithms');
     }
+  }
+
+  /**
+   * @description 修改算法之间的关系
+   * @param value 算法关系(or || and)
+   */
+  handleConnectorChange(value: string) {
+    this.$emit('detectChange', {
+      type: this.data?.detect?.type,
+      connector: value,
+      config: this.data?.detect?.config,
+    });
   }
 
   /**
@@ -190,6 +216,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
     if (value !== this.data?.detect?.config.trigger_check_window) {
       this.$emit('detectChange', {
         type: this.data?.detect?.type,
+        connector: this.data?.detect?.connector,
         config: {
           ...this.data?.detect?.config,
           trigger_check_window: value,
@@ -357,10 +384,12 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
               property='algorithms'
               required
             >
-              <Threshold
-                data={this.data?.algorithms}
-                defaultUnit={this.algorithmsUnit}
+              <AlgorithmRules
+                algorithms={this.data?.algorithms}
+                algorithmsUnit={this.algorithmsUnit}
+                connector={this.data?.detect?.connector}
                 onChange={this.handleAlgorithmsChange}
+                onConnectorChange={this.handleConnectorChange}
               />
             </bk-form-item>
             <bk-form-item

@@ -8,14 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from constants.apm import CachedEnum
-from constants.data_source import ResultTableLabelObj
-
+from typing import Any
 
 from django.utils.functional import cached_property
-
 from django.utils.translation import gettext_lazy as _
 
+from bkmonitor.models import AlgorithmModel
+from constants.apm import CachedEnum
+from constants.data_source import ResultTableLabelObj
 
 DEFAULT_ROOT_ID: int = 0
 
@@ -38,6 +38,90 @@ class ThresholdLevel(CachedEnum):
     @cached_property
     def label(self) -> str:
         return str({self.FATAL: _("致命"), self.WARNING: _("预警"), self.REMINDER: _("提醒")}.get(self, self.value))
+
+
+class AlgorithmType(CachedEnum):
+    """算法类型"""
+
+    THRESHOLD = AlgorithmModel.AlgorithmChoices.Threshold
+    ADVANCED_YEAR_ROUND = AlgorithmModel.AlgorithmChoices.AdvancedYearRound
+    YEAR_ROUND_AND_RING_RATIO = "YearRoundAndRingRatio"
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+    @cached_property
+    def label(self) -> str:
+        return str({self.THRESHOLD: _("静态阈值"), self.YEAR_ROUND_AND_RING_RATIO: _("同环比")}.get(self, self.value))
+
+
+class AlgorithmYearRoundAndRingRatioMethod(CachedEnum):
+    """同环比方法"""
+
+    FIVE_MINUTE_RING_RATIO = "FiveMinuteRingRatio"
+    YESTERDAY_COMPARISON = "YesterdayComparison"
+    LAST_WEEK_COMPARISON = "LastWeekComparison"
+    WEEKLY_AVERAGE_COMPARISON = "WeeklyAverageComparison"
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.FIVE_MINUTE_RING_RATIO: _("前五分钟对比"),
+                self.YESTERDAY_COMPARISON: _("昨天同期对比"),
+                self.LAST_WEEK_COMPARISON: _("上周同期对比"),
+                self.WEEKLY_AVERAGE_COMPARISON: _("前七天同期均值对比"),
+            }.get(self, self.value)
+        )
+
+    @cached_property
+    def config(self) -> dict[str, Any]:
+        return {
+            self.FIVE_MINUTE_RING_RATIO: {
+                "ceil_interval": 5,
+                "floor_interval": 5,
+                "fetch_type": "last",
+                "type": AlgorithmModel.AlgorithmChoices.AdvancedRingRatio,
+            },
+            self.YESTERDAY_COMPARISON: {
+                "ceil_interval": 1,
+                "floor_interval": 1,
+                "fetch_type": "avg",
+                "type": AlgorithmModel.AlgorithmChoices.AdvancedYearRound,
+            },
+            self.LAST_WEEK_COMPARISON: {
+                "ceil_interval": 7,
+                "floor_interval": 7,
+                "fetch_type": "last",
+                "type": AlgorithmModel.AlgorithmChoices.AdvancedYearRound,
+            },
+            self.WEEKLY_AVERAGE_COMPARISON: {
+                "ceil_interval": 7,
+                "floor_interval": 7,
+                "fetch_type": "avg",
+                "type": AlgorithmModel.AlgorithmChoices.AdvancedYearRound,
+            },
+        }.get(self, {})
+
+
+class DetectConnector(CachedEnum):
+    """检测连接符"""
+
+    AND = "and"
+    OR = "or"
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+    @cached_property
+    def label(self) -> str:
+        return str({self.AND: _("且"), self.OR: _("或")}.get(self, self.value))
 
 
 class StrategyTemplateType(CachedEnum):

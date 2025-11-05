@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import importlib
 import logging
+import os
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -40,7 +41,7 @@ from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models import ActionInstance, ConvergeRelation
 from bkmonitor.models.strategy import DutyRule, DutyRuleRelation, UserGroup
-from constants.action import ActionSignal, ActionStatus, ConvergeType, FailureType
+from constants.action import ActionPluginType, ActionSignal, ActionStatus, ConvergeType, FailureType
 from core.errors.alarm_backends import LockError
 from core.prometheus import metrics
 
@@ -175,6 +176,39 @@ def run_webhook_action(action_type, action_info):
     :return:
     """
     run_action(action_type, action_info)
+
+
+@app.task(ignore_result=True, queue="celery_notice_action")
+def run_notice_action(action_type, action_info):
+    """
+    通知专用队列
+    :param action_type:
+    :param action_info:
+    :return:
+    """
+    run_action(action_type, action_info)
+
+
+def dispatch_action_task(action_type, action_info, countdown=0, **kwargs):
+    """
+    根据 action_type 自动选择对应的队列发送 run_action 任务
+
+    :param action_type: 动作类型，如 ActionPluginType.NOTICE, ActionPluginType.WEBHOOK 等
+    :param action_info: 动作信息，包含事件ID，处理函数，以及对应的回调参数
+    :param countdown: 任务延迟执行的秒数
+    :param kwargs: 传递给 apply_async 的其他参数，如 expires 等
+    :return: 任务ID
+    """
+    # WEBHOOK 和 MESSAGE_QUEUE 类型使用 webhook 队列
+    if action_type in [ActionPluginType.WEBHOOK, ActionPluginType.MESSAGE_QUEUE]:
+        return run_webhook_action.apply_async((action_type, action_info), countdown=countdown, **kwargs)
+
+    # NOTICE 类型可以使用专用的通知队列
+    if os.getenv("ENABLE_NOTICE_QUEUE") and action_type == ActionPluginType.NOTICE:
+        return run_notice_action.apply_async((action_type, action_info), countdown=countdown, **kwargs)
+
+    # 其他类型使用默认的运行队列
+    return run_action.apply_async((action_type, action_info), countdown=countdown, **kwargs)
 
 
 def sync_action_instances():

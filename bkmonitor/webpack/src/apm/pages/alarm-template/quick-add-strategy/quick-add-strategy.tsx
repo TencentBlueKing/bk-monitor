@@ -39,7 +39,7 @@ import JudgmentConditions from './judgment-conditions';
 import TemplateList from './template-list';
 
 import type {
-  AlgorithmItem,
+  AlgorithmItemUnion,
   DetectConfig,
   EditTemplateFormData,
   TemplateDetail,
@@ -113,7 +113,7 @@ class QuickAddStrategy extends Mixins(
     // todo
     const { app_name: appName } = this.params;
     const { from, to } = this.$route.query;
-    let urlStr = `${window.__BK_WEWEB_DATA__?.baseroute || ''}application/?filter-app_name=${appName}&dashboardId=alarm_template&strategy_template_details_id=${this.cursorId}`;
+    let urlStr = `${window.__BK_WEWEB_DATA__?.parentRoute || ''}application/?filter-app_name=${appName}&dashboardId=alarm_template&strategy_template_details_id=${this.cursorId}`;
     urlStr += `&from=${from || DEFAULT_TIME_RANGE[0]}&to=${to || DEFAULT_TIME_RANGE[1]}`;
     const { href } = this.$router.resolve({
       path: urlStr,
@@ -199,7 +199,7 @@ class QuickAddStrategy extends Mixins(
   }
 
   /** 检测规则修改 */
-  handleAlgorithmsChange(val: AlgorithmItem[]) {
+  handleAlgorithmsChange(val: AlgorithmItemUnion[]) {
     const currentTemplateData = this.templateFormData[this.cursorId];
     const detailData = this.templateDetail[this.cursorId];
     currentTemplateData.algorithms = val;
@@ -224,7 +224,8 @@ class QuickAddStrategy extends Mixins(
     currentTemplateData.detect = val;
     if (
       val.type === detailData.detect.type &&
-      Object.keys(val.config).every(key => val.config[key] === detailData.detect.config[key])
+      Object.keys(val.config).every(key => val.config[key] === detailData.detect.config[key]) &&
+      val.connector === detailData.detect.connector
     ) {
       delete this.editTemplateFormData[this.cursorId].detect;
     } else {
@@ -273,11 +274,11 @@ class QuickAddStrategy extends Mixins(
       app_name: this.params?.app_name,
       service_names: [this.params?.service_name],
       strategy_template_ids: this.checkedList,
-      extra_configs: Object.keys(this.editTemplateFormData).reduce((pre, cur) => {
-        if (Object.keys(this.editTemplateFormData[cur]).length > 0) {
+      extra_configs: Object.entries(this.editTemplateFormData).reduce((pre, [id, value]) => {
+        if (Object.keys(value).length > 0) {
           pre.push({
-            ...this.editTemplateFormData[cur],
-            strategy_template_id: cur,
+            ...value,
+            strategy_template_id: id,
             service_name: this.params?.service_name,
           });
         }
