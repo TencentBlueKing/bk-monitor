@@ -17,6 +17,7 @@ from elasticsearch_dsl import InnerDoc, Search, field
 
 from bkmonitor.documents import EventDocument
 from bkmonitor.documents.base import BaseDocument, Date
+from bkmonitor.documents.constants import ES_INDEX_SETTINGS
 from bkmonitor.models import NO_DATA_TAG_DIMENSION
 from constants.alert import (
     EVENT_SEVERITY,
@@ -118,7 +119,7 @@ class AlertDocument(BaseDocument):
 
     class Index:
         name = "bkfta_alert"
-        settings = {"number_of_shards": 3, "number_of_replicas": 1, "refresh_interval": "1s"}
+        settings = ES_INDEX_SETTINGS.copy()
 
     def get_index_time(self):
         return self.parse_timestamp_by_id(self.id)

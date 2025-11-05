@@ -1427,8 +1427,8 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
                 )
 
             # ESStorage
-            es_storage_qs = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
-            if not es_storage_qs:
+            es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+            if not es_storage:
                 es_storage = models.ESStorage.objects.create(
                     table_id=table_id,
                     bk_tenant_id=bk_tenant_id,
@@ -1436,15 +1436,13 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
                     slice_size=500,
                     slice_gap=1440,
                     retention=30,
-                    index_settings='{"number_of_shards":4,"number_of_replicas":1}',
+                    index_settings=f'{{"number_of_shards":{settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS},"number_of_replicas":{settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS}}}',
                     mapping_settings='{"dynamic_templates":[{"discover_dimension":{"path_match":"dimensions.*","mapping":{"type":"keyword"}}}]}',
                     source_type="log",
                     need_create_index=True,
                     index_set=table_id,
                     storage_cluster_id=storage_cluster_id,
                 )
-            else:
-                es_storage = es_storage_qs.first()
 
             logger.info("create_base_event_datalink_for_bkcc: es storage created,table_id->[%s]", es_storage.table_id)
     except Exception as e:  # pylint: disable=broad-except
