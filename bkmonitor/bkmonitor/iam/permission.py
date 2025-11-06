@@ -113,6 +113,7 @@ class Permission:
         # 如果request header 中携带token，通过获取token中的鉴权类型type匹配action
         self.skip_check = getattr(settings, "SKIP_IAM_PERMISSION_CHECK", False)
         if request and hasattr(request, "skip_check"):
+            logger.info(f"Permission: request.skip_check: {request.skip_check}")
             self.skip_check = request.skip_check
 
     @classmethod
