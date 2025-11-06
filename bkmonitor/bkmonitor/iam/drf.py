@@ -117,7 +117,7 @@ class MCPPermission(BusinessActionPermission):
             # 如果没有 biz_id，抛出异常
             logger.error("MCPPermission: Missing biz_id for MCP permission check")
             raise PermissionDeniedError("Missing biz_id for MCP permission check")
-        logger.info(f"MCPPermission: biz_id: {request.biz_id}")
+        logger.info(f"MCPPermission: biz_id: {request.biz_id},skip_check: {request.skip_check}")
         self.resources = [ResourceEnum.BUSINESS.create_instance(request.biz_id)]
         logger.info("MCPPermission: Calling IAMPermission.has_permission")
         return IAMPermission.has_permission(self, request, view)

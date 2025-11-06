@@ -237,6 +237,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         # 获取业务ID（从GET或POST参数中获取）
         bk_biz_id = request.GET.get("bk_biz_id")
+        request.skip_check = False  # 手动设置需要进行权限校验
 
         if not bk_biz_id and request.method == "POST":
             # 尝试从POST表单数据中获取
