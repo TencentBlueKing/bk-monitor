@@ -1806,6 +1806,14 @@ class BaseIndexSetHandler:
                     }
                     if table_info["source_type"] == Scenario.LOG:
                         table_info["origin_table_id"] = obj.result_table_id
+                        collector_config = CollectorConfig.objects.filter(table_id=obj.result_table_id).first()
+                        # 为纳秒字段新增别名
+                        if collector_config.is_nanos:
+                            table_info["query_alias_settings"].update({
+                                "field_name": "dtEventTimeStampNanos",
+                                "query_alias": "dtEventTimeStamp"
+                            })
+
                     if query_alias_settings := index_set.query_alias_settings:
                         table_info["query_alias_settings"] = query_alias_settings
 
@@ -1816,11 +1824,6 @@ class BaseIndexSetHandler:
                             "table_id": cls.get_rt_id(index_set.index_set_id, nano_migrate_map[obj.result_table_id]),
                             "index_set": nano_migrate_map[obj.result_table_id].replace(".", "_"),
                             "origin_table_id": nano_migrate_map[obj.result_table_id]
-                        })
-                        # 为纳秒字段新增别名
-                        table_info["query_alias_settings"].update({
-                            "field_name": "dtEventTimeStampNanos",
-                            "query_alias": "dtEventTimeStamp"
                         })
                         request_params["table_info"].append(old_nano_table_info)
 

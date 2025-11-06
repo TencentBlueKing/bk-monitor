@@ -119,7 +119,8 @@ class EtlStorage:
 
     @staticmethod
     def generate_hash_str(
-        type: str, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str, length: int = 8
+            type: str, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str,
+            length: int = 8
     ) -> str:
         """
         根据字段的配置生成简化的hash值
@@ -140,7 +141,7 @@ class EtlStorage:
         return f"{type}_{hash_str}"
 
     def generate_field_analyzer_name(
-        self, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str
+            self, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str
     ) -> str:
         """
         生成analyzer名称
@@ -348,7 +349,7 @@ class EtlStorage:
                 raise ValidationError(_("字段名不符合变量规则"))
 
             if field["field_type"] == FieldDataTypeEnum.FLATTENED.value and is_version_less_than(
-                es_version, MIN_FLATTENED_SUPPORT_VERSION
+                    es_version, MIN_FLATTENED_SUPPORT_VERSION
             ):
                 raise ValidationError(_(f"ES版本{es_version}不支持 flattened 字段类型"))
 
@@ -438,22 +439,22 @@ class EtlStorage:
         return {"fields": field_list, "time_field": time_field}
 
     def update_or_create_result_table(
-        self,
-        instance: CollectorConfig | CollectorPlugin,
-        table_id: str,
-        storage_cluster_id: int,
-        retention: int,
-        allocation_min_days: int,
-        storage_replies: int,
-        fields: list = None,
-        etl_params: dict = None,
-        es_version: str = "5.X",
-        hot_warm_config: dict = None,
-        es_shards: int = settings.ES_SHARDS,
-        index_settings: dict = None,
-        sort_fields: list = None,
-        target_fields: list = None,
-        total_shards_per_node: int = None,
+            self,
+            instance: CollectorConfig | CollectorPlugin,
+            table_id: str,
+            storage_cluster_id: int,
+            retention: int,
+            allocation_min_days: int,
+            storage_replies: int,
+            fields: list = None,
+            etl_params: dict = None,
+            es_version: str = "5.X",
+            hot_warm_config: dict = None,
+            es_shards: int = settings.ES_SHARDS,
+            index_settings: dict = None,
+            sort_fields: list = None,
+            target_fields: list = None,
+            total_shards_per_node: int = None,
     ):
         """
         创建或更新结果表
@@ -560,6 +561,11 @@ class EtlStorage:
             target_fields=target_fields,
         )
         result_table_config = self.get_result_table_config(fields, etl_params, built_in_config, es_version=es_version)
+        is_nanos = False
+        for rt_field in result_table_config["field_list"]:
+            if rt_field["field_name"] == "dtEventTimeStampNanos":
+                is_nanos = True
+                break
 
         # 添加元数据路径配置到结果表配置中
         etl_path_regexp = etl_params.get("path_regexp", "")
@@ -602,6 +608,10 @@ class EtlStorage:
 
         if not instance.table_id:
             instance.table_id = table_id
+            instance.save()
+
+        if is_nanos:
+            instance.is_nanos = True
             instance.save()
 
         return {"table_id": instance.table_id, "params": params}
@@ -970,18 +980,18 @@ class EtlStorage:
 
     @classmethod
     def update_or_create_pattern_result_table(
-        cls,
-        instance: CollectorConfig,
-        table_id: str,
-        storage_cluster_id: int,
-        allocation_min_days: int,
-        storage_replies: int,
-        es_version: str = "5.X",
-        hot_warm_config: dict = None,
-        es_shards: int = settings.ES_SHARDS,
-        index_settings: dict = None,
-        total_shards_per_node: int = None,
-        retention: int = 180,
+            cls,
+            instance: CollectorConfig,
+            table_id: str,
+            storage_cluster_id: int,
+            allocation_min_days: int,
+            storage_replies: int,
+            es_version: str = "5.X",
+            hot_warm_config: dict = None,
+            es_shards: int = settings.ES_SHARDS,
+            index_settings: dict = None,
+            total_shards_per_node: int = None,
+            retention: int = 180,
     ):
         """
         创建或更新 Pattern 结果表
