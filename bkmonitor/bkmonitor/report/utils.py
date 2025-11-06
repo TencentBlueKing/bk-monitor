@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import datetime
 from collections import defaultdict
+from typing import Any
 
 import arrow
 from django.db.models import Q
@@ -146,7 +147,7 @@ def create_send_record(channels, send_round):
     ReportSendRecord.objects.bulk_create(send_records)
 
 
-def send_email(bk_tenant_id: str, context: dict, subscribers: list) -> dict:
+def send_email(bk_tenant_id: str, context: dict, subscribers: list) -> dict[str, Any] | None:
     sender = Sender(
         bk_tenant_id=bk_tenant_id,
         title_template_path=context.get("title_template_path", ""),
@@ -164,7 +165,7 @@ def send_email(bk_tenant_id: str, context: dict, subscribers: list) -> dict:
         logger.exception(e)
 
 
-def send_wxbot(bk_tenant_id: str, context: dict, chatids: list):
+def send_wxbot(bk_tenant_id: str, context: dict, chatids: list) -> dict[str, Any] | None:
     sender = Sender(
         bk_tenant_id=bk_tenant_id,
         title_template_path=context.get("title_template_path", ""),

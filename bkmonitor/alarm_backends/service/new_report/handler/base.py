@@ -21,6 +21,7 @@ from bkmonitor.models.report import (
     SendStatusEnum,
 )
 from bkmonitor.report.utils import send_email, send_wxbot
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.new_report import StaffEnum
 from constants.report import StaffChoice
 from core.drf_resource import api
@@ -120,7 +121,9 @@ class SendChannelHandler:
         # 补充提示词
         if self.channel.send_text:
             context["send_text"] = self.channel.send_text
-        result = self.send_cls(context, subscribers)
+        result = self.send_cls(
+            bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id), context=context, subscribers=subscribers
+        )
         if not result:
             logger.exception(
                 f"report: {self.channel.report_id} channel: {self.channel.channel_name} send failed,"
