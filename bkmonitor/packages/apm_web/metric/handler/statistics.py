@@ -73,17 +73,17 @@ ERROR_RATE_COLUMNS = [
 # 平均耗时表格列
 def get_duration_columns(dimension="default"):
     return [
-        {"id": "service", "name": "服务名称", "type": "link"},
-        {"id": "other_service", "name": "调用服务", "type": "string"},
+        {"id": "service", "name": _("服务名称"), "type": "link"},
+        {"id": "other_service", "name": _("调用服务"), "type": "string"},
         {
             "id": "avg_duration",
-            "name": "平均耗时" if dimension == "default" else dimension,
+            "name": _("平均耗时") if dimension == "default" else dimension,
             "type": "number",
             "sortable": "custom",
         },
         {
             "id": "datapoints",
-            "name": "缩略图",
+            "name": _("缩略图"),
             "type": "datapoints",
         },
     ]
