@@ -318,6 +318,7 @@ class ShieldObj:
 
         for notice_way in self.config["notice_config"]["notice_way"]:
             sender = Sender(
+                bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.config["bk_biz_id"]),
                 title_template_path=f"notice/shield/{notice_way}_title.jinja",
                 content_template_path=f"notice/shield/{notice_way}_content.jinja",
                 context=context,
