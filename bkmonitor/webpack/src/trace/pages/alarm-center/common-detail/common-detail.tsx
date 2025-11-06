@@ -81,6 +81,21 @@ export default defineComponent({
       ];
     });
 
+    /**
+     * @description: 快捷屏蔽时间
+     * @param {string} time
+     * @return {*}
+     */
+    const handleTimeChange = (time: string) => {
+      alarmDetail.value = new AlarmDetail({ ...alarmDetail.value, shield_left_time: time });
+    };
+
+    const quickShieldSuccess = (v: boolean) => {
+      if (v) {
+        alarmCenterDetailStore.getAlertDetailData(alarmId.value);
+      }
+    };
+
     const getPanelComponent = () => {
       switch (currentPanel.value) {
         case ALARM_CENTER_PANEL_TAB_MAP.VIEW:
@@ -103,6 +118,7 @@ export default defineComponent({
           return null;
       }
     };
+
     return () => (
       <div class='alarm-center-detail-box'>
         <AlarmAlert
@@ -153,6 +169,8 @@ export default defineComponent({
           alarmIds={[alarmId.value]}
           alarmShieldDetail={alarmShieldDetail.value}
           show={quickShieldShow.value}
+          onSuccess={quickShieldSuccess}
+          onTimeChange={handleTimeChange}
           onUpdate:show={v => {
             quickShieldShow.value = v;
           }}

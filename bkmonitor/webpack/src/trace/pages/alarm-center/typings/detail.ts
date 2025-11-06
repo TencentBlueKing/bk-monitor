@@ -534,7 +534,7 @@ export class AlarmDetail {
   readonly shield_id: null | number;
   readonly shield_left_time: string;
   readonly stage_display: string;
-  readonly status: string;
+  readonly status: 'ABNORMAL' | 'CLOSED' | 'RECOVERED';
   readonly strategy_id: number;
   readonly strategy_name: string;
   readonly supervisor: null | string;
