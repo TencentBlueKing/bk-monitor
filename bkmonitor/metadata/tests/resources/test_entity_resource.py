@@ -14,6 +14,7 @@ from core.drf_resource.exceptions import CustomException
 from core.errors.metadata.entity import EntityNotFoundError, UnsupportedKindError
 from metadata.models.entity_relation import CustomRelationStatus
 from metadata.resources.entity_relation import (
+    ApplyEntityResource,
     DeleteEntityResource,
     GetEntityResource,
     ListEntityResource,
@@ -105,6 +106,30 @@ class TestGetEntityResource:
         # 测试缺少 name
         with pytest.raises(CustomException):
             resource.request(kind="CustomRelationStatus", namespace="test")
+
+    def test_get_with_space_uid(self, cleanup_test_data):
+        """测试使用 space_uid 覆盖 namespace"""
+        # 创建测试实体
+        CustomRelationStatus.objects.create(
+            namespace="test_space_uid",
+            name="test_entity",
+            from_resource="source_entity",
+            to_resource="target_entity",
+            creator="test_user",
+            updater="test_user",
+        )
+
+        resource = GetEntityResource()
+        # 使用 space_uid 而不是 namespace
+        result = resource.request(
+            kind="CustomRelationStatus",
+            namespace="wrong_namespace",  # 这个会被 space_uid 覆盖
+            name="test_entity",
+            space_uid="test_space_uid",
+        )
+
+        assert result["metadata"]["namespace"] == "test_space_uid"
+        assert result["metadata"]["name"] == "test_entity"
 
 
 class TestListEntityResource:
@@ -241,6 +266,35 @@ class TestListEntityResource:
         results = resource.request(kind="CustomRelationStatus", name="test_entity")
         assert len(results) >= 1
 
+    def test_list_with_space_uid(self, cleanup_test_data):
+        """测试使用 space_uid 覆盖 namespace"""
+        # 创建测试实体
+        CustomRelationStatus.objects.create(
+            namespace="test_space_uid",
+            name="test_list_entity",
+            from_resource="source",
+            to_resource="target",
+            creator="test_user",
+            updater="test_user",
+        )
+
+        resource = ListEntityResource()
+        # 使用 space_uid 而不是 namespace
+        results = resource.request(
+            kind="CustomRelationStatus",
+            namespace="wrong_namespace",  # 这个会被 space_uid 覆盖
+            space_uid="test_space_uid",
+        )
+
+        assert len(results) >= 1
+        # 验证结果中的 namespace 是 space_uid 的值
+        test_entities = [
+            r
+            for r in results
+            if r["metadata"]["namespace"] == "test_space_uid" and r["metadata"]["name"] == "test_list_entity"
+        ]
+        assert len(test_entities) == 1
+
 
 class TestDeleteEntityResource:
     """测试 DeleteEntityResource"""
@@ -305,6 +359,33 @@ class TestDeleteEntityResource:
         with pytest.raises(CustomException):
             resource.request(kind="CustomRelationStatus", namespace="test")
 
+    def test_delete_with_space_uid(self, cleanup_test_data):
+        """测试使用 space_uid 覆盖 namespace"""
+        # 创建测试实体
+        CustomRelationStatus.objects.create(
+            namespace="test_space_uid",
+            name="test_delete_entity",
+            from_resource="source_entity",
+            to_resource="target_entity",
+            creator="test_user",
+            updater="test_user",
+        )
+
+        resource = DeleteEntityResource()
+        # 使用 space_uid 而不是 namespace
+        result = resource.request(
+            kind="CustomRelationStatus",
+            namespace="wrong_namespace",  # 这个会被 space_uid 覆盖
+            name="test_delete_entity",
+            space_uid="test_space_uid",
+        )
+
+        assert result is None
+
+        # 验证实体已被删除
+        with pytest.raises(CustomRelationStatus.DoesNotExist):
+            CustomRelationStatus.objects.get(namespace="test_space_uid", name="test_delete_entity")
+
 
 class TestEntityResourceIntegration:
     """测试 Resource 类的集成场景"""
@@ -357,3 +438,85 @@ class TestEntityResourceIntegration:
                 namespace="test_namespace",
                 name="test_lifecycle_entity",
             )
+
+
+class TestApplyEntityResource:
+    """测试 ApplyEntityResource"""
+
+    def test_apply_create_with_space_uid(self, cleanup_test_data):
+        """测试使用 space_uid 创建实体"""
+        resource = ApplyEntityResource()
+        result = resource.request(
+            kind="CustomRelationStatus",
+            metadata={
+                "namespace": "wrong_namespace",  # 这个会被 space_uid 覆盖
+                "name": "test_apply_entity",
+                "labels": {"env": "test"},
+            },
+            spec={
+                "from_resource": "source_entity",
+                "to_resource": "target_entity",
+            },
+            space_uid="test_space_uid",
+        )
+
+        assert result["metadata"]["namespace"] == "test_space_uid"
+        assert result["metadata"]["name"] == "test_apply_entity"
+        assert result["spec"]["from_resource"] == "source_entity"
+
+        # 验证实体已创建
+        entity = CustomRelationStatus.objects.get(namespace="test_space_uid", name="test_apply_entity")
+        assert entity.from_resource == "source_entity"
+
+    def test_apply_update_with_space_uid(self, cleanup_test_data):
+        """测试使用 space_uid 更新实体"""
+        # 先创建实体
+        CustomRelationStatus.objects.create(
+            namespace="test_space_uid",
+            name="test_update_entity",
+            from_resource="old_source",
+            to_resource="old_target",
+            creator="test_user",
+            updater="test_user",
+        )
+
+        resource = ApplyEntityResource()
+        result = resource.request(
+            kind="CustomRelationStatus",
+            metadata={
+                "namespace": "wrong_namespace",  # 这个会被 space_uid 覆盖
+                "name": "test_update_entity",
+            },
+            spec={
+                "from_resource": "new_source",
+                "to_resource": "new_target",
+            },
+            space_uid="test_space_uid",
+        )
+
+        assert result["metadata"]["namespace"] == "test_space_uid"
+        assert result["spec"]["from_resource"] == "new_source"
+        assert result["spec"]["to_resource"] == "new_target"
+
+        # 验证实体已更新
+        entity = CustomRelationStatus.objects.get(namespace="test_space_uid", name="test_update_entity")
+        assert entity.from_resource == "new_source"
+        assert entity.to_resource == "new_target"
+
+    def test_apply_without_space_uid(self, cleanup_test_data):
+        """测试不使用 space_uid 时，使用 metadata.namespace"""
+        resource = ApplyEntityResource()
+        result = resource.request(
+            kind="CustomRelationStatus",
+            metadata={
+                "namespace": "test_namespace",
+                "name": "test_entity",
+            },
+            spec={
+                "from_resource": "source_entity",
+                "to_resource": "target_entity",
+            },
+        )
+
+        assert result["metadata"]["namespace"] == "test_namespace"
+        assert result["metadata"]["name"] == "test_entity"

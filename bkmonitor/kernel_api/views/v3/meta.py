@@ -496,12 +496,3 @@ class SyncBkBaseRtMetaByBizIdViewSet(MetaViewSet):
 
 class ListBkBaseRtInfoByBizIdViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.ListBkBaseRtInfoByBizIdResource)]
-
-
-class EntityViewSet(MetaViewSet):
-    resource_routes = [
-        ResourceRoute("POST", resource.ApplyEntityResource, endpoint="apply"),
-        ResourceRoute("GET", resource.GetEntityResource, endpoint="get"),
-        ResourceRoute("GET", resource.ListEntityResource, endpoint="list"),
-        ResourceRoute("POST", resource.DeleteEntityResource, endpoint="delete"),
-    ]

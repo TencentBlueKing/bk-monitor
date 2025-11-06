@@ -253,6 +253,14 @@ class ApplyEntityResource(Resource):
         kind = serializers.CharField(required=True, label=_("实体类型"))
         metadata = Metadata(required=True, label=_("元数据"))
         spec = serializers.DictField(required=True, label=_("资源配置"), allow_empty=True)
+        space_uid = serializers.CharField(required=False, label=_("空间UID"))
+
+        def validate(self, attrs):
+            # 如果 space_uid 存在，则覆盖 metadata.namespace
+            if "space_uid" in attrs and attrs["space_uid"]:
+                if "metadata" in attrs and isinstance(attrs["metadata"], dict):
+                    attrs["metadata"]["namespace"] = attrs["space_uid"]
+            return attrs
 
     def perform_request(self, validated_request_data):
         kind = validated_request_data["kind"]
@@ -305,6 +313,13 @@ class GetEntityResource(Resource):
         kind = serializers.CharField(required=True, label=_("实体类型"))
         namespace = serializers.CharField(required=True, label=_("命名空间"))
         name = serializers.CharField(required=True, label=_("资源名称"))
+        space_uid = serializers.CharField(required=False, label=_("空间UID"))
+
+        def validate(self, attrs):
+            # 如果 space_uid 存在，则覆盖 namespace
+            if "space_uid" in attrs and attrs["space_uid"]:
+                attrs["namespace"] = attrs["space_uid"]
+            return attrs
 
     def perform_request(self, validated_request_data):
         kind = validated_request_data["kind"]
@@ -363,6 +378,13 @@ class ListEntityResource(Resource):
         kind = serializers.CharField(required=True, label=_("实体类型"))
         namespace = serializers.CharField(required=False, label=_("命名空间"))
         name = serializers.CharField(required=False, label=_("资源名称"))
+        space_uid = serializers.CharField(required=False, label=_("空间UID"))
+
+        def validate(self, attrs):
+            # 如果 space_uid 存在，则覆盖 namespace
+            if "space_uid" in attrs and attrs["space_uid"]:
+                attrs["namespace"] = attrs["space_uid"]
+            return attrs
 
     def perform_request(self, validated_request_data):
         kind = validated_request_data["kind"]
@@ -396,6 +418,13 @@ class DeleteEntityResource(Resource):
         kind = serializers.CharField(required=True, label=_("实体类型"))
         namespace = serializers.CharField(required=True, label=_("命名空间"))
         name = serializers.CharField(required=True, label=_("资源名称"))
+        space_uid = serializers.CharField(required=False, label=_("空间UID"))
+
+        def validate(self, attrs):
+            # 如果 space_uid 存在，则覆盖 namespace
+            if "space_uid" in attrs and attrs["space_uid"]:
+                attrs["namespace"] = attrs["space_uid"]
+            return attrs
 
     def perform_request(self, validated_request_data):
         kind = validated_request_data["kind"]
