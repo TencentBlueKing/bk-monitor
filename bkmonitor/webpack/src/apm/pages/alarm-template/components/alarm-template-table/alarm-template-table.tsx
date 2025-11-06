@@ -754,7 +754,7 @@ export default class AlarmTemplateTable extends tsc<AlarmTemplateTableProps, Ala
         <div
           class='first-service-name'
           v-bk-overflow-tips
-          onClick={() => this.handleGoService(firstServiceName)}
+          onClick={() => this.handleShowDetail(row.id, AlarmTemplateDetailTabEnum.RELATE_SERVICE_ALARM)}
         >
           <span>{firstServiceName || '--'}</span>
         </div>
