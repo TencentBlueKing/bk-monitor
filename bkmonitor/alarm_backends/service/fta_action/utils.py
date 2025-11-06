@@ -153,22 +153,13 @@ class PushActionProcessor:
         :param countdown: 告警延时
         :return:
         """
-        from alarm_backends.service.fta_action.tasks import (
-            run_action,
-            run_webhook_action,
-        )
+        from alarm_backends.service.fta_action.tasks import dispatch_action_task
 
         action_info = {"id": action_instance.id, "function": callback_func, "alerts": alerts}
         if kwargs:
             action_info.update({"kwargs": kwargs})
         plugin_type = action_instance.action_plugin["plugin_type"]
-        if plugin_type in [
-            ActionPluginType.WEBHOOK,
-            ActionPluginType.MESSAGE_QUEUE,
-        ]:
-            task_id = run_webhook_action.apply_async((plugin_type, action_info), countdown=countdown)
-        else:
-            task_id = run_action.apply_async((plugin_type, action_info), countdown=countdown)
+        task_id = dispatch_action_task(plugin_type, action_info, countdown=countdown)
         logger.info(
             "[create actions]push queue(execute): action(%s) (%s), alerts(%s), task_id(%s)",
             action_instance.id,

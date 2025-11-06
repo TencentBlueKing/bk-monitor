@@ -433,19 +433,6 @@ class TraceDataSource(ApmDataSourceConfigBase):
         ]
     }
 
-    # 默认ES配置信息
-    STORAGE_ES_CONFIG = {
-        "retention": 15,
-        # 默认1天区分一个index
-        "slice_gap": 60 * 24,
-        "date_format": "%Y%m%d",
-        "mapping_settings": ES_DYNAMIC_CONFIG,
-        "index_settings": {
-            "number_of_shards": 3,
-            "number_of_replicas": 1,
-        },
-    }
-
     FILTER_KIND = {
         "exists": lambda field_name, _, q: q & Q(**{f"{field_name}__exists": ""}),
         "does not exists": lambda field_name, _, q: q & Q(**{f"{field_name}__nexists": ""}),

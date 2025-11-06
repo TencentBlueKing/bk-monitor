@@ -228,6 +228,10 @@ class PluginDataAccessor:
             self.data_id = None
             self.current_data_id_is_platform = False
 
+    def get_data_id(self) -> int | None:
+        """获取data_id"""
+        return self.data_id
+
     def create_dataid(self):
         """
         创建/修改dataid

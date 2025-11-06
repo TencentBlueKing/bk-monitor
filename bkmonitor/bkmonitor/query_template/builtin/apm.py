@@ -39,6 +39,7 @@ class APMQueryTemplateName(CachedEnum):
     RPC_CALLER_REQ_TOTAL = "apm_rpc_caller_req_total"
     RPC_CALLER_ERROR_CODE = "apm_rpc_caller_error_code"
     CUSTOM_METRIC_PANIC = "apm_custom_metric_panic"
+    CUSTOM_METRIC_GO_GOROUTINE = "apm_custom_metric_go_goroutine"
     SPAN_TOTAL = "apm_span_total"
 
     @cached_property
@@ -56,6 +57,7 @@ class APMQueryTemplateName(CachedEnum):
                 self.RPC_CALLER_REQ_TOTAL: _("[调用分析] 主调请求总数"),
                 self.RPC_CALLER_ERROR_CODE: _("[调用分析] 主调错误数"),
                 self.CUSTOM_METRIC_PANIC: _("[自定义指标] 服务 Panic 次数"),
+                self.CUSTOM_METRIC_GO_GOROUTINE: _("[自定义指标] Go 协程数"),
                 self.SPAN_TOTAL: _("[调用链] Span 总数"),
             }.get(self, self.value)
         )
@@ -356,6 +358,34 @@ CUSTOM_METRIC_PANIC_QUERY_TEMPLATE: dict[str, Any] = {
     "unit": "",
 }
 
+CUSTOM_METRIC_GO_GOROUTINE_QUERY_TEMPLATE: dict[str, Any] = {
+    "bk_biz_id": GLOBAL_BIZ_ID,
+    "name": APMQueryTemplateName.CUSTOM_METRIC_GO_GOROUTINE.value,
+    "alias": APMQueryTemplateName.CUSTOM_METRIC_GO_GOROUTINE.label,
+    "description": "go_goroutines 指标表示当前 Go 进程中所有协程（goroutine）的数量（包括运行、可运行、阻塞和休眠状态）。",
+    **_qs_to_query_params(
+        UnifyQuerySet()
+        .add_query(_COMMON_BUILDER.alias("a").metric(field="go_goroutines", method="${METHOD}", alias="a"))
+        .expression("a")
+    ),
+    "variables": [
+        {
+            "name": "METHOD",
+            "alias": "汇聚",
+            "type": constants.VariableType.METHOD.value,
+            "config": {"default": "AVG"},
+            "description": "汇聚是指在单个聚合周期内，对监控数据采取的聚合方式，例如 SUM（求和）、MAX（单个聚合周期内的最大值）等。",
+        },
+    ]
+    + _get_common_variables(
+        group_by=[RPCMetricTag.SERVICE_NAME.value],
+        related_metric_fields=["go_goroutines"],
+        is_need_functions=False,
+        is_need_threshold_value=False,
+    ),
+    "unit": "",
+}
+
 TRACE_SPAN_TOTAL_QUERY_TEMPLATE: dict[str, Any] = {
     "bk_biz_id": GLOBAL_BIZ_ID,
     "name": APMQueryTemplateName.SPAN_TOTAL.value,
@@ -393,5 +423,6 @@ class APMQueryTemplateSet(QueryTemplateSet):
         RPC_CALLER_REQ_TOTAL_TEMPLATE,
         RPC_CALLER_ERROR_CODE_QUERY_TEMPLATE,
         CUSTOM_METRIC_PANIC_QUERY_TEMPLATE,
+        CUSTOM_METRIC_GO_GOROUTINE_QUERY_TEMPLATE,
         TRACE_SPAN_TOTAL_QUERY_TEMPLATE,
     ]

@@ -37,12 +37,13 @@ import type { Route } from 'vue-router';
  */
 class RouteUrlResolver {
   private route;
-  private resolver: Map<string, (str) => unknown>;
+  private resolver: Map<string, (_str: string) => unknown>;
   private resolveFieldList: string[];
 
   constructor({ route, resolveFieldList }: { route: Route; resolveFieldList?: string[] }) {
     this.route = route;
-    this.resolver = new Map<string, (str) => unknown>();
+    // eslint-disable-next-line
+    this.resolver = new Map<string, ((_str: string) => unknown)>();
     this.resolveFieldList = resolveFieldList ?? this.getDefaultResolveFieldList();
     this.setDefaultResolver();
   }
@@ -55,7 +56,7 @@ class RouteUrlResolver {
     this.resolveFieldList = val ?? this.getDefaultResolveFieldList();
   }
 
-  public setResolver(key: string, fn: (str) => unknown) {
+  public setResolver(key: string, fn: (_str: string) => unknown) {
     this.resolver.set(key, fn);
   }
 
@@ -125,7 +126,7 @@ class RouteUrlResolver {
   }
 
   private objectResolver(str) {
-    return this.commonResolver(str, val => {
+    return this.commonResolver(str, (val) => {
       try {
         return JSON.parse(decodeURIComponent(val ?? ''));
       } catch (error) {
@@ -152,7 +153,7 @@ class RouteUrlResolver {
    * @param timeRange [start_time, end_time]
    */
   private dateTimeRangeResolver(timeRange: string[]) {
-    const decodeValue = timeRange.map(t => {
+    const decodeValue = timeRange.map((t) => {
       const r = decodeURIComponent(t);
       return intTimestampStr(r);
     });
@@ -162,12 +163,12 @@ class RouteUrlResolver {
   }
 
   private additionResolver(str) {
-    return this.commonResolver(str, value => {
+    return this.commonResolver(str, (value) => {
       if (value === undefined || value === null || value === '') {
         return [];
       }
 
-      return (JSON.parse(decodeURIComponent(value)) ?? []).map(val => {
+      return (JSON.parse(decodeURIComponent(value)) ?? []).map((val) => {
         const instance = new ConditionOperator(val);
         return instance.formatApiOperatorToFront(true);
       });
@@ -175,7 +176,7 @@ class RouteUrlResolver {
   }
 
   private datePickerValueResolver() {
-    return this.commonResolver(this.query.start_time, value => {
+    return this.commonResolver(this.query.start_time, (value) => {
       const endTime = this.commonResolver(this.query.end_time) ?? value;
       return [intTimestampStr(value), intTimestampStr(endTime)];
     });
@@ -235,17 +236,17 @@ class RouteUrlResolver {
     // datePicker默认直接获取URL中的 start_time, end_time
     this.resolver.set('datePickerValue', this.datePickerValueResolver.bind(this));
 
-    this.resolver.set('start_time', val => {
-      return this.commonResolver(val, value => {
-        const end_time = this.commonResolver(this.query?.end_time) ?? value;
-        return this.dateTimeRangeResolver([value, end_time]).start_time;
+    this.resolver.set('start_time', (val) => {
+      return this.commonResolver(val, (value) => {
+        const endTime = this.commonResolver(this.query?.end_time) ?? value;
+        return this.dateTimeRangeResolver([value, endTime]).start_time;
       });
     });
 
-    this.resolver.set('end_time', val => {
-      return this.commonResolver(val, value => {
-        const start_time = this.commonResolver(this.query?.start_time) ?? value;
-        return this.dateTimeRangeResolver([start_time, value]).end_time;
+    this.resolver.set('end_time', (val) => {
+      return this.commonResolver(val, (value) => {
+        const startTime = this.commonResolver(this.query?.start_time) ?? value;
+        return this.dateTimeRangeResolver([startTime, value]).end_time;
       });
     });
   }
@@ -274,8 +275,8 @@ class RetrieveUrlResolver {
      * 不同的字段需要不同的格式化函数
      */
     const routeQueryMap = {
-      host_scopes: val => {
-        const isEmpty = !Object.keys(val ?? {}).some(k => {
+      host_scopes: (val) => {
+        const isEmpty = !Object.keys(val ?? {}).some((k) => {
           if (typeof val[k] === 'object') {
             return Array.isArray(val[k]) ? val[k].length : Object.keys(val[k] ?? {}).length;
           }
@@ -288,14 +289,14 @@ class RetrieveUrlResolver {
       start_time: () => encodeURIComponent(this.routeQueryParams.datePickerValue[0]),
       end_time: () => encodeURIComponent(this.routeQueryParams.datePickerValue[1]),
       keyword: val => (/^\s*\*\s*$/.test(val) ? undefined : encodeURIComponent(val)),
-      unionList: val => {
+      unionList: (val) => {
         if (this.routeQueryParams.isUnionIndex && val?.length) {
           return encodeURIComponent(getEncodeString(val));
         }
 
         return;
       },
-      default: val => {
+      default: (val) => {
         if (typeof val === 'object' && val !== null) {
           if (Array.isArray(val) && val.length) {
             return encodeURIComponent(getEncodeString(val));
@@ -314,7 +315,7 @@ class RetrieveUrlResolver {
 
     const getRouteQueryValue = () => {
       return Object.keys(this.routeQueryParams)
-        .filter(key => {
+        .filter((key) => {
           return !['ids', 'isUnionIndex', 'datePickerValue'].includes(key);
         })
         .reduce((result, key) => {

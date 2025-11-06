@@ -39,7 +39,9 @@ logger = logging.getLogger(__name__)
 class BuiltinStrategyTemplateRegistry:
     # 内置策略模板版本，用于定时任务执行时，判断是否需要执行。
     # 如果更新了内置策略模板，需要更新该版本号。
-    BUILTIN_STRATEGY_TEMPLATE_VERSION = "1.0.0"
+    # 1.0.0 - 初始版本
+    # 1.1.0 - 支持 [调用分析] 调用流量及 go_goroutines 同环比告警模板
+    BUILTIN_STRATEGY_TEMPLATE_VERSION = "1.1.0"
 
     _BUILTIN_STRATEGY_TEMPLATES: list[type[templates.StrategyTemplateSet]] = templates.BUILTIN_STRATEGY_TEMPLATE
 
