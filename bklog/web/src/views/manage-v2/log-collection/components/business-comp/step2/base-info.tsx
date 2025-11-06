@@ -54,6 +54,10 @@ export default defineComponent({
       type: Object,
       default: () => ({}),
     },
+    isEdit: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['change'],
 
@@ -100,7 +104,7 @@ export default defineComponent({
      * 获取数据名当前值
      * @returns 数据名值
      */
-    const getCollectorConfigNameEn = () => formData.value.collector_config_name_en || '';
+    const getCollectorConfigNameEn = () => formData.value.collector_config_name_en;
 
     /**
      * 表单校验规则
@@ -120,29 +124,28 @@ export default defineComponent({
           validator: () => !!getCollectorConfigNameEn(),
         },
         {
+          message: t('只支持输入字母，数字，下划线'),
+          trigger: 'blur',
+          validator: () => {
+            const value = getCollectorConfigNameEn();
+            return !value || checkEnNameValidator(value);
+          },
+        },
+        {
+          message: t('不能少于5个字符'),
+          trigger: 'blur',
+          validator: () => {
+            const value = getCollectorConfigNameEn();
+            return !value || value.length > 4;
+          },
+        },
+        {
           max: 50,
           message: t('不能多于{n}个字符', { n: 50 }),
           trigger: 'blur',
           validator: () => {
             const value = getCollectorConfigNameEn();
             return !value || value.length <= 50;
-          },
-        },
-        {
-          min: 5,
-          message: t('不能少于5个字符'),
-          trigger: 'blur',
-          validator: () => {
-            const value = getCollectorConfigNameEn();
-            return !value || value.length >= 5;
-          },
-        },
-        {
-          message: t('只支持输入字母，数字，下划线'),
-          trigger: 'blur',
-          validator: () => {
-            const value = getCollectorConfigNameEn();
-            return !value || checkEnNameValidator(value);
           },
         },
       ],
@@ -188,6 +191,7 @@ export default defineComponent({
      * @returns Promise - 校验结果
      */
     const validate = () => {
+      // formRef.value.clearError();
       return formRef.value.validate();
     };
 
@@ -335,6 +339,7 @@ export default defineComponent({
               <bk-input
                 maxlength={50}
                 minlength={5}
+                disabled={props.isEdit}
                 placeholder={t('用于索引和数据源，仅支持数字、字母、下划线，5～50 字符')}
                 value={formData.value.collector_config_name_en}
                 onInput={val => updateFormField('collector_config_name_en', val)}

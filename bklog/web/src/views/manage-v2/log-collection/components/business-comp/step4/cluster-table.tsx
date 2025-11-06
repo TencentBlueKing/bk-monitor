@@ -85,8 +85,11 @@ export default defineComponent({
     const isShowDesc = computed(() => props.clusterSelect && props.clusterList.find(item => isSelected(item)));
 
     const clusterDesc = computed(() => {
+      if (!setupConfig.value || !currentRow.value) {
+        return [];
+      }
       const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = setupConfig.value;
-      const { description, hotWarm, archive } = currentRow.value;
+      const { description, enable_hot_warm: hotWarm, enable_archive: archive } = currentRow.value;
       return [
         {
           label: t('副本数量'),

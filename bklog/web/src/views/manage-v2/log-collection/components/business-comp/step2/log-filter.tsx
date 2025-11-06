@@ -442,7 +442,7 @@ export default defineComponent({
 
         // 格式化字段选择项
         originalFilterItemSelect.value = res.data.fields.map((item: any) => ({
-          name: t('第{n}列', { n: item.field_index }) + ` | ${item.value}`,
+          name: `${t('第{n}列', { n: item.field_index })} | ${item.value}`,
           id: String(item.field_index),
           value: item.value,
         }));

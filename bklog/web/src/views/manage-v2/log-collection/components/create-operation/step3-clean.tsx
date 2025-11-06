@@ -68,6 +68,10 @@ export default defineComponent({
     const templateDialogVisible = ref(false);
     const templateName = ref('');
     /**
+     * 应用模版前缓存之前填写的内容，方便后续重置
+     */
+    const cacheTemplateData = ref();
+    /**
      * 清洗模式 - 分隔符 - 选中的分隔符
      */
     const delimiter = ref();
@@ -555,36 +559,21 @@ export default defineComponent({
      * @param item
      */
     const applyTemplate = item => {
-      console.log(item, 'applyTemplate');
-      // if (this.isSaveTempDialog) {
-      //   if (this.saveTempName.trim() === '') {
-      //     this.$bkMessage({
-      //       theme: 'error',
-      //       message: this.$t('请输入模板名称'),
-      //     });
-      //     return;
-      //   }
-      //   this.templateDialogVisible = false;
-      //   this.fieldCollection(false);
-      // } else {
-      //   if (!this.selectTemplate) {
-      //     this.$bkMessage({
-      //       theme: 'error',
-      //       message: this.$t('请选择清洗模板'),
-      //     });
-      //     return;
-      //   }
-
-      //   // 应用模板设置
-      //   const curTemp = this.templateList.find(temp => temp.clean_template_id === this.selectTemplate);
-      //   this.formData.fields.splice(0, this.formData.fields.length);
-      //   this.setTempDetail(curTemp);
-      //   this.templateDialogVisible = false;
-      // }
+      const { etl_params, etl_fields, clean_type } = item;
+      cacheTemplateData.value = { ...formData.value };
+      formData.value = {
+        ...formData.value,
+        etl_params,
+        etl_fields,
+        clean_type,
+      };
+      console.log(cacheTemplateData.value, 'cacheData');
     };
 
     /**
-     * 另存为模版确认  */
+     * 另存为模版确认
+     *
+     */
     const handleTempConfirm = () => {
       if (templateName.value.trim() === '') {
         showMessage(t('请输入模板名称'), 'error');
@@ -601,13 +590,15 @@ export default defineComponent({
           },
         })
         .then(res => {
-          templateDialogVisible.value = false;
-          console.log(res, 'createTemplate');
+          if (res.result) {
+            templateDialogVisible.value = false;
+            getTemplate();
+            showMessage(t('保存成功'), 'success');
+          }
         })
-        .catch(() => {})
-        .finally(() => {});
-
-      // this.fieldCollection(false);
+        .catch(() => {
+          showMessage(t('保存失败'), 'error');
+        });
     };
     /**
      * 应用模版下拉框
@@ -1102,7 +1093,14 @@ export default defineComponent({
           >
             {t('另存为模板')}
           </bk-button>
-          <bk-button class='mr-8'>{t('重置')}</bk-button>
+          <bk-button
+            class='mr-8'
+            on-click={() => {
+              formData.value = { ...cacheTemplateData.value };
+            }}
+          >
+            {t('重置')}
+          </bk-button>
           <bk-button
             on-click={() => {
               emit('cancel');
@@ -1119,7 +1117,7 @@ export default defineComponent({
           mask-close={false}
           title={t('另存为模板')}
           value={templateDialogVisible.value}
-          on-confirm-fn={handleTempConfirm}
+          on-confirm={handleTempConfirm}
         >
           <div class='template-content'>
             <span style='color: #63656e'>{t('模板名称')}</span>

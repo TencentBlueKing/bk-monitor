@@ -29,7 +29,6 @@ import { computed, defineComponent, onMounted, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
-import { useCollectList } from '../../hook/useCollectList';
 import { useOperation } from '../../hook/useOperation';
 import { showMessage } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
@@ -59,6 +58,7 @@ export default defineComponent({
     const activeName = ref(['shared', 'exclusive']);
     const storageList = ref([]);
     const clusterSelect = ref();
+    const clusterData = ref({});
     const loading = ref(false);
     const submitLoading = ref(false);
     const formData = ref({
@@ -67,13 +67,13 @@ export default defineComponent({
         retention: 7,
         es_shards: 3,
         need_assessment: false,
+        allocation_min_days: 0,
       },
       ...props.configData,
     });
     const cleanStash = ref({});
-    // 是否是编辑
-    const isEdit = ref(false);
-    const { bkBizId, spaceUid, goListPage } = useCollectList();
+
+    const bkBizId = computed(() => store.state.bkBizId);
     const curCollect = computed(() => store.getters['collect/curCollect']);
     const collapseList = computed(() => [
       {
@@ -88,16 +88,37 @@ export default defineComponent({
         data: storageList.value.filter(item => !item.is_platform),
       },
     ]);
+    /**
+     * 是否为自定义上报
+     */
     const isCustomReport = computed(() => props.scenarioId === 'custom_report');
+    /**
+     * 最大存储天数
+     */
+    const daysMax = computed(() => {
+      return clusterData.value?.setup_config?.retention_days_max || 7;
+    });
+    /**
+     * 最大副本数
+     */
+    const numberOfReplicasMax = computed(() => {
+      return clusterData.value?.setup_config?.number_of_replicas_max || 1;
+    });
+    /**
+     * 最大分片数
+     */
+    const esShardsMax = computed(() => {
+      return clusterData.value?.setup_config?.es_shards_max || 1;
+    });
 
     const showGroupText = computed(() => {
       const custom =
         Number(bkBizId.value) > 0 ? `${bkBizId.value}_bklog_` : `space_${Math.abs(Number(bkBizId.value))}_bklog_`;
-      return isCustomReport.value ? custom : curCollect.value.collector_config_name_en;
+      return custom;
     });
 
     const prependText = computed(() => {
-      return isCustomReport.value ? props.configData.collector_config_name_en : curCollect.value.table_id_prefix;
+      return props.configData.collector_config_name_en;
     });
 
     /**
@@ -127,6 +148,14 @@ export default defineComponent({
      */
     const handleChooseCluster = row => {
       clusterSelect.value = row.storage_cluster_id;
+      clusterData.value = row;
+      const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = row.setup_config;
+      formData.value = {
+        ...formData.value,
+        storage_replies: replicasMax,
+        retention: daysMax,
+        allocation_min_days: row.enable_hot_warm ? daysMax : 0,
+      };
     };
     /**
      * 获取采集项清洗缓存
@@ -200,10 +229,10 @@ export default defineComponent({
           <bk-input
             class='storage-input'
             disabled={true}
-            value={showGroupText.value}
+            value={prependText.value}
           >
             <template slot='prepend'>
-              <div class='group-text'>{prependText.value}</div>
+              <div class='group-text'>{showGroupText.value}</div>
             </template>
           </bk-input>
         </div>
@@ -213,6 +242,8 @@ export default defineComponent({
             class='min-width'
             type='number'
             value={formData.value.retention}
+            max={daysMax.value}
+            min={1}
             on-input={val => {
               formData.value.retention = val;
             }}
@@ -222,11 +253,33 @@ export default defineComponent({
             </template>
           </bk-input>
         </div>
+        {clusterData.value.enable_hot_warm && (
+          <div class='link-config label-form-box'>
+            <span class='label-title'>{t('热数据天数')}</span>
+            <bk-input
+              class='min-width'
+              type='number'
+              max={daysMax.value}
+              min={1}
+              value={formData.value.allocation_min_days}
+              on-input={val => {
+                formData.value.allocation_min_days = val;
+              }}
+            >
+              <template slot='append'>
+                <div class='group-text'>{t('天')}</div>
+              </template>
+            </bk-input>
+          </div>
+        )}
+
         <div class='link-config label-form-box'>
           <span class='label-title'>{t('副本数')}</span>
           <bk-input
             class='min-width'
             type='number'
+            max={numberOfReplicasMax.value}
+            min={1}
             value={formData.value.storage_replies}
             on-input={val => {
               formData.value.storage_replies = val;
@@ -238,6 +291,8 @@ export default defineComponent({
           <bk-input
             class='min-width'
             type='number'
+            max={esShardsMax.value}
+            min={1}
             value={formData.value.es_shards}
             on-input={val => {
               formData.value.es_shards = val;
@@ -299,9 +354,7 @@ export default defineComponent({
         table_id: curCollect.value.collector_config_name_en,
         storage_cluster_id: clusterSelect.value,
         ...formData.value,
-        allocation_min_days: 0,
       };
-      console.log(cleanStash.value, '----', formData.value, data, curCollect.value);
       $http
         .request('collect/fieldCollection', {
           params: {

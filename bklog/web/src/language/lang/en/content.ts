@@ -1152,4 +1152,6 @@ export default {
   '聚类正则已生效，请前往 {0} 修改': 'Clustering regularization has taken effect, please go to {0} to modify',
   原始日志检索结果: 'Original log retrieval results',
   '可切换原始日志，查看该日志的上下文': 'You can switch to the original log to view the context of the log',
+  '最大 {num} 个': 'Maximum {num}',
+  '最大 {num} 天': 'Maximum {num} days',
 };

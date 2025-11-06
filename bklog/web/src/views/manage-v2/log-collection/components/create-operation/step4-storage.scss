@@ -57,6 +57,9 @@
     width: 45%;
     .storage-input {
       width: 84%;
+      .group-prepend {
+        border-color: #dcdee5;
+      }
     }
     .form-box {
       width: 25%;

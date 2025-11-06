@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, computed } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import { useRoute } from 'vue-router/composables';
 
 import { useOperation } from '../../hook/useOperation';
 import BaseInfo from '../business-comp/step2/base-info';
@@ -39,31 +40,34 @@ export default defineComponent({
   emits: ['next', 'prev', 'cancel'],
 
   setup(props, { emit }) {
-    console.log(props, 'props');
     const { t } = useLocale();
+    const route = useRoute();
     const { cardRender } = useOperation();
     const baseInfoRef = ref();
     const configData = ref({
-      // bk_data_id: '',
-      // collector_config_name: '',
       collector_config_name_en: '',
       custom_type: 'log',
-      data_link_id: 6,
       retention: 7,
       allocation_min_days: 0,
       storage_replies: 1,
-      category_id: 'application_check',
       description: '',
       es_shards: 3,
-      sort_fields: [],
-      target_fields: [],
     });
+    /**
+     * 当前采集id
+     */
+    const collectId = computed(() => route.params.collectId);
+    /**
+     * 是否是编辑状态
+     */
+    const isEdit = computed(() => !!collectId.value);
     /** 基本信息 */
     const renderBaseInfo = () => (
       <BaseInfo
         ref={baseInfoRef}
         data={configData.value}
         typeKey='custom'
+        isEdit={isEdit.value}
         on-change={data => {
           configData.value = { ...configData.value, ...data };
         }}
