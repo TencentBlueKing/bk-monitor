@@ -58,15 +58,15 @@ class EntityMeta(BaseModel):
         """
         return cls.__name__
 
-    @property
-    def spec_fields(self) -> list[str]:
+    @classmethod
+    def get_spec_fields(cls) -> list[str]:
         """
         获取资源规格字段，排除metadata中的字段 (namespace, name 等) 和 BaseModel 的审计字段
         """
         fields = []
-        for field in self._meta.fields:
+        for field in cls._meta.fields:
             # 排除主键和指定字段
-            if field.primary_key or field.name in self.META_FIELDS:
+            if field.primary_key or field.name in cls.META_FIELDS:
                 continue
             fields.append(field.name)
         return fields
@@ -77,7 +77,7 @@ class EntityMeta(BaseModel):
         """
 
         spec = {}
-        for field in self.spec_fields:
+        for field in self.get_spec_fields():
             spec[field] = getattr(self, field)
         return spec
 
@@ -100,22 +100,21 @@ class EntityMeta(BaseModel):
             "spec": self.get_spec(),
         }
 
-    def get_serializer_class(self) -> type[serializers.ModelSerializer]:
+    @classmethod
+    def get_serializer_class(cls) -> type[serializers.ModelSerializer]:
         """
         获取用于校验 spec_fields 的序列化器类，子类可以重写此方法
         """
         cache_attr = "_serializer_class_cache"
-        if hasattr(self, cache_attr):
-            return getattr(self, cache_attr)
+        if hasattr(cls, cache_attr):
+            return getattr(cls, cache_attr)
 
         class Meta:
-            model = self.__class__
-            fields = tuple(self.spec_fields)
+            model = cls
+            fields = tuple(cls.get_spec_fields())
 
-        serializer_class = type(
-            f"{self.__class__.__name__}SpecSerializer", (serializers.ModelSerializer,), {"Meta": Meta}
-        )
-        setattr(self, cache_attr, serializer_class)
+        serializer_class = type(f"{cls.__name__}SpecSerializer", (serializers.ModelSerializer,), {"Meta": Meta})
+        setattr(cls, cache_attr, serializer_class)
         return serializer_class
 
 

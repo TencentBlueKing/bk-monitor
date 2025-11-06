@@ -15,9 +15,9 @@ from django.apps import apps
 from django.db import transaction
 from django.utils.translation import gettext as _
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
 from core.drf_resource import Resource
+from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
 from metadata.models import EntityMeta
 
 logger = logging.getLogger("metadata")
@@ -99,7 +99,7 @@ class EntityHandler:
         try:
             entity = self.model_class.objects.get(namespace=namespace, name=name)
         except self.model_class.DoesNotExist:
-            raise ValidationError(f"Entity not found: {namespace}/{name}")
+            raise EntityNotFoundError(context={"namespace": namespace, "name": name})
 
         return entity.to_json()
 
@@ -142,7 +142,7 @@ class EntityHandler:
         try:
             entity = self.model_class.objects.get(namespace=namespace, name=name)
         except self.model_class.DoesNotExist:
-            raise ValidationError(f"Entity not found: {namespace}/{name}")
+            raise EntityNotFoundError(context={"namespace": namespace, "name": name})
 
         entity.delete()
 
@@ -186,7 +186,7 @@ class EntityHandlerFactory:
         model_class = cls._model_kind_map.get(kind)
 
         if not model_class:
-            raise ValidationError(_("unsupported kind: {}").format(kind))
+            raise UnsupportedKindError(context={"kind": kind})
 
         return EntityHandler(model_class=model_class)
 

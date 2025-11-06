@@ -61,10 +61,17 @@ class TestCustomRelationStatusInheritance:
         instance = create_and_delete_custom_relation_status
         assert instance.get_kind() == "CustomRelationStatus"
 
+    def test_get_serializer_class_class_method(self):
+        """测试类方法调用 get_serializer_class()"""
+        # 验证是类方法，可以通过类直接调用
+        serializer_class = CustomRelationStatus.get_serializer_class()
+        assert issubclass(serializer_class, serializers.ModelSerializer)
+        assert serializer_class.__name__ == "CustomRelationStatusSpecSerializer"
+
     def test_spec_fields_property(self, create_and_delete_custom_relation_status):
-        """测试 spec_fields 属性，应只包含子类定义的字段（from_resource, to_resource）"""
+        """测试 get_spec_fields 类方法，应只包含子类定义的字段（from_resource, to_resource）"""
         instance = create_and_delete_custom_relation_status
-        spec_fields = instance.spec_fields
+        spec_fields = instance.get_spec_fields()
 
         # 应该包含子类定义的字段
         assert "from_resource" in spec_fields
@@ -143,8 +150,8 @@ class TestCustomRelationStatusInheritance:
 
     def test_get_serializer_class(self, create_and_delete_custom_relation_status):
         """测试 get_serializer_class() 方法，应返回正确的序列化器类"""
-        instance = create_and_delete_custom_relation_status
-        serializer_class = instance.get_serializer_class()
+        # get_serializer_class 现在是类方法，可以直接通过类调用
+        serializer_class = CustomRelationStatus.get_serializer_class()
 
         # 验证返回的是序列化器类
         assert issubclass(serializer_class, serializers.ModelSerializer)
@@ -170,19 +177,19 @@ class TestCustomRelationStatusInheritance:
 
     def test_get_serializer_class_caching(self, create_and_delete_custom_relation_status):
         """测试 get_serializer_class() 方法的缓存机制"""
-        instance = create_and_delete_custom_relation_status
+        # get_serializer_class 现在是类方法，可以直接通过类调用
 
         # 第一次调用
-        serializer_class_1 = instance.get_serializer_class()
+        serializer_class_1 = CustomRelationStatus.get_serializer_class()
 
         # 第二次调用，应该返回同一个类（缓存）
-        serializer_class_2 = instance.get_serializer_class()
+        serializer_class_2 = CustomRelationStatus.get_serializer_class()
 
         assert serializer_class_1 is serializer_class_2
 
-        # 验证缓存属性存在
-        assert hasattr(instance, "_serializer_class_cache")
-        assert instance._serializer_class_cache is serializer_class_1
+        # 验证缓存属性存在（现在在类上）
+        assert hasattr(CustomRelationStatus, "_serializer_class_cache")
+        assert CustomRelationStatus._serializer_class_cache is serializer_class_1
 
     def test_str_method(self, create_and_delete_custom_relation_status):
         """测试 __str__() 方法，子类重写了父类方法"""
