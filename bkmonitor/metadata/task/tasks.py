@@ -1436,7 +1436,10 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
                     slice_size=500,
                     slice_gap=1440,
                     retention=30,
-                    index_settings=f'{{"number_of_shards":{settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS},"number_of_replicas":{settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS}}}',
+                    index_settings=json.dumps({
+                        "number_of_shards": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS,
+                        "number_of_replicas": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS,
+                    }),
                     mapping_settings='{"dynamic_templates":[{"discover_dimension":{"path_match":"dimensions.*","mapping":{"type":"keyword"}}}]}',
                     source_type="log",
                     need_create_index=True,
