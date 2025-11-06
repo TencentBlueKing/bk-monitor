@@ -47,7 +47,21 @@ export default defineComponent({
     });
 
     const statusIcon = computed(() => {
-      return AlarmStatusIconMap[status.value];
+      switch (props.data?.status) {
+        case 'RECOVERED':
+        case 'CLOSED':
+          return AlarmStatusIconMap[props.data?.status];
+        case 'ABNORMAL': {
+          if (!props.data?.is_ack && !props.data?.is_shielded) return AlarmStatusIconMap.ABNORMAL;
+          if (props.data?.is_shielded) return AlarmStatusIconMap.SHIELDED_ABNORMAL;
+          return {
+            ...AlarmStatusIconMap.ABNORMAL,
+            name: t('未恢复（已确认）'),
+          };
+        }
+        default:
+          return {};
+      }
     });
 
     const renderAlertTips = () => {
@@ -99,10 +113,7 @@ export default defineComponent({
       <div class={['alarm-center-detail-alarm-alert', this.status]}>
         <span class='status-icon'>
           <i class={['icon-monitor', this.statusIcon.icon]} />
-          <span class='status-text'>
-            {this.statusIcon.name}
-            {this.data?.is_ack ? `（${this.t('已确认')}）` : ''}
-          </span>
+          <span class='status-text'>{this.statusIcon.name}</span>
         </span>
         <div class='separator' />
         <div class='alert-content'>

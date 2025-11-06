@@ -28,7 +28,7 @@ import { type PropType, computed, ref as deepRef, defineComponent, shallowRef, w
 import { Button, Input } from 'bkui-vue';
 import { debounce } from 'lodash';
 
-import { type IDimension } from '../../../typings';
+import type { IDimension } from '../../../typings';
 
 import './dimension-transfer.scss';
 export default defineComponent({
@@ -149,7 +149,7 @@ export default defineComponent({
 
     /** 单独添加到已选列表 */
     const handleAdd = (index: number) => {
-      const item = JSON.parse(JSON.stringify(searchLocalFields[index]));
+      const item = JSON.parse(JSON.stringify(searchLocalFields.value[index]));
       selectedFields.value.push(item);
       handleSetLocalFields();
     };
@@ -174,6 +174,7 @@ export default defineComponent({
 
     /** 同步搜索框内容 */
     const handleSearchValueChange = (value: string, field: string) => {
+      console.log(value);
       if (field === 'local') {
         searchValue.value = value;
       } else {
@@ -232,7 +233,7 @@ export default defineComponent({
                   left-icon='bk-icon icon-search'
                   modelValue={this.searchValue}
                   placeholder={this.$t('请输入关键字')}
-                  onChange={v => this.debounceHandleSearchValueChange(v, 'local')}
+                  onInput={v => this.debounceHandleSearchValueChange(v, 'local')}
                 />
               </div>
               <div class='options-wrap'>
@@ -269,7 +270,7 @@ export default defineComponent({
                   left-icon='bk-icon icon-search'
                   modelValue={this.searchSelectedValue}
                   placeholder={this.$t('请输入关键字')}
-                  onChange={v => this.debounceHandleSearchValueChange(v, 'selected')}
+                  onInput={v => this.debounceHandleSearchValueChange(v, 'selected')}
                 />
               </div>
               <div class='options-wrap'>

@@ -25,8 +25,9 @@
  */
 import { defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
 
-import { Button, Tree } from 'bkui-vue';
+import { Button } from 'bkui-vue';
 import { getHostOrTopoNodeDetail } from 'monitor-api/modules/scene_view';
+import { type TreeNodeModel, type TreeNodeValue, Tree } from 'tdesign-vue-next';
 import { useI18n } from 'vue-i18n';
 
 import type { ITopoNodeDataItem } from '../../../typings';
@@ -42,9 +43,6 @@ interface TreeNodeData {
   // 当前id
   key: string;
   name: string;
-  state: {
-    checked: boolean;
-  };
 }
 
 export default defineComponent({
@@ -81,9 +79,6 @@ export default defineComponent({
         instId: item.bk_inst_id,
         objId: item.bk_obj_id,
         name: `${item.bk_obj_name}(${item.bk_inst_name})`,
-        state: {
-          checked: false,
-        },
         children: item.child && item.child.length > 0 ? mapTreeData(item.child) : [],
       }));
     };
@@ -123,12 +118,16 @@ export default defineComponent({
     );
 
     const handleConfirm = () => {
+      const ids = treeRef.value
+        .getItems()
+        .filter(item => item.checked && !item.disabled)
+        .map(item => item.value);
       // 将选中的id转换为后端需要的格式传递给父组件
       const findCheckedNodes = nodes => {
         let result = [];
         for (const item of nodes) {
           const fullId = `${item.instId}_${item.objId}`; // 集群与模块之前的id不唯一所以拼接方式查找
-          if (checkedIds.value.includes(fullId)) {
+          if (ids.includes(fullId)) {
             result.push({
               bk_obj_id: item.objId,
               bk_inst_id: item.instId,
@@ -152,44 +151,32 @@ export default defineComponent({
     };
 
     /**
-     * 更新big-tree组件节点状态
-     * @param nodeIds 需要变更状态的节点
-     * @param checked 目标变更的状态
+     * 更新tree组件节点禁用状态
+     * @param nodeIds 需要变更状态的节点id
      * @param childDisable 禁用子节点
      */
-    const updateNodesState = async (nodeIds: string[], checked: boolean, childDisable: boolean) => {
-      console.log(treeRef.value);
-      const updateNodeAndChildren = (node: TreeNodeData, checked: boolean, disabled: boolean) => {
-        // 如果有子节点，递归设置子节点
-        if (node.children?.length) {
-          treeRef.value?.setDisabled(
-            node.children.map(n => n.id),
-            { emitEvent: false, disabled }
-          );
-          treeRef.value?.setChecked(
-            node.children.map(n => n.id),
-            { emitEvent: false, checked }
-          );
-          for (const child of node.children) {
-            updateNodeAndChildren(treeRef.value.getNodeById(child.id), checked, disabled);
-          }
-        }
-      };
-
+    const updateNodesDisabledState = (nodeIds: TreeNodeValue[], disabled: boolean) => {
       for (const id of nodeIds) {
-        const node: TreeNodeData = treeRef.value.getNodeById(id);
-        if (!node) continue;
-        treeRef.value?.setChecked(node.id, { emitEvent: false, checked });
-        updateNodeAndChildren(node, checked, childDisable);
+        treeRef.value.setItem(id, {
+          disabled,
+        });
       }
     };
 
     // 节点checkbox事件
-    const handleCheckChange = node => {
-      console.log(node, treeRef.value);
-      updateNodesState([node.id], node.state.checked, node.state.checked);
-      const value = treeRef.value.nodes.filter(node => node.state.checked && !node.state.disabled).map(node => node.id);
-      checkedIds.value = Array.from(new Set(value));
+    const handleCheckChange = (nodeIds: TreeNodeValue[], { node }: { node: TreeNodeModel }) => {
+      const children = node.getChildren(true);
+      let childIds = [];
+      if (Array.isArray(children)) {
+        childIds = children.map(item => item.value);
+      }
+      if (checkedIds.value.includes(node.value)) {
+        checkedIds.value = checkedIds.value.filter(id => ![node.value, ...childIds].includes(id));
+        updateNodesDisabledState(childIds, false);
+      } else {
+        checkedIds.value.push(node.value, ...childIds);
+        updateNodesDisabledState(childIds, true);
+      }
     };
 
     // 骨架屏
@@ -205,21 +192,21 @@ export default defineComponent({
 
     // 节点树渲染
     const treeNodeComponent = () => {
-      console.log(treeNodeList.value);
       return (
         <div class='tree-node__container'>
           {treeNodeList.value.length ? (
             <Tree
               ref='tree'
-              checked={checkedIds.value}
-              checkStrictly={false}
+              keys={{
+                label: 'name',
+                value: 'id',
+              }}
+              checkable={true}
+              checkStrictly={true}
               data={treeNodeList.value}
-              label='name'
-              selectable={true}
-              show-node-type-icon={false}
-              showCheckbox={true}
-              expandAll
-              onNodeChecked={handleCheckChange}
+              expandAll={true}
+              value={checkedIds.value}
+              onChange={handleCheckChange}
             />
           ) : (
             <div class='empty'>{t('暂无数据')}</div>
@@ -230,6 +217,7 @@ export default defineComponent({
 
     return {
       loading,
+      checkedIds,
       skeletonComponent,
       treeNodeComponent,
       handleConfirm,
