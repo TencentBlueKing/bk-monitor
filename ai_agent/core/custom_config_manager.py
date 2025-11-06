@@ -94,10 +94,11 @@ def _get_mcp_auth_info(request):
     """
     获取MCP认证信息
     """
+    is_ieod_mode = ENV_MODE == "ieod"
     auth_info = {
-        "app_code": AI_AGENT_APP_CODE,
-        "app_secret": AI_AGENT_APP_SECRET,
-        "access_token": _get_access_token_ieod(request) if ENV_MODE == "ieod" else _get_access_token_open(request),
+        "app_code": AI_AGENT_APP_CODE if is_ieod_mode else settings.APP_CODE,
+        "app_secret": AI_AGENT_APP_SECRET if is_ieod_mode else settings.SECRET_KEY,
+        "access_token": _get_access_token_ieod(request) if is_ieod_mode else _get_access_token_open(request),
     }
     return auth_info
 

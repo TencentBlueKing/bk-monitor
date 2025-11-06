@@ -14,6 +14,7 @@ import random
 import time
 
 import jwt
+import json
 from blueapps.account.models import User
 from django.conf import settings
 from django.contrib import auth
@@ -236,13 +237,25 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         # 获取业务ID（从GET或POST参数中获取）
         bk_biz_id = request.GET.get("bk_biz_id")
+
         if not bk_biz_id and request.method == "POST":
-            # 尝试从POST数据中获取
+            # 尝试从POST表单数据中获取
             try:
                 bk_biz_id = request.POST.get("bk_biz_id")
             except Exception as e:  # pylint: disable=broad-except
-                logger.error("MCPAuthentication: Failed to get bk_biz_id from POST data, error: %s", e)
-                pass
+                logger.warning("MCPAuthentication: Failed to get bk_biz_id from POST form data, error: %s", e)
+
+            # 如果表单数据中没有，尝试从JSON body中获取
+            if not bk_biz_id:
+                try:
+                    body = request.body.decode("utf-8")
+                    logger.info(f"MCPAuthentication: request post body: {body}")
+                    if body:
+                        data = json.loads(body)
+                        bk_biz_id = data.get("bk_biz_id")
+                        logger.warning(f"MCPAuthentication: Got bk_biz_id from JSON body: {bk_biz_id}")
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning("MCPAuthentication: Failed to get bk_biz_id from JSON body, error: %s", e)
 
         if not bk_biz_id:
             logger.error("MCPAuthentication: Missing bk_biz_id in request parameters")
