@@ -277,7 +277,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 logger.warning(f"MCPAuthentication: Permission denied for user={username}, bk_biz_id={request.biz_id}")
                 return HttpResponseForbidden("Permission denied: insufficient MCP permissions")
         except Exception as e:
-            logger.error(f"MCPAuthentication: Permission check failed: {e}")
+            logger.exception(f"MCPAuthentication: Permission check failed: {e}")
             return HttpResponseForbidden(f"Permission denied: {e}")
 
         logger.info(f"MCPAuthentication: Authentication Success: user={username}, bk_biz_id={request.biz_id}")
@@ -309,6 +309,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         # MCP权限校验（在用户认证完成后）
         if self.use_mcp_auth(request):
+            request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
             logger.info("=" * 80)
             logger.info("MCPAuthentication: Handling MCP authentication")
 
