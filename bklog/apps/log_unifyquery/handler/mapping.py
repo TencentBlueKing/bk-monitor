@@ -199,11 +199,13 @@ class UnifyQueryMappingHandler:
             }
             for field in fields_result
         ]
-        # doris需要映射字段类型
+        # doris需要映射字段类型，根据新的类型获取操作列表
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.index_set.tag_ids)
         if is_doris:
             for field in fields_list:
                 field["field_type"] = DorisFieldTypeEnum.get_es_field_type(field)
+                field["field_operator"] = OPERATORS.get(field["field_type"], [])
+                field["es_doc_values"] = field["field_type"] not in ["text", "object"]
 
         for field in fields_list:
             # @TODO tag：兼容前端代码，后面需要删除
