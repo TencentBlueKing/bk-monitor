@@ -94,7 +94,7 @@ class UnifyQueryAPIResource(Resource):
         is_global = False
         if space_uid:
             space = SpaceApi.get_space_detail(space_uid=space_uid)
-            is_global = space.is_global
+            is_global = space.is_global if space else is_global
 
         # 记录查询来源
         source = "backend"
