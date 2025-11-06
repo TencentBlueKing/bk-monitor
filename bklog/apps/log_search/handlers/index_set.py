@@ -1468,14 +1468,22 @@ class IndexSetHandler(APIModel):
             self.data.query_alias_settings = alias_settings
             self.data.save()
             objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
+            collector_rts = list(CollectorConfig.objects.filter(is_nanos=True).values_list("table_id", flat=True))
             for obj in objs:
                 result_table_id = obj.result_table_id
+                query_alias_settings = query_alias_mappings.get(result_table_id, [])
+                # 为纳秒字段新增别名
+                if obj.result_table_id in collector_rts:
+                    query_alias_settings.update({
+                        "field_name": "dtEventTimeStampNanos",
+                        "query_alias": "dtEventTimeStamp"
+                    })
                 multi_execute_func.append(
                     result_key=result_table_id,
                     func=TransferApi.create_or_update_log_router,
                     params={
                         "table_id": BaseIndexSetHandler.get_rt_id(self.index_set_id, result_table_id.replace(".", "_")),
-                        "query_alias_settings": query_alias_mappings.get(result_table_id, []),
+                        "query_alias_settings": query_alias_settings,
                         "space_type": self.data.space_uid.split("__")[0],
                         "space_id": self.data.space_uid.split("__")[-1],
                         "data_label": BaseIndexSetHandler.get_data_label(self.index_set_id),
