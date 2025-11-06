@@ -1328,6 +1328,8 @@ RT_RESERVED_WORD_EXAC = [
     "__dist_05",
     "__dist_07",
     "__dist_09",
+    "__shard_key__",
+    "__unique_key__",
     # wineventlog field
     "winEventApi",
     "winEventActivityId",
@@ -1854,6 +1856,7 @@ class DorisFieldTypeEnum(Enum):
             cls.DATETIME.value: "date",
             cls.VARIANT.value: "object",
         }
+        # 特殊判断 dtEventTimeStamp 默认为 date，开启了分词默认为 text
         if field.get("field_name") == "dtEventTimeStamp":
             return "date"
         if field.get("is_analyzed", False):
@@ -1861,6 +1864,9 @@ class DorisFieldTypeEnum(Enum):
         field_type = field.get("field_type")
         if not field_type:
             return ""
+        # 特殊判断 text 类型但未开启分词，视为 keyword
+        if field_type == "text":
+            return "keyword"
         # 去除字段长度信息 例如：varchar(32)、decimal(10,2)
         cleaned_type = re.sub(r"\(.*?\)", "", field_type)
         return field_type_mapping.get(cleaned_type, field_type)
