@@ -256,6 +256,14 @@ class BaseStatusResource(Resource):
 
     def get_result_table_id(self, table_name: str) -> str:
         """通过采集插件配置，拼接最终 RT_ID"""
+        # 适配自定义上报版本的进程采集
+        if self.collect_config.plugin.plugin_type == CollectorPluginMeta.PluginType.PROCESS:
+            tsg = api.metadata.query_time_series_group(
+                time_series_group_name=f"process_{table_name}", bk_biz_id=self.bk_biz_id
+            )
+            if tsg:
+                return tsg[0]["table_id"].split(".")[0] + ".__default__"
+
         return PluginVersionHistory.get_result_table_id(self.collect_config.plugin, table_name).lower()
 
     def has_strategies(self) -> bool:
@@ -419,9 +427,7 @@ class CollectingTargetStatusResource(BaseStatusResource):
                 for time_bucket in target_bucket.time.buckets:
                     end_alerts[target_bucket.key][int(time_bucket.key_as_string) * 1000] = time_bucket.doc_count
         logger.info(
-            "Search collecting alerts, init_alert={}, begine_alerts={}, end_alerts={}".format(
-                init_alerts, begine_alerts, end_alerts
-            )
+            f"Search collecting alerts, init_alert={init_alerts}, begine_alerts={begine_alerts}, end_alerts={end_alerts}"
         )
 
         # 初始化主机分桶信息，每个分桶里按照时间分桶初始化 0
@@ -563,7 +569,7 @@ class TransferLatestMsgResource(BaseStatusResource):
                 # str类型 ISO 8601格式
                 "2023-01-01T00:00:00Z",
                 "2023-01-01 00:00:00",
-                '2025-02-26T09:59:39.407Z',
+                "2025-02-26T09:59:39.407Z",
             ]
             ```
             """
@@ -637,7 +643,7 @@ class TransferLatestMsgResource(BaseStatusResource):
                         if _is_valid_time_value(v, iso8601_pattern):
                             _add_unique_value(v, result, seen)
                     queue.append(v)
-            elif isinstance(current, (list, tuple)):
+            elif isinstance(current, list | tuple):
                 queue.extend(current)
 
         logger.info(f"find_timestamps: {result}")
