@@ -1,19 +1,21 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import copy
-from typing import Tuple, List
 
-import mock
+import copy
+import json
+from unittest import mock
+from unittest.mock import PropertyMock
+
+import fakeredis
 import pytest
-from mockredis import mock_redis_client
+from mockredis import MockRedis
 
 from api.bcs_cluster_manager.default import FetchClustersResource
 from api.cmdb.default import GetHostByIP
@@ -24,7 +26,7 @@ from metadata.models.bcs import BCSClusterInfo
 
 @pytest.fixture
 def patch_redis_tools(mocker):
-    client = mock_redis_client()
+    client = MockRedis()
 
     def mock_hset_redis(*args, **kwargs):
         client.hset(*args, **kwargs)
@@ -54,6 +56,18 @@ def patch_redis_tools(mocker):
     def mock_smembers(key):
         return client.smembers(key)
 
+    def mock_set(key, val):
+        client.redis[key] = val
+
+    def mock_get_list(key):
+        data = client.get(key)
+        if not data:
+            return []
+        return json.loads(data)
+
+    def mock_delete(key):
+        client.delete(key)
+
     mocker.patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", side_effect=mock_hset_redis)
     mocker.patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis", side_effect=mock_hmset_redis)
     mocker.patch("metadata.utils.redis_tools.RedisTools.hgetall", side_effect=mock_hgetall_redis)
@@ -63,6 +77,9 @@ def patch_redis_tools(mocker):
     mocker.patch("metadata.utils.redis_tools.RedisTools.sadd", side_effect=mock_sadd_redis)
     mocker.patch("metadata.utils.redis_tools.RedisTools.srem", side_effect=mock_srem_redis)
     mocker.patch("metadata.utils.redis_tools.RedisTools.smembers", side_effect=mock_smembers)
+    mocker.patch("metadata.utils.redis_tools.RedisTools.set", side_effect=mock_set)
+    mocker.patch("metadata.utils.redis_tools.RedisTools.get_list", side_effect=mock_get_list)
+    mocker.patch("metadata.utils.redis_tools.RedisTools.delete", side_effect=mock_delete)
 
 
 MOCK_BCS_CLUSTER_MANAGER_FETCH_CLUSTERS = [
@@ -82,13 +99,13 @@ MOCK_K8S_NODE_LIST_BY_CLUSTER = [
     [
         {
             "bcs_cluster_id": "BCS-K8S-00000",
-            "node_ip": "1.1.1.1",
+            "node_ip": "127.0.0.1",
         }
     ],
     [
         {
             "bcs_cluster_id": "BCS-K8S-00001",
-            "node_ip": "2.2.2.2",
+            "node_ip": "127.0.0.2",
         }
     ],
 ]
@@ -98,8 +115,8 @@ MOCK_CMDB_GET_HOST_BY_IP = [
         Host(
             {
                 "bk_biz_id": 2,
-                "bk_host_innerip": "1.1.1.1",
-                "ip": "1.1.1.1",
+                "bk_host_innerip": "127.0.0.1",
+                "ip": "127.0.0.1",
                 "bk_host_id": 1,
                 "bk_cloud_id": 0,
             }
@@ -109,8 +126,8 @@ MOCK_CMDB_GET_HOST_BY_IP = [
         Host(
             {
                 "bk_biz_id": 2,
-                "bk_host_innerip": "2.2.2.2",
-                "ip": "2.2.2.2",
+                "bk_host_innerip": "127.0.0.2",
+                "ip": "127.0.0.2",
                 "bk_host_id": 2,
                 "bk_cloud_id": 1,
             }
@@ -122,8 +139,15 @@ MOCK_CMDB_GET_HOST_BY_IP = [
 def pytest_configure():
     # 在初始化的时候，就需要对外部的gse zookeeper依赖进行mock，防止migration失败
     mock.patch("metadata.models.DataSource.refresh_gse_config", return_value=True)
-
     mock.patch("metadata.models.DataSource.create_mq", return_value=True)
+    mock.patch(
+        "metadata.utils.redis_tools.RedisTools.client",
+        new_callable=PropertyMock,
+        return_value=fakeredis.FakeRedis(decode_responses=False),
+    ).start()
+    mock.patch(
+        "alarm_backends.core.storage.redis.redis.Redis", return_value=fakeredis.FakeRedis(decode_responses=True)
+    ).start()
 
 
 @pytest.fixture
@@ -207,7 +231,7 @@ def monkeypatch_cmdb_get_info_by_ip(monkeypatch):
     monkeypatch.setattr(GetHostByIP, "bulk_request", lambda self, params: MOCK_CMDB_GET_HOST_BY_IP)
 
 
-class HashConsulMocker(object):
+class HashConsulMocker:
     result_list = {}
 
     def put(self, key, value):
@@ -223,7 +247,7 @@ class HashConsulMocker(object):
         else:
             self.result_list.pop(key, None)
 
-    def list(self, key: str) -> List:
+    def list(self, key: str) -> list:
         """返回格式
         (xxx, [{Key: xxx, Value: xxx}])
         """
@@ -234,6 +258,13 @@ class HashConsulMocker(object):
 
         return ("297766103", val if val else None)
 
-    def get(self, key: str) -> Tuple:
+    def get(self, key: str) -> tuple:
         val = self.result_list.get(key)
         return ("297766103", {"Key": key, "Value": val} if val else None)
+
+
+@pytest.fixture(
+    autouse=True,
+)
+def enable_db_access(db):
+    pass
