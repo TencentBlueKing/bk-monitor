@@ -1319,6 +1319,7 @@ RT_RESERVED_WORD_EXAC = [
     "__parse_failure",
     "log",
     "dtEventTimeStamp",
+    "dtEventTimeStampNanos",
     "datetime",
     "filename",
     "items",
