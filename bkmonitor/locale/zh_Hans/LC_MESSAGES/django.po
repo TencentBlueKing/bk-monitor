@@ -12744,6 +12744,3 @@ msgstr "调用数"
 
 msgid "缩略图"
 msgstr "缩略图"
-
-msgid "Profiling"
-msgstr "性能分析"
