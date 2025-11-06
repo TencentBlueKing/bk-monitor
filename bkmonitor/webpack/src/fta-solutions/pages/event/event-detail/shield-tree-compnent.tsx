@@ -109,7 +109,6 @@ export default class ShieldTreeCompnent extends tsc<
       return result;
     };
     const bkTopoNode = findCheckedNodes(this.treeNodeList);
-    console.log(bkTopoNode);
     return bkTopoNode;
   }
 
