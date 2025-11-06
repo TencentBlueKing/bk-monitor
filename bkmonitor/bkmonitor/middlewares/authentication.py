@@ -77,9 +77,10 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
             user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
             auth.login(request, user)
             request.skip_check = True
-        elif record.type.lower() in ["entity"]:
+        elif record.type.lower() == "entity":
             # 实体关系权限模式：替换请求用户为令牌创建者
-            user = auth.authenticate(record.create_user, tenant_id=record.bk_tenant_id)
+            username = record.create_user or "system"
+            user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
             auth.login(request, user)
             request.skip_check = True
         else:

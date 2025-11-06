@@ -232,8 +232,8 @@ class ApplyEntityResource(Resource):
                     "app": "monitor"
                 },
                 "generation": 1,
-                "creation_timestamp": "2021-01-01T00:00:00Z",
-                "uid": "b194835f-7726-474d-b21f-cf5c859c11e6
+                "creationTimestamp": "2021-01-01T00:00:00Z",
+                "uid": "b194835f-7726-474d-b21f-cf5c859c11e6"
             },
             "spec": {
                 "from_resource": "source_entity",
@@ -299,8 +299,8 @@ class GetEntityResource(Resource):
                     "app": "monitor"
                 },
                 "generation": 1,
-                "creation_timestamp": "2021-01-01T00:00:00Z",
-                "uid": "b194835f-7726-474d-b21f-cf5c859c11e6
+                "creationTimestamp": "2021-01-01T00:00:00Z",
+                "uid": "b194835f-7726-474d-b21f-cf5c859c11e6"
             },
             "spec": {
                 "from_resource": "source_entity",
@@ -363,8 +363,8 @@ class ListEntityResource(Resource):
                         "app": "monitor"
                     },
                     "generation": 1,
-                    "creation_timestamp": "2021-01-01T00:00:00Z",
-                    "uid": "b194835f-7726-474d-b21f-cf5c859c11e6
+                    "creationTimestamp": "2021-01-01T00:00:00Z",
+                    "uid": "b194835f-7726-474d-b21f-cf5c859c11e6"
                 },
                 "spec": {
                     "from_resource": "source_entity",
