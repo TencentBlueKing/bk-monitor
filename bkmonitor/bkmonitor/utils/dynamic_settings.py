@@ -8,10 +8,23 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
+
 from django.conf import settings
+from django.core.cache import caches
 from django.utils.functional import cached_property, empty
 
 from bkmonitor.utils.cache import InstanceCache
+
+
+redis_cache = None
+for backend in ["redis", "locmem"]:
+    try:
+        if backend in settings.CACHES:
+            redis_cache = caches[backend]
+            break
+    except (KeyError, Exception):
+        pass
 
 
 class DynamicSettings:
@@ -25,23 +38,36 @@ class DynamicSettings:
         from bkmonitor.define import global_config
 
         self.__name_list__ = set(global_config.GLOBAL_CONFIGS)
+        self.django_cache = redis_cache is not None
 
     @cached_property
     def _cache(self):
+        if self.django_cache:
+            return redis_cache
         return InstanceCache()
+
+    def serialize(self, value):
+        if self.django_cache:
+            return json.dumps(value)
+        return value
+
+    def deserialize(self, value):
+        if self.django_cache:
+            return json.loads(value)
+        return value
 
     def __getattr__(self, name):
         value = getattr(self._wrapped, name)
         if name not in self.__name_list__:
             return value
 
-        if self._cache.exists(name):
+        if self._cache.has_key(name):
             value = self._cache.get(name)
             if value is not None:
-                return value
+                return self.deserialize(value)
 
         value = self._global_config_model.get(name, value)
-        self._cache.set(name, value, self.__cache_expires__, use_round=True)
+        self._cache.set(name, self.serialize(value), self.__cache_expires__)
         return value
 
     def __setattr__(self, name, value):
@@ -56,7 +82,7 @@ class DynamicSettings:
     def __delattr__(self, name):
         if hasattr(self, name):
             delattr(self, name)
-        self.__name_list__.remove(name)
+        self.__name_list__.discard(name)
         delattr(self._wrapped, name)
 
     def __dir__(self):
