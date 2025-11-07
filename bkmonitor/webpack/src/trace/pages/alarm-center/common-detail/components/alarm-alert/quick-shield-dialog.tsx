@@ -23,13 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, inject, nextTick, shallowRef, useTemplateRef, watch } from 'vue';
+import {
+  type PropType,
+  ref as deepRef,
+  defineComponent,
+  inject,
+  nextTick,
+  reactive,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
 
 import { Button, DatePicker, Dialog, Input, Loading, Message, Radio, Tag } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { bulkAddAlertShield } from 'monitor-api/modules/shield';
 import { useI18n } from 'vue-i18n';
 
+import VerifyInput from '../../../../../components/verify-input/verify-input';
 import DimensionTransfer from './dimension-transfer';
 import ShieldTreeComponent from './shield-tree-component';
 
@@ -75,6 +86,9 @@ export default defineComponent({
       { name: `1${t('天')}`, id: 864 },
       { name: `7${t('天')}`, id: 6048 },
     ];
+    const ruleErrMsg = reactive({
+      customTime: '',
+    });
     /** 屏蔽时间类型 */
     const timeValue = shallowRef(18);
     /** 次日时间，默认次日10点 */
@@ -84,7 +98,7 @@ export default defineComponent({
 
     const desc = shallowRef('');
 
-    const backupDetails = shallowRef<AlarmShieldDetail[]>([]);
+    const backupDetails = deepRef<AlarmShieldDetail[]>([]);
 
     const editIndex = shallowRef(-1); // 当前编辑的索引
 
@@ -195,8 +209,8 @@ export default defineComponent({
       let end: Date = null;
       if (timeValue.value === 0) {
         const [beginTime, endTime] = customTime.value;
-        if (beginTime === '' || endTime === '') {
-          // this.rule.customTime = true;
+        if (!beginTime || !endTime) {
+          ruleErrMsg.customTime = t('至少选择一种时间');
           return false;
         }
         begin = handleFormat(beginTime, 'yyyy-MM-dd hh:mm:ss');
@@ -208,7 +222,7 @@ export default defineComponent({
         if (timeValue.value === -1) {
           // 次日时间点
           if (nextDayTime.value === '') {
-            // this.rule.customTime = true;
+            ruleErrMsg.customTime = t('至少选择一种时间');
             return false;
           }
           end = new Date();
@@ -314,40 +328,35 @@ export default defineComponent({
     const getContentComponent = () => {
       return (
         <Loading loading={loading.value}>
-          <div class='quick-alarm-shield-event'>
+          <div class='quick-alarm-shield-form'>
             {!loading.value ? (
-              <div class='stratrgy-item'>
+              <div class={['stratrgy-item shield-time', { error: Boolean(ruleErrMsg.customTime) }]}>
                 <div class='item-label item-before'> {t('屏蔽时间')} </div>
-                {/* <VerifyInput
-                  errorTextTopMargin={80}
-                  show-validate={this.rule.customTime}
-                  {...{ on: { 'update: show-validate': val => (this.rule.customTime = val) } }}
-                  validator={{ content: t('至少选择一种时间') }}
-                > */}
-                <div class='item-time'>
-                  {timeList.map((item, index) => (
+                <VerifyInput errMsg={ruleErrMsg.customTime}>
+                  <div class='item-time'>
+                    {timeList.map((item, index) => (
+                      <Button
+                        key={index}
+                        class={['width-item', { 'is-selected': timeValue.value === item.id }]}
+                        onClick={e => handleScopeChange(e, item.id)}
+                      >
+                        {item.name}
+                      </Button>
+                    ))}
                     <Button
-                      key={index}
-                      class={['width-item', { 'is-selected': timeValue.value === item.id }]}
-                      onClick={e => handleScopeChange(e, item.id)}
+                      class={['width-item', { 'is-selected': timeValue.value === -1 }]}
+                      onClick={e => handleScopeChange(e, -1)}
                     >
-                      {item.name}
+                      {t('至次日')}
                     </Button>
-                  ))}
-                  <Button
-                    class={['width-item', { 'is-selected': timeValue.value === -1 }]}
-                    onClick={e => handleScopeChange(e, -1)}
-                  >
-                    {t('至次日')}
-                  </Button>
-                  <Button
-                    class={['width-item', { 'is-selected': timeValue.value === 0 }]}
-                    onClick={e => handleScopeChange(e, 0)}
-                  >
-                    {t('button-自定义')}
-                  </Button>
-                </div>
-                {/* </VerifyInput> */}
+                    <Button
+                      class={['width-item', { 'is-selected': timeValue.value === 0 }]}
+                      onClick={e => handleScopeChange(e, 0)}
+                    >
+                      {t('button-自定义')}
+                    </Button>
+                  </div>
+                </VerifyInput>
               </div>
             ) : undefined}
             {timeValue.value <= 0 && (
@@ -363,7 +372,7 @@ export default defineComponent({
                     min={0}
                     placeholder='0~23'
                     precision={0}
-                    show-controls={false}
+                    showControl={false}
                     type='number'
                   />,
                   t('点'),
@@ -585,7 +594,7 @@ export default defineComponent({
       // 至次日时间异常状态
       if (type === -1 && nextDayTime.value === '') return;
       // 校验状态通过
-      // this.rule.customTime = false;
+      ruleErrMsg.customTime = '';
     };
 
     const handleToStrategy = (id: number) => {
@@ -648,9 +657,9 @@ export default defineComponent({
      * @param checkedIds 已满足后端格式的节点数据集合（node_name用于前端展示，提交后端时删除）
      */
     const handleShieldConfirm = (checkedIds: IBkTopoNodeItem[]) => {
-      backupDetails[editIndex.value].bkTopoNode = checkedIds;
+      backupDetails.value[editIndex.value].bkTopoNode = checkedIds;
       shieldTreeDialogShow.value = false;
-      backupDetails[editIndex.value].hideBkTopoNodeTagIndex = -1;
+      backupDetails.value[editIndex.value].hideBkTopoNodeTagIndex = -1;
       editIndex.value = -1;
       // tag是否溢出样式
       nextTick(() => {
@@ -689,7 +698,6 @@ export default defineComponent({
             return;
           }
         }
-        console.log(hasHide, idx);
         backupDetails.value[index][targetIndex] = hasHide ? idx : -1;
       }
     };
@@ -700,6 +708,7 @@ export default defineComponent({
 
     return {
       t,
+      timeValue,
       authority,
       loading,
       dimensionSelectShow,
@@ -722,7 +731,7 @@ export default defineComponent({
     return (
       <Dialog
         width={'804'}
-        class='quick-shield-dialog'
+        class='trace-alarm-center-quick-shield-dialog'
         v-slots={{
           default: () => (
             <div
@@ -733,7 +742,7 @@ export default defineComponent({
               {/* 穿梭框 */}
               <Dialog
                 width={640}
-                class='quick-shield-dialog-wrap'
+                class='trace-alarm-center-quick-shield-dialog-wrap'
                 v-model:is-show={this.dimensionSelectShow}
                 header-position='left'
                 quick-close={false}
@@ -750,7 +759,7 @@ export default defineComponent({
               {/* 选择屏蔽范围弹窗 */}
               <Dialog
                 width={480}
-                class='quick-shield-dialog-wrap'
+                class='trace-alarm-center-quick-shield-dialog-wrap'
                 v-model:is-show={this.shieldTreeDialogShow}
                 header-position='left'
                 quick-close={false}

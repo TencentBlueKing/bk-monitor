@@ -98,5 +98,6 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     bizItem,
     interval,
     timeRange,
+    getAlertDetailData,
   };
 });
