@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { isEn } from 'monitor-pc/i18n/lang';
+
 import type { TranslateResult } from 'vue-i18n';
 
 // AI 快捷方式类型
@@ -415,7 +417,9 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         required: true,
         hide: false,
         name: window.i18n.t('用户需求'),
-        placeholder: window.i18n.t('请输入仪表盘说明，如：基于{$指标}，以pod_name为维度，生成折线图。'),
+        placeholder: isEn
+          ? 'Please enter the dashboard description, such as: based on {$metrics}, with pod_name as the dimension, generate a line chart.'
+          : '请输入仪表盘说明，如：基于{$指标}，以pod_name为维度，生成折线图。',
       },
     ],
   },
