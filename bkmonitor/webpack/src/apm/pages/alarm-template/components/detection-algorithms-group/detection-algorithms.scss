@@ -5,26 +5,9 @@
 }
 
 .detection-algorithms {
+  display: flex;
   align-items: center;
   line-height: 20px;
-
-  @include ellipsis;
-
-  .method {
-    margin-right: 4px;
-  }
-
-  .bold {
-    font-weight: 700;
-  }
-
-  .detection-algorithms-label {
-    margin-left: 4px;
-  }
-
-  .algorithm-item-text {
-    margin: 0 4px;
-  }
 
   .detection-algorithms-level {
     font-size: 14px;
@@ -39,6 +22,28 @@
 
     &.icon-tips {
       color: #3a84ff;
+    }
+  }
+
+  .detection-algorithms-content {
+    flex: 1;
+
+    @include ellipsis;
+
+    .method {
+      margin-right: 4px;
+    }
+
+    .bold {
+      font-weight: 700;
+    }
+
+    .detection-algorithms-label {
+      margin-left: 4px;
+    }
+
+    .algorithm-item-text {
+      margin: 0 4px;
     }
   }
 }

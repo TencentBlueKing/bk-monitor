@@ -55,6 +55,7 @@ export default class DetectionAlgorithm extends tsc<DetectionAlgorithmProps> {
     return {
       algorithmLabel: this.algorithm.length > 1 ? this.$t('组合') : ALGORITHM_TYPE_MAP[this.algorithm[0]?.type],
       levelIcon: level.icon,
+      levelName: level.name,
     };
   }
 
@@ -95,22 +96,28 @@ export default class DetectionAlgorithm extends tsc<DetectionAlgorithmProps> {
 
   render() {
     return (
-      <div
-        class='detection-algorithms'
-        v-bk-overflow-tips
-      >
-        <i class={['icon-monitor', 'detection-algorithms-level', this.algorithmDisplayConfig.levelIcon]} />
-        <span class='detection-algorithms-label'>{this.algorithmDisplayConfig.algorithmLabel},</span>
-        {this.algorithm.map((algorithm, index) => (
-          <span
-            key={algorithm.type}
-            class='algorithm-item-text'
-          >
-            {index > 0 && <span class='connector'>{ALGORITHM_RELATIONSHIP_MAP[this.connector]}</span>}
-            {this.renderAlgorithmContent(algorithm, index)}
-            {index < this.algorithm.length - 1 && <span>,</span>}
-          </span>
-        ))}
+      <div class='detection-algorithms'>
+        <i
+          class={['icon-monitor', 'detection-algorithms-level', this.algorithmDisplayConfig.levelIcon]}
+          v-bk-tooltips={{ content: this.algorithmDisplayConfig.levelName }}
+        />
+        <div
+          class='detection-algorithms-content'
+          v-bk-overflow-tips
+        >
+          <span style='display: none'>{this.algorithmDisplayConfig.levelName},</span>
+          <span class='detection-algorithms-label'>{this.algorithmDisplayConfig.algorithmLabel},</span>
+          {this.algorithm.map((algorithm, index) => (
+            <span
+              key={algorithm.type}
+              class='algorithm-item-text'
+            >
+              {index > 0 && <span class='connector'>{ALGORITHM_RELATIONSHIP_MAP[this.connector]}</span>}
+              {this.renderAlgorithmContent(algorithm, index)}
+              {index < this.algorithm.length - 1 && <span>,</span>}
+            </span>
+          ))}
+        </div>
       </div>
     );
   }

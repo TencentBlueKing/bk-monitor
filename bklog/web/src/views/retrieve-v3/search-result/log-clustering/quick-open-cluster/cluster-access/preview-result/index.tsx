@@ -47,6 +47,10 @@ export default defineComponent({
       type: Array<any>,
       default: () => [],
     },
+    fieldName: {
+      type: String,
+      default: 'log',
+    },
   },
   setup(props, { emit, expose }) {
     dayjs.extend(weekOfYear);
@@ -72,8 +76,12 @@ export default defineComponent({
 
     // 获取最近一周的起始和结束时间戳 { start: 第一天00:00, end: 第七天23:59 }
     const getCurrentWeekRange = () => {
-      const start = dayjs().subtract(7, 'day').startOf('day').valueOf();
-      const end = dayjs().subtract(1, 'day').endOf('day').valueOf();
+      const start = dayjs().subtract(7, 'day')
+        .startOf('day')
+        .valueOf();
+      const end = dayjs().subtract(1, 'day')
+        .endOf('day')
+        .valueOf();
       return {
         start,
         end,
@@ -92,10 +100,9 @@ export default defineComponent({
     };
 
     const getLast7Days = (format = 'M-D') => {
-      return Array.from({ length: 7 }, (_, i) =>
-        dayjs()
-          .subtract(i + 1, 'day')
-          .format(format),
+      return Array.from({ length: 7 }, (_, i) => dayjs()
+        .subtract(i + 1, 'day')
+        .format(format),
       ).reverse();
     };
 
@@ -204,7 +211,7 @@ export default defineComponent({
           params: { index_set_id: props.indexSetId },
           data: generateQueryData(),
         })) as IResponseData<LogSearchResult>;
-        logDataList.value = res.data.list.map(item => item.log);
+        logDataList.value = res.data.list.map(item => item[props.fieldName]);
       } catch (e) {
         console.error(e);
       } finally {

@@ -165,6 +165,8 @@ class StrategyTemplateApplyRequestSerializer(BaseAppStrategyTemplateRequestSeria
 
     global_config = GlobalConfigSerializer(label=_("批量修改的配置"), default={})
 
+    is_reuse_instance_config = serializers.BooleanField(label=_("是否复用已有策略配置"), default=False)
+
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         # 校验 strategy_template_ids 是否有效
         strategy_templates: list[dict[str, Any]] = list(
