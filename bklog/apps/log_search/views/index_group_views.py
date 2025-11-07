@@ -97,7 +97,7 @@ class IndexGroupViewSet(APIViewSet):
         collector_count = LogCollectorHandler(space_uid=params["space_uid"]).get_collector_count()
         return Response(
             {
-                "collector_count": collector_count,
+                "total": collector_count,
                 "list": index_groups,
             }
         )
