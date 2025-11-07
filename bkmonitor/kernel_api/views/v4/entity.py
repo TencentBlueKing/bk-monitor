@@ -8,14 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from metadata import resources as resource
+# from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+# from metadata import resources as resource
 
 
-class EntityViewSet(ResourceViewSet):
-    resource_routes = [
-        ResourceRoute("POST", resource.ApplyEntityResource, endpoint="apply"),
-        ResourceRoute("GET", resource.GetEntityResource, endpoint="get"),
-        ResourceRoute("GET", resource.ListEntityResource, endpoint="list"),
-        ResourceRoute("POST", resource.DeleteEntityResource, endpoint="delete"),
-    ]
+# # class EntityViewSet(ResourceViewSet):
+# #     # resource_routes = [
+# #     #     ResourceRoute("POST", resource.ApplyEntityResource, endpoint="apply"),
+# #     #     ResourceRoute("GET", resource.GetEntityResource, endpoint="get"),
+# #     #     ResourceRoute("GET", resource.ListEntityResource, endpoint="list"),
+# #     #     ResourceRoute("POST", resource.DeleteEntityResource, endpoint="delete"),
+# #     ]
