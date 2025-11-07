@@ -390,6 +390,5 @@ export default {
   '请输入数据源, 非必需': 'Please enter the data source, optional',
   '请输入结果表名称, 非必需': 'Please enter the result table name, optional',
   '请输入相关指标, 非必需': 'Please enter the related metrics, optional',
-  '请输入仪表盘说明，如：基于{$指标}，以pod_name为维度，生成折线图。':
-    'Please enter the dashboard description, such as: based on {$metrics}, with pod_name as the dimension, generate a line chart.',
+  手动创建: 'Manual create',
 };
