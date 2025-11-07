@@ -1,9 +1,9 @@
 <script setup>
-import { defineEmits, defineProps, computed, watch, ref, onMounted } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import { useRoute } from 'vue-router/composables';
 import $http from '@/api';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import { computed, defineEmits, defineProps, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router/composables';
 import DashboardDialog from './components/dashboard-dialog.vue';
 const props = defineProps({
   value: {
@@ -51,7 +51,7 @@ const isAiopsToggle = computed(() => {
   }
 });
 
-const isChartEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris);
+const isChartEnable = computed(() => indexSetItems.value?.every(item => item.support_doris));
 const isGrepEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris);
 
 const isExternal = computed(() => window.IS_EXTERNAL === true);
