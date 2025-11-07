@@ -99,6 +99,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   /** 收藏到仪表盘 */
   showCollection = false;
   checkList = [];
+  dragMaxHeight = 0; // 2025-11-06新增：限制图表拉伸最大高度(至少能看到统计值一行数据)
 
   @Watch('panel', { immediate: true })
   handleFilterOptionChange(val) {
@@ -170,7 +171,25 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
   }
   /** 停止拉伸 */
   stopDragging() {
+    if (this.isDragging) {
+      this.setDragMaxHeight();
+    }
     this.isDragging = false;
+  }
+  /** 拉伸结束计算图表最大可拉伸高度 */
+  setDragMaxHeight() {
+    const rowHeight = 105; // 统计值表格表头高度+一行数据的高度+间隙高度
+    const layoutMainHeight = this.layoutMainRef.getBoundingClientRect().height; // 画布整体高度(图表+统计值表格)
+    if (typeof layoutMainHeight !== 'number') return;
+    // 图表可拖拽的最大高度
+    const dragMaxHeight = layoutMainHeight - rowHeight;
+    this.dragMaxHeight = dragMaxHeight > this.drag.height ? dragMaxHeight : this.drag.height;
+    // 画布拉伸高度不能小于图表 + 统计值表格一行数据的高度
+    if (layoutMainHeight < this.drag.height + rowHeight) {
+      Array.from(this.layoutMainRef.parentElement.parentElement.children).forEach((itemEl: HTMLElement) => {
+        itemEl.style.height = `${this.drag.height + 105}px`;
+      });
+    }
   }
   /** 处理相关过滤条件的格式 */
   handleFilterData(filter) {
@@ -455,7 +474,8 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
             slot='aside'
             border={false}
             initial-divide={'50%'}
-            max={this.drag.maxHeight}
+            // max={this.drag.maxHeight}
+            max={this.dragMaxHeight || this.drag.maxHeight}
             min={this.drag.minHeight}
             placement='top'
             onResizing={this.handleResizing}
