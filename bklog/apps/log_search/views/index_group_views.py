@@ -56,7 +56,7 @@ class IndexGroupViewSet(APIViewSet):
         return [ViewBusinessPermission()]
 
     @insert_permission_field(
-        data_field=lambda d: d["list"],
+        data_field=lambda d: d.get("list"),
         id_field=lambda d: d.get("index_set_id"),
         actions=[ActionEnum.MANAGE_INDICES],
         resource_meta=ResourceEnum.INDICES,
