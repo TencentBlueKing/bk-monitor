@@ -451,7 +451,7 @@ def clear_mysql_action_data(days=7, count=5000):
     """
     expire_datetime = datetime.now(timezone.utc) - timedelta(days=days)
 
-    first_item = ActionInstance.objects.only("id").order_by("id").first()
+    first_item = ActionInstance.objects.only("id", "create_time").order_by("id").first()
     if not first_item:
         return
 

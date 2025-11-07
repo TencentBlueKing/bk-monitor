@@ -207,7 +207,7 @@ class QuickAddStrategy extends Mixins(
     if (
       val.length === detailData.algorithms.length &&
       val.every(item => {
-        const detail = detailData.algorithms.find(detail => detail.level === item.level);
+        const detail = detailData.algorithms.find(detail => detail.level === item.level && detail.type === item.type);
         return detail && JSON.stringify(item.config) === JSON.stringify(detail.config);
       })
     ) {

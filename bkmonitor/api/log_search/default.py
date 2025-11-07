@@ -326,7 +326,7 @@ class UpdateIndexSetResource(IndexSetResource):
         return url.format(index_set_id=validated_request_data.pop("index_set_id"))
 
 
-class DeleteIndexSetResource(LogSearchAPIGWResource):
+class DeleteIndexSetResource(IndexSetResource):
     """
     删除索引集
     """
@@ -335,20 +335,13 @@ class DeleteIndexSetResource(LogSearchAPIGWResource):
     method = "DELETE"
 
 
-class SearchPatternResource(LogSearchAPIGWResource):
+class SearchPatternResource(IndexSetResource):
     """
     查询索引集模型
     """
 
     action = "/pattern/{index_set_id}/search/"
     method = "POST"
-
-    def get_request_url(self, validated_request_data):
-        """
-        获取最终请求的url，也可以由子类进行重写
-        """
-        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
-        return url.format(index_set_id=validated_request_data.pop("index_set_id"))
 
 
 class ListEsRouterResource(LogSearchAPIGWResource):
@@ -401,7 +394,7 @@ class DataBusCollectorsIndicesResource(LogSearchAPIGWResource):
         return url.format(collector_config_id=validated_request_data.pop("collector_config_id"))
 
 
-class LogSearchIndexSetResource(LogSearchAPIGWResource):
+class LogSearchIndexSetResource(IndexSetResource):
     """
     索引集列表
     """
@@ -411,13 +404,6 @@ class LogSearchIndexSetResource(LogSearchAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         index_set_id = serializers.IntegerField(required=False, label="索引集ID")
-
-    def get_request_url(self, validated_request_data):
-        """
-        获取最终请求的url，也可以由子类进行重写
-        """
-        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
-        return url.format(index_set_id=validated_request_data.pop("index_set_id"))
 
 
 class CreateCustomReportResource(LogSearchAPIGWResource):

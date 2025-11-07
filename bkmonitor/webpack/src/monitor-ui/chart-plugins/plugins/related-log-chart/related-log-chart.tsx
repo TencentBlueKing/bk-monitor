@@ -506,9 +506,7 @@ class RelatedLogChart extends CommonSimpleChart {
     // const hash = `#/apm/service-config?app_name=${appName}&service_name=${serviceName}`;
     // const url = location.href.replace(location.hash, hash);
     // window.open(url, '_blank');
-    const url = `${window.bk_log_search_url}#/manage/log-collection/collection-item?bizId=${
-      this.bkBizId || (this.relatedBkBizId === -1 ? window.cc_biz_id : this.relatedBkBizId)
-    }`;
+    const url = `${window.bk_log_search_url}?bizId=${this.bkBizId || (this.relatedBkBizId === -1 ? window.cc_biz_id : this.relatedBkBizId)}#/manage/log-collection/collection-item`;
     window.open(url);
   }
   /** 选择索引集 */

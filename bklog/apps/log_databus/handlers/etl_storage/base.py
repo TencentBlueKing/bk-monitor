@@ -119,7 +119,8 @@ class EtlStorage:
 
     @staticmethod
     def generate_hash_str(
-        type: str, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str, length: int = 8
+            type: str, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str,
+            length: int = 8
     ) -> str:
         """
         根据字段的配置生成简化的hash值
@@ -140,7 +141,7 @@ class EtlStorage:
         return f"{type}_{hash_str}"
 
     def generate_field_analyzer_name(
-        self, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str
+            self, field_name: str, field_alias: str, is_case_sensitive: bool, tokenize_on_chars: str
     ) -> str:
         """
         生成analyzer名称
@@ -321,10 +322,12 @@ class EtlStorage:
 
         # 默认使用上报时间做为数据时间
         time_field = built_in_config["time_field"]
+        nano_time_field = None
         built_in_keys = FieldBuiltInEnum.get_choices()
 
         etl_field_index = 1
         clustering_default_fields = self._get_log_clustering_default_fields()
+        is_nanos = False
         for field in fields:
             # 当在聚类场景的时候 不做下面的format操作
             if etl_flat and field["field_name"] in clustering_default_fields:
@@ -347,7 +350,7 @@ class EtlStorage:
                 raise ValidationError(_("字段名不符合变量规则"))
 
             if field["field_type"] == FieldDataTypeEnum.FLATTENED.value and is_version_less_than(
-                es_version, MIN_FLATTENED_SUPPORT_VERSION
+                    es_version, MIN_FLATTENED_SUPPORT_VERSION
             ):
                 raise ValidationError(_(f"ES版本{es_version}不支持 flattened 字段类型"))
 
@@ -396,9 +399,15 @@ class EtlStorage:
                 # 时间精度设置
                 time_fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
                 time_fmt = time_fmts.get(field["option"]["time_format"], {})
-                time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
-                time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
-                time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
+                if time_fmt.get("es_format", "epoch_millis") == "strict_date_optional_time_nanos":
+                    time_field["option"]["es_format"] = "epoch_millis"
+                    time_field["option"]["es_type"] = "date"
+                    time_field["option"]["timestamp_unit"] = "ms"
+                    is_nanos = True
+                else:
+                    time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
+                    time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
+                    time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
                 if time_fmt.get("is_custom"):
                     # 如果是自定义时间格式,加入time_layout字段
                     time_field["option"]["time_layout"] = time_fmt.get("description", "")
@@ -408,6 +417,12 @@ class EtlStorage:
 
                 # 删除原时间字段配置
                 field_option["es_doc_values"] = False
+
+                nano_time_field = copy.deepcopy(time_field)
+                nano_time_field["field_name"] = "dtEventTimeStampNanos"
+                nano_time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
+                nano_time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
+                nano_time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
 
             # 加入字段列表
             field_list.append(
@@ -421,25 +436,27 @@ class EtlStorage:
             )
 
         field_list.append(time_field)
+        if is_nanos:
+            field_list.append(nano_time_field)
         return {"fields": field_list, "time_field": time_field}
 
     def update_or_create_result_table(
-        self,
-        instance: CollectorConfig | CollectorPlugin,
-        table_id: str,
-        storage_cluster_id: int,
-        retention: int,
-        allocation_min_days: int,
-        storage_replies: int,
-        fields: list = None,
-        etl_params: dict = None,
-        es_version: str = "5.X",
-        hot_warm_config: dict = None,
-        es_shards: int = settings.ES_SHARDS,
-        index_settings: dict = None,
-        sort_fields: list = None,
-        target_fields: list = None,
-        total_shards_per_node: int = None,
+            self,
+            instance: CollectorConfig | CollectorPlugin,
+            table_id: str,
+            storage_cluster_id: int,
+            retention: int,
+            allocation_min_days: int,
+            storage_replies: int,
+            fields: list = None,
+            etl_params: dict = None,
+            es_version: str = "5.X",
+            hot_warm_config: dict = None,
+            es_shards: int = settings.ES_SHARDS,
+            index_settings: dict = None,
+            sort_fields: list = None,
+            target_fields: list = None,
+            total_shards_per_node: int = None,
     ):
         """
         创建或更新结果表
@@ -546,6 +563,11 @@ class EtlStorage:
             target_fields=target_fields,
         )
         result_table_config = self.get_result_table_config(fields, etl_params, built_in_config, es_version=es_version)
+        is_nanos = False
+        for rt_field in result_table_config["field_list"]:
+            if rt_field["field_name"] == "dtEventTimeStampNanos":
+                is_nanos = True
+                break
 
         # 添加元数据路径配置到结果表配置中
         etl_path_regexp = etl_params.get("path_regexp", "")
@@ -588,6 +610,10 @@ class EtlStorage:
 
         if not instance.table_id:
             instance.table_id = table_id
+            instance.save()
+
+        if is_nanos:
+            instance.is_nanos = True
             instance.save()
 
         return {"table_id": instance.table_id, "params": params}
@@ -956,18 +982,18 @@ class EtlStorage:
 
     @classmethod
     def update_or_create_pattern_result_table(
-        cls,
-        instance: CollectorConfig,
-        table_id: str,
-        storage_cluster_id: int,
-        allocation_min_days: int,
-        storage_replies: int,
-        es_version: str = "5.X",
-        hot_warm_config: dict = None,
-        es_shards: int = settings.ES_SHARDS,
-        index_settings: dict = None,
-        total_shards_per_node: int = None,
-        retention: int = 180,
+            cls,
+            instance: CollectorConfig,
+            table_id: str,
+            storage_cluster_id: int,
+            allocation_min_days: int,
+            storage_replies: int,
+            es_version: str = "5.X",
+            hot_warm_config: dict = None,
+            es_shards: int = settings.ES_SHARDS,
+            index_settings: dict = None,
+            total_shards_per_node: int = None,
+            retention: int = 180,
     ):
         """
         创建或更新 Pattern 结果表

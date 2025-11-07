@@ -179,7 +179,6 @@ export default class Fluctuate extends tsc<FluctuateProps, FluctuateEvents> {
                   class='w80'
                   behavior='simplicity'
                   clearable={false}
-                  max={100}
                   min={1}
                   show-controls={false}
                   type='number'
@@ -201,7 +200,6 @@ export default class Fluctuate extends tsc<FluctuateProps, FluctuateEvents> {
                   class='w80'
                   behavior='simplicity'
                   clearable={false}
-                  max={100}
                   min={1}
                   show-controls={false}
                   type='number'

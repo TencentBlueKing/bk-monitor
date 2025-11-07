@@ -665,7 +665,7 @@ export default class EventQuickShield extends tsc<IQuickShieldProps> {
         v-bkloading={{ isLoading: this.loading }}
       >
         {!this.loading ? (
-          <div class='stratrgy-item'>
+          <div class='stratrgy-item shield-time-tab'>
             <div class='item-label item-before'> {this.$t('屏蔽时间')} </div>
             <VerifyInput
               errorTextTopMargin={80}

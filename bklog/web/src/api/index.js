@@ -267,7 +267,7 @@ function handleReject(error, config, reject) {
   if (config.globalError && error.response) {
     // status 是 httpStatus
     const { status, data } = error.response;
-    const nextError = { message: error.message ?? '401 Authorization Required', response: error.response, status };
+    const nextError = { message: (data.message ?? error.message) ?? '401 Authorization Required', response: error.response, status };
     // 弹出登录框不需要出 bkMessage 提示
     if (status === 401) {
       // 窗口登录，页面跳转交给平台返回302
@@ -293,6 +293,7 @@ function handleReject(error, config, reject) {
     } else if (data?.message) {
       nextError.message = data.message;
     }
+
     const resMessage = makeMessage(nextError.message, traceparent);
     config.catchIsShowMessage && messageError(resMessage);
     console.error(nextError.message);
@@ -305,7 +306,7 @@ function handleReject(error, config, reject) {
   }
 
   if (config.globalError && code !== 0) {
-    const message = error.message || i18n.t('系统出现异常');
+    const message = error.response?.data?.message || error.message || i18n.t('系统出现异常');
     if (code !== 0 && code !== '0000' && code !== '00') {
       if (code === 4003) {
         bus.$emit('show-apply-perm', error.data);
@@ -321,7 +322,7 @@ function handleReject(error, config, reject) {
     return reject(message);
   }
 
-  const resMessage = makeMessage(error.message, traceparent);
+  const resMessage = makeMessage(error.response?.data?.message || error.message, traceparent);
   config.catchIsShowMessage && messageError(resMessage);
   console.error(error.message);
   return reject(error);

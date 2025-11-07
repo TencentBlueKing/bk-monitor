@@ -434,6 +434,7 @@ class TimeSeriesGroup(CustomGroupBase):
         # 获取指标
         data = (
             api.bkdata.query_metric_and_dimension(
+                bk_tenant_id=self.bk_tenant_id,
                 storage=config.VM_STORAGE_TYPE,
                 result_table_id=vm_rt,
                 values=BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,

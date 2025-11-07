@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,16 +7,17 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import uuid
-from typing import List
 
 from django_elasticsearch_dsl.registries import registry
 from elasticsearch_dsl import InnerDoc, Search, field
 
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BaseDocument, Date
+from bkmonitor.documents.constants import ES_INDEX_SETTINGS
 from constants.incident import IncidentStatus
 from core.drf_resource import api
 from core.errors.incident import IncidentNotFoundError
@@ -70,7 +70,7 @@ class IncidentItemsMixin:
         end_time: int = None,
         limit: int = MAX_INCIDENT_CONTENTS_SIZE,
         order_by: str = "create_time",
-    ) -> List:
+    ) -> list:
         """根据故障ID获取故障关联的内容(故障根因结果快照、故障操作记录、故障通知记录)
 
         :param incident_id: 故障ID
@@ -107,10 +107,10 @@ class IncidentSnapshotDocument(IncidentItemsMixin, IncidentBaseDocument):
 
     class Index:
         name = "bkmonitor_aiops_incident_snapshot"
-        settings = {"number_of_shards": 3, "number_of_replicas": 1, "refresh_interval": "1s"}
+        settings = ES_INDEX_SETTINGS.copy()
 
     def __init__(self, *args, **kwargs):
-        super(IncidentSnapshotDocument, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if self.id is None:
             self.id = f"{self.create_time}{uuid.uuid4().hex[:8]}"
 
@@ -158,10 +158,10 @@ class IncidentDocument(IncidentBaseDocument):
 
     class Index:
         name = "bkmonitor_aiops_incident_info"
-        settings = {"number_of_shards": 3, "number_of_replicas": 1, "refresh_interval": "1s"}
+        settings = ES_INDEX_SETTINGS.copy()
 
     def __init__(self, *args, **kwargs):
-        super(IncidentDocument, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if self.id is None:
             self.id = f"{self.create_time}{self.incident_id}"
 
@@ -198,7 +198,7 @@ class IncidentDocument(IncidentBaseDocument):
         try:
             ts = cls.parse_timestamp_by_id(id)
         except Exception:
-            raise ValueError("invalid uuid: {}".format(id))
+            raise ValueError(f"invalid uuid: {id}")
         hits = cls.search(start_time=ts, end_time=ts).filter("term", id=id).execute().hits
         if not hits:
             raise IncidentNotFoundError({"id": id})
@@ -219,7 +219,7 @@ class IncidentDocument(IncidentBaseDocument):
         return cls(**incident_document_info)
 
     @classmethod
-    def mget(cls, ids: List[int], fields: List = None) -> List["IncidentDocument"]:
+    def mget(cls, ids: list[int], fields: list = None) -> list["IncidentDocument"]:
         """
         获取多条故障
         """
@@ -266,10 +266,10 @@ class IncidentOperationDocument(IncidentItemsMixin, IncidentBaseDocument):
 
     class Index:
         name = "bkmonitor_aiops_incident_operation"
-        settings = {"number_of_shards": 3, "number_of_replicas": 1, "refresh_interval": "1s"}
+        settings = ES_INDEX_SETTINGS.copy()
 
     def __init__(self, *args, **kwargs):
-        super(IncidentOperationDocument, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if self.id is None:
             self.id = f"{self.create_time}{uuid.uuid4().hex[:8]}"
 
@@ -292,9 +292,9 @@ class IncidentNoticeDocument(IncidentItemsMixin, IncidentBaseDocument):
 
     class Index:
         name = "bkmonitor_aiops_incident_notice"
-        settings = {"number_of_shards": 3, "number_of_replicas": 1, "refresh_interval": "1s"}
+        settings = ES_INDEX_SETTINGS.copy()
 
     def __init__(self, *args, **kwargs):
-        super(IncidentNoticeDocument, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if self.id is None:
             self.id = f"{self.create_time}{uuid.uuid4().hex[:8]}"

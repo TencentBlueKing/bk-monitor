@@ -16,6 +16,7 @@ from elasticsearch.helpers import BulkIndexError
 from elasticsearch_dsl import InnerDoc, Search, field
 
 from bkmonitor.documents.base import BaseDocument, Date
+from bkmonitor.documents.constants import ES_INDEX_SETTINGS
 from constants.action import ActionDisplayStatus, ActionPluginType
 
 logger = logging.getLogger("action")
@@ -100,7 +101,7 @@ class ActionInstanceDocument(BaseDocument):
 
     class Index:
         name = "bkfta_action"
-        settings = {"number_of_shards": 3, "number_of_replicas": 1, "refresh_interval": "1s"}
+        settings = ES_INDEX_SETTINGS.copy()
 
     def get_index_time(self):
         return self.create_time

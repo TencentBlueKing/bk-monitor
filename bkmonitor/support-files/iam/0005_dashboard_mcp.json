@@ -1,0 +1,34 @@
+{
+  "system_id": "bk_monitorv3",
+  "operations": [
+    {
+      "operation": "upsert_action",
+      "data": {
+        "id": "using_dashboard_mcp",
+        "name": "使用仪表盘MCP",
+        "name_en": "Using Dashboard MCP",
+        "type": "view",
+        "version": 1,
+        "related_resource_types": [
+          {
+              "system_id":"bk_monitorv3",
+              "id":"space",
+              "selection_mode":"instance",
+              "related_instance_selections":[
+                  {
+                      "system_id":"bk_monitorv3",
+                      "id":"space_list"
+                  }
+              ],
+              "ignore_iam_path":true
+          }
+        ],
+        "related_actions": [
+          "view_business_v2"
+        ],
+        "description": "使用仪表盘MCP功能进行智能监控和数据分析",
+        "description_en": "Use Dashboard MCP for intelligent monitoring and data analysis"
+      }
+    }
+  ]
+}

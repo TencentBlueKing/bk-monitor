@@ -1029,3 +1029,8 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 )
 
         list_config_item["params"] = params
+
+    @classmethod
+    def handle_view_config(cls, scene_id: str, config):
+        translated_config = cls._translate_config(config)
+        config.update(translated_config)

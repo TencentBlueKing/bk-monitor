@@ -57,6 +57,7 @@ import './static/font-face/index.css';
 import './static/style.css';
 import '@blueking/bk-user-selector/vue2/vue2.css';
 import { BK_LOG_STORAGE } from './store/store.type.ts';
+import { urlArgs } from './store/default-values.ts';
 
 // import { localSettings } from './local.po';
 
@@ -151,20 +152,11 @@ const mountedVueInstance = () => {
                   type: 'space',
                   spaceUid: spaceUid ?? store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
                   bkBizId: bkBizId ?? store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+                  from: urlArgs.from,
                 },
               });
 
               return;
-            }
-
-            if (space) {
-              this.$router.replace({
-                name: 'retrieve',
-                query: {
-                  spaceUid,
-                  bizId: bkBizId,
-                },
-              });
             }
           },
           mounted() {

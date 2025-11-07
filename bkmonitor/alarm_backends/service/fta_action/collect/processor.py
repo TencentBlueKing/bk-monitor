@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 from datetime import datetime
 
@@ -66,7 +66,7 @@ class ActionProcessor(BaseActionProcessor):
                 **{
                     "execute_times": self.action.execute_times + 1,
                     "outputs": {"retry_times": self.retry_times + 1, node_execute_times_key: node_execute_times},
-                }
+                },
             )
             related_actions_count = self.related_actions.count()
             if (
@@ -111,11 +111,7 @@ class ActionProcessor(BaseActionProcessor):
             return
         except RelatedAlertNotFoundError as error:
             # 当有关联的记录
-            logger.warning(
-                "${action_id} run collect action failed , msg is {error}".format(
-                    action_id=self.action.id, error=str(error)
-                )
-            )
+            logger.warning(f"${self.action.id} run collect action failed , msg is {str(error)}")
             kwargs["node_execute_times"] = self.action.outputs.get(node_execute_times_key, 0)
             self.set_finished(
                 ActionStatus.FAILURE,
@@ -126,11 +122,7 @@ class ActionProcessor(BaseActionProcessor):
             )
             return
         except BaseException as error:
-            logger.exception(
-                "${action_id} run collect action failed , msg is {error}".format(
-                    action_id=self.action.id, error=str(error)
-                )
-            )
+            logger.exception(f"${self.action.id} run collect action failed , msg is {str(error)}")
             kwargs["node_execute_times"] = self.action.outputs.get(node_execute_times_key, 0)
             self.set_finished(
                 ActionStatus.FAILURE,
@@ -174,16 +166,13 @@ class ActionProcessor(BaseActionProcessor):
         # 发送通知, 根据不同的通知渠道，选择不同的发送通知类
         sender_class = self.NOTICE_SENDER.get(self.context.get("notice_channel"), Sender)
         sender = sender_class(
+            bk_tenant_id=self.bk_tenant_id,
             title_template_path="notice/{signal}/{collect_type}/{notice_way}_title.jinja".format(
                 signal=action_signal,
                 notice_way=collect_info["notice_way"],
                 collect_type=collect_type,
             ),
-            content_template_path="notice/{signal}/{collect_type}/{notice_way}_content.jinja".format(
-                signal=action_signal,
-                notice_way=msg_content_type,
-                collect_type=collect_type,
-            ),
+            content_template_path=f"notice/{action_signal}/{collect_type}/{msg_content_type}_content.jinja",
             context=self.context,
         )
 
@@ -227,7 +216,7 @@ class ActionProcessor(BaseActionProcessor):
         for key, values in self.converged_condition.items():
             if values is None:
                 values = ""
-            if isinstance(values, (list, set)):
+            if isinstance(values, list | set):
                 values = "_".join([str(value) for value in values])
             else:
                 values = str(values)

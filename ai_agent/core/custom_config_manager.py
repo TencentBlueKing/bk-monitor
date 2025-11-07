@@ -94,10 +94,11 @@ def _get_mcp_auth_info(request):
     """
     获取MCP认证信息
     """
+    is_ieod_mode = ENV_MODE == "ieod"
     auth_info = {
-        "app_code": AI_AGENT_APP_CODE,
-        "app_secret": AI_AGENT_APP_SECRET,
-        "access_token": _get_access_token_ieod(request) if ENV_MODE == "ieod" else _get_access_token_open(request),
+        "app_code": AI_AGENT_APP_CODE if is_ieod_mode else settings.APP_CODE,
+        "app_secret": AI_AGENT_APP_SECRET if is_ieod_mode else settings.SECRET_KEY,
+        "access_token": _get_access_token_ieod(request) if is_ieod_mode else _get_access_token_open(request),
     }
     return auth_info
 
@@ -145,11 +146,10 @@ class CustomConfigManager(AgentConfigManager):
             # mcp_config["headers"] = json.dumps(_get_mcp_auth_info(request))
             # 自定义请求头,鉴权+区分请求来源
             mcp_config["headers"] = {
-                "X-Bk-Request-Origin": "bkm-mcp-client",
-                "X-Bkapi-Allowed-Headers": "X-Bk-Request-Origin",
+                "X-Bk-Request-Source": "bkm-mcp-client",
+                "X-Bkapi-Allowed-Headers": "X-Bk-Request-Source",
                 "X-Bkapi-Authorization": json.dumps(_get_mcp_auth_info(request)),
             }
-
         # 需要自定义重写鉴权Headers和特殊标识Headers
 
         # 创建配置实例

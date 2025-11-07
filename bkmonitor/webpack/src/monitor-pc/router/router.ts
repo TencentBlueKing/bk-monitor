@@ -36,6 +36,7 @@ import { NO_BUSINESS_PAGE_HASH } from '../constant/constant';
 import authorityStore from '../store/modules/authority';
 import reportLogStore from '../store/modules/report-log';
 import store from '../store/store';
+import platformConfigStore from '../store/modules/platform-config';
 
 import dashboardRoutes from './dashboard';
 // #if APP !== 'external'
@@ -53,6 +54,7 @@ import emailSubscriptionsRoutes from './dashboard/email-subscriptions';
 // import spaceData from './space';
 import { getRouteConfigById, getRouteRootName, isInCommonRoute, setLocalStoreRoute } from './router-config';
 import { getAuthById, setAuthById } from '../common/auth-store';
+import { isEn } from '@/i18n/lang';
 
 const EmailSubscriptionsName = 'email-subscriptions';
 Vue.use(VueRouter);
@@ -201,8 +203,14 @@ router.afterEach(to => {
   store.commit('app/SET_NAV_TITLE', to.params.title || to.meta.title);
   let title = '';
   let subtitle = '';
-  // 首页 仪表盘 显示原始标题
-  if (to.name === 'home' || to.path.includes('/grafana')) {
+  // 首页
+  if (to.name === 'home') {
+    const { brandNameEn, brandName } = platformConfigStore.publicConfig || {};
+    const brandTitle = isEn ? brandNameEn : brandName;
+    title = window.i18n.t('监控平台') as string;
+    subtitle = brandTitle || (window.i18n.t('蓝鲸智云') as string);
+  } else if (to.path.includes('/grafana')) {
+    // 仪表盘 显示原始标题
     title = '';
     subtitle = window.i18n.t(to.params.title || to.meta.title) as string;
   } else if (to.path.includes('/event-center') || to.name === 'incident-detail') {

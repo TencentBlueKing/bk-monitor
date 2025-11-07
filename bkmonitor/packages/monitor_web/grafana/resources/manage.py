@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,12 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import traceback
 from collections import defaultdict, namedtuple
 from copy import deepcopy
-from typing import Any, Dict
+from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -104,7 +104,7 @@ class GetDirectoryTree(Resource):
             request, None, params["bk_biz_id"], force_check=True
         )
 
-        folders: Dict[int, Dict] = defaultdict(lambda: {"dashboards": []})
+        folders: dict[int, dict] = defaultdict(lambda: {"dashboards": []})
 
         # 补充默认目录
         folders[0].update(
@@ -358,6 +358,9 @@ class QuickImportDashboard(Resource):
             folder_list = [fold["id"] for fold in folder_list if fold["title"] == folder_name]
             if folder_list:
                 folder_id = folder_list[0]
+            else:
+                # 当前业务下, 目录不存在, 创建目录
+                folder_id = api.grafana.create_folder(org_id=org_id, title=folder_name)["data"]["id"]
 
         from monitor_web.grafana.provisioning import BkMonitorProvisioning
 
@@ -433,7 +436,7 @@ class MigrateOldPanels(Resource):
     将旧版 panels 迁移到新版本
     """
 
-    PanelMigrationConfig = namedtuple('PanelMigrationConfig', ['old_type', 'new_type', 'method_name'])
+    PanelMigrationConfig = namedtuple("PanelMigrationConfig", ["old_type", "new_type", "method_name"])
     GRAPH_TO_TIMESERIES = PanelMigrationConfig("graph", "timeseries", "graph_to_timeseries")
     OLD_TABLE_TO_NEW = PanelMigrationConfig("table-old", "table", "oldtable_to_newtable")
     OLD_PIECHART_TO_NEW = PanelMigrationConfig("grafana-piechart-panel", "piechart", "old_piechart_to_new")
@@ -443,7 +446,7 @@ class MigrateOldPanels(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
         dashboard_uid = serializers.CharField(label="仪表盘UID", required=True)
 
-    def graph_to_timeseries(self, panel: Dict):
+    def graph_to_timeseries(self, panel: dict):
         """
         将旧版 graph 面板 迁移到新版本的 timeseries 面板
         """
@@ -557,7 +560,7 @@ class MigrateOldPanels(Resource):
         if overrides:
             panel["fieldConfig"]["overrides"] = overrides
 
-    def oldtable_to_newtable(self, panel: Dict):
+    def oldtable_to_newtable(self, panel: dict):
         """
         将旧版 table 面板 迁移到新版本的 table 面板
         """
@@ -614,7 +617,7 @@ class MigrateOldPanels(Resource):
 
             panel["fieldConfig"]["overrides"].append(override)
 
-    def old_piechart_to_new(self, panel: Dict):
+    def old_piechart_to_new(self, panel: dict):
         """
         将旧版 piechart 面板 迁移到新版本的 piechart 面板
         """
@@ -664,7 +667,7 @@ class MigrateOldPanels(Resource):
             "overrides": [],
         }
 
-    def migrate_panel(self, panel: Dict, is_migrate: bool, migrated_panels_details: Dict):
+    def migrate_panel(self, panel: dict, is_migrate: bool, migrated_panels_details: dict):
         """
         将旧版 panels 迁移到新版本
         """
@@ -677,7 +680,7 @@ class MigrateOldPanels(Resource):
                     migrated_method = getattr(self, panel_migration.method_name)
                     migrated_method(panel)
                 except Exception as exc_info:  # noqa
-                    logger.error(f"Old Pannel migrates failed: {panel['id']} failed. " f"{traceback.format_exc()}")
+                    logger.error(f"Old Pannel migrates failed: {panel['id']} failed. {traceback.format_exc()}")
                     panel.clear()
                     panel.update(old_panel)
                     migrated_panels_details["failed_details"][panel_migration.old_type]["count"] += 1
@@ -795,7 +798,7 @@ class GetRelatedStrategy(Resource):
         dashboard_uid = serializers.CharField(label="仪表盘UID")
         panel_id = serializers.IntegerField(label="图表ID", required=False)
 
-    def perform_request(self, params: Dict[str, Any]):
+    def perform_request(self, params: dict[str, Any]):
         strategies = StrategyModel.objects.filter(
             bk_biz_id=params["bk_biz_id"],
             type=StrategyModel.StrategyType.Dashboard,
@@ -841,10 +844,10 @@ class MigrateOldPanelsByBiz(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
 
     def perform_request(self, params):
-        org_id = get_or_create_org(str(params['bk_biz_id']))["id"]
-        task = migrate_all_panels_task.delay(params['bk_biz_id'], org_id)
+        org_id = get_or_create_org(str(params["bk_biz_id"]))["id"]
+        task = migrate_all_panels_task.delay(params["bk_biz_id"], org_id)
 
-        return {'task_id': task.id}
+        return {"task_id": task.id}
 
 
 class MigratePanelsInfo(Resource):

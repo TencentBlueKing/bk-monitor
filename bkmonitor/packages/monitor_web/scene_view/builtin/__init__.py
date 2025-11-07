@@ -65,8 +65,7 @@ class BuiltinProcessor(metaclass=abc.ABCMeta):
         """
         file_path = os.path.join(cls.view_config_path, f"{filename}.json")
         with open(file_path, encoding="utf8") as f:
-            config = json.loads(f.read())
-            return cls._translate_config(config)
+            return json.loads(f.read())
 
     @classmethod
     def _translate_config(cls, config) -> dict:
@@ -96,6 +95,13 @@ class BuiltinProcessor(metaclass=abc.ABCMeta):
     def handle_view_list_config(cls, scene_id: str, list_config_item):
         """
         常见该场景下默认视图
+        """
+        return
+
+    @classmethod
+    def handle_view_config(cls, scene_id: str, config):
+        """
+        处理视图配置
         """
         return
 
@@ -263,6 +269,20 @@ def post_handle_view_list_config(scene_id, config_list):
 
         for item in config_list:
             generator.handle_view_list_config(scene_id, item)
+        return
+
+    raise TypeError("not scene processor")
+
+
+def post_handle_view_config(scene_id, config):
+    """
+    视图配置后置处理
+    """
+    for generator in get_builtin_processors():
+        if not generator.is_builtin_scene(scene_id):
+            continue
+
+        generator.handle_view_config(scene_id, config)
         return
 
     raise TypeError("not scene processor")

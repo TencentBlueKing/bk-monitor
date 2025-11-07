@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import calendar
 import logging
 import typing
@@ -25,6 +25,7 @@ from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
 from bkmonitor.models.strategy import DutyPlanSendRecord
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.send import Sender
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import NoticeWay
 from constants.common import DutyGroupType, RotationType, WorkTimeType
 
@@ -142,7 +143,7 @@ class DutyRuleManager:
         return self._last_duty_plans
 
     @staticmethod
-    def _calculate_end_date(rule_end_time: typing.Optional[str], snap_end_time: typing.Optional[str]) -> datetime.date:
+    def _calculate_end_date(rule_end_time: str | None, snap_end_time: str | None) -> datetime.date:
         """结束日期，包括这一天，除非是一天的开始。"""
         rule_end_datetime = end_time_to_datetime(rule_end_time)
         snap_end_datetime = end_time_to_datetime(snap_end_time)
@@ -527,7 +528,7 @@ class DutyRuleManager:
 
     @classmethod
     def refresh_duty_rule_from_any_begin_time(
-        cls, duty_rule: typing.Dict[str, typing.Any], begin_time: str
+        cls, duty_rule: dict[str, typing.Any], begin_time: str
     ) -> typing.Optional["DutyRuleManager"]:
         """
         从任何起点刷新 duty_rule 排班
@@ -586,7 +587,7 @@ class GroupDutyRuleManager:
                 rules_for_snap_creation.append(duty_rule)
                 continue
 
-            old_snaps: typing.List[DutyRuleSnap] = rule_id_to_snaps[rule_id]
+            old_snaps: list[DutyRuleSnap] = rule_id_to_snaps[rule_id]
 
             # 规则没有变化，跳过
             old_hashes = {snap.rule_snap["hash"] for snap in old_snaps}
@@ -635,9 +636,7 @@ class GroupDutyRuleManager:
             # Q：为什么 DutyRuleSnap 存在时，排班顺序有保障？
             # A：DutyRuleManager.get_duty_plan 每次都会迭代 snap 里的 begin_time 和 user_index
             for new_group_rule_snap in new_group_rule_snaps:
-                refresh_duty_manager: typing.Optional[
-                    DutyRuleManager
-                ] = DutyRuleManager.refresh_duty_rule_from_any_begin_time(
+                refresh_duty_manager: DutyRuleManager | None = DutyRuleManager.refresh_duty_rule_from_any_begin_time(
                     new_group_rule_snap.rule_snap, begin_time=task_time
                 )
                 if refresh_duty_manager:
@@ -719,8 +718,8 @@ class GroupDutyRuleManager:
         for duty_plan in duty_manager.get_duty_plan():
             if not duty_plan["work_times"]:
                 continue
-            duty_end_times = [f'{work_time["end_time"]}:59' for work_time in duty_plan["work_times"]]
-            duty_start_times = [f'{work_time["start_time"]}:00' for work_time in duty_plan["work_times"]]
+            duty_end_times = [f"{work_time['end_time']}:59" for work_time in duty_plan["work_times"]]
+            duty_start_times = [f"{work_time['start_time']}:00" for work_time in duty_plan["work_times"]]
             # 结束时间获取当前有效的排班时间最后一天即可，不能大于结束时间
             rule_end_time = rule_snap.rule_snap.get("end_time") or time_tools.MAX_DATETIME_STR
             snap_end_time = rule_snap.end_time or time_tools.MAX_DATETIME_STR
@@ -848,15 +847,16 @@ class GroupDutyRuleManager:
         else:
             notice_content = []
         for duty_plan in duty_plans:
-            duty_users = ",".join([f'{user["id"]}({user.get("display_name")})' for user in duty_plan["users"]])
+            duty_users = ",".join([f"{user['id']}({user.get('display_name')})" for user in duty_plan["users"]])
             duty_contents = []
             for work_time in duty_plan["work_times"]:
                 content = f"\\n> {work_time['start_time']} -- {work_time['end_time']}  {duty_users}"
-                if work_time['start_time'] <= end_time_str and content not in duty_contents:
+                if work_time["start_time"] <= end_time_str and content not in duty_contents:
                     duty_contents.append(content)
             if duty_contents:
                 notice_content.extend(duty_contents)
         sender = Sender(
+            bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.user_group.bk_biz_id),
             context={
                 "bk_biz_id": self.user_group.bk_biz_id,
                 "group_name": self.user_group.name,
@@ -939,7 +939,7 @@ class GroupDutyRuleManager:
 
         user_duty_plans = defaultdict(list)
         for duty_plan in duty_plans:
-            duty_users = ",".join([f'{user["id"]}({user.get("display_name")})' for user in duty_plan["users"]])
+            duty_users = ",".join([f"{user['id']}({user.get('display_name')})" for user in duty_plan["users"]])
             duty_contents = []
             for work_time in duty_plan["work_times"]:
                 duty_contents.append(f"{work_time['start_time']} -- {work_time['end_time']}  {duty_users}")
@@ -955,6 +955,7 @@ class GroupDutyRuleManager:
             duty_users = list(user_duty_plans.keys())
             send_content = "\n".join(sorted(list(user_duty_plans.values())[0]))
             sender = Sender(
+                bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.user_group.bk_biz_id),
                 context={
                     "bk_biz_id": self.user_group.bk_biz_id,
                     "group_name": self.user_group.name,
@@ -987,6 +988,7 @@ class GroupDutyRuleManager:
         for user, duty_plan in user_duty_plans.items():
             send_content = "\n".join(sorted(duty_plan))
             sender = Sender(
+                bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.user_group.bk_biz_id),
                 context={
                     "bk_biz_id": self.user_group.bk_biz_id,
                     "group_name": self.user_group.name,
@@ -1012,7 +1014,7 @@ class GroupDutyRuleManager:
         )
 
 
-def end_time_to_datetime(end_time: typing.Optional[str]) -> datetime:
+def end_time_to_datetime(end_time: str | None) -> datetime:
     """返回 datetime 类型的结束时间。"""
     if not end_time:
         return datetime.max

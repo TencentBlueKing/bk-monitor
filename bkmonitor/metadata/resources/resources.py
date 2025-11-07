@@ -2250,7 +2250,7 @@ class RetryRestoreResultTableSnapshotResource(Resource):
         bk_tenant_id = TenantIdField(label="租户ID")
         restore_id = serializers.IntegerField(required=True, label="快照恢复任务id")
         operator = serializers.CharField(required=True, label="操作者")
-        indices = serializers.ListField(required=False, label="重试索引列表",  default=[])
+        indices = serializers.ListField(required=False, label="重试索引列表", default=[])
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
         is_force = serializers.BooleanField(required=False, label="是否强制重试", default=False)
 
@@ -2363,6 +2363,8 @@ class KafkaTailResource(Resource):
             table_id = validated_request_data["table_id"]
             logger.info("KafkaTailResource: got table_id->[%s],try to tail kafka", table_id)
             result_table = models.ResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+            if not result_table:
+                return []
             datasource = result_table.data_source
 
         size = validated_request_data["size"]

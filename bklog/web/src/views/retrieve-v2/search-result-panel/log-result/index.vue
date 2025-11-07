@@ -301,14 +301,13 @@ export default {
       };
     },
     handleHighlightEnter(valList) {
-      console.log('handleHighlightEnter', valList);
       this.highlightValue = [];
-      for(let i = 0; i < valList.length; i++) {
+      for (let i = 0; i < valList.length; i++) {
         const val = valList[i];
         const values = val.split(/\s+/);
-        for(let j = 0; j < values.length; j++) {
+        for (let j = 0; j < values.length; j++) {
           const value = values[j].replace(/^\s+|\s+$/g, '');
-          if(value.length > 0) {
+          if (value.length > 0) {
             this.highlightValue.push(value);
           }
         }

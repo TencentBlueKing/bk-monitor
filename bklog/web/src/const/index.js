@@ -42,4 +42,6 @@ export const builtInInitHiddenList = [
   '__module__',
   '__set__',
   '__ipv6__',
+  '__shard_key__',
+  '__unique_key__',
 ];
