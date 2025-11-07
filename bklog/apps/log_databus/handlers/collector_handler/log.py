@@ -383,3 +383,13 @@ class LogCollectorHandler:
             "list": current_page_data,
         }
         return result
+
+    def get_collector_count(self):
+        """获取采集项总数"""
+        collector_count = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id).count()
+        index_set_count = (
+            LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid)
+            .exclude(scenario_id=Scenario.LOG)
+            .count()
+        )
+        return collector_count + index_set_count
