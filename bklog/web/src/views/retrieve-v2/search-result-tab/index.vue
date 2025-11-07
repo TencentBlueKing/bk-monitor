@@ -51,7 +51,7 @@ const isAiopsToggle = computed(() => {
   }
 });
 
-const isChartEnable = computed(() => indexSetItems.value?.every(item => item.support_doris));
+const isChartEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris);
 const isGrepEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris);
 
 const isExternal = computed(() => window.IS_EXTERNAL === true);
