@@ -165,8 +165,9 @@ export default defineComponent({
         mask-close={false}
         ok-text={t('添加')}
         theme='primary'
-        title={t('新增索引')}
+        title={t('新增数据源')}
         value={props.isShowDialog}
+        on-cancel={handleCancel}
       >
         <bk-form label-width={60}>
           <bk-form-item

@@ -72,6 +72,7 @@ export default defineComponent({
     const bkBizId = computed(() => store.getters.bkBizId);
     const formData = ref({
       resultTableId: '',
+      time_field_type: '',
     });
     const timeUnits = [
       { name: t('秒（second）'), id: 'second' },
@@ -234,10 +235,8 @@ export default defineComponent({
         theme='primary'
         title={t('新增索引')}
         value={props.isShowDialog}
-        // on-cancel={handleCancel}
-        // on-confirm={handleConfirm}
+        on-cancel={handleCancel}
       >
-        {String(formData.value.time_field_type === 'long')}
         <bk-form
           label-width={80}
           {...{

@@ -43,12 +43,6 @@ import 'tippy.js/themes/light.css';
 
 export default defineComponent({
   name: 'LeftList',
-  props: {
-    total: {
-      type: Number,
-      default: 0,
-    },
-  },
   emits: ['choose'],
 
   setup(props, { emit }) {
@@ -63,11 +57,12 @@ export default defineComponent({
     let tippyInstance: Instance | null = null;
     const searchValue = ref<string>('');
     const listData = ref<IListItemData[]>([]);
+    const total = ref(0);
 
     const baseItem = computed(() => [
       {
         index_set_name: t('全部采集项'),
-        index_count: props.total,
+        index_count: total.value,
         index_set_id: 'all',
         icon: 'all2',
         unEditable: true,
@@ -118,7 +113,8 @@ export default defineComponent({
      */
     const getListData = () => {
       getIndexGroupList(data => {
-        listData.value = data;
+        listData.value = data.list;
+        total.value = data.total;
         initActionPop();
       });
     };
@@ -151,9 +147,11 @@ export default defineComponent({
       getListData();
     };
 
-    onMounted(() => {
-      handleItem(baseItem.value[0]);
-      getListData();
+    onMounted(async () => {
+      await getListData();
+      setTimeout(() => {
+        handleItem(baseItem.value[0]);
+      }, 1500);
     });
 
     onBeforeUnmount(() => {

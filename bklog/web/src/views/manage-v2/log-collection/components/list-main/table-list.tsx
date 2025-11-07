@@ -65,7 +65,7 @@ export default defineComponent({
     },
   },
 
-  emits: ['data'],
+  emits: [],
 
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -89,46 +89,7 @@ export default defineComponent({
       limitList: [10, 20, 50],
     });
     const settingFields = SETTING_FIELDS;
-    const data2 = [
-      {
-        name: '创建人',
-        id: 'created_by',
-        multiable: false,
-        children: [
-          {
-            name: 'jayjhwu',
-            id: 'jayjhwu',
-          },
-          {
-            name: 'kyliewang',
-            id: 'kyliewang',
-          },
-          {
-            name: 'v_cwcgcui',
-            id: 'v_cwcgcui',
-          },
-        ],
-      },
-      {
-        name: '更新人',
-        id: 'updated_by',
-        multiable: false,
-        children: [
-          {
-            name: 'kyliewang',
-            id: 'kyliewang',
-          },
-          {
-            name: 'yuxiaogao',
-            id: 'yuxiaogao',
-          },
-          {
-            name: 'jayjhwu',
-            id: 'jayjhwu',
-          },
-        ],
-      },
-    ];
+    const data2 = [];
     /** 状态渲染 */
     const renderStatus = (key: string) => {
       const info = STATUS_ENUM.find(item => item.value === key);
@@ -350,7 +311,8 @@ export default defineComponent({
     onMounted(() => {
       nextTick(() => {
         !authGlobalInfo.value && checkCreateAuth();
-        getTableList();
+        listLoading.value = true;
+        // getTableList();
       });
     });
 
@@ -380,7 +342,6 @@ export default defineComponent({
         console.log(res, 'res');
         tableList.value = res.data?.list || [];
         pagination.value.count = res.data?.total || 0;
-        emit('data', pagination.value.count);
       } catch (e) {
         console.warn(e);
       } finally {
@@ -515,7 +476,7 @@ export default defineComponent({
             <bk-button
               icon='plus'
               theme='primary'
-              onClick={handleCreateOperation}
+              on-Click={handleCreateOperation}
             >
               {t('采集项')}
             </bk-button>

@@ -816,8 +816,6 @@ export default defineComponent({
         ...params,
         paths: params?.paths.map(item => item.value),
       };
-      console.log(newParams, '===');
-      return;
       $http
         .request('collect/addCollection', {
           data: { ...formData.value, params: newParams },
@@ -838,9 +836,15 @@ export default defineComponent({
      * 保存配置
      */
     const handleSubmitSave = () => {
-      // emit('next');
-      setCollection();
-      console.log('下一步', formData.value);
+      baseInfoRef.value
+        .validate()
+        .then(() => {
+          console.log('下一步', formData.value);
+          setCollection();
+        })
+        .catch(() => {
+          console.log('error');
+        });
     };
     return () => (
       <div class='operation-step2-configuration'>

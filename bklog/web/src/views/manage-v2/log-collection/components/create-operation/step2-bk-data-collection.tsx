@@ -382,7 +382,7 @@ export default defineComponent({
     const handleSave = () => {
       try {
         if (!configData.value.indexes.length) {
-          showMessage(t('请选择索引'), 'error');
+          showMessage(t('请选择数据源'), 'error');
           return;
         }
         baseInfoRef.value

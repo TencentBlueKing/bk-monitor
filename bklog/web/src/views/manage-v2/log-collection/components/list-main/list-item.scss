@@ -28,8 +28,8 @@
     padding: 0 12px 0 16px;
     display: flex;
     align-items: center;
-    cursor: pointer;
     margin-bottom: 4px;
+    cursor: pointer;
     &.active {
       background: #e1ecff;
       .item-icon,
@@ -47,6 +47,7 @@
       flex: 1;
       font-size: 13px;
       color: #313238;
+      cursor: pointer;
     }
     .item-count {
       display: inline-block;

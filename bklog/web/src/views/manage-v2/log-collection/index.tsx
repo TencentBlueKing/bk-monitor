@@ -41,7 +41,6 @@ export default defineComponent({
   setup() {
     const { t } = useLocale();
     const isShowLeft = ref(true);
-    const listTotal = ref(0);
     const currentIndexSet = ref<IListItemData>({
       index_set_name: t('全部采集项'),
       index_count: 0,
@@ -56,25 +55,11 @@ export default defineComponent({
       currentIndexSet.value = item;
     };
 
-    /**
-     * 获取列表数据total
-     * @param total
-     */
-    const handleTotal = (total: number) => {
-      listTotal.value = total;
-      if (currentIndexSet.value.index_set_id === 'all') {
-        currentIndexSet.value.index_count = total;
-      }
-    };
-
     return () => (
       <div class='v2-log-collection-main'>
         {isShowLeft.value && (
           <div class='v2-log-collection-left'>
-            <LeftList
-              total={listTotal.value}
-              on-choose={handleChoose}
-            />
+            <LeftList on-choose={handleChoose} />
           </div>
         )}
         <div class='v2-log-collection-right'>
@@ -84,10 +69,7 @@ export default defineComponent({
           >
             <i class={`bk-icon icon-angle-${isShowLeft.value ? 'left' : 'right'} right-btn`} />
           </span>
-          <TableList
-            indexSet={currentIndexSet.value}
-            on-data={handleTotal}
-          />
+          <TableList indexSet={currentIndexSet.value} />
         </div>
       </div>
     );
