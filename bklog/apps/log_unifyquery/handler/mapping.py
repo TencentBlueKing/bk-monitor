@@ -199,11 +199,13 @@ class UnifyQueryMappingHandler:
             }
             for field in fields_result
         ]
-        # doris需要映射字段类型
+        # doris需要映射字段类型，根据新的类型获取操作列表
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.index_set.tag_ids)
         if is_doris:
             for field in fields_list:
                 field["field_type"] = DorisFieldTypeEnum.get_es_field_type(field)
+                field["field_operator"] = OPERATORS.get(field["field_type"], [])
+                field["es_doc_values"] = field["field_type"] not in ["text", "object"]
 
         for field in fields_list:
             # @TODO tag：兼容前端代码，后面需要删除
@@ -482,7 +484,7 @@ class UnifyQueryMappingHandler:
         return self._inner_get_bkdata_schema(index=index)
 
     @staticmethod
-    @cache_ten_minute("{index}_schema_uq")
+    @cache_ten_minute("{index}_schema_uq", need_md5=True)
     def _inner_get_bkdata_schema(*, index):
         try:
             data: dict = BkDataStorekitApi.get_schema_and_sql({"result_table_id": index})
@@ -492,7 +494,7 @@ class UnifyQueryMappingHandler:
             return []
 
     @staticmethod
-    @cache_one_minute("{indices}_meta_schema_uq")
+    @cache_one_minute("{indices}_meta_schema_uq", need_md5=True)
     def get_meta_schema(*, indices):
         indices = indices.split(",")
         try:
