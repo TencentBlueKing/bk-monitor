@@ -588,7 +588,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             } else if (component.key === 'category') {
               defaultVal = this.formData.dir?.toString() || '';
             } else if (component.key === 'bk_biz_id') {
-              defaultVal = '';
+              defaultVal = (window.cc_biz_id || window.bk_biz_id).toString();
             } else if (component.key === 'datasource') {
               defaultVal = 'bkmonitor-timeseries-datasource';
             }
