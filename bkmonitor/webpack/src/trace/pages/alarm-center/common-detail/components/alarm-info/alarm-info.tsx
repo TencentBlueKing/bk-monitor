@@ -34,7 +34,7 @@ import { useI18n } from 'vue-i18n';
 
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
-import type { AlarmDetail, AlertActionOverview } from '../../typings';
+import type { AlarmDetail, AlertActionOverview } from '../../../typings';
 
 import './alarm-info.scss';
 
@@ -49,7 +49,7 @@ export default defineComponent({
     },
     readonly: Boolean,
   },
-  emits: ['manualProcess', 'alarmDispatch'],
+  emits: ['manualProcess', 'alarmDispatch', 'alarmStatusDetailShow'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const { bizItem } = storeToRefs(useAlarmCenterDetailStore());
@@ -213,12 +213,23 @@ export default defineComponent({
       ],
     ]);
 
+    const handleAlarmStatusDetailShow = () => {
+      emit('alarmStatusDetailShow');
+    };
+
     /** 告警状态 */
     function renderAlarmStatus() {
       return (
         <div class='alarm-status'>
           <span class='total'>{handleStatusString.value}</span>
-          <span class='icon-monitor icon-xiangqing1'>{t('详情')}</span>
+          {handleStatusString.value !== '--' && (
+            <span
+              class='icon-monitor icon-xiangqing1'
+              onClick={handleAlarmStatusDetailShow}
+            >
+              {t('详情')}
+            </span>
+          )}
         </div>
       );
     }

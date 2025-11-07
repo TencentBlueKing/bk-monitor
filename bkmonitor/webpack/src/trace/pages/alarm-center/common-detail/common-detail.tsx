@@ -28,6 +28,7 @@ import { shallowRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
 
 import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
 import { useAlarmBasicInfo } from '../composables/use-alarm-baseinfo';
@@ -36,7 +37,8 @@ import { ALARM_CENTER_PANEL_TAB_MAP } from '../utils/constant';
 import AlarmAlert from './components/alarm-alert/alarm-alert';
 import AlarmConfirmDialog from './components/alarm-alert/alarm-confirm-dialog';
 import QuickShieldDialog from './components/alarm-alert/quick-shield-dialog';
-import AlarmInfo from './components/alarm-info';
+import AlarmInfo from './components/alarm-info/alarm-info';
+import AlarmStatusDialog from './components/alarm-info/alarm-status-dialog';
 import AlarmView from './components/alarm-view/alarm-view';
 import PanelAlarm from './components/panel-alarm';
 import PanelContainer from './components/panel-container';
@@ -51,20 +53,21 @@ import './common-detail.scss';
 export default defineComponent({
   name: 'AlarmDetail',
   setup() {
+    const { t } = useI18n();
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
+    const currentPanel = shallowRef(alarmCenterDetailStore.alarmDetail?.alarmTabList?.[0]?.label);
     const { alarmDetail, loading, bizId, alarmId } = storeToRefs(alarmCenterDetailStore);
-    const { alertActionOverview } = useAlarmBasicInfo();
+    const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal } = useAlarmBasicInfo();
     /** 告警确认弹窗 */
     const alarmConfirmShow = shallowRef(false);
     /** 快速屏蔽弹窗 */
     const quickShieldShow = shallowRef(false);
-    const currentPanel = shallowRef(alarmCenterDetailStore.alarmDetail?.alarmTabList?.[0]?.label);
-
+    /** 告警确认 */
     const handleAlarmConfirm = (val: boolean) => {
       alarmDetail.value = new AlarmDetail({ ...alarmDetail.value, is_ack: val });
     };
 
-    /** 告警屏蔽详情 */
+    /** 告警屏蔽详情数据 */
     const alarmShieldDetail = computed(() => {
       return [
         {
@@ -90,11 +93,14 @@ export default defineComponent({
       alarmDetail.value = new AlarmDetail({ ...alarmDetail.value, shield_left_time: time });
     };
 
+    /** 快捷屏蔽成功 */
     const quickShieldSuccess = (v: boolean) => {
       if (v) {
         alarmCenterDetailStore.getAlertDetailData(alarmId.value);
       }
     };
+
+    const alarmStatusDetailShow = shallowRef(false);
 
     const getPanelComponent = () => {
       switch (currentPanel.value) {
@@ -119,25 +125,57 @@ export default defineComponent({
       }
     };
 
+    /** 详情信息骨架屏 */
+    const renderBasicInfoSkeleton = () => {
+      return (
+        <div class='alarm-basic-info-skeleton'>
+          <div class='skeleton-element alarm-alert' />
+          <div class='alarm-info'>
+            <div class='dimension-info'>
+              <div class='skeleton-title'>{t('维度信息')}</div>
+              <div class='skeleton-element dimension-info-row' />
+            </div>
+            <div class='basic-info'>
+              <div class='skeleton-title'>{t('基础信息')}</div>
+              {new Array(4).fill(0).map((_, index) => (
+                <div
+                  key={index}
+                  class='basic-info-row'
+                >
+                  <div class='skeleton-element basic-info-col' />
+                  <div class='skeleton-element basic-info-col' />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     return () => (
       <div class='alarm-center-detail-box'>
-        <AlarmAlert
-          data={alarmCenterDetailStore.alarmDetail}
-          onAlarmConfirm={() => {
-            alarmConfirmShow.value = true;
-          }}
-          onQuickShield={() => {
-            quickShieldShow.value = true;
-          }}
-        />
-        {loading.value ? (
-          <div class='alarm-basic-info' />
-        ) : (
-          <AlarmInfo
-            alertActionOverview={alertActionOverview.value}
-            data={alarmCenterDetailStore.alarmDetail}
-          />
-        )}
+        {loading.value
+          ? renderBasicInfoSkeleton()
+          : [
+              <AlarmAlert
+                key='alarm-alert'
+                data={alarmCenterDetailStore.alarmDetail}
+                onAlarmConfirm={() => {
+                  alarmConfirmShow.value = true;
+                }}
+                onQuickShield={() => {
+                  quickShieldShow.value = true;
+                }}
+              />,
+              <AlarmInfo
+                key='alarm-info'
+                alertActionOverview={alarmStatusOverview.value}
+                data={alarmCenterDetailStore.alarmDetail}
+                onAlarmStatusDetailShow={() => {
+                  alarmStatusDetailShow.value = true;
+                }}
+              />,
+            ]}
         <Tab
           class='panel-tab'
           active={currentPanel.value}
@@ -174,6 +212,11 @@ export default defineComponent({
           onUpdate:show={v => {
             quickShieldShow.value = v;
           }}
+        />
+        <AlarmStatusDialog
+          v-model:show={alarmStatusDetailShow.value}
+          actions={alarmStatusActions.value}
+          total={alarmStatusTotal.value}
         />
       </div>
     );
