@@ -23,11 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { defineComponent } from 'vue';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type';
-import { defineComponent } from 'vue';
 
 export default defineComponent({
   name: 'UnAuthorized',
