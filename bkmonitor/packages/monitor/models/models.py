@@ -408,7 +408,6 @@ class UptimeCheckTask(OperateRecordModel):
         直接执行删除操作会导致拨测配置文件遗留
         """
         self.switch_off_subscription(subscription_ids)
-        self.stop_subscription(subscription_ids)
         self.send_delete_subscription(subscription_ids)
 
     def send_delete_subscription(self, subscription_ids=None):

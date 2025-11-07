@@ -17,7 +17,6 @@ def migrate_subscription(apps, schema_editor):
     UptimeCheckTaskSubscription = apps.get_model("monitor", "UptimeCheckTaskSubscription")
     tasks = UptimeCheckTask.objects.all()
     for task in tasks:
-        action_name = f"bkmonitorbeat_{task.protocol.lower()}"
         bk_biz_id = task.bk_biz_id
         # 不为0说明有旧的订阅
         if task.subscription_id != 0:
@@ -26,9 +25,7 @@ def migrate_subscription(apps, schema_editor):
             if len(subscriptions) != 0:
                 # 先停再删
                 api.node_man.switch_subscription(subscription_id=task.subscription_id, action="disable")
-                api.node_man.run_subscription(
-                    subscription_id=task.subscription_id, actions={action_name: "UNINSTALL_AND_DELETE"}
-                )
+                api.node_man.delete_subscription(subscription_id=task.subscription_id)
             else:
                 # 否则将该订阅直接写入到表中,对订阅本身不做操作
                 UptimeCheckTaskSubscription.objects.create(
