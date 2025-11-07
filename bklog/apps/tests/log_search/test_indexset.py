@@ -835,10 +835,11 @@ class IndexGroupViewSetTestCase(TestCase):
         content = json.loads(response.content)
 
         self.assertEqual(response.status_code, SUCCESS_STATUS_CODE)
-        self.assertEqual(len(content["data"]), 1)
-        self.assertEqual(content["data"][0]["index_set_id"], self.index_group.index_set_id)
-        self.assertEqual(content["data"][0]["index_set_name"], "new_group")
-        self.assertEqual(content["data"][0]["index_count"], 0)
+        index_groups = content["data"]["list"]
+        self.assertEqual(len(index_groups), 1)
+        self.assertEqual(index_groups[0]["index_set_id"], self.index_group.index_set_id)
+        self.assertEqual(index_groups[0]["index_set_name"], "new_group")
+        self.assertEqual(index_groups[0]["index_count"], 0)
 
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     def test_update_index_group(self, *args, **kwargs):
