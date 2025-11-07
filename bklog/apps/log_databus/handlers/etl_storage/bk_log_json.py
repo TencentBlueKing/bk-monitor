@@ -162,20 +162,6 @@ class BkLogJsonEtlStorage(EtlStorage):
                 "input_id": "items",
                 "output_id": "iter_item",
                 "operator": {"type": "iter"}
-            }
-        ])
-        
-        # 4. 从iter_item提取data字段作为原文
-        rules.extend([
-            {
-                "input_id": "iter_item",
-                "output_id": "log",
-                "operator": {
-                    "type": "assign",
-                    "key_index": "data",
-                    "alias": "log",
-                    "output_type": "string"
-                }
             },
             {
                 "input_id": "iter_item",
@@ -187,6 +173,19 @@ class BkLogJsonEtlStorage(EtlStorage):
                 }
             }
         ])
+        
+        # 4. 从iter_item提取data字段作为原文
+        if etl_params.get("retain_original_text"):
+            rules.append({
+                "input_id": "iter_item",
+                "output_id": "log",
+                "operator": {
+                    "type": "assign",
+                    "key_index": "data",
+                    "alias": "log",
+                    "output_type": "string"
+                }
+            })
         
         # 5. JSON解析（解析iter_string中的JSON）
         rules.append({
@@ -264,8 +263,7 @@ class BkLogJsonEtlStorage(EtlStorage):
                     })
         
         return {
-            "rules": rules,
-            "filter_rules": [],
+            "clean_rules": rules,
             "es_storage_config": {
                 "unique_field_list": built_in_config["option"]["es_unique_field_list"],
                 "timezone": 8

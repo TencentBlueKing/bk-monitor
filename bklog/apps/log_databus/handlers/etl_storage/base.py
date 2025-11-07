@@ -331,7 +331,7 @@ class EtlStorage:
                     "zone": 0
                 },
                 "interval_format": None,
-                "to": "Millis",
+                "to": "millis",
                 "now_if_parse_failed": True
             }
         
@@ -342,7 +342,7 @@ class EtlStorage:
                 "zone": format_config["zone"]
             },
             "interval_format": None,
-            "to": "Millis",
+            "to": "millis",
             "now_if_parse_failed": True
         }
 
@@ -361,8 +361,8 @@ class EtlStorage:
             alias_name = field.get("alias_name", field_name)
             field_type = field["field_type"]
             
-            # 跳过__ext字段，它会在后面单独处理
-            if field_name == "__ext":
+            # 跳过log、iterationIndex字段，它会在后面单独处理
+            if field_name in ["log", "iterationIndex"]:
                 continue
                 
             rules.append({
@@ -405,31 +405,12 @@ class EtlStorage:
                     "input_type": None,
                     "output_type": self._get_output_type(time_field_type),
                     "fixed_value": None,
-                    "is_time_field": True,
-                    "time_format": v3_time_format,
+                    "is_time_field": None,
+                    "time_format": None,
                     "in_place_time_parsing": v4_time_parsing,
                     "default_value": None
                 }
             })
-        
-        # 处理__ext字段
-        rules.append({
-            "input_id": "json_data",
-            "output_id": "__ext",
-            "operator": {
-                "type": "assign",
-                "key_index": "ext",
-                "alias": "__ext",
-                "desc": "额外信息字段",
-                "input_type": None,
-                "output_type": "dict",
-                "fixed_value": None,
-                "is_time_field": None,
-                "time_format": None,
-                "in_place_time_parsing": None,
-                "default_value": None
-            }
-        })
         
         return rules
 
@@ -561,7 +542,7 @@ class EtlStorage:
         META
         """
         # field_list
-        field_list = built_in_config.get("fields", [])
+        field_list = copy.deepcopy(built_in_config.get("fields", []))
         etl_flat = etl_params.get("etl_flat", False)
 
         # 是否保留原文
