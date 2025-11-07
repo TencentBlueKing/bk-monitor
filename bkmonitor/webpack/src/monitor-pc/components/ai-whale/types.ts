@@ -365,6 +365,15 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
     components: [
       {
         type: 'input',
+        key: 'bk_biz_id',
+        fillBack: false,
+        required: false,
+        hide: true,
+        name: window.i18n.t('业务ID'),
+        placeholder: window.i18n.t('请输入业务ID'),
+      },
+      {
+        type: 'input',
         key: 'name',
         fillBack: true,
         required: true,
