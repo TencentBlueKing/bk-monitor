@@ -2086,13 +2086,14 @@ class ESStorage(models.Model, StorageResultTable):
         logger.info(f"result_table->[{table_id}] now has es_storage will try to create index.")
 
         # 创建集群记录，第一条记录的enable_time需要设置为最小时间
+        # 使用 1970-01-01 而不是 datetime.min，因为 MySQL DATETIME 类型不支持 0001-01-01
         storage_record, tag = StorageClusterRecord.objects.update_or_create(
             table_id=table_id,
             cluster_id=cluster_id,
             bk_tenant_id=bk_tenant_id,
             defaults={
                 "is_current": True,
-                "enable_time": datetime.datetime.min,
+                "enable_time": datetime.datetime(1970, 1, 1),
             },
         )
         logger.info(
@@ -5349,12 +5350,13 @@ class DorisStorage(models.Model, StorageResultTable):
                     storage_cluster_id=storage_cluster_id,
                 )
                 # 创建集群记录，第一条记录的enable_time需要设置为最小时间
+                # 使用 1970-01-01 而不是 datetime.min，因为 MySQL DATETIME 类型不支持 0001-01-01
                 StorageClusterRecord.objects.update_or_create(
                     bk_tenant_id=bk_tenant_id,
                     table_id=table_id,
                     cluster_id=storage_cluster_id,
                     defaults={
-                        "enable_time": datetime.datetime.min,
+                        "enable_time": datetime.datetime(1970, 1, 1),
                         "is_current": True,
                     },
                 )

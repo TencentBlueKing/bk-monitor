@@ -18,6 +18,7 @@ from .bcs import *  # noqa
 from .calendars import *  # noqa
 from .collect import *  # noqa
 from .custom_report import *  # noqa
+from .entity import *  # noqa
 from .event import *  # noqa
 from .event_plugin import *  # noqa
 from .grafana import *  # noqa

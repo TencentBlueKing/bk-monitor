@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from datetime import datetime
 from functools import partial
 from secrets import token_hex
@@ -26,7 +26,7 @@ TokenTypeViews = {
 }
 
 
-class AuthType(object):
+class AuthType:
     AsCode = "as_code"
     Grafana = "grafana"
     UptimeCheck = "uptime_check"
@@ -41,6 +41,7 @@ class AuthType(object):
     Apm = "apm"
     API = "api"
     Incident = "incident"
+    Entity = "entity"
 
 
 class ApiAuthToken(AbstractRecordModel):
@@ -63,6 +64,7 @@ class ApiAuthToken(AbstractRecordModel):
         (AuthType.Dashboard, "Dashboard"),
         (AuthType.Apm, "Apm"),
         (AuthType.Incident, "Incident"),
+        (AuthType.Entity, "Entity"),
     )
 
     bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
@@ -83,18 +85,22 @@ class ApiAuthToken(AbstractRecordModel):
         """
         判断view是否合法
         """
-        if self.type not in [AuthType.Grafana, AuthType.AsCode]:
+        if self.type not in [AuthType.Grafana, AuthType.AsCode, AuthType.Entity]:
             return True
         view_cls = getattr(view, "cls", None)
         if not view_cls:
             return False
 
-        return (self.type == "grafana" and view_cls.__module__ == "monitor_web.grafana.views") or (
-            self.type == "as_code"
-            and (
-                view_cls.__module__ in ["monitor_web.as_code.views"]
-                or view_cls.__name__ in ["QueryAsyncTaskResultViewSet", "CollectorPluginViewSet"]
+        return (
+            (self.type == "grafana" and view_cls.__module__ == "monitor_web.grafana.views")
+            or (
+                self.type == "as_code"
+                and (
+                    view_cls.__module__ in ["monitor_web.as_code.views"]
+                    or view_cls.__name__ in ["QueryAsyncTaskResultViewSet", "CollectorPluginViewSet"]
+                )
             )
+            or (self.type == "entity" and view_cls.__module__ == "kernel_api.views.v4.entity")
         )
 
     def is_allowed_namespace(self, namespace: str):

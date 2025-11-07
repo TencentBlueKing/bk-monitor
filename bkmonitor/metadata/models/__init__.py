@@ -53,6 +53,10 @@ from .influxdb_cluster import (
 )
 from .ping_server import PingServerSubscriptionConfig
 from .record_rule import RecordRule, ResultTableFlow
+from .entity_relation import (
+    CustomRelationStatus,
+    EntityMeta,
+)
 from .result_table import (
     CMDBLevelRecord,
     ESFieldQueryAliasOption,
@@ -156,4 +160,7 @@ __all__ = [
     "RecordRule",
     "ResultTableFlow",
     "BkBaseResultTable",
+    # resource relation
+    "EntityMeta",
+    "CustomRelationStatus",
 ]
