@@ -224,7 +224,7 @@ class AIDevInterface:
             switch_agent_by_scene=switch_agent_by_scene,
             is_temporary=is_temporary,
             agent_cls=CommonQAAgent,  # 显式传入正确的类
-            config_manager=CustomConfigManager,
+            config_manager_class=CustomConfigManager,
         )  # 工厂方法构建Agent实例
         if execute_kwargs.get("stream", False):
             # 使用增强的流式处理函数
