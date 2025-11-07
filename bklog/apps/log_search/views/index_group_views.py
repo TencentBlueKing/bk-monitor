@@ -27,6 +27,7 @@ from apps.iam.handlers.drf import (
     InstanceActionPermission,
     ViewBusinessPermission,
 )
+from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
 from apps.log_search.handlers.index_group import IndexGroupHandler
 from rest_framework.response import Response
 
@@ -55,6 +56,7 @@ class IndexGroupViewSet(APIViewSet):
         return [ViewBusinessPermission()]
 
     @insert_permission_field(
+        data_field=lambda d: d.get("list"),
         id_field=lambda d: d.get("index_set_id"),
         actions=[ActionEnum.MANAGE_INDICES],
         resource_meta=ResourceEnum.INDICES,
@@ -71,18 +73,34 @@ class IndexGroupViewSet(APIViewSet):
         @apiSuccess {Int} data.index_count 索引数量
         @apiSuccessExample {json} 成功返回:
         {
-            "message": "",
+            "result": true,
+            "data": {
+                "collector_count": 29,
+                "list": [
+                    {
+                        "index_set_id": 899,
+                        "index_set_name": "first_group",
+                        "index_count": 2,
+                        "deletable": true,
+                        "permission": {
+                            "manage_indices_v2": true
+                        }
+                    }
+                ]
+            },
             "code": 0,
-            "data": [{
-                "index_set_id": 899,
-                "index_set_name": "first_group",
-                "index_count": 3
-            }],
-            "result": true
+            "message": ""
         }
         """
         params = self.params_valid(IndexGroupListSerializer)
-        return Response(IndexGroupHandler.list_index_groups(params))
+        index_groups = IndexGroupHandler.list_index_groups(params)
+        collector_count = LogCollectorHandler(space_uid=params["space_uid"]).get_collector_count()
+        return Response(
+            {
+                "total": collector_count,
+                "list": index_groups,
+            }
+        )
 
     def create(self, request, *args, **kwargs):
         """
