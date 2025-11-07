@@ -106,6 +106,50 @@ grant_permissions:
       - graph_promql_query
       - as_code_import_config
       - quick_import_dashboard
+  - bk_app_code: bk_dbm
+    grant_dimension: "resource"
+    resource_names:
+      - query_custom_event_group
+      - custom_time_series
+      - get_custom_event_group
+      - custom_time_series_detail
+      - create_custom_time_series
+      - create_custom_event_group
+      - save_alarm_strategy_v3
+      - switch_alarm_strategy
+      - update_partial_strategy_v3
+      - delete_alarm_strategy_v3
+      - search_alarm_strategy_v3
+      - save_collect_config
+      - run_collect_config
+      - query_collect_config
+      - get_collect_config_list
+      - query_collect_config_detail
+      - search_user_groups
+      - search_user_group_detail
+      - delete_user_groups
+      - save_user_group
+      - save_duty_rule
+      - search_duty_rules
+      - delete_duty_rules
+      - save_rule_group
+      - search_rule_groups
+      - delete_rule_group
+      - search_event
+      - search_alert
+      - unify_query
+      - proxy_host_info
+      - search_action_config
+      - save_action_config
+      - edit_action_config
+      - add_shield
+      - disable_shield
+      - edit_shield
+      - list_shield
+      - get_shield
+      - bulk_save_subscribe
+      - bulk_delete_subscribe
+      - list_subscribe
 
 # 应用申请指定网关所有资源的权限，待网关管理员审批后，应用才可访问网关资源；
 # 用于命令 `apply_apigw_permissions`
