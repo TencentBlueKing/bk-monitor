@@ -20,9 +20,9 @@ specific language governing permissions and limitations under the License.
 6. APM - bk_biz_id, app_name
 """
 
-from datetime import datetime
 import enum
 import json
+from datetime import datetime
 from typing import Any
 
 import arrow
@@ -151,6 +151,10 @@ def get_data_id_status(bk_tenant_id: str, bk_biz_id: int, bk_data_id: int, with_
     data_id_status.kafka_data_exists = bool(result)
     if isinstance(result, list) and len(result) > 0:
         data_record = result[0]
+
+        if isinstance(data_record, list):
+            data_record = data_record[0]
+
         time_info = (
             data_record.get("timestamp") or data_record.get("data", {}).get("utctime") or data_record.get("utctime")
         )
@@ -330,8 +334,12 @@ def get_query_router_status(
         if result_table_detail:
             query_router_status.result_table_exists = True
 
-            # 检查结果表详情中的指标信息
             result_table_detail = json.loads(result_table_detail)
+
+            # 检查结果表详情中的指标信息
+            if not result_table_detail.get("fields", []):
+                query_router_status.messages.append(f"结果表 {result_table.table_id} 详情中没有指标字段")
+
             if with_detail:
                 query_router_status.result_table_detail = result_table_detail
         else:
