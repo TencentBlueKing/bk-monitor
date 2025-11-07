@@ -137,6 +137,7 @@ export default defineComponent({
         class='alarm-center-detail-panel-link-table'
         columns={this.columns}
         data={this.tableData}
+        resizable={true}
         size={'small'}
       />
     );

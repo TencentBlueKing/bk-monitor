@@ -79,4 +79,16 @@
       }
     }
   }
+
+  .panel-event-table-scroll-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 160px;
+    height: 32px;
+    margin: 16px auto;
+    color: #979ba5;
+    background-color: #ebedf0;
+    border-radius: 2px;
+  }
 }
