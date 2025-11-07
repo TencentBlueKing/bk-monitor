@@ -137,7 +137,7 @@ grant_permissions:
       - delete_rule_group
       - search_event
       - search_alert
-      - unify_query
+      - time_series_unify_query
       - proxy_host_info
       - search_action_config
       - save_action_config
