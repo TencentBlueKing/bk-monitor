@@ -123,6 +123,7 @@ class MonitorEventAdapter:
 
         metric = [conf["metric_id"] for item in self.strategy["items"] for conf in item.get("query_configs", [])]
         metric += [item["name"] for item in self.strategy["items"]]
+        metric = [item["origin_sql"] for item in self.strategy["items"] if item.get("origin_sql")]
         event = {
             "event_id": self.record["anomaly"][str(severity)]["anomaly_id"],
             "plugin_id": settings.MONITOR_EVENT_PLUGIN_ID,  # 来源固定为监控
