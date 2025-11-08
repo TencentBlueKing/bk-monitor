@@ -1430,6 +1430,8 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
         table_id_vm_info = cls._get_table_id_access_vm_data(table_ids)
         # 获取 vm 集群 ID
         vm_cluster_id_name = cls._get_vm_cluster_id_name()
+        # 获取结果表对应的 bcs 集群 ID
+        bcs_cluster_id_info = cls._get_table_id_bcs_cluster_id()
 
         # 标识查询不到结果表的场景
         not_found_table_id = "not_found_table_id"
@@ -1444,7 +1446,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
                 "data_id": data_id,
                 "measurement_type": table_id_measurement_type_map.get(table_id) or not_found_table_id,
                 "vm_table_id": vm_info.get("vm_table_id") or "",
-                "bcs_cluster_id": vm_info.get("bcs_cluster_id") or "",
+                "bcs_cluster_id": bcs_cluster_id_info.get(table_id, ""),
                 "is_influxdb_disabled": cluster_id in vm_cluster_id_name,
                 "vm_storage_name": vm_cluster_id_name.get(cluster_id, ""),
             }
@@ -1453,6 +1455,30 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
             )
         # publish
         RedisTools.publish(constants.INFLUXDB_KEY_PREFIX, [constants.INFLUXDB_ADDITIONAL_INFO_FOR_UNIFY_QUERY])
+
+    @classmethod
+    def _get_table_id_bcs_cluster_id(cls) -> dict:
+        """获取结果表和 BCS 集群的关系"""
+        from metadata.models import BCSClusterInfo
+        from metadata.models.data_source import DataSourceResultTable
+
+        infos = BCSClusterInfo.objects.all().only("cluster_id", "bk_biz_id", "K8sMetricDataID", "CustomMetricDataID")
+        dataids = set()
+        for info in infos:
+            dataids.add(info.K8sMetricDataID)
+            dataids.add(info.CustomMetricDataID)
+        if len(dataids) > 500:
+            dataid_rts = DataSourceResultTable.objects.all().only("table_id", "bk_data_id")
+        else:
+            dataid_rts = DataSourceResultTable.objects.filter(bk_data_id__in=dataids).only("table_id", "bk_data_id")
+        dataid_rt_mapping = {data_rt.bk_data_id: data_rt.table_id for data_rt in dataid_rts}
+        mapping = {}
+        for info in infos:
+            if info.K8sMetricDataID in dataid_rt_mapping:
+                mapping[dataid_rt_mapping[info.K8sMetricDataID]] = info.cluster_id
+            if info.CustomMetricDataID in dataid_rt_mapping:
+                mapping[dataid_rt_mapping[info.CustomMetricDataID]] = info.cluster_id
+        return mapping
 
     @classmethod
     def _get_table_id_access_vm_data(cls, table_ids: list[str]) -> dict:
