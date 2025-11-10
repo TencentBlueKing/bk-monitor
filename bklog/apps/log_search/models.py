@@ -475,6 +475,19 @@ class LogIndexSet(SoftDeleteModel):
 
         return [int(child_id) for child_id in child_ids]
 
+    def get_doris_table_ids(self) -> list:
+        doris_table_ids = []
+        if self.is_group:
+            # 如果是索引组，获取所有子索引集的doris_table_id
+            child_index_set_ids = self.get_child_index_set_ids()
+            child_index_sets = LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids)
+            for child_index_set in child_index_sets:
+                if child_index_set.doris_table_id:
+                    doris_table_ids.extend(child_index_set.doris_table_id.split(","))
+        elif self.doris_table_id:
+            doris_table_ids.extend(self.doris_table_id.split(","))
+        return doris_table_ids
+
     @staticmethod
     def no_data_check_time(index_set_id: str):
         result = cache.get(INDEX_SET_NO_DATA_CHECK_PREFIX + index_set_id)

@@ -1829,9 +1829,8 @@ class BaseIndexSetHandler:
             multi_execute_func = MultiExecuteFunc()
             # 是否为Doris存储路由，一期不做刷新，仅支持手动配置。
             is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(index_set.tag_ids)
-            doris_table_id = index_set.doris_table_id
-            if is_doris and doris_table_id:
-                doris_table_id_list = doris_table_id.split(",")
+            doris_table_id_list = index_set.get_doris_table_ids()
+            if is_doris and doris_table_id_list:
                 table_info = [
                     {
                         "storage_type": "doris",
@@ -1933,8 +1932,7 @@ class BaseIndexSetHandler:
                     func=TransferApi.bulk_create_or_update_log_router,
                     params=request_params,
                 )
-            if doris_table_id:
-                doris_table_id_list = doris_table_id.split(",")
+            if doris_table_id_list:
                 doris_params = {
                     "space_type": index_set.space_uid.split("__")[0],
                     "space_id": index_set.space_uid.split("__")[-1],
