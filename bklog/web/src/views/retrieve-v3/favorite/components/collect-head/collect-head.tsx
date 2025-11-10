@@ -40,13 +40,17 @@ export default defineComponent({
       default: 0,
     },
   },
-  emits: ['collapse'],
+  emits: ['collapse', 'refresh'],
   setup(props, { emit }) {
     const { t } = useLocale();
     const isShowManageDialog = ref(false);
     /** 收藏管理 */
     const handleFavoriteSettingClick = () => {
       isShowManageDialog.value = true;
+    };
+    /** 刷新 */
+    const handleRefreshClick = () => {
+      emit('refresh');
     };
     /** 收起 */
     const handleCollapse = () => {
@@ -64,6 +68,11 @@ export default defineComponent({
           <span class='collect-head-box-left-num'>{props.total}</span>
         </span>
         <span class='collect-head-box-right'>
+          <span
+            class='bklog-icon bklog-refresh-icon box-icon'
+            onClick={handleRefreshClick}
+            v-bk-tooltips='刷新收藏'
+          ></span>
           <span
             class='bklog-icon bklog-shezhi box-icon'
             onClick={handleFavoriteSettingClick}
