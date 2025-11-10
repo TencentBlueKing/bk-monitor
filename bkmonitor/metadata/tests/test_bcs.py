@@ -18,6 +18,7 @@ from kubernetes.dynamic import client as dynamic_client
 from unittest.mock import patch, MagicMock
 
 from api.kubernetes.default import FetchK8sClusterListResource
+from bkm_space.api import SpaceApi
 from core.drf_resource import api
 from metadata import models
 from metadata.models import (
@@ -328,6 +329,8 @@ def mock_settings(monkeypatch):
     monkeypatch.setattr(settings, "ENABLE_INFLUXDB_STORAGE", True)
     # 启用VM存储
     monkeypatch.setattr(settings, "ENABLE_V2_VM_DATA_LINK", True)
+    # 禁用时区
+    monkeypatch.setattr(settings, "USE_TZ", False)
 
     with patch.object(settings, "BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID", None, create=True):
         yield
@@ -375,6 +378,11 @@ def mock_funcs(monkeypatch):
         )
 
         monkeypatch.setattr(tenant, "get_tenant_default_biz_id", MagicMock(return_value=settings.DEFAULT_BK_BIZ_ID))
+
+        space = MagicMock()
+        space.bk_tenant_id = BK_TENANT_ID
+        monkeypatch.setattr(SpaceApi, "get_space_detail", MagicMock(return_value=space))
+        monkeypatch.setattr(ESStorage, "create_es_index", MagicMock(return_value=True))
 
         yield
 
