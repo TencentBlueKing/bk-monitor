@@ -1,6 +1,6 @@
 {
   "name": "@blueking/monitor-vue2-components",
-  "version": "0.0.0-beta.8",
+  "version": "0.0.1",
   "description": "blueking monitor vue2 components builder",
   "scripts": {},
   "files": ["index.mjs", "index.css", "monitor-vue2.mjs", "readme.md"],

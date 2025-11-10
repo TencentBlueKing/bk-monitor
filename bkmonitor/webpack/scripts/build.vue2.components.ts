@@ -32,6 +32,10 @@ import { analyzer } from 'vite-bundle-analyzer';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 const outputDir = resolve(__dirname, '../monitor-vue2-components');
 export default defineConfig({
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+    'process.env.APP': JSON.stringify(''),
+  },
   resolve: {
     alias: [
       {
