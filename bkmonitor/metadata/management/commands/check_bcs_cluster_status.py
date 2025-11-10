@@ -12,10 +12,10 @@ import datetime
 
 import json
 import time
-import logging
 
 from kubernetes.dynamic import client as dynamic_client
 from kubernetes.client.rest import ApiException
+from kubernetes.dynamic.resource import ResourceInstance
 from kubernetes.dynamic.exceptions import NotFoundError, ResourceNotFoundError
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
@@ -49,8 +49,6 @@ from metadata.models.data_link.data_link import DataLink
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.utils import hash_util, consul_tools
 from metadata.models.data_link.utils import compose_bkdata_data_id_name, compose_bkdata_table_id
-
-logger = logging.getLogger("metadata")
 
 
 def recode_final_result(fun):
@@ -203,7 +201,6 @@ class Command(BaseCommand):
                 self.output_summary_report(check_result)
 
         except Exception as e:
-            logger.exception(f"检测集群状态时发生异常: {e}")
             raise CommandError(f"集群状态检测失败: {e}")
 
     def output_check_result(self, component: str, result: dict):
@@ -421,7 +418,6 @@ class Command(BaseCommand):
         except Exception as e:
             check_result["status"] = Status.ERROR
             check_result["errors"].append(f"检测过程中发生异常: {str(e)}")
-            logger.exception(f"集群状态检测异常: {e}")
 
         finally:
             check_result["execution_time"] = round(time.time() - start_time, 2)
@@ -741,7 +737,6 @@ class Command(BaseCommand):
                     consul_status[data_id] = {"error": str(e)}
                     message = f"[Consul][DataSource] [bk_data_id={data_id}] "
                     result["issues"].append(f"{message}配置检查异常: {str(e)}")
-                    logger.exception(f"data_id->[{data_id}] consul config check failed: {e}")
 
             result["details"] = {
                 "consul_status": consul_status,
@@ -754,7 +749,6 @@ class Command(BaseCommand):
             result["status"] = Status.ERROR
             message = f"[Consul] [cluster_id={cluster_info.cluster_id}] "
             result["issues"].append(f"{message}Consul配置检查异常: {str(e)}")
-            logger.exception(f"check_datasource_consul_config failed: {e}")
 
         return result
 
@@ -874,7 +868,6 @@ class Command(BaseCommand):
                 result["status"] = Status.ERROR
                 message = f"[DynamicClient] [cluster_id={cluster_info.cluster_id}] "
                 result["issues"].append(f"{message}无法连接到BCS集群: {str(e)}")
-                logger.exception(f"Failed to get dynamic client for cluster {cluster_info.cluster_id}: {e}")
                 return result
 
             # 1. 检查DataIDResource CRD定义是否存在
@@ -899,7 +892,6 @@ class Command(BaseCommand):
                 result["status"] = Status.ERROR
                 message = f"[DataIDResource CRD] [cluster_id={cluster_info.cluster_id}] "
                 result["issues"].append(f"{message}检查CRD定义失败: {str(e)}")
-                logger.exception(f"cluster_id->[{cluster_info.cluster_id}] Failed to check CRD definition: {e}")
                 return result
 
             # 2. 检查集群的DataIDResource资源配置状态
@@ -911,7 +903,6 @@ class Command(BaseCommand):
             for usage, register_info in cluster_info.DATASOURCE_REGISTER_INFO.items():
                 # 联邦集群跳过非自定义指标
                 if is_fed_cluster and usage != cluster_info.DATA_TYPE_CUSTOM_METRIC:
-                    logger.info(f"cluster_id->[{cluster_info.cluster_id}] skip {usage} for federation cluster")
                     continue
 
                 data_id = getattr(cluster_info, register_info["datasource_name"])
@@ -924,7 +915,6 @@ class Command(BaseCommand):
 
                 try:
                     # 获取集群中的资源实际配置
-                    from kubernetes.dynamic.resource import ResourceInstance
 
                     cluster_resource: ResourceInstance = d_client.get(resource=resource_api, name=resource_name)
                     cluster_resource: dict = cluster_resource.to_dict()
@@ -952,6 +942,8 @@ class Command(BaseCommand):
                             ),
                             "labels": cluster_resource.get("metadata", {}).get("labels", {}),
                         },
+                        "current_resource_config": cluster_resource,
+                        "expected_resource_config": expected_config,
                     }
 
                     if not is_consistent:
@@ -1041,8 +1033,7 @@ class Command(BaseCommand):
                 return False
 
             return True
-        except Exception as e:
-            logger.warning(f"Failed to compare dataid resource: {e}")
+        except Exception:
             return False
 
     def _get_dataid_resource_diff(self, cluster_resource: dict, expected_config: dict) -> list[str]:
@@ -1055,7 +1046,7 @@ class Command(BaseCommand):
             # 检查dataID
             if cluster_spec.get("dataID") != expected_spec.get("dataID"):
                 diff_info.append(
-                    f"dataID不一致(cluster:{cluster_spec.get('dataID')}, expected:{expected_spec.get('dataID')})"
+                    f"dataID不一致(current:{cluster_spec.get('dataID')}, expected:{expected_spec.get('dataID')})"
                 )
 
             # 检查labels
@@ -1064,7 +1055,7 @@ class Command(BaseCommand):
             for key in set(cluster_labels.keys()) | set(expected_labels.keys()):
                 if cluster_labels.get(key) != expected_labels.get(key):
                     diff_info.append(
-                        f"labels.{key}不一致(cluster:{cluster_labels.get(key)}, expected:{expected_labels.get(key)})"
+                        f"labels.{key}不一致(current:{cluster_labels.get(key)}, expected:{expected_labels.get(key)})"
                     )
 
             # 检查metricReplace
@@ -1075,8 +1066,8 @@ class Command(BaseCommand):
                 # 计算键的差异
                 cluster_keys = set(cluster_metric_replace.keys())
                 expected_keys = set(expected_metric_replace.keys())
-                missing_keys = expected_keys - cluster_keys
-                extra_keys = cluster_keys - expected_keys
+                missing_keys = expected_keys - cluster_keys  # 期望有但集群没有
+                extra_keys = cluster_keys - expected_keys  # 集群有但不应该有
 
                 # 计算值的差异
                 common_keys = cluster_keys & expected_keys
@@ -1084,17 +1075,24 @@ class Command(BaseCommand):
                     k for k in common_keys if cluster_metric_replace.get(k) != expected_metric_replace.get(k)
                 ]
 
-                diff_details = []
+                # 组织详细差异信息
                 if missing_keys:
-                    diff_details.append(f"缺少{len(missing_keys)}个键")
-                if extra_keys:
-                    diff_details.append(f"多了{len(extra_keys)}个键")
-                if value_diff_keys:
-                    diff_details.append(f"{len(value_diff_keys)}个键值不同")
+                    missing_details = [f"{k}={expected_metric_replace.get(k)}" for k in sorted(missing_keys)]
+                    diff_info.append(f"metricReplace缺少{len(missing_keys)}个键: [{', '.join(missing_details)}]")
 
-                if diff_details:
-                    diff_info.append(f"metricReplace差异: {', '.join(diff_details)}")
-                else:
+                if extra_keys:
+                    extra_details = [f"{k}={cluster_metric_replace.get(k)}" for k in sorted(extra_keys)]
+                    diff_info.append(f"metricReplace多了{len(extra_keys)}个键: [{', '.join(extra_details)}]")
+
+                if value_diff_keys:
+                    value_details = [
+                        f"{k}(current:{cluster_metric_replace.get(k)}, expected:{expected_metric_replace.get(k)})"
+                        for k in sorted(value_diff_keys)
+                    ]
+                    diff_info.append(f"metricReplace有{len(value_diff_keys)}个键值不同: [{'; '.join(value_details)}]")
+
+                # 如果没有具体差异，但字典不相等（可能是类型问题）
+                if not missing_keys and not extra_keys and not value_diff_keys:
                     diff_info.append("metricReplace有差异（类型或结构不同）")
 
             # 检查dimensionReplace
@@ -1105,8 +1103,8 @@ class Command(BaseCommand):
                 # 计算键的差异
                 cluster_keys = set(cluster_dimension_replace.keys())
                 expected_keys = set(expected_dimension_replace.keys())
-                missing_keys = expected_keys - cluster_keys
-                extra_keys = cluster_keys - expected_keys
+                missing_keys = expected_keys - cluster_keys  # 期望有但集群没有
+                extra_keys = cluster_keys - expected_keys  # 集群有但不应该有
 
                 # 计算值的差异
                 common_keys = cluster_keys & expected_keys
@@ -1114,17 +1112,26 @@ class Command(BaseCommand):
                     k for k in common_keys if cluster_dimension_replace.get(k) != expected_dimension_replace.get(k)
                 ]
 
-                diff_details = []
+                # 组织详细差异信息
                 if missing_keys:
-                    diff_details.append(f"缺少{len(missing_keys)}个键")
-                if extra_keys:
-                    diff_details.append(f"多了{len(extra_keys)}个键")
-                if value_diff_keys:
-                    diff_details.append(f"{len(value_diff_keys)}个键值不同")
+                    missing_details = [f"{k}={expected_dimension_replace.get(k)}" for k in sorted(missing_keys)]
+                    diff_info.append(f"dimensionReplace缺少{len(missing_keys)}个键: [{', '.join(missing_details)}]")
 
-                if diff_details:
-                    diff_info.append(f"dimensionReplace差异: {', '.join(diff_details)}")
-                else:
+                if extra_keys:
+                    extra_details = [f"{k}={cluster_dimension_replace.get(k)}" for k in sorted(extra_keys)]
+                    diff_info.append(f"dimensionReplace多了{len(extra_keys)}个键: [{', '.join(extra_details)}]")
+
+                if value_diff_keys:
+                    value_details = [
+                        f"{k}(current:{cluster_dimension_replace.get(k)}, expected:{expected_dimension_replace.get(k)})"
+                        for k in sorted(value_diff_keys)
+                    ]
+                    diff_info.append(
+                        f"dimensionReplace有{len(value_diff_keys)}个键值不同: [{'; '.join(value_details)}]"
+                    )
+
+                # 如果没有具体差异，但字典不相等（可能是类型问题）
+                if not missing_keys and not extra_keys and not value_diff_keys:
                     diff_info.append("dimensionReplace有差异（类型或结构不同）")
 
         except Exception as e:
@@ -1591,7 +1598,6 @@ class Command(BaseCommand):
             result["status"] = Status.ERROR
             message = f"[DataSourceOption] [cluster_id={cluster_info.cluster_id}] "
             result["issues"].append(f"{message}检查异常: {str(e)}")
-            logger.exception(f"检查DataSourceOption时发生异常: {e}")
 
         return result
 
@@ -1704,7 +1710,6 @@ class Command(BaseCommand):
             result["status"] = Status.ERROR
             message = f"[SpaceDataSource] [cluster_id={cluster_info.cluster_id}] "
             result["issues"].append(f"{message}空间类型检查异常: {str(e)}")
-            logger.exception(f"检查空间类型时发生异常: {e}")
 
         return result
 
@@ -2099,7 +2104,6 @@ class Command(BaseCommand):
             result["status"] = Status.ERROR
             message = f"[InfluxDBStorage] [cluster_id={cluster_info.cluster_id}] "
             result["issues"].append(f"{message}InfluxDB存储配置检查异常: {str(e)}")
-            logger.exception(f"检查InfluxDB存储配置时发生异常: {e}")
 
         return result
 
@@ -2304,7 +2308,6 @@ class Command(BaseCommand):
             result["status"] = Status.ERROR
             message = f"[ESStorage] [cluster_id={cluster_info.cluster_id}] "
             result["issues"].append(f"{message}Elasticsearch存储配置检查异常: {str(e)}")
-            logger.exception(f"检查Elasticsearch存储配置时发生异常: {e}")
 
         return result
 
@@ -2534,7 +2537,6 @@ class Command(BaseCommand):
                     # 遵循循环内异常隔离原则，单个数据源检查失败不影响其他数据源
                     message = f"[DataSource] [bk_data_id={data_id}] "
                     result["issues"].append(f"{message}检查异常: {str(e)}")
-                    logger.exception(f"检查数据源 {data_id} 的VM链路依赖时发生异常: {e}")
 
             # 设置详细信息
             result["details"] = {
@@ -2561,7 +2563,6 @@ class Command(BaseCommand):
             result["status"] = Status.ERROR
             message = f"[VMDataLink] [cluster_id={cluster_info.cluster_id}] "
             result["issues"].append(f"{message}VM数据链路依赖检查异常: {str(e)}")
-            logger.exception(f"检查VM数据链路依赖时发生异常: {e}")
 
         return result
 
@@ -2635,7 +2636,6 @@ class Command(BaseCommand):
                     router_status[data_id] = {"error": str(e)}
                     message = f"[DataSource] [bk_data_id={data_id}] "
                     result["issues"].append(f"{message}空间路由检查异常: {str(e)}")
-                    logger.exception(f"检查数据源 {data_id} 的空间路由时发生异常: {e}")
 
             result["details"] = {"router_status": router_status, "total_datasources": len(self.data_sources)}
             result["status"] = Status.SUCCESS if not result["issues"] else Status.WARNING
@@ -2866,7 +2866,6 @@ class Command(BaseCommand):
                 except Exception as e:
                     message = f"[DataSource] [bk_data_id={data_id}] "
                     result["issues"].append(f"{message}日志链路检查异常: {str(e)}")
-                    logger.exception(f"检查数据源 {data_id} 的日志链路时发生异常: {e}")
 
             result["details"] = {
                 "log_datasources": log_datasources,
@@ -2883,7 +2882,6 @@ class Command(BaseCommand):
             result["status"] = Status.ERROR
             message = f"[LogDataLink] [cluster_id={cluster_info.cluster_id}] "
             result["issues"].append(f"{message}日志V4数据链路检查异常: {str(e)}")
-            logger.exception(f"检查日志V4数据链路时发生异常: {e}")
 
         return result
 
@@ -3184,7 +3182,6 @@ class Command(BaseCommand):
             result["status"] = Status.ERROR
             message = f"[CustomGroups] [cluster_id={cluster_info.cluster_id}] "
             result["issues"].append(f"{message}自定义组检查异常: {str(e)}")
-            logger.exception(f"检查自定义组时发生异常: {e}")
 
         return result
 
