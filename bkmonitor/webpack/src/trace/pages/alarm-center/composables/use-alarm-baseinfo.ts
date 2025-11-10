@@ -30,11 +30,17 @@ import { searchAction } from 'monitor-api/modules/alert';
 
 import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
 
+import type { ActionTableItem, AlertActionOverview } from '../typings';
+
 export function useAlarmBasicInfo() {
   const alarmCenterDetailStore = useAlarmCenterDetailStore();
 
-  /** 处理状态 */
-  const alertActionOverview = shallowRef(null);
+  /** 告警状态 */
+  const alarmStatusOverview = shallowRef<AlertActionOverview>(null);
+  /** 告警状态处理数据 */
+  const alarmStatusActions = shallowRef<ActionTableItem[]>([]);
+  /** 告警状态总条数 */
+  const alarmStatusTotal = shallowRef(0);
 
   // 获取处理状态数据
   const getHandleListData = async () => {
@@ -48,7 +54,9 @@ export function useAlarmBasicInfo() {
       conditions: [{ key: 'parent_action_id', value: [0], method: 'eq' }], // 处理状态数据写死条件
     };
     const data = await searchAction(params);
-    alertActionOverview.value = data.overview;
+    alarmStatusOverview.value = data.overview;
+    alarmStatusActions.value = data.actions;
+    alarmStatusTotal.value = data.total;
   };
 
   watch(
@@ -63,10 +71,12 @@ export function useAlarmBasicInfo() {
   );
 
   onScopeDispose(() => {
-    alertActionOverview.value = null;
+    alarmStatusOverview.value = null;
   });
 
   return {
-    alertActionOverview,
+    alarmStatusOverview,
+    alarmStatusActions,
+    alarmStatusTotal,
   };
 }

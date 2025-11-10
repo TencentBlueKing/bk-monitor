@@ -13,4 +13,49 @@
       display: none;
     }
   }
+
+  .alarm-basic-info-skeleton {
+    .skeleton-title {
+      margin-bottom: 3px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 20px;
+      color: #313238;
+    }
+
+    .alarm-alert {
+      height: 36px;
+    }
+
+    .alarm-info {
+      padding: 8px 24px;
+
+      .dimension-info {
+        width: 500px;
+
+        .dimension-info-row {
+          width: 500px;
+          height: 40px;
+        }
+      }
+
+      .basic-info {
+        margin-top: 24px;
+
+        .basic-info-row {
+          display: flex;
+
+          & + .basic-info-row {
+            margin-top: 8px;
+          }
+
+          .basic-info-col {
+            width: 250px;
+            height: 20px;
+            margin-right: 100px;
+          }
+        }
+      }
+    }
+  }
 }
