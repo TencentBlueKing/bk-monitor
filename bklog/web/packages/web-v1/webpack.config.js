@@ -183,6 +183,7 @@ module.exports = (baseConfig, { app, production, email = false }) => {
       ? {
         ...config.optimization,
         minimize: false,
+        minimizer: [], // 清除所有压缩插件（TerserPlugin、CssMinimizerPlugin 等）
         mangleExports: false,
       }
       : config.optimization,

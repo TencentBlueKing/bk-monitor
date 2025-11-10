@@ -39,6 +39,7 @@ import unAuthorized from '@/views/un-authorized';
 import retrieveRoutes from './retrieve';
 import http from '@/api';
 import store from '@/store';
+import { sendIframeMessage } from '@/iframe.message';
 
 Vue.use(VueRouter);
 
@@ -63,7 +64,7 @@ VueRouter.prototype.replace = function push(location, onResolve, onReject) {
 };
 
 // 3.动态生成路由表
-const getRoutes = (spaceId, bkBizId, externalMenu) => {
+const getRoutes = (spaceId, bkBizId) => {
   return [
     // 当用户访问根路径/时，根据当前环境和参数，自动跳转到检索页or管理页
     {
@@ -177,6 +178,11 @@ export default (spaceId, bkBizId, externalMenu) => {
 
   // 路由后置钩子：每次路由切换后上报路由日志
   router.afterEach((to) => {
+    sendIframeMessage({
+      query: to.query,
+      params: to.params,
+    });
+
     if (to.name === 'exception') {
       return;
     }

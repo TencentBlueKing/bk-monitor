@@ -58,6 +58,7 @@ import './static/style.css';
 import '@blueking/bk-user-selector/vue2/vue2.css';
 import { BK_LOG_STORAGE } from './store/store.type.ts';
 import { urlArgs } from './store/default-values.ts';
+import { iframeMessageHandler } from './iframe.message.ts';
 
 // import { localSettings } from './local.po';
 
@@ -145,6 +146,7 @@ const mountedVueInstance = () => {
             App,
           },
           created() {
+            iframeMessageHandler(store);
             if (!space) {
               this.$router.push({
                 path: '/un-authorized',

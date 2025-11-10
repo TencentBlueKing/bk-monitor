@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import useLocale from '@/hooks/use-locale';
+import { sendIframeMessage } from '@/iframe.message';
   import { computed } from 'vue';
 
   const props = defineProps({
@@ -11,18 +12,16 @@
 
   const { t } = useLocale();
 
-  const textMap = {
-    v2: t('回到旧版'),
-    v1: t('切换新版'),
-  };
   const showText = computed(() => {
-    return textMap[props.version];
+    return t('切换新版');
   });
 
   const handleVersionChanged = () => {
-    const nextVersion = props.version === 'v2' ? 'v1' : 'v2';
-    localStorage.setItem('retrieve_version', nextVersion);
-    window.location.reload();
+    sendIframeMessage({
+      swtichVersion: true,
+      query: {},
+      params: {},
+    });
   };
 </script>
 <template>
