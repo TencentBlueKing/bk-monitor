@@ -26,13 +26,13 @@ class EntityViewSet(ResourceViewSet):
     def check_permissions(self, request):
         # 中间件已经判断了 token 的有效性，为避免调用方通过非 token 的方式访问，此处只需校验 token 是否存在
         token_obj = None
-        token = getattr(request._request, "token", None)
+        token = getattr(request, "token", None)
         if token:
             token_obj = ApiAuthToken.objects.filter(token=token, type=AuthType.Entity).first()
         if not token_obj:
             self.permission_denied(
                 request,
-                message=f"API Token is required, please use your browser to access the address {settings.BK_MONITOR_HOST}/rest/v2/commons/token_manager/get_api_token/?type=entity&bk_biz_id={{your_biz_id}} to get your API Token",
+                message=f"API Token is required, please use your browser to access the address {settings.BK_MONITOR_HOST.rstrip('/')}/rest/v2/commons/token_manager/get_api_token/?type=entity&bk_biz_id={{your_biz_id}} to get your API Token",
                 code=HTTP_401_UNAUTHORIZED,
             )
 
