@@ -41,7 +41,16 @@ class BkLogTextEtlStorage(EtlStorage):
         """
         return data
 
-    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X"):
+    def etl_preview_v4(self, data, etl_params) -> list:
+        """
+        字段提取预览v4
+        :param data: 日志原文
+        :param etl_params: 字段提取参数
+        :return: 字段列表 list
+        """
+        return data
+
+    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X", bk_biz_id=None):
         """
         配置清洗入库策略，需兼容新增、编辑
         """
@@ -67,11 +76,127 @@ class BkLogTextEtlStorage(EtlStorage):
         if es_analyzer:
             original_text_field["option"]["es_analyzer"] = es_analyzer
 
-        return {
+        result_table_config = {
             "option": built_in_config.get("option", {}),
             "field_list": built_in_fields + (fields or []) + [built_in_config["time_field"]] + [original_text_field],
             "time_alias_name": built_in_config["time_field"]["alias_name"],
             "time_option": built_in_config["time_field"]["option"],
+        }
+        
+        # 检查是否启用V4数据链路
+        from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+        if FeatureToggleObject.switch("log_v4_data_link", bk_biz_id):
+            result_table_config["option"]["enable_log_v4_data_link"] = True
+            result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(fields, etl_params, built_in_config)
+        
+        return result_table_config
+
+    def build_log_v4_data_link(self, fields: list, etl_params: dict, built_in_config: dict) -> dict:
+        """
+        构建直接入库类型的V4 clean_rules配置
+        包含完整的数据流转规则：原始数据 -> JSON解析 -> 内置字段提取 -> 原文提取
+        """
+        rules = []
+
+        # 1. JSON解析阶段（原始数据 -> json_data）
+        rules.append({
+            "input_id": "__raw_data",
+            "output_id": "json_data",
+            "operator": {
+                "type": "json_de",
+                "error_strategy": "drop"
+            }
+        })
+
+        # 2. 提取内置字段（从json_data提取内置字段）
+        built_in_rules = self._build_built_in_fields_v4(built_in_config)
+        rules.extend(built_in_rules)
+
+        # 3. 提取items数组并迭代
+        rules.extend([
+            {
+                "input_id": "json_data",
+                "output_id": "items",
+                "operator": {
+                    "type": "get",
+                    "key_index": [{"type": "key", "value": "items"}],
+                    "missing_strategy": None
+                }
+            },
+            {
+                "input_id": "items",
+                "output_id": "iter_item",
+                "operator": {"type": "iter"}
+            }
+        ])
+
+        # 4. 从iter_item提取data字段作为原文（直接入库，不需要额外处理）
+        rules.append({
+            "input_id": "iter_item",
+            "output_id": "log",
+            "operator": {
+                "type": "assign",
+                "key_index": "data",
+                "alias": "log",
+                "output_type": "string"
+            }
+        })
+
+        # 5. Path字段处理（根据separator_configs配置）
+        separator_configs = built_in_config.get("option", {}).get("separator_configs", [])
+        if separator_configs:
+            separator_config = separator_configs[0]
+            path_regexp = separator_config.get("separator_regexp", "")
+            if path_regexp:
+                # 从json_data提取path字段
+                rules.append({
+                    "input_id": "json_data",
+                    "output_id": "path",
+                    "operator": {
+                        "type": "get",
+                        "key_index": [
+                            {
+                                "type": "key",
+                                "value": "filename"
+                            }
+                        ],
+                        "missing_strategy": None
+                    }
+                })
+                
+                # 从path字段提取路径信息
+                rules.append({
+                    "input_id": "path",
+                    "output_id": "bk_separator_object_path",
+                    "operator": {
+                        "type": "regex",
+                        "regex": path_regexp
+                    }
+                })
+                
+                # 提取路径字段
+                import re
+                pattern = re.compile(path_regexp)
+                match_fields = list(pattern.groupindex.keys())
+                for field_name in match_fields:
+                    rules.append({
+                        "input_id": "bk_separator_object_path",
+                        "output_id": field_name,
+                        "operator": {
+                            "type": "assign",
+                            "key_index": field_name,
+                            "alias": field_name,
+                            "output_type": "string"
+                        }
+                    })
+
+        return {
+            "clean_rules": rules,
+            "es_storage_config": {
+                "unique_field_list": built_in_config["option"]["es_unique_field_list"],
+                "timezone": 8
+            },
+            "doris_storage_config": None
         }
 
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):
