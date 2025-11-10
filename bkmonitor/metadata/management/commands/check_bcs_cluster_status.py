@@ -924,8 +924,10 @@ class Command(BaseCommand):
 
                 try:
                     # 获取集群中的资源实际配置
-                    cluster_resource = d_client.get(resource=resource_api, name=resource_name)
+                    from kubernetes.dynamic.resource import ResourceInstance
 
+                    cluster_resource: ResourceInstance = d_client.get(resource=resource_api, name=resource_name)
+                    cluster_resource: dict = cluster_resource.to_dict()
                     # 生成期望的配置
                     expected_config = cluster_info.make_config(
                         register_info, usage=usage, is_fed_cluster=is_fed_cluster
@@ -1026,12 +1028,16 @@ class Command(BaseCommand):
             if cluster_labels != expected_labels:
                 return False
 
-            # 比较metricReplace
-            if cluster_spec.get("metricReplace", {}) != expected_spec.get("metricReplace", {}):
+            # 比较metricReplace - 先转换为字典避免Kubernetes对象比较错误
+            cluster_metric_replace = cluster_spec.get("metricReplace", {})
+            expected_metric_replace = expected_spec.get("metricReplace", {})
+            if cluster_metric_replace != expected_metric_replace:
                 return False
 
-            # 比较dimensionReplace
-            if cluster_spec.get("dimensionReplace", {}) != expected_spec.get("dimensionReplace", {}):
+            # 比较dimensionReplace - 先转换为字典避免Kubernetes对象比较错误
+            cluster_dimension_replace = cluster_spec.get("dimensionReplace", {})
+            expected_dimension_replace = expected_spec.get("dimensionReplace", {})
+            if cluster_dimension_replace != expected_dimension_replace:
                 return False
 
             return True
@@ -1064,16 +1070,62 @@ class Command(BaseCommand):
             # 检查metricReplace
             cluster_metric_replace = cluster_spec.get("metricReplace", {})
             expected_metric_replace = expected_spec.get("metricReplace", {})
+            # 将Kubernetes对象转换为字典以避免比较错误
             if cluster_metric_replace != expected_metric_replace:
-                diff_count = len(set(cluster_metric_replace.items()) ^ set(expected_metric_replace.items()))
-                diff_info.append(f"metricReplace有{diff_count}个差异")
+                # 计算键的差异
+                cluster_keys = set(cluster_metric_replace.keys())
+                expected_keys = set(expected_metric_replace.keys())
+                missing_keys = expected_keys - cluster_keys
+                extra_keys = cluster_keys - expected_keys
+
+                # 计算值的差异
+                common_keys = cluster_keys & expected_keys
+                value_diff_keys = [
+                    k for k in common_keys if cluster_metric_replace.get(k) != expected_metric_replace.get(k)
+                ]
+
+                diff_details = []
+                if missing_keys:
+                    diff_details.append(f"缺少{len(missing_keys)}个键")
+                if extra_keys:
+                    diff_details.append(f"多了{len(extra_keys)}个键")
+                if value_diff_keys:
+                    diff_details.append(f"{len(value_diff_keys)}个键值不同")
+
+                if diff_details:
+                    diff_info.append(f"metricReplace差异: {', '.join(diff_details)}")
+                else:
+                    diff_info.append("metricReplace有差异（类型或结构不同）")
 
             # 检查dimensionReplace
             cluster_dimension_replace = cluster_spec.get("dimensionReplace", {})
             expected_dimension_replace = expected_spec.get("dimensionReplace", {})
+            # 将Kubernetes对象转换为字典以避免比较错误
             if cluster_dimension_replace != expected_dimension_replace:
-                diff_count = len(set(cluster_dimension_replace.items()) ^ set(expected_dimension_replace.items()))
-                diff_info.append(f"dimensionReplace有{diff_count}个差异")
+                # 计算键的差异
+                cluster_keys = set(cluster_dimension_replace.keys())
+                expected_keys = set(expected_dimension_replace.keys())
+                missing_keys = expected_keys - cluster_keys
+                extra_keys = cluster_keys - expected_keys
+
+                # 计算值的差异
+                common_keys = cluster_keys & expected_keys
+                value_diff_keys = [
+                    k for k in common_keys if cluster_dimension_replace.get(k) != expected_dimension_replace.get(k)
+                ]
+
+                diff_details = []
+                if missing_keys:
+                    diff_details.append(f"缺少{len(missing_keys)}个键")
+                if extra_keys:
+                    diff_details.append(f"多了{len(extra_keys)}个键")
+                if value_diff_keys:
+                    diff_details.append(f"{len(value_diff_keys)}个键值不同")
+
+                if diff_details:
+                    diff_info.append(f"dimensionReplace差异: {', '.join(diff_details)}")
+                else:
+                    diff_info.append("dimensionReplace有差异（类型或结构不同）")
 
         except Exception as e:
             diff_info.append(f"检查差异失败: {str(e)}")

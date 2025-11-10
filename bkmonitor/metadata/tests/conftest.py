@@ -463,6 +463,32 @@ class _MockResourceDescriptor:
         self.kind = kind
 
 
+class _MockResourceInstance:
+    """模拟Kubernetes ResourceInstance对象，支持to_dict()方法"""
+
+    def __init__(self, data: dict):
+        self._data = data
+
+    def to_dict(self) -> dict:
+        """返回字典表示，对齐Kubernetes ResourceInstance.to_dict()行为"""
+        return json.loads(json.dumps(self._data))
+
+    def get(self, key: str, default=None):
+        """支持字典式访问"""
+        return self._data.get(key, default)
+
+    def __getitem__(self, key):
+        """支持下标访问"""
+        return self._data[key]
+
+    def __contains__(self, key):
+        """支持in操作符"""
+        return key in self._data
+
+    def __repr__(self):
+        return f"_MockResourceInstance({self._data})"
+
+
 class _MockResources:
     """测试用 resources 入口，提供 get() 获取资源描述符"""
 
@@ -566,7 +592,7 @@ class MockDynamicClient:
             body_copy["metadata"]["resourceVersion"] = body_copy["metadata"].get("resourceVersion") or "1"
             kind_store[name] = body_copy
 
-    def get(self, resource: _MockResourceDescriptor, name: str) -> dict:
+    def get(self, resource: _MockResourceDescriptor, name: str) -> _MockResourceInstance:
         # CRD未定义
         if not self._is_crd_defined(resource.api_version, resource.kind):
             raise ResourceNotFoundError(_Exception(f"CRD {resource.api_version}/{resource.kind} not found"))
@@ -574,10 +600,10 @@ class MockDynamicClient:
         kind_store = self._store.get(resource.kind, {})
         if name not in kind_store:
             raise NotFoundError(_Exception(f"resource {name} not found for kind {resource.kind}"))
-        # 返回副本，避免外部修改影响内部状态
-        return json.loads(json.dumps(kind_store[name]))
+        # 返回_MockResourceInstance对象，支持to_dict()
+        return _MockResourceInstance(json.loads(json.dumps(kind_store[name])))
 
-    def create(self, resource: _MockResourceDescriptor, body: dict) -> dict:
+    def create(self, resource: _MockResourceDescriptor, body: dict) -> _MockResourceInstance:
         if not self._is_crd_defined(resource.api_version, resource.kind):
             raise ResourceNotFoundError(_Exception(f"CRD {resource.api_version}/{resource.kind} not found"))
         name = (body.get("metadata") or {}).get("name")
@@ -590,9 +616,10 @@ class MockDynamicClient:
         body_copy.setdefault("metadata", {})
         body_copy["metadata"]["resourceVersion"] = body_copy["metadata"].get("resourceVersion") or "1"
         kind_store[name] = body_copy
-        return json.loads(json.dumps(body_copy))
+        # 返回_MockResourceInstance对象，支持to_dict()
+        return _MockResourceInstance(json.loads(json.dumps(body_copy)))
 
-    def replace(self, resource: _MockResourceDescriptor, body: dict) -> dict:
+    def replace(self, resource: _MockResourceDescriptor, body: dict) -> _MockResourceInstance:
         if not self._is_crd_defined(resource.api_version, resource.kind):
             raise ResourceNotFoundError(_Exception(f"CRD {resource.api_version}/{resource.kind} not found"))
         name = (body.get("metadata") or {}).get("name")
@@ -619,4 +646,5 @@ class MockDynamicClient:
             new_body["metadata"]["resourceVersion"] = "1"
 
         kind_store[name] = new_body
-        return json.loads(json.dumps(new_body))
+        # 返回_MockResourceInstance对象，支持to_dict()
+        return _MockResourceInstance(json.loads(json.dumps(new_body)))
