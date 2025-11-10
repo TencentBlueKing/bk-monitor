@@ -23,8 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, KeepAlive } from 'vue';
-import { shallowRef } from 'vue';
+import { computed, defineComponent, inject, KeepAlive, shallowRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
@@ -37,6 +36,7 @@ import { ALARM_CENTER_PANEL_TAB_MAP } from '../utils/constant';
 import AlarmAlert from './components/alarm-alert/alarm-alert';
 import AlarmConfirmDialog from './components/alarm-alert/alarm-confirm-dialog';
 import QuickShieldDialog from './components/alarm-alert/quick-shield-dialog';
+import AlarmDispatch from './components/alarm-info/alarm-dispatch';
 import AlarmInfo from './components/alarm-info/alarm-info';
 import AlarmStatusDialog from './components/alarm-info/alarm-status-dialog';
 import AlarmView from './components/alarm-view/alarm-view';
@@ -48,6 +48,8 @@ import PanelLink from './components/panel-link';
 import PanelLog from './components/panel-log';
 import PanelMetric from './components/panel-metric';
 
+import type { IAuthority } from '@/typings/authority';
+
 import './common-detail.scss';
 
 export default defineComponent({
@@ -58,10 +60,26 @@ export default defineComponent({
     const currentPanel = shallowRef(alarmCenterDetailStore.alarmDetail?.alarmTabList?.[0]?.label);
     const { alarmDetail, loading, bizId, alarmId } = storeToRefs(alarmCenterDetailStore);
     const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal } = useAlarmBasicInfo();
+
+    const authority = inject<IAuthority>('authority');
+    const judgeOperateAuthority = () => {
+      const actionIds = ['MANAGE_EVENT_V2_AUTH', 'MANAGE_ACTION_CONFIG'];
+      const isAuth = actionIds.some(key => authority.auth[key]);
+      if (!isAuth) {
+        authority.showDetail(['MANAGE_EVENT_V2_AUTH']);
+        return false;
+      }
+      return true;
+    };
     /** 告警确认弹窗 */
     const alarmConfirmShow = shallowRef(false);
     /** 快速屏蔽弹窗 */
     const quickShieldShow = shallowRef(false);
+    /** 打开告警确认弹窗 */
+    const handleShowAlarmConfirm = (show: boolean) => {
+      if (!judgeOperateAuthority()) return;
+      alarmConfirmShow.value = show;
+    };
     /** 告警确认 */
     const handleAlarmConfirm = (val: boolean) => {
       alarmDetail.value = new AlarmDetail({ ...alarmDetail.value, is_ack: val });
@@ -83,6 +101,14 @@ export default defineComponent({
         },
       ];
     });
+    /** 快捷屏蔽窗口 */
+    const handleShowQuickShield = (show: boolean) => {
+      if (!authority.auth.ALARM_SHIELD_MANAGE_AUTH) {
+        authority.showDetail([authority.auth.ALARM_SHIELD_MANAGE_AUTH]);
+        return false;
+      }
+      quickShieldShow.value = show;
+    };
 
     /**
      * @description: 快捷屏蔽时间
@@ -100,7 +126,23 @@ export default defineComponent({
       }
     };
 
+    /** 告警状态详情 */
     const alarmStatusDetailShow = shallowRef(false);
+
+    /** 手动处理弹窗 */
+    const manualProcessShow = shallowRef(false);
+    /** 手动处理 */
+    const handleManualProcess = () => {
+      if (!judgeOperateAuthority()) return;
+      manualProcessShow.value = true;
+    };
+
+    /** 告警分派弹窗 */
+    const alarmDispatchShow = shallowRef(false);
+    const handleAlarmDispatch = () => {
+      if (!judgeOperateAuthority()) return;
+      alarmDispatchShow.value = true;
+    };
 
     const getPanelComponent = () => {
       switch (currentPanel.value) {
@@ -161,19 +203,21 @@ export default defineComponent({
                 key='alarm-alert'
                 data={alarmCenterDetailStore.alarmDetail}
                 onAlarmConfirm={() => {
-                  alarmConfirmShow.value = true;
+                  handleShowAlarmConfirm(true);
                 }}
                 onQuickShield={() => {
-                  quickShieldShow.value = true;
+                  handleShowQuickShield(true);
                 }}
               />,
               <AlarmInfo
                 key='alarm-info'
                 alertActionOverview={alarmStatusOverview.value}
                 data={alarmCenterDetailStore.alarmDetail}
+                onAlarmDispatch={handleAlarmDispatch}
                 onAlarmStatusDetailShow={() => {
                   alarmStatusDetailShow.value = true;
                 }}
+                onManualProcess={handleManualProcess}
               />,
             ]}
         <Tab
@@ -198,9 +242,7 @@ export default defineComponent({
           alarmIds={[alarmId.value]}
           show={alarmConfirmShow.value}
           onConfirm={handleAlarmConfirm}
-          onUpdate:show={v => {
-            alarmConfirmShow.value = v;
-          }}
+          onUpdate:show={handleShowAlarmConfirm}
         />
         <QuickShieldDialog
           alarmBizId={bizId.value}
@@ -209,14 +251,17 @@ export default defineComponent({
           show={quickShieldShow.value}
           onSuccess={quickShieldSuccess}
           onTimeChange={handleTimeChange}
-          onUpdate:show={v => {
-            quickShieldShow.value = v;
-          }}
+          onUpdate:show={handleShowQuickShield}
         />
         <AlarmStatusDialog
           v-model:show={alarmStatusDetailShow.value}
           actions={alarmStatusActions.value}
           total={alarmStatusTotal.value}
+        />
+        <AlarmDispatch
+          v-model:show={alarmDispatchShow.value}
+          alarmBizId={bizId.value}
+          alarmIds={[alarmId.value]}
         />
       </div>
     );
