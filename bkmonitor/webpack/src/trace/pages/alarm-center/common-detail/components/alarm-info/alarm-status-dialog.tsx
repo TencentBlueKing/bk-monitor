@@ -268,16 +268,11 @@ export default defineComponent({
                 class='count-select'
                 v-model={this.checkedCount}
                 clearable={false}
+                displayKey='name'
+                idKey='id'
+                list={this.list}
                 onChange={v => this.handleSelected(v)}
-              >
-                {this.list.map((item, index) => (
-                  <Select.Option
-                    id={item.id}
-                    key={index}
-                    name={item.name}
-                  />
-                ))}
-              </Select>
+              />
             </div>
             <div class='handle-label mb16'>{this.$t('处理明细')}</div>
             {this.isNotice ? (
