@@ -29,6 +29,47 @@
         color: #3a84ff;
       }
     }
+
+    .vjs-tree-node {
+      font-size: 12px;
+      line-height: 22px;
+
+      &:not(:has(.vjs-carets-open)) {
+        padding-left: 9px;
+      }
+
+      &:has(.vjs-carets-open) {
+        padding-left: 20px;
+      }
+
+      .vjs-carets-open {
+        right: 5px;
+        display: flex;
+        align-items: center;
+        height: 100%;
+        color: #1f6d89;
+      }
+
+      .vjs-indent-unit.has-line {
+        width: 2em;
+        border-left-style: solid;
+      }
+
+      .vjs-key {
+        color: #9d694c;
+      }
+
+      .vjs-value {
+        &.vjs-value-string {
+          color: #1f6d89;
+          white-space: pre-wrap;
+        }
+
+        &.vjs-value-number {
+          color: #2caf5e;
+        }
+      }
+    }
   }
 
   .table-expand-icon {

@@ -23,7 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import {
+  defineComponent,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  shallowReactive,
+  shallowRef,
+  useTemplateRef,
+} from 'vue';
 import type { PropType } from 'vue';
 
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
@@ -57,23 +65,21 @@ const SourceIconMap = {
 export default defineComponent({
   name: 'EventTable',
   props: {
-    tableData: {
-      type: Object as PropType<{
-        data: any[];
-        page: number;
-        pageSize: number;
-        total: number;
-      }>,
-      default: () => ({
-        page: 1,
-        pageSize: 10,
-        data: [],
-        total: 0,
-      }),
+    getTableData: {
+      type: Function as PropType<
+        (params: { page: number; pageSize: number }) => Promise<{
+          data: unknown[];
+          total: number;
+        }>
+      >,
+      default: () => null,
     },
   },
-  setup(_props) {
+  setup(props) {
     const { t } = useI18n();
+    const loadingRef = useTemplateRef('scrollLoading');
+    const loading = shallowRef(false);
+    const scrollLoading = shallowRef(false);
     const columns = shallowRef<TdPrimaryTableProps['columns']>([
       {
         colKey: 'time',
@@ -120,6 +126,12 @@ export default defineComponent({
         },
       },
     ]);
+    const tableData = shallowReactive({
+      page: 0,
+      pageSize: 10,
+      data: [],
+      total: 0,
+    });
     const expandIcon = shallowRef<TdPrimaryTableProps['expandIcon']>((_h, { _row }): any => {
       return <span class='icon-monitor icon-mc-arrow-right table-expand-icon' />;
     });
@@ -154,13 +166,62 @@ export default defineComponent({
         icon: SourceIconMap[SourceTypeEnum.HOST],
       },
     ]);
+    const isEnd = shallowRef(false);
+    const observer = shallowRef<IntersectionObserver>();
 
     const handleExpandChange = (keys: (number | string)[]) => {
       console.log(keys);
       expandedRowKeys.value = keys;
     };
 
+    const handleLoad = async () => {
+      isEnd.value = tableData.data.length < tableData.page * tableData.pageSize;
+      if (isEnd.value || loading.value || scrollLoading.value) {
+        return;
+      }
+      if (tableData.page) {
+        scrollLoading.value = true;
+      } else {
+        loading.value = true;
+      }
+      tableData.page += 1;
+      await props
+        .getTableData({
+          page: tableData.page,
+          pageSize: tableData.pageSize,
+        })
+        .then(res => {
+          tableData.data = [...tableData.data, ...res.data];
+          tableData.total = res.total;
+        })
+        .finally(() => {
+          scrollLoading.value = false;
+          loading.value = false;
+        });
+    };
+    const init = async () => {
+      await handleLoad();
+      await nextTick();
+      observer.value = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            if (tableData.data.length) {
+              handleLoad();
+            }
+          }
+        }
+      });
+      observer.value.observe(loadingRef.value as HTMLElement);
+    };
+
     const handleGoEvent = () => {};
+
+    onMounted(() => {
+      init();
+    });
+    onBeforeUnmount(() => {
+      observer.value?.disconnect();
+    });
 
     return {
       columns,
@@ -169,6 +230,8 @@ export default defineComponent({
       expandIcon,
       expandedRow,
       expandedRowKeys,
+      isEnd,
+      tableData,
       handleExpandChange,
       t,
       handleGoEvent,
@@ -217,11 +280,19 @@ export default defineComponent({
           expandedRowKeys={this.expandedRowKeys}
           expandIcon={this.expandIcon}
           expandOnRowClick={true}
+          resizable={true}
           rowClassName={({ row }) => `row-event-status-${row.severity}`}
           rowKey={'event_id'}
           size={'small'}
           onExpandChange={this.handleExpandChange}
         />
+        <div
+          ref='scrollLoading'
+          style={{ display: this.tableData.data.length ? 'flex' : 'none' }}
+          class='panel-event-table-scroll-loading'
+        >
+          <span>{this.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…')}</span>
+        </div>
       </div>
     );
   },

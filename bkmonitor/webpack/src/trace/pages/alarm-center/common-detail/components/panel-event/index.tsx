@@ -23,8 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, watch } from 'vue';
-import { shallowReactive } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { searchEvent } from 'monitor-api/modules/alert';
 
@@ -43,26 +42,19 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const tableData = shallowReactive({
-      page: 1,
-      pageSize: 10,
-      data: [],
-      total: 0,
-    });
-
-    const init = async () => {
-      const params = {
+    const getData = async (params: { page: number; pageSize: number }) => {
+      const requestParams = {
         bk_biz_id: props.detail.bk_biz_id,
         alert_id: props.detail.id,
         query_string: '',
         start_time: props.detail.begin_time,
         end_time: props.detail.end_time,
-        page: tableData.page,
-        page_size: tableData.pageSize,
+        page: params.page,
+        page_size: params.pageSize,
         record_history: true,
         ordering: ['create_time'],
       };
-      const res = await searchEvent(params, { needRes: true })
+      const res = await searchEvent(requestParams, { needRes: true })
         .then(res => {
           return (
             res.data || {
@@ -78,30 +70,25 @@ export default defineComponent({
           };
         })
         .finally(() => {});
-      tableData.data = res.events;
-      tableData.total = res.total;
+      return {
+        data: res.events,
+        total: res.total,
+      };
     };
 
-    watch(
-      () => props.detail,
-      val => {
-        if (val) {
-          init();
-        }
-      },
-      {
-        immediate: true,
-      }
-    );
-
     return {
-      tableData,
+      getData,
     };
   },
   render() {
     return (
       <div class='alarm-center-detail-panel-alarm-relation-event'>
-        <EventTable tableData={this.tableData} />
+        {this.detail?.id ? (
+          <EventTable
+            key={this.detail.id}
+            getTableData={this.getData}
+          />
+        ) : undefined}
       </div>
     );
   },

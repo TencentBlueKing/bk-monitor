@@ -164,6 +164,7 @@ export default defineComponent({
           expandedRowKeys={this.expandedRowKeys}
           expandIcon={this.expandIcon}
           expandOnRowClick={true}
+          resizable={true}
           rowKey={'index'}
           size={'small'}
           onExpandChange={this.handleExpandChange}
