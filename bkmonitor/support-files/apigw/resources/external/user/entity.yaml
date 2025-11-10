@@ -1,5 +1,5 @@
 paths:
-  /app/metadata/entity/apply/:
+  /user/metadata/entity/apply/:
     post:
       operationId: metadata_entity_apply
       description: 应用实体资源
@@ -22,7 +22,7 @@ paths:
           resourcePermissionRequired: false
         descriptionEn:
         noneSchema: true
-  /app/metadata/entity/query/:
+  /user/metadata/entity/query/:
     get:
       operationId: metadata_entity_query
       description: 列表查询实体资源
@@ -45,7 +45,7 @@ paths:
           resourcePermissionRequired: false
         descriptionEn:
         noneSchema: true
-  /app/metadata/entity/delete/:
+  /user/metadata/entity/delete/:
     post:
       operationId: metadata_entity_delete
       description: 删除实体资源
