@@ -77,7 +77,11 @@ export default class AiBluekingWrapper extends tsc<object> {
   async handleCustomFallbackShortcutChange(shortcut: AIBluekingShortcut) {
     if (shortcut?.id) {
       const newSession = (
-        [AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS, AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS] as string[]
+        [
+          AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS,
+          AI_BLUEKING_SHORTCUTS_ID.PROFILING_ANALYSIS,
+          AI_BLUEKING_SHORTCUTS_ID.GENERATE_DASHBOARD,
+        ] as string[]
       ).includes(shortcut.id);
       await this.aiBluekingRef.handleShow(undefined, {
         isTemporary: newSession,
