@@ -1548,13 +1548,9 @@ class IndexSetHandler(APIModel):
         """
 
         # 检查所有父索引集是否存在
-        existing_parent_sets = set(
-            LogIndexSet.objects.filter(
-                index_set_id__in=parent_index_set_ids,
-                is_group=True,
-            ).values_list("index_set_id", flat=True)
-        )
-        missing_parents = set(parent_index_set_ids) - existing_parent_sets
+        parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
+        existing_parent_ids = {index_set.index_set_id for index_set in parent_index_sets}
+        missing_parents = set(parent_index_set_ids) - existing_parent_ids
         if missing_parents:
             raise ParentIndexSetNotExistException(
                 ParentIndexSetNotExistException.MESSAGE.format(
@@ -1578,6 +1574,7 @@ class IndexSetHandler(APIModel):
         ]
         if to_create:
             LogIndexSetData.objects.bulk_create(to_create)
+            BaseIndexSetHandler.bulk_sync_router(parent_index_sets)
 
     def remove_from_parent_index_sets(self, parent_index_set_ids: list[int]):
         """
@@ -1587,6 +1584,9 @@ class IndexSetHandler(APIModel):
             index_set_id__in=parent_index_set_ids,
             result_table_id=self.index_set_id,
         ).delete()
+        # 同步路由
+        parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
+        BaseIndexSetHandler.bulk_sync_router(parent_index_sets)
 
     def update_parent_index_sets(self, new_parent_index_set_ids: list):
         """
@@ -1827,7 +1827,6 @@ class BaseIndexSetHandler:
                 "table_info": [],
             }
             multi_execute_func = MultiExecuteFunc()
-            objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
             # 是否为Doris存储路由，一期不做刷新，仅支持手动配置。
             is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(index_set.tag_ids)
             doris_table_id = index_set.doris_table_id
@@ -1859,6 +1858,12 @@ class BaseIndexSetHandler:
                     params=doris_params,
                 )
             else:
+                if index_set.is_group:
+                    child_index_set_ids = index_set.get_child_index_set_ids()
+                    objs = LogIndexSetData.objects.filter(index_set_id__in=child_index_set_ids)
+                else:
+                    objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
+
                 for obj in objs:
                     time_field = obj.time_field or index_set.time_field
                     time_field_type = obj.time_field_type or index_set.time_field_type
@@ -1957,6 +1962,17 @@ class BaseIndexSetHandler:
             multi_execute_func.run()
         except Exception as e:
             logger.exception("create or update index set(%s) es router failed：%s", index_set.index_set_id, e)
+
+    @classmethod
+    def bulk_sync_router(cls, index_sets: list[LogIndexSet]):
+        multi_execute_func = MultiExecuteFunc()
+        for index_set in index_sets:
+            multi_execute_func.append(
+                result_key=index_set.index_set_id,
+                func=cls.sync_router,
+                params=index_set,
+            )
+        multi_execute_func.run()
 
     def pre_update(self):
         if self.is_trace_log:
