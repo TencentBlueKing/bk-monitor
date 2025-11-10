@@ -124,7 +124,7 @@ class Command(BaseCommand):
 
     使用示例:
     python manage.py check_bcs_cluster_status --cluster-id BCS-K8S-00001
-    python manage.py check_bcs_cluster_status --cluster-id BCS-K8S-00001 -v             # 同时展示详细信息
+    python manage.py check_bcs_cluster_status --cluster-id BCS-K8S-00001 -V             # 同时展示详细信息
     python manage.py check_bcs_cluster_status --cluster-id BCS-K8S-00001 --format json  # 输出JSON格式
     python manage.py check_bcs_cluster_status --cluster-id BCS-K8S-00001 --timeout 60   # 设置超时时间
     """
@@ -151,7 +151,7 @@ class Command(BaseCommand):
         parser.add_argument("--format", choices=["text", "json"], default="text", help="输出格式，支持text和json")
         parser.add_argument("--timeout", type=int, default=30, help="连接测试超时时间（秒），默认30秒")
         parser.add_argument(
-            "-v",
+            "-V",
             "--verbose",
             action="store_true",
             help="启用详细输出模式，展示更多检查细节信息（仅在text模式下生效）",
