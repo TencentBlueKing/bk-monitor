@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2021 THL A29 Limited, a Tencent company. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 import copy
 
@@ -113,7 +113,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         """
         topk_group_values = [group[0] for group in self.get_topk_list()]
         search_dict = copy.deepcopy(self.base_dict)
-        search_dict.update({"metric_merge": "a"})
+        reference_list = list()
         for query in search_dict["query_list"]:
             query["time_aggregation"] = {"function": "count_over_time", "window": search_dict["step"]}
             query["function"] = [
@@ -127,6 +127,8 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             query["conditions"]["field_list"].append(
                 {"field_name": self.search_params["agg_field"], "value": topk_group_values, "op": "eq"}
             )
+            reference_list.append(query["reference_name"])
+        search_dict.update({"metric_merge": " or ".join(reference_list)})
         data = self.query_ts(search_dict)
         return data
 
@@ -165,11 +167,10 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         search_dict.update({"order_by": ["-_value"], "metric_merge": " or ".join(reference_list)})
         data = self.query_ts_reference(search_dict)
         series = data["series"]
-        return [[s["group_values"][0], s["values"][0][1]] for s in sorted(
-            series,
-            key=lambda x: x["values"][0][1],
-            reverse=True
-        )[:limit]]
+        return [
+            [s["group_values"][0], s["values"][0][1]]
+            for s in sorted(series, key=lambda x: x["values"][0][1], reverse=True)[:limit]
+        ]
 
     def get_value_list(self, limit: int = 10):
         """
