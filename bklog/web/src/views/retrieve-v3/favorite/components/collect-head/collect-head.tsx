@@ -71,7 +71,7 @@ export default defineComponent({
           <span
             class='bklog-icon bklog-refresh-icon box-icon'
             onClick={handleRefreshClick}
-            v-bk-tooltips='刷新收藏'
+            v-bk-tooltips={t('刷新收藏')}
           ></span>
           <span
             class='bklog-icon bklog-shezhi box-icon'
