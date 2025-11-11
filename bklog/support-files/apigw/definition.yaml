@@ -102,6 +102,15 @@ grant_permissions:
       - databus_custom_create
       - databus_custom_update
 
+  - bk_app_code: "bk_paas3"
+    grant_dimension: "resource"
+    resource_names:
+      - databus_custom_create
+      - databus_custom_update
+      - databus_list_collectors
+      - esquery_dsl
+      - esquery_scroll
+      - esquery_mapping
 
 # 应用申请指定网关所有资源的权限，待网关管理员审批后，应用才可访问网关资源；
 # 用于命令 `apply_apigw_permissions`
