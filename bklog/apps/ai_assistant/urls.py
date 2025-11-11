@@ -29,6 +29,7 @@ from apps.ai_assistant.views import (
     ChatSessionContentViewSet,
     ChatCompletionViewSet,
     AgentInfoViewSet,
+    SessionFeedbackViewSet,
 )
 
 router = routers.DefaultRouter(trailing_slash=True)
@@ -38,6 +39,7 @@ router.register(r"agent", AgentInfoViewSet, basename="agent_info")
 router.register(r"session", ChatSessionViewSet, basename="chat_session")
 router.register(r"session_content", ChatSessionContentViewSet, basename="chat_session_content")
 router.register(r"chat_completion", ChatCompletionViewSet, basename="chat_completion")
+router.register(r"session_feedback", SessionFeedbackViewSet, basename="session_feedback")
 
 urlpatterns = [
     re_path(r"^ai_assistant/", include(router.urls)),

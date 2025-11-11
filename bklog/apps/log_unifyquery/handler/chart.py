@@ -48,6 +48,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
             "down_sample_range": "",
             "timezone": "UTC",  # 仅用于提供给 unify-query 生成读别名，对应存储入库时区
             "bk_biz_id": self.bk_biz_id,
+            "is_merge_db": True,  # 多表查询会进行合并
         }
 
     def get_chart_data(self):

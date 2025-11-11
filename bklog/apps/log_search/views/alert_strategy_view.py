@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from rest_framework.response import Response
 
 from apps.api import MonitorApi
@@ -46,6 +46,7 @@ class AlertStrategyViewSet(APIViewSet):
         @api {post} alert_strategy/$index_set_id/alert_records/ 查询告警
         @apiName alert_record
         @apiGroup alert_strategy
+        @apiParam {String} space_uid 空间唯一标识
         @apiParam {String} status 状态
         @apiParam {Int} page 页数
         @apiParam {Int} page_size 每页条数
@@ -70,8 +71,9 @@ class AlertStrategyViewSet(APIViewSet):
             "message": ""
         }
         """
+
         params = self.params_valid(AlertRecordSerializer)
-        data = AlertStrategyHandler(index_set_id=index_set_id).get_alert_records(
+        data = AlertStrategyHandler(index_set_id=index_set_id, space_uid=params.get("space_uid")).get_alert_records(
             params["status"],
             params["page"],
             params["page_size"],
@@ -84,6 +86,7 @@ class AlertStrategyViewSet(APIViewSet):
         @api {post} alert_strategy/$index_set_id/strategy_records/ 查询策略
         @apiName alert_record
         @apiGroup alert_strategy
+        @apiParam {String} space_uid 空间唯一标识
         @apiParam {Int} page 页数
         @apiParam {Int} page_size 每页条数
         @apiSuccessExample {json} 成功返回:
@@ -105,8 +108,9 @@ class AlertStrategyViewSet(APIViewSet):
             "message": ""
         }
         """
+
         params = self.params_valid(StrategyRecordSerializer)
-        data = AlertStrategyHandler(index_set_id=index_set_id).get_strategy_records(
+        data = AlertStrategyHandler(index_set_id=index_set_id, space_uid=params.get("space_uid")).get_strategy_records(
             params["page"],
             params["page_size"],
         )
