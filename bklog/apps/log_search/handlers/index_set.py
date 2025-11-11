@@ -1592,7 +1592,7 @@ class IndexSetHandler(APIModel):
         """
         更新归属索引集
         """
-        # 为空列表时清空，为None时不做处理
+        # 为空列表时代表清空归属索引集，为None时不做处理
         if new_parent_index_set_ids is None:
             return
         current_parent_index_set_ids = set(self.data.get_parent_index_set_ids())
