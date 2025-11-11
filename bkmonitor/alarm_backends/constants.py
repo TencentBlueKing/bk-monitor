@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -76,3 +75,6 @@ LATEST_NO_DATA_CHECK_POINT = "__NO_DATA_CHECK_POINT__"
 DEFAULT_DEDUPE_FIELDS = ["alert_name", "strategy_id", "target_type", "target", "bk_biz_id"]
 
 METRIC_VALUE_FIELD = "__value__"
+
+# kafka最大缓冲区大小设置
+KAFKA_MAX_BUFFER_SIZE = 2147483647

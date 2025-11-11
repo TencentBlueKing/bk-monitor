@@ -1190,7 +1190,7 @@ class MappingHandlers:
 
         date_candidate = []
         for _field in date_field_list:
-            field_name, field_type = _field.split(":")
+            field_name, field_type = _field.rsplit(":", maxsplit=1)
             date_candidate.append({"field_name": field_name, "field_type": field_type})
         return date_candidate
 

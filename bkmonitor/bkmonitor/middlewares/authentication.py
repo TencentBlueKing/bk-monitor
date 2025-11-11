@@ -82,6 +82,7 @@ class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
             username = record.create_user or "system"
             user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
             auth.login(request, user)
+            request.token = token
             request.skip_check = True
         else:
             # 观测场景、告警事件场景权限模式：保留原用户信息,判定action是否符合token鉴权场景

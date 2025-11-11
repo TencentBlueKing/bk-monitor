@@ -1,3 +1,5 @@
+/* stylelint-disable selector-class-pattern */
+
 /* stylelint-disable declaration-no-important */
 .clear-fix::after {
   clear: both;
@@ -420,7 +422,7 @@
         // text-overflow: ellipsis;
         color: #f1f3fa;
         word-break: break-all;
-        word-wrap: break-word;
+        overflow-wrap: break-word;
         white-space: pre-wrap;
       }
 
@@ -639,4 +641,20 @@
       }
     }
   }
+}
+
+.global-ai-blueking-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  margin-left: 4px;
+  object-fit: cover;
+  background-image: url('../../static/images/svg/ai-icon.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: brightness(0) saturate(100%) invert(100%);
 }

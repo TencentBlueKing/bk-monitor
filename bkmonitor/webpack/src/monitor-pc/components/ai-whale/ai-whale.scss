@@ -48,19 +48,19 @@
     cursor: move;
     background-repeat: round;
     border-radius: 50%;
-    box-shadow: 0 4px 10px 0 rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 10px 0 rgb(0 0 0 / 20%);
     transition: 50ms all;
 
     &.blue {
-      background-image: url(../../static/images/png/ai-whale-blue.png);
+      background-image: url('../../static/images/png/ai-whale-blue.png');
     }
 
     &.red {
-      background-image: url(../../static/images/png/ai-whale-red.png);
+      background-image: url('../../static/images/png/ai-whale-red.png');
     }
 
     &.yellow {
-      background-image: url(../../static/images/png/ai-whale-yellow.png);
+      background-image: url('../../static/images/png/ai-whale-yellow.png');
     }
   }
 
@@ -80,7 +80,7 @@
     color: #63656e;
 
     .blue-bold {
-      @include bold-color();
+      @include bold-color;
     }
 
     .red-bold {
@@ -119,19 +119,19 @@
       color: #63656e;
 
       .header {
-        @include header();
+        @include header;
       }
 
       .content {
         margin-top: 16px;
 
-        @include help-list();
+        @include help-list;
       }
     }
 
     .red-content {
       .header {
-        @include header();
+        @include header;
       }
 
       .host-detail {
@@ -194,7 +194,7 @@
       }
 
       .content {
-        @include help-list();
+        @include help-list;
 
         .mt16 {
           margin-top: 16px;
@@ -208,7 +208,7 @@
     align-items: center;
     justify-content: center;
     height: 34px;
-    margin: 16px -16px -12px -16px;
+    margin: 16px -16px -12px;
     font-size: 12px;
     color: #3a84ff;
     cursor: pointer;

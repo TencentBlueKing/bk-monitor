@@ -129,7 +129,7 @@ apigw-manager==4.1.0
 jieba-fast==0.53
 
 # bkaidev
-aidev-agent==1.0.2
+aidev-agent==1.0.3
 langfuse==2.60.5
 
 # 各自环境所需的不同依赖, 通过 sites/${env}/deploy/requirements_env.txt得到
