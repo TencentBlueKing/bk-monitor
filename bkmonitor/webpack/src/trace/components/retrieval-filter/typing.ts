@@ -373,6 +373,11 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Boolean,
     default: false,
   },
+  // 只包含queryString模式
+  onlyQSMode: {
+    type: Boolean,
+    default: false,
+  },
   // 为了支持外部各类where条件格式可以自定义格式
   // 将自定义格式转换为组件内支持格式
   whereFormatter: {
