@@ -444,6 +444,9 @@ DB_DUPLICATE_ID = 1062
 # ES别名延迟过期时间
 ES_ALIAS_EXPIRED_DELAY_DAYS = 1
 
+# 无rt表但需要注册gse的data_ids
+NEED_REFRESH_DATA_IDS = [1000, 1100000]
+
 
 class ESScopeTypes(Enum):
     """可见范围类型"""

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -12,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 from copy import deepcopy
 
-import mock
+from unittest import mock
 import pytest
 
 from apm_web.models.application import Application
@@ -81,7 +80,7 @@ SETUP = {
 }
 
 
-class TestLogTrace(object):
+class TestLogTrace:
     @mock.patch("core.drf_resource.api.apm_api.create_application", lambda _: API_APPLICATION)
     @mock.patch("apm_web.models.Application.get_transfer_config", lambda _: {})
     @mock.patch("apm_web.models.Application.authorization", lambda _: {})
@@ -136,7 +135,6 @@ class TestLogTrace(object):
 
     @mock.patch("core.drf_resource.api.node_man.switch_subscription", lambda _: {"subscription_id": SUBSCRIPTION_ID})
     @mock.patch("core.drf_resource.api.node_man.run_subscription", lambda _: {"subscription_id": SUBSCRIPTION_ID})
-    @mock.patch("core.drf_resource.api.node_man.delete_subscription", lambda _: {"subscription_id": SUBSCRIPTION_ID})
     @pytest.mark.django_db(transaction=True)
     def test_delete(self, application_id=APPLICATION_ID):
         result = Application.delete_plugin_config(application_id)
