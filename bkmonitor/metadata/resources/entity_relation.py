@@ -16,6 +16,7 @@ from django.db import transaction
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
+from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource
 from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
 from metadata.models import EntityMeta
@@ -201,10 +202,11 @@ class ApplyEntityResource(Resource):
     @apiGroup Entity
     @apiParam {String} kind 实体类型
     @apiParam {Object} metadata 资源元数据
-    @apiParam {String} metadata.namespace 命名空间
+    @apiParam {String} [metadata.namespace] 命名空间，可选。如果提供了 bk_biz_id，则会被自动转换覆盖
     @apiParam {String} metadata.name 资源名称
     @apiParam {Object} [metadata.labels={}] 标签，键值对格式
     @apiParam {Object} spec 资源配置，根据不同的实体类型有不同的字段
+    @apiParam {Number} [bk_biz_id] 业务ID，可选。如果提供，会自动转换为 space_uid 并覆盖 metadata.namespace
     @apiParamExample {json} Request-Example:
         {
             "kind": "CustomRelationStatus",
@@ -220,6 +222,22 @@ class ApplyEntityResource(Resource):
                 "from_resource": "source_entity",
                 "to_resource": "target_entity"
             }
+        }
+    @apiParamExample {json} Request-Example-With-BkBizId:
+        {
+            "kind": "CustomRelationStatus",
+            "metadata": {
+                "name": "relation-001",
+                "labels": {
+                    "env": "production",
+                    "app": "monitor"
+                }
+            },
+            "spec": {
+                "from_resource": "source_entity",
+                "to_resource": "target_entity"
+            },
+            "bk_biz_id": 2
         }
     @apiSuccessExample {json} Success-Response:
         {
@@ -244,7 +262,7 @@ class ApplyEntityResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         class Metadata(serializers.Serializer):
-            namespace = serializers.CharField(required=True, label=_("命名空间"))
+            namespace = serializers.CharField(required=False, label=_("命名空间"))
             name = serializers.CharField(required=True, label=_("资源名称"))
             labels = serializers.DictField(
                 required=False, label=_("标签"), allow_empty=True, child=serializers.CharField()
@@ -253,13 +271,17 @@ class ApplyEntityResource(Resource):
         kind = serializers.CharField(required=True, label=_("实体类型"))
         metadata = Metadata(required=True, label=_("元数据"))
         spec = serializers.DictField(required=True, label=_("资源配置"), allow_empty=True)
-        space_uid = serializers.CharField(required=False, label=_("空间UID"))
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
 
         def validate(self, attrs):
-            # 如果 space_uid 存在，则覆盖 metadata.namespace
-            if "space_uid" in attrs and attrs["space_uid"]:
-                if "metadata" in attrs and isinstance(attrs["metadata"], dict):
-                    attrs["metadata"]["namespace"] = attrs["space_uid"]
+            # 如果 bk_biz_id 存在，则覆盖 metadata.namespace
+            if "bk_biz_id" in attrs and attrs["bk_biz_id"]:
+                space_uid = bk_biz_id_to_space_uid(attrs["bk_biz_id"])
+                if not space_uid:
+                    raise serializers.ValidationError(_("无效的业务ID: %s") % attrs["bk_biz_id"])
+                attrs["metadata"]["namespace"] = space_uid
+            elif "namespace" not in attrs["metadata"]:
+                raise serializers.ValidationError(_("metadata.namespace 字段不能为空"))
             return attrs
 
     def perform_request(self, validated_request_data):
@@ -280,13 +302,20 @@ class GetEntityResource(Resource):
     @apiName GetEntityResource
     @apiGroup Entity
     @apiParam {String} kind 实体类型
-    @apiParam {String} namespace 命名空间
+    @apiParam {String} [namespace] 命名空间，可选。如果提供了 bk_biz_id，则会被自动转换覆盖
     @apiParam {String} name 资源名称
+    @apiParam {Number} [bk_biz_id] 业务ID，可选。如果提供，会自动转换为 space_uid 并覆盖 namespace
     @apiParamExample {json} Request-Example:
         {
             "kind": "CustomRelationStatus",
             "namespace": "default",
             "name": "relation-001"
+        }
+    @apiParamExample {json} Request-Example-With-BkBizId:
+        {
+            "kind": "CustomRelationStatus",
+            "name": "relation-001",
+            "bk_biz_id": 2
         }
     @apiSuccessExample {json} Success-Response:
         {
@@ -311,14 +340,19 @@ class GetEntityResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         kind = serializers.CharField(required=True, label=_("实体类型"))
-        namespace = serializers.CharField(required=True, label=_("命名空间"))
+        namespace = serializers.CharField(required=False, label=_("命名空间"))
         name = serializers.CharField(required=True, label=_("资源名称"))
-        space_uid = serializers.CharField(required=False, label=_("空间UID"))
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
 
         def validate(self, attrs):
-            # 如果 space_uid 存在，则覆盖 namespace
-            if "space_uid" in attrs and attrs["space_uid"]:
-                attrs["namespace"] = attrs["space_uid"]
+            # 如果 bk_biz_id 存在，则覆盖 namespace，否则 namespace 为必填
+            if "bk_biz_id" in attrs and attrs["bk_biz_id"]:
+                space_uid = bk_biz_id_to_space_uid(attrs["bk_biz_id"])
+                if not space_uid:
+                    raise serializers.ValidationError(_("无效的业务ID: %s") % attrs["bk_biz_id"])
+                attrs["namespace"] = space_uid
+            elif "namespace" not in attrs:
+                raise serializers.ValidationError(_("namespace 字段不能为空"))
             return attrs
 
     def perform_request(self, validated_request_data):
@@ -339,8 +373,9 @@ class ListEntityResource(Resource):
     @apiName ListEntityResource
     @apiGroup Entity
     @apiParam {String} kind 实体类型
-    @apiParam {String} [namespace=""] 命名空间，可选，用于过滤
+    @apiParam {String} [namespace=""] 命名空间，可选，用于过滤。如果提供了 bk_biz_id，则会被自动转换覆盖
     @apiParam {String} [name=""] 资源名称，可选，用于过滤
+    @apiParam {Number} [bk_biz_id] 业务ID，可选。如果提供，会自动转换为 space_uid 并覆盖 namespace
     @apiParamExample {json} Request-Example:
         {
             "kind": "CustomRelationStatus",
@@ -350,6 +385,11 @@ class ListEntityResource(Resource):
     @apiParamExample {json} Request-Example-All:
         {
             "kind": "CustomRelationStatus"
+        }
+    @apiParamExample {json} Request-Example-With-BkBizId:
+        {
+            "kind": "CustomRelationStatus",
+            "bk_biz_id": 2
         }
     @apiSuccessExample {json} Success-Response:
         [
@@ -378,12 +418,15 @@ class ListEntityResource(Resource):
         kind = serializers.CharField(required=True, label=_("实体类型"))
         namespace = serializers.CharField(required=False, label=_("命名空间"))
         name = serializers.CharField(required=False, label=_("资源名称"))
-        space_uid = serializers.CharField(required=False, label=_("空间UID"))
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
 
         def validate(self, attrs):
-            # 如果 space_uid 存在，则覆盖 namespace
-            if "space_uid" in attrs and attrs["space_uid"]:
-                attrs["namespace"] = attrs["space_uid"]
+            # 如果 bk_biz_id 存在，则覆盖 namespace
+            if "bk_biz_id" in attrs and attrs["bk_biz_id"]:
+                space_uid = bk_biz_id_to_space_uid(attrs["bk_biz_id"])
+                if not space_uid:
+                    raise serializers.ValidationError(_("无效的业务ID: %s") % attrs["bk_biz_id"])
+                attrs["namespace"] = space_uid
             return attrs
 
     def perform_request(self, validated_request_data):
@@ -404,26 +447,38 @@ class DeleteEntityResource(Resource):
     @apiName DeleteEntityResource
     @apiGroup Entity
     @apiParam {String} kind 实体类型
-    @apiParam {String} namespace 命名空间
+    @apiParam {String} [namespace] 命名空间，可选。如果提供了 bk_biz_id，则会被自动转换覆盖
     @apiParam {String} name 资源名称
+    @apiParam {Number} [bk_biz_id] 业务ID，可选。如果提供，会自动转换为 space_uid 并覆盖 namespace
     @apiParamExample {json} Request-Example:
         {
             "kind": "CustomRelationStatus",
             "namespace": "default",
             "name": "relation-001"
         }
+    @apiParamExample {json} Request-Example-With-BkBizId:
+        {
+            "kind": "CustomRelationStatus",
+            "name": "relation-001",
+            "bk_biz_id": 2
+        }
     """
 
     class RequestSerializer(serializers.Serializer):
         kind = serializers.CharField(required=True, label=_("实体类型"))
-        namespace = serializers.CharField(required=True, label=_("命名空间"))
+        namespace = serializers.CharField(required=False, label=_("命名空间"))
         name = serializers.CharField(required=True, label=_("资源名称"))
-        space_uid = serializers.CharField(required=False, label=_("空间UID"))
+        bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
 
         def validate(self, attrs):
-            # 如果 space_uid 存在，则覆盖 namespace
-            if "space_uid" in attrs and attrs["space_uid"]:
-                attrs["namespace"] = attrs["space_uid"]
+            # 如果 bk_biz_id 存在，则覆盖 namespace，否则 namespace 为必填
+            if "bk_biz_id" in attrs and attrs["bk_biz_id"]:
+                space_uid = bk_biz_id_to_space_uid(attrs["bk_biz_id"])
+                if not space_uid:
+                    raise serializers.ValidationError(_("无效的业务ID: %s") % attrs["bk_biz_id"])
+                attrs["namespace"] = space_uid
+            elif "namespace" not in attrs:
+                raise serializers.ValidationError(_("namespace 字段不能为空"))
             return attrs
 
     def perform_request(self, validated_request_data):
