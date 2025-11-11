@@ -71,7 +71,7 @@ export default defineComponent({
     // watch dialogShow -> open & preload list
     watch(
       () => props.dialogShow,
-      async v => {
+      async (v) => {
         show.value = !!v;
         if (v) {
           loading.value = true;
@@ -96,10 +96,13 @@ export default defineComponent({
 
     async function handleItemClick(v = 0) {
       active.value = v;
-      if (!currentLog.value.detail) {
+      const currentItem = logList.value[active.value];
+      if (currentItem && !currentItem.detail) {
         loading.value = true;
         const detail = await getVersionLogsDetail();
-        currentLog.value.detail = detail as string;
+        if (logList.value[active.value]) {
+          logList.value[active.value].detail = detail as string;
+        }
         loading.value = false;
       }
     }
@@ -108,15 +111,24 @@ export default defineComponent({
       const params: any = {
         method: 'get',
         url: `${(window as any).SITE_URL}version_log/version_logs_list/`,
+        baseURL: '/',
+        originalResponse: false,
       };
       if (isExternal.value) {
         params.headers = { 'X-Bk-Space-Uid': spaceUid.value };
       }
-      const { data } = await axiosInstance(params).catch(_ => {
+      const response = await axiosInstance(params).catch((_) => {
         console.warn(_);
-        return { data: { data: [] } } as any;
+        return { data: [] } as any;
       });
-      return (data?.data || []).map((item: any) => ({ title: item[0], date: item[1], detail: '' }));
+      // 响应拦截器可能返回 response.data，需要检查数据结构
+      const responseData = response?.data !== undefined ? response.data : response;
+      const listData = responseData?.data || responseData || [];
+      return (Array.isArray(listData) ? listData : []).map((item: any) => ({
+        title: item[0] || item.title || '',
+        date: item[1] || item.date || '',
+        detail: '',
+      }));
     }
 
     async function getVersionLogsDetail(): Promise<string> {
@@ -124,15 +136,19 @@ export default defineComponent({
         method: 'get',
         url: `${(window as any).SITE_URL}version_log/version_log_detail/`,
         params: { log_version: currentLog.value.title },
+        baseURL: '/',
+        originalResponse: false,
       };
       if (isExternal.value) {
         params.headers = { 'X-Bk-Space-Uid': spaceUid.value };
       }
-      const { data } = await axiosInstance(params).catch(_ => {
+      const response = await axiosInstance(params).catch((_) => {
         console.warn(_);
         return { data: '' } as any;
       });
-      return data?.data || '';
+      // 响应拦截器可能返回 response.data，需要检查数据结构
+      const responseData = response?.data !== undefined ? response.data : response;
+      return responseData?.data || responseData || '';
     }
 
     return () => (
