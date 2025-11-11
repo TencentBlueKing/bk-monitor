@@ -93,18 +93,6 @@ class AIAssistantViewSet(APIViewSet):
             resp = Response(result_or_stream)
         return resp
 
-    @action(methods=["post"], detail=False)
-    def session_feedback(self, request, *args, **kwargs):
-        """
-        @api {post} /ai_assistant/session_feedback
-        @apiName create_feedback_session_content
-        @apiDescription 创建会话内容反馈
-        @apiGroup AIAssistant
-
-        """
-        params = self.params_valid(CreateFeedbackSessionContentSerializer)
-        return JsonResponse(aidev_interface.create_chat_session_feedback(params=params, username=request.user.username))
-
 
 # 定义指标上报器
 metrics_reporter = AIMetricsReporter(
@@ -280,6 +268,17 @@ class SessionFeedbackViewSet(APIViewSet, AIAssistantPermissionMixin):
     """
     会话内容反馈
     """
+
+    def create(self, request, *args, **kwargs):
+        """
+        @api {post} /ai_assistant/session_feedback
+        @apiName create_feedback_session_content
+        @apiDescription 创建会话内容反馈
+        @apiGroup AIAssistant
+
+        """
+        params = self.params_valid(CreateFeedbackSessionContentSerializer)
+        return JsonResponse(aidev_interface.create_chat_session_feedback(params=params, username=request.user.username))
 
     @action(methods=["get"], detail=False)
     def reasons(self, request, *args, **kwargs):
