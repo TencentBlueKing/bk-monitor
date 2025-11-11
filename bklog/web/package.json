@@ -31,7 +31,7 @@
     "@blueking/bkui-library": "0.0.0-beta.5",
     "@blueking/date-picker": "^2.0.0-beta.48",
     "@blueking/fork-resize-detector": "0.0.2",
-    "@blueking/ip-selector": "1.0.1-beta.16",
+    "@blueking/ip-selector": "1.0.1-beta.19",
     "@blueking/login-modal": "1.0.1",
     "@blueking/notice-component-vue2": "2.0.3",
     "@blueking/platform-config": "1.0.2",
