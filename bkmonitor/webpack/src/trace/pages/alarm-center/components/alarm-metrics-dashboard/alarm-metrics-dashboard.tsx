@@ -74,6 +74,11 @@ export default defineComponent({
       type: Number,
       default: 36,
     },
+    /** 对接口请求返回数据进行处理 */
+    formatterData: {
+      type: Function as PropType<(val) => any>,
+      default: res => res,
+    },
   },
   setup(props) {
     /** css 变量 */
@@ -120,6 +125,7 @@ export default defineComponent({
             {this.panels.map(panel => (
               <AlarmLazyChart
                 key={panel.id}
+                formatterData={this.formatterData}
                 panel={panel}
                 params={this.params}
                 // onDataZoomChange={this.handleDataZoomChange}

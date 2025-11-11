@@ -43,11 +43,12 @@
     color: #313238;
 
     @include source-item;
-    
   }
 
   .relation-event-table {
     @include source-item;
+
+    $statusColors: #ea3635 #ff9c00 #699df4;
 
     @for $i from 1 through length($statusColors) {
       .row-event-status-#{$i} {
@@ -71,7 +72,7 @@
 
     .table-expand-icon {
       font-size: 12px;
-      color: #4D4F56;
+      color: #4d4f56;
     }
 
     .t-table__expanded-row {
@@ -83,8 +84,6 @@
         }
       }
     }
-
-    $statusColors: #ea3635 #ff9c00 #699df4;
   }
 
   .panel-event-table-scroll-loading {

@@ -31,16 +31,8 @@ export enum AlarmType {
   INCIDENT = 'incident',
 }
 
-/** 告警详情 主机选择器类型 */
-export enum AlertDetailHostSelectorTypeEnum {
-  /** 主机级别 */
-  HOST = 'host',
-  /** 模块级别 */
-  MODULE = 'module',
-}
-
-/** 告警场景 表格批量操作栏按钮项 id */
-export enum AlertSelectAction {
+/** 告警场景中数据所有可操作的事件枚举 */
+export enum AlertAllActionEnum {
   /** 取消选择 */
   CANCEL = 'cancel',
   /** 一键拉群 */
@@ -49,9 +41,24 @@ export enum AlertSelectAction {
   CONFIRM = 'confirm',
   /** 批量分派 */
   DISPATCH = 'dispatch',
+  /** 手动处理 */
+  MANUAL_HANDLING = 'manual_handling',
   /** 批量屏蔽 */
   SHIELD = 'shield',
 }
+
+/** 告警详情 主机选择器类型 */
+export enum AlertDetailHostSelectorTypeEnum {
+  /** 主机级别 */
+  HOST = 'host',
+  /** 模块级别 */
+  MODULE = 'module',
+}
+
+/** 告警场景表格 行操作栏 可操作按钮项枚举类型 */
+export type AlertRowOperationAction = Exclude<AlertAllActionEnum, AlertAllActionEnum.CANCEL>;
+/** 告警场景表格 批量操作栏 可操作按钮项枚举类型 */
+export type AlertSelectBatchAction = Exclude<AlertAllActionEnum, AlertAllActionEnum.MANUAL_HANDLING>;
 
 export const alarmTypeMap: { label: string; value: AlarmType }[] = [
   {

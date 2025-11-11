@@ -27,12 +27,12 @@
 import { alertDetail, listAlertFeedback } from 'monitor-api/modules/alert';
 import { scenarioMetricList } from 'monitor-api/modules/k8s';
 import { getSceneView } from 'monitor-api/modules/scene_view';
-import { type SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 import { BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
 import { AlarmDetail } from '../typings/detail';
 
 import type { IAlarmDetail } from '../typings/detail';
+import type { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 
 export const fetchAlarmDetail = (id: string): Promise<AlarmDetail | null> => {
   if (!id) return Promise.resolve(null);
@@ -89,8 +89,11 @@ export const getHostSceneView = async (bizId: number) => {
  */
 export const getK8sScenarioMetricList = async (scene: SceneEnum) => {
   const data = await scenarioMetricList({ scenario: scene }).catch(() => []);
-  return data.map(item => ({
-    ...item,
-    count: item.children.length,
-  }));
+  return data.reduce((prev, curr) => {
+    // show_chart 为 true 的指标才展示
+    const children = curr?.children?.filter?.(e => e.show_chart) ?? [];
+    const count = children?.length ?? 0;
+    prev.push({ ...curr, count, children });
+    return prev;
+  }, []);
 };
