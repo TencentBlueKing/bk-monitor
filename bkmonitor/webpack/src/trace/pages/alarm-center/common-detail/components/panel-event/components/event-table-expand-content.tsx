@@ -26,7 +26,9 @@
 
 import { computed, defineComponent, shallowRef } from 'vue';
 
+import { Message } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { copyText } from 'monitor-common/utils/utils';
 import { xssFilter } from 'monitor-common/utils/xss';
 import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';

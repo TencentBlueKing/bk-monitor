@@ -2,14 +2,7 @@
 
 /* stylelint-disable scss/no-global-function-names */
 .alarm-center-detail-panel-alarm-relation-event-table {
-  .header-operate {
-    display: flex;
-    align-items: center;
-    height: 21px;
-    padding-left: 24px;
-    margin: 15px 0;
-    color: #313238;
-
+  @mixin source-item() {
     .source-item {
       display: flex;
       align-items: center;
@@ -41,8 +34,20 @@
     }
   }
 
+  .header-operate {
+    display: flex;
+    align-items: center;
+    height: 21px;
+    padding-left: 24px;
+    margin: 15px 0;
+    color: #313238;
+
+    @include source-item;
+    
+  }
+
   .relation-event-table {
-    $statusColors: #ea3635 #ff9c00 #699df4;
+    @include source-item;
 
     @for $i from 1 through length($statusColors) {
       .row-event-status-#{$i} {
@@ -78,6 +83,8 @@
         }
       }
     }
+
+    $statusColors: #ea3635 #ff9c00 #699df4;
   }
 
   .panel-event-table-scroll-loading {

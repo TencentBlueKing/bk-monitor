@@ -43,17 +43,24 @@ import EventTableExpandContent from './event-table-expand-content';
 
 import './event-table.scss';
 
-export enum SourceTypeEnum {
-  ALL = 'ALL',
+export const SourceTypeEnum = {
+  ALL: 'ALL',
   /** Kubernetes/BCS */
-  BCS = 'BCS',
+  BCS: 'BCS',
   /** BKCI/蓝盾 */
-  BKCI = 'BKCI',
+  BKCI: 'BKCI',
   /** 其他类型事件来源 */
-  DEFAULT = 'DEFAULT',
+  DEFAULT: 'DEFAULT',
   /** 系统/主机 */
-  HOST = 'HOST',
-}
+  HOST: 'HOST',
+} as const;
+export const tableColumnKey = {
+  TIME: 'time',
+  SOURCE_TYPE: 'source_type',
+  EVENT_NAME: 'event_name',
+  CONTENT: 'event.content',
+  TARGET: 'target',
+};
 
 const SourceIconMap = {
   [SourceTypeEnum.BCS]: 'icon-explore-bcs',
@@ -82,15 +89,35 @@ export default defineComponent({
     const scrollLoading = shallowRef(false);
     const columns = shallowRef<TdPrimaryTableProps['columns']>([
       {
-        colKey: 'time',
+        colKey: tableColumnKey.TIME,
         title: window.i18n.t('时间'),
         width: 150,
+        sorter: true,
         cell: (_h, { row }) => {
           return dayjs.tz(row.time * 1000).format('YYYY-MM-DD HH:mm');
         },
       },
       {
-        colKey: 'event_name',
+        colKey: tableColumnKey.SOURCE_TYPE,
+        title: window.i18n.t('事件来源'),
+        width: 160,
+        ellipsis: {
+          theme: 'light',
+          placement: 'bottom',
+        },
+        cell: (_h, { _row }) => {
+          return (
+            <span class='source-item'>
+              {SourceIconMap[SourceTypeEnum.BCS] ? (
+                <span class={`source-icon icon-monitor ${SourceIconMap[SourceTypeEnum.BCS]}`} />
+              ) : undefined}
+              <span>{window.i18n.t('容器')}</span>
+            </span>
+          );
+        },
+      },
+      {
+        colKey: tableColumnKey.EVENT_NAME,
         title: window.i18n.t('事件名'),
         width: 160,
         ellipsis: {
@@ -102,7 +129,7 @@ export default defineComponent({
         },
       },
       {
-        colKey: 'event.content',
+        colKey: tableColumnKey.CONTENT,
         title: window.i18n.t('内容'),
         ellipsis: {
           theme: 'light',
@@ -114,7 +141,7 @@ export default defineComponent({
         },
       },
       {
-        colKey: 'target',
+        colKey: tableColumnKey.TARGET,
         title: window.i18n.t('目标'),
         width: 190,
         ellipsis: {
@@ -139,6 +166,7 @@ export default defineComponent({
     const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row }): any => {
       return <EventTableExpandContent data={row} />;
     });
+    const sort = shallowRef<TdPrimaryTableProps['sort']>(null);
     const sourceType = shallowRef([]);
     const sourceTypeOptions = shallowRef([
       {
@@ -214,6 +242,10 @@ export default defineComponent({
       observer.value.observe(loadingRef.value as HTMLElement);
     };
 
+    const handleSortChange = (value: TdPrimaryTableProps['sort']) => {
+      sort.value = value;
+    };
+
     const handleGoEvent = () => {};
 
     onMounted(() => {
@@ -232,6 +264,8 @@ export default defineComponent({
       expandedRowKeys,
       isEnd,
       tableData,
+      sort,
+      handleSortChange,
       handleExpandChange,
       t,
       handleGoEvent,
@@ -284,7 +318,9 @@ export default defineComponent({
           rowClassName={({ row }) => `row-event-status-${row.severity}`}
           rowKey={'event_id'}
           size={'small'}
+          sort={this.sort}
           onExpandChange={this.handleExpandChange}
+          onSortChange={this.handleSortChange}
         />
         <div
           ref='scrollLoading'

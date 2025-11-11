@@ -38,6 +38,52 @@ export default defineComponent({
   setup(props) {
     console.log(props.id);
 
+    /**
+     * 跳转Trace详情页
+     * @param traceId Trace ID
+     */
+    const handleGoTrace = (traceId: string) => {
+      const hash = `#/trace/home/?app_name=tilapia&search_type=accurate&sceneMode=trace&trace_id=${traceId}`;
+      const url = location.href.replace(location.hash, hash);
+      window.open(url, '_blank');
+    };
+    /**
+     * 跳转Span详情页
+     * @param spanId Span ID
+     */
+    const handleGoSpan = (spanId: string) => {
+      const hash = `#/trace/home/?app_name=tilapia&sceneMode=span&where=[{"key":"span_id","operator":"equal","value":["${spanId}"],"options":{"group_relation":"OR"}}]'`;
+      const url = location.href.replace(location.hash, hash);
+      window.open(url, '_blank');
+    };
+    /**
+     * 跳转服务详情页
+     * @param appName 应用名称
+     * @param serviceName 服务名称
+     */
+    const handleGoService = (appName: string, serviceName: string) => {
+      const hash = `#/apm/service?filter-service_name=${serviceName}&filter-app_name=${appName}&method=AVG&interval=auto&from=now-1h&to=now&refreshInterval=-1`;
+      const url = location.href.replace(location.hash, hash);
+      window.open(url, '_blank');
+    };
+    /**
+     * 跳转入口服务详情页
+     * @param appName 应用名称
+     * @param serviceName 服务名称
+     * @param endpointName 入口服务名称
+     */
+    const handleToEndpoint = (appName: string, serviceName: string, endpointName: string) => {
+      if (serviceName) {
+        const hash = `#/apm/service?filter-app_name=${appName}&filter-service_name=${serviceName}&sceneType=detail&sceneId=apm_service&dashboardId=service-default-endpoint&filter-endpoint_name=${endpointName}`;
+        const url = location.href.replace(location.hash, hash);
+        window.open(url, '_blank');
+      } else {
+        const hash = `#/apm/application?filter-app_name=${appName}&sceneType=overview&sceneId=apm_application&dashboardId=endpoint`;
+        const url = location.href.replace(location.hash, hash);
+        window.open(url, '_blank');
+      }
+    };
+
     const columns = shallowRef<TdPrimaryTableProps['columns']>([
       {
         colKey: 'trace_id',
@@ -50,7 +96,10 @@ export default defineComponent({
         },
         cell: (_h, { row }) => {
           return (
-            <span class='link'>
+            <span
+              class='link'
+              onClick={() => handleGoTrace(row.id)}
+            >
               {'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
               {row.id}
             </span>
@@ -70,7 +119,14 @@ export default defineComponent({
         title: '根span',
         width: 100,
         cell: _h => {
-          return (<span class='link'>{'xxxxxxxxspan'}</span>) as any;
+          return (
+            <span
+              class='link'
+              onClick={() => handleGoSpan('xxxxxxxxspan')}
+            >
+              {'xxxxxxxxspan'}
+            </span>
+          ) as any;
         },
       },
       {
@@ -87,7 +143,12 @@ export default defineComponent({
               <span class='service-status'>
                 <span class='icon-monitor icon-mind-fill' />
               </span>
-              <span class='link'>bkbkbkbkbkbkbk</span>
+              <span
+                class='link'
+                onClick={() => handleGoService('aaaaaa', 'bkbkbkbkbkbkbk')}
+              >
+                bkbkbkbkbkbkbk
+              </span>
             </span>
           ) as any;
         },
@@ -101,7 +162,14 @@ export default defineComponent({
           placement: 'bottom',
         },
         cell: (_h, { row }) => {
-          return (<span class='link'>{'/api/v1/xxxx/xxxx'}</span>) as any;
+          return (
+            <span
+              class='link'
+              onClick={() => handleToEndpoint('aaaaaa', 'bkbkbkbkbkbkbk', '/api/v1/xxxx/xxxx')}
+            >
+              {'/api/v1/xxxx/xxxx'}
+            </span>
+          ) as any;
         },
       },
       {
