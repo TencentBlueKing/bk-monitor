@@ -29,13 +29,16 @@ import { debounce, isElement } from 'lodash-es';
 
 export default (
   target: (() => HTMLElement | string) | Ref<HTMLElement> | string,
-  callbackFn: (entry: ResizeObserverEntry) => void,
+  callbackFn: (_entry: ResizeObserverEntry) => void,
   delayCallback: boolean | number = 120,
   immediateStart = true,
 ) => {
-  const debounceCallback = debounce(entry => {
-    callbackFn?.(entry);
-  }, delayCallback);
+  const debounceCallback = debounce(
+    (entry) => {
+      callbackFn?.(entry);
+    },
+    typeof delayCallback === 'number' ? delayCallback : 120,
+  );
 
   const getTarget = () => {
     if (typeof target === 'string') {
@@ -69,7 +72,7 @@ export default (
 
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
-      resizeObserver = new ResizeObserver(entries => {
+      resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
           if (delayCallback === false) {
             callbackFn?.(entry);

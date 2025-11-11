@@ -158,7 +158,7 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
         return item.config.threshold || item.config.threshold === 0;
       }
       if (item.type === AlgorithmEnum.YearRoundAndRingRatio) {
-        return item.config.ceil >= 1 && item.config.ceil <= 100 && item.config.floor >= 1 && item.config.floor <= 100;
+        return item.config.ceil >= 1 && item.config.floor >= 1;
       }
       return true;
     });
@@ -196,6 +196,10 @@ export default class TemplateForm extends tsc<TemplateFormProps, TemplateFormEve
     }
   }
 
+  /**
+   * @description 修改算法之间的关系
+   * @param value 算法关系(or || and)
+   */
   handleConnectorChange(value: string) {
     this.$emit('detectChange', {
       type: this.data?.detect?.type,

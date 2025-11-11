@@ -177,7 +177,22 @@ class StrategyTemplateViewSet(GenericViewSet):
         strategy_template_obj: StrategyTemplate = get_object_or_404(
             self.get_queryset(), id=self.query_data["strategy_template_id"]
         )
-        return Response(self._preview(strategy_template_obj, self.query_data["service_name"]))
+        preview_data: dict[str, Any] = self._preview(strategy_template_obj, self.query_data["service_name"])
+        strategy_instance_obj: StrategyInstance = StrategyInstance.objects.filter(
+            bk_biz_id=self.query_data["bk_biz_id"],
+            app_name=self.query_data["app_name"],
+            strategy_template_id=strategy_template_obj.pk,
+            service_name=self.query_data["service_name"],
+        ).first()
+        if not strategy_instance_obj:
+            return Response(preview_data)
+        preview_data["detect"] = strategy_instance_obj.detect
+        preview_data["algorithms"] = strategy_instance_obj.algorithms
+        preview_data["user_group_list"] = list(helper.get_user_groups(strategy_instance_obj.user_group_ids).values())
+        preview_data["context"] = {
+            k: strategy_instance_obj.context.get(k, v) for k, v in preview_data["context"].items()
+        }
+        return Response(preview_data)
 
     def _get_id_strategy_map(self, ids: Iterable[int]) -> dict[int, dict[str, Any]]:
         return helper.get_id_strategy_map(self.query_data["bk_biz_id"], ids)
@@ -185,13 +200,47 @@ class StrategyTemplateViewSet(GenericViewSet):
     @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateApplyRequestSerializer)
     @user_visit_record
     def apply(self, *args, **kwargs) -> Response:
+        extra_config_map: dict[int, dict[str, dispatch.DispatchExtraConfig]] = {}
+        if self.query_data["is_reuse_instance_config"]:
+            # 复用已下发配置，查询实例快照并构造配置对象。
+            strategy_instances: QuerySet[StrategyInstance] = StrategyInstance.objects.filter(
+                bk_biz_id=self.query_data["bk_biz_id"],
+                app_name=self.query_data["app_name"],
+                service_name__in=self.query_data["service_names"],
+                strategy_template_id__in=self.query_data["strategy_template_ids"],
+            )
+            for strategy_instance in strategy_instances:
+                extra_config_map.setdefault(strategy_instance.strategy_template_id, {})[
+                    strategy_instance.service_name
+                ] = dispatch.DispatchExtraConfig(
+                    service_name=strategy_instance.service_name,
+                    context=strategy_instance.context,
+                    detect=strategy_instance.detect,
+                    algorithms=strategy_instance.algorithms,
+                    user_group_list=[{"id": user_group_id} for user_group_id in strategy_instance.user_group_ids],
+                )
+
         strategy_templates: list[StrategyTemplate] = list(
             self.get_queryset().filter(id__in=self.query_data["strategy_template_ids"])
         )
-        extra_configs_map: dict[int, list[dispatch.DispatchExtraConfig]] = defaultdict(list)
         for extra_config in self.query_data["extra_configs"]:
+            service_name: str = extra_config["service_name"]
             strategy_template_id: int = extra_config.pop("strategy_template_id", 0)
-            extra_configs_map[strategy_template_id].append(dispatch.DispatchExtraConfig(**extra_config))
+            extra_config_obj: dispatch.DispatchExtraConfig = dispatch.DispatchExtraConfig(**extra_config)
+            applied_config: dispatch.DispatchExtraConfig | None = extra_config_map.get(strategy_template_id, {}).get(
+                service_name
+            )
+            if applied_config:
+                # 合并配置，优先级：已下发配置 < 额外配置。
+                applied_config.merge(extra_config_obj)
+            else:
+                extra_config_map.setdefault(strategy_template_id, {})[service_name] = extra_config_obj
+
+        extra_configs_map: dict[int, list[dispatch.DispatchExtraConfig]] = defaultdict(list)
+        for strategy_template_id, service_extra_config_map in extra_config_map.items():
+            for extra_config in service_extra_config_map.values():
+                extra_configs_map[strategy_template_id].append(extra_config)
+
         global_config = dispatch.DispatchGlobalConfig(**self.query_data["global_config"])
         apply_data = handler.StrategyTemplateHandler.apply(
             bk_biz_id=self.query_data["bk_biz_id"],

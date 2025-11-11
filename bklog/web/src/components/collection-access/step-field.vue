@@ -394,6 +394,9 @@
                   <span v-bk-tooltips="$t('你可以自行指定日志展示时间，勾选前请提前清洗日志时间')">{{
                     $t('指定字段为日志时间')
                   }}</span>
+                  <span style="color: red; font-size: 12px;">
+                    (纳秒时间格式异常，修复中，暂不可用)
+                  </span>
                 </bk-radio>
               </bk-radio-group>
             </div>
@@ -448,10 +451,11 @@
                   searchable
                 >
                   <bk-option
-                    v-for="item in globalsData.field_date_format"
+                    v-for="item in formatDateTimeList"
                     :id="item.id"
                     :key="item.id"
                     :name="`${item.name} (${item.description})`"
+                    :disabled="item.disabled"
                   >
                   </bk-option>
                 </bk-select>
@@ -1236,6 +1240,29 @@ import fieldTable from './field-table';
           return item.field_name && !item.is_built_in;
         });
       },
+      formatDateTimeList() {
+        const isNanoTimeFormat = (item) => {
+          // 禁用 date_nanos 类型的格式，它们使用微秒精度，需要特殊处理
+          if (item.es_type === 'date_nanos' || item.es_format === 'strict_date_optional_time_nanos') {
+            return true;
+          }
+
+          // 检查 item.id 或 item.name 是否包含 .SSS 或 ,SSS 格式（毫秒/微秒相关格式）
+          // 匹配模式：.SSS 或 ,SSS，后面可能跟 Z、ZZ 或其他字符
+          const hasMillisecondFormat = /[.,]SSS/.test(item.id) || /[.,]SSS/.test(item.name);
+          if (hasMillisecondFormat) {
+            return true;
+          }
+
+          return false;
+        };
+
+        return this.globalsData.field_date_format.map(item => {
+          return Object.assign(item, {
+            disabled: isNanoTimeFormat(item),
+          });
+        });
+      }
     },
     watch: {
       'formData.fields'() {

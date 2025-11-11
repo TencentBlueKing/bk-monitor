@@ -724,7 +724,7 @@ class StorageResultTable:
                         bk_tenant_id=self.bk_tenant_id, table_id=self.table_id, is_current=True
                     ).update(is_current=False, disable_time=result_table.last_modify_time)
 
-                    correct_record, _ = StorageClusterRecord.objects.get_or_create(
+                    StorageClusterRecord.objects.get_or_create(
                         table_id=self.table_id,
                         cluster_id=new_storage_cluster_id,
                         is_current=True,
@@ -1430,6 +1430,8 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
         table_id_vm_info = cls._get_table_id_access_vm_data(table_ids)
         # 获取 vm 集群 ID
         vm_cluster_id_name = cls._get_vm_cluster_id_name()
+        # 获取结果表对应的 bcs 集群 ID
+        bcs_cluster_id_info = cls._get_table_id_bcs_cluster_id()
 
         # 标识查询不到结果表的场景
         not_found_table_id = "not_found_table_id"
@@ -1444,7 +1446,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
                 "data_id": data_id,
                 "measurement_type": table_id_measurement_type_map.get(table_id) or not_found_table_id,
                 "vm_table_id": vm_info.get("vm_table_id") or "",
-                "bcs_cluster_id": vm_info.get("bcs_cluster_id") or "",
+                "bcs_cluster_id": bcs_cluster_id_info.get(table_id, ""),
                 "is_influxdb_disabled": cluster_id in vm_cluster_id_name,
                 "vm_storage_name": vm_cluster_id_name.get(cluster_id, ""),
             }
@@ -1453,6 +1455,30 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
             )
         # publish
         RedisTools.publish(constants.INFLUXDB_KEY_PREFIX, [constants.INFLUXDB_ADDITIONAL_INFO_FOR_UNIFY_QUERY])
+
+    @classmethod
+    def _get_table_id_bcs_cluster_id(cls) -> dict:
+        """获取结果表和 BCS 集群的关系"""
+        from metadata.models import BCSClusterInfo
+        from metadata.models.data_source import DataSourceResultTable
+
+        infos = BCSClusterInfo.objects.all().only("cluster_id", "bk_biz_id", "K8sMetricDataID", "CustomMetricDataID")
+        dataids = set()
+        for info in infos:
+            dataids.add(info.K8sMetricDataID)
+            dataids.add(info.CustomMetricDataID)
+        if len(dataids) > 500:
+            dataid_rts = DataSourceResultTable.objects.all().only("table_id", "bk_data_id")
+        else:
+            dataid_rts = DataSourceResultTable.objects.filter(bk_data_id__in=dataids).only("table_id", "bk_data_id")
+        dataid_rt_mapping = {data_rt.bk_data_id: data_rt.table_id for data_rt in dataid_rts}
+        mapping = {}
+        for info in infos:
+            if info.K8sMetricDataID in dataid_rt_mapping:
+                mapping[dataid_rt_mapping[info.K8sMetricDataID]] = info.cluster_id
+            if info.CustomMetricDataID in dataid_rt_mapping:
+                mapping[dataid_rt_mapping[info.CustomMetricDataID]] = info.cluster_id
+        return mapping
 
     @classmethod
     def _get_table_id_access_vm_data(cls, table_ids: list[str]) -> dict:
@@ -2085,13 +2111,15 @@ class ESStorage(models.Model, StorageResultTable):
         )
         logger.info(f"result_table->[{table_id}] now has es_storage will try to create index.")
 
+        # 创建集群记录，第一条记录的enable_time需要设置为最小时间
+        # 使用 1970-01-01 而不是 datetime.min，因为 MySQL DATETIME 类型不支持 0001-01-01
         storage_record, tag = StorageClusterRecord.objects.update_or_create(
             table_id=table_id,
             cluster_id=cluster_id,
-            enable_time=django_timezone.now(),
             bk_tenant_id=bk_tenant_id,
             defaults={
                 "is_current": True,
+                "enable_time": datetime.datetime(1970, 1, 1),
             },
         )
         logger.info(
@@ -2118,13 +2146,23 @@ class ESStorage(models.Model, StorageResultTable):
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)
         return new_record
 
+    def get_raw_data(self, index_name: str):
+        """查询原始数据，最新数据"""
+        return self.es_client.search(
+            index=index_name,
+            body={
+                "query": {"match_all": {}},
+                "sort": [{"dtEventTimeStamp": {"order": "desc"}}],
+            },
+        )
+
     @property
     def index_body(self):
         """
         ES创建索引的配置内容
         :return: dict, 可以直接
         """
-        from metadata.models import ESFieldQueryAliasOption, ResultTableField
+        from metadata.models import ResultTableField, ResultTableFieldOption
 
         logger.info("index_body: try to compose index_body for table_id->[%s]", self.table_id)
         body = {"settings": json.loads(self.index_settings), "mappings": json.loads(self.mapping_settings)}
@@ -2145,85 +2183,11 @@ class ESStorage(models.Model, StorageResultTable):
                     e,
                 )
 
-        try:
-            logger.info("index_body: try to add alias_config for table_id->[%s]", self.table_id)
-            # 别名-原字段配置
-            alias_config = ESFieldQueryAliasOption.generate_query_alias_settings(
-                self.table_id, bk_tenant_id=self.bk_tenant_id
-            )
-            logger.info("index_body: table_id->[%s] got alias_config->[%s]", self.table_id, alias_config)
-            # 别名原字段-字段类型配置
-            alias_path_type_config = ESFieldQueryAliasOption.generate_alias_path_type_settings(
-                table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
-            )
-            logger.info(
-                "index_body: table_id->[%s] got alias_path_type_config->[%s]", self.table_id, alias_path_type_config
-            )
-            properties.update(alias_config)
-            properties.update(alias_path_type_config)
-        except Exception as e:
-            logger.warning("index_body: add alias_config failed,table_id->[%s],error->[%s]", self.table_id, e)
-
         # 按ES版本返回构建body内容
         if self.es_version < self.ES_REMOVE_TYPE_VERSION:
             body["mappings"] = {self.table_id: body["mappings"]}
         logger.info("index_body: compose index_body for->[%s] success,body->[%s]", self.table_id, body)
         return body
-
-    def compose_field_alias_settings(self):
-        """
-        组装采集项的别名配置
-        :return: dict {"properties":{"alias":"type":"alias","path":"xxx"}}
-        """
-        from metadata.models import ESFieldQueryAliasOption
-
-        logger.info("compose_field_alias_settings: try to compose field alias mapping for->[%s]", self.table_id)
-        properties = ESFieldQueryAliasOption.generate_query_alias_settings(
-            table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
-        )
-        logger.info(
-            "compose_field_alias_settings: compose alias mapping for->[%s] of bk_tenant_id->[%s] success,"
-            "alias_settings->[%s]",
-            self.table_id,
-            self.bk_tenant_id,
-            properties,
-        )
-        return {"properties": properties}
-
-    def put_field_alias_mapping_to_es(self):
-        """
-        推送别名配置至ES
-        """
-        # 组装字段别名配置
-        properties = self.compose_field_alias_settings()
-        # 获取使用中的索引列表
-        activate_index_list = self.get_activate_index_list()
-        if not activate_index_list:
-            logger.info("put_field_alias_mapping_to_es: table_id->[%s],got no activate index,return", self.table_id)
-            return
-        logger.info("put_field_alias_mapping_to_es: try to put->[%s] for->[%s]", properties, activate_index_list)
-
-        # 循环遍历激活的索引列表，推送别名配置
-        for index in activate_index_list:
-            logger.info("put_field_alias_mapping_to_es: try to put alias->[%s] for index->[%s]", properties, index)
-            try:
-                response = self.es_client.indices.put_mapping(body=properties, index=index)
-                logger.info(
-                    "put_field_alias_mapping_to_es: put alias for index->[%s] success,response->[%s]", index, response
-                )
-            except Exception as e:  # pylint: disable=broad-except
-                logger.error(
-                    "put_field_alias_mapping_to_es: failed to put alias->[%s] for index->[%s],error->[%s]",
-                    properties,
-                    index,
-                    e,
-                )
-                continue
-        logger.info(
-            "put_field_alias_mapping_to_es: put alias->[%s] for index_list->[%s] successfully",
-            properties,
-            activate_index_list,
-        )
 
     @property
     def index_re_v1(self):
@@ -2929,14 +2893,7 @@ class ESStorage(models.Model, StorageResultTable):
             self.table_id,
             is_moving_cluster,
         )
-        try:
-            # 0. 更新mapping配置
-            self.put_field_alias_mapping_to_es()
-            logger.info("update_index_and_aliases:put alias to es for table_id->[%s] success", self.table_id)
-        except Exception as e:
-            logger.error(
-                "update_index_and_aliases:failed to put field alias for table_id->[%s],error->[%s]", self.table_id, e
-            )
+
         # 1. 更新索引
         self.update_index_v2()
         # 2. 更新对应的别名<->索引绑定关系
@@ -3486,6 +3443,14 @@ class ESStorage(models.Model, StorageResultTable):
             filter_result,
         )
 
+        check_index_names = list(filter_result.keys())
+        # 存在快照记录的索引
+        snapshot_index_records = list(
+            EsSnapshotIndice.objects.filter(
+                table_id=self.table_id, index_name__in=check_index_names, bk_tenant_id=self.bk_tenant_id
+            ).values_list("index_name", flat=True)
+        )
+
         for index_name, alias_info in filter_result.items():
             # 回溯的索引不经过正常删除的逻辑删除
             if index_name.startswith(self.restore_index_prefix):
@@ -3535,6 +3500,14 @@ class ESStorage(models.Model, StorageResultTable):
                 self.table_id,
                 index_name,
             )
+            # 如果配置了快照，但是索引没有在快照记录中，跳过索引删除，等待第二天执行快照后再删除
+            if self.have_snapshot_conf and index_name not in snapshot_index_records:
+                logger.info(
+                    "table_id->[%s], index->[%s] not snapshot, skip delete ",
+                    self.table_id,
+                    index_name,
+                )
+                continue
             try:
                 self.es_client.indices.delete(index=index_name)
                 logger.info("clean_index_v2:table_id->[%s] index->[%s] is deleted.", self.table_id, index_name)
@@ -4414,13 +4387,14 @@ class ESStorage(models.Model, StorageResultTable):
                     ]
                 )
                 logger.info(
-                    "table_id->[%s] has compensated local snapshot ->[%s]",
-                    self.table_id, current_snapshot_name
+                    "table_id->[%s] has compensated local snapshot ->[%s]", self.table_id, current_snapshot_name
                 )
             except Exception as e:
                 logger.exception(
                     "table_id->[%s] has compensated local snapshot ->[%s] failed e -> [%s]",
-                    self.table_id, current_snapshot_name, e
+                    self.table_id,
+                    current_snapshot_name,
+                    e,
                 )
             finally:
                 return
@@ -4519,9 +4493,9 @@ class ESStorage(models.Model, StorageResultTable):
 
         # 获取本地残留的过期快照
         all_snapshots = list(
-            EsSnapshotIndice.objects.filter(
-                table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
-            ).values("snapshot_name")
+            EsSnapshotIndice.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).values(
+                "snapshot_name"
+            )
         )
         local_expired_snapshots = self.match_expired_snapshot(
             all_snapshots, expired_datetime_point, snapshot_name_key="snapshot_name"
@@ -5417,12 +5391,14 @@ class DorisStorage(models.Model, StorageResultTable):
                     expire_days=expire_days,
                     storage_cluster_id=storage_cluster_id,
                 )
+                # 创建集群记录，第一条记录的enable_time需要设置为最小时间
+                # 使用 1970-01-01 而不是 datetime.min，因为 MySQL DATETIME 类型不支持 0001-01-01
                 StorageClusterRecord.objects.update_or_create(
                     bk_tenant_id=bk_tenant_id,
                     table_id=table_id,
                     cluster_id=storage_cluster_id,
-                    enable_time=django_timezone.now(),
                     defaults={
+                        "enable_time": datetime.datetime(1970, 1, 1),
                         "is_current": True,
                     },
                 )

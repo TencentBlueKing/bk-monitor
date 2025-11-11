@@ -11,11 +11,13 @@ specific language governing permissions and limitations under the License.
 import logging
 from aidev_agent.services.chat import ExecuteKwargs
 from aidev_agent.api.bk_aidev import BKAidevApi
+
 from aidev_agent.services.agent import AgentInstanceFactory
 from aidev_agent.enums import AgentBuildType
 from ai_agent.utils import get_langfuse_callback, handle_streaming_response_with_metrics
 from ai_agent.services.local_command_handler import LocalCommandProcessor
 from aidev_agent.core.extend.agent.qa import CommonQAAgent
+from ai_agent.core.custom_config_manager import CustomConfigManager
 
 logger = logging.getLogger("ai_whale")
 
@@ -221,6 +223,7 @@ class AIDevInterface:
             switch_agent_by_scene=switch_agent_by_scene,
             is_temporary=is_temporary,
             agent_cls=CommonQAAgent,  # 显式传入正确的类
+            config_manager_class=CustomConfigManager,
         )  # 工厂方法构建Agent实例
         if execute_kwargs.get("stream", False):
             # 使用增强的流式处理函数

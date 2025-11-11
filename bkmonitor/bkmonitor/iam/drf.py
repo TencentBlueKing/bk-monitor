@@ -102,6 +102,27 @@ class ViewBusinessPermission(BusinessActionPermission):
         super().__init__([ActionEnum.VIEW_BUSINESS])
 
 
+class MCPPermission(BusinessActionPermission):
+    """
+    MCP权限检查(Dashboard) -- 早期测试
+    TODO：后续需要思考如何实现不同的 MCP权限Action -- PermissionClass之间的路由控制
+    """
+
+    def __init__(self):
+        super().__init__([ActionEnum.USING_DASHBOARD_MCP])
+
+    def has_permission(self, request, view):
+        # 尝试从request中读取bk_biz_id / biz_id
+        if not hasattr(request, "biz_id") or not request.biz_id:
+            # 如果没有 biz_id，抛出异常
+            logger.error("MCPPermission: Missing biz_id for MCP permission check")
+            raise PermissionDeniedError("Missing biz_id for MCP permission check")
+        logger.info(f"MCPPermission: biz_id: {request.biz_id},skip_check: {request.skip_check}")
+        self.resources = [ResourceEnum.BUSINESS.create_instance(request.biz_id)]
+        logger.info("MCPPermission: Calling IAMPermission.has_permission")
+        return IAMPermission.has_permission(self, request, view)
+
+
 class InstanceActionPermission(IAMPermission):
     """
     关联其他资源的权限检查

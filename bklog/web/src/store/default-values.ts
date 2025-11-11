@@ -95,6 +95,10 @@ const getUrlArgs = (_route?) => {
 
   if (_route) {
     urlResolver = new RouteUrlResolver({ route: _route });
+    urlResolver.setResolver('from', () => {
+      return _route.query.from;
+    });
+
     urlResolver.setResolver('index_id', () => {
       // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
       return _route.params.indexId ? `${_route.params.indexId}` : '';
@@ -130,6 +134,10 @@ const getUrlArgs = (_route?) => {
       // #code return route.resolved.query.indexId ? `${route.resolved.query.indexId}` : '';
       // #endif
     });
+
+    urlResolver.setResolver('from', () => {
+      return route.resolved.query.from;
+    });
   }
 
   const result = urlResolver.convertQueryToStore<RouteParams>();
@@ -140,7 +148,7 @@ const getUrlArgs = (_route?) => {
     ['spaceUid', BK_LOG_STORAGE.BK_SPACE_UID, () => result.spaceUid],
   ];
 
-  const storageValue = storageKeys.reduce((out, [key, storageKey, fn]: [string, string, (...args: any[]) => any]) => {
+  const storageValue = storageKeys.reduce((out, [key, storageKey, fn]: [string, string, (..._args: any[]) => any]) => {
     if (result[key] !== undefined) {
       out[storageKey] = fn?.(result[key]);
     }
@@ -151,13 +159,15 @@ const getUrlArgs = (_route?) => {
   return result;
 };
 
-let URL_ARGS = getUrlArgs();
-const update_URL_ARGS = (route) => {
-  URL_ARGS = getUrlArgs(route);
-  return URL_ARGS;
+// eslint-disable-next-line import/no-mutable-exports
+let urlArgs = getUrlArgs();
+
+const updateURLArgs = (route) => {
+  urlArgs = getUrlArgs(route);
+  return urlArgs;
 };
 
-export { URL_ARGS, update_URL_ARGS };
+export { urlArgs, updateURLArgs };
 
 export const getDefaultRetrieveParams = (defaultValue?) => {
   return Object.assign(
@@ -174,16 +184,16 @@ export const getDefaultRetrieveParams = (defaultValue?) => {
       search_mode: 'ui',
     },
     defaultValue,
-    URL_ARGS,
+    urlArgs,
   );
 };
 
 export const getDefaultDatePickerValue = () => {
   const datePickerValue = ['now-15m', 'now'];
   const format = localStorage.getItem('SEARCH_DEFAULT_TIME_FORMAT') ?? 'YYYY-MM-DD HH:mm:ss';
-  const [start_time, end_time] = handleTransformToTimestamp(datePickerValue as TimeRangeType, format);
+  const [startTime, endTime] = handleTransformToTimestamp(datePickerValue as TimeRangeType, format);
 
-  return { datePickerValue, start_time, end_time, format };
+  return { datePickerValue, start_time: startTime, end_time: endTime, format };
 };
 
 export const DEFAULT_RETRIEVE_PARAMS = getDefaultRetrieveParams();
@@ -238,13 +248,13 @@ export const IndexFieldInfo = {
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
 export const IndexItem = {
-  ids: (URL_ARGS.unionList?.length ? [...URL_ARGS.unionList] : [URL_ARGS.index_id]).filter(
+  ids: (urlArgs.unionList?.length ? [...urlArgs.unionList] : [urlArgs.index_id]).filter(
     t => t !== '' && t !== undefined && t !== null,
   ),
-  isUnionIndex: URL_ARGS.unionList?.length ?? false,
+  isUnionIndex: urlArgs.unionList?.length ?? false,
   items: [],
   catchUnionBeginList: [],
-  selectIsUnionSearch: URL_ARGS.unionList?.length ?? false,
+  selectIsUnionSearch: urlArgs.unionList?.length ?? false,
   chart_params: {
     activeGraphCategory: 'table',
     chartActiveType: 'table',
@@ -361,11 +371,11 @@ export const getStorageOptions = (values?: any) => {
 
   let activeTab = 'single';
 
-  if (URL_ARGS[BK_LOG_STORAGE.FAVORITE_ID]) {
+  if (urlArgs[BK_LOG_STORAGE.FAVORITE_ID]) {
     activeTab = 'favorite';
   }
 
-  if (URL_ARGS[BK_LOG_STORAGE.HISTORY_ID]) {
+  if (urlArgs[BK_LOG_STORAGE.HISTORY_ID]) {
     activeTab = 'history';
   }
 
@@ -380,8 +390,8 @@ export const getStorageOptions = (values?: any) => {
     [BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR]: 'end',
     [BK_LOG_STORAGE.SEARCH_TYPE]: 0,
     [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
-    [BK_LOG_STORAGE.FAVORITE_ID]: URL_ARGS[BK_LOG_STORAGE.FAVORITE_ID],
-    [BK_LOG_STORAGE.HISTORY_ID]: URL_ARGS[BK_LOG_STORAGE.HISTORY_ID],
+    [BK_LOG_STORAGE.FAVORITE_ID]: urlArgs[BK_LOG_STORAGE.FAVORITE_ID],
+    [BK_LOG_STORAGE.HISTORY_ID]: urlArgs[BK_LOG_STORAGE.HISTORY_ID],
     [BK_LOG_STORAGE.FIELD_SETTING]: {
       show: true,
       width: DEFAULT_FIELDS_WIDTH,

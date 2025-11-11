@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { isEn } from 'monitor-pc/i18n/lang';
+
 import type { TranslateResult } from 'vue-i18n';
 
 // AI 快捷方式类型
@@ -64,6 +66,7 @@ export const AI_BLUEKING_SHORTCUTS_ID = {
   METADATA_DIAGNOSIS: 'metadata_diagnosis',
   TRACING_ANALYSIS: 'tracing_analysis',
   PROFILING_ANALYSIS: 'profiling_analysis',
+  GENERATE_DASHBOARD: 'generate_dashboard',
 } as const;
 export type AIBluekingShortcutId = (typeof AI_BLUEKING_SHORTCUTS_ID)[keyof typeof AI_BLUEKING_SHORTCUTS_ID];
 export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
@@ -345,6 +348,88 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         hide: false,
         name: window.i18n.t('Profiling 查询参数'),
         placeholder: window.i18n.t('请输入Profiling 查询参数'),
+      },
+    ],
+  },
+  /*
+  业务ID为{{ bk_biz_id }}
+仪表盘名称为{{ name }}
+仪表盘目录为{{ category }}
+数据源类型为{{ datasource }}
+结果表名称为{{ result_table }}
+相关指标为{{ metrics }}
+用户需求为{{ demands }}
+  */
+  {
+    id: AI_BLUEKING_SHORTCUTS_ID.GENERATE_DASHBOARD,
+    name: window.i18n.t('生成仪表盘'),
+    // icon: 'icon-monitor icon-mc-help-fill',
+    components: [
+      {
+        type: 'input',
+        key: 'bk_biz_id',
+        fillBack: false,
+        required: false,
+        hide: true,
+        name: window.i18n.t('业务ID'),
+        placeholder: window.i18n.t('请输入业务ID'),
+      },
+      {
+        type: 'input',
+        key: 'name',
+        fillBack: true,
+        required: true,
+        hide: false,
+        name: window.i18n.t('仪表盘名称'),
+        placeholder: window.i18n.t('请输入仪表盘名称'),
+      },
+      {
+        type: 'select',
+        key: 'category',
+        fillBack: false,
+        required: true,
+        hide: false,
+        name: window.i18n.t('仪表盘目录'),
+        placeholder: window.i18n.t('请输入仪表盘目录'),
+        options: [],
+      },
+      {
+        type: 'input',
+        key: 'datasource',
+        fillBack: false,
+        required: false,
+        hide: false,
+        name: window.i18n.t('数据源'),
+        placeholder: window.i18n.t('请输入数据源, 非必需'),
+      },
+      {
+        type: 'input',
+        key: 'result_table',
+        fillBack: false,
+        required: false,
+        hide: false,
+        name: window.i18n.t('结果表名称'),
+        placeholder: window.i18n.t('请输入结果表名称, 非必需'),
+      },
+      {
+        type: 'input',
+        key: 'metrics',
+        fillBack: false,
+        required: false,
+        hide: false,
+        name: window.i18n.t('相关指标'),
+        placeholder: window.i18n.t('请输入相关指标, 非必需'),
+      },
+      {
+        type: 'textarea',
+        key: 'demands',
+        fillBack: false,
+        required: true,
+        hide: false,
+        name: window.i18n.t('用户需求'),
+        placeholder: isEn
+          ? 'Please enter the dashboard description, such as: based on {$metrics}, with pod_name as the dimension, generate a line chart.'
+          : '请输入仪表盘说明，如：基于{$指标}，以pod_name为维度，生成折线图。',
       },
     ],
   },
