@@ -35,9 +35,11 @@ import {
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import { ALERT_STORAGE_KEY } from '../../../services/alert-services';
 import {
+  type AlertRowOperationAction,
   type AlertTableItem,
   type TableEmpty,
   AlarmLevelIconMap,
+  AlertAllActionEnum,
   AlertDataTypeMap,
   AlertStatusMap,
   AlertTargetTypeMap,
@@ -62,11 +64,7 @@ export class AlertScenario extends BaseScenario {
     private readonly context: {
       clickPopoverTools: IUsePopoverTools;
       handleAlertContentDetailShow: (e: MouseEvent, row: AlertTableItem, colKey: string) => void;
-      handleAlertOperationClick: (
-        clickType: 'chart' | 'confirm' | 'manual' | 'more',
-        row: AlertTableItem,
-        e?: MouseEvent
-      ) => void;
+      handleAlertOperationClick: (actionType: AlertRowOperationAction, row: AlertTableItem) => void;
       handleAlertSliderShowDetail: (id: string) => void;
       hoverPopoverTools: IUsePopoverTools;
     }
@@ -236,7 +234,7 @@ export class AlertScenario extends BaseScenario {
           <span
             class='operate-panel-item icon-monitor icon-we-com'
             v-tippy={{ content: window.i18n.t('一键拉群'), delay: 200 }}
-            onClick={() => this.context.handleAlertOperationClick('chart', row)}
+            onClick={() => this.context.handleAlertOperationClick(AlertAllActionEnum.CHAT, row)}
           />
         ) : null}
         <span
@@ -256,7 +254,7 @@ export class AlertScenario extends BaseScenario {
             !isAck &&
             !['RECOVERED', 'CLOSED'].includes(status) &&
             !followerDisabled &&
-            this.context.handleAlertOperationClick('confirm', row)
+            this.context.handleAlertOperationClick(AlertAllActionEnum.CONFIRM, row)
           }
         />
         <span
@@ -270,7 +268,9 @@ export class AlertScenario extends BaseScenario {
             content: followerDisabled ? window.i18n.t('关注人禁用此操作') : window.i18n.t('手动处理'),
             delay: 200,
           }}
-          onClick={() => !followerDisabled && this.context.handleAlertOperationClick('manual', row)}
+          onClick={() =>
+            !followerDisabled && this.context.handleAlertOperationClick(AlertAllActionEnum.MANUAL_HANDLING, row)
+          }
         />
         <span
           class={['operate-more']}
@@ -502,7 +502,9 @@ export class AlertScenario extends BaseScenario {
         <div
           class={['more-item', { 'is-disable': row?.is_shielded || row?.followerDisabled }]}
           onClick={() =>
-            !row?.is_shielded && !row?.followerDisabled && this.context.handleAlertOperationClick('manual', row)
+            !row?.is_shielded &&
+            !row?.followerDisabled &&
+            this.context.handleAlertOperationClick(AlertAllActionEnum.SHIELD, row)
           }
           onMouseenter={(e: MouseEvent) => {
             let content = row?.is_shielded ? `${row.shield_operator?.[0] || ''}${window.i18n.t('已屏蔽')}` : '';
@@ -520,7 +522,7 @@ export class AlertScenario extends BaseScenario {
 
         <div
           class={['more-item', { 'is-disable': row?.followerDisabled }]}
-          onClick={() => this.context.handleAlertOperationClick('manual', row)}
+          onClick={() => this.context.handleAlertOperationClick(AlertAllActionEnum.DISPATCH, row)}
           onMouseenter={(e: MouseEvent) => {
             const content = row?.followerDisabled ? window.i18n.t('关注人禁用此操作') : '';
             this.context.hoverPopoverTools?.showPopover?.(e, content, {

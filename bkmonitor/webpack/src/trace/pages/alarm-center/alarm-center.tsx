@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onBeforeMount, shallowRef, watchEffect } from 'vue';
+import { type ShallowRef, computed, defineComponent, onBeforeMount, shallowRef, watchEffect } from 'vue';
 
 import { tryURLDecodeParse } from 'monitor-common/utils';
 import { useRoute, useRouter } from 'vue-router';
@@ -40,11 +40,13 @@ import AlarmRetrievalFilter from './components/alarm-retrieval-filter/alarm-retr
 import { useAlarmFilter } from './components/alarm-retrieval-filter/hooks/use-alarm-filter';
 import AlarmTable from './components/alarm-table/alarm-table';
 import AlarmTrendChart from './components/alarm-trend-chart/alarm-trend-chart';
+import AlertOperationDialogs from './components/alert-operation-dialogs/alert-operation-dialogs';
 import QuickFiltering from './components/quick-filtering';
 import { useAlarmTable } from './composables/use-alarm-table';
+import { useAlertDialogs } from './composables/use-alert-dialogs';
 import { useQuickFilter } from './composables/use-quick-filter';
 import { useAlarmTableColumns } from './composables/use-table-columns';
-import { type CommonCondition, AlarmType, CONTENT_SCROLL_ELEMENT_CLASS_NAME } from './typings';
+import { type AlertTableItem, type CommonCondition, AlarmType, CONTENT_SCROLL_ELEMENT_CLASS_NAME } from './typings';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
 
@@ -69,6 +71,16 @@ export default defineComponent({
       allTableFields,
       lockedTableFields,
     } = useAlarmTableColumns();
+
+    const {
+      alertDialogShow,
+      alertDialogType,
+      alertDialogBizId,
+      alertDialogIds,
+      alertDialogParam,
+      handleAlertDialogShow,
+      handleAlertDialogHide,
+    } = useAlertDialogs(data as unknown as ShallowRef<AlertTableItem[]>);
 
     const isCollapsed = shallowRef(false);
     const alarmId = shallowRef<string>('');
@@ -308,6 +320,13 @@ export default defineComponent({
       residentSettingOnlyId,
       alarmId,
       alarmDetailShow,
+      alertDialogShow,
+      alertDialogType,
+      alertDialogBizId,
+      alertDialogIds,
+      alertDialogParam,
+      handleAlertDialogShow,
+      handleAlertDialogHide,
       handleFilterValueChange,
       updateIsCollapsed,
       handleAddCondition,
@@ -404,6 +423,7 @@ export default defineComponent({
                         onDisplayColFieldsChange={displayColFields => {
                           this.storageColumns = displayColFields;
                         }}
+                        onOpenAlertDialog={this.handleAlertDialogShow}
                         onPageSizeChange={this.handlePageSizeChange}
                         onShowActionDetail={this.handleShowActionDetail}
                         onShowAlertDetail={this.handleShowAlertDetail}
@@ -426,6 +446,13 @@ export default defineComponent({
           alarmId={this.alarmId}
           show={this.alarmDetailShow}
           onUpdate:show={this.handleDetailShowChange}
+        />
+        <AlertOperationDialogs
+          alarmBizId={this.alertDialogBizId}
+          alarmIds={this.alertDialogIds}
+          dialogType={this.alertDialogType}
+          show={this.alertDialogShow}
+          onUpdate:show={this.handleAlertDialogHide}
         />
       </div>
     );

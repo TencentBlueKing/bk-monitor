@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, type PropType } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { type PropType, defineComponent } from 'vue';
 
 import BkButton from 'bkui-vue/lib/button';
+import { useI18n } from 'vue-i18n';
 
-import { AlertSelectAction } from '../../../../typings/constants';
+import { type AlertSelectBatchAction, AlertAllActionEnum } from '../../../../typings/constants';
 
 import './alert-selection-toolbar.scss';
 
@@ -46,56 +46,56 @@ export default defineComponent({
     },
   },
   emits: {
-    clickAction: (action: AlertSelectAction) => typeof action === 'string',
+    clickAction: (action: AlertSelectBatchAction) => typeof action === 'string',
   },
-  setup(props, { emit }) {
+  setup(_props, { emit }) {
     const { t } = useI18n();
 
     /** 当前环境是否支持一键拉群 */
     const enableCreateChatGroup = window.enable_create_chat_group || false;
     /** 所有的操作配置集合 */
     const allSelectActionsMap = {
-      [AlertSelectAction.CONFIRM]: {
-        id: AlertSelectAction.CONFIRM,
+      [AlertAllActionEnum.CONFIRM]: {
+        id: AlertAllActionEnum.CONFIRM,
         label: t('批量确认'),
         prefixIcon: 'icon-check',
-        onClick: () => emit('clickAction', AlertSelectAction.CONFIRM),
+        onClick: () => emit('clickAction', AlertAllActionEnum.CONFIRM),
       },
-      [AlertSelectAction.SHIELD]: {
-        id: AlertSelectAction.SHIELD,
+      [AlertAllActionEnum.SHIELD]: {
+        id: AlertAllActionEnum.SHIELD,
         label: t('批量屏蔽'),
         prefixIcon: 'icon-mc-notice-shield',
-        onClick: () => emit('clickAction', AlertSelectAction.SHIELD),
+        onClick: () => emit('clickAction', AlertAllActionEnum.SHIELD),
       },
-      [AlertSelectAction.DISPATCH]: {
-        id: AlertSelectAction.DISPATCH,
+      [AlertAllActionEnum.DISPATCH]: {
+        id: AlertAllActionEnum.DISPATCH,
         label: t('批量分派'),
         prefixIcon: 'icon-fenpai',
-        onClick: () => emit('clickAction', AlertSelectAction.DISPATCH),
+        onClick: () => emit('clickAction', AlertAllActionEnum.DISPATCH),
       },
-      [AlertSelectAction.CHAT]: {
-        id: AlertSelectAction.CHAT,
+      [AlertAllActionEnum.CHAT]: {
+        id: AlertAllActionEnum.CHAT,
         label: t('一键拉群'),
         prefixIcon: 'icon-qiye-weixin',
-        onClick: () => emit('clickAction', AlertSelectAction.CHAT),
+        onClick: () => emit('clickAction', AlertAllActionEnum.CHAT),
       },
-      [AlertSelectAction.CANCEL]: {
-        id: AlertSelectAction.CANCEL,
+      [AlertAllActionEnum.CANCEL]: {
+        id: AlertAllActionEnum.CANCEL,
         label: t('取消选择'),
         prefixIcon: 'icon-a-3yuan-bohui',
-        onClick: () => emit('clickAction', AlertSelectAction.CANCEL),
+        onClick: () => emit('clickAction', AlertAllActionEnum.CANCEL),
       },
     };
     /** 需要渲染的操作id数组 */
-    const showActionsIds = !enableCreateChatGroup
+    const showActionsIds = enableCreateChatGroup
       ? [
-          AlertSelectAction.CONFIRM,
-          AlertSelectAction.SHIELD,
-          AlertSelectAction.DISPATCH,
-          AlertSelectAction.CHAT,
-          AlertSelectAction.CANCEL,
+          AlertAllActionEnum.CONFIRM,
+          AlertAllActionEnum.SHIELD,
+          AlertAllActionEnum.DISPATCH,
+          AlertAllActionEnum.CHAT,
+          AlertAllActionEnum.CANCEL,
         ]
-      : [AlertSelectAction.CONFIRM, AlertSelectAction.SHIELD, AlertSelectAction.DISPATCH, AlertSelectAction.CANCEL];
+      : [AlertAllActionEnum.CONFIRM, AlertAllActionEnum.SHIELD, AlertAllActionEnum.DISPATCH, AlertAllActionEnum.CANCEL];
 
     return { t, allSelectActionsMap, showActionsIds };
   },
@@ -116,7 +116,7 @@ export default defineComponent({
             <BkButton
               key={actionId}
               class='action-item'
-              disabled={actionId === AlertSelectAction.CHAT ? false : this.isSelectedFollower}
+              disabled={actionId === AlertAllActionEnum.CHAT ? false : this.isSelectedFollower}
               text={true}
               theme='primary'
               onClick={this.allSelectActionsMap[actionId].onClick}

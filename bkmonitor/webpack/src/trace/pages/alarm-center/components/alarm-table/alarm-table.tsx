@@ -26,7 +26,6 @@
 import {
   type PropType,
   computed,
-  ref as deepRef,
   defineComponent,
   onBeforeUnmount,
   onMounted,
@@ -41,16 +40,17 @@ import { useRouter } from 'vue-router';
 import { ALERT_STORAGE_KEY } from '../../services/alert-services';
 import { INCIDENT_STORAGE_KEY } from '../../services/incident-services';
 import {
-  type AlertContentItem,
+  type AlertAllActionEnum,
   type AlertTableItem,
   type TableColumnItem,
   type TablePagination,
   CONTENT_SCROLL_ELEMENT_CLASS_NAME,
 } from '../../typings';
-import { AlertSelectAction } from '../../typings/constants';
 import AlertContentDetail from './components/alert-content-detail/alert-content-detail';
 import AlertSelectionToolbar from './components/alert-selection-toolbar/alert-selection-toolbar';
 import CommonTable from './components/common-table/common-table';
+import { useActionHandlers } from './hooks/use-action-handlers';
+import { useAlertHandlers } from './hooks/use-alert-handlers';
 import { usePopover } from './hooks/use-popover';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';
 
@@ -100,12 +100,16 @@ export default defineComponent({
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
     showAlertDetail: (item: string) => typeof item === 'string',
     showActionDetail: (item: string) => typeof item === 'string',
+    openAlertDialog: (
+      type: AlertAllActionEnum,
+      ids: string | string[],
+      _operationData?: AlertTableItem | AlertTableItem[]
+    ) => type && ids,
   },
   setup(props, { emit }) {
     // const alarmStore = useAlarmCenterStore();
     const router = useRouter();
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
-    const alertContentDetailRef = useTemplateRef<InstanceType<typeof AlertContentDetail>>('alertContentDetailRef');
 
     /** hover 场景使用的popover工具函数 */
     const hoverPopoverTools = usePopover();
@@ -116,16 +120,36 @@ export default defineComponent({
       theme: 'light alarm-center-popover max-width-50vw text-wrap padding-0',
     });
     /** 多选状态 */
-    const selectedRowKeys = deepRef<(number | string)[]>([]);
+    const selectedRowKeys = shallowRef<string[]>([]);
     /* 关注人则禁用操作 */
     const isSelectedFollower = shallowRef(false);
-    /** 当前查看的告警内容详情数据 */
-    const activeAlertContentDetail = shallowRef<AlertContentItem>(null);
+
     /** 滚动容器元素 */
     let scrollContainer: HTMLElement = null;
     /** 滚动结束后回调逻辑执行计时器  */
     let scrollPointerEventsTimer = null;
-    /** 创建场景上下文 */
+
+    /** 告警场景私有交互逻辑 */
+    const {
+      activeAlertContentDetail,
+      handleAlertSliderShowDetail,
+      handleAlertContentDetailShow,
+      handleAlertOperationClick,
+      handleAlertBatchSet,
+    } = useAlertHandlers({
+      clickPopoverTools,
+      selectedRowKeys,
+      clearSelected: () => handleSelectionChange(),
+      showDetailEmit: id => emit('showAlertDetail', id),
+      openDialogEmit: (...args) => emit('openAlertDialog', ...args),
+    });
+
+    /** 处理场景私有交互逻辑 */
+    const { handleActionSliderShowDetail } = useActionHandlers({
+      showDetailEmit: id => emit('showActionDetail', id),
+    });
+
+    /** 创建场景表格渲染器上下文 */
     const scenarioContext: ActionScenario['context'] & AlertScenario['context'] & IncidentScenario['context'] = {
       router,
       handleAlertSliderShowDetail,
@@ -150,38 +174,19 @@ export default defineComponent({
         : null
     );
 
-    onMounted(() => {
-      addScrollListener();
-    });
-
-    onBeforeUnmount(() => {
-      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
-      removeScrollListener();
-    });
-
     /**
-     * @description 添加滚动监听
+     * @description 配置表格是否能够触发事件target
      */
-    function addScrollListener() {
-      removeScrollListener();
-      scrollContainer = document.querySelector(`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`);
-      if (!scrollContainer) return;
-      scrollContainer.addEventListener('scroll', handleScroll);
-    }
-
-    /**
-     * @description 移除滚动监听
-     */
-    function removeScrollListener() {
-      if (!scrollContainer) return;
-      scrollContainer.removeEventListener('scroll', handleScroll);
-      scrollContainer = null;
-    }
+    const updateTablePointEvents = (val: 'auto' | 'none') => {
+      const tableDom = tableRef?.value?.$el;
+      if (!tableDom) return;
+      tableDom.style.pointerEvents = val;
+    };
 
     /**
      * @description 滚动触发事件
      */
-    function handleScroll() {
+    const handleScroll = () => {
       updateTablePointEvents('none');
       hoverPopoverTools.hidePopover();
       clickPopoverTools.hidePopover();
@@ -189,16 +194,26 @@ export default defineComponent({
       scrollPointerEventsTimer = setTimeout(() => {
         updateTablePointEvents('auto');
       }, 600);
-    }
+    };
 
     /**
-     * @description 配置表格是否能够触发事件target
+     * @description 添加滚动监听
      */
-    function updateTablePointEvents(val: 'auto' | 'none') {
-      const tableDom = tableRef?.value?.$el;
-      if (!tableDom) return;
-      tableDom.style.pointerEvents = val;
-    }
+    const addScrollListener = () => {
+      removeScrollListener();
+      scrollContainer = document.querySelector(`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`);
+      if (!scrollContainer) return;
+      scrollContainer.addEventListener('scroll', handleScroll);
+    };
+
+    /**
+     * @description 移除滚动监听
+     */
+    const removeScrollListener = () => {
+      if (!scrollContainer) return;
+      scrollContainer.removeEventListener('scroll', handleScroll);
+      scrollContainer = null;
+    };
 
     /**
      * @description 处理行选择变化(不传参数则清空选择)
@@ -206,56 +221,9 @@ export default defineComponent({
     const handleSelectionChange = (keys?: (number | string)[], options?: SelectOptions<any>) => {
       // 表格空格键按下后会触发选择事件，此时需要禁止
       if (keys?.length && toValue(currentScenario).name !== ALERT_STORAGE_KEY) return;
-      selectedRowKeys.value = keys || [];
+      selectedRowKeys.value = (keys || []) as string[];
       isSelectedFollower.value = options?.selectedRowData?.some?.(item => item.followerDisabled);
     };
-    /**
-     * @description: 展示 告警 详情抽屉
-     */
-    function handleAlertSliderShowDetail(id: string) {
-      emit('showAlertDetail', id);
-    }
-
-    /**
-     * @description: 展示 处理记录 详情抽屉
-     */
-    function handleActionSliderShowDetail(id: string) {
-      emit('showActionDetail', id);
-    }
-
-    /**
-     * @description 打开告警内容详情 popover
-     */
-    function handleAlertContentDetailShow(e: MouseEvent, row: AlertTableItem, colKey: string) {
-      activeAlertContentDetail.value = row?.items?.[0];
-      clickPopoverTools.showPopover(e, () => alertContentDetailRef.value.$el, `${row.id}-${colKey}`, {
-        onHidden: () => {
-          activeAlertContentDetail.value = null;
-        },
-      });
-    }
-
-    /**
-     * @description 告警行操作工具栏按钮点击回调事件
-     */
-    function handleAlertOperationClick(
-      clickType: 'chart' | 'confirm' | 'manual' | 'more',
-      row: AlertTableItem,
-      e?: MouseEvent
-    ) {
-      alert(`${row.id}-${clickType} ${e}`);
-    }
-
-    /**
-     * @description 告警批量设置
-     */
-    function handleAlertBatchSet(actionType: AlertSelectAction) {
-      if (actionType === AlertSelectAction.CANCEL) {
-        handleSelectionChange();
-        return;
-      }
-      alert(`批量设置${actionType}`);
-    }
 
     watch(
       () => props.data,
@@ -264,6 +232,15 @@ export default defineComponent({
         handleSelectionChange();
       }
     );
+
+    onMounted(() => {
+      addScrollListener();
+    });
+
+    onBeforeUnmount(() => {
+      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
+      removeScrollListener();
+    });
 
     return {
       transformedColumns,
