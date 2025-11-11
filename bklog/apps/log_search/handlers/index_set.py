@@ -623,6 +623,12 @@ class IndexSetHandler(APIModel):
             result_table_id=result_table_id,
             bk_biz_id=bk_biz_id,
         ).update(**update_params)
+        index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+        # 如果是采集项更新了存储集群，同步更新引用了这个采集项的索引集
+        if index_set.collector_config_id and update_params.get("storage_cluster_id"):
+            LogIndexSetData.objects.filter(result_table_id=result_table_id).update(
+                storage_cluster_id=update_params["storage_cluster_id"]
+            )
 
     def bizs(self):
         if self.data.scenario_id in [Scenario.ES]:
