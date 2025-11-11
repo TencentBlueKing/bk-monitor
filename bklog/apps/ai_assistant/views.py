@@ -284,7 +284,7 @@ class SessionFeedbackViewSet(APIViewSet, AIAssistantPermissionMixin):
     @action(methods=["get"], detail=False)
     def reasons(self, request, *args, **kwargs):
         """
-        @api {post} /ai_assistant/session_feedback/reasons
+        @api {get} /ai_assistant/session_feedback/reasons
         @apiName get_feedback_reasons_session_content
         @apiDescription 获取反馈原因列表
         @apiGroup AIAssistant
