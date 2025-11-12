@@ -162,7 +162,7 @@ export default defineComponent({
     const getPanelComponent = () => {
       switch (currentPanel.value) {
         case ALARM_CENTER_PANEL_TAB_MAP.VIEW:
-          return <AlarmView />;
+          return <AlarmView detail={alarmCenterDetailStore.alarmDetail} />;
         case ALARM_CENTER_PANEL_TAB_MAP.LOG:
           return <PanelLog detail={alarmCenterDetailStore.alarmDetail} />;
         case ALARM_CENTER_PANEL_TAB_MAP.TRACE:

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, KeepAlive, shallowRef } from 'vue';
+import { type PropType, defineComponent, KeepAlive, shallowRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
 
@@ -32,9 +32,17 @@ import ChartWrapper from './chart-wrapper';
 import DimensionWrapper from './dimension-wrapper';
 import { ALARM_CENTER_VIEW_TAB_MAP } from '@/pages/alarm-center/utils/constant';
 
+import type { AlarmDetail } from '../../../typings/detail';
+
 import './alarm-view.scss';
 export default defineComponent({
   name: 'AlarmView',
+  props: {
+    detail: {
+      type: Object as PropType<AlarmDetail>,
+      default: () => null,
+    },
+  },
   setup() {
     const activeTab = shallowRef('dimension');
     const handleTabChange = (v: string) => {
@@ -66,7 +74,7 @@ export default defineComponent({
           </Tab>
           <KeepAlive>
             {this.activeTab === 'dimension' && <DimensionWrapper />}
-            {this.activeTab === 'alarm_records' && <AlarmRecords />}
+            {this.activeTab === 'alarm_records' && <AlarmRecords detail={this.detail} />}
           </KeepAlive>
         </div>
       </div>
