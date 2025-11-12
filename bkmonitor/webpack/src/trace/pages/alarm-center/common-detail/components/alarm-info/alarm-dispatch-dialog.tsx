@@ -32,7 +32,7 @@ import { useI18n } from 'vue-i18n';
 
 import UserSelector from '@/components/user-selector/user-selector';
 
-import './alarm-dispatch.scss';
+import './alarm-dispatch-dialog.scss';
 
 export default defineComponent({
   name: 'AlarmDispatch',

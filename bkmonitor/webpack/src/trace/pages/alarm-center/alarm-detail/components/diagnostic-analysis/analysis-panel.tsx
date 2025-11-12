@@ -28,7 +28,7 @@ import { type PropType, defineComponent, shallowRef } from 'vue';
 import DimensionPanel from './components/dimension-panel';
 import LinkPanel from './components/link-panel';
 import LogPanel from './components/log-panel';
-import { DiagnosticTypeEnum, DiagnosticTypeMap } from './constant';
+import { DiagnosticTypeEnum, DiagnosticTypeIconMap, DiagnosticTypeMap } from './constant';
 
 import type { IDiagnosticAnalysisItem } from './typing';
 
@@ -77,7 +77,8 @@ export default defineComponent({
             class='analysis-panel-wrapper-header'
             onClick={() => this.toggleExpand(!this.isExpand)}
           >
-            <i class='icon-monitor icon-mc-arrow-down' />
+            <i class='icon-monitor icon-mc-arrow-down arrow-icon' />
+            <i class={['icon-monitor', 'analysis-type-icon', DiagnosticTypeIconMap[this.data.type]]} />
             <span class='panel-title'>{DiagnosticTypeMap[this.data.type]}</span>
           </div>
           <div class='analysis-panel-wrapper-content'>{this.renderAnalysisPanel()}</div>

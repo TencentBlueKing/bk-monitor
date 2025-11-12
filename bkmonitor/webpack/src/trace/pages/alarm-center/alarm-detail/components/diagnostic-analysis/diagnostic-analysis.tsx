@@ -1,3 +1,4 @@
+import { isEn } from '@/i18n/i18n';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,8 +24,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type CSSProperties, type PropType, defineComponent, shallowRef } from 'vue';
+import { type CSSProperties, type PropType, defineComponent, shallowRef, Teleport } from 'vue';
 
+import IconDiagnosisEn from 'monitor-pc/static/images/png/icon-diagnosis-en.png';
+import IconDiagnosisZh from 'monitor-pc/static/images/png/icon-diagnosis-zh.png';
 import { useI18n } from 'vue-i18n';
 
 import AiDiagnosticInfoCard from './ai-diagnostic-info-card';
@@ -226,63 +229,74 @@ export default defineComponent({
     };
   },
   render() {
-    if (this.isClosed)
-      return (
-        <div
-          style={this.entryBtnStyle}
-          class='diagnostic-analysis-entry-btn'
-          onClick={() => {
-            this.handleClosedChange(false);
-          }}
-        >
-          {this.t('诊断分析')}
-        </div>
-      );
     return (
-      <div class='diagnostic-analysis-wrapper'>
-        <div class='diagnostic-analysis-wrapper-header'>
-          <div class='title'>{this.t('诊断分析')}</div>
-          <div class='tool-btns'>
-            <i
-              class={['icon-monitor', 'expand-icon', this.isAllExpand ? 'icon-zhankai-2' : 'icon-shouqi3']}
-              v-bk-tooltips={{
-                content: this.isAllExpand ? this.t('全部收起') : this.t('全部展开'),
-              }}
-              onClick={this.handleAllExpandChange}
-            />
-            <i
-              class={['icon-monitor', 'fixed-icon', this.isFixed ? 'icon-a-pinnedtuding' : 'icon-a-pintuding']}
-              v-bk-tooltips={{
-                content: this.isFixed ? this.t('取消固定') : this.t('固定在界面上'),
-              }}
-              onClick={this.handleFixedChange}
-            />
-            <i
-              class='icon-monitor icon-mc-close close-icon'
-              v-bk-tooltips={{
-                content: this.t('关闭'),
-              }}
+      <Teleport
+        disabled={!this.isFixed}
+        to='body'
+      >
+        <div class={['diagnostic-analysis-panel-comp', { fixed: this.isFixed }]}>
+          {this.isClosed ? (
+            <div
+              style={this.entryBtnStyle}
+              class='diagnostic-analysis-entry-btn'
               onClick={() => {
-                this.handleClosedChange(true);
+                this.handleClosedChange(false);
               }}
-            />
-          </div>
-          <div class='bg-mask-wrap'>
-            <div class='bg-mask' />
-          </div>
-        </div>
-        <div class='diagnostic-analysis-wrapper-content'>
-          <AiDiagnosticInfoCard />
+            >
+              <img
+                class='text-image'
+                alt=''
+                src={isEn ? IconDiagnosisEn : IconDiagnosisZh}
+              />
+            </div>
+          ) : (
+            <div class='diagnostic-analysis-wrapper'>
+              <div class='diagnostic-analysis-wrapper-header'>
+                <div class='title'>{this.t('诊断分析')}</div>
+                <div class='tool-btns'>
+                  <i
+                    class={['icon-monitor', 'expand-icon', this.isAllExpand ? 'icon-zhankai-2' : 'icon-shouqi3']}
+                    v-bk-tooltips={{
+                      content: this.isAllExpand ? this.t('全部收起') : this.t('全部展开'),
+                    }}
+                    onClick={this.handleAllExpandChange}
+                  />
+                  <i
+                    class={['icon-monitor', 'fixed-icon', this.isFixed ? 'icon-a-pinnedtuding' : 'icon-a-pintuding']}
+                    v-bk-tooltips={{
+                      content: this.isFixed ? this.t('取消固定') : this.t('固定在界面上'),
+                    }}
+                    onClick={this.handleFixedChange}
+                  />
+                  <i
+                    class='icon-monitor icon-mc-close close-icon'
+                    v-bk-tooltips={{
+                      content: this.t('关闭'),
+                    }}
+                    onClick={() => {
+                      this.handleClosedChange(true);
+                    }}
+                  />
+                </div>
+                <div class='bg-mask-wrap'>
+                  <div class='bg-mask' />
+                </div>
+              </div>
+              <div class='diagnostic-analysis-wrapper-content'>
+                <AiDiagnosticInfoCard />
 
-          {this.data.map((item, index) => (
-            <AnalysisPanel
-              key={item.type}
-              ref={el => this.setItemRef(el, index)}
-              data={item}
-            />
-          ))}
+                {this.data.map((item, index) => (
+                  <AnalysisPanel
+                    key={item.type}
+                    ref={el => this.setItemRef(el, index)}
+                    data={item}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      </Teleport>
     );
   },
 });

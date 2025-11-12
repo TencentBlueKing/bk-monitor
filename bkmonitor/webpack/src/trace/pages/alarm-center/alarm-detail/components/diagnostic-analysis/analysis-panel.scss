@@ -21,12 +21,24 @@
     margin-bottom: 12px;
     cursor: pointer;
 
-    .icon-monitor {
+    .arrow-icon {
       font-size: 12px;
     }
 
+    .analysis-type-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      margin: 0 4px;
+      font-size: 14px;
+      color: #fff;
+      background: #4d4f56;
+      border-radius: 50%;
+    }
+
     .panel-title {
-      margin-left: 4px;
       font-size: 14px;
       font-weight: 600;
       color: #313238;
