@@ -128,8 +128,49 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
                 {"field_name": self.search_params["agg_field"], "value": topk_group_values, "op": "eq"}
             )
             reference_list.append(query["reference_name"])
-        search_dict.update({"metric_merge": " or ".join(reference_list)})
+        search_dict.update(
+            {
+                "metric_merge": " or ".join(
+                    [f'label_replace({ref}, "source", "{ref}", "", "")' for ref in reference_list]
+                ),
+            }
+        )
         data = self.query_ts(search_dict)
+
+        series = data.get("series")
+        if not series:
+            return data
+
+        series_dict = dict()
+
+        for item in series:
+            group_values = item.get("group_values")
+            if not group_values:
+                continue
+            path = group_values[0]
+            values = item.get("values")
+
+            if path not in series_dict:
+                series_dict[path] = dict()
+
+            for timestamp, value in values:
+                series_dict[path][timestamp] = series_dict[path].get(timestamp, 0) + value
+
+        new_series = list()
+        seen_paths = set()
+
+        for item in series:
+            group_values = item.get("group_values")
+            if not group_values:
+                continue
+            path = group_values[0]
+
+            if path not in seen_paths:
+                seen_paths.add(path)
+                item["values"] = [[k, v] for k, v in sorted(series_dict.get(path).items(), key=lambda x: x[0])]
+                new_series.append(item)
+
+        data["series"] = new_series
         return data
 
     def get_agg_value(self, agg_method: str):
@@ -164,13 +205,32 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             )
 
             reference_list.append(query["reference_name"])
-        search_dict.update({"order_by": ["-_value"], "metric_merge": " or ".join(reference_list)})
+        search_dict.update(
+            {
+                "order_by": ["-_value"],
+                "metric_merge": " or ".join(
+                    [f'label_replace({ref}, "source", "{ref}", "", "")' for ref in reference_list]
+                ),
+            }
+        )
         data = self.query_ts_reference(search_dict)
-        series = data["series"]
-        return [
-            [s["group_values"][0], s["values"][0][1]]
-            for s in sorted(series, key=lambda x: x["values"][0][1], reverse=True)[:limit]
-        ]
+        series = data.get("series")
+
+        if not series:
+            return list()
+
+        series_dict = dict()
+
+        for item in series:
+            if (item_group_values := item.get("group_values")) and (item_values := item.get("values")):
+                if len(item_values[0]) > 1:
+                    path = item_group_values[0]
+                    value = item_values[0][1]
+                    series_dict[path] = series_dict.get(path, 0) + value
+
+        return_data = [[k, v] for k, v in sorted(series_dict.items(), key=lambda x: x[1], reverse=True)[:limit]]
+
+        return return_data
 
     def get_value_list(self, limit: int = 10):
         """
