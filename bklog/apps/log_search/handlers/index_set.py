@@ -1169,6 +1169,10 @@ class IndexSetHandler(APIModel):
         )
 
         # 校验所有结果表查询出的集群是否一致
+        return cls.check_storage_cluster_id(table_list, storage_info)
+
+    @classmethod
+    def check_storage_cluster_id(cls, table_list: list, storage_info: dict):
         cluster_id = ""
         for _table in table_list:
             table_cluster_id = storage_info.get(_table, {}).get("cluster_config", {}).get("cluster_id")
@@ -1176,7 +1180,6 @@ class IndexSetHandler(APIModel):
                 cluster_id = table_cluster_id
             if not table_cluster_id or table_cluster_id != cluster_id:
                 cluster_id = None
-
         return cluster_id
 
     @classmethod
@@ -1987,6 +1990,38 @@ class BaseIndexSetHandler:
         sync_index_set_archive.delay(self.index_set_obj.index_set_id)
 
         return self.index_set_obj
+
+    @staticmethod
+    def update_related_index_set(result_table_id):
+        """
+        更新采集项关联的索引集
+        """
+        # 查询关联了该结果表的索引集（不包含采集项）
+        index_set_ids = LogIndexSetData.objects.filter(result_table_id=result_table_id).values_list(
+            "index_set_id", flat=True
+        )
+        index_set_list = LogIndexSet.objects.filter(index_set_id__in=index_set_ids, collector_config_id__isnull=True)
+        index_set_ids = [index_set.index_set_id for index_set in index_set_list]
+        if not index_set_list:
+            return
+
+        indices = LogIndexSetData.objects.filter(index_set_id__in=index_set_ids).values(
+            "index_set_id", "result_table_id"
+        )
+        # 查询所有结果表的存储信息
+        result_table_list = list({index["result_table_id"] for index in indices})
+        storage_info = TransferApi.get_result_table_storage(
+            {"result_table_list": ",".join(result_table_list), "storage_type": STORAGE_CLUSTER_TYPE}
+        )
+        # index_set_id到result_table_ids的映射
+        index_set_id_to_result_table_ids = defaultdict(list)
+        for index in indices:
+            index_set_id_to_result_table_ids[index["index_set_id"]].append(index["result_table_id"])
+        # 更新索引集的存储信息
+        for index_set in index_set_list:
+            table_list = index_set_id_to_result_table_ids[index_set.index_set_id]
+            index_set.storage_cluster_id = IndexSetHandler.check_storage_cluster_id(table_list, storage_info)
+            index_set.save(update_fields=["storage_cluster_id"])
 
     def post_update(self, index_set):
         self.post_create(index_set)

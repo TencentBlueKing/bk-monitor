@@ -36,6 +36,7 @@ from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_search.constants import CollectorScenarioEnum
+from apps.log_search.handlers.index_set import LogIndexSetHandler
 from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_request_username
 
@@ -172,6 +173,11 @@ class TransferEtlHandler(EtlHandler):
 
         # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次
         LogIndexSet.objects.filter(index_set_id=index_set["index_set_id"]).update(fields_snapshot={})
+
+        # 4. 如果更新了存储集群，需要更新关联索引集的存储集群
+        old_storage_cluster_id = index_set_obj.storage_cluster_id if index_set_obj else None
+        if not is_add and old_storage_cluster_id != storage_cluster_id:
+            LogIndexSetHandler.update_related_index_set(result_table_id=self.data.table_id)
 
         # add user_operation_record
         operation_record = {
