@@ -17,8 +17,10 @@
   ],
   "dependencies": {
     "@blueking/tdesign-ui": "^0.0.1-beta.92",
+    "@prometheus-io/lezer-promql": "0.305.0",
     "bkui-vue": "^2.0.2-beta.63",
     "dayjs": "^1.11.18",
+    "monaco-editor": "0.44.0",
     "vue": "^3.5.15",
     "vue-tippy": "^6.3.7"
   }

@@ -22,6 +22,7 @@ overrides:
   vuex-module-decorators: ^1.2.0
   cross-spawn: ^7.0.6
   on-headers: ^1.1.0
+  '@prometheus-io/lezer-promql': 0.305.0
 
 recursiveInstall: true
 

@@ -71,6 +71,8 @@ export default defineConfig({
         'vue-i18n',
         /^dayjs[/]?\w*/,
         'vue-tippy',
+        '@prometheus-io/lezer-promql',
+        /^monaco-editor[/]?\w*/,
       ],
       output: {
         globals: {

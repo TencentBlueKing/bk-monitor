@@ -44,10 +44,10 @@ import { validateQuery } from 'monitor-pc/components/promql-editor/validation';
 import { defaultOptions, PlaceholderWidget } from './constants';
 import { editorWillMount } from './utils';
 
-import './promql-viewer.scss';
+import './promql-editor.scss';
 
 export default defineComponent({
-  name: 'PromqlViewer',
+  name: 'PromqlEditor',
   props: {
     minHeight: {
       type: Number,
@@ -108,19 +108,6 @@ export default defineComponent({
 
     const containerElement = useTemplateRef<HTMLDivElement>('containerElement');
     const wrapHeight = shallowRef(0);
-    const throttleUpdateLayout = useThrottleFn(updateLayout, 300);
-
-    onMounted(() => {
-      initMonaco();
-    });
-
-    onBeforeUnmount(() => {
-      destroyMonaco();
-    });
-    onDeactivated(() => {
-      destroyMonaco();
-    });
-
     watch(
       () => props.value,
       () => {
@@ -142,7 +129,6 @@ export default defineComponent({
         preventTriggerChangeEvent = false;
       }
     );
-
     watch(
       () => props.language,
       () => {
@@ -151,19 +137,17 @@ export default defineComponent({
         monaco.editor.setModelLanguage(model, props.language);
       }
     );
-
     watch(
       () => [props.options, props.className],
       () => {
         if (!editorInstance) return;
-        const { model, ...optionsWithoutModel } = props.options as any;
+        const { model: _, ...optionsWithoutModel } = props.options;
         editorInstance.updateOptions({
           ...(props.className ? { extraEditorClassName: props.className } : {}),
           ...optionsWithoutModel,
         });
       }
     );
-
     watch(
       () => props.theme,
       () => {
@@ -171,11 +155,59 @@ export default defineComponent({
         monaco.editor.setTheme(props.theme);
       }
     );
+    onMounted(() => {
+      initMonaco();
+    });
+    onBeforeUnmount(() => {
+      destroyMonaco();
+    });
+    onDeactivated(() => {
+      destroyMonaco();
+    });
 
+    const updateLayout = () => {
+      const pixelHeight = editorInstance.getContentHeight();
+      const height = Math.max(pixelHeight, props.minHeight);
+      editorInstance.layout({ width: currentInstance.vnode.el.clientWidth, height });
+      wrapHeight.value = height;
+    };
+    const throttleUpdateLayout = useThrottleFn(updateLayout, 300);
+    /**
+     * @description 初始化
+     */
+    const initMonaco = () => {
+      const finalValue = props.value !== null ? props.value : props.defaultValue;
+      if (containerElement.value) {
+        const finalOptions = { ...props.options, ...editorWillMount(monaco) };
+        const modelUri = props.uri?.(monaco);
+        let model = null;
+        if (modelUri) {
+          model = monaco.editor.getModel(modelUri);
+        }
+        if (model) {
+          model.setValue(finalValue);
+          monaco.editor.setModelLanguage(model, props.language);
+        } else {
+          model = monaco.editor.createModel(finalValue, props.language, modelUri);
+        }
+        editorInstance = monaco.editor.create(
+          containerElement.value,
+          {
+            model,
+            ...(props.className ? { extraEditorClassName: props.className } : {}),
+            ...finalOptions,
+            ...(props.theme ? { theme: props.theme } : {}),
+            readOnly: props.readonly,
+          },
+          props.overrideServices
+        );
+        handleEditorDidMount();
+      }
+    };
     /**
      * @description 编辑器事件
      */
-    function handleEditorDidMount() {
+    const handleEditorDidMount = () => {
       roInstance = new ResizeObserver(entries => {
         for (const entry of entries) {
           const newW = entry.contentRect.width;
@@ -235,52 +267,11 @@ export default defineComponent({
           }
         },
       });
-    }
-
-    function updateLayout() {
-      const pixelHeight = editorInstance.getContentHeight();
-      const height = Math.max(pixelHeight, props.minHeight);
-      editorInstance.layout({ width: currentInstance.vnode.el.clientWidth, height });
-      wrapHeight.value = height;
-    }
-
-    /**
-     * @description 初始化
-     */
-    function initMonaco() {
-      const finalValue = props.value !== null ? props.value : props.defaultValue;
-      if (containerElement.value) {
-        const finalOptions = { ...props.options, ...editorWillMount(monaco) };
-        const modelUri = props.uri?.(monaco);
-        let model = null;
-        if (modelUri) {
-          model = monaco.editor.getModel(modelUri);
-        }
-        if (model) {
-          model.setValue(finalValue);
-          monaco.editor.setModelLanguage(model, props.language);
-        } else {
-          model = monaco.editor.createModel(finalValue, props.language, modelUri);
-        }
-        editorInstance = monaco.editor.create(
-          containerElement.value,
-          {
-            model,
-            ...(props.className ? { extraEditorClassName: props.className } : {}),
-            ...finalOptions,
-            ...(props.theme ? { theme: props.theme } : {}),
-            readOnly: props.readonly,
-          },
-          props.overrideServices
-        );
-        handleEditorDidMount();
-      }
-    }
-
+    };
     /**
      * @description 判断是否语法错误
      */
-    function getLinterStatus() {
+    const getLinterStatus = () => {
       let hasError = false;
       if (editorInstance) {
         const model = editorInstance.getModel();
@@ -288,22 +279,24 @@ export default defineComponent({
         hasError = !!markers.length;
       }
       return hasError;
-    }
+    };
 
-    function destroyMonaco() {
+    const destroyMonaco = () => {
       editorInstance?.dispose?.();
-      monaco.editor.getModels().forEach(model => model.dispose());
+      for (const model of monaco.editor.getModels()) {
+        model.dispose();
+      }
       roInstance?.disconnect?.();
       editorInstance = null;
       roInstance = null;
-    }
-    function initResize(e: Event) {
+    };
+    const initResize = (e: Event) => {
       e.preventDefault();
       window.addEventListener('mousemove', resizeElement);
       window.addEventListener('mouseup', stopResize);
-    }
+    };
 
-    function resizeElement(e: MouseEvent) {
+    const resizeElement = (e: MouseEvent) => {
       isResizing = true;
       const start = currentInstance.vnode.el.getBoundingClientRect().top;
       const mouseY = e.clientY;
@@ -314,11 +307,11 @@ export default defineComponent({
         wrapHeight.value = newHeight;
       }
       editorInstance.layout({ width: currentInstance.vnode.el.clientWidth, height: wrapHeight.value });
-    }
-    function stopResize() {
+    };
+    const stopResize = () => {
       isResizing = false;
       window.removeEventListener('mousemove', resizeElement);
-    }
+    };
 
     return { wrapHeight, initResize };
   },
@@ -329,7 +322,7 @@ export default defineComponent({
           minHeight: `${this.minHeight}px`,
           height: `${this.wrapHeight <= this.minHeight ? this.minHeight : this.wrapHeight}px`,
         }}
-        class={['promql-viewer', { 'is-error': this.isError }]}
+        class={['promql-editor', { 'is-error': this.isError }]}
       >
         <div
           ref='containerElement'

@@ -28,7 +28,7 @@ import { type PropType, defineComponent, shallowRef } from 'vue';
 import { Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import PromqlViewer from '../promql-viewer/promql-viewer';
+import PromqlEditor from '../../../../../../components/promql-editor/promql-editor';
 import QueryConfigViewer from '../query-config-viewer/query-config-viewer';
 
 import type { AlertContentItem } from '../../../../typings';
@@ -113,7 +113,7 @@ export default defineComponent({
           )}
         </div>
         {this.alertContentDetail?.origin_sql ? (
-          <PromqlViewer
+          <PromqlEditor
             class='alert-content-promql-view'
             readonly={true}
             value={this.alertContentDetail?.origin_sql}

@@ -21,6 +21,7 @@
     "@blueking/monitor-vue2-components": "0.0.0-beta.8",
     "@blueking/tdesign-ui": "0.0.1-beta.87",
     "@dagrejs/dagre": "^1.1.5",
+    "@prometheus-io/lezer-promql": "0.305.0",
     "@toast-ui/editor": "^3.2.2",
     "@toast-ui/editor-plugin-code-syntax-highlight": "^3.1.0",
     "@vue-flow/core": "^1.46.4",
