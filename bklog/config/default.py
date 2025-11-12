@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import os
 import sys
 
@@ -385,7 +386,7 @@ BK_BKLOG_HOST = os.environ.get("BK_BKLOG_HOST", f"{BK_PAAS_HOST}/o/bk_log_search
 BK_BKLOG_API_HOST = os.getenv("BKAPP_BKLOG_API_HOST", "http://bk-log-search-api")
 
 # 网关管理员
-APIGW_MANAGERS = f'[{",".join(os.getenv("BKAPP_APIGW_MANAGERS", "admin").split(","))}]'
+APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split(','))}]"
 # 网关名称
 BK_APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
 # APIGW 接口地址模板
@@ -638,7 +639,12 @@ MENUS = [
                 "keyword": _("仪表盘"),
                 "children": [
                     {"id": "default_dashboard", "name": _("默认仪表盘"), "feature": "on", "icon": "block-shape"},
-                    {"id": "create_dashboard", "name": _("新建仪表盘"), "feature": "on", "icon": "log-plus-circle-shape"},
+                    {
+                        "id": "create_dashboard",
+                        "name": _("新建仪表盘"),
+                        "feature": "on",
+                        "icon": "log-plus-circle-shape",
+                    },
                     {"id": "create_folder", "name": _("新建目录"), "feature": "on", "icon": "folder-fill"},
                     {"id": "import_dashboard", "name": _("导入仪表盘"), "feature": "on", "icon": "topping-fill"},
                 ],
@@ -746,7 +752,12 @@ MENUS = [
                 "children": [
                     {"id": "manage_log_extract", "name": _("日志提取配置"), "feature": "on", "icon": "cc-log"},
                     {"id": "log_extract_task", "name": _("日志提取任务"), "feature": "on", "icon": "audit-fill"},
-                    {"id": "extract_link_manage", "name": _("提取链路管理"), "feature": "on", "icon": "assembly-line-fill"},
+                    {
+                        "id": "extract_link_manage",
+                        "name": _("提取链路管理"),
+                        "feature": "on",
+                        "icon": "assembly-line-fill",
+                    },
                 ],
             },
             {
@@ -793,7 +804,9 @@ MENUS = [
                 "feature": "on",
                 "icon": "",
                 "keyword": _("集群"),
-                "children": [{"id": "es_cluster_manage", "name": _("集群管理"), "feature": "on", "icon": "cc-influxdb"}],
+                "children": [
+                    {"id": "es_cluster_manage", "name": _("集群管理"), "feature": "on", "icon": "cc-influxdb"}
+                ],
             },
             {
                 "id": "report",
@@ -1263,13 +1276,16 @@ ALL_TENANT_SET_ID = 1
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 # 兼容非多租户模式
-APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or 'test' in sys.argv)
+APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or "test" in sys.argv)
 
 # 预查询时间, 默认6h小时, 0代表禁用
 try:
     PRE_SEARCH_SECONDS = int(os.getenv("BKAPP_PRE_SEARCH_SECONDS", 6 * 60 * 60))
 except ValueError:
     PRE_SEARCH_SECONDS = 6 * 60 * 60
+
+# TGPA
+TGPA_TASK_APIGW_ROOT = os.getenv("BKAPP_TGPA_TASK_APIGATEWAY_ROOT", "")
 
 """
 以下为框架代码 请勿修改
