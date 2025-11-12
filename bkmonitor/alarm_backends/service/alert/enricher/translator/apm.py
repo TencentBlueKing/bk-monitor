@@ -20,6 +20,9 @@ class ApmTranslator(BaseTranslator):
 
     def translate(self, data: dict[str, TranslationField]) -> dict:
         for name, field in data.items():
+            if name == "namespace" and "bcs_cluster_id" in data:
+                # 不处理 BCS 集群的 namespace 字段，避免覆盖 BCS 集群翻译器的处理结果。
+                continue
             display_name: str = self._helper.get_tag_label(name)
             if display_name != name:
                 # 展示值不一样时，认为成功找到别名，否则不设置，避免覆盖其他翻译器的处理结果。

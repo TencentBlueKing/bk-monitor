@@ -920,10 +920,6 @@ class Alarm(BaseContextObject):
             # TODO 后续有其他明确场景，可在此处补充识别。
             redirect_types.extend([AlertRedirectType.APM_RPC.value, AlertRedirectType.APM_TRACE.value])
 
-        # RPC 场景下，直接跳转到调用分析。
-        # TODO APM 支持自定义指标后，自定义指标类型的告警，需要跳转到自定义指标页面。
-        if AlertRedirectType.APM_RPC.value in redirect_types and AlertRedirectType.QUERY.value in redirect_types:
-            redirect_types.remove(AlertRedirectType.QUERY.value)
         return redirect_types
 
     @cached_property
@@ -937,8 +933,14 @@ class Alarm(BaseContextObject):
             AlertRedirectType.APM_TRACE.value: lambda: self.apm_trace_url,
         }
 
+        redirect_types: list[str] = self.redirect_types
+        # RPC 场景下，直接跳转到调用分析。
+        # TODO APM 支持自定义指标后，自定义指标类型的告警，需要跳转到自定义指标页面。
+        if AlertRedirectType.APM_RPC.value in redirect_types and AlertRedirectType.QUERY.value in redirect_types:
+            redirect_types.remove(AlertRedirectType.QUERY.value)
+
         redirect_infos: list[dict[str, Any]] = []
-        for redirect_type in self.redirect_types:
+        for redirect_type in redirect_types:
             url_getter: Callable[[], str | None] = url_getters.get(redirect_type)
             if not url_getter:
                 continue
