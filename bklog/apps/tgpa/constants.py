@@ -1,0 +1,2 @@
+# Constants for TGPA app
+
