@@ -1615,10 +1615,13 @@ class K8sCollectorHandler(CollectorHandler):
                 container_config.save()
                 container_configs.append(container_config)
             self.create_container_release(container_config=container_config)
-        if self.data.is_active:
-            delete_container_configs = container_configs[config_length::]
+        # 增量比对后，需要真正删除配置
+        delete_container_configs = container_configs[config_length::]
+        if not self.data.is_active:
             for config in delete_container_configs:
-                # 增量比对后，需要真正删除配置
+                config.delete()
+        else:
+            for config in delete_container_configs:
                 self.delete_container_release(config, delete_config=True)
 
     def create_container_release(self, container_config: ContainerCollectorConfig, **kwargs):
