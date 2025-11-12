@@ -87,6 +87,7 @@ export const useAlertHandlers = ({
    * @description 告警行操作工具栏按钮点击回调事件
    */
   const handleAlertOperationClick = (actionType: AlertRowOperationAction, row: AlertTableItem) => {
+    clickPopoverTools.hidePopover();
     openDialogEmit(actionType, row.id, row);
   };
 
