@@ -15,6 +15,7 @@ overrides:
   vuex-module-decorators: ^1.2.0
   cross-spawn: ^7.0.6
   on-headers: ^1.1.0
+  '@prometheus-io/lezer-promql': 0.305.0
 
 importers:
 
@@ -408,8 +409,8 @@ importers:
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.4)(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
       '@prometheus-io/lezer-promql':
-        specifier: 0.51.2
-        version: 0.51.2(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)
+        specifier: 0.305.0
+        version: 0.305.0(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)
       apm:
         specifier: workspace:*
         version: link:../apm
@@ -655,6 +656,9 @@ importers:
       '@dagrejs/dagre':
         specifier: ^1.1.5
         version: 1.1.5
+      '@prometheus-io/lezer-promql':
+        specifier: 0.305.0
+        version: 0.305.0(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)
       '@toast-ui/editor':
         specifier: ^3.2.2
         version: 3.2.2
@@ -2484,8 +2488,8 @@ packages:
   '@probe.gl/stats@3.6.0':
     resolution: {integrity: sha512-JdALQXB44OP4kUBN/UrQgzbJe4qokbVF4Y8lkIA8iVCFnjVowWIgkD/z/0QO65yELT54tTrtepw1jScjKB+rhQ==}
 
-  '@prometheus-io/lezer-promql@0.51.2':
-    resolution: {integrity: sha512-hNzCmsSRAFPkkpIQ8GdZcTMQRhcgPZlQtLcMjrVKmdqchYtV3TJe5knSYQeQ3cODtVBPEjJqeMTeDVSpJUQfoA==}
+  '@prometheus-io/lezer-promql@0.305.0':
+    resolution: {integrity: sha512-201H/3BZPnLTanq+fbjgfEheErTRLfntYSbeHaNUlfKSdSvd1McJFZV+/2McipSRSzPgTwvw6sVUVM1u/GHVZA==}
     peerDependencies:
       '@lezer/highlight': ^1.1.2
       '@lezer/lr': ^1.2.3
@@ -11244,7 +11248,7 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.28.4
 
-  '@prometheus-io/lezer-promql@0.51.2(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)':
+  '@prometheus-io/lezer-promql@0.305.0(@lezer/highlight@1.2.1)(@lezer/lr@1.4.2)':
     dependencies:
       '@lezer/highlight': 1.2.1
       '@lezer/lr': 1.4.2

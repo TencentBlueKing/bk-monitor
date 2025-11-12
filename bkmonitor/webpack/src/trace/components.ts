@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import PromqlEditor from './components/promql-editor/promql-editor';
 import RetrievalFilter from './components/retrieval-filter/retrieval-filter';
 
 import './static/scss/global.scss';
 import 'monitor-pc/static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
-export { RetrievalFilter };
+export { PromqlEditor, RetrievalFilter };
