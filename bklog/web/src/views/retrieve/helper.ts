@@ -6,24 +6,89 @@ import logWebManifest from '@blueking/log-web';
  * @param isDev 是否为开发环境, process.env.NODE_ENV === 'development'
  * @returns 完整的资源 URL
  */
-export const getResourceUrl = (relativePath: string, isDev: boolean) => {
+export const getResourceUrl = (relativePath: string) => {
   // 获取 BK_STATIC_URL，例如: "/static/dist"
   const bkStaticUrl = (window as any).BK_STATIC_URL || '/static/dist';
-
-  if (isDev) {
-    // 开发环境：资源在 ../static/dist/log-web1-dll 目录下（V1版本兼容包）
-    // 通过 webpack devServer 的静态文件服务访问
-    // 使用相对路径，devServer 会自动处理
-    return `${bkStaticUrl}/log-web1-dll/${relativePath}`;
-  }
 
   // 生产环境：根据 BK_STATIC_URL 构建完整路径（V1版本兼容包）
   // 例如: BK_STATIC_URL = "/static/dist" -> "/static/dist/log-web1-dll/js/main.xxx.js"
   return `${bkStaticUrl}/log-web1-dll/${relativePath}`;
 };
 
+/**
+ * 检查资源是否存在
+ * @param url 资源 URL
+ * @param timeout 超时时间（毫秒），默认 5000ms
+ * @returns Promise<boolean> 资源是否存在
+ */
+export const checkResourceExists = async (url: string, timeout = 5000): Promise<boolean> => {
+  return new Promise((resolve) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      resolve(false);
+    }, timeout);
+
+    fetch(url, {
+      method: 'HEAD',
+      signal: controller.signal,
+      cache: 'no-cache',
+    })
+      .then((response) => {
+        clearTimeout(timeoutId);
+        resolve(response.ok);
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+        resolve(false);
+      });
+  });
+};
+
+/**
+ * 验证资源清单和资源文件
+ * @returns Promise<{ valid: boolean; error?: string }> 验证结果
+ */
+export const validateResources = async (): Promise<{ valid: boolean; error?: string }> => {
+  try {
+    const manifest = logWebManifest;
+    if (!manifest || !manifest.entryJs || !manifest.entryCss) {
+      return { valid: false, error: '资源清单不完整' };
+    }
+
+    const jsUrl = getResourceUrl(manifest.entryJs);
+    const cssUrl = getResourceUrl(manifest.entryCss);
+
+    // 并行检查 JS 和 CSS 资源
+    const [jsExists, cssExists] = await Promise.all([checkResourceExists(jsUrl), checkResourceExists(cssUrl)]);
+
+    if (!jsExists && !cssExists) {
+      return {
+        valid: false,
+        error: `资源文件不存在，请检查构建配置。JS: ${manifest.entryJs}, CSS: ${manifest.entryCss}`,
+      };
+    }
+    if (!jsExists) {
+      return {
+        valid: false,
+        error: `JS 资源文件不存在: ${manifest.entryJs}，请检查构建配置`,
+      };
+    }
+    if (!cssExists) {
+      return {
+        valid: false,
+        error: `CSS 资源文件不存在: ${manifest.entryCss}，请检查构建配置`,
+      };
+    }
+
+    return { valid: true };
+  } catch (err: any) {
+    return { valid: false, error: err.message || '资源验证失败' };
+  }
+};
+
 // 获取主站点中的环境变量
-export const getEnvVariables = () => {
+export const getEnvVariables = (isDev: boolean) => {
   const envVars = [
     'SITE_URL',
     'AJAX_URL_PREFIX',
@@ -116,7 +181,8 @@ export const getEnvVariables = () => {
     .join('\n    ');
 
   // 设置 webpack public path
-  envScript += 'window.__WEBPACK_PUBLIC_PATH__ = \'/log-web1-dll/\';';
+  const publicPath = isDev ? '/log-web1-dll/' : `${(window as any).BK_STATIC_URL}/log-web1-dll/`;
+  envScript += `window.__WEBPACK_PUBLIC_PATH__ = '${publicPath}';`;
 
   return envScript;
 };
@@ -157,19 +223,18 @@ const getRouteInfo = () => {
 };
 
 // 生成 iframe 的 srcdoc 内容
-export const generateIframeSrcdoc = () => {
+export const generateIframeSrcdoc = (isDev: boolean) => {
   const manifest = logWebManifest;
   if (!manifest || !manifest.entryJs || !manifest.entryCss) {
     throw new Error('资源清单不完整');
   }
 
   // 获取资源路径
-  const isDev = process.env.NODE_ENV === 'development';
-  const jsUrl = getResourceUrl(manifest.entryJs, isDev);
-  const cssUrl = getResourceUrl(manifest.entryCss, isDev);
+  const jsUrl = getResourceUrl(manifest.entryJs);
+  const cssUrl = getResourceUrl(manifest.entryCss);
 
   // 获取环境变量脚本
-  const envScript = getEnvVariables();
+  const envScript = getEnvVariables(isDev);
 
   // 获取当前路由信息
   const routeInfo = getRouteInfo();

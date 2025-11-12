@@ -27,8 +27,7 @@
 import { defineComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 
-import logWebManifest from '@blueking/log-web';
-import { generateIframeSrcdoc } from './helper';
+import { generateIframeSrcdoc, validateResources } from './helper';
 
 /**
  * Vue2 挂载容器组件
@@ -64,7 +63,6 @@ export default defineComponent({
       return query;
     };
 
-
     // 同步 hash 到 iframe（仅在初始化时使用）
     const syncHashToIframe = (iframeWindow: Window, hash: string) => {
       const iframeWin = iframeWindow as any;
@@ -83,13 +81,18 @@ export default defineComponent({
       });
     };
 
-
     // 初始化 iframe
-    const initIframe = () => {
+    const initIframe = async () => {
       try {
-        const manifest = logWebManifest;
-        if (!manifest || !manifest.entryJs || !manifest.entryCss) {
-          throw new Error('无法获取资源清单或资源清单不完整');
+        // 先验证资源是否存在
+        loading.value = true;
+        error.value = null;
+
+        const validation = await validateResources();
+        if (!validation.valid) {
+          loading.value = false;
+          error.value = validation.error || '资源验证失败';
+          return;
         }
 
         if (!iframeRef.value) {
@@ -97,7 +100,7 @@ export default defineComponent({
         }
 
         // 生成 srcdoc 内容
-        const srcdoc = generateIframeSrcdoc();
+        const srcdoc = generateIframeSrcdoc(process.env.NODE_ENV !== 'production');
 
         // 使用 srcdoc 模式
         iframeRef.value.srcdoc = srcdoc;
@@ -125,15 +128,17 @@ export default defineComponent({
               if (evt.data.type === 'sync-route-params') {
                 const { swtichVersion, query, params } = evt.data.payload;
 
-                router.replace({
-                  query: { ...route.query, ...(query || {}) },
-                  params: { ...route.params, ...(params || {}) },
-                }).then(() => {
-                  if (swtichVersion) {
-                    localStorage.setItem('retrieve_version', 'v3');
-                    window.location.reload();
-                  }
-                });
+                router
+                  .replace({
+                    query: { ...route.query, ...(query || {}) },
+                    params: { ...route.params, ...(params || {}) },
+                  })
+                  .then(() => {
+                    if (swtichVersion) {
+                      localStorage.setItem('retrieve_version', 'v3');
+                      window.location.reload();
+                    }
+                  });
               }
             }
           };
@@ -164,22 +169,25 @@ export default defineComponent({
       }
     };
 
-    watch(() => [route.query.spaceUid, route.query.bizId], ([spaceUid, bkBizId], [oldSpaceUid, oldBkBizId]) => {
-      if (spaceUid !== oldSpaceUid || bkBizId !== oldBkBizId) {
-        const iframeWindow = iframeRef.value?.contentWindow;
-        // 转发消息到 iframe
-        iframeWindow?.postMessage(
-          {
-            type: 'update-route-params',
-            payload: { spaceUid, bkBizId },
-          },
-          '*',
-        );
-      }
-    });
+    watch(
+      () => [route.query.spaceUid, route.query.bizId],
+      ([spaceUid, bkBizId], [oldSpaceUid, oldBkBizId]) => {
+        if (spaceUid !== oldSpaceUid || bkBizId !== oldBkBizId) {
+          const iframeWindow = iframeRef.value?.contentWindow;
+          // 转发消息到 iframe
+          iframeWindow?.postMessage(
+            {
+              type: 'update-route-params',
+              payload: { spaceUid, bkBizId },
+            },
+            '*',
+          );
+        }
+      },
+    );
 
     onMounted(() => {
-      initIframe();
+      void initIframe();
     });
 
     onUnmounted(() => {
@@ -191,7 +199,10 @@ export default defineComponent({
     });
 
     return () => (
-      <div class='vue2-container' style='width: 100%; height: 100%; position: relative;'>
+      <div
+        class='vue2-container'
+        style='width: 100%; height: 100%; position: relative;'
+      >
         {loading.value && (
           <div
             style={{
