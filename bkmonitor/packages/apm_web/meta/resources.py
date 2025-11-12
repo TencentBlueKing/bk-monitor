@@ -292,8 +292,9 @@ class ListApplicationInfoResource(Resource):
         def to_representation(self, instance):
             data = super(ListApplicationInfoResource.ApplicationInfoResponseSerializer, self).to_representation(instance)
             data["es_storage_index_name"] = instance.trace_result_table_id.replace(".", "_")
-            config_dict = {config.config_key: config.config_value for config in instance.get_all_config()}
-            data.update(config_dict)
+            key = Application.APPLICATION_DATASOURCE_CONFIG_KEY
+            config_obj = instance.get_config_by_key(key)
+            data[key] = config_obj.config_value if config_obj else {}
             return data
 
     def perform_request(self, validated_request_data):
