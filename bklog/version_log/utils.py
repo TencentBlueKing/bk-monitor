@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community
 Edition) available.
@@ -13,11 +14,11 @@ specific language governing permissions and limitations under the License.
 import os
 import re
 import time
+from io import open
 
 import mistune
 import version_log.config as config
 from apps.utils.local import get_request_language_code
-import builtins
 
 
 def get_md_files_dir_with_language_code():
@@ -27,7 +28,7 @@ def get_md_files_dir_with_language_code():
 
 def get_html_file_path_with_language_code(version: str):
     """获取html文件路径"""
-    return os.path.join(config.PARSED_HTML_FILES_DIR, f"{version}_{get_request_language_code()}.html")
+    return os.path.join(config.PARSED_HTML_FILES_DIR, "{}_{}.html".format(version, get_request_language_code()))
 
 
 def get_parsed_html(log_version):
@@ -49,7 +50,7 @@ def get_parsed_html(log_version):
     html_file_path = get_html_file_path_with_language_code(log_version)
     # 已有解析好的版本
     if os.path.isfile(html_file_path) and _is_html_file_generated_after_md_file(html_file_path, md_file_path):
-        with builtins.open(html_file_path, encoding="utf-8") as f:
+        with open(html_file_path, encoding="utf-8") as f:
             html_text = f.read()
         return html_text
     # 没有解析好的版本
@@ -104,11 +105,8 @@ def _get_version_parsed_list(version):
 
 def _md_parse_to_html_and_save(md_file_path, html_file_path):
     """将存在的md文件解析并保存为html文件"""
-    parser = mistune.create_markdown(hard_wrap=True)
-    with (
-        builtins.open(md_file_path, encoding="utf-8") as read_file,
-        builtins.open(html_file_path, "w", encoding="utf-8") as write_file,
-    ):
+    parser = mistune.Markdown(hard_wrap=True)
+    with open(md_file_path, encoding="utf-8") as read_file, open(html_file_path, "w", encoding="utf-8") as write_file:
         md_version_log = read_file.read()
         html_version_log = parser(md_version_log)
         write_file.write(html_version_log)
