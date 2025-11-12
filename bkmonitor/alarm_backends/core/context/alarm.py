@@ -887,35 +887,6 @@ class Alarm(BaseContextObject):
         # 模块链接，先回退
         return []
 
-    def generate_redirect_type(self):
-        alert: AlertDocument = self.parent.alert
-
-        if not alert.strategy:
-            return None
-
-        item = alert.strategy["items"][0]
-        query_configs = item["query_configs"]
-        if not query_configs:
-            return None
-
-        data_source = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
-
-        redirect_map = {
-            "log_search": [(DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG)],
-            "query": [
-                (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
-                (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
-                (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES),
-                (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
-                (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
-            ],
-        }
-        for _type, target in redirect_map.items():
-            if data_source in target:
-                return _type
-
-        return None
-
     @cached_property
     def redirect_types(self) -> list[str]:
         redirect_types: list[str] = [AlertRedirectType.DETAIL.value]

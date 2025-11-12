@@ -35,11 +35,11 @@
       {% for info in alarm.redirect_infos %}
       {
         "type": "button",
-        "text": "{{ info.text }}",
+        "text": {{ info.text | tojson | safe }},
         "interaction": {
           "type": 2002,
           "data": {
-            "url": "{{ info.url }}"
+            "url": {{ info.url | tojson | safe }}
           }
         }
       }{{ "," if not loop.last }}
@@ -64,7 +64,7 @@
         "interaction": {
           "type": 2002,
           "data": {
-            "url": "{{ alarm.quick_ack_url | safe }}"
+            "url": {{ alarm.quick_ack_url | tojson | safe }}
           }
         }
       }{% if alarm.quick_shield_url %},{% endif %}
@@ -80,7 +80,7 @@
         "interaction": {
           "type": 2002,
           "data": {
-            "url": "{{ alarm.quick_shield_url | safe }}"
+            "url": {{ alarm.quick_shield_url | tojson | safe }}
           }
         }
       }

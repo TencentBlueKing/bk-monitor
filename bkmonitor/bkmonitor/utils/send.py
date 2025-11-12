@@ -94,8 +94,9 @@ class BaseSender:
 
         self._is_wxwork_layouts_enabled: bool = False
         if self.is_wxwork_layouts_enabled(self.bk_biz_id, self.notice_way, self.context, content_template_path):
-            self._is_wxwork_layouts_enabled = True
+            # 模块化消息通知渲染后是一个 JSON 串。
             context_dict["is_json"] = True
+            self._is_wxwork_layouts_enabled = True
             content_template_path = content_template_path.replace("markdown", "layouts")
 
         notice_template_class = self.NoticeTemplate.get(notice_type, AlarmNoticeTemplate)
@@ -118,7 +119,7 @@ class BaseSender:
         content_limit = self.get_content_limit(self.notice_way)
         # 渲染后的总提长度: self.content（这里做了特殊字符的replace, 一个特殊字符占1个长度)
         content_length = get_content_length(self.content, self.encoding)
-        if self._is_wxwork_layouts_enabled or not content_limit or content_limit >= content_length:
+        if context_dict.get("is_json") or not content_limit or content_limit >= content_length:
             # 不需要限制长度
             return
         # 计算扣除 user_content 后剩余模板内容的长度（这里user_content的特殊字符 占2个长度）
@@ -135,7 +136,7 @@ class BaseSender:
         self.content = content_template.render(self.get_context_dict())
 
     @classmethod
-    def is_wecom_rebot_enabled(cls) -> bool:
+    def is_wecom_robot_enabled(cls) -> bool:
         return settings.IS_WECOM_ROBOT_ENABLED and Platform.te
 
     @classmethod
@@ -147,7 +148,11 @@ class BaseSender:
         cls, bk_biz_id: int, notice_way: str, context: dict[str, Any], content_template_path: str
     ) -> bool:
         """判断是否切换至企业微信卡片通知
-        判断规则：，且通知模板存在。
+        判断规则：
+        - 业务 ID 在灰度业务列表内。
+        - 通知渠道为企微机器人或 RTX。
+        - RTX 渠道需开启企微机器人功能且配置发送者。
+        - layouts 通知模板 存在。
         """
         is_gray: bool = (
             bk_biz_id in settings.WECOM_LAYOUTS_BIZ_LIST or str(bk_biz_id) in settings.WECOM_LAYOUTS_BIZ_LIST
@@ -160,7 +165,7 @@ class BaseSender:
             # 必须是企业微信通知渠道
             return False
 
-        if notice_way == "rtx" and not (cls.is_wecom_rebot_enabled() and cls.get_sender(context)):
+        if notice_way == "rtx" and not (cls.is_wecom_robot_enabled() and cls.get_sender(context)):
             # rtx 通道下，必须开启企业微信机器人功能
             return False
 
@@ -262,9 +267,10 @@ class BaseSender:
 
     @classmethod
     def _format_layouts(cls, layouts: list[dict[str, Any]], encoding="utf-8"):
-        """"""
+        """格式化通知结构体"""
         for layout in layouts:
             if "text" in layout:
+                # 单个块的内容长度不能超过 2046 字节（utf-8 编码）。
                 layout["text"] = cut_str_by_max_bytes(layout["text"], 2046, encoding=encoding)
             cls._format_layouts(layout.get("components", []), encoding=encoding)
 
@@ -529,6 +535,7 @@ class Sender(BaseSender):
 
         url: str = settings.WXWORK_BOT_WEBHOOK_URL
         if sender:
+            # 进入 send_wxwork_layouts 说明 url 已经存在，这里无需重复检查。
             if "?key=" in url:
                 url = url.split("?key=", 1)[0] + f"?key={sender}"
 
@@ -545,7 +552,7 @@ class Sender(BaseSender):
                 logger.info("send wxwork to %s, mentioned_users_string %s", chat_id, mentioned_users_string)
                 send_content: str = content.replace("--mention-users--", mentioned_users_string)
 
-            cls._call_wxwork_api(send_result, _construct_params(send_content, chat_ids), url=url)
+            cls._call_wxwork_api(send_result, _construct_params(send_content, [chat_id]), url=url)
         return send_result
 
     @classmethod
@@ -620,7 +627,6 @@ class Sender(BaseSender):
             return finish_send_wxork_bot(_("未配置企业微信群id，请联系管理员"), False)
 
         try:
-            # 如果不是，保留以前的发送格式
             send_func: Callable[..., dict[str, Any]] = (
                 self.send_wxwork_layouts if self._is_wxwork_layouts_enabled else self.send_wxwork_content
             )
@@ -661,7 +667,7 @@ class Sender(BaseSender):
         """
         sender = None
         notice_way = "rtx"
-        if self.is_wecom_rebot_enabled():
+        if self.is_wecom_robot_enabled():
             # 允许进行通知方式切换，才进行通知发送
             sender = self.get_sender(self.context)
             if sender:
@@ -686,6 +692,7 @@ class Sender(BaseSender):
             if self._is_wxwork_layouts_enabled:
                 response = self.send_wxwork_layouts(self.msg_type, self.content, notice_receivers, sender=sender)
                 return {
+                    # 适配 send_default 的返回格式。
                     notice_receiver: {"message": response.get("errmsg") or "", "result": response.get("errcode") == 0}
                     for notice_receiver in notice_receivers
                 }

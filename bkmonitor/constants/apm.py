@@ -1472,9 +1472,9 @@ class ApmAlertHelper:
     _STRATEGY_APP_LABEL_REGEX = re.compile(r"APM-APP\((.*?)\)")
     _STRATEGY_SERVICE_LABEL_REGEX = re.compile(r"APM-SERVICE\((.*?)\)")
 
-    _PRC_METRIC_REGEX = re.compile(r"^rpc_(client|server)_handled_(?:total|seconds_(?:sum|min|max|count|bucket))$")
+    _RPC_METRIC_REGEX = re.compile(r"^rpc_(client|server)_handled_(?:total|seconds_(?:sum|min|max|count|bucket))$")
 
-    _TABLE_APP_NAME_REGEX = re.compile(r"bkapm_(metric|trace)_([a-zA-Z0-9_-]+)")
+    _TABLE_APP_NAME_REGEX = re.compile(r"^(?:space_)?\d+_bkapm_(?:metric|trace)_([a-zA-Z0-9_-]+)\.__default__$")
 
     _TAG_ENUMS: list[type[CachedEnum]] = [
         CommonMetricTag,
@@ -1503,7 +1503,7 @@ class ApmAlertHelper:
 
     @classmethod
     def _is_rpc_metric(cls, metric_field: str) -> bool:
-        return cls._PRC_METRIC_REGEX.match(metric_field) is not None
+        return cls._RPC_METRIC_REGEX.match(metric_field) is not None
 
     @classmethod
     def is_match(cls, strategy: dict[str, Any]) -> bool:
@@ -1564,7 +1564,7 @@ class ApmAlertHelper:
         if not app_name:
             try:
                 app_name = cls._reg_extract(
-                    cls._TABLE_APP_NAME_REGEX, strategy["items"][0]["metric_field"][CommonMetricTag.APP_NAME.value]
+                    cls._TABLE_APP_NAME_REGEX, strategy["items"][0]["query_configs"][0]["result_table_id"]
                 )
             except (KeyError, IndexError):
                 pass

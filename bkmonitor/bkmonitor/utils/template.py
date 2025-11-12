@@ -132,6 +132,7 @@ class CustomTemplateRenderer:
         if notice_way == NoticeWay.MAIL:
             content = content.replace("\n", "")
         if context.get("is_json"):
+            # 模板渲染目标是一个 JSON，内容需先序列化，以确保格式正确。
             alarm_content = json.dumps(alarm_content, ensure_ascii=False)[1:-1]
 
         context["user_content"] = alarm_content
