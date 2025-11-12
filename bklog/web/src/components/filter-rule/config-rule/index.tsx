@@ -160,11 +160,11 @@ export default defineComponent({
     );
 
     const getFieldIcon = (type: string) => {
-      return fieldTypeMap.value[type] ? fieldTypeMap.value[type]?.icon : 'bklog-icon bklog-unkown';
+      return fieldTypeMap.value[type]?.icon ?? 'bklog-icon bklog-unkown';
     };
 
     const getFieldIconColor = (type: string) => {
-      return fieldTypeMap.value[type] ? fieldTypeMap.value[type]?.color : '#EAEBF0';
+      return fieldTypeMap.value[type]?.color ?? '#EAEBF0';
     };
 
     const getFieldIconTextColor = (type: string) => {
