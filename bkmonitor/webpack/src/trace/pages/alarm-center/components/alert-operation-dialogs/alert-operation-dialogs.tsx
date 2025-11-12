@@ -24,12 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 
 import AlarmConfirmDialog from '../../common-detail/components/alarm-alert/alarm-confirm-dialog';
 import QuickShieldDialog from '../../common-detail/components/alarm-alert/quick-shield-dialog';
-import AlarmDispatch from '../../common-detail/components/alarm-info/alarm-dispatch';
-import { type AlarmShieldDetail, AlertAllActionEnum } from '../../typings';
+import AlarmDispatchDialog from '../../common-detail/components/alarm-info/alarm-dispatch-dialog';
+import ManualDebugStatusDialog from '../../common-detail/components/alarm-info/manual-debug-status-dialog';
+import ManualProcessDialog from '../../common-detail/components/alarm-info/manual-process-dialog';
+import { type AlertOperationDialogParams, AlertAllActionEnum } from '../../typings';
 
 export default defineComponent({
   name: 'AlertOperationDialogs',
@@ -49,14 +51,27 @@ export default defineComponent({
       type: String as PropType<AlertAllActionEnum>,
     },
     dialogParam: {
-      type: Object as PropType<AlarmShieldDetail[]>,
+      type: Object as PropType<AlertOperationDialogParams>,
     },
   },
   emits: {
     'update:show': (value: boolean) => typeof value === 'boolean',
   },
   setup(_props, { emit }) {
-    const handleSuccess = () => {};
+    /** 查看 手动处理 确认提交后的处理状态 dialog 的显示状态 */
+    const manualDebugShow = shallowRef(false);
+    /** 手动操作 提交后生成对应的事件ID(用于后续查看手动处理操作状态) */
+    const actionIds = shallowRef([]);
+    /** 手动操作 提交时所选择的处理套餐信息 */
+    const mealInfo = shallowRef(null);
+
+    /**
+     * @description dialog 操作成功后回调
+     */
+    const handleSuccess = () => {
+      // TODO: 逻辑待补充
+      console.log('AlertOperationDialogs-----handleSuccess');
+    };
     /**
      * @description dialog 显示状态切换回调
      * @param {boolean} v dialog 显示状态
@@ -64,9 +79,42 @@ export default defineComponent({
     const handleShowChange = v => {
       emit('update:show', v);
     };
+    /**
+     * @description 显示 查看 手动处理 确认提交后的处理状态 dialog
+     * @param value 手动操作 提交后生成对应的事件ID(用于后续查看手动处理操作状态)
+     */
+    const handleDebugStatus = (value: number[]) => {
+      actionIds.value = value;
+      manualDebugShow.value = true;
+    };
+    /**
+     * @description 手动操作 提交时所选择的处理套餐信息 修改回调
+     * @param {IAlarmMealInfo} value 手动操作 提交时所选择的处理套餐信息
+     */
+    const handleMealInfo = value => {
+      mealInfo.value = value;
+    };
+    /**
+     * @description 手动处理操作状态 dialog 显示状态切换回调
+     * @param {boolean} v 手动处理操作状态 dialog 显示状态
+     */
+    const handleManualDebugShowChange = (v: boolean) => {
+      if (!v) {
+        manualDebugShow.value = false;
+        mealInfo.value = null;
+        actionIds.value = [];
+      }
+      manualDebugShow.value = v;
+    };
     return {
+      manualDebugShow,
+      actionIds,
+      mealInfo,
       handleSuccess,
       handleShowChange,
+      handleDebugStatus,
+      handleMealInfo,
+      handleManualDebugShowChange,
     };
   },
   render() {
@@ -84,18 +132,35 @@ export default defineComponent({
         />
         <QuickShieldDialog
           alarmBizId={this.alarmBizId}
+          // authority={this.authority}
+          // handleShowAuthorityDetail={this.handleShowAuthorityDetail}
           alarmIds={this.alarmIds}
-          alarmShieldDetail={this.dialogParam}
+          alarmShieldDetail={this.dialogParam?.alarmShieldDetail ?? null}
           show={this.dialogType === AlertAllActionEnum.SHIELD && this.show}
           onSuccess={this.handleSuccess}
           onUpdate:show={this.handleShowChange}
         />
-        <AlarmDispatch
+        <AlarmDispatchDialog
           alarmBizId={this.alarmBizId}
           alarmIds={this.alarmIds}
           show={this.dialogType === AlertAllActionEnum.DISPATCH && this.show}
           // onSuccess={this.handleSuccess}
           onUpdate:show={this.handleShowChange}
+        />
+        <ManualProcessDialog
+          alarmBizId={this.alarmBizId}
+          alarmIds={this.alarmIds}
+          show={this.dialogType === AlertAllActionEnum.MANUAL_HANDLING && this.show}
+          onDebugStatus={this.handleDebugStatus}
+          onMealInfo={this.handleMealInfo}
+          onUpdate:show={this.handleShowChange}
+        />
+        <ManualDebugStatusDialog
+          v-model:show={this.manualDebugShow}
+          actionIds={this.actionIds}
+          alarmBizId={this.alarmBizId}
+          mealInfo={this.mealInfo}
+          onUpdate:show={this.handleManualDebugShowChange}
         />
       </div>
     );

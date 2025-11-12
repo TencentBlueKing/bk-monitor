@@ -450,6 +450,7 @@ export default defineComponent({
         <AlertOperationDialogs
           alarmBizId={this.alertDialogBizId}
           alarmIds={this.alertDialogIds}
+          dialogParam={this.alertDialogParam}
           dialogType={this.alertDialogType}
           show={this.alertDialogShow}
           onUpdate:show={this.handleAlertDialogHide}

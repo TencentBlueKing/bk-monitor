@@ -31,14 +31,23 @@ import { type TippyContent, type TippyOptions, useTippy } from 'vue-tippy';
 
 import type { Instance, Props as TProps } from 'tippy.js';
 
+export interface IUsePopoverOptions {
+  /** 显示延迟（默认 300 毫秒） */
+  showDelay?: number;
+  /** tippy 配置项（配置项可参考：https://vue-tippy.netlify.app/props） */
+  tippyOptions?: TippyOptions;
+}
 export type IUsePopoverTools = ReturnType<typeof usePopover>;
 export type IUseTippyInstance = ReturnType<typeof useTippy> & { instanceKey?: string };
 
 /**
+ * @method usePopover 单例 popover hooks
  * @description Popover 管理钩子（单例）
+ * @param {number} options.showDelay 显示延迟（默认 300 毫秒）
+ * @param {TippyOptions} options.tippyOptions tippy 默认配置项（配置项可参考：https://vue-tippy.netlify.app/props）
  * @returns Popover 控制方法
  */
-export function usePopover(popoverDefaultOptions: TippyOptions = {}) {
+export function usePopover(options: IUsePopoverOptions = { showDelay: 300, tippyOptions: {} }) {
   /** popover 实例 */
   const popoverInstance = shallowRef<IUseTippyInstance | null>(null);
   /** popover 延迟打开定时器 */
@@ -57,22 +66,22 @@ export function usePopover(popoverDefaultOptions: TippyOptions = {}) {
     onHidden: () => {
       hidePopover();
     },
-    ...popoverDefaultOptions,
+    ...(options?.tippyOptions ?? {}),
   };
 
   /**
    * @description 显示 Popover
    * @param target 目标元素
-   * @param content 弹窗内容
-   * @param instanceKey popover 实例唯一标识，用来判断是否连续同一元素触发，避免连续两次同一元素触发 关闭又打开 交互不好
-   * @param customOptions 自定义选项
+   * @param {TippyContent} content 弹窗内容
+   * @param {string} instanceKey popover 实例唯一标识，用来判断是否连续同一元素触发，避免连续两次同一元素触发 关闭又打开 交互不好
+   * @param {TippyOptions} customOptions 自定义 tippy 配置项（配置项可参考：https://vue-tippy.netlify.app/props）
    */
   function showPopover(e: MouseEvent, content: TippyContent, instanceKey?: string, customOptions?: TippyOptions);
   /**
    * @description 显示 Popover
    * @param target 目标元素
-   * @param content 弹窗内容
-   * @param customOptions 自定义选项
+   * @param {TippyContent} content 弹窗内容
+   * @param {TippyOptions} customOptions 自定义 tippy 配置项（配置项可参考：https://vue-tippy.netlify.app/props）
    */
   function showPopover(e: MouseEvent, content: TippyContent, customOptions?: TippyOptions);
   function showPopover(
@@ -117,7 +126,7 @@ export function usePopover(popoverDefaultOptions: TippyOptions = {}) {
         currentInstance?.hide?.();
         currentInstance?.destroy?.();
       }
-    }, 300);
+    }, options?.showDelay ?? 300);
   }
 
   /**

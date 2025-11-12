@@ -29,12 +29,13 @@ import { type MaybeRef, shallowRef } from 'vue';
 import { get } from '@vueuse/core';
 import { Message } from 'bkui-vue';
 
-import { type AlarmShieldDetail, type AlertTableItem, AlertAllActionEnum } from '../typings';
+import { type AlertOperationDialogParams, type AlertTableItem, AlertAllActionEnum } from '../typings';
 
 export type UseAlertDialogsReturnType = ReturnType<typeof useAlertDialogs>;
 
 /**
- * @description 告警场景所有操作事件 dialog 交互逻辑hook(配套 AlertOperationDialogs 组件使用)
+ * @method useAlertDialogs 告警场景所有操作事件dialog(告警确认、手动处理、快捷屏蔽....) 交互逻辑hook
+ * @description 配套 AlertOperationDialogs 组件使用
  */
 export const useAlertDialogs = (
   /** 原始数据 */
@@ -43,7 +44,7 @@ export const useAlertDialogs = (
   /** 是否显示dialog */
   const alertDialogShow = shallowRef(false);
   /** dialog类型 */
-  const alertDialogType = shallowRef<AlertAllActionEnum>(null);
+  const alertDialogType = shallowRef<AlertAllActionEnum>(undefined);
   /** 告警业务id */
   const alertDialogBizId = shallowRef<number>(
     (window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined
@@ -51,7 +52,7 @@ export const useAlertDialogs = (
   /** 告警id数组 */
   const alertDialogIds = shallowRef<string[]>([]);
   /** 各操作类型 dialog 私有参数 */
-  const alertDialogParam = shallowRef<AlarmShieldDetail[]>(null);
+  const alertDialogParam = shallowRef<AlertOperationDialogParams>(null);
 
   /**
    * @description 通过 告警id数组 从原始数据中获取操作数据对象数组
@@ -61,6 +62,42 @@ export const useAlertDialogs = (
   const getOperationalDataByIds = (ids: string[]) => {
     const set = new Set(ids);
     return get(originalData).filter(item => set.has(item.id));
+  };
+
+  /**
+   * @description 通过 操作数据对象数组 获取告警业务id数组
+   * @param {AlertTableItem[]} data 操作数据对象数组
+   * @returns {number[]} 告警业务id数组
+   */
+  const getBizIdByOperationalData = (data: AlertTableItem[]) => {
+    if (!data?.length) {
+      return [];
+    }
+    const set = new Set(data.map(item => item.bk_biz_id));
+    return Array.from(set);
+  };
+
+  /**
+   * @description 通过 dialog类型 获取各dialog私有参数
+   * @param {AlertAllActionEnum} dialogType dialog类型
+   * @param {AlertTableItem[]} data 操作数据对象数组
+   * @returns {AlertOperationDialogParams} dialog私有参数
+   */
+  const getDialogParamByDialogType = (dialogType: AlertAllActionEnum, data: AlertTableItem[]) => {
+    if (dialogType !== AlertAllActionEnum.SHIELD || !data?.length) return null;
+    return {
+      alarmShieldDetail: data.map(v => ({
+        severity: v.severity,
+        dimension: v.dimensions,
+        trigger: v.description,
+        alertId: v.id,
+        strategy: {
+          id: v?.strategy_id,
+          name: v?.strategy_name,
+        },
+        bkHostId: v.bk_host_id,
+      })),
+    };
   };
 
   /**
@@ -84,24 +121,20 @@ export const useAlertDialogs = (
       // 批量操作需要从原始数据中循环一遍获取
       operationalData = getOperationalDataByIds(ids);
     }
-    const params = operationalData?.reduce?.(
-      (prev, curr) => {
-        if (!prev.bizId.includes(curr.bk_biz_id)) {
-          prev.bizId.push(curr.bk_biz_id);
-        }
-        return prev;
-      },
-      { bizId: [], alertDialogParam: {} }
-    );
-    if (type !== AlertAllActionEnum.CHAT && params.bizId.length > 1) {
+
+    const bizIds = getBizIdByOperationalData(operationalData);
+    const dialogParam = getDialogParamByDialogType(type, operationalData);
+
+    if (type !== AlertAllActionEnum.CHAT && bizIds.length > 1) {
       Message({
         message: window.i18n.t('当前不能跨业务批量操作'),
         theme: 'warning',
       });
       return;
     }
-    alertDialogBizId.value = params.bizId[0];
+    alertDialogBizId.value = bizIds[0];
     alertDialogIds.value = ids;
+    alertDialogParam.value = dialogParam;
     alertDialogType.value = type;
     alertDialogShow.value = true;
   };
