@@ -250,7 +250,7 @@ export default defineComponent({
       if (event.key === '/' && !localValue.value && !['BK-WEWEB', 'INPUT'].includes(event.target?.tagName)) {
         handlePopUp(EQueryStringTokenType.key, '');
         setTimeout(() => {
-          queryStringEditor.value.editorEl?.focus?.();
+          (queryStringEditor.value.editorEl as HTMLInputElement)?.focus?.();
         }, 300);
         cleanup?.();
       }
@@ -321,10 +321,11 @@ export default defineComponent({
             class='retrieval-filter__qs-selector-component__popover'
           >
             <QsSelectorOptions
-              favoriteList={this.favoriteList}
+              favoriteList={this.isShowFavorite ? this.favoriteList : []}
               field={this.curTokenField}
               fields={this.fields}
               getValueFn={this.getValueFn}
+              isShowFavorite={this.isShowFavorite}
               queryString={this.localValue}
               search={this.search}
               show={this.showSelector}

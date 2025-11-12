@@ -149,7 +149,7 @@ export default defineComponent({
 - `defaultShowResidentBtn: boolean` 进入时是否默认展开常驻设置，默认 `false`。
 - `defaultResidentSetting: string[]` 默认常驻设置显示字段集合。
 - `placeholder: string` 输入占位文案，默认 `window.i18n.t('快捷键 / ，可直接输入')`。
-- `onlyUiMode: boolean` 是否仅保留 UI 模式（隐藏模式切换），默认 `false`。
+- `isSingleMode: boolean` 是否是单模式（隐藏模式切换），默认 `false`。
 - `whereFormatter: (where: any[]) => INormalWhere[]` 外部 → 内部格式化函数，默认原样返回。
 - `changeWhereFormatter: (where: INormalWhere[]) => any[]` 内部 → 外部格式化函数，默认原样返回。
 - `handleGetUserConfig: (key: string, config?: Record<string, any>) => Promise<string[] | undefined>` 常驻设置读取用户配置。

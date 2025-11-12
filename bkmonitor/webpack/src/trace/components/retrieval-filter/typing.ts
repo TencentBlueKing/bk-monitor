@@ -368,8 +368,8 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: String,
     default: window.i18n.t('快捷键 / ，可直接输入'),
   },
-  // 只包含ui模式
-  onlyUiMode: {
+  // 是否是单显示模式
+  isSingleMode: {
     type: Boolean,
     default: false,
   },
@@ -693,6 +693,11 @@ export const QS_SELECTOR_PROPS = {
     type: Number,
     default: 1000,
   },
+  // 是否展示收藏功能
+  isShowFavorite: {
+    type: Boolean,
+    default: true,
+  },
 };
 export const QS_SELECTOR_EMITS = {
   query: (_v?: string) => true,
@@ -734,6 +739,11 @@ export const QS_SELECTOR_OPTIONS_PROPS = {
   queryString: {
     type: String,
     default: '',
+  },
+  // 是否展示收藏功能
+  isShowFavorite: {
+    type: Boolean,
+    default: true,
   },
 };
 export const QS_SELECTOR_OPTIONS_EMITS = {
