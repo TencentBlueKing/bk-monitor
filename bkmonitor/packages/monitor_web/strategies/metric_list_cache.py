@@ -473,17 +473,32 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         custom_ts_result = api.metadata.query_time_series_group(
             bk_biz_id=self.bk_biz_id, bk_tenant_id=self.bk_tenant_id
         )
-        # 过滤插件数据，且已知插件的bk_biz_id都为 0，所以可以仅对 0 的数据做过滤，减少不必要的查询
-        if self.bk_biz_id == 0:
-            plugin_data = (
-                CollectorPluginMeta.objects.filter(bk_tenant_id=self.bk_tenant_id)
-                .exclude(plugin_type__in=[PluginType.SNMP_TRAP, PluginType.LOG, PluginType.PROCESS])
-                .values_list("plugin_type", "plugin_id")
-            )
-            db_name_list = [f"{plugin[0]}_{plugin[1]}".lower() for plugin in plugin_data]
 
-            # 通过 time_series_group_name 的生成规则过滤掉插件类型的数据
-            custom_ts_result = [i for i in custom_ts_result if i["time_series_group_name"] not in db_name_list]
+        # TODO: 重名怎么办？
+        # 需要排除其他场景产生的自定义指标
+        db_name_list = []
+        # 插件产生的自定义指标
+        plugin_data = (
+            CollectorPluginMeta.objects.filter(bk_tenant_id=self.bk_tenant_id)
+            .exclude(plugin_type__in=[PluginType.SNMP_TRAP, PluginType.LOG, PluginType.PROCESS])
+            .values_list("plugin_type", "plugin_id")
+        )
+
+        db_name_list.extend([f"{plugin[0]}_{plugin[1]}".lower() for plugin in plugin_data])
+        # process插件
+        db_name_list.extend(["process_perf", "process_port"])
+        # 拨测
+        db_name_list.extend(
+            [
+                f"uptimecheck_http_{self.bk_biz_id}",
+                f"uptimecheck_tcp_{self.bk_biz_id}",
+                f"uptimecheck_icmp_{self.bk_biz_id}",
+                f"uptimecheck_udp_{self.bk_biz_id}",
+            ]
+        )
+
+        # 通过 time_series_group_name 的生成规则过滤掉插件类型的数据
+        custom_ts_result = [i for i in custom_ts_result if i["time_series_group_name"] not in db_name_list]
 
         # 补充 APM 虚拟指标
         custom_ts_result = self.get_apm_extra_tables(custom_ts_result) + custom_ts_result
@@ -1216,21 +1231,18 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         if table["event_group_id"] != 0:
             dimensions_set = set()
             dimensions_set.add("event_name")
+            limit = 100
             for event_info in table["event_info_list"]:
-                if len(dimensions_set) >= 100:
+                # 合并维度与条件字段后统一处理，避免重复的长度判断
+                merged_fields = (event_info.get("dimension_list") or []) + (
+                    event_info.get("condition_field_list") or []
+                )
+                for field_name in merged_fields:
+                    dimensions_set.add(field_name)
+                    if len(dimensions_set) >= limit:
+                        break
+                if len(dimensions_set) >= limit:
                     break
-                # 处理维度字段
-                if event_info.get("dimension_list"):
-                    for dimension in event_info["dimension_list"]:
-                        if len(dimensions_set) >= 100:
-                            break
-                        dimensions_set.add(dimension)
-                # 处理条件字段
-                if event_info.get("condition_field_list"):
-                    for condition in event_info["condition_field_list"]:
-                        if len(dimensions_set) >= 100:
-                            break
-                        dimensions_set.add(condition)
 
             dimensions = [{"id": dimension, "name": dimension} for dimension in dimensions_set]
 

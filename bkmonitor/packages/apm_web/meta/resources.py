@@ -62,14 +62,8 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.db_handler import DbComponentHandler
 from apm_web.handlers.endpoint_handler import EndpointHandler
 from apm_web.handlers.instance_handler import InstanceHandler
-from apm_web.handlers.metric_group import MetricHelper
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
-from apm_web.handlers.strategy_group import (
-    BaseStrategyGroup,
-    GroupType,
-    StrategyGroupRegistry,
-)
 from apm_web.icon import get_icon
 from apm_web.meta.handlers.custom_service_handler import Matcher
 from apm_web.meta.handlers.sampling_handler import SamplingHelpers
@@ -115,6 +109,9 @@ from apm_web.service.serializers import (
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import get_interval_number, span_time_strft
+from apm_web.strategy.handler import StrategyTemplateHandler
+from apm_web.models import StrategyTemplate
+from apm_web.strategy.constants import StrategyTemplateSystem, StrategyTemplateType
 from bkm_space.api import SpaceApi
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.share.api_auth_resource import ApiAuthResource
@@ -2189,18 +2186,9 @@ class ApplyStrategiesToServicesResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务id", required=False)
         space_uid = serializers.CharField(label="空间唯一标识", required=False)
         app_name = serializers.CharField(label="应用名称", max_length=50)
-        group_type = serializers.ChoiceField(label="策略组类型", choices=GroupType.choices())
-        apply_types = serializers.ListSerializer(
-            label="策略类型列表", child=serializers.CharField(label="策略类型"), required=False, default=[]
-        )
         apply_services = serializers.ListSerializer(
             label="服务列表", child=serializers.CharField(label="服务"), required=False, default=[]
         )
-        notice_group_ids = serializers.ListSerializer(
-            label="告警组 ID 列表", child=serializers.IntegerField(label="告警组 ID"), required=False, default=[]
-        )
-        config = serializers.CharField(label="配置文本", default="{}")
-        options = serializers.DictField(label="配置", required=False)
 
         def validate(self, attrs):
             bk_biz_id: int | None = attrs.get("bk_biz_id")
@@ -2211,28 +2199,28 @@ class ApplyStrategiesToServicesResource(Resource):
             # space_uid to bk_biz_id
             if space_uid:
                 attrs["bk_biz_id"] = SpaceApi.get_space_detail(space_uid=space_uid).bk_biz_id
-
-            try:
-                attrs["options"] = json.loads(attrs.get("config") or "{}")
-            except (TypeError, json.JSONDecodeError):
-                raise ValueError(_("配置解析错误，必须是合法 JSON 字符串"))
             return attrs
 
     def perform_request(self, validated_request_data):
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
 
-        group: BaseStrategyGroup = StrategyGroupRegistry.get(
-            GroupType.RPC.value,
-            bk_biz_id,
-            app_name,
-            metric_helper=MetricHelper(bk_biz_id, app_name),
-            notice_group_ids=validated_request_data.get("notice_group_ids") or [],
-            apply_types=validated_request_data["apply_types"],
-            apply_services=validated_request_data["apply_services"],
-            options=validated_request_data["options"],
+        strategy_templates = list(
+            StrategyTemplate.objects.filter(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                system__in=[StrategyTemplateSystem.RPC.value, StrategyTemplateSystem.K8S.value],
+                type=StrategyTemplateType.BUILTIN_TEMPLATE.value,
+                is_enabled=True,
+            )
         )
-        group.apply()
+        StrategyTemplateHandler.apply(
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
+            service_names=validated_request_data["apply_services"],
+            strategy_templates=strategy_templates,
+            raise_exception=False,
+        )
 
         return {}
 

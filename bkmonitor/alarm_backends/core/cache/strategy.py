@@ -112,7 +112,7 @@ class StrategyCacheManager(CacheManager):
         if target["value"]:
             is_invalid_template = True
             for node in target["value"]:
-                result = cache_manager.mget(bk_tenant_id=node["bk_tenant_id"], ids=[node["bk_inst_id"]])
+                result = cache_manager.mget(bk_tenant_id=bk_tenant_id, ids=[node["bk_inst_id"]])
                 instances = [instance for instance in result.values() if instance]
                 if instances:
                     is_invalid_template = False

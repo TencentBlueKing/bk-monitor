@@ -256,8 +256,8 @@ class HostShielder(BaseShielder):
     def _is_matched(self):
         if getattr(self.alert.event, "target_type", None) == "HOST":
             using_api = False
-            ip = str(self.alert.event.ip)
-            bk_cloud_id = str(self.alert.event.bk_cloud_id)
+            ip = str(getattr(self.alert.event, "ip", ""))
+            bk_cloud_id = str(getattr(self.alert.event, "bk_cloud_id", "0"))
         elif "bcs_cluster_id" in getattr(self.alert.extra_info, "agg_dimensions", []):
             # 容器可补全IP告警
             dimension_dict = {dimension["key"]: dimension["value"] for dimension in self.alert.dimensions}
@@ -273,7 +273,8 @@ class HostShielder(BaseShielder):
         else:
             # 不是host类型告警也不是容器相关的，忽略，不做判断
             return False
-        bk_cloud_id = int(bk_cloud_id)
+
+        bk_cloud_id = int(bk_cloud_id or 0)
         host = HostManager.get(
             bk_tenant_id=str(self.alert.bk_tenant_id),
             ip=ip,

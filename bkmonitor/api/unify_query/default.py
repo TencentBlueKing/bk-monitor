@@ -17,6 +17,7 @@ import requests
 from django.conf import settings
 from rest_framework import serializers
 
+from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid, parse_space_uid
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request, get_request_tenant_id
@@ -90,6 +91,10 @@ class UnifyQueryAPIResource(Resource):
             space_uid = bk_biz_id_to_space_uid(request.biz_id)
 
         url = urljoin(get_unify_query_url(space_uid), self.path.format(**params))
+        is_global = False
+        if space_uid:
+            space = SpaceApi.get_space_detail(space_uid=space_uid)
+            is_global = space.is_global if space else is_global
 
         # 记录查询来源
         source = "backend"
@@ -99,7 +104,7 @@ class UnifyQueryAPIResource(Resource):
             source = f"strategy:{local.strategy_id}"
 
         requests_params = {"method": self.method, "url": url, "headers": {"Bk-Query-Source": source}}
-        if space_uid is None:
+        if space_uid is None or is_global:
             # 跨业务查询
             requests_params["headers"]["X-Bk-Scope-Skip-Space"] = settings.APP_CODE
         elif space_uid:
@@ -154,6 +159,7 @@ class QueryDataResource(UnifyQueryAPIResource):
         down_sample_range = serializers.CharField(allow_blank=True)
         timezone = serializers.CharField(required=False)
         instant = serializers.BooleanField(required=False)
+        not_time_align = serializers.BooleanField(label="是否不对齐时间窗口", required=False, default=False)
 
 
 class QueryRawResource(UnifyQueryAPIResource):

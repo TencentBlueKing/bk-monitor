@@ -12,6 +12,7 @@ from django_elasticsearch_dsl.registries import registry
 from elasticsearch_dsl import field
 
 from bkmonitor.documents.base import BaseDocument, Date
+from bkmonitor.documents.constants import ES_INDEX_SETTINGS
 from core.errors.alert import EventNotFoundError
 
 
@@ -110,4 +111,4 @@ class EventDocument(BaseDocument):
 
     class Index:
         name = "bkfta_event"
-        settings = {"number_of_shards": 3, "number_of_replicas": 1, "refresh_interval": "1s"}
+        settings = ES_INDEX_SETTINGS.copy()

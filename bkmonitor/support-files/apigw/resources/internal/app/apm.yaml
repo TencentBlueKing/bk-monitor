@@ -1115,3 +1115,4 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query bk data token by id
+        descriptionEn: "list trace view config"

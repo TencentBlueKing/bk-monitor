@@ -426,7 +426,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
             <div class='app-list-search'>
               <bk-input
                 v-model={this.searchCondition}
-                placeholder={this.$t('应用名或ID')}
+                placeholder={this.$t('搜索 应用名、ID')}
                 right-icon='bk-icon icon-search'
                 clearable
                 show-clear-only-hover

@@ -28,6 +28,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
+from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE
 from metadata.utils.basic import getitems
 
@@ -79,7 +80,7 @@ class ResultTable(models.Model):
     # TABLE_NAME是具体指标集合，例如cpu, mem等
     id = models.BigAutoField(primary_key=True)
     table_id = models.CharField("结果表名", db_index=True, max_length=128)
-    bk_tenant_id = models.CharField("租户ID", max_length=256, null=True, default="system")
+    bk_tenant_id: str = models.CharField("租户ID", max_length=256, null=True, default="system")  # pyright: ignore [reportAssignmentType]
     table_name_zh = models.CharField("结果表中文名", max_length=128)
     is_custom_table = models.BooleanField("是否自定义结果表")
     schema_type = models.CharField("schema配置方案", max_length=64, choices=SCHEMA_TYPE_CHOICES)
@@ -97,7 +98,7 @@ class ResultTable(models.Model):
     # 数据表标签，默认是其他类型
     label = models.CharField(verbose_name="结果表标签", max_length=128, default=Label.RESULT_TABLE_LABEL_OTHER)
     # 数据标签
-    data_label = models.CharField("数据标签", max_length=128, default="", null=True, blank=True)
+    data_label: str = models.CharField("数据标签", max_length=128, default="", null=True, blank=True)  # pyright: ignore [reportAssignmentType]
     is_builtin = models.BooleanField("是否内置", default=False)
     bk_biz_id_alias = models.CharField("业务ID别名", max_length=128, default="", null=True, blank=True)
 
@@ -105,9 +106,6 @@ class ResultTable(models.Model):
         verbose_name = "逻辑结果表"
         verbose_name_plural = "逻辑结果表"
         unique_together = ("table_id", "bk_tenant_id")
-
-    def refresh_datasource(self):
-        pass
 
     @classmethod
     def refresh_consul_influxdb_tableinfo(cls):
@@ -277,6 +275,39 @@ class ResultTable(models.Model):
         )
         return table_id_cutter
 
+    def get_related_datasource(self) -> DataSource:
+        """获取结果表相关的数据源"""
+        if getattr(self, "_related_datasource", None) is not None:
+            return getattr(self, "_related_datasource")
+        dsrt = DataSourceResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+        related_datasource = DataSource.objects.get(bk_data_id=dsrt.bk_data_id, bk_tenant_id=self.bk_tenant_id)
+        setattr(self, "_related_datasource", related_datasource)
+        return related_datasource
+
+    def get_target_bk_biz_id(self) -> int:
+        """获取结果表所属业务ID"""
+        datasource = self.get_related_datasource()
+
+        target_bk_biz_id = self.bk_biz_id
+        if target_bk_biz_id == 0:
+            from .custom_report import EventGroup, TimeSeriesGroup  # noqa
+
+            if TimeSeriesGroup.objects.filter(
+                bk_data_id=datasource.bk_data_id, bk_tenant_id=self.bk_tenant_id
+            ).exists():
+                # 自定义时序指标，查找所属空间
+                target_bk_biz_id = datasource.data_name.split("_")[0]
+            elif EventGroup.objects.filter(bk_data_id=datasource.bk_data_id, bk_tenant_id=self.bk_tenant_id).exists():
+                # 自定义事件，查找所属空间
+                target_bk_biz_id = datasource.data_name.split("_")[-1]
+            try:
+                # 不符合要求的data_name，无法解析业务字段，使用默认全局业务。
+                target_bk_biz_id = int(target_bk_biz_id)
+            except (ValueError, TypeError):
+                target_bk_biz_id = 0
+
+        return target_bk_biz_id
+
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
     def create_result_table(
@@ -333,7 +364,7 @@ class ResultTable(models.Model):
         :param bk_biz_id_alias: 结果表所属业务名称
         :return: result_table instance | raise Exception
         """
-        from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
+        bk_biz_id = int(bk_biz_id)
 
         logger.info(
             "create_result_table: start to create result table for bk_data_id->[%s],table_id->[%s],bk_biz_id->[%s],"
@@ -362,16 +393,6 @@ class ResultTable(models.Model):
             logger.error("create_result_table: bk_data_id->[%s] is not exists, nothing will do.", bk_data_id)
             raise ValueError(_("数据源ID不存在，请确认"))
 
-        # 非系统创建的结果表，不可以使用容器监控的表前缀名
-        if operator != "system" and table_id.startswith(config.BCS_TABLE_ID_PREFIX):
-            logger.error(
-                "create_result_table: operator->[%s] try to create table->[%s] which is reserved prefix, nothing will "
-                "do.",
-                operator,
-                table_id,
-            )
-            raise ValueError(_("结果表ID不可以是%s开头，请确认后重试") % config.BCS_TABLE_ID_PREFIX)
-
         # Q: 为什么不在结果表生成时,在table_id中拼接租户属性，从而做到结果表全局唯一？
         # A: 外部导入的插件,如redis_exporter、mongodb_exporter以及一些内置采集,结果表命名相对固定,使用额外字段过滤更为稳定安全
         if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
@@ -382,8 +403,7 @@ class ResultTable(models.Model):
             )
             raise ValueError(_("结果表ID在租户下已经存在，请确认"))
 
-        # 全业务的结果表，不可以已数字下划线开头
-        if str(bk_biz_id) == "0":
+        if bk_biz_id == 0:
             # 全业务的结果表，不可以已数字下划线开头
             if re.match(r"\d+_", table_id):
                 logger.error(
@@ -397,38 +417,50 @@ class ResultTable(models.Model):
                 )
                 raise ValueError(_("全业务结果表不可以数字及下划线开头，请确认后重试"))
 
-        if data_label is None:
-            data_label = ""
+            # 如果数据源不是平台级数据源，则设置为平台级数据源
+            if not datasource.is_platform_data_id:
+                datasource.is_platform_data_id = True
+                datasource.save()
 
-        # 1.5 新增datasource 的所属空间关联校验
+        # 2. 创建逻辑结果表内容
+        result_table = cls.objects.create(
+            table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
+            table_name_zh=table_name_zh,
+            is_custom_table=is_custom_table,
+            schema_type=schema_type,
+            default_storage=default_storage,
+            creator=operator,
+            last_modify_user=operator,
+            bk_biz_id=bk_biz_id,
+            label=label,
+            data_label=data_label or "",
+            is_builtin=is_builtin,
+            bk_biz_id_alias=bk_biz_id_alias,
+        )
+
+        # 2.1 创建data_id和该结果表的关系
+        DataSourceResultTable.objects.create(
+            bk_data_id=bk_data_id, table_id=table_id, creator=operator, bk_tenant_id=bk_tenant_id
+        )
+        logger.info(
+            f"create_result_table: result_table->[{result_table}] now has relate to bk_data->[{bk_data_id}],bk_tenant_id->[{bk_tenant_id}]"
+        )
+
+        # 3. 新增datasource 的所属空间关联校验
         # 默认归属"bkcc__0"空间
         # 初始值设为传递的值
-        target_bk_biz_id = int(bk_biz_id)
-        if target_bk_biz_id == 0:
-            datasource.is_platform_data_id = True
-            datasource.save()
-            from .custom_report import EventGroup, TimeSeriesGroup  # noqa
-
-            if TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists():
-                # 自定义时序指标，查找所属空间
-                target_bk_biz_id = datasource.data_name.split("_")[0]
-            elif EventGroup.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists():
-                # 自定义事件，查找所属空间
-                target_bk_biz_id = datasource.data_name.split("_")[-1]
-            try:
-                # 不符合要求的data_name，无法解析业务字段，使用默认全局业务。
-                target_bk_biz_id = int(target_bk_biz_id)
-            except (ValueError, TypeError):
-                target_bk_biz_id = 0
-        # 当业务不为 0 时，才进行空间和数据源的关联
-        # 因为不会存在部分创建失败的情况，所以，仅在创建时处理即可
-        space_type, space_id = None, None
+        target_bk_biz_id = result_table.get_target_bk_biz_id()
         logger.info(
             "create_result_table: target_bk_biz_id->[%s],table_id->[%s],bk_data_id->[%s]",
             target_bk_biz_id,
             table_id,
             bk_data_id,
         )
+
+        # 当归属业务不为 0 时，才进行空间和数据源的关联
+        # 因为不会存在部分创建失败的情况，所以，仅在创建时处理即可
+        space_type, space_id = None, None
         if target_bk_biz_id != 0:
             try:
                 from metadata.models import Space
@@ -461,23 +493,6 @@ class ResultTable(models.Model):
                     bk_tenant_id,
                     e,
                 )
-
-        # 2. 创建逻辑结果表内容
-        result_table = cls.objects.create(
-            table_id=table_id,
-            bk_tenant_id=bk_tenant_id,
-            table_name_zh=table_name_zh,
-            is_custom_table=is_custom_table,
-            schema_type=schema_type,
-            default_storage=default_storage,
-            creator=operator,
-            last_modify_user=operator,
-            bk_biz_id=bk_biz_id,
-            label=label,
-            data_label=data_label,
-            is_builtin=is_builtin,
-            bk_biz_id_alias=bk_biz_id_alias,
-        )
 
         # TODO: 短期内需要创建SpaceTypeToResultTableFilterAlias记录对应的bk_biz_id_alias,待空间路由整体优化后统一下沉到ResultTable
         if bk_biz_id_alias:
@@ -526,25 +541,14 @@ class ResultTable(models.Model):
             )
         result_table.bulk_create_fields(field_list, is_etl_refresh=False, is_force_add=True, bk_tenant_id=bk_tenant_id)
 
-        # 4. 创建data_id和该结果表的关系
-        DataSourceResultTable.objects.create(
-            bk_data_id=bk_data_id, table_id=table_id, creator=operator, bk_tenant_id=bk_tenant_id
-        )
-        logger.info(
-            f"create_result_table: result_table->[{result_table}] now has relate to bk_data->[{bk_data_id}],bk_tenant_id->[{bk_tenant_id}]"
-        )
-
-        # 5. 创建实际结果表
-        if default_storage_config is None:
-            default_storage_config = {}
-
+        # 5. 创建存储记录
         # 如果实际创建数据库失败，会有异常抛出，则所有数据统一回滚
         # NOTE: 添加参数标识是否创建存储，以便于可以兼容不需要存储或者已经存在的场景
         if create_storage:
             result_table.check_and_create_storage(
                 is_sync_db=is_sync_db,
                 external_storage=external_storage,
-                default_storage_config=default_storage_config,
+                default_storage_config=default_storage_config or {},
                 bk_tenant_id=bk_tenant_id,
             )
 
@@ -552,57 +556,79 @@ class ResultTable(models.Model):
         if not is_sync_db:
             return result_table
 
-        # 判断是否需要刷新consul
-        need_refresh_consul = True
-        if default_storage == ClusterInfo.TYPE_INFLUXDB:
+        # 应用数据链路
+        result_table.apply_datalink()
+
+        return result_table
+
+    def delete_datalink(self) -> None:
+        """删除数据链路及对应的关联记录"""
+        from metadata.models.data_link.data_link import DataLink
+
+        # 查询结果表对应的Datalink
+        records = BkBaseResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, monitor_table_id=self.table_id)
+        if not records:
+            logger.info("delete_datalink: tenant(%s) %s no bkbase record found", self.bk_tenant_id, self.table_id)
+            return
+
+        # 删除数据链路及对应的关联记录
+        for record in records:
+            data_link_name = record.data_link_name
+            DataLink.objects.get(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).delete_data_link()
+            record.delete()
+
+    def apply_datalink(self) -> None:
+        """创建数据链路"""
+        from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
+        from metadata.task.datalink import apply_log_datalink
+        from metadata.task.tasks import access_bkdata_vm
+
+        # 获取数据源ID
+        datasource = self.get_related_datasource()
+
+        # 获取目标业务ID
+        target_bk_biz_id = self.get_target_bk_biz_id()
+
+        # 获取结果表配置项
+        options = {
+            option.name: option.get_value()
+            for option in ResultTableOption.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+        }
+
+        # 如果是
+        refresh_consul_config = True
+        if self.default_storage == ClusterInfo.TYPE_INFLUXDB:
             # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路
             # 2. 如果启用了新版数据链路，且etcl_config在启用的列表中，则使用vm存储，
             is_v4_datalink_etl_config = datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
                 # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
                 # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
-
-                # 不使用transfer
-                need_refresh_consul = False
+                refresh_consul_config = False
                 try:
-                    from metadata.task.tasks import access_bkdata_vm
-
                     access_bkdata_vm.delay(
-                        bk_tenant_id,
-                        int(target_bk_biz_id),
-                        table_id,
+                        self.bk_tenant_id,
+                        target_bk_biz_id,
+                        self.table_id,
                         datasource.bk_data_id,
-                        space_type,
-                        space_id,
                         is_v4_datalink_etl_config,
                     )
                 except Exception as e:  # pylint: disable=broad-except
                     logger.error("create_result_table: access vm error: %s", e)
-        elif default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
-            if option and option.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
-                from metadata.task.datalink import apply_log_datalink
+        elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
+            # 如果存在日志V4数据链路配置，则创建日志V4数据链路
+            if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
+                refresh_consul_config = False
+                apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+        else:
+            # 不支持的存储和选项组合
+            logger.error(
+                f"create_result_table: not support storage and option, storage: {self.default_storage}, options: {options}"
+            )
 
-                # 不使用transfer
-                need_refresh_consul = False
-                apply_log_datalink(bk_tenant_id=bk_tenant_id, table_id=table_id)
-            elif default_storage == ClusterInfo.TYPE_ES:
-                # 因为多个事务嵌套，针对 ES 的操作放在最后执行
-                try:
-                    es_storage = ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
-                    on_commit(lambda: es_storage.create_es_index(is_sync_db=is_sync_db))
-                except Exception as e:  # pylint: disable=broad-except
-                    logger.error("create_result_table: create es storage index error, %s", e)
-            else:
-                # 不支持的存储和选项组合
-                logger.error(
-                    f"create_result_table: not support storage and option, storage: {default_storage}, option: {option}"
-                )
-
-        # 更新consul配置(transfer)
-        if need_refresh_consul:
-            result_table.refresh_etl_config()
-
-        return result_table
+        # 更新数据源依赖的 consul
+        if refresh_consul_config:
+            datasource.refresh_consul_config()
 
     def check_and_create_storage(
         self,
@@ -860,8 +886,6 @@ class ResultTable(models.Model):
             logger.error(f"storage->[{storage}] now is not supported.")
             raise ValueError(_("存储[{}]暂不支持，请确认后重试").format(self.default_storage))
 
-        if self.default_storage == ClusterInfo.TYPE_ES:
-            storage_config["enable_create_index"] = False
         real_storage.create_table(
             table_id=self.table_id, bk_tenant_id=bk_tenant_id, is_sync_db=is_sync_db, **storage_config
         )
@@ -906,8 +930,8 @@ class ResultTable(models.Model):
         field_data: list[dict[str, Any]],
         is_etl_refresh: bool | None = True,
         is_force_add: bool | None = False,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
-    ) -> True:
+        bk_tenant_id: str = DEFAULT_TENANT_ID,
+    ) -> bool:
         """批量创建新的字段
 
         # 按照下面步骤执行
@@ -1266,7 +1290,6 @@ class ResultTable(models.Model):
         for ex_storage_type, ex_storage_config in list(external_storage.items()):
             try:
                 ex_storage = self.REAL_STORAGE_DICT[ex_storage_type]
-
             except KeyError:
                 logger.error(
                     "try to set storage->[%s] for table->[%s] of bk_tenant_id->[%s] but storage is not exists.",
@@ -1382,7 +1405,6 @@ class ResultTable(models.Model):
         self.save()
 
         # 异步执行时，需要在commit之后，以保证所有操作都提交
-        # TODO：多租户改造--路由推送是否需要携带租户信息
         try:
             from metadata.models.space.utils import get_space_by_table_id
             from metadata.task.tasks import push_and_publish_space_router
@@ -1399,8 +1421,12 @@ class ResultTable(models.Model):
         except Exception as e:  # pylint: disable=broad-except
             logger.error("push and publish redis error, table_id: %s, %s", self.table_id, e)
 
-        # 刷新清洗配置
-        self.refresh_etl_config()
+        # 如果结果表启用，则刷新清洗配置
+        if self.is_enable:
+            self.apply_datalink()
+        else:
+            self.delete_datalink()
+
         logger.info("table_id->[%s] of bk_tenant_id->[%s] updated success.", self.table_id, self.bk_tenant_id)
 
     # TODO: 多租户 计算平台关联接口，暂未改造
@@ -1411,7 +1437,7 @@ class ResultTable(models.Model):
         @param data_id: 数据源ID
         """
         try:
-            api.bkdata.notify_log_data_id_changed(data_id=data_id)
+            api.bkdata.notify_log_data_id_changed(bk_tenant_id=self.bk_tenant_id, data_id=data_id)
             logger.info(
                 f"notify_log_data_id_changed table_id->{self.table_id},data_id ->{data_id},notify es config changed success."
             )
@@ -1645,7 +1671,9 @@ class ResultTable(models.Model):
     def to_json(self):
         query_alias_settings = None
         if self.default_storage == ClusterInfo.TYPE_ES:
-            query_alias_settings = ESFieldQueryAliasOption.generate_query_alias_settings(self.table_id)
+            query_alias_settings = ESFieldQueryAliasOption.generate_query_alias_settings(
+                bk_tenant_id=self.bk_tenant_id, table_id=self.table_id
+            )
         data = {
             "table_id": self.table_id,
             "bk_tenant_id": self.bk_tenant_id,
@@ -3146,7 +3174,7 @@ class ESFieldQueryAliasOption(BaseModel):
     is_deleted = models.BooleanField("是否已删除", default=False)
 
     @classmethod
-    def generate_query_alias_settings(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
+    def generate_query_alias_settings(cls, table_id: str, bk_tenant_id: str):
         """
         生成指定 table_id 的别名配置
         :param table_id: 结果表ID
@@ -3183,37 +3211,6 @@ class ESFieldQueryAliasOption(BaseModel):
                 str(e),
                 exc_info=True,
             )
-            raise
-
-    @classmethod
-    def generate_alias_path_type_settings(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
-        """
-        生成指定table_id的别名路径类型配置
-        :param table_id: 结果表ID
-        :param bk_tenant_id: 租户ID
-        :return: dict -> {field_path: path_type}
-        """
-        try:
-            alias_records = cls.objects.filter(table_id=table_id, is_deleted=False, bk_tenant_id=bk_tenant_id)
-
-            # 获取ResultTableField中的所有field_name
-            existing_field_names = set(
-                ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values_list(
-                    "field_name", flat=True
-                )
-            )
-
-            path_type_map = {
-                record.field_path: {
-                    "type": record.path_type,
-                }
-                for record in alias_records
-                if record.field_path
-                not in existing_field_names  # 只包括那些field_path不在ResultTableField中作为field_name的记录
-            }
-            return path_type_map
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("Error generating alias path type configuration for table_id->[%s],error->[%s]", table_id, e)
             raise
 
     @staticmethod

@@ -597,3 +597,12 @@ export function setLocalStoreRoute(id: string) {
   list.add(id);
   localStorage.setItem(LOCAL_COMMON_ROUTE_STORE_KEY, JSON.stringify(Array.from(list)));
 }
+
+/**
+ * @description: 获取路由根名称
+ * @param id 路由id
+ * @returns 路由根名称
+ */
+export const getRouteRootName = (id: string) => {
+  return COMMON_ROUTE_LIST.find(item => item.id === id || item?.children?.some(set => set.id === id))?.name;
+};

@@ -2092,6 +2092,21 @@ class DeleteResultTableSnapshotResource(Resource):
         return validated_request_data
 
 
+class RetryResultTableSnapshotResource(Resource):
+    """
+    重试es快照配置
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        table_id = serializers.CharField(required=True, label="结果表ID")
+        is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+
+    def perform_request(self, validated_request_data):
+        models.EsSnapshot.retry_snapshot(**validated_request_data)
+        return validated_request_data
+
+
 class ListResultTableSnapshotResource(Resource):
     """
     Es结果表快照列表
@@ -2151,6 +2166,19 @@ class GetResultTableSnapshotStateResource(Resource):
         return models.EsSnapshot.batch_get_state(
             bk_tenant_id=validated_request_data["bk_tenant_id"], table_ids=validated_request_data["table_ids"]
         )
+
+
+class GetResultTableSnapshotRecentStateResource(Resource):
+    """
+    Es结果表最近一次快照状态
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        table_ids = serializers.ListField(required=True, label="结果表ids")
+
+    def perform_request(self, validated_request_data):
+        return models.EsSnapshot.batch_get_recent_state(**validated_request_data)
 
 
 class RestoreResultTableSnapshotResource(Resource):
@@ -2213,6 +2241,23 @@ class DeleteRestoreResultTableSnapshotResource(Resource):
         return validated_request_data
 
 
+class RetryRestoreResultTableSnapshotResource(Resource):
+    """
+    快照恢复重试接口
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        restore_id = serializers.IntegerField(required=True, label="快照恢复任务id")
+        operator = serializers.CharField(required=True, label="操作者")
+        indices = serializers.ListField(required=False, label="重试索引列表", default=[])
+        is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
+        is_force = serializers.BooleanField(required=False, label="是否强制重试", default=False)
+
+    def perform_request(self, validated_request_data):
+        return models.EsSnapshotRestore.retry_restore(**validated_request_data)
+
+
 class ListRestoreResultTableSnapshotResource(Resource):
     """
     快照恢复任务list接口
@@ -2243,6 +2288,19 @@ class GetRestoreResultTableSnapshotStateResource(Resource):
         return models.EsSnapshotRestore.batch_get_state(
             bk_tenant_id=validated_request_data["bk_tenant_id"], restore_ids=validated_request_data["restore_ids"]
         )
+
+
+class GetRestoreResultTableSnapshotIndicesResource(Resource):
+    """
+    快照回溯任务索引回溯详情
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        restore_ids = serializers.ListField(required=True, label="快照回溯任务ids")
+
+    def perform_request(self, validated_request_data):
+        return models.EsSnapshotRestore.batch_get_indices(**validated_request_data)
 
 
 class EsRouteResource(Resource):
@@ -2305,6 +2363,8 @@ class KafkaTailResource(Resource):
             table_id = validated_request_data["table_id"]
             logger.info("KafkaTailResource: got table_id->[%s],try to tail kafka", table_id)
             result_table = models.ResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+            if not result_table:
+                return []
             datasource = result_table.data_source
 
         size = validated_request_data["size"]

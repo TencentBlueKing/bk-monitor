@@ -292,7 +292,7 @@ var Hchart = {
                     marker: {
                         threshold: 0,
                         symbol: 'circle',
-                        radius: 0,
+                        radius: 1,
                         enabled: true
                     }
                 },

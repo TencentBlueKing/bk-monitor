@@ -44,6 +44,7 @@ class CreateChatSessionSerializer(serializers.Serializer):
     session_code = serializers.CharField(label=_("会话代码"))
     session_name = serializers.CharField(label=_("会话名称"))
     agent_code = serializers.CharField(label=_("Agent代码"), default=settings.BK_AIDEV_AGENT_APP_CODE)
+    is_temporary = serializers.BooleanField(label="是否是临时会话", required=False, default=False)
 
 
 class UpdateChatSessionSerializer(serializers.Serializer):

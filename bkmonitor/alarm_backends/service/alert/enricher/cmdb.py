@@ -63,9 +63,11 @@ class CMDBEnricher(BaseEventEnricher):
             )
 
         # 根据IP+云区域ID获取主机
-        self.hosts_cache: dict[str, dict[str, Host]] = {}
-        for bk_tenant_id, hosts in tenant_hosts.items():
-            hosts = list(hosts) + [host for host in chain(*list(self.ip_cache[bk_tenant_id].values()))]
+        self.hosts_cache: dict[str, dict[str, Host]] = defaultdict(dict)
+        for bk_tenant_id in set(tenant_hosts.keys()) | set(self.ip_cache.keys()):
+            hosts = list(tenant_hosts.get(bk_tenant_id, [])) + [
+                host for host in chain(*list(self.ip_cache[bk_tenant_id].values()))
+            ]
             self.hosts_cache[bk_tenant_id] = HostManager.mget(bk_tenant_id=bk_tenant_id, host_keys=hosts)
 
     def get_host_by_ip(self, bk_tenant_id: str, ip: str):
@@ -146,6 +148,8 @@ class CMDBEnricher(BaseEventEnricher):
                         event.drop()
                         return event
                     host = h
+            if not host:
+                logger.warning("[enrich_host] host not found for event(%s) target(%s)", event.id, event.target)
             event.set("target", f"{ip}|{bk_cloud_id}")
         else:
             # 存在IP和云区域
@@ -155,6 +159,7 @@ class CMDBEnricher(BaseEventEnricher):
 
         # 主机信息找不到
         if not host:
+            # logger.warning("[enrich_host] host not found for event(%s) target(%s)", event.id, event.target)
             if event.bk_biz_id is None:
                 # 如果事件也没有提供业务，则丢弃
                 logger.warning("[enrich_host] biz is empty for host target(%s)", event.target)

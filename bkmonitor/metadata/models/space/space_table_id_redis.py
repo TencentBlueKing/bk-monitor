@@ -138,7 +138,7 @@ class SpaceTableIDRedis:
         data_label_list: list | None = None,
         table_id_list: list | None = None,
         is_publish: bool | None = False,
-        bk_tenant_id: str | None = DEFAULT_TENANT_ID,
+        bk_tenant_id: str = DEFAULT_TENANT_ID,
     ):
         """推送 data_label 及对应的结果表"""
         logger.info(
