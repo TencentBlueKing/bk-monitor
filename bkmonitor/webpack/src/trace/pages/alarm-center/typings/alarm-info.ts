@@ -24,23 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-export const DiagnosticTypeEnum = {
-  DIMENSION: 'dimension',
-  LINK: 'link',
-  LOG: 'log',
-  EVENT: 'event',
-} as const;
+export interface DebugStatusData {
+  content?: { action_plugin_type: string; text: string; url: string };
+  is_finished?: boolean;
+  status?: '' | 'failure' | 'received' | 'running' | 'success';
+}
 
-export const DiagnosticTypeMap = {
-  [DiagnosticTypeEnum.DIMENSION]: window.i18n.t('可疑维度'),
-  [DiagnosticTypeEnum.LINK]: window.i18n.t('可疑调用链'),
-  [DiagnosticTypeEnum.LOG]: window.i18n.t('可疑日志'),
-  [DiagnosticTypeEnum.EVENT]: window.i18n.t('可疑事件'),
-};
-
-export const DiagnosticTypeIconMap = {
-  [DiagnosticTypeEnum.DIMENSION]: 'icon-dimension-line',
-  [DiagnosticTypeEnum.LINK]: 'icon-Tracing',
-  [DiagnosticTypeEnum.LOG]: 'icon-a-logrizhi',
-  [DiagnosticTypeEnum.EVENT]: 'icon-shijianjiansuo',
-};
+export interface MealInfo {
+  bk_biz_id: number;
+  id: number;
+  name: string;
+  plugin_id: number;
+  plugin_type: string;
+}

@@ -36,9 +36,11 @@ import { ALARM_CENTER_PANEL_TAB_MAP } from '../utils/constant';
 import AlarmAlert from './components/alarm-alert/alarm-alert';
 import AlarmConfirmDialog from './components/alarm-alert/alarm-confirm-dialog';
 import QuickShieldDialog from './components/alarm-alert/quick-shield-dialog';
-import AlarmDispatch from './components/alarm-info/alarm-dispatch';
+import AlarmDispatchDialog from './components/alarm-info/alarm-dispatch-dialog';
 import AlarmInfo from './components/alarm-info/alarm-info';
 import AlarmStatusDialog from './components/alarm-info/alarm-status-dialog';
+import ManualDebugStatusDialog from './components/alarm-info/manual-debug-status-dialog';
+import ManualProcessDialog from './components/alarm-info/manual-process-dialog';
 import AlarmView from './components/alarm-view/alarm-view';
 import PanelAlarm from './components/panel-alarm';
 import PanelContainer from './components/panel-container';
@@ -66,7 +68,7 @@ export default defineComponent({
       const actionIds = ['MANAGE_EVENT_V2_AUTH', 'MANAGE_ACTION_CONFIG'];
       const isAuth = actionIds.some(key => authority.auth[key]);
       if (!isAuth) {
-        authority.showDetail(['MANAGE_EVENT_V2_AUTH']);
+        authority.showDetail([authority.map.MANAGE_EVENT_V2_AUTH]);
         return false;
       }
       return true;
@@ -104,7 +106,7 @@ export default defineComponent({
     /** 快捷屏蔽窗口 */
     const handleShowQuickShield = (show: boolean) => {
       if (!authority.auth.ALARM_SHIELD_MANAGE_AUTH) {
-        authority.showDetail([authority.auth.ALARM_SHIELD_MANAGE_AUTH]);
+        authority.showDetail([authority.map.ALARM_SHIELD_MANAGE_AUTH]);
         return false;
       }
       quickShieldShow.value = show;
@@ -142,6 +144,19 @@ export default defineComponent({
     const handleAlarmDispatch = () => {
       if (!judgeOperateAuthority()) return;
       alarmDispatchShow.value = true;
+    };
+
+    const manualDebugShow = shallowRef(false);
+    const actionIds = shallowRef([]);
+    const mealInfo = shallowRef(null);
+    /** 告警debugger */
+    const handleDebugStatus = (value: number[]) => {
+      actionIds.value = value;
+      manualDebugShow.value = true;
+    };
+
+    const handleMealInfo = value => {
+      mealInfo.value = value;
     };
 
     const getPanelComponent = () => {
@@ -258,10 +273,23 @@ export default defineComponent({
           actions={alarmStatusActions.value}
           total={alarmStatusTotal.value}
         />
-        <AlarmDispatch
+        <AlarmDispatchDialog
           v-model:show={alarmDispatchShow.value}
           alarmBizId={bizId.value}
           alarmIds={[alarmId.value]}
+        />
+        <ManualProcessDialog
+          v-model:show={manualProcessShow.value}
+          alarmBizId={bizId.value}
+          alarmIds={[alarmId.value]}
+          onDebugStatus={handleDebugStatus}
+          onMealInfo={handleMealInfo}
+        />
+        <ManualDebugStatusDialog
+          v-model:show={manualDebugShow.value}
+          actionIds={actionIds.value}
+          alarmBizId={bizId.value}
+          mealInfo={mealInfo.value}
         />
       </div>
     );

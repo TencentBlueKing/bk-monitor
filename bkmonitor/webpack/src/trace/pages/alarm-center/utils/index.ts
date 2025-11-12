@@ -35,3 +35,20 @@ export function getOperatorDisabled(follower: string[], assignee: string[]) {
   const hasAssignee = (assignee || []).some(u => u === username);
   return hasAssignee ? false : hasFollower;
 }
+
+export const actionConfigGroupList = (actionConfigList): any[] => {
+  const groupMap = {};
+  const groupList = [];
+  actionConfigList.forEach(item => {
+    if (groupMap?.[item.plugin_type]?.list.length) {
+      groupMap[item.plugin_type].list.push({ id: item.id, name: item.name });
+    } else {
+      groupMap[item.plugin_type] = { groupName: item.plugin_name, list: [{ id: item.id, name: item.name }] };
+    }
+  });
+  Object.keys(groupMap).forEach(key => {
+    const obj = groupMap[key];
+    groupList.push({ id: key, name: obj.groupName, children: obj.list });
+  });
+  return groupList;
+};
