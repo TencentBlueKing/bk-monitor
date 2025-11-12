@@ -152,6 +152,7 @@ MIDDLEWARE = (
     "kernel_api.middlewares.ApiTimeZoneMiddleware",
     "kernel_api.middlewares.ApiLanguageMiddleware",
     "kernel_api.middlewares.authentication.AuthenticationMiddleware",
+    "bkmonitor.middlewares.authentication.ApiTokenAuthenticationMiddleware",
     "bkm_space.middleware.ParamInjectMiddleware",
     "bkmonitor.middlewares.prometheus.MetricsAfterMiddleware",  # 必须放到最后面
 )

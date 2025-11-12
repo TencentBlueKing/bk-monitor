@@ -384,13 +384,14 @@ export const AI_BLUEKING_SHORTCUTS: AIBluekingShortcuts = [
         placeholder: window.i18n.t('请输入仪表盘名称'),
       },
       {
-        type: 'input',
+        type: 'select',
         key: 'category',
         fillBack: false,
         required: true,
         hide: false,
-        name: window.i18n.t('仪表盘目录ID'),
-        placeholder: window.i18n.t('请输入仪表盘目录ID'),
+        name: window.i18n.t('仪表盘目录'),
+        placeholder: window.i18n.t('请输入仪表盘目录'),
+        options: [],
       },
       {
         type: 'input',

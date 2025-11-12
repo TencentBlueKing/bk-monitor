@@ -325,7 +325,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             if alert_doc.id not in last_snapshot_alerts:
                 IncidentOperationManager.record_incident_alert_trigger(
                     last_snapshot.incident_id,
-                    int(int(alert_doc.begin_time) / 1000),
+                    int(alert_doc.begin_time),
                     alert_doc.alert_name,
                     alert_doc.id,
                 )
@@ -340,7 +340,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 if operation:
                     operation(
                         last_snapshot.incident_id,
-                        int(int(alert_doc.begin_time) / 1000),
+                        int(alert_doc.begin_time),
                         alert_doc.alert_name,
                         alert_doc.id,
                     )

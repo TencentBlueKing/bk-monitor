@@ -1,0 +1,16 @@
+[data-tippy-root] {
+  [data-theme='log-dark'] {
+    padding: 2px;
+    color: #fff;
+    background-color: #4d4f56;
+    border: 1px solid #63656e;
+    border-radius: 2px;
+    box-shadow: 0 2px 6px 0 #fff;
+
+    .tippy-arrow {
+      color: #4d4f56;
+      background-color: #4d4f56;
+      box-shadow: #4d4f56 0px -12px 12px 0px;
+    }
+  }
+}

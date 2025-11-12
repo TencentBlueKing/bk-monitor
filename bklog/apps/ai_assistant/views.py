@@ -263,10 +263,15 @@ class ChatSessionContentViewSet(APIViewSet, AIAssistantPermissionMixin):
         params = self.params_valid(BatchDeleteSessionContentSerializer)
         return JsonResponse(aidev_interface.batch_delete_session_contents(params=params))
 
-    @action(methods=["post"], detail=False)
-    def create_feedback(self, request, *args, **kwargs):
+
+class SessionFeedbackViewSet(APIViewSet, AIAssistantPermissionMixin):
+    """
+    会话内容反馈
+    """
+
+    def create(self, request, *args, **kwargs):
         """
-        @api {post} /ai_assistant/session_content/create_feedback
+        @api {post} /ai_assistant/session_feedback
         @apiName create_feedback_session_content
         @apiDescription 创建会话内容反馈
         @apiGroup AIAssistant
@@ -275,10 +280,10 @@ class ChatSessionContentViewSet(APIViewSet, AIAssistantPermissionMixin):
         params = self.params_valid(CreateFeedbackSessionContentSerializer)
         return JsonResponse(aidev_interface.create_chat_session_feedback(params=params, username=request.user.username))
 
-    @action(methods=["post"], detail=False)
-    def get_feedback_reasons(self, request, *args, **kwargs):
+    @action(methods=["get"], detail=False)
+    def reasons(self, request, *args, **kwargs):
         """
-        @api {post} /ai_assistant/session_content/get_feedback_reasons
+        @api {get} /ai_assistant/session_feedback/reasons
         @apiName get_feedback_reasons_session_content
         @apiDescription 获取反馈原因列表
         @apiGroup AIAssistant
