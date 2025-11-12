@@ -69,7 +69,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         根据聚合桶大小计算字段聚合数
         """
         search_dict = copy.deepcopy(self.base_dict)
-        search_dict.update({"metric_merge": "a"})
+        reference_list = list()
         for query in search_dict["query_list"]:
             if len(query["conditions"]["field_list"]) > 0:
                 query["conditions"]["condition_list"].extend(["and"] * 2)
@@ -82,7 +82,24 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
                 ]
             )
             query["function"] = [{"method": "count"}]
+            reference_list.append(query["reference_name"])
+        search_dict.update(
+            {
+                "metric_merge": " or ".join(
+                    [f'label_replace({ref}, "source", "{ref}", "", "")' for ref in reference_list]
+                ),
+            }
+        )
         data = self.query_ts_reference(search_dict)
+
+        total_count = 0
+
+        for series in data.get("series", []):
+            for timestamp, value in series.get("values", []):
+                total_count += value
+
+        data["series"][0]["values"][0][1] = total_count
+
         return self.handle_count_data(data)
 
     def get_distinct_count(self):
