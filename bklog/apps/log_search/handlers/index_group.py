@@ -29,6 +29,7 @@ from apps.log_search.exceptions import (
     DuplicateIndexGroupException,
     ChildIndexSetNotExistException,
 )
+from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.utils import APIModel
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -150,6 +151,7 @@ class IndexGroupHandler(APIModel):
         ]
         if to_create:
             LogIndexSetData.objects.bulk_create(to_create)
+            BaseIndexSetHandler.sync_router(self.data)
 
     def remove_child_index_sets(self, child_index_set_ids: list):
         """
@@ -158,3 +160,4 @@ class IndexGroupHandler(APIModel):
         LogIndexSetData.objects.filter(
             index_set_id=self.data.index_set_id, result_table_id__in=child_index_set_ids
         ).delete()
+        BaseIndexSetHandler.sync_router(self.data)

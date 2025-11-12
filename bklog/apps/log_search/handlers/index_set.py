@@ -1548,13 +1548,9 @@ class IndexSetHandler(APIModel):
         """
 
         # 检查所有父索引集是否存在
-        existing_parent_sets = set(
-            LogIndexSet.objects.filter(
-                index_set_id__in=parent_index_set_ids,
-                is_group=True,
-            ).values_list("index_set_id", flat=True)
-        )
-        missing_parents = set(parent_index_set_ids) - existing_parent_sets
+        parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
+        existing_parent_ids = {index_set.index_set_id for index_set in parent_index_sets}
+        missing_parents = set(parent_index_set_ids) - existing_parent_ids
         if missing_parents:
             raise ParentIndexSetNotExistException(
                 ParentIndexSetNotExistException.MESSAGE.format(
@@ -1578,6 +1574,7 @@ class IndexSetHandler(APIModel):
         ]
         if to_create:
             LogIndexSetData.objects.bulk_create(to_create)
+            BaseIndexSetHandler.bulk_sync_router(parent_index_sets)
 
     def remove_from_parent_index_sets(self, parent_index_set_ids: list[int]):
         """
@@ -1587,11 +1584,17 @@ class IndexSetHandler(APIModel):
             index_set_id__in=parent_index_set_ids,
             result_table_id=self.index_set_id,
         ).delete()
+        # 同步路由
+        parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
+        BaseIndexSetHandler.bulk_sync_router(parent_index_sets)
 
     def update_parent_index_sets(self, new_parent_index_set_ids: list):
         """
         更新归属索引集
         """
+        # 为空列表时代表清空归属索引集，为None时不做处理
+        if new_parent_index_set_ids is None:
+            return
         current_parent_index_set_ids = set(self.data.get_parent_index_set_ids())
         new_parent_index_set_ids = set(new_parent_index_set_ids)
 
@@ -1817,146 +1820,146 @@ class BaseIndexSetHandler:
         return True
 
     @classmethod
-    def sync_router(cls, index_set: LogIndexSet):
-        # 创建结果表路由信息
-        try:
-            request_params = {
-                "data_label": cls.get_data_label(index_set.index_set_id),
-                "space_id": index_set.space_uid.split("__")[-1],
-                "space_type": index_set.space_uid.split("__")[0],
-                "table_info": [],
-            }
-            multi_execute_func = MultiExecuteFunc()
-            objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
-            # 是否为Doris存储路由，一期不做刷新，仅支持手动配置。
-            is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(index_set.tag_ids)
-            doris_table_id = index_set.doris_table_id
-            if is_doris and doris_table_id:
-                doris_table_id_list = doris_table_id.split(",")
-                table_info = [
+    def get_index_set_table_info_list(cls, index_set: LogIndexSet, is_analysis=False):
+        table_info_list = []
+        # Doris路由或图表分析路由
+        is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(index_set.tag_ids)
+        doris_table_id = index_set.doris_table_id
+        if is_doris or is_analysis:
+            if not doris_table_id:
+                return table_info_list
+            for doris_table_id in doris_table_id.split(","):
+                doris_table_info = {
+                    "storage_type": "doris",
+                    "bkbase_table_id": doris_table_id.rsplit(".", maxsplit=1)[0],
+                    "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__doris__",
+                    "source_type": "bkdata",
+                    "need_create_index": False,
+                }
+                if is_analysis:
+                    doris_table_info["table_id"] = (
+                        f"bklog_index_set_{index_set.index_set_id}_{doris_table_id.rsplit('.', maxsplit=1)[0]}.__analysis__"
+                    )
+                if query_alias_settings := index_set.query_alias_settings:
+                    doris_table_info["query_alias_settings"] = query_alias_settings
+                table_info_list.append(doris_table_info)
+            return table_info_list
+        # ES路由
+        objs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
+        for obj in objs:
+            time_field = obj.time_field or index_set.time_field
+            time_field_type = obj.time_field_type or index_set.time_field_type
+            table_info = {
+                "table_id": cls.get_rt_id(index_set.index_set_id, obj.result_table_id),
+                "index_set": obj.result_table_id.replace(".", "_"),
+                "source_type": obj.scenario_id,
+                "cluster_id": obj.storage_cluster_id,
+                "options": [
                     {
-                        "storage_type": "doris",
-                        "bkbase_table_id": doris_result_table.rsplit(".", maxsplit=1)[0],
-                        "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table.rsplit('.', maxsplit=1)[0]}.__doris__",
-                        "source_type": "bkdata",
-                        "need_create_index": False,
-                    }
-                    for doris_result_table in doris_table_id_list
-                ]
-                doris_params = {
-                    "space_type": index_set.space_uid.split("__")[0],
-                    "space_id": index_set.space_uid.split("__")[-1],
-                    "data_label": f"bklog_index_set_{index_set.index_set_id}",
-                    "table_info": table_info,
-                }
-                if query_alias_settings := index_set.query_alias_settings:
-                    for table_info_item in doris_params["table_info"]:
-                        table_info_item["query_alias_settings"] = query_alias_settings
-                # Doris接入
-                multi_execute_func.append(
-                    result_key=index_set.index_set_id,
-                    func=TransferApi.bulk_create_or_update_log_router,
-                    params=doris_params,
-                )
-            else:
-                for obj in objs:
-                    time_field = obj.time_field or index_set.time_field
-                    time_field_type = obj.time_field_type or index_set.time_field_type
-                    nano_migrate_map = {}
-                    from apps.feature_toggle.models import FeatureToggle
-
-                    if FeatureToggle.objects.filter(name="nano_migrate_list").exists():
-                        nano_migrate_map = FeatureToggle.objects.filter(name="nano_migrate_list")[0].feature_config.get(
-                            "nano_migrate_map", {}
-                        )
-
-                    table_info = {
-                        "table_id": cls.get_rt_id(index_set.index_set_id, obj.result_table_id),
-                        "index_set": obj.result_table_id.replace(".", "_"),
-                        "source_type": obj.scenario_id,
-                        "cluster_id": obj.storage_cluster_id,
-                        "options": [
+                        "name": "time_field",
+                        "value_type": "dict",
+                        "value": json.dumps(
                             {
-                                "name": "time_field",
-                                "value_type": "dict",
-                                "value": json.dumps(
-                                    {
-                                        "name": time_field,
-                                        "type": time_field_type,
-                                        "unit": obj.time_field_unit or index_set.time_field_unit
-                                        if time_field_type != TimeFieldTypeEnum.DATE.value
-                                        else TimeFieldUnitEnum.MILLISECOND.value,
-                                    }
-                                ),
-                            },
-                            {
-                                "name": "need_add_time",
-                                "value_type": "bool",
-                                "value": json.dumps(obj.scenario_id != Scenario.ES),
-                            },
-                        ],
-                    }
-                    if table_info["source_type"] == Scenario.LOG:
-                        table_info["origin_table_id"] = obj.result_table_id
-                        collector_config = CollectorConfig.objects.filter(table_id=obj.result_table_id).first()
-                        # 为纳秒字段新增别名
-                        if collector_config.is_nanos:
-                            table_info["query_alias_settings"].update(
-                                {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}
-                            )
-
-                    if query_alias_settings := index_set.query_alias_settings:
-                        table_info["query_alias_settings"] = query_alias_settings
-
-                    # 纳秒采集新旧链路迁移路由补充
-                    if obj.result_table_id in nano_migrate_map:
-                        old_nano_table_info = copy.deepcopy(table_info)
-                        old_nano_table_info.update(
-                            {
-                                "table_id": cls.get_rt_id(
-                                    index_set.index_set_id, nano_migrate_map[obj.result_table_id]
-                                ),
-                                "index_set": nano_migrate_map[obj.result_table_id].replace(".", "_"),
-                                "origin_table_id": nano_migrate_map[obj.result_table_id],
+                                "name": time_field,
+                                "type": time_field_type,
+                                "unit": obj.time_field_unit or index_set.time_field_unit
+                                if time_field_type != TimeFieldTypeEnum.DATE.value
+                                else TimeFieldUnitEnum.MILLISECOND.value,
                             }
-                        )
-                        request_params["table_info"].append(old_nano_table_info)
+                        ),
+                    },
+                    {
+                        "name": "need_add_time",
+                        "value_type": "bool",
+                        "value": json.dumps(obj.scenario_id != Scenario.ES),
+                    },
+                ],
+            }
+            if table_info["source_type"] == Scenario.LOG:
+                table_info["origin_table_id"] = obj.result_table_id
+                collector_config = CollectorConfig.objects.filter(table_id=obj.result_table_id).first()
+                # 为纳秒字段新增别名
+                if collector_config.is_nanos:
+                    table_info["query_alias_settings"].update(
+                        {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}
+                    )
+            if query_alias_settings := index_set.query_alias_settings:
+                table_info["query_alias_settings"] = query_alias_settings
+            table_info_list.append(table_info)
 
-                    request_params["table_info"].append(table_info)
-                multi_execute_func.append(
-                    result_key=index_set.index_set_id,
-                    func=TransferApi.bulk_create_or_update_log_router,
-                    params=request_params,
+            # 纳秒采集新旧链路迁移路由补充
+            nano_migrate_map = {}
+            from apps.feature_toggle.models import FeatureToggle
+
+            if FeatureToggle.objects.filter(name="nano_migrate_list").exists():
+                nano_migrate_map = FeatureToggle.objects.filter(name="nano_migrate_list")[0].feature_config.get(
+                    "nano_migrate_map", {}
                 )
-            if doris_table_id:
-                doris_table_id_list = doris_table_id.split(",")
-                doris_params = {
-                    "space_type": index_set.space_uid.split("__")[0],
-                    "space_id": index_set.space_uid.split("__")[-1],
-                    "data_label": f"bklog_index_set_{index_set.index_set_id}_analysis",
-                    "table_info": [
-                        {
-                            "storage_type": "doris",
-                            "bkbase_table_id": doris_result_table.rsplit(".", maxsplit=1)[0],
-                            "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table.rsplit('.', maxsplit=1)[0]}.__analysis__",
-                            "source_type": "bkdata",
-                            "need_create_index": False,
-                        }
-                        for doris_result_table in doris_table_id_list
-                    ],
-                }
-                if query_alias_settings := index_set.query_alias_settings:
-                    for table_info in doris_params["table_info"]:
-                        table_info["query_alias_settings"] = query_alias_settings
-                # 图表分析接入
-                multi_execute_func.append(
-                    result_key=index_set.index_set_id,
-                    func=TransferApi.bulk_create_or_update_log_router,
-                    params=doris_params,
+            if obj.result_table_id in nano_migrate_map:
+                old_nano_table_info = copy.deepcopy(table_info)
+                old_nano_table_info.update(
+                    {
+                        "table_id": cls.get_rt_id(index_set.index_set_id, nano_migrate_map[obj.result_table_id]),
+                        "index_set": nano_migrate_map[obj.result_table_id].replace(".", "_"),
+                        "origin_table_id": nano_migrate_map[obj.result_table_id],
+                    }
                 )
+                table_info_list.append(old_nano_table_info)
+        return table_info_list
+
+    @classmethod
+    def sync_router(cls, index_set: LogIndexSet):
+        """创建结果表路由信息"""
+        try:
+            # 统一处理普通路由和图表分析路由
+            data_label_list = [
+                cls.get_data_label(index_set.index_set_id),
+                f"{cls.get_data_label(index_set.index_set_id)}_analysis",
+            ]
+            multi_execute_func = MultiExecuteFunc()
+
+            for data_label in data_label_list:
+                # 获取索引列表
+                if index_set.is_group:
+                    table_info_list = []
+                    child_index_set_ids = index_set.get_child_index_set_ids()
+                    child_index_sets = LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids)
+                    for child_index_set in child_index_sets:
+                        table_infos = cls.get_index_set_table_info_list(
+                            child_index_set, is_analysis=data_label.endswith("_analysis")
+                        )
+                        table_info_list.extend(table_infos)
+                else:
+                    table_info_list = cls.get_index_set_table_info_list(
+                        index_set, is_analysis=data_label.endswith("_analysis")
+                    )
+                # 如果有索引列表，则创建路由
+                if table_info_list:
+                    request_params = {
+                        "data_label": data_label,
+                        "space_id": index_set.space_uid.split("__")[-1],
+                        "space_type": index_set.space_uid.split("__")[0],
+                        "table_info": table_info_list,
+                    }
+                    multi_execute_func.append(
+                        result_key=data_label,
+                        func=TransferApi.bulk_create_or_update_log_router,
+                        params=request_params,
+                    )
             multi_execute_func.run()
         except Exception as e:
-            logger.exception("create or update index set(%s) es router failed：%s", index_set.index_set_id, e)
+            logger.exception("create or update index set(%s) router failed：%s", index_set.index_set_id, e)
+
+    @classmethod
+    def bulk_sync_router(cls, index_sets: list[LogIndexSet]):
+        multi_execute_func = MultiExecuteFunc()
+        for index_set in index_sets:
+            multi_execute_func.append(
+                result_key=index_set.index_set_id,
+                func=cls.sync_router,
+                params=index_set,
+            )
+        multi_execute_func.run()
 
     def pre_update(self):
         if self.is_trace_log:
