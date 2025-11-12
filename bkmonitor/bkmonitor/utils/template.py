@@ -131,6 +131,9 @@ class CustomTemplateRenderer:
         notice_way = context.get("notice_way")
         if notice_way == NoticeWay.MAIL:
             content = content.replace("\n", "")
+        if context.get("is_json"):
+            alarm_content = json.dumps(alarm_content, ensure_ascii=False)[1:-1]
+
         context["user_content"] = alarm_content
         encoding = context.get("encoding", None)
         content_length = get_content_length(alarm_content, encoding=encoding)
@@ -223,6 +226,9 @@ class AlarmNoticeTemplate:
         for renderer in self.Renderers:
             template_message = renderer.render(template_message, context)
 
+        is_json: bool = context.get("is_json", False)
+        if is_json:
+            return template_message
         return template_message.replace("\\n", "\n").replace("\\t", "\t")
 
     @staticmethod
