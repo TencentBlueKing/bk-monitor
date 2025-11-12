@@ -46,7 +46,7 @@ export default defineComponent({
   props: {
     data: {
       type: Object,
-      default: () => {},
+      default: () => { },
     },
     isCreate: {
       type: Boolean,
@@ -88,20 +88,21 @@ export default defineComponent({
     });
     const filterFieldList = computed(() => {
       const regExp = getRegExp(searchValue.value.trim());
-      const filterFn = field =>
-        !/^__dist/.test(field.field_name) &&
-        field.field_type !== '__virtual__' &&
-        !['dtEventTimeStamp', 'time', 'iterationIndex', 'gseIndex'].includes(field.field_name) &&
-        (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias));
+      const filterFn = field => !/^__dist/.test(field.field_name)
+        && field.field_type !== '__virtual__'
+        && !['dtEventTimeStamp', 'time', 'iterationIndex', 'gseIndex'].includes(field.field_name)
+        && (regExp.test(field.field_alias) || regExp.test(field.field_name) || regExp.test(field.query_alias));
       return indexFieldInfo.value.fields.filter(filterFn);
     });
     const isConfirmEnable = computed(() => formData.value.op && formData.value.values.length);
     const currentFieldInfo = computed(() => filterFieldList.value[activeIndex.value]);
 
-    const activeItemMatchList = computed(() =>
-      (store.state.indexFieldInfo.aggs_items[currentFieldInfo.value.field_name] ?? []).filter(
-        item => !(formData.value.values ?? []).includes(item),
-      ),
+    const activeItemMatchList = computed(() => {
+      return (store.state.indexFieldInfo.aggs_items[currentFieldInfo.value.field_name] ?? [])
+        .filter(
+          item => !(formData.value.values ?? []).includes(item),
+        );
+    },
     );
 
     const conditionList = [
@@ -130,10 +131,9 @@ export default defineComponent({
 
     const initData = () => {
       if (props.data && filterFieldList.value.length) {
-        activeIndex.value =
-          filterFieldList.value.findIndex(
-            item => item.field_name === props.data.field_name || item.field_name === props.data.fields_name,
-          ) || 0;
+        activeIndex.value = filterFieldList.value.findIndex(
+          item => item.field_name === props.data.field_name || item.field_name === props.data.fields_name,
+        ) || 0;
 
         hoverIndex.value = activeIndex.value;
         formData.value = {
@@ -168,7 +168,7 @@ export default defineComponent({
     };
 
     const getFieldIconTextColor = (type: string) => {
-      return fieldTypeMap.value[type].textColor;
+      return fieldTypeMap.value[type]?.textColor ?? '#000';
     };
 
     const checkAndRequestEgges = () => {
@@ -203,7 +203,7 @@ export default defineComponent({
           emit('confirm', result);
           handleClickCancel();
         })
-        .catch(e => {
+        .catch((e) => {
           console.error('error = ', e);
         });
     };
@@ -301,7 +301,7 @@ export default defineComponent({
                     placeholder={t('请输入关键字')}
                     value={searchValue.value}
                     clearable
-                    on-change={value => {
+                    on-change={(value) => {
                       searchValue.value = value;
                     }}
                   />
@@ -380,7 +380,7 @@ export default defineComponent({
                         style='width: 314px'
                         clearable={false}
                         value={formData.value.op}
-                        on-change={value => {
+                        on-change={(value) => {
                           formData.value.op = value;
                         }}
                       >
@@ -410,7 +410,7 @@ export default defineComponent({
                         allow-auto-match
                         allow-create
                         free-paste
-                        on-change={value => {
+                        on-change={(value) => {
                           formData.value.values = value;
                         }}
                       />
