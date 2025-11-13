@@ -104,6 +104,18 @@ export default class TargetCompareSelect extends tsc<IProps> {
   /* 监听容器宽度的变化(节流) */
   throttleOverflow = () => {};
 
+  // 下拉框搜索关键字
+  searchValue = '';
+
+  // 下拉框搜索数据
+  get filterListData() {
+    // 过滤不展示的数据
+    if (!this.pagination.data.filter(item => !!item.show).length) return [];
+    return this.pagination.data.filter(
+      item => item.lightContent.includes(this.searchValue) || item.name.includes(this.searchValue)
+    );
+  }
+
   @Watch('list')
   handleFilterList() {
     if (!this.localList.length) {
@@ -157,6 +169,7 @@ export default class TargetCompareSelect extends tsc<IProps> {
     if (!pathsClass.includes('target-compare-select-component-list-wrap')) {
       this.inputRef?.blur?.();
       this.inputValue = '';
+      this.searchValue = ''; // 失去焦点清空下拉框搜索关键字
       if (
         JSON.stringify(this.value.filter(item => !!item)) !==
         JSON.stringify(this.localValue.filter(item => item.type !== 'input').map(item => item.id))
@@ -534,22 +547,32 @@ export default class TargetCompareSelect extends tsc<IProps> {
             ref='options'
             class={[
               'target-compare-select-component-list-wrap',
-              { 'no-data': !this.pagination.data.filter(item => !!item.show).length },
+              // { 'no-data': !this.pagination.data.filter(item => !!item.show).length },
+              { 'no-data': !this.filterListData.length}
             ]}
-            onScroll={this.handleScroll}
+            
           >
-            {this.pagination.data
-              .filter(item => !!item.show)
-              .map((item, index) => (
-                <div
-                  key={item.id}
-                  class={[`list-item ${this.classId}`, { active: this.activeIndex === index }]}
-                  onClick={() => this.handleSelectItem(item)}
-                >
-                  <span>{item.lightContent || item.name}</span>
-                  {!!item?.isCheck && <span class='icon-monitor icon-mc-check-small' />}
-                </div>
+            <div class='target-compare-select-component-list-search'>
+              <i class='icon-monitor icon-mc-search' />
+              <input v-model={this.searchValue} class='search-input' type="text" placeholder={`${this.$t('请输入 关键字')}`} />
+            </div>
+            <div
+              class='target-compare-select-component-list'
+              onScroll={this.handleScroll}  
+            >
+              {this.filterListData
+                .map((item, index) => (
+                  <div
+                    key={item.id}
+                    class={[`list-item ${this.classId}`, { active: this.activeIndex === index }]}
+                    onClick={() => this.handleSelectItem(item)}
+                  >
+                    <span>{item.lightContent || item.name}</span>
+                    {!!item?.isCheck && <span class='icon-monitor icon-mc-check-small' />}
+                  </div>
               ))}
+              <div class='empty-data'>{this.$t('无匹配数据')}</div>
+            </div>
           </div>
         </div>
       </div>

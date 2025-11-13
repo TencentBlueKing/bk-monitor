@@ -130,15 +130,62 @@
 }
 
 .target-compare-select-component-list-wrap {
+  display: flex;
+  flex-direction: column;
   background-color: #fff;
   border-radius: 2px;
   max-height: 300px;
-  overflow-y: auto;
-  padding: 6px 0;
+  // padding: 6px 0;
   min-width: 188px;
+  min-height: 61px;
 
   &.no-data {
     padding: 0;
+
+    .empty-data {
+      display: block;
+    }
+  }
+
+  .empty-data {
+    display: none;
+    font-size: 12px;
+    line-height: 32px;
+    text-align: center;
+  }
+
+  .target-compare-select-component-list-search {
+    position: relative;
+    flex-shrink: 0;
+    width: 100%;
+    height: 32px;
+    padding: 0 5px;
+    line-height: 32px;
+
+    .icon-monitor {
+      position: absolute;
+      top: 0;
+      left: 10px;
+      font-size: 16px;
+      color: #a49db6;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 100%;
+      text-indent: 30px;
+      border: none;
+      border-bottom: 1px solid #dcdee5;
+
+      &::placeholder {
+        color: #c3cdd7;
+      }
+    }
+  }
+
+  .target-compare-select-component-list {
+    flex: 1;
+    overflow-y: auto;
   }
 
   .list-item {
