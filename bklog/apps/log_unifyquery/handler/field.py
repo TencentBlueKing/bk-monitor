@@ -88,8 +88,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         """
         获取字段去重的聚合总条数
         """
-
-        # 查询所有字段值不重复的数据集合, 返回集合长度
+        # 查询按字段分组的全部数据集合, 返回集合长度, 达到去重效果
         search_dict = copy.deepcopy(self.base_dict)
         reference_name_list = list()
         for query in search_dict["query_list"]:
