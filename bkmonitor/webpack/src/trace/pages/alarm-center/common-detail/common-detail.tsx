@@ -118,14 +118,8 @@ export default defineComponent({
      * @return {*}
      */
     const handleTimeChange = (time: string) => {
-      alarmDetail.value = new AlarmDetail({ ...alarmDetail.value, shield_left_time: time });
-    };
-
-    /** 快捷屏蔽成功 */
-    const quickShieldSuccess = (v: boolean) => {
-      if (v) {
-        alarmCenterDetailStore.getAlertDetailData(alarmId.value);
-      }
+      alarmDetail.value = new AlarmDetail({ ...alarmDetail.value, shield_left_time: time, is_shielded: true });
+      // alarmCenterDetailStore.getAlertDetailData(alarmId.value);
     };
 
     /** 告警状态详情 */
@@ -264,7 +258,6 @@ export default defineComponent({
           alarmIds={[alarmId.value]}
           alarmShieldDetail={alarmShieldDetail.value}
           show={quickShieldShow.value}
-          onSuccess={quickShieldSuccess}
           onTimeChange={handleTimeChange}
           onUpdate:show={handleShowQuickShield}
         />

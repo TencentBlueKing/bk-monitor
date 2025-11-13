@@ -23,11 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+
+import { defineComponent, shallowRef } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
+import HandleExperience from './handle-experience';
 
 import './ai-diagnostic-info-card.scss';
 export default defineComponent({
@@ -35,8 +37,16 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
 
+    const experienceShow = shallowRef(false);
+
+    const handleExperienceShow = () => {
+      experienceShow.value = true;
+    };
+
     return {
       t,
+      experienceShow,
+      handleExperienceShow,
     };
   },
   render() {
@@ -71,8 +81,18 @@ export default defineComponent({
               </div>
               <div class='ai-diagnostic-info-item'>
                 <div class='info-item-label'>{this.t('处理经验：')}</div>
-                <div class='info-item-content'>重启服务器 或 联系驻场维修检查服务器网络是否正常</div>
+                <div class='info-item-content'>
+                  <span class='empty'>{this.t('无')}</span>
+                  <span
+                    class='link-text'
+                    onClick={this.handleExperienceShow}
+                  >
+                    <i class='icon-monitor icon-bianji' />
+                    {this.t('这个告警我有经验')}
+                  </span>
+                </div>
               </div>
+              <HandleExperience v-model:show={this.experienceShow} />
             </div>
           ),
         }}

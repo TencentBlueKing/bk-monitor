@@ -431,7 +431,7 @@ export default defineComponent({
         width={800}
         class='manual-process-dialog-wrap'
         v-slots={{
-          default: (
+          default: () => (
             <Loading loading={this.loading}>
               <div class='formdata-wrap'>
                 <div class='meal-list'>
@@ -533,23 +533,27 @@ export default defineComponent({
               </div>
             </Loading>
           ),
-          footer: [
-            <Button
-              key='confirm-button'
-              loading={this.confirmLoading}
-              theme='primary'
-              onClick={() => !this.confirmLoading && this.handleConfirm()}
-            >
-              {this.t('确定')}
-            </Button>,
-            <Button
-              key='cancel-button'
-              style={{ marginLeft: '10px' }}
-              onClick={() => this.handleCancel()}
-            >
-              {this.t('取消')}
-            </Button>,
-          ],
+          footer: () => (
+            <div class='manual-process-dialog-footer'>
+              <Button
+                key='confirm-button'
+                loading={this.confirmLoading}
+                theme='primary'
+                onClick={() => !this.confirmLoading && this.handleConfirm()}
+              >
+                {this.t('确定')}
+              </Button>
+              ,
+              <Button
+                key='cancel-button'
+                style={{ marginLeft: '10px' }}
+                onClick={() => this.handleCancel()}
+              >
+                {this.t('取消')}
+              </Button>
+              ,
+            </div>
+          ),
         }}
         header-position='left'
         is-show={this.show}

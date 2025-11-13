@@ -39,6 +39,15 @@
         font-size: 12px;
         line-height: 20px;
         color: #313238;
+
+        .empty {
+          color: #c4c6cc;
+        }
+
+        .icon-bianji {
+          font-size: 20px;
+          vertical-align: middle;
+        }
       }
 
       & + .ai-diagnostic-info-item {
