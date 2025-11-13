@@ -80,6 +80,7 @@ export default defineComponent({
       alertDialogParam,
       handleAlertDialogShow,
       handleAlertDialogHide,
+      handleAlertDialogConfirm,
     } = useAlertDialogs(data as unknown as ShallowRef<AlertTableItem[]>);
 
     const isCollapsed = shallowRef(false);
@@ -337,6 +338,7 @@ export default defineComponent({
       alertDialogParam,
       handleAlertDialogShow,
       handleAlertDialogHide,
+      handleAlertDialogConfirm,
       handleFilterValueChange,
       updateIsCollapsed,
       handleAddCondition,
@@ -467,6 +469,7 @@ export default defineComponent({
           dialogParam={this.alertDialogParam}
           dialogType={this.alertDialogType}
           show={this.alertDialogShow}
+          onConfirm={this.handleAlertDialogConfirm}
           onUpdate:show={this.handleAlertDialogHide}
         />
       </div>
