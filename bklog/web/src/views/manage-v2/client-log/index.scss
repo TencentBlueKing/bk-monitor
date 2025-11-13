@@ -1,0 +1,42 @@
+.client-log-main {
+    padding: 16px 16px 0px;
+
+    .tabs{
+        display: flex;
+
+        .tab-item{
+            padding: 10px 16px;
+            margin-right: 8px;
+            font-size: 14px;
+            background: #EAEBF0;
+            border-radius: 4px 4px 0 0;
+            box-shadow: 0 0 2px 0 #0000001f;
+        }
+
+        .active {
+            font-weight: 700;
+            color: #3A84FF;
+            background: #FFFFFF;
+
+            .num {
+                background: #E1ECFF;
+            }
+        }
+
+        .num {
+            height: 16px;
+            padding: 0 8px;
+            margin-left: 8px;
+            font-size: 12px;
+            line-height: 16px;
+            background: #FFFFFF;
+            border-radius: 8px;
+        }
+    }
+
+    .client-log-container{
+        background: #FFFFFF;
+        border-radius: 2px;
+        box-shadow: 0 2px 4px 0 #1919290d;
+    }
+}
