@@ -1,0 +1,151 @@
+@import '@/scss/mixins/flex.scss';
+
+.retrieve-tab-item-title-old {
+  align-items: center;
+  margin: 16px 0 6px;
+  font-size: 12px;
+  line-height: 20px;
+  color: #63656e;
+
+  @include flex-justify(space-between);
+
+  .bklog-help {
+    margin-left: 7px;
+    font-size: 14px;
+    color: #979ba5;
+    cursor: pointer;
+  }
+
+  .history-button {
+    color: #3a84ff;
+    cursor: pointer;
+
+    @include flex-center;
+
+    .icon-lishijilu {
+      margin-right: 3px;
+    }
+  }
+
+  .search-type-switch {
+    height: 22px;
+    margin-left: 10px;
+    border: 1px solid #dcdee5;
+    border-radius: 12px;
+
+    span {
+      display: inline-block;
+      padding: 0 12px;
+      cursor: pointer;
+      border-radius: 12px;
+    }
+
+    .active {
+      color: #3a84ff;
+      background: #e1ecff;
+    }
+  }
+}
+
+.retrieve-history-popover {
+  .light-theme {
+    padding: 6px 0;
+  }
+}
+
+.flex-div {
+  @include flex-center;
+}
+
+.retrieve-history-list {
+  min-height: 32px;
+  max-height: 160px;
+  overflow-y: auto;
+
+  .list-item {
+    font-size: 12px;
+    line-height: 32px;
+    background-color: #fff;
+
+    @include flex-align;
+
+    .item-type-icon {
+      width: 32px;
+      height: 32px;
+
+      @include flex-center;
+
+      .bklog-icon {
+        font-size: 16px;
+      }
+    }
+
+    .item-text {
+      flex: 1;
+      min-width: 150px;
+      padding: 0 16px;
+      font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+      color: #63656e;
+    }
+
+    .item-description {
+      flex: 2;
+      margin-left: 24px;
+      color: #979ba5;
+
+      .item-callout {
+        padding: 0 4px;
+        font-family: 'Roboto Mono', Consolas, Menlo, Courier, monospace;
+        color: #313238;
+        background-color: #f4f6fa;
+      }
+    }
+
+    &:hover,
+    &.active {
+      background-color: #f4f6fa;
+
+      .item-text {
+        color: #313238;
+      }
+
+      .item-callout {
+        background-color: #fff;
+      }
+    }
+
+    &:hover {
+      cursor: pointer;
+      background-color: #eaf3ff;
+    }
+  }
+
+  .not-history {
+    @include flex-center;
+  }
+}
+
+#retrieve-help-tips-content {
+  max-width: 264px;
+  color: #63656e;
+  word-break: normal;
+
+  .tips-link {
+    margin-left: 5px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    .icon-lianjie {
+      margin-left: 3px;
+    }
+  }
+
+  .title {
+    margin: 10px 0 4px;
+    font-weight: 600;
+  }
+
+  .detail {
+    line-height: 18px;
+  }
+}

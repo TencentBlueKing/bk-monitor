@@ -9,11 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 import base64
-import copy
 import hashlib
 import json
 import logging
 from os import path
+from typing import Any
+from collections.abc import Callable
 
 import requests
 from django.conf import settings
@@ -87,13 +88,21 @@ class BaseSender:
                 title_template_path = self.get_language_template_path(title_template_path, language)
                 content_template_path = self.get_language_template_path(content_template_path, language)
 
+        context_dict = self.get_context_dict()
+        self.notice_way: str | None = context_dict.get("notice_way", None)
+        self.mentioned_users = context_dict.get("mentioned_users", None)
+
+        self._is_wxwork_layouts_enabled: bool = False
+        if self.is_wxwork_layouts_enabled(self.bk_biz_id, self.notice_way, self.context, content_template_path):
+            # 模块化消息通知渲染后是一个 JSON 串。
+            context_dict["is_json"] = True
+            self._is_wxwork_layouts_enabled = True
+            content_template_path = content_template_path.replace("markdown", "layouts")
+
         notice_template_class = self.NoticeTemplate.get(notice_type, AlarmNoticeTemplate)
         # 此处的模板已经在没有的情况下获取到了默认模板，所以不需要带语言后缀渲染
         title_template = notice_template_class(title_template_path)
         content_template = notice_template_class(content_template_path)
-        context_dict = self.get_context_dict()
-        self.notice_way = context_dict.get("notice_way", None)
-        self.mentioned_users = context_dict.get("mentioned_users", None)
         self.encoding = None if self.notice_way in self.NoEncoding else self.Utf8Encoding
         self.context["encoding"] = self.encoding
         self.title = title_template.render(context_dict)
@@ -110,7 +119,7 @@ class BaseSender:
         content_limit = self.get_content_limit(self.notice_way)
         # 渲染后的总提长度: self.content（这里做了特殊字符的replace, 一个特殊字符占1个长度)
         content_length = get_content_length(self.content, self.encoding)
-        if not content_limit or content_limit >= content_length:
+        if context_dict.get("is_json") or not content_limit or content_limit >= content_length:
             # 不需要限制长度
             return
         # 计算扣除 user_content 后剩余模板内容的长度（这里user_content的特殊字符 占2个长度）
@@ -125,6 +134,48 @@ class BaseSender:
             content_limit - template_content_length - 1 - self.content.count("\n") - self.content.count("\t")
         )
         self.content = content_template.render(self.get_context_dict())
+
+    @classmethod
+    def is_wecom_robot_enabled(cls) -> bool:
+        return settings.IS_WECOM_ROBOT_ENABLED and Platform.te
+
+    @classmethod
+    def get_sender(cls, context: dict[str, Any]) -> str | None:
+        return settings.WECOM_ROBOT_ACCOUNT.get(str(context.get("alert_level")))
+
+    @classmethod
+    def is_wxwork_layouts_enabled(
+        cls, bk_biz_id: int, notice_way: str, context: dict[str, Any], content_template_path: str
+    ) -> bool:
+        """判断是否切换至企业微信卡片通知
+        判断规则：
+        - 业务 ID 在灰度业务列表内。
+        - 通知渠道为企微机器人或 RTX。
+        - RTX 渠道需开启企微机器人功能且配置发送者。
+        - layouts 通知模板 存在。
+        """
+        is_gray: bool = (
+            bk_biz_id in settings.WECOM_LAYOUTS_BIZ_LIST or str(bk_biz_id) in settings.WECOM_LAYOUTS_BIZ_LIST
+        )
+        if not is_gray:
+            # 必须在灰度业务列表内
+            return False
+
+        if notice_way not in [NoticeWay.WX_BOT, "rtx"]:
+            # 必须是企业微信通知渠道
+            return False
+
+        if notice_way == "rtx" and not (cls.is_wecom_robot_enabled() and cls.get_sender(context)):
+            # rtx 通道下，必须开启企业微信机器人功能
+            return False
+
+        try:
+            # 必须存在对应的 layouts 模板文件
+            get_template(content_template_path.replace("markdown", "layouts"))
+        except TemplateDoesNotExist:
+            return False
+
+        return True
 
     @staticmethod
     def get_language_template_path(template_path, language):
@@ -209,9 +260,19 @@ class BaseSender:
             content = cut_str_by_max_bytes(content, content_limit, encoding=encoding)
             content = f"{content[: len(content) - 3]}..."
             logger.info(
-                f"send.{notice_way}: \n actual content: {content} \norigin content length({content_length}) is bigger than ({content_limit})  "
+                f"send.{notice_way}: \n actual content: {content} \n"
+                f"origin content length({content_length}) is bigger than ({content_limit})  "
             )
         return content
+
+    @classmethod
+    def _format_layouts(cls, layouts: list[dict[str, Any]], encoding="utf-8"):
+        """格式化通知结构体"""
+        for layout in layouts:
+            if "text" in layout:
+                # 单个块的内容长度不能超过 2046 字节（utf-8 编码）。
+                layout["text"] = cut_str_by_max_bytes(layout["text"], 2046, encoding=encoding)
+            cls._format_layouts(layout.get("components", []), encoding=encoding)
 
     @staticmethod
     def split_layout_content(msgtype, content, mentioned_users, encoding="utf-8"):
@@ -256,7 +317,10 @@ class BaseSender:
             return {
                 notice_receiver: {"message": str(self.content), "result": False} for notice_receiver in notice_receivers
             }
-        self.content = self.get_notice_content(notice_way, self.content)
+
+        if not self._is_wxwork_layouts_enabled:
+            # 模块化消息推送，由 _format_layouts 进行长度限制，无需限制整体长度。
+            self.content = self.get_notice_content(notice_way, self.content)
         method = getattr(self, "send_{}".format(notice_way.replace("-", "_")), None)
         if method:
             notice_results = method(notice_receivers, action_plugin=action_plugin)
@@ -440,8 +504,59 @@ class Sender(BaseSender):
         r = requests.post(settings.WXWORK_BOT_WEBHOOK_URL, json=params)
         return r.json()
 
-    @staticmethod
-    def send_wxwork_content(msgtype, content, chat_ids, mentioned_users=None, mentioned_title=None):
+    @classmethod
+    def _call_wxwork_api(cls, send_result: dict[str, Any], params: dict[str, Any], url: str | None = None):
+        chatid: str = params.get("chatid", "")
+        try:
+            response: dict[str, Any] = requests.post(url or settings.WXWORK_BOT_WEBHOOK_URL, json=params).json()
+            if response["errcode"] != 0:
+                send_result["errcode"] = -1
+                send_result["errmsg"].append(f"send to {chatid} failed: {response['errmsg']}")
+        except Exception as error:
+            send_result["errcode"] = -1
+            send_result["errmsg"].append(f"send to {chatid} failed: {str(error)}")
+
+    @classmethod
+    def send_wxwork_layouts(
+        cls,
+        msgtype: str,
+        content: str,
+        chat_ids: list[str],
+        mentioned_users: dict[str, list[str]] = None,
+        mentioned_title: str = None,
+        sender: str | None = None,
+    ):
+        """模块化消息推送"""
+
+        def _construct_params(_content: str, _chat_ids: list[str]) -> dict[str, Any]:
+            _layouts: list[dict[str, Any]] = json.loads(_content)
+            cls._format_layouts(_layouts, encoding=Sender.Utf8Encoding)
+            return {"msgtype": "message", "chatid": "|".join(_chat_ids), "layouts": _layouts}
+
+        url: str = settings.WXWORK_BOT_WEBHOOK_URL
+        if sender:
+            # 进入 send_wxwork_layouts 说明 url 已经存在，这里无需重复检查。
+            if "?key=" in url:
+                url = url.split("?key=", 1)[0] + f"?key={sender}"
+
+        if not mentioned_users:
+            return requests.post(url, json=_construct_params(content, chat_ids)).json()
+
+        send_result: dict[str, Any] = {"errcode": 0, "errmsg": []}
+        for chat_id in chat_ids:
+            send_content: str = content
+            chat_mentioned_users: list[str] = mentioned_users.get(chat_id, [])
+            if chat_mentioned_users:
+                mentioned_users_string: str = "".join([f"<@{user}>" for user in chat_mentioned_users])
+                mentioned_users_string = f"**{mentioned_title or _('告警接收人')}: **{mentioned_users_string}"
+                logger.info("send wxwork to %s, mentioned_users_string %s", chat_id, mentioned_users_string)
+                send_content: str = content.replace("--mention-users--", mentioned_users_string)
+
+            cls._call_wxwork_api(send_result, _construct_params(send_content, [chat_id]), url=url)
+        return send_result
+
+    @classmethod
+    def send_wxwork_content(cls, msgtype, content, chat_ids, mentioned_users=None, mentioned_title=None):
         """
         发送文本类的内容
         """
@@ -481,44 +596,7 @@ class Sender(BaseSender):
             send_content = Sender.get_notice_content(NoticeWay.WX_BOT, send_content, Sender.Utf8Encoding)
             msg_content["content"] = send_content
             params[msgtype] = msg_content
-            try:
-                response = requests.post(settings.WXWORK_BOT_WEBHOOK_URL, json=params).json()
-                if response["errcode"] != 0:
-                    send_result["errcode"] = -1
-                    send_result["errmsg"].append(f"send to {chat_id} failed: {response['errmsg']}")
-            except Exception as error:
-                send_result["errcode"] = -1
-                send_result["errmsg"].append(f"send to {chat_id} failed: {str(error)}")
-        return send_result
-
-    @staticmethod
-    def send_wxwork_layouts(msgtype, content, chat_ids, layouts: list, mentioned_users=None, mentioned_title=None):
-        """
-        模块化消息推送(未启用)
-        """
-        send_result = {"errcode": 0, "errmsg": []}
-        for chat_id in chat_ids:
-            # 每个chatid的通知人员可能不一样，需要根据不同的chatid进行拆分
-            chat_mentioned_users = mentioned_users.get(chat_id, [])
-            mentioned_users_string = ""
-            if chat_mentioned_users:
-                mentioned_users_string = "".join([f"<@{user}>" for user in chat_mentioned_users])
-                mentioned_users_string = f"**{mentioned_title or _('告警关注者')}: **{mentioned_users_string}"
-            chat_layouts = copy.deepcopy(layouts)
-            chat_layouts.insert(0, Sender.split_layout_content(msgtype, content, mentioned_users_string))
-            params = {
-                "msgtype": "message",
-                "chatid": chat_id,
-                "layouts": chat_layouts,
-            }
-            try:
-                response = requests.post(settings.WXWORK_BOT_WEBHOOK_URL, json=params).json()
-                if response["errcode"] != 0:
-                    send_result["errmsg"].append(f"send to {chat_id} failed: {response['errmsg']}")
-            except Exception as error:
-                send_result["errcode"] = -1
-                send_result["errmsg"].append(f"send to {chat_id} failed: {str(error)}")
-        send_result["errmsg"] = ",".join(send_result["errmsg"])
+            cls._call_wxwork_api(send_result, params)
         return send_result
 
     def send_wxwork_bot(self, notice_receivers, action_plugin=ActionPluginType.NOTICE):
@@ -549,8 +627,10 @@ class Sender(BaseSender):
             return finish_send_wxork_bot(_("未配置企业微信群id，请联系管理员"), False)
 
         try:
-            # 如果不是，保留以前的发送格式
-            response = self.send_wxwork_content(self.msg_type, self.content, notice_receivers, self.mentioned_users)
+            send_func: Callable[..., dict[str, Any]] = (
+                self.send_wxwork_layouts if self._is_wxwork_layouts_enabled else self.send_wxwork_content
+            )
+            response = send_func(self.msg_type, self.content, notice_receivers, self.mentioned_users)
             if response["errcode"] != 0:
                 result = False
                 message = response["errmsg"]
@@ -587,9 +667,9 @@ class Sender(BaseSender):
         """
         sender = None
         notice_way = "rtx"
-        if settings.IS_WECOM_ROBOT_ENABLED and Platform.te:
+        if self.is_wecom_robot_enabled():
             # 允许进行通知方式切换，才进行通知发送
-            sender = settings.WECOM_ROBOT_ACCOUNT.get(str(self.context.get("alert_level")))
+            sender = self.get_sender(self.context)
             if sender:
                 notice_way = "wecom_robot"
         return self.send_default(notice_way, notice_receivers, sender)
@@ -609,6 +689,13 @@ class Sender(BaseSender):
             )
         )
         if notice_way == "wecom_robot":
+            if self._is_wxwork_layouts_enabled:
+                response = self.send_wxwork_layouts(self.msg_type, self.content, notice_receivers, sender=sender)
+                return {
+                    # 适配 send_default 的返回格式。
+                    notice_receiver: {"message": response.get("errmsg") or "", "result": response.get("errcode") == 0}
+                    for notice_receiver in notice_receivers
+                }
             # 企业微信robot发送的内容需要json格式支持
             self.content = json.dumps({"type": self.msg_type, self.msg_type: {"content": self.content}})
 

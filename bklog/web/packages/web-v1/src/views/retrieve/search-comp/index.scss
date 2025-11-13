@@ -1,0 +1,37 @@
+.inquire-cascader-container {
+  position: relative;
+  margin-top: 20px;
+
+  .inquire-cascader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    opacity: 0;
+  }
+
+  &.active,
+  &:hover {
+    .bk-button {
+      /* stylelint-disable-next-line declaration-no-important */
+      background: #e1ecff !important;
+
+      /* stylelint-disable-next-line declaration-no-important */
+      border-color: #e1ecff !important;
+    }
+  }
+
+  .add-condition {
+    width: 100%;
+    font-size: 12px;
+    line-height: 20px;
+    color: #3a84ff;
+    letter-spacing: 0;
+
+    &.bk-button {
+      color: #3a84ff;
+      background: #f0f5ff;
+      border-color: #f0f5ff;
+    }
+  }
+}

@@ -1,0 +1,170 @@
+@import 'index.scss';
+.bk-log-chart-skeleton {
+  width: 100%;
+  height: 100%;
+  margin-top: 8px;
+  margin-bottom: 12px;
+
+  .loading-text {
+    text-align: center;
+    margin-top: 12px;
+    color: #7f8c8d;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+  }
+  .chart-area {
+    position: relative;
+    background: #fafbfc;
+    border-radius: 2px;
+    overflow: hidden;
+    padding: 20px;
+  }
+  .chart-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 99%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px 20px 20px 50px;
+    margin-bottom: 4px;
+    .grid-line {
+      height: 1px;
+      background: #f0f2f5;
+    }
+  }
+  .y-axis-labels {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 45px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px 0;
+    .y-label {
+      height: 12px;
+      width: 28px;
+      border-radius: 2px;
+      margin-left: 8px;
+    }
+  }
+  .x-axis-labels {
+    position: absolute;
+    bottom: 1px;
+    left: 50px;
+    width: calc(100% - 50px);
+    display: flex;
+    justify-content: space-between;
+    padding: 0 15px 0 0;
+    .x-label {
+      height: 10px;
+      width: 28px;
+      border-radius: 2px;
+      margin-bottom: 4px;
+    }
+  }
+  .chart-content {
+    position: relative;
+    top: 10px;
+    left: 40px;
+    right: 20px;
+    bottom: 20px;
+    height: 100%;
+    width: calc(100% - 40px);
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  /** 曲线图 */
+  .line-path {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #e7eaee, #d5d9df, #e6e9ed);
+    border-radius: 2px;
+    transform: translateY(-50%);
+    animation: shimmer 1.8s infinite linear;
+  }
+  .line-path-shadow {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      rgba(230, 233, 237, 0.2) 0%,
+      rgba(230, 233, 237, 0.5) 50%,
+      rgba(230, 233, 237, 0.2) 100%
+    );
+    border-radius: 50%;
+    transform: translateY(-50%);
+    filter: blur(8px);
+  }
+  .line-point-box {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 10px;
+    transform: translateY(-50%);
+  }
+  .line-point {
+    width: 8px;
+    height: 8px;
+    background: #f0f2f5;
+    border-radius: 50%;
+    position: relative;
+    z-index: 2;
+  }
+  .line-point-shadow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    background: rgba(240, 242, 245, 0.4);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  /** 柱状图 */
+  .bar-skeleton {
+    position: absolute;
+    bottom: 12px;
+    left: 0;
+    width: 100%;
+    height: 92%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 15px;
+  }
+  .bar-item {
+    width: 30px;
+    background: linear-gradient(to top, #efeff0, #e1e5eb);
+    border-radius: 4px 4px 0 0;
+    position: relative;
+  }
+  .bar-item-shadow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 15px;
+    background: rgba(255, 255, 255, 0.33);
+    border-radius: 4px 4px 0 0;
+  }
+}

@@ -328,7 +328,7 @@ const store = new Vuex.Store({
           const filterFn = v => !hiddenValues.includes(v);
 
           const filterValue = Array.isArray(value) ? value.filter(filterFn) : [value].filter(filterFn);
-          if (filterValue.length > 0) {
+          if (['does not exists', 'exists', 'is false', 'is true'].includes(operator) || filterValue.length > 0) {
             output.push({
               field,
               operator,

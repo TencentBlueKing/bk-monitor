@@ -1,0 +1,163 @@
+@import '@/scss/mixins/flex.scss';
+
+.label-select {
+  position: relative;
+  align-items: center;
+  padding: 4px 0;
+
+  @include flex-justify(start);
+
+  .bk-select {
+    flex-shrink: 0;
+    margin-left: 4px;
+    border: none;
+    box-shadow: none;
+  }
+
+  .is-focus,
+  &:hover {
+    .add-label-btn {
+      visibility: visible;
+
+      &::after {
+        background: #e1ecff;
+      }
+    }
+  }
+
+  .label-tag-box {
+    // flex-wrap: wrap;
+    align-items: center;
+
+    @include flex-justify(space-between);
+
+    .bk-tag {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .label-tag {
+      max-width: 100px;
+
+      @include flex-center();
+
+      &:hover .icon-close {
+        display: flex;
+      }
+    }
+
+    .icon-close {
+      display: none;
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .is-disabled {
+      background: transparent;
+    }
+
+    .tag-container {
+      flex-direction: column;
+      align-items: start;
+
+      @include flex-justify(center);
+    }
+
+    .tag-label-item {
+      flex-shrink: 0;
+
+      @include flex-center();
+    }
+
+    .more-num {
+      flex: 1;
+      min-width: 26px;
+      padding: 0 5px;
+      margin-left: 6px;
+      font-size: 12px;
+      line-height: 22px;
+      text-align: center;
+      cursor: pointer;
+      background: #f0f1f5;
+    }
+  }
+}
+
+.new-label-container {
+  box-sizing: border-box;
+  height: 40px;
+  font-size: 12px;
+
+  @include flex-center();
+
+  .new-label-input {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0;
+  }
+
+  .add-new-label {
+    width: 100%;
+    height: 100%;
+    color: #63656e;
+    cursor: pointer;
+
+    @include flex-center();
+
+    .icon-plus-circle {
+      margin-right: 4px;
+    }
+  }
+
+  .operate-button {
+    margin-left: 6px;
+    font-size: 16px;
+    color: #979ba5;
+
+    span {
+      cursor: pointer;
+    }
+
+    > :first-child {
+      margin-right: 12px;
+      color: #33d05c;
+    }
+
+    > :last-child {
+      color: #979ba5;
+    }
+  }
+}
+
+.add-label-btn {
+  position: relative;
+  z-index: 999;
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  cursor: pointer;
+  visibility: hidden;
+
+  @include flex-center();
+
+  &::after {
+    position: absolute;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+    content: ' ';
+    background: transparent;
+    border-radius: 50%;
+  }
+
+  &.disabled {
+    cursor: not-allowed;
+  }
+
+  .icon-plus-line {
+    color: #3a84ff;
+  }
+}

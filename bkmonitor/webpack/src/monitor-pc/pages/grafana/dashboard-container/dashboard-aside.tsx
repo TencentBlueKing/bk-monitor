@@ -586,7 +586,15 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             if (component.key === 'name') {
               defaultVal = this.formData.name;
             } else if (component.key === 'category') {
-              defaultVal = this.formData.dir?.toString() || '';
+              component.options = this.dirList.map(item => {
+                if (item.id === this.formData.dir) {
+                  defaultVal = item.name;
+                }
+                return {
+                  label: item.name,
+                  value: item.name,
+                };
+              });
             } else if (component.key === 'bk_biz_id') {
               defaultVal = (window.cc_biz_id || window.bk_biz_id).toString();
             } else if (component.key === 'datasource') {

@@ -1,0 +1,246 @@
+@import '@/scss/mixins/flex.scss';
+
+.field-analysis-container {
+  width: 460px;
+  padding: 4px;
+  font-size: 12px;
+  color: #63656e;
+  %num-box-extend {
+    width: 48%;
+    background: #f5f7fa;
+    border-radius: 2px;
+
+    @include flex-center();
+  }
+
+  .total-num-container {
+    margin-top: 12px;
+
+    .total-num {
+      margin-right: 32px;
+    }
+  }
+
+  .log-num-container {
+    margin-top: 8px;
+
+    @include flex-justify(space-between);
+
+    .num-box {
+      flex-direction: column;
+      height: 80px;
+
+      @extend %num-box-extend;
+
+      .log-num,
+      log-unit {
+        color: #313238;
+      }
+
+      .log-num {
+        margin-right: 2px;
+        font-size: 24px;
+      }
+    }
+
+    .log-str {
+      margin-top: 4px;
+    }
+  }
+
+  .number-num-container {
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+
+    @include flex-justify(space-between);
+
+    .num-box {
+      height: 32px;
+      margin-top: 8px;
+
+      @extend %num-box-extend;
+
+      .num-key {
+        margin-right: 8px;
+      }
+
+      .num-val {
+        min-width: 30px;
+        color: #313238;
+
+        @include flex-center();
+      }
+    }
+  }
+
+  .chart-title {
+    margin: 12px 0;
+    font-size: 12px;
+    color: #313238;
+
+    @include flex-justify(space-between);
+  }
+
+  .legend-box {
+    align-content: center;
+    margin-top: 10px;
+
+    @include flex-justify(space-between);
+
+    .common-legend {
+      flex: 1;
+      flex-wrap: wrap;
+      align-items: center;
+      overflow-y: hidden;
+
+      @include flex-justify(start);
+
+      &-item {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        height: 20px;
+        margin-left: 10px;
+        font-size: 12px;
+        line-height: 16px;
+        white-space: nowrap;
+
+        .legend-icon {
+          width: 12px;
+          height: 4px;
+          margin-right: 6px;
+        }
+
+        .legend-name {
+          max-width: 180px;
+        }
+
+        &:hover {
+          cursor: pointer;
+        }
+      }
+    }
+
+    .legend-icon-box {
+      flex-direction: column;
+      align-items: center;
+      height: 34px;
+      margin-top: 2px;
+
+      @include flex-justify(space-between);
+
+      .last-page-up {
+        transform: rotateZ(180deg) translateY(-7px);
+      }
+
+      .bk-icon {
+        font-size: 16px;
+        color: #63656e;
+        cursor: pointer;
+      }
+
+      .disabled {
+        color: #c5c7cd;
+
+        &:hover {
+          /* stylelint-disable-next-line declaration-no-important */
+          color: #c5c7cd !important;
+        }
+      }
+
+      .legend-page {
+        width: 34px;
+        text-align: center;
+      }
+    }
+  }
+
+  .not-data-empty {
+    height: 100%;
+    color: #313238;
+
+    @include flex-center();
+
+    .bk-icon {
+      margin-left: 4px;
+      font-size: 14px;
+      color: #eb3941;
+    }
+  }
+}
+
+#monitor-chart-tooltips {
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  border-radius: 4px;
+  border-radius: 10px;
+
+  .tooltips-header {
+    margin: 0 0 2px 6px;
+    font-weight: bold;
+    color: #f1f3fa;
+    text-align: left;
+  }
+
+  .tooltips-content {
+    padding: 0;
+    margin: 0;
+
+    &-item {
+      display: flex;
+      align-items: top;
+      justify-content: space-between;
+      margin: 2px 4px;
+      margin-right: 5px;
+
+      .item-series {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 6px;
+        height: 6px;
+        margin: 8px 6px 0 0;
+        border-radius: 50%;
+      }
+
+      .item-name {
+        flex-shrink: 0;
+        margin-right: 5px;
+        font-weight: bold;
+        color: #fff;
+
+        &.is-warp {
+          overflow: hidden;
+          word-break: normal;
+          word-wrap: break-word;
+          white-space: pre;
+        }
+      }
+
+      .item-value-box {
+        display: flex;
+        flex: 1;
+        align-items: center;
+
+        .item-value {
+          display: flex;
+          align-items: center;
+          height: 18px;
+          padding: 0 5px;
+          margin-left: auto;
+          font-weight: bold;
+          color: #fff;
+          background-color: rgba(1, 1, 1, 0.8);
+          border-radius: 3px;
+        }
+
+        &.is-warp {
+          align-items: end;
+        }
+      }
+    }
+  }
+}

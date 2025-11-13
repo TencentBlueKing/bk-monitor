@@ -1,0 +1,30 @@
+{
+  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./**/*.js", "src/**/*"],
+  "exclude": ["node_modules", "dist", "local.settings.js"],
+  "vueCompilerOptions": {
+    "target": 2.7
+  },
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "module": "esnext",
+    "target": "esnext",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "rootDir": ".",
+    "sourceMap": true,
+    "pretty": true,
+    "jsx": "preserve",
+    "lib": ["es2018", "esnext", "dom", "dom.iterable", "scripthost"],
+    "removeComments": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
+}

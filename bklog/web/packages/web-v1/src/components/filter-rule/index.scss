@@ -1,0 +1,82 @@
+.filter-rule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+
+  .filter-rule-item {
+    display: flex;
+    align-items: center;
+
+    .bk-select-angle {
+      display: none;
+    }
+
+    .bk-select,
+    .bk-tag-input {
+      border-radius: 0;
+    }
+
+    .bk-form-control {
+      width: 140px;
+      border-radius: 0;
+    }
+
+    .condition {
+      // padding: 0 10px;
+      line-height: 30px;
+      color: #3a84ff;
+    }
+
+    .min-100 {
+      min-width: 100px;
+      max-height: 32px;
+    }
+
+    .mr-neg1 {
+      position: relative;
+      margin-right: -1px;
+    }
+
+    .above {
+      z-index: 999;
+    }
+
+    .is-not-error {
+      &.bk-select,
+      &.bk-tag-selector .bk-tag-input {
+        border: 1px solid #c4c6cc !important;
+      }
+    }
+
+    .alarm-config {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .icon-box {
+      width: 22px;
+      height: 40px;
+      font-family: RobotoMono-Medium;
+      background: #fdeed8;
+      font-weight: 500;
+      border-radius: 2px;
+      line-height: 40px;
+      font-size: 12px;
+      text-align: center;
+      cursor: pointer;
+      color: #f59500;
+      border: none;
+      outline: none;
+      margin-right: 4px;
+      box-shadow: none;
+
+      .bk-select-name {
+        height: 40px;
+        padding: 0;
+        margin: 0;
+      }
+    }
+  }
+}

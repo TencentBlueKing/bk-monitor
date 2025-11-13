@@ -1,0 +1,14 @@
+@use 'sass:color';
+
+@mixin scroller($backgroundColor: #ddd, $width: 4px) {
+  &::-webkit-scrollbar {
+    width: $width;
+    height: 8px;
+    background-color: color.adjust($backgroundColor, $lightness: 80%);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: $backgroundColor;
+    border-radius: calc($width / 2);
+  }
+}

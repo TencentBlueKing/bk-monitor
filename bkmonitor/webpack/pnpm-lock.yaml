@@ -345,8 +345,8 @@ importers:
   src/monitor-pc:
     dependencies:
       '@blueking/ai-blueking':
-        specifier: 1.3.0-beta.6
-        version: 1.3.0-beta.6(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(dayjs@1.11.18)(markdown-it@13.0.2)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
+        specifier: 1.3.0-beta.7
+        version: 1.3.0-beta.7(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(dayjs@1.11.18)(markdown-it@13.0.2)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)
       '@blueking/bk-user-display-name':
         specifier: 1.0.3-beta.5
         version: 1.0.3-beta.5
@@ -1455,8 +1455,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@blueking/ai-blueking@1.3.0-beta.6':
-    resolution: {integrity: sha512-rDOP/8/iNAvMTESVhp9Igkz9F4GAAE0VQPD0OKCd4TUkoZb8l1poIRD1d2dqFleL+t7uYp2557FitmPwWNwP2w==}
+  '@blueking/ai-blueking@1.3.0-beta.7':
+    resolution: {integrity: sha512-03td/Zd8ax4LXi72R1iqVn8Sz92bXZUqSnt1Ixa4UDFADT5hZ7M3Ksl1F8Rj2nqYnGZ2c9gIWsxwX6gbviCJ+A==}
     peerDependencies:
       dayjs: ^1.10.7
       markdown-it: ^13.0.1
@@ -9529,7 +9529,7 @@ snapshots:
   '@biomejs/cli-win32-x64@2.2.4':
     optional: true
 
-  '@blueking/ai-blueking@1.3.0-beta.6(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(dayjs@1.11.18)(markdown-it@13.0.2)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
+  '@blueking/ai-blueking@1.3.0-beta.7(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(dayjs@1.11.18)(markdown-it@13.0.2)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)':
     dependencies:
       '@blueking/ai-ui-sdk': 0.1.18-beta.25(bkui-vue@2.0.2-beta.63(highlight.js@11.11.1)(vue@2.7.16))(dayjs@1.11.18)(vue-router@3.6.5(vue@2.7.16))(vue@2.7.16)(x-mavon-editor@0.0.20)
       '@blueking/bkui-library': 0.0.0-beta.6

@@ -44,17 +44,17 @@ export type FormatterConfig = {
   fields: any[];
   jsonValue: any;
   field: any;
-  onSegmentClick: (args: any) => void;
+  onSegmentClick: (_args: any) => void;
   options?: Record<string, any>;
 };
 
-export type SegmentAppendText = { text: string; onClick?: (...args) => void; attributes?: Record<string, string> };
+export type SegmentAppendText = { text: string; onClick?: (..._args) => void; attributes?: Record<string, string> };
 export default class UseJsonFormatter {
   editor: JsonView;
   config: FormatterConfig;
   setValuePromise: Promise<any>;
   localDepth: number;
-  getSegmentContent: (keyRef: object, fn: (...args) => void) => Ref<HTMLElement>;
+  getSegmentContent: (_keyRef: object, _fn: (..._args) => void) => Ref<HTMLElement>;
   keyRef: any;
 
   constructor(cfg: FormatterConfig) {
@@ -122,7 +122,7 @@ export default class UseJsonFormatter {
 
   handleSegmentClick(e: MouseEvent, value) {
     // 如果是点击划选文本，则不进行处理
-    if (RetrieveHelper.isClickOnSelection(e)) {
+    if (RetrieveHelper.isClickOnSelection(e, 2)) {
       return;
     }
     if (!value.toString() || value === '--') {
@@ -242,7 +242,7 @@ export default class UseJsonFormatter {
   addWordSegmentClick(root: HTMLElement) {
     if (!root.hasAttribute('data-word-segment-click')) {
       root.setAttribute('data-word-segment-click', '1');
-      root.addEventListener('click', e => {
+      root.addEventListener('click', (e) => {
         if ((e.target as HTMLElement).classList.contains('valid-text')) {
           this.handleSegmentClick(e, (e.target as HTMLElement).textContent);
         }
@@ -267,7 +267,7 @@ export default class UseJsonFormatter {
         element?.setAttribute('data-field-name', fieldName);
 
         if (element.hasAttribute('data-with-intersection')) {
-          element.style.setProperty('min-height', `${element.offsetHeight}px`);
+          (element as HTMLElement).style.setProperty('min-height', `${(element as HTMLElement).offsetHeight}px`);
         }
 
         element.innerHTML = '';
@@ -276,7 +276,7 @@ export default class UseJsonFormatter {
 
         const { setListItem, removeScrollEvent } = setScrollLoadCell(
           vlaues,
-          element,
+          element as HTMLElement,
           segmentContent,
           this.getChildItem,
         );
@@ -361,7 +361,7 @@ export default class UseJsonFormatter {
         },
       });
 
-      this.editor.initClickEvent(e => {
+      this.editor.initClickEvent((e) => {
         if ((e.target as HTMLElement).classList.contains('valid-text')) {
           this.handleSegmentClick(e, (e.target as HTMLElement).textContent);
         }

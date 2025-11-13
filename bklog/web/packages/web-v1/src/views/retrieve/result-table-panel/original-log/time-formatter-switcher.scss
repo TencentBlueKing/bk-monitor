@@ -1,0 +1,46 @@
+.switcher-box {
+  display: inline-block;
+  margin: 0 4px;
+
+  .bk-switcher {
+    background-color: #c4c6cc;
+    border-radius: 2px;
+
+    &:hover {
+      background: #c4c6cc;
+    }
+
+    &:after {
+      width: 17px;
+      height: 17px;
+      border-radius: 3px;
+    }
+
+    .switcher-label {
+      height: 18px;
+    }
+  }
+
+  .show-label {
+    width: 54px;
+    height: 21px;
+    font-size: 12px;
+    line-height: 21px;
+  }
+
+  .is-unchecked .switcher-label {
+    margin: 0 0 0 21px;
+  }
+
+  .is-checked {
+    background: #3a84ff;
+
+    &:hover {
+      background: #3a84ff;
+    }
+
+    &:after {
+      margin-left: -19px;
+    }
+  }
+}

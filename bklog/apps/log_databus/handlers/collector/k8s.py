@@ -599,7 +599,7 @@ class K8sCollectorHandler(CollectorHandler):
                 data_name=self.build_bk_data_name(self.data.get_bk_biz_id(), data["collector_config_name_en"]),
                 description=collector_config_params["description"],
                 encoding=META_DATA_ENCODING,
-                bk_biz_id=self.data.get_bk_biz_id(),
+                bk_biz_id=self.data.get_bk_biz_id()
             )
             self.data.task_id_list = list(
                 ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).values_list(
@@ -983,7 +983,7 @@ class K8sCollectorHandler(CollectorHandler):
             if collector_config_params["description"]
             else collector_config_params["collector_config_name_en"],
             encoding=META_DATA_ENCODING,
-            bk_biz_id=self.data.bk_biz_id,
+            bk_biz_id=self.data.bk_biz_id
         )
         self.data.save()
 
@@ -1625,10 +1625,6 @@ class K8sCollectorHandler(CollectorHandler):
         创建容器采集配置
         :param container_config: 容器采集配置实例
         """
-
-        if not self.data.is_active:
-            return
-
         from apps.log_databus.tasks.collector import create_container_release
 
         if self.data.yaml_config_enabled and container_config.raw_config:
@@ -1663,9 +1659,6 @@ class K8sCollectorHandler(CollectorHandler):
         )
 
     def delete_container_release(self, container_config, delete_config=False):
-        if not self.data.is_active:
-            return
-
         from apps.log_databus.tasks.collector import delete_container_release
 
         name = self._generate_bklog_config_name(container_config.id)

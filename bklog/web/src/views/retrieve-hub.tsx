@@ -27,7 +27,7 @@ import { defineComponent } from 'vue';
 
 import { useRoute } from 'vue-router/composables';
 const RetrieveV3 = () => import(/* webpackChunkName: 'logRetrieve-v3' */ '@/views/retrieve-v3/index');
-const RetrieveV1 = () => import(/* webpackChunkName: 'logRetrieve-v1' */ '@/views/retrieve/index.vue');
+const RetrieveV1 = () => import(/* webpackChunkName: 'logRetrieve-v1' */ '@/views/retrieve/container');
 
 export default defineComponent({
   name: 'RetrieveHub',

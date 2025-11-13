@@ -1,0 +1,140 @@
+@import '../../scss/mixins/flex.scss';
+
+.field-input {
+  position: relative;
+  padding-top: 24px;
+
+  .icon-log-loading {
+    margin-right: 8px;
+    font-size: 14px;
+    color: #3a84ff;
+  }
+
+  .right-fix {
+    flex-shrink: 0;
+    padding: 4px 6px;
+    color: #63656e;
+    cursor: pointer;
+    background: #f0f1f5;
+    border-radius: 2px;
+
+    &:hover {
+      background: #e1ecff;
+    }
+
+    .bklog-icon {
+      margin-right: 4px;
+      font-size: 14px;
+    }
+  }
+
+  .text-btn {
+    margin-right: 8px;
+    cursor: pointer;
+
+    @include flex-align(center);
+
+    .text,
+    .icon {
+      color: #3a84ff;
+    }
+
+    .text {
+      font-size: 12px;
+    }
+  }
+  // .json-editor {
+  //   .mtk20 {
+  //     background: #EAEBF0;
+  //     color: #63656E;
+  //   }
+  //   .mtk5 {
+  //     color: #63656E;
+  //   }
+  // }
+  .sync-rule-box {
+    align-items: center;
+    padding-bottom: 16px;
+    margin-top: 24px;
+
+    @include flex-justify(flex-start);
+
+    > span {
+      margin-left: 20px;
+      font-size: 12px;
+      color: #ea3636;
+    }
+  }
+
+  .bk-tab-label {
+    /* stylelint-disable-next-line declaration-no-important */
+    font-size: 12px !important;
+  }
+
+  .bk-tab-section {
+    padding: 0;
+  }
+
+  .drag-bottom {
+    position: absolute;
+    bottom: 53px;
+    left: 0px;
+    z-index: 999;
+    width: 100%;
+    height: 14px;
+    cursor: row-resize;
+    background: #fff;
+    border: 1px solid #dbdce0;
+    border-top: none;
+
+    &::after {
+      position: absolute;
+      top: 5px;
+      left: calc(50% - 32px);
+      display: inline-block;
+      width: 64px;
+      height: 4px;
+      content: ' ';
+      background: #dcdee5;
+      border-radius: 3px;
+    }
+
+    &.drag-ing,
+    &:hover {
+      background: #f5f7fa;
+    }
+  }
+}
+
+.no-data-tips {
+  align-items: center;
+  height: 0;
+  font-size: 12px;
+  color: #63656e;
+  transform: translateY(-26px);
+
+  @include flex-justify(center);
+}
+
+.hidden-input {
+  .bk-tab-section {
+    border: none;
+  }
+}
+
+.input-fix {
+  position: sticky;
+  top: 0;
+  z-index: 999;
+  background: #fff;
+
+  &.other-color {
+    background: #f5f7fa;
+  }
+}
+
+.is-not-log {
+  .bk-tab-add-custom {
+    border-bottom: none;
+  }
+}

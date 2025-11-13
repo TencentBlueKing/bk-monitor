@@ -1,0 +1,165 @@
+.retrieve-collect-container {
+  width: 100%;
+  font-size: 12px;
+  color: #313238;
+  background: #fafbfd;
+
+  .bk-icon {
+    font-size: 14px;
+    color: #63656e;
+    cursor: pointer;
+  }
+
+  .search-container {
+    padding: 16px;
+
+    .search-title,
+    .bklog-icon {
+      font-size: 14px;
+    }
+
+    .search-box {
+      margin-top: 12px;
+    }
+
+    .favorite-number {
+      display: inline-block;
+      min-width: 20px;
+      height: 16px;
+      margin: 2px 0 0 8px;
+      font-size: 12px;
+      color: #979ba5;
+      text-align: center;
+      background: #fff;
+      border-radius: 2px;
+    }
+  }
+
+  .new-search {
+    position: relative;
+    z-index: 9;
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 16px 0 14px;
+    margin-bottom: 8px;
+    color: #313238;
+    cursor: pointer;
+    border: 1px solid #dcdee5;
+
+    .icon-enlarge-line {
+      margin-right: 3px;
+      color: #63656e;
+    }
+
+    &.active {
+      z-index: 999;
+      color: #3a84ff;
+      background: #f0f5ff;
+      border: 1px solid #3a84ff;
+
+      .icon-enlarge-line {
+        color: #3a84ff;
+      }
+    }
+  }
+
+  .group-container {
+    height: calc(100vh - 240px);
+    margin-right: 4px;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+      background: transparent;
+    }
+  }
+
+  .icon-box {
+    display: inline-block;
+    border: 1px solid #63656e;
+    transform: scale(0.84);
+  }
+
+  .operate-box {
+    width: 57px;
+    margin-left: 12px;
+  }
+
+  .list-number {
+    color: #979ba5;
+  }
+
+  .fl-jcsb {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .data-empty {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding-top: 30px;
+
+    .exception-image {
+      height: 175px;
+    }
+
+    .empty-text {
+      display: inline-block;
+      margin-top: 24px;
+    }
+  }
+}
+
+.new-group-popover {
+  width: 240px;
+  font-size: 12px;
+
+  .operate-button {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 6px;
+    font-size: 12px;
+    color: #979ba5;
+
+    span {
+      cursor: pointer;
+    }
+
+    > :first-child {
+      margin-right: 12px;
+      color: #3a84ff;
+    }
+  }
+}
+
+.sort-group-popover {
+  .bk-radio-text,
+  .bk-button {
+    font-size: 12px;
+  }
+
+  .sort-group-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    width: 200px;
+    height: 80px;
+    margin-top: 10px;
+  }
+
+  .operate-button {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 10px;
+
+    > :first-child {
+      margin-right: 12px;
+    }
+  }
+}

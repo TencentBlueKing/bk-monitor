@@ -430,6 +430,7 @@
         data: {
           status: val,
           page_size: pageSize,
+          space_uid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
         },
       });
 
@@ -474,6 +475,7 @@
         },
         data: {
           page_size: pageSize,
+          space_uid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
         },
       });
 

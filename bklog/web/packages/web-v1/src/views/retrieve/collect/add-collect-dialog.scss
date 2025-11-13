@@ -1,0 +1,125 @@
+@import '@/scss/mixins/flex.scss';
+
+.add-collect-dialog {
+  .bk-form {
+    > :first-child {
+      margin-top: -10px;
+    }
+
+    > :not(:first-child) {
+      /* stylelint-disable-next-line declaration-no-important */
+      margin-top: 12px !important;
+    }
+  }
+
+  .edit-information {
+    padding: 0 16px;
+    font-size: 12px;
+
+    @include flex-justify(start);
+
+    > :first-child {
+      display: inline-block;
+      min-width: 72px;
+      margin-right: 6px;
+      color: #979ba5;
+    }
+
+    > :last-child {
+      flex-direction: column;
+
+      @include flex-justify(center);
+    }
+  }
+
+  .collect-radio {
+    /* stylelint-disable-next-line declaration-no-important */
+    margin-top: 0 !important;
+
+    .bk-form-control {
+      > :first-child {
+        margin-right: 20px;
+      }
+    }
+  }
+
+  .filed-label .bk-label-text {
+    width: 100%;
+  }
+
+  .bk-form-item {
+    padding: 0 16px;
+
+    .bk-label,
+    .bk-radio-text,
+    .bk-checkbox-text {
+      font-size: 12px;
+    }
+  }
+
+  .form-item-container {
+    align-items: center;
+
+    @include flex-justify(space-between);
+
+    .bk-form-item {
+      width: 50%;
+    }
+  }
+
+  .explanation-field {
+    padding: 6px 8px;
+    font-size: 12px;
+    line-height: 20px;
+    background: #f5f7fa;
+  }
+
+  .bk-form-checkbox {
+    margin-right: 20px;
+  }
+
+  .filed-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    .current-filed {
+      margin-left: 24px;
+      font-size: 12px;
+      color: #979ba5;
+    }
+  }
+
+  .add-new-page-container {
+    .add-new-page-input {
+      display: flex;
+      align-items: center;
+    }
+
+    .operate-button {
+      justify-content: space-between;
+      margin-left: 6px;
+      font-size: 16px;
+      color: #979ba5;
+
+      span {
+        cursor: pointer;
+      }
+
+      > :first-child {
+        margin-right: 12px;
+        color: #33d05c;
+      }
+
+      > :last-child {
+        color: #979ba5;
+      }
+    }
+  }
+
+  .fl-jcsb {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+}

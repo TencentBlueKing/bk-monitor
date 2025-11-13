@@ -49,8 +49,8 @@ export default ({ fields, onSegmentClick }) => {
   const rootFieldOperator = new Map<string, RootFieldOperator>();
   let initEditPromise: Promise<any>;
 
-  const initRootOperator = depth => {
-    initEditPromise = new Promise(resolve => {
+  const initRootOperator = (depth) => {
+    initEditPromise = new Promise((resolve) => {
       for (const value of rootFieldOperator.values()) {
         if (!value.editor) {
           value.editor = new UseJsonFormatter({
@@ -78,7 +78,7 @@ export default ({ fields, onSegmentClick }) => {
     return initEditPromise;
   };
 
-  const setEditor = depth => {
+  const setEditor = (depth) => {
     for (const value of rootFieldOperator.values()) {
       if (!value.editor) {
         value.editor = new UseJsonFormatter({
@@ -159,7 +159,7 @@ export default ({ fields, onSegmentClick }) => {
     // });
   };
 
-  const setExpand = depth => {
+  const setExpand = (depth) => {
     for (const item of rootFieldOperator.values()) {
       if (item.isJson) {
         item.editor?.setExpand(depth);

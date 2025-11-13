@@ -1,0 +1,18 @@
+@mixin create-label($mainColor, $bgcolor, $color, $fillColor) {
+  & {
+    color: $color;
+    background-color: $bgcolor;
+    border-color: $mainColor;
+
+    &.is-fill {
+      color: $fillColor;
+      background-color: $mainColor;
+    }
+
+    &.is-text {
+      color: $color;
+      background-color: #fff;
+      border-color: #fff;
+    }
+  }
+}

@@ -1,0 +1,67 @@
+@import '@/scss/mixins/flex.scss';
+
+.pattern-line {
+  cursor: pointer;
+
+  mark {
+    color: #313238;
+    background: #f0f1f5;
+  }
+}
+
+.cluster-event-tippy {
+  .event-icons {
+    flex-direction: column;
+
+    @include flex-center();
+  }
+
+  .event-box {
+    min-width: 240px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+    cursor: pointer;
+
+    @include flex-center();
+
+    &.top-line {
+      border-top: 1px solid #EAEBF0;
+    }
+
+    &:hover {
+      background: #eaf3ff;
+    }
+  }
+
+
+  .event-btn {
+    flex: 1;
+    align-items: center;
+
+    @include flex-justify(left);
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .icon {
+    display: inline-block;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .icon-eye {
+    margin-right: 6px;
+  }
+
+  .icon-copy {
+    margin-left: -4px;
+    font-size: 24px;
+  }
+  
+  .icon-plus-circle, .icon-icon-help-document-fill {
+    margin-right: 4px;
+  }
+}

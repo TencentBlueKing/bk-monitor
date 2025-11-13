@@ -1,0 +1,763 @@
+@font-face {
+	font-family: "bklog";
+	src: url("fonts/iconcool.svg#iconcool") format("svg"),
+url("fonts/iconcool.ttf") format("truetype"),
+url("fonts/iconcool.woff") format("woff"),
+url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+.bklog-icon {
+  /* use !important to prevent issues with browser extensions that change fonts */
+  font-family: 'bklog' !important;
+  speak: none;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  text-align: center;
+  /* Better Font Rendering =========== */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.bklog-app-store:before {
+	content: "\e162";
+}
+.bklog-folder-open:before {
+	content: "\e1db";
+}
+.bklog-jump:before {
+	content: "\e15f";
+}
+.bklog-assembly-line-fill:before {
+	content: "\e154";
+}
+.bklog-calculation-fill:before {
+	content: "\e14d";
+}
+.bklog-up:before {
+	content: "\e103";
+}
+.bklog-down:before {
+	content: "\e102";
+}
+.bklog-topping-fill:before {
+	content: "\e168";
+}
+.bklog-info-fill:before {
+	content: "\e101";
+}
+.bklog-eye:before {
+	content: "\e197";
+}
+.bklog-eye-slash:before {
+	content: "\e198";
+}
+.bklog-dimens:before {
+	content: "\e21c";
+}
+.bklog-email-shape:before {
+	content: "\e164";
+}
+.bklog-lc-star-shape:before {
+	content: "\e165";
+}
+.bklog-double-arrow:before {
+	content: "\e104";
+}
+.bklog-drag-dots:before {
+	content: "\e105";
+}
+.bklog-filled-right-arrow:before {
+	content: "\e106";
+}
+.bklog-audit:before {
+	content: "\e1a5";
+}
+.bklog-icon-help-document-fill:before {
+	content: "\e107";
+}
+.bklog-chinese:before {
+	content: "\e108";
+}
+.bklog-copy:before {
+	content: "\e109";
+}
+.bklog-english:before {
+	content: "\e10a";
+}
+.bklog-full-screen-log:before {
+	content: "\e10b";
+}
+.bklog-index-set:before {
+	content: "\e10c";
+}
+.bklog-play-log:before {
+	content: "\e10d";
+}
+.bklog-search-log-logo:before {
+	content: "\e10e";
+}
+.bklog-stop-log:before {
+	content: "\e10f";
+}
+.bklog-log-download:before {
+	content: "\e110";
+}
+.bklog-log-refresh:before {
+	content: "\e111";
+}
+.bklog-log-setting:before {
+	content: "\e112";
+}
+.bklog-download-icon:before {
+	content: "\e113";
+}
+.bklog-refresh-icon:before {
+	content: "\e114";
+}
+.bklog-set-icon:before {
+	content: "\e115";
+}
+.bklog-plus:before {
+	content: "\e19a";
+}
+.bklog-xiazai:before {
+	content: "\e14a";
+}
+.bklog-camera-fill:before {
+	content: "\e116";
+}
+.bklog-cc-cabinet:before {
+	content: "\e158";
+}
+.bklog-cc-create-business:before {
+	content: "\e157";
+}
+.bklog-cc-influxdb:before {
+	content: "\e155";
+}
+.bklog-cc-log:before {
+	content: "\e156";
+}
+.bklog-locale:before {
+	content: "\e117";
+}
+.bklog-bar:before {
+	content: "\e192";
+}
+.bklog-collapse-small:before {
+	content: "\e18a";
+}
+.bklog-expand-small:before {
+	content: "\e189";
+}
+.bklog-new-_empty-fill:before {
+	content: "\e150";
+}
+.bklog-audit-fill:before {
+	content: "\e151";
+}
+.bklog-field-fill:before {
+	content: "\e16f";
+}
+.bklog-folder-fill:before {
+	content: "\e166";
+}
+.bklog-data-copy:before {
+	content: "\e195";
+}
+.bklog-history-fill:before {
+	content: "\e167";
+}
+.bklog-namespace-fill:before {
+	content: "\e14e";
+}
+.bklog-withdraw-fill:before {
+	content: "\e152";
+}
+.bklog-date-picker:before {
+	content: "\e118";
+}
+.bklog-help:before {
+	content: "\e119";
+}
+.bklog-lianjie:before {
+	content: "\e11a";
+}
+.bklog-auto-refresh:before {
+	content: "\e11b";
+}
+.bklog-no-refresh:before {
+	content: "\e11c";
+}
+.bklog-copy-2:before {
+	content: "\e188";
+}
+.bklog-table:before {
+	content: "\e193";
+}
+.bklog-number:before {
+	content: "\e138";
+}
+.bklog-string:before {
+	content: "\e139";
+}
+.bklog-text:before {
+	content: "\e13a";
+}
+.bklog-unkown:before {
+	content: "\e13b";
+}
+.bklog-info-fill--2:before {
+	content: "\e14f";
+}
+.bklog-equal:before {
+	content: "\e13c";
+}
+.bklog-and:before {
+	content: "\e13d";
+}
+.bklog-value:before {
+	content: "\e13f";
+}
+.bklog-field:before {
+	content: "\e13e";
+}
+.bklog-time:before {
+	content: "\e144";
+}
+.bklog-inform:before {
+	content: "\e145";
+}
+.bklog-teminal:before {
+	content: "\e146";
+}
+.bklog-document:before {
+	content: "\e147";
+}
+.bklog-zidongchaxun:before {
+	content: "\e148";
+}
+.bklog-shoudongchaxun:before {
+	content: "\e149";
+}
+.bklog-xiangji:before {
+	content: "\e14b";
+}
+.bklog-elasticsearch:before {
+	content: "\e159";
+}
+.bklog-tongbu:before {
+	content: "\e15a";
+}
+.bklog-moban:before {
+	content: "\e15b";
+}
+.bklog-daoru:before {
+	content: "\e15c";
+}
+.bklog-shijian:before {
+	content: "\e15e";
+}
+.bklog-chart:before {
+	content: "\e160";
+}
+.bklog-zhuanhuan:before {
+	content: "\e161";
+}
+.bklog-liebiao:before {
+	content: "\e169";
+}
+.bklog-boolean:before {
+	content: "\e16d";
+}
+.bklog-block-shape:before {
+	content: "\e16e";
+}
+.bklog-menu-custom:before {
+	content: "\e170";
+}
+.bklog-qiyeweixin:before {
+	content: "\e171";
+}
+.bklog-tiaozhuan:before {
+	content: "\e172";
+}
+.bklog-ext:before {
+	content: "\e175";
+}
+.bklog-share:before {
+	content: "\e212";
+}
+.bklog-star-line:before {
+	content: "\e194";
+}
+.bklog-lishijilu:before {
+	content: "\e176";
+}
+.bklog-bofang:before {
+	content: "\e178";
+}
+.bklog-jiansuo:before {
+	content: "\e177";
+}
+.bklog-shixiao:before {
+	content: "\e179";
+}
+.bklog-zanting:before {
+	content: "\e17a";
+}
+.bklog-zhedie:before {
+	content: "\e17b";
+}
+.bklog-zhankai:before {
+	content: "\e17c";
+}
+.bklog-brush:before {
+	content: "\e17d";
+}
+.bklog-wholesale-editor:before {
+	content: "\e17e";
+}
+.bklog-ellipsis-more:before {
+	content: "\e17f";
+}
+.bklog-position:before {
+	content: "\e180";
+}
+.bklog-log-delete:before {
+	content: "\e181";
+}
+.bklog-masking:before {
+	content: "\e183";
+}
+.bklog-fix-line:before {
+	content: "\e184";
+}
+.bklog-fix-shape:before {
+	content: "\e185";
+}
+.bklog-log-loading:before {
+	content: "\e186";
+}
+.bklog-log-remark:before {
+	content: "\e187";
+}
+.bklog-back2:before {
+	content: "\e1ec";
+}
+.bklog-circle-add:before {
+	content: "\e20c";
+}
+.bklog-close:before {
+	content: "\e1e9";
+}
+.bklog-correct:before {
+	content: "\e1e8";
+}
+.bklog-edit:before {
+	content: "\e1e7";
+}
+.bklog-help:before {
+	content: "\e1a4";
+}
+.bklog-more:before {
+	content: "\e1f2";
+}
+.bklog-collapse:before {
+	content: "\e1dd";
+}
+.bklog-download:before {
+	content: "\e205";
+}
+.bklog-invisible:before {
+	content: "\e1e3";
+}
+.bklog-jump:before {
+	content: "\e1da";
+}
+.bklog-organization:before {
+	content: "\e21b";
+}
+.bklog-overview-table:before {
+	content: "\e216";
+}
+.bklog-overview1:before {
+	content: "\e1de";
+}
+.bklog-sort-2:before {
+	content: "\e1eb";
+}
+.bklog-visible:before {
+	content: "\e1e4";
+}
+.bklog-circle-alert-filled:before {
+	content: "\e1d8";
+}
+.bklog-circle-correct-filled:before {
+	content: "\e1d9";
+}
+.bklog-circle-minus-filled:before {
+	content: "\e1ea";
+}
+.bklog-import:before {
+	content: "\e206";
+}
+.bklog-setting-line:before {
+	content: "\e1d4";
+}
+.bklog-configuration:before {
+	content: "\e1d6";
+}
+.bklog-refresh2:before {
+	content: "\e1a6";
+}
+.bklog-save:before {
+	content: "\e1d5";
+}
+.bklog-subnode:before {
+	content: "\e1a9";
+}
+.bklog-log-plus-circle-shape:before {
+	content: "\e18b";
+}
+.bklog-log-trend:before {
+	content: "\e18c";
+}
+.bklog-new-alarm:before {
+	content: "\e18d";
+}
+.bklog-sudden-increase:before {
+	content: "\e18e";
+}
+.bklog-overview:before {
+	content: "\e18f";
+}
+.bklog-setting:before {
+	content: "\e196";
+}
+.bklog-saoba:before {
+	content: "\e19f";
+}
+.bklog-jincheng:before {
+	content: "\e1a0";
+}
+.bklog-qiehuanbanben:before {
+	content: "\e1a1";
+}
+.bklog-shaixuan:before {
+	content: "\e1a3";
+}
+.bklog-yingshe:before {
+	content: "\e1a7";
+}
+.bklog-arrow-down-filled:before {
+	content: "\e1a8";
+}
+.bklog-*:before {
+	content: "\e1ad";
+}
+.bklog-buer:before {
+	content: "\e1af";
+}
+.bklog-number-2:before {
+	content: "\e1aa";
+}
+.bklog-ext-2:before {
+	content: "\e1ac";
+}
+.bklog-object:before {
+	content: "\e1b1";
+}
+.bklog-str-2:before {
+	content: "\e1ab";
+}
+.bklog-text-2:before {
+	content: "\e1ae";
+}
+.bklog-time-2:before {
+	content: "\e1b0";
+}
+.bklog-ai:before {
+	content: "\e1b2";
+}
+.bklog--celve:before {
+	content: "\e1b8";
+}
+.bklog-gaojing-filled:before {
+	content: "\e1b3";
+}
+.bklog-gaojing-line:before {
+	content: "\e1b4";
+}
+.bklog-ketuodong:before {
+	content: "\e1b9";
+}
+.bklog-lianxiang:before {
+	content: "\e1b5";
+}
+.bklog-paixu:before {
+	content: "\e1b6";
+}
+.bklog-shangxiawen:before {
+	content: "\e1b7";
+}
+.bklog-qingkong:before {
+	content: "\e1ba";
+}
+.bklog-shezhi:before {
+	content: "\e1bc";
+}
+.bklog-shishirizhi:before {
+	content: "\e1be";
+}
+.bklog-shoucangjia:before {
+	content: "\e1bb";
+}
+.bklog-shouqi:before {
+	content: "\e1c7";
+}
+.bklog-qiehuan-2:before {
+	content: "\e1bd";
+}
+.bklog-tuichu:before {
+	content: "\e1bf";
+}
+.bklog-xinjianwenjianjia:before {
+	content: "\e1c0";
+}
+.bklog-xinjianchaxun:before {
+	content: "\e1c4";
+}
+.bklog-yingshe-2:before {
+	content: "\e1c2";
+}
+.bklog-yibiaopan:before {
+	content: "\e1c3";
+}
+.bklog-arrow-down-filled-2:before {
+	content: "\e1c1";
+}
+.bklog-yujumoshi:before {
+	content: "\e1c9";
+}
+.bklog-backtotop:before {
+	content: "\e1c5";
+}
+.bklog-chart-2:before {
+	content: "\e1c6";
+}
+.bklog-copy-3:before {
+	content: "\e1ca";
+}
+.bklog-file-close:before {
+	content: "\e1c8";
+}
+.bklog-file-open:before {
+	content: "\e1cf";
+}
+.bklog-file-personal:before {
+	content: "\e1cb";
+}
+.bklog-goto:before {
+	content: "\e1cd";
+}
+.bklog-table-2:before {
+	content: "\e1cc";
+}
+.bklog-ui-moshi:before {
+	content: "\e1ce";
+}
+.bklog-shangxia-2:before {
+	content: "\e1d0";
+}
+.bklog-enter:before {
+	content: "\e1d2";
+}
+.bklog-esc:before {
+	content: "\e1d1";
+}
+.bklog-history-2:before {
+	content: "\e1d3";
+}
+.bklog-weixian:before {
+	content: "\e1d7";
+}
+.bklog-jiankangdu:before {
+	content: "\e1dc";
+}
+.bklog-lianjiefu:before {
+	content: "\e1df";
+}
+.bklog-yunsuanfu:before {
+	content: "\e1e0";
+}
+.bklog-key:before {
+	content: "\e1e1";
+}
+.bklog-value-2:before {
+	content: "\e1e2";
+}
+.bklog-shanchu:before {
+	content: "\e1e5";
+}
+.bklog-copy-4:before {
+	content: "\e1e6";
+}
+.bklog-yuju1:before {
+	content: "\e1ed";
+}
+.bklog-ui1:before {
+	content: "\e1ee";
+}
+.bklog-vim1:before {
+	content: "\e1ef";
+}
+.bklog-yuju2:before {
+	content: "\e1f0";
+}
+.bklog-vm2:before {
+	content: "\e1f1";
+}
+.bklog-zhankai-2:before {
+	content: "\e1f3";
+}
+.bklog-dingyueguanli:before {
+	content: "\e1f4";
+}
+.bklog-guidangcangku:before {
+	content: "\e1f5";
+}
+.bklog-guidanghuisu:before {
+	content: "\e1f7";
+}
+.bklog-guidangliebiao:before {
+	content: "\e1f6";
+}
+.bklog-jiqun:before {
+	content: "\e1f8";
+}
+.bklog-jisuanpingtai:before {
+	content: "\e1fc";
+}
+.bklog-qingxiliebiao:before {
+	content: "\e1fb";
+}
+.bklog-qingximoban:before {
+	content: "\e1fa";
+}
+.bklog-rizhicaiji:before {
+	content: "\e1f9";
+}
+.bklog-rizhitiqupeizhi:before {
+	content: "\e1fd";
+}
+.bklog-rizhitiqurenwu:before {
+	content: "\e1fe";
+}
+.bklog-suoyinxiang:before {
+	content: "\e200";
+}
+.bklog-zidingyishangbao:before {
+	content: "\e1ff";
+}
+.bklog-es-2:before {
+	content: "\e201";
+}
+.bklog-yishixiao:before {
+	content: "\e202";
+}
+.bklog-buer-2:before {
+	content: "\e203";
+}
+.bklog-object-2:before {
+	content: "\e204";
+}
+.bklog-ai-mofabang:before {
+	content: "\e207";
+}
+.bklog-consola:before {
+	content: "\e208";
+}
+.bklog-highlight:before {
+	content: "\e209";
+}
+.bklog-suoyin-mulu:before {
+	content: "\e20a";
+}
+.bklog-suoyin-ronghe:before {
+	content: "\e20b";
+}
+.bklog-all:before {
+	content: "\e20d";
+}
+.bklog-ab:before {
+	content: "\e20e";
+}
+.bklog-daxiaoxie:before {
+	content: "\e20f";
+}
+.bklog-tongpeifu:before {
+	content: "\e210";
+}
+.bklog-share-link:before {
+	content: "\e211";
+}
+.bklog-zhengze:before {
+	content: "\e213";
+}
+.bklog-jiebang:before {
+	content: "\e215";
+}
+.bklog---2:before {
+	content: "\e218";
+}
+.bklog-down-4:before {
+	content: "\e219";
+}
+.bklog-up-2:before {
+	content: "\e217";
+}
+.bklog-fllatend:before {
+	content: "\e21a";
+}
+.bklog-tuzenggaojing:before {
+	content: "\e21d";
+}
+.bklog-xinleigaojing:before {
+	content: "\e21e";
+}
+.bklog-enter-2:before {
+	content: "\e220";
+}
+.bklog-fengefu:before {
+	content: "\e223";
+}
+.bklog-json-fanxuliehua:before {
+	content: "\e221";
+}
+.bklog-zhengzetiqu:before {
+	content: "\e222";
+}
+.bklog-weiguishu:before {
+	content: "\e224";
+}
+.bklog-all2:before {
+	content: "\e225";
+}
+.bklog-sousuo-:before {
+	content: "\e226";
+}
+.bklog-sousuo-:before {
+	content: "\e227";
+}
+.bklog-rizhituomin:before {
+	content: "\e232";
+}
+.bklog-group:before {
+	content: "\e233";
+}

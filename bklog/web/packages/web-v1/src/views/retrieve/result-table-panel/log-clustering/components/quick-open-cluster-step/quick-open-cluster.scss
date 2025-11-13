@@ -1,0 +1,67 @@
+@import '@/scss/mixins/flex.scss';
+
+.quick-open-cluster-container {
+  min-width: 1120px;
+  height: 100%;
+  padding: 36px 20px;
+  color: #313238;
+  @include flex-justify(space-between);
+
+  .left-box {
+    font-size: 12px;
+    text-align: left;
+
+    p {
+      margin-top: 8px;
+      color: #63656E;
+    }
+  }
+
+  .right-box {
+    width: 54%;
+    min-width: 618px;
+    pointer-events:none;
+
+    img {
+      width: 100%;
+    }
+  }
+}
+
+.cluster-set-dialog {
+  .bk-alert-info {
+    margin-bottom: 10px;
+  }
+
+  .setting-item {
+    @include flex-align(center);
+
+    .icon-info {
+      margin-left: 10px;
+    }
+  }
+
+  .cluster-set {
+    height: 26px;
+
+    .bk-form-checkbox {
+      margin-right: 24px;
+    }
+
+    .icon-help {
+      margin-left: 6px;
+      font-size: 14px;
+      color: #999DA6;
+    }
+  }
+
+  .alert-tips {
+    font-size: 12px;
+
+    .icon-info {
+      margin-right: 8px;
+      font-size: 16px;
+      color: #979BA5;
+    }
+  }
+}

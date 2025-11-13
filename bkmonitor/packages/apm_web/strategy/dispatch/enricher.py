@@ -278,13 +278,6 @@ class RPCEnricher(BaseEnricher):
         apm_constants.RPCLogTag,
     ]
 
-    _RPC_TAG_KEY_MAP: dict[str, str] = {
-        apm_constants.RPCLogTag.RESOURCE_ENV.value: apm_constants.RPCMetricTag.ENV_NAME.value,
-        apm_constants.RPCLogTag.RESOURCE_INSTANCE.value: apm_constants.RPCMetricTag.INSTANCE.value,
-        apm_constants.RPCLogTag.RESOURCE_SERVER.value: apm_constants.RPCMetricTag.SERVICE_NAME.value,
-        apm_constants.RPCLogTag.RESOURCE_SERVICE_NAME.value: apm_constants.RPCMetricTag.SERVICE_NAME.value,
-    }
-
     _UPSERT_TAGS: list[str] = [
         apm_constants.CommonMetricTag.APP_NAME.value,
         apm_constants.RPCMetricTag.SERVICE_NAME.value,
@@ -301,7 +294,7 @@ class RPCEnricher(BaseEnricher):
     def _get_rpc_url_template(self, dispatch_config: DispatchConfig) -> str:
         call_filter: list[dict[str, Any]] = []
         for tag in dispatch_config.context.get("GROUP_BY", []):
-            key: str = self._RPC_TAG_KEY_MAP.get(tag, tag)
+            key: str = apm_constants.RPCLogTag.get_metric_tag(tag) or tag
             if key in self._UPSERT_TAGS:
                 continue
 
