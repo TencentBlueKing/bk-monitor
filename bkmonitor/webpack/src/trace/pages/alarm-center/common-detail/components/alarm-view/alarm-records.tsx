@@ -23,12 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowReactive, shallowRef, watch } from 'vue';
+import {
+  type PropType,
+  defineComponent,
+  nextTick,
+  onUnmounted,
+  shallowReactive,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
 
 import { Checkbox } from 'bkui-vue';
 import { listAlertLog } from 'monitor-api/modules/alert';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import { useI18n } from 'vue-i18n';
+
+import NoticeStatusDialog from './components/notice-status-dialog';
 
 import type { AlarmDetail } from '../../../typings/detail';
 
@@ -97,7 +108,11 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    const loadingRef = useTemplateRef('scrollLoading');
 
+    /**
+     * 告警类型筛选
+     */
     const circulationFilter = shallowRef([
       {
         id: 'CREATE',
@@ -156,21 +171,16 @@ export default defineComponent({
         name: t('事件忽略'),
       },
     ]);
+    /**
+     * 告警类型筛选默认选中所有
+     */
     const checked = shallowRef(circulationFilter.value.map(item => item.id));
 
-    const recordData = shallowReactive({
-      list: [],
-      offset: 0,
-      limit: 20,
-      loading: false,
-      scrollLoading: false,
-      defaultClickCollapseIndex: -1,
-      isEnd: false,
-    });
-    const lastLogOffset = shallowRef(-1);
-
-    const emptyType = shallowRef('empty');
-
+    /**
+     * @description 告警记录数据列表链接兼容处理
+     * @param list
+     * @returns
+     */
     const listLinkCompatibility = list => {
       return list.map(item => {
         if (item?.router_info) {
@@ -179,13 +189,13 @@ export default defineComponent({
           if (routerName === 'alarm-shield-detail') {
             return {
               ...item,
-              url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/trace/alarm-shield/edit/${params?.shieldId}`,
+              url: `${location.origin}${location.pathname}?bizId=${params?.biz_id}/#/trace/alarm-shield/edit/${params?.shield_id}`,
             };
           }
           if (routerName === 'alarm-dispatch') {
             return {
               ...item,
-              url: `${location.origin}${location.pathname}?bizId=${params?.bizId}/#/alarm-dispatch?group_id=${params?.groupId}`,
+              url: `${location.origin}${location.pathname}?bizId=${params?.biz_id}/#/alarm-dispatch?group_id=${params?.group_id}`,
             };
           }
         } else if (item?.url) {
@@ -204,8 +214,40 @@ export default defineComponent({
       });
     };
 
+    /**
+     * 告警记录数据为空类型
+     */
+    const emptyType = shallowRef('empty');
+    /**
+     * 告警记录数据
+     */
+    const recordData = shallowReactive({
+      list: [],
+      offset: 0,
+      limit: 20,
+      loading: false,
+      scrollLoading: false,
+      defaultClickCollapseIndex: -1,
+      isEnd: false,
+      lastLogOffset: -1,
+    });
+    const recordDataReset = () => {
+      recordData.list = [];
+      recordData.offset = 0;
+      recordData.limit = 20;
+      recordData.loading = false;
+      recordData.scrollLoading = false;
+      recordData.defaultClickCollapseIndex = -1;
+      recordData.isEnd = false;
+      recordData.lastLogOffset = -1;
+    };
+
+    /**
+     * @description 获取告警记录数据列表
+     * @returns
+     */
     const handleGetLogList = async () => {
-      if (lastLogOffset.value === recordData.offset) {
+      if (recordData.lastLogOffset === recordData.offset || recordData.isEnd) {
         return;
       }
       if (recordData.list.length) {
@@ -226,9 +268,11 @@ export default defineComponent({
       });
       recordData.list = [...recordData.list, ...listLinkCompatibility(list)];
       // 保留上一次的ID
-      lastLogOffset.value = recordData.offset;
+      recordData.lastLogOffset = recordData.offset;
       // 记录最后一位ID
-      recordData.offset = list[list.length - 1].offset;
+      if (list.length) {
+        recordData.offset = list[list.length - 1].offset;
+      }
       if (list.length < recordData.limit) {
         recordData.isEnd = true;
       }
@@ -236,21 +280,102 @@ export default defineComponent({
       recordData.loading = false;
     };
 
+    /**
+     * 告警记录数据为空类型
+     */
+    const observer = shallowRef<IntersectionObserver>();
+
+    /**
+     * @description 告警记录数据列表滚动加载
+     */
+    const handleScrollLoading = () => {
+      observer.value = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            if (recordData.list.length && !recordData.isEnd && !recordData.scrollLoading) {
+              handleGetLogList();
+            }
+          }
+        }
+      });
+      observer.value.observe(loadingRef.value as HTMLDivElement);
+    };
+
+    /**
+     * @description 跳转告警屏蔽策略详情页
+     * @param shieldId
+     */
+    const handleGotoShieldStrategy = shieldId => {
+      const hash = `#/trace/alarm-shield?queryString=${JSON.stringify([{ key: 'id', value: [shieldId] }])}`;
+      const url = location.href.replace(location.hash, hash);
+      window.open(url, '_blank');
+    };
+
+    /**
+     * @description 告警记录数据列表折叠前处理
+     * @param item
+     */
+    const beforeCollapseChange = item => {
+      const startTime = item.begin_source_timestamp;
+      const endTime = item.source_timestamp;
+      console.log(startTime, endTime);
+    };
+
+    /**
+     * 通知状态弹窗状态
+     */
+    const noticeStatusDialogState = shallowReactive({
+      show: false,
+      actionId: '',
+    });
+    /**
+     * @description 通知状态弹窗状态详情处理
+     * @param actionId
+     */
+    const handleNoticeDetail = (actionId: string) => {
+      console.log(actionId, 'handleNoticeDetail');
+      noticeStatusDialogState.show = true;
+      noticeStatusDialogState.actionId = actionId;
+    };
+
+    const openLink = (url: string) => {
+      window.open(url, '_blank');
+    };
+
+    /**
+     * @description 告警记录数据列表折叠前处理
+     */
     watch(
       () => props.detail,
-      val => {
+      async val => {
         if (val) {
-          handleGetLogList();
+          recordDataReset();
+          await handleGetLogList();
+          nextTick(() => {
+            handleScrollLoading();
+          });
         }
       },
       { immediate: true }
     );
+
+    /**
+     * @description 告警记录数据列表滚动加载卸载
+     */
+    onUnmounted(() => {
+      observer.value.disconnect();
+    });
 
     return {
       circulationFilter,
       checked,
       recordData,
       emptyType,
+      noticeStatusDialogState,
+      handleGotoShieldStrategy,
+      beforeCollapseChange,
+      handleNoticeDetail,
+      openLink,
       t,
     };
   },
@@ -258,11 +383,6 @@ export default defineComponent({
     const getTitleComponent = item => {
       return (
         <div class='item-title'>
-          {/* {
-          item.collapse
-            ? <span class={['item-title-set', 'icon-monitor', item.expand ? 'icon-mc-minus-plus' : 'icon-mc-plus-fill']}
-              on-click={ () => this.beforeCollapseChange(item)}></span> : undefined
-        } */}
           <span class='item-title-icon'>
             <i class={['icon-monitor', item.logIcon]} />
           </span>
@@ -302,7 +422,7 @@ export default defineComponent({
           child = (
             <span
               class='can-click'
-              // on-click={this.handleGotoShieldStrategy(item.shieldSnapshotId)}
+              onClick={() => this.handleGotoShieldStrategy(item.shield_snapshot_id)}
             >
               {this.$t('查看屏蔽策略')}
             </span>
@@ -318,7 +438,7 @@ export default defineComponent({
                 disabled: !item.source_time,
                 allowHTML: false,
               }}
-              // on-click={() => item.isMultiple && this.beforeCollapseChange(item)}
+              onClick={() => item.is_multiple && this.beforeCollapseChange(item)}
             >
               {item.count > 1
                 ? `${this.$t('当前事件流水过多，收敛{count}条。', { count: item.count })}`
@@ -334,7 +454,7 @@ export default defineComponent({
             link = (
               <span
                 class='can-click m0'
-                // on-click={() => this.handleNoticeDetail(item.action_id)}
+                onClick={() => this.handleNoticeDetail(item.action_id)}
               >
                 {' '}
                 {this.$t('点击查看明细')}{' '}
@@ -344,7 +464,7 @@ export default defineComponent({
             link = (
               <span
                 class='can-click m0'
-                // on-click={() => this.openLink(item.url)}
+                onClick={() => this.openLink(item.url)}
               >
                 {' '}
                 {textList[1]}{' '}
@@ -452,6 +572,20 @@ export default defineComponent({
             />
           )}
         </ul>
+        <div
+          ref='scrollLoading'
+          style={{ display: this.recordData.list.length ? 'flex' : 'none' }}
+          class='table-scroll-loading'
+        >
+          <span>{this.recordData.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…')}</span>
+        </div>
+        <NoticeStatusDialog
+          actionId={this.noticeStatusDialogState.actionId}
+          show={this.noticeStatusDialogState.show}
+          onShowChange={show => {
+            this.noticeStatusDialogState.show = show;
+          }}
+        />
       </div>
     );
   },

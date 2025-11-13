@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onMounted, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, defineComponent, onMounted, onUnmounted, shallowRef, useTemplateRef } from 'vue';
 
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Message } from 'bkui-vue';
@@ -98,19 +98,24 @@ export default defineComponent({
       return <span class='icon-monitor icon-mc-arrow-right table-expand-icon' />;
     });
 
+    const observer = shallowRef<IntersectionObserver>();
+
     onMounted(() => {
       init();
     });
+    onUnmounted(() => {
+      observer.value.disconnect();
+    });
 
     function init() {
-      const observer = new IntersectionObserver(entries => {
+      observer.value = new IntersectionObserver(entries => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
             handleScroll();
           }
         }
       });
-      observer.observe(loadingRef.value as any);
+      observer.value.observe(loadingRef.value as HTMLDivElement);
     }
 
     function handleScroll() {
