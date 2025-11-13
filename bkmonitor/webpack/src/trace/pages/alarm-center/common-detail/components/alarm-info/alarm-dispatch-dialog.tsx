@@ -52,6 +52,7 @@ export default defineComponent({
   },
   emits: {
     'update:show': (val: boolean) => typeof val === 'boolean',
+    success: (value: string[]) => Array.isArray(value),
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -127,9 +128,14 @@ export default defineComponent({
             message: t('分派成功'),
           });
           handleShowChange(false);
+          handleSuccess();
         }
         loading.value = false;
       }
+    };
+
+    const handleSuccess = () => {
+      emit('success', users.value);
     };
 
     const handleSelectUser = (val: string[]) => {

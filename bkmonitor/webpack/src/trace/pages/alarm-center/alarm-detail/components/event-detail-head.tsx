@@ -34,6 +34,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import TemporaryShare from '../../../../components/temporary-share/temporary-share';
+import { useAlarmCenterStore } from '../../../../store/modules/alarm-center';
 import { useAlarmCenterDetailStore } from '../../../../store/modules/alarm-center-detail';
 import { fetchListAlertFeedback } from '../../services/alarm-detail';
 import Feedback from './feedback';
@@ -53,11 +54,14 @@ export default defineComponent({
   },
   emits: {
     toggleFullscreen: val => typeof val === 'boolean',
+    previous: () => true,
+    next: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
     const route = useRoute();
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
+    const alarmCenterStore = useAlarmCenterStore();
     /** 是否反馈 */
     const isFeedback = shallowRef(false);
 
@@ -76,18 +80,18 @@ export default defineComponent({
     /** 右侧操作按钮 */
     const btnGroupObject = computed(() => {
       return [
-        // {
-        //   id: '',
-        //   title: t('上一个'),
-        //   icon: 'icon-back-left',
-        //   isShow: true,
-        // },
-        // {
-        //   id: '',
-        //   title: t('下一个'),
-        //   icon: 'icon-back-right',
-        //   isShow: true,
-        // },
+        {
+          id: 'previous',
+          title: t('上一个'),
+          icon: 'icon-back-left',
+          isShow: true,
+        },
+        {
+          id: 'next',
+          title: t('下一个'),
+          icon: 'icon-back-right',
+          isShow: true,
+        },
         {
           id: 'wx-chart',
           title: t('拉群'),
@@ -177,6 +181,7 @@ export default defineComponent({
     };
 
     const handleBtnClick = (id: string) => {
+      console.log(alarmCenterStore);
       switch (id) {
         case 'wx-chart':
           handleChatGroup();
@@ -186,6 +191,12 @@ export default defineComponent({
           break;
         case 'fullscreen':
           emit('toggleFullscreen', !props.isFullscreen);
+          break;
+        case 'previous':
+          emit('previous');
+          break;
+        case 'next':
+          emit('next');
           break;
       }
     };

@@ -34,7 +34,8 @@ import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-anal
 import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 import { getAuthorityMap, useAuthorityStore } from '@/store/modules/authority';
-import { type IAuthority } from '@/typings/authority';
+
+import type { IAuthority } from '@/typings/authority';
 
 import './alarm-detail-sideslider.scss';
 
@@ -50,7 +51,7 @@ export default defineComponent({
       required: true,
     },
   },
-  emits: ['update:show'],
+  emits: ['update:show', 'previous', 'next'],
   setup(props, { emit }) {
     const isFullscreen = shallowRef(false);
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
@@ -86,8 +87,18 @@ export default defineComponent({
       emit('update:show', isShow);
     };
 
+    const handlePreviousDetail = () => {
+      emit('previous');
+    };
+
+    const handleNextDetail = () => {
+      emit('next');
+    };
+
     return {
       isFullscreen,
+      handlePreviousDetail,
+      handleNextDetail,
       handleShowChange,
     };
   },
@@ -100,6 +111,8 @@ export default defineComponent({
           header: () => (
             <EventDetailHead
               isFullscreen={this.isFullscreen}
+              onNext={this.handleNextDetail}
+              onPrevious={this.handlePreviousDetail}
               onToggleFullscreen={val => {
                 this.isFullscreen = val;
               }}

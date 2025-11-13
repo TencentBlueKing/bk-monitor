@@ -299,6 +299,16 @@ export default defineComponent({
       setUrlParams();
     });
 
+    const handlePreviousDetail = () => {
+      const index = data.value.findIndex(item => item.id === alarmId.value);
+      alarmId.value = (data.value as AlertTableItem[])[index === 1 ? data.value.length - 1 : index - 1].id;
+    };
+
+    const handleNextDetail = () => {
+      const index = data.value.findIndex(item => item.id === alarmId.value);
+      alarmId.value = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 1 : index + 1].id;
+    };
+
     return {
       quickFilterList,
       quickFilterLoading,
@@ -349,6 +359,8 @@ export default defineComponent({
         filterMode: alarmStore.filterMode,
       }),
       handleDetailShowChange,
+      handlePreviousDetail,
+      handleNextDetail,
     };
   },
   render() {
@@ -445,6 +457,8 @@ export default defineComponent({
         <AlarmCenterDetail
           alarmId={this.alarmId}
           show={this.alarmDetailShow}
+          onNext={this.handleNextDetail}
+          onPrevious={this.handlePreviousDetail}
           onUpdate:show={this.handleDetailShowChange}
         />
         <AlertOperationDialogs

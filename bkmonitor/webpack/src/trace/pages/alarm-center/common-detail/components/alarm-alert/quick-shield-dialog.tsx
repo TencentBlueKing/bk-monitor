@@ -23,17 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  type PropType,
-  ref as deepRef,
-  defineComponent,
-  inject,
-  nextTick,
-  reactive,
-  shallowRef,
-  useTemplateRef,
-  watch,
-} from 'vue';
+import { type PropType, defineComponent, inject, nextTick, reactive, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { Button, DatePicker, Dialog, Input, Loading, Message, Radio, Tag } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -75,7 +65,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    const authority = inject<IAuthority>('authority');
+    const authority = inject<IAuthority>('authority', { auth: {}, map: {}, showDetail: () => {} });
     const loading = shallowRef(false);
     const contentRef = useTemplateRef<HTMLDivElement>('contentRef');
     const timeList = [
@@ -98,7 +88,7 @@ export default defineComponent({
 
     const desc = shallowRef('');
 
-    const backupDetails = deepRef<AlarmShieldDetail[]>([]);
+    const backupDetails = shallowRef<AlarmShieldDetail[]>([]);
 
     const editIndex = shallowRef(-1); // 当前编辑的索引
 
@@ -657,9 +647,11 @@ export default defineComponent({
      * @param checkedIds 已满足后端格式的节点数据集合（node_name用于前端展示，提交后端时删除）
      */
     const handleShieldConfirm = (checkedIds: IBkTopoNodeItem[]) => {
-      backupDetails.value[editIndex.value].bkTopoNode = checkedIds;
+      const details = structuredClone(backupDetails.value);
+      details[editIndex.value].bkTopoNode = checkedIds;
       shieldTreeDialogShow.value = false;
-      backupDetails.value[editIndex.value].hideBkTopoNodeTagIndex = -1;
+      details[editIndex.value].hideBkTopoNodeTagIndex = -1;
+      backupDetails.value = details;
       editIndex.value = -1;
       // tag是否溢出样式
       nextTick(() => {
@@ -691,14 +683,16 @@ export default defineComponent({
             }
           }
         }
+        const details = structuredClone(backupDetails.value);
         if (hasHide && idx > 1) {
           const preItem = target.children[idx - 1] as any;
           if (preItem.offsetLeft + preItem.offsetWidth + 6 > target.offsetWidth - 53) {
-            backupDetails.value[index][targetIndex] = idx - 1;
-            return;
+            details[index][targetIndex] = idx - 1;
           }
+        } else {
+          details[index][targetIndex] = hasHide ? idx : -1;
         }
-        backupDetails.value[index][targetIndex] = hasHide ? idx : -1;
+        backupDetails.value = details;
       }
     };
 
