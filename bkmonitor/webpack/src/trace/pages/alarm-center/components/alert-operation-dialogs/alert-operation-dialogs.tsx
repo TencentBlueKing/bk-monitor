@@ -26,12 +26,13 @@
 
 import { type PropType, defineComponent, shallowRef } from 'vue';
 
+import ChatGroup from '../../../failure/alarm-detail/chat-group/chat-group';
 import AlarmConfirmDialog from '../../common-detail/components/alarm-alert/alarm-confirm-dialog';
 import QuickShieldDialog from '../../common-detail/components/alarm-alert/quick-shield-dialog';
 import AlarmDispatchDialog from '../../common-detail/components/alarm-info/alarm-dispatch-dialog';
 import ManualDebugStatusDialog from '../../common-detail/components/alarm-info/manual-debug-status-dialog';
 import ManualProcessDialog from '../../common-detail/components/alarm-info/manual-process-dialog';
-import { type AlertOperationDialogParams, AlertAllActionEnum } from '../../typings';
+import { type AlertOperationDialogEvent, type AlertOperationDialogParams, AlertAllActionEnum } from '../../typings';
 
 export default defineComponent({
   name: 'AlertOperationDialogs',
@@ -56,6 +57,7 @@ export default defineComponent({
   },
   emits: {
     'update:show': (value: boolean) => typeof value === 'boolean',
+    confirm: (dialogType: AlertAllActionEnum, event: AlertOperationDialogEvent) => dialogType && event != null,
   },
   setup(_props, { emit }) {
     /** 查看 手动处理 确认提交后的处理状态 dialog 的显示状态 */
@@ -67,10 +69,12 @@ export default defineComponent({
 
     /**
      * @description dialog 操作成功后回调
+     * @param {AlertAllActionEnum} dialogType dialog 类型
+     * @param {AlertOperationDialogEvent} event dialog 操作成功后回调事件对象
      */
-    const handleSuccess = () => {
-      // TODO: 逻辑待补充
-      console.log('AlertOperationDialogs-----handleSuccess');
+    const handleConfirmSuccess = (dialogType: AlertAllActionEnum, event: AlertOperationDialogEvent) => {
+      if (!dialogType) return;
+      emit('confirm', dialogType, event);
     };
     /**
      * @description dialog 显示状态切换回调
@@ -110,7 +114,7 @@ export default defineComponent({
       manualDebugShow,
       actionIds,
       mealInfo,
-      handleSuccess,
+      handleConfirmSuccess,
       handleShowChange,
       handleDebugStatus,
       handleMealInfo,
@@ -127,7 +131,7 @@ export default defineComponent({
           alarmBizId={this.alarmBizId}
           alarmIds={this.alarmIds}
           show={this.dialogType === AlertAllActionEnum.CONFIRM && this.show}
-          onConfirm={this.handleSuccess}
+          onConfirm={e => this.handleConfirmSuccess(AlertAllActionEnum.CONFIRM, e)}
           onUpdate:show={this.handleShowChange}
         />
         <QuickShieldDialog
@@ -137,14 +141,14 @@ export default defineComponent({
           alarmIds={this.alarmIds}
           alarmShieldDetail={this.dialogParam?.alarmShieldDetail ?? null}
           show={this.dialogType === AlertAllActionEnum.SHIELD && this.show}
-          onSuccess={this.handleSuccess}
+          onSuccess={e => this.handleConfirmSuccess(AlertAllActionEnum.SHIELD, e)}
           onUpdate:show={this.handleShowChange}
         />
         <AlarmDispatchDialog
           alarmBizId={this.alarmBizId}
           alarmIds={this.alarmIds}
           show={this.dialogType === AlertAllActionEnum.DISPATCH && this.show}
-          // onSuccess={this.handleSuccess}
+          // onSuccess={this.handleConfirmSuccess}
           onUpdate:show={this.handleShowChange}
         />
         <ManualProcessDialog
@@ -156,11 +160,18 @@ export default defineComponent({
           onUpdate:show={this.handleShowChange}
         />
         <ManualDebugStatusDialog
-          v-model:show={this.manualDebugShow}
           actionIds={this.actionIds}
           alarmBizId={this.alarmBizId}
           mealInfo={this.mealInfo}
+          show={this.manualDebugShow}
           onUpdate:show={this.handleManualDebugShowChange}
+        />
+        <ChatGroup
+          alarmEventName={this.dialogParam?.alertName ?? ''}
+          alertIds={this.alarmIds}
+          assignee={this.dialogParam?.assignee ?? []}
+          show={this.dialogType === AlertAllActionEnum.CHAT && this.show}
+          onShowChange={this.handleShowChange}
         />
       </div>
     );

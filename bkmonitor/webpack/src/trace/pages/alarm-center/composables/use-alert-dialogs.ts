@@ -29,7 +29,15 @@ import { type MaybeRef, shallowRef } from 'vue';
 import { get } from '@vueuse/core';
 import { Message } from 'bkui-vue';
 
-import { type AlertOperationDialogParams, type AlertTableItem, AlertAllActionEnum } from '../typings';
+import {
+  type AlertConfirmDialogEvent,
+  type AlertDispatchDialogEvent,
+  type AlertOperationDialogEvent,
+  type AlertOperationDialogParams,
+  type AlertShieldDialogEvent,
+  type AlertTableItem,
+  AlertAllActionEnum,
+} from '../typings';
 
 export type UseAlertDialogsReturnType = ReturnType<typeof useAlertDialogs>;
 
@@ -83,21 +91,104 @@ export const useAlertDialogs = (
    * @param {AlertTableItem[]} data 操作数据对象数组
    * @returns {AlertOperationDialogParams} dialog私有参数
    */
-  const getDialogParamByDialogType = (dialogType: AlertAllActionEnum, data: AlertTableItem[]) => {
-    if (dialogType !== AlertAllActionEnum.SHIELD || !data?.length) return null;
+  const getDialogParamByDialogType = (
+    dialogType: AlertAllActionEnum,
+    data: AlertTableItem[]
+  ): AlertOperationDialogParams => {
+    if (![AlertAllActionEnum.SHIELD, AlertAllActionEnum.CHAT].includes(dialogType) || !data?.length) return null;
+    if (dialogType === AlertAllActionEnum.SHIELD) {
+      return {
+        alarmShieldDetail: data.map(v => ({
+          severity: v.severity,
+          dimension: v.dimensions,
+          trigger: v.description,
+          alertId: v.id,
+          strategy: {
+            id: v?.strategy_id,
+            name: v?.strategy_name,
+          },
+          bkHostId: v.bk_host_id,
+        })),
+      };
+    }
+
+    const assignees = data.reduce((prev, curr) => {
+      for (const user of curr?.assignee ?? []) {
+        // if (prev.has(user)) continue;
+        prev.add(user);
+      }
+      return prev;
+    }, new Set<string>());
     return {
-      alarmShieldDetail: data.map(v => ({
-        severity: v.severity,
-        dimension: v.dimensions,
-        trigger: v.description,
-        alertId: v.id,
-        strategy: {
-          id: v?.strategy_id,
-          name: v?.strategy_name,
-        },
-        bkHostId: v.bk_host_id,
-      })),
+      alertName: data?.length === 1 ? data[0].alert_name : '',
+      assignee: Array.from(assignees),
     };
+  };
+
+  /**
+   * @description 告警确认dialog 确认操作成功后回调事件
+   * @param {AlertTableItem[]} data 操作数据对象数组
+   */
+  const handleConfirmDialogSuccessCallback = (data: AlertTableItem[], event: AlertConfirmDialogEvent) => {
+    if (!event || !data?.length) return;
+    for (const item of data) {
+      item.is_ack = true;
+      item.ack_operator = window.username || window.user_name;
+    }
+  };
+
+  /**
+   * @description 告警屏蔽dialog 确认操作成功后回调事件
+   * @param {AlertTableItem[]} data 操作数据对象数组
+   */
+  const handleShieldDialogSuccessCallback = (data: AlertTableItem[], event: AlertShieldDialogEvent) => {
+    if (!event || !data?.length) return;
+    for (const item of data) {
+      item.is_shielded = true;
+      item.shield_operator = [window.username || window.user_name];
+    }
+  };
+
+  /**
+   * @description 告警派单dialog 确认操作成功后回调事件
+   * @param {AlertTableItem[]} data 操作数据对象数组
+   */
+  const handleDispatchDialogSuccessCallback = (data: AlertTableItem[], event: AlertDispatchDialogEvent) => {
+    if (!data?.length) return;
+    for (const item of data) {
+      if (item.appointee) {
+        const usersSet = new Set();
+        item.appointee.concat(event).forEach(u => {
+          usersSet.add(u);
+        });
+        item.appointee = Array.from(usersSet) as string[];
+      } else {
+        item.appointee = event;
+      }
+    }
+  };
+
+  /**
+   * @description dialog确认提交成功后回调事件
+   * @param {AlertAllActionEnum} dialogType dialog类型
+   * @param {AlertOperationDialogEvent} event dialog回调事件对象
+   */
+  const handleAlertDialogConfirm = (dialogType: AlertAllActionEnum, event: AlertOperationDialogEvent) => {
+    const operationalData = getOperationalDataByIds(get(alertDialogIds));
+    if (!operationalData?.length) return;
+    switch (dialogType) {
+      case AlertAllActionEnum.CONFIRM:
+        handleConfirmDialogSuccessCallback(operationalData, event as AlertConfirmDialogEvent);
+        break;
+      case AlertAllActionEnum.DISPATCH:
+        handleDispatchDialogSuccessCallback(operationalData, event as AlertDispatchDialogEvent);
+        break;
+      case AlertAllActionEnum.SHIELD:
+        handleShieldDialogSuccessCallback(operationalData, event as AlertShieldDialogEvent);
+        break;
+      default:
+        break;
+    }
   };
 
   /**
@@ -157,5 +248,6 @@ export const useAlertDialogs = (
     alertDialogParam,
     handleAlertDialogShow,
     handleAlertDialogHide,
+    handleAlertDialogConfirm,
   };
 };
