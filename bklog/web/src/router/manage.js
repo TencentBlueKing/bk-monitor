@@ -41,6 +41,7 @@ const ManageCollection = () => import(
   /* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection'
 );
 const AccessSteps = () => import(/* webpackChunkName: 'access-steps' */ '@/components/collection-access');
+const ClientLog = () => import(/* webpackChunkName: 'client-log' */ '@/views/manage-v2/client-log/index.tsx');
 const IndexList = () => import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');
 const ManageIndex = () => import(/* webpackChunkName: 'mange-index' */ '@/views/manage/manage-access/components/index-set/manage');
 const CreateIndex = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/components/index-set/create');
@@ -286,6 +287,16 @@ const getManageRoutes = () => [
             ],
           },
         ],
+      },
+      // 客户端日志
+      {
+        path: 'client-log',
+        name: 'client-log',
+        component: ClientLog,
+        meta: {
+          title: '客户端日志',
+          navId: 'client-log',
+        },
       },
       // 日志接入-计算平台
       {
