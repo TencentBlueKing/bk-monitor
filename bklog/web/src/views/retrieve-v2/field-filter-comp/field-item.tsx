@@ -183,7 +183,7 @@ export default class FieldItem extends tsc<object> {
   }
   /** 点击查看图表分析 */
   handleClickAnalysisItem() {
-    if (!this.isShowFieldsAnalysis || this.isUnionSearch || this.isFrontStatistics) {
+    if (!this.isShowFieldsAnalysis || this.isFrontStatistics) {
       return;
     }
 
@@ -343,7 +343,7 @@ export default class FieldItem extends tsc<object> {
             ref='operationRef'
             class={['operation-text', { 'analysis-active': this.analysisActive }]}
           >
-            {this.isShowFieldsAnalysis && !this.isUnionSearch && !this.isFrontStatistics && (
+            {this.isShowFieldsAnalysis && !this.isFrontStatistics && (
               <div
                 class='operation-icon-box'
                 v-bk-tooltips={{ content: this.$t('图表分析') }}
