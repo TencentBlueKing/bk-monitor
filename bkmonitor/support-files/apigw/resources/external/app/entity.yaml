@@ -18,8 +18,8 @@ paths:
         pluginConfigs: [ ]
         authConfig:
           userVerifiedRequired: false
-          appVerifiedRequired: true
-          resourcePermissionRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: false
         descriptionEn:
         noneSchema: true
   /app/metadata/entity/query/:
@@ -41,8 +41,8 @@ paths:
         pluginConfigs: [ ]
         authConfig:
           userVerifiedRequired: false
-          appVerifiedRequired: true
-          resourcePermissionRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: false
         descriptionEn:
         noneSchema: true
   /app/metadata/entity/delete/:
@@ -64,7 +64,7 @@ paths:
         pluginConfigs: [ ]
         authConfig:
           userVerifiedRequired: false
-          appVerifiedRequired: true
-          resourcePermissionRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: false
         descriptionEn:
         noneSchema: true
