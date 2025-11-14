@@ -139,7 +139,7 @@ export default defineComponent({
           // authority={this.authority}
           // handleShowAuthorityDetail={this.handleShowAuthorityDetail}
           alarmIds={this.alarmIds}
-          alarmShieldDetail={this.dialogParam?.alarmShieldDetail ?? null}
+          alarmShieldDetail={this.dialogParam?.alarmShieldDetail ?? []}
           show={this.dialogType === AlertAllActionEnum.SHIELD && this.show}
           onSuccess={e => this.handleConfirmSuccess(AlertAllActionEnum.SHIELD, e)}
           onUpdate:show={this.handleShowChange}

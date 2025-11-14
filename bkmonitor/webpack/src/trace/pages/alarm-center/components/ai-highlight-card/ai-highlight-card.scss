@@ -1,6 +1,14 @@
 .ai-highlight-card {
+  // 边框宽度
   --border-width: 1px;
+
+  // 左侧边框宽度
   --border-left-width: 4px;
+
+  // 特殊左侧边框颜色需要覆盖的宽度
+  // 如设置为 非 0px 则左侧边框和另外三个边框的颜色不属于 同一线性渐变 延申的
+  // 如设置为 0px 则四个边框的颜色是属于 同一线性渐变 延申的
+  --left-special-border-width: var(--border-left-width);
 
   padding: 6px 4px;
   background-image:
@@ -9,13 +17,13 @@
   background-repeat: no-repeat;
   background-position:
     100% 100%,
-    calc(0px - var(--border-left-width)) calc(0px - var(--border-width)),
-    0 calc(0px - var(--border-width));
+    calc(0px - var(--left-special-border-width)) calc(0px - var(--border-width)),
+    calc(0px - var(--border-width)) calc(0px - var(--border-width));
   background-clip: padding-box, border-box, border-box;
   background-size:
     100% 100%,
-    var(--border-left-width) calc(100% + 2 * var(--border-width)),
-    calc(100% + var(--border-width)) calc(100% + 2 * var(--border-width));
+    var(--left-special-border-width) calc(100% + 2 * var(--border-width)),
+    calc(100% + 2 * var(--border-width)) calc(100% + 2 * var(--border-width));
   border: var(--border-width) solid transparent;
   border-left-width: var(--border-left-width);
   border-radius: 2px;
