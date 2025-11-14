@@ -313,6 +313,7 @@ class K8sCollectorHandler(CollectorHandler):
             "params": model_to_dict(self.data, exclude=["deleted_at", "created_at", "updated_at"]),
         }
         user_operation_record.delay(operation_record)
+
         if "configs" in data:
             self.compare_config(data_configs=data["configs"], collector_config_id=self.data.collector_config_id)
 
@@ -599,7 +600,7 @@ class K8sCollectorHandler(CollectorHandler):
                 data_name=self.build_bk_data_name(self.data.get_bk_biz_id(), data["collector_config_name_en"]),
                 description=collector_config_params["description"],
                 encoding=META_DATA_ENCODING,
-                bk_biz_id=self.data.get_bk_biz_id()
+                bk_biz_id=self.data.get_bk_biz_id(),
             )
             self.data.task_id_list = list(
                 ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).values_list(
@@ -983,7 +984,7 @@ class K8sCollectorHandler(CollectorHandler):
             if collector_config_params["description"]
             else collector_config_params["collector_config_name_en"],
             encoding=META_DATA_ENCODING,
-            bk_biz_id=self.data.bk_biz_id
+            bk_biz_id=self.data.bk_biz_id,
         )
         self.data.save()
 
@@ -1614,11 +1615,18 @@ class K8sCollectorHandler(CollectorHandler):
                 )
                 container_config.save()
                 container_configs.append(container_config)
-            self.create_container_release(container_config=container_config)
+        # 增量比对后，需要真正删除配置
         delete_container_configs = container_configs[config_length::]
-        for config in delete_container_configs:
-            # 增量比对后，需要真正删除配置
-            self.delete_container_release(config, delete_config=True)
+        # 判断采集项状态，停用时只操作本地数据库；启用则下发配置
+        if self.data.is_active:
+            for config in container_configs[:config_length]:
+                self.create_container_release(container_config=config)
+
+            for config in delete_container_configs:
+                self.delete_container_release(config, delete_config=True)
+        else:
+            for config in delete_container_configs:
+                config.delete()
 
     def create_container_release(self, container_config: ContainerCollectorConfig, **kwargs):
         """
