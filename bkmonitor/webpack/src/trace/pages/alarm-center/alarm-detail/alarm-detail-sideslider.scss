@@ -1,0 +1,12 @@
+.alarm-detail-sideslider {
+  .alarm-center-detail-wrapper {
+    position: relative;
+    display: flex;
+    height: calc(100vh - 52px);
+
+    .alarm-center-detail-box {
+      flex: 1;
+      overflow-y: auto;
+    }
+  }
+}

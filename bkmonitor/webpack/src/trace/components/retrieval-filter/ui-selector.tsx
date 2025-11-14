@@ -28,17 +28,16 @@ import { isEn } from '../../i18n/i18n';
 import { defineComponent, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useEventListener } from '@vueuse/core';
-import tippy from 'tippy.js';
 import { useI18n } from 'vue-i18n';
+import { useTippy } from 'vue-tippy';
 
 import AutoWidthInput from './auto-width-input';
 import KvTag from './kv-tag';
-import { type IFilterItem, ECondition, EMethod, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
+import { type IFilterItem, ECondition, EFieldType, EMethod, UI_SELECTOR_EMITS, UI_SELECTOR_PROPS } from './typing';
 import UiSelectorOptions from './ui-selector-options';
-import { DURATION_KEYS, getDurationDisplay, triggerShallowRef } from './utils';
+import { getDurationDisplay, triggerShallowRef } from './utils';
 
 import './ui-selector.scss';
-import 'tippy.js/dist/tippy.css';
 export default defineComponent({
   name: 'UiSelector',
   props: UI_SELECTOR_PROPS,
@@ -89,14 +88,14 @@ export default defineComponent({
         destroyPopoverInstance();
         return;
       }
-      popoverInstance.value = tippy(event.target as any, {
-        content: selectorRef.value,
+      popoverInstance.value = useTippy(event.target as any, {
+        content: () => selectorRef.value,
         trigger: 'click',
         placement: 'bottom-start',
         theme: 'light common-monitor padding-0',
         arrow: true,
         appendTo: document.body,
-        zIndex: 998,
+        zIndex: props.zIndex,
         maxWidth: 720,
         offset: [0, 4],
         interactive: true,
@@ -248,13 +247,15 @@ export default defineComponent({
     }
     function handleEnter() {
       if (inputValue.value) {
+        const allItem = props.fields.find(item => item.type === EFieldType.all);
+        const methodItem = allItem?.methods?.[0];
         localValue.value.push({
           key: {
-            id: '*',
-            name: t('全文'),
+            id: allItem?.name || '*',
+            name: allItem?.alias || t('全文'),
           },
           value: [{ id: inputValue.value, name: inputValue.value }],
-          method: { id: EMethod.include, name: t('包含') },
+          method: { id: methodItem?.value || EMethod.include, name: methodItem?.alias || t('包含') },
           condition: { id: ECondition.and, name: 'AND' },
         });
         triggerShallowRef(localValue);
@@ -300,6 +301,17 @@ export default defineComponent({
       hideInput();
     }
 
+    function getIsDuration(id: string) {
+      let isDuration = false;
+      for (const item of props.fields) {
+        if (item.name === id) {
+          isDuration = item.type === EFieldType.duration;
+          break;
+        }
+      }
+      return isDuration;
+    }
+
     return {
       inputValue,
       showSelector,
@@ -316,6 +328,7 @@ export default defineComponent({
       handleHideTag,
       handleUpdateTag,
       handleClickComponent,
+      getIsDuration,
       t,
     };
   },
@@ -341,7 +354,7 @@ export default defineComponent({
             onUpdate={event => this.handleUpdateTag(event, index)}
           >
             {{
-              value: DURATION_KEYS.includes(item.key.id)
+              value: this.getIsDuration(item.key.id)
                 ? () => <span class='value-name'>{getDurationDisplay(item.value.map(item => item.id))}</span>
                 : undefined,
             }}
@@ -364,6 +377,8 @@ export default defineComponent({
               fields={this.fields}
               getValueFn={this.getValueFn}
               keyword={this.inputValue}
+              limit={this.limit}
+              loadDelay={this.loadDelay}
               show={this.showSelector}
               value={this.localValue?.[this.updateActive]}
               onCancel={this.handleCancel}

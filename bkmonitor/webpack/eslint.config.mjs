@@ -353,7 +353,7 @@ export default [
     },
   },
   {
-    files: ['src/**/*.ts', 'src/**/*.tsx', './**/*.js', 'src/**/*.js'],
+    files: ['src/**/*.ts', 'src/**/*.tsx', './**/*.js', 'src/**/*.js', 'scripts/**/*.ts'],
     ignores: [],
     languageOptions: {
       parser: tsEslint.parser,
