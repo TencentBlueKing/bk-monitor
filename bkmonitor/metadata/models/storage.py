@@ -219,10 +219,13 @@ class ClusterInfo(models.Model):
         for cluster_id, storage_info in list(refresh_dict.items()):
             consul_path = "/".join([cls.CONSUL_PREFIX_PATH, str(cluster_id)])
 
+            # 根据 schema 生成地址，如果 schema 不是 http 或 https，则默认使用 http
+            schema = storage_info.schema if storage_info.schema in ["http", "https"] else "http"
+
             hash_consul.put(
                 key=consul_path,
                 value={
-                    "address": f"http://{storage_info.domain_name}:{storage_info.port}",
+                    "address": f"{schema}://{storage_info.domain_name}:{storage_info.port}",
                     "username": storage_info.username,
                     "password": storage_info.password,
                     "type": storage_info.cluster_type,
@@ -1430,6 +1433,8 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
         table_id_vm_info = cls._get_table_id_access_vm_data(table_ids)
         # 获取 vm 集群 ID
         vm_cluster_id_name = cls._get_vm_cluster_id_name()
+        # 获取结果表对应的 bcs 集群 ID
+        bcs_cluster_id_info = cls._get_table_id_bcs_cluster_id()
 
         # 标识查询不到结果表的场景
         not_found_table_id = "not_found_table_id"
@@ -1444,7 +1449,7 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
                 "data_id": data_id,
                 "measurement_type": table_id_measurement_type_map.get(table_id) or not_found_table_id,
                 "vm_table_id": vm_info.get("vm_table_id") or "",
-                "bcs_cluster_id": vm_info.get("bcs_cluster_id") or "",
+                "bcs_cluster_id": bcs_cluster_id_info.get(table_id, ""),
                 "is_influxdb_disabled": cluster_id in vm_cluster_id_name,
                 "vm_storage_name": vm_cluster_id_name.get(cluster_id, ""),
             }
@@ -1453,6 +1458,30 @@ class InfluxDBStorage(models.Model, StorageResultTable, InfluxDBTool):
             )
         # publish
         RedisTools.publish(constants.INFLUXDB_KEY_PREFIX, [constants.INFLUXDB_ADDITIONAL_INFO_FOR_UNIFY_QUERY])
+
+    @classmethod
+    def _get_table_id_bcs_cluster_id(cls) -> dict:
+        """获取结果表和 BCS 集群的关系"""
+        from metadata.models import BCSClusterInfo
+        from metadata.models.data_source import DataSourceResultTable
+
+        infos = BCSClusterInfo.objects.all().only("cluster_id", "bk_biz_id", "K8sMetricDataID", "CustomMetricDataID")
+        dataids = set()
+        for info in infos:
+            dataids.add(info.K8sMetricDataID)
+            dataids.add(info.CustomMetricDataID)
+        if len(dataids) > 500:
+            dataid_rts = DataSourceResultTable.objects.all().only("table_id", "bk_data_id")
+        else:
+            dataid_rts = DataSourceResultTable.objects.filter(bk_data_id__in=dataids).only("table_id", "bk_data_id")
+        dataid_rt_mapping = {data_rt.bk_data_id: data_rt.table_id for data_rt in dataid_rts}
+        mapping = {}
+        for info in infos:
+            if info.K8sMetricDataID in dataid_rt_mapping:
+                mapping[dataid_rt_mapping[info.K8sMetricDataID]] = info.cluster_id
+            if info.CustomMetricDataID in dataid_rt_mapping:
+                mapping[dataid_rt_mapping[info.CustomMetricDataID]] = info.cluster_id
+        return mapping
 
     @classmethod
     def _get_table_id_access_vm_data(cls, table_ids: list[str]) -> dict:
@@ -3417,6 +3446,14 @@ class ESStorage(models.Model, StorageResultTable):
             filter_result,
         )
 
+        check_index_names = list(filter_result.keys())
+        # 存在快照记录的索引
+        snapshot_index_records = list(
+            EsSnapshotIndice.objects.filter(
+                table_id=self.table_id, index_name__in=check_index_names, bk_tenant_id=self.bk_tenant_id
+            ).values_list("index_name", flat=True)
+        )
+
         for index_name, alias_info in filter_result.items():
             # 回溯的索引不经过正常删除的逻辑删除
             if index_name.startswith(self.restore_index_prefix):
@@ -3466,6 +3503,14 @@ class ESStorage(models.Model, StorageResultTable):
                 self.table_id,
                 index_name,
             )
+            # 如果配置了快照，但是索引没有在快照记录中，跳过索引删除，等待第二天执行快照后再删除
+            if self.have_snapshot_conf and index_name not in snapshot_index_records:
+                logger.info(
+                    "table_id->[%s], index->[%s] not snapshot, skip delete ",
+                    self.table_id,
+                    index_name,
+                )
+                continue
             try:
                 self.es_client.indices.delete(index=index_name)
                 logger.info("clean_index_v2:table_id->[%s] index->[%s] is deleted.", self.table_id, index_name)

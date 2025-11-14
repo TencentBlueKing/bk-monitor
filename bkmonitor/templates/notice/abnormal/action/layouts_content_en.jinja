@@ -1,0 +1,91 @@
+{% set alarm_color = 'blue' %}
+{% if alarm.level == 1 %}
+    {% set alarm_color = 'red' %}
+{% elif alarm.level == 2 %}
+    {% set alarm_color = 'orange' %}
+{% endif %}
+[
+  {
+    "type": "column_layout",
+    "components": [
+      {
+        "type": "markdown",
+        "text": "`<font color=\"{{ alarm_color }}\">**[{{level_name}}]**</font>` **{{alert.alert_name}}**"
+      },
+      {
+        "type": "markdown",
+        "text": "{{user_content | safe}}"
+      },
+      {% if notice_way == "wxwork-bot" and mentioned_users %}
+      {
+        "type": "markdown",
+        "text": "--mention-users--"
+      },
+      {% endif %}
+      {
+        "type": "divider"
+      }
+    ]
+  },
+  {% if alarm.redirect_infos %}
+  {
+    "type": "flex_layout",
+    "num_inline": {{ alarm.redirect_infos | length }},
+    "components": [
+      {% for info in alarm.redirect_infos %}
+      {
+        "type": "button",
+        "text": {{ info.text | tojson | safe }},
+        "interaction": {
+          "type": 2002,
+          "data": {
+            "url": {{ info.url | tojson | safe }}
+          }
+        }
+      }{{ "," if not loop.last }}
+      {% endfor %}
+    ]
+  },
+  {% endif %}
+  {% if alarm.quick_ack_url or alarm.quick_shield_url %}
+  {
+    "type": "flex_layout",
+    "num_inline": 2,
+    "weight": [1, 1],
+    "components": [
+      {% if alarm.quick_ack_url %}
+      {
+        "type": "button",
+        "text": "Ack alarm",
+        "button_style": {
+          "type": "outstand",
+          "color": "positive"
+        },
+        "interaction": {
+          "type": 2002,
+          "data": {
+            "url": {{ alarm.quick_ack_url | tojson | safe }}
+          }
+        }
+      }{% if alarm.quick_shield_url %},{% endif %}
+      {% endif %}
+      {% if alarm.quick_shield_url %}
+      {
+        "type": "button",
+        "text": "Shield alarm",
+        "button_style": {
+          "type": "outstand",
+          "color": "positive"
+        },
+        "interaction": {
+          "type": 2002,
+          "data": {
+            "url": {{ alarm.quick_shield_url | tojson | safe }}
+          }
+        }
+      }
+      {% endif %}
+    ]
+  }
+  {% endif %}
+]

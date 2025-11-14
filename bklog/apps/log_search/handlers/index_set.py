@@ -2034,6 +2034,11 @@ class BaseIndexSetHandler:
             IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).update_index(
                 index["bk_biz_id"], index["result_table_id"], update_params
             )
+            # 如果是采集项更新了存储集群，同步更新引用了这个采集项的索引集
+            if self.index_set_obj.collector_config_id and _storage_cluster_id:
+                LogIndexSetData.objects.filter(result_table_id=index["result_table_id"]).update(
+                    storage_cluster_id=update_params["storage_cluster_id"]
+                )
 
         # 需新增的索引
         to_append_indexes = [

@@ -99,17 +99,37 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
         datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
 
         # 清理多余的存储链路
-        es_binding_config = ESStorageBindingConfig.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
+        es_binding_config = ESStorageBindingConfig.objects.filter(
+            bk_tenant_id=bk_tenant_id, data_link_name=datalink.data_link_name
+        ).first()
         if not datalink_config.es_storage_config and es_binding_config:
+            logger.info(
+                "apply_log_v4_datalink: tenant(%s) %s es storage binding config delete, data_link_name->[%s]",
+                bk_tenant_id,
+                table_id,
+                datalink.data_link_name,
+            )
             es_binding_config.delete_config()
         doris_binding_config = DorisStorageBindingConfig.objects.filter(
-            bk_tenant_id=bk_tenant_id, table_id=table_id
+            bk_tenant_id=bk_tenant_id, data_link_name=datalink.data_link_name
         ).first()
         if not datalink_config.doris_storage_config and doris_binding_config:
+            logger.info(
+                "apply_log_v4_datalink: tenant(%s) %s doris storage binding config delete, data_link_name->[%s]",
+                bk_tenant_id,
+                table_id,
+                datalink.data_link_name,
+            )
             doris_binding_config.delete_config()
 
         # 清理transfer链路配置
         if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:
+            logger.info(
+                "apply_log_v4_datalink: tenant(%s) %s datasource created_from change to bkdata, clean consul config for datasource->[%s]",
+                bk_tenant_id,
+                table_id,
+                ds.bk_data_id,
+            )
             ds.created_from = DataIdCreatedFromSystem.BKDATA.value
             ds.save(update_fields=["created_from"])
             ds.delete_consul_config()

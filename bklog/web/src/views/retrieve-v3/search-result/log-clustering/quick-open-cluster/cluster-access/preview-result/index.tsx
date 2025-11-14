@@ -76,16 +76,12 @@ export default defineComponent({
 
     // 获取最近一周的起始和结束时间戳 { start: 第一天00:00, end: 第七天23:59 }
     const getCurrentWeekRange = () => {
-      const start = dayjs().subtract(7, 'day')
+      const start = dayjs().subtract(6, 'day')
         .startOf('day')
         .valueOf();
-      const end = dayjs().subtract(1, 'day')
-        .endOf('day')
+      const end = dayjs().endOf('day')
         .valueOf();
-      return {
-        start,
-        end,
-      };
+      return { start, end };
     };
 
     const initChart = () => {

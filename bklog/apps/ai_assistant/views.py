@@ -38,11 +38,14 @@ from apps.ai_assistant.serializers import (
     UpdateChatSessionContentSerializer,
     GetChatSessionContentsSerializer,
     BatchDeleteSessionContentSerializer,
+    CreateFeedbackSessionContentSerializer,
+    GetFeedbackReasonsSessionContentSerializer,
 )
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import AI_ASSISTANT
 from apps.generic import APIViewSet
 from apps.iam.handlers.drf import ViewBusinessPermission
+
 
 # Create your views here.
 
@@ -207,7 +210,7 @@ class ChatSessionContentViewSet(APIViewSet, AIAssistantPermissionMixin):
     @action(methods=["get"], detail=False)
     def content(self, request, *args, **kwargs):
         """
-        @api {get} /ai_assistant/session_content/{session_code}/content
+        @api {get} /ai_assistant/session_content/content
         @apiName list_session_content
         @apiDescription AI 获取会话内容
         @apiGroup AIAssistant
@@ -259,6 +262,34 @@ class ChatSessionContentViewSet(APIViewSet, AIAssistantPermissionMixin):
         """
         params = self.params_valid(BatchDeleteSessionContentSerializer)
         return JsonResponse(aidev_interface.batch_delete_session_contents(params=params))
+
+
+class SessionFeedbackViewSet(APIViewSet, AIAssistantPermissionMixin):
+    """
+    会话内容反馈
+    """
+
+    def create(self, request, *args, **kwargs):
+        """
+        @api {post} /ai_assistant/session_feedback
+        @apiName create_feedback_session_content
+        @apiDescription 创建会话内容反馈
+        @apiGroup AIAssistant
+
+        """
+        params = self.params_valid(CreateFeedbackSessionContentSerializer)
+        return JsonResponse(aidev_interface.create_chat_session_feedback(params=params, username=request.user.username))
+
+    @action(methods=["get"], detail=False)
+    def reasons(self, request, *args, **kwargs):
+        """
+        @api {get} /ai_assistant/session_feedback/reasons
+        @apiName get_feedback_reasons_session_content
+        @apiDescription 获取反馈原因列表
+        @apiGroup AIAssistant
+        """
+        params = self.params_valid(GetFeedbackReasonsSessionContentSerializer)
+        return JsonResponse(aidev_interface.get_feedback_reasons(params=params))
 
 
 class ChatCompletionViewSet(APIViewSet, AIAssistantPermissionMixin):
