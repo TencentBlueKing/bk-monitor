@@ -313,16 +313,16 @@ class K8sCollectorHandler(CollectorHandler):
             "params": model_to_dict(self.data, exclude=["deleted_at", "created_at", "updated_at"]),
         }
         user_operation_record.delay(operation_record)
+
         if "configs" in data:
             self.compare_config(data_configs=data["configs"], collector_config_id=self.data.collector_config_id)
 
-        if self.data.is_active:
-            self.data.task_id_list = list(
-                ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).values_list(
-                    "id", flat=True
-                )
+        self.data.task_id_list = list(
+            ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).values_list(
+                "id", flat=True
             )
-            self.data.save()
+        )
+        self.data.save()
 
         return {
             "collector_config_id": self.data.collector_config_id,
@@ -1615,11 +1615,13 @@ class K8sCollectorHandler(CollectorHandler):
                 )
                 container_config.save()
                 container_configs.append(container_config)
-            if self.data.is_active:
-                self.create_container_release(container_config=container_config)
         # 增量比对后，需要真正删除配置
         delete_container_configs = container_configs[config_length::]
+        # 判断采集项状态，停用时只操作本地数据库；启用则下发配置
         if self.data.is_active:
+            for config in container_configs:
+                self.create_container_release(container_config=config)
+
             for config in delete_container_configs:
                 self.delete_container_release(config, delete_config=True)
         else:
