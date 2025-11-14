@@ -521,6 +521,16 @@ class ActionEnum:
         version=1,
     )
 
+    USE_ALL_BIZ_IN_CUSTOM_METRIC = ActionMeta(
+        id="use_all_biz_in_custom_metric",
+        name=_("在自定义指标中选择全业务"),
+        name_en="Use All Biz In Custom Metric",
+        type="view",
+        related_resource_types=[],
+        related_actions=[],
+        version=1,
+    )
+
 
 _all_actions = {action.id: action for action in ActionEnum.__dict__.values() if isinstance(action, ActionMeta)}
 
@@ -604,6 +614,7 @@ MINI_ACTION_IDS = [
     ActionEnum.MANAGE_APM_APPLICATION.id,
     ActionEnum.VIEW_INCIDENT.id,
     ActionEnum.MANAGE_INCIDENT.id,
+    ActionEnum.USE_ALL_BIZ_IN_CUSTOM_METRIC.id,
     ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION.id,
 ]
 # CMDB（主机依赖）权限

@@ -15,6 +15,7 @@ from rest_framework.exceptions import ValidationError
 
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.errors import NoRelatedResourceError
+from bkmonitor.iam import Permission, ActionEnum
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -237,7 +238,13 @@ class CreateCustomTimeSeries(Resource):
     def perform_request(self, validated_request_data):
         # 如果是平台级，则ts_group 及对应表的业务id为0
         # 当前业务为关联的平台级业务id，内置到data_id的data_name里面
+
         # data_id有个业务归属，而对应的table可以在各业务下使用
+
+        # 权限校验
+        if validated_request_data.get("is_platform"):
+            Permission().is_allowed(ActionEnum.USE_ALL_BIZ_IN_CUSTOM_METRIC, raise_exception=True)
+
         input_bk_biz_id = 0 if validated_request_data["is_platform"] else validated_request_data["bk_biz_id"]
         operator = get_request_username() or settings.COMMON_USERNAME
 
