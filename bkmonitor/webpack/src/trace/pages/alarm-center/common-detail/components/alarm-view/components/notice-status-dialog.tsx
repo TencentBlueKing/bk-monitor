@@ -24,12 +24,26 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { defineComponent, shallowRef, watch } from 'vue';
 
+import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Dialog } from 'bkui-vue';
+import { subActionDetail } from 'monitor-api/modules/alert';
+import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { useI18n } from 'vue-i18n';
 
 import './notice-status-dialog.scss';
+
+interface ITableData {
+  label?: string;
+  target?: string;
+  tip?: string;
+}
+
+const ClassMap = {
+  失败: 'failed',
+  成功: 'success',
+};
 
 export default defineComponent({
   name: 'NoticeStatusDialog',
@@ -46,13 +60,108 @@ export default defineComponent({
   emits: {
     showChange: (_val: boolean) => true,
   },
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const { t } = useI18n();
 
     const handleShowChange = (val: boolean) => {
       emit('showChange', val);
     };
+    const tableColumns = shallowRef<TdPrimaryTableProps['columns']>([]);
+    const tableData = shallowRef<ITableData[]>([]);
+    const hasColumns = shallowRef<string[]>([]);
+
+    const loading = shallowRef(false);
+    const getNoticeStatusData = async () => {
+      loading.value = true;
+      if (tableColumns.value.length) {
+        const columns = await getNoticeWay()
+          .then(res =>
+            res.map(item => ({
+              colKey: item.type,
+              title: item.label,
+              resizable: false,
+              cell: (_h, { row }) => {
+                return !Object.keys(ClassMap).includes(row?.[item.prop]?.label) ? (
+                  <span
+                    v-bk-tooltips={{
+                      allowHtml: false,
+                      html: false,
+                      allowHTML: false,
+                      width: 200,
+                      content: row[item.prop]?.tip,
+                      placements: ['top'],
+                      disabled: !row[item.prop]?.tip,
+                    }}
+                  >
+                    {row?.[item.prop]?.label || '--'}
+                  </span>
+                ) : (
+                  <span
+                    class={`notice-${ClassMap[row[item.prop].label]}`}
+                    v-bk-tooltips={{
+                      allowHtml: false,
+                      html: false,
+                      allowHTML: false,
+                      width: 200,
+                      content: row[item.prop]?.tip,
+                      placements: ['top'],
+                      disabled: !row[item.prop]?.tip,
+                    }}
+                  />
+                );
+              },
+            }))
+          )
+          .catch(() => []);
+        tableColumns.value = [
+          {
+            colKey: 'target',
+            title: t('通知方式'),
+            resizable: false,
+            cell: (_h, { row }) => {
+              return row.target ? <bk-user-display-name user-id={row.target} /> : '--';
+            },
+          },
+          ...columns,
+        ];
+      }
+      await subActionDetail({ parent_action_id: props.actionId })
+        .then(data => {
+          tableData.value = Object.keys(data || {}).map(key => {
+            const temp = { target: key };
+            for (const subKey of Object.keys(data[key] || {})) {
+              if (!hasColumns.value.includes(subKey)) {
+                hasColumns.value = [...hasColumns.value, subKey];
+              }
+              const statusData = data?.[key]?.[subKey] || {};
+              temp[subKey] = {
+                label: statusData?.status_display || '',
+                tip: statusData?.status_tips || '',
+              };
+            }
+
+            return temp;
+          });
+        })
+        .finally(() => {
+          loading.value = false;
+        });
+    };
+
+    watch(
+      () => props.show,
+      newVal => {
+        if (newVal) {
+          getNoticeStatusData();
+        }
+      },
+      { immediate: true }
+    );
+
     return {
+      tableColumns,
+      tableData,
+      hasColumns,
       t,
       handleShowChange,
     };
@@ -67,7 +176,13 @@ export default defineComponent({
         title={this.t('通知状态')}
         onUpdate:isShow={this.handleShowChange}
       >
-        <div class='notice-status-dialog-content'>ddd</div>
+        <div class='notice-status-dialog-content'>
+          <PrimaryTable
+            bordered={false}
+            columns={this.tableColumns.filter(item => this.hasColumns.includes(item.colKey))}
+            data={this.tableData}
+          />
+        </div>
       </Dialog>
     );
   },
