@@ -1546,7 +1546,6 @@ class K8sCollectorHandler(CollectorHandler):
         container_configs = ContainerCollectorConfig.objects.filter(collector_config_id=collector_config_id)
         container_configs = list(container_configs)
         config_length = len(data_configs)
-        create_container_configs = list()
         for x in range(config_length):
             is_all_container = not any(
                 [
@@ -1616,12 +1615,11 @@ class K8sCollectorHandler(CollectorHandler):
                 )
                 container_config.save()
                 container_configs.append(container_config)
-            create_container_configs.append(container_config)
         # 增量比对后，需要真正删除配置
         delete_container_configs = container_configs[config_length::]
         # 判断采集项状态，停用时只操作本地数据库；启用则下发配置
         if self.data.is_active:
-            for config in create_container_configs:
+            for config in container_configs[:config_length]:
                 self.create_container_release(container_config=config)
 
             for config in delete_container_configs:
