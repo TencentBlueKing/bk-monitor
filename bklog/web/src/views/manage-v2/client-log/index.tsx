@@ -26,8 +26,12 @@
 
 import { defineComponent, ref } from 'vue';
 
-import './index.scss';
 import { t } from '@/hooks/use-locale';
+
+import LogTable from './components/log-table';
+import NewCollectionSlider from './new-collection-slider';
+
+import './index.scss';
 
 // tab类型常量定义
 const TAB_TYPES = {
@@ -39,8 +43,13 @@ type TabType = (typeof TAB_TYPES)[keyof typeof TAB_TYPES];
 
 export default defineComponent({
   name: 'ClientLog',
+  components: {
+    LogTable,
+    NewCollectionSlider,
+  },
   setup() {
     const tabs = ref([
+      // tab配置
       {
         title: TAB_TYPES.COLLECT,
         count: '453',
@@ -50,11 +59,22 @@ export default defineComponent({
         count: 87,
       },
     ]);
-    const activeTab = ref<TabType>(TAB_TYPES.COLLECT);
+    const activeTab = ref<TabType>(TAB_TYPES.COLLECT); // 激活的tab
+    const showSlider = ref(false); // 新建采集侧边栏打开状态
 
     // tab点击事件
     const handleTabClick = (title: TabType) => {
       activeTab.value = title;
+    };
+
+    // 设置侧边栏打开状态
+    const setSidebarOpen = (open: boolean) => {
+      showSlider.value = open;
+    };
+
+    // 新建采集成功后回调
+    const handleUpdatedTable = () => {
+      showSlider.value = false;
     };
 
     return () => (
@@ -79,7 +99,12 @@ export default defineComponent({
             <div class='deploy-header'>
               {/* 采集下发 */}
               <div>
-                <bk-button theme='primary'>{t('新建采集')}</bk-button>
+                <bk-button
+                  theme='primary'
+                  onClick={() => setSidebarOpen(true)}
+                >
+                  {t('新建采集')}
+                </bk-button>
                 <bk-button>{t('清洗配置')}</bk-button>
               </div>
               <div>
@@ -111,8 +136,16 @@ export default defineComponent({
             </div>
           )}
           {/* 表格内容区域 */}
-          <section>表格内容</section>
+          <section>
+            <LogTable />
+          </section>
         </div>
+        {/* 新建采集侧边栏 */}
+        <NewCollectionSlider
+          showSlider={showSlider.value}
+          onHandleCancelSlider={() => setSidebarOpen(false)}
+          onHandleUpdatedTable={handleUpdatedTable}
+        />
       </div>
     );
   },

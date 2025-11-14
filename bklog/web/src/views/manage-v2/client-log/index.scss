@@ -16,15 +16,13 @@
         }
 
         .active {
+            font-weight: 700;
             color: #3A84FF;
             background: #FFFFFF;
             box-shadow: 0 0 2px 0 #0000001f;
 
-            .tab-item-title{
-                font-weight: 700;
-            }
-
             .tab-item-num {
+                color: #3A84FF;
                 background: #E1ECFF;
             }
         }
@@ -34,12 +32,12 @@
             height: 16px;
             padding: 0 8px;
             margin-left: 8px;
+            font-family: Arial, Helvetica, sans-serif;
             font-size: 12px;
             line-height: 16px;
             color: #979BA5;
             background: #FFFFFF;
             border-radius: 8px;
-            // font-weight: BoldMT;
         }
     }
 
