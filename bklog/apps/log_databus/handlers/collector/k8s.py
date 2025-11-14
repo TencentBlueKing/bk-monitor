@@ -316,12 +316,13 @@ class K8sCollectorHandler(CollectorHandler):
         if "configs" in data:
             self.compare_config(data_configs=data["configs"], collector_config_id=self.data.collector_config_id)
 
-        self.data.task_id_list = list(
-            ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).values_list(
-                "id", flat=True
+        if self.data.is_active:
+            self.data.task_id_list = list(
+                ContainerCollectorConfig.objects.filter(collector_config_id=self.collector_config_id).values_list(
+                    "id", flat=True
+                )
             )
-        )
-        self.data.save()
+            self.data.save()
 
         return {
             "collector_config_id": self.data.collector_config_id,
@@ -1614,25 +1615,22 @@ class K8sCollectorHandler(CollectorHandler):
                 )
                 container_config.save()
                 container_configs.append(container_config)
-            self.create_container_release(container_config=container_config)
+            if self.data.is_active:
+                self.create_container_release(container_config=container_config)
         # 增量比对后，需要真正删除配置
         delete_container_configs = container_configs[config_length::]
-        if not self.data.is_active:
-            for config in delete_container_configs:
-                config.delete()
-        else:
+        if self.data.is_active:
             for config in delete_container_configs:
                 self.delete_container_release(config, delete_config=True)
+        else:
+            for config in delete_container_configs:
+                config.delete()
 
     def create_container_release(self, container_config: ContainerCollectorConfig, **kwargs):
         """
         创建容器采集配置
         :param container_config: 容器采集配置实例
         """
-
-        if not self.data.is_active:
-            return
-
         from apps.log_databus.tasks.collector import create_container_release
 
         if self.data.yaml_config_enabled and container_config.raw_config:
