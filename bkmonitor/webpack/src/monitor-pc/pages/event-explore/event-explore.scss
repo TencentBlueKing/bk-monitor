@@ -77,6 +77,14 @@
           height: 100%;
         }
       }
+
+      .filter-content:hover {
+        background-color: #fafbfd;
+
+        & + .component-right {
+          background-color: #fafbfd;
+        }
+      }
     }
   }
 }
