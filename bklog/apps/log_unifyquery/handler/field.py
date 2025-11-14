@@ -117,7 +117,6 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             query["time_aggregation"] = {"function": "count_over_time", "window": search_dict["step"]}
             query["function"] = [
                 {"method": "sum", "dimensions": [self.search_params["agg_field"]]},
-                {"method": "topk", "vargs_list": [vargs]},
             ]
             if not topk_group_values:
                 continue
@@ -127,7 +126,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
                 {"field_name": self.search_params["agg_field"], "value": topk_group_values, "op": "eq"}
             )
             query["reference_name"] = "a"
-        search_dict.update({"metric_merge": "a"})
+        search_dict.update({"metric_merge": f"topk({vargs}, a)"})
         data = self.query_ts(search_dict)
         return data
 
