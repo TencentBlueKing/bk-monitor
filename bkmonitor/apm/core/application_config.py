@@ -172,11 +172,6 @@ class ApplicationConfig(BkCollectorConfig):
             ConfigTypes.DB_SLOW_COMMAND_CONFIG, DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG
         )
 
-        # 增加all_app_config的配置将覆盖对应的原有配置
-        all_app_config = self.get_config(ConfigTypes.ALL_APP_CONFIG, {})
-        if all_app_config:
-            config.update(all_app_config)
-
         profiles_drop_sampler_config = self.get_profiles_drop_sampler_config()
         traces_drop_sampler_config = self.get_traces_drop_sampler_config()
         metrics_filter_config = self.get_metrics_filter_config()
@@ -215,6 +210,11 @@ class ApplicationConfig(BkCollectorConfig):
 
         if metrics_filter_config:
             config["metrics_filter_config"] = metrics_filter_config
+
+        # 增加all_app_config的配置将覆盖对应的原有配置
+        all_app_config = self.get_config(ConfigTypes.ALL_APP_CONFIG, {})
+        if all_app_config:
+            config.update(all_app_config)
 
         service_configs = self.get_sub_configs("service_name", ApdexConfig.SERVICE_LEVEL)
         if service_configs:
