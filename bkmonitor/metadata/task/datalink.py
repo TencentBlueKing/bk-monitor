@@ -13,6 +13,7 @@ from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig, ESStorageBindingConfig
 from metadata.models.result_table import LogV4DataLinkOption
 from metadata.models.storage import DorisStorage, ESStorage
+from metadata.models.vm import utils
 
 logger = logging.getLogger(__name__)
 
@@ -86,13 +87,22 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
         if not bkbase_rt:
             # 生成链路名称，格式为bklog_{bk_biz_id}_{16位随机字符串}
             random_str = "".join(random.choices(string.ascii_lowercase + string.digits, k=16))
-            datalink, _ = DataLink.objects.get_or_create(
+            data_link_name = utils.compose_bkdata_data_id_name(f"bklog_{rt.bk_biz_id}_{random_str}")
+
+            # 如果链路名称已存在，则生成新的链路名称
+            while DataLink.objects.filter(data_link_name=data_link_name).exists():
+                random_str = "".join(random.choices(string.ascii_lowercase + string.digits, k=16))
+                data_link_name = utils.compose_bkdata_data_id_name(f"bklog_{rt.bk_biz_id}_{random_str}")
+
+            # 创建链路
+            datalink = DataLink.objects.create(
                 bk_tenant_id=bk_tenant_id,
-                data_link_name=f"bklog_{rt.bk_biz_id}_{random_str}",
+                data_link_name=utils.compose_bkdata_data_id_name(f"bklog_{rt.bk_biz_id}_{random_str}"),
                 namespace="bklog",
                 data_link_strategy=DataLink.BK_LOG,
             )
         else:
+            # 获取链路
             datalink = DataLink.objects.get(
                 bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name, namespace="bklog"
             )
