@@ -518,7 +518,6 @@ class EtlStorage:
             "bk_data_id": instance.bk_data_id,
             # 必须为 库名.表名
             "table_id": CollectorHandler.build_result_table_id(instance.get_bk_biz_id(), table_id),
-            "is_enable": True,
             "table_name_zh": instance.get_name(),
             "is_custom_table": True,
             "schema_type": "free",
@@ -598,11 +597,11 @@ class EtlStorage:
         # 兼容插件与采集项
         if not table_id:
             # 创建结果表
+            params["is_enable"] = True
             table_id = TransferApi.create_result_table(params)["table_id"]
         else:
             # 更新结果表
             params["table_id"] = table_id
-            params.pop("is_enable", None)
             from apps.log_databus.tasks.collector import modify_result_table
 
             modify_result_table.delay(params)
@@ -1042,7 +1041,6 @@ class EtlStorage:
             "bk_data_id": instance.bk_data_id,
             # 必须为 库名.表名
             "table_id": table_id,
-            "is_enable": True,
             "table_name_zh": f"{instance.get_name()}_Pattern",
             "is_custom_table": True,
             "schema_type": "free",
@@ -1134,11 +1132,11 @@ class EtlStorage:
         # 兼容插件与采集项
         if not table_id:
             # 创建结果表
+            params["is_enable"] = True
             table_id = TransferApi.create_result_table(params)["table_id"]
         else:
             # 更新结果表
             params["table_id"] = table_id
-            params.pop("is_enable", None)
             from apps.log_databus.tasks.collector import modify_result_table
 
             modify_result_table.delay(params)
