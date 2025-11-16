@@ -47,6 +47,69 @@ if TYPE_CHECKING:
 logger = logging.getLogger("metadata")
 
 
+CUSTOM_EVENT_CLEAN_RULES: list[dict[str, Any]] = [
+    {"input_id": "__raw_data", "output_id": "json_data", "operator": {"type": "json_de", "error_strategy": "drop"}},
+    {
+        "input_id": "json_data",
+        "output_id": "items",
+        "operator": {"type": "get", "key_index": [{"type": "key", "value": "data"}], "missing_strategy": None},
+    },
+    {"input_id": "items", "output_id": "iter_item", "operator": {"type": "iter"}},
+    {
+        "input_id": "iter_item",
+        "output_id": "event_name",
+        "operator": {"type": "assign", "key_index": "event_name"},
+    },
+    {
+        "input_id": "iter_item",
+        "output_id": "target",
+        "operator": {"type": "assign", "key_index": "target", "output_type": "string"},
+    },
+    {
+        "input_id": "iter_item",
+        "output_id": "dimension",
+        "operator": {"type": "assign", "key_index": "dimension", "output_type": "dict"},
+    },
+    {
+        "input_id": "iter_item",
+        "output_id": "event",
+        "operator": {"type": "assign", "key_index": "event", "output_type": "dict"},
+    },
+    {
+        "input_id": "iter_item",
+        "output_id": "time",
+        "operator": {
+            "type": "assign",
+            "key_index": "timestamp",
+            "output_type": "timestamp",
+            "in_place_time_parsing": {
+                "from": {"format": "%s", "zone": 0},
+                "to": "millis",
+                "interval_format": "ms",
+                "now_if_parse_failed": True,
+            },
+        },
+    },
+    {
+        "input_id": "iter_item",
+        "output_id": "timestamp",
+        "operator": {
+            "type": "assign",
+            "key_index": "timestamp",
+            "output_type": "timestamp",
+            "is_time_field": True,
+            "time_format": {"format": "%s", "zone": 0},
+            "in_place_time_parsing": {
+                "from": {"format": "%s", "zone": 0},
+                "interval_format": "ms",
+                "to": "second",
+                "now_if_parse_failed": True,
+            },
+        },
+    },
+]
+
+
 class DataLink(models.Model):
     """
     一条完整的链路资源
@@ -216,9 +279,9 @@ class DataLink(models.Model):
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
             index_name = table_id.replace(".", "_")
             write_alias = f"write_%Y%m%d_{index_name}"
-            unique_field_list = json.loads(
-                ResultTableOption.objects.get(table_id=table_id, name="es_unique_field_list").value
-            )
+            unique_field_list = ResultTableOption.objects.get(
+                bk_tenant_id=self.bk_tenant_id, table_id=table_id, name=ResultTableOption.OPTION_ES_DOCUMENT_ID
+            ).get_value()
 
             databus_ins, _ = DataBusConfig.objects.get_or_create(
                 name=self.data_link_name,
@@ -243,18 +306,16 @@ class DataLink(models.Model):
                         "namespace": self.namespace,
                     }
                 ],
-                # todo: 自定义事件清洗逻辑
-                rules=[],
+                rules=CUSTOM_EVENT_CLEAN_RULES,
             )
 
-            config_list.extend([es_rt_config, es_binding_config, databus_config])
-            logger.info(
-                "compose_base_event_configs: data_link_name->[%s] composed configs successfully,config_list->[%s]",
-                self.data_link_name,
-                config_list,
-            )
-
-        return []
+        config_list = [es_rt_config, es_binding_config, databus_config]
+        logger.info(
+            "compose_custom_event_configs: data_link_name->[%s] composed configs successfully,config_list->[%s]",
+            self.data_link_name,
+            config_list,
+        )
+        return config_list
 
     def compose_log_configs(
         self,
