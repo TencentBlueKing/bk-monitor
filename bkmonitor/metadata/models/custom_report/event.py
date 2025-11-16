@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
-
 import logging
 from typing import Any
 
@@ -309,6 +308,15 @@ class EventGroup(CustomGroupBase):
         :param bk_tenant_id: 租户ID
         :return: group object
         """
+        # 添加默认的option配置
+        additional_options = copy.deepcopy(cls.DEFAULT_RESULT_TABLE_OPTIONS)
+
+        # 添加ES文档ID配置
+        fields = cls.STORAGE_FIELD_LIST
+        option_value = [field["field_name"] for field in fields]
+        option_value.append("time")
+        additional_options[ResultTableOption.OPTION_ES_DOCUMENT_ID] = option_value
+
         group = super().create_custom_group(
             bk_data_id=bk_data_id,
             bk_biz_id=bk_biz_id,
@@ -319,26 +327,8 @@ class EventGroup(CustomGroupBase):
             table_id=table_id,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
-            additional_options=copy.deepcopy(cls.DEFAULT_RESULT_TABLE_OPTIONS),
+            additional_options=additional_options,
         )
-
-        fields = cls.STORAGE_FIELD_LIST
-        option_value = [field["field_name"] for field in fields]
-        option_value.append("time")
-
-        ResultTableOption.create_option(
-            table_id=group.table_id,
-            name=ResultTableOption.OPTION_ES_DOCUMENT_ID,
-            value=option_value,
-            creator="system",
-            bk_tenant_id=bk_tenant_id,
-        )
-
-        # 需要刷新一次外部依赖的consul，触发transfer更新
-        from metadata.models import DataSource
-
-        # 除1000外不存在跨租户事件,因此无需携带租户属性过滤
-        DataSource.objects.get(bk_data_id=bk_data_id).refresh_consul_config()
 
         return group
 
@@ -470,3 +460,100 @@ class Event(models.Model):
 
     def to_json(self):
         return {"event_id": self.event_id, "event_name": self.event_name, "dimension_list": self.dimension_list}
+
+
+import json
+
+from core.drf_resource import api
+
+data = {
+    "cloudid": 0,
+    "dataid": 1573696,
+    "version": "",
+    "data": [
+        {
+            "event_name": "notify_event",
+            "event": {
+                "content": '【APP 自定义异常】找不到索引集"7062"的相关信息, code=3600965, args=(\'找不到索引集"7062"的相关信息\',)'
+            },
+            "target": "bk_log_search",
+            "dimension": {"trace_id": "4ae18ca4356f75dd833da845e359fcc5", "username": "admin"},
+            "timestamp": 1761478096213,
+        }
+    ],
+    "timestamp": 1761478096,
+    "bk_biz_id": 0,
+    "gseindex": 19470,
+    "time": 1761478096,
+    "bizid": 0,
+    "ip": "",
+    "hostname": "bkm-collector-default-67ff655c9f-vcwdk",
+    "bk_agent_id": "02000000005254004bf2be17575845592381",
+    "bk_host_id": 0,
+}
+
+CustomEventCleanRules = {
+    "clean_rules": [
+        {"input_id": "__raw_data", "output_id": "json_data", "operator": {"type": "json_de", "error_strategy": "drop"}},
+        {
+            "input_id": "json_data",
+            "output_id": "items",
+            "operator": {"type": "get", "key_index": [{"type": "key", "value": "data"}], "missing_strategy": None},
+        },
+        {"input_id": "items", "output_id": "iter_item", "operator": {"type": "iter"}},
+        {
+            "input_id": "iter_item",
+            "output_id": "event_name",
+            "operator": {"type": "assign", "key_index": "event_name"},
+        },
+        {
+            "input_id": "iter_item",
+            "output_id": "target",
+            "operator": {"type": "assign", "key_index": "target", "output_type": "string"},
+        },
+        {
+            "input_id": "iter_item",
+            "output_id": "dimension",
+            "operator": {"type": "assign", "key_index": "dimension", "output_type": "dict"},
+        },
+        {
+            "input_id": "iter_item",
+            "output_id": "event",
+            "operator": {"type": "assign", "key_index": "event", "output_type": "dict"},
+        },
+        {
+            "input_id": "iter_item",
+            "output_id": "time",
+            "operator": {
+                "type": "assign",
+                "key_index": "timestamp",
+                "output_type": "timestamp",
+                "in_place_time_parsing": {
+                    "from": {"format": "%s", "zone": 0},
+                    "to": "millis",
+                    "interval_format": "ms",
+                    "now_if_parse_failed": True,
+                },
+            },
+        },
+        {
+            "input_id": "iter_item",
+            "output_id": "timestamp",
+            "operator": {
+                "type": "assign",
+                "key_index": "timestamp",
+                "output_type": "timestamp",
+                "is_time_field": True,
+                "time_format": {"format": "%s", "zone": 0},
+                "in_place_time_parsing": {
+                    "from": {"format": "%s", "zone": 0},
+                    "interval_format": "ms",
+                    "to": "second",
+                    "now_if_parse_failed": True,
+                },
+            },
+        },
+    ]
+}
+
+api.bkdata.data_bus_clean_debug(input=json.dumps(data), rules=CustomEventCleanRules["clean_rules"])
