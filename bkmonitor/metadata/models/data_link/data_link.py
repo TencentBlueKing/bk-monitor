@@ -67,7 +67,7 @@ CUSTOM_EVENT_CLEAN_RULES: list[dict[str, Any]] = [
     },
     {
         "input_id": "iter_item",
-        "output_id": "dimension",
+        "output_id": "dimensions",
         "operator": {"type": "assign", "key_index": "dimension", "output_type": "dict"},
     },
     {
@@ -297,6 +297,7 @@ class DataLink(models.Model):
                 storage_cluster_name=es_storage.storage_cluster.cluster_name,
                 write_alias_format=write_alias,
                 unique_field_list=unique_field_list,
+                json_field_list=["event", "dimension"],
             )
             databus_config = databus_ins.compose_log_config(
                 sinks=[
