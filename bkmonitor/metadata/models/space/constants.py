@@ -102,6 +102,7 @@ class EtlConfigs(Enum):
     BK_SYSTEM_PROC = "bk_system_proc"
     # 自定义多指标单表
     BK_STANDARD_V2_TIME_SERIES = "bk_standard_v2_time_series"
+    BK_STANDARD_V2_EVENT = "bk_standard_v2_event"
 
     # 多租户下的主机基础数据采集
     BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG = "bk_multi_tenancy_basereport"
@@ -136,6 +137,7 @@ class EtlConfigs(Enum):
         (BK_MULTI_TENANCY_BASEREPORT_ETL_CONFIG, "bk_multi_tenancy_basereport"),
         (BK_MULTI_TENANCY_SYSTEM_PROC_PERF_ETL_CONFIG, "bk_multi_tenancy_system_proc_perf"),
         (BK_MULTI_TENANCY_SYSTEM_PROC_PORT_ETL_CONFIG, "bk_multi_tenancy_system_proc_port"),
+        (BK_STANDARD_V2_EVENT, "bk_standard_v2_event"),
     )
 
 
