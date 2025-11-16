@@ -155,6 +155,7 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
         ds.delete_consul_config()
 
 
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
     """创建/更新事件组V4数据链路
 
