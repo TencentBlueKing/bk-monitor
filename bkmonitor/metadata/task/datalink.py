@@ -190,7 +190,7 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
 
     # 如果datasource是gse创建的，需要在bkbase上注册
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
-        ds.register_to_bkbase(bk_biz_id=rt.bk_biz_id, namespace="bkmonitor")
+        ds.register_to_bkbase(bk_biz_id=rt.bk_biz_id, namespace="bklog")
 
     # 获取数据链路
     bkbase_rt = BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id, monitor_table_id=table_id).first()
@@ -199,12 +199,12 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
         datalink = DataLink.objects.create(
             bk_tenant_id=bk_tenant_id,
             data_link_name=data_link_name,
-            namespace="bkmonitor",
+            namespace="bklog",
             data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
         )
     else:
         datalink = DataLink.objects.get(
-            bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name, namespace="bkmonitor"
+            bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name, namespace="bklog"
         )
         data_link_name = bkbase_rt.data_link_name
 
