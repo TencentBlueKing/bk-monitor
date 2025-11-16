@@ -203,9 +203,7 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
             data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
         )
     else:
-        datalink = DataLink.objects.get(
-            bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name, namespace="bklog"
-        )
+        datalink = DataLink.objects.get(bk_tenant_id=bk_tenant_id, data_link_name=bkbase_rt.data_link_name)
         data_link_name = bkbase_rt.data_link_name
 
     # 创建/更新链路配置
