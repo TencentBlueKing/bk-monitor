@@ -50,6 +50,12 @@ export const fieldTypeMap = {
     color: '#DDEBE6',
     textColor: '#60A087',
   },
+  float: {
+    name: i18n.t('数字'),
+    icon: 'bklog-icon bklog-number-2',
+    color: '#DDEBE6',
+    textColor: '#60A087',
+  },
   keyword: {
     name: i18n.t('字符串'),
     icon: 'bklog-icon bklog-str-2',
