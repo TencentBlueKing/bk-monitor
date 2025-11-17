@@ -193,5 +193,4 @@ class FieldViewSet(APIViewSet):
             else:
                 return Response(query_handler.get_bucket_data(params["min"], params["max"]))
         else:
-            data = query_handler.get_topk_ts_data(params["limit"])
-            return Response(data)
+            return Response(query_handler.get_topk_ts_data(params["limit"]))
