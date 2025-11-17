@@ -15,7 +15,6 @@ from datetime import datetime, timedelta
 import arrow
 from django.utils.translation import gettext as _
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.share.api_auth_resource import ApiAuthResource
@@ -181,17 +180,6 @@ class LogQueryResource(ApiAuthResource):
                     time_field = result["metric_list"][0]["extend_fields"].get("time_field") or None
             except Exception as e:
                 logger.exception(e)
-
-        # 参数校验
-        if params["data_source_label"] == DataSourceLabel.BK_FTA:
-            if not params.get("alert_name"):
-                raise ValidationError(_("告警名称不能为空"))
-        elif (params["data_source_label"], params["data_type_label"]) == (
-            DataSourceLabel.BK_MONITOR_COLLECTOR,
-            DataTypeLabel.ALERT,
-        ):
-            if not params.get("bkmonitor_strategy_id"):
-                raise ValidationError(_("策略ID不能为空"))
 
         # 设置查询限制
         limit = 1000 if params["limit"] <= 0 else params["limit"]
