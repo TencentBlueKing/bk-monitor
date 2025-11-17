@@ -152,7 +152,7 @@ class LogQueryResource(ApiAuthResource):
         total = 0
         # 如果method的值是COUNT，则计算总数
         if method == "COUNT":
-            count_query = query.metric(field="_index", method="COUNT", alias="log_count")
+            count_query = query.metric(field="_index", method=method, alias="log_count")
             count_result = list(_get_query_set(count_query))
             for count_item in count_result:
                 total += count_item.get("_result_", 0)
