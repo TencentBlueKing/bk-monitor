@@ -13,6 +13,7 @@ import copy
 import json
 import logging
 from typing import Any
+from collections.abc import Callable
 from urllib.parse import urljoin
 
 from django.conf import settings
@@ -36,13 +37,9 @@ from bkmonitor.utils.time_tools import (
     utc2localtime,
 )
 from constants.action import ActionPluginType, ActionSignal, ConvergeType
-from constants.alert import (
-    EVENT_STATUS_DICT,
-    TARGET_DIMENSIONS,
-    EventStatus,
-    EventTargetType,
-)
+from constants.alert import EVENT_STATUS_DICT, TARGET_DIMENSIONS, EventStatus, EventTargetType, AlertRedirectType
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
+from constants.apm import ApmAlertHelper
 from core.errors.alert import AIOpsFunctionAccessedError
 
 from ...service.converge.shield.shielder import AlertShieldConfigShielder
@@ -237,26 +234,28 @@ class Alarm(BaseContextObject):
                 if not dimension:
                     continue
                 dimension_lists.append(
-                    [dimension.display_key or dimension_key, dimension.display_value or dimension.value]
+                    [dimension.display_key or dimension_key, dimension.display_value or dimension.value or "--"]
                 )
 
         # 如果维度不在agg dimensions中，直接添加在最后
         for dimension_key, dimension in display_dimensions.items():
-            dimension_lists.append([dimension.display_key or dimension_key, dimension.display_value or dimension.value])
+            dimension_lists.append(
+                [dimension.display_key or dimension_key, dimension.display_value or dimension.value or "--"]
+            )
 
+        sep: str = "="
         # 如果是 markdown 类型的通知方式，维度值是url，需要转换为链接格式
         if self.parent.notice_way in settings.MD_SUPPORTED_NOTICE_WAYS:
+            sep = ": "
             for dimension_list in dimension_lists:
                 value: str = str(dimension_list[1]).strip()
                 if value.startswith("http://") or value.startswith("https://"):
                     dimension_list[1] = f"[{value}]({value})"
 
         try:
-            dimension_str = [
-                "{}={}".format(*dimension_list) for dimension_list in sorted(dimension_lists, key=lambda x: x[0])
-            ]
+            dimension_str = [f"{k}{sep}{v}" for k, v in sorted(dimension_lists, key=lambda x: x[0])]
         except Exception:
-            dimension_str = ["{}={}".format(*dimension_list) for dimension_list in dimension_lists]
+            dimension_str = [f"{k}{sep}{v}" for k, v in dimension_lists]
 
         return dimension_str
 
@@ -536,7 +535,7 @@ class Alarm(BaseContextObject):
         """
         关联信息
         """
-        return self.topo_related_info + self.log_related_info
+        return (self.topo_related_info + self.log_related_info) or "--"
 
     @cached_property
     def topo_related_info(self):
@@ -888,20 +887,20 @@ class Alarm(BaseContextObject):
         # 模块链接，先回退
         return []
 
-    def generate_redirect_type(self):
+    @cached_property
+    def redirect_types(self) -> list[str]:
+        redirect_types: list[str] = [AlertRedirectType.DETAIL.value]
         alert: AlertDocument = self.parent.alert
-
         if not alert.strategy:
-            return None
+            return redirect_types
 
         item = alert.strategy["items"][0]
         query_configs = item["query_configs"]
         if not query_configs:
-            return None
+            return redirect_types
 
-        data_source = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
-
-        redirect_map = {
+        data_source: tuple[str, str] = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
+        redirect_map: dict[str, list[tuple[str, str]]] = {
             "log_search": [(DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG)],
             "query": [
                 (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
@@ -911,16 +910,72 @@ class Alarm(BaseContextObject):
                 (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
             ],
         }
+
         for _type, target in redirect_map.items():
             if data_source in target:
-                return _type
+                redirect_types.append(_type)
+                break
 
-        return None
+        if ApmAlertHelper.is_rpc_system(alert.strategy):
+            # TODO 后续有其他明确场景，可在此处补充识别。
+            redirect_types.extend([AlertRedirectType.APM_RPC.value, AlertRedirectType.APM_TRACE.value])
+
+        return redirect_types
+
+    @cached_property
+    def redirect_infos(self) -> list[dict[str, Any]]:
+        # 懒加载模式，按需获取。
+        url_getters: dict[str, Callable[[], str | None]] = {
+            AlertRedirectType.DETAIL.value: lambda: self.detail_url,
+            AlertRedirectType.LOG_SEARCH.value: lambda: self.log_search_url,
+            AlertRedirectType.QUERY.value: lambda: self.query_url,
+            AlertRedirectType.APM_RPC.value: lambda: self.apm_rpc_url,
+            AlertRedirectType.APM_TRACE.value: lambda: self.apm_trace_url,
+        }
+
+        redirect_types: list[str] = self.redirect_types
+        # RPC 场景下，直接跳转到调用分析。
+        # TODO APM 支持自定义指标后，自定义指标类型的告警，需要跳转到自定义指标页面。
+        if AlertRedirectType.APM_RPC.value in redirect_types and AlertRedirectType.QUERY.value in redirect_types:
+            redirect_types.remove(AlertRedirectType.QUERY.value)
+
+        redirect_infos: list[dict[str, Any]] = []
+        for redirect_type in redirect_types:
+            url_getter: Callable[[], str | None] = url_getters.get(redirect_type)
+            if not url_getter:
+                continue
+
+            url: str | None = url_getter()
+            if url:
+                redirect_infos.append({"text": AlertRedirectType.from_value(redirect_type).label, "url": url})
+
+        # 按 url_getters 顺序，最多同时给出三个场景的下钻链接。
+        return redirect_infos[:3]
+
+    @cached_property
+    def apm_trace_url(self) -> str | None:
+        alert: AlertDocument = self.parent.alert
+        if not alert.strategy:
+            return None
+
+        return ApmAlertHelper.get_trace_url(
+            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, self.begin_timestamp, self.duration
+        )
+
+    @cached_property
+    def apm_rpc_url(self) -> str | None:
+        alert: AlertDocument = self.parent.alert
+        if not alert.strategy:
+            return None
+
+        return ApmAlertHelper.get_rpc_url(
+            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, self.begin_timestamp, self.duration
+        )
 
     @cached_property
     def log_search_url(self):
         # 日志检索前5min(可配置) 到 当前时刻，最多1h
-        if self.generate_redirect_type() == "log_search":
+        if AlertRedirectType.LOG_SEARCH.value in self.redirect_types:
             url = self.detail_url
             return f"{url}&type=log_search"
         return None
@@ -928,7 +983,7 @@ class Alarm(BaseContextObject):
     @cached_property
     def query_url(self):
         # 数据检索基于数据点的前1小时+后1小时
-        if self.generate_redirect_type() == "query":
+        if AlertRedirectType.QUERY.value in self.redirect_types:
             url = self.detail_url
             return f"{url}&type=query"
         return None
