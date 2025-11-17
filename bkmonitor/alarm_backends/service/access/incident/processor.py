@@ -32,6 +32,7 @@ from constants.incident import (
     IncidentSyncType,
 )
 from core.drf_resource import api
+from core.errors.alert import AlertNotFoundError
 from core.errors.incident import IncidentNotFoundError
 
 logger = logging.getLogger("access.incident")
@@ -165,7 +166,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
     def update_alert_incident_relations(
         self, incident_document: IncidentDocument, snapshot: IncidentSnapshotDocument
     ) -> dict[int, AlertDocument]:
-        """更新告警关联故障的关联关系
+        """更新告警所属故障.
 
         :param incident_document: 故障实例
         :param snapshot: 故障快照
@@ -174,15 +175,23 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         snapshot_alerts = {}
         update_alerts = []
         for item in snapshot.content.incident_alerts:
-            alert_doc = AlertDocument.get(item["id"])
-            snapshot_alerts[item["id"]] = alert_doc
-            if alert_doc.incident_id == incident_document.id:
+            try:
+                alert_doc = AlertDocument.get(item["id"])
+                snapshot_alerts[item["id"]] = alert_doc
+                if alert_doc.incident_id == incident_document.id:
+                    continue
+
+                alert_doc.incident_id = incident_document.id
+                update_alerts.append(alert_doc)
+            except AlertNotFoundError:
+                logger.warning(f"Alert document not found: {item['id']}, skip updating incident relation")
+                continue
+            except Exception as e:
+                logger.error(f"Failed to get alert document {item['id']}: {e}")
                 continue
 
-            alert_doc.incident_id = incident_document.id
-            update_alerts.append(alert_doc)
-
-        AlertDocument.bulk_create(update_alerts, action=BulkActionType.UPDATE)
+        if update_alerts:
+            AlertDocument.bulk_create(update_alerts, action=BulkActionType.UPSERT)
 
         return snapshot_alerts
 
@@ -308,18 +317,21 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         self, last_snapshot: IncidentSnapshotDocument, snapshot_alerts: dict[int, AlertDocument]
     ) -> None:
         """生成故障快照记录的告警操作记录."""
-        last_snapshot_alerts = {item["id"]: item for item in last_snapshot.content.incident_alerts}
+        last_snapshot_alerts = {
+            item["id"]: item.to_dict() if hasattr(item, "to_dict") else item
+            for item in last_snapshot.content.incident_alerts
+        }
         for alert_doc in snapshot_alerts.values():
             if alert_doc.id not in last_snapshot_alerts:
                 IncidentOperationManager.record_incident_alert_trigger(
                     last_snapshot.incident_id,
-                    int(int(alert_doc.begin_time) / 1000),
+                    int(alert_doc.begin_time),
                     alert_doc.alert_name,
                     alert_doc.id,
                 )
             elif (
                 alert_doc.id in last_snapshot_alerts
-                and last_snapshot_alerts[alert_doc.id]["alert_status"] != alert_doc.status
+                and last_snapshot_alerts[alert_doc.id].get("alert_status") != alert_doc.status
             ):
                 operation = {
                     EventStatus.RECOVERED: IncidentOperationManager.record_incident_alert_recover,
@@ -328,7 +340,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 if operation:
                     operation(
                         last_snapshot.incident_id,
-                        int(int(alert_doc.begin_time) / 1000),
+                        int(alert_doc.begin_time),
                         alert_doc.alert_name,
                         alert_doc.id,
                     )

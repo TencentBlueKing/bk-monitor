@@ -94,7 +94,6 @@ export default defineComponent({
       return JSON.stringify(fieldConfig);
     });
 
-
     /**
      * 是否激活AI助手
      * @TODO 本周发布BKOP开启助手，上云环境关闭助手，此处需要暂时调整为 false
@@ -120,6 +119,10 @@ export default defineComponent({
      * @param height 搜索栏高度
      */
     const handleHeightChange = (height) => {
+      if (height === searchBarHeight.value || RetrieveHelper.aiAssitantHelper.activePosition !== 'search-bar') {
+        return;
+      }
+
       searchBarHeight.value = height;
       RetrieveHelper.setSearchBarHeight(height);
       updateAiAssitantPosition();
@@ -151,24 +154,27 @@ export default defineComponent({
       const top = rect?.top + rect?.height + 4;
       const width = rect?.width;
 
-      RetrieveHelper.aiAssitantHelper.showAiAssitant({
-        defaultLeft: left,
-        defaultTop: top,
-        defaultWidth: width,
-        defaultHeight: 560,
-        draggable: false,
-        defaultChatInputPosition: 'bottom',
-        showCompressionIcon: false,
-        showNewChatIcon: false,
-        showMoreIcon: false,
-        maxWidth: '100%',
-        title: t('AI编辑'),
-      }, {
-        index_set_id: store.state.indexItem.ids[0],
-        description: '',
-        domain: window.location.origin,
-        fields: fieldsJsonValue.value,
-      });
+      RetrieveHelper.aiAssitantHelper.showAiAssitant(
+        {
+          defaultLeft: left,
+          defaultTop: top,
+          defaultWidth: width,
+          defaultHeight: 560,
+          draggable: false,
+          defaultChatInputPosition: 'bottom',
+          showCompressionIcon: false,
+          showNewChatIcon: false,
+          showMoreIcon: false,
+          maxWidth: '100%',
+          title: t('AI编辑'),
+        },
+        {
+          index_set_id: store.state.indexItem.ids[0],
+          description: '',
+          domain: window.location.origin,
+          fields: fieldsJsonValue.value,
+        },
+      );
     };
 
     /**
@@ -187,7 +193,10 @@ export default defineComponent({
                 return (
                   <span style={aiSpanWrapperStyle}>
                     {slotProps.isEmptyText ? t('或') : ''}
-                    <span style={aiSpanStyle} onClick={handleAiSpanClick}>
+                    <span
+                      style={aiSpanStyle}
+                      onClick={handleAiSpanClick}
+                    >
                       {t('使用AI编辑')}
                     </span>
                   </span>
@@ -198,8 +207,15 @@ export default defineComponent({
             'search-tool': () => {
               if (isAiAssistantActive.value) {
                 return (
-                  <span onClick={handleAiSpanClick} style={aiBtnStyle}>
-                    <img src={aiBluekingSvg} alt='AI编辑' style={{ width: '16px', height: '16px' }} />
+                  <span
+                    onClick={handleAiSpanClick}
+                    style={aiBtnStyle}
+                  >
+                    <img
+                      src={aiBluekingSvg}
+                      alt='AI编辑'
+                      style={{ width: '16px', height: '16px' }}
+                    />
                     {t('AI编辑')}
                   </span>
                 );
@@ -208,8 +224,7 @@ export default defineComponent({
             },
           },
         }}
-      >
-      </V2SearchBar>
+      ></V2SearchBar>
     );
   },
 });

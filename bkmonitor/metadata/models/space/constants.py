@@ -167,7 +167,11 @@ SYSTEM_BASE_DATA_ETL_CONFIGS = [
 ]
 
 # 日志/事件 类清洗类型
-LOG_EVENT_ETL_CONFIGS = [EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value, EtlConfigs.BK_FLAT_BATCH.value]
+LOG_EVENT_ETL_CONFIGS = [
+    EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
+    EtlConfigs.BK_FLAT_BATCH.value,
+    EtlConfigs.BK_STANDARD_V2_EVENT.value,
+]
 
 # bkcc 存在全业务的空间，空间 ID 为 "0"
 EXCLUDED_SPACE_TYPE_ID = SpaceTypes.BKCC.value

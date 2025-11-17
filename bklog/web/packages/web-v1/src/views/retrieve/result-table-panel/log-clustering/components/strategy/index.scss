@@ -1,0 +1,89 @@
+@import '@/scss/mixins/flex.scss';
+
+.strategy-container {
+  height: 26px;
+  margin-right: 12px;
+  border-radius: 2px;
+  @include flex-center();
+
+  .new-built-container {
+    @include flex-center();
+
+    .edit-strategy-box {
+      padding: 4px 5px;
+      margin-left: 8px;
+      color: #fff;
+      cursor: pointer;
+      border-radius: 2px;
+      @include flex-center();
+    }
+
+    .num {
+      margin-left: 6px;
+      font-size: 12px;
+    }
+
+    .alarm {
+      background: #2DCB9D;
+
+      &:hover {
+        background: #6FE0B8;
+      }
+    }
+
+    .increase {
+      background: #FFB848;
+
+      &:hover {
+        background: #FFD695;
+      }
+    }
+
+    .bklog-icon {
+      font-size: 14px;
+    }
+  }
+}
+
+.strategy-dialog {
+  .select-group {
+    width: 100%;
+    margin: 16px 0 12px 0;
+
+    .bk-button {
+      width: 50%;
+    }
+  }
+
+  .increase-group {
+    margin-bottom: 4px;
+  }
+
+  .info-btn {
+    margin-left: 4px;
+    color: #3A84FF;
+    cursor: pointer;
+  }
+}
+
+.strategy-popover {
+  .operator {
+    margin-left: 6px;
+    color: #3A84FF;
+    cursor: pointer;
+  }
+}
+
+.strategy-create-groups {
+  cursor: pointer;
+
+  .groups-btn {
+    display: flex;
+    align-items: center;
+
+    .icon-plus-circle {
+      margin-right: 6px;
+      font-size: 16px;
+    }
+  }  
+}

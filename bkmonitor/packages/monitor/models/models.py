@@ -408,14 +408,13 @@ class UptimeCheckTask(OperateRecordModel):
         直接执行删除操作会导致拨测配置文件遗留
         """
         self.switch_off_subscription(subscription_ids)
-        self.stop_subscription(subscription_ids)
         self.send_delete_subscription(subscription_ids)
 
     def send_delete_subscription(self, subscription_ids=None):
         """
         执行删除订阅
         """
-
+        action_name = f"bkmonitorbeat_{self.protocol.lower()}"
         if subscription_ids is None:
             subscriptions = UptimeCheckTaskSubscription.objects.filter(uptimecheck_id=self.pk)
             subscription_ids = [subscription.subscription_id for subscription in subscriptions]
@@ -424,7 +423,9 @@ class UptimeCheckTask(OperateRecordModel):
                 uptimecheck_id=self.pk, subscription_id__in=subscription_ids
             )
         for subscription_id in subscription_ids:
-            api.node_man.delete_subscription(bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id)
+            api.node_man.run_subscription(
+                subscription_id=subscription_id, actions={action_name: "UNINSTALL_AND_DELETE"}
+            )
             logger.info(_("订阅任务已删除，ID:%d") % subscription_id)
         subscriptions.update(is_deleted=True)
 

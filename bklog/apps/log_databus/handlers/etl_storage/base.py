@@ -321,10 +321,12 @@ class EtlStorage:
 
         # 默认使用上报时间做为数据时间
         time_field = built_in_config["time_field"]
+        nano_time_field = None
         built_in_keys = FieldBuiltInEnum.get_choices()
 
         etl_field_index = 1
         clustering_default_fields = self._get_log_clustering_default_fields()
+        is_nanos = False
         for field in fields:
             # 当在聚类场景的时候 不做下面的format操作
             if etl_flat and field["field_name"] in clustering_default_fields:
@@ -396,9 +398,15 @@ class EtlStorage:
                 # 时间精度设置
                 time_fmts = array_group(FieldDateFormatEnum.get_choices_list_dict(), "id", True)
                 time_fmt = time_fmts.get(field["option"]["time_format"], {})
-                time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
-                time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
-                time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
+                if time_fmt.get("es_format", "epoch_millis") == "strict_date_optional_time_nanos":
+                    time_field["option"]["es_format"] = "epoch_millis"
+                    time_field["option"]["es_type"] = "date"
+                    time_field["option"]["timestamp_unit"] = "ms"
+                    is_nanos = True
+                else:
+                    time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
+                    time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
+                    time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
                 if time_fmt.get("is_custom"):
                     # 如果是自定义时间格式,加入time_layout字段
                     time_field["option"]["time_layout"] = time_fmt.get("description", "")
@@ -408,6 +416,12 @@ class EtlStorage:
 
                 # 删除原时间字段配置
                 field_option["es_doc_values"] = False
+
+                nano_time_field = copy.deepcopy(time_field)
+                nano_time_field["field_name"] = "dtEventTimeStampNanos"
+                nano_time_field["option"]["es_format"] = time_fmt.get("es_format", "epoch_millis")
+                nano_time_field["option"]["es_type"] = time_fmt.get("es_type", "date")
+                nano_time_field["option"]["timestamp_unit"] = time_fmt.get("timestamp_unit", "ms")
 
             # 加入字段列表
             field_list.append(
@@ -421,6 +435,8 @@ class EtlStorage:
             )
 
         field_list.append(time_field)
+        if is_nanos:
+            field_list.append(nano_time_field)
         return {"fields": field_list, "time_field": time_field}
 
     def update_or_create_result_table(
@@ -502,7 +518,6 @@ class EtlStorage:
             "bk_data_id": instance.bk_data_id,
             # 必须为 库名.表名
             "table_id": CollectorHandler.build_result_table_id(instance.get_bk_biz_id(), table_id),
-            "is_enable": True,
             "table_name_zh": instance.get_name(),
             "is_custom_table": True,
             "schema_type": "free",
@@ -546,6 +561,11 @@ class EtlStorage:
             target_fields=target_fields,
         )
         result_table_config = self.get_result_table_config(fields, etl_params, built_in_config, es_version=es_version)
+        is_nanos = False
+        for rt_field in result_table_config["field_list"]:
+            if rt_field["field_name"] == "dtEventTimeStampNanos":
+                is_nanos = True
+                break
 
         # 添加元数据路径配置到结果表配置中
         etl_path_regexp = etl_params.get("path_regexp", "")
@@ -577,6 +597,7 @@ class EtlStorage:
         # 兼容插件与采集项
         if not table_id:
             # 创建结果表
+            params["is_enable"] = True
             table_id = TransferApi.create_result_table(params)["table_id"]
         else:
             # 更新结果表
@@ -588,6 +609,10 @@ class EtlStorage:
 
         if not instance.table_id:
             instance.table_id = table_id
+            instance.save()
+
+        if is_nanos:
+            instance.is_nanos = True
             instance.save()
 
         return {"table_id": instance.table_id, "params": params}
@@ -1016,7 +1041,6 @@ class EtlStorage:
             "bk_data_id": instance.bk_data_id,
             # 必须为 库名.表名
             "table_id": table_id,
-            "is_enable": True,
             "table_name_zh": f"{instance.get_name()}_Pattern",
             "is_custom_table": True,
             "schema_type": "free",
@@ -1108,6 +1132,7 @@ class EtlStorage:
         # 兼容插件与采集项
         if not table_id:
             # 创建结果表
+            params["is_enable"] = True
             table_id = TransferApi.create_result_table(params)["table_id"]
         else:
             # 更新结果表

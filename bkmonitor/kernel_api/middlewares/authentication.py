@@ -14,6 +14,7 @@ import random
 import time
 
 import jwt
+import json
 from blueapps.account.models import User
 from django.conf import settings
 from django.contrib import auth
@@ -217,6 +218,118 @@ class AuthenticationMiddleware(MiddlewareMixin):
         # 如果请求来自apigw，并且携带了jwt，则使用apigw鉴权
         return request.META.get("HTTP_X_BKAPI_FROM") == "apigw" and request.META.get(BkJWTClient.JWT_KEY_NAME)
 
+    @staticmethod
+    def use_mcp_auth(request):
+        """
+        是否是MCP请求
+        """
+        return request.META.get("HTTP_X_BK_REQUEST_SOURCE") == settings.AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE
+
+    @staticmethod
+    def use_api_token_auth(request):
+        return "HTTP_AUTHORIZATION" in request.META and request.META["HTTP_AUTHORIZATION"].startswith("Bearer ")
+
+    def _handle_mcp_auth(self, request, username=None):
+        """
+        处理MCP权限校验
+        MCP请求已经通过API网关认证，这里只需要额外的MCP权限校验
+        """
+        # 导入放在这里避免循环依赖
+        from bkmonitor.iam.drf import MCPPermission
+
+        logger.info("MCPAuthentication: Handling MCP authentication")
+
+        # 获取业务ID（从GET或POST参数中获取）
+        bk_biz_id = request.GET.get("bk_biz_id")
+        request.skip_check = False  # 手动设置需要进行权限校验
+
+        if not bk_biz_id and request.method == "POST":
+            # 尝试从POST表单数据中获取
+            try:
+                bk_biz_id = request.POST.get("bk_biz_id")
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning("MCPAuthentication: Failed to get bk_biz_id from POST form data, error: %s", e)
+
+            # 如果表单数据中没有，尝试从JSON body中获取
+            if not bk_biz_id:
+                try:
+                    body = request.body.decode("utf-8")
+                    logger.info(f"MCPAuthentication: request post body: {body}")
+                    if body:
+                        data = json.loads(body)
+                        bk_biz_id = data.get("bk_biz_id")
+                        logger.warning(f"MCPAuthentication: Got bk_biz_id from JSON body: {bk_biz_id}")
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning("MCPAuthentication: Failed to get bk_biz_id from JSON body, error: %s", e)
+
+        if not bk_biz_id:
+            logger.error("MCPAuthentication: Missing bk_biz_id in request parameters")
+            return HttpResponseForbidden("Missing bk_biz_id in request parameters")
+
+        try:
+            request.biz_id = int(bk_biz_id)
+        except (ValueError, TypeError):
+            logger.error(f"MCPAuthentication: Invalid bk_biz_id format: {bk_biz_id}")
+            return HttpResponseForbidden(f"Invalid bk_biz_id format: {bk_biz_id}")
+
+        # 使用 MCPPermission 进行权限校验
+        try:
+            permission = MCPPermission()
+            # 创建一个简单的 mock view 对象
+            mock_view = type("MockView", (), {"kwargs": {}})()
+
+            if not permission.has_permission(request, mock_view):
+                logger.warning(f"MCPAuthentication: Permission denied for user={username}, bk_biz_id={request.biz_id}")
+                return HttpResponseForbidden("Permission denied: insufficient MCP permissions")
+        except Exception as e:
+            logger.exception(f"MCPAuthentication: Permission check failed: {e}")
+            return HttpResponseForbidden(f"Permission denied: {e}")
+
+        logger.info(f"MCPAuthentication: Authentication Success: user={username}, bk_biz_id={request.biz_id}")
+        return None
+
+    def _handle_api_token_auth(self, request, view):
+        token = request.META["HTTP_AUTHORIZATION"][7:]
+        try:
+            record = ApiAuthToken.objects.get(token=token)
+        except ApiAuthToken.DoesNotExist:
+            record = None
+
+        if not record:
+            return HttpResponseForbidden("API Token is invalid")
+
+        if record.is_expired():
+            return HttpResponseForbidden("API Token has expired")
+
+        if not record.is_allowed_view(view):
+            return HttpResponseForbidden("API Token is not allowed")
+
+        # TODO: 检查命名空间与租户id是否匹配
+        if not record.is_allowed_namespace(f"biz#{request.biz_id}"):
+            if not request.biz_id:
+                return HttpResponseForbidden("params `bk_biz_id` is required")
+            return HttpResponseForbidden(
+                f"namespace biz#{request.biz_id} is not allowed in [{','.join(record.namespaces)}]"
+            )
+
+        # grafana、as_code场景权限模式：替换请求用户为令牌创建者
+        if record.type.lower() in ["as_code", "grafana"]:
+            username = "system" if record.type.lower() == "as_code" else "admin"
+            user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
+            auth.login(request, user)
+            request.skip_check = True
+        elif record.type.lower() == "entity":
+            # 实体关系权限模式：替换请求用户为令牌创建者
+            username = record.create_user or "system"
+            user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
+            auth.login(request, user)
+            request.token = token
+            request.skip_check = True
+        else:
+            # 观测场景、告警事件场景权限模式：保留原用户信息,判定action是否符合token鉴权场景
+            request.token = token
+        return
+
     def process_view(self, request, view, *args, **kwargs):
         # 登录豁免
         if getattr(view, "login_exempt", False):
@@ -240,6 +353,55 @@ class AuthenticationMiddleware(MiddlewareMixin):
             app_code = request.META.get("HTTP_BK_APP_CODE")
             username = request.META.get("HTTP_BK_USERNAME")
             bk_tenant_id = DEFAULT_TENANT_ID
+
+        # MCP权限校验（在用户认证完成后）
+        if self.use_mcp_auth(request):
+            request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
+            logger.info("=" * 80)
+            logger.info("MCPAuthentication: Handling MCP authentication")
+
+            # 打印认证信息
+            logger.info(f"MCPAuthentication: app_code={app_code}, username={username}, tenant_id={bk_tenant_id}")
+
+            # 打印请求基本信息
+            logger.info(f"MCPAuthentication: method={request.method}, path={request.path}")
+
+            # 打印关键请求头
+            logger.info("MCPAuthentication: Request Headers:")
+            key_headers = [
+                "HTTP_X_BK_REQUEST_SOURCE",
+                "HTTP_X_BKAPI_FROM",
+                "HTTP_X_BK_TENANT_ID",
+                "HTTP_BK_USERNAME",
+                "HTTP_BK_APP_CODE",
+                "Content-Type",
+            ]
+            for header_key in key_headers:
+                header_value = request.META.get(header_key, "N/A")
+                logger.info(f"MCPAuthentication: Header - {header_key}: {header_value}")
+
+            # 打印GET参数
+            if request.GET:
+                logger.info(f"MCPAuthentication: GET params: {dict(request.GET)}")
+            else:
+                logger.info("MCPAuthentication: GET params: (empty)")
+
+            # 打印POST参数
+            if request.method == "POST":
+                try:
+                    if request.POST:
+                        logger.info(f"MCPAuthentication: POST params: {dict(request.POST)}")
+                    else:
+                        logger.info("MCPAuthentication: POST params: (empty)")
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning(f"MCPAuthentication: Failed to read POST params: {e}")
+
+            logger.info("=" * 80)
+
+            return self._handle_mcp_auth(request, username=username)
+
+        if self.use_api_token_auth(request):
+            return self._handle_api_token_auth(request, view)
 
         # 后台仪表盘渲染豁免
         # TODO: 多租户支持验证

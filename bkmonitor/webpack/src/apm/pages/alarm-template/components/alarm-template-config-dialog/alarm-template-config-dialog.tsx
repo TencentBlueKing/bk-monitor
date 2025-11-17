@@ -142,7 +142,7 @@ export default class AlarmTemplateConfigDialog extends tsc<
         return item.config.threshold || item.config.threshold === 0;
       }
       if (item.type === AlgorithmEnum.YearRoundAndRingRatio) {
-        return item.config.ceil >= 1 && item.config.ceil <= 100 && item.config.floor >= 1 && item.config.floor <= 100;
+        return item.config.ceil >= 1 && item.config.floor >= 1;
       }
       return true;
     });

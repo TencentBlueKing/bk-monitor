@@ -116,7 +116,7 @@ export default class AlgorithmRules extends tsc<AlgorithmRulesProps, AlgorithmRu
   init() {
     const algorithms = [];
     this.isShowAlgorithmsSelect = this.algorithms.length === 0;
-    for (const item of this.algorithms) {
+    for (const item of structuredClone(this.algorithms)) {
       switch (item.type) {
         case AlgorithmEnum.Threshold: {
           const threshold = algorithms.find(item => item.type === AlgorithmEnum.Threshold);

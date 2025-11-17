@@ -92,6 +92,7 @@ class DiskReadonlyEvent(GSEBaseAlarmEventRecord):
     NAME = "disk-readonly-gse"
     METRIC_ID = "bk_monitor.disk-readonly-gse"
     TITLE = _("磁盘只读-GSE")
+    DISK_DIMENSIONS = ["position", "type", "fs"]
 
     def __init__(self, raw_data, strategies):
         super(DiskReadonlyEvent, self).__init__(raw_data, strategies)
@@ -118,3 +119,16 @@ class DiskReadonlyEvent(GSEBaseAlarmEventRecord):
             "type": "".join(ro.get("type", "") for ro in ro_list if ro.get("type")),
             "fs": "".join(ro.get("fs", "") for ro in ro_list if ro.get("fs")),
         }
+
+    def clean_dimensions(self):
+        data = self.raw_data["_extra_"].get("ro", [])
+        dimensions = super().clean_dimensions()
+        # 采集插件每次只会上报一个ro数据
+        ro_data = data[0] if data else {}
+        for key in self.DISK_DIMENSIONS:
+            dimensions[key] = ro_data.get(key, "")
+        return dimensions
+
+    def clean_dimension_fields(self):
+        dimension_fields = super().clean_dimension_fields()
+        return dimension_fields + self.DISK_DIMENSIONS

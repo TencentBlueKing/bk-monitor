@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
 import json
 import re
 from collections import defaultdict
@@ -1468,14 +1469,21 @@ class IndexSetHandler(APIModel):
             self.data.query_alias_settings = alias_settings
             self.data.save()
             objs = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
+            collector_rts = list(CollectorConfig.objects.filter(is_nanos=True).values_list("table_id", flat=True))
             for obj in objs:
                 result_table_id = obj.result_table_id
+                query_alias_settings = query_alias_mappings.get(result_table_id, [])
+                # 为纳秒字段新增别名
+                if obj.result_table_id in collector_rts:
+                    query_alias_settings.update(
+                        {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}
+                    )
                 multi_execute_func.append(
                     result_key=result_table_id,
                     func=TransferApi.create_or_update_log_router,
                     params={
                         "table_id": BaseIndexSetHandler.get_rt_id(self.index_set_id, result_table_id.replace(".", "_")),
-                        "query_alias_settings": query_alias_mappings.get(result_table_id, []),
+                        "query_alias_settings": query_alias_settings,
                         "space_type": self.data.space_uid.split("__")[0],
                         "space_id": self.data.space_uid.split("__")[-1],
                         "data_label": BaseIndexSetHandler.get_data_label(self.index_set_id),
@@ -1746,13 +1754,16 @@ class BaseIndexSetHandler:
             doris_table_id = index_set.doris_table_id
             if is_doris and doris_table_id:
                 doris_table_id_list = doris_table_id.split(",")
-                table_info = [{
-                    "storage_type": "doris",
-                    "bkbase_table_id": doris_result_table.rsplit(".", maxsplit=1)[0],
-                    "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table.rsplit('.', maxsplit=1)[0]}.__doris__",
-                    "source_type": "bkdata",
-                    "need_create_index": False,
-                } for doris_result_table in doris_table_id_list]
+                table_info = [
+                    {
+                        "storage_type": "doris",
+                        "bkbase_table_id": doris_result_table.rsplit(".", maxsplit=1)[0],
+                        "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table.rsplit('.', maxsplit=1)[0]}.__doris__",
+                        "source_type": "bkdata",
+                        "need_create_index": False,
+                    }
+                    for doris_result_table in doris_table_id_list
+                ]
                 doris_params = {
                     "space_type": index_set.space_uid.split("__")[0],
                     "space_id": index_set.space_uid.split("__")[-1],
@@ -1772,6 +1783,14 @@ class BaseIndexSetHandler:
                 for obj in objs:
                     time_field = obj.time_field or index_set.time_field
                     time_field_type = obj.time_field_type or index_set.time_field_type
+                    nano_migrate_map = {}
+                    from apps.feature_toggle.models import FeatureToggle
+
+                    if FeatureToggle.objects.filter(name="nano_migrate_list").exists():
+                        nano_migrate_map = FeatureToggle.objects.filter(name="nano_migrate_list")[0].feature_config.get(
+                            "nano_migrate_map", {}
+                        )
+
                     table_info = {
                         "table_id": cls.get_rt_id(index_set.index_set_id, obj.result_table_id),
                         "index_set": obj.result_table_id.replace(".", "_"),
@@ -1800,8 +1819,30 @@ class BaseIndexSetHandler:
                     }
                     if table_info["source_type"] == Scenario.LOG:
                         table_info["origin_table_id"] = obj.result_table_id
+                        collector_config = CollectorConfig.objects.filter(table_id=obj.result_table_id).first()
+                        # 为纳秒字段新增别名
+                        if collector_config.is_nanos:
+                            table_info["query_alias_settings"].update(
+                                {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}
+                            )
+
                     if query_alias_settings := index_set.query_alias_settings:
                         table_info["query_alias_settings"] = query_alias_settings
+
+                    # 纳秒采集新旧链路迁移路由补充
+                    if obj.result_table_id in nano_migrate_map:
+                        old_nano_table_info = copy.deepcopy(table_info)
+                        old_nano_table_info.update(
+                            {
+                                "table_id": cls.get_rt_id(
+                                    index_set.index_set_id, nano_migrate_map[obj.result_table_id]
+                                ),
+                                "index_set": nano_migrate_map[obj.result_table_id].replace(".", "_"),
+                                "origin_table_id": nano_migrate_map[obj.result_table_id],
+                            }
+                        )
+                        request_params["table_info"].append(old_nano_table_info)
+
                     request_params["table_info"].append(table_info)
                 multi_execute_func.append(
                     result_key=index_set.index_set_id,
@@ -1809,7 +1850,7 @@ class BaseIndexSetHandler:
                     params=request_params,
                 )
             if doris_table_id:
-                doris_result_table = doris_table_id.rsplit(".", maxsplit=1)[0]
+                doris_table_id_list = doris_table_id.split(",")
                 doris_params = {
                     "space_type": index_set.space_uid.split("__")[0],
                     "space_id": index_set.space_uid.split("__")[-1],
@@ -1817,15 +1858,17 @@ class BaseIndexSetHandler:
                     "table_info": [
                         {
                             "storage_type": "doris",
-                            "bkbase_table_id": doris_result_table,
-                            "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table}.__analysis__",
+                            "bkbase_table_id": doris_result_table.rsplit(".", maxsplit=1)[0],
+                            "table_id": f"bklog_index_set_{index_set.index_set_id}_{doris_result_table.rsplit('.', maxsplit=1)[0]}.__analysis__",
                             "source_type": "bkdata",
                             "need_create_index": False,
                         }
+                        for doris_result_table in doris_table_id_list
                     ],
                 }
                 if query_alias_settings := index_set.query_alias_settings:
-                    doris_params["table_info"][0]["query_alias_settings"] = query_alias_settings
+                    for table_info in doris_params["table_info"]:
+                        table_info["query_alias_settings"] = query_alias_settings
                 # 图表分析接入
                 multi_execute_func.append(
                     result_key=index_set.index_set_id,
@@ -1912,6 +1955,11 @@ class BaseIndexSetHandler:
             IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).update_index(
                 index["bk_biz_id"], index["result_table_id"], update_params
             )
+            # 如果是采集项更新了存储集群，同步更新引用了这个采集项的索引集
+            if self.index_set_obj.collector_config_id and _storage_cluster_id:
+                LogIndexSetData.objects.filter(result_table_id=index["result_table_id"]).update(
+                    storage_cluster_id=update_params["storage_cluster_id"]
+                )
 
         # 需新增的索引
         to_append_indexes = [
