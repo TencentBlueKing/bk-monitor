@@ -24,8 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent, onMounted, provide, shallowReactive, shallowRef } from 'vue';
 
+import * as authMap from 'monitor-pc/pages/event-center/authority-map';
+
+import { getAuthorityMap, useAuthorityStore } from '../../../../store/modules/authority';
 import ChatGroup from '../../../failure/alarm-detail/chat-group/chat-group';
 import AlarmConfirmDialog from '../../common-detail/components/alarm-alert/alarm-confirm-dialog';
 import QuickShieldDialog from '../../common-detail/components/alarm-alert/quick-shield-dialog';
@@ -33,6 +36,8 @@ import AlarmDispatchDialog from '../../common-detail/components/alarm-info/alarm
 import ManualDebugStatusDialog from '../../common-detail/components/alarm-info/manual-debug-status-dialog';
 import ManualProcessDialog from '../../common-detail/components/alarm-info/manual-process-dialog';
 import { type AlertOperationDialogEvent, type AlertOperationDialogParams, AlertAllActionEnum } from '../../typings';
+
+import type { IAuthority } from '../../../../typings/authority';
 
 export default defineComponent({
   name: 'AlertOperationDialogs',
@@ -66,6 +71,21 @@ export default defineComponent({
     const actionIds = shallowRef([]);
     /** 手动操作 提交时所选择的处理套餐信息 */
     const mealInfo = shallowRef(null);
+    const authorityStore = useAuthorityStore();
+    /** 操作权限信息(告警屏蔽dialog需要) */
+    const authority = shallowReactive<IAuthority>({
+      map: authMap,
+      auth: {},
+      showDetail: authorityStore.getAuthorityDetail,
+    });
+
+    provide('authority', authority);
+    /**
+     * @description 初始化权限信息
+     */
+    const initAuthority = async () => {
+      authority.auth = await getAuthorityMap(authMap);
+    };
 
     /**
      * @description dialog 操作成功后回调
@@ -110,6 +130,10 @@ export default defineComponent({
       }
       manualDebugShow.value = v;
     };
+
+    onMounted(() => {
+      initAuthority();
+    });
     return {
       manualDebugShow,
       actionIds,
@@ -136,8 +160,6 @@ export default defineComponent({
         />
         <QuickShieldDialog
           alarmBizId={this.alarmBizId}
-          // authority={this.authority}
-          // handleShowAuthorityDetail={this.handleShowAuthorityDetail}
           alarmIds={this.alarmIds}
           alarmShieldDetail={this.dialogParam?.alarmShieldDetail ?? []}
           show={this.dialogType === AlertAllActionEnum.SHIELD && this.show}
@@ -148,7 +170,7 @@ export default defineComponent({
           alarmBizId={this.alarmBizId}
           alarmIds={this.alarmIds}
           show={this.dialogType === AlertAllActionEnum.DISPATCH && this.show}
-          // onSuccess={this.handleConfirmSuccess}
+          onSuccess={e => this.handleConfirmSuccess(AlertAllActionEnum.DISPATCH, e)}
           onUpdate:show={this.handleShowChange}
         />
         <ManualProcessDialog

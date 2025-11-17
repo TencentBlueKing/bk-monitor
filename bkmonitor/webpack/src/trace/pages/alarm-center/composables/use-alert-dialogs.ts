@@ -157,10 +157,7 @@ export const useAlertDialogs = (
     if (!data?.length) return;
     for (const item of data) {
       if (item.appointee) {
-        const usersSet = new Set();
-        item.appointee.concat(event).forEach(u => {
-          usersSet.add(u);
-        });
+        const usersSet = new Set([...(item.appointee ?? []), ...(event ?? [])]);
         item.appointee = Array.from(usersSet) as string[];
       } else {
         item.appointee = event;
