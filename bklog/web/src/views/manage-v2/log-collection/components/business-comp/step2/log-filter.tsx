@@ -56,6 +56,10 @@ type IConditions = {
   match_type?: string; // 匹配类型（仅match类型使用）
 };
 
+/**
+ * 日志过滤组件
+ */
+
 export default defineComponent({
   name: 'LogFilter',
   props: {
@@ -335,27 +339,56 @@ export default defineComponent({
      * 验证输入合法性
      * @returns 验证结果Promise
      */
-    const validateInputs = (): Promise<boolean> => {
+    const validateInputs = (): boolean => {
       if (!filterSwitcher.value) {
-        return Promise.resolve(true);
+        return true;
       }
 
-      const validatePromises: Promise<boolean>[] = [];
+      const validateResults: boolean[] = [];
 
       // 遍历所有规则行进行验证
-      for (const group of filterData.value) {
-        for (const _row of group) {
-          // 实际项目中需替换为真实验证逻辑
-          validatePromises.push(Promise.resolve(true));
-        }
-      }
+      filterData.value.forEach((group, groupIndex) => {
+        group.forEach((row, rowIndex) => {
+          // 验证值输入框（所有类型都需要）
+          const valueKey = `value-${groupIndex}-${row.tableIndex}-${rowIndex}`;
+          const valueValidator = validatorInputRefs.value[valueKey];
+          if (valueValidator && typeof valueValidator.validateValue === 'function') {
+            const valueResult = valueValidator.validateValue();
+            validateResults.push(valueResult);
+          } else {
+            // 如果 ref 不存在，检查数据是否为空
+            if (!row.word || !String(row.word).trim()) {
+              validateResults.push(false);
+            } else {
+              validateResults.push(true);
+            }
+          }
 
-      return Promise.all(validatePromises).then(results => {
-        if (results.every(Boolean)) {
-          return true;
-        }
-        throw new Error(t('验证失败'));
+          // 验证字段索引输入框（仅分隔符类型需要）
+          if (!isMatchType.value) {
+            const fieldKey = `match-${groupIndex}-${row.tableIndex}-${rowIndex}`;
+            const fieldValidator = validatorInputRefs.value[fieldKey];
+            if (fieldValidator && typeof fieldValidator.validateValue === 'function') {
+              const fieldResult = fieldValidator.validateValue();
+              validateResults.push(fieldResult);
+            } else {
+              // 如果 ref 不存在，检查数据是否为空
+              if (!row.fieldindex || !String(row.fieldindex).trim()) {
+                validateResults.push(false);
+              } else {
+                validateResults.push(true);
+              }
+            }
+          }
+        });
       });
+
+      // 检查是否有验证失败的情况
+      const allValid = validateResults.every(result => result === true);
+      if (allValid) {
+        return true;
+      }
+      return false;
     };
 
     /**
@@ -422,7 +455,7 @@ export default defineComponent({
           }
         }
       } catch (error) {
-        console.warn(t('获取原始日志失败:'), error);
+        console.log(t('获取原始日志失败:'), error);
       }
     };
 
@@ -518,7 +551,7 @@ export default defineComponent({
      */
     const renderValueInput = (groupIndex: number, row: ITableRowItem, rowIndex: number) => (
       <ValidatorInput
-        ref={(el: any) => registerValidatorRef(el, `value-${groupIndex}-${row.tableIndex}-${rowIndex}`)}
+        ref={el => registerValidatorRef(el, `value-${groupIndex}-${row.tableIndex}-${rowIndex}`)}
         active-type={activeFilterType.value}
         placeholder={['regex', 'nregex'].includes(row.op) ? t('支持正则匹配，如18*123') : t('请输入')}
         row-data={row}

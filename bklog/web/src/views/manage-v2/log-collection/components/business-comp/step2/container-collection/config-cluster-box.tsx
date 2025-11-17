@@ -205,7 +205,7 @@ export default defineComponent({
           }
         })
         .catch(err => {
-          console.warn(err);
+          console.log(err);
         })
         .finally(() => {
           isRequestCluster.value = false;
@@ -340,7 +340,7 @@ export default defineComponent({
         getNameSpaceList(newVal, true);
         !!newVal && initActionPop();
       },
-      { immediate: true },
+      // { immediate: true },
     );
 
     watch(

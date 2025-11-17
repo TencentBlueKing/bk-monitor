@@ -68,8 +68,8 @@ export default defineComponent({
     };
 
     const getData = () => {
-      getIndexGroupList((data: IListItemData[]) => {
-        list.value = data;
+      getIndexGroupList((data: { list: IListItemData[] }) => {
+        list.value = data.list;
       });
     };
     const handleCancel = () => {

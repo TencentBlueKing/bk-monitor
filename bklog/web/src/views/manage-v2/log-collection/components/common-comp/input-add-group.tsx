@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, type PropType } from 'vue';
+import { defineComponent, type PropType, ref } from 'vue';
 
 import './input-add-group.scss';
 
@@ -39,17 +39,25 @@ export default defineComponent({
 
   emits: ['update'],
 
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
+    // 存储错误状态的索引数组（使用数组而不是 Set，以便 Vue 能追踪变化）
+    const errorIndexes = ref<number[]>([]);
+
     const handleAdd = () => {
       emit('update', [...props.valueList, '']);
+      // 清除新增项的错误状态（新增项在最后，不需要处理）
     };
     /**
      * 新增
      */
-    const handleChange = (index: number, val: any) => {
+    const handleChange = (index: number, val: string) => {
       const nextList = [...props.valueList];
       nextList[index].value = String(val);
       emit('update', nextList);
+      // 如果输入了值，清除该索引的错误状态
+      if (val && String(val).trim()) {
+        errorIndexes.value = errorIndexes.value.filter(i => i !== index);
+      }
     };
     /**
      * 删除（删到只有 1 行时，此时是清空 input 的交互）
@@ -58,30 +66,73 @@ export default defineComponent({
       const nextList = [...props.valueList];
       if (nextList.length > 1) {
         nextList.splice(index, 1);
+        // 更新错误索引（删除后索引会变化）
+        errorIndexes.value = errorIndexes.value
+          .filter(errorIndex => errorIndex !== index)
+          .map(errorIndex => errorIndex > index ? errorIndex - 1 : errorIndex);
       } else {
         nextList[0].value = '';
+        errorIndexes.value = [];
       }
       emit('update', nextList);
     };
-    const renderInputItem = (item: { value: string }, index: number) => (
-      <div class='input-add-group-item'>
-        <bk-input
-          value={item.value}
-          onInput={(val: any) => handleChange(index, val)}
-        />
-        <span
-          class='bk-icon icon-plus-circle-shape icons'
-          on-Click={handleAdd}
-        />
-        <span
-          class={{
-            'bk-icon icon-minus-circle-shape icons': true,
-            disabled: props.valueList.length === 1,
-          }}
-          on-Click={() => handleDel(index)}
-        />
-      </div>
-    );
+
+    /**
+     * 校验方法
+     * @returns {boolean} 校验是否通过
+     */
+    const validate = (): boolean => {
+      // 清除之前的错误状态
+      errorIndexes.value = [];
+
+      // 检查长度是否为0
+      if (props.valueList.length === 0) {
+        return false;
+      }
+
+      // 检查是否有空值
+      const emptyIndexes: number[] = [];
+      props.valueList.forEach((item, index) => {
+        const isEmpty = !item.value || !item.value.trim();
+        if (isEmpty) {
+          emptyIndexes.push(index);
+        }
+      });
+
+      // 更新错误索引
+      errorIndexes.value = emptyIndexes;
+
+      return emptyIndexes.length === 0;
+    };
+
+    // 暴露校验方法给父组件
+    expose({
+      validate,
+    });
+
+    const renderInputItem = (item: { value: string }, index: number) => {
+      const isError = errorIndexes.value.includes(index);
+      return (
+        <div class='input-add-group-item'>
+          <bk-input
+            value={item.value}
+            class={isError ? 'input-error' : ''}
+            onInput={(val: string) => handleChange(index, val)}
+          />
+          <span
+            class='bk-icon icon-plus-circle-shape icons'
+            on-Click={handleAdd}
+          />
+          <span
+            class={{
+              'bk-icon icon-minus-circle-shape icons': true,
+              disabled: props.valueList.length === 1,
+            }}
+            on-Click={() => handleDel(index)}
+          />
+        </div>
+      );
+    };
     return () => (
       <div class='input-add-group-main'>
         {props.valueList.map((item: { value: string }, index: number) => renderInputItem(item, index))}

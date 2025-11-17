@@ -192,17 +192,7 @@ export default defineComponent({
         prop: 'created_by',
         width: 100,
         filterValue: createdValues.value,
-        filters: [
-          { text: 'jayjhwu', value: 'jayjhwu' },
-          {
-            text: 'kyliewang',
-            value: 'kyliewang',
-          },
-          {
-            text: 'v_cwcgcui',
-            value: 'v_cwcgcui',
-          },
-        ],
+        filters: [],
       },
       {
         label: t('创建时间'),
@@ -215,20 +205,7 @@ export default defineComponent({
         width: 100,
         prop: 'updated_by',
         filterValue: updatedByValues.value,
-        filters: [
-          {
-            text: 'kyliewang',
-            value: 'kyliewang',
-          },
-          {
-            text: 'yuxiaogao',
-            value: 'yuxiaogao',
-          },
-          {
-            text: 'jayjhwu',
-            value: 'jayjhwu',
-          },
-        ],
+        filters: [],
       },
       {
         label: t('更新时间'),

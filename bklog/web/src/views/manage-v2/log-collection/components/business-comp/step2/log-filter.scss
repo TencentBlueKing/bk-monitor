@@ -68,24 +68,13 @@
                             height: 100%;
                             line-height: 42px;
                         }
-                        &.is-focus {
-                            box-shadow: 0 0 4px rgba(58,132,255,.9);
-                        }
                         .icon-angle-down {
                             top: 10px;
                         }
                     }
-                    .bk-input-text {
-                        height: 100%;
-                        line-height: 42px;
-                    }
                     .bk-form-input {
                         width: 100%;
-                        height: calc(100% - 2px);
-                        border: none;
-                        &:focus {
-                            box-shadow: 0 0 4px rgba(58,132,255,.9);
-                        }
+                        height: 100%;
                     }
                 }
                 .item-tool {

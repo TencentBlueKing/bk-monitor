@@ -71,7 +71,7 @@ export default defineComponent({
     },
   },
   emits: ['change'],
-  setup(props: IProps, { emit }) {
+  setup(props: IProps, { emit, expose }) {
     const { t } = useLocale();
     // 引用
     const inputRef = ref<HTMLInputElement>();
@@ -79,6 +79,7 @@ export default defineComponent({
 
     // 响应式数据
     const isClick = ref(false);
+    const isError = ref(false);
     const formData = reactive({
       inputValue: '',
     });
@@ -148,6 +149,17 @@ export default defineComponent({
       });
     };
 
+    /**
+     * 校验value是否为空
+     * @returns {boolean} 校验是否通过，true表示通过，false表示失败
+     */
+    const validateValue = (): boolean => {
+      const isEmpty = !formData.inputValue || !String(formData.inputValue).trim();
+      isError.value = isEmpty;
+      console.log('validateValue', !isEmpty);
+      return !isEmpty;
+    };
+
     const handleClickInput = () => {
       isClick.value = true;
       nextTick(() => {
@@ -157,12 +169,23 @@ export default defineComponent({
 
     const blurInput = () => {
       isClick.value = false;
+      // 失焦时自动校验
+      validateValue();
     };
+
+    // 暴露方法给父组件
+    expose({
+      validateValue,
+    });
 
     // 渲染辅助函数
     const inputTriggerSlot = (isSelect = false) => (
       <div
-        class={{ 'input-trigger': true, 'none-border': isShowFormInput.value }}
+        class={{
+          'input-trigger': true,
+          'none-border': isShowFormInput.value,
+          'input-error': isError.value,
+        }}
         on-Click={handleClickInput}
       >
         {isShowFormInput.value ? (
@@ -200,7 +223,7 @@ export default defineComponent({
         >
           <bk-input
             ref={inputRef}
-            class='validate-input'
+            class={{ 'validate-input': true, 'input-error': isError.value }}
             min={1}
             placeholder={props.placeholder ?? t('请输入')}
             show-controls={false}
@@ -208,9 +231,13 @@ export default defineComponent({
             value={formData.inputValue}
             clearable
             show-clear-only-hover
-            onBlur={blurInput}
-            onInput={(val: string) => {
+            on-blur={blurInput}
+            on-input={(val: string) => {
               formData.inputValue = val;
+              // 输入时清除错误状态
+              if (isError.value && val && String(val).trim()) {
+                isError.value = false;
+              }
             }}
           />
         </bk-form-item>
@@ -223,7 +250,7 @@ export default defineComponent({
       <div class='validator-input-main'>
         {isShowSelect.value ? (
           <bk-select
-            class='validate-select'
+            class={{ 'validate-select': true, 'input-error': isError.value }}
             scopedSlots={{
               trigger: () => inputTriggerSlot(true),
             }}
@@ -233,6 +260,10 @@ export default defineComponent({
             searchable
             on-selected={(val: string) => {
               formData.inputValue = val;
+              // 选择时清除错误状态
+              if (isError.value && val) {
+                isError.value = false;
+              }
             }}
           >
             {props.originalFilterItemSelect.map((option: any) => (

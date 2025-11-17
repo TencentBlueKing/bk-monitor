@@ -54,6 +54,7 @@ export default defineComponent({
     const { goListPage } = useCollectList();
     const dataConfig = ref({});
     const showCollectIssuedSlider = ref(false);
+    const currentCollectorId = ref<number | null>(null);
     const statusMap = {
       success: {
         value: ['SUCCESS'],
@@ -115,12 +116,14 @@ export default defineComponent({
       return stepDesc;
     });
 
+    const isShowStatusBtn = computed(() => isNeedIssue.value && step.value !== 1 && !!currentCollectorId.value);
+
     const containerWidth = ref(0);
     let resizeObserver: ResizeObserver | null = null;
     const pollingTimer = ref<number | null>(null);
 
     onMounted(() => {
-      step.value !== 1 && isEdit && getCollectStatus();
+      step.value !== 1 && isEdit && collectId.value && getCollectStatus(collectId.value);
       if (mainRef.value) {
         resizeObserver = new ResizeObserver(entries => {
           const entry = entries[0];
@@ -174,11 +177,11 @@ export default defineComponent({
     /**
      * 获取采集状态
      */
-    const getCollectStatus = () => {
+    const getCollectStatus = (id: number) => {
       $http
         .request('collect/getCollectStatus', {
           query: {
-            collector_id_list: 3247,
+            collector_id_list: id,
           },
         })
         .then(res => {
@@ -200,7 +203,7 @@ export default defineComponent({
             clearPolling();
             // 每 3 秒轮询一次
             pollingTimer.value = window.setInterval(() => {
-              getCollectStatus();
+              getCollectStatus(id);
             }, 3000);
           } else {
             // 状态不为 running 时，停止轮询
@@ -214,7 +217,7 @@ export default defineComponent({
     };
 
     return () => {
-      console.log(isEdit.value, 'is;Edit');
+      console.log(isEdit.value, 'isEdit');
       const Component = currentStep.value.find(item => item.icon === step.value)?.components;
       return (
         <div
@@ -223,11 +226,12 @@ export default defineComponent({
         >
           <CollectIssuedSlider
             isShow={showCollectIssuedSlider.value}
+            status={currentStatus.value.status}
             on-change={value => {
               showCollectIssuedSlider.value = value;
             }}
           />
-          {isNeedIssue.value && step.value !== 1 && (
+          {isShowStatusBtn.value && (
             <div
               class={`status-box ${currentStatus.value.status}`}
               on-Click={() => {
@@ -270,10 +274,11 @@ export default defineComponent({
             on-handle={handleFunction}
             on-next={data => {
               dataConfig.value = data;
-              console.log(step.value, 'step.value');
+              console.log(step.value, 'step.value', data);
 
               if (isNeedIssue.value && step.value === 2) {
-                getCollectStatus();
+                currentCollectorId.value = data.collector_config_id;
+                getCollectStatus(data.collector_config_id);
               }
               step.value++;
             }}

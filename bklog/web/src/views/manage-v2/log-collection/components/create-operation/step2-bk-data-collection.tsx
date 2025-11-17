@@ -41,6 +41,10 @@ import $http from '@/api';
 
 import './step2-bk-data-collection.scss';
 
+/**
+ * 步骤B：数据收集组件
+ * 用于配置和管理数据收集的基础信息、数据源和字段设置
+ */
 export default defineComponent({
   name: 'StepBkDataCollection',
   props: {
@@ -49,22 +53,22 @@ export default defineComponent({
       default: 'host_log',
     },
   },
-  // 组件可触发的事件
+  // 组件可触发的事件：下一步、上一步、取消
   emits: ['next', 'prev', 'cancel'],
 
   setup(props, { emit }) {
-    const { t } = useLocale();
-    const router = useRouter();
-    const route = useRoute();
-    const { bkBizId, spaceUid, goListPage } = useCollectList();
-    const { cardRender, handleMultipleSelected, tableLoading, sortByPermission } = useOperation();
-    const isShowDialog = ref(false);
-    const currentActiveShowID = ref('');
-    const baseInfoRef = ref();
-    const submitLoading = ref(false);
-    const clusterList = ref<any[]>([]);
-    const clusterLoading = ref(false);
-    const createEditRegex = /create|edit/;
+    const { t } = useLocale(); // 国际化翻译函数
+    const router = useRouter(); // 路由实例
+    const route = useRoute(); // 当前路由信息
+    const { bkBizId, spaceUid, goListPage } = useCollectList(); // 收集列表相关数据和方法
+    const { cardRender, handleMultipleSelected, tableLoading, sortByPermission } = useOperation(); // 操作相关方法
+    const isShowDialog = ref(false); // 控制弹窗显示状态
+    const currentActiveShowID = ref(''); // 当前显示的ID
+    const baseInfoRef = ref(); // 基础信息表单引用
+    const submitLoading = ref(false); // 提交加载状态
+    const clusterList = ref<{ storage_cluster_id: string; storage_cluster_name: string }[]>([]); // 集群列表
+    const clusterLoading = ref(false); // 集群加载状态
+    const createEditRegex = /create|edit/; // 创建/编辑正则表达式
     // 匹配到的索引 id，result table id list
     const currentMatchedTableIds = ref([]);
     const collectionTableData = ref<any[]>([]);
@@ -82,6 +86,10 @@ export default defineComponent({
       target_fields: [],
       sort_fields: [],
     });
+    /**
+     * 判断索引列表是否为空
+     */
+    const isIndexesEmpty = ref(false);
 
     const getTimeFiled = computed(() => timeIndex.value?.time_field || '--');
 
@@ -129,6 +137,7 @@ export default defineComponent({
           <div class='form-box'>
             <DragTag
               addType={'custom'}
+              isError={isIndexesEmpty.value}
               idKey={'result_table_id'}
               nameKey={'result_table_id'}
               sortable={false}
@@ -278,10 +287,12 @@ export default defineComponent({
             if (isClusterValid) {
               configData.value.storage_cluster_id = numericClusterId;
             }
+          } else {
+            configData.value.storage_cluster_id = clusterList.value[0]?.storage_cluster_id;
           }
         }
       } catch (error) {
-        console.warn('获取集群列表失败:', error);
+        console.log('获取集群列表失败:', error);
       } finally {
         clusterLoading.value = false;
       }
@@ -381,13 +392,13 @@ export default defineComponent({
      */
     const handleSave = () => {
       try {
-        if (!configData.value.indexes.length) {
-          showMessage(t('请选择数据源'), 'error');
-          return;
-        }
+        isIndexesEmpty.value = configData.value.indexes.length === 0;
         baseInfoRef.value
           .validate()
           .then(async () => {
+            if (isIndexesEmpty.value) {
+              return;
+            }
             submitLoading.value = true;
             const params = {
               space_uid: spaceUid.value,
@@ -471,7 +482,7 @@ export default defineComponent({
         }
         collectionTableData.value = Array.from(collectionMap.values());
       } catch (error) {
-        console.warn(error);
+        console.log(error);
         return [];
       } finally {
         tableLoading.value = false;

@@ -31,6 +31,7 @@ import useStore from '@/hooks/use-store';
 
 import InfoTips from '../../common-comp/info-tips';
 import IndexSetSelect from './index-set-select';
+import $http from '@/api';
 
 import './base-info.scss';
 
@@ -81,6 +82,8 @@ export default defineComponent({
     /** 需要展示数据分类的类型列表 */
     const showCategoryKey = ['custom'];
 
+    const enNameErrorMessage = ref('');
+
     // ==================== 全局数据 ====================
     /** 全局数据（包含自定义上报类型列表） */
     const globalsData = computed(() => store.getters['globals/globalsData']);
@@ -105,6 +108,35 @@ export default defineComponent({
      * @returns 数据名值
      */
     const getCollectorConfigNameEn = () => formData.value.collector_config_name_en;
+
+    /**
+     * 校验采集项的英文名是否可用
+     * @param val - 校验值
+     * @returns
+     */
+    const checkEnNameRepeat = async (val: string) => {
+      if (props.isEdit) return true;
+      const result = await getEnNameIsRepeat(val);
+      return result;
+    };
+    /**
+     * 校验采集项的英文名是否可用
+     * @param val
+     * @returns
+     */
+    const getEnNameIsRepeat = async () => {
+      try {
+        const res = await $http.request('collect/getPreCheck', {
+          params: { collector_config_name_en: getCollectorConfigNameEn(), bk_biz_id: store.state.bkBizId },
+        });
+        if (res.data) {
+          enNameErrorMessage.value = res.data.message;
+          return res.data.allowed;
+        }
+      } catch (error) {
+        return false;
+      }
+    };
 
     /**
      * 表单校验规则
@@ -147,6 +179,12 @@ export default defineComponent({
             const value = getCollectorConfigNameEn();
             return !value || value.length <= 50;
           },
+        },
+        {
+          // 检查数据名是否可用
+          validator: checkEnNameRepeat,
+          message: () => enNameErrorMessage.value,
+          trigger: 'blur',
         },
       ],
     });

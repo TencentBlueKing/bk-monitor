@@ -63,6 +63,13 @@
         color: #4d4f56;
         font-size: 12px;
         padding-left: 30px;
+        &.error {
+          border: 1px solid #ea3636;
+          color: #ea3636;
+          .icon-plus {
+            color: #ea3636;
+          }
+        }
         .bk-icon {
           font-size: 22px;
           color: #979ba5;

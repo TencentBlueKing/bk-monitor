@@ -116,6 +116,11 @@
     .left-icon {
         font-size: 24px;
     }
+    &.is-error {
+      border: 1px solid #ea3636;
+      background: #FFF0F0;
+      color: #ea3636;
+    }
   }
   
   .tag-input-wrapper {

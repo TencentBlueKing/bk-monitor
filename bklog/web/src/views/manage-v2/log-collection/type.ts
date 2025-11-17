@@ -46,20 +46,20 @@ export interface IHostCollectionParams {
   multiline_max_lines?: string;
   multiline_timeout?: string;
   paths?: IPathItem[];
-  exclude_files?: IPathItem[];
+  exclude_files?: string[];
   extra_labels?: IExtraLabel[];
   conditions?: IConditions;
 }
 
 // 容器采集配置参数结构
 export interface IContainerCollectionParams {
-  paths?: { value: string }[];
-  exclude_files?: { value: string }[];
+  paths?: IPathItem[];
+  exclude_files?: string[];
   conditions?: IConditions;
   winlog_name?: string[];
   winlog_level?: string[];
   winlog_event_id?: string[];
-  extra_labels?: any[];
+  extra_labels?: IExtraLabel[];
 }
 
 // 标签选择器结构
@@ -107,9 +107,6 @@ export interface IFormData {
   data_encoding?: string;
   parent_index_set_ids?: any[];
 
-  // 主机采集配置
-  params?: {...IHostCollectionParams, ...IContainerCollectionParams};
-
   // 容器采集配置
   bcs_cluster_id?: string;
   add_pod_label?: boolean;
@@ -118,4 +115,6 @@ export interface IFormData {
   configs?: IContainerConfigItem[];
   yaml_config?: string;
   yaml_config_enabled?: boolean;
+  // 主机采集配置
+  params?: IContainerCollectionParams;
 }

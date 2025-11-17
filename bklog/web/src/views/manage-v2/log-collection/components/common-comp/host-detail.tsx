@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch, type PropType } from 'vue';
+import { computed, defineComponent, ref, watch, nextTick, type PropType } from 'vue';
 
 import { xssFilter } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -35,35 +35,93 @@ import $http from '@/api';
 
 import './host-detail.scss';
 
-type IHostItem = {
-  host_id: number;
-  instance_id: string;
-  task_id: string;
-  ip: string;
-  status: string;
-  [key: string]: any;
-};
+/**
+ * 主机项状态类型
+ */
+type HostStatus = 'success' | 'failed' | 'running' | 'all';
 
-type ILogItem = {
+/**
+ * 主机项数据接口
+ */
+interface IHostItem {
+  /** 主机ID */
+  host_id: number;
+  /** 实例ID */
+  instance_id: string;
+  /** 任务ID */
+  task_id: string;
+  /** IP地址 */
+  ip: string;
+  /** 状态：success-成功, failed-失败, running-运行中 */
+  status: HostStatus | string;
+}
+
+/**
+ * 日志分组项数据接口
+ */
+interface ILogItem {
+  /** 对象ID */
   bk_obj_id: string;
+  /** 对象名称 */
   bk_obj_name: string;
+  /** 子项列表（主机列表） */
   child: IHostItem[];
-  [key: string]: any;
-};
+}
+
+/**
+ * Tab项数据接口
+ */
+interface ITabItem {
+  /** Tab键值 */
+  key: HostStatus | string;
+  /** Tab显示标签 */
+  label: string;
+  /** 数量 */
+  count: number;
+}
+
+/**
+ * 采集详情结果接口
+ */
+interface IDetailResult {
+  /** 状态：SUCCESS-成功, FAILED-失败 */
+  status?: 'SUCCESS' | 'FAILED';
+}
+
+/**
+ * API响应数据接口
+ */
+interface IExecuteDetailsResponse {
+  /** 日志详情（HTML字符串） */
+  log_detail: string;
+  /** 日志结果 */
+  log_result: IDetailResult;
+}
+
+/**
+ * 当前采集配置接口
+ */
+interface ICurCollect {
+  /** 采集配置ID */
+  collector_config_id: number | string;
+}
 
 export default defineComponent({
   name: 'HostDetail',
   props: {
+    /** 是否加载中 */
     loading: {
       type: Boolean,
       default: false,
     },
+    /** 主机列表数据 */
     list: {
       type: Array as PropType<ILogItem[]>,
       default: () => [],
     },
+    /** Tab列表数据 */
     tabList: {
-      type: Array as PropType<{ key: string; label: string; count: number }[]>,
+      type: Array as PropType<ITabItem[]>,
       default: () => [],
     },
   },
@@ -71,50 +129,89 @@ export default defineComponent({
   setup(props) {
     const { t } = useLocale();
     const store = useStore();
-    const activeKey = ref('all');
-    const currentItem = ref({});
-    const itemLoading = ref(false);
-    const log = ref('');
-    const detail = ref({});
-    const curCollect = computed(() => store.getters['collect/curCollect']);
 
-    const showList = computed(() => {
-      const list = props.list;
+    /** 当前激活的Tab键值 */
+    const activeKey = ref<HostStatus | string>('all');
+    /** 当前选中的主机项 */
+    const currentItem = ref<IHostItem | null>(null);
+    /** 详情加载状态 */
+    const itemLoading = ref(false);
+    /** 日志详情内容（HTML字符串） */
+    const log = ref<string>('');
+    /** 采集详情结果 */
+    const detail = ref<IDetailResult>({});
+    /** 当前采集配置 */
+    const curCollect = computed<ICurCollect>(() => store.getters['collect/curCollect'] || {});
+    /** 日志内容容器的引用 */
+    const logContentRef = ref<HTMLDivElement | null>(null);
+
+    /**
+     * 根据当前激活的Tab筛选显示列表
+     * 当activeKey为'all'时返回全部，否则只返回匹配状态的主机项
+     */
+    const showList = computed<ILogItem[]>(() => {
+      const { list } = props;
       if (activeKey.value === 'all') {
         return list;
       }
-      return list.filter(item => {
-        const childList = item.child.filter(child => child.status === activeKey.value);
-        return childList.length > 0 && { ...item, child: childList };
-      });
+      // 筛选出包含匹配状态主机的分组，并更新分组中的child列表
+      return list
+        .map(item => {
+          const childList = item.child.filter(child => child.status === activeKey.value);
+          // 只返回包含匹配项的分组
+          return childList.length > 0 ? { ...item, child: childList } : null;
+        })
+        .filter((item): item is ILogItem => item !== null);
     });
 
     /**
-     * 切换tab的时候默认选中第一个item
+     * 切换tab时默认选中第一个item
+     * 如果列表为空或第一个分组没有子项，则不执行任何操作
      */
-    const setDefaultItem = () => {
+    const setDefaultItem = (): void => {
       if (showList.value.length === 0) {
         return;
       }
-      const firstItem = showList.value[0].child[0];
-      handleItemClick(firstItem);
+      const firstGroup = showList.value[0];
+      if (!firstGroup?.child || firstGroup.child.length === 0) {
+        return;
+      }
+      const firstItem = firstGroup.child[0];
+      if (firstItem) {
+        handleItemClick(firstItem);
+      }
     };
+
     /**
      * 切换Tab
-     * @param item
+     * @param item - Tab项数据
      */
-    const handleTabClick = item => {
+    const handleTabClick = (item: ITabItem): void => {
+      // 只有当Tab有数据时才允许切换
       if (item.count !== 0) {
         log.value = '';
         detail.value = {};
         activeKey.value = item.key;
       }
     };
+
     /**
-     * 获取选中的ip详情
-     * @param item
+     * 获取选中主机的采集详情
+     * @param item - 主机项数据
      */
-    const getItemDetail = item => {
+    const getItemDetail = (item: IHostItem): void => {
+      // 校验必要参数
+      if (!item?.instance_id || !item?.task_id) {
+        showMessage(t('缺少必要参数'), 'error');
+        return;
+      }
+
+      // 校验采集配置ID
+      if (!curCollect.value?.collector_config_id) {
+        showMessage(t('采集配置ID不存在'), 'error');
+        return;
+      }
+
       itemLoading.value = true;
       $http
         .request('collect/executDetails', {
@@ -126,44 +223,77 @@ export default defineComponent({
             task_id: item.task_id,
           },
         })
-        .then(res => {
-          if (res.result) {
-            log.value = res.data.log_detail;
-            detail.value = res.data.log_result;
+        .then((res: { result: boolean; data: IExecuteDetailsResponse }) => {
+          if (res.result && res.data) {
+            log.value = res.data.log_detail || '';
+            detail.value = res.data.log_result || {};
+            // log值变化会触发watch自动更新DOM
+          } else {
+            showMessage(t('获取详情失败'), 'error');
           }
         })
         .catch(err => {
-          showMessage(err.message || err, 'error');
+          const errorMessage = err?.message || err || t('获取详情失败');
+          showMessage(errorMessage, 'error');
         })
         .finally(() => {
           itemLoading.value = false;
         });
     };
+
     /**
-     * 选择某个ip
-     * @param item
+     * 选择某个主机项
+     * @param item - 主机项数据
      */
-    const handleItemClick = item => {
+    const handleItemClick = (item: IHostItem): void => {
+      if (!item) {
+        return;
+      }
       currentItem.value = item;
       getItemDetail(item);
     };
 
-    const renderIcon = () => {
-      const statusIconMap = {
+    /**
+     * 根据状态渲染状态图标
+     * @returns JSX元素或null
+     */
+    const renderIcon = (): JSX.Element | null => {
+      const statusIconMap: Record<string, string> = {
         SUCCESS: 'bklog-circle-correct-filled',
         FAILED: 'bklog-circle-alert-filled',
       };
-      const iconClass = statusIconMap[detail.value.status];
-      return iconClass ? <i class={`bklog-icon ${iconClass} status-icon ${detail.value.status}`} /> : null;
+      const status = detail.value?.status;
+      if (!status) {
+        return null;
+      }
+      const iconClass = statusIconMap[status];
+      return iconClass ? <i class={`bklog-icon ${iconClass} status-icon ${status}`} /> : null;
     };
 
+    // 监听log内容变化，同步更新DOM
+    watch(
+      () => log.value,
+      newValue => {
+        nextTick(() => {
+          if (logContentRef.value) {
+            logContentRef.value.innerHTML = xssFilter(newValue || '');
+          }
+        });
+      },
+      { immediate: true },
+    );
+
+    // 监听loading状态，当加载完成时自动选中第一个item
     watch(
       () => props.loading,
       val => {
-        !val && setDefaultItem();
+        if (!val) {
+          setDefaultItem();
+        }
       },
     );
 
+    // 监听activeKey变化，切换Tab时自动选中第一个item
     watch(
       () => activeKey.value,
       () => {
@@ -176,6 +306,7 @@ export default defineComponent({
 
     return () => (
       <div class='host-detail-main'>
+        {/* Tab切换区域 */}
         <span class='host-detail-tab'>
           {props.tabList.map(item => (
             <span
@@ -187,14 +318,19 @@ export default defineComponent({
               }}
               on-click={() => handleTabClick(item)}
             >
+              {/* 成功/失败状态显示圆形标识 */}
               {['success', 'failed'].includes(item.key) && <span class={`item-circle ${item.key}`} />}
+              {/* 运行中状态显示加载动画 */}
               {item.key === 'running' && <i class='running' />}
               {item.label} （{item.count}）
             </span>
           ))}
         </span>
+
+        {/* 主内容区域 */}
         <div v-bkloading={{ isLoading: props.loading }}>
           {showList.value.length === 0 ? (
+            // 空状态展示
             <bk-exception
               class='host-detail-main-empty'
               scene='part'
@@ -202,6 +338,7 @@ export default defineComponent({
             />
           ) : (
             <div class='host-detail-content'>
+              {/* 左侧主机列表 */}
               <div class='content-left'>
                 {showList.value.map(logItem => (
                   <div
@@ -213,7 +350,10 @@ export default defineComponent({
                       {logItem.child.map(item => (
                         <div
                           key={item.host_id}
-                          class={{ 'left-item': true, active: currentItem.value.host_id === item.host_id }}
+                          class={{
+                            'left-item': true,
+                            active: currentItem.value?.host_id === item.host_id,
+                          }}
                           on-click={() => handleItemClick(item)}
                         >
                           {item.status === 'running' ? (
@@ -228,13 +368,20 @@ export default defineComponent({
                   </div>
                 ))}
               </div>
+
+              {/* 右侧详情展示 */}
               <div class='content-right'>
                 <div class='content-right-title'>
                   {renderIcon()}
                   {t('采集详情 ')}
+                  {/* 刷新按钮 */}
                   <i
                     class='bklog-icon bklog-refresh2 refresh-icon'
-                    on-click={() => getItemDetail(currentItem.value)}
+                    on-click={() => {
+                      if (currentItem.value) {
+                        getItemDetail(currentItem.value);
+                      }
+                    }}
                   />
                 </div>
                 <div
@@ -242,8 +389,8 @@ export default defineComponent({
                   v-bkloading={{ isLoading: itemLoading.value, color: '#2E2E2E', zIndex: 10 }}
                 >
                   <div
+                    ref={logContentRef}
                     class='content-box'
-                    domPropsInnerHTML={xssFilter(log.value || '')}
                   />
                 </div>
               </div>

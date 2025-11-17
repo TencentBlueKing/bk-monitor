@@ -85,6 +85,10 @@ export default defineComponent({
       type: String,
       default: 'id',
     },
+    isError: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: ['input', 'add', 'remove', 'change', 'custom-add'],
@@ -314,7 +318,10 @@ export default defineComponent({
             (props.maxTags === 0 || tagList.value.length < props.maxTags) && (
               <div
                 ref={rootRef}
-                class='tag-add-btn'
+                class={{
+                  'tag-add-btn': true,
+                  'is-error': props.isError,
+                }}
                 on-Click={startAdd}
               >
                 <i class='bk-icon icon-plus left-icon' />

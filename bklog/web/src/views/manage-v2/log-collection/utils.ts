@@ -1,8 +1,6 @@
 import ContainerSvg from '@/images/container-icons/Container.svg';
 import NodeSvg from '@/images/container-icons/Node.svg';
 
-import type { ISelectItem } from './type';
-
 /**
  * 采集项状态
  */
@@ -263,7 +261,6 @@ export const OPERATOR_SELECT_LIST: ISelectItem[] = [
     name: window.$t('正则不匹配'),
   },
 ];
-
 export interface ISelectItem {
   id: string;
   name: string;

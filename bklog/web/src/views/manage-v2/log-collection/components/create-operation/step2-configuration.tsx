@@ -106,6 +106,10 @@ export default defineComponent({
     const selectorNodes = ref({ host_list: [] });
     const ipSelectorOriginalValue = ref(null);
     const collectorType = ref('container_log_config');
+    /**
+     * 行首正则是否为空
+     */
+    const isSegmentError = ref(false);
 
     /**
      * 日志种类
@@ -128,8 +132,18 @@ export default defineComponent({
     const linkListLoading = ref(false);
     const isClone = ref(false);
     const otherSpeciesList = ref([]);
-    const otherRules = ref(false);
     const loadingSave = ref(false);
+
+    /**
+     * 相关校验
+     */
+    /**
+     * 选择目标是否为空
+     */
+    const isTargetNodesEmpty = ref(false);
+    const pathRef = ref(); // 日志路径ref
+    const excludeFilesRef = ref(); // 黑名单路径ref
+    const logFilterRef = ref(); // 日志过滤器ref
     /**
      * 集群列表
      */
@@ -151,7 +165,10 @@ export default defineComponent({
     const environment = computed(() => (props.scenarioId === 'wineventlog' ? 'windows' : 'linux'));
     // 是否是编辑或者克隆
     const isCloneOrUpdate = computed(() => isUpdate.value || isClone.value);
-
+    /**
+     * 是否为段日志
+     */
+    const isSectionLog = computed(() => logType.value === 'section' && props.scenarioId === 'host_log');
     /**
      * 通用配置
      */
@@ -241,7 +258,7 @@ export default defineComponent({
           }
         })
         .catch(err => {
-          console.warn(err);
+          console.log(err);
         })
         .finally(() => {
           isRequestCluster.value = false;
@@ -271,6 +288,7 @@ export default defineComponent({
 
     const handleBlacklist = () => {
       isBlacklist.value = !isBlacklist.value;
+      formData.value.params.exclude_files = isBlacklist.value ? [''] : [];
     };
 
     /**
@@ -290,7 +308,7 @@ export default defineComponent({
     /**
      * 修改路径黑名单
      */
-    const handleUpdateBlacklist = (data: { value: string }[]) => {
+    const handleUpdateBlacklist = (data: string[]) => {
       formData.value.params.exclude_files = data;
     };
     /**
@@ -367,7 +385,10 @@ export default defineComponent({
         <div class='label-title text-left'>{t('行首正则')}</div>
         <div class='rule-reg'>
           <bk-input
-            class='reg-input'
+            class={{
+              'reg-input': true,
+              'is-error': isSegmentError.value,
+            }}
             value={data.multiline_pattern}
             on-input={val => {
               data.multiline_pattern = val;
@@ -423,6 +444,7 @@ export default defineComponent({
      */
     const renderLogFilter = () => (
       <LogFilter
+        ref={logFilterRef}
         conditions={formData.value.params.conditions}
         isCloneOrUpdate={isCloneOrUpdate.value}
         on-conditions-change={val => {
@@ -463,6 +485,7 @@ export default defineComponent({
                 }}
               >
                 <img
+                  alt=''
                   src={item.img}
                   class='img-box'
                 />
@@ -508,7 +531,7 @@ export default defineComponent({
                   </bk-button>
                 ))}
               </div>
-              {logType.value === 'section' && props.scenarioId === 'host' && renderSegment(formData.value.params)}
+              {isSectionLog.value && renderSegment(formData.value.params)}
             </div>
           </div>
         )}
@@ -517,7 +540,10 @@ export default defineComponent({
             <span class='label-title'>{t('采集目标')}</span>
             <div class='form-box'>
               <bk-button
-                class='target-btn'
+                class={{
+                  'target-btn': true,
+                  error: isTargetNodesEmpty.value,
+                }}
                 icon='plus'
                 on-Click={() => {
                   showSelectDialog.value = true;
@@ -597,6 +623,7 @@ export default defineComponent({
                 <InfoTips tips={t('日志文件的绝对路径，可使用 通配符')} />
                 <div class='form-box-url'>
                   <InputAddGroup
+                    ref={pathRef}
                     valueList={formData.value?.params?.paths}
                     on-update={handleUpdateUrl}
                   />
@@ -612,6 +639,7 @@ export default defineComponent({
                   <InfoTips tips={t('可通过正则语法排除符合条件的匹配项 。如：匹配任意字符：.*')} />
                   {isBlacklist.value && (
                     <InputAddGroup
+                      ref={excludeFilesRef}
                       valueList={formData.value.params.exclude_files}
                       on-update={handleUpdateBlacklist}
                     />
@@ -754,6 +782,7 @@ export default defineComponent({
 
       updateFormDataWithSelection(selection);
       triggerFormValidation();
+      isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
     };
 
     /**
@@ -836,11 +865,32 @@ export default defineComponent({
      * 保存配置
      */
     const handleSubmitSave = () => {
+      isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
+      /**
+       * 日志路径校验
+       */
+      const isErr = pathRef.value.validate();
+      /**
+       * 路径黑名单校验
+       */
+      const isExcludeFilesErr = isBlacklist.value && excludeFilesRef.value.validate();
+      /**
+       * 日志过滤器校验
+       */
+      const isLogFilterErr = logFilterRef.value.validateInputs();
+      /**
+       * 行首正则是否为空
+       */
+      isSegmentError.value = isSectionLog.value && !formData.value.params?.multiline_pattern;
+      console.log(isErr, 'red====', isExcludeFilesErr, formData.value, isLogFilterErr, isSegmentError.value);
       baseInfoRef.value
         .validate()
         .then(() => {
           console.log('下一步', formData.value);
-          setCollection();
+          return;
+          if (!isTargetNodesEmpty.value && isErr && isExcludeFilesErr && isLogFilterErr && !isSegmentError.value) {
+            setCollection();
+          }
         })
         .catch(() => {
           console.log('error');

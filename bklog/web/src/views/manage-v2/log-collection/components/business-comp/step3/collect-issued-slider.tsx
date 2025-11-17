@@ -23,9 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-/** biome-ignore-all lint/style/useCollapsedIf: <explanation> */
 
-import { defineComponent, ref, computed, onMounted, watch } from 'vue';
+import { defineComponent, ref, computed, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -49,6 +48,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    status: {
+      type: String,
+      default: '',
+    },
   },
 
   emits: ['change'],
@@ -67,6 +70,8 @@ export default defineComponent({
     const tableListAll = ref([]);
     const tableList = ref([]);
     const timer = ref();
+    const isLeavePage = ref(false);
+    const hasRunning = ref(false);
     const tabList = ref([
       {
         key: 'all',
@@ -89,22 +94,10 @@ export default defineComponent({
         count: 0,
       },
     ]);
+    const stopStatusPolling = () => {
+      clearTimeout(timer.value);
+    };
 
-    watch(
-      () => props.isShow,
-      val => {
-        if (val) {
-          for (const id of curCollect.value?.task_id_list ?? []) {
-            curTaskIdList.value.push(id);
-          }
-          requestIssuedClusterList();
-        }
-      },
-      {
-        immediate: true,
-        deep: true,
-      },
-    );
     // onMounted(() => {});
     const calcTabNum = () => {
       const num = {
@@ -130,23 +123,22 @@ export default defineComponent({
         tab.count = num[tab.key];
       }
       errorNum.value = num.failed;
+      // 根据running状态更新hasRunning，用于控制轮询
+      hasRunning.value = num.running > 0;
     };
 
     const startStatusPolling = () => {
       timerNum.value += 1;
-      // stopStatusPolling();
+      stopStatusPolling();
       timer.value = setTimeout(() => {
-        if (this.isLeavePage) {
-          // stopStatusPolling();
+        if (isLeavePage.value) {
+          stopStatusPolling();
           return;
         }
-        // this.elapsedSeconds += 0.5;
-        // if (this.elapsedSeconds % 1 !== 0.5) {
-        //   this.displaySeconds = this.elapsedSeconds.toFixed(0);
-        // }
         requestIssuedClusterList('polling');
-      }, 500);
+      }, 3000);
     };
+
     /**
      *  集群list，与轮询共用
      */
@@ -166,7 +158,6 @@ export default defineComponent({
           query: { task_id_list: curTaskIdList.value },
         });
 
-        // console.log('res', res);
         const data = res.data.contents || [];
         notReady.value = res.data.task_ready === false;
 
@@ -188,19 +179,20 @@ export default defineComponent({
         };
 
         if (isPolling === 'polling') {
-          if (cacheTimeNum === timerNum.value && !tableListAll.value.length) {
+          // 轮询模式下始终更新数据，以便正确判断状态
+          if (cacheTimeNum === timerNum.value) {
             processData(data);
           }
-          // 保留原业务逻辑注释
-          // syncHostStatus(data);
-          // tabHandler({ type: this.curTab }, true);
           calcTabNum();
-          if (hasRunning.value) {
-            startStatusPolling();
-          }
+          // 只有当存在running状态时才继续轮询，否则停止轮询
+          hasRunning.value ? startStatusPolling() : stopStatusPolling();
         } else {
           processData(data);
           calcTabNum();
+          // 首次加载时，如果存在running状态，启动轮询
+          if (hasRunning.value) {
+            startStatusPolling();
+          }
         }
       } catch (err) {
         showMessage(err.message, 'error');
@@ -210,6 +202,25 @@ export default defineComponent({
         }, 500);
       }
     };
+
+    watch(
+      () => props.isShow,
+      val => {
+        if (val) {
+          for (const id of curCollect.value?.task_id_list ?? []) {
+            curTaskIdList.value.push(id);
+          }
+          requestIssuedClusterList();
+        } else {
+          // 侧边栏关闭时停止轮询
+          stopStatusPolling();
+        }
+      },
+      {
+        immediate: true,
+        deep: true,
+      },
+    );
 
     const renderHeader = () => (
       <div>
