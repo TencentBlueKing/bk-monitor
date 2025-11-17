@@ -230,7 +230,7 @@ class CollectorScenario:
 
         options = {
             "log_cluster": {
-                "address": feature_config.get("predict_cluster", {}).get(
+                "address": feature_config.get("predict_cluster_address", {}).get(
                     clustering_config.predict_cluster
                 ),  # TODO: 需要根据集群名称转换
                 # TODO: 以下配置需要把它放到每个 ClusteringConfig 中作为动态配置
