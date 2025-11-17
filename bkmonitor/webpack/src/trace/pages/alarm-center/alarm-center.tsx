@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type ShallowRef, computed, defineComponent, onBeforeMount, shallowRef, watchEffect } from 'vue';
+import { type ShallowRef, computed, defineComponent, onBeforeMount, shallowRef, watch, watchEffect } from 'vue';
 
 import { tryURLDecodeParse } from 'monitor-common/utils';
 import { useRoute, useRouter } from 'vue-router';
@@ -46,7 +46,13 @@ import { useAlarmTable } from './composables/use-alarm-table';
 import { useAlertDialogs } from './composables/use-alert-dialogs';
 import { useQuickFilter } from './composables/use-quick-filter';
 import { useAlarmTableColumns } from './composables/use-table-columns';
-import { type AlertTableItem, type CommonCondition, AlarmType, CONTENT_SCROLL_ELEMENT_CLASS_NAME } from './typings';
+import {
+  type AlertTableItem,
+  type CommonCondition,
+  AlarmType,
+  AlertAllActionEnum,
+  CONTENT_SCROLL_ELEMENT_CLASS_NAME,
+} from './typings';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
 
@@ -192,8 +198,9 @@ export default defineComponent({
       setUrlParams();
     });
 
-    function setUrlParams() {
+    function setUrlParams(otherParams: Record<string, any> = {}) {
       const queryParams = {
+        ...route.query,
         from: alarmStore.timeRange[0],
         to: alarmStore.timeRange[1],
         timezone: alarmStore.timezone,
@@ -207,6 +214,7 @@ export default defineComponent({
         bizIds: JSON.stringify(alarmStore.bizIds),
         currentPage: page.value,
         sortOrder: ordering.value,
+        ...otherParams,
       };
 
       const targetRoute = router.resolve({
@@ -258,6 +266,7 @@ export default defineComponent({
 
     /**
      * @description 表格 -- 处理分页变化
+     * @param {number} currentPage 当前页码
      */
     function handleCurrentPageChange(currentPage: number) {
       page.value = currentPage;
@@ -265,6 +274,7 @@ export default defineComponent({
     }
     /**
      * @description 表格 -- 处理分页大小变化
+     * @param {number} size 分页大小
      */
     function handlePageSizeChange(size: number) {
       pageSize.value = size;
@@ -272,6 +282,7 @@ export default defineComponent({
     }
     /**
      * @description 表格 -- 处理排序变化
+     * @param {string} sort 排序字段
      */
     function handleSortChange(sort: string) {
       ordering.value = sort;
@@ -295,11 +306,6 @@ export default defineComponent({
       alarmDetailShow.value = show;
     }
 
-    onBeforeMount(() => {
-      getUrlParams();
-      setUrlParams();
-    });
-
     const handlePreviousDetail = () => {
       const index = data.value.findIndex(item => item.id === alarmId.value);
       alarmId.value = (data.value as AlertTableItem[])[index === 1 ? data.value.length - 1 : index - 1].id;
@@ -309,6 +315,44 @@ export default defineComponent({
       const index = data.value.findIndex(item => item.id === alarmId.value);
       alarmId.value = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 1 : index + 1].id;
     };
+
+    /**
+     * @method autoShowAlertDialog 自动打开告警确认 | 告警屏蔽 dialog
+     * @description 当移动端的 告警通知 中点击 告警确认 | 告警屏蔽，进入页面时，需要自动打开 告警确认 | 告警屏蔽 dialog
+     */
+    const autoShowAlertDialog = () => {
+      // “ack” 是为了兼容旧版本 批量确认 操作的 action_id
+      const batchAction =
+        route?.query?.batchAction === 'ack'
+          ? AlertAllActionEnum.CONFIRM
+          : ((route?.query?.batchAction ?? '') as AlertAllActionEnum);
+      const canAutoShowDialogActionTypes = [AlertAllActionEnum.CONFIRM, AlertAllActionEnum.SHIELD];
+      // const hasActionIdQuery = /((?<!(?:AND\s+NOT|OR)\s+)action_id(?:\s*)(?::)(?:\s*)(?:".+?"))/.test(
+      const hasActionIdQuery = /(^action_id(?:\s*)(?::)(?:\s*)(?:".+?"))/.test(
+        (route?.query?.queryString ?? '') as string
+      );
+      if (
+        !data.value?.length ||
+        alertDialogShow.value ||
+        !hasActionIdQuery ||
+        !canAutoShowDialogActionTypes.includes(batchAction)
+      )
+        return;
+
+      // TODO : 还需补充自动打开dialog逻辑，并需将 table 组件的selectedRowKeys相关的属性及逻辑提取出来
+    };
+
+    watch(
+      () => data.value,
+      () => {
+        autoShowAlertDialog();
+      }
+    );
+
+    onBeforeMount(() => {
+      getUrlParams();
+      setUrlParams();
+    });
 
     return {
       quickFilterList,

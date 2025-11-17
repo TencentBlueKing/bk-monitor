@@ -127,8 +127,8 @@ export default defineComponent({
             theme: 'success',
             message: t('分派成功'),
           });
-          handleShowChange(false);
           handleSuccess();
+          handleShowChange(false);
         }
         loading.value = false;
       }
