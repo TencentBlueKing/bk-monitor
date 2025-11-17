@@ -98,7 +98,7 @@ export default defineComponent({
      * 是否激活AI助手
      * @TODO 本周发布BKOP开启助手，上云环境关闭助手，此处需要暂时调整为 false
      */
-    const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+    const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive && false);
 
     /**
      * 更新AI助手位置
