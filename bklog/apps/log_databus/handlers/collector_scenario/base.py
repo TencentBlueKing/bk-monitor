@@ -206,7 +206,6 @@ class CollectorScenario:
                         "log_cluster_config": CollectorScenario.gen_clustering_datasource_options(clustering_config),
                     }
                 )
-                # TODO: etl_config 在接口中不支持修改，需要 metadata 支持
                 params["etl_config"] = "bk_flat_batch_cluster"
             else:
                 params["option"].update({"is_log_cluster": False})
