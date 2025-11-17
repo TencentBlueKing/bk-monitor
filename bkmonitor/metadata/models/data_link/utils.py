@@ -123,6 +123,9 @@ def compose_bkdata_data_id_name(data_name: str, strategy: str | None = None) -> 
         chinese_pinyin = "".join(lazy_pinyin(chinese_characters))  # 转为全拼音
         refine_data_name += chinese_pinyin  # 拼接拼音到 refined_name
 
+    # 将减号替换为下划线
+    refine_data_name = refine_data_name.replace("-", "_")
+
     # 替换连续的下划线为单个下划线
     data_id_name = f"bkm_{re.sub(r'_+', '_', refine_data_name)}"
 

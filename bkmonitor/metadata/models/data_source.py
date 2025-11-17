@@ -346,7 +346,7 @@ class DataSource(models.Model):
         # data list 在consul中的作用被废弃，不再使用
         pass
 
-    def register_to_bkbase(self, bk_biz_id: int):
+    def register_to_bkbase(self, bk_biz_id: int, namespace: str = "bkmonitor"):
         """
         将当前data_id注册到计算平台
         """
@@ -355,7 +355,6 @@ class DataSource(models.Model):
 
         bkbase_data_name = utils.compose_bkdata_data_id_name(self.data_name)
         logger.info("register_to_bkbase: bkbase_data_name: %s", bkbase_data_name)
-        namespace = "bklog" if self.etl_config in LOG_EVENT_ETL_CONFIGS else "bkmonitor"
         data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
             name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id, bk_tenant_id=self.bk_tenant_id
         )

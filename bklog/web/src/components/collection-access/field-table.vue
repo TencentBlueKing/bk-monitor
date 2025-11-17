@@ -1183,7 +1183,7 @@
       getFieldEditDisabled(row) {
         if (row?.is_delete) return true;
         if (row?.is_built_in) return true;
-        if (row?.field_type === 'object') return true;
+        // if (row?.field_type === 'object') return true;
         if (this.selectEtlConfig === 'bk_log_json') return false;
         return this.extractMethod !== 'bk_log_delimiter' || this.isSetDisabled;
       },

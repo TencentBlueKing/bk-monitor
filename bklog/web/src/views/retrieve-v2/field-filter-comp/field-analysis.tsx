@@ -603,6 +603,82 @@ export default class FieldAnalysis extends Vue {
     this.$emit('showMore', this.fieldData, !!show);
   }
 
+  // 清理现有数据
+  clearChartData() {
+    // 取消正在进行的请求
+    this.getInfoCancelFn?.();
+    this.getChartsCancelFn?.();
+
+    // 重置字段数据
+    this.fieldData = {
+      total_count: 0,
+      field_count: 0,
+      distinct_count: 0,
+      field_percent: 0,
+      value_analysis: {
+        avg: 0,
+        max: 0,
+        median: 0,
+        min: 0,
+      },
+    };
+
+    // 清空图表数据
+    this.seriesData = [];
+    this.legendData = [];
+    this.lineOptions = {};
+    this.pillarOption = {};
+    this.height = 0;
+
+    // 重置状态
+    this.isShowEmpty = false;
+    this.emptyTipsStr = '';
+    this.emptyStr = window.mainComponent.$t('暂无数据');
+    this.currentPageNum = 1;
+    this.legendMaxPageNum = 1;
+    this.isShowPageIcon = false;
+
+    // 清理图表实例
+    if (this.chart) {
+      this.chart.dispose();
+      this.chart = null;
+    }
+  }
+
+  async handleAddCondition() {
+    // 1. 清理现有数据
+    this.clearChartData();
+
+    // 2. 显示加载状态
+    this.infoLoading = true;
+    this.chartLoading = true;
+
+    try {
+      // 3. 根据最新参数重新请求数据
+      await this.$nextTick();
+
+      if (!this.isPillarChart) {
+        const { start_time: startTime, end_time: endTime } = this.queryParams;
+        this.setFormatStr(startTime, endTime);
+      }
+
+      // 并行请求统计信息和图表数据
+      await Promise.all([this.queryStatisticsInfo(), this.loadEChartsLibrary()]);
+      await this.queryStatisticsGraph();
+
+      // 4. 重新初始化图表
+      await this.$nextTick();
+      this.initFieldChart();
+    } catch (error) {
+      console.error('刷新图表数据失败:', error);
+      this.isShowEmpty = true;
+      this.emptyTipsStr = error.message || window.mainComponent.$t('查询失败');
+      this.emptyStr = window.mainComponent.$t('查询异常');
+    } finally {
+      this.chartLoading = false;
+    }
+  }
+
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   render() {
     const {
@@ -806,6 +882,7 @@ export default class FieldAnalysis extends Vue {
                   parent-expand={true}
                   retrieve-params={this.queryParams}
                   statistical-field-data={this.queryParams.statisticalFieldData}
+                  onAddCondition={this.handleAddCondition}
                 />
               )}
             </div>

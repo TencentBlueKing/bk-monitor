@@ -58,9 +58,23 @@ export default class FieldItem extends tsc<object> {
   distinctCount = 0;
   btnLoading = false;
   expandIconShow = false;
-  queryParams = {};
 
   fieldIconCache: Record<string, { icon: string; color: string; textColor: string }> = {};
+
+  get queryParams() {
+    const indexSetIDs = this.isUnionSearch
+      ? this.unionIndexList
+      : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
+
+    return {
+      ...this.retrieveParams,
+      index_set_ids: indexSetIDs,
+      field_type: this.fieldItem.field_type,
+      agg_field: this.agg_field,
+      statisticalFieldData: this.statisticalFieldData,
+      isFrontStatisticsL: this.isFrontStatistics,
+    };
+  }
 
   get fieldTypeMap() {
     return this.$store.state.globals.fieldTypeMap;
@@ -176,18 +190,18 @@ export default class FieldItem extends tsc<object> {
     this.instanceDestroy();
     this.analysisActive = true;
 
-    const indexSetIDs = this.isUnionSearch
-      ? this.unionIndexList
-      : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
+    // const indexSetIDs = this.isUnionSearch
+    //   ? this.unionIndexList
+    //   : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
 
-    this.queryParams = {
-      ...this.retrieveParams,
-      index_set_ids: indexSetIDs,
-      field_type: this.fieldItem.field_type,
-      agg_field: this.agg_field,
-      statisticalFieldData: this.statisticalFieldData,
-      isFrontStatisticsL: this.isFrontStatistics,
-    };
+    // this.queryParams = {
+    //   ...this.retrieveParams,
+    //   index_set_ids: indexSetIDs,
+    //   field_type: this.fieldItem.field_type,
+    //   agg_field: this.agg_field,
+    //   statisticalFieldData: this.statisticalFieldData,
+    //   isFrontStatisticsL: this.isFrontStatistics,
+    // };
 
     // 使用nextTick确保DOM更新
     this.$nextTick(() => {

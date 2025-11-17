@@ -215,6 +215,14 @@
           font-size: 12px;
           line-height: 20px;
           color: #4d4f56;
+
+          .ui-value-clear-btn {
+              font-size: 12px;
+
+              &:not(:disabled) {
+                color: red;
+              }
+            }
         }
 
         .ui-value-component {
@@ -324,6 +332,7 @@
           min-width: 142px;
           margin-right: 8px;
         }
+
         &.cancel-btn {
           width: 64px;
         }

@@ -178,7 +178,7 @@ export default defineComponent({
     // 监听显示状态变化
     watch(
       () => props.isShowCollect,
-      value => {
+      (value) => {
         if (value) {
           getFavoriteList();
         } else {
@@ -195,6 +195,7 @@ export default defineComponent({
           <CollectHead
             total={allFavoriteNumber.value}
             on-collapse={handleCollapse}
+            on-refresh={handleRefresh}
           />
           <bk-input
             class='collect-main-search-input'
