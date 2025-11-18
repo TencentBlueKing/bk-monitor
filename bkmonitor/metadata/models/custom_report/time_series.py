@@ -1007,7 +1007,7 @@ class TimeSeriesMetric(models.Model):
         verbose_name="指标字段分组", default="default", max_length=255, db_collation="utf8_bin"
     )
     field_name = models.CharField(verbose_name="指标字段名称", max_length=255, db_collation="utf8_bin")
-    tag_list = JsonField(verbose_name="指标维度列表", default={})
+    tag_list = JsonField(verbose_name="Tag列表", default=[])
 
     # 字段其他配置，可配置的字段 key 需要在 MetricConfigFields 中定义
     field_config = models.JSONField(verbose_name="字段其他配置", default=dict)

@@ -37,11 +37,6 @@ class Migration(migrations.Migration):
             name="group_id",
             field=models.IntegerField(db_index=True, verbose_name="自定义时序数据源ID"),
         ),
-        migrations.AlterField(
-            model_name="timeseriesmetric",
-            name="tag_list",
-            field=bkmonitor.utils.db.fields.JsonField(default={}, verbose_name="指标维度列表"),
-        ),
         migrations.AlterUniqueTogether(
             name="timeseriesmetric",
             unique_together={("group_id", "field_scope", "field_name")},
