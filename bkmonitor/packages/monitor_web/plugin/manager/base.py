@@ -21,7 +21,6 @@ import time
 from functools import partial
 from typing import Any
 from uuid import uuid4
-from pathlib import Path
 
 import yaml
 from django.conf import settings
@@ -83,7 +82,7 @@ class BasePluginManager:
         self.version: PluginVersionHistory | None = PluginVersionHistory.objects.filter(
             bk_tenant_id=self.plugin.bk_tenant_id, plugin_id=self.plugin.plugin_id
         ).last()
-        self.plugin_configs: dict[Path, bytes] | None = plugin_configs
+        self.plugin_configs: dict[str, bytes] | None = plugin_configs
 
     def _update_version_params(
         self, data, version: PluginVersionHistory, current_version: PluginVersionHistory, stag=None

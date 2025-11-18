@@ -683,6 +683,7 @@ class ModifyDataSource(Resource):
         is_platform_data_id = serializers.CharField(required=False, label="是否为平台级 ID", default=None)
         authorized_spaces = serializers.JSONField(required=False, label="授权使用的空间 ID 列表", default=None)
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=None)
+        etl_config = serializers.CharField(required=False, label="清洗模板配置")
 
     def perform_request(self, request_data):
         # 指定data_id的情况下，无需使用租户ID进行二次过滤
@@ -704,6 +705,7 @@ class ModifyDataSource(Resource):
             is_platform_data_id=request_data["is_platform_data_id"],
             authorized_spaces=request_data["authorized_spaces"],
             space_type_id=request_data["space_type_id"],
+            etl_config=request_data.get("etl_config"),
         )
         return data_source.to_json()
 

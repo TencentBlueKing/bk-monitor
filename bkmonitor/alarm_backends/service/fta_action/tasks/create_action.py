@@ -671,6 +671,30 @@ class CreateActionProcessor:
             # 告警关注人
             alerts_follower[alert.id] = self.get_alert_related_users(followers, alerts_follower[alert.id])
 
+            # 获取订阅的 follower 用户并合并到 alerts_follower
+            if assignee_manager and assignee_manager.match_manager:
+                subscription_notify_info, subscription_follow_notify_info = (
+                    assignee_manager.get_subscription_notify_info()
+                )
+                # 从订阅的 follower 通知信息中提取所有用户（格式: {notice_way: [user_list]}）
+                subscription_follower_users = []
+                for notice_way, users in subscription_follow_notify_info.items():
+                    # 排除特殊字段（如 wxbot_mention_users）
+                    if notice_way != "wxbot_mention_users" and users:
+                        subscription_follower_users.extend(users)
+                # 去重并合并到 alerts_follower
+                if subscription_follower_users:
+                    # 使用集合去重，保持顺序
+                    unique_subscription_followers = list(dict.fromkeys(subscription_follower_users))
+                    alerts_follower[alert.id] = self.get_alert_related_users(
+                        unique_subscription_followers, alerts_follower[alert.id]
+                    )
+                    logger.info(
+                        "[alert_subscription] alert(%s) added subscription followers: %s",
+                        alert.id,
+                        unique_subscription_followers,
+                    )
+
             for action in actions + itsm_actions:
                 action_config = action_configs.get(str(action["config_id"]))
                 if not self.is_action_config_valid(alert, action_config):

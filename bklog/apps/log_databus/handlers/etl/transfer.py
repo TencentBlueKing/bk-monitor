@@ -27,7 +27,6 @@ from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import update_clustering_clean
-from apps.log_databus.exceptions import CollectorActiveException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -62,9 +61,6 @@ class TransferEtlHandler(EtlHandler):
     ):
         etl_params = etl_params or {}
         user_fields = copy.deepcopy(fields)
-        # 停止状态下不能编辑
-        if self.data and not self.data.is_active:
-            raise CollectorActiveException()
 
         # 存储集群信息
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()

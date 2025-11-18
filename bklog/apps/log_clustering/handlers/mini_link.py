@@ -87,7 +87,7 @@ class MiniLinkAccessHandler:
                 category_id=self.index_set.category_id,
                 new_cls_strategy_enable=params.get("new_cls_strategy_enable", False),
                 normal_strategy_enable=params.get("normal_strategy_enable", False),
-                access_finished=False,
+                access_finished=True,
                 log_bk_data_id=self.collector_config.bk_data_id,
                 use_mini_link=True,
                 predict_cluster=self.read_config(params, "predict_cluster"),

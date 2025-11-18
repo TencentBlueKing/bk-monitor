@@ -17,6 +17,7 @@ import os
 import shutil
 import tarfile
 import uuid
+import zipfile
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -45,7 +46,6 @@ from core.errors.export_import import (
     ImportHistoryNotExistError,
     UploadPackageError,
 )
-from core.errors.plugin import PluginParseError
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.commons.file_manager import ExportImportManager
 from monitor_web.commons.report.resources import send_frontend_report_event
@@ -76,7 +76,6 @@ from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.strategies.default_settings.datalink.v1 import DEFAULT_DATALINK_COLLECTING_FLAG
 from monitor_web.strategies.serializers import handle_target, is_validate_target
 from monitor_web.tasks import import_config, remove_file
-from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME
 
 logger = logging.getLogger("monitor_web")
 
@@ -727,6 +726,7 @@ class UploadPackageResource(Resource):
                     # 日志关键字类导入不存储插件信息，在创建时需要新建（它是虚拟插件）
                     pass
             else:
+                pass
                 ImportParse.objects.create(
                     name=parse_result["name"],
                     label=parse_result["collect_config"].get("label", ""),
@@ -782,16 +782,16 @@ class UploadPackageResource(Resource):
                 file_id=self.file_id,
             )
 
-    def parse_package(self, file_path_content_map: dict[Path, bytes]):
+    def parse_package(self, file_list: dict[str, bytes]):
         # 区分成四个配置目录
         # 并且去掉最外层配置类型的文件夹
         collect_configs: dict[Path, dict] = {}
         plugin_configs: dict[Path, bytes] = {}
         strategy_configs: dict[Path, dict] = {}
         view_configs: dict[Path, dict] = {}
-        for file_path, content in file_path_content_map.items():
-            config_directory_name = Path(file_path).parts[0]
-            file_path = Path(Path(file_path).relative_to(config_directory_name))
+        for file_name, content in file_list.items():
+            config_directory_name, file_path = file_name.split("/", 1)
+            file_path = Path(file_path)
 
             # 过滤 dotfiles
             if file_path.name.startswith("."):
@@ -809,13 +809,7 @@ class UploadPackageResource(Resource):
                 case ConfigDirectoryName.plugin:
                     # 因为插件文件含更多不同类型的文件，
                     # 所以不做特定类型解析
-                    try:
-                        file_path = self._process_plugin_config_path(file_path)
-                    except Exception:
-                        logger.exception(f"无法处理插件配置文件: {file_path}")
-                        continue
-                    else:
-                        plugin_configs[file_path] = content
+                    plugin_configs[file_path] = content
                 case _:
                     pass
 
@@ -823,50 +817,34 @@ class UploadPackageResource(Resource):
         self.parse_strategy_config(strategy_configs)
         self.parse_view_config(view_configs)
 
-    @classmethod
-    def _process_plugin_config_path(cls, file_path: str | Path) -> Path:
-        """
-        针对插件配置文件所在路径进行特殊处理
-
-        example:
-        >> _process_plugin_config_path("bkplugin_mysql/external_plugins_linux_x86_64/bkplugin_mysql/start.sh")
-        >> "external_plugins_linux_x86_64/bkplugin_mysql/start.sh"
-        :param file_path:
-        :return:
-        """
-
-        # 获取可选的os版本列表
-        os_choices = list(OS_TYPE_TO_DIRNAME.values())
-
-        try:
-            file_path = Path(file_path)
-            plugin_id, os_name = file_path.parts[0:2]
-        except Exception:
-            raise PluginParseError(_(f"插件配置文件路径格式错误:{file_path}"))
-
-        if os_name not in os_choices:
-            raise PluginParseError(_(f"插件配置文件路径格式错误:{file_path}"))
-
-        file_path = file_path.relative_to(Path(plugin_id))
-
-        return file_path
-
-    @classmethod
-    def parse_package_without_decompress(cls, file: FieldFile) -> dict[Path, bytes]:
+    def parse_package_without_decompress(self, file: FieldFile) -> None:
         """
         针对zip 和tar相关的压缩包进行处理
         """
-        from monitor_web.plugin.resources import PluginImportResource
 
-        file_path_content_map = PluginImportResource().parse_package_without_decompress(file)
+        # 解压到内存中，获取文件的路径已经对应的内容
+        file_list: dict[str, bytes] = {}
+        if file.name.endswith(".zip"):
+            with zipfile.ZipFile(file.file, "r") as package_file:
+                for file_info in package_file.infolist():
+                    with package_file.open(file_info) as f:
+                        file_list[file_info.filename] = f.read()
+        else:
+            with tarfile.open(fileobj=file.file) as package_file:
+                for member in package_file.getmembers():
+                    # 取代 tarfile.extractall 的 filter="data"
+                    if not member.isreg():
+                        continue
+                    with package_file.extractfile(member) as f:
+                        file_list[member.name] = f.read()
 
         # 校验包目录结构
-        top_level_directories = {Path(filepath).parts[0] for filepath in file_path_content_map.keys()}
-
-        if not top_level_directories.intersection(DIRECTORY_LIST):
+        if not any(
+            list([x in list(set(filepath.split("/")[0] for filepath in file_list.keys())) for x in DIRECTORY_LIST])
+        ):
             raise UploadPackageError({"msg": _("导入包目录结构不对")})
 
-        return file_path_content_map
+        return file_list
 
     def handle_return_data(self, model_obj):
         if model_obj.type == ConfigType.VIEW:
@@ -909,8 +887,8 @@ class UploadPackageResource(Resource):
 
             if self.file_id not in upload_file_ids:
                 file = self.file_manager.file_obj.file_data
-                file_path_content_map: dict[Path, bytes] = self.parse_package_without_decompress(file)
-                self.parse_package(file_path_content_map)
+                file_list: dict[str, str] = self.parse_package_without_decompress(file)
+                self.parse_package(file_list)
 
             config_list = list(map(self.handle_return_data, ImportParse.objects.filter(file_id=self.file_id)))
             return {

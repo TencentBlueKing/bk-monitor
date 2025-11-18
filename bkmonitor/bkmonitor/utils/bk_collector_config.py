@@ -118,7 +118,8 @@ class BkCollectorClusterConfig:
             if value is not None:
                 cluster_id, related_bk_biz_ids = cls._split_value(value)
                 if cluster_id and related_bk_biz_ids:
-                    res[cluster_id] = related_bk_biz_ids
+                    old_biz_ids = res.get(cluster_id, {})
+                    res[cluster_id] = set(old_biz_ids) | set(related_bk_biz_ids)
 
         return res
 
