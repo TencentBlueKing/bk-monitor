@@ -149,9 +149,10 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         search_dict.update({"metric_merge": " or ".join(reference_name_list)})
         data = self.query_ts_reference(search_dict)
 
+        # 获取响应数据中所有字段值集合
         field_value_list = self.get_field_value_list(data.get("series", []))
 
-        return self.by_agg_method(field_value_list, agg_method)
+        return self.get_agg_value_by_agg_method(field_value_list, agg_method)
 
     def get_topk_list(self, limit: int = 5):
         """
@@ -217,7 +218,11 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         return bucket_data
 
     @staticmethod
-    def by_agg_method(agg_field_value_list: list, agg_method: str):
+    def get_agg_value_by_agg_method(agg_field_value_list: list, agg_method: str):
+        """
+        通过聚合方法获取聚合值
+        """
+
         if not agg_field_value_list:
             return 0
 
@@ -237,6 +242,10 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
 
     @staticmethod
     def get_field_value_list(series: list):
+        """
+        获取响应数据中所有字段值集合
+        """
+
         field_value_list = list()
         for item in series:
             group_values = item.get("group_values", [])
