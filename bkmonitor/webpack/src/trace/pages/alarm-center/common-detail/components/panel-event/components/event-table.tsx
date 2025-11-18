@@ -37,6 +37,7 @@ import type { PropType } from 'vue';
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Button, Checkbox } from 'bkui-vue';
 import dayjs from 'dayjs';
+import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
 
 import EventTableExpandContent from './event-table-expand-content';
@@ -265,6 +266,7 @@ export default defineComponent({
       isEnd,
       tableData,
       sort,
+      loading,
       handleSortChange,
       handleExpandChange,
       t,
@@ -306,22 +308,26 @@ export default defineComponent({
             />
           </Button>
         </div>
-        <PrimaryTable
-          class='relation-event-table'
-          columns={this.columns}
-          data={this.tableData.data}
-          expandedRow={this.expandedRow}
-          expandedRowKeys={this.expandedRowKeys}
-          expandIcon={this.expandIcon}
-          expandOnRowClick={true}
-          resizable={true}
-          rowClassName={({ row }) => `row-event-status-${row.severity}`}
-          rowKey={'event_id'}
-          size={'small'}
-          sort={this.sort}
-          onExpandChange={this.handleExpandChange}
-          onSortChange={this.handleSortChange}
-        />
+        {this.loading ? (
+          <TableSkeleton type={1} />
+        ) : (
+          <PrimaryTable
+            class='relation-event-table'
+            columns={this.columns}
+            data={this.tableData.data}
+            expandedRow={this.expandedRow}
+            expandedRowKeys={this.expandedRowKeys}
+            expandIcon={this.expandIcon}
+            expandOnRowClick={true}
+            resizable={true}
+            rowClassName={({ row }) => `row-event-status-${row.severity}`}
+            rowKey={'event_id'}
+            size={'small'}
+            sort={this.sort}
+            onExpandChange={this.handleExpandChange}
+            onSortChange={this.handleSortChange}
+          />
+        )}
         <div
           ref='scrollLoading'
           style={{ display: this.tableData.data.length ? 'flex' : 'none' }}

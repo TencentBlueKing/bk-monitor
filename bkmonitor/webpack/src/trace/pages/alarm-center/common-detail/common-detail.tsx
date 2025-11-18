@@ -246,6 +246,7 @@ export default defineComponent({
           ))}
         </Tab>
         <KeepAlive>{getPanelComponent()}</KeepAlive>
+
         <AlarmConfirmDialog
           alarmBizId={bizId.value}
           alarmIds={[alarmId.value]}
