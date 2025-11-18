@@ -150,11 +150,11 @@ export interface IFilterItem {
   method: { id: EMethod | string; name: string };
   value: { id: number | string; name: number | string }[];
   options?:
-    | Record<string, any>
-    | {
-        group_relation?: string;
-        is_wildcard?: boolean;
-      };
+  | Record<string, any>
+  | {
+    group_relation?: string;
+    is_wildcard?: boolean;
+  };
 }
 
 export interface IGetValueFnParams {
@@ -178,11 +178,11 @@ export interface INormalWhere {
   method: EMethod | string;
   value: Array<number | string>;
   options:
-    | Record<string, any>
-    | {
-        group_relation?: boolean;
-        is_wildcard?: boolean;
-      };
+  | Record<string, any>
+  | {
+    group_relation?: boolean;
+    is_wildcard?: boolean;
+  };
 }
 export interface IOptionsInfo {
   count: 0;
@@ -464,6 +464,16 @@ export const UI_SELECTOR_PROPS = {
   zIndex: {
     type: Number,
     default: 1000,
+  },
+  /** 拥有快捷键功能 */
+  hasShortcutKey: {
+    type: Boolean,
+    default: true,
+  },
+  /** tag是否有隐藏功能 */
+  hasTagHidden: {
+    type: Boolean,
+    default: true,
   },
 };
 export const UI_SELECTOR_EMITS = {
@@ -758,6 +768,10 @@ export const KV_TAG_PROPS = {
   active: {
     type: Boolean,
     default: false,
+  },
+  hasTagHidden: {
+    type: Boolean,
+    default: true,
   },
 };
 export const KV_TAG_EMITS = {

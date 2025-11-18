@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 import { computed } from 'vue';
 
-import { Button } from 'bkui-vue';
+import { Button, Popover } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import AlertContentDetail from '../../../components/alarm-table/components/alert-content-detail/alert-content-detail';
 import { type AlarmDetail, AlarmStatusIconMap } from '../../../typings';
 
 import './alarm-alert.scss';
@@ -41,6 +42,102 @@ export default defineComponent({
   emits: ['alarmConfirm', 'quickShield'],
   setup(props, { emit }) {
     const { t } = useI18n();
+
+    const activeAlertContentDetail = shallowRef({
+      id: 65057,
+      name: '[调用分析] 被调成功率（%）',
+      expression: '(a or b < bool 0) / (b > 10) * 100',
+      functions: [],
+      origin_sql: '',
+      query_configs: [
+        {
+          metricDetail: {
+            dimensions: [
+              { id: 'app_name', name: 'app_name' },
+              { id: 'env_name', name: 'env_name' },
+              { id: 'service_name', name: 'service_name' },
+              { id: 'namespace', name: 'namespace' },
+              { id: 'callee_method', name: 'callee_method' },
+            ],
+            metric_field_name: '被调请求数',
+            metric_id: 'custom.2_bkapm_metric_tilapia.__default__.rpc_server_handled_total',
+            metricDomId: 'fvmbagai',
+            rawMetricDetail: {
+              metric_id: 'custom.2_bkapm_metric_tilapia.__default__.rpc_server_handled_total',
+              metric_field_name: '被调请求数',
+              dimensions: [
+                { id: 'app_name', name: 'app_name' },
+                { id: 'env_name', name: 'env_name' },
+                { id: 'service_name', name: 'service_name' },
+                { id: 'namespace', name: 'namespace' },
+                { id: 'callee_method', name: 'callee_method' },
+              ],
+            },
+          },
+          agg_condition: [
+            { method: 'eq', value: ['success'], key: 'code_type', dimension_name: 'code_type' },
+            {
+              condition: 'and',
+              method: 'eq',
+              value: ['example.greeter'],
+              key: 'service_name',
+              dimension_name: 'service_name',
+            },
+          ],
+          agg_dimension: ['app_name', 'env_name', 'service_name', 'namespace', 'callee_method'],
+          agg_interval: 60,
+          agg_method: 'SUM',
+          alias: 'a',
+          functions: [],
+          key: 'fmcp75ly',
+          metric_id: 'custom.2_bkapm_metric_tilapia.__default__.rpc_server_handled_total',
+        },
+        {
+          metricDetail: {
+            dimensions: [
+              { id: 'app_name', name: 'app_name' },
+              { id: 'env_name', name: 'env_name' },
+              { id: 'service_name', name: 'service_name' },
+              { id: 'namespace', name: 'namespace' },
+              { id: 'callee_method', name: 'callee_method' },
+            ],
+            metric_field_name: '被调请求数',
+            metric_id: 'custom.2_bkapm_metric_tilapia.__default__.rpc_server_handled_total',
+            metricDomId: 'htxlonor',
+            rawMetricDetail: {
+              metric_id: 'custom.2_bkapm_metric_tilapia.__default__.rpc_server_handled_total',
+              metric_field_name: '被调请求数',
+              dimensions: [
+                { id: 'app_name', name: 'app_name' },
+                { id: 'env_name', name: 'env_name' },
+                { id: 'service_name', name: 'service_name' },
+                { id: 'namespace', name: 'namespace' },
+                { id: 'callee_method', name: 'callee_method' },
+              ],
+            },
+          },
+          agg_condition: [
+            {
+              condition: 'and',
+              method: 'eq',
+              value: ['example.greeter'],
+              key: 'service_name',
+              dimension_name: 'service_name',
+            },
+          ],
+          agg_dimension: ['app_name', 'env_name', 'service_name', 'namespace', 'callee_method'],
+          agg_interval: 60,
+          agg_method: 'SUM',
+          alias: 'b',
+          functions: [],
+          key: '1hex2tl6',
+          metric_id: 'custom.2_bkapm_metric_tilapia.__default__.rpc_server_handled_total',
+        },
+      ],
+    });
+
+    const editDataSemantics = shallowRef(false);
+
     const status = computed(() => {
       if (props.data?.is_shielded && props.data?.status === 'ABNORMAL') return 'SHIELDED_ABNORMAL';
       return props.data?.status || 'ABNORMAL';
@@ -60,7 +157,11 @@ export default defineComponent({
           };
         }
         default:
-          return {};
+          return {
+            icon: '',
+            iconColor: '',
+            name: '',
+          };
       }
     });
 
@@ -98,14 +199,26 @@ export default defineComponent({
       );
     };
 
+    const handleEditDataSemantics = (value: boolean) => {
+      editDataSemantics.value = value;
+    };
+
+    const handleEditConfirm = () => {
+      editDataSemantics.value = false;
+    };
+
     return {
       t,
       status,
       statusIcon,
+      editDataSemantics,
+      activeAlertContentDetail,
       renderAlertTips,
       handleAlarmConfirm,
       handleQuickShield,
       handleToShield,
+      handleEditDataSemantics,
+      handleEditConfirm,
     };
   },
   render() {
@@ -118,7 +231,22 @@ export default defineComponent({
         <div class='separator' />
         <div class='alert-content'>
           <div class='alarm-content'>
-            <span class='alarm-title'>主调成功率:</span>
+            <Popover
+              width={480}
+              extCls='alarm-alert-monitor-data-popover'
+              v-slots={{
+                default: () => <span class='alarm-title'>主调成功率:</span>,
+                content: () => (
+                  <div class='alarm-alert-monitor-data-popover-content'>
+                    <AlertContentDetail alertContentDetail={this.activeAlertContentDetail} />
+                  </div>
+                ),
+              }}
+              placement='bottom'
+              theme='light'
+              trigger='click'
+            />
+
             <span class='alarm-value'>{'65% < 80%,'}</span>
           </div>
           {this.renderAlertTips()}
