@@ -13,6 +13,7 @@ from django.db.models.query import QuerySet
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from bkmonitor.data_source import load_data_source
 from bkmonitor.models import QueryConfigModel
@@ -336,8 +337,10 @@ class CreateCustomEventGroup(Resource):
         # 生成data_name
         if bk_biz_id > 0:
             bk_biz_id_str = str(bk_biz_id)
-        else:
+        elif bk_biz_id < 0:
             bk_biz_id_str = f"space_{bk_biz_id}"
+        else:
+            raise ValidationError(_("业务ID不能为0"))
 
         # 生成不重复的data_name
         for __ in range(10):
