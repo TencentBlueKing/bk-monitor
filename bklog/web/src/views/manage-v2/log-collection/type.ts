@@ -118,3 +118,8 @@ export interface IFormData {
   // 主机采集配置
   params?: IContainerCollectionParams;
 }
+
+export interface IClusterItem {
+  id: string;
+  name: string;
+}

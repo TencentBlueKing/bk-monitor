@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, reactive } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -52,9 +52,15 @@ export default defineComponent({
   },
   emits: ['debug-reg', 'update'], // 组件触发的事件
 
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { t } = useLocale(); // 国际化翻译函数
     const showMultilineRegDialog = ref(false); // 控制正则调试弹窗的显示状态
+    // 错误状态管理
+    const errorState = reactive({
+      multiline_pattern: false,
+      multiline_max_lines: false,
+      multiline_timeout: false,
+    });
     /**
      * 处理输入框内容变化
      * @param field - 字段名
@@ -66,6 +72,15 @@ export default defineComponent({
         ...props.data, // 保留原有数据
         [field]: val, // 更新指定字段
       });
+      // 输入时清除对应字段的错误状态
+      if (
+        (field === 'multiline_pattern' || field === 'multiline_max_lines' || field === 'multiline_timeout') &&
+        errorState[field] &&
+        val &&
+        String(val).trim()
+      ) {
+        errorState[field] = false;
+      }
     };
 
     /**
@@ -82,12 +97,40 @@ export default defineComponent({
       showMultilineRegDialog.value = val;
     };
 
+    /**
+     * 校验方法：检查 multiline_pattern、multiline_max_lines、multiline_timeout 是否为空值
+     * @returns {boolean} 校验是否通过，true表示通过，false表示失败
+     */
+    const validate = (): boolean => {
+      const { multiline_pattern, multiline_max_lines, multiline_timeout } = props.data;
+      
+      // 检查 multiline_pattern 是否为空
+      const isPatternEmpty = !multiline_pattern || !String(multiline_pattern).trim();
+      errorState.multiline_pattern = isPatternEmpty;
+      
+      // 检查 multiline_max_lines 是否为空
+      const isMaxLinesEmpty = !multiline_max_lines || !String(multiline_max_lines).trim();
+      errorState.multiline_max_lines = isMaxLinesEmpty;
+      
+      // 检查 multiline_timeout 是否为空
+      const isTimeoutEmpty = !multiline_timeout || !String(multiline_timeout).trim();
+      errorState.multiline_timeout = isTimeoutEmpty;
+      
+      // 返回校验结果：所有字段都不为空才返回 true
+      return !isPatternEmpty && !isMaxLinesEmpty && !isTimeoutEmpty;
+    };
+
+    // 暴露校验方法给父组件
+    expose({
+      validate,
+    });
+
     return () => (
       <div class='line-rule'>
         <div class='label-title text-left'>{t('行首正则')}</div>
         <div class='rule-reg'>
           <bk-input
-            class='reg-input'
+            class={{ 'reg-input': true, 'input-error': errorState.multiline_pattern }}
             value={props.data.multiline_pattern}
             on-input={(val: string) => handleInputChange('multiline_pattern', val)}
           />
@@ -102,6 +145,7 @@ export default defineComponent({
           <div class='line-rule-box-item'>
             <div class='label-title no-require text-left'>{t('最多匹配')}</div>
             <bk-input
+              class={{ 'input-error': errorState.multiline_max_lines }}
               value={props.data.multiline_max_lines}
               on-input={(val: string) => handleInputChange('multiline_max_lines', val)}
             >
@@ -116,7 +160,7 @@ export default defineComponent({
           <div class='line-rule-box-right'>
             <div class='label-title no-require text-left'>{t('最大耗时')}</div>
             <bk-input
-              class='time-box'
+              class={{ 'time-box': true, 'input-error': errorState.multiline_timeout }}
               value={props.data.multiline_timeout}
               on-input={(val: string) => handleInputChange('multiline_timeout', val)}
             >

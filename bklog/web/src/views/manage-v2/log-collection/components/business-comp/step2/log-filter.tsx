@@ -43,18 +43,8 @@ import InfoTips from '../../common-comp/info-tips';
 import ValidatorInput from './validator-input';
 import $http from '@/api';
 
+import type { IConditions } from '../../../type';
 import './log-filter.scss';
-
-/**
- * 过滤条件配置类型定义
- */
-type IConditions = {
-  type: 'match' | 'none' | 'separator'; // 过滤类型
-  separator?: string; // 分隔符（仅separator类型使用）
-  separator_filters?: ITableRowItem[]; // 分隔符过滤规则
-  match_content?: string; // 匹配内容（仅match类型使用）
-  match_type?: string; // 匹配类型（仅match类型使用）
-};
 
 /**
  * 日志过滤组件

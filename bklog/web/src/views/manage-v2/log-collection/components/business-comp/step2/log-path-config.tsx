@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -37,24 +37,25 @@ export default defineComponent({
   name: 'LogPathConfig',
   props: {
     paths: {
-      type: Array,
+      type: Array as PropType<{ value: string }[]>,
       required: true,
       default: () => [],
     },
     excludeFiles: {
-      type: Array,
+      type: Array as PropType<{ value: string }[]>,
       required: true,
       default: () => [],
     },
   },
   emits: ['update'],
 
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { t } = useLocale();
     const isBlacklist = ref(false);
+    const pathsRef = ref<{ validate: () => boolean } | null>(null);
 
     // 处理日志路径更新
-    const handleUpdateUrl = (valueList: any[]) => {
+    const handleUpdateUrl = (valueList: { value: string }[]) => {
       emit('update', 'paths', valueList);
     };
 
@@ -64,9 +65,25 @@ export default defineComponent({
     };
 
     // 处理黑名单路径更新
-    const handleUpdateBlacklist = (valueList: any[]) => {
+    const handleUpdateBlacklist = (valueList: { value: string }[]) => {
       emit('update', 'exclude_files', valueList);
     };
+
+    /**
+     * 校验方法，暴露给父组件
+     * @returns {boolean} 校验是否通过
+     */
+    const validate = (): boolean => {
+      if (pathsRef.value) {
+        return pathsRef.value.validate();
+      }
+      return false;
+    };
+
+    // 暴露校验方法给父组件
+    expose({
+      validate,
+    });
 
     return () => (
       <div class='log-path-config-main'>
@@ -77,6 +94,7 @@ export default defineComponent({
         <div class='config-box'>
           <div class='config-box-url'>
             <InputAddGroup
+              ref={pathsRef}
               valueList={props.paths}
               on-update={handleUpdateUrl}
             />

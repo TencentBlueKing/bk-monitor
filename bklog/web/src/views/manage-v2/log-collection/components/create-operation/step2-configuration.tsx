@@ -106,6 +106,7 @@ export default defineComponent({
     const selectorNodes = ref({ host_list: [] });
     const ipSelectorOriginalValue = ref(null);
     const collectorType = ref('container_log_config');
+    const configurationItemListRef = ref();
     /**
      * 行首正则是否为空
      */
@@ -166,9 +167,14 @@ export default defineComponent({
     // 是否是编辑或者克隆
     const isCloneOrUpdate = computed(() => isUpdate.value || isClone.value);
     /**
+     * 是否为采集主机日志
+     */
+    const isHostLog = computed(() => props.scenarioId === 'host_log');
+    /**
      * 是否为段日志
      */
-    const isSectionLog = computed(() => logType.value === 'section' && props.scenarioId === 'host_log');
+    const isSectionLog = computed(() => logType.value === 'section' && isHostLog.value);
+
     /**
      * 通用配置
      */
@@ -212,7 +218,7 @@ export default defineComponent({
       /**
        * 主机日志
        */
-      if (props.scenarioId === 'host_log') {
+      if (isHostLog.value) {
         formData.value = {
           ...formData.value,
           ...HOST_COLLECTION_CONFIG,
@@ -255,6 +261,7 @@ export default defineComponent({
         .then(res => {
           if (res.code === 0) {
             clusterList.value = res.data;
+            formData.value.bcs_cluster_id = clusterList.value[0]?.cluster_id || '';
           }
         })
         .catch(err => {
@@ -280,7 +287,7 @@ export default defineComponent({
           formData.value.data_link_id = linkConfigurationList.value[0].data_link_id;
         }
       } catch (e) {
-        console.warn(e);
+        console.log(e);
       } finally {
         linkListLoading.value = false;
       }
@@ -701,6 +708,7 @@ export default defineComponent({
               <span class='label-title'>{t('配置项')}</span>
               <div class='form-box mt-5'>
                 <ConfigurationItemList
+                  ref={configurationItemListRef}
                   bcsClusterId={formData.value.bcs_cluster_id}
                   clusterList={clusterList.value}
                   collectorType={collectorType.value}
@@ -781,7 +789,6 @@ export default defineComponent({
       }
 
       updateFormDataWithSelection(selection);
-      triggerFormValidation();
       isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
     };
 
@@ -827,16 +834,6 @@ export default defineComponent({
       formData.value.target_nodes = toTransformNode(nodes, type);
     };
 
-    /**
-     * 触发表单验证
-     */
-    const triggerFormValidation = (): void => {
-      // 触发 bk-form 的表单验证
-      nextTick(() => {
-        // formRef.value?.validateField('target_nodes');
-      });
-    };
-
     // 新增/修改采集
     const setCollection = () => {
       loadingSave.value = true;
@@ -869,26 +866,32 @@ export default defineComponent({
       /**
        * 日志路径校验
        */
-      const isErr = pathRef.value.validate();
-      /**
-       * 路径黑名单校验
-       */
-      const isExcludeFilesErr = isBlacklist.value && excludeFilesRef.value.validate();
+      const isErr = isHostLog.value && pathRef.value.validate();
       /**
        * 日志过滤器校验
        */
-      const isLogFilterErr = logFilterRef.value.validateInputs();
+      const isLogFilterErr = isHostLog.value && logFilterRef.value.validateInputs();
       /**
        * 行首正则是否为空
        */
       isSegmentError.value = isSectionLog.value && !formData.value.params?.multiline_pattern;
-      console.log(isErr, 'red====', isExcludeFilesErr, formData.value, isLogFilterErr, isSegmentError.value);
+      /**
+       * 当为文件采集和标准输出时，配置项校验
+       */
+      let isConfigError = true;
+      if (showClusterListKeys.includes(props.scenarioId)) {
+        isConfigError = configurationItemListRef.value.validate();
+      }
+      /**
+       * 是否为容器采集并且配置项校验通过
+       */
+      console.log(isConfigError, 'configurationItemListRef');
       baseInfoRef.value
         .validate()
         .then(() => {
           console.log('下一步', formData.value);
-          return;
-          if (!isTargetNodesEmpty.value && isErr && isExcludeFilesErr && isLogFilterErr && !isSegmentError.value) {
+          if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && !isSegmentError.value && isConfigError) {
+            console.log('可以跳转下一步');
             setCollection();
           }
         })
