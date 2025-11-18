@@ -171,12 +171,11 @@ class CollectConfigParse(BaseParse):
             tmp_version = import_manager.get_tmp_version(info_path=info_path)
             return {"tmp_version": tmp_version}
         except Exception as e:
-            logger.error(f"关联插件信息解析失败: {e}")
             return {
                 "file_status": ImportDetailStatus.FAILED,
                 "name": self.file_content.get("name"),
                 "config": self.file_content,
-                "error_msg": _("关联插件信息解析失败"),
+                "error_msg": _("关联插件信息解析失败: {e}").format(e=e),
             }
 
     def get_filename_list(self, plugin_id: str) -> list[Path]:
