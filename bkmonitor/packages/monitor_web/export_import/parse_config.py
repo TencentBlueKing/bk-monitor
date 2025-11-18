@@ -175,7 +175,7 @@ class CollectConfigParse(BaseParse):
                 "file_status": ImportDetailStatus.FAILED,
                 "name": self.file_content.get("name"),
                 "config": self.file_content,
-                "error_msg": _("关联插件信息解析失败: {e}").format(e=e),
+                "error_msg": _("关联插件信息解析失败: {e}".format(e=e)),
             }
 
     def get_filename_list(self, plugin_id: str) -> list[Path]:
