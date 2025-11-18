@@ -20,6 +20,7 @@ import shutil
 import subprocess
 import tarfile
 import time
+import zipfile
 from collections import namedtuple
 from distutils.version import StrictVersion
 from uuid import uuid4
@@ -601,13 +602,20 @@ class PluginImportResource(Resource):
         # 检查是否只有一个顶层目录
         if len(top_level_directories) == 0:
             raise PluginParseError({"msg": _("未找到操作系统目录")})
+        elif len(top_level_directories) > 1:
+            raise PluginParseError(
+                {
+                    "msg": _(
+                        f"只支持单个操作系统，当前存在多个操作系统：{sorted(top_level_directories)}，必须以操作系统目录开头"
+                    )
+                }
+            )
 
         # 检查目录是否为支持的操作系统类型
+        top_directory = top_level_directories.pop()
         supported_os_directories = set(OS_TYPE_TO_DIRNAME.values())
-
-        for os_name in top_level_directories:
-            if os_name not in supported_os_directories:
-                raise PluginParseError({"msg": _(f"不支持的操作系统：{os_name}")})
+        if top_directory not in supported_os_directories:
+            raise PluginParseError({"msg": _(f"不支持的操作系统：{top_directory}，必须以操作系统目录开头")})
 
     @classmethod
     def parse_package_without_decompress(cls, file: FieldFile) -> dict[Path, bytes]:
@@ -618,7 +626,15 @@ class PluginImportResource(Resource):
         file_path_content_map: dict[Path, bytes] = {}
 
         try:
-            if file.name.endswith((".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tar.xz")):
+            if file.name.endswith(".zip"):
+                with zipfile.ZipFile(file.file, "r") as package_file:
+                    for file_info in package_file.infolist():
+                        # 跳过目录项
+                        if file_info.is_dir():
+                            continue
+                        with package_file.open(file_info) as f:
+                            file_path_content_map[Path(file_info.filename)] = f.read()
+            elif file.name.endswith((".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tar.xz")):
                 with tarfile.open(fileobj=file.file) as package_file:
                     for member in package_file.getmembers():
                         # 取代 tarfile.extractall 的 filter="data"
@@ -628,7 +644,7 @@ class PluginImportResource(Resource):
                             file_path_content_map[Path(member.name)] = f.read()
             else:
                 raise PluginParseError({"msg": _(f"不支持的文件格式: {file.name}")})
-        except tarfile.ReadError as e:
+        except (zipfile.BadZipFile, tarfile.ReadError) as e:
             logger.error(f"压缩文件解析失败: {file.name}, 错误: {e}")
             raise PluginParseError({"msg": _(f"压缩文件格式错误: {str(e)}")})
         except Exception as e:
