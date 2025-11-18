@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 import { computed } from 'vue';
 
-import { Button } from 'bkui-vue';
+import { Button, Popover } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import AlertContentDetail from '../../../components/alarm-table/components/alert-content-detail/alert-content-detail';
 import { type AlarmDetail, AlarmStatusIconMap } from '../../../typings';
 
 import './alarm-alert.scss';
@@ -41,6 +42,13 @@ export default defineComponent({
   emits: ['alarmConfirm', 'quickShield'],
   setup(props, { emit }) {
     const { t } = useI18n();
+
+    const monitorDataDetail = computed(() => {
+      return props.data?.items?.[0];
+    });
+
+    const editDataSemantics = shallowRef(false);
+
     const status = computed(() => {
       if (props.data?.is_shielded && props.data?.status === 'ABNORMAL') return 'SHIELDED_ABNORMAL';
       return props.data?.status || 'ABNORMAL';
@@ -60,7 +68,11 @@ export default defineComponent({
           };
         }
         default:
-          return {};
+          return {
+            icon: '',
+            iconColor: '',
+            name: '',
+          };
       }
     });
 
@@ -98,14 +110,26 @@ export default defineComponent({
       );
     };
 
+    const handleEditDataSemantics = (value: boolean) => {
+      editDataSemantics.value = value;
+    };
+
+    const handleEditConfirm = () => {
+      editDataSemantics.value = false;
+    };
+
     return {
       t,
       status,
       statusIcon,
+      editDataSemantics,
+      monitorDataDetail,
       renderAlertTips,
       handleAlarmConfirm,
       handleQuickShield,
       handleToShield,
+      handleEditDataSemantics,
+      handleEditConfirm,
     };
   },
   render() {
@@ -118,7 +142,22 @@ export default defineComponent({
         <div class='separator' />
         <div class='alert-content'>
           <div class='alarm-content'>
-            <span class='alarm-title'>主调成功率:</span>
+            <Popover
+              width={480}
+              extCls='alarm-alert-monitor-data-popover'
+              v-slots={{
+                default: () => <span class='alarm-title'>主调成功率:</span>,
+                content: () => (
+                  <div class='alarm-alert-monitor-data-popover-content'>
+                    <AlertContentDetail alertContentDetail={this.monitorDataDetail} />
+                  </div>
+                ),
+              }}
+              placement='bottom'
+              theme='light'
+              trigger='click'
+            />
+
             <span class='alarm-value'>{'65% < 80%,'}</span>
           </div>
           {this.renderAlertTips()}

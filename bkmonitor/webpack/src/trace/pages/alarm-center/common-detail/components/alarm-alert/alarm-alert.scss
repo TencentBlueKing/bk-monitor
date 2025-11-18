@@ -41,6 +41,7 @@
       .alarm-title {
         line-height: 20px;
         border-bottom: 1px dashed #979797;
+        cursor: pointer;
       }
 
       .alarm-value {
@@ -127,4 +128,10 @@
       color: #979ba5;
     }
   }
+}
+
+.bk-popover.bk-pop2-content.alarm-alert-monitor-data-popover {
+  padding: 0;
+  box-shadow: 0 2px 12px 0 #00000033;
+  overflow: hidden;
 }

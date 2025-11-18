@@ -76,7 +76,9 @@ export default defineComponent({
     );
 
     function init() {
-      cleanup = useEventListener(window, 'keydown', handleKeyDownSlash);
+      if (props.hasShortcutKey) {
+        cleanup = useEventListener(window, 'keydown', handleKeyDownSlash);
+      }
     }
 
     onUnmounted(() => {
@@ -348,6 +350,7 @@ export default defineComponent({
         {this.localValue.map((item, index) => (
           <KvTag
             key={`${index}_kv`}
+            hasTagHidden={this.hasTagHidden}
             value={item}
             onDelete={() => this.handleDeleteTag(index)}
             onHide={() => this.handleHideTag(index)}
@@ -360,17 +363,20 @@ export default defineComponent({
             }}
           </KvTag>
         ))}
-        <div class={['kv-placeholder', { 'is-en': isEn }]}>
-          <AutoWidthInput
-            height={40}
-            isFocus={this.inputFocus}
-            placeholder={this.placeholder || `${this.t('快捷键 / ，可直接输入')}`}
-            value={this.inputValue}
-            onBlur={this.handleBlur}
-            onEnter={this.handleEnter}
-            onInput={this.handleInput}
-          />
-        </div>
+        {this.hasShortcutKey && (
+          <div class={['kv-placeholder', { 'is-en': isEn }]}>
+            <AutoWidthInput
+              height={40}
+              isFocus={this.inputFocus}
+              placeholder={this.placeholder || `${this.t('快捷键 / ，可直接输入')}`}
+              value={this.inputValue}
+              onBlur={this.handleBlur}
+              onEnter={this.handleEnter}
+              onInput={this.handleInput}
+            />
+          </div>
+        )}
+
         <div style='display: none;'>
           <div ref='selector'>
             <UiSelectorOptions
