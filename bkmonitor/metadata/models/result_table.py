@@ -621,10 +621,7 @@ class ResultTable(models.Model):
                 refresh_consul_config = False
                 apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
             # 如果存在事件组V4数据链路配置或默认启用事件组V4数据链路，则创建事件组V4数据链路
-            elif (
-                datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value
-                or settings.ENABLE_V4_EVENT_GROUP_DATA_LINK
-            ):
+            elif datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 refresh_consul_config = False
                 apply_event_group_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         else:
