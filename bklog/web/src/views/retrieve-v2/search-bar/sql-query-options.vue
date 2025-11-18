@@ -472,7 +472,7 @@ const handleKeydown = (e: {
   const dropdownList = dropdownEl.querySelectorAll('.list-item');
   const hasHover = dropdownEl.querySelector('.list-item.is-hover');
   if (code === 'NumpadEnter' || code === 'Enter') {
-    if (hasHover?.classList?.contains('ai-assistant-list-item')) {
+    if (e.ctrlKey || e.metaKey) {
       emits('text-to-query', props.value);
       return;
     }
@@ -607,7 +607,6 @@ const fieldNameShow = (item) => {
  */
 const handleAiAssistantClick = () => {
   emits('text-to-query', props.value);
-  
 };
 
 defineExpose({
@@ -636,13 +635,23 @@ watch(activeIndex, () => {
         v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
         :class="['sql-query-options', { 'is-loading': isRequesting }]"
       >
-       <template v-if="showAiAssistant">
-        <li class="ai-assistant-list-item" @click="handleAiAssistantClick" :data-short-cut-text="shortCutText">
-          <span class="item-img-wrapper"><img :src="aiBluekingSvg" width="18" height="18"></img></span>
-          <span class="item-text-label">AI 搜索:</span>
-          <span class="item-text-value">{{ aiPreviewText}}</span>
-        </li>
-       </template>
+        <template v-if="showAiAssistant">
+          <li
+            class="ai-assistant-list-item"
+            :data-short-cut-text="shortCutText"
+            @click="handleAiAssistantClick"
+          >
+            <span class="item-img-wrapper">
+              <img
+                :src="aiBluekingSvg"
+                width="18"
+                height="18"
+              >
+            </span>
+            <span class="item-text-label">{{ $t('AI 搜索') }}:</span>
+            <span class="item-text-value">{{ aiPreviewText }}</span>
+          </li>
+        </template>
         <!-- 字段列表 -->
         <template v-if="showOption.showFields">
           <div class="control-list">
@@ -840,6 +849,10 @@ watch(activeIndex, () => {
         <div class="ui-shortcut-item">
           <span class="label">Enter</span>
           <span class="value">{{ $t('确认结果') }}</span>
+        </div>
+        <div class="ui-shortcut-item">
+          <span class="label">{{ getOsCommandLabel() }} + Enter</span>
+          <span class="value">{{ $t('AI 搜索') }}</span>
         </div>
       </div>
     </div>

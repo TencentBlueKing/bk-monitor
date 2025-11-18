@@ -31,8 +31,10 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
 import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
-import RetrieveHelper from '../../retrieve-helper';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
+import { useRoute, useRouter } from 'vue-router/composables';
+
 
 import './index.scss';
 
@@ -41,6 +43,8 @@ export default defineComponent({
   setup() {
     const { t } = useLocale();
     const store = useStore();
+    const router = useRouter();
+    const route = useRoute();
 
     const searchBarHeight = ref(0);
     const searchBarRef = ref<any>(null);
@@ -185,6 +189,17 @@ export default defineComponent({
           const queryString = contentObj.query_string;
           if (queryString) {
             store.commit('updateIndexItemParams', { keyword: queryString });
+            router.replace({
+              name: 'retrieve',
+              params: route.params,
+              query: {
+                ...route.query,
+                keyword: queryString,
+              },
+            }).then(() => {
+              RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+              store.dispatch('requestIndexSetQuery');
+            });
           }
         } catch (e) {
           console.error(e);
@@ -205,7 +220,7 @@ export default defineComponent({
         ref={searchBarRef}
         on-height-change={handleHeightChange}
         on-text-to-query={handleTextToQuery}
-        v-bkloading={{ isLoading: isAiLoading.value, size: 'mini', opacity: 0.5, theme: 'colorful', title: '正在解析语句...' }}
+        v-bkloading={{ isLoading: isAiLoading.value, opacity: 0.8, theme: 'colorful', size: 'mini', title: t('正在解析语句'), extCls: 'v3-search-ai-loading' }}
         {...{
           scopedSlots: {
             'custom-placeholder'(slotProps) {

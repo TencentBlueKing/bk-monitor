@@ -371,6 +371,9 @@ const handleHeightChange = (height) => {
   emit('height-change', height);
 };
 
+/**
+ * 切换查询模式
+ */
 const handleQueryTypeChange = () => {
   const nextType = activeIndex.value === 0 ? 1 : 0;
   const nextMode = SEARCH_MODE_DIC[nextType];
@@ -381,6 +384,7 @@ const handleQueryTypeChange = () => {
     store.commit('updateIndexItemParams', {
       search_mode: nextMode,
     });
+
     if (
       addition.value.length > 0
         || (keyword.value !== '*' && keyword.value !== '')
@@ -628,6 +632,48 @@ const getRect = () => {
   return refRootElement.value?.querySelector('.search-input-section')?.getBoundingClientRect();
 };
 
+const handleUITextToQuery = (value) => {
+  if (addition.value.length > 0 && value.length) {
+    $http
+      .request('retrieve/generateQueryString', {
+        data: {
+          addition: addition.value,
+        },
+      })
+      .then((res) => {
+        if (res.result) {
+          emit('text-to-query', `${res.data?.querystring} AND ${value}`);
+          store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+          store.commit('updateIndexItemParams', {
+            search_mode: 'sql',
+          });
+        } else {
+          bkMessage({
+            theme: 'error',
+            message: $t('UI查询转换语句模式失败'),
+          });
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+        bkMessage({
+          theme: 'error',
+          message: err.message,
+        });
+      });
+
+    return;
+  }
+
+  if (value.length) {
+    emit('text-to-query', value);
+    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+    store.commit('updateIndexItemParams', {
+      search_mode: 'sql',
+    });
+  }
+};
+
 const handleTextToQuery = (value) => {
   emit('text-to-query', value);
 };
@@ -699,6 +745,7 @@ defineExpose({
           v-model="uiQueryValue"
           class="search-input-section"
           @change="handleBtnQueryClick"
+          @text-to-query="handleUITextToQuery"
         >
           <template #custom-placeholder="{ isEmptyText }">
             <slot

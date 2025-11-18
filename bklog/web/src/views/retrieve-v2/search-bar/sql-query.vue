@@ -213,6 +213,13 @@ const createEditorInstance = () => {
       closeAndRetrieve();
       return true;
     },
+    onCtrlEnter: () => {
+      if ((getTippyInstance()?.state?.isShown ?? false) && modelValue.value.length) {
+        return true;
+      }
+
+      return false;
+    },
     onFocusChange: (state, isFocusing) => {
       if (isFocusing) {
         if (!(getTippyInstance()?.state?.isShown ?? false)) {
