@@ -75,6 +75,48 @@
     }
   }
 
+  .ai-assistant-list-item {
+    display: flex;
+    align-items: center;
+    background: #F5F7FA;
+    position: relative;
+    padding-right: 100px;
+    cursor: pointer;
+
+    .item-img-wrapper {
+      display: inline-flex;
+      width: 32px;
+      height: 32px;
+      align-items: center;
+      justify-content: center;
+      background: #E5E2F1;
+    }
+
+    .item-text-label {
+      font-size: 12px;
+      color: #313238;
+      padding-left: 8px;
+      font-family: RobotoMono;
+    }
+
+    .item-text-value {
+      font-size: 12px;
+      padding-left: 8px;
+      color: #8474F3;
+      font-size: 12px;
+      font-family: RobotoMono;
+    }
+
+    &::after {
+      position: absolute;
+      right: 10px;
+      top: 4px;
+      content: attr(data-short-cut-text);
+      color: #979ba5;
+      text-align: right;
+    }
+  }
+
   /* 字段 icon 样式 */
   .field-list-item.list-item {
     .item-type-icon {
