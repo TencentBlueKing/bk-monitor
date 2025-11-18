@@ -346,8 +346,10 @@ class CreateCustomEventGroup(Resource):
             try:
                 api.metadata.get_data_id(bk_tenant_id=bk_tenant_id, data_name=data_name, with_rt_info=False)
             except BKAPIError:
+                # 如果API报错，则说明数据源不存在，因此data_name是合法的
                 break
         else:
+            # 如果10次循环结束还找不到合法的data_name，可能是API本身有问题，因此抛出异常
             raise CustomValidationNameError(
                 msg=_("自定义事件数据ID创建失败，无法生成唯一数据源名称，可能是接口调用失败")
             )
