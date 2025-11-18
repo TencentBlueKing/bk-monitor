@@ -87,6 +87,7 @@ class CollectConfigParse(BaseParse):
                 "error_msg": _("缺少依赖的插件"),
             }
         parse_plugin_config = self.parse_plugin_msg(plugin_id)
+        parse_plugin_config["collect_config"] = parse_plugin_config["config"]
         if parse_plugin_config.get("tmp_version"):
             tmp_version = parse_plugin_config["tmp_version"]
             plugin_config = {}
