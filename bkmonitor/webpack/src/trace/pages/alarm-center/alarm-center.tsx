@@ -47,14 +47,17 @@ import { useAlertDialogs } from './composables/use-alert-dialogs';
 import { useQuickFilter } from './composables/use-quick-filter';
 import { useAlarmTableColumns } from './composables/use-table-columns';
 import {
+  type AlertAllActionEnum,
   type AlertTableItem,
   type CommonCondition,
   AlarmType,
-  AlertAllActionEnum,
+  CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS,
   CONTENT_SCROLL_ELEMENT_CLASS_NAME,
 } from './typings';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
+
+import type { SelectOptions } from '@blueking/tdesign-ui/.';
 
 import './alarm-center.scss';
 export default defineComponent({
@@ -92,6 +95,10 @@ export default defineComponent({
     const isCollapsed = shallowRef(false);
     const alarmId = shallowRef<string>('');
     const alarmDetailShow = shallowRef(false);
+    /** table 选中的 rowKey 数组 */
+    const selectedRowKeys = shallowRef<string[]>([]);
+    /* 是否是所选中告警记录行的关注人 */
+    const isSelectedFollower = shallowRef(false);
     /**
      * @description 检索栏字段列表
      */
@@ -198,7 +205,7 @@ export default defineComponent({
       setUrlParams();
     });
 
-    function setUrlParams(otherParams: Record<string, any> = {}) {
+    function setUrlParams(otherParams: { autoShowAlertAction?: string } = {}) {
       const queryParams = {
         ...route.query,
         from: alarmStore.timeRange[0],
@@ -265,31 +272,6 @@ export default defineComponent({
     }
 
     /**
-     * @description 表格 -- 处理分页变化
-     * @param {number} currentPage 当前页码
-     */
-    function handleCurrentPageChange(currentPage: number) {
-      page.value = currentPage;
-      setUrlParams();
-    }
-    /**
-     * @description 表格 -- 处理分页大小变化
-     * @param {number} size 分页大小
-     */
-    function handlePageSizeChange(size: number) {
-      pageSize.value = size;
-      handleCurrentPageChange(1);
-    }
-    /**
-     * @description 表格 -- 处理排序变化
-     * @param {string} sort 排序字段
-     */
-    function handleSortChange(sort: string) {
-      ordering.value = sort;
-      handleCurrentPageChange(1);
-    }
-
-    /**
      * 展示告警详情
      */
     function handleShowAlertDetail(id: string) {
@@ -306,6 +288,40 @@ export default defineComponent({
       alarmDetailShow.value = show;
     }
 
+    /**
+     * @description 表格 -- 处理分页变化
+     * @param {number} currentPage 当前页码
+     */
+    const handleCurrentPageChange = (currentPage: number) => {
+      page.value = currentPage;
+      setUrlParams();
+    };
+    /**
+     * @description 表格 -- 处理分页大小变化
+     * @param {number} size 分页大小
+     */
+    const handlePageSizeChange = (size: number) => {
+      pageSize.value = size;
+      handleCurrentPageChange(1);
+    };
+    /**
+     * @description 表格 -- 处理排序变化
+     * @param {string} sort 排序字段
+     */
+    const handleSortChange = (sort: string) => {
+      ordering.value = sort;
+      handleCurrentPageChange(1);
+    };
+    /**
+     * @description 表格 -- 处理选中行变化
+     * @param {string[]} keys 选中行 key 数组
+     * @param {SelectOptions} options 当前选中操作相关的信息
+     */
+    const handleSelectedRowKeysChange = (keys?: string[], options?: SelectOptions<any>) => {
+      selectedRowKeys.value = keys ?? [];
+      isSelectedFollower.value = options?.selectedRowData?.some?.(item => item.followerDisabled);
+    };
+
     const handlePreviousDetail = () => {
       const index = data.value.findIndex(item => item.id === alarmId.value);
       alarmId.value = (data.value as AlertTableItem[])[index === 1 ? data.value.length - 1 : index - 1].id;
@@ -319,36 +335,36 @@ export default defineComponent({
     /**
      * @method autoShowAlertDialog 自动打开告警确认 | 告警屏蔽 dialog
      * @description 当移动端的 告警通知 中点击 告警确认 | 告警屏蔽，进入页面时，需要自动打开 告警确认 | 告警屏蔽 dialog
+     * @returns {boolean} 是否自动打开告警确认 | 告警屏蔽 dialog
      */
     const autoShowAlertDialog = () => {
-      // “ack” 是为了兼容旧版本 批量确认 操作的 action_id
-      const batchAction =
-        route?.query?.batchAction === 'ack'
-          ? AlertAllActionEnum.CONFIRM
-          : ((route?.query?.batchAction ?? '') as AlertAllActionEnum);
-      const canAutoShowDialogActionTypes = [AlertAllActionEnum.CONFIRM, AlertAllActionEnum.SHIELD];
-      // const hasActionIdQuery = /((?<!(?:AND\s+NOT|OR)\s+)action_id(?:\s*)(?::)(?:\s*)(?:".+?"))/.test(
-      const hasActionIdQuery = /(^action_id(?:\s*)(?::)(?:\s*)(?:".+?"))/.test(
-        (route?.query?.queryString ?? '') as string
-      );
+      const alertAction = route?.query?.autoShowAlertAction as AlertAllActionEnum;
+      const isCanAutoShowAlertDialog = CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS.includes(alertAction);
       if (
+        alarmStore.alarmType !== AlarmType.ALERT ||
         !data.value?.length ||
         alertDialogShow.value ||
-        !hasActionIdQuery ||
-        !canAutoShowDialogActionTypes.includes(batchAction)
-      )
-        return;
-
-      // TODO : 还需补充自动打开dialog逻辑，并需将 table 组件的selectedRowKeys相关的属性及逻辑提取出来
+        !isCanAutoShowAlertDialog
+      ) {
+        return false;
+      }
+      const alertIds = data.value.map(item => item.id as string);
+      handleSelectedRowKeysChange(alertIds, {
+        type: 'check',
+        selectedRowData: data.value,
+      });
+      handleAlertDialogShow(alertAction, selectedRowKeys.value);
+      return true;
     };
 
     watch(
       () => data.value,
       () => {
-        autoShowAlertDialog();
+        if (autoShowAlertDialog()) return;
+        // 如非自动打开dialog，则清空selectedRowKeys
+        handleSelectedRowKeysChange();
       }
     );
-
     onBeforeMount(() => {
       getUrlParams();
       setUrlParams();
@@ -365,6 +381,8 @@ export default defineComponent({
       pageSize,
       ordering,
       tableSourceColumns,
+      selectedRowKeys,
+      isSelectedFollower,
       storageColumns,
       allTableFields,
       lockedTableFields,
@@ -380,6 +398,8 @@ export default defineComponent({
       alertDialogBizId,
       alertDialogIds,
       alertDialogParam,
+      setUrlParams,
+      handleSelectedRowKeysChange,
       handleAlertDialogShow,
       handleAlertDialogHide,
       handleAlertDialogConfirm,
@@ -475,7 +495,9 @@ export default defineComponent({
                         }}
                         columns={this.tableSourceColumns}
                         data={this.data}
+                        isSelectedFollower={this.isSelectedFollower}
                         loading={this.loading}
+                        selectedRowKeys={this.selectedRowKeys}
                         sort={this.ordering}
                         onCurrentPageChange={this.handleCurrentPageChange}
                         onDisplayColFieldsChange={displayColFields => {
@@ -483,6 +505,7 @@ export default defineComponent({
                         }}
                         onOpenAlertDialog={this.handleAlertDialogShow}
                         onPageSizeChange={this.handlePageSizeChange}
+                        onSelectionChange={this.handleSelectedRowKeysChange}
                         onShowActionDetail={this.handleShowActionDetail}
                         onShowAlertDetail={this.handleShowAlertDetail}
                         onSortChange={sort => this.handleSortChange(sort as string)}
@@ -514,7 +537,10 @@ export default defineComponent({
           dialogType={this.alertDialogType}
           show={this.alertDialogShow}
           onConfirm={this.handleAlertDialogConfirm}
-          onUpdate:show={this.handleAlertDialogHide}
+          onUpdate:show={() => {
+            this.handleAlertDialogHide();
+            this.setUrlParams({ autoShowAlertAction: '' });
+          }}
         />
       </div>
     );

@@ -24,8 +24,16 @@
  * IN THE SOFTWARE.
  */
 
+import { type AlertAllActionEnum } from './constants';
+
 import type { TableCol } from '@blueking/tdesign-ui';
 import type { SlotReturnValue } from 'tdesign-vue-next';
+
+/** 告警场景表格 行操作栏 可操作按钮项枚举类型 */
+export type AlertRowOperationAction = Exclude<AlertAllActionEnum, AlertAllActionEnum.CANCEL>;
+
+/** 告警场景表格 批量操作栏 可操作按钮项枚举类型 */
+export type AlertSelectBatchAction = Exclude<AlertAllActionEnum, AlertAllActionEnum.MANUAL_HANDLING>;
 
 // 表格列字段
 export type TableColumnItem<T = any> = {
@@ -52,6 +60,5 @@ export interface TablePagination {
   /** 总数 */
   total: number;
 }
-
 /** 表格通用渲染函数类型 */
 export type TableRenderer<T = undefined> = T extends undefined ? () => SlotReturnValue : (props?: T) => SlotReturnValue;
