@@ -211,6 +211,18 @@ class ClusteringConfigHandler:
             UpdateOnlineService,
         )
 
+        log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+
+        if log_index_set.scenario_id == Scenario.LOG:
+            # 小型化链路
+            use_mini_link = FeatureToggleObject.switch(
+                MINI_CLUSTERING_CONFIG, biz_id=space_uid_to_bk_biz_id(log_index_set.space_uid)
+            )
+            if use_mini_link:
+                from apps.log_clustering.handlers.mini_link import MiniLinkAccessHandler
+
+                return MiniLinkAccessHandler(index_set_id=self.index_set_id).access(params)
+
         params = {
             "index_set_id": self.index_set_id,
             "params": params,

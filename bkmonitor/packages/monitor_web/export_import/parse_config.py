@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import abc
 import json
+import logging
 from pathlib import Path
 
 import yaml
@@ -22,6 +23,9 @@ from core.errors.plugin import PluginParseError
 from monitor_web.export_import.constant import ImportDetailStatus
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, Signature
 from monitor_web.plugin.manager import PluginManagerFactory
+
+
+logger = logging.getLogger("monitor_web")
 
 
 class BaseParse:
@@ -87,6 +91,9 @@ class CollectConfigParse(BaseParse):
                 "error_msg": _("缺少依赖的插件"),
             }
         parse_plugin_config = self.parse_plugin_msg(plugin_id)
+        # 只在失败情况下才需要添加 collect_config 键，因为成功时没有 config 键
+        if "config" in parse_plugin_config:
+            parse_plugin_config["collect_config"] = parse_plugin_config["config"]
         if parse_plugin_config.get("tmp_version"):
             tmp_version = parse_plugin_config["tmp_version"]
             plugin_config = {}
@@ -118,24 +125,25 @@ class CollectConfigParse(BaseParse):
         """获取 meta.yaml 的路径"""
         meta_path = ""
         for file_path in self.plugin_configs.keys():
-            try:
-                if (
-                    Path(file_path).parts[1] == plugin_id
-                    and file_path.parent.name == "info"
-                    and file_path.name == "meta.yaml"
-                ):
-                    meta_path = file_path
-                    break
-            except IndexError:
-                continue
+            if (
+                str(file_path).split("/")[0] == plugin_id
+                and file_path.parent.name == "info"
+                and file_path.name == "meta.yaml"
+            ):
+                meta_path = file_path
+                break
         return meta_path
 
     def parse_plugin_msg(self, plugin_id):
         meta_path = self.get_meta_path(plugin_id)
 
         if not meta_path:
-            return {"error_msg": _("关联插件信息不完整,缺少'meta.yaml'文件路径")}
-
+            return {
+                "file_status": ImportDetailStatus.FAILED,
+                "name": self.file_content.get("name"),
+                "config": self.file_content,
+                "error_msg": _("关联插件信息不完整"),
+            }
         try:
             meta_content = self.plugin_configs[meta_path]
             meta_dict = yaml.load(meta_content, Loader=yaml.FullLoader)
@@ -162,23 +170,20 @@ class CollectConfigParse(BaseParse):
 
             tmp_version = import_manager.get_tmp_version(info_path=info_path)
             return {"tmp_version": tmp_version}
-        except Exception:
+        except Exception as e:
             return {
                 "file_status": ImportDetailStatus.FAILED,
                 "name": self.file_content.get("name"),
                 "config": self.file_content,
-                "error_msg": _("关联插件信息解析失败"),
+                "error_msg": _("关联插件信息解析失败: {e}".format(e=e)),
             }
 
     def get_filename_list(self, plugin_id: str) -> list[Path]:
         """获取插件的文件列表"""
         filename_list = []
         for file_path in self.plugin_configs.keys():
-            try:
-                if Path(file_path).parts[1] == plugin_id:
-                    filename_list.append(file_path)
-            except IndexError:
-                continue
+            if str(file_path).split("/")[0] == plugin_id:
+                filename_list.append(file_path)
 
         return filename_list
 
@@ -188,12 +193,9 @@ class CollectConfigParse(BaseParse):
         """
         result = False
         for config_path in self.plugin_configs.keys():
-            try:
-                if Path(config_path).parts[1] == plugin_id:
-                    result = True
-                    break
-            except IndexError:
-                continue
+            if str(config_path).split("/")[0] == plugin_id:
+                result = True
+                break
         return result
 
 
