@@ -36,11 +36,9 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         """
         获取日志聚合总条数
         """
-        search_dict = copy.deepcopy(self.base_dict)
+        search_dict = copy.deepcopy(self.result_merge_base_dict)
         for query in search_dict["query_list"]:
             query["function"] = [{"method": "count"}]
-            query["reference_name"] = "a"
-        search_dict.update({"metric_merge": "a"})
         data = self.query_ts_reference(search_dict)
         return self.handle_count_data(data)
 
@@ -48,7 +46,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         """
         获取字段存在的聚合总条数
         """
-        search_dict = copy.deepcopy(self.base_dict)
+        search_dict = copy.deepcopy(self.result_merge_base_dict)
         for query in search_dict["query_list"]:
             query["function"] = [{"method": "count"}]
             # 增加字段不为空的条件
@@ -57,8 +55,6 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             query["conditions"]["field_list"].append(
                 {"field_name": self.search_params["agg_field"], "value": [""], "op": "ne"}
             )
-            query["reference_name"] = "a"
-        search_dict.update({"metric_merge": "a"})
         data = self.query_ts_reference(search_dict)
         return self.handle_count_data(data)
 
@@ -66,7 +62,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         """
         根据聚合桶大小计算字段聚合数
         """
-        search_dict = copy.deepcopy(self.base_dict)
+        search_dict = copy.deepcopy(self.result_merge_base_dict)
         for query in search_dict["query_list"]:
             query["function"] = [{"method": "count"}]
             if len(query["conditions"]["field_list"]) > 0:
@@ -79,8 +75,6 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
                     {"field_name": self.search_params["agg_field"], "value": [str(end)], "op": "lte"},
                 ]
             )
-            query["reference_name"] = "a"
-        search_dict.update({"metric_merge": "a"})
         data = self.query_ts_reference(search_dict)
         return self.handle_count_data(data)
 
@@ -112,7 +106,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         获取topk时序数据，默认为前5
         """
         topk_group_values = [group[0] for group in self.get_topk_list()]
-        search_dict = copy.deepcopy(self.base_dict)
+        search_dict = copy.deepcopy(self.result_merge_base_dict)
         for query in search_dict["query_list"]:
             query["time_aggregation"] = {"function": "count_over_time", "window": search_dict["step"]}
             query["function"] = [
@@ -130,7 +124,6 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             query["conditions"]["field_list"].append(
                 {"field_name": "time", "value": [search_dict["end_time"]], "op": "lte"}
             )
-            query["reference_name"] = "a"
         search_dict.update({"metric_merge": f"topk({vargs}, a)"})
         data = self.query_ts(search_dict)
         return data
@@ -158,7 +151,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         """
         获取topk聚合字段列表，默认为前5
         """
-        search_dict = copy.deepcopy(self.base_dict)
+        search_dict = copy.deepcopy(self.result_merge_base_dict)
         for query in search_dict["query_list"]:
             query["limit"] = limit * 2 + 10
             query["function"] = [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
@@ -168,8 +161,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             query["conditions"]["field_list"].append(
                 {"field_name": self.search_params["agg_field"], "value": [""], "op": "ne"}
             )
-            query["reference_name"] = "a"
-        search_dict.update({"order_by": ["-_value"], "metric_merge": "a"})
+        search_dict.update({"order_by": ["-_value"]})
         data = self.query_ts_reference(search_dict)
         return [
             [s["group_values"][0], s["values"][0][1]]
