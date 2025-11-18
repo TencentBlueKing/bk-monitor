@@ -22,7 +22,9 @@ from ai_agent.services.metrics_reporter import (
     extract_agent_code_from_request,
     ai_enhanced_streaming_metrics,
 )
+from ai_agent.core.custom_config_manager import get_mcp_access_token
 from core.prometheus import metrics
+from blueapps.utils.request_provider import get_local_request
 
 logger = logging.getLogger("ai_whale")
 
@@ -339,3 +341,16 @@ class CreateChatCompletionResource(Resource):
             temperature=settings.AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE,
             switch_agent_by_scene=switch_agent_by_scene,
         )
+
+
+# -------------------- 凭证管理 -------------------- #
+class GetMCPAccessTokenResource(Resource):
+    """
+    获取MCP AccessToken
+    """
+
+    def perform_request(self, validated_request_data):
+        request = get_local_request()
+        username = get_request_username()
+        logger.info("GetMCPAccessTokenResource: try to get mcp access token, username->[%s]", username)
+        return {"access_token": get_mcp_access_token(request=request)}
