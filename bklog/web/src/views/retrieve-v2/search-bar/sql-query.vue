@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted, computed, onBeforeUnmount } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash-es';
@@ -16,7 +16,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['retrieve', 'input', 'change', 'height-change', 'popup-change']);
+const emit = defineEmits(['retrieve', 'input', 'change', 'height-change', 'popup-change', 'text-to-query']);
 const handleHeightChange = (height) => {
   emit('height-change', height);
 };
@@ -230,6 +230,16 @@ const createEditorInstance = () => {
 const handleCustomPlaceholderClick = () => {
 };
 
+/**
+ * @description 处理自然语言转查询语句
+ * @param value {string}
+ * @returns {void}
+ */
+const handleTextToQuery = (value) => {
+  emit('text-to-query', value ?? modelValue.value);
+  hideTippyInstance();
+};
+
 onMounted(() => {
   createEditorInstance();
   document.addEventListener('click', handleDocumentClick);
@@ -272,6 +282,7 @@ onBeforeUnmount(() => {
         @cancel="handleCancel"
         @change="handleQueryChange"
         @retrieve="closeAndRetrieve"
+        @text-to-query="handleTextToQuery"
       />
     </div>
   </div>

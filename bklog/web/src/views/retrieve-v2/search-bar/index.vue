@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -16,22 +16,22 @@ import BookmarkPop from './bookmark-pop';
 import { ConditionOperator } from '@/store/condition-operator';
 import { bkMessage } from 'bk-magic-vue';
 
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import RequestPool from '@/store/request-pool';
 import $http from '../../../api';
 import { copyMessage } from '../../../common/util';
 import useResizeObserve from '../../../hooks/use-resize-observe';
+import {
+  clearStorageCommonFilterAddition,
+  getCommonFilterAddition,
+} from '../../../store/helper';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import CommonFilterSelect from './common-filter-select.vue';
 import { withoutValueConditionList } from './const.common';
 import SqlQuery from './sql-query';
 import UiInput from './ui-input';
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import {
-  getCommonFilterAddition,
-  clearStorageCommonFilterAddition,
-} from '../../../store/helper';
-import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
-import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
-import RequestPool from '@/store/request-pool';
 
 const props = defineProps({
   // activeFavorite: {
@@ -61,7 +61,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['refresh', 'height-change', 'search', 'mode-change']);
+const emit = defineEmits(['refresh', 'height-change', 'search', 'mode-change', 'text-to-query']);
 const store = useStore();
 const { $t } = useLocale();
 const queryTypeList = ref([$t('UI 模式'), $t('语句模式')]);
@@ -628,6 +628,10 @@ const getRect = () => {
   return refRootElement.value?.querySelector('.search-input-section')?.getBoundingClientRect();
 };
 
+const handleTextToQuery = (value) => {
+  emit('text-to-query', value);
+};
+
 defineExpose({
   setLocalMode: (val) => {
     localModeActiveIndex.value = val;
@@ -709,6 +713,7 @@ defineExpose({
           class="search-input-section"
           @retrieve="handleSqlRetrieve"
           @change="handleSqlQueryChange"
+          @text-to-query="handleTextToQuery"
         >
           <template #custom-placeholder="{ isEmptyText }">
             <slot

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, ref, watch, nextTick, Ref, ComputedRef } from 'vue';
+import { ComputedRef, Ref, computed, nextTick, ref, watch } from 'vue';
 
 import useFieldNameHook from '@/hooks/use-field-name';
 // @ts-ignore
@@ -11,11 +11,12 @@ import jsCookie from 'js-cookie';
 // @ts-ignore
 import { debounce } from 'lodash-es';
 
+import { getOsCommandLabel } from '@/common/util';
+import useFieldEgges from '@/hooks/use-field-egges';
+import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
+import { FieldInfoItem } from '@/store/store.type';
 import { excludesFields } from './const.common'; // @ts-ignore
 import FavoriteList from './favorite-list';
-import useFieldEgges from '@/hooks/use-field-egges';
-import { FieldInfoItem } from '@/store/store.type';
-
 
 const props = defineProps({
   value: {
@@ -29,12 +30,12 @@ const props = defineProps({
   },
 });
 
-const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change']);
+const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change', 'text-to-query']);
 
 const store = useStore();
 const { $t } = useLocale();
 const { getQualifiedFieldName, getQualifiedFieldAttrs } = useFieldNameHook({ store });
-
+const shortCutText = ref(`${getOsCommandLabel()}+Enter`);
 // eslint-disable-next-line no-unused-vars
 enum OptionItemType {
   // eslint-disable-next-line no-unused-vars
@@ -77,6 +78,22 @@ const getNumTypeFieldList = computed(() => {
   return totalFields.value
     .filter(item => ['long', 'integer', 'float'].includes(item.field_type))
     .map(item => item.field_name);
+});
+
+/**
+ * @description 是否显示 AI 助手
+ * @returns {boolean}
+ */
+const showAiAssistant = computed(() => {
+  return props.value.length > 0;
+});
+
+/**
+ * @description AI 预览文本
+ * @returns {string}
+ */
+const aiPreviewText = computed(() => {
+  return props.value;
 });
 
 /** 所有字段的字段名 */
@@ -335,10 +352,9 @@ const setNextActive = () => {
 };
 
 /**
-   * 选择某个可选字段
-   * @param {string} field
-   */
-
+ * 选择某个可选字段
+ * @param {string} field
+ */
 const handleClickField = (field: string) => {
   const sqlValue = getFocusLeftValue();
   const lastFieldStr = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
@@ -456,6 +472,11 @@ const handleKeydown = (e: {
   const dropdownList = dropdownEl.querySelectorAll('.list-item');
   const hasHover = dropdownEl.querySelector('.list-item.is-hover');
   if (code === 'NumpadEnter' || code === 'Enter') {
+    if (hasHover?.classList?.contains('ai-assistant-list-item')) {
+      emits('text-to-query', props.value);
+      return;
+    }
+
     if (activeIndex.value !== null) {
       stopEventPreventDefault(e);
       if (hasHover && !activeIndex.value) {
@@ -580,6 +601,15 @@ const debounceUpdate = debounce(() => {
 const fieldNameShow = (item) => {
   return getQualifiedFieldName(item, totalFields.value);
 };
+
+/**
+ * @description 点击 AI 助手
+ */
+const handleAiAssistantClick = () => {
+  emits('text-to-query', props.value);
+  
+};
+
 defineExpose({
   beforeShowndFn,
   beforeHideFn,
@@ -606,6 +636,13 @@ watch(activeIndex, () => {
         v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
         :class="['sql-query-options', { 'is-loading': isRequesting }]"
       >
+       <template v-if="showAiAssistant">
+        <li class="ai-assistant-list-item" @click="handleAiAssistantClick" :data-short-cut-text="shortCutText">
+          <span class="item-img-wrapper"><img :src="aiBluekingSvg" width="18" height="18"></img></span>
+          <span class="item-text-label">AI 搜索:</span>
+          <span class="item-text-value">{{ aiPreviewText}}</span>
+        </li>
+       </template>
         <!-- 字段列表 -->
         <template v-if="showOption.showFields">
           <div class="control-list">
