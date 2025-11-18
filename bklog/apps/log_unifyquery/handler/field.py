@@ -12,7 +12,7 @@ from apps.log_unifyquery.handler.base import UnifyQueryHandler
 import copy
 
 from apps.log_search.constants import MAX_FIELD_VALUE_LIST_NUM
-from apps.log_unifyquery.constants import FLOATING_NUMERIC_FIELD_TYPES
+from apps.log_unifyquery.constants import FLOATING_NUMERIC_FIELD_TYPES, AggTypeEnum
 from apps.utils.log import logger
 
 
@@ -140,15 +140,18 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
         获取不同聚合方法计算出的字段数量
         """
         search_dict = copy.deepcopy(self.base_dict)
-        search_dict.update({"metric_merge": "a"})
+        reference_name_list = list()
         for query in search_dict["query_list"]:
-            # 中位数聚合方法默认使用P50
-            if agg_method == "median":
-                query["function"] = [{"method": "percentiles", "vargs_list": [50]}]
-            else:
-                query["function"] = [{"method": agg_method}]
+            query["field_name"] = self.search_params["agg_field"]
+            query["function"] = [{"method": "count", "dimensions": [self.search_params["agg_field"]]}]
+            reference_name_list.append(query["reference_name"])
+
+        search_dict.update({"metric_merge": " or ".join(reference_name_list)})
         data = self.query_ts_reference(search_dict)
-        return self.handle_count_data(data, digits=2)
+
+        field_value_list = self.get_field_value_list(data.get("series", []))
+
+        return self.by_agg_method(field_value_list, agg_method)
 
     def get_topk_list(self, limit: int = 5):
         """
@@ -212,3 +215,35 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
             bucket_count = self.get_bucket_count(start, end)
             bucket_data.append([start, bucket_count])
         return bucket_data
+
+    @staticmethod
+    def by_agg_method(agg_field_value_list: list, agg_method: str):
+        if not agg_field_value_list:
+            return 0
+
+        if agg_method == AggTypeEnum.MAX.value:
+            return max(agg_field_value_list)
+        elif agg_method == AggTypeEnum.MIN.value:
+            return min(agg_field_value_list)
+        elif agg_method == AggTypeEnum.AVG.value:
+            return round(sum(agg_field_value_list) / len(agg_field_value_list), 2)
+        elif agg_method == AggTypeEnum.MEDIAN.value:
+            sorted_list = sorted(agg_field_value_list)
+            n = len(sorted_list)
+            if n % 2 == 1:
+                return sorted_list[n // 2]
+            else:
+                return sorted_list[n // 2 - 1]
+
+    @staticmethod
+    def get_field_value_list(series: list):
+        field_value_list = list()
+        for item in series:
+            group_values = item.get("group_values", [])
+            if group_values:
+                try:
+                    agg_value = float(group_values[0])
+                    field_value_list.append(agg_value)
+                except (ValueError, IndexError):
+                    continue
+        return field_value_list
