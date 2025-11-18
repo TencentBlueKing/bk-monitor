@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import abc
 import json
+import logging
 from pathlib import Path
 
 import yaml
@@ -22,6 +23,9 @@ from core.errors.plugin import PluginParseError
 from monitor_web.export_import.constant import ImportDetailStatus
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta, Signature
 from monitor_web.plugin.manager import PluginManagerFactory
+
+
+logger = logging.getLogger("monitor_web")
 
 
 class BaseParse:
@@ -166,7 +170,8 @@ class CollectConfigParse(BaseParse):
 
             tmp_version = import_manager.get_tmp_version(info_path=info_path)
             return {"tmp_version": tmp_version}
-        except Exception:
+        except Exception as e:
+            logger.error(f"关联插件信息解析失败: {e}")
             return {
                 "file_status": ImportDetailStatus.FAILED,
                 "name": self.file_content.get("name"),
