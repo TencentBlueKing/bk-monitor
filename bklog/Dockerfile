@@ -3,7 +3,7 @@ ARG PYTHON_BASE_IMAGE=tencentos/tencentos4-minimal:4.4-v20250922
 FROM ${PYTHON_BASE_IMAGE} as builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-RUN dnf install -y curl vim
+RUN dnf install -y curl vim gcc gcc-c++ python3-devel make
 
 COPY . /app/code
 
