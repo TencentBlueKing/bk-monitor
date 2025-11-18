@@ -51,6 +51,17 @@ logger = logging.getLogger("metadata")
 
 
 class TimeSeriesGroup(CustomGroupBase):
+    """
+    自定义时序数据源
+
+    tips: 历史已将表取名为 Group 后缀，这里暂时保留不做变更，实际的指标分组是记录在 TimeSeriesScope 表中
+
+    整体的逻辑关系如下：
+
+    TimeSeriesGroup  ->  TimeSeriesScope ->  TimeSeriesMetric
+    数据源                指标分组              指标
+    """
+
     time_series_group_id = models.AutoField(verbose_name="分组ID", primary_key=True)
     time_series_group_name = models.CharField(verbose_name="自定义时序分组名", max_length=255)
 
@@ -930,9 +941,39 @@ class TimeSeriesGroup(CustomGroupBase):
         return True
 
 
+class TimeSeriesScope(models.Model):
+    """
+    自定义时序指标分组
+    """
+
+    DimensionConfigFields = [
+        "desc",  # 字段描述
+        "common",  # 常用维度
+        "hidden",  # 显隐
+    ]
+
+    # group_id 来自于 TimeSeriesGroup.time_series_group_id，关联数据源
+    group_id = models.IntegerField(verbose_name="自定义时序数据源ID", db_index=True)
+
+    scope_name = models.CharField(verbose_name="指标分组名", max_length=255, db_collation="utf8_bin")
+
+    # 维度字段配置，可配置的选项，需要在 DimensionConfigFields 中定义
+    dimension_config = models.JSONField(verbose_name="分组下的维度配置", default={})
+
+    manual_list = JsonField("手动分组的指标列表", default=[])
+    auto_rules = JsonField("自动分组的匹配规则列表", default=[])
+
+    last_modify_time = models.DateTimeField(verbose_name="最后更新时间", auto_now=True)
+
+    class Meta:
+        unique_together = ("group_id", "scope_name")
+        verbose_name = "自定义时序数据分组记录"
+        verbose_name_plural = "自定义时序数据分组记录表"
+
+
 class TimeSeriesMetric(models.Model):
-    """自定义时序schema描述
-    field: [tag1, tag2...]
+    """
+    自定义时序指标表
     """
 
     TARGET_DIMENSION_NAME = "target"
@@ -946,22 +987,41 @@ class TimeSeriesMetric(models.Model):
         "description",
         "is_disabled",
     )
-    # group_id来自于TimeSeriesGroup.time_series_group_id,类似于UUID用法
 
-    group_id = models.IntegerField(verbose_name="自定义时序所属分组ID", db_index=True)
+    MetricConfigFields = [
+        "desc",  # 别名
+        "unit",  # 单位
+        "hidden",  # 显隐
+        "aggregate_method",  # 常用聚合方法
+        "function",  # 常用聚合函数
+        "interval",  # 默认聚合周期
+    ]
+
+    field_id = models.AutoField(verbose_name="字段ID", primary_key=True)
+
+    # group_id 来自于 TimeSeriesGroup.time_series_group_id，关联数据源
+    group_id = models.IntegerField(verbose_name="自定义时序数据源ID", db_index=True)
     table_id = models.CharField(verbose_name="table名", default="", max_length=255)
 
-    field_id = models.AutoField(verbose_name="自定义时序字段ID", primary_key=True)
-    field_name = models.CharField(verbose_name="自定义时序字段名称", max_length=255, db_collation="utf8_bin")
-    tag_list = JsonField(verbose_name="Tag列表", default=[])
+    field_scope = models.CharField(
+        verbose_name="指标字段分组", default="default", max_length=255, db_collation="utf8_bin"
+    )
+    field_name = models.CharField(verbose_name="指标字段名称", max_length=255, db_collation="utf8_bin")
+    tag_list = JsonField(verbose_name="指标维度列表", default={})
+
+    # 字段其他配置，可配置的字段 key 需要在 MetricConfigFields 中定义
+    field_config = models.JSONField(verbose_name="字段其他配置", default=dict)
+
     last_modify_time = models.DateTimeField(verbose_name="最后更新时间", auto_now=True)
-    last_index = models.IntegerField(verbose_name="上次consul的modify_index", default=0)
 
     label = models.CharField(verbose_name="指标监控对象", default="", max_length=255, db_index=True)
 
+    # 已废弃，已转为从 bkbase 获取数据，consul 会逐步下线
+    last_index = models.IntegerField(verbose_name="上次consul的modify_index", default=0)
+
     class Meta:
-        # 同一个事件分组下，不可以存在同样的事件名称
-        unique_together = ("group_id", "field_name")
+        # 同一个数据源，同一个分组下，不可以存在同样的指标字段名称
+        unique_together = ("group_id", "field_scope", "field_name")
         verbose_name = "自定义时序描述记录"
         verbose_name_plural = "自定义时序描述记录表"
 
