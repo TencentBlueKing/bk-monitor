@@ -21,7 +21,9 @@
         align-items: center;
 
         .bk-checkbox {
+          margin-right: 24px;
           margin-bottom: 4px;
+          margin-left: 0;
 
           .bk-checkbox-label {
             font-size: 12px;
@@ -34,7 +36,7 @@
   .log-list {
     display: flex;
     flex-direction: column;
-    padding: 20px 20px 10px 55px;
+    padding: 24px 24px 24px 40px;
     font-size: 12px;
     color: #63656e;
     background-color: #fff;
@@ -73,7 +75,7 @@
           margin-right: 10px;
           font-size: 16px;
           color: #fff;
-          background-color: #c4c6cc;
+          background-color: #A3B1CC;
           border-radius: 50%;
         }
       }
@@ -86,7 +88,8 @@
         border-left: 2px solid #dcdee5;
 
         &-desc {
-          margin-bottom: 16px;
+          margin-bottom: 11px;
+          line-height: 20px;
 
           .tip-dashed {
             padding-bottom: 2px;
@@ -173,12 +176,8 @@
         }
 
         .item-border {
-          position: absolute;
-          right: 20px;
-          bottom: 7px;
-          left: 24px;
           height: 0;
-          border: 1px dashed #dcdee5;
+          border: 1px dashed #EAEBF0;
         }
       }
     }
@@ -198,6 +197,24 @@
       .loading-img {
         width: 16px;
         margin-right: 5px;
+      }
+    }
+  }
+
+  .skeleton-list-wrap {
+    padding: 24px;
+
+    .skeleton-list-item {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 24px;
+
+      .left-item {
+       margin-right: 8px; 
+      }
+
+      .right-item {
+        flex: 1;
       }
     }
   }

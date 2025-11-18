@@ -1,9 +1,15 @@
 /* stylelint-disable selector-class-pattern */
 .alarm-center-detail-box {
+  position: relative;
   background: #fff;
 
   .panel-tab {
-    box-shadow: 0 0 12px 0 #00000014;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #fff;
+    box-shadow: 0 0 12px 0 rgb(0 0 0 / 7.84%);
+    opacity: 1;
 
     .bk-tab-header--active {
       font-weight: 700;

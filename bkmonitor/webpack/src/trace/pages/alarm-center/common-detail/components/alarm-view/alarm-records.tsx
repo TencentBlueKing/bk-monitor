@@ -343,6 +343,16 @@ export default defineComponent({
     };
 
     /**
+     * @description 节点过滤选中项改变处理
+     * @param val 选中项
+     */
+    const handleCheckedChange = (val: string[]) => {
+      checked.value = val;
+      recordDataReset();
+      handleGetLogList();
+    };
+
+    /**
      * @description 告警记录数据列表折叠前处理
      */
     watch(
@@ -376,6 +386,7 @@ export default defineComponent({
       beforeCollapseChange,
       handleNoticeDetail,
       openLink,
+      handleCheckedChange,
       t,
     };
   },
@@ -541,7 +552,10 @@ export default defineComponent({
         <div class='alarm-records-header'>
           <span class='header-title'>{this.t('节点过滤')}</span>
           <span class='header-options'>
-            <Checkbox.Group modelValue={this.checked}>
+            <Checkbox.Group
+              modelValue={this.checked}
+              onChange={this.handleCheckedChange}
+            >
               {this.circulationFilter.map(item => (
                 <Checkbox
                   key={item.id}
@@ -553,25 +567,53 @@ export default defineComponent({
             </Checkbox.Group>
           </span>
         </div>
-        <ul class='log-list'>
-          {this.recordData.list.length > 0 ? (
-            this.recordData.list.map((item, index) => (
-              <li
+        {this.recordData.loading ? (
+          <div class='skeleton-list-wrap'>
+            {new Array(3).fill(0).map((_item, index) => (
+              <div
                 key={index}
-                style={{ display: !item.show ? 'none' : 'flex' }}
-                class='log-list-item'
+                class='skeleton-list-item'
               >
-                {getTitleComponent(item)}
-                {getContentComponent(item)}
-              </li>
-            ))
-          ) : (
-            <EmptyStatus
-              type={this.emptyType}
-              // onOperation={this.handleOperation}
-            />
-          )}
-        </ul>
+                <div class='left-item'>
+                  <div
+                    style='height: 30px; width: 30px; border-radius: 50%;'
+                    class='skeleton-element'
+                  />
+                </div>
+                <div class='right-item'>
+                  <div
+                    style='height: 20px; width:175px; margin-bottom: 4px;'
+                    class='skeleton-element'
+                  />
+                  <div
+                    style='height: 20px; width: auto;'
+                    class='skeleton-element'
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <ul class='log-list'>
+            {this.recordData.list.length > 0 ? (
+              this.recordData.list.map((item, index) => (
+                <li
+                  key={index}
+                  style={{ display: !item.show ? 'none' : 'flex' }}
+                  class='log-list-item'
+                >
+                  {getTitleComponent(item)}
+                  {getContentComponent(item)}
+                </li>
+              ))
+            ) : (
+              <EmptyStatus
+                type={this.emptyType}
+                // onOperation={this.handleOperation}
+              />
+            )}
+          </ul>
+        )}
         <div
           ref='scrollLoading'
           style={{ display: this.recordData.list.length ? 'flex' : 'none' }}
