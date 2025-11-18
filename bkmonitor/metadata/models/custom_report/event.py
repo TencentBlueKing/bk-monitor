@@ -332,6 +332,7 @@ class EventGroup(CustomGroupBase):
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
             additional_options=additional_options,
+            bk_biz_id_alias="dimensions.bk_biz_id",
         )
 
         return group
