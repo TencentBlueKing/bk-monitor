@@ -60,6 +60,7 @@ class LogCollectorHandler:
                     "scenario_id": scenario_id,
                     "scenario_name": scenario_choices.get(scenario_id, ""),
                     "status_name": item.get("status_name", ""),
+                    "environment": item.get("environment", ""),
                     "parent_index_sets": item.get("parent_index_sets", []),
                 }
             )
