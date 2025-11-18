@@ -111,6 +111,19 @@ class ValidateCustomEventGroupLabel(Resource):
         if not self.label_pattern.match(validated_request_data["data_label"]):
             raise CustomValidationLabelError(msg=_("自定义事件英文名允许包含字母、数字、下划线，且必须以字母开头"))
 
+        queryset = CustomEventGroup.objects.filter(
+            bk_tenant_id=get_request_tenant_id(),
+            bk_biz_id=validated_request_data["bk_biz_id"],
+            type=EVENT_TYPE.CUSTOM_EVENT,
+            data_label=validated_request_data["data_label"],
+        )
+
+        if validated_request_data.get("bk_event_group_id"):
+            queryset = queryset.exclude(bk_event_group_id=validated_request_data["bk_event_group_id"])
+
+        if queryset.exists():
+            raise CustomValidationLabelError(msg=_("自定义事件数据标签已存在"))
+
         return True
 
 
