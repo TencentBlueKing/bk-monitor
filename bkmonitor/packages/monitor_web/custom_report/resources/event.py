@@ -408,6 +408,7 @@ class CreateCustomEventGroup(Resource):
             event_group_name=validated_request_data["name"],
             label=validated_request_data["scenario"],
             event_info_list=[],
+            data_label=validated_request_data["data_label"],
         )
 
         # 4. 结果回写数据库
@@ -477,16 +478,33 @@ class ModifyCustomEventGroup(Resource):
             "is_enable": params.get("is_enable"),
             "event_info_list": [],
         }
+
+        # 如果数据标签有修改，则调用接口修改数据标签
+        if params.get("data_label") is not None:
+            modify_params["data_label"] = params["data_label"]
+
         modify_params = {key: value for key, value in list(modify_params.items()) if value is not None}
         group_info = api.metadata.modify_event_group(modify_params)
 
-        # 2. 结果回写数据库
+        # 2. 如果平台级有修改，则调用接口修改平台级
+        if params.get("is_platform") is not None:
+            data_id_info = api.metadata.get_data_id(bk_data_id=group.bk_data_id, with_rt_info=False)
+            # 如果数据源平台级与修改后的平台级不一致，则调用接口修改平台级
+            if data_id_info["is_platform_data_id"] != params["is_platform"]:
+                api.metadata.modify_data_id(
+                    bk_tenant_id=get_request_tenant_id(),
+                    bk_data_id=group.bk_data_id,
+                    is_platform_data_id=params["is_platform"],
+                    operator=get_request_username() or settings.COMMON_USERNAME,
+                )
+
+        # 3. 结果回写数据库
         group.scenario = group_info["label"]
         group.name = group_info["event_group_name"]
         group.is_enable = group_info["is_enable"]
-        if params.get("is_platform"):
+        if params.get("is_platform") is not None:
             group.is_platform = params["is_platform"]
-        if params.get("data_label"):
+        if params.get("data_label") is not None:
             group.data_label = params["data_label"]
         group.save()
         return {"bk_event_group_id": group.bk_event_group_id}
