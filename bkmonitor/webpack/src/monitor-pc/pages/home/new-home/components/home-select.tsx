@@ -33,6 +33,8 @@ import { random } from 'monitor-common/utils/utils';
 import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
 
 import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
+import aiWhaleSrc from '../../../../static/images/png/ai-whale-new.png';
+import aiWhaleStore from '../../../../store/modules/ai-whale';
 import reportLogStore from '../../../../store/modules/report-log';
 import { ESearchPopoverType, ESearchType, flattenRoute, highLightContent } from '../utils';
 
@@ -127,6 +129,11 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       styles: SPACE_TYPE_MAP[key]?.light || {},
       list: this.$store.getters.bizList.filter(item => item.space_type_id === key).map(item => item.bk_biz_id),
     }));
+  }
+
+  /* 展示AI小鲸输入框 */
+  get enableAiAssistant() {
+    return aiWhaleStore.enableAiAssistant;
   }
 
   mounted() {
@@ -265,7 +272,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
         this.searchList = this.updateSearchList(this.searchList, parsedData);
         this.searchList.map(item => this.searchLenArr.push(item.items.length));
         /** 默认选中第一个，直接回车的话就按照第一个跳转 */
-        this.highlightedIndex = [0, 0];
+        /** this.highlightedIndex = [0, 0]; */
         this.getSearchHightItem();
       }
     } catch (error) {
@@ -273,6 +280,8 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       this.searchList = [];
       console.error('Error parsing event string:', error);
     }
+    // 有数据默认选中第一个，无数据默认选中问问小鲸
+    this.highlightedIndex = [0, 0];
   }
   /** 后台eventStream数据处理 End */
 
@@ -303,8 +312,9 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
    * @param type - 当前渲染的查询结果Item的类型，类型包含可见 ESearchType
    * @param parentInd - 当前渲染的查询结果Item的父级下标。
    * @param ind - 当前渲染的查询结果Item的下标。
+   * @param typeName - 当前渲染的查询结果Item的类型中文名。
    */
-  renderGroupItem(item: ISearchItem, type: string, parentInd: number, ind: number) {
+  renderGroupItem(item: ISearchItem, type: string, parentInd: number, ind: number, typeName: string) {
     const hasOperatorKeys = [ESearchType.strategy, ESearchType.bcs_cluster, ESearchType.host];
     const isHost = type === ESearchType.host;
     const isBcsCluster = type === ESearchType.bcs_cluster;
@@ -358,6 +368,14 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
                 </span>
               )
           )}
+        {!this.isBarToolShow && (
+          <img
+            class='result-aiwhale-icon'
+            alt='icon'
+            src={aiWhaleSrc}
+            onClick={e => this.handleAiWhaleMessage(`${typeName}:${item.name}`, e)}
+          />
+        )}
       </div>
     );
   }
@@ -499,10 +517,67 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
           <span class='new-home-select-item-title'>
             {item.name}（{item.items.length}）
           </span>
-          {data.map((child, key) => this.renderGroupItem(child, item.type, ind, key))}
+          {data.map((child, key) => this.renderGroupItem(child, item.type, ind, key, item.name))}
         </div>
       );
     });
+  }
+
+  /** 下拉框显示问问小鲸，目前只在无搜索结果时显示，所以固定传搜索内容 */
+  renderAiwhale(emptyText = false, parentInd, ind) {
+    return (
+      <div
+        class={[
+          'new-home-select-group-item',
+          'item-aiwhale',
+          { active: this.highlightedIndex[0] === parentInd && this.highlightedIndex[1] === ind },
+        ]}
+        onClick={e => this.handleAiWhaleMessage(this.searchValue, e)}
+      >
+        <img
+          class='aiwhale-icon'
+          alt='icon'
+          src={aiWhaleSrc}
+        />
+        {emptyText && <span class='empty-title'>{this.$t('搜索结果为空') as string}，</span>}
+        <svg
+          width='100%'
+          height='100%'
+        >
+          <defs>
+            <linearGradient
+              id='grad1'
+              x1='0%'
+              x2='100%'
+              y1='50%'
+              y2='50%'
+            >
+              <stop
+                style='stop-color:#5B70FF; stop-opacity:1'
+                offset='0%'
+              />
+              <stop
+                style='stop-color:#BB81F0; stop-opacity:1'
+                offset='50%'
+              />
+              <stop
+                style='stop-color:#CB9FDD; stop-opacity:1'
+                offset='100%'
+              />
+            </linearGradient>
+          </defs>
+          <text
+            fill='url(#grad1)'
+            font-family='Arial'
+            font-size='12'
+            x='0'
+            y='20'
+          >
+            {this.$t('问问小鲸') as string}
+          </text>
+        </svg>
+      </div>
+    );
   }
 
   /** 清空输入 */
@@ -664,7 +739,10 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
         event.preventDefault();
         /** 如果是搜索结果，回车则是跳转 */
         if (this.isSearchResult) {
-          this.highlightedItem && this.handleSearchJumpPage(this.highlightedItem, this.highlightedItem.type);
+          // this.highlightedItem && this.handleSearchJumpPage(this.highlightedItem, this.highlightedItem.type);
+          this.highlightedItem
+            ? this.handleSearchJumpPage(this.highlightedItem, this.highlightedItem.type)
+            : this.handleAiWhaleMessage(this.searchValue);
           return;
         }
         this.isInput = true;
@@ -675,6 +753,21 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
         return;
     }
   }
+
+  /** 打开问问小鲸对话框 */
+  handleAiWhaleMessage(text: string, e?: MouseEvent) {
+    if (e) {
+      e.stopPropagation();
+    }
+    // this.enableAiAssistant
+    const hasContent = text.replace(/[\n\r]/g, '').trim().length > 0;
+    if (!hasContent) return;
+    aiWhaleStore.sendMessage(text);
+    this.handleResetData();
+    this.showPopover = false;
+    this.showKeywordEle = true;
+  }
+
   /** 跳转到具体的页面 */
   handleSearchJumpPage(item: ISearchItem, type: string, parentIndex: number) {
     /** 回车跳转了则存入到历史搜索中 */
@@ -837,7 +930,10 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   /** 渲染搜索结果View */
   renderSearchView() {
     if (!this.isLoading && this.searchList.length === 0) {
-      return (
+      // 问问小鲸
+      return !this.isBarToolShow ? (
+        <div class='new-home-select-popover-content empty-aiwhale'>{this.renderAiwhale(true, 0, 0)}</div>
+      ) : (
         <bk-exception
           class='select-empty'
           scene='part'
@@ -886,7 +982,13 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
           style={{ width: `${this.computedWidth}px` }}
           class='new-home-select-input'
         >
-          {!this.isBarToolShow && <span class='icon-monitor new-home-select-icon icon-mc-search' />}
+          {!this.isBarToolShow && (
+            <img
+              class='icon-monitor new-home-select-left-icon icon-mc-search'
+              alt='icon'
+              src={aiWhaleSrc}
+            />
+          )}
           <textarea
             ref='textareaInput'
             class={['home-select-input', { 'is-hidden': this.textareaRow === 1 }]}
@@ -909,11 +1011,19 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               onClick={this.clearInput}
             />
           )}
-          {!this.isBarToolShow && this.showKeywordEle && (
-            <div class='search-keyboard'>
-              {this.$tc('快捷键')} {getCmdShortcutKey()} + /
-            </div>
-          )}
+          {!this.isBarToolShow &&
+            this.showKeywordEle && [
+              <div
+                key='search-keyboard'
+                class='search-keyboard'
+              >
+                {this.$tc('快捷键')} {getCmdShortcutKey()} + /
+              </div>,
+              <span
+                key='new-home-select-right-icon'
+                class='icon-monitor new-home-select-right-icon icon-mc-search'
+              />,
+            ]}
           {(this.isBarToolShow || this.showPopover) && (
             <div class='new-home-select-popover'>
               {this.isSearchResult ? this.renderSearchView() : this.renderHistoryView()}
