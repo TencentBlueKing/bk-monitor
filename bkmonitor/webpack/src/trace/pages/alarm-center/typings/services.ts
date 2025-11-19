@@ -105,7 +105,7 @@ export type ActionTableItem = {
   };
   execute_times: number;
   failure_type: null | string;
-  id: number | string;
+  id: string;
   inputs: {
     [key: string]: any;
     alert_latest_time: number;

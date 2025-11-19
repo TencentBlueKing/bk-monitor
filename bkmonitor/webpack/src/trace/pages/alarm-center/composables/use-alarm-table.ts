@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { onScopeDispose, shallowRef, watchEffect } from 'vue';
+import { onMounted, onScopeDispose, shallowRef, watchEffect } from 'vue';
 
 import { getOperatorDisabled } from '../utils';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
@@ -47,6 +47,7 @@ export function useAlarmTable() {
 
   const effectFunc = async () => {
     loading.value = true;
+    data.value = [];
     const res = await alarmStore.alarmService.getFilterTableList({
       ...alarmStore.commonFilterParams,
       page_size: pageSize.value,
@@ -69,7 +70,12 @@ export function useAlarmTable() {
     data.value = res.data;
     loading.value = false;
   };
-  watchEffect(effectFunc);
+  // 由于在 setup(create) | BeforeMount 时机可能需要获取路由参数对变量进行初始化
+  // 如果不在 onMounted 时机进行 watchEffect 可能会导致 effect 首次执行是错误的且是非必要的
+  onMounted(() => {
+    watchEffect(effectFunc);
+  });
+
   onScopeDispose(() => {
     pageSize.value = 10;
     page.value = 1;

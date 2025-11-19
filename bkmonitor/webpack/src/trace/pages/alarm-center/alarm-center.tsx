@@ -281,7 +281,8 @@ export default defineComponent({
 
     /**  展示处理记录详情  */
     function handleShowActionDetail(_id: string) {
-      handleDetailShowChange(true);
+      console.info('handleShowActionDetail 展示处理记录详情逻辑待补充~');
+      // handleDetailShowChange(true);
     }
 
     function handleDetailShowChange(show: boolean) {
@@ -335,7 +336,7 @@ export default defineComponent({
     /**
      * @method autoShowAlertDialog 自动打开告警确认 | 告警屏蔽 dialog
      * @description 当移动端的 告警通知 中点击 告警确认 | 告警屏蔽，进入页面时，需要自动打开 告警确认 | 告警屏蔽 dialog
-     * @returns {boolean} 是否自动打开告警确认 | 告警屏蔽 dialog
+     * @returns {boolean} 是否自动打开了告警确认 | 告警屏蔽 dialog
      */
     const autoShowAlertDialog = () => {
       const alertAction = route?.query?.autoShowAlertAction as AlertAllActionEnum;
