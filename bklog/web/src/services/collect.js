@@ -229,6 +229,12 @@ const getStorageUsage = {
   method: 'post',
 };
 
+// 获取客户端日志-采集下发-日志列表数据
+const getTaskList = {
+  url: '/tgpa/task/',
+  method: 'get',
+};
+
 export {
   getStorage,
   globals,
@@ -269,4 +275,5 @@ export {
   getCheckInfos,
   reviewToken,
   getStorageUsage,
+  getTaskList,
 };

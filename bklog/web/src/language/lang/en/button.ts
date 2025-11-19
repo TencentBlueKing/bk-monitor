@@ -225,4 +225,5 @@ export default {
   查看全部: 'View All',
   用户上报: 'User Report',
   清洗配置: 'Cleaning Configuration',
+  下载文件: 'Download File',
 };

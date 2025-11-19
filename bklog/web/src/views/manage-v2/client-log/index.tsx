@@ -24,12 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent, onMounted, ref } from 'vue';
 
+import useStore from '@/hooks/use-store';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import { t } from '@/hooks/use-locale';
 
 import LogTable from './components/log-table';
-import NewCollectionSlider from './new-collection-slider';
+import CollectionSlider from './collection-slider';
+
+import http from '@/api';
 
 import './index.scss';
 
@@ -45,9 +49,11 @@ export default defineComponent({
   name: 'ClientLog',
   components: {
     LogTable,
-    NewCollectionSlider,
+    CollectionSlider,
   },
   setup() {
+    const store = useStore();
+
     const tabs = ref([
       // tab配置
       {
@@ -61,6 +67,12 @@ export default defineComponent({
     ]);
     const activeTab = ref<TabType>(TAB_TYPES.COLLECT); // 激活的tab
     const showSlider = ref(false); // 新建采集侧边栏打开状态
+    const tableData = ref({
+      total: 0,
+      list: [],
+    });
+    const isLoading = ref(false); // 加载状态
+    const searchKeyword = ref(''); // 搜索关键词
 
     // tab点击事件
     const handleTabClick = (title: TabType) => {
@@ -76,6 +88,38 @@ export default defineComponent({
     const handleUpdatedTable = () => {
       showSlider.value = false;
     };
+
+    // 处理搜索事件
+    const handleSearch = (keyword: string) => {
+      searchKeyword.value = keyword;
+    };
+
+    // 获取列表数据
+    const requestData = async () => {
+      try {
+        const params = {
+          query: {
+            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+          },
+        };
+
+        isLoading.value = true;
+        const response = await http.request('collect/getTaskList', params);
+        tableData.value = response.data;
+      } catch (error) {
+        console.warn('获取采集下发列表失败:', error);
+      } finally {
+        isLoading.value = false;
+      }
+    };
+
+    const handleClearKeyword = () => {
+      searchKeyword.value = '';
+    };
+
+    onMounted(() => {
+      requestData();
+    });
 
     return () => (
       <div class='client-log-main'>
@@ -102,16 +146,21 @@ export default defineComponent({
                 <bk-button
                   theme='primary'
                   onClick={() => setSidebarOpen(true)}
+                  disabled={isLoading.value}
                 >
                   {t('新建采集')}
                 </bk-button>
-                <bk-button>{t('清洗配置')}</bk-button>
+                <bk-button disabled={isLoading.value}>{t('清洗配置')}</bk-button>
               </div>
               <div>
                 <bk-input
                   placeholder={t('搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人')}
+                  value={searchKeyword.value}
                   clearable
                   right-icon={'bk-icon icon-search'}
+                  onEnter={handleSearch}
+                  on-right-icon-click={handleSearch}
+                  onClear={handleClearKeyword}
                 ></bk-input>
               </div>
             </div>
@@ -137,11 +186,17 @@ export default defineComponent({
           )}
           {/* 表格内容区域 */}
           <section>
-            <LogTable />
+            <LogTable
+              total={tableData.value.total}
+              data={tableData.value.list}
+              v-bkloading={{ isLoading: isLoading.value }}
+              keyword={searchKeyword.value}
+              on-clear-keyword={handleClearKeyword}
+            />
           </section>
         </div>
         {/* 新建采集侧边栏 */}
-        <NewCollectionSlider
+        <CollectionSlider
           showSlider={showSlider.value}
           onHandleCancelSlider={() => setSidebarOpen(false)}
           onHandleUpdatedTable={handleUpdatedTable}

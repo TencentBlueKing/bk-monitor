@@ -65,14 +65,14 @@ const SUSTAIN_TIME_OPTIONS = [
 ];
 
 export default defineComponent({
-  name: 'NewCollectionSlider',
+  name: 'CollectionSlider',
   props: {
     showSlider: {
       type: Boolean,
       default: false,
     },
-    onHandleCancelSlider: { type: Function },
-    onHandleUpdatedTable: { type: Function },
+    onHandleCancelSlider: { type: Function, default: () => {} },
+    onHandleUpdatedTable: { type: Function, default: () => {} },
   },
   emits: ['handleCancelSlider', 'handleUpdatedTable'],
   setup(props, { emit }) {
@@ -260,7 +260,7 @@ export default defineComponent({
                 <bk-form-item
                   label={t('持续触发时长')}
                   required
-                  desc='customDesc'
+                  desc={t('持续触发时长')}
                   property='sustainTime'
                 >
                   <bk-select
@@ -282,7 +282,7 @@ export default defineComponent({
                 label={t('日志路径')}
                 required
                 property='logPath'
-                desc='customDesc'
+                desc={t('日志路径')}
               >
                 <bk-input
                   type='textarea'
