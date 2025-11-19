@@ -3,7 +3,6 @@ import logging
 import random
 import string
 
-from django.conf import settings
 from pydantic import ValidationError
 
 from alarm_backends.service.scheduler.app import app
@@ -176,9 +175,7 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
     enabled_v4_datalink_option = ResultTableOption.objects.filter(
         bk_tenant_id=bk_tenant_id, table_id=table_id, name=ResultTableOption.OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK
     ).first()
-    enabled_v4_datalink = (
-        enabled_v4_datalink_option and enabled_v4_datalink_option.get_value()
-    ) or settings.ENABLE_V4_EVENT_GROUP_DATA_LINK
+    enabled_v4_datalink = enabled_v4_datalink_option and enabled_v4_datalink_option.get_value()
 
     if not enabled_v4_datalink:
         if data_source_created_from != DataIdCreatedFromSystem.BKGSE.value:

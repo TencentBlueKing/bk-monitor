@@ -255,7 +255,6 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           title={this.$t('处理套餐')}
           show-semicolon
         >
-          <span>{this.$t('当告警触发时执行')}</span>
           <GroupSelect
             ref='selectMeal'
             class='select-warp'

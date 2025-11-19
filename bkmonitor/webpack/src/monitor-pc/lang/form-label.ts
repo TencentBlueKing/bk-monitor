@@ -1647,7 +1647,6 @@ export default {
   当告警恢复时: 'When alarm recovers',
   当告警确认时: 'When alarm is acknowledged',
   当告警触发时: 'When alarm is triggered',
-  当告警触发时执行: 'Execute when alarm is triggered',
   告警事件内容: 'Alarm Event Content',
   告警事件屏蔽: 'Alarm Event Mute',
   告警事件链接: 'Alarm Event Link',

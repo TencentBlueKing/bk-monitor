@@ -35,6 +35,7 @@ from metadata.models.space.constants import (
     LOG_EVENT_ETL_CONFIGS,
     SPACE_UID_HYPHEN,
     SYSTEM_BASE_DATA_ETL_CONFIGS,
+    EtlConfigs,
     SpaceTypes,
 )
 from metadata.utils import consul_tools, hash_util
@@ -584,7 +585,12 @@ class DataSource(models.Model):
             from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
 
             # 开启V4链路后，特定etl_config的data_id均从计算平台获取
-            if settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
+            enabled_custom_event_v4 = (
+                etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value and settings.ENABLE_V4_EVENT_GROUP_DATA_LINK
+            )
+            if (
+                settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
+            ) or enabled_custom_event_v4:
                 logger.info(f"apply for data id from bkdata,type_label->{type_label},etl_config->{etl_config}")
                 is_base = False
 
@@ -695,6 +701,17 @@ class DataSource(models.Model):
                     logger.info(f"data_id->[{data_source.bk_data_id}] now set space uid->[{data_source.space_uid}]")
                 except ValueError:
                     raise ValueError(_("空间唯一标识{}错误").format(space_uid))
+            elif bk_biz_id:
+                # 记录数据源对应的空间信息，便于后续查询
+                if bk_biz_id > 0:
+                    space: Space = Space.objects.get(
+                        bk_tenant_id=bk_tenant_id, space_type_id=SpaceTypes.BKCC.value, space_id=str(bk_biz_id)
+                    )
+                else:
+                    space = Space.objects.get(bk_tenant_id=bk_tenant_id, id=-bk_biz_id)
+
+                data_source.space_uid = space.space_uid
+                data_source.save()
 
             # 创建option配置
             option = {} if option is None else option
@@ -711,9 +728,9 @@ class DataSource(models.Model):
             # 添加时间 option
             cls._add_time_unit_options(operator, data_source.bk_data_id, etl_config)
 
-        # 写入 空间与数据源的关系表，如果 data id 为全局不需要记录
+        # 写入 空间与数据源的关系表
         try:
-            if not is_platform_data_id and space_type_id and space_id:
+            if space_type_id and space_id:
                 cls()._save_space_datasource(
                     creator=operator,
                     space_type_id=space_type_id,

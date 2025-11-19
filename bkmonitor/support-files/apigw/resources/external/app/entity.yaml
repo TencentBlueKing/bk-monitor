@@ -21,7 +21,6 @@ paths:
           appVerifiedRequired: false
           resourcePermissionRequired: false
         descriptionEn:
-        noneSchema: true
   /app/metadata/entity/query/:
     get:
       operationId: metadata_entity_query
@@ -44,7 +43,6 @@ paths:
           appVerifiedRequired: false
           resourcePermissionRequired: false
         descriptionEn:
-        noneSchema: true
   /app/metadata/entity/delete/:
     post:
       operationId: metadata_entity_delete
@@ -67,4 +65,3 @@ paths:
           appVerifiedRequired: false
           resourcePermissionRequired: false
         descriptionEn:
-        noneSchema: true

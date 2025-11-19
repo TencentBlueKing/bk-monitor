@@ -124,7 +124,7 @@ const getUrlArgs = (_route?) => {
       ],
     });
 
-    const hash = window.location.hash.replace(/^#/, '');
+    const hash = window.parent.location.hash.replace(/^#/, '');
     const route = router.resolve(hash);
     urlResolver = new RouteUrlResolver({ route: route.resolved });
     urlResolver.setResolver('index_id', () => {

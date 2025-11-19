@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import os
-from pathlib import Path
 
 import yaml
 from django.utils.translation import gettext as _
@@ -138,7 +137,7 @@ class SNMPPluginManager(PluginManager):
         if not config_yaml_path:
             raise PluginParseError({"msg": _("无法获取SNMP对应的配置文件")})
 
-        content = yaml.load(self._decode_file(self.plugin_configs[Path(config_yaml_path)]), Loader=yaml.FullLoader)
+        content = yaml.load(self._decode_file(self.plugin_configs[config_yaml_path]), Loader=yaml.FullLoader)
         content["if_mib"].pop("auth")
         snmp_collector_json = {
             "snmp_version": content["if_mib"].pop("version"),

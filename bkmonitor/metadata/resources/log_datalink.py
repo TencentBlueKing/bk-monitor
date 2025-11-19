@@ -809,3 +809,18 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
             logger.info("CreateOrUpdateLogDataLink: cleaned up %d excess table configurations", len(excess_table_ids))
         else:
             logger.info("CreateOrUpdateLogDataLink: no excess configurations found for data_label [%s]", data_label)
+
+
+class CleanLogRouter(Resource):
+    """清理日志路由数据"""
+
+    class RequestSerializer(ParamsSerializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        data_label = serializers.CharField(label="数据标签")
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
+        data_label = validated_request_data["data_label"]
+
+        # 将data_label关联的所有结果表都设为不启用
+        models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, data_label=data_label).update(is_enable=False)

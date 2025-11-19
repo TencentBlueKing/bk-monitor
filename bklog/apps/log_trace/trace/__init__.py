@@ -92,7 +92,7 @@ def requests_callback(span: Span, request, response):
     try:
         carrier = request.body.decode("utf-8")
     except Exception:  # noqa
-        carrier = ""
+        carrier = str(request.body)
 
     span.set_attribute("request.body", carrier[:MAX_PARAMS_SIZE])
 

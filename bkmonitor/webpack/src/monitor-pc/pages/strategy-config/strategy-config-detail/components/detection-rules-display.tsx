@@ -329,8 +329,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
     return (
       <IntelligentDetect
         data={this.value}
-        interval={this.metricData[0].agg_interval}
-        resultTableId={this.metricData[0]?.intelligent_detect?.result_table_id}
+        interval={this.metricData?.[0]?.agg_interval}
+        resultTableId={this.metricData?.[0]?.intelligent_detect?.result_table_id}
         readonly
         onChartTypeChange={this.handleAiopsChartTypeChange}
         onModelChange={this.handleModelChange}

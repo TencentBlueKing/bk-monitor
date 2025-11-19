@@ -2874,22 +2874,30 @@ def judge_auto_filter(bk_biz_id: int, table_id: str) -> dict[str, Any]:
                 platform_biz_id = data_name.split("_")[0]
     else:
         result_table = ResultTable.objects.filter(table_id=table_id).first()
-        if not result_table or result_table.bk_biz_id != 0:
+        if not result_table:
             return {}
 
         data_id = DataSourceResultTable.objects.get(table_id=table_id).bk_data_id
         data_source_data = DataSource.objects.get(bk_data_id=data_id)
+
+        # 如果数据源不是平台级数据源且结果表业务ID不为0，则不进行过滤
+        if not data_source_data.is_platform_data_id and result_table.bk_biz_id != 0:
+            return {}
+
         space_uid = data_source_data.space_uid
         space_type_id = data_source_data.space_type_id
         if space_uid:
+            # 通过space_uid确认管理业务
             platform_biz_id = space_uid.split("__", -1)[-1]
         else:
+            # 通过data_name确认管理业务
             data_name = data_source_data.data_name
             if EventGroup.objects.filter(bk_data_id=data_id).exists():
                 platform_biz_id = data_name.split("_")[-1]
             else:
                 platform_biz_id = data_name.split("_")[0]
 
+    # 如果空间类型为BKCI，则需要使用projectId来进行数据过滤
     if space_type_id == SpaceTypeEnum.BKCI.value:
         space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
         if space.space_id == platform_biz_id:
