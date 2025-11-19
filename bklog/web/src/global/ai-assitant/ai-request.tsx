@@ -1,7 +1,16 @@
 import { random } from '@/common/util';
 import store from '@/store';
 import { IQueryStringSendData } from '.';
-import { ChatCompletionParams, FetchResponse, SessionContentData, SessionContentParams, SessionData, TextToQueryResponse } from './interface';
+import {
+  ChatCompletionParams,
+  FetchResponse,
+  SessionContentData,
+  SessionContentParams,
+  SessionData,
+  TextToQueryResponse,
+} from './interface';
+
+import { join } from '../utils/path';
 
 
 const baseURL = window.AJAX_URL_PREFIX || '/api/v1';
@@ -16,7 +25,7 @@ const getCookie = (name: string): string | null => {
   const reg = new RegExp(`(^|)${name}=([^;]*)(;|$)`);
   const data = document.cookie.match(reg);
   if (data) {
-    return unescape(data[2]);
+    return decodeURIComponent(data[2]);
   }
   return null;
 };
@@ -29,7 +38,7 @@ const buildRequestConfig = (url: string, params?: any, method: 'POST' | 'GET' = 
   // if (!/^(https|http)?:\/\//.test(url)) {
   //   const prefix = url.indexOf('?') === -1 ? '?' : '&';
   // }
-  const fullUrl = `${baseURL}${url}`;
+  const fullUrl = join(baseURL, url);
 
   // 构建 headers（对应 axios 配置）
   const headers: Record<string, string> = {
