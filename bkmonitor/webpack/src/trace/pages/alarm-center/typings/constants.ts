@@ -55,10 +55,8 @@ export enum AlertDetailHostSelectorTypeEnum {
   MODULE = 'module',
 }
 
-/** 告警场景表格 行操作栏 可操作按钮项枚举类型 */
-export type AlertRowOperationAction = Exclude<AlertAllActionEnum, AlertAllActionEnum.CANCEL>;
-/** 告警场景表格 批量操作栏 可操作按钮项枚举类型 */
-export type AlertSelectBatchAction = Exclude<AlertAllActionEnum, AlertAllActionEnum.MANUAL_HANDLING>;
+/** 进入页面后需要能自动打开展示dialog的事件 */
+export const CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS = [AlertAllActionEnum.CONFIRM, AlertAllActionEnum.SHIELD];
 
 export const alarmTypeMap: { label: string; value: AlarmType }[] = [
   {

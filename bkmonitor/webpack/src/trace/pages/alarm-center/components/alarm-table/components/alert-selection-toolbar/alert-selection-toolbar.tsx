@@ -28,7 +28,7 @@ import { type PropType, defineComponent } from 'vue';
 import BkButton from 'bkui-vue/lib/button';
 import { useI18n } from 'vue-i18n';
 
-import { type AlertSelectBatchAction, AlertAllActionEnum } from '../../../../typings/constants';
+import { type AlertSelectBatchAction, AlertAllActionEnum } from '../../../../typings';
 
 import './alert-selection-toolbar.scss';
 

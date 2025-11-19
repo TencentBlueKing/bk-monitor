@@ -199,7 +199,7 @@ export const useAlertDialogs = (
     id: T,
     data?: T extends string[] ? AlertTableItem[] : AlertTableItem
   ) => {
-    const ids: string[] = Array.isArray(id) ? id : [id];
+    const ids: string[] = Array.isArray(id) ? [...id] : [id];
 
     let operationalData: AlertTableItem[] = [];
     // 行内操作可以直接获取行数据，不需要从原始数据中循环一遍获取

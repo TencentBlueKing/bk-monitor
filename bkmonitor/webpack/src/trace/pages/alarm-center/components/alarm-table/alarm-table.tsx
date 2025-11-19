@@ -23,17 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  type PropType,
-  computed,
-  defineComponent,
-  onBeforeUnmount,
-  onMounted,
-  shallowRef,
-  toValue,
-  useTemplateRef,
-  watch,
-} from 'vue';
+import { type PropType, computed, defineComponent, onBeforeUnmount, onMounted, toValue, useTemplateRef } from 'vue';
 
 import { useRouter } from 'vue-router';
 
@@ -92,6 +82,16 @@ export default defineComponent({
     sort: {
       type: [String, Array] as PropType<string | string[]>,
     },
+    /** 表格选中行 */
+    selectedRowKeys: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    /** 是否是所选中告警记录行的关注人 */
+    isSelectedFollower: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     currentPageChange: (currentPage: number) => typeof currentPage === 'number',
@@ -100,6 +100,8 @@ export default defineComponent({
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
     showAlertDetail: (item: string) => typeof item === 'string',
     showActionDetail: (item: string) => typeof item === 'string',
+    selectionChange: (selectedRowKeys: string[], options?: SelectOptions<any>) =>
+      Array.isArray(selectedRowKeys) && options,
     openAlertDialog: (
       type: AlertAllActionEnum,
       ids: string | string[],
@@ -122,10 +124,6 @@ export default defineComponent({
         theme: 'light alarm-center-popover max-width-50vw text-wrap padding-0',
       },
     });
-    /** 多选状态 */
-    const selectedRowKeys = shallowRef<string[]>([]);
-    /* 关注人则禁用操作 */
-    const isSelectedFollower = shallowRef(false);
 
     /** 滚动容器元素 */
     let scrollContainer: HTMLElement = null;
@@ -141,7 +139,7 @@ export default defineComponent({
       handleAlertBatchSet,
     } = useAlertHandlers({
       clickPopoverTools,
-      selectedRowKeys,
+      selectedRowKeys: props.selectedRowKeys,
       clearSelected: () => handleSelectionChange(),
       showDetailEmit: id => emit('showAlertDetail', id),
       openDialogEmit: (...args) => emit('openAlertDialog', ...args),
@@ -224,17 +222,8 @@ export default defineComponent({
     const handleSelectionChange = (keys?: (number | string)[], options?: SelectOptions<any>) => {
       // 表格空格键按下后会触发选择事件，此时需要禁止
       if (keys?.length && toValue(currentScenario).name !== ALERT_STORAGE_KEY) return;
-      selectedRowKeys.value = (keys || []) as string[];
-      isSelectedFollower.value = options?.selectedRowData?.some?.(item => item.followerDisabled);
+      emit('selectionChange', (keys ?? []) as string[], options);
     };
-
-    watch(
-      () => props.data,
-      () => {
-        // 数据变化时，清空选中状态
-        handleSelectionChange();
-      }
-    );
 
     onMounted(() => {
       addScrollListener();
@@ -248,11 +237,9 @@ export default defineComponent({
     return {
       transformedColumns,
       currentScenario,
-      selectedRowKeys,
       tableEmpty,
       tableScenarioClassName,
       settings,
-      isSelectedFollower,
       activeAlertContentDetail,
       handleSelectionChange,
       handleAlertBatchSet,
