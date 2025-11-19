@@ -37,7 +37,7 @@ class OriginEventProcessor(BaseEventProcessor):
         for key, value in list(data.items()):
             next_paths: list[str] = paths + [key]
             paths_str: str = ".".join(next_paths)
-            if isinstance(value, dict):
+            if isinstance(value, dict) and key != "_meta":
                 flatten_dict.update(cls._flatten_dict(value, next_paths))
             else:
                 flatten_dict[paths_str] = value

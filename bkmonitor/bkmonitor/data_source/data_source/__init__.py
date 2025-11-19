@@ -235,6 +235,10 @@ def q_to_conditions(q: Q) -> list[dict]:
     return _filter_dict_to_conditions(q_to_dict(q), [])
 
 
+def filter_dict_to_q(filter_dict: dict, conditions: list[dict] | None = None) -> Q:
+    return conditions_to_q(filter_dict_to_conditions(filter_dict, conditions or []))
+
+
 def _list_to_q(key, value):
     # value是list,key是上一个循环的键
     # 用于辅助dict_to_q
@@ -2142,7 +2146,8 @@ class BkMonitorLogDataSource(BaseBkMonitorLogDataSource):
         super().__init__(*args, **kwargs)
 
         for metric in self.metrics:
-            if self.is_dimensions_field(metric["field"]) and metric["field"] != self._INDEX:
+            is_index_field: bool = metric["field"] in [self._INDEX, self._INDEX.upper(), "__INDEX__"]
+            if self.is_dimensions_field(metric["field"]) and not is_index_field:
                 metric["field"] = f"dimensions.{metric['field']}"
 
             if not self.is_time_agg:
@@ -2150,7 +2155,8 @@ class BkMonitorLogDataSource(BaseBkMonitorLogDataSource):
 
             if metric["field"] == "event.count" and metric["method"] == "COUNT":
                 metric["method"] = "SUM"
-            elif metric["field"] == self._INDEX:
+            elif is_index_field:
+                metric["field"] = self._INDEX
                 metric["method"] = "COUNT"
 
     def _fetch_black_list(self) -> list[str | int]:
@@ -2160,12 +2166,6 @@ class BkMonitorLogDataSource(BaseBkMonitorLogDataSource):
         if "type" in self.group_by:
             # 聚合补 0 仅 UnifyQuery 支持。
             return True
-
-        for condition in self.where:
-            # 高级过滤方法仅 UnifyQuery 支持。
-            # 【旧业务逻辑】将配置高级过滤的字段加入 GroupBy，切换统一查询后废弃该逻辑。
-            if condition["method"] in self.ADVANCE_CONDITION_METHOD:
-                return True
 
         return super().switch_unify_query(bk_biz_id)
 
