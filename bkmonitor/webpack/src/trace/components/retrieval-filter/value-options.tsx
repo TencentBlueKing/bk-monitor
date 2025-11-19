@@ -49,7 +49,7 @@ export default defineComponent({
     const loading = shallowRef(false);
     const hoverActiveIndex = shallowRef(-1);
     const scrollLoading = shallowRef(false);
-    const pageSize = shallowRef(200);
+    const pageSize = shallowRef(props.limit);
     const page = shallowRef(1);
     const isEnd = shallowRef(false);
 
@@ -252,7 +252,9 @@ export default defineComponent({
       }
       if (props.fieldInfo?.isEnableOptions) {
         const limit = pageSize.value * page.value;
-        await promiseTimeout(300);
+        if (props.loadDelay) {
+          await promiseTimeout(props.loadDelay);
+        }
         const data = await props.getValueFn({
           search: props.search,
           limit,
