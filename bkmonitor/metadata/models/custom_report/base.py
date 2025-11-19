@@ -12,10 +12,12 @@ import json
 import logging
 from typing import Any
 
+from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
+from bkmonitor.utils.request import get_request_username
 from metadata import config
 from metadata.models.common import Label
 from metadata.models.data_source import DataSourceOption, DataSourceResultTable
@@ -94,7 +96,11 @@ class CustomGroupBase(models.Model):
         设置结果表废弃，默认是将相关的公共结果表废弃
         :return: True | False
         """
-        ResultTable.objects.filter(table_id=self.table_id).update(is_deleted=True, is_enable=False)
+        # 如果结果表存在，则先修改结果表的启用状态
+        for table in ResultTable.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id):
+            table.modify(operator=get_request_username(settings.COMMON_USERNAME), is_enable=False)
+            table.is_deleted = True
+            table.save()
         logger.info("group->[%s] table->[%s] is disabled now.", self.custom_group_name, self.table_id)
 
     @classmethod
