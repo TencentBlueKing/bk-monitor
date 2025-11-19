@@ -24,26 +24,36 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed } from 'vue';
+import { defineComponent, ref, computed, onMounted } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import { useRoute } from 'vue-router/composables';
+import useStore from '@/hooks/use-store';
 
 import { useOperation } from '../../hook/useOperation';
 import BaseInfo from '../business-comp/step2/base-info';
+import $http from '@/api';
 
 import './step2-custom-report.scss';
 
 export default defineComponent({
   name: 'StepCustomReport',
+  props: {
+    isEdit: {
+      type: Boolean,
+      default: false,
+    },
+  },
 
   emits: ['next', 'prev', 'cancel'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
+    const store = useStore();
     const route = useRoute();
     const { cardRender } = useOperation();
     const baseInfoRef = ref();
+    const loading = ref(false);
     const configData = ref({
       collector_config_name_en: '',
       custom_type: 'log',
@@ -53,21 +63,69 @@ export default defineComponent({
       description: '',
       es_shards: 3,
     });
+    const globalsData = computed(() => store.getters['globals/globalsData']);
     /**
      * 当前采集id
      */
-    const collectId = computed(() => route.params.collectId);
-    /**
-     * 是否是编辑状态
-     */
-    const isEdit = computed(() => !!collectId.value);
+    const collectorId = computed(() => route.params.collectorId);
+    const defaultRetention = computed(() => {
+      const { storage_duration_time } = globalsData.value;
+
+      return storage_duration_time?.filter(item => item.default === true)[0].id;
+    });
+
+    // 防止重复调用的标志
+    const isInitializing = ref(false);
+
+    onMounted(() => {
+      // this.containerLoading = true;
+      initFormData();
+    });
+    const initFormData = async () => {
+      console.log(' isInitializing.value', isInitializing.value);
+      // 防止重复调用：如果正在初始化，直接返回
+      if (isInitializing.value) {
+        return;
+      }
+      isInitializing.value = true;
+      if (props.isEdit) {
+        loading.value = true;
+        const res = await $http.request('collect/details', {
+          params: {
+            collector_config_id: collectorId.value,
+          },
+        });
+        loading.value = false;
+        const { collector_config_name } = res?.data;
+        configData.value = {
+          ...configData.value,
+          ...res?.data,
+          index_set_name: collector_config_name,
+        };
+        // 缓存编辑时的集群ID
+
+        // this.editStorageClusterID = storage_cluster_id;
+        // this.fieldSettingData = {
+        //   indexSetId: index_set_id || 0,
+        //   targetFields: target_fields || [],
+        //   sortFields: sort_fields || [],
+        // };
+      } else {
+        const { retention } = configData.value;
+        Object.assign(configData.value, {
+          retention: retention ? `${retention}` : defaultRetention.value,
+        });
+      }
+      isInitializing.value = false;
+    };
+
     /** 基本信息 */
     const renderBaseInfo = () => (
       <BaseInfo
         ref={baseInfoRef}
         data={configData.value}
         typeKey='custom'
-        isEdit={isEdit.value}
+        isEdit={props.isEdit}
         on-change={data => {
           configData.value = { ...configData.value, ...data };
         }}
@@ -82,17 +140,22 @@ export default defineComponent({
       },
     ];
     return () => (
-      <div class='operation-step2-custom-report'>
+      <div
+        class='operation-step2-custom-report'
+        v-bkloading={{ isLoading: loading.value }}
+      >
         {cardRender(cardConfig)}
         <div class='classify-btns'>
-          <bk-button
-            class='mr-8'
-            on-click={() => {
-              emit('prev');
-            }}
-          >
-            {t('上一步')}
-          </bk-button>
+          {!props.isEdit && (
+            <bk-button
+              class='mr-8'
+              on-click={() => {
+                emit('prev');
+              }}
+            >
+              {t('上一步')}
+            </bk-button>
+          )}
           <bk-button
             class='width-88 mr-8'
             theme='primary'
@@ -100,6 +163,7 @@ export default defineComponent({
               baseInfoRef.value
                 .validate()
                 .then(() => {
+                  console.log('configData.value', configData.value);
                   emit('next', configData.value);
                 })
                 .catch(() => {

@@ -29,6 +29,7 @@ import { computed, defineComponent, onMounted, ref, nextTick, onBeforeMount } fr
 import LogIpSelector, { toTransformNode, toSelectorNode } from '@/components/log-ip-selector/log-ip-selector'; // 日志IP选择器组件
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { useRoute } from 'vue-router/composables';
 
 import { useCollectList } from '../../hook/useCollectList'; // 收集列表相关功能
 import { useOperation } from '../../hook/useOperation'; // 操作相关功能
@@ -89,6 +90,10 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    isEdit: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: ['next', 'prev', 'cancel'],
@@ -96,6 +101,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
+    const route = useRoute();
     const { bkBizId, spaceUid, goListPage } = useCollectList();
     const { cardRender } = useOperation();
     const baseInfoRef = ref();
@@ -107,6 +113,7 @@ export default defineComponent({
     const ipSelectorOriginalValue = ref(null);
     const collectorType = ref('container_log_config');
     const configurationItemListRef = ref();
+    const loading = ref(false);
     /**
      * 行首正则是否为空
      */
@@ -165,7 +172,7 @@ export default defineComponent({
     const globalsData = computed(() => store.getters['globals/globalsData']);
     const environment = computed(() => (props.scenarioId === 'wineventlog' ? 'windows' : 'linux'));
     // 是否是编辑或者克隆
-    const isCloneOrUpdate = computed(() => isUpdate.value || isClone.value);
+    const isCloneOrUpdate = computed(() => props.isEdit || isClone.value);
     /**
      * 是否为采集主机日志
      */
@@ -368,7 +375,66 @@ export default defineComponent({
       if (showClusterListKeys.includes(props.scenarioId)) {
         getBcsClusterList();
       }
+      if (props.isEdit) {
+        setDetail();
+      }
+      console.log('props.isEdit', props.isEdit);
     });
+
+    const setDetail = () => {
+      loading.value = true;
+      $http
+        .request('collect/details', {
+          params: { collector_config_id: route.params.collectorId },
+        })
+        .then(res => {
+          if (res.data) {
+            const { configs, collector_scenario_id, collector_config_name, params } = res.data;
+            const paths = params.paths?.map(item => ({ value: item })) || [{ value: '' }];
+            const exclude_files = params.exclude_files?.map(item => ({ value: item })) || [{ value: '' }];
+            formData.value = {
+              ...formData.value,
+              ...res.data,
+              params: {
+                ...params,
+                paths,
+                exclude_files,
+              },
+              index_set_name: collector_config_name,
+              configs,
+            };
+            if (props.scenarioId === 'wineventlog') {
+              const { paths, exclude_files, winlog_match_op, winlog_name, ...rect } = params;
+              eventSettingList.value = Object.keys(rect).map(key => {
+                return { type: key, list: rect[key], isCorrect: true };
+              });
+              otherSpeciesList.value = winlog_name.filter(
+                item => LOG_SPECIES_LIST.findIndex(i => i.id === item) === -1,
+              );
+              if (otherSpeciesList.value.length === 0) {
+                selectLogSpeciesList.value = selectLogSpeciesList.value.filter(item => item !== 'Other');
+              }
+            }
+            // collectorType.value = configs[0]?.collector_type;
+            logType.value = collector_scenario_id;
+            // noQuestParams
+            store.commit('collect/setCurCollect', res.data);
+            console.log('res.data', res.data, configs, paths, exclude_files);
+            // console.log('res.data', res.data, configs[0]?.collector_type, configs);
+            // console.log('res.data-----', res.data, curCollect.value);
+            // builtInFieldsList.value = curCollect.value.fields;
+            // getDetail();
+            // await getCleanStash(id);
+            // getDataLog('init');
+          }
+        })
+        .catch(err => {
+          console.log(err);
+        })
+        .finally(() => {
+          loading.value = false;
+        });
+    };
 
     /**
      * 基本信息
@@ -377,6 +443,7 @@ export default defineComponent({
       <BaseInfo
         ref={baseInfoRef}
         data={formData.value}
+        isEdit={props.isEdit}
         on-change={data => {
           const { index_set_name, ...rest } = data;
           rest.collector_config_name = index_set_name;
@@ -485,6 +552,7 @@ export default defineComponent({
                 }}
                 on-click={() => {
                   collectorType.value = item.id;
+                  console.log(collectorType.value, 'collectorType.value');
                   formData.value.configs?.map(config => {
                     config.collector_type = item.id;
                     return config;
@@ -508,6 +576,7 @@ export default defineComponent({
               class='form-box'
               clearable={false}
               loading={linkListLoading.value}
+              disabled={props.isEdit}
               value={formData.value.bcs_cluster_id}
               on-selected={val => {
                 formData.value.bcs_cluster_id = val;
@@ -742,6 +811,7 @@ export default defineComponent({
         <bk-select
           class='form-box'
           clearable={false}
+          disabled={props.isEdit}
           loading={linkListLoading.value}
           value={formData.value.data_link_id}
           on-selected={val => {
@@ -842,17 +912,61 @@ export default defineComponent({
         ...params,
         paths: params?.paths.map(item => item.value),
       };
+      const urlParams = {};
+      let requestUrl = 'collect/addCollection';
+      if (props.isEdit) {
+        urlParams.collector_config_id = route.params.collectorId;
+        requestUrl = 'collect/updateCollection';
+      }
+
+      let requestData = { ...formData.value, params: newParams };
+
+      // 当为 wineventlog 时，过滤空值和空对象
+      if (props.scenarioId === 'wineventlog') {
+        const {
+          collector_config_name,
+          collector_config_name_en,
+          collector_scenario_id,
+          description,
+          data_link_id,
+          target_node_type,
+          target_nodes,
+          environment,
+          target_object_type,
+          data_encoding,
+        } = formData.value;
+        const { paths, exclude_files, winlog_match_op, ...rect } = newParams;
+        requestData = {
+          params: rect,
+          collector_config_name,
+          collector_config_name_en,
+          collector_scenario_id,
+          description,
+          data_link_id,
+          target_node_type,
+          target_nodes,
+          environment,
+          target_object_type,
+          data_encoding,
+        };
+        console.log(requestData, 'requestData');
+      }
+
       $http
-        .request('collect/addCollection', {
-          data: { ...formData.value, params: newParams },
+        .request(requestUrl, {
+          params: urlParams,
+          data: requestData,
         })
         .then(res => {
-          store.commit(`collect/${isUpdate.value ? 'updateCurCollect' : 'setCurCollect'}`, {
+          store.commit(`collect/${props.isEdit ? 'updateCurCollect' : 'setCurCollect'}`, {
             ...formData.value,
             ...res.data,
           });
           res.result && showMessage(t('保存成功'));
           emit('next', res.data);
+        })
+        .catch(err => {
+          console.log(err);
         })
         .finally(() => {
           loadingSave.value = false;
@@ -890,6 +1004,10 @@ export default defineComponent({
         .validate()
         .then(() => {
           console.log('下一步', formData.value);
+          if (props.scenarioId === 'wineventlog') {
+            setCollection();
+            return;
+          }
           if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && !isSegmentError.value && isConfigError) {
             console.log('可以跳转下一步');
             setCollection();
@@ -900,7 +1018,10 @@ export default defineComponent({
         });
     };
     return () => (
-      <div class='operation-step2-configuration'>
+      <div
+        class='operation-step2-configuration'
+        v-bkloading={{ isLoading: loading.value }}
+      >
         {cardRender(cardConfig)}
         <LogIpSelector
           key={bkBizId.value}
@@ -909,7 +1030,7 @@ export default defineComponent({
           original-value={ipSelectorOriginalValue.value}
           panel-list={ipSelectorPanelList}
           show-dialog={showSelectDialog.value}
-          show-view-diff={isUpdate.value}
+          show-view-diff={props.isEdit}
           value={selectorNodes.value}
           allow-host-list-miss-host-id
           {...{
@@ -932,14 +1053,16 @@ export default defineComponent({
           />
         )}
         <div class='classify-btns-fixed'>
-          <bk-button
-            class='mr-8'
-            on-click={() => {
-              emit('prev');
-            }}
-          >
-            {t('上一步')}
-          </bk-button>
+          {!props.isEdit && (
+            <bk-button
+              class='mr-8'
+              on-click={() => {
+                emit('prev');
+              }}
+            >
+              {t('上一步')}
+            </bk-button>
+          )}
           <bk-button
             class='width-88 mr-8'
             loading={loadingSave.value}

@@ -60,11 +60,6 @@ export default defineComponent({
             value: 'wineventlog',
             icon: 'windows',
           },
-          // {
-          //   name: 'syslog 日志',
-          //   value: 'syslog',
-          //   icon: 'syslog',
-          // },
         ],
       },
       {

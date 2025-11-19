@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onBeforeUnmount, onMounted, ref, computed } from 'vue';
+import { defineComponent, onBeforeUnmount, onMounted, ref, computed, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import { useRoute } from 'vue-router/composables';
@@ -50,7 +50,7 @@ export default defineComponent({
     const DEFAULT_STEP = 1;
     const step = ref(DEFAULT_STEP);
     const typeKey = ref('host_log');
-    const firstStep = { title: t('索引集分类'), icon: 1, components: StepClassify };
+    const firstStep = [{ title: t('索引集分类'), icon: 1, components: StepClassify }];
     const { goListPage } = useCollectList();
     const dataConfig = ref({});
     const showCollectIssuedSlider = ref(false);
@@ -67,7 +67,6 @@ export default defineComponent({
     };
 
     const stepDesc = [
-      firstStep,
       { title: t('采集配置'), icon: 2, components: StepConfiguration },
       { title: t('字段清洗'), icon: 3, components: StepClean },
       { title: t('存储'), icon: 4, components: StepStorage },
@@ -75,12 +74,11 @@ export default defineComponent({
     /**
      * 第三方日志新建流程 （计算平台、第三方ES接入)流程
      */
-    const thirdLogStep = [firstStep, { title: t('采集配置'), icon: 2, components: StepBkDataCollection }];
+    const thirdLogStep = [{ title: t('采集配置'), icon: 2, components: StepBkDataCollection }];
     /**
      * 自定义日志新建流程
      */
     const customReportStep = [
-      firstStep,
       { title: t('采集配置'), icon: 2, components: StepCustomReport },
       { title: t('存储'), icon: 3, components: StepStorage },
     ];
@@ -92,7 +90,7 @@ export default defineComponent({
     /**
      * 当前采集id
      */
-    const collectId = computed(() => route.params.collectId);
+    const collectId = computed(() => route.params.collectorId);
     /**
      * 是否是编辑状态
      */
@@ -108,12 +106,36 @@ export default defineComponent({
      */
     const currentStep = computed(() => {
       if (['bkdata', 'es'].includes(typeKey.value)) {
-        return thirdLogStep;
+        const data = [...thirdLogStep];
+        return isEdit.value
+          ? data.map((item, ind) => {
+              return {
+                ...item,
+                icon: ind + 1,
+              };
+            })
+          : [...firstStep, ...thirdLogStep];
       }
       if (typeKey.value === 'custom_report') {
-        return customReportStep;
+        const data = [...customReportStep];
+        return isEdit.value
+          ? data.map((item, ind) => {
+              return {
+                ...item,
+                icon: ind + 1,
+              };
+            })
+          : [...firstStep, ...customReportStep];
       }
-      return stepDesc;
+      const data = [...stepDesc];
+      return isEdit.value
+        ? data.map((item, ind) => {
+            return {
+              ...item,
+              icon: ind + 1,
+            };
+          })
+        : [...firstStep, ...stepDesc];
     });
 
     const isShowStatusBtn = computed(() => isNeedIssue.value && step.value !== 1 && !!currentCollectorId.value);
@@ -123,7 +145,7 @@ export default defineComponent({
     const pollingTimer = ref<number | null>(null);
 
     onMounted(() => {
-      step.value !== 1 && isEdit && collectId.value && getCollectStatus(collectId.value);
+      step.value !== 1 && isEdit && collectId.value && getCollectStatus(Number(collectId.value));
       if (mainRef.value) {
         resizeObserver = new ResizeObserver(entries => {
           const entry = entries[0];
@@ -216,8 +238,17 @@ export default defineComponent({
         });
     };
 
+    watch(
+      () => isEdit.value,
+      val => {
+        if (val) {
+          typeKey.value = route.query.typeKey as string;
+        }
+      },
+      { immediate: true },
+    );
+
     return () => {
-      console.log(isEdit.value, 'isEdit');
       const Component = currentStep.value.find(item => item.icon === step.value)?.components;
       return (
         <div
@@ -268,10 +299,12 @@ export default defineComponent({
             </span>
           </div>
           <Component
+            key={`${typeKey.value}-${step.value}`}
             configData={dataConfig.value}
             scenarioId={typeKey.value}
             on-cancel={handleCancel}
             on-handle={handleFunction}
+            isEdit={isEdit.value}
             on-next={data => {
               dataConfig.value = data;
               console.log(step.value, 'step.value', data);

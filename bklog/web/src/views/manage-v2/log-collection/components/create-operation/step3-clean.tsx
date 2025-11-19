@@ -53,6 +53,10 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    isEdit: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: ['next', 'prev', 'cancel'],
@@ -89,7 +93,7 @@ export default defineComponent({
     /**
      * 日志样例
      */
-    const logOriginal = ref('{"a": 123, "b": 222}');
+    const logOriginal = ref('');
     const copyBuiltField = ref([]);
     const originParticipleState = ref('default');
     const cleaningModeList = [
@@ -162,65 +166,7 @@ export default defineComponent({
         path_regexp: '', // 采集路径分割的正则
         metadata_fields: [],
       },
-      etl_fields: [
-        {
-          value: 'sd',
-          option: {
-            time_zone: '',
-            time_format: '',
-          },
-          is_time: false,
-          is_delete: false,
-          alias_name: '',
-          field_name: 'ss',
-          field_type: 'string',
-          description: '',
-          field_index: 1,
-          is_analyzed: false,
-          is_built_in: false,
-          is_dimension: true,
-          is_case_sensitive: false,
-          tokenize_on_chars: '',
-        },
-        {
-          value: 'sad',
-          option: {
-            time_zone: '',
-            time_format: '',
-          },
-          is_time: false,
-          is_delete: false,
-          alias_name: '',
-          field_name: 'sadg',
-          field_type: 'string',
-          description: '',
-          field_index: 2,
-          is_analyzed: false,
-          is_built_in: false,
-          is_dimension: true,
-          is_case_sensitive: false,
-          tokenize_on_chars: '',
-        },
-        {
-          value: 'ha',
-          option: {
-            time_zone: '',
-            time_format: '',
-          },
-          is_time: false,
-          is_delete: false,
-          alias_name: '',
-          field_name: 'sadgss',
-          field_type: 'string',
-          description: '',
-          field_index: 3,
-          is_analyzed: false,
-          is_built_in: false,
-          is_dimension: true,
-          is_case_sensitive: false,
-          tokenize_on_chars: '',
-        },
-      ],
+      etl_fields: [],
       fields: [],
       visible_type: 'current_biz', // 可见范围单选项
       visible_bk_biz: [], // 多个业务
@@ -288,6 +234,22 @@ export default defineComponent({
           }
         });
     };
+    const getCleanStash = async id => {
+      try {
+        const res = await $http.request('clean/getCleanStash', {
+          params: {
+            collector_config_id: id,
+          },
+        });
+        if (res.data) {
+          formData.value = {
+            ...formData.value,
+            ...res.data,
+          };
+          console.log('res.data.getCleanStash====', res.data);
+        }
+      } catch (error) {}
+    };
 
     // 新建、编辑采集项时获取更新详情
     const setDetail = id => {
@@ -299,13 +261,13 @@ export default defineComponent({
         .request('collect/details', {
           params: { collector_config_id: id },
         })
-        .then(res => {
+        .then(async res => {
           if (res.data) {
             store.commit('collect/setCurCollect', res.data);
             console.log('res.data-----', res.data, curCollect.value);
             builtInFieldsList.value = curCollect.value.fields;
             // getDetail();
-            // await getCleanStash(id);
+            props.isEdit && (await getCleanStash(id));
             // getDataLog('init');
           }
         })
@@ -1075,7 +1037,7 @@ export default defineComponent({
                 })
                 .then(res => {
                   if (res?.result) {
-                    emit('next');
+                    emit('next', formData.value);
                   }
                   console.log('res', res);
                 });

@@ -67,7 +67,7 @@ export const useOperation = () => {
    * @param isList 是否返回list
    * @returns
    */
-  const handleMultipleSelected = async (params, isList = false, callback) => {
+  const handleMultipleSelected = async (params, isList = false, callback?) => {
     try {
       tableLoading.value = true;
       const res = await $http.request('/resultTables/info', params);

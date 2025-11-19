@@ -135,7 +135,7 @@
       width: calc(100% - 32px);
       height: calc(100% - 110px);
       position: absolute;
-      top: 43px;
+      top: 20px;
       left: 16px;
       z-index: 6;
     }
@@ -146,6 +146,42 @@
         background: #F0F1F5;
         .icon-angle-down {
           color: #979BA5;
+        }
+      }
+    }
+    .log-collection-table {
+      .sort-icon {
+        display: inline-block;
+        color: #c4c6cc;
+        font-size: 12px;
+        height: 14px;
+        line-height: 14px;
+      }
+      .t-table__sort-icon--active {
+        .sort-icon {
+          color: #3a84ff;
+        }
+      }
+      td {
+        font-size: 12px;
+        padding: 4px 10px 4px 12px;
+      }
+      .t-table__header th {
+        background-color: #f5f7fa !important;
+        padding: 8px 10px 6px 12px;
+      }
+      .t-table__content {
+        border: none;
+      }
+      .t-table__header .t-table__th-cell-inner {
+        font-size: 12px;
+        color: #313238;
+      }
+      .t-table__body {
+        td {
+          font-size: 12px;
+          color: #4D4F56;
+          padding: 10px 10px 10px 12px;
         }
       }
     }

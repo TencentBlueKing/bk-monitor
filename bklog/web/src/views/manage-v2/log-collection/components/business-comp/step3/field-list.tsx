@@ -516,6 +516,10 @@ export default defineComponent({
               // disabled={() => getFieldEditDisabled(row)}
               // disabled={row.is_built_in}
               value={row.field_name}
+              on-change={value => {
+                const newList = updateList(props.data, row, item => ({ ...item, field_name: value }));
+                emit('change', newList);
+              }}
               // on-blur={() => checkFieldNameItem(row)}
             />
           ) : (
@@ -527,6 +531,10 @@ export default defineComponent({
               // disabled={() => getFieldEditDisabled(row)}
               // disabled={row.is_built_in}
               value={row.field_name}
+              on-change={value => {
+                const newList = updateList(props.data, row, item => ({ ...item, field_name: value }));
+                emit('change', newList);
+              }}
               // on-blur={() => checkFieldNameItem(row)}
             />
           )}
@@ -544,6 +552,10 @@ export default defineComponent({
               // disabled={() => getFieldEditDisabled(row)}
               placeholder={t('请输入映射名')}
               value={row.alias_name}
+              on-change={value => {
+                const newList = updateList(props.data, row, item => ({ ...item, alias_name: value }));
+                emit('change', newList);
+              }}
               // on-blur={() => checkAliasNameItem(row)}
             />
           )}

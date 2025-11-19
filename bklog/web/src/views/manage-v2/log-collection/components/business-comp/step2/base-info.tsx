@@ -68,7 +68,8 @@ export default defineComponent({
 
     // ==================== 响应式数据 ====================
     /** 表单数据 */
-    const formData = ref<IBaseInfo>({ index_set_name: '', parent_index_set_ids: [] });
+    // const formData = ref<IBaseInfo>({ index_set_name: '', parent_index_set_ids: [] });
+    const formData = ref<IBaseInfo>({ ...props.data });
     /** 表单引用 */
     const formRef = ref();
     /** 数据名格式校验状态 */
@@ -205,6 +206,13 @@ export default defineComponent({
       },
       { immediate: true },
     );
+    watch(
+      () => props.data,
+      val => {
+        formData.value = { ...formData.value, ...val };
+      },
+      { deep: true },
+    );
 
     // ==================== 事件处理 ====================
     /**
@@ -305,6 +313,7 @@ export default defineComponent({
         buttons.push(
           <bk-button
             key={item.id}
+            disabled={props.isEdit}
             class={isSelected ? 'is-selected' : ''}
             on-click={() => handleChangeType(item.id)}
           >

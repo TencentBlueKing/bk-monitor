@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -46,6 +46,10 @@ export default defineComponent({
     scenarioId: {
       type: String,
       default: '',
+    },
+    isEdit: {
+      type: Boolean,
+      default: false,
     },
   },
 
@@ -72,6 +76,29 @@ export default defineComponent({
       ...props.configData,
     });
     const cleanStash = ref({});
+    onMounted(() => {
+      console.log('props.configData=====', props.configData, 'configData', formData.value);
+    });
+
+    watch(
+      () => props.configData,
+      val => {
+        formData.value = { ...formData.value, ...val };
+        console.log('formData.value', formData.value);
+      },
+      { deep: true },
+    );
+    watch(
+      () => props.isEdit,
+      val => {
+        if (val) {
+          console.log('props.configData in isEdit===', props.configData, formData.value);
+          formData.value = { ...formData.value, ...props.configData };
+          clusterSelect.value = props.configData.storage_cluster_id;
+        }
+      },
+      { immediate: true },
+    );
 
     const bkBizId = computed(() => store.state.bkBizId);
     const curCollect = computed(() => store.getters['collect/curCollect']);
@@ -135,6 +162,9 @@ export default defineComponent({
         if (response.data) {
           // 调用通用排序函数处理数据
           storageList.value = sortByPermission(response.data);
+          if (props.isEdit) {
+          }
+          // clusterSelect.value
         }
       } catch (error) {
         showMessage(error.message, 'error');
@@ -147,6 +177,7 @@ export default defineComponent({
      * @param row
      */
     const handleChooseCluster = row => {
+      console.log('选择集群', row);
       clusterSelect.value = row.storage_cluster_id;
       clusterData.value = row;
       const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = row.setup_config;
@@ -260,7 +291,7 @@ export default defineComponent({
               class='min-width'
               type='number'
               max={daysMax.value}
-              min={1}
+              min={0}
               value={formData.value.allocation_min_days}
               on-input={val => {
                 formData.value.allocation_min_days = val;
@@ -279,7 +310,7 @@ export default defineComponent({
             class='min-width'
             type='number'
             max={numberOfReplicasMax.value}
-            min={1}
+            min={0}
             value={formData.value.storage_replies}
             on-input={val => {
               formData.value.storage_replies = val;
@@ -292,7 +323,7 @@ export default defineComponent({
             class='min-width'
             type='number'
             max={esShardsMax.value}
-            min={1}
+            min={0}
             value={formData.value.es_shards}
             on-input={val => {
               formData.value.es_shards = val;

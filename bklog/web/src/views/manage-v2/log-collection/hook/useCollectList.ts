@@ -123,12 +123,12 @@ export const useCollectList = () => {
     return true;
   };
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
-  const leaveCurrentPage = (row, operateType) => {
+  const leaveCurrentPage = (row, operateType, typeKey) => {
     if (operateType === 'status' && (!loadingStatus.value || row.status === 'terminated')) {
       return; // 已停用禁止操作
     }
     if (operateType === 'status' && (!row.status || row.status === 'prepare')) {
-      return operateHandler(row, 'edit');
+      return operateHandler(row, 'edit', typeKey);
     }
     // running、prepare 状态不能启用、停用
     if (operateType === 'start' || operateType === 'stop') {
@@ -188,7 +188,7 @@ export const useCollectList = () => {
     const targetRoute = routeMap[operateType];
     // 查看详情 - 如果处于未完成状态，应该跳转到编辑页面
     if (targetRoute === 'manage-collection' && !row.table_id) {
-      return operateHandler(row, 'edit');
+      return operateHandler(row, 'edit', typeKey);
     }
     if (
       ['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking'].includes(targetRoute)
@@ -207,7 +207,7 @@ export const useCollectList = () => {
     if (operateType === 'clean') {
       params.collectorId = row.collector_config_id;
       if (row.itsm_ticket_status === 'applying') {
-        return operateHandler(row, 'field');
+        return operateHandler(row, 'field', typeKey);
       }
       backRoute = route.name;
     }
@@ -221,6 +221,13 @@ export const useCollectList = () => {
       // 直接跳转到脱敏页隐藏左侧的步骤
       query.type = 'masking';
     }
+    if (operateType === 'edit') {
+      if (['bkdata', 'es'].includes(typeKey)) {
+        params.collectorId = row.index_set_id;
+      }
+      query.typeKey = typeKey;
+      console.log(row, params, query, backRoute, 'edit', typeKey);
+    }
     store.commit('collect/setCurCollect', row);
 
     router.push({
@@ -232,10 +239,10 @@ export const useCollectList = () => {
         backRoute,
       },
     });
+    console.log(params, query, backRoute, '======');
   };
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
-  const operateHandler = (row, operateType) => {
+  const operateHandler = (row, operateType, typeKey) => {
     // type: [view, status , search, edit, field, start, stop, delete]
     const isCanClick = getOperatorCanClick(row, operateType);
     if (!isCanClick) {
@@ -254,45 +261,8 @@ export const useCollectList = () => {
           ],
         });
       }
-    } else if (operateType === 'view') {
-      // 查看权限
-      if (!row.permission?.[authorityMap.VIEW_COLLECTION_AUTH]) {
-        return getOptionApplyData({
-          action_ids: [authorityMap.VIEW_COLLECTION_AUTH],
-          resources: [
-            {
-              type: 'collection',
-              id: row.collector_config_id,
-            },
-          ],
-        });
-      }
-    } else if (operateType === 'search') {
-      // 检索权限
-      if (!row.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
-        return getOptionApplyData({
-          action_ids: [authorityMap.SEARCH_LOG_AUTH],
-          resources: [
-            {
-              type: 'indices',
-              id: row.index_set_id,
-            },
-          ],
-        });
-      }
-    } else if (!row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) {
-      // 管理权限
-      return getOptionApplyData({
-        action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-        resources: [
-          {
-            type: 'collection',
-            id: row.collector_config_id,
-          },
-        ],
-      });
     }
-    leaveCurrentPage(row, operateType);
+    leaveCurrentPage(row, operateType, typeKey);
   };
 
   return {

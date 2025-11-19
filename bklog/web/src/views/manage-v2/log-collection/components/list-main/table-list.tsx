@@ -25,11 +25,12 @@
  */
 
 import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, computed, type PropType } from 'vue';
-
 import useLocale from '@/hooks/use-locale';
 // import useStore from '@/hooks/use-store';
 import ItemSkeleton from '@/skeleton/item-skeleton';
 import tippy, { type Instance } from 'tippy.js';
+import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue';
+import { getScenarioIdType } from '../../utils';
 
 import $http from '@/api';
 // import { useRouter } from 'vue-router/composables';
@@ -41,6 +42,7 @@ import TagMore from '../common-comp/tag-more';
 import type { IListItemData } from '../../type';
 
 import './table-list.scss';
+import 'tdesign-vue/es/style/index.css';
 
 export type SearchKeyItem = {
   id: string;
@@ -69,6 +71,11 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
+    const globalLocale = {
+      table: {
+        sortIcon: () => <i class='icon-monitor icon-mc-arrow-down sort-icon' />,
+      },
+    };
     // const router = useRouter();
     // const store = useStore();
     // 使用自定义 hook 管理状态
@@ -84,8 +91,8 @@ export default defineComponent({
 
     const pagination = ref({
       current: 1,
-      count: props.data.length,
-      limit: 10,
+      total: props.data.length,
+      pageSize: 10,
       limitList: [10, 20, 50],
     });
     const settingFields = SETTING_FIELDS;
@@ -98,36 +105,38 @@ export default defineComponent({
 
     const columns = computed(() => [
       {
-        label: t('采集名'),
-        prop: 'name',
-        sortable: true,
-        renderFn: (row: any) => <span class='link'>{row.name}</span>,
+        title: t('采集名'),
+        colKey: 'name',
+        // sortable: true,
+        cell: (h, { row }) => <span class='link'>{row.name}</span>,
         fixed: 'left',
-        'min-width': 180,
+        minWidth: 180,
+        ellipsis: true,
       },
       {
-        label: t('日用量'),
-        prop: 'daily_usage',
+        title: t('日用量'),
+        colKey: 'daily_usage',
         sortable: true,
-        'min-width': 100,
+        minWidth: 100,
       },
       {
-        label: t('总用量'),
-        prop: 'total_usage',
+        title: t('总用量'),
+        colKey: 'total_usage',
         sortable: true,
-        'min-width': 100,
+        minWidth: 100,
       },
       {
-        label: t('存储名'),
-        prop: 'bk_data_name',
+        title: t('存储名'),
+        colKey: 'bk_data_name',
         width: 180,
-        renderFn: (row: any) => <div>{row.bk_data_name || '--'}</div>,
+        ellipsis: true,
+        cell: (h, { row }) => <div>{row.bk_data_name || '--'}</div>,
       },
       {
-        label: t('所属索引集'),
-        prop: 'index_set_name',
+        title: t('所属索引集'),
+        colKey: 'index_set_name',
         width: 200,
-        renderFn: (row: any) =>
+        cell: (h, { row }) =>
           row.index_set_name?.length > 0 ? (
             <TagMore
               tags={row.index_set_name}
@@ -138,27 +147,28 @@ export default defineComponent({
           ),
       },
       {
-        label: t('接入类型'),
-        prop: 'category_name',
+        title: t('接入类型'),
+        colKey: 'category_name',
         width: 100,
         filters: GLOBAL_CATEGORIES_ENUM,
       },
       {
-        label: t('日志类型'),
-        prop: 'collector_scenario_name',
+        title: t('日志类型'),
+        colKey: 'collector_scenario_name',
         width: 100,
         filters: COLLECTOR_SCENARIO_ENUM,
       },
       {
-        label: t('集群名'),
-        prop: 'storage_cluster_name',
-        'min-width': 140,
-        renderFn: (row: any) => <span>{row.storage_cluster_name || '--'}</span>,
+        title: t('集群名'),
+        colKey: 'storage_cluster_name',
+        minWidth: 140,
+        ellipsis: true,
+        cell: ({ row }) => <span>{row.storage_cluster_name || '--'}</span>,
       },
       {
-        label: t('过期时间'),
-        prop: 'retention',
-        renderFn: (row: any) => (
+        title: t('过期时间'),
+        colKey: 'retention',
+        cell: (h, { row }) => (
           <span class={{ 'text-disabled': row.status === 'stop' }}>
             {row.retention ? `${row.retention} ${t('天')}` : '--'}
           </span>
@@ -166,11 +176,11 @@ export default defineComponent({
         width: 100,
       },
       {
-        label: t('标签'),
-        prop: 'tags',
+        title: t('标签'),
+        colKey: 'tags',
         showTips: false,
-        renderFn: (row: any) =>
-          row.tags.length > 0 ? (
+        cell: (h, { row }) =>
+          (row.tags || []).length > 0 ? (
             <TagMore
               tags={row.tags}
               title={t('标签')}
@@ -181,37 +191,74 @@ export default defineComponent({
         width: 200,
       },
       {
-        label: t('采集状态'),
-        prop: 'status',
+        title: t('采集状态'),
+        colKey: 'status',
         width: 100,
-        renderFn: (row: any) => renderStatus(row.status),
+        cell: (h, { row }) => renderStatus(row.status),
         filters: STATUS_ENUM,
       },
       {
-        label: t('创建人'),
-        prop: 'created_by',
+        title: t('创建人'),
+        colKey: 'created_by',
         width: 100,
         filterValue: createdValues.value,
         filters: [],
       },
       {
-        label: t('创建时间'),
-        prop: 'created_at',
+        title: t('创建时间'),
+        colKey: 'created_at',
         sortable: true,
-        width: 180,
+        width: 200,
       },
       {
-        label: t('更新人'),
+        title: t('更新人'),
         width: 100,
-        prop: 'updated_by',
+        colKey: 'updated_by',
         filterValue: updatedByValues.value,
         filters: [],
       },
       {
-        label: t('更新时间'),
-        prop: 'updated_at',
+        title: t('更新时间'),
+        colKey: 'updated_at',
         sortable: true,
-        width: 180,
+        width: 200,
+      },
+      {
+        title: t('操作'),
+        colKey: 'operation',
+        width: 110,
+        fixed: 'right',
+        cell: (h, { row }) => (
+          <div class='table-operation'>
+            <span class='link mr-6'>{t('检索')}</span>
+            <span
+              class={{
+                link: true,
+                disabled: !row.is_editable,
+              }}
+              on-click={() => handleEditOperation(row)}
+            >
+              {t('编辑')}
+            </span>
+            <span class='bk-icon icon-more more-btn table-more-btn' />
+            <div
+              style={{ display: 'none' }}
+              class='row-menu-popover'
+            >
+              <div class='row-menu-content'>
+                {MENU_LIST.map(item => (
+                  <span
+                    key={item.key}
+                    class='menu-item'
+                    on-Click={(e: MouseEvent) => handleMenuClick(item.key, row, e)}
+                  >
+                    {item.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        ),
       },
     ]);
 
@@ -230,12 +277,11 @@ export default defineComponent({
       () => listLoading.value,
       val => {
         if (!val) {
-          nextTick(() => {
+          setTimeout(() => {
             initMenuPop();
-          });
+          }, 1000);
         }
       },
-      { immediate: true },
     );
     watch(
       () => props.indexSet,
@@ -250,9 +296,8 @@ export default defineComponent({
       // 销毁旧实例，避免重复绑定
       destroyTippyInstances();
 
-      const targets = document.querySelectorAll(
-        '.v2-log-collection-table .bk-table-fixed-body-wrapper .table-more-btn',
-      );
+      const targets = document.querySelectorAll('.v2-log-collection-table .t-table--layout-fixed .table-more-btn');
+      console.log(targets, 'targets');
       if (!targets.length) {
         return;
       }
@@ -302,11 +347,12 @@ export default defineComponent({
     const getTableList = async () => {
       try {
         listLoading.value = true;
-        const { current, limit } = pagination.value;
+        const { current, pageSize } = pagination.value;
         const params = {
           space_uid: spaceUid.value,
           page: current,
-          pagesize: limit,
+          pagesize: pageSize,
+          // conditions: [{ key: 'name', value: ['test1118'] }],
         };
         if (props.indexSet.index_set_id !== 'all') {
           Object.assign(params, {
@@ -318,7 +364,7 @@ export default defineComponent({
         });
         console.log(res, 'res');
         tableList.value = res.data?.list || [];
-        pagination.value.count = res.data?.total || 0;
+        pagination.value.total = res.data?.total || 0;
       } catch (e) {
         console.warn(e);
       } finally {
@@ -334,17 +380,24 @@ export default defineComponent({
       // 业务处理
       console.log(key, row);
     };
-    const handlePageChange = (page: number) => {
-      pagination.value.current = page;
+    const handlePageChange = pageInfo => {
+      pagination.value.current = pageInfo.current;
+      pagination.value.pageSize = pageInfo.pageSize;
       getTableList();
     };
-    const handlePageLimitChange = (limit: number) => {
-      pagination.value.limit = limit;
-      getTableList();
-    };
+    // const handlePageLimitChange = (limit: number) => {
+    //   pagination.value.pageSize = limit;
+    //   getTableList();
+    // };
     /** 新增采集项 */
     const handleCreateOperation = () => {
-      operateHandler({}, 'add');
+      operateHandler({}, 'add', 'host_log');
+    };
+
+    const handleEditOperation = (row: any) => {
+      const { scenario_id, environment, collector_scenario_id } = row;
+      const typeConfig = getScenarioIdType(scenario_id, environment, collector_scenario_id);
+      operateHandler(row, 'edit', typeConfig.value);
     };
     /** 表格过滤 */
     const handleFilterMethod = (value, row, column) => {
@@ -467,90 +520,7 @@ export default defineComponent({
           />
         </div>
         <div class='v2-log-collection-table-main'>
-          <bk-table
-            // key={tableKey.value}
-            ext-cls='collection-table-box'
-            data={tableList.value}
-            on-filter-change={handleFilterChange}
-          >
-            {columns.value.map((item, ind) => (
-              <bk-table-column
-                key={`${item.prop}_${ind}`}
-                width={item.width}
-                scopedSlots={{
-                  default: ({ row }) => {
-                    /** 自定义 */
-                    if (item?.renderFn) {
-                      return (item as any)?.renderFn(row);
-                    }
-                    return row[item.prop] ?? '--';
-                  },
-                }}
-                column-key={item.prop}
-                filter-method={handleFilterMethod}
-                filter-multiple={false}
-                filtered-value={item?.filterValue}
-                filters={item?.filters}
-                fixed={!!item.fixed}
-                label={item.label}
-                min-width={item['min-width']}
-                prop={item.prop}
-                show-overflow-tooltip={!!item.showTips}
-                sortable={!!item?.sortable}
-              />
-            ))}
-            <bk-table-column
-              width={70}
-              class='table-operation'
-              scopedSlots={{
-                default: ({ row }) => {
-                  return (
-                    <div>
-                      <span class='link mr-6'>{t('检索')}</span>
-                      <span
-                        class={{
-                          link: true,
-                          disabled: row.is_editable,
-                        }}
-                      >
-                        {t('编辑')}
-                      </span>
-                      <span class='bk-icon icon-more more-btn table-more-btn' />
-                      <div
-                        style={{ display: 'none' }}
-                        class='row-menu-popover'
-                      >
-                        <div class='row-menu-content'>
-                          {MENU_LIST.map(item => (
-                            <span
-                              key={item.key}
-                              class='menu-item'
-                              on-Click={(e: MouseEvent) => handleMenuClick(item.key, row, e)}
-                            >
-                              {item.label}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                },
-              }}
-              fixed={'right'}
-              label={t('操作')}
-            />
-            <bk-table-column
-              tippy-options={{ zIndex: 3000 }}
-              type='setting'
-            >
-              <bk-table-setting-content
-                fields={settingFields}
-                // :selected="setting.selectedFields"
-                // @setting-change="handleSettingChange"
-              />
-            </bk-table-column>
-          </bk-table>
-          {listLoading.value && (
+          {/* {listLoading.value ? (
             <div class='table-skeleton-box'>
               <ItemSkeleton
                 style={{ padding: '0 16px' }}
@@ -561,23 +531,46 @@ export default defineComponent({
                 widths={['25%', '25%', '20%', '20%', '10%']}
               />
             </div>
-          )}
-          {tableList.value?.length > 0 && (
-            <bk-pagination
-              class='table-pagination-box'
-              align='right'
-              count={pagination.value.count}
-              current={pagination.value.current}
-              limit={pagination.value.limit}
-              limit-list={pagination.value.limitList}
-              show-limit={true}
-              size='small'
-              show-total-count
-              on-change={handlePageChange}
-              on-limit-change={handlePageLimitChange}
-              {...{ on: { 'update:current': v => (pagination.value.current = v) } }}
+          ) : ( */}
+          <TConfigProvider
+            class='log-collection-table'
+            globalConfig={globalLocale}
+          >
+            <TTable
+              // ref='dataTable'
+              // bordered={'bordered'}
+              cache={true}
+              columns={columns.value}
+              data={tableList.value}
+              loading={listLoading.value}
+              // foot-data={this.footerData}
+              // max-height={this.maxHeight}
+              on-page-change={handlePageChange}
+              pagination={pagination.value}
+              row-key='key'
+              rowHeight={32}
+              scroll={{ type: 'lazy', bufferSize: 10 }}
+              // sort={this.sort}
+              virtual={true}
+              // on-sort-change={this.sortChange}
             />
-          )}
+            <div
+              slot='loading'
+              class='t-table--loading-message'
+            >
+              <div class='table-skeleton-box'>
+                <ItemSkeleton
+                  style={{ padding: '0 16px' }}
+                  columns={5}
+                  gap={'14px'}
+                  rowHeight={'28px'}
+                  rows={6}
+                  widths={['25%', '25%', '20%', '20%', '10%']}
+                />
+              </div>
+            </div>
+          </TConfigProvider>
+          {/* )} */}
         </div>
       </div>
     );
