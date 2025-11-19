@@ -184,6 +184,9 @@ class UnifyQueryHandler:
         # 基础查询参数初始化
         self.base_dict = self.init_base_dict()
 
+        if self.index_set_ids:
+            self.time_field = SearchHandler.init_time_field(self.index_set_ids[0])[0]
+
     @staticmethod
     def query_ts(search_dict, raise_exception=True):
         """
@@ -217,12 +220,9 @@ class UnifyQueryHandler:
             search_dict = copy.deepcopy(search_dict)
             pre_search_seconds = settings.PRE_SEARCH_SECONDS
             first_field, order = self.origin_order_by[0] if self.origin_order_by else [None, None]
-            if (
-                pre_search
-                and pre_search_seconds
-                and self.start_time
-                and first_field == self.search_params.get("time_field", "")
-            ):
+            if pre_search:
+                if not (pre_search_seconds and self.start_time and first_field == self.time_field):
+                    return dict()
                 # 预查询处理
                 pre_search_end_time = int(
                     arrow.get(self.start_time).shift(seconds=pre_search_seconds).timestamp() * 1000
@@ -833,7 +833,7 @@ class UnifyQueryHandler:
 
         # 预查询
         result = self.query_ts_raw(search_dict, pre_search=pre_search)
-        if pre_search and len(result["list"]) != once_size:
+        if pre_search and len(result.get("list", [])) != once_size:
             # 全量查询
             result = self.query_ts_raw(search_dict)
         result = self._deal_query_result(result)
