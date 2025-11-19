@@ -106,6 +106,16 @@ class ActionEnum:
         version=1,
     )
 
+    USING_METRICS_MCP = ActionMeta(
+        id="using_metrics_mcp",
+        name=_("使用指标MCP"),
+        name_en="Using Metrics MCP",
+        type="view",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+
     EXPLORE_METRIC = ActionMeta(
         id="explore_metric_v2",
         name=_("指标检索"),

@@ -183,7 +183,10 @@ class UnifyQueryHandler:
 
         # 基础查询参数初始化
         self.base_dict = self.init_base_dict()
-
+        
+        # 基础查询结果合并参数初始化
+        self.result_merge_base_dict = self.init_result_merge_base_dict(self.base_dict)
+        
         if self.index_set_ids:
             self.time_field = SearchHandler.init_time_field(self.index_set_ids[0])[0]
 
@@ -614,6 +617,17 @@ class UnifyQueryHandler:
             "timezone": self.search_params.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE),
             "bk_biz_id": self.bk_biz_id,
         }
+
+    @staticmethod
+    def init_result_merge_base_dict(base_dict):
+        get_base_dict = copy.deepcopy(base_dict)
+
+        for query in get_base_dict.get("query_list", []):
+            query["reference_name"] = "a"
+
+        get_base_dict.update({"metric_merge": "a"})
+
+        return get_base_dict
 
     def _deal_query_result(self, result_dict: dict) -> dict:
         log_list = []
