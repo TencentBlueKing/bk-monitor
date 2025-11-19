@@ -1429,7 +1429,10 @@ class ResultTable(models.Model):
         if self.is_enable:
             self.apply_datalink()
         else:
-            self.delete_datalink()
+            try:
+                self.delete_datalink()
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("delete datalink error, table_id: %s, %s", self.table_id, e)
 
         logger.info("table_id->[%s] of bk_tenant_id->[%s] updated success.", self.table_id, self.bk_tenant_id)
 

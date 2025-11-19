@@ -153,10 +153,13 @@ class CustomConfigManager(AgentConfigManager):
             mcp_config.pop("credential_type", None)
             # mcp_config["headers"] = json.dumps(_get_mcp_auth_info(request))
             # 自定义请求头,鉴权+区分请求来源
+            # 从 mcp_server key 中提取权限点,例如: bkop-bcs-metadata -> using_bcs_metadata_mcp
+            permission_action = f"using_{mcp_server.split('-', 1)[1].replace('-', '_')}_mcp"
             mcp_config["headers"] = {
                 "X-Bk-Request-Source": "bkm-mcp-client",
-                "X-Bkapi-Allowed-Headers": "X-Bk-Request-Source",
+                "X-Bkapi-Allowed-Headers": "X-Bk-Request-Source,X-Bkapi-Permission-Action",
                 "X-Bkapi-Authorization": json.dumps(_get_mcp_auth_info(request)),
+                "X-Bkapi-Permission-Action": permission_action,
             }
         # 需要自定义重写鉴权Headers和特殊标识Headers
 

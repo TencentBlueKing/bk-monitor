@@ -340,7 +340,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 if operation:
                     operation(
                         last_snapshot.incident_id,
-                        int(alert_doc.begin_time),
+                        int(alert_doc.update_time),
                         alert_doc.alert_name,
                         alert_doc.id,
                     )
