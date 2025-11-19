@@ -34,6 +34,7 @@ import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
 import { useRoute, useRouter } from 'vue-router/composables';
+import { bkMessage } from 'bk-magic-vue';
 
 
 import './index.scss';
@@ -203,6 +204,10 @@ export default defineComponent({
           }
         } catch (e) {
           console.error(e);
+          bkMessage({
+            theme: 'error',
+            message: e.message,
+          });
         }
       })
         .finally(() => {
