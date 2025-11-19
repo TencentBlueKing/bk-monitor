@@ -345,14 +345,8 @@ class RPCEnricher(BaseEnricher):
         return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"?bizId={self.bk_biz_id}#/apm/service?{encoded_params}")
 
     def _current_value_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        """当前值模板 - RPC特殊处理，包含content和当前值"""
-        unit: str = dispatch_config.algorithms[0].get("unit_prefix", "")
-        return "\n".join(
-            [
-                "{{content.content}}",
-                str(_(f"#当前 {self._query_template_wrapper.alias}# {{{{alarm.current_value}}}} {unit}")),
-            ]
-        )
+        """RPC特殊处理，包含content和当前值"""
+        return "\n".join(["{{content.content}}", super()._current_value_tmpl(dispatch_config)])
 
     def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
         return "{{content.target}}"
@@ -403,15 +397,8 @@ class K8SEnricher(BaseEnricher):
     _TAG_ENUMS: list[type[apm_constants.CachedEnum]] = [apm_constants.K8SMetricTag]
 
     def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        # K8S 需要显示 APM 应用/服务信息和目标信息
-        return "\n".join(
-            [
-                _("#APM 应用# {app_name}\n#APM 服务# {service_name}").format(
-                    app_name=self.app_name, service_name=dispatch_config.service_name
-                ),
-                "{{content.target}}",
-            ]
-        )
+        # 目标信息用于更好地与观测场景实体联动。
+        return "\n".join([super()._entity_info_tmpl(dispatch_config), "{{content.target}}"])
 
     @classmethod
     def _filter_by_workloads(cls, workloads: list[dict[str, Any]]) -> Q:
