@@ -960,8 +960,8 @@ class TimeSeriesScope(models.Model):
     # 维度字段配置，可配置的选项，需要在 DimensionConfigFields 中定义
     dimension_config = models.JSONField(verbose_name="分组下的维度配置", default={})
 
-    manual_list = JsonField("手动分组的指标列表", default=[])
-    auto_rules = JsonField("自动分组的匹配规则列表", default=[])
+    manual_list = models.JSONField("手动分组的指标列表", default=[])
+    auto_rules = models.JSONField("自动分组的匹配规则列表", default=[])
 
     last_modify_time = models.DateTimeField(verbose_name="最后更新时间", auto_now=True)
 
