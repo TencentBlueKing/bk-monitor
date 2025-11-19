@@ -1007,7 +1007,11 @@ class DataLink(models.Model):
 
         configs = [
             vm_table_id_ins.compose_config(),
-            vm_storage_ins.compose_config(),
+            # APM 的 table_id 格式为: {bk_biz_id}_bkapm_metric_{app_name}.__default__
+            # 只有在 APM 的 metric 创建场景下，才使用 v2 的 vmstoragebinding 配置
+            vm_storage_ins.compose_config(["service_name", "scope_name"], "v2")
+            if "_bkapm_metric_" in table_id
+            else vm_storage_ins.compose_config(),
             data_bus_ins.compose_config(sinks),
         ]
         return configs
