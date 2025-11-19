@@ -671,6 +671,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST", slz.ListField(label=_("事件中心AIOps功能灰度业务列表"), default=[])),
         # APM 按服务缓存指标的灰度应用列表，格式：["业务ID-应用名1", "业务ID-应用名2"]
         ("APM_SERVICE_CACHE_APPLICATIONS", slz.ListField(label=_("APM 按服务缓存指标的灰度应用列表"), default=[])),
+        # 企业微信模块化（layouts）消息通知灰度业务列表
+        ("WECOM_LAYOUTS_BIZ_LIST", slz.ListField(label=_("企业微信模块化消息通知灰度业务列表"), default=[])),
     ]
 )
 

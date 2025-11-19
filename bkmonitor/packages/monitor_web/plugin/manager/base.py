@@ -21,7 +21,6 @@ import time
 from functools import partial
 from typing import Any
 from uuid import uuid4
-from pathlib import Path
 
 import yaml
 from django.conf import settings
@@ -83,7 +82,7 @@ class BasePluginManager:
         self.version: PluginVersionHistory | None = PluginVersionHistory.objects.filter(
             bk_tenant_id=self.plugin.bk_tenant_id, plugin_id=self.plugin.plugin_id
         ).last()
-        self.plugin_configs: dict[Path, bytes] | None = plugin_configs
+        self.plugin_configs: dict[str, bytes] | None = plugin_configs
 
     def _update_version_params(
         self, data, version: PluginVersionHistory, current_version: PluginVersionHistory, stag=None
@@ -733,11 +732,23 @@ class PluginManager(BasePluginManager):
 
     @classmethod
     def _decode_file(cls, file_content) -> str | bytes:
+        """
+        尝试将文件内容解码为UTF-8字符串
+        :param file_content: 文件内容，可能是bytes或str
+        :return: 解码后的字符串或原始bytes（如果解码失败）
+        """
+        # 如果已经是字符串，直接返回
+        if isinstance(file_content, str):
+            return file_content
+
+        # 如果不是bytes类型，直接返回
+        if not isinstance(file_content, bytes):
+            return file_content
+
         try:
-            file_content = file_content.decode("utf-8")
+            return file_content.decode("utf-8")
         except UnicodeDecodeError:
-            pass
-        return file_content
+            return file_content
 
     def _parse_info_path(
         self,
@@ -829,7 +840,8 @@ class PluginManager(BasePluginManager):
                 self.version.info.metric_json = []
         except (ValueError, TypeError):
             self.version.info.metric_json = []
-        self.version.info.description_md = plugin_params.get("description.md", "")
+        description_md = plugin_params.get("description.md", "")
+        self.version.info.description_md = self._decode_file(description_md)
         # 获取图片
         if plugin_params.get("logo.png", ""):
             self.version.info.logo.save(
@@ -847,8 +859,8 @@ class PluginManager(BasePluginManager):
             logger.exception(f"[ImportPlugin] {self.plugin.plugin_id} - signature error: {e}")
             self.version.signature = ""
 
-        # load version_log
-        self.version.version_log = plugin_params.get("release.md", "")
+        version_log = plugin_params.get("release.md", "")
+        self.version.version_log = self._decode_file(version_log)
 
     @abc.abstractmethod
     def get_deploy_steps_params(self, plugin_version, param, target_nodes):
