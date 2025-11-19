@@ -104,12 +104,18 @@ class ViewBusinessPermission(BusinessActionPermission):
 
 class MCPPermission(BusinessActionPermission):
     """
-    MCP权限检查(Dashboard) -- 早期测试
-    TODO：后续需要思考如何实现不同的 MCP权限Action -- PermissionClass之间的路由控制
+    MCP权限检查 - 支持动态权限加载
+    根据请求头中的 X-Bkapi-Permission-Action 动态选择对应的权限动作
     """
 
-    def __init__(self):
-        super().__init__([ActionEnum.USING_DASHBOARD_MCP])
+    def __init__(self, action: ActionMeta | None = None):
+        """
+        初始化MCP权限检查
+        :param action: 权限动作，如果不提供则使用默认的 USING_DASHBOARD_MCP
+        """
+        action = action if action is not None else ActionEnum.USING_DASHBOARD_MCP
+        logger.info(f"MCPPermission: action: {action.id}")
+        super().__init__([action])
 
     def has_permission(self, request, view):
         # 尝试从request中读取bk_biz_id / biz_id
