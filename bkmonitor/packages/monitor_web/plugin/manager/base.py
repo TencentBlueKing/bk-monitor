@@ -828,7 +828,8 @@ class PluginManager(BasePluginManager):
                 self.version.info.metric_json = []
         except (ValueError, TypeError):
             self.version.info.metric_json = []
-        self.version.info.description_md = plugin_params.get("description.md", "")
+        description_md = plugin_params.get("description.md", "")
+        self.version.info.description_md = self._decode_file(description_md)
         # 获取图片
         if plugin_params.get("logo.png", ""):
             self.version.info.logo.save(
@@ -846,8 +847,8 @@ class PluginManager(BasePluginManager):
             logger.exception(f"[ImportPlugin] {self.plugin.plugin_id} - signature error: {e}")
             self.version.signature = ""
 
-        # load version_log
-        self.version.version_log = plugin_params.get("release.md", "")
+        version_log = plugin_params.get("release.md", "")
+        self.version.version_log = self._decode_file(version_log)
 
     @abc.abstractmethod
     def get_deploy_steps_params(self, plugin_version, param, target_nodes):
