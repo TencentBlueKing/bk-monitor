@@ -732,11 +732,23 @@ class PluginManager(BasePluginManager):
 
     @classmethod
     def _decode_file(cls, file_content) -> str | bytes:
+        """
+        尝试将文件内容解码为UTF-8字符串
+        :param file_content: 文件内容，可能是bytes或str
+        :return: 解码后的字符串或原始bytes（如果解码失败）
+        """
+        # 如果已经是字符串，直接返回
+        if isinstance(file_content, str):
+            return file_content
+
+        # 如果不是bytes类型，直接返回
+        if not isinstance(file_content, bytes):
+            return file_content
+
         try:
-            file_content = file_content.decode("utf-8")
+            return file_content.decode("utf-8")
         except UnicodeDecodeError:
-            pass
-        return file_content
+            return file_content
 
     def _parse_info_path(
         self,
