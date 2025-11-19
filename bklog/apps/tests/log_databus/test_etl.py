@@ -395,25 +395,14 @@ ETL_PREVIEW_V4_DELIMITER_API_REQUEST = {
     "filter_rules": []
 }
 ETL_PREVIEW_V4_DELIMITER_API_RESPONSE = {
-    "rules_output": {
-        "value": [
-            "Oct", "20", "21:18:01", "VM-152-229-centos", "systemd:",
-            "Started", "Session", "823716", "of", "user", "root."
-        ],
-        "key_index": [
-            {"type": "index", "value": 0, "field_type": "string"},
-            {"type": "index", "value": 1, "field_type": "string"},
-            {"type": "index", "value": 2, "field_type": "string"},
-            {"type": "index", "value": 3, "field_type": "string"},
-            {"type": "index", "value": 4, "field_type": "string"},
-            {"type": "index", "value": 5, "field_type": "string"},
-            {"type": "index", "value": 6, "field_type": "string"},
-            {"type": "index", "value": 7, "field_type": "string"},
-            {"type": "index", "value": 8, "field_type": "string"},
-            {"type": "index", "value": 9, "field_type": "string"},
-            {"type": "index", "value": 10, "field_type": "string"}
-        ]
-    }
+    "rules_output": [
+        {
+            "value": [
+                "Oct", "20", "21:18:01", "VM-152-229-centos", "systemd:",
+                "Started", "Session", "823716", "of", "user", "root."
+            ]
+        }
+    ]
 }
 ETL_PREVIEW_V4_DELIMITER_EXPECTED = [
     {"field_index": 1, "field_name": "", "value": "Oct"},
@@ -1271,8 +1260,8 @@ class TestEtl(TestCase):
         """
         from apps.log_databus.handlers.etl_storage.bk_log_delimiter import BkLogDelimiterEtlStorage
         
-        # Mock空响应
-        mock_api.return_value = {"rules_output": {"value": [], "key_index": []}}
+        # Mock空响应（新格式：rules_output是数组）
+        mock_api.return_value = {"rules_output": [{"value": []}]}
         
         # 创建EtlStorage实例
         etl_storage = BkLogDelimiterEtlStorage()
@@ -1450,15 +1439,28 @@ class TestEtl(TestCase):
         etl_storage = BkLogDelimiterEtlStorage()
         
         # 调用build_log_v4_data_link方法
-        clean_rules = etl_storage.build_log_v4_data_link(fields, etl_params)
+        built_in_config = {
+            "fields": [],
+            "time_field": {"alias_name": "utctime", "option": {}},
+            "option": {"es_unique_field_list": []}
+        }
+        clean_rules = etl_storage.build_log_v4_data_link(fields, etl_params, built_in_config)
         
-        # 验证返回结构
-        self.assertIn("rules", clean_rules)
-        self.assertIn("filter_rules", clean_rules)
-        self.assertEqual(clean_rules["filter_rules"], [])
+        # 验证返回结构（新格式）
+        self.assertIn("clean_rules", clean_rules)
+        self.assertIn("es_storage_config", clean_rules)
+        self.assertIn("doris_storage_config", clean_rules)
+        self.assertIn("rules", clean_rules["clean_rules"])
+        self.assertIn("filter_rules", clean_rules["clean_rules"])
+        self.assertEqual(clean_rules["clean_rules"]["filter_rules"], [])
+        
+        # 验证es_storage_config结构
+        self.assertIn("unique_field_list", clean_rules["es_storage_config"])
+        self.assertIn("timezone", clean_rules["es_storage_config"])
+        self.assertEqual(clean_rules["doris_storage_config"], None)
         
         # 验证规则数量（基础规则 + 内置字段 + 用户字段）
-        rules = clean_rules["rules"]
+        rules = clean_rules["clean_rules"]["rules"]
         self.assertGreater(len(rules), 10)  # 至少包含基础数据流转规则
         
         # 验证第一个规则（JSON解析）
@@ -1515,13 +1517,23 @@ class TestEtl(TestCase):
         etl_storage = BkLogJsonEtlStorage()
         
         # 调用build_log_v4_data_link方法
-        clean_rules = etl_storage.build_log_v4_data_link(fields, etl_params)
+        built_in_config = {
+            "fields": [],
+            "time_field": {"alias_name": "utctime", "option": {}},
+            "option": {"es_unique_field_list": []}
+        }
+        clean_rules = etl_storage.build_log_v4_data_link(fields, etl_params, built_in_config)
         
-        # 验证返回结构
-        self.assertIn("rules", clean_rules)
-        self.assertIn("filter_rules", clean_rules)
+        # 验证返回结构（新格式）
+        self.assertIn("clean_rules", clean_rules)
+        self.assertIn("es_storage_config", clean_rules)
+        self.assertIn("doris_storage_config", clean_rules)
         
-        rules = clean_rules["rules"]
+        rules = clean_rules["clean_rules"]["rules"]
+        
+        # 验证retain_original_text=True时包含log字段
+        log_rules = [rule for rule in rules if rule["output_id"] == "log"]
+        self.assertEqual(len(log_rules), 1)  # 应该包含log字段
         
         # 验证JSON解析规则
         json_rule = None
@@ -1546,6 +1558,35 @@ class TestEtl(TestCase):
         ip_rule = next(rule for rule in user_field_rules if rule["output_id"] == "ip")
         self.assertEqual(ip_rule["operator"]["key_index"], "key1")  # 使用alias_name
 
+    def test_build_log_v4_data_link_json_no_retain_original_text(self):
+        """
+        测试JSON清洗的V4 clean_rules配置构建 - retain_original_text=False
+        """
+        from apps.log_databus.handlers.etl_storage.bk_log_json import BkLogJsonEtlStorage
+        
+        # 测试数据
+        fields = [
+            {"field_name": "ip", "field_type": "string", "alias_name": "key1", "is_delete": False}
+        ]
+        etl_params = {"retain_original_text": False}  # 不保留原文
+        
+        # 创建EtlStorage实例
+        etl_storage = BkLogJsonEtlStorage()
+        
+        # 调用build_log_v4_data_link方法
+        built_in_config = {
+            "fields": [],
+            "time_field": {"alias_name": "utctime", "option": {}},
+            "option": {"es_unique_field_list": []}
+        }
+        clean_rules = etl_storage.build_log_v4_data_link(fields, etl_params, built_in_config)
+        
+        rules = clean_rules["clean_rules"]["rules"]
+        
+        # 验证retain_original_text=False时不包含log字段
+        log_rules = [rule for rule in rules if rule["output_id"] == "log"]
+        self.assertEqual(len(log_rules), 0)  # 不应该包含log字段
+
     def test_build_log_v4_data_link_regexp(self):
         """
         测试正则表达式清洗的V4 clean_rules配置构建
@@ -1564,13 +1605,19 @@ class TestEtl(TestCase):
         etl_storage = BkLogRegexpEtlStorage()
         
         # 调用build_log_v4_data_link方法
-        clean_rules = etl_storage.build_log_v4_data_link(fields, etl_params)
+        built_in_config = {
+            "fields": [],
+            "time_field": {"alias_name": "utctime", "option": {}},
+            "option": {"es_unique_field_list": []}
+        }
+        clean_rules = etl_storage.build_log_v4_data_link(fields, etl_params, built_in_config)
         
-        # 验证返回结构
-        self.assertIn("rules", clean_rules)
-        self.assertIn("filter_rules", clean_rules)
+        # 验证返回结构（新格式）
+        self.assertIn("clean_rules", clean_rules)
+        self.assertIn("es_storage_config", clean_rules)
+        self.assertIn("doris_storage_config", clean_rules)
         
-        rules = clean_rules["rules"]
+        rules = clean_rules["clean_rules"]["rules"]
         
         # 验证正则解析规则
         regex_rule = None
@@ -1604,18 +1651,20 @@ class TestEtl(TestCase):
             # 模拟built_in_config
             built_in_config = {
                 "fields": [],
-                "time_field": {"alias_name": "utctime", "option": {}}
+                "time_field": {"alias_name": "utctime", "option": {}},
+                "option": {}
             }
             
             fields = [{"field_name": "test", "field_type": "string", "field_index": 1, "is_delete": False}]
             etl_params = {"separator": "|", "retain_original_text": True}
+            bk_biz_id = 706
             
-            # 调用get_result_table_config
-            result = etl_storage.get_result_table_config(fields, etl_params, built_in_config)
+            # 调用get_result_table_config（添加bk_biz_id参数）
+            result = etl_storage.get_result_table_config(fields, etl_params, built_in_config, bk_biz_id=bk_biz_id)
             
             # 验证不包含V4配置
+            self.assertNotIn("enable_log_v4_data_link", result["option"])
             self.assertNotIn("log_v4_data_link", result["option"])
-            self.assertNotIn("clean_rules", result["option"])
 
     def test_get_result_table_config_v4_feature_toggle_on(self):
         """
@@ -1631,21 +1680,29 @@ class TestEtl(TestCase):
             # 模拟built_in_config
             built_in_config = {
                 "fields": [],
-                "time_field": {"alias_name": "utctime", "option": {}}
+                "time_field": {"alias_name": "utctime", "option": {}},
+                "option": {"es_unique_field_list": []}
             }
             
             fields = [{"field_name": "test", "field_type": "string", "field_index": 1, "is_delete": False}]
             etl_params = {"separator": "|", "retain_original_text": True}
+            bk_biz_id = 706
             
-            # 调用get_result_table_config
-            result = etl_storage.get_result_table_config(fields, etl_params, built_in_config)
+            # 调用get_result_table_config（添加bk_biz_id参数）
+            result = etl_storage.get_result_table_config(fields, etl_params, built_in_config, bk_biz_id=bk_biz_id)
             
             # 验证包含V4配置
-            self.assertTrue(result["option"]["log_v4_data_link"])
-            self.assertIn("clean_rules", result["option"])
+            self.assertTrue(result["option"]["enable_log_v4_data_link"])
+            self.assertIn("log_v4_data_link", result["option"])
+            
+            # 验证log_v4_data_link结构（新格式）
+            log_v4_data_link = result["option"]["log_v4_data_link"]
+            self.assertIn("clean_rules", log_v4_data_link)
+            self.assertIn("es_storage_config", log_v4_data_link)
+            self.assertIn("doris_storage_config", log_v4_data_link)
             
             # 验证clean_rules结构
-            clean_rules = result["option"]["clean_rules"]
+            clean_rules = log_v4_data_link["clean_rules"]
             self.assertIn("rules", clean_rules)
             self.assertIn("filter_rules", clean_rules)
             self.assertGreater(len(clean_rules["rules"]), 5)
@@ -1658,10 +1715,15 @@ class TestEtl(TestCase):
         
         fields = [{"field_name": "field1", "field_type": "string", "field_index": 1, "is_delete": False}]
         etl_params = {"separator": "|", "retain_original_text": True}
+        built_in_config = {
+            "fields": [],
+            "time_field": {"alias_name": "utctime", "option": {}},
+            "option": {"es_unique_field_list": []}
+        }
         
         etl_storage = BkLogDelimiterEtlStorage()
-        clean_rules = etl_storage.build_log_v4_data_link(fields, etl_params)
-        rules = clean_rules["rules"]
+        clean_rules = etl_storage.build_log_v4_data_link(fields, etl_params, built_in_config)
+        rules = clean_rules["clean_rules"]["rules"]
         
         # 验证完整的数据流转链路
         expected_flow = [
@@ -1699,9 +1761,14 @@ class TestEtl(TestCase):
             {"field_name": "bool_field", "field_type": "boolean", "field_index": 6, "is_delete": False}
         ]
         etl_params = {"separator": "|", "retain_original_text": True}
+        built_in_config = {
+            "fields": [],
+            "time_field": {"alias_name": "utctime", "option": {}},
+            "option": {"es_unique_field_list": []}
+        }
         
         etl_storage = BkLogDelimiterEtlStorage()
-        clean_rules = etl_storage.build_log_v4_data_link(fields, etl_params)
+        clean_rules = etl_storage.build_log_v4_data_link(fields, etl_params, built_in_config)
         
         # 验证字段类型映射
         type_mapping = {
@@ -1713,7 +1780,7 @@ class TestEtl(TestCase):
             "bool_field": "boolean"
         }
         
-        user_field_rules = [rule for rule in clean_rules["rules"] if rule["input_id"] == "bk_separator_object" and rule["operator"]["type"] == "assign"]
+        user_field_rules = [rule for rule in clean_rules["clean_rules"]["rules"] if rule["input_id"] == "bk_separator_object" and rule["operator"]["type"] == "assign"]
         
         for rule in user_field_rules:
             field_name = rule["output_id"]
@@ -1738,34 +1805,40 @@ class TestEtl(TestCase):
         
         print("\n=== V4 Clean Rules 配置示例 ===")
         
+        built_in_config = {
+            "fields": [],
+            "time_field": {"alias_name": "utctime", "option": {}},
+            "option": {"es_unique_field_list": []}
+        }
+        
         # 1. 分隔符清洗配置示例
         delimiter_storage = BkLogDelimiterEtlStorage()
-        delimiter_rules = delimiter_storage.build_log_v4_data_link(fields, {"separator": " ", "retain_original_text": True})
+        delimiter_rules = delimiter_storage.build_log_v4_data_link(fields, {"separator": " ", "retain_original_text": True}, built_in_config)
         
         print("\n1. 分隔符清洗V4配置:")
-        print(f"规则数量: {len(delimiter_rules['rules'])}")
+        print(f"规则数量: {len(delimiter_rules['clean_rules']['rules'])}")
         print("关键规则示例:")
-        for i, rule in enumerate(delimiter_rules['rules'][:3]):  # 显示前3个规则
+        for i, rule in enumerate(delimiter_rules['clean_rules']['rules'][:3]):  # 显示前3个规则
             print(f"  {i+1}. {rule['input_id']} -> {rule['output_id']} ({rule['operator']['type']})")
         
         # 2. JSON清洗配置示例
         json_storage = BkLogJsonEtlStorage()
-        json_rules = json_storage.build_log_v4_data_link(fields, {"retain_original_text": True})
+        json_rules = json_storage.build_log_v4_data_link(fields, {"retain_original_text": True}, built_in_config)
         
         print("\n2. JSON清洗V4配置:")
-        print(f"规则数量: {len(json_rules['rules'])}")
+        print(f"规则数量: {len(json_rules['clean_rules']['rules'])}")
         print("关键规则示例:")
-        for i, rule in enumerate(json_rules['rules'][:3]):
+        for i, rule in enumerate(json_rules['clean_rules']['rules'][:3]):
             print(f"  {i+1}. {rule['input_id']} -> {rule['output_id']} ({rule['operator']['type']})")
         
         # 3. 正则清洗配置示例
         regexp_storage = BkLogRegexpEtlStorage()
-        regexp_rules = regexp_storage.build_log_v4_data_link(fields, {"separator_regexp": "(?P<month>\\w+)", "retain_original_text": True})
+        regexp_rules = regexp_storage.build_log_v4_data_link(fields, {"separator_regexp": "(?P<month>\\w+)", "retain_original_text": True}, built_in_config)
         
         print("\n3. 正则清洗V4配置:")
-        print(f"规则数量: {len(regexp_rules['rules'])}")
+        print(f"规则数量: {len(regexp_rules['clean_rules']['rules'])}")
         print("关键规则示例:")
-        for i, rule in enumerate(regexp_rules['rules'][:3]):
+        for i, rule in enumerate(regexp_rules['clean_rules']['rules'][:3]):
             print(f"  {i+1}. {rule['input_id']} -> {rule['output_id']} ({rule['operator']['type']})")
         
         # 4. 完整配置示例（模拟get_result_table_config的输出）
@@ -1775,24 +1848,22 @@ class TestEtl(TestCase):
             "separator": " ",
             "separator_field_list": ["month", "__bk_delimiter_ignore", "__bk_delimiter_ignore", "__bk_delimiter_ignore", "__bk_delimiter_ignore", "__bk_delimiter_ignore", "__bk_delimiter_ignore", "pid", "__bk_delimiter_end"],
             "retain_original_text": True,
-            "log_v4_data_link": True,  # V4新增配置
-            "clean_rules": {          # V4新增配置
-                "rules": delimiter_rules["rules"],
-                "filter_rules": []
-            }
+            "enable_log_v4_data_link": True,  # V4新增配置
+            "log_v4_data_link": delimiter_rules  # V4新增配置（完整结构）
         }
         
         print("V4 option配置结构:")
         print(f"  - separator_node_action: {v4_option_example['separator_node_action']}")
         print(f"  - separator: {v4_option_example['separator']}")
-        print(f"  - log_v4_data_link: {v4_option_example['log_v4_data_link']}")
-        print(f"  - clean_rules.rules数量: {len(v4_option_example['clean_rules']['rules'])}")
-        print(f"  - clean_rules.filter_rules: {v4_option_example['clean_rules']['filter_rules']}")
+        print(f"  - enable_log_v4_data_link: {v4_option_example['enable_log_v4_data_link']}")
+        print(f"  - log_v4_data_link.clean_rules.rules数量: {len(v4_option_example['log_v4_data_link']['clean_rules']['rules'])}")
+        print(f"  - log_v4_data_link.es_storage_config: {v4_option_example['log_v4_data_link']['es_storage_config']}")
         
         # 验证配置正确性
-        self.assertIn("rules", delimiter_rules)
-        self.assertIn("filter_rules", delimiter_rules)
-        self.assertGreater(len(delimiter_rules["rules"]), 5)
-        self.assertEqual(delimiter_rules["filter_rules"], [])
+        self.assertIn("clean_rules", delimiter_rules)
+        self.assertIn("es_storage_config", delimiter_rules)
+        self.assertIn("doris_storage_config", delimiter_rules)
+        self.assertGreater(len(delimiter_rules["clean_rules"]["rules"]), 5)
+        self.assertEqual(delimiter_rules["clean_rules"]["filter_rules"], [])
         
         print("\n✅ V4配置示例生成完成，请检查上述配置的准确性")

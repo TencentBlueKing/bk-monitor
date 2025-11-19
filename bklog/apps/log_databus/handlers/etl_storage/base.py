@@ -31,6 +31,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.api import TransferApi
 from apps.exceptions import ApiResultError, ValidationError
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_databus.constants import (
     BKDATA_ES_TYPE_MAP,
     CACHE_KEY_CLUSTER_INFO,
@@ -113,7 +114,7 @@ class EtlStorage:
     def get_bkdata_etl_config(self, fields, etl_params, built_in_config):
         raise NotImplementedError(_("功能暂未实现"))
 
-    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X", bk_biz_id=None):
+    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X", enable_v4=False):
         """
         配置清洗入库策略，需兼容新增、编辑
         """
@@ -852,6 +853,17 @@ class EtlStorage:
         # 增加冷热集群配置参数
         params = self._deal_hot_warm_config(allocation_min_days, hot_warm_config, params)
 
+        # 获取结果表是否已经创建，如果创建则选择更新
+        table_id = ""
+        try:
+            table_id = TransferApi.get_result_table({"table_id": params["table_id"]}).get("table_id")
+        except ApiResultError:
+            pass
+
+        if not table_id and FeatureToggleObject.switch("log_v4_data_link", instance.get_bk_biz_id()):
+            instance.enable_v4 = True
+            instance.save()
+
         # 获取清洗配置
         collector_scenario = CollectorScenario.get_instance(collector_scenario_id=instance.collector_scenario_id)
         built_in_config = collector_scenario.get_built_in_config(
@@ -861,7 +873,7 @@ class EtlStorage:
             target_fields=target_fields,
         )
         result_table_config = self.get_result_table_config(fields, etl_params, built_in_config,
-                                                           es_version=es_version, bk_biz_id=instance.get_bk_biz_id())
+                                                           es_version=es_version, enable_v4=instance.enable_v4)
         is_nanos = False
         for rt_field in result_table_config["field_list"]:
             if rt_field["field_name"] == "dtEventTimeStampNanos":
@@ -887,13 +899,6 @@ class EtlStorage:
         # 时间默认为维度
         if "time_option" in params and "es_doc_values" in params["time_option"]:
             del params["time_option"]["es_doc_values"]
-
-        # 获取结果表是否已经创建，如果创建则选择更新
-        table_id = ""
-        try:
-            table_id = TransferApi.get_result_table({"table_id": params["table_id"]}).get("table_id")
-        except ApiResultError:
-            pass
 
         # 兼容插件与采集项
         if not table_id:

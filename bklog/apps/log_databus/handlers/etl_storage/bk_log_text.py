@@ -50,7 +50,7 @@ class BkLogTextEtlStorage(EtlStorage):
         """
         return data
 
-    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X", bk_biz_id=None):
+    def get_result_table_config(self, fields, etl_params, built_in_config, es_version="5.X", enable_v4=False):
         """
         配置清洗入库策略，需兼容新增、编辑
         """
@@ -84,8 +84,7 @@ class BkLogTextEtlStorage(EtlStorage):
         }
         
         # 检查是否启用V4数据链路
-        from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-        if FeatureToggleObject.switch("log_v4_data_link", bk_biz_id):
+        if enable_v4:
             result_table_config["option"]["enable_log_v4_data_link"] = True
             result_table_config["option"]["log_v4_data_link"] = self.build_log_v4_data_link(fields, etl_params, built_in_config)
         
