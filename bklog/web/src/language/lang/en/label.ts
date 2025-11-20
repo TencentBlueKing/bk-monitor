@@ -923,4 +923,7 @@ export default {
   认领中: 'Claiming',
   创建中: 'Creating',
   启动中: 'Starting',
+  正在解析语句: 'Parsing statement...',
+  'AI 搜索': 'AI Search',
+  自动刷新设置: 'Auto refresh settings',
 };

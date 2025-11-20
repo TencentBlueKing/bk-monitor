@@ -219,10 +219,13 @@ class ClusterInfo(models.Model):
         for cluster_id, storage_info in list(refresh_dict.items()):
             consul_path = "/".join([cls.CONSUL_PREFIX_PATH, str(cluster_id)])
 
+            # 根据 schema 生成地址，如果 schema 不是 http 或 https，则默认使用 http
+            schema = storage_info.schema if storage_info.schema in ["http", "https"] else "http"
+
             hash_consul.put(
                 key=consul_path,
                 value={
-                    "address": f"http://{storage_info.domain_name}:{storage_info.port}",
+                    "address": f"{schema}://{storage_info.domain_name}:{storage_info.port}",
                     "username": storage_info.username,
                     "password": storage_info.password,
                     "type": storage_info.cluster_type,
@@ -2146,13 +2149,13 @@ class ESStorage(models.Model, StorageResultTable):
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)
         return new_record
 
-    def get_raw_data(self, index_name: str):
+    def get_raw_data(self, index_name: str, time_field: str = "dtEventTimeStamp"):
         """查询原始数据，最新数据"""
         return self.es_client.search(
             index=index_name,
             body={
                 "query": {"match_all": {}},
-                "sort": [{"dtEventTimeStamp": {"order": "desc"}}],
+                "sort": [{time_field: {"order": "desc"}}],
             },
         )
 

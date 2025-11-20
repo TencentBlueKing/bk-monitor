@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,7 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Dict
+from django.utils.translation import gettext as _
+
 
 from alarm_backends.core.cache.bcs_cluster import BcsClusterCacheManager
 from alarm_backends.service.alert.enricher.translator.base import BaseTranslator
@@ -23,7 +23,7 @@ class BcsClusterTranslator(BaseTranslator):
     def is_enabled(self) -> bool:
         return True
 
-    def translate(self, data: Dict) -> Dict:
+    def translate(self, data: dict) -> dict:
         field = data.get("bcs_cluster_id")
         if not field:
             return data
@@ -34,6 +34,7 @@ class BcsClusterTranslator(BaseTranslator):
         # 修改集群ID的值，包含集群名称
         cluster_name = cluster_info.get("name")
         if cluster_name:
+            field.display_name = _("集群")
             field.display_value = f"{bcs_cluster_id}({cluster_name})"
 
         return data

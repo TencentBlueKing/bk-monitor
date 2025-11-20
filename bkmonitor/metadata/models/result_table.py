@@ -36,7 +36,7 @@ from .common import BaseModel, Label, OptionBase
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .result_table_manage import EnableManager
 from .space import SpaceDataSource, SpaceTypeToResultTableFilterAlias
-from .space.constants import SpaceTypes
+from .space.constants import EtlConfigs, SpaceTypes
 from .storage import (
     ArgusStorage,
     BkDataStorage,
@@ -580,7 +580,7 @@ class ResultTable(models.Model):
     def apply_datalink(self) -> None:
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
-        from metadata.task.datalink import apply_log_datalink
+        from metadata.task.datalink import apply_event_group_datalink, apply_log_datalink
         from metadata.task.tasks import access_bkdata_vm
 
         # 获取数据源ID
@@ -620,6 +620,10 @@ class ResultTable(models.Model):
             if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
                 refresh_consul_config = False
                 apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
+            # 如果存在事件组V4数据链路配置或默认启用事件组V4数据链路，则创建事件组V4数据链路
+            elif datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
+                refresh_consul_config = False
+                apply_event_group_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         else:
             # 不支持的存储和选项组合
             logger.error(
@@ -1425,7 +1429,10 @@ class ResultTable(models.Model):
         if self.is_enable:
             self.apply_datalink()
         else:
-            self.delete_datalink()
+            try:
+                self.delete_datalink()
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("delete datalink error, table_id: %s, %s", self.table_id, e)
 
         logger.info("table_id->[%s] of bk_tenant_id->[%s] updated success.", self.table_id, self.bk_tenant_id)
 
@@ -2800,6 +2807,7 @@ class ResultTableOption(OptionBase):
     OPTION_IS_SPLIT_MEASUREMENT = "is_split_measurement"
     OPTION_ENABLE_FIELD_BLACK_LIST = "enable_field_black_list"
 
+    OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK = "enable_v4_event_group_data_link"
     OPTION_ENABLE_V4_LOG_DATA_LINK = "enable_log_v4_data_link"
     OPTION_V4_LOG_DATA_LINK = "log_v4_data_link"
 
