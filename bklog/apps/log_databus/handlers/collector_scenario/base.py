@@ -206,7 +206,6 @@ class CollectorScenario:
                         "log_cluster_config": CollectorScenario.gen_clustering_datasource_options(clustering_config),
                     }
                 )
-                # TODO: etl_config 在接口中不支持修改，需要 metadata 支持
                 params["etl_config"] = "bk_flat_batch_cluster"
             else:
                 params["option"].update({"is_log_cluster": False})
@@ -228,9 +227,31 @@ class CollectorScenario:
         if feature_obj := FeatureToggleObject.toggle(MINI_CLUSTERING_CONFIG):
             feature_config = feature_obj.feature_config
 
+        log_filter = []
+        for rule in clustering_config.filter_rules:
+            value = rule["value"] if isinstance(rule["value"], list) else [rule["value"]]
+            if rule["op"] == "=":
+                op = "eq"
+            elif rule["op"] == "!=":
+                op = "neq"
+            elif rule["op"] == "contains":
+                op = "include"
+            elif rule["op"] == "not contains":
+                op = "exclude"
+            else:
+                continue
+            log_filter.append(
+                {
+                    "key": rule["fields_name"],
+                    "value": value,
+                    "method": op,
+                    "condition": rule.get("logic_operator", "and"),
+                }
+            )
+
         options = {
             "log_cluster": {
-                "address": feature_config.get("predict_cluster", {}).get(
+                "address": feature_config.get("predict_cluster_address", {}).get(
                     clustering_config.predict_cluster
                 ),  # TODO: 需要根据集群名称转换
                 # TODO: 以下配置需要把它放到每个 ClusteringConfig 中作为动态配置
@@ -241,15 +262,7 @@ class CollectorScenario:
                 "retry_interval": feature_config.get("retry_interval", "200ms"),
                 "clustering_field": clustering_config.clustering_fields,
             },
-            "log_filter": [
-                {
-                    "key": rule["field_name"],
-                    "value": rule["value"] if isinstance(rule["value"], list) else [rule["value"]],
-                    "method": rule["op"],
-                    "condition": rule.get("logic_operator", "and"),
-                }
-                for rule in clustering_config.filter_rules
-            ],
+            "log_filter": log_filter,
             "backend_fields": {
                 "raw_es": {
                     "drop_dimensions": ["pattern", "is_new"],

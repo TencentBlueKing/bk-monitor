@@ -700,6 +700,11 @@ const handleDeleteTagItem = (index) => {
   condition.value.value.splice(index, 1);
 };
 
+// 清空检索内容
+const handleClearBtnClick = () => {
+  condition.value.value = [];
+}
+
 const handleOperatorBtnClick = () => {
   operatorInstance.show(refUiValueOperator.value);
   setTimeout(() => {
@@ -1266,6 +1271,14 @@ defineExpose({
                   @value-change="handleBatchInputChange"
                   @show-change="handleBatchShowChange"
                 />
+                <bk-button
+                  text
+                  :disabled="condition.value.length === 0"
+                  @click="handleClearBtnClick"
+                  class="ui-value-clear-btn"
+                >
+                  {{ $t('清空') }}
+                </bk-button>
               </span>
               <span v-show="['text', 'string'].includes(activeFieldItem.field_type)">
                 <bk-checkbox v-model="condition.isInclude">{{ $t('使用通配符') }}</bk-checkbox>

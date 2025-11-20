@@ -1,0 +1,9 @@
+@import 'zoom';
+@import 'zoom-down';
+@import 'zoom-left';
+@import 'zoom-right';
+@import 'zoom-up';
+
+$zooms: Down, Left, Right, Up;
+
+@include make-transitions('zoom', $zooms);

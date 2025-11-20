@@ -116,7 +116,7 @@ class CreateDataIDResource(Resource):
         transfer_cluster_id = serializers.CharField(required=False, label="transfer集群ID")
         space_uid = serializers.CharField(label="空间英文名称", required=False, default="")
         authorized_spaces = serializers.JSONField(required=False, label="授权使用的空间 ID 列表", default=[])
-        is_platform_data_id = serializers.CharField(required=False, label="是否为平台级 ID", default=False)
+        is_platform_data_id = serializers.BooleanField(required=False, label="是否为平台级 ID", default=False)
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=SpaceTypes.ALL.value)
 
     def perform_request(self, validated_request_data):
@@ -680,9 +680,10 @@ class ModifyDataSource(Resource):
         data_description = serializers.CharField(required=False, label="数据源描述", default=None)
         option = serializers.DictField(required=False, label="数据源配置项")
         is_enable = serializers.BooleanField(required=False, label="是否启用数据源", default=None)
-        is_platform_data_id = serializers.CharField(required=False, label="是否为平台级 ID", default=None)
+        is_platform_data_id = serializers.BooleanField(required=False, label="是否为平台级 ID", default=None)
         authorized_spaces = serializers.JSONField(required=False, label="授权使用的空间 ID 列表", default=None)
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=None)
+        etl_config = serializers.CharField(required=False, label="清洗模板配置")
 
     def perform_request(self, request_data):
         # 指定data_id的情况下，无需使用租户ID进行二次过滤
@@ -704,6 +705,7 @@ class ModifyDataSource(Resource):
             is_platform_data_id=request_data["is_platform_data_id"],
             authorized_spaces=request_data["authorized_spaces"],
             space_type_id=request_data["space_type_id"],
+            etl_config=request_data.get("etl_config"),
         )
         return data_source.to_json()
 
@@ -2250,7 +2252,7 @@ class RetryRestoreResultTableSnapshotResource(Resource):
         bk_tenant_id = TenantIdField(label="租户ID")
         restore_id = serializers.IntegerField(required=True, label="快照恢复任务id")
         operator = serializers.CharField(required=True, label="操作者")
-        indices = serializers.ListField(required=False, label="重试索引列表",  default=[])
+        indices = serializers.ListField(required=False, label="重试索引列表", default=[])
         is_sync = serializers.BooleanField(required=False, label="是否需要同步", default=False)
         is_force = serializers.BooleanField(required=False, label="是否强制重试", default=False)
 
@@ -2363,6 +2365,8 @@ class KafkaTailResource(Resource):
             table_id = validated_request_data["table_id"]
             logger.info("KafkaTailResource: got table_id->[%s],try to tail kafka", table_id)
             result_table = models.ResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+            if not result_table:
+                return []
             datasource = result_table.data_source
 
         size = validated_request_data["size"]

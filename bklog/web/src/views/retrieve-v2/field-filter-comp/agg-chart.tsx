@@ -162,6 +162,11 @@ export default class AggChart extends tsc<object> {
     return val;
   }
 
+  @Emit('addCondition')
+  emitAddCondition(operator: string, value: any, fieldName: string) {
+    return { operator, value, fieldName };
+  }
+
   mounted() {
     if (!this.isFrontStatistics) {
       this.queryFieldFetchTopList(this.limit);
@@ -227,6 +232,7 @@ export default class AggChart extends tsc<object> {
           .then(() => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
             RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+            this.emitAddCondition(operator, value, fieldName);
           });
       });
   };
@@ -346,15 +352,15 @@ export default class AggChart extends tsc<object> {
     return (
       <div class='retrieve-v2 field-data'>
         {
-        this.showSearchKeyword
-          ? <div style={{ marginBottom: '10px' }}>
-            <bk-input
-              v-model={this.searchKeyword}
-              placeholder={this.$t('搜索')}
-              clearable
-              right-icon='icon-search'
-            />
-          </div> : null
+          this.showSearchKeyword
+            ? <div style={{ marginBottom: '10px' }}>
+              <bk-input
+                v-model={this.searchKeyword}
+                placeholder={this.$t('搜索')}
+                clearable
+                right-icon='icon-search'
+              />
+            </div> : null
         }
         {this.listLoading ? (
           <ItemSkeleton

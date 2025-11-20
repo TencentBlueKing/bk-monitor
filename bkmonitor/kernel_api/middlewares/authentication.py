@@ -14,6 +14,7 @@ import random
 import time
 
 import jwt
+import json
 from blueapps.account.models import User
 from django.conf import settings
 from django.contrib import auth
@@ -235,18 +236,32 @@ class AuthenticationMiddleware(MiddlewareMixin):
         """
         # 导入放在这里避免循环依赖
         from bkmonitor.iam.drf import MCPPermission
+        from bkmonitor.iam.action import get_action_by_id
 
         logger.info("MCPAuthentication: Handling MCP authentication")
 
         # 获取业务ID（从GET或POST参数中获取）
         bk_biz_id = request.GET.get("bk_biz_id")
+        request.skip_check = False  # 手动设置需要进行权限校验
+
         if not bk_biz_id and request.method == "POST":
-            # 尝试从POST数据中获取
+            # 尝试从POST表单数据中获取
             try:
                 bk_biz_id = request.POST.get("bk_biz_id")
             except Exception as e:  # pylint: disable=broad-except
-                logger.error("MCPAuthentication: Failed to get bk_biz_id from POST data, error: %s", e)
-                pass
+                logger.warning("MCPAuthentication: Failed to get bk_biz_id from POST form data, error: %s", e)
+
+            # 如果表单数据中没有，尝试从JSON body中获取
+            if not bk_biz_id:
+                try:
+                    body = request.body.decode("utf-8")
+                    logger.info(f"MCPAuthentication: request post body: {body}")
+                    if body:
+                        data = json.loads(body)
+                        bk_biz_id = data.get("bk_biz_id")
+                        logger.warning(f"MCPAuthentication: Got bk_biz_id from JSON body: {bk_biz_id}")
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning("MCPAuthentication: Failed to get bk_biz_id from JSON body, error: %s", e)
 
         if not bk_biz_id:
             logger.error("MCPAuthentication: Missing bk_biz_id in request parameters")
@@ -258,9 +273,23 @@ class AuthenticationMiddleware(MiddlewareMixin):
             logger.error(f"MCPAuthentication: Invalid bk_biz_id format: {bk_biz_id}")
             return HttpResponseForbidden(f"Invalid bk_biz_id format: {bk_biz_id}")
 
+        # 从请求头中获取权限动作ID，并动态加载对应的权限
+        permission_action_id = request.META.get("HTTP_X_BKAPI_PERMISSION_ACTION")
+        logger.info(f"MCPAuthentication: Permission action from header: {permission_action_id}")
+
         # 使用 MCPPermission 进行权限校验
         try:
-            permission = MCPPermission()
+            # 根据请求头动态获取权限动作
+            action = None
+            if permission_action_id:
+                try:
+                    action = get_action_by_id(permission_action_id)
+                    logger.info(f"MCPAuthentication: Using action: {action.id} - {action.name}")
+                except Exception as e:
+                    logger.warning(f"MCPAuthentication: Failed to get action by id '{permission_action_id}': {e}")
+                    # 如果找不到对应的权限，使用默认权限
+
+            permission = MCPPermission(action=action)
             # 创建一个简单的 mock view 对象
             mock_view = type("MockView", (), {"kwargs": {}})()
 
@@ -268,7 +297,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 logger.warning(f"MCPAuthentication: Permission denied for user={username}, bk_biz_id={request.biz_id}")
                 return HttpResponseForbidden("Permission denied: insufficient MCP permissions")
         except Exception as e:
-            logger.error(f"MCPAuthentication: Permission check failed: {e}")
+            logger.exception(f"MCPAuthentication: Permission check failed: {e}")
             return HttpResponseForbidden(f"Permission denied: {e}")
 
         logger.info(f"MCPAuthentication: Authentication Success: user={username}, bk_biz_id={request.biz_id}")
@@ -342,6 +371,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         # MCP权限校验（在用户认证完成后）
         if self.use_mcp_auth(request):
+            request.user = auth.authenticate(username=username, bk_tenant_id=bk_tenant_id)
             logger.info("=" * 80)
             logger.info("MCPAuthentication: Handling MCP authentication")
 

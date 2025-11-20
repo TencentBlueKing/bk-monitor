@@ -776,6 +776,7 @@ export default defineComponent({
                 }}
                 data={this.tableList}
                 filterValue={this.filterValue}
+                hover={true}
                 rowKey='id'
                 showSortColumnBgColor={true}
                 sort={this.sort}

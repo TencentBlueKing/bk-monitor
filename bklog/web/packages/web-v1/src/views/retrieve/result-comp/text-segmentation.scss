@@ -1,0 +1,96 @@
+@import '@/scss/mixins/flex.scss';
+
+.event-tippy-content {
+  .event-icons {
+    flex-direction: column;
+
+    @include flex-center();
+  }
+
+  .event-box {
+    min-width: 240px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+    cursor: pointer;
+
+    @include flex-center();
+
+    &:hover {
+      background: #eaf3ff;
+    }
+  }
+
+  .new-link {
+    width: 24px;
+    height: 24px;
+
+    @include flex-center();
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .event-btn {
+    flex: 1;
+    align-items: center;
+
+    @include flex-justify(left);
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .tippy-tooltip {
+    padding: 6px 2px;
+  }
+
+  .icon {
+    display: inline-block;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .icon-minus-circle,
+  .bklog-trace-view,
+  .icon-plus-circle {
+    margin-right: 6px;
+  }
+
+  .bklog-copy {
+    margin-left: -4px;
+    font-size: 24px;
+  }
+}
+
+.log-content-wrapper {
+  word-break: break-all;
+
+  .segment-content {
+    line-height: 20px;
+    white-space: pre-wrap;
+  }
+
+  .menu-list {
+    position: absolute;
+    display: none;
+  }
+
+  .valid-text {
+    cursor: pointer;
+    padding: 2px 0;
+    white-space: pre-wrap;
+
+    &.focus-text,
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .null-item {
+    display: inline-block;
+    min-width: 6px;
+  }
+}

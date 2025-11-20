@@ -1,0 +1,33 @@
+.retrieve-collect-index {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+
+  .drag-border {
+    position: absolute;
+    right: 0;
+    z-index: 99;
+    width: 5px;
+    height: 100vh;
+    cursor: col-resize;
+    user-select: none;
+
+    &::after {
+      position: absolute;
+      right: 0px;
+      display: inline-block;
+      width: 1px;
+      height: 100%;
+      content: ' ';
+      background-color: #fafbfd;
+    }
+
+    &.drag-ing,
+    &:hover {
+      &::after {
+        width: 2px;
+        background-color: #3a84ff;
+      }
+    }
+  }
+}
