@@ -276,4 +276,29 @@
       }
     }
   }
+
+  .alert-metric-ellipsis-tip-container {
+    display: flex;
+    flex-direction: column;
+    row-gap: 8px;
+
+    .ellipsis-tip-item {
+      display: flex;
+      line-height: 20px;
+
+      .item-prefix {
+        flex-shrink: 0;
+        padding-right: 6px;
+        padding-left: 2px;
+
+        .item-hyphen {
+          display: inline-block;
+          width: 6px;
+          height: 6px;
+          background: #fff;
+          border-radius: 50%;
+        }
+      }
+    }
+  }
 }

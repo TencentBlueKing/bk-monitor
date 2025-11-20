@@ -37,6 +37,7 @@ import type {
   GetTableCellRenderValue,
   TableCellRenderContext,
 } from '../../typing';
+import type { SlotReturnValue } from 'tdesign-vue-next';
 
 import './tags-cell.scss';
 
@@ -72,7 +73,16 @@ export default defineComponent({
     },
   },
   setup() {
-    return {};
+    /**
+     * @description 默认的溢出标签提示popover内容渲染方法
+     * @param ellipsisTags 溢出标签列表
+     * @returns {SlotReturnValue} popover 展示的内容
+     */
+    const defaultEllipsisTipsContentRender = (ellipsisTags: any[] | string[]): SlotReturnValue =>
+      ellipsisTags.map(tag => tag?.alias || tag).join('，');
+    return {
+      defaultEllipsisTipsContentRender,
+    };
   },
   render() {
     return (
@@ -88,7 +98,7 @@ export default defineComponent({
                 '--tag-hover-color': tag?.tagHoverColor || tag?.tagColor || DEFAULT_TAG_COLOR.tagHoverColor,
                 '--tag-hover-bg-color': tag?.tagHoverBgColor || tag?.tagBgColor || DEFAULT_TAG_COLOR.tagHoverBgColor,
               }}
-              class={`tag-item ${this.renderCtx?.cellEllipsisClass}`}
+              class={`tag-item ${this.renderCtx?.isEnabledCellEllipsis(this.column)}`}
             >
               {{
                 default: () => (
@@ -106,7 +116,8 @@ export default defineComponent({
           ),
         }}
         data={this.tags}
-        ellipsisTip={ellipsisTags => ellipsisTags.map(tag => tag?.alias || tag).join('，')}
+        ellipsisTip={this.column?.cellSpecificProps?.ellipsisTip ?? this.defaultEllipsisTipsContentRender}
+        ellipsisTippyOptions={this.column?.cellSpecificProps?.ellipsisTippyOptions ?? {}}
       />
     );
   },

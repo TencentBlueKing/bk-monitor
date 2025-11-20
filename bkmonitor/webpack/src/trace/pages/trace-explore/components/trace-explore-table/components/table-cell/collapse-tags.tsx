@@ -38,6 +38,7 @@ import { useDebounceFn } from '@vueuse/core';
 import { Tag } from 'bkui-vue';
 
 import type { SlotReturnValue } from 'tdesign-vue-next';
+import type { TippyOptions } from 'vue-tippy';
 
 import './collapse-tags.scss';
 
@@ -61,6 +62,11 @@ export default defineComponent({
     /** 标签溢出时溢出标签hover显示的提示内容 */
     ellipsisTip: {
       type: Function as PropType<(ellipsisList: any[] | string[]) => SlotReturnValue>,
+    },
+    /** 标签溢出时溢出标签hover显示的提示popover配置选项 */
+    ellipsisTippyOptions: {
+      type: Object as PropType<TippyOptions>,
+      default: () => ({}),
     },
   },
   setup(props) {
@@ -269,6 +275,7 @@ export default defineComponent({
               content: this.ellipsisTip ? this.ellipsisTip(ellipsisList) : ellipsisList.join(','),
               theme: 'dark text-wrap max-width-50vw',
               delay: 300,
+              ...(this.ellipsisTippyOptions ?? {}),
             }}
           >
             +{collapseCount}
