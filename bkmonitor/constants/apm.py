@@ -20,6 +20,7 @@ from constants.result_table import ResultTableField
 
 
 FIVE_MIN_SECONDS = 5 * 60
+FIVE_MIN_MILLISECONDS = FIVE_MIN_SECONDS * 1000  # 5分钟的毫秒数
 
 DEFAULT_DATA_LABEL = "APM"  # 数据标签，用来查询数据时三段式前缀(注意：不能随意更改)
 
@@ -1572,6 +1573,28 @@ class ApmAlertHelper:
         return {"app_name": app_name, "service_name": service_name}
 
     @classmethod
+    def _get_rpc_kind(cls, strategy: dict[str, Any]) -> str:
+        """判断RPC调用类型（主调/被调）
+
+        通过分析告警策略中的指标名称前缀来判断调用类型：
+        - rpc_client_* 开头的指标表示主调（caller）
+        - rpc_server_* 开头的指标表示被调（callee）
+        - 无法判断时默认返回被调（callee）
+
+        Args:
+            strategy: 告警策略配置字典，包含items、query_configs等信息
+
+        Returns:
+            str: "caller" 表示主调，"callee" 表示被调
+        """
+        try:
+            metric_field: str = strategy["items"][0]["query_configs"][0]["metric_field"]
+            return "caller" if metric_field.startswith("rpc_client_") else "callee"
+        except (KeyError, IndexError):
+            # 策略配置不完整时，默认返回被调类型
+            return "callee"
+
+    @classmethod
     def get_rpc_url(
         cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], begin_timestamp: int, duration: int
     ) -> str | None:
@@ -1591,28 +1614,26 @@ class ApmAlertHelper:
 
             call_filter.append({"key": key, "method": "eq", "value": [v or ""], "condition": "and"})
 
-        is_caller: bool = False
-        try:
-            metric_field: str = strategy["items"][0]["query_configs"][0]["metric_field"]
-            is_caller = metric_field.startswith("rpc_client_")
-        except (KeyError, IndexError):
-            pass
+        # 判断主调/被调类型
+        kind: str = cls._get_rpc_kind(strategy)
 
+        # 构建调用选项配置
         call_options: dict[str, Any] = {
-            "kind": "caller" if is_caller else "callee",
+            "kind": kind,
             "call_filter": call_filter,
             "perspective_type": "multiple",
             "perspective_group_by": [RPCMetricTag.CALLEE_METHOD.value, RPCMetricTag.CODE.value],
+            # 按status_code降序排序，将异常的span排在前面
+            "sort": [{"key": "status_code", "method": "desc"}],
         }
 
-        offset: int = 5 * 60 * 1000
         params: dict[str, str | int] = {
             "filter-app_name": target["app_name"],
             "filter-service_name": target["service_name"],
             "callOptions": json.dumps(call_options),
             "dashboardId": "service-default-caller_callee",
-            "from": begin_timestamp * 1000 - duration * 1000 - offset,
-            "to": begin_timestamp * 1000 + offset,
+            "from": begin_timestamp * 1000 - duration * 1000 - FIVE_MIN_MILLISECONDS,
+            "to": begin_timestamp * 1000 + FIVE_MIN_MILLISECONDS,
             "sceneId": "apm_service",
         }
         encoded_params: str = urllib.parse.urlencode(params)
