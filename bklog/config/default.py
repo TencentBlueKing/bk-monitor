@@ -72,6 +72,7 @@ INSTALLED_APPS += (
     "apps.bk_log_admin",
     "apps.grafana",
     "apps.ai_assistant",
+    "apps.tgpa",
     "bk_monitor",
     "home_application",
     "console",
@@ -92,7 +93,6 @@ INSTALLED_APPS += (
     "bkm_search_module",
     "bk_notice_sdk",
     "apigw_manager.apigw",
-    "apps.tgpa",
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
