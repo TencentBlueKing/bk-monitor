@@ -28,6 +28,7 @@ TGPA_BASE_DIR = "/tmp/log-search/tgpa"
 TASK_LIST_BATCH_SIZE = 200
 TGPA_TASK_EXE_CODE_SUCCESS = "0"  # 文件上传成功状态码
 FEATURE_TOGGLE_TGPA_TASK = "tgpa_task"
+
 TEXT_FILE_EXTENSIONS = [
     ".log",
     ".txt",
@@ -45,6 +46,14 @@ TEXT_FILE_EXTENSIONS = [
     ".rst",
     ".cfg",
 ]
+
+TGPA_TASK_ETL_PARAMS = {
+    "retain_original_text": False,
+    "retain_extra_json": True,
+    "enable_retain_content": True,
+    "record_parse_failure": True,
+}
+
 TGPA_TASK_ETL_FIELDS = [
     {
         "field_name": "original_log",

@@ -41,6 +41,7 @@ from apps.tgpa.constants import (
     FEATURE_TOGGLE_TGPA_TASK,
     TEXT_FILE_EXTENSIONS,
     TGPA_TASK_ETL_FIELDS,
+    TGPA_TASK_ETL_PARAMS,
 )
 from apps.utils.bcs import Bcs
 from apps.utils.thread import MultiExecuteFunc
@@ -236,13 +237,7 @@ class TGPATaskHandler:
         """
         feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
         storage_cluster_id = feature_toggle.feature_config.get("storage_cluster_id")
-        # 不保留采集到的原始日志，用 original_log 字段存储
-        etl_params = {
-            "retain_original_text": False,
-            "retain_extra_json": True,
-            "enable_retain_content": True,
-            "record_parse_failure": True,
-        }
+        etl_params = TGPA_TASK_ETL_PARAMS
         fields = TGPA_TASK_ETL_FIELDS
         # 创建容器自定义上报
         result = CollectorHandler().custom_create(
