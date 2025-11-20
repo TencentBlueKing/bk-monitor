@@ -193,6 +193,8 @@ class QueryHelper:
             search_after_key=query_body["search_after_key"],
             instant=query_body["instant"],
             time_alignment=query_body["is_time_align"],
+            not_time_align=query_body["not_time_align"],
+            down_sample_range=query_body["down_sample_range"],
         )
         return data
 
@@ -327,6 +329,8 @@ class UnifyQueryCompiler(SQLCompiler):
             "end_time": self.query.end_time,
             "search_after_key": self.query.search_after_key,
             "is_time_align": self.query.is_time_align,
+            "down_sample_range": self.query.down_sample_range,
+            "not_time_align": self.query.not_time_align,
         }
 
 
@@ -363,6 +367,8 @@ class UnifyQueryConfig:
         self.offset: int = 0
         self.low_mark: int = 0
         self.high_mark: int | None = None
+        self.down_sample_range: str = ""
+        self.not_time_align: bool = False
 
         # to be deprecation
         self.search_after_key: dict[str, Any] | None = None
@@ -381,6 +387,8 @@ class UnifyQueryConfig:
         obj.offset = self.offset
         obj.low_mark = self.low_mark
         obj.high_mark = self.high_mark
+        obj.down_sample_range = self.down_sample_range
+        obj.not_time_align = self.not_time_align
 
         if self.search_after_key is not None:
             obj.search_after_key = self.search_after_key.copy()
@@ -433,6 +441,13 @@ class UnifyQueryConfig:
         if self.high_mark is None:
             return 0
         return self.high_mark - self.low_mark
+
+    def set_down_sample_range(self, down_sample_range: str):
+        if down_sample_range:
+            self.down_sample_range = down_sample_range
+
+    def set_not_time_align(self, not_time_align: bool):
+        self.not_time_align = not_time_align
 
     def get_compiler(self, using: tuple[str, str] | None = None) -> SQLCompiler:
         connection: DatabaseConnection = DatabaseConnection(QueryHelper.query)
@@ -551,4 +566,14 @@ class UnifyQuerySet(IterMixin, CompilerMixin):
     def end_time(self, end_time: int) -> "UnifyQuerySet":
         clone = self._clone()
         clone.query.set_end_time(end_time)
+        return clone
+
+    def down_sample_range(self, down_sample_range) -> "UnifyQuerySet":
+        clone = self._clone()
+        clone.query.set_down_sample_range(down_sample_range)
+        return clone
+
+    def not_time_align(self, not_time_align: bool = False) -> "UnifyQuerySet":
+        clone = self._clone()
+        clone.query.set_not_time_align(not_time_align)
         return clone

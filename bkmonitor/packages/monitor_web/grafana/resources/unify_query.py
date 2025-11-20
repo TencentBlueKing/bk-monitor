@@ -36,6 +36,7 @@ from bkmonitor.data_source import (
     get_auto_interval,
     load_data_source,
 )
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source.unify_query.query import UnifyQuery
 from bkmonitor.models import BCSCluster, MetricListCache
 from bkmonitor.share.api_auth_resource import ApiAuthResource
@@ -96,24 +97,75 @@ class TimeCompareProcessor:
             )
 
             data_sources = []
+            log_configs = []
+            data_configs = []
+            extra_data = []
             for query_config in new_params["query_configs"]:
-                data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
-                data_sources.append(data_source_class(bk_biz_id=params["bk_biz_id"], **query_config))
+                if (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG) == (
+                    query_config["data_source_label"],
+                    query_config["data_type_label"],
+                ):
+                    log_configs.append(query_config)
+                else:
+                    data_configs.append(query_config)
+            if log_configs:
+                for query_config in log_configs:
+                    metrics = [{"field": "_index", "method": "COUNT"}]
+                    not_time_align = params.get("not_time_align", False)
+                    time_alignment = params.get("time_alignment", True)
+                    expression = params.get("expression", "")
 
-            query = UnifyQuery(
-                bk_biz_id=params["bk_biz_id"],
-                data_sources=data_sources,
-                expression=params["expression"],
-                functions=params["functions"],
-            )
-            extra_data = query.query_data(
-                start_time=new_params["start_time"],
-                end_time=new_params["end_time"],
-                limit=new_params["limit"],
-                slimit=new_params["slimit"],
-                down_sample_range=params["down_sample_range"],
-                not_time_align=params.get("not_time_align", False),
-            )
+                    query = QueryConfigBuilder((query_config["data_type_label"], query_config["data_source_label"]))
+                    if query_config.get("interval"):
+                        query = query.interval(query_config["interval"])
+                    if query_config.get("group_by"):
+                        query = query.group_by(query_config["group_by"])
+                    if query_config.get("table"):
+                        query = query.table(query_config["table"])
+
+                    if not_time_align:
+                        time_alignment = False
+                    if metrics:
+                        for metric_item in metrics:
+                            query = query.metric(field=metric_item["field"], method=metric_item["method"])
+                    for func in query_config["functions"]:
+                        query = query.func(func.get("id", ""), func.get("params", []))
+
+                    query_set = (
+                        UnifyQuerySet()
+                        .scope(bk_biz_id=params["bk_biz_id"])
+                        .start_time(params["start_time"] * 1000)
+                        .end_time(params["end_time"] * 1000)
+                        .add_query(query)
+                        .limit(params.get("limit", 0))
+                        .slimit(params.get("slimit", 0))
+                        .time_agg(False)
+                        .time_align(time_alignment)
+                        .not_time_align(not_time_align)
+                        .down_sample_range(params["down_sample_range"])
+                        .expression(expression)
+                    )
+                    extra_data.extend(list(query_set))
+            if data_configs:
+                for query_config in data_configs:
+                    data_source_class = load_data_source(
+                        query_config["data_source_label"], query_config["data_type_label"]
+                    )
+                    data_sources.append(data_source_class(bk_biz_id=params["bk_biz_id"], **query_config))
+                query = UnifyQuery(
+                    bk_biz_id=params["bk_biz_id"],
+                    data_sources=data_sources,
+                    expression=params["expression"],
+                    functions=params["functions"],
+                )
+                extra_data = query.query_data(
+                    start_time=new_params["start_time"],
+                    end_time=new_params["end_time"],
+                    limit=new_params["limit"],
+                    slimit=new_params["slimit"],
+                    down_sample_range=params["down_sample_range"],
+                    not_time_align=params.get("not_time_align", False),
+                )
 
             # 标记时间对比数据
             for record in extra_data:
@@ -283,33 +335,79 @@ class RankProcessor:
             query_config["functions"] = [f for f in query_config["functions"] if f["id"] not in ["top", "bottom"]]
 
             n = int(function["params"][0]["value"])
-
-            # 按均值查出所有维度的值
-            data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
-            data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
+            interval = query_config.get("interval", 0)
             for i in [43200, 7200, 3600, 600, 300, 120, 60]:
-                if i < data_source.interval:
+                if i < interval:
                     break
 
                 if (params["end_time"] - params["start_time"]) / 20 > i:
-                    data_source.interval = i
+                    query_config["interval"] = i
                     break
-            data_source.metrics = [data_source.metrics[0].copy()]
-            query = UnifyQuery(
-                bk_biz_id=params["bk_biz_id"],
-                data_sources=[data_source],
-                expression=query_config["metrics"][0]["alias"],
-            )
+            points = []
+            data_source = None
+            if (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG) == (
+                query_config["data_source_label"],
+                query_config["data_type_label"],
+            ):
+                metrics = [{"field": "_index", "method": "COUNT"}]
+                not_time_align = params.get("not_time_align", False)
+                time_alignment = params.get("time_alignment", True)
+                expression = params.get("expression", "")
 
-            points = query.query_data(
-                start_time=params["start_time"] * 1000,
-                end_time=params["end_time"] * 1000,
-                limit=1000,
-                slimit=params["slimit"],
-                not_time_align=params.get("not_time_align", False),
-            )
+                query = QueryConfigBuilder((query_config["data_type_label"], query_config["data_source_label"]))
+                query = query.interval(interval)
+                if query_config.get("group_by"):
+                    query = query.group_by(query_config["group_by"])
+                if query_config.get("table"):
+                    query = query.table(query_config["table"])
 
-            metric_field = data_source.metrics[0].get("alias") or data_source.metrics[0]["field"]
+                for func in query_config["functions"]:
+                    query = query.func(func.get("id", ""), func.get("params", []))
+
+                if not_time_align:
+                    time_alignment = False
+
+                if metrics:
+                    for metric_item in metrics:
+                        query = query.metric(field=metric_item["field"], method=metric_item["method"])
+
+                query_set = (
+                    UnifyQuerySet()
+                    .scope(bk_biz_id=params["bk_biz_id"])
+                    .start_time(params["start_time"] * 1000)
+                    .end_time(params["end_time"] * 1000)
+                    .add_query(query)
+                    .limit(params.get("limit", 0))
+                    .slimit(params.get("slimit", 0))
+                    .time_agg(False)
+                    .time_align(time_alignment)
+                    .not_time_align(not_time_align)
+                    .expression(expression)
+                )
+                points.extend(list(query_set))
+                metric_field = metrics[0].get("alias") or metrics[0]["field"]
+
+            else:
+                # 按均值查出所有维度的值
+                data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
+                data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
+
+                data_source.metrics = [data_source.metrics[0].copy()]
+                query = UnifyQuery(
+                    bk_biz_id=params["bk_biz_id"],
+                    data_sources=[data_source],
+                    expression=query_config["metrics"][0]["alias"],
+                )
+
+                points = query.query_data(
+                    start_time=params["start_time"] * 1000,
+                    end_time=params["end_time"] * 1000,
+                    limit=1000,
+                    slimit=params["slimit"],
+                    not_time_align=params.get("not_time_align", False),
+                )
+
+                metric_field = data_source.metrics[0].get("alias") or data_source.metrics[0]["field"]
             # 按维度将值合并后进行排序
             dimension_values = defaultdict(int)
             for point in points:
@@ -335,8 +433,9 @@ class RankProcessor:
                 query_config["filter_dict"]["rank"] = rank_filter
 
             # 去除目标过滤
-            if "target" in data_source.filter_dict:
-                del data_source.filter_dict["target"]
+            if data_source is not None:
+                if "target" in data_source.filter_dict:
+                    del data_source.filter_dict["target"]
 
         return params
 
@@ -793,6 +892,60 @@ class UnifyQueryRawResource(ApiAuthResource):
             for dimension_tuple in list(dimension_tuples_set)[:series_num]
         ]
 
+    def query_log(self, params, time_field, query_config_index):
+        points = []
+        query_config = params["query_configs"][query_config_index]
+
+        metrics = [{"field": "_index", "method": "COUNT"}]
+        not_time_align = params.get("not_time_align", False)
+        time_alignment = params.get("time_alignment", True)
+        expression = params.get("expression", "")
+        if not_time_align:
+            time_alignment = False
+
+        def _get_query_set(query_config):
+            return (
+                UnifyQuerySet()
+                .scope(bk_biz_id=params["bk_biz_id"])
+                .start_time(params["start_time"] * 1000)
+                .end_time(params["end_time"] * 1000)
+                .add_query(query_config)
+                .offset(params.get("offset", 0))
+                .limit(params.get("limit", 0))
+                .slimit(params.get("slimit", 0))
+                .time_agg(False)
+                .time_align(time_alignment)
+                .down_sample_range(params.get("down_sample_range", ""))
+                .not_time_align(not_time_align)
+                .expression(expression)
+            )
+
+        query = QueryConfigBuilder((query_config["data_type_label"], query_config["data_source_label"]))
+
+        if query_config.get("table"):
+            query = query.table(query_config["table"])
+        if query_config.get("index_set_id"):
+            query = query.index_set_id(query_config["index_set_id"])
+        if query_config.get("query_string"):
+            query = query.query_string(query_config["query_string"])
+        if query_config.get("where"):
+            query = query.where(query_config["where"])
+        if query_config.get("interval"):
+            query = query.interval(query_config["interval"])
+        # 条件性添加 filter_dict
+        if params.get("filter_dict"):
+            query = query.where(params["filter_dict"])
+
+        if time_field:
+            query = query.time_field(time_field)
+
+        for metric_item in metrics:
+            query = query.metric(field=metric_item["field"], method=metric_item["method"])
+        count_result = list(_get_query_set(query))
+        points.extend(count_result)
+
+        return points
+
     def perform_request(self, params):
         # cookies filter
         cookies_filter = get_cookies_filter()
@@ -806,9 +959,10 @@ class UnifyQueryRawResource(ApiAuthResource):
         # 指标信息查询
         metrics = self.get_metric_info(params)
 
+        time_field = None
         # 配置预处理
         for query_config in params["query_configs"]:
-            query_config.pop("time_field", None)
+            time_field = query_config.pop("time_field", None)
 
             # 补全时间字段
             for metric in metrics:
@@ -841,61 +995,89 @@ class UnifyQueryRawResource(ApiAuthResource):
         # 维度top/bottom排序
         params = RankProcessor.process_params(params)
         params = QueryTypeProcessor.process_params(params)
+        # 分离日志查询和普通数据查询
+        log_query_configs = []
+        data_query_configs = []
+        points = []
+        for query_config in params["query_configs"]:
+            if (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG) == (
+                query_config["data_source_label"],
+                query_config["data_type_label"],
+            ):
+                log_query_configs.append(query_config)
+            else:
+                data_query_configs.append(query_config)
 
-        # 数据查询
-        data_sources = []
-        time_alignment: bool = params.get("time_alignment", True)
-        for query_config_index, query_config in enumerate(params["query_configs"]):
-            data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
-            if not time_alignment:
-                query_config["time_alignment"] = time_alignment
-            data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
-            if hasattr(data_source, "group_by"):
-                query_config["group_by"] = data_source.group_by
-
-            # 先获取指定数量的topk维度组合条件，后续将基于这些维度组合条件进行查询
-            # 目前只支持ui数据源的指标，如果有多个指标，只获取第一个指标的topk数量的维度组合条件，并将这些条件拼接回第一个指标的查询条件中
-            # 计算平台数据不参与
-            if query_config_index == 0 and query_config["data_source_label"] != DataSourceLabel.BK_DATA:
-                self.get_dimension_combination(data_source, params)
-
-            data_sources.append(data_source)
-
+        # 处理日志查询
+        for query_config in log_query_configs:
             try:
-                unify_query_count(
-                    data_type_label=query_config["data_type_label"],
-                    bk_biz_id=params["bk_biz_id"],
-                    data_source_label=query_config["data_source_label"],
-                )
-            except Exception:
-                logger.exception("failed to count unify query")
+                query_config_index = params["query_configs"].index(query_config)
+                points.extend(self.query_log(params, time_field, query_config_index))
+                # 从查询配置中移除已处理的日志查询配置
+                params["query_configs"].remove(query_config)
+            except Exception as e:
+                logger.warning("Failed to process log query config: %s", str(e))
                 continue
 
-        query = UnifyQuery(
-            bk_biz_id=params["bk_biz_id"],
-            data_sources=data_sources,
-            expression=params["expression"],
-            functions=params["functions"],
-        )
-        safe_push_to_gateway(registry=OPERATION_REGISTRY)
+        # 处理数据查询
+        if data_query_configs:
+            data_sources = []
+            time_alignment: bool = params.get("time_alignment", True)
 
-        query_method_map: dict[str, Callable[[Any], list[dict]]] = {
-            "query_data": query.query_data,
-            "query_reference": query.query_reference,
-        }
-        query_method: Callable[[Any], list[dict]] = query_method_map.get(params.get("query_method"), query.query_data)
+            for query_config_index, query_config in enumerate(data_query_configs):
+                try:
+                    data_source_class = load_data_source(
+                        query_config["data_source_label"], query_config["data_type_label"]
+                    )
+                    if not time_alignment:
+                        query_config["time_alignment"] = time_alignment
 
-        points = query_method(
-            start_time=params["start_time"] * 1000,
-            end_time=params["end_time"] * 1000,
-            limit=params["limit"],
-            slimit=params["slimit"],
-            down_sample_range=params["down_sample_range"],
-            time_alignment=time_alignment,
-            not_time_align=params.get("not_time_align", False),
-        )
+                    data_source = data_source_class(bk_biz_id=params["bk_biz_id"], **query_config)
+                    if hasattr(data_source, "group_by"):
+                        query_config["group_by"] = data_source.group_by
 
-        # 如果存在数据后过滤条件，则进行过滤
+                    # 先获取指定数量的topk维度组合条件
+                    if query_config_index == 0 and query_config["data_source_label"] != DataSourceLabel.BK_DATA:
+                        self.get_dimension_combination(data_source, params)
+
+                    data_sources.append(data_source)
+
+                    # 统计查询次数
+                    unify_query_count(
+                        data_type_label=query_config["data_type_label"],
+                        bk_biz_id=params["bk_biz_id"],
+                        data_source_label=query_config["data_source_label"],
+                    )
+                except Exception as e:
+                    logger.warning("Failed to process query config %s: %s", query_config_index, str(e))
+                    continue
+
+            query = UnifyQuery(
+                bk_biz_id=params["bk_biz_id"],
+                data_sources=data_sources,
+                expression=params["expression"],
+                functions=params["functions"],
+            )
+            safe_push_to_gateway(registry=OPERATION_REGISTRY)
+
+            query_method_map: dict[str, Callable[[Any], list[dict]]] = {
+                "query_data": query.query_data,
+                "query_reference": query.query_reference,
+            }
+            query_method: Callable[[Any], list[dict]] = query_method_map.get(
+                params.get("query_method"), query.query_data
+            )
+
+            points = query_method(
+                start_time=params["start_time"] * 1000,
+                end_time=params["end_time"] * 1000,
+                limit=params["limit"],
+                slimit=params["slimit"],
+                down_sample_range=params["down_sample_range"],
+                time_alignment=time_alignment,
+                not_time_align=params.get("not_time_align", False),
+            )
+
         if params.get("post_query_filter_dict"):
             condition_filter = load_agg_condition_instance(params["post_query_filter_dict"])
             points = [point for point in points if condition_filter.is_match(point)]

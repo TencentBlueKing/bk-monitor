@@ -15,9 +15,12 @@ from datetime import datetime, timedelta
 import arrow
 from django.utils.translation import gettext as _
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
+from bkmonitor.data_source import load_data_source
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.share.api_auth_resource import ApiAuthResource
+from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
 
@@ -121,14 +124,17 @@ class LogQueryResource(ApiAuthResource):
         return int(_time.timestamp)
 
     def query_log(self, params, time_field, limit, method):
-        query = (
-            QueryConfigBuilder((params["data_type_label"], params["data_source_label"]))
-            .table(params["result_table_id"])
-            .index_set_id(params["index_set_id"])
-            .query_string(params["query_string"])
-            .conditions(params["where"])
-            .time_field(time_field)
-        )
+        query = QueryConfigBuilder((params["data_type_label"], params["data_source_label"]))
+        if params.get("result_table_id"):
+            query = query.table(params["result_table_id"])
+        if params.get("index_set_id"):
+            query = query.index_set_id(params["index_set_id"])
+        if params.get("query_string"):
+            query = query.query_string(params["query_string"])
+        if params.get("where"):
+            query = query.conditions(params["where"])
+        if time_field:
+            query = query.time_field(time_field)
 
         # 条件性添加 filter_dict
         if params.get("filter_dict"):
@@ -141,7 +147,7 @@ class LogQueryResource(ApiAuthResource):
                 .start_time(params["start_time"])
                 .end_time(params["end_time"])
                 .add_query(query_config)
-                .offset(params["offset"])
+                .offset(params.get("offset") or 0)
                 .limit(limit)
                 .time_agg(False)
                 .time_align(False)
@@ -158,7 +164,6 @@ class LogQueryResource(ApiAuthResource):
         return total, records
 
     def perform_request(self, params):
-        # 时间范围处理
         if "start_time" not in params or "end_time" not in params:
             params["end_time"] = int(datetime.now().timestamp())
             params["start_time"] = int((datetime.now() - timedelta(hours=1)).timestamp())
@@ -181,15 +186,51 @@ class LogQueryResource(ApiAuthResource):
             except Exception as e:
                 logger.exception(e)
 
-        # 设置查询限制
         limit = 1000 if params["limit"] <= 0 else params["limit"]
 
-        total, records = self.query_log(params, time_field, limit, method="COUNT")
+        data_source = None
+        if (params["data_source_label"], params["data_type_label"]) == (
+            DataSourceLabel.BK_LOG_SEARCH,
+            DataTypeLabel.LOG,
+        ):
+            total, records = self.query_log(params, time_field, limit, method="COUNT")
+        else:
+            data_source_class = load_data_source(params["data_source_label"], params["data_type_label"])
+            kwargs = dict(
+                bk_tenant_id=get_request_tenant_id(),
+                table=params["result_table_id"],
+                index_set_id=params["index_set_id"],
+                where=params["where"],
+                query_string=params["query_string"],
+                filter_dict=params["filter_dict"],
+                time_field=time_field,
+                bk_biz_id=params["bk_biz_id"],
+            )
+            if params["data_source_label"] == DataSourceLabel.BK_FTA:
+                if not params.get("alert_name"):
+                    raise ValidationError(_("告警名称不能为空"))
+                kwargs["alert_name"] = params["alert_name"]
+            elif (params["data_source_label"], params["data_type_label"]) == (
+                DataSourceLabel.BK_MONITOR_COLLECTOR,
+                DataTypeLabel.ALERT,
+            ):
+                if not params.get("bkmonitor_strategy_id"):
+                    raise ValidationError(_("策略ID不能为空"))
+                kwargs["bkmonitor_strategy_id"] = params["bkmonitor_strategy_id"]
+
+            data_source = data_source_class(**kwargs)
+
+            records, total = data_source.query_log(
+                start_time=params["start_time"], end_time=params["end_time"], limit=limit, offset=params["offset"]
+            )
+
         result = []
         for record in records:
-            # 使用默认时间字段或查询到的时间字段
             record_time_field = time_field or "dtEventTimeStamp"
-            _record = {"time": self.get_time(record, record_time_field)}
+            if data_source is not None:
+                _record = {"time": self.get_time(record, data_source.time_field)}
+            else:
+                _record = {"time": self.get_time(record, record_time_field)}
 
             if params["data_source_label"] in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM) and params[
                 "data_type_label"
@@ -225,7 +266,6 @@ class LogQueryResource(ApiAuthResource):
 
             result.append(_record)
 
-        # 返回结果
         if params.get("data_format") in ["table", "scene_view"]:
             return self.table_format(result, total, params.get("data_format"))
 
