@@ -200,6 +200,8 @@ class UnifyQuery:
         first_ds: DataSource = self.data_sources[0]
         if (first_ds.data_source_label, first_ds.data_type_label) in [
             (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
+            (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
         ]:
             records = first_ds.process_unify_query_log(records)
         return records
@@ -210,7 +212,7 @@ class UnifyQuery:
         for record in data.get("list") or []:
             record["_meta"] = {
                 meta_field: record.pop(meta_field, "")
-                for meta_field in ["__data_label", "__doc_id", "__index", "__result_table"]
+                for meta_field in ["__data_label", "__doc_id", "__index", "__result_table", "__parse_failure"]
             }
             record["_meta"]["_time_"] = int(record.pop("_time", 0))
             records.append(record)

@@ -1614,6 +1614,9 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
     EXTRA_DISTINCT_FIELD: str | None = None
     EXTRA_AGG_DIMENSIONS: list[str] = []
 
+    # 对象字段分隔符
+    OBJECT_FIELD_SEPERATOR: str = "."
+
     # 查询操作符映射关系：监控 -> UnifyQuery
     OPERATOR_MAPPING: dict[str, str] = {
         "reg": "req",
@@ -1641,6 +1644,9 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
 
     # 聚合函数映射，背景：UnifyQuery / SaaS 对去重、求和等函数名定义可能不一致，此处统一映射为 UnifyQuery 所支持的函数
     FUNC_METHOD_MAPPING: dict[str, str] = {"distinct": "cardinality"}
+
+    # 默认展示字段
+    DEFAULT_SELECT: list[str] = []
 
     def __init__(
         self,
@@ -1672,7 +1678,7 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         self.group_by = group_by or []
         self.time_field = time_field or self.DEFAULT_TIME_FIELD
         self.order_by = order_by or [f"{self.time_field} desc"]
-        self.select = select
+        self.select = select or self.DEFAULT_SELECT
         self.distinct = distinct
         # 是否使用索引全名进行检索
         self.use_full_index_names = use_full_index_names
@@ -1751,7 +1757,7 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
             query: dict[str, Any] = copy.deepcopy(base_query)
             method: str = metric["method"].lower()
             # 非时间聚合，直接使用传入的方法
-            func_method: str = (method, "sum")[self.is_time_agg and self.time_alignment]
+            func_method: str = "sum" if (self.is_time_agg and self.time_alignment) else method
             function: dict[str, Any] = {
                 "method": self.FUNC_METHOD_MAPPING.get(func_method, func_method),
                 "dimensions": group_by,
@@ -1905,7 +1911,7 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
 
     def _process_distinct_calculate_group_by(self, group_by: list[str]):
         if self.interval:
-            # 聚合场景下才需要按事件字段去重复。
+            # 聚合场景下才需要按时间字段去重复。
             group_by.append(self.time_field)
 
     def _distinct_calculate(self, group_by: list[str], records: list[dict]) -> list:
@@ -1984,8 +1990,8 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
                 group_by.append(builtin_dimension)
 
     def _process_data_queryset(self, queryset):
-        # Q：为什么执行 _process_log_queryset？
-        # A：query_data 存在按时间聚合及非聚合（计算一段时间内的汇总数据）的场景，当 interval 不存在时，一样需要停用日期分桶。
+        # Q: 为什么执行 _process_log_queryset？
+        # A: query_data 存在按时间聚合及非聚合（计算一段时间内的汇总数据）的场景，当 interval 不存在时，一样需要停用日期分桶。
         return self._process_log_queryset(queryset)
 
     def _process_log_queryset(self, queryset):
@@ -2142,6 +2148,8 @@ class BkMonitorLogDataSource(BaseBkMonitorLogDataSource):
         "count": "",
     }
 
+    DEFAULT_SELECT: list[str] = ["dimensions", "event", "time", "target", "event_name"]
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -2212,13 +2220,20 @@ class BkMonitorLogDataSource(BaseBkMonitorLogDataSource):
         processed_records: list[dict[str, Any]] = []
         for record in records:
             processed_record: dict[str, Any] = {}
+            exists_object_fields: set[str] = set()
             for field, value in record.items():
                 if field in ["_meta"]:
                     # 排除无需返回的字段。
                     continue
 
+                if self.OBJECT_FIELD_SEPERATOR not in field:
+                    # 不包含分隔符，设置 kv 并提前返回。
+                    processed_record[field] = value
+                    continue
+
                 root_field, attr_field = field.split(".", 1)
                 if root_field in self.OBJECT_FIELDS:
+                    exists_object_fields.add(root_field)
                     if attr_field.startswith("extra."):
                         extra_field: str = attr_field.split(".", 1)[1]
                         processed_record.setdefault(root_field, {}).setdefault("extra", {})[extra_field] = value
@@ -2227,10 +2242,16 @@ class BkMonitorLogDataSource(BaseBkMonitorLogDataSource):
                 else:
                     processed_record[field] = value
 
-            for object_field in self.OBJECT_FIELDS:
-                if object_field in processed_record:
-                    continue
-                processed_record[object_field] = {}
+            if self.select:
+                # 指定某些字段进行返回，仅需确保这些字段存在。
+                select_object_fields: set[str] = set(self.select) & self.OBJECT_FIELDS
+            else:
+                select_object_fields = self.OBJECT_FIELDS
+
+            for field in select_object_fields:
+                if field not in exists_object_fields:
+                    # 如果 select 中的对象字段不存在，则添加空对象。
+                    processed_record[field] = {}
 
             processed_records.append(processed_record)
 
@@ -2266,9 +2287,6 @@ class BkApmTraceDataSource(BaseBkMonitorLogDataSource):
     OBJECT_FIELDS: set[str] = SPAN_OBJECT_FIELDS | PRE_CALCULATE_OBJECT_FIELDS
 
     NESTED_FIELDS: set[str] = {OtlpKey.EVENTS, OtlpKey.LINKS}
-
-    # 对象字段分隔符
-    OBJECT_FIELD_SEPERATOR: str = "."
 
     # 字段映射
     # 背景：后台 API 模块在接口层部分字段强制转换以规范命名，为保证数据 ES & UnifyQuery 返回数据一致，UnifyQuery 查询结果也相应进行转换。

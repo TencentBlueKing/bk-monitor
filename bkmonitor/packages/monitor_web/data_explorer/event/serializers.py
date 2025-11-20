@@ -15,6 +15,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from bkmonitor.data_source import get_auto_interval
+from constants.data_source import DataSourceLabel
 from monitor_web.data_explorer.event.constants import EventDimensionTypeEnum
 
 
@@ -28,6 +29,13 @@ class EventDataSource(serializers.Serializer):
     table = serializers.CharField(label="结果表")
     data_type_label = serializers.CharField(label="数据类型标签")
     data_source_label = serializers.CharField(label="数据源标签")
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        # 兼容老数据源
+        if attrs["data_source_label"] == DataSourceLabel.BK_APM:
+            attrs["data_source_label"] = DataSourceLabel.CUSTOM
+        return attrs
 
 
 class EventFilterSerializer(EventDataSource):
