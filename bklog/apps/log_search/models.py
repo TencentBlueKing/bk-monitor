@@ -453,7 +453,7 @@ class LogIndexSet(SoftDeleteModel):
 
         return BkDataAuthHandler.get_auth_url(not_applied_indices)
 
-    def get_parent_index_set_ids(self) -> list:
+    def get_parent_index_set_ids(self) -> list[int]:
         """
         获取当前索引集的归属索引集ID列表
         """
@@ -464,7 +464,7 @@ class LogIndexSet(SoftDeleteModel):
 
         return list(parent_ids)
 
-    def get_child_index_set_ids(self) -> list:
+    def get_child_index_set_ids(self) -> list[int]:
         """
         获取当前索引集的子索引集ID列表
         """
@@ -473,7 +473,20 @@ class LogIndexSet(SoftDeleteModel):
             type=IndexSetDataType.INDEX_SET.value,
         ).values_list("result_table_id", flat=True)
 
-        return list(child_ids)
+        return [int(child_id) for child_id in child_ids]
+
+    def get_doris_table_ids(self) -> list:
+        doris_table_ids = []
+        if self.is_group:
+            # 如果是索引组，获取所有子索引集的doris_table_id
+            child_index_set_ids = self.get_child_index_set_ids()
+            child_index_sets = LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids)
+            for child_index_set in child_index_sets:
+                if child_index_set.doris_table_id:
+                    doris_table_ids.extend(child_index_set.doris_table_id.split(","))
+        elif self.doris_table_id:
+            doris_table_ids.extend(self.doris_table_id.split(","))
+        return doris_table_ids
 
     @staticmethod
     def no_data_check_time(index_set_id: str):
