@@ -109,7 +109,7 @@ class TGPATaskHandler:
                     "status_name": task["statusText"],
                     "scene": task["scene"],
                     "scene_name": task["real_scene"],
-                    "platform": task.get("platform", ""),
+                    "platform": task.get("user_client_type", ""),
                     "frequency": task["frequency"],
                     "trigger_duration": task["trigger_duration"],
                     "max_file_num": task["max_file_num"],

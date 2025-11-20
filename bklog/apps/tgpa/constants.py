@@ -154,6 +154,7 @@ class TGPATaskTypeEnum(ChoicesEnum):
 class TGPATaskPlatformEnum(ChoicesEnum):
     """客户端类型"""
 
+    ALL = "all"
     IOS = "ios"
     ANDROID = "android"
     MACOS = "macos"
@@ -161,6 +162,7 @@ class TGPATaskPlatformEnum(ChoicesEnum):
     HARMONY = "harmony"
 
     _choices_labels = (
+        (ALL, _("默认")),
         (IOS, _("iOS")),
         (ANDROID, _("安卓")),
         (MACOS, _("macOS")),
