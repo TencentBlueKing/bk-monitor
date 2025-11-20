@@ -188,9 +188,9 @@ class UnifyQueryHandler:
         self.result_merge_base_dict = self.init_result_merge_base_dict(self.base_dict)
 
         if self.index_set_ids:
-            get_time_field_info = SearchHandler.init_time_field(self.index_set_ids[0])
-            if get_time_field_info:
-                self.time_field = get_time_field_info[0]
+            time_field_info = SearchHandler.init_time_field(self.index_set_ids[0])
+            if time_field_info:
+                self.time_field = time_field_info[0]
 
     @staticmethod
     def query_ts(search_dict, raise_exception=True):
