@@ -92,6 +92,7 @@ INSTALLED_APPS += (
     "bkm_search_module",
     "bk_notice_sdk",
     "apigw_manager.apigw",
+    "apps.tgpa",
 )
 
 # BKLOG后台接口：默认否，后台接口session不写入本地数据库
@@ -226,6 +227,7 @@ CELERY_IMPORTS = (
     "apps.log_clustering.tasks.sync_pattern",
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
+    "apps.tgpa.tasks",
 )
 
 # bk crypto sdk配置
@@ -1286,6 +1288,11 @@ except ValueError:
 
 # TGPA
 TGPA_TASK_APIGW_ROOT = os.getenv("BKAPP_TGPA_TASK_APIGATEWAY_ROOT", "")
+TGPA_TASK_QCLOUD_SECRET_ID = os.getenv("BKAPP_TGPA_TASK_QCLOUD_SECRET_ID", "")
+TGPA_TASK_QCLOUD_SECRET_KEY = os.getenv("BKAPP_TGPA_TASK_QCLOUD_SECRET_KEY", "")
+TGPA_TASK_QCLOUD_COS_REGION = os.getenv("BKAPP_TGPA_TASK_QCLOUD_COS_REGION", "")
+TGPA_TASK_QCLOUD_COS_BUCKET = os.getenv("BKAPP_TGPA_TASK_QCLOUD_COS_BUCKET", "")
+TGPA_TASK_QCLOUD_COS_DOMAIN = os.getenv("BKAPP_TGPA_TASK_QCLOUD_DOMAIN", "")
 
 """
 以下为框架代码 请勿修改

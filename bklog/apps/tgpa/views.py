@@ -19,10 +19,26 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from apps.generic import APIViewSet
+from rest_framework.response import Response
 
-# Create your views here.
+from apps.api import TGPATaskApi
+from apps.generic import APIViewSet
+from apps.tgpa.handlers.task import TGPATaskHandler
+from apps.tgpa.serializers import CreateTGPATaskSerializer, GetTGPATaskListSerializer
 
 
 class TGPATaskViewSet(APIViewSet):
-    pass
+    """日志拉取任务"""
+
+    def list(self, request, *args, **kwargs):
+        params = self.params_valid(GetTGPATaskListSerializer)
+        params["cc_id"] = params.pop("bk_biz_id")
+        return Response(TGPATaskHandler.get_task_list(params, need_format=True))
+
+    def create(self, request, *args, **kwargs):
+        params = self.params_valid(CreateTGPATaskSerializer)
+        params["cc_id"] = params.pop("bk_biz_id")
+        params["logpath"] = params.pop("log_path")
+        params["taskName"] = params.pop("task_name")
+        params["username"] = request.user.username
+        return Response(TGPATaskApi.create_single_user_log_task_v2(params))
