@@ -105,6 +105,11 @@
       color: #8474F3;
       font-size: 12px;
       font-family: RobotoMono;
+
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 480px;
     }
 
     .short-cut-icon {
