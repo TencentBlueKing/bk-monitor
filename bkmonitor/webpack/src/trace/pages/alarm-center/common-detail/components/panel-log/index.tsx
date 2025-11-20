@@ -23,12 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowReactive, watch } from 'vue';
+import { type PropType, defineComponent, watch } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Button } from 'bkui-vue';
+import { random } from 'monitor-common/utils';
 import { EMode } from 'trace/components/retrieval-filter/typing';
-import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
 
 import RetrievalFilter from '../../../../../components/retrieval-filter/retrieval-filter';
@@ -57,20 +57,9 @@ export default defineComponent({
     const relatedBkBizId = shallowRef(-1);
     /** 选中的索引集ID */
     const selectIndexSet = shallowRef<number | string>('');
-    /** 表格数据 */
-    const tableData = shallowReactive({
-      data: [],
-      total: 0,
-      columns: [],
-      limit: 30,
-      offset: 0,
-    });
     const keyword = shallowRef('');
     const filterMode = shallowRef<EMode>(EMode.ui);
-    /** 表格加载状态 */
-    const tableLoading = shallowRef(false);
-    /** 滚动加载状态 */
-    const scrollLoading = shallowRef(false);
+    const tableRefreshKey = shallowRef(null);
 
     watch(
       () => props.detail,
@@ -84,13 +73,12 @@ export default defineComponent({
 
     async function init() {
       selectLoading.value = true;
-      tableLoading.value = true;
       const data = await getIndexSetList();
       relatedBkBizId.value = data?.relatedBkBizId || -1;
       indexSetList.value = data?.relatedIndexSetList || [];
       selectIndexSet.value = indexSetList.value[0]?.index_set_id || '';
       selectLoading.value = false;
-      getTableData();
+      tableRefreshKey.value = random(6);
     }
 
     /**
@@ -99,32 +87,17 @@ export default defineComponent({
      */
     async function getTableData(
       params = {
-        limit: tableData.limit,
-        offset: tableData.offset,
+        limit: 30,
+        offset: 0,
       }
     ) {
-      tableData.limit = params.limit;
-      tableData.offset = params.offset;
-      if (tableData.offset) {
-        scrollLoading.value = true;
-      } else {
-        tableLoading.value = true;
-      }
-
       const data = await updateTableData({
         index_set_id: selectIndexSet.value,
         keyword: keyword.value,
-        limit: tableData.limit,
-        offset: tableData.offset,
+        limit: params.limit,
+        offset: params.offset,
       });
-      tableData.data = data?.data || [];
-      tableData.total = data?.total || 0;
-      tableData.columns = data?.columns || [];
-      if (tableData.offset) {
-        scrollLoading.value = false;
-      } else {
-        tableLoading.value = false;
-      }
+      return data;
     }
 
     /**
@@ -134,18 +107,7 @@ export default defineComponent({
     function handleChangeIndexSet(indexSetId: number | string) {
       selectIndexSet.value = indexSetId;
       resetTableData();
-      getTableData({
-        limit: tableData.limit,
-        offset: 0,
-      });
-    }
-
-    /**
-     * 日志列表滚动加载
-     * @param params
-     */
-    function handleTableScroll(params: { limit: number; offset: number }) {
-      getTableData(params);
+      tableRefreshKey.value = random(8);
     }
 
     /**
@@ -161,10 +123,7 @@ export default defineComponent({
      */
     function handleSearch() {
       resetTableData();
-      getTableData({
-        limit: tableData.limit,
-        offset: 0,
-      });
+      tableRefreshKey.value = random(8);
     }
 
     /**
@@ -189,20 +148,18 @@ export default defineComponent({
 
     return {
       indexSetList,
-      tableData,
+      tableRefreshKey,
       selectIndexSet,
-      tableLoading,
       selectLoading,
-      scrollLoading,
       keyword,
       filterMode,
       handleChangeIndexSet,
       t,
-      handleTableScroll,
       handleGoLog,
       handleSearch,
       handleQueryStringChange,
       handleModeChange,
+      getTableData,
     };
   },
   render() {
@@ -238,15 +195,10 @@ export default defineComponent({
             onSearch={this.handleSearch}
           />
         </div>
-        {this.tableLoading ? (
-          <TableSkeleton type={4} />
-        ) : (
-          <LogTable
-            scrollLoading={this.scrollLoading}
-            tableData={this.tableData}
-            onScroll={this.handleTableScroll}
-          />
-        )}
+        <LogTable
+          getData={this.getTableData}
+          refreshKey={this.tableRefreshKey}
+        />
       </div>
     );
   },
