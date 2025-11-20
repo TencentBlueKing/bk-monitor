@@ -9,26 +9,19 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
-import json
 from typing import Any
 
-import urllib.parse
-
-from django.db.models import Q
-
-from apm_web.strategy.dispatch import DispatchConfig
-from apm_web.strategy.dispatch.entity import EntitySet
-
-from django.utils.translation import gettext_lazy as _
-
-from django.conf import settings
 from apm_web.models import StrategyTemplate
 from apm_web.strategy.constants import StrategyTemplateCategory, StrategyTemplateSystem
+from apm_web.strategy.dispatch import DispatchConfig
+from apm_web.strategy.dispatch.entity import EntitySet
 from apm_web.strategy.helper import simplify_conditions
 from bkmonitor.data_source import q_to_conditions, conditions_to_q
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants import apm as apm_constants
+from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
 
 class BaseSystemDiscoverer(abc.ABC):
@@ -296,53 +289,6 @@ class RPCEnricher(BaseEnricher):
                 service_names=", ".join(invalid_service_names),
             )
         )
-
-    def _get_rpc_url_template(self, dispatch_config: DispatchConfig) -> str:
-        call_filter: list[dict[str, Any]] = []
-        for tag in dispatch_config.context.get("GROUP_BY", []):
-            key: str = apm_constants.RPCLogTag.get_metric_tag(tag) or tag
-            if key in self._UPSERT_TAGS:
-                continue
-
-            call_filter.append(
-                {
-                    "key": key,
-                    "method": "eq",
-                    "value": [f"{{{{alarm.dimensions['{tag}'].display_value}}}}"],
-                    "condition": "and",
-                }
-            )
-
-        call_options: dict[str, Any] = {
-            "kind": ("callee", "caller")[self._strategy_template.category == StrategyTemplateCategory.RPC_CALLER.value],
-            "call_filter": call_filter,
-            "perspective_type": "multiple",
-            "perspective_group_by": [
-                apm_constants.RPCMetricTag.CALLEE_METHOD.value,
-                apm_constants.RPCMetricTag.CODE.value,
-            ],
-        }
-
-        offset: int = 5 * 60 * 1000
-        template_variables: dict[str, str] = {
-            "VAR_FROM": f"{{{{alarm.begin_timestamp * 1000 - alarm.duration * 1000 - {offset}}}}}",
-            "VAR_TO": f"{{{{alarm.begin_timestamp * 1000 + {offset}}}}}",
-            "VAR_CALL_OPTIONS": json.dumps(call_options),
-        }
-
-        params: dict[str, str] = {
-            "filter-app_name": self.app_name,
-            "filter-service_name": dispatch_config.service_name,
-            "callOptions": "VAR_CALL_OPTIONS",
-            "dashboardId": "service-default-caller_callee",
-            "from": "VAR_FROM",
-            "to": "VAR_TO",
-            "sceneId": "apm_service",
-        }
-        encoded_params: str = urllib.parse.urlencode(params)
-        for k, v in template_variables.items():
-            encoded_params = encoded_params.replace(k, v)
-        return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"?bizId={self.bk_biz_id}#/apm/service?{encoded_params}")
 
     def _current_value_tmpl(self, dispatch_config: DispatchConfig) -> str:
         """RPC特殊处理，包含content和当前值"""
