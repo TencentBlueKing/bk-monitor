@@ -236,6 +236,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         """
         # 导入放在这里避免循环依赖
         from bkmonitor.iam.drf import MCPPermission
+        from bkmonitor.iam.action import get_action_by_id
 
         logger.info("MCPAuthentication: Handling MCP authentication")
 
@@ -272,9 +273,23 @@ class AuthenticationMiddleware(MiddlewareMixin):
             logger.error(f"MCPAuthentication: Invalid bk_biz_id format: {bk_biz_id}")
             return HttpResponseForbidden(f"Invalid bk_biz_id format: {bk_biz_id}")
 
+        # 从请求头中获取权限动作ID，并动态加载对应的权限
+        permission_action_id = request.META.get("HTTP_X_BKAPI_PERMISSION_ACTION")
+        logger.info(f"MCPAuthentication: Permission action from header: {permission_action_id}")
+
         # 使用 MCPPermission 进行权限校验
         try:
-            permission = MCPPermission()
+            # 根据请求头动态获取权限动作
+            action = None
+            if permission_action_id:
+                try:
+                    action = get_action_by_id(permission_action_id)
+                    logger.info(f"MCPAuthentication: Using action: {action.id} - {action.name}")
+                except Exception as e:
+                    logger.warning(f"MCPAuthentication: Failed to get action by id '{permission_action_id}': {e}")
+                    # 如果找不到对应的权限，使用默认权限
+
+            permission = MCPPermission(action=action)
             # 创建一个简单的 mock view 对象
             mock_view = type("MockView", (), {"kwargs": {}})()
 

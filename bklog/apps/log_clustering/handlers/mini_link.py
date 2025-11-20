@@ -12,7 +12,7 @@ from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
 from apps.log_databus.models import CollectorConfig
-from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
+from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum, InnerTag
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
@@ -87,7 +87,7 @@ class MiniLinkAccessHandler:
                 category_id=self.index_set.category_id,
                 new_cls_strategy_enable=params.get("new_cls_strategy_enable", False),
                 normal_strategy_enable=params.get("normal_strategy_enable", False),
-                access_finished=False,
+                access_finished=True,
                 log_bk_data_id=self.collector_config.bk_data_id,
                 use_mini_link=True,
                 predict_cluster=self.read_config(params, "predict_cluster"),
@@ -168,6 +168,10 @@ class MiniLinkAccessHandler:
             self.index_set.index_set_id,
             created,
         )
+
+        # 设置数据指纹标签
+        LogIndexSet.set_tag(self.index_set.index_set_id, InnerTag.CLUSTERING.value)
+
         return model_to_dict(clustering_config)
 
     def update_metadata(self):

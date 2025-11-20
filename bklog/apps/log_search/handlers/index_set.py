@@ -1485,7 +1485,7 @@ class IndexSetHandler(APIModel):
                 query_alias_settings = query_alias_mappings.get(result_table_id, [])
                 # 为纳秒字段新增别名
                 if obj.result_table_id in collector_rts:
-                    query_alias_settings.update(
+                    query_alias_settings.append(
                         {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}
                     )
                 multi_execute_func.append(

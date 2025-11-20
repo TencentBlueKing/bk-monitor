@@ -1007,3 +1007,21 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "list trace view config"
+  /app/apm/calculate_by_range/:
+    post:
+      operationId: calculate_by_range
+      description: 调用分析表格统计
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_metric_web/calculate_by_range/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "calculate by range"
