@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 
-import { clearTableFilter } from '@/common/util';
+import { clearTableFilter, getDefaultSettingSelectFiled, setDefaultSettingSelectFiled } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
+import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../../constant';
 
 import './index.scss';
 
@@ -52,7 +53,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['clear-keyword'],
+  emits: ['clear-keyword', 'clone-task'],
   setup(props, { emit }) {
     const pagination = ref({
       current: 1,
@@ -64,6 +65,27 @@ export default defineComponent({
     const createTypes = ref([]); // 创建方式
     const createdBys = ref([]); // 创建人
     const logTableRef = ref(null); // 表格引用
+    const settingCacheKey = 'clientLog'; // 设置缓存键
+
+    const settingFields = ref([
+      { id: 'id', label: t('任务 ID') },
+      { id: 'task_name', label: t('任务名称'), disabled: true },
+      { id: 'openid', label: 'openid', disabled: true },
+      { id: 'create_type', label: t('创建方式') },
+      { id: 'status_name', label: t('任务状态') },
+      { id: 'scene_name', label: t('任务阶段') },
+      { id: 'created_by', label: t('创建人') },
+      { id: 'created_at', label: t('创建时间') },
+      { id: 'log_path', label: t('日志路径') },
+      { id: 'frequency', label: t('触发频率') },
+      { id: 'platform', label: t('客户端类型') },
+      { id: 'max_file_num', label: t('最大文件个数') },
+    ]);
+
+    const columnSetting = ref({
+      fields: settingFields.value,
+      selectedFields: settingFields.value.slice(0, 8),
+    });
 
     // 任务状态选项
     const taskStatuses = [
@@ -117,6 +139,7 @@ export default defineComponent({
     watch(
       () => props.data,
       () => {
+        pagination.value.current = 1;
         extractUniqueData();
       },
     );
@@ -232,6 +255,32 @@ export default defineComponent({
       emit('clear-keyword');
     };
 
+    // 克隆任务
+    const cloneTask = (task) => {
+      emit('clone-task', task);
+    };
+
+    // 下载文件
+    const downloadFile = (downloadUrl) => {
+      window.open(downloadUrl);
+    };
+
+    // 检查字段显示
+    const checkFields = (field) => {
+      return columnSetting.value.selectedFields.some(item => item.id === field);
+    };
+
+    // 设置变化处理
+    const handleSettingChange = ({ fields }) => {
+      columnSetting.value.selectedFields.splice(0, columnSetting.value.selectedFields.length, ...fields);
+      setDefaultSettingSelectFiled(settingCacheKey, fields);
+    };
+
+    onMounted(() => {
+      const { selectedFields } = columnSetting.value;
+      columnSetting.value.selectedFields = getDefaultSettingSelectFiled(settingCacheKey, selectedFields);
+    });
+
     // 任务名称插槽
     const nameSlot = {
       default: ({ row }) => (
@@ -259,15 +308,38 @@ export default defineComponent({
       ),
     };
 
+    // 创建人插槽
+    const creatorSlot = {
+      default: (props: any) => <bk-user-display-name user-id={props.row.created_by}></bk-user-display-name>,
+    };
+
+    // 客户端类型插槽
+    const platformSlot = {
+      default: ({ row }) => (
+        <div class='platform-row'>
+          {CLIENT_TYPE_OPTIONS.find(option => option.value === row.platform)?.label || row.platform}
+        </div>
+      ),
+    };
+
+    // 触发频率插槽
+    const frequencySlot = {
+      default: ({ row }) => (
+        <div class='frequency-row'>
+          {TRIGGER_FREQUENCY_OPTIONS.find(option => option.value === row.frequency)?.label || row.frequency}
+        </div>
+      ),
+    };
+
     // 操作项插槽
     const operateSlot = {
-      // eslint-disable-next-line no-empty-pattern
-      default: ({}: any) => (
+      default: ({ row }: any) => (
         <div class='log-table-operate'>
           <bk-button
             class='king-button'
             text
             theme='primary'
+            on-click={() => cloneTask(row)}
           >
             {t('克隆')}
           </bk-button>
@@ -276,6 +348,7 @@ export default defineComponent({
             text
             theme='primary'
             disabled
+            on-click={() => downloadFile(row.download_url)}
           >
             {t('下载文件')}
           </bk-button>
@@ -307,69 +380,149 @@ export default defineComponent({
           onFilter-change={handleFilterChange}
           scopedSlots={emptySlot}
         >
+          {checkFields('id') && (
+            <bk-table-column
+              key='id'
+              class-name='filter-column'
+              width='100'
+              label={t('任务 ID')}
+              prop='id'
+              sortable
+            ></bk-table-column>
+          )}
           <bk-table-column
+            key='task_name'
             class-name='filter-column'
-            label={t('任务 ID')}
-            prop='id'
-            sortable
-          ></bk-table-column>
-          <bk-table-column
-            class-name='filter-column'
+            min-width='140'
             label={t('任务名称')}
             prop='task_name'
             scopedSlots={nameSlot}
             sortable
           ></bk-table-column>
           <bk-table-column
+            key='openid'
             class-name='filter-column'
+            min-width='140'
             label='openid'
             prop='openid'
             sortable
           ></bk-table-column>
-          <bk-table-column
-            class-name='filter-column'
-            label={t('创建方式')}
-            prop='create_type'
-            column-key='create_type'
-            filters={createTypes}
-            filter-multiple={false}
-          ></bk-table-column>
-          <bk-table-column
-            class-name='filter-column'
-            label={t('任务状态')}
-            prop='status_name'
-            column-key='status'
-            filters={taskStatuses}
-            filter-multiple={false}
-            scopedSlots={statusSlot}
-          ></bk-table-column>
-          <bk-table-column
-            class-name='filter-column'
-            label={t('任务阶段')}
-            prop='scene_name'
-            column-key='scene'
-            filters={taskScenes}
-            filter-multiple={false}
-          ></bk-table-column>
-          <bk-table-column
-            class-name='filter-column'
-            label={t('创建人')}
-            prop='created_by'
-            column-key='created_by'
-            filters={createdBys}
-            filter-multiple={false}
-          ></bk-table-column>
-          <bk-table-column
-            class-name='filter-column'
-            label={t('创建时间')}
-            prop='created_at'
-            sortable
-          ></bk-table-column>
+          {checkFields('create_type') && (
+            <bk-table-column
+              key='create_type'
+              class-name='filter-column'
+              min-width='100'
+              label={t('创建方式')}
+              prop='create_type'
+              column-key='create_type'
+              filters={createTypes}
+              filter-multiple={false}
+            ></bk-table-column>
+          )}
+          {checkFields('status_name') && (
+            <bk-table-column
+              key='status_name'
+              class-name='filter-column'
+              width='120'
+              label={t('任务状态')}
+              prop='status_name'
+              column-key='status'
+              filters={taskStatuses}
+              filter-multiple={false}
+              scopedSlots={statusSlot}
+            ></bk-table-column>
+          )}
+          {checkFields('scene_name') && (
+            <bk-table-column
+              key='scene_name'
+              class-name='filter-column'
+              width='100'
+              label={t('任务阶段')}
+              prop='scene_name'
+              column-key='scene'
+              filters={taskScenes}
+              filter-multiple={false}
+            ></bk-table-column>
+          )}
+          {checkFields('created_by') && (
+            <bk-table-column
+              key='created_by'
+              class-name='filter-column'
+              min-width='100'
+              label={t('创建人')}
+              prop='created_by'
+              column-key='created_by'
+              filters={createdBys}
+              filter-multiple={false}
+              filter-searchable
+              scopedSlots={creatorSlot}
+            ></bk-table-column>
+          )}
+          {checkFields('created_at') && (
+            <bk-table-column
+              key='created_at'
+              class-name='filter-column'
+              width='160'
+              label={t('创建时间')}
+              prop='created_at'
+              sortable
+            ></bk-table-column>
+          )}
+          {checkFields('log_path') && (
+            <bk-table-column
+              key='log_path'
+              class-name='filter-column'
+              min-width='160'
+              label={t('日志路径')}
+              prop='log_path'
+            ></bk-table-column>
+          )}
+          {checkFields('frequency') && (
+            <bk-table-column
+              key='frequency'
+              class-name='filter-column'
+              width='100'
+              label={t('触发频率')}
+              prop='frequency'
+              scopedSlots={frequencySlot}
+            ></bk-table-column>
+          )}
+          {checkFields('platform') && (
+            <bk-table-column
+              key='platform'
+              class-name='filter-column'
+              width='100'
+              label={t('客户端类型')}
+              prop='platform'
+              scopedSlots={platformSlot}
+            ></bk-table-column>
+          )}
+          {checkFields('max_file_num') && (
+            <bk-table-column
+              key='max_file_num'
+              class-name='filter-column'
+              width='120'
+              label={t('最大文件个数')}
+              prop='max_file_num'
+            ></bk-table-column>
+          )}
           <bk-table-column
             label={t('操作')}
+            width='150'
             scopedSlots={operateSlot}
           ></bk-table-column>
-          <bk-table-column type='setting'></bk-table-column>
+          <bk-table-column
+            type='setting'
+            key='setting'
+            tippy-options={{ zIndex: 3000 }}
+          >
+            <bk-table-setting-content
+              v-en-style='width: 530px'
+              fields={columnSetting.value.fields}
+              selected={columnSetting.value.selectedFields}
+              on-setting-change={handleSettingChange}
+            ></bk-table-setting-content>
+          </bk-table-column>
         </bk-table>
       </div>
     );

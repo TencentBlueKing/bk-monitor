@@ -26,43 +26,16 @@
 
 import { defineComponent, ref, watch } from 'vue';
 
+import useStore from '@/hooks/use-store';
 import { InfoBox } from 'bk-magic-vue';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 
 import { t } from '@/hooks/use-locale';
+import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS, TASK_STAGE_OPTIONS, SUSTAIN_TIME_OPTIONS } from '../constant';
+
+import http from '@/api';
 
 import './index.scss';
-
-// 任务阶段选项
-const TASK_STAGE_OPTIONS = [
-  { value: 1, label: t('登录前') },
-  { value: 4, label: t('登录后') },
-];
-
-// 客户类型选项
-const CLIENT_TYPE_OPTIONS = [
-  { value: '默认', label: t('默认') },
-  { value: '安装', label: t('安装') },
-  { value: 'iOS', label: 'iOS' },
-  { value: 'macOS', label: 'macOS' },
-  { value: 'Windows', label: 'Windows' },
-  { value: 'Harmony', label: 'Harmony' },
-];
-
-// 触发频率选项
-const TRIGGER_FREQUENCY_OPTIONS = [
-  { value: 'single', label: t('单次触发') },
-  { value: 'sustain', label: t('持续触发') },
-];
-
-// 持续触发时长选项
-const SUSTAIN_TIME_OPTIONS = [
-  { value: 3600, label: t('1小时') }, // 1小时 = 3600秒
-  { value: 10800, label: t('{n}小时', { n: 3 }) }, // 3小时 = 10800秒
-  { value: 43200, label: t('{n}小时', { n: 12 }) }, // 12小时 = 43200秒
-  { value: 86400, label: t('1天') }, // 1天 = 86400秒
-  { value: 259200, label: t('{n}天', { n: 3 }) }, // 3天 = 259200秒
-  { value: 604800, label: t('{n}天', { n: 7 }) }, // 7天 = 604800秒
-];
 
 export default defineComponent({
   name: 'CollectionSlider',
@@ -71,23 +44,29 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    clonedLogData: {
+      type: Object,
+      default: () => null,
+    },
     onHandleCancelSlider: { type: Function, default: () => {} },
     onHandleUpdatedTable: { type: Function, default: () => {} },
   },
   emits: ['handleCancelSlider', 'handleUpdatedTable'],
   setup(props, { emit }) {
+    const store = useStore();
+
     const confirmLoading = ref(false); // 确认按钮加载状态
     const formData = ref({
-      taskName: '', // 任务名称
+      task_name: '', // 任务名称
       openid: '', // openid
-      taskStage: TASK_STAGE_OPTIONS[1].value, // 任务阶段
-      clientType: CLIENT_TYPE_OPTIONS[0].value, // 客户类型
-      triggerFrequency: TRIGGER_FREQUENCY_OPTIONS[0].value, // 触发频率
-      sustainTime: SUSTAIN_TIME_OPTIONS[0].value, // 持续触发时长(单位 s)
-      logPath: '', // 日志路径
-      maxFileCount: 100, // 最大文件个数
+      scene: TASK_STAGE_OPTIONS[1].value, // 任务阶段
+      platform: CLIENT_TYPE_OPTIONS[0].value, // 客户端类型
+      frequency: TRIGGER_FREQUENCY_OPTIONS[0].value, // 触发频率
+      trigger_duration: SUSTAIN_TIME_OPTIONS[0].value, // 持续触发时长(单位 s)
+      log_path: '', // 日志路径
+      max_file_num: 100, // 最大文件个数
       fileModifyTimeRange: [new Date(), new Date()], // 文件修改时间范围
-      remark: '', // 备注
+      comment: '', // 备注
     });
     const formRef = ref(null);
 
@@ -98,14 +77,13 @@ export default defineComponent({
     };
 
     const formRules = {
-      taskName: [basicRules],
+      task_name: [basicRules],
       openid: [basicRules],
-      taskStage: [basicRules],
-      clientType: [basicRules],
-      triggerFrequency: [basicRules],
-      sustainTime: [basicRules],
-      logPath: [basicRules],
-      maxFileCount: [basicRules],
+      scene: [basicRules],
+      frequency: [basicRules],
+      trigger_duration: [basicRules],
+      log_path: [basicRules],
+      max_file_num: [basicRules],
       fileModifyTimeRange: [basicRules],
     };
 
@@ -118,11 +96,33 @@ export default defineComponent({
           return;
         }
 
-        console.log('提交表单数据:', formData.value);
         // 设置提交按钮为加载状态
         confirmLoading.value = true;
 
+        const postData = {
+          bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+          task_name: formData.value.task_name,
+          openid: formData.value.openid,
+          scene: formData.value.scene,
+          platform: formData.value.platform,
+          frequency: formData.value.frequency,
+          log_path: formData.value.log_path,
+          max_file_num: formData.value.max_file_num,
+          start_time: formData.value.fileModifyTimeRange[0],
+          end_time: formData.value.fileModifyTimeRange[1],
+          comment: formData.value.comment,
+        };
+
+        // 如果频率为持续触发，添加trigger_duration字段
+        if (formData.value.frequency === 'sustain') {
+          postData.trigger_duration = formData.value.trigger_duration;
+        }
+
         // 调用接口提交数据
+        await http.request('collect/addTask', {
+          data: postData,
+        });
+        // Message({ theme: 'success', message: t('保存成功'), delay: 1500 });
 
         // 通知父组件刷新列表
         emit('handleUpdatedTable');
@@ -138,16 +138,32 @@ export default defineComponent({
     // 初始化表单数据
     const initFormData = () => {
       formData.value = {
-        taskName: '',
+        task_name: '',
         openid: '',
-        taskStage: TASK_STAGE_OPTIONS[1].value,
-        clientType: CLIENT_TYPE_OPTIONS[0].value,
-        triggerFrequency: TRIGGER_FREQUENCY_OPTIONS[0].value,
-        sustainTime: SUSTAIN_TIME_OPTIONS[0].value,
-        logPath: '',
-        maxFileCount: 100,
+        scene: TASK_STAGE_OPTIONS[1].value,
+        platform: CLIENT_TYPE_OPTIONS[0].value,
+        frequency: TRIGGER_FREQUENCY_OPTIONS[0].value,
+        trigger_duration: SUSTAIN_TIME_OPTIONS[0].value,
+        log_path: '',
+        max_file_num: 100,
         fileModifyTimeRange: [new Date(), new Date()],
-        remark: '',
+        comment: '',
+      };
+    };
+
+    // 设置表单数据
+    const setFormData = (data) => {
+      formData.value = {
+        task_name: data.task_name,
+        openid: data.openid,
+        scene: data.scene,
+        platform: data.platform,
+        frequency: data.frequency,
+        trigger_duration: data.trigger_duration || SUSTAIN_TIME_OPTIONS[0].value,
+        log_path: data.log_path,
+        max_file_num: data.max_file_num,
+        fileModifyTimeRange: [data.start_time, data.end_time],
+        comment: '',
       };
     };
 
@@ -165,8 +181,12 @@ export default defineComponent({
     // 监听showSlider变化
     watch(
       () => props.showSlider,
-      () => {
-        initFormData();
+      (newVal) => {
+        if (newVal && props.clonedLogData) {
+          setFormData(props.clonedLogData);
+        } else {
+          initFormData();
+        }
       },
     );
 
@@ -194,11 +214,11 @@ export default defineComponent({
               <bk-form-item
                 label={t('任务名称')}
                 required
-                property='taskName'
+                property='task_name'
               >
                 <bk-input
-                  value={formData.value.taskName}
-                  on-change={value => (formData.value.taskName = value)}
+                  value={formData.value.task_name}
+                  on-change={value => (formData.value.task_name = value)}
                 />
               </bk-form-item>
               <bk-form-item
@@ -216,11 +236,11 @@ export default defineComponent({
               <bk-form-item
                 label={t('任务阶段')}
                 required
-                property='taskStage'
+                property='scene'
               >
                 <bk-radio-group
-                  value={formData.value.taskStage}
-                  on-change={value => (formData.value.taskStage = value)}
+                  value={formData.value.scene}
+                  on-change={value => (formData.value.scene = value)}
                 >
                   {TASK_STAGE_OPTIONS.map(option => (
                     <bk-radio value={option.value}>{option.label}</bk-radio>
@@ -230,11 +250,11 @@ export default defineComponent({
               <bk-form-item
                 label={t('客户端类型')}
                 required
-                property='clientType'
+                property='platform'
               >
                 <bk-radio-group
-                  value={formData.value.clientType}
-                  on-change={value => (formData.value.clientType = value)}
+                  value={formData.value.platform}
+                  on-change={value => (formData.value.platform = value)}
                   class='client-type-radio-group'
                 >
                   {CLIENT_TYPE_OPTIONS.map(option => (
@@ -245,27 +265,27 @@ export default defineComponent({
               <bk-form-item
                 label={t('触发频率')}
                 required
-                property='triggerFrequency'
+                property='frequency'
               >
                 <bk-radio-group
-                  value={formData.value.triggerFrequency}
-                  on-change={value => (formData.value.triggerFrequency = value)}
+                  value={formData.value.frequency}
+                  on-change={value => (formData.value.frequency = value)}
                 >
                   {TRIGGER_FREQUENCY_OPTIONS.map(option => (
                     <bk-radio value={option.value}>{option.label}</bk-radio>
                   ))}
                 </bk-radio-group>
               </bk-form-item>
-              {formData.value.triggerFrequency === 'sustain' && (
+              {formData.value.frequency === 'sustain' && (
                 <bk-form-item
                   label={t('持续触发时长')}
                   required
                   desc={t('持续触发时长')}
-                  property='sustainTime'
+                  property='trigger_duration'
                 >
                   <bk-select
-                    value={formData.value.sustainTime}
-                    on-change={value => (formData.value.sustainTime = value)}
+                    value={formData.value.trigger_duration}
+                    on-change={value => (formData.value.trigger_duration = value)}
                     style='width: 200px;'
                   >
                     {SUSTAIN_TIME_OPTIONS.map(option => (
@@ -281,25 +301,25 @@ export default defineComponent({
               <bk-form-item
                 label={t('日志路径')}
                 required
-                property='logPath'
+                property='log_path'
                 desc={t('日志路径')}
               >
                 <bk-input
                   type='textarea'
-                  value={formData.value.logPath}
-                  on-change={value => (formData.value.logPath = value)}
+                  value={formData.value.log_path}
+                  on-change={value => (formData.value.log_path = value)}
                 />
               </bk-form-item>
               <bk-form-item
                 label={t('最大文件个数')}
                 required
-                property='maxFileCount'
+                property='max_file_num'
               >
                 <bk-input
                   type='number'
                   min={0}
-                  value={formData.value.maxFileCount}
-                  on-change={value => (formData.value.maxFileCount = value)}
+                  value={formData.value.max_file_num}
+                  on-change={value => (formData.value.max_file_num = value)}
                 />
               </bk-form-item>
               <bk-form-item
@@ -316,8 +336,8 @@ export default defineComponent({
               <bk-form-item label={t('备注')}>
                 <bk-input
                   type='textarea'
-                  value={formData.value.remark}
-                  on-change={value => (formData.value.remark = value)}
+                  value={formData.value.comment}
+                  on-change={value => (formData.value.comment = value)}
                 />
               </bk-form-item>
               <bk-form-item class='button-group'>

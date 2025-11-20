@@ -58,7 +58,7 @@ export default defineComponent({
       // tab配置
       {
         title: TAB_TYPES.COLLECT,
-        count: '453',
+        count: 0,
       },
       {
         title: TAB_TYPES.REPORT,
@@ -72,6 +72,7 @@ export default defineComponent({
       list: [],
     });
     const isLoading = ref(false); // 加载状态
+    const clonedLogData = ref(null); // 克隆的日志数据
     const searchKeyword = ref(''); // 搜索关键词
 
     // tab点击事件
@@ -87,11 +88,25 @@ export default defineComponent({
     // 新建采集成功后回调
     const handleUpdatedTable = () => {
       showSlider.value = false;
+      requestData();
+    };
+
+    // 关闭侧边栏
+    const handleCancelSlider = () => {
+      showSlider.value = false;
+      clonedLogData.value = null;
     };
 
     // 处理搜索事件
     const handleSearch = (keyword: string) => {
       searchKeyword.value = keyword;
+    };
+
+    // 处理输入框内容改变事件
+    const handleInputChange = (value: string) => {
+      if (value === '') {
+        searchKeyword.value = '';
+      }
     };
 
     // 获取列表数据
@@ -106,6 +121,7 @@ export default defineComponent({
         isLoading.value = true;
         const response = await http.request('collect/getTaskList', params);
         tableData.value = response.data;
+        tabs.value[0].count = response.data.total;
       } catch (error) {
         console.warn('获取采集下发列表失败:', error);
       } finally {
@@ -113,8 +129,15 @@ export default defineComponent({
       }
     };
 
+    // 清除搜索关键词
     const handleClearKeyword = () => {
       searchKeyword.value = '';
+    };
+
+    // 克隆任务
+    const handleCloneTask = (task) => {
+      clonedLogData.value = task;
+      setSidebarOpen(true);
     };
 
     onMounted(() => {
@@ -161,6 +184,7 @@ export default defineComponent({
                   onEnter={handleSearch}
                   on-right-icon-click={handleSearch}
                   onClear={handleClearKeyword}
+                  onChange={handleInputChange}
                 ></bk-input>
               </div>
             </div>
@@ -192,13 +216,15 @@ export default defineComponent({
               v-bkloading={{ isLoading: isLoading.value }}
               keyword={searchKeyword.value}
               on-clear-keyword={handleClearKeyword}
+              on-clone-task={handleCloneTask}
             />
           </section>
         </div>
         {/* 新建采集侧边栏 */}
         <CollectionSlider
           showSlider={showSlider.value}
-          onHandleCancelSlider={() => setSidebarOpen(false)}
+          clonedLogData={clonedLogData.value}
+          onHandleCancelSlider={handleCancelSlider}
           onHandleUpdatedTable={handleUpdatedTable}
         />
       </div>

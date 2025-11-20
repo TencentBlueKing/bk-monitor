@@ -235,6 +235,12 @@ const getTaskList = {
   method: 'get',
 };
 
+// 客户端日志-新建采集
+const createClientLog = {
+  url: '/tgpa/task/',
+  method: 'post',
+};
+
 export {
   getStorage,
   globals,
@@ -276,4 +282,5 @@ export {
   reviewToken,
   getStorageUsage,
   getTaskList,
+  createClientLog,
 };
