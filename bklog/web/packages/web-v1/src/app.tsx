@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, ref, type Ref } from 'vue';
+import { computed, defineComponent, onMounted, ref } from 'vue';
 
 import AuthDialog from '@/components/common/auth-dialog.vue';
 import GlobalSettingDialog from '@/components/global-setting/index';
-import HeadNav from '@/global/head-navi/index';
 // import NoticeComponent from '@blueking/notice-component-vue2';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
@@ -48,7 +47,6 @@ export default defineComponent({
     const { $t } = useLocale();
 
     const noticeComponentHeight = ref(0);
-    const refNoticeComponent: Ref<any | null> = ref(null);
     const welcomePageData = ref(null);
 
     const rootClass = computed(() => ({ 'clear-min-height': route.name === 'retrieve' }));
@@ -98,55 +96,6 @@ export default defineComponent({
       store.commit('updateState', {
         globalSettingList: isShowSettingList ? [{ id: 'masking-setting', name: $t('全局脱敏') }] : [],
       });
-    };
-
-    /**
-     * 公告状态变化
-     * @param v
-     */
-    const showAlertChange = (v: boolean) => {
-      store.commit('updateState', { showAlert: v });
-
-      if (refNoticeComponent.value) {
-        noticeComponentHeight.value = refNoticeComponent.value.$el.offsetHeight;
-      }
-    };
-
-    /**
-     * 渲染公告组件
-     */
-    const renderNoticeComponent = () => {
-      if (!isAsIframe.value) {
-        return (
-          <NoticeComponent
-            ref='refNoticeComponent'
-            api-url='/notice/announcements/'
-            on-show-alert-change={showAlertChange}
-          />
-        );
-      }
-    };
-
-    /**
-     * 处理欢迎页数据
-     * @param args
-     */
-    const handleWelcome = (args: any) => {
-      welcomePageData.value = args;
-    };
-
-    /**
-     * 渲染头部组件
-     */
-    const renderHeadComponent = () => {
-      if (!isAsIframe.value && route.path !== '/') {
-        return (
-          <HeadNav
-            welcome-data={welcomePageData.value}
-            on-welcome={handleWelcome}
-          />
-        );
-      }
     };
 
     /**
@@ -233,8 +182,6 @@ export default defineComponent({
         style={noticeComponentStyle.value}
         class={rootClass.value}
       >
-        {/* {renderNoticeComponent()} */}
-        {/* {renderHeadComponent()} */}
         {renderAppBody()}
       </div>
     );
