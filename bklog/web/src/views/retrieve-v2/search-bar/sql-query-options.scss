@@ -107,13 +107,16 @@
       font-family: RobotoMono;
     }
 
-    &::after {
-      position: absolute;
-      right: 10px;
-      top: 4px;
-      content: attr(data-short-cut-text);
-      color: #979ba5;
-      text-align: right;
+    .short-cut-icon {
+      padding: 0 4px;
+      height: 16px;
+      background: #A3B1CC;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      margin-left: 8px;
     }
   }
 

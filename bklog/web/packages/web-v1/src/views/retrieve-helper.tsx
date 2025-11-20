@@ -33,7 +33,6 @@ import RetrieveBase from './retrieve-core/base';
 import { GradeFieldValueType, type GradeConfiguration, type GradeSetting } from './retrieve-core/interface';
 import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
 import RetrieveEvent from './retrieve-core/retrieve-events';
-import { RouteQueryTab } from './retrieve-v3/index.type';
 
 export enum STORAGE_KEY {
   // eslint-disable-next-line no-unused-vars
@@ -467,43 +466,6 @@ class RetrieveHelper extends RetrieveBase {
     const isMac = userAgent.includes('Macintosh');
     const isWin = userAgent.includes('Windows');
     return isMac ? 'macos' : isWin ? 'windows' : 'unknown';
-  }
-
-  /**
-   * 修复路由参数中的 tab 值
-   * @param indexSetItem
-   * @param tabValue
-   * @returns
-   */
-  routeQueryTabValueFix(indexSetItem, tabValue?: string | string[], isUnionSearch = false) {
-    const isclusteringEnable = () => {
-      return (
-        (indexSetItem?.scenario_id === 'log' && indexSetItem.collector_config_id !== null)
-        || indexSetItem?.scenario_id === 'bkdata'
-      );
-    };
-
-    const isChartEnable = () => indexSetItem?.support_doris && !isUnionSearch;
-
-    if (indexSetItem) {
-      if (tabValue === RouteQueryTab.CLUSTERING) {
-        if (!isclusteringEnable()) {
-          return { tab: RouteQueryTab.ORIGIN };
-        }
-      }
-
-      if (tabValue === RouteQueryTab.GRAPH_ANALYSIS) {
-        if (!isChartEnable()) {
-          return { tab: RouteQueryTab.ORIGIN };
-        }
-      }
-    }
-
-    if (tabValue) {
-      return { tab: tabValue };
-    }
-
-    return {};
   }
 
   onMounted() {

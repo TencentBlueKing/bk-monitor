@@ -35,7 +35,20 @@ const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change', 'tex
 const store = useStore();
 const { $t } = useLocale();
 const { getQualifiedFieldName, getQualifiedFieldAttrs } = useFieldNameHook({ store });
-const shortCutText = ref(`${getOsCommandLabel()}+Enter`);
+
+
+
+const shortCutClsName = computed(() => {
+  const iconMap = {
+    cmd: 'bklog-icon bklog-command',
+    ctrl: 'bklog-icon bklog-ctrl',
+  };
+
+  const osName = getOsCommandLabel();
+
+  return iconMap[osName] ?? iconMap.ctrl;
+});
+
 // eslint-disable-next-line no-unused-vars
 enum OptionItemType {
   // eslint-disable-next-line no-unused-vars
@@ -638,7 +651,6 @@ watch(activeIndex, () => {
         <template v-if="showAiAssistant">
           <li
             class="ai-assistant-list-item"
-            :data-short-cut-text="shortCutText"
             @click="handleAiAssistantClick"
           >
             <span class="item-img-wrapper">
@@ -650,6 +662,10 @@ watch(activeIndex, () => {
             </span>
             <span class="item-text-label">{{ $t('AI 搜索') }}:</span>
             <span class="item-text-value">{{ aiPreviewText }}</span>
+            <span class="short-cut-icon">
+              <i :class="shortCutClsName"></i>
+              <i class="bklog-icon bklog-enter-3"></i>
+            </span>
           </li>
         </template>
         <!-- 字段列表 -->
