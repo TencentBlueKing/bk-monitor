@@ -95,7 +95,7 @@ class BkLogRegexpEtlStorage(EtlStorage):
         }
 
         # 调用BkDataDatabusApi.databus_clean_debug方法
-        from apps.api.BkDataDatabusApi import BkDataDatabusApi
+        from apps.api import BkDataDatabusApi
         api_response = BkDataDatabusApi.databus_clean_debug(api_request)
 
         # 解析API响应
