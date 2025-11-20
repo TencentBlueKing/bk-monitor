@@ -1,9 +1,9 @@
 <script setup>
-import { defineEmits, defineProps, computed, watch, ref, onMounted } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import { useRoute } from 'vue-router/composables';
 import $http from '@/api';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import { computed, defineEmits, defineProps, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router/composables';
 import DashboardDialog from './components/dashboard-dialog.vue';
 const props = defineProps({
   value: {

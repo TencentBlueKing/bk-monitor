@@ -328,6 +328,28 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       </span>
     ));
   }
+  /**
+   * @description 处理复制事件
+   * @param {ClipboardEvent} event
+   */
+  handleCopy(event: ClipboardEvent) {
+    // 1. 获取当前选中的文本
+    const selection = document.getSelection();
+
+    // 2. 这里的处理逻辑：获取文本后移除所有换行符
+    // 如果你想保留空格但去除换行，可以使用 replace
+    let text = selection.toString();
+
+    // 将换行符替换为空格，或者直接移除（视需求而定）
+    // 这里演示替换为空字符串，恢复成一行
+    text = text.replace(/[\r\n]+/g, '');
+
+    // 3. 写入剪贴板
+    event.clipboardData.setData('text/plain', text);
+
+    // 4. 阻止默认的复制行为
+    event.preventDefault();
+  }
 
   render() {
     return (
@@ -339,6 +361,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
               'kv-list-item': true,
               'active-row': this.fieldTarget?.name === item.name,
             }}
+            onCopy={this.handleCopy}
           >
             <div class='item-label'>
               <FieldTypeIcon

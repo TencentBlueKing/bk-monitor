@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Any, Dict, List, Tuple
+
+from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
@@ -30,11 +30,9 @@ class OriginEventProcessor(BaseEventProcessor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def process(self, origin_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def process(self, origin_events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         events = []
         for origin_event in origin_events:
-            event = self.process_display_field(origin_event)
-
             # 提取并处理元数据
             _meta = origin_event.pop("_meta", {})
             data_label = _meta.get("__data_label")
@@ -45,6 +43,11 @@ class OriginEventProcessor(BaseEventProcessor):
             source_alias: str = _("{domain}/{source}").format(
                 domain=EventDomain.from_value(domain).label, source=EventSource.from_value(source).label
             )
+
+            # 事件字段统一转为整数
+            origin_event["time"] = int(origin_event.get("time", 0))
+
+            event = self.process_display_field(origin_event)
             event["source"] = {"value": source, "alias": source_alias}
 
             # 补充 type 字段
@@ -63,7 +66,7 @@ class OriginEventProcessor(BaseEventProcessor):
         return sorted(events, key=lambda _e: -_e["_meta"]["_time_"])
 
     @classmethod
-    def process_display_field(cls, origin_event: Dict[str, Any]) -> Dict[str, Any]:
+    def process_display_field(cls, origin_event: dict[str, Any]) -> dict[str, Any]:
         """
         构建展示字段
         """
@@ -81,16 +84,18 @@ class OriginEventProcessor(BaseEventProcessor):
             elif field.get("type", "") == DisplayFieldType.DESCRIPTIONS.value:
                 event[field_name]["detail"] = {
                     field_name: {
-                        "label": get_field_label(field_name, data_label=""), "value": field_value, "alias": field_value,
+                        "label": get_field_label(field_name, data_label=""),
+                        "value": field_value,
+                        "alias": field_value,
                     }
                 }
 
         return event
 
     @classmethod
-    def get_source_and_domain(cls, origin_event, data_label) -> Tuple[str, str]:
+    def get_source_and_domain(cls, origin_event, data_label) -> tuple[str, str]:
         # 根据 data_label获取
-        event_origin: Tuple[str, str] = EVENT_ORIGIN_MAPPING.get(data_label)
+        event_origin: tuple[str, str] = EVENT_ORIGIN_MAPPING.get(data_label)
         if event_origin:
             return event_origin
 
