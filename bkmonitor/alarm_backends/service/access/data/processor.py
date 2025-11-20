@@ -352,9 +352,11 @@ class AccessDataProcess(BaseAccessDataProcess):
                 first_item.data_sources[0].metrics.append(
                     {"field": "localTime", "method": "MAX", "alias": "_localTime"}
                 )
-                first_item.data_sources[0].rollback_query()
-                # 暂存高级过滤条件，但不清空，保持过滤条件在查询时生效
+                for item in self.items:
+                    item.data_sources[0].rollback_query()
+                # 暂存高级过滤条件，清空高级过滤条件，后过滤
                 bkdata_tmp_advance_where = first_item.data_sources[0]._advance_where.copy()
+                first_item.data_sources[0]._advance_where = []
 
         try:
             points = first_item.query_record(self.from_timestamp, self.until_timestamp)
@@ -380,9 +382,10 @@ class AccessDataProcess(BaseAccessDataProcess):
             first_item.data_sources[0].metrics = [
                 m for m in first_item.data_sources[0].metrics if m["field"] != "localTime"
             ]
-            # 如果之前暂存了过滤条件，则恢复（但现在我们不再清空，所以这里不需要恢复）
+            # 如果之前暂存了过滤条件，则恢复
             if bkdata_tmp_advance_where and not first_item.data_sources[0]._advance_where:
-                first_item.data_sources[0]._advance_where = bkdata_tmp_advance_where
+                for item in self.items:
+                    item.data_sources[0]._advance_where = bkdata_tmp_advance_where
             filter_point_time = None
             for point_time, max_local_time in local_time_list:
                 if now_timestamp - max_local_time.timestamp() <= settings.BKDATA_LOCAL_TIME_THRESHOLD:
