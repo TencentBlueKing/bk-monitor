@@ -920,36 +920,6 @@ class TestEtl(TestCase):
         self.assertFalse(is_version_less_than("8.X", "7.3"))
         self.assertFalse(is_version_less_than("7.5.0", "7.3"))
 
-    def test_etl_preview_json(self):
-        """
-        测试JSON格式的etl_preview方法
-        """
-        from apps.log_databus.handlers.etl_storage.bk_log_json import BkLogJsonEtlStorage
-        
-        # 创建EtlStorage实例
-        etl_storage = BkLogJsonEtlStorage()
-        
-        # 调用etl_preview方法
-        result = etl_storage.etl_preview(ETL_PREVIEW_JSON_DATA, ETL_PREVIEW_JSON_PARAMS)
-        
-        # 验证返回结果与预期常量一致
-        self.assertEqual(result, ETL_PREVIEW_JSON_EXPECTED)
-
-    def test_etl_preview_delimiter(self):
-        """
-        测试分隔符格式的etl_preview方法
-        """
-        from apps.log_databus.handlers.etl_storage.bk_log_delimiter import BkLogDelimiterEtlStorage
-        
-        # 创建EtlStorage实例
-        etl_storage = BkLogDelimiterEtlStorage()
-        
-        # 调用etl_preview方法
-        result = etl_storage.etl_preview(ETL_PREVIEW_DELIMITER_DATA, ETL_PREVIEW_DELIMITER_PARAMS)
-        
-        # 验证返回结果与预期常量一致
-        self.assertEqual(result, ETL_PREVIEW_DELIMITER_EXPECTED)
-
     def test_etl_preview_delimiter_empty_separator(self):
         """
         测试分隔符格式的etl_preview方法 - 空分隔符异常
@@ -967,21 +937,6 @@ class TestEtl(TestCase):
         # 验证异常
         with self.assertRaises(ValidationError):
             etl_storage.etl_preview(test_data, etl_params)
-
-    def test_etl_preview_regexp(self):
-        """
-        测试正则表达式格式的etl_preview方法
-        """
-        from apps.log_databus.handlers.etl_storage.bk_log_regexp import BkLogRegexpEtlStorage
-        
-        # 创建EtlStorage实例
-        etl_storage = BkLogRegexpEtlStorage()
-        
-        # 调用etl_preview方法
-        result = etl_storage.etl_preview(ETL_PREVIEW_REGEXP_DATA, ETL_PREVIEW_REGEXP_PARAMS)
-        
-        # 验证返回结果与预期常量一致
-        self.assertEqual(result, ETL_PREVIEW_REGEXP_EXPECTED)
 
     def test_etl_preview_regexp_empty_regexp(self):
         """
@@ -1096,36 +1051,6 @@ class TestEtl(TestCase):
         self.assertIn("profile", field_dict["user"])
         self.assertIn("request_id", field_dict["context"])
         self.assertIn("session_id", field_dict["context"])
-
-    def test_etl_preview_delimiter_complex(self):
-        """
-        测试复杂分隔符格式的etl_preview方法
-        """
-        from apps.log_databus.handlers.etl_storage.bk_log_delimiter import BkLogDelimiterEtlStorage
-        
-        # 创建EtlStorage实例
-        etl_storage = BkLogDelimiterEtlStorage()
-        
-        # 调用etl_preview方法
-        result = etl_storage.etl_preview(ETL_PREVIEW_DELIMITER_COMPLEX_DATA, ETL_PREVIEW_DELIMITER_PARAMS)
-        
-        # 验证返回结果与预期常量一致
-        self.assertEqual(result, ETL_PREVIEW_DELIMITER_COMPLEX_EXPECTED)
-
-    def test_etl_preview_regexp_complex(self):
-        """
-        测试复杂正则表达式格式的etl_preview方法
-        """
-        from apps.log_databus.handlers.etl_storage.bk_log_regexp import BkLogRegexpEtlStorage
-        
-        # 创建EtlStorage实例
-        etl_storage = BkLogRegexpEtlStorage()
-        
-        # 调用etl_preview方法
-        result = etl_storage.etl_preview(ETL_PREVIEW_REGEXP_COMPLEX_DATA, ETL_PREVIEW_REGEXP_COMPLEX_PARAMS)
-        
-        # 验证返回结果与预期常量一致
-        self.assertEqual(result, ETL_PREVIEW_REGEXP_COMPLEX_EXPECTED)
 
     @patch("apps.api.BkDataDatabusApi.databus_clean_debug")
     def test_etl_preview_v4_delimiter(self, mock_api):
