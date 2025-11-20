@@ -30,8 +30,18 @@ from django.conf import settings
 from qcloud_cos import CosConfig, CosS3Client
 
 from apps.api import TGPATaskApi
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.log_databus.constants import EtlConfig, ContainerCollectorType
 from apps.log_databus.handlers.collector import CollectorHandler
-from apps.tgpa.constants import TGPA_BASE_DIR, TASK_LIST_BATCH_SIZE, TGPATaskTypeEnum
+from apps.log_search.constants import CustomTypeEnum
+from apps.tgpa.constants import (
+    TGPA_BASE_DIR,
+    TASK_LIST_BATCH_SIZE,
+    TGPATaskTypeEnum,
+    FEATURE_TOGGLE_TGPA_TASK,
+    TEXT_FILE_EXTENSIONS,
+)
+from apps.utils.bcs import Bcs
 from apps.utils.thread import MultiExecuteFunc
 
 
@@ -173,7 +183,7 @@ class TGPATaskHandler:
         if not dir_path.is_dir():
             return []
 
-        log_extensions = [".log", ".txt"]
+        log_extensions = TEXT_FILE_EXTENSIONS
         file_paths = []
         # 遍历所有文件，检查是否匹配任一后缀
         for file in dir_path.rglob("*"):
@@ -197,7 +207,7 @@ class TGPATaskHandler:
         ):
             for line_num, line in enumerate(input_file, 1):
                 log_content = line.strip()
-                log_entry = {"log": log_content, "path": log_file_path, "lineno": line_num}
+                log_entry = {"original_log": log_content, "path": log_file_path, "lineno": line_num}
                 log_entry.update(self.extra_fields)
                 output_file.write(f"{ujson.dumps(log_entry, ensure_ascii=False)}\n")
 
@@ -219,10 +229,125 @@ class TGPATaskHandler:
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @staticmethod
-    def create_data_id(bk_biz_id):
+    def create_collector_config(bk_biz_id):
         """
-        创建数据ID
+        创建采集配置
         """
-        CollectorHandler().custom_create(
+        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+        storage_cluster_id = feature_toggle.feature_config.get("storage_cluster_id")
+        # 不保留采集到的原始日志，用 original_log 字段存储
+        etl_params = {
+            "retain_original_text": False,
+            "retain_extra_json": True,
+            "enable_retain_content": True,
+            "record_parse_failure": True,
+        }
+        fields = [
+            {
+                "field_name": "original_log",
+                "field_type": "string",
+                "is_dimension": False,
+                "is_analyzed": True,
+                "is_time": False,
+                "description": "original_log",
+                "is_delete": False,
+            },
+            {
+                "field_name": "task_id",
+                "field_type": "int",
+                "is_dimension": True,
+                "is_analyzed": False,
+                "is_time": False,
+                "description": "task_id",
+                "is_delete": False,
+            },
+            {
+                "field_name": "task_name",
+                "field_type": "string",
+                "is_dimension": True,
+                "is_analyzed": False,
+                "is_time": False,
+                "description": "task_name",
+                "is_delete": False,
+            },
+            {
+                "field_name": "openid",
+                "field_type": "string",
+                "is_dimension": True,
+                "is_analyzed": False,
+                "is_time": False,
+                "description": "openid",
+                "is_delete": False,
+            },
+            {
+                "field_name": "lineno",
+                "field_type": "int",
+                "is_dimension": True,
+                "is_analyzed": False,
+                "is_time": False,
+                "description": "lineno",
+                "is_delete": False,
+            },
+            {
+                "field_name": "manufacturer",
+                "field_type": "string",
+                "is_dimension": True,
+                "is_analyzed": False,
+                "is_time": False,
+                "description": "manufacturer",
+                "is_delete": False,
+            },
+            {
+                "field_name": "sdk_version",
+                "field_type": "string",
+                "is_dimension": True,
+                "is_analyzed": False,
+                "is_time": False,
+                "description": "sdk_version",
+                "is_delete": False,
+            },
+            {
+                "field_name": "os_type",
+                "field_type": "string",
+                "is_dimension": True,
+                "is_analyzed": False,
+                "is_time": False,
+                "description": "os_type",
+                "is_delete": False,
+            },
+            {
+                "field_name": "os_version",
+                "field_type": "string",
+                "is_dimension": True,
+                "is_analyzed": False,
+                "is_time": False,
+                "description": "os_version",
+                "is_delete": False,
+            },
+        ]
+        # 创建容器自定义上报
+        result = CollectorHandler().custom_create(
             bk_biz_id=bk_biz_id,
+            collector_config_name="客户端日志",
+            collector_config_name_en=f"client_log_{bk_biz_id}",
+            custom_type=CustomTypeEnum.LOG.value,
+            category_id="application_check",
+            etl_config=EtlConfig.BK_LOG_JSON,
+            etl_params=etl_params,
+            fields=fields,
+            storage_cluster_id=storage_cluster_id,
+        )
+        # 采集配置下发
+        bcs_cluster_id = feature_toggle.feature_config.get("bcs_cluster_id")
+        container_release_params = feature_toggle.feature_config.get("container_release_params")
+        container_release_params.update(
+            {
+                "dataId": result["bk_data_id"],
+                "path": [os.path.join(TGPA_BASE_DIR, str(bk_biz_id))],
+                "logConfigType": ContainerCollectorType.CONTAINER.value,
+            }
+        )
+        Bcs(bcs_cluster_id).save_bklog_config(
+            bklog_config_name=f"client-log-{bk_biz_id}",
+            bklog_config=container_release_params,
         )

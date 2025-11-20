@@ -28,10 +28,10 @@ from apps.tgpa.constants import TGPATaskProcessStatusEnum
 class TGPATask(models.Model):
     task_id = models.IntegerField(_("任务唯一标识"), unique=True, db_index=True)
     bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
-    log_path = models.CharField(_("日志路径"), max_length=512, null=True, blank=True)
+    log_path = models.TextField(_("日志路径"), null=True, blank=True)
     process_status = models.CharField(_("处理状态"), max_length=64, default=TGPATaskProcessStatusEnum.PENDING.value)
-    processed_at = models.DateTimeField(_("处理时间"), null=True)
+    processed_at = models.DateTimeField(_("处理时间"), auto_now_add=True)
 
     class Meta:
-        verbose_name = _("操作日志")
-        verbose_name_plural = _("操作日志")
+        verbose_name = _("TGPA任务")
+        verbose_name_plural = _("TGPA任务")

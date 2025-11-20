@@ -26,7 +26,9 @@ from blueapps.core.celery.celery import app
 from celery.schedules import crontab
 from django.utils import timezone
 
-from apps.tgpa.constants import TGPA_TASK_EXE_CODE_SUCCESS, TGPATaskProcessStatusEnum
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.log_databus.models import CollectorConfig
+from apps.tgpa.constants import TGPA_TASK_EXE_CODE_SUCCESS, TGPATaskProcessStatusEnum, FEATURE_TOGGLE_TGPA_TASK
 from apps.tgpa.handlers.task import TGPATaskHandler
 from apps.tgpa.models import TGPATask
 from apps.utils.log import logger
@@ -34,11 +36,19 @@ from apps.utils.log import logger
 
 @periodic_task(run_every=crontab(minute="*/1"), queue="tgpa_task")
 def fetch_and_process_tgpa_tasks():
-    bk_biz_id_list = [100269]
+    """
+    定时任务，拉取任务列表，处理任务
+    """
+    feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+    if not feature_toggle:
+        return
+    bk_biz_id_list = feature_toggle.biz_id_white_list or []
+
     for bk_biz_id in bk_biz_id_list:
-        # 1、创建容器自定义上报 data_id
-        # 2、下发采集配置
-        # 3、遍历任务列表，判断状态，处理日志文件
+        # 检查是否已经创建采集配置
+        if not CollectorConfig.objects.filter(collector_config_name_en=f"client_log_{bk_biz_id}").exists():
+            TGPATaskHandler.create_collector_config(bk_biz_id)
+        # 遍历任务列表，判断状态，处理日志文件
         task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
         processed_ids = set(TGPATask.objects.values_list("task_id", flat=True))
         new_tasks = [task for task in task_list if task["id"] not in processed_ids]

@@ -27,6 +27,24 @@ from apps.utils import ChoicesEnum
 TGPA_BASE_DIR = "/tmp/log-search/tgpa"
 TASK_LIST_BATCH_SIZE = 200
 TGPA_TASK_EXE_CODE_SUCCESS = "0"  # 文件上传成功状态码
+FEATURE_TOGGLE_TGPA_TASK = "tgpa_task"
+TEXT_FILE_EXTENSIONS = [
+    ".log",
+    ".txt",
+    ".json",
+    ".csv",
+    ".xml",
+    ".yaml",
+    ".yml",
+    ".conf",
+    ".config",
+    ".ini",
+    ".properties",
+    ".sql",
+    ".md",
+    ".rst",
+    ".cfg",
+]
 
 
 class TGPATaskTypeEnum(ChoicesEnum):
@@ -87,7 +105,7 @@ class TGPATaskProcessStatusEnum(ChoicesEnum):
     """任务处理状态"""
 
     PENDING = "pending"
-    PROCESSING = "processing"
+    PROCESSING = "running"
     SUCCESS = "success"
     FAILED = "failed"
 
