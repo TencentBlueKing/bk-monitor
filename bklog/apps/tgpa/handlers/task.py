@@ -40,6 +40,7 @@ from apps.tgpa.constants import (
     TGPATaskTypeEnum,
     FEATURE_TOGGLE_TGPA_TASK,
     TEXT_FILE_EXTENSIONS,
+    TGPA_TASK_ETL_FIELDS,
 )
 from apps.utils.bcs import Bcs
 from apps.utils.thread import MultiExecuteFunc
@@ -242,89 +243,7 @@ class TGPATaskHandler:
             "enable_retain_content": True,
             "record_parse_failure": True,
         }
-        fields = [
-            {
-                "field_name": "original_log",
-                "field_type": "string",
-                "is_dimension": False,
-                "is_analyzed": True,
-                "is_time": False,
-                "description": "original_log",
-                "is_delete": False,
-            },
-            {
-                "field_name": "task_id",
-                "field_type": "int",
-                "is_dimension": True,
-                "is_analyzed": False,
-                "is_time": False,
-                "description": "task_id",
-                "is_delete": False,
-            },
-            {
-                "field_name": "task_name",
-                "field_type": "string",
-                "is_dimension": True,
-                "is_analyzed": False,
-                "is_time": False,
-                "description": "task_name",
-                "is_delete": False,
-            },
-            {
-                "field_name": "openid",
-                "field_type": "string",
-                "is_dimension": True,
-                "is_analyzed": False,
-                "is_time": False,
-                "description": "openid",
-                "is_delete": False,
-            },
-            {
-                "field_name": "lineno",
-                "field_type": "int",
-                "is_dimension": True,
-                "is_analyzed": False,
-                "is_time": False,
-                "description": "lineno",
-                "is_delete": False,
-            },
-            {
-                "field_name": "manufacturer",
-                "field_type": "string",
-                "is_dimension": True,
-                "is_analyzed": False,
-                "is_time": False,
-                "description": "manufacturer",
-                "is_delete": False,
-            },
-            {
-                "field_name": "sdk_version",
-                "field_type": "string",
-                "is_dimension": True,
-                "is_analyzed": False,
-                "is_time": False,
-                "description": "sdk_version",
-                "is_delete": False,
-            },
-            {
-                "field_name": "os_type",
-                "field_type": "string",
-                "is_dimension": True,
-                "is_analyzed": False,
-                "is_time": False,
-                "description": "os_type",
-                "is_delete": False,
-            },
-            {
-                "field_name": "os_version",
-                "field_type": "string",
-                "is_dimension": True,
-                "is_analyzed": False,
-                "is_time": False,
-                "description": "os_version",
-                "is_delete": False,
-            },
-        ]
+        fields = TGPA_TASK_ETL_FIELDS
         # 创建容器自定义上报
         result = CollectorHandler().custom_create(
             bk_biz_id=bk_biz_id,
