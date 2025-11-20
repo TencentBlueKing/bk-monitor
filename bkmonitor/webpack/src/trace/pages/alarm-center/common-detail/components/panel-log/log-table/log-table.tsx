@@ -24,12 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onMounted, onUnmounted, shallowRef, useTemplateRef } from 'vue';
+import {
+  type PropType,
+  defineComponent,
+  onMounted,
+  onUnmounted,
+  shallowReactive,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
 
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
+import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 
@@ -38,33 +48,23 @@ import 'vue-json-pretty/lib/styles.css';
 export default defineComponent({
   name: 'LogTable',
   props: {
-    tableData: {
-      type: Object as PropType<{
-        columns: any[];
-        data: any[];
-        limit: number;
-        offset: number;
-        total: number;
-      }>,
-      default: () => ({
-        data: [],
-        total: 0,
-        columns: [],
-        limit: 30,
-        offset: 0,
-      }),
+    refreshKey: {
+      type: String,
+      default: null,
     },
-    scrollLoading: {
-      type: Boolean,
-      default: false,
+    getData: {
+      type: Function as PropType<(params: { limit: number; offset: number }) => Promise<any>>,
+      default: () => Promise.resolve({}),
     },
   },
   emits: {
     scroll: (_params: { limit: number; offset: number }) => true,
   },
-  setup(props, { emit }) {
+  setup(props) {
     const { t } = useI18n();
-    const loadingRef = useTemplateRef('scrollLoading');
+    const loadingRef = useTemplateRef('scrollRef');
+    const loading = shallowRef(false);
+    const scrollLoading = shallowRef(false);
     const isEnd = shallowRef(false);
     const columns = shallowRef<TdPrimaryTableProps['columns']>([
       {
@@ -81,6 +81,13 @@ export default defineComponent({
         },
       },
     ]);
+    const tableData = shallowReactive({
+      data: [],
+      total: 0,
+      columns: [],
+      limit: 30,
+      offset: 0,
+    });
 
     const expandedRowKeys = shallowRef([]);
     const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row }): any => {
@@ -100,14 +107,49 @@ export default defineComponent({
 
     const observer = shallowRef<IntersectionObserver>();
 
-    onMounted(() => {
-      init();
-    });
-    onUnmounted(() => {
-      observer.value.disconnect();
-    });
+    const resetTableData = () => {
+      tableData.data = [];
+      tableData.total = 0;
+      tableData.columns = [];
+      tableData.limit = 30;
+      tableData.offset = 0;
+    };
+    const handleLoadData = async () => {
+      if (isEnd.value || scrollLoading.value) {
+        return;
+      }
+      if (tableData.offset) {
+        scrollLoading.value = true;
+      } else {
+        loading.value = true;
+      }
 
-    function init() {
+      const res = await props.getData({
+        limit: tableData.limit,
+        offset: tableData.offset,
+      });
+      tableData.data = res?.data || [];
+      tableData.total = res?.total || 0;
+      tableData.columns = res?.columns || [];
+      isEnd.value = tableData.data.length < tableData.limit + tableData.offset;
+      scrollLoading.value = false;
+      loading.value = false;
+      tableData.offset = tableData.data.length;
+    };
+
+    watch(
+      () => props.refreshKey,
+      val => {
+        loading.value = true;
+        if (val) {
+          resetTableData();
+          handleLoadData();
+        }
+      },
+      { immediate: true }
+    );
+
+    onMounted(() => {
       observer.value = new IntersectionObserver(entries => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
@@ -116,21 +158,16 @@ export default defineComponent({
         }
       });
       observer.value.observe(loadingRef.value as HTMLDivElement);
-    }
+    });
+    onUnmounted(() => {
+      observer.value.disconnect();
+    });
 
     function handleScroll() {
-      isEnd.value = props.tableData.data.length < props.tableData.limit + props.tableData.offset;
-      if (!props.tableData.data.length || isEnd.value) {
-        return;
-      }
-      emit('scroll', {
-        limit: props.tableData.limit,
-        offset: props.tableData.data.length,
-      });
+      handleLoadData();
     }
 
     function handleExpandChange(keys: (number | string)[]) {
-      console.log(keys);
       expandedRowKeys.value = keys;
     }
 
@@ -154,6 +191,9 @@ export default defineComponent({
       expandIcon,
       expandedRow,
       isEnd,
+      tableData,
+      loading,
+      scrollLoading,
       t,
       handleExpandChange,
     };
@@ -161,25 +201,29 @@ export default defineComponent({
   render() {
     return (
       <div class='panel-log-log-table'>
-        <PrimaryTable
-          class='panel-log-log-table'
-          columns={this.columns}
-          data={this.tableData.data}
-          expandedRow={this.expandedRow}
-          expandedRowKeys={this.expandedRowKeys}
-          expandIcon={this.expandIcon}
-          expandOnRowClick={true}
-          resizable={true}
-          rowKey={'index'}
-          size={'small'}
-          onExpandChange={this.handleExpandChange}
-        >
-          {{
-            empty: () => <EmptyStatus type={'empty'} />,
-          }}
-        </PrimaryTable>
+        {this.loading ? (
+          <TableSkeleton type={4} />
+        ) : (
+          <PrimaryTable
+            class='panel-log-log-table'
+            columns={this.columns}
+            data={this.tableData.data}
+            expandedRow={this.expandedRow}
+            expandedRowKeys={this.expandedRowKeys}
+            expandIcon={this.expandIcon}
+            expandOnRowClick={true}
+            resizable={true}
+            rowKey={'index'}
+            size={'small'}
+            onExpandChange={this.handleExpandChange}
+          >
+            {{
+              empty: () => <EmptyStatus type={'empty'} />,
+            }}
+          </PrimaryTable>
+        )}
         <div
-          ref='scrollLoading'
+          ref='scrollRef'
           style={{ display: this.tableData.data.length ? 'flex' : 'none' }}
           class='panel-log-log-table-scroll-loading'
         >

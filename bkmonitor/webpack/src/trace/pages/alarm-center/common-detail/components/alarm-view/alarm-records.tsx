@@ -108,7 +108,7 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const loadingRef = useTemplateRef('scrollLoading');
+    const loadingRef = useTemplateRef('scrollRef');
 
     /**
      * 告警类型筛选
@@ -615,7 +615,7 @@ export default defineComponent({
           </ul>
         )}
         <div
-          ref='scrollLoading'
+          ref='scrollRef'
           style={{ display: this.recordData.list.length ? 'flex' : 'none' }}
           class='table-scroll-loading'
         >

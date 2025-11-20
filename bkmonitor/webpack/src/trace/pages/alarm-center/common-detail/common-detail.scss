@@ -20,6 +20,30 @@
     }
   }
 
+  .alarm-view {
+    .alarm-view-tab {
+      & > .bk-tab {
+        position: sticky;
+        top: 51px;
+        z-index: 1;
+        background: #fff;
+        opacity: 1;
+      }
+
+      .alarm-detail-alarm-view-alarm-records {
+        .alarm-records-header {
+          position: sticky;
+          top: 102px;
+          z-index: 1;
+          padding-top: 12px;
+          margin: 0;
+          background: #fff;
+          opacity: 1;
+        }
+      }
+    }
+  }
+
   .alarm-basic-info-skeleton {
     .skeleton-title {
       margin-bottom: 3px;

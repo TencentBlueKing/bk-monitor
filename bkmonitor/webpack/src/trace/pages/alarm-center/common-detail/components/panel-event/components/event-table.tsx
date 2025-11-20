@@ -85,7 +85,7 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const loadingRef = useTemplateRef('scrollLoading');
+    const loadingRef = useTemplateRef('scrollRef');
     const loading = shallowRef(false);
     const scrollLoading = shallowRef(false);
     const columns = shallowRef<TdPrimaryTableProps['columns']>([
@@ -204,7 +204,6 @@ export default defineComponent({
     };
 
     const handleLoad = async () => {
-      isEnd.value = tableData.data.length < tableData.page * tableData.pageSize;
       if (isEnd.value || loading.value || scrollLoading.value) {
         return;
       }
@@ -214,19 +213,15 @@ export default defineComponent({
         loading.value = true;
       }
       tableData.page += 1;
-      await props
-        .getTableData({
-          page: tableData.page,
-          pageSize: tableData.pageSize,
-        })
-        .then(res => {
-          tableData.data = [...tableData.data, ...res.data];
-          tableData.total = res.total;
-        })
-        .finally(() => {
-          scrollLoading.value = false;
-          loading.value = false;
-        });
+      const res = await props.getTableData({
+        page: tableData.page,
+        pageSize: tableData.pageSize,
+      });
+      tableData.data = [...tableData.data, ...res.data];
+      tableData.total = res.total;
+      isEnd.value = tableData.data.length < tableData.page * tableData.pageSize;
+      scrollLoading.value = false;
+      loading.value = false;
     };
     const init = async () => {
       await handleLoad();
@@ -329,7 +324,7 @@ export default defineComponent({
           />
         )}
         <div
-          ref='scrollLoading'
+          ref='scrollRef'
           style={{ display: this.tableData.data.length ? 'flex' : 'none' }}
           class='panel-event-table-scroll-loading'
         >
