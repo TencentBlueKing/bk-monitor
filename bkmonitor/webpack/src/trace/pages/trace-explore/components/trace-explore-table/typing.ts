@@ -25,6 +25,7 @@
  */
 
 import type { OptionData, PrimaryTableCol, SlotReturnValue } from 'tdesign-vue-next';
+import type { TippyOptions } from 'vue-tippy';
 
 /**
  * @description trace检索 table表格列类型 枚举
@@ -82,6 +83,18 @@ export interface BaseTableCellRenderValueType {
   };
 }
 
+/** 不同类型单元格的私有属性映射 */
+export interface BaseTableCellSpecificPropsMap {
+  /** tag 类型单元格私有属性 */
+  [ExploreTableColumnTypeEnum.TAGS]: {
+    /** 溢出标签提示popover内容渲染 */
+    ellipsisTip?: (ellipsisList: any[] | string[]) => SlotReturnValue;
+    /** 标签溢出时溢出标签hover显示的提示popover配置选项 */
+    ellipsisTippyOptions?: TippyOptions;
+  };
+  // 其他类型公共列有需求可以按需添加
+}
+
 /** trace检索 表格列配置类型 */
 export interface BaseTableColumn<K extends string = string, U extends Record<string, any> = Record<string, any>>
   extends Omit<PrimaryTableCol, 'ellipsis' | 'ellipsisTitle'> {
@@ -89,6 +102,8 @@ export interface BaseTableColumn<K extends string = string, U extends Record<str
   cellEllipsis?: boolean;
   /** 自定义单元格渲染 */
   cellRenderer?: TableCellRenderer;
+  /** 非公共属性，不同单元格类型各自特定属性配置 */
+  cellSpecificProps?: GetTableCellSpecificProps<K>;
   /** 列描述(popover形式展现) **/
   headerDescription?: string;
   /** 字段类型 */
@@ -131,6 +146,14 @@ export type ExploreTableColumn<T extends ExploreTableColumnTypeEnum | string = E
 export type GetTableCellRenderValue<K, U = BaseTableCellRenderValueType> = K extends keyof U
   ? U[K]
   : string | string[] | unknown;
+
+/**
+ * @description 获取 table表格不同类型单元格列 的私有属性类型
+ *
+ */
+export type GetTableCellSpecificProps<K> = K extends keyof BaseTableCellSpecificPropsMap
+  ? BaseTableCellSpecificPropsMap[K]
+  : Record<string, any>;
 
 export interface TableCellRenderContext<K extends string = string> {
   /** 开启省略文本省略的类名 */

@@ -89,7 +89,13 @@ export class AlertScenario extends BaseScenario {
       /** 告警指标(metric) 列 */
       metric: {
         renderType: ExploreTableColumnTypeEnum.TAGS,
-      },
+        cellSpecificProps: {
+          ellipsisTip: this.handleMetricEllipsisTip,
+          ellipsisTippyOptions: {
+            theme: 'dark text-wrap max-width-50vw alarm-center-popover',
+          },
+        },
+      } satisfies BaseTableColumn<ExploreTableColumnTypeEnum.TAGS>,
       /** 关联事件(event_count) 列 */
       event_count: {
         renderType: ExploreTableColumnTypeEnum.CLICK,
@@ -316,6 +322,28 @@ export class AlertScenario extends BaseScenario {
       </div>
     ) as unknown as TippyContent;
     this.context.hoverPopoverTools.showPopover(e, content);
+  }
+
+  /**
+   * @description 告警指标(metric) 列溢出的指标hover展示内容
+   * @param ellipsisList 溢出的指标列表
+   */
+  private handleMetricEllipsisTip(ellipsisList: string[]) {
+    return (
+      <div class='alert-metric-ellipsis-tip-container'>
+        {ellipsisList.map((v, i) => (
+          <div
+            key={`${v}-${i}`}
+            class='ellipsis-tip-item'
+          >
+            <div class='item-prefix'>
+              <i class='item-hyphen' />
+            </div>
+            <div class='item-text'>{v}</div>
+          </div>
+        ))}
+      </div>
+    ) as unknown as SlotReturnValue;
   }
 
   /**
