@@ -2178,8 +2178,6 @@ class BkMonitorLogDataSource(BaseBkMonitorLogDataSource):
         return super().switch_unify_query(bk_biz_id)
 
     def _get_unify_query_table(self) -> str:
-        if self.table in {"system_event", "k8s_event", "cicd_event"}:
-            return self.table
         return f"{self.table}.__default__"
 
     @classmethod
@@ -2470,6 +2468,9 @@ class CustomEventDataSource(BkMonitorLogDataSource):
     data_source_label = DataSourceLabel.CUSTOM
     data_type_label = DataTypeLabel.EVENT
 
+    # 内置事件表
+    INNER_TABLE: set[str] = ["system_event", "k8s_event", "cicd_event"]
+
     @classmethod
     def init_by_query_config(cls, query_config: dict, name="", *args, bk_biz_id: int, **kwargs):
         # 过滤空维度
@@ -2506,6 +2507,17 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         if not self.switch_unify_query(bk_biz_id):
             # 使用 UnifyQuery 查询的情况下，无需 SaaS 处理空间路由，否则，增加空间查询条件。
             self.filter_dict.update(judge_auto_filter(bk_biz_id, self.table))
+
+    def switch_unify_query(self, bk_biz_id: int) -> bool:
+        if self.table in self.INNER_TABLE:
+            # 内置事件表必须使用 unify-query
+            return True
+        return super().switch_unify_query(bk_biz_id)
+
+    def _get_unify_query_table(self) -> str:
+        if self.table in self.INNER_TABLE:
+            return self.table
+        return super()._get_unify_query_table()
 
     @classmethod
     def add_recovery_filter(cls, datasource):
