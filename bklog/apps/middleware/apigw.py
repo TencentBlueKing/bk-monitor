@@ -74,8 +74,8 @@ class CustomCachePublicKeyProvider(CachePublicKeyProvider):
                     "with a valid value or remove `ApiGatewayJWTExternalMiddleware` middleware entirely"
                 )
             return external_public_key
-        new_internal_apigw_name = getattr(settings, "NEW_INTERNAL_APIGW_NAME", None)
-        if gateway_name and new_internal_apigw_name and gateway_name == new_internal_apigw_name:
+        new_internal_name = getattr(settings, "NEW_INTERNAL_APIGW_NAME", None)
+        if gateway_name and new_internal_name and gateway_name == new_internal_name:
             new_internal_public_key = getattr(settings, "NEW_INTERNAL_APIGW_PUBLIC_KEY", None)
             if new_internal_public_key:
                 logger.info(
