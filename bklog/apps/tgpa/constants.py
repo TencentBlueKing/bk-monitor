@@ -29,6 +29,9 @@ TASK_LIST_BATCH_SIZE = 200
 TGPA_TASK_EXE_CODE_SUCCESS = "0"  # 文件上传成功状态码
 FEATURE_TOGGLE_TGPA_TASK = "tgpa_task"
 
+TGPA_TASK_COLLECTOR_CONFIG_NAME = "客户端日志"
+TGPA_TASK_COLLECTOR_CONFIG_NAME_EN = "tgpa_task_client_log"
+
 TEXT_FILE_EXTENSIONS = [
     ".log",
     ".txt",

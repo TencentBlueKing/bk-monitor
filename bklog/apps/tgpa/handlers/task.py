@@ -27,6 +27,7 @@ from pathlib import Path
 
 import ujson
 from django.conf import settings
+from django.utils.functional import cached_property
 from qcloud_cos import CosConfig, CosS3Client
 
 from apps.api import TGPATaskApi
@@ -42,6 +43,8 @@ from apps.tgpa.constants import (
     TEXT_FILE_EXTENSIONS,
     TGPA_TASK_ETL_FIELDS,
     TGPA_TASK_ETL_PARAMS,
+    TGPA_TASK_COLLECTOR_CONFIG_NAME,
+    TGPA_TASK_COLLECTOR_CONFIG_NAME_EN,
 )
 from apps.utils.bcs import Bcs
 from apps.utils.thread import MultiExecuteFunc
@@ -63,8 +66,8 @@ class TGPATaskHandler:
         # 输出目录，用于存放处理后的文件
         self.output_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), str(self.task_id), "output")
 
-    @property
-    def extra_fields(self):
+    @cached_property
+    def meta_fields(self):
         """
         需要注入到日志中的元数据维度
         """
@@ -210,7 +213,7 @@ class TGPATaskHandler:
             for line_num, line in enumerate(input_file, 1):
                 log_content = line.strip()
                 log_entry = {"original_log": log_content, "path": log_file_path, "lineno": line_num}
-                log_entry.update(self.extra_fields)
+                log_entry.update(self.meta_fields)
                 output_file.write(f"{ujson.dumps(log_entry, ensure_ascii=False)}\n")
 
     def download_and_process_file(self):
@@ -242,8 +245,8 @@ class TGPATaskHandler:
         # 创建容器自定义上报
         result = CollectorHandler().custom_create(
             bk_biz_id=bk_biz_id,
-            collector_config_name="客户端日志",
-            collector_config_name_en=f"client_log_{bk_biz_id}",
+            collector_config_name=TGPA_TASK_COLLECTOR_CONFIG_NAME,
+            collector_config_name_en=TGPA_TASK_COLLECTOR_CONFIG_NAME_EN,
             custom_type=CustomTypeEnum.LOG.value,
             category_id="application_check",
             etl_config=EtlConfig.BK_LOG_JSON,

@@ -50,10 +50,10 @@ def fetch_and_process_tgpa_tasks():
             TGPATaskHandler.create_collector_config(bk_biz_id)
         # 遍历任务列表，判断状态，处理日志文件
         task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
-        processed_ids = set(TGPATask.objects.values_list("task_id", flat=True))
+        processed_ids = set(TGPATask.objects.filter(bk_biz_id=bk_biz_id).values_list("task_id", flat=True))
         new_tasks = [task for task in task_list if task["id"] not in processed_ids]
         for task in new_tasks:
-            if task["exe_code"] and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
+            if task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
                 TGPATask.objects.create(bk_biz_id=bk_biz_id, task_id=task["id"], log_path=task["log_path"])
                 process_single_task.delay(task)
 
