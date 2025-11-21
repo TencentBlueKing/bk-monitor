@@ -18,6 +18,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -122,6 +123,46 @@ class LogQueryResource(ApiAuthResource):
 
         return int(_time.timestamp)
 
+    def query_log(self, params, time_field, limit, method):
+        query = QueryConfigBuilder((params["data_type_label"], params["data_source_label"]))
+        if params.get("result_table_id"):
+            query = query.table(params["result_table_id"])
+        if params.get("index_set_id"):
+            query = query.index_set_id(params["index_set_id"])
+        if params.get("query_string"):
+            query = query.query_string(params["query_string"])
+        if params.get("where"):
+            query = query.conditions(params["where"])
+        if time_field:
+            query = query.time_field(time_field)
+
+        # 条件性添加 filter_dict
+        if params.get("filter_dict"):
+            query = query.where(params["filter_dict"])
+
+        def _get_query_set(query_config):
+            return (
+                UnifyQuerySet()
+                .scope(bk_biz_id=params["bk_biz_id"])
+                .start_time(params["start_time"])
+                .end_time(params["end_time"])
+                .add_query(query_config)
+                .offset(params.get("offset") or 0)
+                .limit(limit)
+                .time_agg(False)
+                .time_align(False)
+            )
+
+        records = list(_get_query_set(query))
+        total = 0
+        # 如果method的值是COUNT，则计算总数
+        if method == "COUNT":
+            count_query = query.metric(field="_index", method=method, alias="log_count")
+            count_result = list(_get_query_set(count_query))
+            for count_item in count_result:
+                total += count_item.get("_result_", 0)
+        return total, records
+
     def perform_request(self, params):
         if "start_time" not in params or "end_time" not in params:
             params["end_time"] = int(datetime.now().timestamp())
@@ -145,39 +186,51 @@ class LogQueryResource(ApiAuthResource):
             except Exception as e:
                 logger.exception(e)
 
-        data_source_class = load_data_source(params["data_source_label"], params["data_type_label"])
-
-        kwargs = dict(
-            bk_tenant_id=get_request_tenant_id(),
-            table=params["result_table_id"],
-            index_set_id=params["index_set_id"],
-            where=params["where"],
-            query_string=params["query_string"],
-            filter_dict=params["filter_dict"],
-            time_field=time_field,
-            bk_biz_id=params["bk_biz_id"],
-        )
-        if params["data_source_label"] == DataSourceLabel.BK_FTA:
-            if not params.get("alert_name"):
-                raise ValidationError(_("告警名称不能为空"))
-            kwargs["alert_name"] = params["alert_name"]
-        elif (params["data_source_label"], params["data_type_label"]) == (
-            DataSourceLabel.BK_MONITOR_COLLECTOR,
-            DataTypeLabel.ALERT,
-        ):
-            if not params.get("bkmonitor_strategy_id"):
-                raise ValidationError(_("策略ID不能为空"))
-            kwargs["bkmonitor_strategy_id"] = params["bkmonitor_strategy_id"]
-
-        data_source = data_source_class(**kwargs)
         limit = 1000 if params["limit"] <= 0 else params["limit"]
-        records, total = data_source.query_log(
-            start_time=params["start_time"], end_time=params["end_time"], limit=limit, offset=params["offset"]
-        )
+
+        data_source = None
+        if (params["data_source_label"], params["data_type_label"]) == (
+            DataSourceLabel.BK_LOG_SEARCH,
+            DataTypeLabel.LOG,
+        ):
+            total, records = self.query_log(params, time_field, limit, method="COUNT")
+        else:
+            data_source_class = load_data_source(params["data_source_label"], params["data_type_label"])
+            kwargs = dict(
+                bk_tenant_id=get_request_tenant_id(),
+                table=params["result_table_id"],
+                index_set_id=params["index_set_id"],
+                where=params["where"],
+                query_string=params["query_string"],
+                filter_dict=params["filter_dict"],
+                time_field=time_field,
+                bk_biz_id=params["bk_biz_id"],
+            )
+            if params["data_source_label"] == DataSourceLabel.BK_FTA:
+                if not params.get("alert_name"):
+                    raise ValidationError(_("告警名称不能为空"))
+                kwargs["alert_name"] = params["alert_name"]
+            elif (params["data_source_label"], params["data_type_label"]) == (
+                DataSourceLabel.BK_MONITOR_COLLECTOR,
+                DataTypeLabel.ALERT,
+            ):
+                if not params.get("bkmonitor_strategy_id"):
+                    raise ValidationError(_("策略ID不能为空"))
+                kwargs["bkmonitor_strategy_id"] = params["bkmonitor_strategy_id"]
+
+            data_source = data_source_class(**kwargs)
+
+            records, total = data_source.query_log(
+                start_time=params["start_time"], end_time=params["end_time"], limit=limit, offset=params["offset"]
+            )
 
         result = []
         for record in records:
-            _record = {"time": self.get_time(record, data_source.time_field)}
+            record_time_field = time_field or "dtEventTimeStamp"
+            if data_source is not None:
+                _record = {"time": self.get_time(record, data_source.time_field)}
+            else:
+                _record = {"time": self.get_time(record, record_time_field)}
 
             if params["data_source_label"] in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM) and params[
                 "data_type_label"
