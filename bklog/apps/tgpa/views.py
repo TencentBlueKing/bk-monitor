@@ -24,7 +24,7 @@ from rest_framework.response import Response
 from apps.api import TGPATaskApi
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
-from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field
+from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field, BusinessActionPermission
 from apps.tgpa.handlers.task import TGPATaskHandler
 from apps.tgpa.serializers import CreateTGPATaskSerializer, GetTGPATaskListSerializer
 
@@ -34,7 +34,7 @@ class TGPATaskViewSet(APIViewSet):
 
     def get_permissions(self):
         if self.action == "create":
-            return [ActionEnum.COLLECTOR_CLIENT_LOG]
+            return [BusinessActionPermission(ActionEnum.COLLECTOR_CLIENT_LOG)]
         return [ViewBusinessPermission()]
 
     @insert_permission_field(
