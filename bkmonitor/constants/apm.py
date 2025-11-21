@@ -21,6 +21,8 @@ from constants.result_table import ResultTableField
 
 FIVE_MIN_SECONDS = 5 * 60
 
+FIVE_MIN_MILLISECONDS = FIVE_MIN_SECONDS * 1000  # 5分钟的毫秒数
+
 DEFAULT_DATA_LABEL = "APM"  # 数据标签，用来查询数据时三段式前缀(注意：不能随意更改)
 
 APM_METRIC_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
@@ -1572,6 +1574,28 @@ class ApmAlertHelper:
         return {"app_name": app_name, "service_name": service_name}
 
     @classmethod
+    def _get_rpc_kind(cls, strategy: dict[str, Any]) -> str:
+        """判断RPC调用类型（主调/被调）
+
+        通过分析告警策略中的指标名称前缀来判断调用类型：
+            - rpc_client_* 开头的指标表示主调（caller）
+            - rpc_server_* 开头的指标表示被调（callee）
+            - 无法判断时默认返回被调（callee）
+
+        Args:
+            strategy: 告警策略配置字典，包含items、query_configs等信息
+
+        Returns:
+            str: "caller" 表示主调，"callee" 表示被调
+        """
+        try:
+            metric_field: str = strategy["items"][0]["query_configs"][0]["metric_field"]
+            return "caller" if metric_field.startswith("rpc_client_") else "callee"
+        except (KeyError, IndexError):
+            # 策略配置不完整时，默认返回被调类型
+            return "callee"
+
+    @classmethod
     def get_rpc_url(
         cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], begin_timestamp: int, duration: int
     ) -> str | None:
@@ -1591,28 +1615,23 @@ class ApmAlertHelper:
 
             call_filter.append({"key": key, "method": "eq", "value": [v or ""], "condition": "and"})
 
-        is_caller: bool = False
-        try:
-            metric_field: str = strategy["items"][0]["query_configs"][0]["metric_field"]
-            is_caller = metric_field.startswith("rpc_client_")
-        except (KeyError, IndexError):
-            pass
+        # 判断主调/被调类型，添加 kind过滤
+        kind: str = cls._get_rpc_kind(strategy)
 
         call_options: dict[str, Any] = {
-            "kind": "caller" if is_caller else "callee",
+            "kind": kind,
             "call_filter": call_filter,
             "perspective_type": "multiple",
             "perspective_group_by": [RPCMetricTag.CALLEE_METHOD.value, RPCMetricTag.CODE.value],
         }
 
-        offset: int = 5 * 60 * 1000
         params: dict[str, str | int] = {
             "filter-app_name": target["app_name"],
             "filter-service_name": target["service_name"],
             "callOptions": json.dumps(call_options),
             "dashboardId": "service-default-caller_callee",
-            "from": begin_timestamp * 1000 - duration * 1000 - offset,
-            "to": begin_timestamp * 1000 + offset,
+            "from": begin_timestamp * 1000 - duration * 1000 - FIVE_MIN_MILLISECONDS,
+            "to": begin_timestamp * 1000 + FIVE_MIN_MILLISECONDS,
             "sceneId": "apm_service",
         }
         encoded_params: str = urllib.parse.urlencode(params)
@@ -1620,7 +1639,7 @@ class ApmAlertHelper:
 
     @classmethod
     def _get_rpc_trace_url(
-        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], begin_timestamp: int, duration: int
+        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], create_timestamp: int, duration: int
     ) -> str | None:
         """获取调用分析调用链跳转链接"""
         if not cls.is_rpc_system(strategy):
@@ -1645,27 +1664,40 @@ class ApmAlertHelper:
 
             where.append({"key": tag_trace_mapping[key]["field"], "operator": "equal", "value": [v or ""]})
 
-        offset: int = 5 * 60 * 1000
+        # 判断主调/被调类型，添加 kind 过滤
+        kind: str = cls._get_rpc_kind(strategy)
+        where.append(
+            {
+                "key": tag_trace_mapping[kind]["field"],
+                "operator": "equal",
+                "value": tag_trace_mapping[kind]["value"],
+                "options": {"group_relation": "OR"},
+            }
+        )
+
         params: dict[str, str] = {
             "app_name": target["app_name"],
             "sceneMode": "span",
             "where": json.dumps(where),
             # Trace 数据量较大，duration 最长只支持 1 小时。
-            "start_time": begin_timestamp * 1000 - min(duration, 3600) * 1000 - offset,
-            "end_time": begin_timestamp * 1000 + offset,
+            "start_time": create_timestamp * 1000 - min(duration, 3600) * 1000 - FIVE_MIN_MILLISECONDS,
+            "end_time": create_timestamp * 1000 + FIVE_MIN_MILLISECONDS,
+            # 按status_code降序排序
+            "sortBy": OtlpKey.STATUS_CODE,
+            "descending": "true",
         }
         encoded_params: str = urllib.parse.urlencode(params)
         return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"/?bizId={bk_biz_id}/#/trace/home/?{encoded_params}")
 
     @classmethod
     def get_trace_url(
-        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], begin_timestamp: int, duration: int
+        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], create_timestamp: int, duration: int
     ) -> str | None:
         """获取调用链跳转链接"""
         # 目前只有 RPC 场景能明确跳转调用链，后续有其他场景再补充。
         getters: list[Callable[..., str | None]] = [cls._get_rpc_trace_url]
         for getter in getters:
-            url: str | None = getter(bk_biz_id, strategy, dimensions, begin_timestamp, duration)
+            url: str | None = getter(bk_biz_id, strategy, dimensions, create_timestamp, duration)
             if url:
                 return url
         return None
