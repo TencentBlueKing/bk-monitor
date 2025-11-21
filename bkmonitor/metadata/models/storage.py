@@ -82,10 +82,9 @@ logger = logging.getLogger("metadata")
 
 if TYPE_CHECKING:
     from metadata.models.custom_report import EventGroup
-    from metadata.models.result_table import ResultTable, ResultTableField, ResultTableFieldOption
+    from metadata.models.result_table import ResultTable, ResultTableField
 else:
     ResultTableField = None
-    ResultTableFieldOption = None
     ResultTable = None
     EventGroup = None
 
