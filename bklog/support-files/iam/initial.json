@@ -531,20 +531,20 @@
                 "version":1,
                 "related_resource_types":[
                     {
-                        "system_id":"bk_log_search",
-                        "id":"indices",
+                        "system_id":"bk_monitorv3",
+                        "id":"space",
                         "selection_mode":"instance",
                         "related_instance_selections":[
                             {
-                                "system_id":"bk_log_search",
-                                "id":"indices_list_v2",
-                                "ignore_iam_path":true
+                                "system_id":"bk_monitorv3",
+                                "id":"space_list"
                             }
-                        ]
+                        ],
+                        "ignore_iam_path":true
                     }
                 ],
                 "related_actions":[
-
+                    "view_business_v2"
                 ],
                 "description":"",
                 "description_en":""

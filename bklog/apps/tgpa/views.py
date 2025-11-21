@@ -23,6 +23,8 @@ from rest_framework.response import Response
 
 from apps.api import TGPATaskApi
 from apps.generic import APIViewSet
+from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field
 from apps.tgpa.handlers.task import TGPATaskHandler
 from apps.tgpa.serializers import CreateTGPATaskSerializer, GetTGPATaskListSerializer
 
@@ -30,6 +32,17 @@ from apps.tgpa.serializers import CreateTGPATaskSerializer, GetTGPATaskListSeria
 class TGPATaskViewSet(APIViewSet):
     """日志拉取任务"""
 
+    def get_permissions(self):
+        if self.action == "create":
+            return [ActionEnum.COLLECTOR_CLIENT_LOG]
+        return [ViewBusinessPermission()]
+
+    @insert_permission_field(
+        actions=[ActionEnum.SEARCH_CLIENT_LOG],
+        resource_meta=ResourceEnum.BUSINESS,
+        id_field=lambda d: d["bk_biz_id"],
+        data_field=lambda d: d["list"],
+    )
     def list(self, request, *args, **kwargs):
         params = self.params_valid(GetTGPATaskListSerializer)
         params["cc_id"] = params.pop("bk_biz_id")
