@@ -92,6 +92,9 @@ class ClusterInfo(models.Model):
     如果需要看到influxDB-proxy后面的实际集群信息，请看InfluxDBClusterInfo记录
     """
 
+    # 集群英文名正则表达式，要求符合 [a-zA-Z][a-zA-Z0-9_]* 格式，且长度不超过50，与bkbase的集群名命名规则一致
+    CLUSTER_NAME_REGEX = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,49}$")
+
     CONSUL_PREFIX_PATH = f"{config.CONSUL_PATH}/unify-query/data/storage"
     CONSUL_VERSION_PATH = f"{config.CONSUL_PATH}/unify-query/version/storage"
 
@@ -122,8 +125,7 @@ class ClusterInfo(models.Model):
 
     bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
     cluster_id = models.AutoField("集群ID", primary_key=True)
-    # 集群英文名，要求符合 [a-zA-Z][a-zA-Z0-9_]* 格式，与bkbase的集群名命名规则一致
-    cluster_name = models.CharField("集群英文名", max_length=50)
+    cluster_name = models.CharField("集群英文名", max_length=128)
     display_name = models.CharField("集群显示名称", max_length=128, default="", blank=True)
     cluster_type = models.CharField("集群类型", max_length=32, db_index=True)
     domain_name = models.CharField("集群域名", max_length=128)
@@ -358,6 +360,7 @@ class ClusterInfo(models.Model):
         port,
         registered_system,
         operator,
+        display_name="",
         description="",
         username="",
         password="",
@@ -401,6 +404,9 @@ class ClusterInfo(models.Model):
         :param extranet_port: 外网端口
         :return: clusterInfo object
         """
+        # 如果未提供显示名称，则使用集群名作为显示名称
+        if not display_name:
+            display_name = cluster_name
 
         # 1. 判断请求的数据是否有冲突
         # 基本数据校验
@@ -431,6 +437,7 @@ class ClusterInfo(models.Model):
         new_cluster = cls.objects.create(
             bk_tenant_id=bk_tenant_id,
             cluster_name=cluster_name,
+            display_name=display_name,
             cluster_type=cluster_type,
             domain_name=domain_name,
             port=port,
@@ -467,6 +474,7 @@ class ClusterInfo(models.Model):
     def modify(
         self,
         operator,
+        display_name=None,
         description=None,
         username=None,
         password=None,
@@ -487,6 +495,7 @@ class ClusterInfo(models.Model):
         """
         修改存储集群信息
         :param operator: 操作者
+        :param display_name: 显示名称
         :param description: 描述信息
         :param username: 用户名
         :param password: 密码
@@ -505,6 +514,7 @@ class ClusterInfo(models.Model):
         :return: True | raise Exception
         """
         args = {
+            "display_name": display_name,
             "description": description,
             "username": username,
             "password": password,
@@ -557,11 +567,13 @@ class ClusterInfo(models.Model):
             )
             raise ValueError(_("存在未关闭的结果表 {}").format(",".join(enable_rts)))
 
-        super().delete(*args, **kwargs)
+        result = super().delete(*args, **kwargs)
 
         logger.info(
             f"cluster->[{self.cluster_name}] cluster_type->[{self.cluster_type}] has deleted by [{self.registered_system}]"
         )
+
+        return result
 
 
 class KafkaTopicInfo(models.Model):
