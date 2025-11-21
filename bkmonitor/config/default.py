@@ -1210,6 +1210,7 @@ BK_CC_URL = os.getenv("BK_CC_SITE_URL") or os.getenv("BK_CC_HOST", BK_CC_URL)
 
 BK_ITSM_HOST = os.getenv("BK_ITSM_HOST", f"{BK_PAAS_HOST}/o/bk_itsm/")
 BK_SOPS_HOST = os.getenv("BK_SOPS_URL", f"{BK_PAAS_HOST}/o/bk_sops/")
+BK_INCIDENT_SAAS_HOST = os.getenv("BK_INCIDENT_SAAS_HOST", f"{BK_PAAS_HOST}/o/bk_incident/")
 # todo  新增BK_CI_URL 需要在bin/environ.sh 模板中定义
 BK_BCS_HOST = os.getenv("BK_BCS_URL", f"{BK_PAAS_HOST}/o/bk_bcs_app/")
 BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
@@ -1222,6 +1223,9 @@ EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST, "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}"
 )
 MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
+
+# 故障分析
+BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
 
 # IAM
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
