@@ -97,8 +97,8 @@ class ClusterInfo(models.Model):
     如果需要看到influxDB-proxy后面的实际集群信息，请看InfluxDBClusterInfo记录
     """
 
-    # 集群英文名正则表达式，要求符合 [a-zA-Z][a-zA-Z0-9_]* 格式，且长度不超过50，与bkbase的集群名命名规则一致
-    CLUSTER_NAME_REGEX = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,49}$")
+    # 集群英文名正则表达式，要求符合 [_A-Za-z0-9][_A-Za-z0-9-]* 格式，且长度不超过50，与bkbase的集群名命名规则一致
+    CLUSTER_NAME_REGEX = re.compile(r"^[_A-Za-z0-9][_A-Za-z0-9-]{0,49}$")
 
     CONSUL_PREFIX_PATH = f"{config.CONSUL_PATH}/unify-query/data/storage"
     CONSUL_VERSION_PATH = f"{config.CONSUL_PATH}/unify-query/version/storage"

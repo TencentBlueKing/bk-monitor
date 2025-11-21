@@ -2,6 +2,8 @@
 
 from django.db import migrations, models
 
+import bkmonitor.utils.db.fields
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -32,8 +34,10 @@ class Migration(migrations.Migration):
                 ("namespace", models.CharField(max_length=255, verbose_name="命名空间")),
                 ("name", models.CharField(max_length=255, verbose_name="集群名称")),
                 ("kind", models.CharField(max_length=255, verbose_name="集群类型")),
-                ("origin_config", models.JSONField(verbose_name="原始配置")),
-                ("status", models.CharField(max_length=255, verbose_name="状态")),
+                (
+                    "origin_config",
+                    bkmonitor.utils.db.fields.SymmetricJsonField(default=dict, verbose_name="原始配置"),
+                ),
             ],
             options={
                 "verbose_name": "集群配置",
