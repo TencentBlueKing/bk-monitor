@@ -38,6 +38,8 @@ class Migration(migrations.Migration):
                     "origin_config",
                     bkmonitor.utils.db.fields.SymmetricJsonField(default=dict, verbose_name="原始配置"),
                 ),
+                ("create_time", models.DateTimeField(auto_now_add=True, verbose_name="创建时间")),
+                ("update_time", models.DateTimeField(auto_now=True, verbose_name="最后更新时间")),
             ],
             options={
                 "verbose_name": "集群配置",
