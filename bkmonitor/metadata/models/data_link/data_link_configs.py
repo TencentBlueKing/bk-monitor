@@ -875,6 +875,12 @@ class ClusterConfig(models.Model):
         """
         return {}
 
+    @classmethod
+    def sync_cluster_config(cls, cluster: "ClusterInfo") -> None:
+        """
+        同步集群配置
+        """
+
 
 @deprecated("已废弃，统一使用DataBusConfig替代")
 class LogDataBusConfig(DataLinkResourceConfigBase):

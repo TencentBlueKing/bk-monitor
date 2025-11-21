@@ -16,7 +16,7 @@ import logging
 import re
 import time
 import traceback
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import arrow
 import curator
@@ -79,10 +79,15 @@ from .influxdb_cluster import (
 
 logger = logging.getLogger("metadata")
 
-ResultTableField = None
-ResultTableFieldOption = None
-ResultTable = None
-EventGroup = None
+
+if TYPE_CHECKING:
+    from metadata.models.custom_report import EventGroup
+    from metadata.models.result_table import ResultTable, ResultTableField, ResultTableFieldOption
+else:
+    ResultTableField = None
+    ResultTableFieldOption = None
+    ResultTable = None
+    EventGroup = None
 
 
 class ClusterInfo(models.Model):
@@ -240,7 +245,7 @@ class ClusterInfo(models.Model):
 
         logger.info(f"all es table info is refresh to consul success count->[{total_count}].")
 
-    def base64_with_prefix(self, content: str) -> str:
+    def base64_with_prefix(self, content: str | None) -> str | None:
         """编码，并添加上前缀"""
         # 如果为空，则直接返回
         if not content:
@@ -404,6 +409,8 @@ class ClusterInfo(models.Model):
         :param extranet_port: 外网端口
         :return: clusterInfo object
         """
+        from metadata.models.data_link.data_link_configs import ClusterConfig
+
         # 如果未提供显示名称，则使用集群名作为显示名称
         if not display_name:
             display_name = cluster_name
@@ -468,6 +475,9 @@ class ClusterInfo(models.Model):
         )
         new_cluster.cluster_init()
 
+        # 同步集群配置到bkbase
+        ClusterConfig.sync_cluster_config(cluster=new_cluster)
+
         return new_cluster
 
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -513,6 +523,9 @@ class ClusterInfo(models.Model):
         :param extranet_port: 外网端口
         :return: True | raise Exception
         """
+
+        from metadata.models.data_link.data_link_configs import ClusterConfig
+
         args = {
             "display_name": display_name,
             "description": description,
@@ -545,6 +558,10 @@ class ClusterInfo(models.Model):
 
         self.save()
         logger.info(f"cluster->[{self.cluster_name}] update success.")
+
+        # 同步集群配置到bkbase
+        ClusterConfig.sync_cluster_config(cluster=self)
+
         return True
 
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -633,7 +650,6 @@ class KafkaTopicInfo(models.Model):
 class StorageResultTable:
     """实际结果表基类，提供公共方法的模板"""
 
-    bk_tenant_id: str
     STORAGE_TYPE = None
     UPGRADE_FIELD_CONFIG = ()
 
