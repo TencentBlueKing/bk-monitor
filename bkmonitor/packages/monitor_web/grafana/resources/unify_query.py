@@ -110,7 +110,7 @@ class TimeCompareProcessor:
                     data_configs.append(query_config)
             if log_configs:
                 for query_config in log_configs:
-                    metrics = [{"field": "_index", "method": "COUNT"}]
+                    metrics = query_config.get("metrics") or []
                     not_time_align = params.get("not_time_align", False)
                     time_alignment = params.get("time_alignment", True)
                     expression = params.get("expression", "")
@@ -127,7 +127,11 @@ class TimeCompareProcessor:
                         time_alignment = False
                     if metrics:
                         for metric_item in metrics:
-                            query = query.metric(field=metric_item["field"], method=metric_item["method"])
+                            query = query.metric(
+                                field=metric_item["field"],
+                                method=metric_item["method"],
+                                alias=metric_item.get("alias", ""),
+                            )
                     for func in query_config["functions"]:
                         query = query.func(func.get("id", ""), func.get("params", []))
 
@@ -349,7 +353,8 @@ class RankProcessor:
                 query_config["data_source_label"],
                 query_config["data_type_label"],
             ):
-                metrics = [{"field": "_index", "method": "COUNT"}]
+                source_metrics = [{"field": "_index", "method": "COUNT"}]
+                metrics = query_config.get("metrics") or []
                 not_time_align = params.get("not_time_align", False)
                 time_alignment = params.get("time_alignment", True)
                 expression = params.get("expression", "")
@@ -369,7 +374,9 @@ class RankProcessor:
 
                 if metrics:
                     for metric_item in metrics:
-                        query = query.metric(field=metric_item["field"], method=metric_item["method"])
+                        query = query.metric(
+                            field=metric_item["field"], method=metric_item["method"], alias=metric_item.get("alias", "")
+                        )
 
                 query_set = (
                     UnifyQuerySet()
@@ -385,7 +392,7 @@ class RankProcessor:
                     .expression(expression)
                 )
                 points.extend(list(query_set))
-                metric_field = metrics[0].get("alias") or metrics[0]["field"]
+                metric_field = source_metrics[0].get("alias") or source_metrics[0]["field"]
 
             else:
                 # 按均值查出所有维度的值
@@ -896,7 +903,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         points = []
         query_config = params["query_configs"][query_config_index]
 
-        metrics = [{"field": "_index", "method": "COUNT"}]
+        metrics = query_config.get("metrics") or []
         not_time_align = params.get("not_time_align", False)
         time_alignment = params.get("time_alignment", True)
         expression = params.get("expression", "")
@@ -938,9 +945,11 @@ class UnifyQueryRawResource(ApiAuthResource):
 
         if time_field:
             query = query.time_field(time_field)
-
-        for metric_item in metrics:
-            query = query.metric(field=metric_item["field"], method=metric_item["method"])
+        if metrics:
+            for metric_item in metrics:
+                query = query.metric(
+                    field=metric_item["field"], method=metric_item["method"], alias=metric_item.get("alias", "")
+                )
         count_result = list(_get_query_set(query))
         points.extend(count_result)
 
