@@ -934,6 +934,7 @@ class ClusterConfig(models.Model):
         Args:
             cluster: 集群信息
         """
+        from metadata.models.storage import ClusterInfo
 
         # NOTE: 目前仅允许将ES集群配置到bkbase平台，VM和Doris集群需要通过bkbase配置，定时任务会自动从bkbase拉取配置
         if cluster.cluster_type not in [ClusterInfo.TYPE_ES]:
