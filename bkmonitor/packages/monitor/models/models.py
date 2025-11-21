@@ -30,7 +30,6 @@ from core.errors.api import BKAPIError
 from core.errors.uptime_check import DeprecatedFunctionError
 from monitor.constants import UPTIME_CHECK_DB, UptimeCheckProtocol
 from monitor_web.models import OperateRecordModelBase
-from monitor_web.tasks import append_metric_list_cache, update_task_running_status
 
 logger = logging.getLogger(__name__)
 
@@ -626,6 +625,7 @@ class UptimeCheckTask(OperateRecordModel):
         如果当前拨测任务对象没有subscription_id，说明是新增任务流程
         如果已经有subscription_id，说明是更新任务流程
         """
+        from monitor_web.tasks import append_metric_list_cache, update_task_running_status
         from monitor_web.commons.data_access import UptimecheckDataAccessor
 
         # 数据接入
