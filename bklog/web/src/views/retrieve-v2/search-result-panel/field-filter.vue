@@ -30,12 +30,12 @@
   });
 
   const totalFields = computed(() => {
-    return store.state.indexFieldInfo.fields;
+    return store.getters.filteredFieldList;
   });
 
   const fieldAliasMap = computed(() => {
     const fieldAliasMap = {};
-    store.state.indexFieldInfo.fields.forEach(item => {
+    totalFields.value.filter(field => !field.is_virtual_alias_field).forEach(item => {
       item.minWidth = 0;
       item.filterExpand = false; // 字段过滤展开
       item.filterVisible = true;
@@ -58,7 +58,7 @@
     };
   });
 
-  const visibleFields = computed(() => store.state.visibleFields ?? []);
+  const visibleFields = computed(() => store.getters.visibleFields ?? []);
   const rootStyle = computed(() => ({
     '--root-width': `${props.width}px`,
   }));

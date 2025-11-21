@@ -80,9 +80,7 @@ const showOption = computed(() => {
 });
 
 const retrieveDropdownData = computed(() => store.state.retrieveDropdownData);
-const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => []
-  .concat(store.state.indexFieldInfo.fields ?? [])
-  .concat(store.state.indexFieldInfo.alias_field_list ?? []));
+const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => store.state.indexFieldInfo.fields);
 
 const { isRequesting, requestFieldEgges, isValidateEgges } = useFieldEgges();
 

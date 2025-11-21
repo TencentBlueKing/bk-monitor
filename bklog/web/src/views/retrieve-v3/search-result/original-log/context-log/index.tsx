@@ -106,8 +106,8 @@ export default defineComponent({
     let rawList: any[] = [];
     let reverseRawList: any[] = [];
     let firstLogEl: HTMLElement | null = null;
-    let throttleTimer: NodeJS.Timeout;
-    let timer: NodeJS.Timeout;
+    let throttleTimer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout>;
     let displayFieldNames: string[] = [];
 
 
@@ -223,7 +223,7 @@ export default defineComponent({
         return displayFieldNames;
       }
 
-      const allFields = store.state.indexFieldInfo.fields;
+      const allFields = store.getters.filteredFieldList;
       let textField = undefined;
       let logField = undefined;
       for (const field of allFields) {
@@ -243,7 +243,7 @@ export default defineComponent({
         return [showFieldName];
       }
 
-      const pageVisibleFields = store.state.visibleFields.map(item => item.field_name);
+      const pageVisibleFields = store.getters.visibleFields.map(item => item.field_name);
       if (pageVisibleFields.length) {
         return pageVisibleFields;
       }

@@ -25,27 +25,25 @@
  */
 import { h, computed } from 'vue';
 
-import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
 export default () => {
   const store = useStore();
   const { $t } = useLocale();
-  const { getFieldNameByField } = useFieldNameHook({ store });
 
   const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
   const isUnionSearch = computed(() => store.getters.isUnionSearch);
   const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
-  const visibleFields = computed(() => store.state.visibleFields);
+  const visibleFields = computed(() => store.getters.visibleFields);
   const isNotVisibleFieldsShow = computed(() => store.state.isNotVisibleFieldsShow);
   const activeSortField = computed(() => store.state.indexItem.sort_list);
-  const sortShow = (field_name, currentSortField) => {
+  const sortShow = (fieldName, currentSortField) => {
     const requiredFields = ['gseIndex', 'iterationIndex', 'dtEventTimeStamp'];
-    if (requiredFields.includes(field_name) && requiredFields.includes(currentSortField)) {
+    if (requiredFields.includes(fieldName) && requiredFields.includes(currentSortField)) {
       return true;
     }
-    return currentSortField === field_name;
+    return currentSortField === fieldName;
   };
   const renderHead = (field, onClickFn) => {
     const currentSort = activeSortField.value?.[0] || null;
@@ -55,7 +53,7 @@ export default () => {
     const isAsc = currentSort ? currentSort[1] === 'asc' : false;
 
     if (field) {
-      const fieldName = getFieldNameByField(field);
+      const fieldName = field.field_name;
       const fieldType = field.field_type;
       const isUnionSource = field?.tag === 'union-source';
       const fieldIcon = fieldTypeMap.value?.[fieldType]?.icon ?? 'bklog-icon bklog-unkown';
@@ -75,11 +73,10 @@ export default () => {
         }
       }
       const isLackIndexFields = !!unionContent && isUnionSearch.value;
-      const sortable =
-        !['dtEventTimeStamp'].includes(field.field_name) &&
-        field.es_doc_values &&
-        field.tag !== 'union-source' &&
-        field.field_type !== 'flattened';
+      const sortable =        !['dtEventTimeStamp'].includes(field.field_name)
+        && field.es_doc_values
+        && field.tag !== 'union-source'
+        && field.field_type !== 'flattened';
 
       return h(
         'div',
@@ -144,13 +141,13 @@ export default () => {
 
           sortable
             ? h('span', { class: 'bk-table-caret-wrapper' }, [
-                h('i', {
-                  class: `bk-table-sort-caret ascending ${isSortShow && isAsc ? 'active' : ''}`,
-                }),
-                h('i', {
-                  class: `bk-table-sort-caret descending ${isSortShow && isDesc ? 'active' : ''}`,
-                }),
-              ])
+              h('i', {
+                class: `bk-table-sort-caret ascending ${isSortShow && isAsc ? 'active' : ''}`,
+              }),
+              h('i', {
+                class: `bk-table-sort-caret descending ${isSortShow && isDesc ? 'active' : ''}`,
+              }),
+            ])
             : '',
           h('i', {
             class: `bk-icon icon-minus-circle-shape toggle-display ${isNotVisibleFieldsShow.value ? 'is-hidden' : ''}`,
@@ -161,7 +158,7 @@ export default () => {
               },
             ],
             on: {
-              click: e => {
+              click: (e) => {
                 e.stopPropagation();
                 const displayFieldNames: string[] = [];
                 for (const newField of visibleFields.value) {

@@ -241,7 +241,7 @@ import { isEqual } from 'lodash-es';
       },
       /** 当前本地用户正在应用的展示字段设置 */
       localVisibleFields() {
-        return (this.$store.state.visibleFields ?? []).map(e => e.field_name);
+        return (this.$store.getters.visibleFields ?? []).map(e => e.field_name);
       },
       shadowSort() {
         if (!this.isTemplateConfig && this.catchFieldCustomSortList?.length) {

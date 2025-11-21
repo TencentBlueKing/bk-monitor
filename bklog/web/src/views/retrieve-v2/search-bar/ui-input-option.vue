@@ -184,7 +184,7 @@ const getFieldWeight = (field: FieldInfoItem) => {
 
 const fieldList = computed(() => {
   let list = [fullTextField.value];
-  list = list.concat(indexFieldInfo.value.fields, indexFieldInfo.value.alias_field_list ?? []);
+  list = list.concat(indexFieldInfo.value.fields);
   if (!isNotIpSelectShow.value) {
     list.push({
       field_name: '_ip-select_',

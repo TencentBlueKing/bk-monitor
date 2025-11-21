@@ -569,7 +569,6 @@ export function readBlobRespToJson(resp) {
   return readBlobResponse(resp).then(resText => Promise.resolve(JSONBigNumber.parse(resText)));
 }
 export function bigNumberToString(value) {
-  // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
   return (value || {})._isBigNumber ? (value.toString().length < 16 ? Number(value) : value.toString()) : value;
 }
 
@@ -831,7 +830,7 @@ export const Debounce = (delay = 200) => (target, key, descriptor) => {
   return descriptor;
 };
 
-export const formatDateTimeField = (data, fieldType) => {
+export const formatDateTimeField = (data, fieldType, emptyCharacter = '--') => {
   if (fieldType === 'date') {
     return formatDate(Number(data)) || data || emptyCharacter;
   }
@@ -939,6 +938,26 @@ export const parseTableRowData = (
   }
 
   return data === null || data === undefined || data === '' ? emptyCharacter : data;
+};
+
+/**
+ * 获取行数据中的字段值
+ * @param {Object} row 行数据
+ * @param {Object} field 字段信息
+ * @returns {String} 字段值
+ */
+export const getRowFieldValue = (row, field) => {
+  if (field.is_virtual_alias_field) {
+    const fieldList = [field.field_name, ...field.source_field_names];
+    for (const fieldName of fieldList) {
+      const value = parseTableRowData(row, fieldName, field.field_type, false, null);
+      if (value !== undefined && value !== null && value !== '') {
+        return value ?? '--';
+      }
+    }
+  }
+
+  return parseTableRowData(row, field.field_name, field.field_type, false);
 };
 
 /** 表格内字体样式 */
@@ -1311,11 +1330,11 @@ export const getOsCommandLabel = () => {
 /**
  * 更新最后选择索引ID
  */
-export const updateLastSelectedIndexId = (spaceUid, index_set_id) => {
+export const updateLastSelectedIndexId = (spaceUid, indexSetId) => {
   const storage = {
     [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
       ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
-      [spaceUid]: [String(index_set_id)],
+      [spaceUid]: [String(indexSetId)],
     },
   };
   store.commit('updateStorage', storage);
