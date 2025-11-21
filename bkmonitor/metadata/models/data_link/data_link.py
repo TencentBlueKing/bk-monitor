@@ -17,6 +17,7 @@ from django.conf import settings
 from django.db import models, transaction
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
+from constants.apm import APM_METRIC_TABLE_REGEX
 from core.drf_resource import api
 from metadata.models.data_link import utils
 from metadata.models.data_link.constants import (
@@ -949,8 +950,6 @@ class DataLink(models.Model):
         根据 table_id 判断并生成对应的 VM 存储配置
         只有在 APM 的 metric 创建场景下，才使用 v2 的 vmstoragebinding 配置
         """
-        from constants.apm import APM_METRIC_TABLE_REGEX
-
         if APM_METRIC_TABLE_REGEX.match(table_id) is not None:
             return vm_storage_ins.compose_config(["service_name", "scope_name"], "v2")
         return vm_storage_ins.compose_config()

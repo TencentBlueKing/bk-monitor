@@ -25,6 +25,7 @@ from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.db.fields import JsonField
+from constants.apm import APM_METRIC_TABLE_REGEX
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
@@ -236,8 +237,6 @@ class TimeSeriesGroup(CustomGroupBase):
         """
         判断是否是 APM 场景
         """
-        from constants.apm import APM_METRIC_TABLE_REGEX
-
         return APM_METRIC_TABLE_REGEX.match(self.table_id) is not None
 
     def _refine_metric_tags(self, metric_info: list) -> dict:
