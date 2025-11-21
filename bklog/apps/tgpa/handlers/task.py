@@ -34,6 +34,7 @@ from apps.api import TGPATaskApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_databus.constants import EtlConfig, ContainerCollectorType
 from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import CustomTypeEnum
 from apps.tgpa.constants import (
     TGPA_BASE_DIR,
@@ -234,16 +235,22 @@ class TGPATaskHandler:
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @staticmethod
-    def create_collector_config(bk_biz_id):
+    def get_or_create_collector_config(bk_biz_id):
         """
-        创建采集配置
+        获取或创建采集配置
         """
+        if collector_config_obj := CollectorConfig.objects.filter(
+            bk_biz_id=bk_biz_id, collector_config_name_en=TGPA_TASK_COLLECTOR_CONFIG_NAME_EN
+        ).first():
+            return collector_config_obj
+
         feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
         storage_cluster_id = feature_toggle.feature_config.get("storage_cluster_id")
         etl_params = TGPA_TASK_ETL_PARAMS
         fields = TGPA_TASK_ETL_FIELDS
+
         # 创建容器自定义上报
-        result = CollectorHandler().custom_create(
+        collector_create_result = CollectorHandler().custom_create(
             bk_biz_id=bk_biz_id,
             collector_config_name=TGPA_TASK_COLLECTOR_CONFIG_NAME,
             collector_config_name_en=TGPA_TASK_COLLECTOR_CONFIG_NAME_EN,
@@ -254,12 +261,13 @@ class TGPATaskHandler:
             fields=fields,
             storage_cluster_id=storage_cluster_id,
         )
+
         # 采集配置下发
         bcs_cluster_id = feature_toggle.feature_config.get("bcs_cluster_id")
         container_release_params = feature_toggle.feature_config.get("container_release_params")
         container_release_params.update(
             {
-                "dataId": result["bk_data_id"],
+                "dataId": collector_create_result["bk_data_id"],
                 "path": [os.path.join(TGPA_BASE_DIR, str(bk_biz_id))],
                 "logConfigType": ContainerCollectorType.CONTAINER.value,
             }
@@ -268,3 +276,4 @@ class TGPATaskHandler:
             bklog_config_name=f"client-log-{bk_biz_id}",
             bklog_config=container_release_params,
         )
+        return CollectorConfig.objects.get(collector_config_id=collector_create_result["collector_config_id"])

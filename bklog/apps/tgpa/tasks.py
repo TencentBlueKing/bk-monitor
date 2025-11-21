@@ -19,12 +19,9 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import traceback
-
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from celery.schedules import crontab
-from django.utils import timezone
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_databus.models import CollectorConfig
@@ -65,13 +62,12 @@ def process_single_task(task: dict):
     """
     task_obj = TGPATask.objects.get(task_id=task["id"])
     task_obj.process_status = TGPATaskProcessStatusEnum.PROCESSING.value
-    task_obj.processed_at = timezone.now()
     task_obj.save()
     try:
         TGPATaskHandler(bk_biz_id=task["cc_id"], task_info=task).download_and_process_file()
         task_obj.process_status = TGPATaskProcessStatusEnum.SUCCESS.value
         task_obj.save()
     except Exception:
-        logger.exception(f"failed to process task {task['id']}, traceback: {traceback.format_exc()}")
+        logger.exception("failed to process task %s", task["id"])
         task_obj.process_status = TGPATaskProcessStatusEnum.FAILED.value
         task_obj.save()
