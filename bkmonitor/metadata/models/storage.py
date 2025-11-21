@@ -164,6 +164,7 @@ class ClusterInfo(models.Model):
 
     # 描述该存储集群被何系统使用
     registered_system = models.CharField("注册来源系统", default=DEFAULT_REGISTERED_SYSTEM, max_length=128)
+    registered_to_bkbase = models.BooleanField("是否已经注册到bkbase平台", default=False)
 
     # GSE注册相关
     # 是否需要往GSE注册

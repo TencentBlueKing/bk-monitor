@@ -19,4 +19,26 @@ class Migration(migrations.Migration):
             name="cluster_name",
             field=models.CharField(max_length=128, verbose_name="集群英文名"),
         ),
+        migrations.AddField(
+            model_name="clusterinfo",
+            name="registered_to_bkbase",
+            field=models.BooleanField(default=False, verbose_name="是否已经注册到bkbase平台"),
+        ),
+        migrations.CreateModel(
+            name="ClusterConfig",
+            fields=[
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("bk_tenant_id", models.CharField(max_length=255, verbose_name="租户ID")),
+                ("namespace", models.CharField(max_length=255, verbose_name="命名空间")),
+                ("name", models.CharField(max_length=255, verbose_name="集群名称")),
+                ("kind", models.CharField(max_length=255, verbose_name="集群类型")),
+                ("origin_config", models.JSONField(verbose_name="原始配置")),
+                ("status", models.CharField(max_length=255, verbose_name="状态")),
+            ],
+            options={
+                "verbose_name": "集群配置",
+                "verbose_name_plural": "集群配置",
+                "unique_together": {("bk_tenant_id", "namespace", "kind", "name")},
+            },
+        ),
     ]

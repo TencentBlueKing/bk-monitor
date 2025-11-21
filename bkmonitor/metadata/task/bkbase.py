@@ -256,6 +256,11 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                             setattr(cluster, field, value)
                             is_updated = True
 
+                    # 如果集群未被标记为已注册到bkbase平台，则标记为已注册
+                    if not cluster.registered_to_bkbase:
+                        cluster.registered_to_bkbase = True
+                        is_updated = True
+
                     # 如果字段有更新，则保存模型
                     if is_updated:
                         logger.info(f"sync_bkbase_cluster_info: updated {cluster_type} cluster: {cluster_name}")
@@ -266,6 +271,7 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                         bk_tenant_id=bk_tenant_id,
                         cluster_type=cluster_type,
                         cluster_name=cluster_name,
+                        display_name=cluster_name,
                         domain_name=domain_name,
                         port=port,
                         username=username,
@@ -273,6 +279,7 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                         is_default_cluster=False,
                         default_settings=default_settings,
                         registered_system=models.ClusterInfo.BKDATA_REGISTERED_SYSTEM,
+                        registered_to_bkbase=True,
                     )
                     logger.info(f"sync_bkbase_cluster_info: created new {cluster_type} cluster: {cluster_name}")
         except Exception as e:
