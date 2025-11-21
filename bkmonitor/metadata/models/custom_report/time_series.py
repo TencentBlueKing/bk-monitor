@@ -1528,6 +1528,7 @@ class TimeSeriesMetric(models.Model):
             # 合并维度：保留旧维度，添加新维度
             obj.tag_list = list(set(obj.tag_list or []) | set(new_dimensions))
         if is_need_update:
+            logger.info(f"update ts metric {obj.field_name} {obj.field_scope} {obj.tag_list}")
             records.append(obj)
         return need_push_router
 
@@ -1606,6 +1607,9 @@ class TimeSeriesMetric(models.Model):
             # 计算需要创建和更新的记录
             need_create_combinations = expected_combinations - existing_combinations
             need_update_combinations = expected_combinations & existing_combinations
+            logger.info(
+                f"need_create_combinations: {need_create_combinations}, need_update_combinations: {need_update_combinations}"
+            )
 
             # NOTE: 针对创建或者时间变动时，推送路由数据
             need_push_router = False
