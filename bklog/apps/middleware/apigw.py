@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,7 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from typing import Optional
 
 import jwt
 from apigw_manager.apigw.authentication import (
@@ -60,13 +58,11 @@ class UserModelBackend(ModelBackend):
 
 
 class CustomCachePublicKeyProvider(CachePublicKeyProvider):
-    def provide(
-        self, gateway_name: str, jwt_issuer: Optional[str] = None, request: HttpRequest = None
-    ) -> Optional[str]:
+    def provide(self, gateway_name: str, jwt_issuer: str | None = None, request: HttpRequest = None) -> str | None:
         """Return the public key specified by Settings"""
         external_public_key = getattr(settings, "EXTERNAL_APIGW_PUBLIC_KEY", None)
         if not request:
-            return super(CustomCachePublicKeyProvider, self).provide(gateway_name, jwt_issuer)
+            return super().provide(gateway_name, jwt_issuer)
         is_external = request.headers.get("Is-External", "false")
         if is_external == "true":
             logger.info(
@@ -78,11 +74,21 @@ class CustomCachePublicKeyProvider(CachePublicKeyProvider):
                     "with a valid value or remove `ApiGatewayJWTExternalMiddleware` middleware entirely"
                 )
             return external_public_key
-        return super(CustomCachePublicKeyProvider, self).provide(gateway_name, jwt_issuer)
+        else:
+            new_internal_public_key = getattr(settings, "NEW_INTERNAL_APIGW_PUBLIC_KEY", None)
+            if new_internal_public_key:
+                logger.info(
+                    """
+                    This request is from new internal api gateway, 
+                    use new internal public key: `NEW_INTERNAL_APIGW_PUBLIC_KEY`.
+                    """
+                )
+                return new_internal_public_key
+        return super().provide(gateway_name, jwt_issuer)
 
 
 class ApiGatewayJWTProvider(DefaultJWTProvider):
-    def provide(self, request: HttpRequest) -> Optional[DecodedJWT]:
+    def provide(self, request: HttpRequest) -> DecodedJWT | None:
         jwt_token = request.META.get(self.jwt_key_name, "")
         if not jwt_token:
             return None
