@@ -41,17 +41,23 @@ def fetch_and_process_tgpa_tasks():
     bk_biz_id_list = feature_toggle.biz_id_white_list or []
 
     for bk_biz_id in bk_biz_id_list:
-        # 确保已经创建采集配置
-        TGPATaskHandler.get_or_create_collector_config(bk_biz_id)
-        # 请求接口获取任务列表，过滤掉已经处理过的任务
-        task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
-        processed_ids = set(TGPATask.objects.filter(bk_biz_id=bk_biz_id).values_list("task_id", flat=True))
-        new_tasks = [task for task in task_list if task["id"] not in processed_ids]
+        try:
+            # 确保已经创建采集配置
+            TGPATaskHandler.get_or_create_collector_config(bk_biz_id)
+            # 请求接口获取任务列表，过滤掉已经处理过的任务
+            task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
+            processed_ids = set(TGPATask.objects.filter(bk_biz_id=bk_biz_id).values_list("task_id", flat=True))
+            new_tasks = [task for task in task_list if task["id"] not in processed_ids]
+        except Exception:
+            continue
 
         for task in new_tasks:
-            if task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
-                TGPATask.objects.create(bk_biz_id=bk_biz_id, task_id=task["id"], log_path=task["log_path"])
-                process_single_task.delay(task)
+            try:
+                if task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
+                    TGPATask.objects.create(bk_biz_id=bk_biz_id, task_id=task["id"], log_path=task["log_path"])
+                    process_single_task.delay(task)
+            except Exception:
+                continue
 
 
 @app.task(ignore_result=True, queue="tgpa_task")
