@@ -947,14 +947,11 @@ class DataLink(models.Model):
     def _compose_vm_storage_config(vm_storage_ins, table_id: str) -> dict[str, Any]:
         """
         根据 table_id 判断并生成对应的 VM 存储配置
-        APM 的 table_id 格式为: {bk_biz_id}_bkapm_metric_{app_name}.__default__
         只有在 APM 的 metric 创建场景下，才使用 v2 的 vmstoragebinding 配置
-
-        @param vm_storage_ins: VM 存储绑定配置实例
-        @param table_id: 监控平台结果表ID
-        @return: VM 存储配置字典
         """
-        if "_bkapm_metric_" in table_id:
+        from constants.apm import APM_METRIC_TABLE_REGEX
+
+        if APM_METRIC_TABLE_REGEX.match(table_id) is not None:
             return vm_storage_ins.compose_config(["service_name", "scope_name"], "v2")
         return vm_storage_ins.compose_config()
 

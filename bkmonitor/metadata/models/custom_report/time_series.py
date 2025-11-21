@@ -235,10 +235,10 @@ class TimeSeriesGroup(CustomGroupBase):
     def is_apm_scenario(self) -> bool:
         """
         判断是否是 APM 场景
-        APM 的 table_id 格式为: {bk_biz_id}_bkapm_metric_{app_name}.__default__
-        :return: True：是 APM 场景/False：不是 APM 场景
         """
-        return "_bkapm_metric_" in self.table_id
+        from constants.apm import APM_METRIC_TABLE_REGEX
+
+        return APM_METRIC_TABLE_REGEX.match(self.table_id) is not None
 
     def _refine_metric_tags(self, metric_info: list) -> dict:
         """去除重复的维度"""
