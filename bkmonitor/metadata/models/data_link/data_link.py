@@ -948,10 +948,13 @@ class DataLink(models.Model):
     def _compose_vm_storage_config(vm_storage_ins, table_id: str) -> dict[str, Any]:
         """
         根据 table_id 判断并生成对应的 VM 存储配置
-        只有在 APM 的 metric 创建场景下，才使用 v2 的 vmstoragebinding 配置
+        只有在 APM 的 metric 创建场景且 TimeSeriesGroup 中存在metric_group_dimensions才使用 v2 的 vmstoragebinding 配置
         """
-        if APM_METRIC_TABLE_REGEX.match(table_id) is not None:
-            return vm_storage_ins.compose_config(["service_name", "scope_name"], "v2")
+        from metadata.models.custom_report.time_series import TimeSeriesGroup
+
+        ts_group = TimeSeriesGroup.objects.get(table_id=table_id, is_delete=False)
+        if ts_group.metric_group_dimensions and APM_METRIC_TABLE_REGEX.match(table_id) is not None:
+            return vm_storage_ins.compose_config(ts_group.metric_group_dimensions, "v2")
         return vm_storage_ins.compose_config()
 
     def compose_standard_time_series_configs(

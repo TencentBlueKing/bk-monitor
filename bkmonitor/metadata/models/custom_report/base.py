@@ -178,6 +178,10 @@ class CustomGroupBase(models.Model):
         return table_id, custom_group
 
     @classmethod
+    def _post_process_create(cls, custom_group, kwargs):
+        pass
+
+    @classmethod
     def create_custom_group(
         cls,
         bk_data_id,
@@ -193,6 +197,7 @@ class CustomGroupBase(models.Model):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
+        **kwargs,
     ):
         """
         创建一个新的自定义分组记录
@@ -246,6 +251,7 @@ class CustomGroupBase(models.Model):
             bk_tenant_id=bk_tenant_id,
             **filter_kwargs,
         )
+        cls._post_process_create(custom_group, kwargs)
 
         # 3. 遍历创建metric_info_list
         # 如果未有提供metric_info_list，则需要替换为空列表，方便后续的逻辑使用
