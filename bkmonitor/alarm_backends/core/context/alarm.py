@@ -376,6 +376,10 @@ class Alarm(BaseContextObject):
         return "--"
 
     @cached_property
+    def create_timestamp(self):
+        return self.parent.alert.time if self.parent.alert else 0
+
+    @cached_property
     def begin_time(self):
         return time_tools.utc2localtime(self.parent.alert.begin_time) if self.parent.alert else "--"
 
@@ -958,8 +962,9 @@ class Alarm(BaseContextObject):
         if not alert.strategy:
             return None
 
+        # 使用 create_time (最近异常时间)，防止数据过期
         return ApmAlertHelper.get_trace_url(
-            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, self.begin_timestamp, self.duration
+            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, self.create_timestamp, self.duration
         )
 
     @cached_property
