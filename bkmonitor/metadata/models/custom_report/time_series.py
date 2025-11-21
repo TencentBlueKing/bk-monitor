@@ -494,6 +494,8 @@ class TimeSeriesGroup(CustomGroupBase):
                 latest_update_time = 0
                 # 保存分组信息
                 group_dimensions_info = {}
+                # 构造 tag_value_list，用于存储每个维度的更新时间和值列表
+                tag_value_list = {}
 
                 for group_key, group_info in md["group_dimensions"].items():
                     dimensions = group_info.get("dimensions", [])
@@ -508,10 +510,22 @@ class TimeSeriesGroup(CustomGroupBase):
                         "update_time": update_time,
                     }
 
+                    for dim_name in dimensions:
+                        if dim_name not in tag_value_list:
+                            # 使用默认值：空列表表示该维度存在但暂无具体值
+                            tag_value_list[dim_name] = {
+                                "last_update_time": update_time,
+                                "values": [],
+                            }
+                        else:
+                            # 如果维度已存在，更新为最新的时间和值
+                            if update_time > tag_value_list[dim_name]["last_update_time"]:
+                                tag_value_list[dim_name]["last_update_time"] = update_time
+
                 item = {
                     "field_name": md["name"],
                     "last_modify_time": latest_update_time // 1000,
-                    "tag_value_list": {},
+                    "tag_value_list": tag_value_list,
                     "group_dimensions": group_dimensions_info,  # 添加分组信息
                 }
             else:
@@ -1557,7 +1571,12 @@ class TimeSeriesMetric(models.Model):
             格式2 - 带 group_dimensions（新格式）：
             [{
                 "field_name": "cpu_usage",
-                "tag_value_list": {},
+                "tag_value_list": {
+                    "endpoint": {
+                        'last_update_time': 1701438084,
+                        'values': ["value1", "value2"]
+                    }
+                },
                 "group_dimensions": {
                     "service_name:api-server||scope_name:production": {
                         "dimensions": ["service_name", "disk", "pod", "region"],
