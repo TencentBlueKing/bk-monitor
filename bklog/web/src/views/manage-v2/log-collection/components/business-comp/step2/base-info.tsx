@@ -406,7 +406,10 @@ export default defineComponent({
 
           {/* 所属索引集 */}
           <bk-form-item label={t('所属索引集')}>
-            <IndexSetSelect on-select={val => updateFormField('parent_index_set_ids', val)} />
+            <IndexSetSelect
+              value={formData.value.parent_index_set_ids}
+              on-select={val => updateFormField('parent_index_set_ids', val)}
+            />
           </bk-form-item>
 
           {/* 备注说明（默认和自定义类型显示） */}

@@ -226,7 +226,6 @@ export const useCollectList = () => {
         params.collectorId = row.index_set_id;
       }
       query.typeKey = typeKey;
-      console.log(row, params, query, backRoute, 'edit', typeKey);
     }
     store.commit('collect/setCurCollect', row);
 
@@ -261,6 +260,43 @@ export const useCollectList = () => {
           ],
         });
       }
+    } else if (operateType === 'view') {
+      // 查看权限
+      if (!row.permission?.[authorityMap.VIEW_COLLECTION_AUTH]) {
+        return getOptionApplyData({
+          action_ids: [authorityMap.VIEW_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'collection',
+              id: row.collector_config_id,
+            },
+          ],
+        });
+      }
+    } else if (operateType === 'search') {
+      // 检索权限
+      if (!row.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
+        return getOptionApplyData({
+          action_ids: [authorityMap.SEARCH_LOG_AUTH],
+          resources: [
+            {
+              type: 'indices',
+              id: row.index_set_id,
+            },
+          ],
+        });
+      }
+    } else if (!row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) {
+      // 管理权限
+      return getOptionApplyData({
+        action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
+        resources: [
+          {
+            type: 'collection',
+            id: row.collector_config_id,
+          },
+        ],
+      });
     }
     leaveCurrentPage(row, operateType, typeKey);
   };

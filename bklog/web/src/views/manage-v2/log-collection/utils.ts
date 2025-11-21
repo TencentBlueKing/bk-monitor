@@ -1,66 +1,93 @@
 import ContainerSvg from '@/images/container-icons/Container.svg';
 import NodeSvg from '@/images/container-icons/Node.svg';
-
+import { formatFileSize, random } from '@/common/util';
 /**
  * 采集项状态
  */
 export const STATUS_ENUM = [
   {
-    text: window.$t('部署中'),
-    value: 'running',
+    label: window.$t('部署中'),
+    value: 'RUNNING',
     color: '#3A84FF',
     background: '#C5DBFF',
   },
   {
-    text: window.$t('正常'),
-    value: 'success',
+    label: window.$t('部署中'),
+    value: 'UNKNOWN',
+    color: '#3A84FF',
+    background: '#C5DBFF',
+  },
+  {
+    label: window.$t('部署中'),
+    value: 'PREPARE',
+    color: '#3A84FF',
+    background: '#C5DBFF',
+  },
+  {
+    label: window.$t('正常'),
+    value: 'SUCCESS',
     color: '#3FC06D',
     background: '#DAF6E5',
   },
   {
-    text: window.$t('异常'),
+    label: window.$t('异常'),
     value: 'FAILED',
     color: '#EA3636',
     background: '#FFEBEB',
   },
   {
-    text: window.$t('停用'),
+    label: window.$t('停用'),
     value: 'TERMINATED',
     color: '#979BA5',
     background: '#979ba529',
+  },
+];
+export const STATUS_ENUM_FILTER = [
+  {
+    label: window.$t('部署中'),
+    value: 'RUNNING,UNKNOWN,PREPARE',
+  },
+  {
+    label: window.$t('正常'),
+    value: 'SUCCESS',
+  },
+  {
+    label: window.$t('异常'),
+    value: 'FAILED',
+  },
+  {
+    label: window.$t('停用'),
+    value: 'TERMINATED',
   },
 ];
 /**
  * 全局日志分类
  */
 export const GLOBAL_CATEGORIES_ENUM = [
-  { text: window.$t('进程'), value: 'host_process' },
-  { text: window.$t('操作系统'), value: 'os' },
-  { text: window.$t('主机设备'), value: 'host_device' },
-  { text: window.$t('Kubernetes'), value: 'kubernetes' },
-  { text: window.$t('服务模块'), value: 'service_module' },
-  { text: window.$t('业务应用'), value: 'application_check' },
-  { text: window.$t('其他'), value: 'others' },
+  { label: window.$t('采集接入'), value: 'log' },
+  { label: window.$t('数据平台'), value: 'bkdata' },
+  { label: window.$t('第三方ES'), value: 'es' },
+  // { label: window.$t('其他'), value: 'others' },
 ];
 /**
  * 自定义日志分类
  */
 export const CUSTOM_TYPE_ENUM = [
-  { text: window.$t('日志上报'), value: 'log' },
-  { text: window.$t('otlp_trace的上报方式'), value: 'otlp_trace' },
-  { text: window.$t('otlp_log的上报方式'), value: 'otlp_log' },
+  { label: window.$t('日志上报'), value: 'log' },
+  { label: window.$t('otlp_trace的上报方式'), value: 'otlp_trace' },
+  { label: window.$t('otlp_log的上报方式'), value: 'otlp_log' },
 ];
 /**
  * 日志采集场景
  */
 export const COLLECTOR_SCENARIO_ENUM = [
-  { value: 'row', text: window.$t('行日志文件') },
-  { value: 'section', text: window.$t('段日志文件') },
-  { value: 'win_event', text: window.$t('win event日志') },
-  { value: 'custom', text: window.$t('自定义') },
-  { value: 'redis_slowlog', text: window.$t('Redis慢日志') },
-  { value: 'syslog', text: window.$t('Syslog Server') },
-  { value: 'kafka', text: window.$t('KAFKA') },
+  { value: 'row', label: window.$t('行日志文件') },
+  { value: 'section', label: window.$t('段日志文件') },
+  { value: 'win_event', label: window.$t('win event日志') },
+  { value: 'custom', label: window.$t('自定义') },
+  // { value: 'redis_slowlog', label: window.$t('Redis慢日志') },
+  // { value: 'syslog', label: window.$t('Syslog Server') },
+  // { value: 'kafka', label: window.$t('KAFKA') },
 ];
 
 /** 表格需要展示的字段 */
@@ -145,10 +172,10 @@ export const MENU_LIST = [
     label: window.$t('清洗'),
     key: 'clean',
   },
-  {
-    label: window.$t('脱敏'),
-    key: 'desensitization',
-  },
+  // {
+  //   label: window.$t('脱敏'),
+  //   key: 'desensitization',
+  // },
   {
     label: window.$t('存储设置'),
     key: 'storage_setting',
@@ -390,4 +417,53 @@ export const getScenarioIdType = (scenario_id, environment, collector_scenario_i
 
   // 4. 如果以上条件都不满足，返回 null
   return null;
+};
+
+/**
+ * 格式化字节大小为可读字符串。
+ *
+ * @param {number|undefined} size - 需要格式化的字节大小。
+ *
+ * @returns {string} 格式化后的文件大小字符串，或默认字符串 `'--'`。
+ */
+export function formatBytes(size) {
+  if (size === undefined) {
+    return '--';
+  }
+  if (size === 0) {
+    return '0';
+  }
+  return formatFileSize(size, true);
+}
+
+export const getOperatorCanClick = (row, operateType, collectProject) => {
+  if (operateType === 'search') {
+    return !(!row.is_active || (!row.index_set_id && !row.bkdata_index_set_ids.length));
+  }
+  if (['clean', 'storage', 'clone'].includes(operateType)) {
+    return !row.status || row.table_id;
+  }
+  if (['stop', 'start'].includes(operateType)) {
+    return (
+      !(!row.status || row.status === 'running' || row.status === 'prepare' || !collectProject) ||
+      row.is_active !== undefined
+    );
+  }
+  if (operateType === 'delete') {
+    return !(!row.status || row.status === 'running' || row.is_active || !collectProject);
+  }
+  return true;
+};
+
+export const getLabelSelectorArray = selector => {
+  return Object.entries(selector).reduce((pre, [labelKey, labelVal]) => {
+    pre.push(...labelVal.map(item => ({ ...item, id: random(10), type: labelKey })));
+    return pre;
+  }, []);
+};
+
+export const getContainerNameList = (containerName = '') => {
+  const splitList = containerName.split(',');
+  if (splitList.length === 1 && splitList[0] === '') return [];
+  return splitList;
 };

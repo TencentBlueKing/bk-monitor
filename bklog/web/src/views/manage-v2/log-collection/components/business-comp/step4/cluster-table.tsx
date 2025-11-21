@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, watch, type PropType } from 'vue';
 
 import { formatFileSize } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -33,63 +33,155 @@ import { useRouter } from 'vue-router/composables';
 
 import './cluster-table.scss';
 
-/**
- * 集群选择表格
- */
+// ==================== 类型定义 ====================
 
+/**
+ * 集群配置接口
+ */
+interface ISetupConfig {
+  /** 最大副本数 */
+  number_of_replicas_max: number;
+  /** 最大保留天数 */
+  retention_days_max: number;
+  /** 最大分片数 */
+  es_shards_max?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * 集群项接口
+ */
+interface IClusterItem {
+  /** 存储集群ID */
+  storage_cluster_id: number;
+  /** 存储集群名称 */
+  storage_cluster_name: string;
+  /** 存储总量（字节） */
+  storage_total: number;
+  /** 存储使用率（百分比，0-100） */
+  storage_usage: number;
+  /** 索引数量 */
+  index_count?: number;
+  /** 业务数量 */
+  biz_count?: number;
+  /** 集群描述 */
+  description?: string;
+  /** 是否启用冷热数据 */
+  enable_hot_warm?: boolean;
+  /** 是否启用日志归档 */
+  enable_archive?: boolean;
+  /** 集群配置 */
+  setup_config?: ISetupConfig;
+  [key: string]: unknown;
+}
+
+/**
+ * 集群描述项接口
+ */
+interface IClusterDescItem {
+  /** 标签 */
+  label: string;
+  /** 值 */
+  value: string;
+}
+
+/**
+ * 集群选择表格组件
+ * 功能：
+ * 1. 显示集群列表，支持选择
+ * 2. 显示集群详细信息（副本数量、过期时间、冷热数据、日志归档、集群备注）
+ * 3. 支持空状态显示和创建新集群
+ */
 export default defineComponent({
   name: 'ClusterTable',
   props: {
     /** 集群列表 */
     clusterList: {
-      type: Array,
+      type: Array as PropType<IClusterItem[]>,
       default: () => [],
     },
+    /** 是否显示业务数列 */
     showBizCount: {
       type: Boolean,
       default: true,
     },
+    /** 当前选中的集群ID */
     clusterSelect: {
       type: Number,
+      default: undefined,
     },
+    /** 组件名称（用于空状态显示） */
     name: {
       type: String,
       default: '',
     },
+    /** 加载状态 */
     loading: {
       type: Boolean,
       default: false,
     },
   },
-
   emits: ['choose'],
 
   setup(props, { emit }) {
+    // ==================== 基础依赖 ====================
     const { t } = useLocale();
     const router = useRouter();
     const store = useStore();
-    const PERCENT_BASE = 100;
-    const currentRow = ref(null);
-    const setupConfig = ref(null);
 
-    const getPercent = row => {
+    // ==================== 常量定义 ====================
+    /** 百分比基数 */
+    const PERCENT_BASE = 100;
+
+    // ==================== 响应式状态 ====================
+    /** 当前选中的集群行数据 */
+    const currentRow = ref<IClusterItem | null>(null);
+    /** 当前选中集群的配置信息 */
+    const setupConfig = ref<ISetupConfig | null>(null);
+
+    // ==================== 计算属性 ====================
+
+    /**
+     * 计算空闲率百分比
+     * @param row - 集群项数据
+     * @returns 空闲率（0-1之间的小数）
+     */
+    const getPercent = (row: IClusterItem): number => {
       return (PERCENT_BASE - row.storage_usage) / PERCENT_BASE;
     };
-    /** 选中集群 */
-    const handleSelectCluster = row => {
-      setupConfig.value = row.setup_config;
-      currentRow.value = row;
-      emit('choose', row);
-    };
-    const isSelected = item => props.clusterSelect === item.storage_cluster_id;
-    const isShowDesc = computed(() => props.clusterSelect && props.clusterList.find(item => isSelected(item)));
 
-    const clusterDesc = computed(() => {
+    /**
+     * 判断集群是否被选中
+     * @param item - 集群项
+     * @returns 是否选中
+     */
+    const isSelected = (item: IClusterItem): boolean => {
+      return props.clusterSelect === item.storage_cluster_id;
+    };
+
+    /**
+     * 是否显示集群说明
+     * 当有选中的集群且该集群存在于列表中时显示
+     */
+    const isShowDesc = computed(() => {
+      if (!props.clusterSelect) {
+        return false;
+      }
+      return props.clusterList.some(item => isSelected(item));
+    });
+
+    /**
+     * 集群描述信息列表
+     * 包含：副本数量、过期时间、冷热数据、日志归档、集群备注
+     */
+    const clusterDesc = computed<IClusterDescItem[]>(() => {
       if (!setupConfig.value || !currentRow.value) {
         return [];
       }
+
       const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = setupConfig.value;
       const { description, enable_hot_warm: hotWarm, enable_archive: archive } = currentRow.value;
+
       return [
         {
           label: t('副本数量'),
@@ -113,7 +205,24 @@ export default defineComponent({
         },
       ];
     });
-    const handleCreateCluster = () => {
+
+    // ==================== 事件处理函数 ====================
+
+    /**
+     * 处理集群选择事件
+     * @param row - 选中的集群数据
+     */
+    const handleSelectCluster = (row: IClusterItem): void => {
+      setupConfig.value = row.setup_config || null;
+      currentRow.value = row;
+      emit('choose', row);
+    };
+
+    /**
+     * 处理创建集群操作
+     * 在新窗口打开集群管理页面
+     */
+    const handleCreateCluster = (): void => {
       const newUrl = router.resolve({
         name: 'es-cluster-manage',
         query: {
@@ -122,7 +231,33 @@ export default defineComponent({
       });
       window.open(newUrl.href, '_blank');
     };
-    /** 集群表格 */
+
+    // ==================== 监听器 ====================
+
+    /**
+     * 监听集群列表变化，自动选中指定的集群
+     * 当集群列表更新且存在指定的选中集群时，自动触发选择
+     */
+    watch(
+      () => props.clusterList,
+      val => {
+        if (!props.clusterSelect) {
+          return;
+        }
+        const targetCluster = val.find(item => item.storage_cluster_id === props.clusterSelect);
+        if (targetCluster) {
+          handleSelectCluster(targetCluster);
+        }
+      },
+      { deep: true },
+    );
+    // ==================== 渲染函数 ====================
+
+    /**
+     * 渲染集群表格
+     * 显示集群列表，包含：集群名、总量、空闲率、索引数、业务数（可选）
+     * @returns JSX元素
+     */
     const renderClusterTable = () => (
       <div
         style={{ width: isShowDesc.value ? '58%' : '100%' }}
@@ -134,9 +269,10 @@ export default defineComponent({
           data={props.clusterList}
           on-row-click={handleSelectCluster}
         >
+          {/* 集群名列 */}
           <bk-table-column
             scopedSlots={{
-              default: ({ row }) => (
+              default: ({ row }: { row: IClusterItem }) => (
                 <bk-radio checked={isSelected(row)}>
                   <div
                     class='overflow-tips'
@@ -150,16 +286,18 @@ export default defineComponent({
             label={t('集群名')}
             min-width='240'
           />
+          {/* 总量列 */}
           <bk-table-column
             scopedSlots={{
-              default: ({ row }) => <span>{formatFileSize(row.storage_total)}</span>,
+              default: ({ row }: { row: IClusterItem }) => <span>{formatFileSize(row.storage_total)}</span>,
             }}
             label={t('总量')}
             min-width='90'
           />
+          {/* 空闲率列 */}
           <bk-table-column
             scopedSlots={{
-              default: ({ row }) => (
+              default: ({ row }: { row: IClusterItem }) => (
                 <div class='percent'>
                   <div class='percent-progress'>
                     <bk-progress
@@ -175,10 +313,12 @@ export default defineComponent({
             label={t('空闲率')}
             min-width='120'
           />
+          {/* 索引数列 */}
           <bk-table-column
             label={t('索引数')}
             prop='index_count'
           />
+          {/* 业务数列（可选） */}
           {props.showBizCount && (
             <bk-table-column
               label={t('业务数')}
@@ -189,6 +329,11 @@ export default defineComponent({
       </div>
     );
 
+    /**
+     * 渲染空状态
+     * 当集群列表为空时显示，提供创建集群的入口
+     * @returns JSX元素
+     */
     const renderEmpty = () => (
       <bk-exception
         class='cluster-content-empty'
@@ -197,7 +342,7 @@ export default defineComponent({
       >
         <span>
           {t('暂无')}
-          {t(props.name)}
+          {props.name ? t(props.name) : ''}
         </span>
         <div
           class='text-wrap text-part'
@@ -208,7 +353,11 @@ export default defineComponent({
       </bk-exception>
     );
 
-    /** 集群说明 */
+    /**
+     * 渲染集群说明
+     * 显示选中集群的详细信息：副本数量、过期时间、冷热数据、日志归档、集群备注
+     * @returns JSX元素
+     */
     const renderClusterDesc = () => (
       <div class='cluster-content-desc'>
         <div class='desc-title'>{t('集群说明')}</div>
@@ -225,6 +374,9 @@ export default defineComponent({
         </div>
       </div>
     );
+
+    // ==================== 渲染 ====================
+
     return () => (
       <div class='cluster-table-box'>
         {(props.clusterList || []).length === 0

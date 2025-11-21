@@ -120,7 +120,7 @@ export default defineComponent({
     // 规范化选择器：将 match_labels 合并进 match_expressions 并移除 match_labels
     const normalizeSelector = (selector: Record<string, any>) => {
       if (!selector) {
-        return selector;
+        return {};
       }
       if (
         props.editType === 'label_selector' &&
@@ -140,7 +140,7 @@ export default defineComponent({
     };
 
     // 缓存配置数据（初始化时即进行规范化处理）
-    const cacheConfig = ref(normalizeSelector({ ...(props.config as any)[props.editType] }));
+    const cacheConfig = ref(normalizeSelector({ ...(props.config as any)[props.editType] }) || {});
 
     // 计算属性：是否为标签编辑
     const isLabelEdit = computed(() => props.editType === 'label_selector');
@@ -182,7 +182,13 @@ export default defineComponent({
     const handleItemChange = (index: number, newValue: IMatchExpressionsItem, isMatchLabels = false) => {
       const keys = isMatchLabels ? 'match_labels' : typeKeys.value;
       if (cacheConfig.value[keys]) {
-        cacheConfig.value[keys][index] = { ...newValue };
+        // 创建新数组以确保响应式更新
+        const newArray = [...cacheConfig.value[keys]];
+        newArray[index] = { ...newValue };
+        cacheConfig.value = {
+          ...cacheConfig.value,
+          [keys]: newArray,
+        };
         emit('change', { [props.editType]: cacheConfig.value });
       }
     };
@@ -194,7 +200,13 @@ export default defineComponent({
     const handleItemDelete = (index: number, isMatchLabels = false) => {
       const keys = isMatchLabels ? 'match_labels' : typeKeys.value;
       if (cacheConfig.value[keys]) {
-        cacheConfig.value[keys].splice(index, 1);
+        // 创建新数组以确保响应式更新
+        const newArray = [...cacheConfig.value[keys]];
+        newArray.splice(index, 1);
+        cacheConfig.value = {
+          ...cacheConfig.value,
+          [keys]: newArray,
+        };
         emit('change', { [props.editType]: cacheConfig.value });
       }
     };
@@ -213,7 +225,11 @@ export default defineComponent({
     const handleSelect = data => {
       const existingItems = cacheConfig.value[typeKeys.value] || [];
       const newItems = [...existingItems, ...data];
-      cacheConfig.value[typeKeys.value] = deduplicateItems(newItems);
+      // 创建新对象以确保响应式更新
+      cacheConfig.value = {
+        ...cacheConfig.value,
+        [typeKeys.value]: deduplicateItems(newItems),
+      };
       emit('change', { [props.editType]: cacheConfig.value });
     };
 
@@ -240,7 +256,13 @@ export default defineComponent({
                   operator: 'In',
                   value: '',
                 };
-                cacheConfig.value[typeKeys.value].push(newItem);
+                const currentKey = typeKeys.value;
+                const currentArray = cacheConfig.value[currentKey] || [];
+                // 创建新对象以确保响应式更新
+                cacheConfig.value = {
+                  ...cacheConfig.value,
+                  [currentKey]: [...currentArray, newItem],
+                };
                 emit('change', { [props.editType]: cacheConfig.value });
               }}
             >

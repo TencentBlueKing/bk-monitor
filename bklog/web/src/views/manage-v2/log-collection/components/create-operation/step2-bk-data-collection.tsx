@@ -135,6 +135,7 @@ interface IConfigData {
   target_fields: string[];
   /** 排序字段列表 */
   sort_fields: string[];
+  parent_index_set_ids: number[];
 }
 
 /**
@@ -236,6 +237,7 @@ export default defineComponent({
       indexes: [],
       target_fields: [],
       sort_fields: [],
+      parent_index_set_ids: [],
     });
 
     // ==================== 计算属性 ====================

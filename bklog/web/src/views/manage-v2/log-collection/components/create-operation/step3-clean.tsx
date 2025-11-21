@@ -301,6 +301,9 @@ export default defineComponent({
           const fields = res.data?.fields || [];
           formData.value.etl_params?.metadata_fields.push(...fields);
         })
+        .catch(err => {
+          console.log(err);
+        })
         .finally(() => {
           isDebugLoading.value = false;
         });
@@ -365,6 +368,9 @@ export default defineComponent({
           // formData.value.etl_fields = res.data?.fields || [];
           // const fields = res.data?.fields || [];
           // formData.value.etl_params?.metadata_fields.push(...fields);
+        })
+        .catch(err => {
+          console.log(err);
         })
         .finally(() => {
           isDebugLoading.value = false;
@@ -504,7 +510,9 @@ export default defineComponent({
             });
           }
         })
-        .catch(() => {})
+        .catch(err => {
+          console.log(err);
+        })
         .finally(() => {
           // if (type === 'init') {
           //   this.basicLoading = false;
@@ -1037,12 +1045,15 @@ export default defineComponent({
                 })
                 .then(res => {
                   if (res?.result) {
-                    emit('next', formData.value);
+                    const data = props.isEdit ? { ...formData.value, ...curCollect.value } : formData.value;
+                    emit('next', data);
                   }
-                  console.log('res', res);
+                })
+                .catch(err => {
+                  console.log(err);
                 });
 
-              console.log('formData.value', formData.value);
+              console.log('formData.value------', formData.value);
             }}
           >
             {t('下一步')}

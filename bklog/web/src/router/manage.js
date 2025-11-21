@@ -217,7 +217,8 @@ const getManageRoutes = () => [
                   backName: 'collection-item',
                   navId: 'log-collection',
                 },
-                component: oldAccessSteps,
+                component: AccessSteps,
+                // component: oldAccessSteps,
               },
               // 字段清洗
               {

@@ -62,6 +62,7 @@ export default defineComponent({
       storage_replies: 1,
       description: '',
       es_shards: 3,
+      parent_index_set_ids: [],
     });
     const globalsData = computed(() => store.getters['globals/globalsData']);
     /**
@@ -102,14 +103,7 @@ export default defineComponent({
           ...res?.data,
           index_set_name: collector_config_name,
         };
-        // 缓存编辑时的集群ID
-
-        // this.editStorageClusterID = storage_cluster_id;
-        // this.fieldSettingData = {
-        //   indexSetId: index_set_id || 0,
-        //   targetFields: target_fields || [],
-        //   sortFields: sort_fields || [],
-        // };
+        store.commit('collect/setCurCollect', res.data);
       } else {
         const { retention } = configData.value;
         Object.assign(configData.value, {

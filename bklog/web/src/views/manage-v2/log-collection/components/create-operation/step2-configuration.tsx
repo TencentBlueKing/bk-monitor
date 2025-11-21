@@ -40,6 +40,8 @@ import {
   LOG_SPECIES_LIST,
   LOG_TYPE_LIST,
   COLLECT_METHOD_LIST,
+  getLabelSelectorArray,
+  getContainerNameList,
 } from '../../utils'; // 工具函数
 
 import BaseInfo from '../business-comp/step2/base-info';
@@ -378,7 +380,7 @@ export default defineComponent({
       if (props.isEdit) {
         setDetail();
       }
-      console.log('props.isEdit', props.isEdit);
+      // console.log('props.isEdit', props.isEdit);
     });
 
     const setDetail = () => {
@@ -389,7 +391,7 @@ export default defineComponent({
         })
         .then(res => {
           if (res.data) {
-            const { configs, collector_scenario_id, collector_config_name, params } = res.data;
+            const { configs, collector_scenario_id, collector_config_name, params, extra_labels } = res.data;
             const paths = params.paths?.map(item => ({ value: item })) || [{ value: '' }];
             const exclude_files = params.exclude_files?.map(item => ({ value: item })) || [{ value: '' }];
             formData.value = {
@@ -415,17 +417,65 @@ export default defineComponent({
                 selectLogSpeciesList.value = selectLogSpeciesList.value.filter(item => item !== 'Other');
               }
             }
-            // collectorType.value = configs[0]?.collector_type;
-            logType.value = collector_scenario_id;
-            // noQuestParams
+            /**
+             * 容器采集的时候
+             */
+            if (showClusterListKeys.includes(props.scenarioId)) {
+              logType.value = collector_scenario_id;
+              collectorType.value = configs[0]?.collector_type;
+              formData.value.params.extra_labels = extra_labels;
+              const newConfigs = (configs || []).map(item => {
+                const {
+                  namespaces,
+                  container_name,
+                  match_expressions,
+                  match_labels,
+                  workload_name,
+                  workload_type,
+                  container_name_exclude,
+                  match_annotations,
+                  namespaces_exclude,
+                  params,
+                } = item;
+                console.log(item, '===');
+                const paths = params.paths?.map(item => ({ value: item })) || [{ value: '' }];
+                const exclude_files = params.exclude_files?.map(item => ({ value: item })) || [{ value: '' }];
+                const labelSelector = getLabelSelectorArray({
+                  match_expressions,
+                  match_labels,
+                });
+                const annotationSelector = getLabelSelectorArray({
+                  match_annotations: match_annotations || [],
+                });
+                const containerExclude = container_name_exclude ? '!=' : '=';
+                const namespacesExclude = namespaces_exclude?.length ? '!=' : '=';
+                const containerNameList = getContainerNameList(container_name || container_name_exclude);
+                const namespaceStr = namespaces.length === 1 && namespaces[0] === '*' ? '' : namespaces.join(',');
+                const noQuestParams = {
+                  scopeSelectShow: {
+                    namespace: !namespaces.length,
+                    label: !labelSelector.length,
+                    load: !(Boolean(workload_type) || Boolean(workload_name)),
+                    containerName: !containerNameList.length,
+                    annotation: !annotationSelector.length,
+                  },
+                  namespaceStr,
+                  containerExclude,
+                  namespacesExclude,
+                };
+                return {
+                  ...item,
+                  noQuestParams,
+                  params: {
+                    ...params,
+                    paths,
+                    exclude_files,
+                  },
+                };
+              });
+              formData.value.configs = newConfigs;
+            }
             store.commit('collect/setCurCollect', res.data);
-            console.log('res.data', res.data, configs, paths, exclude_files);
-            // console.log('res.data', res.data, configs[0]?.collector_type, configs);
-            // console.log('res.data-----', res.data, curCollect.value);
-            // builtInFieldsList.value = curCollect.value.fields;
-            // getDetail();
-            // await getCleanStash(id);
-            // getDataLog('init');
           }
         })
         .catch(err => {
@@ -552,9 +602,9 @@ export default defineComponent({
                 }}
                 on-click={() => {
                   collectorType.value = item.id;
-                  console.log(collectorType.value, 'collectorType.value');
                   formData.value.configs?.map(config => {
                     config.collector_type = item.id;
+                    config.noQuestParams.scopeSelectShow.namespace = false;
                     return config;
                   });
                 }}
@@ -951,7 +1001,12 @@ export default defineComponent({
         };
         console.log(requestData, 'requestData');
       }
-
+      /**
+       * 容器采集的时候
+       */
+      if (showClusterListKeys.includes(props.scenarioId)) {
+        requestData.extra_labels = params.extra_labels;
+      }
       $http
         .request(requestUrl, {
           params: urlParams,
@@ -980,11 +1035,17 @@ export default defineComponent({
       /**
        * 日志路径校验
        */
-      const isErr = isHostLog.value && pathRef.value.validate();
+      let isErr = true;
       /**
        * 日志过滤器校验
        */
-      const isLogFilterErr = isHostLog.value && logFilterRef.value.validateInputs();
+      let isLogFilterErr = true;
+      if (isHostLog.value) {
+        isErr = pathRef.value.validate();
+
+        isLogFilterErr = logFilterRef.value.validateInputs();
+      }
+
       /**
        * 行首正则是否为空
        */
@@ -1003,7 +1064,6 @@ export default defineComponent({
       baseInfoRef.value
         .validate()
         .then(() => {
-          console.log('下一步', formData.value);
           if (props.scenarioId === 'wineventlog') {
             setCollection();
             return;

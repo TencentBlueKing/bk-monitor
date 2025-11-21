@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted, watch, computed } from 'vue';
+import { defineComponent, ref, onMounted, watch, computed, nextTick } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -108,6 +108,8 @@ export default defineComponent({
     const logOriginalLoading = ref<boolean>(false);
     /** 验证器组件引用集合 */
     const validatorInputRefs = ref<Record<string, any>>({});
+    /** 是否正在初始化，用于避免初始化时触发 emit */
+    const isInitializing = ref<boolean>(false);
 
     // -------------------------- 计算属性 --------------------------
     /** 全局数据分隔符选项（从store获取） */
@@ -147,6 +149,10 @@ export default defineComponent({
      * 向父组件传递过滤条件变更
      */
     const emitConditionsChange = () => {
+      // 初始化期间不触发 emit，避免循环调用
+      if (isInitializing.value) {
+        return;
+      }
       emit('conditions-change', getSubmitConditions());
     };
 
@@ -154,8 +160,10 @@ export default defineComponent({
      * 初始化过滤数据（根据props.conditions）
      */
     const initFilterData = () => {
-      const { type, separator: sep, separator_filters, match_content, match_type } = props.conditions;
+      // 设置初始化标志，避免触发 emit
+      isInitializing.value = true;
 
+      const { type, separator: sep, separator_filters, match_content, match_type } = props.conditions;
       switch (type) {
         case 'none':
           filterSwitcher.value = false;
@@ -169,6 +177,11 @@ export default defineComponent({
         default:
           break;
       }
+
+      // 使用 nextTick 确保所有响应式更新完成后再清除标志
+      nextTick(() => {
+        isInitializing.value = false;
+      });
     };
 
     /**
@@ -509,6 +522,17 @@ export default defineComponent({
     // -------------------------- 监听逻辑 --------------------------
     // 监听目标数据变化，防抖触发条件变更事件
     watch(() => watchTarget.value, debounce(100, emitConditionsChange), { deep: true, immediate: true });
+
+    watch(
+      () => props.conditions,
+      (newVal, oldVal) => {
+        // 深度比较，避免相同引用时重复初始化
+        if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+          initFilterData();
+        }
+      },
+      { deep: true },
+    );
 
     // -------------------------- 暴露方法 --------------------------
     expose({

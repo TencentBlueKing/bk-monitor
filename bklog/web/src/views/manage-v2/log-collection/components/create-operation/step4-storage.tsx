@@ -76,29 +76,6 @@ export default defineComponent({
       ...props.configData,
     });
     const cleanStash = ref({});
-    onMounted(() => {
-      console.log('props.configData=====', props.configData, 'configData', formData.value);
-    });
-
-    watch(
-      () => props.configData,
-      val => {
-        formData.value = { ...formData.value, ...val };
-        console.log('formData.value', formData.value);
-      },
-      { deep: true },
-    );
-    watch(
-      () => props.isEdit,
-      val => {
-        if (val) {
-          console.log('props.configData in isEdit===', props.configData, formData.value);
-          formData.value = { ...formData.value, ...props.configData };
-          clusterSelect.value = props.configData.storage_cluster_id;
-        }
-      },
-      { immediate: true },
-    );
 
     const bkBizId = computed(() => store.state.bkBizId);
     const curCollect = computed(() => store.getters['collect/curCollect']);
@@ -157,14 +134,11 @@ export default defineComponent({
 
       try {
         loading.value = true;
-        const response = await $http.request('collect/getStorage', { query: queryParams });
+        const res = await $http.request('collect/getStorage', { query: queryParams });
 
-        if (response.data) {
+        if (res.data) {
           // 调用通用排序函数处理数据
-          storageList.value = sortByPermission(response.data);
-          if (props.isEdit) {
-          }
-          // clusterSelect.value
+          storageList.value = sortByPermission(res.data);
         }
       } catch (error) {
         showMessage(error.message, 'error');
@@ -177,16 +151,18 @@ export default defineComponent({
      * @param row
      */
     const handleChooseCluster = row => {
-      console.log('选择集群', row);
+      if (row.storage_cluster_id !== clusterSelect.value) {
+        const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = row.setup_config;
+        formData.value = {
+          ...formData.value,
+          storage_cluster_id: row.storage_cluster_id,
+          storage_replies: replicasMax,
+          retention: daysMax,
+          allocation_min_days: row.enable_hot_warm ? daysMax : 0,
+        };
+      }
       clusterSelect.value = row.storage_cluster_id;
       clusterData.value = row;
-      const { number_of_replicas_max: replicasMax, retention_days_max: daysMax } = row.setup_config;
-      formData.value = {
-        ...formData.value,
-        storage_replies: replicasMax,
-        retention: daysMax,
-        allocation_min_days: row.enable_hot_warm ? daysMax : 0,
-      };
     };
     /**
      * 获取采集项清洗缓存
@@ -350,15 +326,38 @@ export default defineComponent({
      */
     const handleCustomSubmit = () => {
       submitLoading.value = true;
-      const { collector_config_name, index_set_name } = formData.value;
+      const {
+        collector_config_name,
+        index_set_name,
+        bk_data_id,
+        custom_type,
+        retention,
+        allocation_min_days,
+        storage_replies,
+        category_id,
+        description,
+        storage_cluster_id,
+        es_shards,
+        parent_index_set_ids,
+      } = formData.value;
+      console.log('formData.value====', formData.value, props.configData);
+      // return;
       $http
-        .request(`custom/${isEdit.value ? 'setCustom' : 'createCustom'}`, {
+        .request(`custom/${props.isEdit ? 'setCustom' : 'createCustom'}`, {
           params: {
-            collector_config_id: props.configData.collectorId,
+            collector_config_id: props.configData.collector_config_id,
           },
           data: {
-            ...props.configData,
-            ...formData.value,
+            bk_data_id,
+            custom_type,
+            storage_cluster_id,
+            retention,
+            allocation_min_days,
+            storage_replies,
+            category_id,
+            description,
+            es_shards,
+            parent_index_set_ids,
             collector_config_name: collector_config_name || index_set_name,
             bk_biz_id: Number(bkBizId.value),
           },
@@ -426,6 +425,17 @@ export default defineComponent({
         handleNormalSubmit();
       }
     };
+    watch(
+      () => props.isEdit,
+      val => {
+        if (val) {
+          formData.value = { ...formData.value, ...props.configData };
+          clusterSelect.value = props.configData.storage_cluster_id;
+          console.log(clusterSelect.value, 'clusterSelect.value');
+        }
+      },
+      { immediate: true },
+    );
     return () => (
       <div class='operation-step4-storage'>
         {cardRender(cardConfig)}
