@@ -178,6 +178,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             try:
                 alert_doc = AlertDocument.get(item["id"])
                 snapshot_alerts[item["id"]] = alert_doc
+                # 更新快照中的alert_status字段，确保数据完整性
+                item["alert_status"] = alert_doc.status
                 if alert_doc.incident_id == incident_document.id:
                     continue
 
@@ -329,18 +331,18 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     alert_doc.alert_name,
                     alert_doc.id,
                 )
-            elif (
-                alert_doc.id in last_snapshot_alerts
-                and last_snapshot_alerts[alert_doc.id].get("alert_status") != alert_doc.status
-            ):
-                operation = {
-                    EventStatus.RECOVERED: IncidentOperationManager.record_incident_alert_recover,
-                    EventStatus.CLOSED: IncidentOperationManager.record_incident_alert_invalid,
-                }.get(alert_doc.status)
-                if operation:
-                    operation(
-                        last_snapshot.incident_id,
-                        int(alert_doc.update_time),
-                        alert_doc.alert_name,
-                        alert_doc.id,
-                    )
+            elif alert_doc.id in last_snapshot_alerts:
+                # 增强状态比较逻辑的健壮性，只有当旧状态存在且不同时才记录
+                old_status = last_snapshot_alerts[alert_doc.id].get("alert_status")
+                if old_status and old_status != alert_doc.status:
+                    operation = {
+                        EventStatus.RECOVERED: IncidentOperationManager.record_incident_alert_recover,
+                        EventStatus.CLOSED: IncidentOperationManager.record_incident_alert_invalid,
+                    }.get(alert_doc.status)
+                    if operation:
+                        operation(
+                            last_snapshot.incident_id,
+                            int(alert_doc.update_time),
+                            alert_doc.alert_name,
+                            alert_doc.id,
+                        )
