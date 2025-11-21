@@ -193,19 +193,3 @@ class BkAppSpaceRecord(BaseModel):
         verbose_name = "蓝鲸应用空间授权记录"
         verbose_name_plural = "蓝鲸应用空间授权记录"
         unique_together = ("bk_app_code", "space_uid")
-
-
-class SpaceTypeToResultTableFilterAlias(models.Model):
-    """
-    空间类型-结果表 路由自定义过滤条件别名
-    """
-
-    space_type = models.CharField("空间类型", max_length=64)
-    table_id = models.CharField("结果表名", max_length=128)
-    filter_alias = models.CharField("过滤条件别名", max_length=128)
-    status = models.BooleanField("是否启用", default=True)
-    create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
-
-    class Meta:
-        # 一个结果表在一个空间类型下只能有一个别名
-        unique_together = ("space_type", "table_id")

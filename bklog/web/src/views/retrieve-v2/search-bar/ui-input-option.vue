@@ -1274,8 +1274,8 @@ defineExpose({
                 <bk-button
                   text
                   :disabled="condition.value.length === 0"
-                  @click="handleClearBtnClick"
                   class="ui-value-clear-btn"
+                  @click="handleClearBtnClick"
                 >
                   {{ $t('清空') }}
                 </bk-button>

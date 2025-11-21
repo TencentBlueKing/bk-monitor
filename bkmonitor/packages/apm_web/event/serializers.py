@@ -19,9 +19,7 @@ from rest_framework import serializers
 from apm_web.event.handler import EventHandler
 from apm_web.models import Application
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.utils.cache import CacheType, using_cache
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import api
 from monitor_web.data_explorer.event import serializers as event_serializers
 from monitor_web.data_explorer.event.constants import (
     DEFAULT_EVENT_ORIGIN,
@@ -35,6 +33,7 @@ from monitor_web.data_explorer.event.constants import (
 from monitor_web.data_explorer.event.utils import (
     get_data_labels_map,
     get_q_from_query_config,
+    get_cluster_table_map,
 )
 
 
@@ -129,33 +128,6 @@ def filter_by_relation(
     if relation["relations"]:
         q = q.filter(Q() | reduce(operator.or_, [cond_handler(cond) for cond in relation["relations"]]))
     return q
-
-
-# 稳定的元数据，设置一个较长时间的 Redis 缓存，便于共享
-@using_cache(CacheType.APM(60 * 60))
-def get_cluster_table_map(cluster_ids: tuple[str, ...]) -> dict[str, str]:
-    if not cluster_ids:
-        return {}
-
-    cluster_infos: list[dict[str, Any]] = api.metadata.list_bcs_cluster_info(cluster_ids=list(cluster_ids))
-    cluster_to_data_id: dict[str, int] = {
-        cluster_info["cluster_id"]: cluster_info["k8s_event_data_id"] for cluster_info in cluster_infos
-    }
-    # 业务场景不会超过一页，使用 single 接口避免多次请求
-    event_groups: list[dict[str, Any]] = api.metadata.single_query_event_group(
-        bk_data_ids=list(cluster_to_data_id.values())
-    )
-    data_id_table_map: dict[int, str] = {
-        event_group["bk_data_id"]: event_group["table_id"] for event_group in event_groups
-    }
-
-    cluster_table_map: dict[str, str] = {}
-    for cluster_id in cluster_to_data_id:
-        table: str | None = data_id_table_map.get(cluster_to_data_id.get(cluster_id))
-        if table:
-            cluster_table_map[cluster_id] = table
-
-    return cluster_table_map
 
 
 def process_query_config(

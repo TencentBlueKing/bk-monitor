@@ -35,8 +35,8 @@ from metadata.utils.basic import getitems
 from .common import BaseModel, Label, OptionBase
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .result_table_manage import EnableManager
-from .space import SpaceDataSource, SpaceTypeToResultTableFilterAlias
-from .space.constants import EtlConfigs, SpaceTypes
+from .space import SpaceDataSource
+from .space.constants import EtlConfigs
 from .storage import (
     ArgusStorage,
     BkDataStorage,
@@ -494,16 +494,11 @@ class ResultTable(models.Model):
                     e,
                 )
 
-        # TODO: 短期内需要创建SpaceTypeToResultTableFilterAlias记录对应的bk_biz_id_alias,待空间路由整体优化后统一下沉到ResultTable
         if bk_biz_id_alias:
             logger.info(
                 "create_result_table: table_id->[%s] need to create filter alias record,bk_biz_id_alias->[%s]",
                 table_id,
                 bk_biz_id_alias,
-            )
-
-            SpaceTypeToResultTableFilterAlias.objects.create(
-                table_id=table_id, space_type=SpaceTypes.BKCC.value, filter_alias=bk_biz_id_alias
             )
 
         # 创建结果表的option内容如果option为非空
@@ -1397,9 +1392,6 @@ class ResultTable(models.Model):
                 "modify_result_table: table_id->[%s] got new_bk_biz_id_alias->[%s]", self.table_id, bk_biz_id_alias
             )
             self.bk_biz_id_alias = bk_biz_id_alias
-            SpaceTypeToResultTableFilterAlias.objects.update_or_create(
-                table_id=self.table_id, defaults={"space_type": SpaceTypes.BKCC.value, "filter_alias": bk_biz_id_alias}
-            )
 
         # 是否需要修改数据标签
         if data_label is not None:

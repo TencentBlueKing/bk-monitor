@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -16,22 +16,22 @@ import BookmarkPop from './bookmark-pop';
 import { ConditionOperator } from '@/store/condition-operator';
 import { bkMessage } from 'bk-magic-vue';
 
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import RequestPool from '@/store/request-pool';
 import $http from '../../../api';
 import { copyMessage } from '../../../common/util';
 import useResizeObserve from '../../../hooks/use-resize-observe';
+import {
+  clearStorageCommonFilterAddition,
+  getCommonFilterAddition,
+} from '../../../store/helper';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import CommonFilterSelect from './common-filter-select.vue';
 import { withoutValueConditionList } from './const.common';
 import SqlQuery from './sql-query';
 import UiInput from './ui-input';
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import {
-  getCommonFilterAddition,
-  clearStorageCommonFilterAddition,
-} from '../../../store/helper';
-import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
-import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
-import RequestPool from '@/store/request-pool';
 
 const props = defineProps({
   // activeFavorite: {
@@ -61,7 +61,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['refresh', 'height-change', 'search', 'mode-change']);
+const emit = defineEmits(['refresh', 'height-change', 'search', 'mode-change', 'text-to-query']);
 const store = useStore();
 const { $t } = useLocale();
 const queryTypeList = ref([$t('UI 模式'), $t('语句模式')]);
@@ -371,6 +371,9 @@ const handleHeightChange = (height) => {
   emit('height-change', height);
 };
 
+/**
+ * 切换查询模式
+ */
 const handleQueryTypeChange = () => {
   const nextType = activeIndex.value === 0 ? 1 : 0;
   const nextMode = SEARCH_MODE_DIC[nextType];
@@ -381,6 +384,7 @@ const handleQueryTypeChange = () => {
     store.commit('updateIndexItemParams', {
       search_mode: nextMode,
     });
+
     if (
       addition.value.length > 0
         || (keyword.value !== '*' && keyword.value !== '')
@@ -628,6 +632,52 @@ const getRect = () => {
   return refRootElement.value?.querySelector('.search-input-section')?.getBoundingClientRect();
 };
 
+const handleUITextToQuery = (value) => {
+  if (addition.value.length > 0 && value.length) {
+    $http
+      .request('retrieve/generateQueryString', {
+        data: {
+          addition: addition.value,
+        },
+      })
+      .then((res) => {
+        if (res.result) {
+          emit('text-to-query', `${res.data?.querystring} AND ${value}`);
+          store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+          store.commit('updateIndexItemParams', {
+            search_mode: 'sql',
+          });
+        } else {
+          bkMessage({
+            theme: 'error',
+            message: $t('UI查询转换语句模式失败'),
+          });
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+        bkMessage({
+          theme: 'error',
+          message: err.message,
+        });
+      });
+
+    return;
+  }
+
+  if (value.length) {
+    emit('text-to-query', value);
+    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+    store.commit('updateIndexItemParams', {
+      search_mode: 'sql',
+    });
+  }
+};
+
+const handleTextToQuery = (value) => {
+  emit('text-to-query', value);
+};
+
 defineExpose({
   setLocalMode: (val) => {
     localModeActiveIndex.value = val;
@@ -695,6 +745,7 @@ defineExpose({
           v-model="uiQueryValue"
           class="search-input-section"
           @change="handleBtnQueryClick"
+          @text-to-query="handleUITextToQuery"
         >
           <template #custom-placeholder="{ isEmptyText }">
             <slot
@@ -709,6 +760,7 @@ defineExpose({
           class="search-input-section"
           @retrieve="handleSqlRetrieve"
           @change="handleSqlQueryChange"
+          @text-to-query="handleTextToQuery"
         >
           <template #custom-placeholder="{ isEmptyText }">
             <slot

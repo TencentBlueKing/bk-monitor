@@ -44,7 +44,6 @@ class AlertViewSet(ResourceViewSet):
         write_actions = [
             "alert/save_experience",
             "alert/ack",
-            "alert/close",
             "event/top_n",
             "alert/feedback",
         ]
@@ -183,7 +182,6 @@ class AlertViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.alert.alert_related_info, endpoint="alert/related_info"),
         ResourceRoute("POST", resource.alert.alert_extend_fields, endpoint="alert/extend_fields"),
         ResourceRoute("POST", resource.alert.ack_alert, endpoint="alert/ack"),
-        ResourceRoute("POST", resource.alert.close_alert, endpoint="alert/close"),
         ResourceRoute("POST", resource.alert.alert_graph_query, endpoint="alert/graph_query"),
         ResourceRoute("POST", resource.alert.event_date_histogram, endpoint="event/date_histogram"),
         ResourceRoute("POST", resource.alert.search_action, endpoint="action/search"),

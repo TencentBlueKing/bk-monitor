@@ -51,7 +51,6 @@ from metadata.models.space.utils import (
     get_biz_ids_by_space_ids,
     get_related_spaces,
     reformat_table_id,
-    update_filters_with_alias,
 )
 from metadata.utils.db import filter_model_by_in_page, filter_query_set_by_in_page
 from metadata.utils.redis_tools import RedisTools
@@ -816,9 +815,6 @@ class SpaceTableIDRedis:
         _values.update(
             self._compose_related_bkci_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id)
         )
-
-        # 替换自定义过滤条件别名
-        _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
         return _values
 
     def _compose_bkci_space_table_ids(
@@ -855,9 +851,6 @@ class SpaceTableIDRedis:
         _values.update(self._compose_doris_table_ids(space_type, space_id))
         # APM 真全局数据
         _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
-
-        # 替换自定义过滤条件别名
-        _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
         return _values
 
     def _compose_bksaas_space_table_ids(
@@ -891,8 +884,6 @@ class SpaceTableIDRedis:
         _values.update(self._compose_doris_table_ids(space_type, space_id))
         # APM 真全局数据
         _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
-        # 替换自定义过滤条件别名
-        _values = update_filters_with_alias(space_type=space_type, space_id=space_id, values=_values)
         return _values
 
     def _compose_bcs_space_biz_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID) -> dict:

@@ -373,14 +373,16 @@ class DataLink(models.Model):
             # 创建ES存储绑定配置
             if es_storage and datalink_option.es_storage_config:
                 storage_option = datalink_option.es_storage_config
-                binding, _ = ESStorageBindingConfig.objects.get_or_create(
+                binding, _ = ESStorageBindingConfig.objects.update_or_create(
                     bk_tenant_id=self.bk_tenant_id,
                     bk_biz_id=bk_biz_id,
                     namespace=self.namespace,
                     data_link_name=self.data_link_name,
                     name=self.data_link_name,
-                    es_cluster_name=es_storage.storage_cluster.cluster_name,
-                    timezone=es_storage.time_zone,
+                    defaults={
+                        "es_cluster_name": es_storage.storage_cluster.cluster_name,
+                        "timezone": es_storage.time_zone,
+                    },
                 )
 
                 # 生成索引规则

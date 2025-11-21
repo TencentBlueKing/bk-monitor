@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import uuid
 from typing import Any
 
 from django.utils.translation import gettext_lazy as _
@@ -21,7 +22,7 @@ from ...constants import (
     EventType,
 )
 from .base import BaseEventProcessor
-from ...utils import get_field_label
+from ...utils import get_field_label, format_field
 
 
 class OriginEventProcessor(BaseEventProcessor):
@@ -30,14 +31,30 @@ class OriginEventProcessor(BaseEventProcessor):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    @classmethod
+    def _flatten_dict(cls, data: dict[str, Any], paths: list[str]) -> dict[str, Any]:
+        flatten_dict: dict[str, Any] = {}
+        for key, value in list(data.items()):
+            next_paths: list[str] = paths + [key]
+            paths_str: str = ".".join(next_paths)
+            if isinstance(value, dict) and key != "_meta":
+                flatten_dict.update(cls._flatten_dict(value, next_paths))
+            else:
+                flatten_dict[paths_str] = value
+        return flatten_dict
+
     def process(self, origin_events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         events = []
         for origin_event in origin_events:
+            origin_event: dict[str, Any] = self._flatten_dict(origin_event, [])
             # 提取并处理元数据
             _meta = origin_event.pop("_meta", {})
             data_label = _meta.get("__data_label")
             domain, source = self.get_source_and_domain(origin_event, data_label)
             _meta["__source"], _meta["__domain"] = source, domain
+            if "__doc_id" not in _meta:
+                # 兼容非 UnifyQuery 查询场景下没有 __doc_id 的情况，随机生成一个哈希，该值仅用于前端作为数据唯一标识。
+                _meta["__doc_id"] = uuid.uuid4().hex
 
             # 补充 source 字段
             source_alias: str = _("{domain}/{source}").format(
@@ -63,7 +80,7 @@ class OriginEventProcessor(BaseEventProcessor):
 
             events.append(event)
 
-        return sorted(events, key=lambda _e: -_e["_meta"]["_time_"])
+        return sorted(events, key=lambda _e: -(_e["_meta"].get("_time_") or int(_e["origin_data"].get("time", 0))))
 
     @classmethod
     def process_display_field(cls, origin_event: dict[str, Any]) -> dict[str, Any]:
@@ -101,6 +118,6 @@ class OriginEventProcessor(BaseEventProcessor):
 
         # 从维度获取，获取不到返回默认值 DEFAULT
         return (
-            origin_event.get("domain", EventDomain.DEFAULT.value),
-            origin_event.get("source", EventSource.DEFAULT.value),
+            origin_event.get(format_field("domain"), EventDomain.DEFAULT.value),
+            origin_event.get(format_field("source"), EventSource.DEFAULT.value),
         )

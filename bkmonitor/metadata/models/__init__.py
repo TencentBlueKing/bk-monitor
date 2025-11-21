@@ -73,7 +73,6 @@ from .space import (
     SpaceResource,
     SpaceStickyInfo,
     SpaceType,
-    SpaceTypeToResultTableFilterAlias,
 )
 from .storage import (
     ArgusStorage,
@@ -152,7 +151,6 @@ __all__ = [
     "SpaceResource",
     "SpaceStickyInfo",
     "BkAppSpaceRecord",
-    "SpaceTypeToResultTableFilterAlias",
     "AccessVMRecord",
     "SpaceVMInfo",
     "SpaceRelatedStorageInfo",

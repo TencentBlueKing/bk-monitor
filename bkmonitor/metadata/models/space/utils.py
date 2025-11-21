@@ -37,7 +37,6 @@ from .space import (
     SpaceDataSource,
     SpaceResource,
     SpaceType,
-    SpaceTypeToResultTableFilterAlias,
 )
 
 logger = logging.getLogger("metadata")
@@ -1156,40 +1155,3 @@ def cached_cluster_k8s_data_id() -> dict[str, int]:
     cluster_data_id = {cluster_info["cluster_id"]: cluster_info["K8sMetricDataID"] for cluster_info in cluster_data_ids}
     cache.set(key, cluster_data_id, 1 * 60 * 60)
     return cluster_data_id
-
-
-def update_filters_with_alias(space_type, space_id, values):
-    """
-    更新 _values 中的 filters，将 key 替换为 filter_alias.
-    :param space_type: 空间类型，用于查询 SpaceTypeToResultTableFilterAlias
-    :param space_id: 空间 ID，用于日志记录
-    :param values: 存放表数据的字典，格式为 {'table_id': {'filters': [...]}}
-    :return: 更新后的 values 字典
-    """
-    # 获取所有的 filter_alias 映射关系
-    alias_map = {
-        (alias.table_id, alias.space_type): alias.filter_alias
-        for alias in SpaceTypeToResultTableFilterAlias.objects.filter(space_type=space_type, status=True)
-    }
-
-    # 遍历 values 字典
-    for table_id, table_data in values.items():
-        # 如果当前 table_id 在 alias_map 中存在映射关系
-        if (table_id, space_type) in alias_map:
-            logger.info(
-                "update_filters_with_alias: space_type->[%s],space_id->[%s],found filter_alias->[%s] for "
-                "table_id->[%s]",
-                space_type,
-                space_id,
-                alias_map[(table_id, space_type)],
-                table_id,
-            )
-            # 获取当前表的 filter_alias
-            filter_alias = alias_map[(table_id, space_type)]
-            # 遍历 filters，替换 key 为 filter_alias
-            for filter_dict in table_data.get("filters", []):
-                for key in list(filter_dict.keys()):
-                    # 替换 key 为 filter_alias
-                    filter_dict[filter_alias] = filter_dict.pop(key)
-
-    return values

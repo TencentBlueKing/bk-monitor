@@ -6,6 +6,8 @@ import {
   IQueryStringSendData,
   IRowSendData,
 } from '.';
+import { requestAIResult } from './ai-request';
+import { TextToQueryResponse } from './interface';
 
 /**
  * AI 助手工具类
@@ -132,6 +134,15 @@ class AiAssitantHelper {
    */
   isShown() {
     return this.aiAssitantRef.value?.isShown();
+  }
+
+  /**
+   * @description 请求自然语言转查询语句
+   * @param args {IQueryStringSendData & { keyword: string }}
+   * @returns {Promise<string>}
+   */
+  requestTextToQueryString(args: IQueryStringSendData & { keyword: string }): Promise<TextToQueryResponse> {
+    return requestAIResult(args);
   }
 }
 

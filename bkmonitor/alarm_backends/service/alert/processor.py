@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
 from collections import defaultdict
-from typing import List
 
 from elasticsearch.helpers import BulkIndexError
 
@@ -24,16 +23,17 @@ from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.documents.base import BulkActionType
 
 
+logger = logging.getLogger("alert")
+
+
 class BaseAlertProcessor:
     """
     告警处理基类
     封装了一些通用逻辑
     """
 
-    def __init__(self):
-        self.logger = logging.getLogger("alert")
-
-    def list_alerts_content_from_cache(self, events: List[Event]) -> List[Alert]:
+    @staticmethod
+    def list_alerts_content_from_cache(events: list[Event]) -> list[Alert]:
         """
         根据 策略ID和dedupe_md5 从 Redis 缓存中批量获取
         :param events: 告警关联事件信息
@@ -66,10 +66,11 @@ class BaseAlertProcessor:
                 alert = json.loads(alert)
                 alerts.append(Alert(alert))
             except Exception as e:
-                self.logger.warning("dedupe_md5(%s) loads alert failed: %s, origin data: %s", dedupe_md5, e, alert)
+                logger.warning("dedupe_md5(%s) loads alert failed: %s, origin data: %s", dedupe_md5, e, alert)
         return alerts
 
-    def update_alert_cache(self, alerts: List[Alert]):
+    @staticmethod
+    def update_alert_cache(alerts: list[Alert]):
         """
         更新告警信息到 redis 缓存
         """
@@ -78,14 +79,16 @@ class BaseAlertProcessor:
         update_count, finished_count = AlertCache.save_alert_to_cache(alerts)
         return update_count, finished_count
 
-    def update_alert_snapshot(self, alerts: List[Alert]):
+    @staticmethod
+    def update_alert_snapshot(alerts: list[Alert]):
         if not alerts:
             return 0
 
         snapshot_count = AlertCache.save_alert_snapshot(alerts)
         return snapshot_count
 
-    def save_alerts(self, alerts: List[Alert], action=BulkActionType.INDEX, force_save=False) -> List[Alert]:
+    @staticmethod
+    def save_alerts(alerts: list[Alert], action=BulkActionType.INDEX, force_save=False) -> list[Alert]:
         """
         将告警信息保存到 ES
         """
@@ -98,7 +101,7 @@ class BaseAlertProcessor:
         ]
 
         if not alert_documents:
-            self.logger.info("[save alert document] action(%s): ignored(%d), saved(0), failed(0)", action, len(alerts))
+            logger.info("[save alert document] action(%s): ignored(%d), saved(0), failed(0)", action, len(alerts))
             return alerts
 
         start_time = time.time()
@@ -106,10 +109,10 @@ class BaseAlertProcessor:
         try:
             AlertDocument.bulk_create(alert_documents, action=action)
         except BulkIndexError as e:
-            self.logger.error("save alert document error: %s", e.errors)
+            logger.error("save alert document error: %s", e.errors)
             errors = e.errors
 
-        self.logger.info(
+        logger.info(
             "[save alert document] action(%s): ignored(%d), saved(%d), failed(%d), cost: %.3f",
             action,
             len(alerts) - len(alert_documents),
@@ -120,7 +123,8 @@ class BaseAlertProcessor:
 
         return [alert for alert in alerts]
 
-    def save_alert_logs(self, alerts: List[Alert]):
+    @staticmethod
+    def save_alert_logs(alerts: list[Alert]):
         """
         保存流水日志
         """
@@ -137,17 +141,18 @@ class BaseAlertProcessor:
         try:
             AlertLog.bulk_create(log_documents)
         except BulkIndexError as e:
-            self.logger.error("[save alert log document] error: %s", e.errors)
+            logger.error("[save alert log document] error: %s", e.errors)
             errors = e.errors
 
-        self.logger.info(
+        logger.info(
             "[save alert log document] saved(%d), failed(%d), cost: %.3f",
             len(log_documents) - len(errors),
             len(errors),
             time.time() - start_time,
         )
 
-    def send_signal(self, alerts: List[Alert]):
+    @staticmethod
+    def send_signal(alerts: list[Alert]):
         # 发送告警信号
         if not alerts:
             return
@@ -160,4 +165,4 @@ class BaseAlertProcessor:
                 continue
             check_action_and_composite.delay(alert_key=alert.key, alert_status=alert.status)
 
-        self.logger.info("[send alert signals to composite]: send(%d), blocked(%s)", len(alerts) - blocked, blocked)
+        logger.info("[send alert signals to composite]: send(%d), blocked(%s)", len(alerts) - blocked, blocked)

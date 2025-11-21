@@ -893,4 +893,7 @@ export default {
   '搜索 文件名、创建人': 'Search Filename, Created By',
   '搜索ES源名称、地址、创建人': 'Search ES Source Name, Address, Created By',
   输入后高亮: 'Highlight after input',
+  正在解析语句: 'Parsing statement...',
+  'AI 搜索': 'AI Search',
+  自动刷新设置: 'Auto refresh settings',
 };

@@ -393,7 +393,7 @@ class EventTopKResource(EventBaseResource):
     def query_distinct(cls, queryset: UnifyQuerySet, qs: list[QueryConfigBuilder], field: str):
         alias: str = "a"
         for q in qs:
-            queryset = queryset.add_query(q.metric(field=field, method="cardinality", alias=alias))
+            queryset = queryset.add_query(q.metric(field=field, method="distinct", alias=alias)).limit(1)
 
         queryset.expression(alias)
         return list(queryset)
@@ -497,13 +497,13 @@ class EventTotalResource(EventBaseResource):
         ]
 
         # 构建统一查询集
-        query_set = get_qs_from_req_data(validated_request_data).expression(alias).time_agg(False).instant()
+        query_set = get_qs_from_req_data(validated_request_data).expression(alias).time_agg(False).instant().limit(1)
 
         # 添加查询到查询集中
         for query in queries:
             query_set = query_set.add_query(query)
 
-        return {"total": query_set.original_data[0]["_result_"]}
+        return {"total": list(query_set)[0]["_result_"]}
 
 
 class EventStatisticsGraphResource(EventBaseResource):
@@ -652,7 +652,7 @@ class EventStatisticsInfoResource(EventBaseResource):
         statistics_property_method_map = {
             "total_count": "count",
             "field_count": "count",
-            "distinct_count": "cardinality",
+            "distinct_count": "distinct",
         }
         if field["field_type"] == EventDimensionTypeEnum.INTEGER.value:
             # 数值类型，支持更多统计方法
@@ -664,7 +664,7 @@ class EventStatisticsInfoResource(EventBaseResource):
                 InheritParentThread(
                     target=self.get_statistics_info,
                     args=(
-                        get_qs_from_req_data(validated_request_data).time_agg(False).instant(),
+                        get_qs_from_req_data(validated_request_data).time_agg(False).limit(1).instant(),
                         queries,
                         field["field_name"],
                         statistics_property,
@@ -722,7 +722,7 @@ class EventStatisticsInfoResource(EventBaseResource):
         """
         根据统计属性设置过滤条件
         """
-        return query.filter(**{f"{field}__ne": ""}) if statistics_property == "field_count" else query
+        return query.filter(**{f"{field}__neq": ""}) if statistics_property == "field_count" else query
 
     @classmethod
     def set_qs_expression_by_method(cls, queryset, method):

@@ -194,6 +194,7 @@ export default defineComponent({
       resetPageState();
       store.dispatch('requestIndexSetQuery', { from: 'auto_refresh' });
     });
+
     const setRenderList = (length?: number) => {
       const arr: Record<string, any>[] = [];
       const endIndex = length ?? tableDataSize.value;
