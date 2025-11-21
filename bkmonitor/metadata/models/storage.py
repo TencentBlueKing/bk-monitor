@@ -122,8 +122,9 @@ class ClusterInfo(models.Model):
 
     bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
     cluster_id = models.AutoField("集群ID", primary_key=True)
-    # 集群中文名，便于管理员维护
-    cluster_name = models.CharField("集群名称", max_length=128)
+    # 集群英文名，要求符合 [a-zA-Z][a-zA-Z0-9_]* 格式，与bkbase的集群名命名规则一致
+    cluster_name = models.CharField("集群英文名", max_length=50)
+    display_name = models.CharField("集群显示名称", max_length=128, default="", blank=True)
     cluster_type = models.CharField("集群类型", max_length=32, db_index=True)
     domain_name = models.CharField("集群域名", max_length=128)
     port = models.IntegerField("端口")
