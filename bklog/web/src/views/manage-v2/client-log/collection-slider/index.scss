@@ -39,3 +39,29 @@
         }
     }
 }
+
+.view-collection-container {
+    padding: 24px 40px 0 0;
+
+    >div {
+        display: flex;
+        align-items: center;
+        margin-bottom: 33px;
+
+        >span:nth-child(1) {
+            display: block;
+            width: 158px;
+            font-size: 14px;
+            color: #979ba5;
+            text-align: right;
+        }
+
+        >span:nth-child(2) {
+            width: 452px;
+            margin-left: 24px;
+            font-size: 14px;
+            color: #63656e;
+            overflow-wrap: break-word;
+        }
+    }
+}

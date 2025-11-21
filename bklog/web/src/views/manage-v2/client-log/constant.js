@@ -8,12 +8,12 @@ const TASK_STAGE_OPTIONS = [
 
 // 客户端类型选项
 const CLIENT_TYPE_OPTIONS = [
-  { value: '', label: t('默认') },
-  { value: '安装', label: t('安装') },
-  { value: 'iOS', label: 'iOS' },
-  { value: 'macOS', label: 'macOS' },
-  { value: 'Windows', label: 'Windows' },
-  { value: 'Harmony', label: 'Harmony' },
+  { value: 'all', label: t('默认') },
+  { value: 'android', label: t('安卓') },
+  { value: 'ios', label: 'iOS' },
+  { value: 'macos', label: 'macOS' },
+  { value: 'windows', label: 'Windows' },
+  { value: 'harmony', label: 'Harmony' },
 ];
 
 // 触发频率选项

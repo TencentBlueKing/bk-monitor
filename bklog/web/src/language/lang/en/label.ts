@@ -901,7 +901,7 @@ export default {
   文件修改时间范围: 'File modification time range',
   登录前: 'Before login',
   登录后: 'After login',
-  安装: 'Install',
+  安卓: 'Android',
   单次触发: 'Single trigger',
   持续触发: 'Continuous triggering',
   '多个 openid 用「换行」分隔': 'Multiple openids are separated by newlines.',
@@ -926,4 +926,6 @@ export default {
   正在解析语句: 'Parsing statement...',
   'AI 搜索': 'AI Search',
   自动刷新设置: 'Auto refresh settings',
+  克隆采集: 'Cloning collection',
+  查看采集: 'View collection',
 };

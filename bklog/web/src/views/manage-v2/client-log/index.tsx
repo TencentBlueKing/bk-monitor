@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onMounted, ref } from 'vue';
+import { defineComponent, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
+import { useRouter } from 'vue-router/composables';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import { t } from '@/hooks/use-locale';
 
@@ -53,6 +54,7 @@ export default defineComponent({
   },
   setup() {
     const store = useStore();
+    const router = useRouter();
 
     const tabs = ref([
       // tab配置
@@ -62,7 +64,7 @@ export default defineComponent({
       },
       {
         title: TAB_TYPES.REPORT,
-        count: 87,
+        count: 0,
       },
     ]);
     const activeTab = ref<TabType>(TAB_TYPES.COLLECT); // 激活的tab
@@ -72,8 +74,9 @@ export default defineComponent({
       list: [],
     });
     const isLoading = ref(false); // 加载状态
-    const clonedLogData = ref(null); // 克隆的日志数据
+    const logData = ref(null); // 日志数据
     const searchKeyword = ref(''); // 搜索关键词
+    const operateType = ref('create'); // 操作类型： create、clone、view
 
     // tab点击事件
     const handleTabClick = (title: TabType) => {
@@ -94,7 +97,8 @@ export default defineComponent({
     // 关闭侧边栏
     const handleCancelSlider = () => {
       showSlider.value = false;
-      clonedLogData.value = null;
+      logData.value = null;
+      operateType.value = 'create';
     };
 
     // 处理搜索事件
@@ -134,15 +138,40 @@ export default defineComponent({
       searchKeyword.value = '';
     };
 
-    // 克隆任务
-    const handleCloneTask = (task) => {
-      clonedLogData.value = task;
+    // 任务操作
+    const handleOperateTask = (task, type) => {
+      logData.value = task;
+      operateType.value = type;
       setSidebarOpen(true);
     };
 
-    onMounted(() => {
-      requestData();
-    });
+    // 清洗配置
+    const handleCleanConfig = () => {
+      router.push({
+        name: 'clean-config',
+        query: {
+          spaceUid: store.state.spaceUid,
+        },
+      });
+    };
+
+    // 监听activeTab变化
+    watch(
+      activeTab,
+      (newValue) => {
+        if (newValue === TAB_TYPES.COLLECT) {
+          requestData();
+        }
+        if (newValue === TAB_TYPES.REPORT) {
+          // 暂无用户上报接口
+          tableData.value = {
+            total: 0,
+            list: [],
+          };
+        }
+      },
+      { immediate: true },
+    );
 
     return () => (
       <div class='client-log-main'>
@@ -173,7 +202,12 @@ export default defineComponent({
                 >
                   {t('新建采集')}
                 </bk-button>
-                <bk-button disabled={isLoading.value}>{t('清洗配置')}</bk-button>
+                <bk-button
+                  disabled={isLoading.value}
+                  onClick={handleCleanConfig}
+                >
+                  {t('清洗配置')}
+                </bk-button>
               </div>
               <div>
                 <bk-input
@@ -197,7 +231,7 @@ export default defineComponent({
                 title={t('Alert 文案占位，用于说明如果用 SDK 上报。')}
               ></bk-alert>
               <div class='operating-area'>
-                <bk-button>{t('清洗配置')}</bk-button>
+                <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button>
                 <div>
                   <bk-input
                     placeholder={t('搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人')}
@@ -216,14 +250,16 @@ export default defineComponent({
               v-bkloading={{ isLoading: isLoading.value }}
               keyword={searchKeyword.value}
               on-clear-keyword={handleClearKeyword}
-              on-clone-task={handleCloneTask}
+              on-clone-task={task => handleOperateTask(task, 'clone')}
+              on-view-task={task => handleOperateTask(task, 'view')}
             />
           </section>
         </div>
         {/* 新建采集侧边栏 */}
         <CollectionSlider
           showSlider={showSlider.value}
-          clonedLogData={clonedLogData.value}
+          logData={logData.value}
+          operateType={operateType.value}
           onHandleCancelSlider={handleCancelSlider}
           onHandleUpdatedTable={handleUpdatedTable}
         />

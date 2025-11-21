@@ -44,9 +44,13 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    clonedLogData: {
+    logData: {
       type: Object,
       default: () => null,
+    },
+    operateType: {
+      type: String,
+      default: 'create',
     },
     onHandleCancelSlider: { type: Function, default: () => {} },
     onHandleUpdatedTable: { type: Function, default: () => {} },
@@ -169,6 +173,10 @@ export default defineComponent({
 
     // 取消操作/关闭侧滑弹窗
     const handleCancel = () => {
+      if (props.operateType === 'view') {
+        emit('handleCancelSlider');
+        return;
+      }
       InfoBox({
         title: t('确认离开当前页？'),
         subTitle: t('离开将会导致未保存信息丢失'),
@@ -182,183 +190,267 @@ export default defineComponent({
     watch(
       () => props.showSlider,
       (newVal) => {
-        if (newVal && props.clonedLogData) {
-          setFormData(props.clonedLogData);
+        if (newVal && props.logData) {
+          setFormData(props.logData);
         } else {
           initFormData();
         }
       },
     );
 
+    // 根据操作类型获取标题
+    const getTitleByOperateType = () => {
+      switch (props.operateType) {
+        case 'create':
+          return t('新建采集');
+        case 'clone':
+          return t('克隆采集');
+        case 'view':
+          return t('查看采集');
+        default:
+          return t('新建采集');
+      }
+    };
+
     return () => (
       <bk-sideslider
         width={678}
         quick-close
         is-show={props.showSlider}
-        title={t('新建采集')}
+        title={getTitleByOperateType()}
         transfer
         onAnimation-end={handleCancel}
       >
         <template slot='content'>
-          <div class='new-collection-container'>
-            <bk-form
-              label-width={158}
-              ref={formRef}
-              {...{
-                props: {
-                  model: formData.value,
-                  rules: formRules,
-                },
-              }}
-            >
-              <bk-form-item
-                label={t('任务名称')}
-                required
-                property='task_name'
+          {/* 新建、克隆 */}
+          {props.operateType !== 'view' && (
+            <div class='new-collection-container'>
+              <bk-form
+                label-width={158}
+                ref={formRef}
+                {...{
+                  props: {
+                    model: formData.value,
+                    rules: formRules,
+                  },
+                }}
               >
-                <bk-input
-                  value={formData.value.task_name}
-                  on-change={value => (formData.value.task_name = value)}
-                />
-              </bk-form-item>
-              <bk-form-item
-                label='openid'
-                required
-                property='openid'
-              >
-                <bk-input
-                  type='textarea'
-                  value={formData.value.openid}
-                  on-change={value => (formData.value.openid = value)}
-                  placeholder={t('多个 openid 用「换行」分隔')}
-                />
-              </bk-form-item>
-              <bk-form-item
-                label={t('任务阶段')}
-                required
-                property='scene'
-              >
-                <bk-radio-group
-                  value={formData.value.scene}
-                  on-change={value => (formData.value.scene = value)}
-                >
-                  {TASK_STAGE_OPTIONS.map(option => (
-                    <bk-radio value={option.value}>{option.label}</bk-radio>
-                  ))}
-                </bk-radio-group>
-              </bk-form-item>
-              <bk-form-item
-                label={t('客户端类型')}
-                required
-                property='platform'
-              >
-                <bk-radio-group
-                  value={formData.value.platform}
-                  on-change={value => (formData.value.platform = value)}
-                  class='client-type-radio-group'
-                >
-                  {CLIENT_TYPE_OPTIONS.map(option => (
-                    <bk-radio value={option.value}>{option.label}</bk-radio>
-                  ))}
-                </bk-radio-group>
-              </bk-form-item>
-              <bk-form-item
-                label={t('触发频率')}
-                required
-                property='frequency'
-              >
-                <bk-radio-group
-                  value={formData.value.frequency}
-                  on-change={value => (formData.value.frequency = value)}
-                >
-                  {TRIGGER_FREQUENCY_OPTIONS.map(option => (
-                    <bk-radio value={option.value}>{option.label}</bk-radio>
-                  ))}
-                </bk-radio-group>
-              </bk-form-item>
-              {formData.value.frequency === 'sustain' && (
                 <bk-form-item
-                  label={t('持续触发时长')}
+                  label={t('任务名称')}
                   required
-                  desc={t('持续触发时长')}
-                  property='trigger_duration'
+                  property='task_name'
                 >
-                  <bk-select
-                    value={formData.value.trigger_duration}
-                    on-change={value => (formData.value.trigger_duration = value)}
-                    style='width: 200px;'
-                  >
-                    {SUSTAIN_TIME_OPTIONS.map(option => (
-                      <bk-option
-                        id={option.value}
-                        key={option.value}
-                        name={option.label}
-                      />
-                    ))}
-                  </bk-select>
+                  <bk-input
+                    value={formData.value.task_name}
+                    on-change={value => (formData.value.task_name = value)}
+                  />
                 </bk-form-item>
+                <bk-form-item
+                  label='openid'
+                  required
+                  property='openid'
+                >
+                  <bk-input
+                    type='textarea'
+                    value={formData.value.openid}
+                    on-change={value => (formData.value.openid = value)}
+                    placeholder={t('多个 openid 用「换行」分隔')}
+                  />
+                </bk-form-item>
+                <bk-form-item
+                  label={t('任务阶段')}
+                  required
+                  property='scene'
+                >
+                  <bk-radio-group
+                    value={formData.value.scene}
+                    on-change={value => (formData.value.scene = value)}
+                  >
+                    {TASK_STAGE_OPTIONS.map(option => (
+                      <bk-radio value={option.value}>{option.label}</bk-radio>
+                    ))}
+                  </bk-radio-group>
+                </bk-form-item>
+                <bk-form-item
+                  label={t('客户端类型')}
+                  required
+                  property='platform'
+                >
+                  <bk-radio-group
+                    value={formData.value.platform}
+                    on-change={value => (formData.value.platform = value)}
+                    class='client-type-radio-group'
+                  >
+                    {CLIENT_TYPE_OPTIONS.map(option => (
+                      <bk-radio value={option.value}>{option.label}</bk-radio>
+                    ))}
+                  </bk-radio-group>
+                </bk-form-item>
+                <bk-form-item
+                  label={t('触发频率')}
+                  required
+                  property='frequency'
+                >
+                  <bk-radio-group
+                    value={formData.value.frequency}
+                    on-change={value => (formData.value.frequency = value)}
+                  >
+                    {TRIGGER_FREQUENCY_OPTIONS.map(option => (
+                      <bk-radio value={option.value}>{option.label}</bk-radio>
+                    ))}
+                  </bk-radio-group>
+                </bk-form-item>
+                {formData.value.frequency === 'sustain' && (
+                  <bk-form-item
+                    label={t('持续触发时长')}
+                    required
+                    desc={t('持续触发时长')}
+                    property='trigger_duration'
+                  >
+                    <bk-select
+                      value={formData.value.trigger_duration}
+                      on-change={value => (formData.value.trigger_duration = value)}
+                      style='width: 200px;'
+                    >
+                      {SUSTAIN_TIME_OPTIONS.map(option => (
+                        <bk-option
+                          id={option.value}
+                          key={option.value}
+                          name={option.label}
+                        />
+                      ))}
+                    </bk-select>
+                  </bk-form-item>
+                )}
+                <bk-form-item
+                  label={t('日志路径')}
+                  required
+                  property='log_path'
+                  desc={t('日志路径')}
+                >
+                  <bk-input
+                    type='textarea'
+                    value={formData.value.log_path}
+                    on-change={value => (formData.value.log_path = value)}
+                  />
+                </bk-form-item>
+                <bk-form-item
+                  label={t('最大文件个数')}
+                  required
+                  property='max_file_num'
+                >
+                  <bk-input
+                    type='number'
+                    min={0}
+                    value={formData.value.max_file_num}
+                    on-change={value => (formData.value.max_file_num = value)}
+                  />
+                </bk-form-item>
+                <bk-form-item
+                  label={t('文件修改时间范围')}
+                  required
+                  property='fileModifyTimeRange'
+                >
+                  <bk-date-picker
+                    type='datetimerange'
+                    value={formData.value.fileModifyTimeRange}
+                    on-change={value => (formData.value.fileModifyTimeRange = value)}
+                  />
+                </bk-form-item>
+                <bk-form-item label={t('备注')}>
+                  <bk-input
+                    type='textarea'
+                    value={formData.value.comment}
+                    on-change={value => (formData.value.comment = value)}
+                  />
+                </bk-form-item>
+                {props.operateType !== 'view' && (
+                  <bk-form-item class='button-group'>
+                    <bk-button
+                      theme='primary'
+                      title='提交'
+                      class='button-submit'
+                      loading={confirmLoading.value}
+                      onClick={handleConfirm}
+                    >
+                      {t('提交')}
+                    </bk-button>
+                    <bk-button
+                      title='取消'
+                      onClick={handleCancel}
+                    >
+                      {t('取消')}
+                    </bk-button>
+                  </bk-form-item>
+                )}
+              </bk-form>
+            </div>
+          )}
+          {/* 查看 */}
+          {props.operateType === 'view' && (
+            <div class='view-collection-container'>
+              <div>
+                <span>{t('任务 ID')}</span>
+                <span>{props.logData.id || '-'}</span>
+              </div>
+              <div>
+                <span>{t('任务名称')}</span>
+                <span>{props.logData.task_name || '-'}</span>
+              </div>
+              <div>
+                <span>{'openid'}</span>
+                <span>{props.logData.openid || '-'}</span>
+              </div>
+              <div>
+                <span>{t('创建方式')}</span>
+                <span>{props.logData.create_type || '-'}</span>
+              </div>
+              <div>
+                <span>{t('任务状态')}</span>
+                <span>{props.logData.status_name || '-'}</span>
+              </div>
+              <div>
+                <span>{t('任务阶段')}</span>
+                <span>{props.logData.scene_name || '-'}</span>
+              </div>
+              <div>
+                <span>{t('创建人')}</span>
+                <span>
+                  <bk-user-display-name user-id={props.logData.created_by}></bk-user-display-name>
+                </span>
+              </div>
+              <div>
+                <span>{t('创建时间')}</span>
+                <span>{props.logData.created_at || '-'}</span>
+              </div>
+              <div>
+                <span>{t('日志路径')}</span>
+                <span>{props.logData.log_path || '-'}</span>
+              </div>
+              <div>
+                <span>{t('触发频率')}</span>
+                <span>{props.logData.frequency === 'sustain' ? '持续触发' : '单次触发'}</span>
+              </div>
+              {props.logData.frequency === 'sustain' && (
+                <div>
+                  <span>{t('持续触发时长')}</span>
+                  <span>{props.logData.trigger_duration || '-'}</span>
+                </div>
               )}
-              <bk-form-item
-                label={t('日志路径')}
-                required
-                property='log_path'
-                desc={t('日志路径')}
-              >
-                <bk-input
-                  type='textarea'
-                  value={formData.value.log_path}
-                  on-change={value => (formData.value.log_path = value)}
-                />
-              </bk-form-item>
-              <bk-form-item
-                label={t('最大文件个数')}
-                required
-                property='max_file_num'
-              >
-                <bk-input
-                  type='number'
-                  min={0}
-                  value={formData.value.max_file_num}
-                  on-change={value => (formData.value.max_file_num = value)}
-                />
-              </bk-form-item>
-              <bk-form-item
-                label={t('文件修改时间范围')}
-                required
-                property='fileModifyTimeRange'
-              >
-                <bk-date-picker
-                  type='datetimerange'
-                  value={formData.value.fileModifyTimeRange}
-                  on-change={value => (formData.value.fileModifyTimeRange = value)}
-                />
-              </bk-form-item>
-              <bk-form-item label={t('备注')}>
-                <bk-input
-                  type='textarea'
-                  value={formData.value.comment}
-                  on-change={value => (formData.value.comment = value)}
-                />
-              </bk-form-item>
-              <bk-form-item class='button-group'>
-                <bk-button
-                  theme='primary'
-                  title='提交'
-                  class='button-submit'
-                  loading={confirmLoading.value}
-                  onClick={handleConfirm}
-                >
-                  {t('提交')}
-                </bk-button>
-                <bk-button
-                  title='取消'
-                  onClick={handleCancel}
-                >
-                  {t('取消')}
-                </bk-button>
-              </bk-form-item>
-            </bk-form>
-          </div>
+              <div>
+                <span>{t('客户端类型')}</span>
+                <span>{props.logData.platform || '-'}</span>
+              </div>
+              <div>
+                <span>{t('最大文件个数')}</span>
+                <span>{props.logData.max_file_num || '-'}</span>
+              </div>
+              <div>
+                <span>{t('备注')}</span>
+                <span>{props.logData.comment || '-'}</span>
+              </div>
+            </div>
+          )}
         </template>
       </bk-sideslider>
     );

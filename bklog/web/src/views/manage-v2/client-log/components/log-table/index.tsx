@@ -53,7 +53,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['clear-keyword', 'clone-task'],
+  emits: ['clear-keyword', 'clone-task', 'view-task'],
   setup(props, { emit }) {
     const pagination = ref({
       current: 1,
@@ -260,6 +260,11 @@ export default defineComponent({
       emit('clone-task', task);
     };
 
+    // 查看任务
+    const viewTask = (task) => {
+      emit('view-task', task);
+    };
+
     // 下载文件
     const downloadFile = (downloadUrl) => {
       window.open(downloadUrl);
@@ -288,6 +293,7 @@ export default defineComponent({
           class='king-button'
           text
           theme='primary'
+          on-click={() => viewTask(row)}
         >
           {row.task_name}
         </bk-button>
@@ -310,7 +316,7 @@ export default defineComponent({
 
     // 创建人插槽
     const creatorSlot = {
-      default: (props: any) => <bk-user-display-name user-id={props.row.created_by}></bk-user-display-name>,
+      default: ({ row }) => <bk-user-display-name user-id={row.created_by}></bk-user-display-name>,
     };
 
     // 客户端类型插槽
