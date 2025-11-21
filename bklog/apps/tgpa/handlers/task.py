@@ -48,6 +48,7 @@ from apps.tgpa.constants import (
     TGPA_TASK_COLLECTOR_CONFIG_NAME_EN,
 )
 from apps.utils.bcs import Bcs
+from apps.utils.function import ignored
 from apps.utils.thread import MultiExecuteFunc
 
 
@@ -226,10 +227,11 @@ class TGPATaskHandler:
         with zipfile.ZipFile(compressed_file_path, "r") as zip_ref:
             zip_ref.extractall(self.temp_dir)
 
-        # 查找并处理日志文件
+        # 查找并处理日志文件，忽略异常，防止单个文件处理失败导致整个任务失败
         log_files = self.find_log_files(self.temp_dir)
         for log_file_path in log_files:
-            self.process_log_file(log_file_path)
+            with ignored(Exception, log_exception=True):
+                self.process_log_file(log_file_path)
 
         # 清理临时文件
         shutil.rmtree(self.temp_dir, ignore_errors=True)

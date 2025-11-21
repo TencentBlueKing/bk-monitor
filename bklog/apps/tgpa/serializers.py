@@ -34,7 +34,7 @@ class CreateTGPATaskSerializer(serializers.Serializer):
     scene = serializers.IntegerField(label="任务阶段", required=False)
     frequency = serializers.CharField(label="触发频率", required=False)
     trigger_duration = serializers.IntegerField(label="持续触发时间(s)", required=False)
-    comment = serializers.CharField(label="备注", required=False)
+    comment = serializers.CharField(label="备注", required=False, allow_blank=True)
 
 
 class GetTGPATaskListSerializer(serializers.Serializer):
