@@ -26,6 +26,7 @@ logger = logging.getLogger("metadata")
 
 if TYPE_CHECKING:
     from metadata.models.data_source import DataSource
+    from metadata.models.storage import ClusterInfo
 
 
 class DataLinkResourceConfigBase(models.Model):
@@ -820,6 +821,59 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             render_params=render_params,
             err_msg_prefix="compose doris storage binding config",
         )
+
+
+class ClusterConfig(models.Model):
+    """
+    集群信息配置
+    """
+
+    bk_tenant_id = models.CharField(max_length=255, verbose_name="租户ID")
+    namespace = models.CharField(max_length=255, verbose_name="命名空间")
+    name = models.CharField(max_length=255, verbose_name="集群名称")
+    kind = models.CharField(max_length=255, verbose_name="集群类型")
+    origin_config = models.JSONField(verbose_name="原始配置")
+    status = models.CharField(max_length=255, verbose_name="状态")
+
+    class Meta:
+        verbose_name = "集群配置"
+        verbose_name_plural = verbose_name
+        unique_together = (("bk_tenant_id", "namespace", "kind", "name"),)
+
+    def compose_es_config(self, cluster: "ClusterInfo") -> dict[str, Any]:
+        """组装ES集群配置
+
+        Args:
+            cluster: 集群信息
+
+        Returns:
+            dict[str, Any]: 集群配置
+        """
+        return {}
+
+    def compose_doris_config(self, cluster: "ClusterInfo") -> dict[str, Any]:
+        """
+        组装Doris集群配置
+
+        Args:
+            cluster: 集群信息
+
+        Returns:
+            dict[str, Any]: 集群配置
+        """
+        return {}
+
+    def compose_vm_config(self, cluster: "ClusterInfo") -> dict[str, Any]:
+        """
+        组装VM集群配置
+
+        Args:
+            cluster: 集群信息
+
+        Returns:
+            dict[str, Any]: 集群配置
+        """
+        return {}
 
 
 @deprecated("已废弃，统一使用DataBusConfig替代")
