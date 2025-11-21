@@ -5,7 +5,6 @@ import string
 from collections import defaultdict
 from typing import Any
 
-from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import models, transaction
 from django.db.models import Q
@@ -20,6 +19,7 @@ from bkmonitor.models import QueryConfigModel
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.time_tools import date_convert, parse_time_range
+from bkmonitor.utils.user import get_admin_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
@@ -393,7 +393,7 @@ class CreateCustomEventGroup(Resource):
         return bk_data_id
 
     def perform_request(self, validated_request_data: dict[str, Any]):
-        operator = get_request_username() or settings.COMMON_USERNAME
+        operator = get_request_username() or get_admin_username(bk_tenant_id=get_request_tenant_id())
         bk_biz_id = validated_request_data["bk_biz_id"]
 
         # 1. 查询或创建业务的 data_id
@@ -500,7 +500,7 @@ class ModifyCustomEventGroup(Resource):
                     bk_tenant_id=get_request_tenant_id(),
                     bk_data_id=group.bk_data_id,
                     is_platform_data_id=params["is_platform"],
-                    operator=get_request_username() or settings.COMMON_USERNAME,
+                    operator=get_request_username() or get_admin_username(bk_tenant_id=get_request_tenant_id()),
                 )
 
         # 3. 结果回写数据库
