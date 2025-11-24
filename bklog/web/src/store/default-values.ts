@@ -244,6 +244,10 @@ export const IndexFieldInfo = {
   // 重复别名扩展字段
   // 当有多个字段别名一致的时候，自动生成一个单独字段
   alias_field_list: [],
+  has_repeat_alias_field: false,
+  alias_mapping_field: null,
+  is_virtual_alias_field: false,
+  source_field_names: [],
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
