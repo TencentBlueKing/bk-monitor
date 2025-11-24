@@ -253,7 +253,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
         }
 
         # 检查是否在白名单中，只有白名单中的应用才配置 metric_group_dimensions
-        if f"{self.bk_biz_id}-{self.app_name}" in settings.METRIC_GROUP_DIMENSIONS_WHITELIST:
+        if f"{self.bk_biz_id}-{self.app_name}" in settings.APM_METRIC_GROUP_DIMENSIONS_WHITELIST:
             params["metric_group_dimensions"] = ["service_name", "scope_name"]
 
         datalink = DataLink.get_data_link(self.bk_biz_id)
