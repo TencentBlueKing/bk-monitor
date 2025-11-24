@@ -398,11 +398,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_config(
-        self,
-        metric_group_dimensions: list[str] | None = None,
-        dd_version: str | None = None,
-    ) -> dict:
+    def compose_config(self, table_id) -> dict:
         """
         组装VM存储配置，与结果表相关联
         @param metric_group_dimensions: 指标分组维度列表，可选
@@ -455,9 +451,15 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             "rt_name": self.name,
             "vm_name": self.vm_cluster_name,
             "maintainers": json.dumps(maintainer),
-            "metric_group_dimensions": json.dumps(metric_group_dimensions) if metric_group_dimensions else None,
-            "dd_version": dd_version,
         }
+
+        # TimeSeriesGroup 中存在metric_group_dimensions才使用 v2 的 vmstoragebinding 配置
+        from metadata.models.custom_report.time_series import TimeSeriesGroup
+
+        ts_group = TimeSeriesGroup.objects.get(table_id=table_id, is_delete=False)
+        if ts_group.metric_group_dimensions:
+            render_params["metric_group_dimensions"] = json.dumps(ts_group.metric_group_dimensions)
+            render_params["dd_version"] = "v2"
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
