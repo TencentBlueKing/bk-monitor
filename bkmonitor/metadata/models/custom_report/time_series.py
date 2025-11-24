@@ -25,7 +25,6 @@ from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.db.fields import JsonField
-from constants.apm import APM_METRIC_TABLE_REGEX
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
@@ -234,12 +233,6 @@ class TimeSeriesGroup(CustomGroupBase):
         return not ResultTableOption.objects.filter(
             table_id=self.table_id, bk_tenant_id=self.bk_tenant_id, name="enable_field_black_list", value="false"
         ).exists()
-
-    def is_apm_scenario(self) -> bool:
-        """
-        判断是否是 APM 场景
-        """
-        return APM_METRIC_TABLE_REGEX.match(self.table_id) is not None
 
     def _refine_metric_tags(self, metric_info: list) -> dict:
         """去除重复的维度"""
@@ -458,7 +451,7 @@ class TimeSeriesGroup(CustomGroupBase):
                 result_table_id=vm_rt,
                 values=BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
                 # 如果是 APM 场景，使用 v2 版本的 API
-                version="v2" if self.is_apm_scenario() else "",
+                version="v2" if self.metric_group_dimensions else "",
             )
             or []
         )
