@@ -1337,6 +1337,9 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
    * @param {*} isPageChange 是否切换分页
    */
   async handleGetTableData(searchTypeChange = false, refleshAgg = true, needTopN = true) {
+    // 在函数开始时记录当前的搜索类型
+    const currentSearchType = this.searchType;
+
     this.listOpenId =
       Object.keys(this.commonFilterDataIdMap).find(key =>
         this.commonFilterDataIdMap[key].includes(this.activeFilterId)
@@ -1360,124 +1363,136 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     } else {
       needTopN && (await this.handleGetSearchTopNList(false));
     }
-    const [{ aggs, list, total, code, greyed_spaces }] = await Promise.all(promiseList);
 
-    // 语法错误
-    this.filterInputStatus = code !== grammaticalErrorCode ? 'success' : 'error';
-    // 数据接口是否报错
-    const isError = code && code !== grammaticalErrorCode;
-    if (searchTypeChange) {
-      if (
-        !this.advancedFilterDefaultOpen?.length ||
-        !this.advancedFilterDefaultOpen.every(id => aggs.some(set => set.id === id))
-      ) {
-        this.advancedFilterDefaultOpen = aggs?.length ? aggs.map(agg => agg.id) : [];
+    try {
+      const [{ aggs, list, total, code, greyed_spaces }] = await Promise.all(promiseList);
+
+      // 检查返回时搜索类型是否与请求时一致，避免快速切换搜索类型时，之前的请求可能在后续请求之后完成，导致表格数据显示错误
+      if (currentSearchType !== this.searchType) {
+        // 如果搜索类型已改变，直接返回不处理数据
+        return;
       }
-    }
-    if (refleshAgg) {
-      this.advancedFilterData = aggs || [];
-    }
-    this.advancedFilterLoading = false;
-    this.tableData =
-      list.map(item => ({
-        ...item,
-        extend_info: this.relateInfos?.[item.id] || '',
-        event_count: this.eventCounts?.[item.id] || '--',
-        followerDisabled: this.searchType === 'alert' ? getOperatorDisabled(item.follower, item.assignee) : false,
-      })) || [];
 
-    // 查找当前表格的 告警 标签是否有 通知人 为空的情况。BugID: 1010158081103484871
-    this.numOfEmptyAssignee = this.tableData.filter(
-      (item: IEventItem) => this.searchType === 'alert' && !item.assignee?.length && item.status === 'ABNORMAL'
-    ).length;
+      // 语法错误
+      this.filterInputStatus = code !== grammaticalErrorCode ? 'success' : 'error';
+      // 数据接口是否报错
+      const isError = code && code !== grammaticalErrorCode;
+      if (searchTypeChange) {
+        if (
+          !this.advancedFilterDefaultOpen?.length ||
+          !this.advancedFilterDefaultOpen.every(id => aggs.some(set => set.id === id))
+        ) {
+          this.advancedFilterDefaultOpen = aggs?.length ? aggs.map(agg => agg.id) : [];
+        }
+      }
+      if (refleshAgg) {
+        this.advancedFilterData = aggs || [];
+      }
+      this.advancedFilterLoading = false;
+      this.tableData =
+        list.map(item => ({
+          ...item,
+          extend_info: this.relateInfos?.[item.id] || '',
+          event_count: this.eventCounts?.[item.id] || '--',
+          followerDisabled: this.searchType === 'alert' ? getOperatorDisabled(item.follower, item.assignee) : false,
+        })) || [];
 
-    const ublist = this.allowedBizList.filter(item => item.noAuth && this.bizIds.includes(item.id));
-    this.bussinessTips = '';
-    if (!this.tableData.length) {
-      if (ublist.length) {
-        this.noDataType = '403';
-        this.noDataString = this.$t('您没有该业务的权限，请先申请!');
-      } else if (isError) {
-        this.noDataType = '500';
-        this.noDataString = '';
-      } else {
-        this.noDataType = this.hasSearchParams
-          ? 'search-empty'
-          : this.searchType === 'incident'
-            ? 'incidentEmpty'
-            : 'empty';
-        /**
-         * 故障错误信息展示
-         * 1. 有权限空间/与我的故障 无数据则根据当前人员是否有开启灰度空间，有：展示当前有多少空间权限， 无：提示开启灰度
-         * 2. 当前已开启灰度空间无数据，不处理
-         * 3. 当前多选空间，存在未灰度空间，则将为灰度空间拼接提示展示
-         */
-        if (this.searchType === 'incident') {
+      // 查找当前表格的 告警 标签是否有 通知人 为空的情况。BugID: 1010158081103484871
+      this.numOfEmptyAssignee = this.tableData.filter(
+        (item: IEventItem) => this.searchType === 'alert' && !item.assignee?.length && item.status === 'ABNORMAL'
+      ).length;
+
+      const ublist = this.allowedBizList.filter(item => item.noAuth && this.bizIds.includes(item.id));
+      this.bussinessTips = '';
+      if (!this.tableData.length) {
+        if (ublist.length) {
+          this.noDataType = '403';
+          this.noDataString = this.$t('您没有该业务的权限，请先申请!');
+        } else if (isError) {
+          this.noDataType = '500';
           this.noDataString = '';
-          if (this.bizIds?.some(id => [authorityBizId, hasDataBizId].includes(id))) {
-            this.noDataString = !greyed_spaces?.length
-              ? 'incidentRenderAssistant'
-              : this.$t('你当前有 {0} 个空间权限，暂无您负责的故障', [window.space_list.length]);
-            this.incidentEmptyData = {
-              text: String(window.space_list.length),
-              path: '你当前有 {count} 个空间权限，暂未开启灰度, 请联系 {link}',
-            };
-          } else {
-            const diffBizIds = difference(this.bizIds, greyed_spaces);
-            if (diffBizIds?.length) {
-              const intersectionBizIds = intersection(this.bizIds, greyed_spaces);
-              const spaces = this.$store.getters.bizList
-                .filter(({ bk_biz_id }) => diffBizIds.includes(bk_biz_id))
-                .map(({ name, space_id }) => `${name} (#${space_id})`);
+        } else {
+          this.noDataType = this.hasSearchParams
+            ? 'search-empty'
+            : this.searchType === 'incident'
+              ? 'incidentEmpty'
+              : 'empty';
+          /**
+           * 故障错误信息展示
+           * 1. 有权限空间/与我的故障 无数据则根据当前人员是否有开启灰度空间，有：展示当前有多少空间权限， 无：提示开启灰度
+           * 2. 当前已开启灰度空间无数据，不处理
+           * 3. 当前多选空间，存在未灰度空间，则将为灰度空间拼接提示展示
+           */
+          if (this.searchType === 'incident') {
+            this.noDataString = '';
+            if (this.bizIds?.some(id => [authorityBizId, hasDataBizId].includes(id))) {
+              this.noDataString = !greyed_spaces?.length
+                ? 'incidentRenderAssistant'
+                : this.$t('你当前有 {0} 个空间权限，暂无您负责的故障', [window.space_list.length]);
               this.incidentEmptyData = {
-                text: spaces.join(','),
-                path: '{count} 空间未开启故障分析功能，请联系 {link}',
+                text: String(window.space_list.length),
+                path: '你当前有 {count} 个空间权限，暂未开启灰度, 请联系 {link}',
               };
-              this.noDataType = intersectionBizIds.length === 0 ? 'incidentNotEnabled' : this.noDataType;
-              this.noDataString = 'incidentRenderAssistant';
+            } else {
+              const diffBizIds = difference(this.bizIds, greyed_spaces);
+              if (diffBizIds?.length) {
+                const intersectionBizIds = intersection(this.bizIds, greyed_spaces);
+                const spaces = this.$store.getters.bizList
+                  .filter(({ bk_biz_id }) => diffBizIds.includes(bk_biz_id))
+                  .map(({ name, space_id }) => `${name} (#${space_id})`);
+                this.incidentEmptyData = {
+                  text: spaces.join(','),
+                  path: '{count} 空间未开启故障分析功能，请联系 {link}',
+                };
+                this.noDataType = intersectionBizIds.length === 0 ? 'incidentNotEnabled' : this.noDataType;
+                this.noDataString = 'incidentRenderAssistant';
+              }
+            }
+          } else {
+            if (!this.bizIds?.some(id => [authorityBizId, hasDataBizId].includes(id))) {
+              this.noDataString = this.$t('你当前有 {0} 个业务权限，暂无告警事件', [window.space_list.length]);
+            } else {
+              this.noDataString = '';
             }
           }
-        } else {
-          if (!this.bizIds?.some(id => [authorityBizId, hasDataBizId].includes(id))) {
-            this.noDataString = this.$t('你当前有 {0} 个业务权限，暂无告警事件', [window.space_list.length]);
-          } else {
-            this.noDataString = '';
+        }
+      } else {
+        if (ublist.length) {
+          const hasDatalist = ublist.filter(item => item.hasData).map(item => item.name);
+          const noBussinessList = ublist.filter(item => !item.hasData).map(item => item.name);
+          let tips = '';
+          if (hasDatalist.length) {
+            tips += `${hasDatalist.join(',')} 业务仅能查看属于本人的告警，`;
           }
+          if (noBussinessList.length) {
+            tips += `${noBussinessList.join(',')} 业务无权限且无数据，`;
+          }
+          tips += '如需查看业务全部告警，可前往申请相关业务权限';
+          this.bussinessTips = tips;
         }
       }
-    } else {
-      if (ublist.length) {
-        const hasDatalist = ublist.filter(item => item.hasData).map(item => item.name);
-        const noBussinessList = ublist.filter(item => !item.hasData).map(item => item.name);
-        let tips = '';
-        if (hasDatalist.length) {
-          tips += `${hasDatalist.join(',')} 业务仅能查看属于本人的告警，`;
-        }
-        if (noBussinessList.length) {
-          tips += `${noBussinessList.join(',')} 业务无权限且无数据，`;
-        }
-        tips += '如需查看业务全部告警，可前往申请相关业务权限';
-        this.bussinessTips = tips;
+      this.pagination.count = total || 0;
+      if (!this.isRouteBack && !this.isSplitEventPanel) {
+        const key = random(10);
+        const params = {
+          name: this.$route.name,
+          query: {
+            ...this.handleParam2Url(),
+            key,
+          },
+        };
+        setTimeout(() => {
+          if (this.$store.getters.paddingRoute?.name.includes('event-center')) {
+            this.routeStateKeyList.length === 0 ? this.$router.replace(params) : this.$router.push(params);
+            this.routeStateKeyList.push(key);
+          }
+        }, 100);
       }
+    } catch (error) {
+      console.error('Failed to get table data:', error);
+    } finally {
+      this.tableLoading = false;
     }
-    this.pagination.count = total || 0;
-    if (!this.isRouteBack && !this.isSplitEventPanel) {
-      const key = random(10);
-      const params = {
-        name: this.$route.name,
-        query: {
-          ...this.handleParam2Url(),
-          key,
-        },
-      };
-      setTimeout(() => {
-        if (this.$store.getters.paddingRoute?.name.includes('event-center')) {
-          this.routeStateKeyList.length === 0 ? this.$router.replace(params) : this.$router.push(params);
-          this.routeStateKeyList.push(key);
-        }
-      }, 100);
-    }
-    this.tableLoading = false;
   }
 
   handleFirstShowDetail() {
