@@ -1,6 +1,6 @@
 ### 功能描述
 
-日志查询接口
+日志查询接口，需要指定index_set_id 或 数据平台的索引
 
 ### 请求参数
 
@@ -8,7 +8,8 @@
 
 | 字段      |  类型      | 必选   |  描述      |
 |-----------|------------|--------|------------|
-| indices         |  string    | 是     | 索引列表 |
+| indices         |  string    | 否     | 索引列表 |
+| index_set_id        |  string    | 否     | 索引集ID（传递改参数会覆盖 indices 参数） |
 | scenario_id         |  string    | 否     | ES接入场景(非必填） 默认为log，原生ES：es 日志采集：log |
 | storage_cluster_id  |  int   | 否     | 当scenario_id为es或log时候需要传入 |
 | time_field  |  string   | 否     | 时间字段（非必填，bkdata内部为dtEventTimeStamp，外部如果传入时间范围需要指定时间字段） |
@@ -24,12 +25,12 @@
 
 ### 请求头示例
 
-X-Bkapi-Authorization (权限校验)
+X-Bkapi-Authorization (权限校验，需要加上 bk_username)
 ```json
 {
     "bk_app_code": "replace_me_with_bk_app_code",
     "bk_app_secret": "replace_me_with_bk_app_secret",
-    "bk_username": "replace_me_with_bk_username",
+    "bk_username": "replace_me_with_bk_username"
 }
 ```
 
@@ -137,7 +138,7 @@ X-Bk-Tenant-Id (租户ID)
                         "path": "/host/path/log/type.log",
                         "serverIp": "127.0.0.1",
                         "time": "1647254492000"
-                    },
+                    }
                 }
             ]
         }
