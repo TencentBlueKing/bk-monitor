@@ -1565,7 +1565,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
         yield from self.get_plugin_tables()
 
         # 进程采集插件
-        if self.bk_biz_id is None:
+        if self.bk_biz_id == 0:
             yield from self.get_process_plugin_tables()
 
     def get_process_plugin_tables(self):
