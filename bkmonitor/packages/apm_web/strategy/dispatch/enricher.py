@@ -242,26 +242,28 @@ class BaseEnricher(abc.ABC):
         dispatch_config.message_template = "\n".join([t for t in tmpls if t])
 
     def _current_value_tmpl(self, dispatch_config: DispatchConfig) -> str:
+        """当前值模板
+        包含content和当前值
+        """
         unit: str = dispatch_config.algorithms[0].get("unit_prefix", "")
-        return str(_(f"#当前 {self._query_template_wrapper.alias}# {{{{alarm.current_value}}}} {unit}"))
+        return "\n".join(
+            [
+                "{{content.content}}",
+                str(_(f"#当前 {self._query_template_wrapper.alias}# {{{{alarm.current_value}}}} {unit}")),
+            ]
+        )
 
     def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
         """实体信息模板"""
-        return _("#APM 应用# {app_name}\n#APM 服务# {service_name}").format(
-            app_name=self.app_name, service_name=dispatch_config.service_name
-        )
+        return "{{content.target}}"
 
     def _dimension_tmpl(self, dispatch_config: DispatchConfig) -> str:
         """维度模板"""
-        lines: list[str] = []
-        for tag in dispatch_config.context.get("GROUP_BY", []):
-            tag_label: str = apm_constants.get_label_from_enums(tag, self._TAG_ENUMS)
-            lines.append(f"#{tag_label}# {{{{alarm.dimensions['{tag}'].display_value}}}}")
-        return "\n".join(lines)
+        return "{{content.dimension}}"
 
     def _detail_tmpl(self, dispatch_config: DispatchConfig) -> str:
         """详情模板"""
-        return "{{content.detail}}\n{{content.assign_detail}}"
+        return "{{content.detail}}\n{{content.assign_detail}}\n{{content.related_info}}"
 
     def _links_tmpl(self, dispatch_config: DispatchConfig) -> str:
         """场景链接模板"""
@@ -290,20 +292,15 @@ class RPCEnricher(BaseEnricher):
             )
         )
 
-    def _current_value_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        """RPC特殊处理，包含content和当前值"""
-        return "\n".join(["{{content.content}}", super()._current_value_tmpl(dispatch_config)])
-
-    def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        return "{{content.target}}"
-
     def _dimension_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        """维度模板 - RPC使用content.dimension"""
+        """维度模板"""
+        # RPC 日志类型, 附带关联日志信息
         if self.is_rpc_log():
-            # RPC日志类型使用关联日志信息
-            return str(_("#关联日志# {{alarm.log_related_info}}"))
-        # RPC指标类型使用content.dimension
-        return "{{content.dimension}}"
+            return "\n".join(
+                [super()._dimension_tmpl(dispatch_config), str(_("#关联日志# {{alarm.log_related_info}}"))]
+            )
+
+        return super()._dimension_tmpl(dispatch_config)
 
     def is_rpc_log(self) -> bool:
         """是否为 RPC 日志告警"""
@@ -344,7 +341,14 @@ class K8SEnricher(BaseEnricher):
 
     def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
         # 目标信息用于更好地与观测场景实体联动。
-        return "\n".join([super()._entity_info_tmpl(dispatch_config), "{{content.target}}"])
+        return "\n".join(
+            [
+                _("#APM 应用# {app_name}\n#APM 服务# {service_name}").format(
+                    app_name=self.app_name, service_name=dispatch_config.service_name
+                ),
+                "{{content.target}}",
+            ]
+        )
 
     @classmethod
     def _filter_by_workloads(cls, workloads: list[dict[str, Any]]) -> Q:
@@ -413,12 +417,6 @@ class LogEnricher(BaseEnricher):
         dispatch_config.context.update({"SERVICE_NAME": service_name, "INDEX_SET_ID": self._get_index_set_id_or_none()})
         self.upsert_message_template(dispatch_config)
 
-    def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        return "{{content.target}}"
-
-    def _dimension_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        return "{{content.dimension}}"
-
 
 class TraceEnricher(LogEnricher):
     SYSTEM: str = StrategyTemplateSystem.TRACE.value
@@ -444,9 +442,6 @@ class MetricEnricher(BaseEnricher):
                 system=StrategyTemplateCategory.from_value(self._strategy_template.category).label,
             )
         )
-
-    def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        return "{{content.target}}"
 
     def _enrich(self, service_name: str, dispatch_config: DispatchConfig) -> None:
         # 在用户填写的基础上，增加服务、应用作为过滤条件，用于限定监控范围。
