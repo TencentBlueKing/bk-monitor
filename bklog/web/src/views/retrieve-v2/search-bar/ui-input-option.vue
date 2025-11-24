@@ -1,21 +1,20 @@
 <script setup lang="ts">
-import { computed, ref, watch, onBeforeUnmount, nextTick, Ref } from 'vue';
+import { Ref, computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 // @ts-ignore
-import { getCharLength, getRegExp, formatDateTimeField, getOsCommandLabel } from '@/common/util';
+import { formatDateTimeField, getCharLength, getOsCommandLabel, getRegExp } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import imgEnterKey from '@/images/icons/enter-key.svg';
 import imgUpDownKey from '@/images/icons/up-down-key.svg';
-import { bkIcon } from 'bk-magic-vue';
 import { Props } from 'tippy.js';
 
-import PopInstanceUtil from '../../../global/pop-instance-util';
-import { excludesFields, withoutValueConditionList, getInputQueryDefaultItem, getFieldConditonItem, FulltextOperator } from './const.common';
-import { translateKeys } from './const-values';
 import useFieldEgges from '@/hooks/use-field-egges';
+import PopInstanceUtil from '../../../global/pop-instance-util';
 import { BK_LOG_STORAGE, FieldInfoItem } from '../../../store/store.type';
 import BatchInput from '../components/batch-input';
+import { translateKeys } from './const-values';
+import { FulltextOperator, excludesFields, getFieldConditonItem, getInputQueryDefaultItem, withoutValueConditionList } from './const.common';
 const INPUT_MIN_WIDTH = 12;
 
 const props = defineProps({
@@ -308,21 +307,77 @@ const unInstallOperatorSelect = () => {
 };
 
 const restoreFieldAndCondition = () => {
-  const matchedField = fieldList.value.find(field => field.field_name === (props.value as any).field);
-  Object.assign(activeFieldItem.value, matchedField ?? {});
+  // 如果 props.value 是字符串类型（全文检索），不需要恢复
+  if (typeof props.value === 'string') {
+    return;
+  }
+
+  const valueField = (props.value as any)?.field;
+  if (!valueField) {
+    return;
+  }
+
+  // 先在 fieldList 中查找匹配的字段
+  const matchedField = fieldList.value.find(field => field.field_name === valueField);
+  if (!matchedField) {
+    return;
+  }
+
+  // 恢复字段信息
+  Object.assign(activeFieldItem.value, matchedField);
+
+  // 恢复条件信息
   const { operator, relation = 'OR', isInclude, value = [] } = (props.value ?? {}) as Record<string, any>;
   Object.assign(condition.value, { operator, relation, isInclude, value: [...value] });
 
+  // 在 filterFieldList 中查找匹配的字段索引
+  // 只匹配 field_name 和 field_type，不要求操作符必须匹配 field_operator[0]
   let filterIndex = filterFieldList.value.findIndex(
-    (field: any) => field.field_type === activeFieldItem.value.field_type
-      && field.field_name === activeFieldItem.value.field_name
-      && field.field_operator?.[0]?.operator === condition.value.operator,
+    (field: any) => field.field_name === activeFieldItem.value.field_name
+      && field.field_type === activeFieldItem.value.field_type,
   );
 
-  if (filterIndex === -1) {
-    Object.assign(activeFieldItem.value, filterFieldList.value[0]);
-    Object.assign(condition.value, { operator: activeFieldItem.value.field_operator?.[0]?.operator });
+  // 如果找到了匹配的字段，确保操作符在该字段的操作符列表中
+  if (filterIndex !== -1) {
+    const foundField = filterFieldList.value[filterIndex];
+    const hasOperator = foundField.field_operator?.some(op => op.operator === condition.value.operator);
+    // 如果操作符不在列表中，使用第一个可用的操作符
+    if (!hasOperator && foundField.field_operator?.length > 0) {
+      condition.value.operator = foundField.field_operator[0].operator;
+    }
+  } else {
+    // 如果找不到匹配的字段，说明可能被搜索过滤掉了
+    // 清空搜索值，让字段显示出来
+    if (searchValue.value.length > 0) {
+      searchValue.value = '';
+      // 清空搜索后，filterFieldList 会重新计算，需要再次查找
+      nextTick(() => {
+        filterIndex = filterFieldList.value.findIndex(
+          (field: any) => field.field_name === activeFieldItem.value.field_name
+            && field.field_type === activeFieldItem.value.field_type,
+        );
+        if (filterIndex !== -1) {
+          activeIndex.value = filterIndex;
+          const foundField = filterFieldList.value[filterIndex];
+          const hasOperator = foundField.field_operator?.some(op => op.operator === condition.value.operator);
+          if (!hasOperator && foundField.field_operator?.length > 0) {
+            condition.value.operator = foundField.field_operator[0].operator;
+          }
+        } else {
+          // 如果清空搜索后还是找不到，使用默认索引
+          activeIndex.value = 0;
+        }
+      });
+      return;
+    }
+    // 如果搜索值已经为空但还是找不到，使用默认的第一个字段
     filterIndex = 0;
+    if (filterFieldList.value.length > 0) {
+      Object.assign(activeFieldItem.value, filterFieldList.value[0]);
+      if (filterFieldList.value[0]?.field_operator?.length > 0) {
+        condition.value.operator = filterFieldList.value[0].field_operator[0].operator;
+      }
+    }
   }
 
   activeIndex.value = filterIndex;
@@ -375,6 +430,18 @@ watch(
   searchValue,
   () => {
     nextTick(() => {
+      // 如果 props.value 是对象类型且有 field 属性，说明需要恢复字段状态，不要重置索引
+      if (typeof props.value === 'object' && props.value !== null && (props.value as any).field) {
+        // 只在搜索值变化时重新查找匹配的字段索引，但不要重置为默认值
+        const valueField = (props.value as any).field;
+        const filterIndex = filterFieldList.value.findIndex(
+          (field: any) => field.field_name === valueField,
+        );
+        if (filterIndex !== -1) {
+          activeIndex.value = filterIndex;
+        }
+        return;
+      }
       setDefaultActiveIndex();
     });
   },
@@ -703,7 +770,7 @@ const handleDeleteTagItem = (index) => {
 // 清空检索内容
 const handleClearBtnClick = () => {
   condition.value.value = [];
-}
+};
 
 const handleOperatorBtnClick = () => {
   operatorInstance.show(refUiValueOperator.value);
@@ -996,11 +1063,17 @@ let isMountedEventAdded = false;
 const beforeShowndFn = () => {
   if (!isMountedEventAdded) {
     isMountedEventAdded = true;
-    setDefaultActiveIndex();
     document.addEventListener('keydown', handleKeydownClick, { capture: true });
     document.addEventListener('click', handleDocumentClick);
 
+    // 先恢复字段和条件，这样 activeIndex 会被正确设置
     restoreFieldAndCondition();
+
+    // 如果恢复后没有设置索引（比如 props.value 是字符串或没有 field），才设置默认索引
+    if (activeIndex.value === null || (typeof props.value === 'object' && props.value !== null && !(props.value as any).field)) {
+      setDefaultActiveIndex();
+    }
+
     scrollActiveItemIntoView();
 
     nextTick(() => {
@@ -1036,10 +1109,27 @@ const handleValueInputEnter = (e) => {
 
 const handleConditionValueInputBlur = (e) => {
   conditionBlurTimer && clearTimeout(conditionBlurTimer);
+
+  // 保存输入框的值，因为后续可能会被清空
+  const inputValue = (e.target as HTMLInputElement)?.value?.trim();
+
   conditionBlurTimer = setTimeout(() => {
+    // 如果输入框有内容，且内容有效，则自动添加为标签
+    if (inputValue && inputValue.length > 0) {
+      // 验证输入内容是否有效
+      if (tagValidateFun(inputValue)) {
+        // 检查是否已存在，如果不存在则添加
+        if (!condition.value.value.includes(inputValue)) {
+          appendConditionValue(inputValue);
+        }
+      }
+    }
+
     isConditionValueInputFocus.value = false;
     conditionValueInputVal.value = '';
-    e.target.value = '';
+    if (e.target) {
+      (e.target as HTMLInputElement).value = '';
+    }
     conditionValueInstance.hide();
   }, 180);
 };
