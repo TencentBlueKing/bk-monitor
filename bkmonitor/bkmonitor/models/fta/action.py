@@ -190,7 +190,7 @@ class ActionPlugin(AbstractRecordModel):
         "job_site_url": settings.JOB_URL.rstrip("/"),
         "sops_site_url": settings.BK_SOPS_HOST.rstrip("/"),
         "itsm_site_url": settings.BK_ITSM_HOST.rstrip("/"),
-        "incident_saas_site_url": settings.BK_INCIDENT_SAAS_HOST.rstrip("/"),
+        "incident_saas_site_url": settings.BK_INCIDENT_SAAS_HOST.rstrip("/"),  # 故障分析SaaS URL
     }
 
     @staticmethod

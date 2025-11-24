@@ -1,7 +1,7 @@
 [
     {
         "id": 7,
-        "name": "故障分析SaaS",
+        "name": "标准排障",
         "is_builtin": true,
         "is_deleted": false,
         "is_peripheral": true,
@@ -9,7 +9,7 @@
         "plugin_type": "bk_incident",
         "plugin_key": "bk_incident",
         "has_child": true,
-        "description": "故障分析SaaS是基于BkFlow，融合了蓝鲸AIDEV能力，提供故障分析服务的一款调度编排类 SaaS 产品。<a href=\"{incident_saas_site_url}\" target=\"_blank\">前往故障分析SaaS</a>\n\n* 在故障分析SaaS中创建一个流程\n\n* 流程里面可以添加各种原子\n\n* 处理套餐中可以上下文传参可以在故障分析SaaS流程中设置为 **全局变量**\n\n",
+        "description": "标准排障是基于BkFlow，融合了蓝鲸AIDEV能力，提供故障分析服务的一款调度编排类 SaaS 产品。<a href=\"{incident_saas_site_url}\" target=\"_blank\">前往标准排障</a>\n\n* 在标准排障中创建一个流程\n\n* 流程里面可以添加各种原子\n\n* 处理套餐中可以上下文传参可以在标准排障流程中设置为 **全局变量**\n\n",
         "config_schema": {
             "template": {
                 "resource_class": "GetTemplateListResource",
@@ -23,12 +23,9 @@
                 }
             },
             "plugin_url": {
-                "resource_class": "GetUserProjectDetailResource",
-                "resource_module": "api.bk_incident.default",
-                "resource_data": "response",
                 "mapping": {
-                    "url": "{{incident_saas_site_url}}/template/new/{{project_id}}/",
-                    "tips": "前往故障分析SaaS"
+                    "url": "{{incident_saas_site_url}}",
+                    "tips": "前往标准排障"
                 }
             },
             "detail": {
@@ -45,13 +42,13 @@
                     "value": "{{value.default or value or ''}}"
                 }
             },
-            "content_template_with_url": "故障分析SaaS任务【{{action_name}}】处理{{status_display}}，点击$查看任务详情$",
-            "content_template": "故障分析SaaS任务【{{action_name}}】处理{{status_display}}, 请关注！！"
+            "content_template_with_url": "标准排障任务【{{action_name}}】处理{{status_display}}，点击$查看任务详情$",
+            "content_template": "标准排障任务【{{action_name}}】处理{{status_display}}, 请关注！！"
         },
         "backend_config": [
             {
                 "function": "create_task",
-                "name": "创建故障分析SaaS任务",
+                "name": "创建标准排障任务",
                 "resource_class": "CreateTaskResource",
                 "resource_module": "api.bk_incident.default",
                 "inputs": [
@@ -94,12 +91,12 @@
                 ],
                 "next_function": "start_task",
                 "need_insert_log": true,
-                "log_template": "成功创建故障分析SaaS任务【{{action_name}}】，点击$查看任务详情$"
+                "log_template": "成功创建标准排障任务【{{action_name}}】，点击$查看任务详情$"
             },
             {
                 "function": "start_task",
                 "name": "启动任务",
-                "resource_class": "StartTaskResource",
+                "resource_class": "OperateTaskResource",
                 "resource_module": "api.bk_incident.default",
                 "inputs": [
                     {
