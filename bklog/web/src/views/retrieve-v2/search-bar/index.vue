@@ -721,6 +721,14 @@ defineExpose({
     :class="['search-bar-wrapper']"
   >
     <div
+      v-bkloading="{
+        isLoading: isAiLoading,
+        opacity: 0.8,
+        theme: 'colorful',
+        size: 'mini',
+        title: $t('正在解析语句'),
+        extCls: 'v3-search-ai-loading',
+      }"
       :class="[
         'search-bar-container',
         {
@@ -728,7 +736,6 @@ defineExpose({
           'inspect-error': !inspectResponse.is_legal,
         },
       ]"
-      v-bkloading="{ isLoading: isAiLoading, opacity: 0.8, theme: 'colorful', size: 'mini', title: $t('正在解析语句'), extCls: 'v3-search-ai-loading' }"
     >
       <div
         class="search-options"
@@ -884,57 +891,57 @@ defineExpose({
   @import "./index.scss";
 </style>
 <style lang="scss">
-  .bklog-sql-input-loading {
-    .bk-loading-wrapper {
-      left: 30px;
+.bklog-sql-input-loading {
+  .bk-loading-wrapper {
+    left: 30px;
+  }
+}
+
+.v3-search-ai-loading {
+  .bk-loading-wrapper {
+    .bk-colorful.bk-size-mini {
+      width: 38px;
+      height: 10px;
+    }
+
+    .bk-loading-title {
+      margin-top: 0;
+      font-size: 12px;
+      color: #313238;
     }
   }
+}
 
-  .v3-search-ai-loading {
-    .bk-loading-wrapper {
-      .bk-colorful.bk-size-mini {
-        height: 10px;
-        width: 38px;
-      }
-
-      .bk-loading-title {
-        font-size: 12px;
-        color: #313238;
-        margin-top: 0;
-      }
-    }
+[data-tippy-root] .tippy-box {
+  &[data-theme*="transparent"] {
+    background-color: transparent;
+    border: none;
   }
+}
 
-  [data-tippy-root] .tippy-box {
-    &[data-theme*="transparent"] {
-      background-color: transparent;
-      border: none;
-    }
-  }
+.bklog-search-input-poptool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
 
-  .bklog-search-input-poptool {
+  .bklog-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
+    width: 28px;
+    height: 28px;
+    margin-right: 4px;
+    color: #4d4f56;
+    cursor: pointer;
+    background: #fafbfd;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px 1px #0000001f;
 
-    .bklog-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
-      margin-right: 4px;
-      color: #4d4f56;
-      cursor: pointer;
-      background: #fafbfd;
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
-      box-shadow: 0 1px 3px 1px #0000001f;
-
-      &:hover {
-        color: #3a84ff;
-      }
+    &:hover {
+      color: #3a84ff;
     }
   }
+}
 </style>
