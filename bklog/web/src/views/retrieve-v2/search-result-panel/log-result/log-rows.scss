@@ -46,6 +46,11 @@
     background-color: #fff;
     border-bottom: 1px solid #dfe0e5;
 
+    &.is-single-line-mode {
+      width: 100%;
+      max-width: 100%;
+    }
+
     .bklog-row-observe {
       display: inline-flex;
       flex-direction: column;
@@ -72,10 +77,31 @@
       line-height: 32px;
       color: var(--table-fount-color);
 
+      &.is-single-line-mode {
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+      }
+
       .bklog-row-cell {
         align-self: flex-start;
         padding: 4px 12px;
         line-height: 22px;
+
+        &.is-single-line-cell {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          min-width: 0;
+          max-width: 100%;
+
+          > * {
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
 
         mark {
           background-color: rgb(250, 238, 177);
