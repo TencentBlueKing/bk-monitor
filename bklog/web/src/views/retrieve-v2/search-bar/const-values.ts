@@ -23,41 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// @ts-expect-error
-export const Time_Range_List = [
-  {
-    id: 0,
-    name: 'off 关闭',
-  },
-  {
-    id: 60_000,
-    name: '1m',
-  },
-  {
-    id: 300_000,
-    name: '5m',
-  },
-  {
-    id: 900_000,
-    name: '15m',
-  },
-  {
-    id: 1_800_000,
-    name: '30m',
-  },
-  {
-    id: 3_600_000,
-    name: '1h',
-  },
-  {
-    id: 7_200_000,
-    name: '2h',
-  },
-  {
-    id: 86_400_000,
-    name: '1d',
-  },
-];
 
 export const operatorMapping = {
   '=': '=',
