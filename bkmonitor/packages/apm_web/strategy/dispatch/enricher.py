@@ -292,16 +292,6 @@ class RPCEnricher(BaseEnricher):
             )
         )
 
-    def _dimension_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        """维度模板"""
-        # RPC 日志类型, 附带关联日志信息
-        if self.is_rpc_log():
-            return "\n".join(
-                [super()._dimension_tmpl(dispatch_config), str(_("#关联日志# {{alarm.log_related_info}}"))]
-            )
-
-        return super()._dimension_tmpl(dispatch_config)
-
     def is_rpc_log(self) -> bool:
         """是否为 RPC 日志告警"""
         return self._strategy_template.category == StrategyTemplateCategory.RPC_LOG.value
