@@ -1007,7 +1007,7 @@ class DataLink(models.Model):
 
         configs = [
             vm_table_id_ins.compose_config(),
-            vm_storage_ins.compose_config(table_id),
+            vm_storage_ins.compose_config(data_source.bk_data_id),
             data_bus_ins.compose_config(sinks),
         ]
         return configs

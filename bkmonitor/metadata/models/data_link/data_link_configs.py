@@ -398,7 +398,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_config(self, table_id) -> dict:
+    def compose_config(self, bk_data_id) -> dict:
         """
         组装VM存储配置，与结果表相关联
         @param metric_group_dimensions: 指标分组维度列表，可选
@@ -456,8 +456,8 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         # TimeSeriesGroup 中存在metric_group_dimensions才使用 v2 的 vmstoragebinding 配置
         from metadata.models.custom_report.time_series import TimeSeriesGroup
 
-        ts_group = TimeSeriesGroup.objects.get(table_id=table_id, is_delete=False)
-        if ts_group.metric_group_dimensions:
+        ts_group = TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, is_delete=False).first()
+        if ts_group and ts_group.metric_group_dimensions:
             render_params["metric_group_dimensions"] = json.dumps(ts_group.metric_group_dimensions)
             render_params["dd_version"] = "v2"
 
