@@ -1109,10 +1109,27 @@ const handleValueInputEnter = (e) => {
 
 const handleConditionValueInputBlur = (e) => {
   conditionBlurTimer && clearTimeout(conditionBlurTimer);
+
+  // 保存输入框的值，因为后续可能会被清空
+  const inputValue = (e.target as HTMLInputElement)?.value?.trim();
+
   conditionBlurTimer = setTimeout(() => {
+    // 如果输入框有内容，且内容有效，则自动添加为标签
+    if (inputValue && inputValue.length > 0) {
+      // 验证输入内容是否有效
+      if (tagValidateFun(inputValue)) {
+        // 检查是否已存在，如果不存在则添加
+        if (!condition.value.value.includes(inputValue)) {
+          appendConditionValue(inputValue);
+        }
+      }
+    }
+
     isConditionValueInputFocus.value = false;
     conditionValueInputVal.value = '';
-    e.target.value = '';
+    if (e.target) {
+      (e.target as HTMLInputElement).value = '';
+    }
     conditionValueInstance.hide();
   }, 180);
 };
