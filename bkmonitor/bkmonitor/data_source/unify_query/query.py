@@ -437,6 +437,10 @@ class UnifyQuery:
         if not params["query_list"]:
             return []
 
+        for query in params["query_list"]:
+            # 原始日志查询，无需聚合及函数。
+            query.update({"function": [], "field_name": "", "time_aggregation": {}})
+
         params["limit"] = limit or 1
         params["_from"] = offset or 0
         params["timezone"] = timezone.get_current_timezone_name()
