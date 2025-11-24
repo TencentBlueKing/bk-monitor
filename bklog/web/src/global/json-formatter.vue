@@ -51,7 +51,7 @@
   import { computed, ref, watch, onBeforeUnmount, onMounted, inject } from 'vue';
 
   // @ts-ignore
-  import { parseTableRowData } from '@/common/util';
+  import { getRowFieldValue } from '@/common/util';
   import useFieldNameHook from '@/hooks/use-field-name';
 
   import useJsonRoot from '../hooks/use-json-root';
@@ -214,7 +214,7 @@
       }
 
       if (typeof props.jsonValue === 'object') {
-        const fieldValue = parseTableRowData(props.jsonValue, field.field_name);
+        const fieldValue = getRowFieldValue(props.jsonValue, field);
         return [convertToObject(fieldValue), fieldValue];
       }
 
@@ -222,7 +222,7 @@
     }
 
     if (typeof props.jsonValue === 'object') {
-      const fieldValue = parseTableRowData(props.jsonValue, field.field_name);
+      const fieldValue = getRowFieldValue(props.jsonValue, field);
       return [fieldValue, fieldValue];
     }
 

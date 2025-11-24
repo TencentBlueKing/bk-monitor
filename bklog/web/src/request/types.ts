@@ -24,23 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-export const operatorMapping = {
-  '=': '=',
-  '!=': '!=',
-  '<': '<',
-  '>': '>',
-  '<=': '<=',
-  '>=': '>=',
-  exists: '存在',
-  'does not exists': '不存在',
-  'is true': 'is true',
-  'is false': 'is false',
-  contains: '包含',
-  'not contains': '不包含',
-  'contains match phrase': '包含',
-  'not contains match phrase': '不包含',
-  'all contains match phrase': '全部包含',
-  'all not contains match phrase': '全部不包含',
-};
-
-export const translateKeys = ['存在', '不存在', '包含', '不包含', '全部包含', '全部不包含'];
+export interface FetchResponse<T> {
+  result: boolean;
+  code: string;
+  data: T;
+  message: string | null;
+  request_id: string;
+  trace_id: string;
+}
