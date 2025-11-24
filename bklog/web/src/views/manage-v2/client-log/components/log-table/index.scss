@@ -29,11 +29,20 @@
     }
   }
 
-  .bk-table .bk-table-header-wrapper{
+  .bk-table .bk-table-header-wrapper {
     .filter-column {
       .cell {
         display: flex;
       }
+    }
+  }
+
+  .hidden-text {
+    .cell {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-wrap: normal;
+      white-space: nowrap;
     }
   }
 }

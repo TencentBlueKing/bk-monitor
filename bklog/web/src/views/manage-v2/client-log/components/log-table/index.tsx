@@ -281,6 +281,30 @@ export default defineComponent({
       setDefaultSettingSelectFiled(settingCacheKey, fields);
     };
 
+    // 计算limit
+    const calculateLimitList = () => {
+      const fixedHeight = 368; // 需要减去的固定高度
+      const rowHeight = 43; // 行固定高度
+
+      // 获取浏览器高度
+      const clientHeight = document.documentElement.offsetHeight;
+
+      // 计算可以显示的行数
+      const rows = Math.ceil((clientHeight - fixedHeight) / rowHeight);
+      // 根据可显示行数设置合适的limit
+      if (rows < 10) {
+        pagination.value.limit = 10;
+      } else if (rows < 20) {
+        pagination.value.limit = 20;
+      } else if (rows < 50) {
+        pagination.value.limit = 50;
+      } else {
+        pagination.value.limit = 100;
+      }
+    };
+
+    calculateLimitList();
+
     onMounted(() => {
       const { selectedFields } = columnSetting.value;
       columnSetting.value.selectedFields = getDefaultSettingSelectFiled(settingCacheKey, selectedFields);
@@ -353,7 +377,7 @@ export default defineComponent({
             class='king-button'
             text
             theme='primary'
-            disabled
+            disabled={!row.permission?.search_client_log}
             on-click={() => downloadFile(row.download_url)}
           >
             {t('下载文件')}
@@ -389,7 +413,7 @@ export default defineComponent({
           {checkFields('id') && (
             <bk-table-column
               key='id'
-              class-name='filter-column'
+              class-name='filter-column hidden-text'
               width='100'
               label={t('任务 ID')}
               prop='id'
@@ -398,7 +422,7 @@ export default defineComponent({
           )}
           <bk-table-column
             key='task_name'
-            class-name='filter-column'
+            class-name='filter-column hidden-text'
             min-width='140'
             label={t('任务名称')}
             prop='task_name'
@@ -407,7 +431,7 @@ export default defineComponent({
           ></bk-table-column>
           <bk-table-column
             key='openid'
-            class-name='filter-column'
+            class-name='filter-column hidden-text'
             min-width='140'
             label='openid'
             prop='openid'
@@ -416,7 +440,7 @@ export default defineComponent({
           {checkFields('create_type') && (
             <bk-table-column
               key='create_type'
-              class-name='filter-column'
+              class-name='filter-column hidden-text'
               min-width='100'
               label={t('创建方式')}
               prop='create_type'
@@ -428,7 +452,7 @@ export default defineComponent({
           {checkFields('status_name') && (
             <bk-table-column
               key='status_name'
-              class-name='filter-column'
+              class-name='filter-column hidden-text'
               width='120'
               label={t('任务状态')}
               prop='status_name'
@@ -441,7 +465,7 @@ export default defineComponent({
           {checkFields('scene_name') && (
             <bk-table-column
               key='scene_name'
-              class-name='filter-column'
+              class-name='filter-column hidden-text'
               width='100'
               label={t('任务阶段')}
               prop='scene_name'
@@ -453,7 +477,7 @@ export default defineComponent({
           {checkFields('created_by') && (
             <bk-table-column
               key='created_by'
-              class-name='filter-column'
+              class-name='filter-column hidden-text'
               min-width='100'
               label={t('创建人')}
               prop='created_by'
@@ -467,7 +491,7 @@ export default defineComponent({
           {checkFields('created_at') && (
             <bk-table-column
               key='created_at'
-              class-name='filter-column'
+              class-name='filter-column hidden-text'
               width='160'
               label={t('创建时间')}
               prop='created_at'
@@ -477,7 +501,7 @@ export default defineComponent({
           {checkFields('log_path') && (
             <bk-table-column
               key='log_path'
-              class-name='filter-column'
+              class-name='filter-column hidden-text'
               min-width='160'
               label={t('日志路径')}
               prop='log_path'
@@ -486,7 +510,7 @@ export default defineComponent({
           {checkFields('frequency') && (
             <bk-table-column
               key='frequency'
-              class-name='filter-column'
+              class-name='filter-column hidden-text'
               width='100'
               label={t('触发频率')}
               prop='frequency'
@@ -496,7 +520,7 @@ export default defineComponent({
           {checkFields('platform') && (
             <bk-table-column
               key='platform'
-              class-name='filter-column'
+              class-name='filter-column hidden-text'
               width='100'
               label={t('客户端类型')}
               prop='platform'
@@ -506,7 +530,7 @@ export default defineComponent({
           {checkFields('max_file_num') && (
             <bk-table-column
               key='max_file_num'
-              class-name='filter-column'
+              class-name='filter-column hidden-text'
               width='120'
               label={t('最大文件个数')}
               prop='max_file_num'

@@ -27,7 +27,7 @@
 import { defineComponent, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
-import { InfoBox } from 'bk-magic-vue';
+import { InfoBox, Message } from 'bk-magic-vue';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 
 import { t } from '@/hooks/use-locale';
@@ -123,10 +123,10 @@ export default defineComponent({
         }
 
         // 调用接口提交数据
-        await http.request('collect/addTask', {
+        await http.request('collect/createClientLog', {
           data: postData,
         });
-        // Message({ theme: 'success', message: t('保存成功'), delay: 1500 });
+        Message({ theme: 'success', message: t('保存成功'), delay: 1500 });
 
         // 通知父组件刷新列表
         emit('handleUpdatedTable');
@@ -210,6 +210,24 @@ export default defineComponent({
         default:
           return t('新建采集');
       }
+    };
+
+    // 根据客户端类型值获取对应的标签
+    const getClientTypeLabel = (platformValue) => {
+      const clientType = CLIENT_TYPE_OPTIONS.find(option => option.value === platformValue);
+      return clientType ? clientType.label : '-';
+    };
+
+    // 根据触发频率值获取对应的标签
+    const getTriggerFrequencyLabel = (frequencyValue) => {
+      const frequency = TRIGGER_FREQUENCY_OPTIONS.find(option => option.value === frequencyValue);
+      return frequency ? frequency.label : '-';
+    };
+
+    // 根据持续触发时长值获取对应的标签
+    const getSustainTimeLabel = (durationValue) => {
+      const duration = SUSTAIN_TIME_OPTIONS.find(option => option.value === durationValue);
+      return duration ? duration.label : '-';
     };
 
     return () => (
@@ -429,17 +447,17 @@ export default defineComponent({
               </div>
               <div>
                 <span>{t('触发频率')}</span>
-                <span>{props.logData.frequency === 'sustain' ? '持续触发' : '单次触发'}</span>
+                <span>{getTriggerFrequencyLabel(props.logData.frequency)}</span>
               </div>
               {props.logData.frequency === 'sustain' && (
                 <div>
                   <span>{t('持续触发时长')}</span>
-                  <span>{props.logData.trigger_duration || '-'}</span>
+                  <span>{getSustainTimeLabel(props.logData.trigger_duration)}</span>
                 </div>
               )}
               <div>
                 <span>{t('客户端类型')}</span>
-                <span>{props.logData.platform || '-'}</span>
+                <span>{getClientTypeLabel(props.logData.platform) || '-'}</span>
               </div>
               <div>
                 <span>{t('最大文件个数')}</span>
