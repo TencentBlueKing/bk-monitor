@@ -394,4 +394,6 @@ export default {
   '请输入结果表名称, 非必需': 'Please enter the result table name, optional',
   '请输入相关指标, 非必需': 'Please enter the related metrics, optional',
   手动创建: 'Manual create',
+  至次日: 'To the next day',
+  维度下钻分析: 'Dimension drill-down analysis',
 };

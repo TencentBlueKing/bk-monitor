@@ -124,36 +124,46 @@ export default defineComponent({
       emit('update:show', value);
     };
 
+    /** 拖拽的字段 */
     const draggingField = shallowRef('');
-    /**
-     * @description 源对象开始进入目标对象范围内触发，源对象和目标对象互换位置
-     *
-     */
-    function handleDragover(e: DragEvent, field: string) {
-      dragPreventDefault(e);
-      const sourceField = draggingField.value;
-      if (!sourceField || !field || field === draggingField.value) {
+    /** 目标字段 */
+    const targetField = shallowRef('');
+
+    /** 变更拖拽对象和目标对象位置 */
+    const transformFieldItemPosition = () => {
+      if (!draggingField.value || !targetField.value || targetField.value === draggingField.value) {
         return;
       }
       const list = [...localSelectValue.value];
-      const targetIndex = list.indexOf(field);
-      const sourceIndex = list.indexOf(sourceField);
+      const targetIndex = list.indexOf(targetField.value);
+      const sourceIndex = list.indexOf(draggingField.value);
       if (sourceIndex > targetIndex) {
         list.splice(sourceIndex, 1);
-        list.splice(targetIndex, 0, sourceField);
+        list.splice(targetIndex, 0, draggingField.value);
       } else {
-        list.splice(targetIndex + 1, 0, sourceField);
+        list.splice(targetIndex + 1, 0, draggingField.value);
         list.splice(sourceIndex, 1);
       }
       localSelectValue.value = list;
-    }
-    const throttleDragover = useThrottleFn(handleDragover, 300);
+    };
 
+    const throttleTransformFieldItemPosition = useThrottleFn(transformFieldItemPosition, 300);
+    /**
+     * @description 源对象开始进入目标对象范围内触发, 记录目标对象
+     *
+     */
+    function handleDragover(e: DragEvent, field: string) {
+      targetField.value = field;
+      dragPreventDefault(e);
+      throttleTransformFieldItemPosition();
+    }
     /**
      * @description 源对象拖动结束时触发
      *
      */
     function handleDragend(e: DragEvent) {
+      console.log('dragend', targetField.value, draggingField.value);
+      transformFieldItemPosition();
       const target = e.target as HTMLElement;
       const dragDom = target.closest('.target-item');
       if (dragDom) {
@@ -162,6 +172,7 @@ export default defineComponent({
         dragDom.draggable = false;
       }
       draggingField.value = '';
+      targetField.value = '';
     }
 
     /**
@@ -212,9 +223,10 @@ export default defineComponent({
       handleCheckChange,
       handleDeleteItem,
       handleClearSelect,
-      throttleDragover,
-      handleDragend,
+      dragPreventDefault,
       handleDragstart,
+      handleDragover,
+      handleDragend,
       dragHandleMouseOperation,
       handleConfirm,
     };
@@ -246,6 +258,7 @@ export default defineComponent({
                 <Input
                   class='search-input'
                   modelValue={this.searchValue}
+                  placeholder={this.$t('搜索 字段名称')}
                   type='search'
                   clearable
                   onClear={() => this.handleSearch('')}
@@ -268,7 +281,11 @@ export default defineComponent({
                   <EmptyStatus type='empty' />
                 )}
               </div>
-              <div class='right-panel'>
+              <div
+                class='right-panel'
+                onDragenter={this.dragPreventDefault}
+                onDragover={this.dragPreventDefault}
+              >
                 <div class='header'>
                   <i18n-t
                     keypath='已选{0}项'
@@ -294,7 +311,7 @@ export default defineComponent({
                         key={field.id}
                         class='list-item target-item'
                         onDragend={this.handleDragend}
-                        onDragover={e => this.throttleDragover(e, field.id)}
+                        onDragover={e => this.handleDragover(e, field.id)}
                         onDragstart={e => this.handleDragstart(e, field.id)}
                       >
                         <div class='list-item-left'>

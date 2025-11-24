@@ -32,6 +32,7 @@ import type { CommonCondition, QuickFilterItem } from '../typings';
 
 export function useQuickFilter() {
   const alarmStore = useAlarmCenterStore();
+  /** 快捷筛选列表 */
   const quickFilterList = shallowRef<QuickFilterItem[]>([]);
   const quickFilterLoading = shallowRef(false);
   const effectFunc = () => {

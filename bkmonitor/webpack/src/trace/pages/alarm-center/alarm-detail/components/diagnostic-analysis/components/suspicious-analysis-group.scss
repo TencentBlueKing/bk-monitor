@@ -3,8 +3,6 @@
   grid-template-rows: 0fr;
   grid-template-columns: 100%;
   overflow: hidden;
-  border: 1px solid #eaebf0;
-  border-radius: 2px;
   transition: grid-template-rows 0.6s ease;
 
   .link-text {
@@ -16,6 +14,10 @@
     .icon-monitor {
       margin-right: 5px;
       font-size: 12px;
+    }
+
+    &:hover {
+      color: #699df4;
     }
   }
 
@@ -30,7 +32,10 @@
       height: 26px;
       cursor: pointer;
       background: #eaebf0;
-      border-radius: 2px 2px 0 0;
+
+      .arrow-icon {
+        transition: transform 0.1s;
+      }
 
       .icon-monitor {
         font-size: 24px;
@@ -110,6 +115,14 @@
 
   &.expand {
     grid-template-rows: 1fr;
+
+    .suspicious-analysis-group-wrapper {
+      .group-header {
+        .arrow-icon {
+          transform: rotateZ(90deg);
+        }
+      }
+    }
   }
 
   & + .suspicious-analysis-group {

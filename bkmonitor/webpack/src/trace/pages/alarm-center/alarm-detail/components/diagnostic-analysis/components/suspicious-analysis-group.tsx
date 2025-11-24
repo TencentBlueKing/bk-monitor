@@ -71,7 +71,7 @@ export default defineComponent({
             class='group-header'
             onClick={this.toggleExpand}
           >
-            <i class='icon-monitor icon-arrow-down' />
+            <i class='icon-monitor icon-arrow-right arrow-icon' />
             <div class={['group-name', { 'link-text': !!this.data?.groupHeader.name.link }]}>
               {this.data?.groupHeader.name.title}
               {!!this.data?.groupHeader.name.link && <i class='icon-monitor icon-fenxiang' />}

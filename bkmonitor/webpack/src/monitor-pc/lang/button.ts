@@ -517,4 +517,7 @@ export default {
   添加告警策略: 'Add Alert Policy',
   更多地址: 'More',
   维度聚合: 'Group by',
+  上一个: 'Previous',
+  下一个: 'Next',
+  分析详情: 'Analysis Details',
 };

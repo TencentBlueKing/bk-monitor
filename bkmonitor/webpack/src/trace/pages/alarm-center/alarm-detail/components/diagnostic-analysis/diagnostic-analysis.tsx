@@ -243,11 +243,13 @@ export default defineComponent({
                 this.handleClosedChange(false);
               }}
             >
-              <img
-                class='text-image'
-                alt=''
-                src={isEn ? IconDiagnosisEn : IconDiagnosisZh}
-              />
+              <div class='btn-tag'>
+                <img
+                  class='text-image'
+                  alt=''
+                  src={isEn ? IconDiagnosisEn : IconDiagnosisZh}
+                />
+              </div>
             </div>
           ) : (
             <div class='diagnostic-analysis-wrapper'>

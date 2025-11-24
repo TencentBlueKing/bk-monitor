@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type ShallowRef, computed, defineComponent, onBeforeMount, shallowRef, watch, watchEffect } from 'vue';
+import { type ShallowRef, computed, defineComponent, nextTick, onBeforeMount, shallowRef, watch } from 'vue';
 
 import { tryURLDecodeParse } from 'monitor-common/utils';
 import { useRoute, useRouter } from 'vue-router';
@@ -156,11 +156,11 @@ export default defineComponent({
     const updateIsCollapsed = (v: boolean) => {
       isCollapsed.value = v;
     };
-
+    /** 快捷筛选 */
     const handleFilterValueChange = (filterValue: CommonCondition[]) => {
       alarmStore.quickFilterValue = filterValue;
     };
-
+    /** 告警分析添加条件 */
     const handleAddCondition = (condition: CommonCondition) => {
       console.log(condition);
       if (alarmStore.filterMode === EMode.ui) {
@@ -182,32 +182,33 @@ export default defineComponent({
         alarmStore.queryString = queryString;
       }
     };
-    function handleConditionChange(condition: CommonCondition[]) {
+    /** UI条件变化 */
+    const handleConditionChange = (condition: CommonCondition[]) => {
       alarmStore.conditions = condition;
-    }
-    function handleQueryStringChange(queryString: string) {
+    };
+    /** 查询语句变化 */
+    const handleQueryStringChange = (queryString: string) => {
       alarmStore.queryString = queryString;
-    }
-    function handleFilterModeChange(mode: EMode) {
+    };
+    /** 查询模式变化 */
+    const handleFilterModeChange = (mode: EMode) => {
       alarmStore.filterMode = mode;
-    }
-    function handleResidentConditionChange(condition: CommonCondition[]) {
+    };
+    const handleResidentConditionChange = (condition: CommonCondition[]) => {
       alarmStore.residentCondition = condition;
-    }
-    function handleQuery() {
+    };
+    /** 查询 */
+    const handleQuery = () => {
       alarmStore.refreshImmediate += 1;
-    }
-    function handleBizIdsChange(bizIds: (number | string)[]) {
+    };
+    /** 业务变化 */
+    const handleBizIdsChange = (bizIds: (number | string)[]) => {
       alarmStore.bizIds = bizIds as number[];
-    }
+    };
 
-    watchEffect(() => {
-      setUrlParams();
-    });
-
-    function setUrlParams(otherParams: { autoShowAlertAction?: string } = {}) {
-      const queryParams = {
-        ...route.query,
+    /** URL参数 */
+    const urlParams = computed(() => {
+      return {
         from: alarmStore.timeRange[0],
         to: alarmStore.timeRange[1],
         timezone: alarmStore.timezone,
@@ -221,13 +222,27 @@ export default defineComponent({
         bizIds: JSON.stringify(alarmStore.bizIds),
         currentPage: page.value,
         sortOrder: ordering.value,
+      };
+    });
+
+    watch(
+      () => urlParams.value,
+      () => {
+        setUrlParams();
+      }
+    );
+
+    function setUrlParams(otherParams: { autoShowAlertAction?: string } = {}) {
+      const queryParams = {
+        ...route.query,
+        ...urlParams.value,
         ...otherParams,
       };
 
       const targetRoute = router.resolve({
         query: queryParams,
       });
-      // /** 防止出现跳转当前地址导致报错 */
+      /** 防止出现跳转当前地址导致报错 */
       if (targetRoute.fullPath !== route.fullPath) {
         router.replace({
           query: queryParams,
@@ -252,20 +267,27 @@ export default defineComponent({
         currentPage,
       } = route.query;
       try {
-        if (from && to) {
-          alarmStore.timeRange = [from as string, to as string];
-        }
-        alarmStore.timezone = (timezone as string) || getDefaultTimezone();
-        alarmStore.refreshInterval = Number(refreshInterval) || -1;
-        alarmStore.queryString = (queryString as string) || '';
-        alarmStore.conditions = tryURLDecodeParse(conditions as string, []);
-        alarmStore.residentCondition = tryURLDecodeParse(residentCondition as string, []);
-        alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
-        alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
-        alarmStore.bizIds = tryURLDecodeParse(bizIds as string, [-1]);
         alarmStore.alarmType = (alarmType as AlarmType) || AlarmType.ALERT;
-        ordering.value = (sortOrder as string) || '';
-        page.value = Number(currentPage || 1);
+        /**
+         * 因为store会监听alarmType变化来进行缓存和初始化
+         * 如果直接赋值会把当前参数直接写给旧的缓存导致数据有问题
+         * 所以这里需要晚一点给alarmStore的各种数据赋值
+         */
+        nextTick(() => {
+          if (from && to) {
+            alarmStore.timeRange = [from as string, to as string];
+          }
+          alarmStore.timezone = (timezone as string) || getDefaultTimezone();
+          alarmStore.refreshInterval = Number(refreshInterval) || -1;
+          alarmStore.queryString = (queryString as string) || '';
+          alarmStore.conditions = tryURLDecodeParse(conditions as string, []);
+          alarmStore.residentCondition = tryURLDecodeParse(residentCondition as string, []);
+          alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
+          alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
+          alarmStore.bizIds = tryURLDecodeParse(bizIds as string, [-1]);
+          ordering.value = (sortOrder as string) || '';
+          page.value = Number(currentPage || 1);
+        });
       } catch (error) {
         console.log('route query:', error);
       }

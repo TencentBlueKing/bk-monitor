@@ -44,7 +44,7 @@ import type { IFilterField } from '@/components/retrieval-filter/typing';
 const ACTION_TABLE_COLUMNS = [
   {
     colKey: 'id',
-    title: window.i18n.t('ID'),
+    title: 'ID',
     is_default: true,
     is_locked: true,
     fixed: 'left',

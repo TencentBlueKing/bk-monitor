@@ -23,6 +23,7 @@
 
     .arrow-icon {
       font-size: 12px;
+      transition: transform 0.1s;
     }
 
     .analysis-type-icon {
@@ -47,5 +48,11 @@
 
   &.expand {
     grid-template-rows: 1fr;
+
+    .analysis-panel-wrapper-header {
+      .arrow-icon {
+        transform: rotateZ(90deg);
+      }
+    }
   }
 }
