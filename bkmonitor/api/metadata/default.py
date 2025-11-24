@@ -414,6 +414,7 @@ class CreateTimeSeriesGroupResource(MetaDataAPIGWResource):
         is_split_measurement = serializers.BooleanField(required=False, label="是否启动自动分表逻辑", default=True)
         additional_options = serializers.DictField(required=False, label="附带创建的ResultTableOption")
         data_label = serializers.CharField(required=False, label="数据标签")
+        metric_group_dimensions = serializers.ListField(required=False, label="指标分组的维度key配置", default=None)
 
 
 class ModifyTimeSeriesGroupResource(MetaDataAPIGWResource):
