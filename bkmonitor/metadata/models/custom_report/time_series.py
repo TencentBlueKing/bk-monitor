@@ -25,7 +25,6 @@ from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.db.fields import JsonField
-from constants.apm import APM_METRIC_TABLE_REGEX
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
@@ -65,6 +64,8 @@ class TimeSeriesGroup(CustomGroupBase):
 
     time_series_group_id = models.AutoField(verbose_name="分组ID", primary_key=True)
     time_series_group_name = models.CharField(verbose_name="自定义时序分组名", max_length=255)
+    # 指标分组的维度key配置，例如 ["service_name", "scope_name"]
+    metric_group_dimensions = models.JSONField(verbose_name="指标分组的维度key配置", default=[])
 
     # 默认表名
     DEFAULT_MEASUREMENT = "__default__"
@@ -232,12 +233,6 @@ class TimeSeriesGroup(CustomGroupBase):
         return not ResultTableOption.objects.filter(
             table_id=self.table_id, bk_tenant_id=self.bk_tenant_id, name="enable_field_black_list", value="false"
         ).exists()
-
-    def is_apm_scenario(self) -> bool:
-        """
-        判断是否是 APM 场景
-        """
-        return APM_METRIC_TABLE_REGEX.match(self.table_id) is not None
 
     def _refine_metric_tags(self, metric_info: list) -> dict:
         """去除重复的维度"""
@@ -456,7 +451,7 @@ class TimeSeriesGroup(CustomGroupBase):
                 result_table_id=vm_rt,
                 values=BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
                 # 如果是 APM 场景，使用 v2 版本的 API
-                version="v2" if self.is_apm_scenario() else "",
+                version="v2" if self.metric_group_dimensions else "",
             )
             or []
         )
@@ -650,6 +645,7 @@ class TimeSeriesGroup(CustomGroupBase):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
+        metric_group_dimensions: list[str] | None = None,
     ):
         """
         创建一个新的自定义分组记录
@@ -666,6 +662,7 @@ class TimeSeriesGroup(CustomGroupBase):
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
+        :param metric_group_dimensions: 分组维度信息
         :return: group object
         """
 
@@ -683,6 +680,7 @@ class TimeSeriesGroup(CustomGroupBase):
             additional_options=additional_options,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
+            metric_group_dimensions=metric_group_dimensions,
         )
 
         # 需要刷新一次外部依赖的consul，触发transfer更新
@@ -691,6 +689,13 @@ class TimeSeriesGroup(CustomGroupBase):
         DataSource.objects.get(bk_data_id=bk_data_id).refresh_consul_config()
 
         return custom_group
+
+    @classmethod
+    def _post_process_create(cls, custom_group, kwargs):
+        # None 和 [] 都不保存
+        if kwargs.get("metric_group_dimensions"):
+            custom_group.metric_group_dimensions = kwargs["metric_group_dimensions"]
+            custom_group.save()
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def modify_time_series_group(

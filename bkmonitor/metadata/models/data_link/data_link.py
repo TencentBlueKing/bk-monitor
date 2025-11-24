@@ -17,7 +17,6 @@ from django.conf import settings
 from django.db import models, transaction
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
-from constants.apm import APM_METRIC_TABLE_REGEX
 from core.drf_resource import api
 from metadata.models.data_link import utils
 from metadata.models.data_link.constants import (
@@ -944,16 +943,6 @@ class DataLink(models.Model):
         config_list.extend([vm_conditional_sink_config, data_bus_config])
         return config_list
 
-    @staticmethod
-    def _compose_vm_storage_config(vm_storage_ins, table_id: str) -> dict[str, Any]:
-        """
-        根据 table_id 判断并生成对应的 VM 存储配置
-        只有在 APM 的 metric 创建场景下，才使用 v2 的 vmstoragebinding 配置
-        """
-        if APM_METRIC_TABLE_REGEX.match(table_id) is not None:
-            return vm_storage_ins.compose_config(["service_name", "scope_name"], "v2")
-        return vm_storage_ins.compose_config()
-
     def compose_standard_time_series_configs(
         self, bk_biz_id: int, data_source: "DataSource", table_id: str, storage_cluster_name: str
     ) -> list[dict[str, Any]]:
@@ -1018,7 +1007,7 @@ class DataLink(models.Model):
 
         configs = [
             vm_table_id_ins.compose_config(),
-            self._compose_vm_storage_config(vm_storage_ins, table_id),
+            vm_storage_ins.compose_config(data_source.bk_data_id),
             data_bus_ins.compose_config(sinks),
         ]
         return configs
