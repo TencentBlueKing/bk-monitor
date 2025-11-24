@@ -377,7 +377,7 @@ class Alarm(BaseContextObject):
 
     @cached_property
     def create_timestamp(self):
-        return self.parent.alert.time if self.parent.alert else 0
+        return self.parent.alert.create_time if self.parent.alert else 0
 
     @cached_property
     def begin_time(self):

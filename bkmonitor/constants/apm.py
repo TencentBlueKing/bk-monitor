@@ -1109,12 +1109,12 @@ class RPCMetricTag(CachedEnum):
     @classmethod
     def tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
         return {
-            "caller": {"field": "kind", "value": [SpanKind.SPAN_KIND_CLIENT, SpanKind.SPAN_KIND_CONSUMER]},
+            "caller": {"field": "kind", "value": [SpanKind.SPAN_KIND_CLIENT, SpanKind.SPAN_KIND_PRODUCER]},
             cls.CALLER_SERVER.value: {"field": ResourceAttributes.SERVICE_NAME},
             cls.CALLER_SERVICE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_SERVICE}"},
             cls.CALLER_METHOD.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_METHOD}"},
             cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
-            "callee": {"field": "kind", "value": [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_PRODUCER]},
+            "callee": {"field": "kind", "value": [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_CONSUMER]},
             cls.CALLEE_SERVER.value: {"field": ResourceAttributes.SERVICE_NAME},
             cls.CALLEE_SERVICE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_SERVICE}"},
             cls.CALLEE_METHOD.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_METHOD}"},
