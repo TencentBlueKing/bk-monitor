@@ -59,6 +59,10 @@ const props = defineProps({
     type: String,
     default: 'global',
   },
+  isAiLoading: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['refresh', 'height-change', 'search', 'mode-change', 'text-to-query']);
@@ -724,6 +728,7 @@ defineExpose({
           'inspect-error': !inspectResponse.is_legal,
         },
       ]"
+      v-bkloading="{ isLoading: isAiLoading, opacity: 0.8, theme: 'colorful', size: 'mini', title: $t('正在解析语句'), extCls: 'v3-search-ai-loading' }"
     >
       <div
         class="search-options"
@@ -882,6 +887,21 @@ defineExpose({
   .bklog-sql-input-loading {
     .bk-loading-wrapper {
       left: 30px;
+    }
+  }
+
+  .v3-search-ai-loading {
+    .bk-loading-wrapper {
+      .bk-colorful.bk-size-mini {
+        height: 10px;
+        width: 38px;
+      }
+
+      .bk-loading-title {
+        font-size: 12px;
+        color: #313238;
+        margin-top: 0;
+      }
     }
   }
 
