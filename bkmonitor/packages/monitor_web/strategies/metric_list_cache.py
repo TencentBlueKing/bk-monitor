@@ -485,8 +485,6 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         )
 
         db_name_list.extend([f"{plugin[0]}_{plugin[1]}".lower() for plugin in plugin_data])
-        # process插件
-        db_name_list.extend(["process_perf", "process_port"])
         # 拨测
         db_name_list.extend(
             [
