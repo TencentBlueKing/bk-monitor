@@ -15,25 +15,25 @@
 
 ### 参数列表
 
-| 字段                 | 类型       | 必选 | 描述                                                                                                                            |
-|--------------------|----------|----|-------------------------------------------------------------------------------------------------------------------------------|
-| index_set_id       | int      | 否  | 索引集ID，非数据平台时需要传入                                                                                                              |
-| indices            | string   | 否  | 索引列表，多个索引用英文逗号连接, 用于指定数据平台索引                                                                                                  |
-| scenario_id        | string   | 否  | ES接入场景(原生ES：es; 日志采集：log; 数据平台：bkdata，默认为log)                                                                                 |
-| storage_cluster_id | int      | 否  | 当scenario_id为es或log时候需要传入                                                                                                     |
-| time_field         | string   | 否  | 时间字段（非必填，bkdata内部为dtEventTimeStamp，外部如果传入时间范围需要指定时间字段）                                                                        |
-| start_time         | string   | 否  | 开始时间。格式: `2006-01-02 15:04:05`。不填默认为最近15分钟                                                                                    |
-| end_time           | string   | 否  | 结束时间。格式: `2006-01-02 15:04:05`。不填默认为当前时刻                                                                                      |
-| time_range         | string   | 否  | 时间范围标识符["15m", "30m", "1h", "4h", "12h", "1d", "customized"]                                                                  |
-| query_string       | string   | 否  | 查询字符串。                                                                                                                        |
-| filter             | []Filter | 否  | 结构化过滤条件，多个条件之间为与的关系，与 `query_string` 共同生效                                                                                     |
-| start              | int      | 否  | 分页偏移量，默认为0                                                                                                                    |
-| size               | int      | 否  | 分页条数，默认为10。start + size 不允许超过 10000，如需查询更多条数需使用 `search_after` 参数进行轮询                                                         |
-| sort_list          | list     | 否  | 指定排序字段，列表每一项由 `字段名 + 升降序(asc/desc)` 构成   如 `[["dtEventTimeStamp", "desc"], ["gseIndex", "desc"], ["iterationIndex", "desc"]]` |
-| search_after       | list     | 否  | 需配合 `sort_list` 参数一并使用，需给出上一次请求的最后一条 `sort_list` 字段值，如 `[1718613905000, 19170867]`                                            |
-| slice_search       | boolean  | 否  | 是否分片查询，默认为`false`                                                                                                             |
-| slice_id           | int      | 否  | 指定分片                                                                                                                          |
-| slice_max          | int      | 否  | 分片数量                                                                                                                          |
+| 字段                 | 类型       | 必选 | 描述                                                                                                                                 |
+|--------------------|----------|----|------------------------------------------------------------------------------------------------------------------------------------|
+| index_set_id       | int      | 否  | 索引集ID，非数据平台时需要传入                                                                                                                   |
+| indices            | string   | 否  | 索引列表，多个索引用英文逗号连接, 用于指定数据平台索引                                                                                                       |
+| scenario_id        | string   | 否  | ES接入场景(原生ES：es; 日志采集：log; 数据平台：bkdata，默认为log)                                                                                      |
+| storage_cluster_id | int      | 否  | 当scenario_id为es或log时候需要传入                                                                                                          |
+| time_field         | string   | 否  | 时间字段（非必填，bkdata内部为dtEventTimeStamp，外部如果传入时间范围需要指定时间字段）                                                                             |
+| start_time         | string   | 否  | 开始时间。格式: `2006-01-02 15:04:05`。不填默认为最近15分钟                                                                                         |
+| end_time           | string   | 否  | 结束时间。格式: `2006-01-02 15:04:05`。不填默认为当前时刻                                                                                           |
+| time_range         | string   | 否  | 时间范围标识符["15m", "30m", "1h", "4h", "12h", "1d", "customized"]                                                                       |
+| query_string       | string   | 否  | 查询字符串。[检索语法指南](https://bk.tencent.com/docs/markdown/ZH/LogSearch/4.7/UserGuide/ProductFeatures/data-visualization/query_string.md) |
+| filter             | []Filter | 否  | 结构化过滤条件，多个条件之间为与的关系，与 `query_string` 共同生效                                                                                          |
+| start              | int      | 否  | 分页偏移量，默认为0                                                                                                                         |
+| size               | int      | 否  | 分页条数，默认为10。start + size 不允许超过 10000，如需查询更多条数需使用 `search_after` 参数进行轮询                                                              |
+| sort_list          | list     | 否  | 指定排序字段，列表每一项由 `字段名 + 升降序(asc/desc)` 构成   如 `[["dtEventTimeStamp", "desc"], ["gseIndex", "desc"], ["iterationIndex", "desc"]]`      |
+| search_after       | list     | 否  | 需配合 `sort_list` 参数一并使用，需给出上一次请求的最后一条 `sort_list` 字段值，如 `[1718613905000, 19170867]`                                                 |
+| slice_search       | boolean  | 否  | 是否分片查询，默认为`false`                                                                                                                  |
+| slice_id           | int      | 否  | 指定分片                                                                                                                               |
+| slice_max          | int      | 否  | 分片数量                                                                                                                               |
 
 
 #### Filter
@@ -159,7 +159,6 @@ print(response.json())
 ```
 
 
-
 ### Case 5: 使用排序
 
 按日志上报时间倒序进行排序
@@ -172,7 +171,6 @@ print(response.json())
     "sort_list": [["dtEventTimeStamp", "desc"], ["gseIndex", "desc"], ["iterationIndex", "desc"]]
 }
 ```
-
 
 
 ### Case 6: 滚动查询
@@ -209,8 +207,6 @@ print(response.json())
     ```
 
 3. 重复步骤 2，直至返回的 `hits` 结果数量小于 `size`
-
-
 
 
 ## 返回结果示例
