@@ -60,6 +60,12 @@ class UserModelBackend(ModelBackend):
 class CustomCachePublicKeyProvider(CachePublicKeyProvider):
     def provide(self, gateway_name: str, jwt_issuer: str | None = None, request: HttpRequest = None) -> str | None:
         """Return the public key specified by Settings"""
+        logger.warning(
+            f"""
+            test new internal api gateway,
+            gateway_name: {gateway_name}
+            """
+        )
         external_public_key = getattr(settings, "EXTERNAL_APIGW_PUBLIC_KEY", None)
         if not request:
             return super().provide(gateway_name, jwt_issuer)
