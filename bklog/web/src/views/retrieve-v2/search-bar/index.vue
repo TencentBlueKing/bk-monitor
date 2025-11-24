@@ -59,6 +59,10 @@ const props = defineProps({
     type: String,
     default: 'global',
   },
+  isAiLoading: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['refresh', 'height-change', 'search', 'mode-change', 'text-to-query']);
@@ -717,6 +721,14 @@ defineExpose({
     :class="['search-bar-wrapper']"
   >
     <div
+      v-bkloading="{
+        isLoading: isAiLoading,
+        opacity: 0.8,
+        theme: 'colorful',
+        size: 'mini',
+        title: $t('正在解析语句'),
+        extCls: 'v3-search-ai-loading',
+      }"
       :class="[
         'search-bar-container',
         {
@@ -879,42 +891,57 @@ defineExpose({
   @import "./index.scss";
 </style>
 <style lang="scss">
-  .bklog-sql-input-loading {
-    .bk-loading-wrapper {
-      left: 30px;
+.bklog-sql-input-loading {
+  .bk-loading-wrapper {
+    left: 30px;
+  }
+}
+
+.v3-search-ai-loading {
+  .bk-loading-wrapper {
+    .bk-colorful.bk-size-mini {
+      width: 38px;
+      height: 10px;
+    }
+
+    .bk-loading-title {
+      margin-top: 0;
+      font-size: 12px;
+      color: #313238;
     }
   }
+}
 
-  [data-tippy-root] .tippy-box {
-    &[data-theme*="transparent"] {
-      background-color: transparent;
-      border: none;
-    }
+[data-tippy-root] .tippy-box {
+  &[data-theme*="transparent"] {
+    background-color: transparent;
+    border: none;
   }
+}
 
-  .bklog-search-input-poptool {
+.bklog-search-input-poptool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+
+  .bklog-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
+    width: 28px;
+    height: 28px;
+    margin-right: 4px;
+    color: #4d4f56;
+    cursor: pointer;
+    background: #fafbfd;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px 1px #0000001f;
 
-    .bklog-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
-      margin-right: 4px;
-      color: #4d4f56;
-      cursor: pointer;
-      background: #fafbfd;
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
-      box-shadow: 0 1px 3px 1px #0000001f;
-
-      &:hover {
-        color: #3a84ff;
-      }
+    &:hover {
+      color: #3a84ff;
     }
   }
+}
 </style>

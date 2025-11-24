@@ -225,7 +225,7 @@ export default defineComponent({
         ref={searchBarRef}
         on-height-change={handleHeightChange}
         on-text-to-query={handleTextToQuery}
-        v-bkloading={{ isLoading: isAiLoading.value, opacity: 0.8, theme: 'colorful', size: 'mini', title: t('正在解析语句'), extCls: 'v3-search-ai-loading' }}
+        is-ai-loading={isAiLoading.value}
         {...{
           scopedSlots: {
             'custom-placeholder'(slotProps) {

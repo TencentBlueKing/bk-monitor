@@ -61,7 +61,6 @@ from monitor_web.plugin.constant import (
     PluginType,
 )
 from monitor_web.plugin.signature import Signature, load_plugin_signature_manager
-from monitor_web.tasks import append_metric_list_cache
 from utils import count_md5
 
 logger = logging.getLogger(__name__)
@@ -193,6 +192,8 @@ class BasePluginManager:
         """
         数据接入
         """
+        from monitor_web.tasks import append_metric_list_cache
+
         current_version = self.plugin.get_version(config_version, info_version)
 
         try:
