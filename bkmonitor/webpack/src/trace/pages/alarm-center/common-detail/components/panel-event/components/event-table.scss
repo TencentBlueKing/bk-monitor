@@ -52,21 +52,23 @@
 
     @for $i from 1 through length($statusColors) {
       .row-event-status-#{$i} {
-        .t-table__expandable-icon-cell {
-          position: relative;
-
+        .time-col-content {
           &::before {
             position: absolute;
             top: 1px;
             bottom: 1px;
-            left: 0;
+            left: 0 ;
             width: 3px;
+            height: 100%;
             content: '';
             background: nth($statusColors, $i);
             border-top-right-radius: 2px;
             border-bottom-right-radius: 2px;
           }
         }
+      }
+      .expand-content-status-#{$i} {
+        background-image: linear-gradient(to right, nth($statusColors, $i), nth($statusColors, $i)), linear-gradient(#f5f7fa, #f5f7fa);
       }
     }
 
@@ -81,6 +83,20 @@
 
         .t-table__row-full-element {
           padding: 0;
+        }
+      }
+    }
+
+    .time-col-content {
+      .table-expand-icon {
+        display: inline-block;
+        margin-right: 8px;
+        font-size: 14px;
+        line-height: 12px;
+        transition: transform 0.3s;
+
+        &.rotate-90 {
+          transform: rotate(90deg);
         }
       }
     }

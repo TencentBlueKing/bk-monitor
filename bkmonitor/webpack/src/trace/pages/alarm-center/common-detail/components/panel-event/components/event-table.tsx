@@ -95,7 +95,17 @@ export default defineComponent({
         width: 150,
         sorter: true,
         cell: (_h, { row }) => {
-          return dayjs.tz(row.time * 1000).format('YYYY-MM-DD HH:mm');
+          return (
+            <span class='time-col-content'>
+              <span
+                class={[
+                  'icon-monitor icon-mc-arrow-right table-expand-icon',
+                  { 'rotate-90': expandedRowKeys.value.includes(row.event_id) },
+                ]}
+              />
+              <span>{dayjs.tz(row.time * 1000).format('YYYY-MM-DD HH:mm')}</span>
+            </span>
+          );
         },
       },
       {
@@ -312,8 +322,9 @@ export default defineComponent({
             data={this.tableData.data}
             expandedRow={this.expandedRow}
             expandedRowKeys={this.expandedRowKeys}
-            expandIcon={this.expandIcon}
+            expandIcon={false}
             expandOnRowClick={true}
+            needCustomScroll={false}
             resizable={true}
             rowClassName={({ row }) => `row-event-status-${row.severity}`}
             rowKey={'event_id'}

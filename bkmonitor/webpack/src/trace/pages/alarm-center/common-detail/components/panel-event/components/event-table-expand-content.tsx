@@ -197,7 +197,12 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='alarm-center-detail-panel-relation-event-table-expand-content'>
+      <div
+        class={[
+          'alarm-center-detail-panel-relation-event-table-expand-content',
+          `expand-content-status-${this.data.severity}`,
+        ]}
+      >
         <div class='view-header'>
           <div class='header-tabs'>
             <span
