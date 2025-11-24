@@ -693,6 +693,53 @@
     "plugin_key": "itsm",
     "plugin_source": "peripheral",
     "plugin_type": "common",
+    "config_schema": {
+    "content_template": "故障工单套餐【{{action_name}}】处理{{status_display}}, 请关注！！",
+    "content_template_with_url": "根据套餐【{{action_name}}】的配置成功创建故障工单[{{sn}}]，点击$查看工单详情$",
+    "detail": {
+      "init_kwargs": {
+        "url": "{{bk_paas_inner_host}}/api/cw-aitsm/prod/api/v1/workflows/"
+      },
+      "mapping": {
+        "key": "{{key}}",
+        "name": "{{name}}",
+        "placeholder": "{{desc}}",
+        "required": "{{required}}",
+        "value": "{{default or ''}}"
+      },
+      "name": "提单信息",
+      "request_data_mapping": {
+        "workflow_keys": "{{template_id}}"
+      },
+      "resource_class": "CommonBaseResource",
+      "resource_data": "response.items[].form_canvas_data.form_data.layout[].list[].{key: key, desc: desc, name: tips,default:defaultValue,required:verification.required.value}",
+      "resource_module": "api.common.default"
+    },
+    "plugin_url": {
+      "mapping": {
+        "tips": "前往流程服务",
+        "url": "{{itsm_v4_site_url}}/#/system/processList"
+      }
+    },
+    "template": {
+      "init_kwargs": {
+        "url": "{{bk_paas_inner_host}}/api/cw-aitsm/prod/api/v1/system_workflow/list/"
+      },
+      "mapping": {
+        "id": "{{key}}",
+        "name": "{{name}}",
+        "url": "{{itsm_v4_site_url}}/#/ticket/ticketInfo?workflowId={{key}}&type=create"
+      },
+      "name": "服务名称",
+      "request_data_mapping": {
+        "is_enable": "True",
+        "system_id": "{{itsm_v4_system_id}}"
+      },
+      "resource_class": "CommonBaseResource",
+      "resource_data": "response.results[].{name: name, key: key}",
+      "resource_module": "api.common.default"
+    }
+  },
     "backend_config": [
     {
       "function": "create_task",
@@ -777,53 +824,6 @@
       "resource_module": "api.common.default",
       "schedule_timedelta": 2
     }
-  ],
-    "config_schema": {
-    "content_template": "故障工单套餐【{{action_name}}】处理{{status_display}}, 请关注！！",
-    "content_template_with_url": "根据套餐【{{action_name}}】的配置成功创建故障工单[{{sn}}]，点击$查看工单详情$",
-    "detail": {
-      "init_kwargs": {
-        "url": "{{bk_paas_inner_host}}/api/cw-aitsm/prod/api/v1/workflows/"
-      },
-      "mapping": {
-        "key": "{{key}}",
-        "name": "{{name}}",
-        "placeholder": "{{desc}}",
-        "required": "{{required}}",
-        "value": "{{default or ''}}"
-      },
-      "name": "提单信息",
-      "request_data_mapping": {
-        "workflow_keys": "{{template_id}}"
-      },
-      "resource_class": "CommonBaseResource",
-      "resource_data": "response.items[].form_canvas_data.form_data.layout[].list[].{key: key, desc: desc, name: tips,default:defaultValue,required:verification.required.value}",
-      "resource_module": "api.common.default"
-    },
-    "plugin_url": {
-      "mapping": {
-        "tips": "前往流程服务",
-        "url": "{{itsm_v4_site_url}}/#/service_catalog/addService"
-      }
-    },
-    "template": {
-      "init_kwargs": {
-        "url": "{{bk_paas_inner_host}}/api/cw-aitsm/prod/api/v1/system_workflow/list/"
-      },
-      "mapping": {
-        "id": "{{key}}",
-        "name": "{{name}}",
-        "url": "{{itsm_v4_site_url}}/#/ticket/ticketInfo?workflowId={{key}}&type=create"
-      },
-      "name": "服务名称",
-      "request_data_mapping": {
-        "is_enable": "True",
-        "system_id": "{{itsm_v4_system_id}}"
-      },
-      "resource_class": "CommonBaseResource",
-      "resource_data": "response.results[].{name: name, key: key}",
-      "resource_module": "api.common.default"
-    }
-  }
+  ]
 }
 ]
