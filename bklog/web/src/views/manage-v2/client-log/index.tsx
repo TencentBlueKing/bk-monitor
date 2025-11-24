@@ -123,7 +123,7 @@ export default defineComponent({
         };
 
         isLoading.value = true;
-        const response = await http.request('collect/getTaskList', params);
+        const response = await http.request('collect/getTaskLogList', params);
         tableData.value = response.data;
         tabs.value[0].count = response.data.total;
       } catch (error) {

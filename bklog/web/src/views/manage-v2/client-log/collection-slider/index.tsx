@@ -123,7 +123,7 @@ export default defineComponent({
         }
 
         // 调用接口提交数据
-        await http.request('collect/createClientLog', {
+        await http.request('collect/createCollectionTask', {
           data: postData,
         });
         Message({ theme: 'success', message: t('保存成功'), delay: 1500 });

@@ -66,6 +66,10 @@ export default defineComponent({
     const createdBys = ref([]); // 创建人
     const logTableRef = ref(null); // 表格引用
     const settingCacheKey = 'clientLog'; // 设置缓存键
+    const tableDataSort = ref({
+      id: '',
+      order: '',
+    });
 
     const settingFields = ref([
       { id: 'id', label: t('任务 ID') },
@@ -183,8 +187,52 @@ export default defineComponent({
       });
     };
 
-    // 显示的日志列表
-    const logShowList = computed(() => {
+    // 根据排序参数排序日志列表
+    const sortLogList = (list) => {
+      const { id, order } = tableDataSort.value;
+
+      // 检查是否有有效的排序条件
+      if (!id || !order) {
+        return list;
+      }
+
+      // 只允许特定字段进行排序
+      const allowedSortFields = ['id', 'task_name', 'openid', 'created_at'];
+      if (!allowedSortFields.includes(id)) {
+        return list;
+      }
+
+      const isAsc = order === 'ascending';
+
+      return [...list].sort((a, b) => {
+        let compareResult = 0;
+
+        // 根据不同字段使用不同的排序逻辑
+        switch (id) {
+          case 'id':
+            compareResult = a[id] - b[id];
+            break;
+
+          case 'task_name':
+          case 'openid':
+            compareResult = (a[id] || '').localeCompare(b[id] || '');
+            break;
+
+          case 'created_at':
+            compareResult = (a[id] || '').localeCompare(b[id] || '');
+            break;
+
+          default:
+            return 0;
+        }
+
+        // 根据排序方向返回结果
+        return isAsc ? compareResult : -compareResult;
+      });
+    };
+
+    // 过滤后的日志列表
+    const filteredLogList = computed(() => {
       let logList = props.data;
 
       if (isFilterSearch.value) {
@@ -211,6 +259,13 @@ export default defineComponent({
 
       changePagination({ count: logList.length });
 
+      return logList;
+    });
+
+    // 显示的日志列表
+    const logShowList = computed(() => {
+      const logList = sortLogList(filteredLogList.value);
+
       const { current, limit } = pagination.value;
       const startIndex = (current - 1) * limit;
       const endIndex = current * limit;
@@ -234,6 +289,15 @@ export default defineComponent({
         filterParams.value[key] = filters[key].join('');
       });
       handlePageChange(1);
+    };
+
+    // 排序变化事件处理函数
+    const handleSortChange = (sort: any) => {
+      const { prop, order } = sort;
+      tableDataSort.value = {
+        id: prop,
+        order,
+      };
     };
 
     // 过滤条件是否为空
@@ -314,7 +378,7 @@ export default defineComponent({
     const nameSlot = {
       default: ({ row }) => (
         <bk-button
-          class='king-button'
+          class='king-button name-button'
           text
           theme='primary'
           on-click={() => viewTask(row)}
@@ -328,11 +392,13 @@ export default defineComponent({
     const statusSlot = {
       default: ({ row }) => (
         <div class='status-row'>
-          <div class='status-icon'>
+          <div
+            class='status-icon'
+            key={row.status}
+          >
             {row.status === 8 && <bk-spin size='mini'></bk-spin>}
             {row.status === 6 && <div class='claimed-expired'></div>}
           </div>
-
           {row.status_name}
         </div>
       ),
@@ -377,7 +443,7 @@ export default defineComponent({
             class='king-button'
             text
             theme='primary'
-            disabled={!row.permission?.search_client_log}
+            disabled={!row.permission?.search_client_log || row.download_url === ''}
             on-click={() => downloadFile(row.download_url)}
           >
             {t('下载文件')}
@@ -408,12 +474,13 @@ export default defineComponent({
           onPage-change={handlePageChange}
           onPage-limit-change={handlePageLimitChange}
           onFilter-change={handleFilterChange}
+          onSort-change={handleSortChange}
           scopedSlots={emptySlot}
         >
           {checkFields('id') && (
             <bk-table-column
               key='id'
-              class-name='filter-column hidden-text'
+              class-name='filter-column overflow-hidden-text'
               width='100'
               label={t('任务 ID')}
               prop='id'
@@ -422,7 +489,7 @@ export default defineComponent({
           )}
           <bk-table-column
             key='task_name'
-            class-name='filter-column hidden-text'
+            class-name='filter-column'
             min-width='140'
             label={t('任务名称')}
             prop='task_name'
@@ -431,7 +498,7 @@ export default defineComponent({
           ></bk-table-column>
           <bk-table-column
             key='openid'
-            class-name='filter-column hidden-text'
+            class-name='filter-column overflow-hidden-text'
             min-width='140'
             label='openid'
             prop='openid'
@@ -440,7 +507,7 @@ export default defineComponent({
           {checkFields('create_type') && (
             <bk-table-column
               key='create_type'
-              class-name='filter-column hidden-text'
+              class-name='filter-column overflow-hidden-text'
               min-width='100'
               label={t('创建方式')}
               prop='create_type'
@@ -452,7 +519,7 @@ export default defineComponent({
           {checkFields('status_name') && (
             <bk-table-column
               key='status_name'
-              class-name='filter-column hidden-text'
+              class-name='filter-column overflow-hidden-text'
               width='120'
               label={t('任务状态')}
               prop='status_name'
@@ -465,7 +532,7 @@ export default defineComponent({
           {checkFields('scene_name') && (
             <bk-table-column
               key='scene_name'
-              class-name='filter-column hidden-text'
+              class-name='filter-column overflow-hidden-text'
               width='100'
               label={t('任务阶段')}
               prop='scene_name'
@@ -477,7 +544,7 @@ export default defineComponent({
           {checkFields('created_by') && (
             <bk-table-column
               key='created_by'
-              class-name='filter-column hidden-text'
+              class-name='filter-column overflow-hidden-text'
               min-width='100'
               label={t('创建人')}
               prop='created_by'
@@ -491,7 +558,7 @@ export default defineComponent({
           {checkFields('created_at') && (
             <bk-table-column
               key='created_at'
-              class-name='filter-column hidden-text'
+              class-name='filter-column overflow-hidden-text'
               width='160'
               label={t('创建时间')}
               prop='created_at'
@@ -501,7 +568,7 @@ export default defineComponent({
           {checkFields('log_path') && (
             <bk-table-column
               key='log_path'
-              class-name='filter-column hidden-text'
+              class-name='filter-column overflow-hidden-text'
               min-width='160'
               label={t('日志路径')}
               prop='log_path'
@@ -510,7 +577,7 @@ export default defineComponent({
           {checkFields('frequency') && (
             <bk-table-column
               key='frequency'
-              class-name='filter-column hidden-text'
+              class-name='filter-column overflow-hidden-text'
               width='100'
               label={t('触发频率')}
               prop='frequency'
@@ -520,7 +587,7 @@ export default defineComponent({
           {checkFields('platform') && (
             <bk-table-column
               key='platform'
-              class-name='filter-column hidden-text'
+              class-name='filter-column overflow-hidden-text'
               width='100'
               label={t('客户端类型')}
               prop='platform'
@@ -530,7 +597,7 @@ export default defineComponent({
           {checkFields('max_file_num') && (
             <bk-table-column
               key='max_file_num'
-              class-name='filter-column hidden-text'
+              class-name='filter-column overflow-hidden-text'
               width='120'
               label={t('最大文件个数')}
               prop='max_file_num'

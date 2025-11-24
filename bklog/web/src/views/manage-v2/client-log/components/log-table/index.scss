@@ -1,4 +1,17 @@
 .log-table {
+  .name-button {
+    width: 100%;
+    text-align: left;
+
+    >div {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        overflow-wrap: normal;
+        white-space: nowrap;
+      }
+    
+  }
+
   .status-row {
     display: flex;
 
@@ -37,11 +50,11 @@
     }
   }
 
-  .hidden-text {
+  .overflow-hidden-text {
     .cell {
       overflow: hidden;
       text-overflow: ellipsis;
-      word-wrap: normal;
+      overflow-wrap: normal;
       white-space: nowrap;
     }
   }
