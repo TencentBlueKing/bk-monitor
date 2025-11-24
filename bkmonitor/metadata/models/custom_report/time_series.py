@@ -1790,13 +1790,22 @@ class TimeSeriesMetric(models.Model):
 
     def to_metric_info_with_label(self, group: TimeSeriesGroup, field_map=None):
         """
+        返回带标签的指标信息，包含 MetricConfigFields 中定义的扩展字段
+
+        当 field_config 和 ResultTableField 中的数据有冲突时，优先使用 field_config 中的数据
+
+        返回格式:
          {
             "field_name": "mem_usage",
-            "description": "mem_usage_2",
-            "unit": "M",
+            "description": "mem_usage_2",  # 优先使用 field_config["desc"]
+            "unit": "M",  # 优先使用 field_config["unit"]
             "type": "double",
             "label": "service-k8s",
             "use_group": "container_performance",
+            "hidden": false,  # 来自 field_config，默认 False
+            "aggregate_method": "avg",  # 来自 field_config，默认空字符串
+            "function": "sum",  # 来自 field_config，默认空字符串
+            "interval": "60s",  # 来自 field_config，默认空字符串
             "tag_list": [
                 {
                     "field_name": "test_name",
@@ -1839,27 +1848,28 @@ class TimeSeriesMetric(models.Model):
         result["unit"] = orm_field["unit"]
         result["type"] = orm_field["field_type"]
 
-        # 遍历维度填充维度信息
-        for tag in self.tag_list:
-            item = {"field_name": tag, "description": ""}
-            # 如果维度不存在了，则表示字段可能已经被删除了
-            if tag in orm_field_map:
-                orm_field = orm_field_map[tag]
-                item["description"] = orm_field["description"]
-                item["unit"] = orm_field["unit"]
-                item["type"] = orm_field["field_type"]
-
-            result["tag_list"].append(item)
+        # 扩展 MetricConfigFields 字段，优先使用 field_config 中的数据
+        self._fill_metric_info_result(orm_field_map, result)
 
         return result
 
     def to_metric_info(self, field_map=None, group=None):
         """
+        返回指标信息，包含 MetricConfigFields 中定义的扩展字段
+
+        当 field_config 和 ResultTableField 中的数据有冲突时，优先使用 field_config 中的数据
+
+        返回格式:
          {
             "field_name": "mem_usage",
-            "description": "mem_usage_2",
-            "unit": "M",
+            "description": "mem_usage_2",  # 优先使用 field_config["desc"]
+            "unit": "M",  # 优先使用 field_config["unit"]
             "type": "double",
+            "is_disabled": false,
+            "hidden": false,  # 来自 field_config，默认 False
+            "aggregate_method": "avg",  # 来自 field_config，默认空字符串
+            "function": "sum",  # 来自 field_config，默认空字符串
+            "interval": "60s",  # 来自 field_config，默认空字符串
             "tag_list": [
                 {
                     "field_name": "test_name",
@@ -1903,6 +1913,24 @@ class TimeSeriesMetric(models.Model):
         result["type"] = orm_field["field_type"]
         result["is_disabled"] = orm_field["is_disabled"]
 
+        # 扩展 MetricConfigFields 字段，优先使用 field_config 中的数据
+        self._fill_metric_info_result(orm_field_map, result)
+
+        return result
+
+    def _fill_metric_info_result(self, orm_field_map, result):
+        field_config = self.field_config or {}
+        # desc 字段：优先使用 field_config 中的 desc
+        if "desc" in field_config:
+            result["description"] = field_config["desc"]
+        # unit 字段：优先使用 field_config 中的 unit
+        if "unit" in field_config:
+            result["unit"] = field_config["unit"]
+        # 添加其他 MetricConfigFields 字段
+        result["hidden"] = field_config.get("hidden", False)
+        result["aggregate_method"] = field_config.get("aggregate_method", "")
+        result["function"] = field_config.get("function", "")
+        result["interval"] = field_config.get("interval", "")
         # 遍历维度填充维度信息
         for tag in self.tag_list:
             item = {"field_name": tag, "description": ""}
@@ -1914,8 +1942,6 @@ class TimeSeriesMetric(models.Model):
                 item["type"] = orm_field["field_type"]
 
             result["tag_list"].append(item)
-
-        return result
 
 
 class TimeSeriesTagManager(models.Manager):
