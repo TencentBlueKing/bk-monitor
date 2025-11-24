@@ -208,7 +208,23 @@ const store = new Vuex.Store({
     space: state => state.space,
     spaceUid: state => state.spaceUid,
     indexId: state => state.indexId,
-    visibleFields: state => state.visibleFields,
+    visibleFields: (state) => {
+      if (state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
+        const result = [];
+        state.visibleFields.forEach((field) => {
+          if (!field.has_repeat_alias_field) {
+            result.push(field);
+          }
+
+          if (field.has_repeat_alias_field && !result.includes(field.alias_mapping_field)) {
+            result.push(field.alias_mapping_field);
+          }
+        });
+        return result;
+      }
+
+      return state.visibleFields.filter(field => !field.is_virtual_alias_field);
+    },
     /** 是否是联合查询 */
     isUnionSearch: state => !!state.indexItem.isUnionIndex,
     /** 联合查询索引集ID数组 */
@@ -345,6 +361,13 @@ const store = new Vuex.Store({
     },
     storeIsShowClusterStep: state => state.storeIsShowClusterStep,
     isAiAssistantActive: state => state.features.isAiAssistantActive,
+    filteredFieldList: (state) => {
+      if (state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
+        return state.indexFieldInfo.fields.filter(field => !field.has_repeat_alias_field);
+      }
+
+      return state.indexFieldInfo.fields.filter(field => !field.is_virtual_alias_field);
+    },
   },
   // 公共 mutations
   mutations: {
@@ -621,8 +644,59 @@ const store = new Vuex.Store({
     updateIndexFieldInfo(state, payload) {
       const HIDDEN_FIELDS = new Set(builtInInitHiddenList);
       const processedData = payload ? { ...payload } : {};
-      if (Array.isArray(processedData.fields)) {
-        processedData.fields = [...processedData.fields].sort((a, b) => {
+      let hasFieldsUpdate = false;
+      Object.keys(processedData ?? {}).forEach((key) => {
+        if (key === 'fields') {
+          hasFieldsUpdate = true;
+        }
+        set(state.indexFieldInfo, key, processedData[key]);
+      });
+
+      if (hasFieldsUpdate) {
+        const fieldAliasMap = new Map();
+        state.indexFieldInfo.fields.forEach((field) => {
+          const fieldAlias = field.query_alias || field.field_alias;
+
+          if (fieldAlias) {
+            const existValue = fieldAliasMap.get(fieldAlias) ?? {
+              count: 0,
+              field_alias: fieldAlias,
+              resolved: false,
+              fields: [],
+              target: null,
+            };
+            existValue.count += 1;
+            existValue.fields.push(field);
+            fieldAliasMap.set(fieldAlias, existValue);
+          }
+        });
+
+        fieldAliasMap.values().forEach((value) => {
+          if (value.count > 1) {
+            const target = createFieldItem(value.field_alias, 'keyword', {
+              ...(value.fields[0] ?? {}),
+              field_alias: '',
+              query_alias: '',
+              field_name: value.field_alias,
+              is_virtual_alias_field: true,
+              has_repeat_alias_field: false,
+              alias_mapping_field: null,
+              source_field_names: [],
+            });
+
+            value.fields.forEach((field) => {
+              field.has_repeat_alias_field = true;
+              field.alias_mapping_field = target;
+              if (!target.source_field_names.includes(field.field_name)) {
+                target.source_field_names.push(field.field_name);
+              }
+            });
+
+            state.indexFieldInfo.fields.push(target);
+          }
+        });
+
+        state.indexFieldInfo.fields.sort((a, b) => {
           // dtEventTimeStamp默认在第一个
           if (a.field_name === 'dtEventTimeStamp') {
             return -1;
@@ -639,40 +713,6 @@ const store = new Vuex.Store({
           return 0;
         });
       }
-
-      Object.keys(processedData ?? {}).forEach((key) => {
-        set(state.indexFieldInfo, key, processedData[key]);
-      });
-
-      const fieldAliasMap = new Map();
-      const aliasFieldList = state.indexFieldInfo.alias_field_list.map(f => f.field_name);
-      state.indexFieldInfo.fields.forEach((field) => {
-        const fieldAlias = field.query_alias || field.field_alias || field.field_name;
-
-        if (!aliasFieldList.includes(fieldAlias)) {
-          const existValue = fieldAliasMap.get(fieldAlias) ?? {
-            count: 0,
-            field_alias: fieldAlias,
-            resolved: false,
-            field,
-          };
-          existValue.count += 1;
-          fieldAliasMap.set(fieldAlias, existValue);
-
-          if (existValue.count > 1 && !existValue.resolved) {
-            existValue.resolved = true;
-            fieldAliasMap.set(fieldAlias, existValue);
-            state.indexFieldInfo.alias_field_list.push(
-              createFieldItem(fieldAlias, 'keyword', {
-                ...field,
-                field_alias: '',
-                field_name: fieldAlias,
-                is_virtual_alias_field: true,
-              }),
-            );
-          }
-        }
-      });
     },
     updateIndexFieldEggsItems(state, payload) {
       const { start_time: startTime, end_time: endTime } = state.indexItem;
@@ -1100,6 +1140,15 @@ const store = new Vuex.Store({
           const defaultSortList = (
             ((defaultSortListData?.length ?? 0) > 0 ? defaultSortListData : sortListData) ?? []
           ).map(([fieldName]) => [fieldName, undefined]);
+
+          res.data.fields.forEach((field) => {
+            Object.assign(field, {
+              has_repeat_alias_field: false,
+              alias_mapping_field: null,
+              is_virtual_alias_field: false,
+            });
+          });
+
           commit(
             'updateIndexFieldInfo',
             Object.assign({}, res.data ?? {}, {
