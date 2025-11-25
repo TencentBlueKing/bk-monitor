@@ -99,12 +99,27 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   const commonFilterParams = computed(() => {
     const statusQuickFilter = [];
     const otherQuickFilter = [];
-    /** 与我相关和状态两种快捷筛选条件需要特殊处理 */
+    /**
+     * 告警的与我相关，状态，
+     * 处理记录的执行状态，
+     * 以上快捷筛选条件需要特殊处理
+     * */
     for (const filter of quickFilterValue.value) {
-      if (filter.key !== 'MINE' && filter.key !== 'STATUS') {
+      /** 是否需要放在status字段中 */
+      let isStatus = false;
+      if (alarmType.value === AlarmType.ALERT) {
+        if (filter.key === 'MINE' || filter.key === 'STATUS') {
+          statusQuickFilter.push(...filter.value);
+          isStatus = true;
+        }
+      } else if (alarmType.value === AlarmType.ACTION) {
+        if (filter.key === 'action') {
+          statusQuickFilter.push(...filter.value);
+          isStatus = true;
+        }
+      }
+      if (!isStatus) {
         otherQuickFilter.push(filter);
-      } else {
-        statusQuickFilter.push(...filter.value);
       }
     }
     const params = {
@@ -122,6 +137,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     delete params[REFRESH_EFFECT_KEY];
     return params;
   });
+
   const refreshInterval = customRef((track, trigger) => {
     let timer: ReturnType<typeof setInterval>;
     return {
@@ -146,39 +162,48 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
       },
     };
   });
-  watch(
-    alarmType,
-    (newVal, oldVal) => {
-      if (oldVal) {
-        cacheMap.set(oldVal, {
-          conditions: JSON.parse(JSON.stringify(conditions.value)),
-          queryString: JSON.parse(JSON.stringify(queryString.value)),
-          quickFilterValue: JSON.parse(JSON.stringify(quickFilterValue.value)),
-        });
-      }
-      alarmService.value = AlarmServiceFactory(alarmType.value);
-      const cache = cacheMap.get(newVal);
-      if (cache) {
-        conditions.value = cache.conditions;
-        queryString.value = cache.queryString;
-        quickFilterValue.value = cache.quickFilterValue;
-      } else {
-        conditions.value = [];
-        queryString.value = '';
-        quickFilterValue.value = [];
-      }
-      alarmService.value.getListSearchFavorite({ search_type: newVal }).then(data => {
-        favoriteList.value = data;
+
+  /** 初始化service */
+  const initAlarmService = () => {
+    alarmService.value = AlarmServiceFactory(alarmType.value);
+    alarmService.value.getListSearchFavorite({ search_type: alarmType.value }).then(data => {
+      favoriteList.value = data;
+    });
+  };
+  initAlarmService();
+
+  /**
+   * 告警类型切换
+   * 不能使用watch监听alarmType来实现，必须手动调用
+   * 使用watch会在页面初始化时调用一次，导致URL参数的数据缓存错误
+   */
+  const handleAlarmTypeChange = (type: AlarmType) => {
+    const oldValue = alarmType.value;
+    alarmType.value = type;
+    if (oldValue) {
+      cacheMap.set(oldValue, {
+        conditions: JSON.parse(JSON.stringify(conditions.value)),
+        queryString: JSON.parse(JSON.stringify(queryString.value)),
+        quickFilterValue: JSON.parse(JSON.stringify(quickFilterValue.value)),
       });
-    },
-    {
-      immediate: true,
     }
-  );
+    const cache = cacheMap.get(alarmType.value);
+    if (cache) {
+      conditions.value = cache.conditions;
+      queryString.value = cache.queryString;
+      quickFilterValue.value = cache.quickFilterValue;
+    } else {
+      conditions.value = [];
+      queryString.value = '';
+      quickFilterValue.value = [];
+    }
+    initAlarmService();
+  };
 
   const effectRefresh = () => {
     refreshId.value = random(4);
   };
+
   watch(refreshImmediate, () => {
     effectRefresh();
   });
@@ -219,5 +244,7 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
     filterMode,
     residentCondition,
     favoriteList,
+    handleAlarmTypeChange,
+    initAlarmService,
   };
 });

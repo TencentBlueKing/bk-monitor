@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type ShallowRef, computed, defineComponent, nextTick, onBeforeMount, shallowRef, watch } from 'vue';
+import { type ShallowRef, computed, defineComponent, onBeforeMount, shallowRef, watch } from 'vue';
 
 import { tryURLDecodeParse } from 'monitor-common/utils';
 import { useRoute, useRouter } from 'vue-router';
@@ -162,7 +162,6 @@ export default defineComponent({
     };
     /** 告警分析添加条件 */
     const handleAddCondition = (condition: CommonCondition) => {
-      console.log(condition);
       if (alarmStore.filterMode === EMode.ui) {
         alarmStore.conditions = mergeWhereList(alarmStore.conditions, [
           {
@@ -268,26 +267,20 @@ export default defineComponent({
       } = route.query;
       try {
         alarmStore.alarmType = (alarmType as AlarmType) || AlarmType.ALERT;
-        /**
-         * 因为store会监听alarmType变化来进行缓存和初始化
-         * 如果直接赋值会把当前参数直接写给旧的缓存导致数据有问题
-         * 所以这里需要晚一点给alarmStore的各种数据赋值
-         */
-        nextTick(() => {
-          if (from && to) {
-            alarmStore.timeRange = [from as string, to as string];
-          }
-          alarmStore.timezone = (timezone as string) || getDefaultTimezone();
-          alarmStore.refreshInterval = Number(refreshInterval) || -1;
-          alarmStore.queryString = (queryString as string) || '';
-          alarmStore.conditions = tryURLDecodeParse(conditions as string, []);
-          alarmStore.residentCondition = tryURLDecodeParse(residentCondition as string, []);
-          alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
-          alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
-          alarmStore.bizIds = tryURLDecodeParse(bizIds as string, [-1]);
-          ordering.value = (sortOrder as string) || '';
-          page.value = Number(currentPage || 1);
-        });
+        if (from && to) {
+          alarmStore.timeRange = [from as string, to as string];
+        }
+        alarmStore.timezone = (timezone as string) || getDefaultTimezone();
+        alarmStore.refreshInterval = Number(refreshInterval) || -1;
+        alarmStore.queryString = (queryString as string) || '';
+        alarmStore.conditions = tryURLDecodeParse(conditions as string, []);
+        alarmStore.residentCondition = tryURLDecodeParse(residentCondition as string, []);
+        alarmStore.quickFilterValue = tryURLDecodeParse(quickFilterValue as string, []);
+        alarmStore.filterMode = (filterMode as EMode) || EMode.ui;
+        alarmStore.bizIds = tryURLDecodeParse(bizIds as string, [-1]);
+        ordering.value = (sortOrder as string) || '';
+        page.value = Number(currentPage || 1);
+        alarmStore.initAlarmService();
       } catch (error) {
         console.log('route query:', error);
       }

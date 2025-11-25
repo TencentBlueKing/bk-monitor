@@ -25,11 +25,12 @@
  */
 
 import { defineComponent } from 'vue';
+
 import { useI18n } from 'vue-i18n';
 
 import CommonHeader from '../../../components/common-header/common-header';
 import { useAlarmCenterStore } from '../../../store/modules/alarm-center';
-import { alarmTypeMap, type AlarmType } from '../typings';
+import { type AlarmType, alarmTypeMap } from '../typings';
 
 import type { TimeRangeType } from '../../../components/time-range/utils';
 
@@ -42,9 +43,7 @@ export default defineComponent({
     const alarmStore = useAlarmCenterStore();
 
     function handleAlarmTypeChange(value: AlarmType) {
-      alarmStore.alarmType = value;
-      alarmStore.conditions = [];
-      alarmStore.queryString = '';
+      alarmStore.handleAlarmTypeChange(value);
     }
 
     function handleImmediateRefreshChange(value: string) {
