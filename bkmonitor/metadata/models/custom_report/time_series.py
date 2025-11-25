@@ -1053,6 +1053,7 @@ class TimeSeriesScope(models.Model):
             raise ValueError(_("数据自动创建的分组不允许编辑"))
 
     @classmethod
+    @atomic(config.DATABASE_CONNECTION_NAME)
     def create_time_series_scope(
         cls,
         group_id: int,
@@ -1097,6 +1098,7 @@ class TimeSeriesScope(models.Model):
             raise
 
     @classmethod
+    @atomic(config.DATABASE_CONNECTION_NAME)
     def update_time_series_scope(
         cls,
         group_id: int,
@@ -1158,7 +1160,6 @@ class TimeSeriesScope(models.Model):
             logger.exception(f"Failed to update TimeSeriesScope for group_id={group_id}, scope_name={scope_name}: {e}")
             raise
 
-    @atomic(config.DATABASE_CONNECTION_NAME)
     def update_matched_dimension_config(self, delete_unmatched_dimensions=False):
         """
         1. 获取分组下的 dimension_config 字典 X
@@ -1445,7 +1446,6 @@ class TimeSeriesMetric(models.Model):
         return f"{service_name}||{scope_name}"
 
     @classmethod
-    @atomic(config.DATABASE_CONNECTION_NAME)
     def _bulk_create_metrics(
         cls,
         metrics_dict: dict,
@@ -1586,7 +1586,6 @@ class TimeSeriesMetric(models.Model):
         return records, scope_dimensions_map
 
     @classmethod
-    @atomic(config.DATABASE_CONNECTION_NAME)
     def _bulk_update_metrics(
         cls,
         metrics_dict: dict,
