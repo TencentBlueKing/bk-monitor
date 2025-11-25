@@ -1226,6 +1226,8 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 
 # 故障分析
 BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
+# 是否开启故障分析功能，默认不开启
+ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lower() == "true"
 
 # IAM
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
