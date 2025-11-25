@@ -674,6 +674,12 @@ MENUS = [
                         "icon": "document",
                     },
                     {
+                        "id": "client_log",
+                        "name": _("客户端日志"),
+                        "feature": "on",
+                        "icon": "document",
+                    },
+                    {
                         "id": "bk_data_collection",
                         "name": _("计算平台"),
                         "feature": FEATURE_TOGGLE["scenario_bkdata"],
