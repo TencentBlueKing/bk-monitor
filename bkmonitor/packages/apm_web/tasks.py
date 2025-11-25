@@ -330,7 +330,7 @@ def refresh_apm_app_state_snapshot():
         }
         all_data_status[application["application_id"]] = data_status
     key = ApmCacheKey.APP_APPLICATION_STATUS_KEY.format(date=(datetime.now() - timedelta(days=1)).strftime("%Y%m%d"))
-    cache.set(key, json.dumps(all_data_status), 7 * 24 * 60 * 60)
+    cache.set(key, json.dumps(all_data_status), 90 * 24 * 60 * 60)
 
 
 @shared_task(ignore_result=True)

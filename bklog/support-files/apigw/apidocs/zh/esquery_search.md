@@ -1,150 +1,275 @@
-### 功能描述
+## 功能描述
 
-日志查询接口，需要指定index_set_id 或 数据平台的索引
+日志查询接口
 
-### 请求参数
+## 请求参数
 
-#### 接口参数
+
+
+### 鉴权头
+
+|   参数名称   |    参数类型  |  必须  |     参数说明     |
+| ------------ | ------------ | ------ | ---------------- |
+|   app_code   |   string     |   是   |  蓝鲸应用ID    |
+|   app_secret |   string     |   是   | 蓝鲸应用秘钥 |
+|   bk_username |   string     |   是  |  用户名称 |
+
+
+
+### 参数列表
 
 | 字段      |  类型      | 必选   |  描述      |
 |-----------|------------|--------|------------|
-| indices         |  string    | 否     | 索引列表 |
-| index_set_id        |  string    | 否     | 索引集ID（传递改参数会覆盖 indices 参数） |
-| scenario_id         |  string    | 否     | ES接入场景(非必填） 默认为log，原生ES：es 日志采集：log |
-| storage_cluster_id  |  int   | 否     | 当scenario_id为es或log时候需要传入 |
-| time_field  |  string   | 否     | 时间字段（非必填，bkdata内部为dtEventTimeStamp，外部如果传入时间范围需要指定时间字段） |
-| start_time  |  string   | 否     | 开始时间 |
-| end_time  |  string   | 否     | 结束时间 |
-| time_range  |  string  | 否     | 时间标识符符["15m", "30m", "1h", "4h", "12h", "1d", "customized"]（非必填，默认15m） |
-| query_string  |  string   | 否     | 搜索语句query_string(非必填，默认为*) |
-| filter  |  list   | 否     | 搜索过滤条件（非必填，默认为没有过滤，默认的操作符是is） 操作符支持 is、is one of、is not、is not one of |
-| start  |  int   | 否     | 起始位置（非必填，类似数组切片，默认为0） |
-| size  |  int   | 否     | 条数（非必填，控制返回条目） |
-| aggs  |  dict   | 否     | ES的聚合参数 |
-| highlight  |  dict   | 否     | 高亮参数 |
+| index_set_id         |  int    | 是     | 索引集ID |
+| start_time  |  string   | 否     | 开始时间。格式: `2006-01-02 15:04:05`。不填默认为最近15分钟 |
+| end_time  |  string   | 否     | 结束时间。格式: `2006-01-02 15:04:05`。不填默认为当前时刻 |
+| query_string  |  string   | 否     | 查询字符串。[检索语法指南](https://bk.tencent.com/docs/markdown/ZH/LogSearch/4.7/UserGuide/ProductFeatures/data-visualization/query_string.md) |
+| filter  |  []Filter   | 否     | 结构化过滤条件，多个条件之间为与的关系，与 `query_string` 共同生效 |
+| start  |  int   | 否     | 分页偏移量，默认为0 |
+| size  |  int   | 否     | 分页条数，默认为10。start + size 不允许超过 10000，如需查询更多条数需使用 `search_after` 参数进行轮询 |
+| sort_list  |  list   | 否     | 指定排序字段，列表每一项由 `字段名 + 升降序(asc/desc)` 构成   如 `[["dtEventTimeStamp", "desc"], ["gseIndex", "desc"], ["iterationIndex", "desc"]]` |
+| search_after  |  list   | 否     | 需配合 `sort_list` 参数一并使用，需给出上一次请求的最后一条 `sort_list` 字段值，如 `[1718613905000, 19170867]` |
 
-### 请求头示例
+#### Filter
 
-X-Bkapi-Authorization (权限校验，需要加上 bk_username)
+| 字段     | 类型         | 必选 | 描述                 |
+| -------- | ------------ | ---- | -------------------- |
+| field    | string       | 是   | 需要过滤的字段名     |
+| operator | string       | 是   | 操作符，可选值见下表 |
+| value    | list[string] | 是   | 需要过滤的字段值     |
+
+
+
+#### operator
+
+| 取值                        | 解释                                                         |
+| --------------------------- | ------------------------------------------------------------ |
+| `=`                         | 等于                                                         |
+| `!=`                        | 不等于                                                       |
+| `=~`                        | 通配符等于，`?` 代表单字符，`*` 代表 0 或多个字符。比如 `qu?ck bro*` |
+| `!=~`                       | 通配符不等于，语法规则同 `=~`                                |
+| `contains match phrase`     | 短语包含，仅 `log` 等分词字段使用。比如 `"time out"`,  可匹配日志 `"request time out"`，但若单词不完整，则无法匹配结果，比如 `"quest tim"` |
+| `not contains match phrase` | 短语不包含，语法规则同 `contains match phrase`               |
+| `>=`                        | 大于等于                                                     |
+| `>`                         | 大于                                                         |
+| `<=`                        | 小于等于                                                     |
+| `<`                         | 小于                                                         |
+
+
+
+## 调用示例
+
+```python
+import json
+import requests
+
+# 目标URL，实际调用地址参考文档
+url = "https://example.com/esquery_search/"
+
+# 构造鉴权头
+headers = {
+    "X-Bkapi-Authorization": json.dumps({
+        "bk_app_code": "your app code",
+        "bk_app_secret": "your app secret",
+        "bk_username": "your name"
+    })
+}
+
+# 构造请求参数
+data = {
+    "index_set_id": 16176,
+}
+
+# 发起请求
+response = requests.post(url, headers=headers, json=data)
+
+# 输出返回内容
+print(response.json())
+```
+
+
+
+
+
+## 参数示例
+
+### Case 1: 给定时间范围
+
+查询 2025-09-15 ，19 点到 20 点(包含) 的日志
+
 ```json
 {
-    "bk_app_code": "replace_me_with_bk_app_code",
-    "bk_app_secret": "replace_me_with_bk_app_secret",
-    "bk_username": "replace_me_with_bk_username"
+    "index_set_id": 16176,
+    "start_time": "2025-09-15 19:00:00",
+    "end_time": "2025-09-15 20:00:00"
 }
 ```
 
 
-X-Bk-Tenant-Id (租户ID)
 
+### Case 2: 分页查询
 
-### 请求参数示例
+获取第11~20条数据
 
 ```json
 {
-    "indices": "2_bklog.bk_log_search_api",
-    "scenario_id": "log",
-    "storage_cluster_id": 3,
-    "use_time_range": true,
-    "time_range": "customized",
-    "time_field": "dtEventTimeStamp",
-    "start_time": "2022-03-14 18:26:33",
-    "end_time": "2022-03-14 18:41:33",
-    "query_string": "*",
-    "filter": [],
-    "sort_list": [
-        [
-            "dtEventTimeStamp",
-            "desc"
-        ],
-        [
-            "gseIndex",
-            "desc"
-        ],
-        [
-            "iterationIndex",
-            "desc"
-        ]
-    ],
-    "start": 0,
-    "size": 1,
-    "aggs": {},
-    "highlight": {
-        "pre_tags": [
-            "<mark>"
-        ],
-        "post_tags": [
-            "</mark>"
-        ],
-        "fields": {
-            "*": {
-                "number_of_fragments": 0
-            }
-        },
-        "require_field_match": false
+    "index_set_id": 16176,
+    "start_time": "2025-09-15 19:00:00",
+    "end_time": "2025-09-15 20:00:00",
+    "start": 10,
+    "size": 10
+}
+```
+
+
+
+⚠️ start + size 不允许超过 10000，如需查询更多条数需使用 `search_after` 参数进行轮询
+
+
+
+### Case 3: 使用查询字符串
+
+全字段全文检索关键字 `"empty token"`
+
+```json
+{
+    "index_set_id": 16176,
+    "start_time": "2025-09-15 19:00:00",
+    "end_time": "2025-09-15 20:00:00",
+    "query_string": "\"empty token\""
+}
+```
+
+
+
+### Case 4: 使用结构化过滤条件
+
+查询日志级别 `level` 为 `"WARN"` 或 `"ERROR"` 的日志
+
+```json
+{
+    "index_set_id": 16176,
+    "start_time": "2025-09-15 19:00:00",
+    "end_time": "2025-09-15 20:00:00",
+    "filter": [
+        {
+            "field": "level",
+            "operator": "=",
+            "value": ["WARN", "ERROR"]
+        }
+    ]
+}
+```
+
+
+
+### Case 5: 使用排序
+
+按日志上报时间倒序进行排序
+
+```json
+{
+    "index_set_id": 16176,
+    "start_time": "2025-09-15 19:00:00",
+    "end_time": "2025-09-15 20:00:00",
+    "sort_list": [["dtEventTimeStamp", "desc"], ["gseIndex", "desc"], ["iterationIndex", "desc"]]
+}
+```
+
+
+
+### Case 6: 滚动查询
+
+适用于结果集超过1万条日志的全量拉取
+
+⚠️ 拉取数据量不建议超过200万，否则会给存储集群带来巨大的压力
+
+
+
+滚动查询需通过多次循环迭代查询完成，分 3 个步骤
+
+1. 首次查询
+    ```json
+    {
+        "index_set_id": 16176,
+        "start_time": "2025-09-15 19:00:00",
+        "end_time": "2025-09-15 20:00:00",
+        "start": 0,
+        "size": 10000,
+        "sort_list": [["dtEventTimeStamp", "desc"], ["gseIndex", "desc"], ["iterationIndex", "desc"]]
     }
-}
-```
+    ```
 
-### 响应参数
+2. 获取查询结果，从 `hits` 列表中获取到最后一条数据的 `sort` 字段，形如 `[1757937598602,2665481,12]` ，将该值作为下一次查询的 `search_after` 参数，如下 (注意除 `search_after` 参数外，其他参数保持不变)
+    ```json
+    {
+        "index_set_id": 16176,
+        "start_time": "2025-09-15 19:00:00",
+        "end_time": "2025-09-15 20:00:00",
+        "start": 0,   
+        "size": 10000,
+        "sort_list": [["dtEventTimeStamp", "desc"], ["gseIndex", "desc"], ["iterationIndex", "desc"]],
+        "search_after": [1757937598602,2665481,12]
+    }
+    ```
 
-| 字段    | 类型   | 描述         |
-| ------- | ------ | ------------ |
-| result  | bool   | 请求是否成功 |
-| code    | int    | 返回的状态码 |
-| message | string | 描述信息     |
-| data    | dict   | 返回日志内容  |
-| request_id | string   | 请求ID |
-
-
-### 返回日志内容字段
-| 字段    | 类型   | 描述         |
-| ------- | ------ | ------------ |
-| took  | int   | 耗时 |
-| timed_out    | bool    | 是否超时 |
-| _shards | dict | shards请求状态     |
-| hits    | dict   | ES中原始日志内容  |
+3. 重复步骤 2，直至返回的 `hits` 结果数量小于 `size`
 
 
-### 返回结果示例
+
+
+
+## 返回结果示例
 
 ```json
 {
     "result": true,
+    "message": "查询成功",
     "data": {
-        "took": 17,
-        "timed_out": false,
-        "_shards": {
-            "total": 3,
-            "successful": 3,
-            "skipped": 0,
-            "failed": 0
-        },
         "hits": {
-            "total": 13606,
-            "max_score": null,
             "hits": [
                 {
-                    "_index": "v2_2_bklog_bk_log_search_api_20220310_0",
-                    "_type": "_doc",
-                    "_id": "1603fe2e851dd02b76cff2681052e0da",
-                    "_score": null,
+                    "_score": 2,
+                    "_type": "xx",
+                    "_id": "xxx",
                     "_source": {
-                        "cloudId": 0,
-                        "dtEventTimeStamp": "1647254492000",
-                        "gseIndex": 41041,
-                        "iterationIndex": 9,
-                        "log": "i am log message",
-                        "path": "/host/path/log/type.log",
-                        "serverIp": "127.0.0.1",
-                        "time": "1647254492000"
-                    }
+                        "dtEventTimeStamp": 1565453112000,
+                        "report_time": "2019-08-11 00:05:12",
+                        "log": "xxxxxx",
+                        "ip": "127.0.0.1",
+                        "gseindex": 5857918,
+                        "_iteration_idx": 3,
+                        "path": "xxxxx"
+                    },
+                    "_index": "xxxxxxxx"
+                },
+                {
+                    "_score": 2,
+                    "_type": "xxxx",
+                    "_id": "xxxxx",
+                    "_source": {
+                        "dtEventTimeStamp": 1565453113000,
+                        "report_time": "2019-08-11 00:05:13",
+                        "log": "xxxxxxx",
+                        "ip": "127.0.0.1",
+                        "gseindex": 5857921,
+                        "_iteration_idx": 2,
+                        "path": "xxxxxxxxx"
+                    },
+                    "_index": "xxxxxxx"
                 }
-            ]
-        }
+            ],
+            "total": 8429903,
+            "max_score": 2
+        },
+        "_shards": {
+            "successful": 9,
+            "failed": 0,
+            "total": 9
+        },
+        "took": 136,
+        "timed_out": false
     },
-    "code": 0,
-    "message": "",
-    "request_id": "ce9d1b034d9a423cb736af285041b978"
+    "code": 0
 }
 ```

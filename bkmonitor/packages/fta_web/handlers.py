@@ -34,6 +34,7 @@ def register_builtin_plugins(sender, **kwargs):
 
     print("start to  register_builtin_plugin ")
     initial_file = os.path.join(settings.PROJECT_ROOT, "support-files/fta/action_plugin_initial.json")
+    # 注册故障分析SaaS插件服务，取决于是否开启和部署
     try:
         ActionPlugin.origin_objects.count()
     except Exception:
