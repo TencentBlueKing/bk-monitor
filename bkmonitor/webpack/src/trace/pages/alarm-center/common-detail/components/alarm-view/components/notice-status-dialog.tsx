@@ -30,6 +30,7 @@ import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Dialog } from 'bkui-vue';
 import { subActionDetail } from 'monitor-api/modules/alert';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
+import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
 
 import './notice-status-dialog.scss';
@@ -73,7 +74,7 @@ export default defineComponent({
     const loading = shallowRef(false);
     const getNoticeStatusData = async () => {
       loading.value = true;
-      if (tableColumns.value.length) {
+      if (!tableColumns.value.length) {
         const columns = await getNoticeWay()
           .then(res =>
             res.map(item => ({
@@ -81,31 +82,23 @@ export default defineComponent({
               title: item.label,
               resizable: false,
               cell: (_h, { row }) => {
-                return !Object.keys(ClassMap).includes(row?.[item.prop]?.label) ? (
+                return !Object.keys(ClassMap).includes(row?.[item.type]?.label) ? (
                   <span
                     v-bk-tooltips={{
-                      allowHtml: false,
-                      html: false,
-                      allowHTML: false,
-                      width: 200,
-                      content: row[item.prop]?.tip,
+                      content: <div style='max-width: 200px; word-break: break-word;'>{row[item.type]?.tip}</div>,
                       placements: ['top'],
-                      disabled: !row[item.prop]?.tip,
+                      disabled: !row[item.type]?.tip,
                     }}
                   >
-                    {row?.[item.prop]?.label || '--'}
+                    {row?.[item.type]?.label || '--'}
                   </span>
                 ) : (
                   <span
-                    class={`notice-${ClassMap[row[item.prop].label]}`}
+                    class={`notice-${ClassMap[row[item.type].label]}`}
                     v-bk-tooltips={{
-                      allowHtml: false,
-                      html: false,
-                      allowHTML: false,
-                      width: 200,
-                      content: row[item.prop]?.tip,
+                      content: <div style='max-width: 200px;word-break: break-word;'>{row[item.type]?.tip}</div>,
                       placements: ['top'],
-                      disabled: !row[item.prop]?.tip,
+                      disabled: !row[item.type]?.tip,
                     }}
                   />
                 );
@@ -136,7 +129,7 @@ export default defineComponent({
               const statusData = data?.[key]?.[subKey] || {};
               temp[subKey] = {
                 label: statusData?.status_display || '',
-                tip: statusData?.status_tips || '',
+                tip: statusData?.status_tips?.[0] || '',
               };
             }
 
@@ -153,6 +146,9 @@ export default defineComponent({
       newVal => {
         if (newVal) {
           getNoticeStatusData();
+        } else {
+          tableData.value = [];
+          hasColumns.value = [];
         }
       },
       { immediate: true }
@@ -162,6 +158,7 @@ export default defineComponent({
       tableColumns,
       tableData,
       hasColumns,
+      loading,
       t,
       handleShowChange,
     };
@@ -177,11 +174,17 @@ export default defineComponent({
         onUpdate:isShow={this.handleShowChange}
       >
         <div class='notice-status-dialog-content'>
-          <PrimaryTable
-            bordered={false}
-            columns={this.tableColumns.filter(item => this.hasColumns.includes(item.colKey))}
-            data={this.tableData}
-          />
+          {this.loading ? (
+            <TableSkeleton type={4} />
+          ) : (
+            <PrimaryTable
+              columns={this.tableColumns.filter(
+                item => this.hasColumns.includes(item.colKey) || item.colKey === 'target'
+              )}
+              bordered={false}
+              data={this.tableData}
+            />
+          )}
         </div>
       </Dialog>
     );
