@@ -91,6 +91,11 @@ export default defineComponent({
       handleAlertDialogHide,
       handleAlertDialogConfirm,
     } = useAlertDialogs(data as unknown as ShallowRef<AlertTableItem[]>);
+    const { getRetrievalFilterValueData } = useAlarmFilter(() => ({
+      alarmType: alarmStore.alarmType,
+      commonFilterParams: alarmStore.commonFilterParams,
+      filterMode: alarmStore.filterMode,
+    }));
 
     const isCollapsed = shallowRef(false);
     const alarmId = shallowRef<string>('');
@@ -435,11 +440,7 @@ export default defineComponent({
       handleSetResidentSettingUserConfig,
       handleShowAlertDetail,
       handleShowActionDetail,
-      ...useAlarmFilter({
-        alarmType: alarmStore.alarmType,
-        commonFilterParams: alarmStore.commonFilterParams,
-        filterMode: alarmStore.filterMode,
-      }),
+      getRetrievalFilterValueData,
       handleDetailShowChange,
       handlePreviousDetail,
       handleNextDetail,

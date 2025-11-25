@@ -26,6 +26,7 @@
 
 import { actionTopN, searchAction } from 'monitor-api/modules/alert';
 import { listSearchFavorite } from 'monitor-api/modules/model';
+import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
 import {
   type ActionTableItem,
@@ -39,8 +40,6 @@ import {
   ActionIconMap,
 } from '../typings';
 import { AlarmService } from './base';
-
-import type { IFilterField } from '@/components/retrieval-filter/typing';
 const ACTION_TABLE_COLUMNS = [
   {
     colKey: 'id',
@@ -137,7 +136,231 @@ const ACTION_TABLE_COLUMNS = [
   },
 ] as const;
 
-export const ACTION_FILTER_FIELDS: IFilterField[] = [];
+export const ACTION_FILTER_FIELDS: IFilterField[] = [
+  {
+    name: 'query_string',
+    alias: window.i18n.t('全字段检索'),
+    type: EFieldType.all,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'id',
+    alias: window.i18n.t('处理记录ID'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'action_name',
+    alias: window.i18n.t('套餐名称'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'action_config_id',
+    alias: window.i18n.t('套餐ID'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'strategy_name',
+    alias: window.i18n.t('策略名称'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'alerts',
+    alias: window.i18n.t('关联告警'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'status',
+    alias: window.i18n.t('状态'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'bk_biz_name',
+    alias: window.i18n.t('业务名'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'bk_biz_id',
+    alias: window.i18n.t('业务ID'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'operate_target_string',
+    alias: window.i18n.t('执行对象'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'action_plugin_type',
+    alias: window.i18n.t('套餐类型'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'operator',
+    alias: window.i18n.t('负责人'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'create_time',
+    alias: window.i18n.t('开始时间'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'end_time',
+    alias: window.i18n.t('结束时间'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+];
 export const ACTION_STORAGE_KEY = '__ACTION_EVENT_COLUMN__';
 export class ActionService extends AlarmService<AlarmType.ACTION> {
   readonly storageAnalysisKey = '__ACTION_ANALYZE_STORAGE_KEY__';

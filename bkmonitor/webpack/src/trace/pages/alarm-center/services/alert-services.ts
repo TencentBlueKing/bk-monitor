@@ -224,7 +224,7 @@ const ALERT_TABLE_COLUMNS = [
 export const ALERT_FILTER_FIELDS: IFilterField[] = [
   {
     name: 'query_string',
-    alias: '全字段检索',
+    alias: window.i18n.t('全字段检索'),
     type: EFieldType.all,
     methods: [
       {
