@@ -184,7 +184,7 @@ class TGPATaskHandler:
     @staticmethod
     def find_log_files(path):
         """
-        在目录中查找日志文件
+        在目录中查找日志文件，返回日志文件相对路径列表
         """
         dir_path = Path(path).resolve()
         if not dir_path.is_dir():
