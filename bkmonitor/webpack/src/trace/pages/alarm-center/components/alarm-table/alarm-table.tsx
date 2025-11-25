@@ -23,7 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onBeforeUnmount, onMounted, toValue, useTemplateRef } from 'vue';
+import {
+  type PropType,
+  computed,
+  defineComponent,
+  onBeforeUnmount,
+  onMounted,
+  toRef,
+  toValue,
+  useTemplateRef,
+} from 'vue';
 
 import { useRouter } from 'vue-router';
 
@@ -139,7 +148,7 @@ export default defineComponent({
       handleAlertBatchSet,
     } = useAlertHandlers({
       clickPopoverTools,
-      selectedRowKeys: props.selectedRowKeys,
+      selectedRowKeys: toRef(props, 'selectedRowKeys'),
       clearSelected: () => handleSelectionChange(),
       showDetailEmit: id => emit('showAlertDetail', id),
       openDialogEmit: (...args) => emit('openAlertDialog', ...args),

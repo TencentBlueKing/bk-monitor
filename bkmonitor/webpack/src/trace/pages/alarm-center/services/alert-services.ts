@@ -53,7 +53,7 @@ const ALERT_TABLE_COLUMNS = [
     is_locked: true,
     minWidth: 160,
     fixed: 'left',
-    sorter: true,
+    sorter: false,
   },
   {
     colKey: 'bk_biz_name',
@@ -62,7 +62,7 @@ const ALERT_TABLE_COLUMNS = [
     is_locked: false,
     minWidth: 100,
     fixed: 'left',
-    sorter: true,
+    sorter: false,
   },
   {
     colKey: 'plugin_display_name',
