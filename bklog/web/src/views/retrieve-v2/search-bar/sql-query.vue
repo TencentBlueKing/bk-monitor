@@ -50,8 +50,9 @@ const setEditorContext = (val, from = 0, to = Infinity) => {
    * @param item
    */
 const formatModelValueItem = (item) => {
-  setEditorContext(item, 0, Infinity);
-  return item;
+  const val = item === '*' ? '' : item;
+  setEditorContext(val, 0, Infinity);
+  return val;
 };
 
 /**
@@ -122,7 +123,7 @@ const onEditorContextChange = (doc) => {
 };
 
 const isEmptySqlString = computed(() => {
-  return /^\s*$/.test(modelValue.value) || !modelValue.value.length;
+  return props.value === '*' || (/^\s*$/.test(modelValue.value) || !modelValue.value.length);
 });
 
 const debounceRetrieve = debounce((value) => {

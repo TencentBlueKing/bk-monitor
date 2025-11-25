@@ -9,26 +9,19 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
-import json
 from typing import Any
 
-import urllib.parse
-
-from django.db.models import Q
-
-from apm_web.strategy.dispatch import DispatchConfig
-from apm_web.strategy.dispatch.entity import EntitySet
-
-from django.utils.translation import gettext_lazy as _
-
-from django.conf import settings
 from apm_web.models import StrategyTemplate
 from apm_web.strategy.constants import StrategyTemplateCategory, StrategyTemplateSystem
+from apm_web.strategy.dispatch import DispatchConfig
+from apm_web.strategy.dispatch.entity import EntitySet
 from apm_web.strategy.helper import simplify_conditions
 from bkmonitor.data_source import q_to_conditions, conditions_to_q
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants import apm as apm_constants
+from django.db.models import Q
+from django.utils.translation import gettext_lazy as _
 
 
 class BaseSystemDiscoverer(abc.ABC):
@@ -147,8 +140,9 @@ class BaseEnricher(abc.ABC):
         "{{content.begin_time}}\n"
         "{{content.time}}\n"
         "{{content.duration}}\n"
-        "{{content.content}}\n"
-        "{{content.biz}}\n"
+        "{{content.target_type}}\n"
+        "{{content.data_source}}\n"
+        "{{content.biz}}"
     )
 
     def __init__(
@@ -242,27 +236,34 @@ class BaseEnricher(abc.ABC):
             self._entity_info_tmpl(dispatch_config),
             self._current_value_tmpl(dispatch_config),
             self._dimension_tmpl(dispatch_config),
+            self._detail_tmpl(dispatch_config),
             self._links_tmpl(dispatch_config),
         ]
         dispatch_config.message_template = "\n".join([t for t in tmpls if t])
 
     def _current_value_tmpl(self, dispatch_config: DispatchConfig) -> str:
+        """当前值模板
+        包含content和当前值
+        """
         unit: str = dispatch_config.algorithms[0].get("unit_prefix", "")
-        return str(_(f"#当前 {self._query_template_wrapper.alias}# {{{{alarm.current_value}}}} {unit}"))
+        return "\n".join(
+            [
+                "{{content.content}}",
+                str(_(f"#当前 {self._query_template_wrapper.alias}# {{{{alarm.current_value}}}} {unit}")),
+            ]
+        )
 
     def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
         """实体信息模板"""
-        return _("#APM 应用# {app_name}\n#APM 服务# {service_name}").format(
-            app_name=self.app_name, service_name=dispatch_config.service_name
-        )
+        return "{{content.target}}"
 
     def _dimension_tmpl(self, dispatch_config: DispatchConfig) -> str:
         """维度模板"""
-        lines: list[str] = []
-        for tag in dispatch_config.context.get("GROUP_BY", []):
-            tag_label: str = apm_constants.get_label_from_enums(tag, self._TAG_ENUMS)
-            lines.append(f"#{tag_label}# {{{{alarm.dimensions['{tag}'].display_value}}}}")
-        return "\n".join(lines)
+        return "{{content.dimension}}"
+
+    def _detail_tmpl(self, dispatch_config: DispatchConfig) -> str:
+        """详情模板"""
+        return "{{content.detail}}\n{{content.assign_detail}}\n{{content.related_info}}"
 
     def _links_tmpl(self, dispatch_config: DispatchConfig) -> str:
         """场景链接模板"""
@@ -290,65 +291,6 @@ class RPCEnricher(BaseEnricher):
                 service_names=", ".join(invalid_service_names),
             )
         )
-
-    def _get_rpc_url_template(self, dispatch_config: DispatchConfig) -> str:
-        call_filter: list[dict[str, Any]] = []
-        for tag in dispatch_config.context.get("GROUP_BY", []):
-            key: str = apm_constants.RPCLogTag.get_metric_tag(tag) or tag
-            if key in self._UPSERT_TAGS:
-                continue
-
-            call_filter.append(
-                {
-                    "key": key,
-                    "method": "eq",
-                    "value": [f"{{{{alarm.dimensions['{tag}'].display_value}}}}"],
-                    "condition": "and",
-                }
-            )
-
-        call_options: dict[str, Any] = {
-            "kind": ("callee", "caller")[self._strategy_template.category == StrategyTemplateCategory.RPC_CALLER.value],
-            "call_filter": call_filter,
-            "perspective_type": "multiple",
-            "perspective_group_by": [
-                apm_constants.RPCMetricTag.CALLEE_METHOD.value,
-                apm_constants.RPCMetricTag.CODE.value,
-            ],
-        }
-
-        offset: int = 5 * 60 * 1000
-        template_variables: dict[str, str] = {
-            "VAR_FROM": f"{{{{alarm.begin_timestamp * 1000 - alarm.duration * 1000 - {offset}}}}}",
-            "VAR_TO": f"{{{{alarm.begin_timestamp * 1000 + {offset}}}}}",
-            "VAR_CALL_OPTIONS": json.dumps(call_options),
-        }
-
-        params: dict[str, str] = {
-            "filter-app_name": self.app_name,
-            "filter-service_name": dispatch_config.service_name,
-            "callOptions": "VAR_CALL_OPTIONS",
-            "dashboardId": "service-default-caller_callee",
-            "from": "VAR_FROM",
-            "to": "VAR_TO",
-            "sceneId": "apm_service",
-        }
-        encoded_params: str = urllib.parse.urlencode(params)
-        for k, v in template_variables.items():
-            encoded_params = encoded_params.replace(k, v)
-        return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"?bizId={self.bk_biz_id}#/apm/service?{encoded_params}")
-
-    def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        return ""
-
-    def _dimension_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        if not self.is_rpc_log():
-            return super()._dimension_tmpl(dispatch_config)
-
-        return "\n".join([super()._dimension_tmpl(dispatch_config), str(_("#关联日志# {{alarm.log_related_info}}"))])
-
-    def _links_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        return str(_(f"#调用分析# [查看]({self._get_rpc_url_template(dispatch_config)})"))
 
     def is_rpc_log(self) -> bool:
         """是否为 RPC 日志告警"""
@@ -389,7 +331,14 @@ class K8SEnricher(BaseEnricher):
 
     def _entity_info_tmpl(self, dispatch_config: DispatchConfig) -> str:
         # 目标信息用于更好地与观测场景实体联动。
-        return "\n".join([super()._entity_info_tmpl(dispatch_config), "{{content.target}}"])
+        return "\n".join(
+            [
+                _("#APM 应用# {app_name}\n#APM 服务# {service_name}").format(
+                    app_name=self.app_name, service_name=dispatch_config.service_name
+                ),
+                "{{content.target}}",
+            ]
+        )
 
     @classmethod
     def _filter_by_workloads(cls, workloads: list[dict[str, Any]]) -> Q:
@@ -457,9 +406,6 @@ class LogEnricher(BaseEnricher):
     def _enrich(self, service_name: str, dispatch_config: DispatchConfig) -> None:
         dispatch_config.context.update({"SERVICE_NAME": service_name, "INDEX_SET_ID": self._get_index_set_id_or_none()})
         self.upsert_message_template(dispatch_config)
-
-    def _dimension_tmpl(self, dispatch_config: DispatchConfig) -> str:
-        return "{{content.dimension}}"
 
 
 class TraceEnricher(LogEnricher):

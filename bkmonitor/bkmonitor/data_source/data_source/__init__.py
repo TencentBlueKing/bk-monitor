@@ -2167,6 +2167,13 @@ class BkMonitorLogDataSource(BaseBkMonitorLogDataSource):
                 metric["field"] = self._INDEX
                 metric["method"] = "COUNT"
 
+    def _get_conditions(self) -> dict[str, list[Any]]:
+        # unify-query 查询场景，补充 topo_nodes 过滤条件（仅日志关键字场景支持）。
+        filter_dict: dict[str, Any] = self._get_filter_dict()
+        for bk_inst_id, bk_obj_ids in self.topo_nodes.items():
+            filter_dict[f"dimensions.bk_{bk_inst_id}_id"] = bk_obj_ids
+        return _parse_conditions(filter_dict, self._get_where(), self.OPERATOR_MAPPING)
+
     def _fetch_black_list(self) -> list[str | int]:
         return settings.EVENT_UNIFY_QUERY_BLACK_BIZ_LIST
 
@@ -2194,10 +2201,11 @@ class BkMonitorLogDataSource(BaseBkMonitorLogDataSource):
                     topo_nodes[value["bk_obj_id"]].append(value["bk_inst_id"])
 
         # 指标设置
-        metrics = [{"field": "event.count", "method": query_config["agg_method"]}]
+        metrics = [{"field": "event.count", "method": query_config["agg_method"], "alias": "a"}]
         time_field = query_config.get("time_field")
 
         return cls(
+            bk_biz_id=bk_biz_id,
             bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
             name=name,
             table=query_config["result_table_id"],
@@ -2481,7 +2489,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         return cls(
             bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
             name=name,
-            metrics=[{"field": "_index", "method": "COUNT"}],
+            metrics=[{"field": "_index", "method": "COUNT", "alias": "a"}],
             table=query_config.get("result_table_id", ""),
             interval=query_config.get("agg_interval", 60),
             group_by=agg_dimension,
@@ -2490,7 +2498,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
             time_field=time_fields,
             custom_event_name=custom_event_name,
             data_label=query_config.get("data_label", ""),
-            bk_biz_id=kwargs.get("bk_biz_id", 0),
+            bk_biz_id=bk_biz_id,
         )
 
     def __init__(self, *args, **kwargs):

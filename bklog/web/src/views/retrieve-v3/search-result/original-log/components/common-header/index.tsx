@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, computed } from 'vue';
+import { computed, defineComponent } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -45,11 +45,10 @@ export default defineComponent({
   setup(props) {
     const { t } = useLocale();
 
-    const getTargetFieldsStr = computed(() =>
-      props.targetFields.reduce((acc, cur) => {
-        acc += `${cur}: ${props.paramsInfo[cur as string] || '/ '} `;
-        return acc;
-      }, ''),
+    const getTargetFieldsStr = computed(() => props.targetFields.reduce((acc, cur) => {
+      acc += `${cur}: ${props.paramsInfo[cur as string] || '/ '} `;
+      return acc;
+    }, ''),
     );
 
     return () => (

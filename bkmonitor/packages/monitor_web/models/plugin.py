@@ -13,7 +13,7 @@ import copy
 import re
 from collections import OrderedDict, defaultdict
 from functools import cmp_to_key, lru_cache
-from typing import Optional
+from typing import Any, Optional
 
 import arrow
 from django.conf import settings
@@ -774,7 +774,7 @@ class CollectorPluginInfo(OperateRecordModelBase):
     """
 
     plugin_display_name = models.CharField("插件别名", max_length=64, default="")
-    metric_json = JsonField("指标配置", default=[])
+    metric_json: list[dict[str, Any]] = JsonField("指标配置", default=[])  # pyright: ignore[reportAssignmentType]
     description_md = models.TextField("插件描述，markdown文本", default="")
     logo = models.ImageField("logo文件", null=True, storage=get_default_image_storage())
     enable_field_blacklist = models.BooleanField("是否开启黑名单", default=False)

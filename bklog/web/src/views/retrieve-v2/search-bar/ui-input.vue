@@ -216,6 +216,9 @@ const {
   tippyOptions: {
     hideOnClick: true,
     placement: 'top',
+    onHide: () => {
+      refPopInstance.value?.beforeHideFn?.();
+    },
   },
   showPopoverOnClick: false,
 });
@@ -910,17 +913,17 @@ const handleBatchInputChange = (isShow) => {
 }
 
 .v3-bklog-search-bar-choice-list {
+  padding: 4px 0;
   background-color: #ffffff;
   border-radius: 2px;
   box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
-  padding: 4px 0;
 
   .v3-bklog-search-bar-choice-list-item {
     padding: 4px 12px;
     font-size: 12px;
+    line-height: 20px;
     color: #4d4f56;
     cursor: pointer;
-    line-height: 20px;
 
     &:hover {
       background-color: #f5f7fa;
