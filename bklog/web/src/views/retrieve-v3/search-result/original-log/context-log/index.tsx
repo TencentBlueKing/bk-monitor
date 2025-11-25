@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { getFlatObjValues } from '@/common/util';
 import FieldsConfig from '@/components/common/fields-config.vue';
@@ -33,10 +33,10 @@ import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
+import $http from '@/api';
 import CommonHeader from '../components/common-header';
 import DataFilter from '../components/data-filter';
 import LogResult from '../components/origin-log-result';
-import $http from '@/api';
 
 import './index.scss';
 
@@ -106,8 +106,8 @@ export default defineComponent({
     let rawList: any[] = [];
     let reverseRawList: any[] = [];
     let firstLogEl: HTMLElement | null = null;
-    let throttleTimer: NodeJS.Timeout;
-    let timer: NodeJS.Timeout;
+    let throttleTimer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout>;
     let displayFieldNames: string[] = [];
 
 
@@ -164,8 +164,8 @@ export default defineComponent({
     };
 
     const handleAfterLeave = () => {
-      dataFilterRef.value.reset();
-      logResultRef.value.reset();
+      dataFilterRef.value?.reset();
+      logResultRef.value?.reset();
       highlightList.value = [];
       interval.value = {
         prev: 0,
@@ -192,7 +192,7 @@ export default defineComponent({
 
     const handleKeyup = (event: any) => {
       if (event.keyCode === 27) {
-        emit('close-dialog');
+        handleAfterLeave();
       }
     };
 
@@ -223,7 +223,7 @@ export default defineComponent({
         return displayFieldNames;
       }
 
-      const allFields = store.state.indexFieldInfo.fields;
+      const allFields = store.getters.filteredFieldList;
       let textField = undefined;
       let logField = undefined;
       for (const field of allFields) {
@@ -243,7 +243,7 @@ export default defineComponent({
         return [showFieldName];
       }
 
-      const pageVisibleFields = store.state.visibleFields.map(item => item.field_name);
+      const pageVisibleFields = store.getters.visibleFields.map(item => item.field_name);
       if (pageVisibleFields.length) {
         return pageVisibleFields;
       }

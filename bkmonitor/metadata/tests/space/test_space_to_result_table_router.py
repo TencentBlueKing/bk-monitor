@@ -36,7 +36,6 @@ def create_or_delete_records(mocker):
     models.Space.objects.all().delete()
     models.SpaceDataSource.objects.all().delete()
     models.SpaceResource.objects.all().delete()
-    models.SpaceTypeToResultTableFilterAlias.objects.all().delete()
     models.DataSource.objects.all().delete()
     models.ResultTable.objects.all().delete()
     models.AccessVMRecord.objects.all().delete()
@@ -190,18 +189,6 @@ def create_or_delete_records(mocker):
 
     # ---------------------全局事件--------------------- #
 
-    # ---------------------自定义过滤别名--------------------- #
-    models.SpaceTypeToResultTableFilterAlias.objects.create(
-        space_type="bkcc", table_id="1001_bkmonitor_time_series_50010.__default__", filter_alias="dimensions.bk_biz_id"
-    )
-    models.SpaceTypeToResultTableFilterAlias.objects.create(
-        space_type="bkci", table_id="custom_report_aggate.base", filter_alias="dimensions.bk_biz_id"
-    )
-    models.SpaceTypeToResultTableFilterAlias.objects.create(
-        space_type="bksaas", table_id="bkm_statistics.base", filter_alias="dimensions.bk_biz_id"
-    )
-    # ---------------------自定义过滤别名--------------------- #
-
     yield
     mocker.patch("bkmonitor.utils.consul.BKConsul", side_effect=consul_client)
     models.DataSource.objects.all().delete()
@@ -213,7 +200,6 @@ def create_or_delete_records(mocker):
     models.Space.objects.all().delete()
     models.SpaceDataSource.objects.all().delete()
     models.SpaceResource.objects.all().delete()
-    models.SpaceTypeToResultTableFilterAlias.objects.all().delete()
     delete_consul_config.stop()
 
 

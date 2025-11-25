@@ -29,7 +29,7 @@ from apm_web.service.resources import (
 )
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
+from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission, insert_permission_field
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
@@ -53,7 +53,19 @@ class ServiceViewSet(ResourceViewSet):
         # 修改服务配置
         ResourceRoute("POST", ServiceConfigResource, "service_config"),
         # 获取服务配置
-        ResourceRoute("POST", ServiceInfoResource, "service_info"),
+        ResourceRoute(
+            "POST",
+            ServiceInfoResource,
+            "service_info",
+            decorators=[
+                insert_permission_field(
+                    actions=[ActionEnum.MANAGE_APM_APPLICATION, ActionEnum.VIEW_APM_APPLICATION],
+                    resource_meta=ResourceEnum.APM_APPLICATION,
+                    id_field=lambda d: d["application_id"],
+                    many=False,
+                )
+            ],
+        ),
         # 返回码重定义：查询/设置/删除
         ResourceRoute("POST", ListCodeRedefinedRuleResource, "list_code_redefined_rule"),
         ResourceRoute("POST", SetCodeRedefinedRuleResource, "set_code_redefined_rule"),

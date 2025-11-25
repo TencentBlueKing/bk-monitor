@@ -17,7 +17,8 @@ from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request_username
-from bkmonitor.utils.user import get_backend_username, get_global_user
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from bkmonitor.utils.user import get_admin_username, get_backend_username, get_global_user
 from constants.cmdb import TargetNodeType
 from core.drf_resource import APIResource
 from core.drf_resource.base import Resource
@@ -684,7 +685,8 @@ class GetProxiesByBizResource(NodeManAPIGWResource):
     def full_request_data(self, validated_request_data):
         validated_request_data = super().full_request_data(validated_request_data)
         validated_request_data["_origin_user"] = get_global_user()
-        setattr(self, "bk_username", settings.COMMON_USERNAME)
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(validated_request_data["bk_biz_id"])
+        setattr(self, "bk_username", get_admin_username(bk_tenant_id=bk_tenant_id))
         return validated_request_data
 
 
