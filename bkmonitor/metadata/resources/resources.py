@@ -1731,44 +1731,11 @@ class DeleteTimeSeriesScopeResource(Resource):
         return
 
 
-class GetTimeSeriesScopeResource(Resource):
-    """
-    获取单个自定义时序指标分组
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
-        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
-        scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
-
-    def perform_request(self, validated_request_data):
-        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
-        group_id = validated_request_data["group_id"]
-        scope_name = validated_request_data["scope_name"]
-
-        # 验证 group_id 是否存在且属于当前租户
-        if not models.TimeSeriesGroup.objects.filter(
-            time_series_group_id=group_id, bk_tenant_id=bk_tenant_id, is_delete=False
-        ).exists():
-            raise ValueError(_("自定义时序分组不存在，请确认后重试"))
-
-        # 获取 TimeSeriesScope
-        time_series_scope = models.TimeSeriesScope.objects.filter(group_id=group_id, scope_name=scope_name).first()
-        if not time_series_scope:
-            raise ValueError(_("指标分组[{}]不存在，请确认后重试").format(scope_name))
-
-        return {
-            "group_id": time_series_scope.group_id,
-            "scope_name": time_series_scope.scope_name,
-            "dimension_config": time_series_scope.dimension_config,
-            "manual_list": time_series_scope.manual_list,
-            "auto_rules": time_series_scope.auto_rules,
-        }
-
-
 class QueryTimeSeriesScopeResource(Resource):
     """
     查询自定义时序指标分组列表
+
+    支持通过 group_id 和 scope_name 进行模糊匹配查询，返回列表结果（支持分页）
     """
 
     class RequestSerializer(PageSerializer):
@@ -1794,12 +1761,11 @@ class QueryTimeSeriesScopeResource(Resource):
 
             query_set = query_set.filter(group_id=group_id)
 
-        # 如果提供了 scope_name，进行模糊匹配
+        # 如果提供了 scope_name，使用模糊匹配
         if scope_name is not None:
             query_set = query_set.filter(scope_name__icontains=scope_name)
 
-        # 如果提供了 group_id，直接返回该 group_id 下的所有 scope
-        # 否则需要通过 group_id 关联 TimeSeriesGroup 来过滤租户
+        # 如果没有提供 group_id，需要通过 group_id 关联 TimeSeriesGroup 来过滤租户
         if group_id is None:
             # 获取当前租户下的所有 group_id
             valid_group_ids = models.TimeSeriesGroup.objects.filter(
