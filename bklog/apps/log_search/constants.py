@@ -1912,10 +1912,16 @@ class LogAccessTypeEnum(ChoicesEnum):
         return scenario_id
 
     @classmethod
-    def get_scenario_info(cls, log_access_type: str) -> tuple:
+    def get_scenario_info(cls, log_access_types: list[str]) -> tuple:
         """
         根据日志接入类型获取对应的场景信息
         """
-        if log_access_type == cls.CUSTOM_REPORT.value:
-            return cls.LOG.value, CollectorScenarioEnum.CUSTOM.value
-        return log_access_type, None
+        scenario_id_list = []
+        collector_scenario_id_list = []
+        for access_type in log_access_types:
+            if access_type == cls.CUSTOM_REPORT.value:
+                scenario_id_list.append(cls.LOG.value)
+                collector_scenario_id_list.append(CollectorScenarioEnum.CUSTOM.value)
+            else:
+                scenario_id_list.append(access_type)
+        return scenario_id_list, collector_scenario_id_list

@@ -117,6 +117,7 @@ class LogCollectorHandler:
         updated_by_list: list = None,
         storage_cluster_name_list: list = None,
         status_name_list: list = None,
+        log_access_type_list: list = None,
     ) -> list[dict]:
         """
          获取采集项信息
@@ -129,12 +130,19 @@ class LogCollectorHandler:
         :param updated_by_list: 创建者
         :param storage_cluster_name_list: 集群名
         :param status_name_list: 采集状态
+        :param log_access_type_list: 日志接入类型
         """
+        _scenario_id_list, _collector_scenario_id_list = LogAccessTypeEnum.get_scenario_info(log_access_type_list)
+        scenario_id_list = scenario_id_list + _scenario_id_list
+        collector_scenario_id_list = collector_scenario_id_list + _collector_scenario_id_list
         if scenario_id_list and Scenario.LOG not in scenario_id_list:
             # 非日志采集查询，直接返回
             return []
 
         qs = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id)
+
+        if Scenario.LOG in scenario_id_list and CollectorScenarioEnum.CUSTOM.value not in collector_scenario_id_list:
+            qs = qs.exclude(collector_scenario_id=CollectorScenarioEnum.CUSTOM.value)
 
         # 先查询索引组下的索引集，再查询索引集对应的采集项
         if parent_index_set_id:
@@ -206,6 +214,7 @@ class LogCollectorHandler:
         created_by_list: list = None,
         updated_by_list: list = None,
         storage_cluster_name_list: list = None,
+        log_access_type_list: list = None,
     ) -> list[dict]:
         """
          获取索引集内容
@@ -216,7 +225,10 @@ class LogCollectorHandler:
         :param created_by_list: 创建者
         :param updated_by_list: 创建者
         :param storage_cluster_name_list: 集群名
+        :param log_access_type_list: 日志接入类型
         """
+        _scenario_id_list, _ = LogAccessTypeEnum.get_scenario_info(log_access_type_list)
+        scenario_id_list.extend(_scenario_id_list)
         log_index_sets = LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid).exclude(
             scenario_id=Scenario.LOG
         )
@@ -324,6 +336,7 @@ class LogCollectorHandler:
         updated_by_list = []
         status_name_list = []
         storage_cluster_name_list = []
+        log_access_type_list = []
         for item in conditions:
             if item["key"] == "scenario_id":
                 scenario_id_list = item["value"]
@@ -342,10 +355,7 @@ class LogCollectorHandler:
             elif item["key"] == "storage_cluster_name":
                 storage_cluster_name_list = item["value"]
             elif item["key"] == "log_access_type":
-                for access_type in item["value"]:
-                    _scenario_id, _collector_scenario_id = LogAccessTypeEnum.get_scenario_info(access_type)
-                    _scenario_id and scenario_id_list.append(_scenario_id)
-                    _collector_scenario_id and collector_scenario_id_list.append(_collector_scenario_id)
+                log_access_type_list = item["value"]
 
         # 获取采集项信息
         collector_configs = self.get_collector_config_info(
@@ -358,6 +368,7 @@ class LogCollectorHandler:
             updated_by_list=updated_by_list,
             storage_cluster_name_list=storage_cluster_name_list,
             status_name_list=status_name_list,
+            log_access_type_list=log_access_type_list,
         )
 
         lists_to_check = [
@@ -377,6 +388,7 @@ class LogCollectorHandler:
                 created_by_list=created_at_list,
                 updated_by_list=updated_by_list,
                 storage_cluster_name_list=storage_cluster_name_list,
+                log_access_type_list=log_access_type_list,
             )
 
         combined_data = collector_configs + log_index_sets
