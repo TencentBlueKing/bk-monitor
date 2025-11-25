@@ -1031,6 +1031,7 @@ class TimeSeriesScope(models.Model):
         verbose_name = "自定义时序数据分组记录"
         verbose_name_plural = "自定义时序数据分组记录表"
 
+    @atomic(config.DATABASE_CONNECTION_NAME)
     def update_matched_metrics(self):
         """
         根据 manual_list 和 auto_rules 更新匹配的指标的 field_scope 和 dimension_config
@@ -1163,6 +1164,28 @@ class TimeSeriesScope(models.Model):
                     )
                     continue
         return False
+
+    @atomic(config.DATABASE_CONNECTION_NAME)
+    def delete_scope(self):
+        """
+        删除 scope 时，将该 scope 下的所有指标释放到 default 分组
+        """
+        # 获取该 scope 下的所有指标
+        scope_metrics = TimeSeriesMetric.objects.filter(group_id=self.group_id, field_scope=self.scope_name)
+
+        # 将所有指标的 field_scope 设置为 "default"
+        updated_count = scope_metrics.update(field_scope="default")
+
+        if updated_count > 0:
+            logger.info(
+                "Released %s metrics from scope '%s' to 'default' for group_id: %s before deletion",
+                updated_count,
+                self.scope_name,
+                self.group_id,
+            )
+
+        # 删除 scope 记录
+        self.delete()
 
 
 class TimeSeriesMetric(models.Model):
