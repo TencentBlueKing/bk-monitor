@@ -1020,6 +1020,9 @@ class TimeSeriesScope(models.Model):
         (CREATE_FROM_USER, "用户手动创建"),
     ]
 
+    # scope_name 字段验证规则：只允许中文、英文、数字、下划线
+    SCOPE_NAME_REGEX = re.compile(r"^[\u4e00-\u9fa5a-zA-Z0-9_]+$")
+
     # group_id 来自于 TimeSeriesGroup.time_series_group_id，关联数据源
     group_id = models.IntegerField(verbose_name="自定义时序数据源ID", db_index=True)
 
@@ -1053,6 +1056,19 @@ class TimeSeriesScope(models.Model):
             raise ValueError(_("数据自动创建的分组不允许编辑"))
 
     @classmethod
+    def validate_scope_name(cls, scope_name: str):
+        """验证 scope_name 格式是否合法
+
+        :param scope_name: 指标分组名称
+        :raises ValueError: 如果格式不合法
+        """
+        if not scope_name:
+            raise ValueError(_("指标分组名不能为空"))
+
+        if not cls.SCOPE_NAME_REGEX.match(scope_name):
+            raise ValueError(_("指标分组名只能包含中文、英文、数字和下划线"))
+
+    @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
     def create_time_series_scope(
         cls,
@@ -1074,6 +1090,9 @@ class TimeSeriesScope(models.Model):
         :return: TimeSeriesScope 实例
         """
         try:
+            # 验证 scope_name 格式
+            cls.validate_scope_name(scope_name)
+
             # 检查记录是否已存在
             if cls.objects.filter(group_id=group_id, scope_name=scope_name).exists():
                 raise ValueError(_("指标分组名[{}]已存在，请确认后重试").format(scope_name))
@@ -1121,6 +1140,9 @@ class TimeSeriesScope(models.Model):
         :return: TimeSeriesScope 实例
         """
         try:
+            # 验证 scope_name 格式
+            cls.validate_scope_name(scope_name)
+
             # 获取要更新的记录
             scope = cls.objects.filter(group_id=group_id, scope_name=scope_name).first()
             if not scope:
@@ -1253,6 +1275,9 @@ class TimeSeriesScope(models.Model):
         :param dimensions: 维度名称列表
         :return: TimeSeriesScope 实例
         """
+        # 验证 scope_name 格式
+        cls.validate_scope_name(scope_name)
+
         # 检查记录是否存在
         scope = cls.objects.filter(group_id=group_id, scope_name=scope_name).first()
 
