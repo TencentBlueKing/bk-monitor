@@ -149,11 +149,13 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   watch(
     alarmType,
     (newVal, oldVal) => {
-      cacheMap.set(oldVal, {
-        conditions: JSON.parse(JSON.stringify(conditions.value)),
-        queryString: JSON.parse(JSON.stringify(queryString.value)),
-        quickFilterValue: JSON.parse(JSON.stringify(quickFilterValue.value)),
-      });
+      if (oldVal) {
+        cacheMap.set(oldVal, {
+          conditions: JSON.parse(JSON.stringify(conditions.value)),
+          queryString: JSON.parse(JSON.stringify(queryString.value)),
+          quickFilterValue: JSON.parse(JSON.stringify(quickFilterValue.value)),
+        });
+      }
       alarmService.value = AlarmServiceFactory(alarmType.value);
       const cache = cacheMap.get(newVal);
       if (cache) {

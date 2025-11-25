@@ -61,7 +61,7 @@ $blue: #3a84ff;
 
   .basic-info {
     margin-top: 1px;
-    
+
     .basic-info-form-item {
       display: flex;
       align-items: flex-start;
@@ -72,8 +72,6 @@ $blue: #3a84ff;
         flex: 1 1;
         align-items: center;
         min-height: 28px;
-
-        
 
         .item-label {
           display: flex;
@@ -147,6 +145,10 @@ $blue: #3a84ff;
             &.icon-chuli {
               margin-right: 5px;
               font-size: 12px;
+            }
+
+            &:hover {
+              color: #699df4;
             }
           }
 

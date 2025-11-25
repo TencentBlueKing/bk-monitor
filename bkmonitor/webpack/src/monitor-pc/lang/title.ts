@@ -197,7 +197,6 @@ export default {
   快捷筛选: 'Quick filter',
   告警分析设置: 'Alarm Analysis Settings',
   与我相关: 'Related to me',
-  事件分析: 'Event Analysis',
   // 指标模版
   函数变量: 'Function Variable',
   维度变量: 'Dimension Variable',
@@ -229,4 +228,12 @@ export default {
   同环比: 'Year-on-year',
   '确定解除关联?': 'Are you sure you want to disassociate?',
   蓝鲸智云: 'Tencent BlueKing',
+  可疑维度: 'Suspicious dimension',
+  可疑调用链: 'Suspicious call chain',
+  可疑日志: 'Suspicious log',
+  可疑事件: 'Suspicious event',
+  告警状态详情: 'Alarm status details',
+  相关性指标: 'Relevance indicators',
+  收敛的告警: 'Converged alarms',
+  告警流转记录: 'Alarm flow record',
 };

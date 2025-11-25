@@ -1985,4 +1985,13 @@ export default {
   全部模板: 'All templates',
   内置模板: 'Built-in templates',
   克隆模板: 'Clone template',
+
+  '未恢复（已屏蔽）': 'Not recovered (shielded)',
+  '未恢复（未屏蔽）': 'Not recovered (not shielded)',
+  '告警问题：': 'Alarm problem:',
+  '告警原因：': 'Alarm reason:',
+  '关联故障：': 'Associated fault:',
+  '处理建议：': 'Processing suggestion:',
+  '处理经验：': 'Processing experience:',
+  告警模块: 'Alarm module',
 };

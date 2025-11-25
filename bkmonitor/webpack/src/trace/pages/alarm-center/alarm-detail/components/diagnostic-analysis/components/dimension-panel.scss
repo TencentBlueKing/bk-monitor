@@ -8,5 +8,9 @@
   .link-text {
     color: #3a84ff;
     cursor: pointer;
+
+    &:hover {
+      color: #699df4;
+    }
   }
 }

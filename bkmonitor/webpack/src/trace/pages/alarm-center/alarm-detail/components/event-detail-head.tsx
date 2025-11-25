@@ -270,21 +270,21 @@ export default defineComponent({
               <TemporaryShare />
             )}
           </span>
-          {this.alarmDetail.alert_name && (
+          {this.alarmDetail?.alert_name && (
             <span
               class='basic-title-name'
-              v-bk-tooltips={{ content: this.alarmDetail.alert_name, allowHTML: false, placements: ['bottom'] }}
+              v-bk-tooltips={{ content: this.alarmDetail?.alert_name, allowHTML: false, placements: ['bottom'] }}
             >
-              {this.alarmDetail.alert_name}
+              {this.alarmDetail?.alert_name}
             </span>
           )}
 
-          {this.alarmDetail.plugin_id ? (
+          {this.alarmDetail?.plugin_id ? (
             <span
               class='btn-strategy-detail'
               onClick={this.toStrategyDetail}
             >
-              <span>{this.t('来源：{0}', [this.alarmDetail.plugin_display_name])}</span>
+              <span>{this.t('来源：{0}', [this.alarmDetail?.plugin_display_name])}</span>
               <i class='icon-monitor icon-fenxiang icon-float' />
             </span>
           ) : undefined}
@@ -312,7 +312,7 @@ export default defineComponent({
         />
         <Feedback
           key='feedback'
-          ids={[this.alarmDetail.id]}
+          ids={[this.alarmDetail?.id]}
           show={this.feedbackDialog}
           onConfirm={this.handleFeedBackConfirm}
           onUpdate:isShow={this.handleFeedback}

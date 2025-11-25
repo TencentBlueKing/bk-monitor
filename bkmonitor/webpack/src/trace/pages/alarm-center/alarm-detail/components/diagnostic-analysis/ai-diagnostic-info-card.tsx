@@ -97,7 +97,7 @@ export default defineComponent({
           ),
         }}
         faviconSize={32}
-        title={`${this.t('诊断概率：85%')}：`}
+        title='诊断概率：85%'
       />
     );
   },

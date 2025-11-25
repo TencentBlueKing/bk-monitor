@@ -444,7 +444,6 @@ export default defineComponent({
                       value={this.mealId}
                       onChange={this.handleSelected}
                     />
-                    {}
                     <i
                       class='icon-monitor icon-shuaxin'
                       onClick={this.handleRefreshTemplate}
@@ -543,7 +542,6 @@ export default defineComponent({
               >
                 {this.t('确定')}
               </Button>
-              ,
               <Button
                 key='cancel-button'
                 style={{ marginLeft: '10px' }}
@@ -551,7 +549,6 @@ export default defineComponent({
               >
                 {this.t('取消')}
               </Button>
-              ,
             </div>
           ),
         }}

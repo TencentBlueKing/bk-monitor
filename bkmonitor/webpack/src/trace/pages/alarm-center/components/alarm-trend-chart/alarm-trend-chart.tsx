@@ -26,9 +26,9 @@
 
 import { defineComponent, provide, shallowRef } from 'vue';
 import { computed } from 'vue';
-import { useI18n } from 'vue-i18n';
 
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { useI18n } from 'vue-i18n';
 
 import IntervalSelect from '../../../../components/interval-select/interval-select';
 import ChartCollapse from '../../../../pages/trace-explore/components/explore-chart/chart-collapse';
@@ -64,7 +64,10 @@ export default defineComponent({
     const count = shallowRef(0);
 
     const seriesColorMap = {
-      ...AlarmStatusIconMap,
+      ...Object.entries(AlarmStatusIconMap).reduce((pre, [key, value]) => {
+        pre[key] = value.iconColor;
+        return pre;
+      }, {}),
       success: '#6FC5BF',
       failure: '#F59789',
     };
@@ -134,9 +137,9 @@ export default defineComponent({
             alias: item.display_name,
             type: 'bar',
             itemStyle: {
-              color: seriesColorMap[item.name].iconColor,
+              color: seriesColorMap[item.name],
             },
-            color: seriesColorMap[item.name].iconColor,
+            color: seriesColorMap[item.name],
             unit: data.unit,
           };
         }),

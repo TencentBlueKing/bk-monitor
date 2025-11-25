@@ -77,7 +77,7 @@ export default defineComponent({
             class='analysis-panel-wrapper-header'
             onClick={() => this.toggleExpand(!this.isExpand)}
           >
-            <i class='icon-monitor icon-mc-arrow-down arrow-icon' />
+            <i class='icon-monitor icon-mc-arrow-right arrow-icon' />
             <i class={['icon-monitor', 'analysis-type-icon', DiagnosticTypeIconMap[this.data.type]]} />
             <span class='panel-title'>{DiagnosticTypeMap[this.data.type]}</span>
           </div>
