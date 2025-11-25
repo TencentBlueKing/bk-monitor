@@ -1047,6 +1047,11 @@ class TimeSeriesScope(models.Model):
         verbose_name = "自定义时序数据分组记录"
         verbose_name_plural = "自定义时序数据分组记录表"
 
+    def check_editable(self):
+        """检查是否允许编辑"""
+        if self.create_from == TimeSeriesScope.CREATE_FROM_DATA:
+            raise ValueError(_("数据自动创建的分组不允许编辑"))
+
     @classmethod
     def create_time_series_scope(
         cls,
@@ -1121,6 +1126,8 @@ class TimeSeriesScope(models.Model):
             if not scope:
                 raise ValueError(_("指标分组[{}]不存在，请确认后重试").format(scope_name))
 
+            scope.check_editable()
+
             # 更新字段
             update_fields = []
 
@@ -1152,48 +1159,6 @@ class TimeSeriesScope(models.Model):
         except Exception as e:
             logger.exception(f"Failed to update TimeSeriesScope for group_id={group_id}, scope_name={scope_name}: {e}")
             raise
-
-    @classmethod
-    def ensure_or_merge_scope(
-        cls,
-        group_id: int,
-        scope_name: str,
-        dimensions: list,
-    ):
-        """确保 TimeSeriesScope 记录存在，如果存在则合并维度配置
-
-        此方法用于 metric 批量创建/更新场景，确保 scope 存在并合并
-
-        :param group_id: 自定义分组ID
-        :param scope_name: 指标分组名称
-        :param dimensions: 维度名称列表
-        :return: TimeSeriesScope 实例
-        """
-        # 检查记录是否存在
-        scope = cls.objects.filter(group_id=group_id, scope_name=scope_name).first()
-
-        if scope:
-            # 记录已存在，合并维度配置（添加新维度，保留已有配置）
-            existing_config = scope.dimension_config or {}
-            for dim in dimensions:
-                existing_config.setdefault(dim, {})
-            scope.dimension_config = existing_config
-            # 始终使用数据分组
-            scope.create_from = cls.CREATE_FROM_DATA
-            scope.save(update_fields=["dimension_config", "create_from"])
-        else:
-            # 记录不存在，创建新记录
-            dimension_config = {dim: {} for dim in dimensions}
-            scope = cls.objects.create(
-                group_id=group_id,
-                scope_name=scope_name,
-                dimension_config=dimension_config,
-                manual_list=[],
-                auto_rules=[],
-                create_from=cls.CREATE_FROM_DATA,
-            )
-
-        return scope
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def update_matched_dimension_config(self, delete_unmatched_dimensions=False):
@@ -1272,6 +1237,48 @@ class TimeSeriesScope(models.Model):
                     )
                     continue
         return False
+
+    @classmethod
+    def ensure_or_merge_scope(
+        cls,
+        group_id: int,
+        scope_name: str,
+        dimensions: list,
+    ):
+        """确保 TimeSeriesScope 记录存在，如果存在则合并维度配置
+
+        此方法用于 metric 批量创建/更新场景，确保 scope 存在并合并
+
+        :param group_id: 自定义分组ID
+        :param scope_name: 指标分组名称
+        :param dimensions: 维度名称列表
+        :return: TimeSeriesScope 实例
+        """
+        # 检查记录是否存在
+        scope = cls.objects.filter(group_id=group_id, scope_name=scope_name).first()
+
+        if scope:
+            # 记录已存在，合并维度配置（添加新维度，保留已有配置）
+            existing_config = scope.dimension_config or {}
+            for dim in dimensions:
+                existing_config.setdefault(dim, {})
+            scope.dimension_config = existing_config
+            # 始终使用数据分组
+            scope.create_from = cls.CREATE_FROM_DATA
+            scope.save(update_fields=["dimension_config", "create_from"])
+        else:
+            # 记录不存在，创建新记录
+            dimension_config = {dim: {} for dim in dimensions}
+            scope = cls.objects.create(
+                group_id=group_id,
+                scope_name=scope_name,
+                dimension_config=dimension_config,
+                manual_list=[],
+                auto_rules=[],
+                create_from=cls.CREATE_FROM_DATA,
+            )
+
+        return scope
 
 
 class TimeSeriesMetric(models.Model):

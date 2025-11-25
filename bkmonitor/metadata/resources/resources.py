@@ -1719,6 +1719,8 @@ class DeleteTimeSeriesScopeResource(Resource):
         if not time_series_scope:
             raise ValueError(_("指标分组[{}]不存在，请确认后重试").format(scope_name))
 
+        time_series_scope.check_editable()
+
         time_series_scope.delete()
         return
 
