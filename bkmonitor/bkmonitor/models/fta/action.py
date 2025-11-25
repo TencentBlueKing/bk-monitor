@@ -190,8 +190,9 @@ class ActionPlugin(AbstractRecordModel):
         "job_site_url": settings.JOB_URL.rstrip("/"),
         "sops_site_url": settings.BK_SOPS_HOST.rstrip("/"),
         "itsm_site_url": settings.BK_ITSM_HOST.rstrip("/"),
-        "itsm_v4_site_url": settings.BK_ITSM_V4_HOST.rstrip("/"),  # 新版ITSM访问地址
-        "itsm_v4_system_id": settings.BK_ITSM_V4_SYSTEM_ID,  # 新版ITSM系统ID
+        "itsm_v4_site_url": settings.BK_ITSM_V4_HOST.rstrip("/"),
+        "itsm_v4_api_url": settings.BK_ITSM_V4_API_URL.rstrip("/"),
+        "itsm_v4_system_id": settings.BK_ITSM_V4_SYSTEM_ID,
     }
 
     @staticmethod
