@@ -1211,7 +1211,7 @@ BK_CC_URL = os.getenv("BK_CC_SITE_URL") or os.getenv("BK_CC_HOST", BK_CC_URL)
 # 新版ITSM
 BK_ITSM_V4_HOST = os.getenv("BK_ITSM_V4_HOST", "")
 BK_ITSM_V4_API_URL = os.getenv("BK_ITSM_V4_API_URL", f"{BK_COMPONENT_API_URL}/api/cw-aitsm/prod")
-BK_ITSM_V4_SYSTEM_ID = APP_ID
+BK_ITSM_V4_SYSTEM_ID = APP_CODE
 
 BK_ITSM_HOST = os.getenv("BK_ITSM_HOST", f"{BK_PAAS_HOST}/o/bk_itsm/")
 BK_SOPS_HOST = os.getenv("BK_SOPS_URL", f"{BK_PAAS_HOST}/o/bk_sops/")
