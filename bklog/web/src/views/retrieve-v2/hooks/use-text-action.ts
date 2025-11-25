@@ -25,7 +25,6 @@
  */
 
 import { copyMessage, formatDate } from '@/common/util';
-import useFieldNameHook from '@/hooks/use-field-name';
 import useStore from '@/hooks/use-store';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { bkMessage } from 'bk-magic-vue';
@@ -61,8 +60,7 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     depth?: number,
     isNestedField?: string,
   ) => {
-    const { getQueryAlias } = useFieldNameHook({ store });
-    const fieldName = field?.field_name ? getQueryAlias(field) : field;
+    const fieldName = typeof field === 'string' ? field : field?.field_name;
     const searchValue = value === '--' ? [] : [value];
     handleAddCondition(fieldName, operator, searchValue, isLink, depth, isNestedField);
   };
@@ -154,7 +152,6 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
     }
-    console.log('type==', type, actualValue);
     // 处理不同类型的操作
     switch (type) {
       case 'highlight':
@@ -189,6 +186,29 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     return isParamsChange;
   };
 
+  /**
+   * 获取对象中的字段值
+   * @param {Object} obj 对象
+   * @param {Object} field 字段信息
+   * @returns {String} 字段值
+   */
+  const getObjectValue = (obj: Record<string, any>, field: any) => {
+    if (typeof obj === 'object' && obj !== null) {
+      if (field.is_virtual_alias_field) {
+        const fieldList = [field.field_name, ...field.source_field_names];
+        for (const fieldName of fieldList) {
+          const value = obj?.[fieldName];
+          if (value !== undefined && value !== null && value !== '') {
+            return value;
+          }
+        }
+      }
+
+      return obj?.[field.field_name] ?? '--';
+    }
+    return obj ?? '--';
+  };
+
   return {
     handleOperation,
     handleHighlight,
@@ -197,5 +217,6 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     handleAddCondition,
     setRouteParams,
     handleTraceIdClick,
+    getObjectValue,
   };
 };

@@ -87,6 +87,13 @@
       background-color: #f5f7fa;
     }
 
+    &.keyboard-selected {
+      color: #3a84ff;
+      background-color: #e1ecff;
+      outline: 1px solid #3a84ff;
+      outline-offset: -1px;
+    }
+
     &.dark {
       color: $color-dark;
 
@@ -97,6 +104,13 @@
       &.checked {
         color: #fff;
         background: #234071;
+      }
+
+      &.keyboard-selected {
+        color: #fff;
+        background: #2c354d;
+        outline: 1px solid #3a84ff;
+        outline-offset: -1px;
       }
     }
 
