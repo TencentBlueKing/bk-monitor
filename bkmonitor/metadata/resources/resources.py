@@ -1594,131 +1594,184 @@ class QueryTimeSeriesGroupResource(Resource):
 
 class CreateTimeSeriesScopeResource(Resource):
     """
-    创建自定义时序指标分组
+    批量创建自定义时序指标分组
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
-        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
-        scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
-        dimension_config = serializers.DictField(required=False, label="分组下的维度配置", default={})
-        manual_list = serializers.ListField(required=False, label="手动分组的指标列表", default=[])
-        auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表", default=[])
+
+        class ScopeSerializer(serializers.Serializer):
+            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+            scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+            dimension_config = serializers.DictField(required=False, label="分组下的维度配置", default={})
+            manual_list = serializers.ListField(required=False, label="手动分组的指标列表", default=[])
+            auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表", default=[])
+
+        scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量创建的分组列表", min_length=1)
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
-        group_id = validated_request_data["group_id"]
+        scopes = validated_request_data["scopes"]
+        results = []
 
-        # 验证 group_id 是否存在且属于当前租户
-        if not models.TimeSeriesGroup.objects.filter(
-            time_series_group_id=group_id, bk_tenant_id=bk_tenant_id, is_delete=False
-        ).exists():
-            raise ValueError(_("自定义时序分组不存在，请确认后重试"))
-
-        # 使用 create_time_series_scope 创建记录
-        # update_dimension_from_metrics=True 表示如果有 manual_list 或 auto_rules，则根据指标更新维度配置
-        time_series_scope = models.TimeSeriesScope.create_time_series_scope(
-            group_id=group_id,
-            scope_name=validated_request_data["scope_name"],
-            dimension_config=validated_request_data.get("dimension_config"),
-            manual_list=validated_request_data.get("manual_list"),
-            auto_rules=validated_request_data.get("auto_rules"),
-            update_dimension_from_metrics=True,
+        # 验证所有 group_id 是否存在且属于当前租户
+        group_ids = {scope["group_id"] for scope in scopes}
+        valid_groups = set(
+            models.TimeSeriesGroup.objects.filter(
+                time_series_group_id__in=group_ids, bk_tenant_id=bk_tenant_id, is_delete=False
+            ).values_list("time_series_group_id", flat=True)
         )
 
-        return {
-            "group_id": time_series_scope.group_id,
-            "scope_name": time_series_scope.scope_name,
-            "dimension_config": time_series_scope.dimension_config,
-            "manual_list": time_series_scope.manual_list,
-            "auto_rules": time_series_scope.auto_rules,
-            "create_from": time_series_scope.create_from,
-        }
+        invalid_group_ids = group_ids - valid_groups
+        if invalid_group_ids:
+            raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
+
+        # 批量创建
+        for scope_data in scopes:
+            time_series_scope = models.TimeSeriesScope.create_time_series_scope(
+                group_id=scope_data["group_id"],
+                scope_name=scope_data["scope_name"],
+                dimension_config=scope_data.get("dimension_config", {}),
+                manual_list=scope_data.get("manual_list", []),
+                auto_rules=scope_data.get("auto_rules", []),
+                update_dimension_from_metrics=True,
+            )
+            results.append(
+                {
+                    "group_id": time_series_scope.group_id,
+                    "scope_name": time_series_scope.scope_name,
+                    "dimension_config": time_series_scope.dimension_config,
+                    "manual_list": time_series_scope.manual_list,
+                    "auto_rules": time_series_scope.auto_rules,
+                    "create_from": time_series_scope.create_from,
+                }
+            )
+
+        return results
 
 
 class ModifyTimeSeriesScopeResource(Resource):
     """
-    修改自定义时序指标分组
+    批量修改自定义时序指标分组
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
-        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
-        scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
-        dimension_config = serializers.DictField(required=False, label="分组下的维度配置")
-        manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
-        auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
-        # 是否删除不再匹配 manual_list 和 auto_rules 的 dimension_config
-        # 对于导入分组场景来说，这个字段应该为 False，否则可能由于无法匹配而导入失败
-        delete_unmatched_dimensions = serializers.BooleanField(
-            required=False, default=False, label="是否删除不再匹配的维度配置"
-        )
+
+        class ScopeSerializer(serializers.Serializer):
+            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+            scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+            dimension_config = serializers.DictField(required=False, label="分组下的维度配置")
+            manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
+            auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
+            # 是否删除不再匹配 manual_list 和 auto_rules 的 dimension_config
+            # 对于导入分组场景来说，这个字段应该为 False，否则可能由于无法匹配而导入失败
+            delete_unmatched_dimensions = serializers.BooleanField(
+                required=False, default=False, label="是否删除不再匹配的维度配置"
+            )
+
+        scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量修改的分组列表", min_length=1)
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
-        group_id = validated_request_data["group_id"]
+        scopes = validated_request_data["scopes"]
+        results = []
 
-        # 验证 group_id 是否存在且属于当前租户
-        if not models.TimeSeriesGroup.objects.filter(
-            time_series_group_id=group_id, bk_tenant_id=bk_tenant_id, is_delete=False
-        ).exists():
-            raise ValueError(_("自定义时序分组不存在，请确认后重试"))
-
-        # 判断是否需要更新维度配置
-        # 如果提供了 manual_list 或 auto_rules，则需要根据指标更新维度配置
-        manual_list = validated_request_data.get("manual_list")
-        auto_rules = validated_request_data.get("auto_rules")
-        update_dimension_from_metrics = manual_list is not None or auto_rules is not None
-
-        time_series_scope = models.TimeSeriesScope.update_time_series_scope(
-            group_id=group_id,
-            scope_name=validated_request_data["scope_name"],
-            dimension_config=validated_request_data.get("dimension_config"),
-            manual_list=manual_list,
-            auto_rules=auto_rules,
-            update_dimension_from_metrics=update_dimension_from_metrics,
-            delete_unmatched_dimensions=validated_request_data.get("delete_unmatched_dimensions"),
+        # 验证所有 group_id 是否存在且属于当前租户
+        group_ids = {scope["group_id"] for scope in scopes}
+        valid_groups = set(
+            models.TimeSeriesGroup.objects.filter(
+                time_series_group_id__in=group_ids, bk_tenant_id=bk_tenant_id, is_delete=False
+            ).values_list("time_series_group_id", flat=True)
         )
 
-        return {
-            "group_id": time_series_scope.group_id,
-            "scope_name": time_series_scope.scope_name,
-            "dimension_config": time_series_scope.dimension_config,
-            "manual_list": time_series_scope.manual_list,
-            "auto_rules": time_series_scope.auto_rules,
-            "create_from": time_series_scope.create_from,
-        }
+        invalid_group_ids = group_ids - valid_groups
+        if invalid_group_ids:
+            raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
+
+        # 批量修改
+        for scope_data in scopes:
+            # 判断是否需要更新维度配置
+            # 如果提供了 manual_list 或 auto_rules，则需要根据指标更新维度配置
+            manual_list = scope_data.get("manual_list")
+            auto_rules = scope_data.get("auto_rules")
+            update_dimension_from_metrics = manual_list is not None or auto_rules is not None
+
+            time_series_scope = models.TimeSeriesScope.update_time_series_scope(
+                group_id=scope_data["group_id"],
+                scope_name=scope_data["scope_name"],
+                dimension_config=scope_data.get("dimension_config"),
+                manual_list=manual_list,
+                auto_rules=auto_rules,
+                update_dimension_from_metrics=update_dimension_from_metrics,
+                delete_unmatched_dimensions=scope_data.get("delete_unmatched_dimensions", False),
+            )
+            results.append(
+                {
+                    "group_id": time_series_scope.group_id,
+                    "scope_name": time_series_scope.scope_name,
+                    "dimension_config": time_series_scope.dimension_config,
+                    "manual_list": time_series_scope.manual_list,
+                    "auto_rules": time_series_scope.auto_rules,
+                    "create_from": time_series_scope.create_from,
+                }
+            )
+
+        return results
 
 
 class DeleteTimeSeriesScopeResource(Resource):
     """
-    删除自定义时序指标分组
+    批量删除自定义时序指标分组
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
-        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
-        scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+
+        class ScopeSerializer(serializers.Serializer):
+            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+            scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+
+        scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量删除的分组列表", min_length=1)
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
-        group_id = validated_request_data["group_id"]
-        scope_name = validated_request_data["scope_name"]
+        scopes = validated_request_data["scopes"]
 
-        # 验证 group_id 是否存在且属于当前租户
-        if not models.TimeSeriesGroup.objects.filter(
-            time_series_group_id=group_id, bk_tenant_id=bk_tenant_id, is_delete=False
-        ).exists():
-            raise ValueError(_("自定义时序分组不存在，请确认后重试"))
+        # 验证所有 group_id 是否存在且属于当前租户
+        group_ids = {scope["group_id"] for scope in scopes}
+        valid_groups = set(
+            models.TimeSeriesGroup.objects.filter(
+                time_series_group_id__in=group_ids, bk_tenant_id=bk_tenant_id, is_delete=False
+            ).values_list("time_series_group_id", flat=True)
+        )
 
-        # 获取要删除的 TimeSeriesScope
-        time_series_scope = models.TimeSeriesScope.objects.filter(group_id=group_id, scope_name=scope_name).first()
-        if not time_series_scope:
-            raise ValueError(_("指标分组[{}]不存在，请确认后重试").format(scope_name))
+        invalid_group_ids = group_ids - valid_groups
+        if invalid_group_ids:
+            raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
 
-        time_series_scope.check_editable()
+        # 批量获取要删除的 TimeSeriesScope
+        scope_conditions = Q()
+        for scope_data in scopes:
+            scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=scope_data["scope_name"])
 
-        time_series_scope.delete()
+        time_series_scopes = models.TimeSeriesScope.objects.filter(scope_conditions)
+
+        # 检查是否所有 scope 都存在
+        found_scopes = {(s.group_id, s.scope_name) for s in time_series_scopes}
+        requested_scopes = {(s["group_id"], s["scope_name"]) for s in scopes}
+        missing_scopes = requested_scopes - found_scopes
+
+        if missing_scopes:
+            missing_names = [f"{gid}:{name}" for gid, name in missing_scopes]
+            raise ValueError(_("指标分组不存在，请确认后重试: {}").format(", ".join(missing_names)))
+
+        # 检查是否可编辑
+        for time_series_scope in time_series_scopes:
+            time_series_scope.check_editable()
+
+        # 批量删除
+        time_series_scopes.delete()
         return
 
 
