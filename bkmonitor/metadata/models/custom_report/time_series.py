@@ -1048,11 +1048,16 @@ class TimeSeriesScope(models.Model):
         verbose_name_plural = "自定义时序数据分组记录表"
 
     @staticmethod
-    def _get_enable_operation_data_scope_list():
+    def _get_enable_operate_scope_filter():
         """
-        获取可操作的数据分组列表
+        获取可操作指标的过滤条件
+        过滤条件：精确匹配 default 或末尾匹配 "||default"
+
+        :return: Django Q 对象
         """
-        return TimeSeriesMetric.ENABLE_OPERATION_SCOPE_LIST
+        from django.db.models import Q
+
+        return Q(field_scope="default") | Q(field_scope__endswith="||default")
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def update_matched_dimension_config(self, delete_unmatched_dimensions=False):
@@ -1072,8 +1077,8 @@ class TimeSeriesScope(models.Model):
         matched_metric_dimensions = set()
 
         # 查询该分组下可操作的指标
-        available_metrics = TimeSeriesMetric.objects.filter(
-            group_id=self.group_id, field_scope__in=self._get_enable_operation_data_scope_list()
+        available_metrics = TimeSeriesMetric.objects.filter(group_id=self.group_id).filter(
+            self._get_enable_operate_scope_filter()
         )
 
         # 遍历所有指标，找出匹配的指标的维度
@@ -1140,8 +1145,8 @@ class TimeSeriesMetric(models.Model):
 
     TARGET_DIMENSION_NAME = "target"
 
-    DEFAULT_SCOPE = "default"
-    ENABLE_OPERATION_SCOPE_LIST = [DEFAULT_SCOPE]
+    DEFAULT_SERVICE = "unknown_service"  # 默认服务
+    DEFAULT_SCOPE = "default"  # 默认分组
 
     ORM_FIELD_NAMES = (
         "table_id",
@@ -1278,10 +1283,10 @@ class TimeSeriesMetric(models.Model):
                 key_value_map[key.strip()] = value.strip() if value.strip() else None
 
         # 提取 service_name，如果不存在或为空，使用默认值 "unknown_service"
-        service_name = key_value_map.get("service_name") or "unknown_service"
+        service_name = key_value_map.get("service_name") or cls.DEFAULT_SERVICE
 
         # 提取 scope_name，如果不存在或为空，使用默认值 "default"
-        scope_name = key_value_map.get("scope_name") or "default"
+        scope_name = key_value_map.get("scope_name") or cls.DEFAULT_SCOPE
 
         # 组合成 field_scope
         return f"{service_name}||{scope_name}"
