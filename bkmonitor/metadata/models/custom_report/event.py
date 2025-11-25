@@ -19,6 +19,7 @@ from django.utils.translation import gettext as _
 from elasticsearch import Elasticsearch
 from elasticsearch5 import Elasticsearch as Elasticsearch5
 from elasticsearch6 import Elasticsearch as Elasticsearch6
+from elasticsearch7 import Elasticsearch as Elasticsearch7
 
 from bkmonitor.utils.db.fields import JsonField
 from metadata import config
@@ -176,7 +177,9 @@ class EventGroup(CustomGroupBase):
 
         return f"{config.CONSUL_PATH}/data_id/{self.bk_data_id}/event"
 
-    def update_event_dimensions_from_es(self, client: Elasticsearch | Elasticsearch5 | Elasticsearch6 | None = None):
+    def update_event_dimensions_from_es(
+        self, client: Elasticsearch | Elasticsearch5 | Elasticsearch6 | Elasticsearch7 | None = None
+    ):
         """
         从ES更新事件及维度信息等内容
         对于一个过久未有上报的事件，那么其将会一直被保留在元数据当中

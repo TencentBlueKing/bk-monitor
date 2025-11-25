@@ -17,6 +17,7 @@ from django.conf import settings
 from elasticsearch import Elasticsearch as Elasticsearch
 from elasticsearch5 import Elasticsearch as Elasticsearch5
 from elasticsearch6 import Elasticsearch as Elasticsearch6
+from elasticsearch7 import Elasticsearch as Elasticsearch7
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -80,6 +81,8 @@ def get_client_by_datasource_info(datasource_info: dict[str, Any]):
         elastic_client = Elasticsearch5
     elif version.startswith("6."):
         elastic_client = Elasticsearch6
+    elif version.startswith("7."):
+        elastic_client = Elasticsearch7
 
     # 获取超时时间
     timeout_config = settings.METADATA_REQUEST_ES_TIMEOUT
@@ -113,8 +116,11 @@ def get_cluster_disk_size(es_client, kind="total", bytes="b"):
 
 
 def es_retry_session(
-    es_client: Elasticsearch | Elasticsearch5 | Elasticsearch6, retry_num: int, backoff_factor: float, **kwargs
-) -> Elasticsearch | Elasticsearch5 | Elasticsearch6:
+    es_client: Elasticsearch | Elasticsearch5 | Elasticsearch6 | Elasticsearch7,
+    retry_num: int,
+    backoff_factor: float,
+    **kwargs,
+) -> Elasticsearch | Elasticsearch5 | Elasticsearch6 | Elasticsearch7:
     # 创建一个 Retry 对象，设置重试次数、延迟时间等参数
     # 等待[0.2s, 0.4s, 0.8s]
     retry_strategy = Retry(total=retry_num, backoff_factor=backoff_factor, **kwargs)

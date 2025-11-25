@@ -28,6 +28,7 @@ from django.utils.translation import gettext_lazy as _
 from elasticsearch import helpers as helpers_common
 from elasticsearch5 import helpers as helpers_5
 from elasticsearch6 import helpers as helpers_6
+from elasticsearch7 import helpers as helpers_7
 
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.models import DataLink
@@ -127,6 +128,8 @@ class PrecalculateStorage:
             helpers = helpers_6
         elif version.startswith("5."):
             helpers = helpers_5
+        elif version.startswith("7."):
+            helpers = helpers_7
 
         return helpers
 

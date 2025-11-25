@@ -23,6 +23,7 @@ import curator
 import elasticsearch
 import elasticsearch5
 import elasticsearch6
+import elasticsearch7
 import influxdb
 import requests
 from bkcrypto.contrib.django.fields import SymmetricTextField
@@ -2641,7 +2642,12 @@ class ESStorage(models.Model, StorageResultTable):
                         # 此处可以保留已有的别名配置，不用删除
                         current_index = max_index_name
 
-                except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+                except (
+                    elasticsearch5.NotFoundError,
+                    elasticsearch.NotFoundError,
+                    elasticsearch6.NotFoundError,
+                    elasticsearch7.NotFoundError,
+                ):
                     # 很可能是0号或者-1号的index没有创建，所以判断count不存在
                     logger.warning("index->[{}] may not exists, cannot found count? will create new one.")
                     # 看下是否-1的index，需要调整为0的
@@ -2744,7 +2750,12 @@ class ESStorage(models.Model, StorageResultTable):
                         round_alias_name,
                         index_list,
                     )
-                except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+                except (
+                    elasticsearch5.NotFoundError,
+                    elasticsearch.NotFoundError,
+                    elasticsearch6.NotFoundError,
+                    elasticsearch7.NotFoundError,
+                ):
                     # 2.3.2 若发生异常，说明当前轮次的读写别名不存在已经绑定的索引，index_list赋为空
                     logger.warning(
                         "create_or_update_aliases: table_id->[%s] alias_name->[%s] does not exists, "
@@ -3020,7 +3031,12 @@ class ESStorage(models.Model, StorageResultTable):
                 index_size_in_byte,
             )
 
-        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+        except (
+            elasticsearch5.NotFoundError,
+            elasticsearch.NotFoundError,
+            elasticsearch6.NotFoundError,
+            elasticsearch7.NotFoundError,
+        ):
             # 3.2 若当前索引不存在，走索引创建流程
             logger.error(
                 "update_index_v2：attention! table_id->[%s] can not found any index to update,will do create function",
@@ -3518,6 +3534,7 @@ class ESStorage(models.Model, StorageResultTable):
                 elasticsearch5.ElasticsearchException,
                 elasticsearch.ElasticsearchException,
                 elasticsearch6.ElasticsearchException,
+                elasticsearch7.ElasticsearchException,
             ):
                 logger.warning(
                     "clean_index_v2::table_id->[%s] index->[%s] delete failed, index maybe doing snapshot",
@@ -3756,7 +3773,13 @@ class ESStorage(models.Model, StorageResultTable):
             else:
                 current_mapping = es_mappings["properties"]
 
-        except (KeyError, elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+        except (
+            KeyError,
+            elasticsearch5.NotFoundError,
+            elasticsearch.NotFoundError,
+            elasticsearch6.NotFoundError,
+            elasticsearch7.NotFoundError,
+        ):
             logger.info(
                 f"is_mapping_same: index_name->[{index_name}] is not exists, will think the mapping is not same."
             )
@@ -4327,7 +4350,12 @@ class ESStorage(models.Model, StorageResultTable):
             snapshots = self.es_client.snapshot.get(
                 self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
             ).get("snapshots", [])
-        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+        except (
+            elasticsearch5.NotFoundError,
+            elasticsearch.NotFoundError,
+            elasticsearch6.NotFoundError,
+            elasticsearch7.NotFoundError,
+        ):
             snapshots = []
 
         max_datetime, max_snapshot = self.get_max_snapshot(snapshots)
@@ -4490,7 +4518,12 @@ class ESStorage(models.Model, StorageResultTable):
             snapshots = self.es_client.snapshot.get(
                 self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
             ).get("snapshots", [])
-        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+        except (
+            elasticsearch5.NotFoundError,
+            elasticsearch.NotFoundError,
+            elasticsearch6.NotFoundError,
+            elasticsearch7.NotFoundError,
+        ):
             snapshots = []
         expired_snapshots = self.match_expired_snapshot(snapshots, expired_datetime_point)
 
@@ -4544,7 +4577,12 @@ class ESStorage(models.Model, StorageResultTable):
             all_snapshots = self.es_client.snapshot.get(target_snapshot_repository_name, self.search_snapshot).get(
                 "snapshots", []
             )
-        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+        except (
+            elasticsearch5.NotFoundError,
+            elasticsearch.NotFoundError,
+            elasticsearch6.NotFoundError,
+            elasticsearch7.NotFoundError,
+        ):
             all_snapshots = []
 
         delete_exception_snapshots = []
@@ -4578,7 +4616,12 @@ class ESStorage(models.Model, StorageResultTable):
             snapshots = self.es_client.snapshot.get(
                 self.snapshot_obj.target_snapshot_repository_name, self.search_snapshot
             ).get("snapshots", [])
-        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+        except (
+            elasticsearch5.NotFoundError,
+            elasticsearch.NotFoundError,
+            elasticsearch6.NotFoundError,
+            elasticsearch7.NotFoundError,
+        ):
             snapshots = []
 
         max_datetime, max_snapshot = self.get_max_snapshot(snapshots)
