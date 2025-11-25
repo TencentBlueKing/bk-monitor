@@ -1624,6 +1624,10 @@ class CreateTimeSeriesScopeResource(Resource):
         # 创建 TimeSeriesScope
         time_series_scope = models.TimeSeriesScope.objects.create(**validated_request_data)
 
+        # 处理 manual_list 和 auto_rules，更新匹配的指标
+        if time_series_scope.manual_list or time_series_scope.auto_rules:
+            time_series_scope.update_matched_metrics()
+
         return {
             "group_id": time_series_scope.group_id,
             "scope_name": time_series_scope.scope_name,
@@ -1664,19 +1668,29 @@ class ModifyTimeSeriesScopeResource(Resource):
 
         # 更新字段
         update_fields = []
+        need_update_metrics = False
+
         if validated_request_data.get("dimension_config") is not None:
             time_series_scope.dimension_config = validated_request_data["dimension_config"]
             update_fields.append("dimension_config")
+
         if validated_request_data.get("manual_list") is not None:
             time_series_scope.manual_list = validated_request_data["manual_list"]
             update_fields.append("manual_list")
+            need_update_metrics = True
+
         if validated_request_data.get("auto_rules") is not None:
             time_series_scope.auto_rules = validated_request_data["auto_rules"]
             update_fields.append("auto_rules")
+            need_update_metrics = True
 
         if update_fields:
             time_series_scope.save(update_fields=update_fields)
             time_series_scope.refresh_from_db()
+
+        # 如果更新了 manual_list、auto_rules，需要更新匹配的指标
+        if need_update_metrics:
+            time_series_scope.update_matched_metrics()
 
         return {
             "group_id": time_series_scope.group_id,

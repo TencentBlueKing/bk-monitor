@@ -1031,6 +1031,139 @@ class TimeSeriesScope(models.Model):
         verbose_name = "自定义时序数据分组记录"
         verbose_name_plural = "自定义时序数据分组记录表"
 
+    def update_matched_metrics(self):
+        """
+        根据 manual_list 和 auto_rules 更新匹配的指标的 field_scope 和 dimension_config
+
+        该方法会：
+        1. 对于原先分组下的指标列表 S，根据 manual_list 和 auto_rules 获取仍然匹配的指标列表 A
+        2. 对于 S - A 的指标，将 field_scope 设置为 "default"
+        3. 根据 manual_list 和 auto_rules 从 default 分组中获取需要匹配的指标列表 B
+        4. 将 B 中的指标更新 field_scope 为当前的 scope_name
+        5. 获取分组下的 dimension_config 字典 X
+        6. 重新获取该分组下最新的指标列表，将指标的所有 tag_list 做并集得到 Y
+        7. X & Y 做交集得到 Z，Z | Y 的并集得到新的 dimension_config
+        """
+        # 1. 获取原先分组下的所有指标列表 S
+        current_scope_metrics = list(
+            TimeSeriesMetric.objects.filter(group_id=self.group_id, field_scope=self.scope_name)
+        )
+
+        # 获取仍然匹配的指标列表 A
+        still_matched_metrics = [m for m in current_scope_metrics if self._match_metric(m.field_name)]
+        still_matched_ids = {m.field_id for m in still_matched_metrics}
+
+        # 2. 对于 S - A 的指标，将 field_scope 设置为 "default"
+        unmatched_metrics = [m for m in current_scope_metrics if m.field_id not in still_matched_ids]
+        unmatched_count = 0
+        for metric in unmatched_metrics:
+            metric.field_scope = "default"
+            metric.save(update_fields=["field_scope"])
+            unmatched_count += 1
+
+        if unmatched_count > 0:
+            logger.info(
+                "Moved %s metrics from scope '%s' to 'default' for group_id: %s",
+                unmatched_count,
+                self.scope_name,
+                self.group_id,
+            )
+
+        # 3. 根据 manual_list 和 auto_rules 从 default 分组中获取需要匹配的指标列表 B
+        default_metrics = TimeSeriesMetric.objects.filter(group_id=self.group_id, field_scope="default")
+
+        newly_matched_metrics = [m for m in default_metrics if self._match_metric(m.field_name)]
+
+        # 4. 将 B 中的指标更新 field_scope 为当前的 scope_name
+        newly_matched_count = 0
+        for metric in newly_matched_metrics:
+            metric.field_scope = self.scope_name
+            metric.save(update_fields=["field_scope"])
+            newly_matched_count += 1
+
+        if newly_matched_count > 0:
+            logger.info(
+                "Moved %s metrics from 'default' to scope '%s' for group_id: %s",
+                newly_matched_count,
+                self.scope_name,
+                self.group_id,
+            )
+
+        # 5. 获取分组下的 dimension_config 字典中已配置的维度集合 X
+        configured_dimensions = set(self.dimension_config.keys()) if self.dimension_config else set()
+
+        # 6. 重新获取该分组下最新的指标列表，将指标的所有 tag_list 做并集得到实际存在的维度集合 Y
+        updated_scope_metrics = TimeSeriesMetric.objects.filter(group_id=self.group_id, field_scope=self.scope_name)
+
+        actual_dimensions = set()
+        for metric in updated_scope_metrics:
+            if metric.tag_list:
+                actual_dimensions.update(metric.tag_list)
+
+        # 7. 计算需要保留配置的维度（已配置且实际存在的维度）和最终的维度集合
+        # X & Y 做交集得到 Z，Z | Y 的并集得到新的 dimension_config
+        dimensions_to_keep_config = configured_dimensions & actual_dimensions  # 保留现有配置中仍然存在的维度
+        final_dimensions = dimensions_to_keep_config | actual_dimensions  # 保留配置的维度 + 所有新维度
+
+        # 更新 dimension_config：保留已配置维度的配置，新维度使用空配置
+        old_dimension_config = self.dimension_config or {}
+        new_dimension_config = {}
+
+        for dim in final_dimensions:
+            if dim in dimensions_to_keep_config:
+                # 保留原有配置
+                new_dimension_config[dim] = old_dimension_config.get(dim, {})
+            else:
+                # 新维度使用空配置
+                new_dimension_config[dim] = {}
+
+        # 只有在 dimension_config 有变化时才更新
+        if new_dimension_config != old_dimension_config:
+            self.dimension_config = new_dimension_config
+            self.save(update_fields=["dimension_config"])
+            logger.info(
+                "Updated dimension_config for group_id: %s, scope_name: %s, dimensions: %s",
+                self.group_id,
+                self.scope_name,
+                list(new_dimension_config.keys()),
+            )
+
+        total_updated = unmatched_count + newly_matched_count
+        logger.info(
+            "Updated %s metrics for group_id: %s, scope_name: %s (moved out: %s, moved in: %s)",
+            total_updated,
+            self.group_id,
+            self.scope_name,
+            unmatched_count,
+            newly_matched_count,
+        )
+
+        return total_updated
+
+    def _match_metric(self, field_name: str) -> bool:
+        """判断指标名称是否匹配 manual_list 或 auto_rules"""
+        import re
+
+        # 手动分组：直接匹配指标名称
+        if self.manual_list and field_name in self.manual_list:
+            return True
+
+        # 自动分组：使用正则表达式匹配
+        if self.auto_rules:
+            for rule in self.auto_rules:
+                try:
+                    if re.match(rule, field_name):
+                        return True
+                except re.error:
+                    logger.warning(
+                        "Invalid regex pattern in auto_rules: %s for group_id: %s, scope_name: %s",
+                        rule,
+                        self.group_id,
+                        self.scope_name,
+                    )
+                    continue
+        return False
+
 
 class TimeSeriesMetric(models.Model):
     """
