@@ -102,7 +102,7 @@ class CreateTaskResource(IncidentBaseResource):
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
         template_id = serializers.IntegerField(label="模版ID", required=True)
-        constants = serializers.DictField(label="流程参数", required=True, default=dict)
+        constants = serializers.DictField(label="流程参数", required=False, default=dict)
         name = serializers.CharField(label="任务名称", required=False)
 
 
