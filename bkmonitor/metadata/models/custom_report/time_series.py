@@ -1260,49 +1260,88 @@ class TimeSeriesScope(models.Model):
         return False
 
     @classmethod
-    def ensure_or_merge_scope(
+    def bulk_ensure_or_merge_scopes(
         cls,
         group_id: int,
-        scope_name: str,
-        dimensions: list,
+        scope_dimensions_map: dict,
     ):
-        """确保 TimeSeriesScope 记录存在，如果存在则合并维度配置
+        """批量确保 TimeSeriesScope 记录存在，如果存在则合并维度配置
 
-        此方法用于 metric 批量创建/更新场景，确保 scope 存在并合并
+        此方法用于 metric 批量创建/更新场景，批量确保 scope 存在并合并
 
         :param group_id: 自定义分组ID
-        :param scope_name: 指标分组名称
-        :param dimensions: 维度名称列表
-        :return: TimeSeriesScope 实例
+        :param scope_dimensions_map: scope 名称到维度列表的映射字典，格式: {scope_name: [dimension1, dimension2, ...]}
+        :return: None
         """
-        # 验证 scope_name 格式
-        cls.validate_scope_name(scope_name)
+        if not scope_dimensions_map:
+            return
 
-        # 检查记录是否存在
-        scope = cls.objects.filter(group_id=group_id, scope_name=scope_name).first()
+        # 验证所有 scope_name 格式，过滤掉不合法的 scope
+        valid_scope_dimensions_map = {}
+        for scope_name in scope_dimensions_map.keys():
+            try:
+                cls.validate_scope_name(scope_name)
+                valid_scope_dimensions_map[scope_name] = scope_dimensions_map[scope_name]
+            except ValueError as e:
+                logger.warning(
+                    "跳过不符合格式的 scope: scope_name=%s, group_id=%s, error=%s",
+                    scope_name,
+                    group_id,
+                    str(e),
+                )
+                continue
 
-        if scope:
-            # 记录已存在，合并维度配置（添加新维度，保留已有配置）
-            existing_config = scope.dimension_config or {}
-            for dim in dimensions:
-                existing_config.setdefault(dim, {})
-            scope.dimension_config = existing_config
-            # 始终使用数据分组
-            scope.create_from = cls.CREATE_FROM_DATA
-            scope.save(update_fields=["dimension_config", "create_from"])
-        else:
-            # 记录不存在，创建新记录
-            dimension_config = {dim: {} for dim in dimensions}
-            scope = cls.objects.create(
-                group_id=group_id,
-                scope_name=scope_name,
-                dimension_config=dimension_config,
-                manual_list=[],
-                auto_rules=[],
-                create_from=cls.CREATE_FROM_DATA,
+        # 如果所有 scope 都不合法，直接返回
+        if not valid_scope_dimensions_map:
+            logger.warning("所有 scope 都不符合格式要求，跳过处理, group_id=%s", group_id)
+            return
+
+        # 获取所有合法的 scope_name 列表
+        scope_names = list(valid_scope_dimensions_map.keys())
+
+        # 一次性查询所有相关的 scope 记录
+        existing_scopes = {
+            scope.scope_name: scope for scope in cls.objects.filter(group_id=group_id, scope_name__in=scope_names)
+        }
+
+        # 准备批量更新和创建的记录
+        scopes_to_update = []
+        scopes_to_create = []
+
+        for scope_name, dimensions in valid_scope_dimensions_map.items():
+            if scope_name in existing_scopes:
+                # 记录已存在，合并维度配置（添加新维度，保留已有配置）
+                scope = existing_scopes[scope_name]
+                existing_config = scope.dimension_config or {}
+                for dim in dimensions:
+                    existing_config.setdefault(dim, {})
+                scope.dimension_config = existing_config
+                # 始终使用数据分组
+                scope.create_from = cls.CREATE_FROM_DATA
+                scopes_to_update.append(scope)
+            else:
+                # 记录不存在，准备创建新记录
+                dimension_config = {dim: {} for dim in dimensions}
+                scopes_to_create.append(
+                    cls(
+                        group_id=group_id,
+                        scope_name=scope_name,
+                        dimension_config=dimension_config,
+                        manual_list=[],
+                        auto_rules=[],
+                        create_from=cls.CREATE_FROM_DATA,
+                    )
+                )
+
+        # 批量更新已存在的记录
+        if scopes_to_update:
+            cls.objects.bulk_update(
+                scopes_to_update, ["dimension_config", "create_from"], batch_size=BULK_UPDATE_BATCH_SIZE
             )
 
-        return scope
+        # 批量创建新记录
+        if scopes_to_create:
+            cls.objects.bulk_create(scopes_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
 
 class TimeSeriesMetric(models.Model):
@@ -1503,11 +1542,14 @@ class TimeSeriesMetric(models.Model):
             return False
 
         # 批量创建 TimeSeriesScope 记录，并传入对应的维度列表
-        for scope_name, dimensions_set in scope_dimensions_map.items():
-            TimeSeriesScope.ensure_or_merge_scope(
+        if scope_dimensions_map:
+            # 将 set 转换为 list
+            scope_dimensions_list_map = {
+                scope_name: list(dimensions_set) for scope_name, dimensions_set in scope_dimensions_map.items()
+            }
+            TimeSeriesScope.bulk_ensure_or_merge_scopes(
                 group_id=group_id,
-                scope_name=scope_name,
-                dimensions=list(dimensions_set),
+                scope_dimensions_map=scope_dimensions_list_map,
             )
 
         # 开始批量创建指标
@@ -1648,11 +1690,14 @@ class TimeSeriesMetric(models.Model):
         logger.info("white list disabled metric: %s, group_id: %s", json.dumps(white_list_disabled_metric), group_id)
 
         # 批量更新或创建 TimeSeriesScope 记录，并传入对应的维度列表
-        for scope_name, dimensions_set in scope_dimensions_map.items():
-            TimeSeriesScope.ensure_or_merge_scope(
+        if scope_dimensions_map:
+            # 将 set 转换为 list
+            scope_dimensions_list_map = {
+                scope_name: list(dimensions_set) for scope_name, dimensions_set in scope_dimensions_map.items()
+            }
+            TimeSeriesScope.bulk_ensure_or_merge_scopes(
                 group_id=group_id,
-                scope_name=scope_name,
-                dimensions=list(dimensions_set),
+                scope_dimensions_map=scope_dimensions_list_map,
             )
 
         # 批量更新指定的字段
