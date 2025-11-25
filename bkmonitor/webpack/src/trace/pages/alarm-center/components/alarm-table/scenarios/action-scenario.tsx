@@ -24,6 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import dayjs from 'dayjs';
+
+import { EMode } from '../../../../../components/retrieval-filter/typing';
 import {
   type BaseTableColumn,
   type TableCellRenderContext,
@@ -32,6 +35,7 @@ import {
 import { ACTION_STORAGE_KEY } from '../../../services/action-services';
 import {
   type ActionTableItem,
+  type CommonCondition,
   type TableEmpty,
   ActionFailureTypeMap,
   ActionLevelIconMap,
@@ -82,12 +86,12 @@ export class ActionScenario extends BaseScenario {
       /** 触发告警数(alert_count) 列 */
       alert_count: {
         getRenderValue: row => row?.alert_id?.length || 0,
-        clickCallback: row => this.handleAlterCountClick(row),
+        clickCallback: (row, column) => this.handleToAlertList(row, column),
         cellRenderer: (row, column, renderCtx) => this.renderCount(row, column, renderCtx),
       },
       /** 防御告警数(converge_count) 列 */
       converge_count: {
-        clickCallback: row => this.handleAlterCountClick(row),
+        clickCallback: (row, column) => this.handleToAlertList(row, column),
         cellRenderer: (row, column, renderCtx) => this.renderCount(row, column, renderCtx),
       },
       /** 执行状态(status) 列 */
@@ -180,11 +184,36 @@ export class ActionScenario extends BaseScenario {
   // ----------------- 处理记录场景私有逻辑方法 -----------------
 
   /**
-   * @description 触发告警数(alert_count) 列 click事件
+   * @method handleToAlertList 触发告警数(alert_count) | 防御告警数(converge_count) 列 click事件
+   * @description 新开页跳转至告警中心 - 告警场景页面并添加筛选项
+   * @param {ActionTableItem} row 处理记录项
+   * @param {BaseTableColumn} column 触发列的列配置项
    */
-  private handleAlterCountClick(row: ActionTableItem) {
+  private handleToAlertList(row: ActionTableItem, column: BaseTableColumn) {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { id, create_time, end_time, bk_biz_id } = row;
-    alert(`跳转至告警页面并添加筛选项 ${id} ${create_time} ${end_time} ${bk_biz_id}`);
+    const bizId = bk_biz_id || (window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined;
+    const curUnix = dayjs.tz().unix() * 1000;
+    const oneDay = 60 * 24 * 60 * 1000;
+    const startTime = dayjs.tz(create_time * 1000 - oneDay).valueOf();
+    const endTime = end_time
+      ? dayjs.tz(end_time * 1000 + oneDay > curUnix ? curUnix : end_time * 1000 + oneDay).valueOf()
+      : dayjs.tz().valueOf();
+    const searchParams = new URLSearchParams({
+      bizIds: JSON.stringify([bizId]),
+      from: String(startTime),
+      to: String(endTime),
+      filterMode: EMode.ui,
+      conditions: JSON.stringify([
+        {
+          key: column.colKey === 'converge_count' ? 'converge_id' : 'action_id',
+          method: 'eq',
+          value: [id],
+          condition: 'and',
+        },
+      ] satisfies CommonCondition[]),
+    });
+    window.open(`${location.origin}${location.pathname}?bizId=${bizId}/#/alarm-center?${searchParams.toString()}`);
   }
 
   /**

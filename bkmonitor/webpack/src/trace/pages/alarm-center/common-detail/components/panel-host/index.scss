@@ -55,6 +55,10 @@
         color: #3a84ff;
         cursor: pointer;
 
+        &:hover {
+          color: #699df4;
+        }
+
         .icon-mc-goto {
           margin-left: 4px;
           font-size: 15px;
