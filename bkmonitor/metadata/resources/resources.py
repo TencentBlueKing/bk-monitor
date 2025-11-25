@@ -1608,7 +1608,6 @@ class CreateTimeSeriesScopeResource(Resource):
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         group_id = validated_request_data["group_id"]
-        scope_name = validated_request_data["scope_name"]
 
         # 验证 group_id 是否存在且属于当前租户
         if not models.TimeSeriesGroup.objects.filter(
@@ -1620,7 +1619,7 @@ class CreateTimeSeriesScopeResource(Resource):
         # update_dimension_from_metrics=True 表示如果有 manual_list 或 auto_rules，则根据指标更新维度配置
         time_series_scope = models.TimeSeriesScope.create_time_series_scope(
             group_id=group_id,
-            scope_name=scope_name,
+            scope_name=validated_request_data["scope_name"],
             dimension_config=validated_request_data.get("dimension_config"),
             manual_list=validated_request_data.get("manual_list"),
             auto_rules=validated_request_data.get("auto_rules"),
@@ -1633,6 +1632,7 @@ class CreateTimeSeriesScopeResource(Resource):
             "dimension_config": time_series_scope.dimension_config,
             "manual_list": time_series_scope.manual_list,
             "auto_rules": time_series_scope.auto_rules,
+            "create_from": time_series_scope.create_from,
         }
 
 
@@ -1657,7 +1657,6 @@ class ModifyTimeSeriesScopeResource(Resource):
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         group_id = validated_request_data["group_id"]
-        scope_name = validated_request_data["scope_name"]
 
         # 验证 group_id 是否存在且属于当前租户
         if not models.TimeSeriesGroup.objects.filter(
@@ -1671,17 +1670,14 @@ class ModifyTimeSeriesScopeResource(Resource):
         auto_rules = validated_request_data.get("auto_rules")
         update_dimension_from_metrics = manual_list is not None or auto_rules is not None
 
-        # 使用 update_time_series_scope 更新记录
-        # update_dimension_from_metrics 表示如果有 manual_list 或 auto_rules，则根据指标更新维度配置
-        delete_unmatched = validated_request_data.get("delete_unmatched_dimensions", False)
         time_series_scope = models.TimeSeriesScope.update_time_series_scope(
             group_id=group_id,
-            scope_name=scope_name,
+            scope_name=validated_request_data["scope_name"],
             dimension_config=validated_request_data.get("dimension_config"),
             manual_list=manual_list,
             auto_rules=auto_rules,
             update_dimension_from_metrics=update_dimension_from_metrics,
-            delete_unmatched_dimensions=delete_unmatched,
+            delete_unmatched_dimensions=validated_request_data.get("delete_unmatched_dimensions"),
         )
 
         return {
@@ -1690,6 +1686,7 @@ class ModifyTimeSeriesScopeResource(Resource):
             "dimension_config": time_series_scope.dimension_config,
             "manual_list": time_series_scope.manual_list,
             "auto_rules": time_series_scope.auto_rules,
+            "create_from": time_series_scope.create_from,
         }
 
 
@@ -1782,6 +1779,7 @@ class QueryTimeSeriesScopeResource(Resource):
                     "dimension_config": scope.dimension_config,
                     "manual_list": scope.manual_list,
                     "auto_rules": scope.auto_rules,
+                    "create_from": scope.create_from,
                 }
                 for scope in paginated_query_set
             ]
@@ -1795,6 +1793,7 @@ class QueryTimeSeriesScopeResource(Resource):
                 "dimension_config": scope.dimension_config,
                 "manual_list": scope.manual_list,
                 "auto_rules": scope.auto_rules,
+                "create_from": scope.create_from,
             }
             for scope in query_set
         ]

@@ -1071,7 +1071,6 @@ class TimeSeriesScope(models.Model):
         :param auto_rules: 自动分组的匹配规则列表（可选），默认为空列表
         :param update_dimension_from_metrics: 是否根据 manual_list 和 auto_rules 更新 dimension_config，默认为 True
         :return: TimeSeriesScope 实例
-        :raises ValueError: 当记录已存在时
         """
         try:
             # 检查记录是否已存在
@@ -1118,7 +1117,6 @@ class TimeSeriesScope(models.Model):
         :param update_dimension_from_metrics: 是否根据 manual_list 和 auto_rules 更新 dimension_config，默认为 False
         :param delete_unmatched_dimensions: 是否删除不再匹配的维度配置（仅在 update_dimension_from_metrics=True 时生效）
         :return: TimeSeriesScope 实例
-        :raises ValueError: 当记录不存在时
         """
         try:
             # 获取要更新的记录
@@ -1206,7 +1204,7 @@ class TimeSeriesScope(models.Model):
         # 更新 dimension_config
         if updated_dimension_config != current_dimension_config:
             self.dimension_config = updated_dimension_config
-            self.save(update_fields=["dimension_config", "last_modify_time"])
+            self.save(update_fields=["dimension_config"])
             logger.info(
                 "Updated dimension_config for group_id: %s, scope_name: %s, dimensions: %s",
                 self.group_id,
