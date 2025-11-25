@@ -192,6 +192,7 @@ export default defineComponent({
 
     const handleKeyup = (event: any) => {
       if (event.keyCode === 27) {
+        contextLog.value?.removeEventListener('scroll', handleScroll);
         handleAfterLeave();
       }
     };
