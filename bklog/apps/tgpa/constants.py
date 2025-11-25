@@ -32,24 +32,6 @@ FEATURE_TOGGLE_TGPA_TASK = "tgpa_task"
 TGPA_TASK_COLLECTOR_CONFIG_NAME = "客户端日志"
 TGPA_TASK_COLLECTOR_CONFIG_NAME_EN = "tgpa_task_client_log"
 
-TEXT_FILE_EXTENSIONS = [
-    ".log",
-    ".txt",
-    ".json",
-    ".csv",
-    ".xml",
-    ".yaml",
-    ".yml",
-    ".conf",
-    ".config",
-    ".ini",
-    ".properties",
-    ".sql",
-    ".md",
-    ".rst",
-    ".cfg",
-]
-
 TGPA_TASK_ETL_PARAMS = {
     "retain_original_text": False,
     "retain_extra_json": True,

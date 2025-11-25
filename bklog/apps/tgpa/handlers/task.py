@@ -25,6 +25,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
+import magic
 import ujson
 from django.conf import settings
 from django.utils.functional import cached_property
@@ -41,7 +42,6 @@ from apps.tgpa.constants import (
     TASK_LIST_BATCH_SIZE,
     TGPATaskTypeEnum,
     FEATURE_TOGGLE_TGPA_TASK,
-    TEXT_FILE_EXTENSIONS,
     TGPA_TASK_ETL_FIELDS,
     TGPA_TASK_ETL_PARAMS,
     TGPA_TASK_COLLECTOR_CONFIG_NAME,
@@ -184,18 +184,23 @@ class TGPATaskHandler:
     @staticmethod
     def find_log_files(path):
         """
-        在目录中查找日志文件，返回日志文件相对路径列表
+        在目录中查找日志文件
         """
         dir_path = Path(path).resolve()
         if not dir_path.is_dir():
             return []
 
-        log_extensions = TEXT_FILE_EXTENSIONS
         file_paths = []
-        # 遍历所有文件，检查是否匹配任一后缀
+        mime = magic.Magic(mime=True)
         for file in dir_path.rglob("*"):
-            if file.is_file() and file.suffix in log_extensions:
-                file_paths.append(str(file.relative_to(dir_path)))
+            if not file.is_file():
+                continue
+            try:
+                mime_type = mime.from_file(str(file))
+                if mime_type and mime_type.startswith("text/"):
+                    file_paths.append(str(file.relative_to(dir_path)))
+            except Exception:
+                continue
 
         return file_paths
 

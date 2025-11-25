@@ -54,4 +54,5 @@ class TGPATaskViewSet(APIViewSet):
         params["logpath"] = params.pop("log_path")
         params["taskName"] = params.pop("task_name")
         params["username"] = request.user.username
-        return Response(TGPATaskApi.create_single_user_log_task_v2(params))
+        TGPATaskApi.create_single_user_log_task_v2(params)
+        return Response()
