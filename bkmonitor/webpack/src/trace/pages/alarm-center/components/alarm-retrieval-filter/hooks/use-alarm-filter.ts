@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { watch } from 'vue';
 
 import {
   type IGetValueFnParams,
@@ -31,7 +30,8 @@ import {
   EMode,
 } from '../../../../../components/retrieval-filter/typing';
 import { AlarmServiceFactory } from '../../../../../pages/alarm-center/services/factory';
-import { AlarmType } from '../../../../../pages/alarm-center/typings';
+
+import type { AlarmType } from '../../../../../pages/alarm-center/typings';
 
 type ICandidateValueMap = Map<
   string,
@@ -42,27 +42,25 @@ type ICandidateValueMap = Map<
   }
 >;
 
-export function useAlarmFilter({ alarmType = AlarmType.ALERT, commonFilterParams = {}, filterMode = EMode.ui }) {
+export function useAlarmFilter(
+  options: () => { alarmType: AlarmType; commonFilterParams: Record<string, any>; filterMode: EMode }
+) {
   let axiosController = new AbortController();
   let candidateValueMap: ICandidateValueMap = new Map();
 
-  watch(
-    () => alarmType,
-    (newVal, oldVal) => {
-      if (newVal !== oldVal) {
-        candidateValueMap = new Map();
-      }
-    }
-  );
+  let preAlarmType = options().alarmType;
 
   function getRetrievalFilterValueData(params: IGetValueFnParams): Promise<IWhereValueOptionsItem> {
+    if (preAlarmType !== options().alarmType) {
+      candidateValueMap.clear();
+      preAlarmType = options().alarmType;
+    }
     return getFieldsOptionValuesProxy(params) as any;
   }
 
   function getFieldsOptionValuesProxy(params: IGetValueFnParams) {
-    console.log(params);
     function getMapKey(params: IGetValueFnParams) {
-      return `${alarmType}____${filterMode}____${params.fields.join('')}____`;
+      return `${options().alarmType}____${options().filterMode}____${params.fields.join('')}____`;
     }
     function removeQuotesIfWrapped(str) {
       // 正则表达式匹配被双引号包裹的字符串
@@ -104,10 +102,10 @@ export function useAlarmFilter({ alarmType = AlarmType.ALERT, commonFilterParams
       } else {
         axiosController.abort();
         axiosController = new AbortController();
-        AlarmServiceFactory(alarmType)
+        AlarmServiceFactory(options().alarmType)
           .getRetrievalFilterValues(
             {
-              ...commonFilterParams,
+              ...options().commonFilterParams,
               conditions: [],
               fields: params.fields,
               size: params.limit,
@@ -119,7 +117,7 @@ export function useAlarmFilter({ alarmType = AlarmType.ALERT, commonFilterParams
           )
           .then(res => {
             const values = (res.fields?.find(f => f.field === params?.fields?.[0])?.buckets || []).map(item => {
-              if (filterMode === EMode.ui) {
+              if (options().filterMode === EMode.ui) {
                 return {
                   ...item,
                   id: removeQuotesIfWrapped(item.id),
@@ -130,6 +128,7 @@ export function useAlarmFilter({ alarmType = AlarmType.ALERT, commonFilterParams
             const isEnd = values.length < params.limit;
             const newMap = new Map();
             if (!searchValue && isEnd) {
+              // 只在聚焦失焦是缓存
               newMap.set(getMapKey(params), {
                 values: values,
                 isEnd: isEnd,

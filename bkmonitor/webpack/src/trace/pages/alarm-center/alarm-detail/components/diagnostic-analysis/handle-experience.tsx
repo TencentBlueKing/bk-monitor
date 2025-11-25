@@ -44,10 +44,16 @@ export default defineComponent({
   },
   emits: ['update:show'],
 
-  setup(props, { emit }) {
+  setup(_props, { emit }) {
     const alarmStore = useAlarmCenterStore();
     const bindTarget = shallowRef('metric');
     const editorValue = shallowRef('');
+
+    const { getRetrievalFilterValueData } = useAlarmFilter(() => ({
+      alarmType: alarmStore.alarmType,
+      commonFilterParams: alarmStore.commonFilterParams,
+      filterMode: alarmStore.filterMode,
+    }));
 
     /**
      * @description 检索栏字段列表
@@ -101,11 +107,7 @@ export default defineComponent({
       retrievalFilterFields,
       uiValue,
       handleShowChange,
-      ...useAlarmFilter({
-        alarmType: alarmStore.alarmType,
-        commonFilterParams: alarmStore.commonFilterParams,
-        filterMode: alarmStore.filterMode,
-      }),
+      getRetrievalFilterValueData,
       handleConfirm,
       handleUiValueChange,
     };

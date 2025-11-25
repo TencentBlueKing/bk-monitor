@@ -39,8 +39,7 @@ import {
   IncidentIconMap,
 } from '../typings';
 import { AlarmService } from './base';
-
-import type { IFilterField } from '@/components/retrieval-filter/typing';
+import { type IFilterField, EFieldType } from '@/components/retrieval-filter/typing';
 const INCIDENT_TABLE_COLUMNS = [
   // {
   //   colKey: 'id',
@@ -104,7 +103,247 @@ const INCIDENT_TABLE_COLUMNS = [
   },
 ] as const;
 
-export const INCIDENT_FILTER_FIELDS: IFilterField[] = [];
+export const INCIDENT_FILTER_FIELDS: IFilterField[] = [
+  {
+    name: 'query_string',
+    alias: window.i18n.t('全字段检索'),
+    type: EFieldType.all,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'id',
+    alias: window.i18n.t('故障ID'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'incident_name',
+    alias: window.i18n.t('故障名称'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'incident_reason',
+    alias: window.i18n.t('故障原因'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'bk_biz_id',
+    alias: window.i18n.t('业务ID'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'status',
+    alias: window.i18n.t('故障状态'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'level',
+    alias: window.i18n.t('故障级别'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'assignees',
+    alias: window.i18n.t('负责人'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'handlers',
+    alias: window.i18n.t('处理人'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'labels',
+    alias: window.i18n.t('标签'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'create_time',
+    alias: window.i18n.t('故障检出时间'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'update_time',
+    alias: window.i18n.t('故障更新时间'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'begin_time',
+    alias: window.i18n.t('故障开始时间'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'end_time',
+    alias: window.i18n.t('故障结束时间'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+  {
+    name: 'snapshot',
+    alias: window.i18n.t('故障图谱快照'),
+    isEnableOptions: true,
+    type: EFieldType.keyword,
+    methods: [
+      {
+        alias: '=',
+        value: 'eq',
+      },
+      {
+        alias: '!=',
+        value: 'neq',
+      },
+    ],
+  },
+];
 
 export const INCIDENT_STORAGE_KEY = '__INCIDENT_EVENT_COLUMN__';
 export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
