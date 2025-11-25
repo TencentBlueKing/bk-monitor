@@ -1012,10 +1012,17 @@ class TimeSeriesScope(models.Model):
         "hidden",  # 显隐
     ]
 
+    # 创建来源选项
+    CREATE_FROM_DATA = "data"  # 数据自动创建
+    CREATE_FROM_USER = "user"  # 用户手动创建
+    CREATE_FROM_CHOICES = [
+        (CREATE_FROM_DATA, "数据自动创建"),
+        (CREATE_FROM_USER, "用户手动创建"),
+    ]
+
     # group_id 来自于 TimeSeriesGroup.time_series_group_id，关联数据源
     group_id = models.IntegerField(verbose_name="自定义时序数据源ID", db_index=True)
 
-    # scope_name 与 TimeSeriesMetric.field_scope 一致
     scope_name = models.CharField(verbose_name="指标分组名", max_length=255, db_collation="utf8_bin")
 
     # 维度字段配置，可配置的选项，需要在 DimensionConfigFields 中定义
@@ -1023,6 +1030,15 @@ class TimeSeriesScope(models.Model):
 
     manual_list = models.JSONField("手动分组的指标列表", default=[])
     auto_rules = models.JSONField("自动分组的匹配规则列表", default=[])
+
+    # 创建来源：data-数据自动创建，user-用户手动创建
+    create_from = models.CharField(
+        verbose_name="创建来源",
+        max_length=10,
+        choices=CREATE_FROM_CHOICES,
+        default=CREATE_FROM_DATA,
+        db_index=True,
+    )
 
     last_modify_time = models.DateTimeField(verbose_name="最后更新时间", auto_now=True)
 
@@ -1039,11 +1055,24 @@ class TimeSeriesScope(models.Model):
         该方法会：
         1. 对于原先分组下的指标列表 S，根据 manual_list 和 auto_rules 获取仍然匹配的指标列表 A
         2. 对于 S - A 的指标，将 field_scope 设置为 "default"
-        3. 根据 manual_list 和 auto_rules 从 default 分组中获取需要匹配的指标列表 B
+        3. 根据 manual_list 和 auto_rules 从 default 分组中获取匹配的指标列表 B
         4. 将 B 中的指标更新 field_scope 为当前的 scope_name
         5. 获取分组下的 dimension_config 字典 X
         6. 重新获取该分组下最新的指标列表，将指标的所有 tag_list 做并集得到 Y
         7. X & Y 做交集得到 Z，Z | Y 的并集得到新的 dimension_config
+
+
+        1. 对于原先分组下的指标列表 S，根据 manual_list 和 auto_rules 获取仍然匹配的指标列表 A
+        2. 删除 S - A 的指标记录
+        3. 根据 manual_list 和 auto_rules 从所有指标中获取匹配的指标列表 B
+        4. 创建该分组下的 B 指标记录，对于重复的记录直接跳过创建
+        5. 获取分组下的 dimension_config 字典 X
+        6. 重新获取该分组下最新的指标列表，将指标的所有 tag_list 做并集得到 Y
+        7. X & Y 做交集得到 Z，Z | Y 的并集得到新的 dimension_config
+
+
+        1. 根据 manual_list 和 auto_rules 获取匹配的指标列表
+        2. 创建该分组下的这些指标
         """
         # 1. 获取原先分组下的所有指标列表 S
         current_scope_metrics = list(
@@ -1222,7 +1251,7 @@ class TimeSeriesMetric(models.Model):
 
     # 对于 APM 的场景来说分组的格式为 {service_name}||{scope_name}，其余场景中都是自动赋值为 default
     field_scope = models.CharField(
-        verbose_name="指标字段分组", default="default", max_length=255, db_collation="utf8_bin"
+        verbose_name="指标字段数据分组名", default="default", max_length=255, db_collation="utf8_bin"
     )
     field_name = models.CharField(verbose_name="指标字段名称", max_length=255, db_collation="utf8_bin")
     tag_list = JsonField(verbose_name="Tag列表", default=[])
