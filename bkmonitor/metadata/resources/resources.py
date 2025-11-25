@@ -1746,8 +1746,9 @@ class QueryTimeSeriesScopeResource(Resource):
 
     class RequestSerializer(PageSerializer):
         bk_tenant_id = TenantIdField(label="租户ID")
-        group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID", default=None)
-        scope_name = serializers.CharField(required=False, label="指标分组名", default=None)
+        group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
+        # 对 APM 场景需要传递 scope_name 来区分不同的服务
+        scope_name = serializers.CharField(required=False, label="指标分组名")
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
