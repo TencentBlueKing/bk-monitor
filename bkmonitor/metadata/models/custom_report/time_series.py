@@ -1195,18 +1195,6 @@ class TimeSeriesScope(models.Model):
 
         return scope
 
-    @staticmethod
-    def _get_enable_edit_scope_filter():
-        """
-        获取可编辑指标的过滤条件
-        过滤条件：精确匹配 default 或末尾匹配 "||default"
-
-        :return: Django Q 对象
-        """
-        from django.db.models import Q
-
-        return Q(field_scope="default") | Q(field_scope__endswith="||default")
-
     @atomic(config.DATABASE_CONNECTION_NAME)
     def update_matched_dimension_config(self, delete_unmatched_dimensions=False):
         """
@@ -1226,7 +1214,7 @@ class TimeSeriesScope(models.Model):
 
         # 查询该分组下可操作的指标
         available_metrics = TimeSeriesMetric.objects.filter(group_id=self.group_id).filter(
-            self._get_enable_edit_scope_filter()
+            TimeSeriesMetric.get_enable_edit_scope_filter()
         )
 
         # 遍历所有指标，找出匹配的指标的维度
@@ -1344,6 +1332,18 @@ class TimeSeriesMetric(models.Model):
         unique_together = ("group_id", "field_scope", "field_name")
         verbose_name = "自定义时序描述记录"
         verbose_name_plural = "自定义时序描述记录表"
+
+    @staticmethod
+    def get_enable_edit_scope_filter():
+        """
+        获取可编辑指标的过滤条件
+        过滤条件：精确匹配 default 或末尾匹配 "||default"
+
+        :return: Django Q 对象
+        """
+        from django.db.models import Q
+
+        return Q(field_scope="default") | Q(field_scope__endswith="||default")
 
     def make_table_id(self, bk_biz_id, bk_data_id, table_name=None):
         if str(bk_biz_id) != "0":
