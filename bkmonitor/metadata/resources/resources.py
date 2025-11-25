@@ -1608,6 +1608,7 @@ class CreateTimeSeriesScopeResource(Resource):
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         group_id = validated_request_data["group_id"]
+        scope_name = validated_request_data["scope_name"]
 
         # 验证 group_id 是否存在且属于当前租户
         if not models.TimeSeriesGroup.objects.filter(
@@ -1615,18 +1616,16 @@ class CreateTimeSeriesScopeResource(Resource):
         ).exists():
             raise ValueError(_("自定义时序分组不存在，请确认后重试"))
 
-        # 检查是否已存在相同的 scope_name
-        if models.TimeSeriesScope.objects.filter(
-            group_id=group_id, scope_name=validated_request_data["scope_name"]
-        ).exists():
-            raise ValueError(_("指标分组名[{}]已存在，请确认后重试").format(validated_request_data["scope_name"]))
-
-        # 创建 TimeSeriesScope
-        time_series_scope = models.TimeSeriesScope.objects.create(**validated_request_data)
-
-        # 处理 manual_list 和 auto_rules，更新匹配的指标
-        if time_series_scope.manual_list or time_series_scope.auto_rules:
-            time_series_scope.update_matched_dimension_config()
+        # 使用 create_time_series_scope 创建记录
+        # update_dimension_from_metrics=True 表示如果有 manual_list 或 auto_rules，则根据指标更新维度配置
+        time_series_scope = models.TimeSeriesScope.create_time_series_scope(
+            group_id=group_id,
+            scope_name=scope_name,
+            dimension_config=validated_request_data.get("dimension_config"),
+            manual_list=validated_request_data.get("manual_list"),
+            auto_rules=validated_request_data.get("auto_rules"),
+            update_dimension_from_metrics=True,
+        )
 
         return {
             "group_id": time_series_scope.group_id,
@@ -1666,37 +1665,24 @@ class ModifyTimeSeriesScopeResource(Resource):
         ).exists():
             raise ValueError(_("自定义时序分组不存在，请确认后重试"))
 
-        # 获取要修改的 TimeSeriesScope
-        time_series_scope = models.TimeSeriesScope.objects.filter(group_id=group_id, scope_name=scope_name).first()
-        if not time_series_scope:
-            raise ValueError(_("指标分组[{}]不存在，请确认后重试").format(scope_name))
+        # 判断是否需要更新维度配置
+        # 如果提供了 manual_list 或 auto_rules，则需要根据指标更新维度配置
+        manual_list = validated_request_data.get("manual_list")
+        auto_rules = validated_request_data.get("auto_rules")
+        update_dimension_from_metrics = manual_list is not None or auto_rules is not None
 
-        # 更新字段
-        update_fields = []
-        need_update_metrics = False
-
-        if validated_request_data.get("dimension_config") is not None:
-            time_series_scope.dimension_config = validated_request_data["dimension_config"]
-            update_fields.append("dimension_config")
-
-        if validated_request_data.get("manual_list") is not None:
-            time_series_scope.manual_list = validated_request_data["manual_list"]
-            update_fields.append("manual_list")
-            need_update_metrics = True
-
-        if validated_request_data.get("auto_rules") is not None:
-            time_series_scope.auto_rules = validated_request_data["auto_rules"]
-            update_fields.append("auto_rules")
-            need_update_metrics = True
-
-        if update_fields:
-            time_series_scope.save(update_fields=update_fields)
-            time_series_scope.refresh_from_db()
-
-        # 如果更新了 manual_list、auto_rules，需要更新匹配的指标
-        if need_update_metrics:
-            delete_unmatched = validated_request_data.get("delete_unmatched_dimensions", True)
-            time_series_scope.update_matched_dimension_config(delete_unmatched_dimensions=delete_unmatched)
+        # 使用 update_time_series_scope 更新记录
+        # update_dimension_from_metrics 表示如果有 manual_list 或 auto_rules，则根据指标更新维度配置
+        delete_unmatched = validated_request_data.get("delete_unmatched_dimensions", False)
+        time_series_scope = models.TimeSeriesScope.update_time_series_scope(
+            group_id=group_id,
+            scope_name=scope_name,
+            dimension_config=validated_request_data.get("dimension_config"),
+            manual_list=manual_list,
+            auto_rules=auto_rules,
+            update_dimension_from_metrics=update_dimension_from_metrics,
+            delete_unmatched_dimensions=delete_unmatched,
+        )
 
         return {
             "group_id": time_series_scope.group_id,
