@@ -21,8 +21,6 @@ from constants.result_table import ResultTableField
 
 FIVE_MIN_SECONDS = 5 * 60
 
-FIVE_MIN_MILLISECONDS = FIVE_MIN_SECONDS * 1000  # 5分钟的毫秒数
-
 DEFAULT_DATA_LABEL = "APM"  # 数据标签，用来查询数据时三段式前缀(注意：不能随意更改)
 
 APM_METRIC_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
@@ -1097,14 +1095,27 @@ class RPCMetricTag(CachedEnum):
         ]
 
     @classmethod
-    def callee_tags(cls) -> list[dict[str, str]]:
-        # 被调已经固定「被调服务」，不需要展示
-        return [tag for tag in cls.tags() if tag["value"] != cls.CALLEE_SERVER.value]
+    def get_rpc_tags(cls, kind) -> set[str]:
+        """
+        获取主调/被调场景对应的有效标签集合
+        :param kind: 主调/被调场景
+        :return:
+        """
+        rpc_tags = set()
+        for tag in cls.tags():
+            value = tag["value"]
+            if kind == "caller" and value in (cls.CALLER_SERVER.value, cls.CALLER_CONTAINER.value):
+                continue
+            if kind == "callee" and value in (cls.CALLEE_SERVER.value, cls.CALLEE_CONTAINER.value):
+                continue
 
-    @classmethod
-    def caller_tags(cls) -> list[dict[str, str]]:
-        # 主调已经固定「主调服务」，不需要展示
-        return [tag for tag in cls.tags() if tag["value"] != cls.CALLER_SERVER.value]
+            if value in (cls.CALLER_IP.value, cls.CALLEE_IP.value):
+                rpc_tags.add(cls.INSTANCE.value)
+            else:
+                rpc_tags.add(value)
+        rpc_tags.add(cls.CONTAINER_NAME.value)
+
+        return rpc_tags
 
     @classmethod
     def tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
@@ -1113,7 +1124,8 @@ class RPCMetricTag(CachedEnum):
             cls.CALLER_SERVER.value: {"field": ResourceAttributes.SERVICE_NAME},
             cls.CALLER_SERVICE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_SERVICE}"},
             cls.CALLER_METHOD.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_METHOD}"},
-            cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
+            cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
+            cls.INSTANCE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
             "callee": {"field": "kind", "value": [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_CONSUMER]},
             cls.CALLEE_SERVER.value: {"field": ResourceAttributes.SERVICE_NAME},
             cls.CALLEE_SERVICE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_SERVICE}"},
@@ -1126,11 +1138,25 @@ class RPCMetricTag(CachedEnum):
 
     @classmethod
     def caller_tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
-        return {tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in ["callee"]}
+        """
+        获取主调场景的标签到 Trace 字段的映射关系
+        :return: 主调场景的标签映射字典
+        """
+        exclude_tags = {"callee", cls.CALLEE_SERVER.value, cls.CALLER_IP.value}
+        return {
+            tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in exclude_tags
+        }
 
     @classmethod
     def callee_tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
-        return {tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in ["caller"]}
+        """
+        获取被调场景的标签到 Trace 字段的映射关系
+        :return: 被调场景的标签映射字典
+        """
+        exclude_tags = {"caller", cls.CALLER_SERVER.value, cls.CALLEE_IP.value}
+        return {
+            tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in exclude_tags
+        }
 
 
 class RPCLogTag(CachedEnum):
@@ -1575,18 +1601,13 @@ class ApmAlertHelper:
 
     @classmethod
     def _get_rpc_kind(cls, strategy: dict[str, Any]) -> str:
-        """判断RPC调用类型（主调/被调）
-
+        """判断RPC调用类型
         通过分析告警策略中的指标名称前缀来判断调用类型：
             - rpc_client_* 开头的指标表示主调（caller）
             - rpc_server_* 开头的指标表示被调（callee）
             - 无法判断时默认返回被调（callee）
-
-        Args:
-            strategy: 告警策略配置字典，包含items、query_configs等信息
-
-        Returns:
-            str: "caller" 表示主调，"callee" 表示被调
+        :param strategy: 告警策略配置字典，包含items、query_configs等信息
+        :return: "caller"表示主调 ; "callee"表示被调
         """
         try:
             metric_field: str = strategy["items"][0]["query_configs"][0]["metric_field"]
@@ -1597,7 +1618,7 @@ class ApmAlertHelper:
 
     @classmethod
     def get_rpc_url(
-        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], begin_timestamp: int, duration: int
+        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], timestamp: int, duration: int
     ) -> str | None:
         """获取调用分析跳转链接"""
         if not cls.is_rpc_system(strategy):
@@ -1607,16 +1628,20 @@ class ApmAlertHelper:
         if not target.get("app_name") or not target.get("service_name"):
             return None
 
+        # 判断主调/被调类型，并获取对应的有效标签列表
+        kind: str = cls._get_rpc_kind(strategy)
+        valid_tags: set[str] = RPCMetricTag.get_rpc_tags(kind)
+
         call_filter: list[dict[str, Any]] = []
         for k, v in dimensions.items():
             key: str = RPCLogTag.get_metric_tag(k) or k
             if key in [CommonMetricTag.APP_NAME.value, CommonMetricTag.SERVICE_NAME.value]:
                 continue
+            # 只添加当前场景（主调/被调）支持的标签
+            if key not in valid_tags:
+                continue
 
             call_filter.append({"key": key, "method": "eq", "value": [v or ""], "condition": "and"})
-
-        # 判断主调/被调类型，添加 kind过滤
-        kind: str = cls._get_rpc_kind(strategy)
 
         call_options: dict[str, Any] = {
             "kind": kind,
@@ -1625,13 +1650,14 @@ class ApmAlertHelper:
             "perspective_group_by": [RPCMetricTag.CALLEE_METHOD.value, RPCMetricTag.CODE.value],
         }
 
+        offset: int = FIVE_MIN_SECONDS * 1000
         params: dict[str, str | int] = {
             "filter-app_name": target["app_name"],
             "filter-service_name": target["service_name"],
             "callOptions": json.dumps(call_options),
             "dashboardId": "service-default-caller_callee",
-            "from": begin_timestamp * 1000 - duration * 1000 - FIVE_MIN_MILLISECONDS,
-            "to": begin_timestamp * 1000 + FIVE_MIN_MILLISECONDS,
+            "from": timestamp * 1000 - duration * 1000 - offset,
+            "to": timestamp * 1000 + offset,
             "sceneId": "apm_service",
         }
         encoded_params: str = urllib.parse.urlencode(params)
@@ -1639,7 +1665,7 @@ class ApmAlertHelper:
 
     @classmethod
     def _get_rpc_trace_url(
-        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], create_timestamp: int, duration: int
+        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], timestamp: int, duration: int
     ) -> str | None:
         """获取调用分析调用链跳转链接"""
         if not cls.is_rpc_system(strategy):
@@ -1652,8 +1678,16 @@ class ApmAlertHelper:
         if target.get("service_name"):
             dimensions = {**dimensions, "service_name": target["service_name"]}
 
+        # 判断主调/被调类型
+        kind: str = cls._get_rpc_kind(strategy)
+        # 根据主调/被调类型，获取对应的 tag_trace_mapping
+        tag_trace_type_mapping = {
+            "caller": RPCMetricTag.caller_tag_trace_mapping(),
+            "callee": RPCMetricTag.callee_tag_trace_mapping(),
+        }
+        tag_trace_mapping = tag_trace_type_mapping[kind]
+
         where: list[dict[str, Any]] = []
-        tag_trace_mapping: dict[str, dict[str, Any]] = RPCMetricTag.tag_trace_mapping()
         for k, v in dimensions.items():
             if k in [CommonMetricTag.APP_NAME.value]:
                 continue
@@ -1664,8 +1698,7 @@ class ApmAlertHelper:
 
             where.append({"key": tag_trace_mapping[key]["field"], "operator": "equal", "value": [v or ""]})
 
-        # 判断主调/被调类型，添加 kind 过滤
-        kind: str = cls._get_rpc_kind(strategy)
+        # 添加 kind 过滤
         where.append(
             {
                 "key": tag_trace_mapping[kind]["field"],
@@ -1675,13 +1708,14 @@ class ApmAlertHelper:
             }
         )
 
+        offset: int = FIVE_MIN_SECONDS * 1000
         params: dict[str, str] = {
             "app_name": target["app_name"],
             "sceneMode": "span",
             "where": json.dumps(where),
             # Trace 数据量较大，duration 最长只支持 1 小时。
-            "start_time": create_timestamp * 1000 - min(duration, 3600) * 1000 - FIVE_MIN_MILLISECONDS,
-            "end_time": create_timestamp * 1000 + FIVE_MIN_MILLISECONDS,
+            "start_time": timestamp * 1000 - min(duration, 3600) * 1000 - offset,
+            "end_time": timestamp * 1000 + offset,
             # 按status_code降序排序
             "sortBy": OtlpKey.STATUS_CODE,
             "descending": "true",
@@ -1691,13 +1725,13 @@ class ApmAlertHelper:
 
     @classmethod
     def get_trace_url(
-        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], create_timestamp: int, duration: int
+        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], timestamp: int, duration: int
     ) -> str | None:
         """获取调用链跳转链接"""
         # 目前只有 RPC 场景能明确跳转调用链，后续有其他场景再补充。
         getters: list[Callable[..., str | None]] = [cls._get_rpc_trace_url]
         for getter in getters:
-            url: str | None = getter(bk_biz_id, strategy, dimensions, create_timestamp, duration)
+            url: str | None = getter(bk_biz_id, strategy, dimensions, timestamp, duration)
             if url:
                 return url
         return None
