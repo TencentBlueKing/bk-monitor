@@ -1626,7 +1626,7 @@ class CreateTimeSeriesScopeResource(Resource):
 
         # 处理 manual_list 和 auto_rules，更新匹配的指标
         if time_series_scope.manual_list or time_series_scope.auto_rules:
-            time_series_scope.update_matched_metrics()
+            time_series_scope.update_matched_dimension_config()
 
         return {
             "group_id": time_series_scope.group_id,
@@ -1649,6 +1649,8 @@ class ModifyTimeSeriesScopeResource(Resource):
         dimension_config = serializers.DictField(required=False, label="分组下的维度配置")
         manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
         auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
+        # 是否删除不再匹配 manual_list 和 auto_rules 的 dimension_config
+        # 对于导入分组场景来说，这个字段应该为 False，否则可能由于无法匹配而导入失败
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
@@ -1690,7 +1692,7 @@ class ModifyTimeSeriesScopeResource(Resource):
 
         # 如果更新了 manual_list、auto_rules，需要更新匹配的指标
         if need_update_metrics:
-            time_series_scope.update_matched_metrics()
+            time_series_scope.update_matched_dimension_config()
 
         return {
             "group_id": time_series_scope.group_id,
