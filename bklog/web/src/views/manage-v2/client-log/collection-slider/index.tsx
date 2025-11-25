@@ -74,10 +74,20 @@ export default defineComponent({
     });
     const formRef = ref(null);
 
-    // 表单验证规则
+    // 通用表单验证规则
     const basicRules = {
       required: true,
       trigger: 'blur',
+    };
+
+    // 文件修改时间范围的自定义验证规则
+    const dateRangeRule = {
+      required: true,
+      trigger: 'blur',
+      validator: (value: string[]) => {
+        // 检查开始时间和结束时间都不为空
+        return value[0] && value[1] && value[0] !== '' && value[1] !== '';
+      },
     };
 
     const formRules = {
@@ -88,7 +98,7 @@ export default defineComponent({
       trigger_duration: [basicRules],
       log_path: [basicRules],
       max_file_num: [basicRules],
-      fileModifyTimeRange: [basicRules],
+      fileModifyTimeRange: [dateRangeRule],
     };
 
     // 确认提交表单逻辑
@@ -213,19 +223,19 @@ export default defineComponent({
     };
 
     // 根据客户端类型值获取对应的标签
-    const getClientTypeLabel = (platformValue) => {
+    const getClientTypeLabel = (platformValue: string) => {
       const clientType = CLIENT_TYPE_OPTIONS.find(option => option.value === platformValue);
       return clientType ? clientType.label : '-';
     };
 
     // 根据触发频率值获取对应的标签
-    const getTriggerFrequencyLabel = (frequencyValue) => {
+    const getTriggerFrequencyLabel = (frequencyValue: string) => {
       const frequency = TRIGGER_FREQUENCY_OPTIONS.find(option => option.value === frequencyValue);
       return frequency ? frequency.label : '-';
     };
 
     // 根据持续触发时长值获取对应的标签
-    const getSustainTimeLabel = (durationValue) => {
+    const getSustainTimeLabel = (durationValue: number) => {
       const duration = SUSTAIN_TIME_OPTIONS.find(option => option.value === durationValue);
       return duration ? duration.label : '-';
     };
@@ -260,7 +270,7 @@ export default defineComponent({
                 >
                   <bk-input
                     value={formData.value.task_name}
-                    on-change={value => (formData.value.task_name = value)}
+                    on-change={(value: string) => (formData.value.task_name = value)}
                   />
                 </bk-form-item>
                 <bk-form-item
@@ -271,7 +281,7 @@ export default defineComponent({
                   <bk-input
                     type='textarea'
                     value={formData.value.openid}
-                    on-change={value => (formData.value.openid = value)}
+                    on-change={(value: string) => (formData.value.openid = value)}
                     placeholder={t('多个 openid 用「换行」分隔')}
                   />
                 </bk-form-item>
@@ -282,7 +292,7 @@ export default defineComponent({
                 >
                   <bk-radio-group
                     value={formData.value.scene}
-                    on-change={value => (formData.value.scene = value)}
+                    on-change={(value: number) => (formData.value.scene = value)}
                   >
                     {TASK_STAGE_OPTIONS.map(option => (
                       <bk-radio value={option.value}>{option.label}</bk-radio>
@@ -296,7 +306,7 @@ export default defineComponent({
                 >
                   <bk-radio-group
                     value={formData.value.platform}
-                    on-change={value => (formData.value.platform = value)}
+                    on-change={(value: string) => (formData.value.platform = value)}
                     class='client-type-radio-group'
                   >
                     {CLIENT_TYPE_OPTIONS.map(option => (
@@ -311,7 +321,7 @@ export default defineComponent({
                 >
                   <bk-radio-group
                     value={formData.value.frequency}
-                    on-change={value => (formData.value.frequency = value)}
+                    on-change={(value: string) => (formData.value.frequency = value)}
                   >
                     {TRIGGER_FREQUENCY_OPTIONS.map(option => (
                       <bk-radio value={option.value}>{option.label}</bk-radio>
@@ -327,7 +337,7 @@ export default defineComponent({
                   >
                     <bk-select
                       value={formData.value.trigger_duration}
-                      on-change={value => (formData.value.trigger_duration = value)}
+                      on-change={(value: number) => (formData.value.trigger_duration = value)}
                       style='width: 200px;'
                     >
                       {SUSTAIN_TIME_OPTIONS.map(option => (
@@ -349,7 +359,7 @@ export default defineComponent({
                   <bk-input
                     type='textarea'
                     value={formData.value.log_path}
-                    on-change={value => (formData.value.log_path = value)}
+                    on-change={(value: string) => (formData.value.log_path = value)}
                   />
                 </bk-form-item>
                 <bk-form-item
@@ -361,7 +371,7 @@ export default defineComponent({
                     type='number'
                     min={0}
                     value={formData.value.max_file_num}
-                    on-change={value => (formData.value.max_file_num = value)}
+                    on-change={(value: number) => (formData.value.max_file_num = value)}
                   />
                 </bk-form-item>
                 <bk-form-item
@@ -417,7 +427,7 @@ export default defineComponent({
               </div>
               <div>
                 <span>{'openid'}</span>
-                <span>{props.logData.openid || '-'}</span>
+                <span>{props.logData.openid?.split('\n').join(';') || '-'}</span>
               </div>
               <div>
                 <span>{t('创建方式')}</span>

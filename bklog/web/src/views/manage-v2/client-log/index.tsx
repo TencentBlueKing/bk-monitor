@@ -124,8 +124,10 @@ export default defineComponent({
 
         isLoading.value = true;
         const response = await http.request('collect/getTaskLogList', params);
-        tableData.value = response.data;
-        tabs.value[0].count = response.data.total;
+        if (activeTab.value === TAB_TYPES.COLLECT) {
+          tableData.value = response.data;
+          tabs.value[0].count = response.data.total;
+        }
       } catch (error) {
         console.warn('获取采集下发列表失败:', error);
       } finally {
@@ -164,10 +166,12 @@ export default defineComponent({
         }
         if (newValue === TAB_TYPES.REPORT) {
           // 暂无用户上报接口
+          isLoading.value = true;
           tableData.value = {
             total: 0,
             list: [],
           };
+          isLoading.value = false;
         }
       },
       { immediate: true },

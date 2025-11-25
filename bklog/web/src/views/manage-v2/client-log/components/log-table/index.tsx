@@ -388,6 +388,11 @@ export default defineComponent({
       ),
     };
 
+    // openid插槽
+    const openidSlot = {
+      default: ({ row }) => <span class=''>{row.openid.split('\n').join(';')}</span>,
+    };
+
     // 任务状态插槽
     const statusSlot = {
       default: ({ row }) => (
@@ -452,18 +457,6 @@ export default defineComponent({
       ),
     };
 
-    // 空状态插槽
-    const emptySlot = {
-      empty: () => (
-        <div>
-          <EmptyStatus
-            emptyType={emptyType.value}
-            on-operation={clearFilters}
-          />
-        </div>
-      ),
-    };
-
     return () => (
       <div class='log-table'>
         <bk-table
@@ -475,7 +468,16 @@ export default defineComponent({
           onPage-limit-change={handlePageLimitChange}
           onFilter-change={handleFilterChange}
           onSort-change={handleSortChange}
-          scopedSlots={emptySlot}
+          scopedSlots={{
+            empty: () => (
+              <div>
+                <EmptyStatus
+                  emptyType={emptyType.value}
+                  on-operation={clearFilters}
+                />
+              </div>
+            ),
+          }}
         >
           {checkFields('id') && (
             <bk-table-column
@@ -485,7 +487,7 @@ export default defineComponent({
               label={t('任务 ID')}
               prop='id'
               sortable
-            ></bk-table-column>
+            />
           )}
           <bk-table-column
             key='task_name'
@@ -495,15 +497,16 @@ export default defineComponent({
             prop='task_name'
             scopedSlots={nameSlot}
             sortable
-          ></bk-table-column>
+          />
           <bk-table-column
             key='openid'
             class-name='filter-column overflow-hidden-text'
             min-width='140'
             label='openid'
             prop='openid'
+            scopedSlots={openidSlot}
             sortable
-          ></bk-table-column>
+          />
           {checkFields('create_type') && (
             <bk-table-column
               key='create_type'
@@ -514,7 +517,7 @@ export default defineComponent({
               column-key='create_type'
               filters={createTypes}
               filter-multiple={false}
-            ></bk-table-column>
+            />
           )}
           {checkFields('status_name') && (
             <bk-table-column
@@ -527,7 +530,7 @@ export default defineComponent({
               filters={taskStatuses}
               filter-multiple={false}
               scopedSlots={statusSlot}
-            ></bk-table-column>
+            />
           )}
           {checkFields('scene_name') && (
             <bk-table-column
@@ -539,7 +542,7 @@ export default defineComponent({
               column-key='scene'
               filters={taskScenes}
               filter-multiple={false}
-            ></bk-table-column>
+            />
           )}
           {checkFields('created_by') && (
             <bk-table-column
@@ -553,7 +556,7 @@ export default defineComponent({
               filter-multiple={false}
               filter-searchable
               scopedSlots={creatorSlot}
-            ></bk-table-column>
+            />
           )}
           {checkFields('created_at') && (
             <bk-table-column
@@ -563,7 +566,7 @@ export default defineComponent({
               label={t('创建时间')}
               prop='created_at'
               sortable
-            ></bk-table-column>
+            />
           )}
           {checkFields('log_path') && (
             <bk-table-column
@@ -572,7 +575,7 @@ export default defineComponent({
               min-width='160'
               label={t('日志路径')}
               prop='log_path'
-            ></bk-table-column>
+            />
           )}
           {checkFields('frequency') && (
             <bk-table-column
@@ -582,7 +585,7 @@ export default defineComponent({
               label={t('触发频率')}
               prop='frequency'
               scopedSlots={frequencySlot}
-            ></bk-table-column>
+            />
           )}
           {checkFields('platform') && (
             <bk-table-column
@@ -592,7 +595,7 @@ export default defineComponent({
               label={t('客户端类型')}
               prop='platform'
               scopedSlots={platformSlot}
-            ></bk-table-column>
+            />
           )}
           {checkFields('max_file_num') && (
             <bk-table-column
@@ -601,13 +604,13 @@ export default defineComponent({
               width='120'
               label={t('最大文件个数')}
               prop='max_file_num'
-            ></bk-table-column>
+            />
           )}
           <bk-table-column
             label={t('操作')}
             width='150'
             scopedSlots={operateSlot}
-          ></bk-table-column>
+          />
           <bk-table-column
             type='setting'
             key='setting'
@@ -618,7 +621,7 @@ export default defineComponent({
               fields={columnSetting.value.fields}
               selected={columnSetting.value.selectedFields}
               on-setting-change={handleSettingChange}
-            ></bk-table-setting-content>
+            />
           </bk-table-column>
         </bk-table>
       </div>
