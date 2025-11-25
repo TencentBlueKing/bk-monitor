@@ -1087,6 +1087,17 @@ const beforeShowndFn = () => {
   return true;
 };
 
+const beforeHideFn = () => {
+  isConditionValueInputFocus.value = false;
+  if (refValueTagInput.value) {
+    refValueTagInput.value.value = '';
+  }
+  conditionValueInputVal.value = '';
+  conditionValueInstance?.hide();
+  conditionBlurTimer && clearTimeout(conditionBlurTimer);
+  conditionBlurTimer = null;
+};
+
 const afterHideFn = () => {
   document.removeEventListener('keydown', handleKeydownClick, { capture: true });
   document.removeEventListener('click', handleDocumentClick);
@@ -1196,6 +1207,7 @@ onBeforeUnmount(() => {
 defineExpose({
   beforeShowndFn,
   afterHideFn,
+  beforeHideFn,
 });
 </script>
 <template>
