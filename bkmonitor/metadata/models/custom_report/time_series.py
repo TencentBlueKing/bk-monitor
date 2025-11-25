@@ -1055,11 +1055,15 @@ class TimeSeriesScope(models.Model):
         return TimeSeriesMetric.ENABLE_OPERATION_SCOPE_LIST
 
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def update_matched_dimension_config(self):
+    def update_matched_dimension_config(self, delete_unmatched_dimensions=False):
         """
         1. 获取分组下的 dimension_config 字典 X
         2. 根据 manual_list 和 auto_rules 获取匹配的指标列表的 tag_list 做并集得到 Y
-        3. X & Y 做交集得到 Z，Z | Y 的并集得到新的 dimension_config
+        3. 根据 delete_unmatched_dimensions 参数决定是否删除不再匹配的维度配置
+           - 如果为 True: X & Y 做交集得到 Z，Z | Y 的并集得到新的 dimension_config
+           - 如果为 False: 保留 X 中的所有配置，并添加 Y 中的新维度
+
+        :param delete_unmatched_dimensions: 是否删除不再匹配的维度配置，默认为 True
         """
         # 1. 获取当前分组下已有的维度配置（X）
         current_dimension_config = self.dimension_config or {}
@@ -1081,11 +1085,17 @@ class TimeSeriesScope(models.Model):
                     matched_metric_dimensions.update(metric.tag_list)
 
         # 3. 计算新的维度配置
-        updated_dimension_config = {}
-
-        # 添加所有匹配的维度（新维度使用空配置，已有维度保留原配置）
-        for dimension_name in matched_metric_dimensions:
-            updated_dimension_config[dimension_name] = current_dimension_config.get(dimension_name, {})
+        if delete_unmatched_dimensions:
+            # 只保留匹配的维度（新维度使用空配置，已有维度保留原配置）
+            updated_dimension_config = {
+                dimension_name: current_dimension_config.get(dimension_name, {})
+                for dimension_name in matched_metric_dimensions
+            }
+        else:
+            # 保留所有已有的维度配置，并添加新匹配的维度
+            updated_dimension_config = current_dimension_config.copy()
+            for dimension_name in matched_metric_dimensions:
+                updated_dimension_config.setdefault(dimension_name, {})
 
         # 更新 dimension_config
         if updated_dimension_config != current_dimension_config:

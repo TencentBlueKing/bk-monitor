@@ -1651,6 +1651,9 @@ class ModifyTimeSeriesScopeResource(Resource):
         auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
         # 是否删除不再匹配 manual_list 和 auto_rules 的 dimension_config
         # 对于导入分组场景来说，这个字段应该为 False，否则可能由于无法匹配而导入失败
+        delete_unmatched_dimensions = serializers.BooleanField(
+            required=False, default=False, label="是否删除不再匹配的维度配置"
+        )
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
@@ -1692,7 +1695,8 @@ class ModifyTimeSeriesScopeResource(Resource):
 
         # 如果更新了 manual_list、auto_rules，需要更新匹配的指标
         if need_update_metrics:
-            time_series_scope.update_matched_dimension_config()
+            delete_unmatched = validated_request_data.get("delete_unmatched_dimensions", True)
+            time_series_scope.update_matched_dimension_config(delete_unmatched_dimensions=delete_unmatched)
 
         return {
             "group_id": time_series_scope.group_id,
