@@ -19,7 +19,7 @@ from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.control.mixins.double_check import DoubleCheckStrategy
 from alarm_backends.core.control.record_parser import EventIDParser
 from alarm_backends.core.storage.kafka import KafkaQueue
-from bkmonitor.models import NO_DATA_TAG_DIMENSION
+from bkmonitor.models import NO_DATA_TAG_DIMENSION, BCSPod
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.alert import EventStatus, EventTargetType
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -233,7 +233,50 @@ class MonitorEventAdapter:
                 bk_obj_id = data_dimensions.pop("bk_obj_id")
                 bk_inst_id = data_dimensions.pop("bk_inst_id")
                 return EventTargetType.TOPO, f"{bk_obj_id}|{bk_inst_id}", data_dimensions
+            elif "bcs_cluster_id" in data_dimensions:
+                # 容器场景目标解析
+                # K8S-POD, K8S-NODE, K8S-SERVICE, K8S-WORKLOAD
+                return cls.get_k8s_target(data_dimensions, strategy["bk_biz_id"])
 
         except KeyError:
             return EventTargetType.EMPTY, None, data_dimensions
         return EventTargetType.EMPTY, None, data_dimensions
+
+    @classmethod
+    def get_k8s_target(cls, dimensions: dict, bk_biz_id: int):
+        """
+        获取容器场景的目标
+        """
+        bcs_cluster_id = dimensions.get("bcs_cluster_id")
+        pod = dimensions.get("pod") or dimensions.get("pod_name")
+        namespace = dimensions.get("namespace")
+        if pod:
+            # pod 对象, 数据维度有pod 信息，直接查出 workload 和 namespace
+            pod_instance = BCSPod.get_instance(cluster_id=bcs_cluster_id, name=pod, bk_biz_id=bk_biz_id)
+            if pod_instance:
+                if "workload_kind" not in dimensions:
+                    dimensions["workload_kind"] = pod_instance.workload_type
+                if "workload_name" not in dimensions:
+                    dimensions["workload_name"] = pod_instance.workload_name
+                if "namespace" not in dimensions:
+                    dimensions["namespace"] = pod_instance.namespace
+                return "K8S-POD", pod, dimensions
+
+        workload_kind = dimensions.get("workload_kind")
+        workload_name = dimensions.get("workload_name")
+        if workload_kind and workload_name:
+            # workload 对象
+            if namespace is None:
+                return EventTargetType.EMPTY, None, dimensions
+            return "K8S-WORKLOAD", f"{workload_kind}:{workload_name}", dimensions
+        node = dimensions.get("node") or dimensions.get("node_name")
+        if node:
+            # node 对象
+            return "K8S-NODE", node, dimensions
+        service = dimensions.get("service") or dimensions.get("service_name")
+        if service:
+            # service 对象
+            if namespace is None:
+                return EventTargetType.EMPTY, None, dimensions
+            return "K8S-SERVICE", service, dimensions
+        return EventTargetType.EMPTY, None, dimensions
