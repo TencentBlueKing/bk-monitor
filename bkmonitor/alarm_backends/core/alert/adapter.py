@@ -246,14 +246,17 @@ class MonitorEventAdapter:
     def get_k8s_target(cls, dimensions: dict, bk_biz_id: int):
         """
         获取容器场景的目标
+        注意：此方法会修改传入的 dimensions 字典，补充相关维度信息
         """
         bcs_cluster_id = dimensions.get("bcs_cluster_id")
         pod = dimensions.get("pod") or dimensions.get("pod_name")
         namespace = dimensions.get("namespace")
+
         if pod:
             # pod 对象, 数据维度有pod 信息，直接查出 workload 和 namespace
             pod_instance = BCSPod.get_instance(cluster_id=bcs_cluster_id, name=pod, bk_biz_id=bk_biz_id)
             if pod_instance:
+                # 补充维度信息
                 if "workload_kind" not in dimensions:
                     dimensions["workload_kind"] = pod_instance.workload_type
                 if "workload_name" not in dimensions:
@@ -261,22 +264,31 @@ class MonitorEventAdapter:
                 if "namespace" not in dimensions:
                     dimensions["namespace"] = pod_instance.namespace
                 return "K8S-POD", pod, dimensions
+            else:
+                # Pod 存在但查询不到实例，仍然按 Pod 处理，避免错误分类
+                # 检查 namespace 是否存在，Pod 是命名空间级别的资源
+                if namespace is None:
+                    return EventTargetType.EMPTY, None, dimensions
+                return "K8S-POD", pod, dimensions
 
         workload_kind = dimensions.get("workload_kind")
         workload_name = dimensions.get("workload_name")
         if workload_kind and workload_name:
-            # workload 对象
+            # workload 对象，需要 namespace
             if namespace is None:
                 return EventTargetType.EMPTY, None, dimensions
             return "K8S-WORKLOAD", f"{workload_kind}:{workload_name}", dimensions
+
         node = dimensions.get("node") or dimensions.get("node_name")
         if node:
-            # node 对象
+            # node 对象，Node 是集群级别资源，不需要 namespace
             return "K8S-NODE", node, dimensions
+
         service = dimensions.get("service") or dimensions.get("service_name")
         if service:
-            # service 对象
+            # service 对象，需要 namespace
             if namespace is None:
                 return EventTargetType.EMPTY, None, dimensions
             return "K8S-SERVICE", service, dimensions
+
         return EventTargetType.EMPTY, None, dimensions
