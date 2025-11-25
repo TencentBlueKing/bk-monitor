@@ -1196,9 +1196,9 @@ class TimeSeriesScope(models.Model):
         return scope
 
     @staticmethod
-    def _get_enable_operate_scope_filter():
+    def _get_enable_edit_scope_filter():
         """
-        获取可操作指标的过滤条件
+        获取可编辑指标的过滤条件
         过滤条件：精确匹配 default 或末尾匹配 "||default"
 
         :return: Django Q 对象
@@ -1226,13 +1226,13 @@ class TimeSeriesScope(models.Model):
 
         # 查询该分组下可操作的指标
         available_metrics = TimeSeriesMetric.objects.filter(group_id=self.group_id).filter(
-            self._get_enable_operate_scope_filter()
+            self._get_enable_edit_scope_filter()
         )
 
         # 遍历所有指标，找出匹配的指标的维度
         for metric in available_metrics:
             # 判断指标是否匹配当前 scope 的规则
-            if self._match_metric(metric.field_name):
+            if self.match_metric(metric.field_name):
                 # 将该指标的所有维度加入到集合中
                 if metric.tag_list:
                     matched_metric_dimensions.update(metric.tag_list)
@@ -1261,7 +1261,7 @@ class TimeSeriesScope(models.Model):
                 list(updated_dimension_config.keys()),
             )
 
-    def _match_metric(self, field_name: str) -> bool:
+    def match_metric(self, field_name: str) -> bool:
         """判断指标名称是否匹配 manual_list 或 auto_rules"""
         import re
 
