@@ -5,7 +5,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 
 from apps.log_databus.handlers.collector import CollectorHandler
-from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType
+from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType, LogAccessTypeEnum
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, AccessSourceConfig, Scenario
 from apps.log_databus.models import CollectorConfig
@@ -34,6 +34,7 @@ class LogCollectorHandler:
                 bk_data_name = f"{table_id_prefix}{table_id}"
             else:
                 bk_data_name = ""
+            log_access_type = LogAccessTypeEnum.get_log_access_type(scenario_id, collector_scenario_id)
             result_list.append(
                 {
                     "table_id": item.get("table_id", ""),
@@ -62,6 +63,8 @@ class LogCollectorHandler:
                     "status_name": item.get("status_name", ""),
                     "environment": item.get("environment", ""),
                     "parent_index_sets": item.get("parent_index_sets", []),
+                    "log_access_type": log_access_type,
+                    "log_access_type_name": LogAccessTypeEnum.get_choice_label(log_access_type),
                 }
             )
         return result_list
@@ -338,6 +341,11 @@ class LogCollectorHandler:
                 status_name_list = item["value"]
             elif item["key"] == "storage_cluster_name":
                 storage_cluster_name_list = item["value"]
+            elif item["key"] == "log_access_type":
+                for access_type in item["value"]:
+                    _scenario_id, _collector_scenario_id = LogAccessTypeEnum.get_scenario_info(access_type)
+                    _scenario_id and scenario_id_list.append(_scenario_id)
+                    _collector_scenario_id and collector_scenario_id_list.append(_collector_scenario_id)
 
         # 获取采集项信息
         collector_configs = self.get_collector_config_info(
@@ -394,3 +402,43 @@ class LogCollectorHandler:
             .count()
         )
         return collector_count + index_set_count
+
+    def get_collector_field_enums(self):
+        """
+        获取采集项字段枚举值
+        :return: 包含创建人和更新人枚举值的字典
+        """
+        # 获取采集项的创建人和更新人枚举
+        collector_created_by = (
+            CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id).values_list("created_by", flat=True).distinct()
+        )
+        collector_updated_by = (
+            CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id).values_list("updated_by", flat=True).distinct()
+        )
+
+        # 获取索引集的创建人和更新人枚举
+        index_set_created_by = (
+            LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid)
+            .exclude(scenario_id=Scenario.LOG)
+            .values_list("created_by", flat=True)
+            .distinct()
+        )
+        index_set_updated_by = (
+            LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid)
+            .exclude(scenario_id=Scenario.LOG)
+            .values_list("updated_by", flat=True)
+            .distinct()
+        )
+
+        # 合并去重
+        created_by_enums = list(set(chain(collector_created_by, index_set_created_by)))
+        updated_by_enums = list(set(chain(collector_updated_by, index_set_updated_by)))
+
+        # 过滤空值并排序
+        created_by_dict = [{"key": item, "value": item} for item in created_by_enums if item]
+        updated_by_dict = [{"key": item, "value": item} for item in updated_by_enums if item]
+
+        return {
+            "created_by": created_by_dict,
+            "updated_by": updated_by_dict,
+        }
