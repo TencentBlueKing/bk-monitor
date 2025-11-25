@@ -1,0 +1,49 @@
+
+
+### 功能描述
+
+删除自定义时序指标分组
+删除指定自定义时序数据源下的指标分组
+
+
+### 请求参数
+
+| 字段           | 类型   | 必选 | 描述        |
+| -------------- | ------ | ---- | ----------- |
+| bk_tenant_id  | string | 是   | 租户ID |
+| group_id | int | 是 | 自定义时序数据源ID |
+| scope_name | string | 是 | 指标分组名，最大长度255 |
+
+
+### 请求参数示例
+
+```json
+{
+	"bk_tenant_id": "default",
+	"group_id": 123,
+	"scope_name": "指标分组名"
+}
+```
+
+### 响应参数
+
+| 字段       | 类型   | 描述         |
+| ---------- | ------ | ------------ |
+| result     | bool   | 请求是否成功 |
+| code       | int    | 返回的状态码 |
+| message    | string | 描述信息     |
+| data       | null   | 数据，删除成功时为空 |
+| request_id | string | 请求ID       |
+
+### 响应参数示例
+
+```json
+{
+    "message":"OK",
+    "code":200,
+    "data": null,
+    "result":true,
+    "request_id":"408233306947415bb1772a86b9536867"
+}
+```
+

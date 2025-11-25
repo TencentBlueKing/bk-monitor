@@ -1726,10 +1726,10 @@ class QueryTimeSeriesScopeResource(Resource):
     """
     查询自定义时序指标分组列表
 
-    支持通过 group_id 和 scope_name 进行模糊匹配查询，返回列表结果（支持分页）
+    支持通过 group_id 和 scope_name 进行模糊匹配查询，返回列表结果
     """
 
-    class RequestSerializer(PageSerializer):
+    class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
         # 对 APM 场景需要传递 scope_name 来区分不同的服务
@@ -1765,27 +1765,7 @@ class QueryTimeSeriesScopeResource(Resource):
             ).values_list("time_series_group_id", flat=True)
             query_set = query_set.filter(group_id__in=valid_group_ids)
 
-        # 分页处理
-        page_size = validated_request_data.get("page_size", 0)
-        if page_size > 0:
-            count = query_set.count()
-            page = validated_request_data.get("page", 1)
-            offset = (page - 1) * page_size
-            paginated_query_set = query_set[offset : offset + page_size]
-            results = [
-                {
-                    "group_id": scope.group_id,
-                    "scope_name": scope.scope_name,
-                    "dimension_config": scope.dimension_config,
-                    "manual_list": scope.manual_list,
-                    "auto_rules": scope.auto_rules,
-                    "create_from": scope.create_from,
-                }
-                for scope in paginated_query_set
-            ]
-            return {"count": count, "info": results}
-
-        # 不分页，返回所有结果
+        # 返回所有结果
         results = [
             {
                 "group_id": scope.group_id,

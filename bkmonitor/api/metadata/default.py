@@ -555,15 +555,13 @@ class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
     """
 
     action = "/app/metadata/query_time_series_scope/"
-    method = "GET"
+    method = "POST"
     backend_cache_type = CacheType.METADATA
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
         scope_name = serializers.CharField(required=False, label="指标分组名")
-        page = serializers.IntegerField(required=False, label="页数", min_value=1)
-        page_size = serializers.IntegerField(required=False, label="页长")
 
 
 class QueryTagValuesResource(MetaDataAPIGWResource):
