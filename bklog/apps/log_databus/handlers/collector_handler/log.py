@@ -5,7 +5,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 
 from apps.log_databus.handlers.collector import CollectorHandler
-from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType
+from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType, LogAccessTypeEnum
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, AccessSourceConfig, Scenario
 from apps.log_databus.models import CollectorConfig
@@ -34,6 +34,7 @@ class LogCollectorHandler:
                 bk_data_name = f"{table_id_prefix}{table_id}"
             else:
                 bk_data_name = ""
+            log_access_type = LogAccessTypeEnum.get_log_access_type(scenario_id, collector_scenario_id)
             result_list.append(
                 {
                     "table_id": item.get("table_id", ""),
@@ -62,6 +63,8 @@ class LogCollectorHandler:
                     "status_name": item.get("status_name", ""),
                     "environment": item.get("environment", ""),
                     "parent_index_sets": item.get("parent_index_sets", []),
+                    "log_access_type": log_access_type,
+                    "log_access_type_name": LogAccessTypeEnum.get_choice_label(log_access_type),
                 }
             )
         return result_list
@@ -114,6 +117,7 @@ class LogCollectorHandler:
         updated_by_list: list = None,
         storage_cluster_name_list: list = None,
         status_name_list: list = None,
+        log_access_type_list: list = None,
     ) -> list[dict]:
         """
          获取采集项信息
@@ -126,12 +130,19 @@ class LogCollectorHandler:
         :param updated_by_list: 创建者
         :param storage_cluster_name_list: 集群名
         :param status_name_list: 采集状态
+        :param log_access_type_list: 日志接入类型
         """
+        _scenario_id_list, _collector_scenario_id_list = LogAccessTypeEnum.get_scenario_info(log_access_type_list)
+        scenario_id_list = scenario_id_list + _scenario_id_list
+        collector_scenario_id_list = collector_scenario_id_list + _collector_scenario_id_list
         if scenario_id_list and Scenario.LOG not in scenario_id_list:
             # 非日志采集查询，直接返回
             return []
 
         qs = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id)
+
+        if Scenario.LOG in scenario_id_list and CollectorScenarioEnum.CUSTOM.value not in collector_scenario_id_list:
+            qs = qs.exclude(collector_scenario_id=CollectorScenarioEnum.CUSTOM.value)
 
         # 先查询索引组下的索引集，再查询索引集对应的采集项
         if parent_index_set_id:
@@ -203,6 +214,7 @@ class LogCollectorHandler:
         created_by_list: list = None,
         updated_by_list: list = None,
         storage_cluster_name_list: list = None,
+        log_access_type_list: list = None,
     ) -> list[dict]:
         """
          获取索引集内容
@@ -213,7 +225,10 @@ class LogCollectorHandler:
         :param created_by_list: 创建者
         :param updated_by_list: 创建者
         :param storage_cluster_name_list: 集群名
+        :param log_access_type_list: 日志接入类型
         """
+        _scenario_id_list, _ = LogAccessTypeEnum.get_scenario_info(log_access_type_list)
+        scenario_id_list.extend(_scenario_id_list)
         log_index_sets = LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid).exclude(
             scenario_id=Scenario.LOG
         )
@@ -321,6 +336,7 @@ class LogCollectorHandler:
         updated_by_list = []
         status_name_list = []
         storage_cluster_name_list = []
+        log_access_type_list = []
         for item in conditions:
             if item["key"] == "scenario_id":
                 scenario_id_list = item["value"]
@@ -338,6 +354,8 @@ class LogCollectorHandler:
                 status_name_list = item["value"]
             elif item["key"] == "storage_cluster_name":
                 storage_cluster_name_list = item["value"]
+            elif item["key"] == "log_access_type":
+                log_access_type_list = item["value"]
 
         # 获取采集项信息
         collector_configs = self.get_collector_config_info(
@@ -350,6 +368,7 @@ class LogCollectorHandler:
             updated_by_list=updated_by_list,
             storage_cluster_name_list=storage_cluster_name_list,
             status_name_list=status_name_list,
+            log_access_type_list=log_access_type_list,
         )
 
         lists_to_check = [
@@ -369,6 +388,7 @@ class LogCollectorHandler:
                 created_by_list=created_at_list,
                 updated_by_list=updated_by_list,
                 storage_cluster_name_list=storage_cluster_name_list,
+                log_access_type_list=log_access_type_list,
             )
 
         combined_data = collector_configs + log_index_sets
@@ -394,3 +414,43 @@ class LogCollectorHandler:
             .count()
         )
         return collector_count + index_set_count
+
+    def get_collector_field_enums(self):
+        """
+        获取采集项字段枚举值
+        :return: 包含创建人和更新人枚举值的字典
+        """
+        # 获取采集项的创建人和更新人枚举
+        collector_created_by = (
+            CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id).values_list("created_by", flat=True).distinct()
+        )
+        collector_updated_by = (
+            CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id).values_list("updated_by", flat=True).distinct()
+        )
+
+        # 获取索引集的创建人和更新人枚举
+        index_set_created_by = (
+            LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid)
+            .exclude(scenario_id=Scenario.LOG)
+            .values_list("created_by", flat=True)
+            .distinct()
+        )
+        index_set_updated_by = (
+            LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid)
+            .exclude(scenario_id=Scenario.LOG)
+            .values_list("updated_by", flat=True)
+            .distinct()
+        )
+
+        # 合并去重
+        created_by_enums = list(set(chain(collector_created_by, index_set_created_by)))
+        updated_by_enums = list(set(chain(collector_updated_by, index_set_updated_by)))
+
+        # 过滤空值并排序
+        created_by_dict = [{"key": item, "value": item} for item in created_by_enums if item]
+        updated_by_dict = [{"key": item, "value": item} for item in updated_by_enums if item]
+
+        return {
+            "created_by": created_by_dict,
+            "updated_by": updated_by_dict,
+        }

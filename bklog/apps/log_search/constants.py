@@ -1882,3 +1882,46 @@ class DorisFieldTypeEnum(Enum):
         # 去除字段长度信息 例如：varchar(32)、decimal(10,2)
         cleaned_type = re.sub(r"\(.*?\)", "", field_type)
         return field_type_mapping.get(cleaned_type, field_type)
+
+
+class LogAccessTypeEnum(ChoicesEnum):
+    """
+    日志接入类型枚举
+    """
+
+    LOG = "log"
+    BKDATA = "bkdata"
+    ES = "es"
+    CUSTOM_REPORT = "custom_report"
+
+    _choices_labels = (
+        (LOG, _("采集接入")),
+        (BKDATA, _("数据平台")),
+        (ES, _("第三方ES")),
+        (CUSTOM_REPORT, _("自定义上报")),
+    )
+
+    @classmethod
+    def get_log_access_type(cls, scenario_id: str, collector_scenario_id: str) -> str:
+        """
+        根据scenario_id和collector_scenario_id判断具体的接入类型
+        """
+        # 如果是自定义上报场景，返回CUSTOM_REPORT
+        if collector_scenario_id == CollectorScenarioEnum.CUSTOM.value:
+            return cls.CUSTOM_REPORT.value
+        return scenario_id
+
+    @classmethod
+    def get_scenario_info(cls, log_access_types: list[str]) -> tuple:
+        """
+        根据日志接入类型获取对应的场景信息
+        """
+        scenario_id_list = []
+        collector_scenario_id_list = []
+        for access_type in log_access_types:
+            if access_type == cls.CUSTOM_REPORT.value:
+                scenario_id_list.append(cls.LOG.value)
+                collector_scenario_id_list.append(CollectorScenarioEnum.CUSTOM.value)
+            else:
+                scenario_id_list.append(access_type)
+        return scenario_id_list, collector_scenario_id_list
