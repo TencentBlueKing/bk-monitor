@@ -498,6 +498,74 @@ class QueryTimeSeriesGroupResource(CacheResource):
         )
 
 
+class CreateTimeSeriesScopeResource(MetaDataAPIGWResource):
+    """
+    创建自定义时序指标分组
+    """
+
+    action = "/app/metadata/create_time_series_scope/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+        scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+        dimension_config = serializers.DictField(required=False, label="分组下的维度配置", default={})
+        manual_list = serializers.ListField(required=False, label="手动分组的指标列表", default=[])
+        auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表", default=[])
+
+
+class ModifyTimeSeriesScopeResource(MetaDataAPIGWResource):
+    """
+    修改自定义时序指标分组
+    """
+
+    action = "/app/metadata/modify_time_series_scope/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+        scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+        dimension_config = serializers.DictField(required=False, label="分组下的维度配置")
+        manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
+        auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
+        delete_unmatched_dimensions = serializers.BooleanField(
+            required=False, default=False, label="是否删除不再匹配的维度配置"
+        )
+
+
+class DeleteTimeSeriesScopeResource(MetaDataAPIGWResource):
+    """
+    删除自定义时序指标分组
+    """
+
+    action = "/app/metadata/delete_time_series_scope/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+        scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+
+
+class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
+    """
+    查询自定义时序指标分组列表
+    """
+
+    action = "/app/metadata/query_time_series_scope/"
+    method = "GET"
+    backend_cache_type = CacheType.METADATA
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
+        group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
+        scope_name = serializers.CharField(required=False, label="指标分组名")
+        page = serializers.IntegerField(required=False, label="页数", min_value=1)
+        page_size = serializers.IntegerField(required=False, label="页长")
+
+
 class QueryTagValuesResource(MetaDataAPIGWResource):
     """
     查询指定tag/dimension valuestag/dimension values
