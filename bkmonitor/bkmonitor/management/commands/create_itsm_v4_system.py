@@ -47,7 +47,7 @@ class Command(BaseCommand):
         python manage.py create_itsm_v4_system
 
         # 指定系统名称创建（code 默认与 name 相同）
-        python manage.py create_itsm_v4_system --name bk_monitorv3"
+        python manage.py create_itsm_v4_system --name bk_monitorv3
 
         # 指定系统名称和代码创建
         python manage.py create_itsm_v4_system --name bk_monitorv3 --code bk_monitorv3
