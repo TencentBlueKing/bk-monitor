@@ -103,6 +103,15 @@ class ApiGatewayJWTProvider(DefaultJWTProvider):
         try:
             jwt_header = self._decode_jwt_header(jwt_token)
             gateway_name = jwt_header.get("kid") or self.default_gateway_name
+            jwt_payload = self._decode_payload(jwt_token)
+            logger.warning(
+                f"""
+                csh-test new internal api gateway: 
+                jwt_header -> {jwt_header}; 
+                jwt_payload -> {jwt_payload}; 
+                gateway_name -> {gateway_name}
+                """
+            )
             public_key = CustomCachePublicKeyProvider(default_gateway_name=self.default_gateway_name).provide(
                 gateway_name=gateway_name, jwt_issuer=jwt_header.get("iss"), request=request
             )
