@@ -4,7 +4,10 @@ from itertools import chain
 from django.core.paginator import Paginator
 from django.db.models import Q
 
+from apps.api import TransferApi
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.collector import CollectorHandler
+from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType, LogAccessTypeEnum
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, AccessSourceConfig, Scenario
@@ -443,6 +446,24 @@ class LogCollectorHandler:
         )
         return collector_count + index_set_count
 
+    def get_cluster_enum(self):
+        params = {"cluster_type": STORAGE_CLUSTER_TYPE}
+        cluster_info = TransferApi.get_cluster_info(params)
+        visible_clusters = []
+        for cluster in cluster_info:
+            if StorageHandler().can_visible(
+                self.bk_biz_id,
+                cluster["cluster_config"].get("custom_option"),
+                cluster["cluster_config"]["registered_system"],
+            ):
+                visible_clusters.append(
+                    {
+                        "key": cluster["cluster_config"].get("cluster_name"),
+                        "value": cluster["cluster_config"].get("cluster_id"),
+                    }
+                )
+        return visible_clusters
+
     def get_collector_field_enums(self):
         """
         获取采集项字段枚举值
@@ -474,11 +495,9 @@ class LogCollectorHandler:
         created_by_enums = list(set(chain(collector_created_by, index_set_created_by)))
         updated_by_enums = list(set(chain(collector_updated_by, index_set_updated_by)))
 
-        # 过滤空值并排序
+        # 过滤空值并转换为字典格式
         created_by_dict = [{"key": item, "value": item} for item in created_by_enums if item]
         updated_by_dict = [{"key": item, "value": item} for item in updated_by_enums if item]
+        cluster_dict = self.get_cluster_enum()
 
-        return {
-            "created_by": created_by_dict,
-            "updated_by": updated_by_dict,
-        }
+        return {"created_by": created_by_dict, "updated_by": updated_by_dict, "storage_cluster": cluster_dict}
