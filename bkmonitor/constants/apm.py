@@ -1150,7 +1150,7 @@ class RPCMetricTag(CachedEnum):
         tag_trace_mapping.pop("callee", None)
         tag_trace_mapping.update(
             {
-                cls.CALLER_IP.value: {"field": f"{OtlpKey.RESOURCE}.{SpanAttributes.NET_HOST_IP}"},
+                cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
                 cls.CALLER_SERVER.value: {"field": f"{OtlpKey.RESOURCE}.{ResourceAttributes.SERVICE_NAME}"},
                 cls.CALLEE_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
             }
@@ -1168,7 +1168,7 @@ class RPCMetricTag(CachedEnum):
         tag_trace_mapping.pop("caller", None)
         tag_trace_mapping.update(
             {
-                cls.CALLEE_IP.value: {"field": f"{OtlpKey.RESOURCE}.{SpanAttributes.NET_HOST_IP}"},
+                cls.CALLEE_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
                 cls.CALLEE_SERVER.value: {"field": f"{OtlpKey.RESOURCE}.{ResourceAttributes.SERVICE_NAME}"},
                 cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
             }
