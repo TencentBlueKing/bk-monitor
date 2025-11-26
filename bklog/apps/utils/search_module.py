@@ -9,6 +9,8 @@ from django.utils import timezone
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.log_search.constants import (
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     ExportStatus,
@@ -30,11 +32,12 @@ from apps.log_search.models import (
     UserIndexSetFieldsConfig,
 )
 from apps.log_search.utils import create_download_response
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.models import model_to_dict
 from apps.utils.local import get_request_username
 from bkm_search_module.api import AbstractBkApi
 from bkm_search_module.constants import ScopeType
-from bkm_space.utils import bk_biz_id_to_space_uid
+from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
 
 class BkApi(AbstractBkApi):
@@ -80,7 +83,25 @@ class BkApi(AbstractBkApi):
     @staticmethod
     def search_condition_options(index_set_id: int, fields: list):
         """检索条件选项"""
-        terms_data = AggsViewAdapter().terms(index_set_id=index_set_id, query_data={"fields": fields})
+
+        data = {"fields": fields}
+
+        index_set_instance = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        space_uid = index_set_instance.space_uid
+
+        space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
+
+        if space_uids:
+            paternal_space_uid = space_uids[0]
+            paternal_bk_biz_id = space_uid_to_bk_biz_id(paternal_space_uid)
+            data["bk_biz_id"] = paternal_bk_biz_id
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            data["index_set_ids"] = [index_set_id]
+            data.setdefault("agg_fields", data.pop("fields", []))
+            terms_data = UnifyQueryHandler(data).terms()
+        else:
+            terms_data = AggsViewAdapter().terms(index_set_id=index_set_id, query_data=data)
 
         result = terms_data.get("aggs_items", {})
         res = dict()

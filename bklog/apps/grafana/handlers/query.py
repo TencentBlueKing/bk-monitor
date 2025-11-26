@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import re
 import time
@@ -162,10 +162,10 @@ class GrafanaQueryHandler:
         result = []
         for dimensions, value in formatted_data.items():
             target = "{}({})".format(params["method"], params["metric_field"])
-            dimension_string = ", ".join("{}={}".format(dimension[0], dimension[1]) for dimension in dimensions)
+            dimension_string = ", ".join(f"{dimension[0]}={dimension[1]}" for dimension in dimensions)
 
             if dimension_string:
-                target += "{{{}}}".format(dimension_string)
+                target += f"{{{dimension_string}}}"
 
             result.append(
                 {
@@ -247,7 +247,7 @@ class GrafanaQueryHandler:
             raise_exception=True,
         )
 
-    def build_ipchooser_params(self, query_dict: dict) -> typing.Dict[str, typing.Any]:
+    def build_ipchooser_params(self, query_dict: dict) -> dict[str, typing.Any]:
         """
         构建透传到检索模块ip选择器的参数
         """
@@ -493,9 +493,7 @@ class GrafanaQueryHandler:
                 # 若无可用的索引，则忽略该索引集
                 continue
             except Exception as e:  # pylint: disable=broad-except
-                logger.warning(
-                    "[get_metric_list] index_set({}) get_fields failed: {}".format(index_set.index_set_id, e)
-                )
+                logger.warning(f"[get_metric_list] index_set({index_set.index_set_id}) get_fields failed: {e}")
                 continue
 
             if not fields:
@@ -548,7 +546,7 @@ class GrafanaQueryHandler:
         try:
             properties = CCApi.search_object_attribute({"bk_biz_id": self.bk_biz_id, "bk_obj_id": bk_obj_id})
         except Exception as e:  # pylint: disable=broad-except
-            logger.error("[get_variable_field] request CMDB API failed for type({}): {}".format(bk_obj_id, e))
+            logger.error(f"[get_variable_field] request CMDB API failed for type({bk_obj_id}): {e}")
             properties = []
 
         data = [{"bk_property_id": p["bk_property_id"], "bk_property_name": p["bk_property_name"]} for p in properties]
@@ -624,13 +622,13 @@ class GrafanaQueryHandler:
             else:
                 return False
 
-        raise Exception("invalid where method: {}".format(method))
+        raise Exception(f"invalid where method: {method}")
 
     def is_match_condition(self, instance, conditions_config):
         """
         check condition match
         """
-        if not isinstance(conditions_config, (list, tuple)):
+        if not isinstance(conditions_config, list | tuple):
             raise Exception("Config Incorrect, Check your settings.")
 
         # 构造条件数据结构
@@ -817,4 +815,11 @@ class GrafanaQueryHandler:
                 for cond in where_conditions
             ]
         result = AggsViewAdapter().terms(index_set_id, data)
+        data["bk_biz_id"] = self.bk_biz_id if self.bk_biz_id else None
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            if not data.get("bk_biz_id"):
+                return dict()
+            data["index_set_ids"] = [index_set_id]
+            data.setdefault("agg_fields", data.pop("fields", []))
+            return UnifyQueryHandler(data).terms()
         return result["aggs_items"].get(field, [])
