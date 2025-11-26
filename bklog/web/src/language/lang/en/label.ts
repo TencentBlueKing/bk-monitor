@@ -894,6 +894,10 @@ export default {
   '搜索ES源名称、地址、创建人': 'Search ES Source Name, Address, Created By',
   输入后高亮: 'Highlight after input',
   正在解析语句: 'Parsing statement...',
-  'AI 搜索': 'AI Search',
+  AI搜索: 'AI Search',
   自动刷新设置: 'Auto refresh settings',
+  请输入检索需求: 'Please enter search requirements',
+  检索需求: 'Search requirements',
+  扁平化对象: 'Flatten object',
+  自然语言转查询语句: 'Natural language to search statement',
 };
