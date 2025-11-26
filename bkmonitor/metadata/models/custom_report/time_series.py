@@ -445,17 +445,17 @@ class TimeSeriesGroup(CustomGroupBase):
         except AccessVMRecord.DoesNotExist:
             return default_resp
         # 获取指标
-        data = (
-            api.bkdata.query_metric_and_dimension(
-                bk_tenant_id=self.bk_tenant_id,
-                storage=config.VM_STORAGE_TYPE,
-                result_table_id=vm_rt,
-                values=BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
-                # 如果是 APM 场景，使用 v2 版本的 API
-                version="v2" if self.metric_group_dimensions else "",
-            )
-            or []
-        )
+        params = {
+            "bk_tenant_id": self.bk_tenant_id,
+            "storage": config.VM_STORAGE_TYPE,
+            "result_table_id": vm_rt,
+            "values": BCSClusterInfo.DEFAULT_SERVICE_MONITOR_DIMENSION_TERM,
+        }
+        # 如果是 APM 场景，使用 v2 版本的 API
+        if self.metric_group_dimensions:
+            params["version"] = "v2"
+
+        data = api.bkdata.query_metric_and_dimension(**params) or []
         if not data:
             return default_resp
         # 组装数据
@@ -1154,28 +1154,8 @@ class TimeSeriesScope(models.Model):
         if not scope_dimensions_map:
             return
 
-        # 验证所有 scope_name 格式，过滤掉不合法的 scope
-        valid_scope_dimensions_map = {}
-        for scope_name in scope_dimensions_map.keys():
-            try:
-                cls._validate_scope_name(scope_name)
-                valid_scope_dimensions_map[scope_name] = scope_dimensions_map[scope_name]
-            except ValueError as e:
-                logger.warning(
-                    "跳过不符合格式的 scope: scope_name=%s, group_id=%s, error=%s",
-                    scope_name,
-                    group_id,
-                    str(e),
-                )
-                continue
-
-        # 如果所有 scope 都不合法，直接返回
-        if not valid_scope_dimensions_map:
-            logger.warning("所有 scope 都不符合格式要求，跳过处理, group_id=%s", group_id)
-            return
-
-        # 获取所有合法的 scope_name 列表
-        scope_names = list(valid_scope_dimensions_map.keys())
+        # 获取所有 scope_name 列表
+        scope_names = list(scope_dimensions_map.keys())
 
         # 一次性查询所有相关的 scope 记录
         existing_scopes = {
@@ -1186,7 +1166,7 @@ class TimeSeriesScope(models.Model):
         scopes_to_update = []
         scopes_to_create = []
 
-        for scope_name, dimensions in valid_scope_dimensions_map.items():
+        for scope_name, dimensions in scope_dimensions_map.items():
             if scope_name in existing_scopes:
                 # 记录已存在，合并维度配置（添加新维度，保留已有配置）
                 scope = existing_scopes[scope_name]

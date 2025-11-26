@@ -1045,7 +1045,7 @@ paths:
           resourcePermissionRequired: true
         descriptionEn: delete time series scope
   /app/metadata/query_time_series_scope/:
-    post:
+    get:
       operationId: metadata_query_time_series_scope
       description: 查询自定义时序指标分组列表
       tags:
