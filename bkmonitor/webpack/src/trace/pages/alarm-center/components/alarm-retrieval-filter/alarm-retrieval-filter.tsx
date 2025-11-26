@@ -130,11 +130,12 @@ export default defineComponent({
     query: () => true,
     bizIdsChange: (_v: (number | string)[]) => true,
   },
-  setup(props, { emit }) {
+  setup(_props, { emit }) {
     const { t } = useI18n();
 
     const showAlarmModule = computed(() => {
-      return props.filterMode === EMode.ui;
+      // return props.filterMode === EMode.ui;
+      return false;
     });
 
     function handleConditionChange(val) {
