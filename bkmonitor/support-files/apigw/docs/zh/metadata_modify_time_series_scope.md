@@ -13,27 +13,32 @@
 
 #### scopes 列表项字段说明
 
-| 字段           | 类型   | 必选 | 描述        |
-| -------------- | ------ | ---- | ----------- |
-| group_id | int | 是 | 自定义时序数据源ID |
-| scope_name | string | 是 | 指标分组名，最大长度255 |
-| new_scope_name | string | 否 | 新的指标分组名，最大长度255，用于修改分组名 |
-| dimension_config | dict | 否 | 分组下的维度配置 |
-| manual_list | list | 否 | 手动分组的指标列表 |
-| auto_rules | list | 否 | 自动分组的匹配规则列表 |
-| delete_unmatched_dimensions | bool | 否 | 是否删除不再匹配的维度配置，默认为false。对于导入分组场景来说，这个字段应该为 False，否则可能由于无法匹配而导入失败 |
+| 字段           | 类型   | 必选 | 描述                                                               |
+| -------------- | ------ | ---- |------------------------------------------------------------------|
+| group_id | int | 是 | 自定义时序数据源 ID                                                      |
+| scope_name | string | 是 | 指标分组名，最大长度 255                                                   |
+| new_scope_name | string | 否 | 新的指标分组名，最大长度 255，用于修改分组名                                         |
+| dimension_config | dict | 否 | 分组下的维度配置                                                         |
+| manual_list | list | 否 | 手动分组的指标列表                                                        |
+| auto_rules | list | 否 | 自动分组的匹配规则列表                                                      |
+| delete_unmatched_dimensions | bool | 否 | 是否删除不再匹配的维度配置，默认为 false。对于导入分组场景来说，这个字段应该为 false，否则可能由于无法匹配而导入失败 |
 
-#### dimension_config具体内容说明
+#### dimension_config 具体内容说明
 
-维度配置是一个字典，key为维度名称，value为维度配置信息
+维度配置是一个字典，key 为维度名称，value 为维度配置信息
 
-#### manual_list具体内容说明
+#### manual_list 具体内容说明
 
 手动分组的指标列表，包含需要手动分组的指标名称
 
-#### auto_rules具体内容说明
+#### auto_rules 具体内容说明
 
 自动分组的匹配规则列表，每个规则用于匹配指标名称
+
+#### dimension_config 与 manual_list 、 auto_rules 和 delete_unmatched_dimensions 之间的关系
+1. 先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，得到 X
+2. 根据 manual_list 和 auto_rules 获取指标维度的并集，得到 Y
+3. 当 delete_unmatched_dimensions 为 true 则最终集合为 (X & Y) | Y，反之 X | Y
 
 ### 请求参数示例
 
@@ -80,14 +85,14 @@ data 为列表类型，包含所有修改成功的分组结果
 
 #### data列表项字段说明
 
-| 字段                   | 类型   | 描述             |
-| ---------------------- | ------ | ---------------- |
-| group_id               | int    | 自定义时序数据源ID |
+| 字段                   | 类型   | 描述                                   |
+| ---------------------- | ------ |--------------------------------------|
+| group_id               | int    | 自定义时序数据源 ID                          |
 | scope_name             | string | 指标分组名（如果使用了 new_scope_name，则返回新的分组名） |
-| dimension_config       | dict   | 分组下的维度配置   |
-| manual_list            | list   | 手动分组的指标列表 |
-| auto_rules             | list   | 自动分组的匹配规则列表 |
-| create_from            | string | 创建来源          |
+| dimension_config       | dict   | 分组下的维度配置                             |
+| manual_list            | list   | 手动分组的指标列表                            |
+| auto_rules             | list   | 自动分组的匹配规则列表                          |
+| create_from            | string | 创建来源                                 |
 
 ### 响应参数示例
 

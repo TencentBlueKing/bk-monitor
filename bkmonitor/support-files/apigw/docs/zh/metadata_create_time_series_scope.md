@@ -13,25 +13,30 @@
 
 #### scopes 列表项字段说明
 
-| 字段           | 类型   | 必选 | 描述        |
-| -------------- | ------ | ---- | ----------- |
-| group_id | int | 是 | 自定义时序数据源ID |
-| scope_name | string | 是 | 指标分组名，最大长度255 |
-| dimension_config | dict | 否 | 分组下的维度配置，默认为空字典 |
-| manual_list | list | 否 | 手动分组的指标列表，默认为空列表 |
+| 字段           | 类型   | 必选 | 描述                 |
+| -------------- | ------ | ---- |--------------------|
+| group_id | int | 是 | 自定义时序数据源 ID        |
+| scope_name | string | 是 | 指标分组名，最大长度 255     |
+| dimension_config | dict | 否 | 分组下的维度配置，默认为空字典    |
+| manual_list | list | 否 | 手动分组的指标列表，默认为空列表   |
 | auto_rules | list | 否 | 自动分组的匹配规则列表，默认为空列表 |
 
-#### dimension_config具体内容说明
+#### dimension_config 具体内容说明
 
-维度配置是一个字典，key为维度名称，value为维度配置信息
+维度配置是一个字典，key 为维度名称，value 为维度配置信息
 
-#### manual_list具体内容说明
+#### manual_list 具体内容说明
 
 手动分组的指标列表，包含需要手动分组的指标名称
 
-#### auto_rules具体内容说明
+#### auto_rules 具体内容说明
 
 自动分组的匹配规则列表，每个规则用于匹配指标名称
+
+#### dimension_config 与 manual_list 、 auto_rules 之间的关系
+1. dimension_config 视为 X
+2. 根据 manual_list 和 auto_rules 获取指标维度的并集，视为 Y
+3. 最终维度集合是 X | Y
 
 ### 请求参数示例
 
@@ -76,14 +81,14 @@ data 为列表类型，包含所有创建成功的分组结果
 
 #### data列表项字段说明
 
-| 字段                   | 类型   | 描述             |
-| ---------------------- | ------ | ---------------- |
-| group_id               | int    | 自定义时序数据源ID |
-| scope_name             | string | 指标分组名         |
-| dimension_config       | dict   | 分组下的维度配置   |
-| manual_list            | list   | 手动分组的指标列表 |
+| 字段                   | 类型   | 描述          |
+| ---------------------- | ------ |-------------|
+| group_id               | int    | 自定义时序数据源 ID |
+| scope_name             | string | 指标分组名       |
+| dimension_config       | dict   | 分组下的维度配置    |
+| manual_list            | list   | 手动分组的指标列表   |
 | auto_rules             | list   | 自动分组的匹配规则列表 |
-| create_from            | string | 创建来源          |
+| create_from            | string | 创建来源        |
 
 ### 响应参数示例
 
