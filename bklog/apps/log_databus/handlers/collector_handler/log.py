@@ -264,13 +264,14 @@ class LogCollectorHandler:
             log_index_sets = log_index_sets.filter(updated_by__in=updated_by_list)
 
         log_index_set_data = LogIndexSetData.objects.all()
-        if result_table_id_list:
+        if result_table_id_list or keyword:
             query = Q()
-            for table_id in result_table_id_list:
-                query |= Q(result_table_id__icontains=table_id)
+            if result_table_id_list:
+                for table_id in result_table_id_list:
+                    query |= Q(result_table_id__icontains=table_id)
+            if keyword:
+                query |= Q(result_table_id__icontains=keyword)
             log_index_set_data = log_index_set_data.filter(query)
-        if keyword:
-            log_index_set_data = log_index_set_data.filter(Q(result_table_id__icontains=keyword))
         index_set_id_list = []
         log_index_set_data_mappings = defaultdict(list)
         for obj in log_index_set_data:
