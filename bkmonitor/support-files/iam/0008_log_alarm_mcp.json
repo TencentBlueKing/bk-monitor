@@ -273,18 +273,6 @@
                     ]
                 },
                 {
-                    "name": "故障管理",
-                    "name_en": "Incident",
-                    "actions": [
-                        {
-                            "id": "view_incident"
-                        },
-                        {
-                            "id": "manage_incident"
-                        }
-                    ]
-                },
-                {
                     "name": "全局",
                     "name_en": "Global",
                     "actions": [
@@ -333,4 +321,3 @@
         }
     ]
 }
-
