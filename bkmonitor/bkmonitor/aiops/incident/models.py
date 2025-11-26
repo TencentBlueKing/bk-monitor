@@ -403,12 +403,14 @@ class IncidentSnapshot:
         sub_incident_snapshot_content["incident_alerts"] = []
         sub_incident_snapshot_content["bk_biz_id"] = self.incident_snapshot_content["bk_biz_id"]
 
-        for entity in sub_incident_snapshot_content["incident_propagation_graph"]["entities"]:
+        for entity in sub_incident_snapshot_content.get("incident_propagation_graph", {}).get("entities", []):
             entity["is_root"] = False
             entity["is_anomaly"] = False
             entity["dimensions"] = entity.get("dimensions", {})
 
-            for incident_entity in self.incident_snapshot_content["incident_propagation_graph"]["entities"]:
+            for incident_entity in self.incident_snapshot_content.get("incident_propagation_graph", {}).get(
+                "entities", []
+            ):
                 if incident_entity["entity_id"] == entity["entity_id"]:
                     entity["is_root"] = incident_entity["is_root"]
                     entity["is_anomaly"] = incident_entity["is_anomaly"]

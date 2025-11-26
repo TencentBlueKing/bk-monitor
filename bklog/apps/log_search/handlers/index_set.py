@@ -1475,7 +1475,7 @@ class IndexSetHandler(APIModel):
                 query_alias_settings = query_alias_mappings.get(result_table_id, [])
                 # 为纳秒字段新增别名
                 if obj.result_table_id in collector_rts:
-                    query_alias_settings.update(
+                    query_alias_settings.append(
                         {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}
                     )
                 multi_execute_func.append(
@@ -1817,17 +1817,18 @@ class BaseIndexSetHandler:
                             },
                         ],
                     }
+
+                    if query_alias_settings := index_set.query_alias_settings:
+                        table_info["query_alias_settings"] = query_alias_settings
+
                     if table_info["source_type"] == Scenario.LOG:
                         table_info["origin_table_id"] = obj.result_table_id
                         collector_config = CollectorConfig.objects.filter(table_id=obj.result_table_id).first()
                         # 为纳秒字段新增别名
                         if collector_config.is_nanos:
-                            table_info["query_alias_settings"].update(
+                            table_info.setdefault("query_alias_settings", []).append(
                                 {"field_name": "dtEventTimeStampNanos", "query_alias": "dtEventTimeStamp"}
                             )
-
-                    if query_alias_settings := index_set.query_alias_settings:
-                        table_info["query_alias_settings"] = query_alias_settings
 
                     # 纳秒采集新旧链路迁移路由补充
                     if obj.result_table_id in nano_migrate_map:
