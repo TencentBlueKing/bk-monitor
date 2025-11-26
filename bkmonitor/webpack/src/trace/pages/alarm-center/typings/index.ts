@@ -27,6 +27,7 @@ export * from './alarm-info';
 export * from './constants';
 export * from './detail';
 export * from './dialog';
+export * from './panel-container';
 export * from './panel-host';
 export * from './services';
 export * from './shield';

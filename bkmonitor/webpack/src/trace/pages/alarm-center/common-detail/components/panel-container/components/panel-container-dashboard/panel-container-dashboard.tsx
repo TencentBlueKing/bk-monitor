@@ -24,14 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef, toRef } from 'vue';
+import { type PropType, defineComponent, provide, shallowRef, toRef, watch } from 'vue';
 
 import { random } from 'monitor-common/utils';
+import { type SceneEnum, K8sTableColumnKeysEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
+import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
+import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
 import { useK8sChartPanel } from '../../../../../composables/use-k8s-chart-panel';
-
-import type { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 
 import './panel-container-dashboard.scss';
 
@@ -42,29 +43,60 @@ export default defineComponent({
       type: String as PropType<SceneEnum>,
       required: true,
     },
+    /** 图表需要请求的数据的开始时间 */
+    timeRange: {
+      type: Array as PropType<TimeRangeType>,
+      default: () => DEFAULT_TIME_RANGE,
+    },
   },
   setup(props) {
     /** 图表联动Id */
     const dashboardId = shallowRef(random(10));
-    /** 需要渲染的仪表盘面板配置数组 */
-    const { panels } = useK8sChartPanel(toRef(props, 'scene'));
+    /** 是否立即刷新图表数据 */
+    const refreshImmediate = shallowRef('');
 
-    return { dashboardId, panels };
+    provide('timeRange', toRef(props, 'timeRange'));
+    provide('refreshImmediate', refreshImmediate);
+    /** 需要渲染的仪表盘面板配置数组 */
+    const { dashboards } = useK8sChartPanel({
+      scene: toRef(props, 'scene'),
+      groupByField: K8sTableColumnKeysEnum.POD,
+      clusterId: 'BCS-K8S-00000',
+      filterBy: {
+        [K8sTableColumnKeysEnum.NAMESPACE]: ['bcs-system'],
+        [K8sTableColumnKeysEnum.POD]: ['bcs-bkcmdb-synchronizer-0'],
+      },
+      resourceListData: [
+        {
+          namespace: 'bcs-system',
+          pod: 'bcs-bkcmdb-synchronizer-0',
+        },
+      ],
+    });
+
+    watch(
+      () => dashboards.value,
+      () => {
+        dashboardId.value = random(10);
+        echartsConnect(dashboardId.value);
+      }
+    );
+
+    return { dashboardId, dashboards };
   },
   render() {
     return (
       <div class='panel-container-dashboard'>
-        {this.panels?.map?.(dashboard => (
+        {this.dashboards?.map?.(dashboard => (
           <AlarmMetricsDashboard
             key={dashboard.id}
             viewOptions={{
-              interval: 60,
+              interval: 'auto',
               method: 'sum',
               unit: undefined,
             }}
             dashboardId={this.dashboardId}
             dashboardTitle={dashboard?.title}
-            gridCol={1}
             panelModels={dashboard?.panels}
           />
         ))}

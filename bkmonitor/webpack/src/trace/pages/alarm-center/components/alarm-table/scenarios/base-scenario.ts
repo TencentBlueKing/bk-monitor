@@ -58,8 +58,9 @@ export abstract class BaseScenario {
 
   /**
    * @description 公共列配置（所有场景共享）
+   * @returns 公共列配置的映射
    */
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+
   protected getCommonColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
     return {
       create_time: {
@@ -86,8 +87,8 @@ export abstract class BaseScenario {
 
   /**
    * @description 获取合并后的列配置（公共+私有）
+   * @returns 公共+场景私有合并后的列配置（最终外部获取到的列配置）
    */
-  // eslint-disable-next-line @typescript-eslint/member-ordering
   public getMergedColumnsConfig(): Record<string, Partial<BaseTableColumn>> {
     return {
       ...this.getCommonColumnsConfig(),

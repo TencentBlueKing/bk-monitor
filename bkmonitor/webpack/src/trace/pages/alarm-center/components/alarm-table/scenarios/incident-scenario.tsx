@@ -102,6 +102,10 @@ export class IncidentScenario extends BaseScenario {
   // ----------------- 故障场景私有渲染方法 -----------------
   /**
    * @description 故障名称(incident_name) 列渲染方法
+   * @param {IncidentTableItem} row 故障项
+   * @param {BaseTableColumn} column 触发列的列配置项
+   * @param {TableCellRenderContext} renderCtx 列渲染上下文
+   * @returns {SlotReturnValue} 渲染dom
    */
   private renderActionId(
     row: IncidentTableItem,
@@ -126,6 +130,9 @@ export class IncidentScenario extends BaseScenario {
   }
   /**
    * @description 告警数量(alert_count) 列渲染方法
+   * @param {IncidentTableItem} row 故障项
+   * @param {BaseTableColumn} column 触发列的列配置项
+   * @param {TableCellRenderContext} renderCtx 列渲染上下文
    */
   private renderCount(
     row: IncidentTableItem,
@@ -141,6 +148,10 @@ export class IncidentScenario extends BaseScenario {
 
   /**
    * @description 开始时间 / 结束时间(end_time) 列渲染方法
+   * @param {IncidentTableItem} row 故障项
+   * @param {BaseTableColumn} column 触发列的列配置项
+   * @param {TableCellRenderContext} renderCtx 列渲染上下文
+   * @returns {SlotReturnValue} 渲染dom
    */
   private renderEndTime(row: IncidentTableItem, column: BaseTableColumn, renderCtx: TableCellRenderContext) {
     const beginTime = row.begin_time ? formatTraceTableDate(row.begin_time) : '--';
@@ -159,6 +170,8 @@ export class IncidentScenario extends BaseScenario {
   // ----------------- 故障场景私有逻辑方法 -----------------
   /**
    * @description 跳转至故障详情页面
+   * @param {string} id 故障id
+   * @param {string} activeTab 跳转至故障页面后激活显示的tab
    */
   private jumpToIncidentDetail(id: string, activeTab = '') {
     this.context.router.push({
@@ -174,6 +187,7 @@ export class IncidentScenario extends BaseScenario {
 
   /**
    * @description 格式化故障标签数据
+   * @param {string[]} labels 标签数组
    */
   private formatterIncidentLabels(labels) {
     return labels?.map?.(label => {

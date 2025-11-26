@@ -29,6 +29,7 @@ import dayjs from 'dayjs';
 import { EMode } from '../../../../../components/retrieval-filter/typing';
 import {
   type BaseTableColumn,
+  type GetTableCellRenderValue,
   type TableCellRenderContext,
   ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
@@ -111,6 +112,10 @@ export class ActionScenario extends BaseScenario {
   // ----------------- 处理记录场景私有渲染方法 -----------------
   /**
    * @description 告警状态(id) 列渲染方法
+   * @param {ActionTableItem} row 处理记录项
+   * @param {BaseTableColumn} column 触发列的列配置项
+   * @param {TableCellRenderContext} renderCtx 列渲染上下文
+   * @returns {SlotReturnValue} 渲染dom
    */
   private renderActionId(
     row: ActionTableItem,
@@ -136,6 +141,10 @@ export class ActionScenario extends BaseScenario {
 
   /**
    * @description 触发告警数(alert_count) 和 防御告警数(converge_count) 列渲染方法
+   * @param {ActionTableItem} row 处理记录项
+   * @param {BaseTableColumn} column 触发列的列配置项
+   * @param {TableCellRenderContext} renderCtx 列渲染上下文
+   * @returns {SlotReturnValue} 渲染dom
    */
   private renderCount(
     row: ActionTableItem,
@@ -151,6 +160,10 @@ export class ActionScenario extends BaseScenario {
 
   /**
    * @description 具体内容(content) 列渲染方法
+   * @param {ActionTableItem} row 处理记录项
+   * @param {BaseTableColumn} column 触发列的列配置项
+   * @param {TableCellRenderContext} renderCtx 列渲染上下文
+   * @returns {SlotReturnValue} 渲染dom
    */
   private renderContent(
     row: ActionTableItem,
@@ -218,8 +231,10 @@ export class ActionScenario extends BaseScenario {
 
   /**
    * @description 状态(status) 列 获取prefixIcon 渲染配置项
+   * @param {ActionTableItem} row 处理记录项
+   * @return {GetTableCellRenderValue<ExploreTableColumnTypeEnum.PREFIX_ICON>} prefixIcon 渲染配置项
    */
-  private getStatusIconConfig(row: ActionTableItem) {
+  private getStatusIconConfig(row: ActionTableItem): GetTableCellRenderValue<ExploreTableColumnTypeEnum.PREFIX_ICON> {
     const prefixItem = ActionStatusIconMap[row.status];
     let alias = prefixItem?.alias;
     if (row.status === 'failure') {

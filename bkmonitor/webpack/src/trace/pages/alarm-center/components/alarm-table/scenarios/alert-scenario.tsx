@@ -168,6 +168,8 @@ export class AlertScenario extends BaseScenario {
   // ----------------- 告警场景私有渲染方法 -----------------
   /**
    * @description 告警名称(alert_name) 列渲染方法
+   * @param {AlertTableItem} row 告警项
+   * @returns {SlotReturnValue} 渲染dom
    */
   private renderAlertName(row: AlertTableItem): SlotReturnValue {
     const rectColor = AlarmLevelIconMap?.[row?.severity]?.iconColor;
@@ -190,6 +192,8 @@ export class AlertScenario extends BaseScenario {
   }
   /**
    * @description 关联信息(extend_info) 列渲染方法
+   * @param {AlertTableItem} row 告警项
+   * @returns {SlotReturnValue} 渲染dom
    */
   private renderExtendInfo(row: AlertTableItem): SlotReturnValue {
     return (
@@ -206,6 +210,10 @@ export class AlertScenario extends BaseScenario {
 
   /**
    * @description 告警内容(description) 列渲染方法
+   * @param {AlertTableItem} row 告警项
+   * @param {BaseTableColumn} column 触发列的列配置项
+   * @param {TableCellRenderContext} renderCtx 列渲染上下文
+   * @returns {SlotReturnValue} 渲染dom
    */
   private renderDescription(
     row: AlertTableItem,
@@ -228,6 +236,9 @@ export class AlertScenario extends BaseScenario {
 
   /**
    * @description 状态(status) 列 插槽 操作面板渲染方法
+   * @param {AlertTableItem} row 告警项
+   * @param {BaseTableColumn} column 触发列的列配置项
+   * @returns {SlotReturnValue} 渲染dom
    */
   private renderOperatePanel(row: AlertTableItem, column?: BaseTableColumn) {
     const { status, is_ack: isAck, ack_operator: ackOperator, followerDisabled } = row;
@@ -291,6 +302,8 @@ export class AlertScenario extends BaseScenario {
   // ----------------- 告警场景私有逻辑方法 -----------------
   /**
    * @description 告警名称(alert_name) 列 hover事件
+   * @param {MouseEvent} e 鼠标事件
+   * @param {AlertTableItem} row 告警项
    */
   private handleAlterNameHover(e: MouseEvent, row: AlertTableItem) {
     const content = (
@@ -327,6 +340,7 @@ export class AlertScenario extends BaseScenario {
   /**
    * @description 告警指标(metric) 列溢出的指标hover展示内容
    * @param ellipsisList 溢出的指标列表
+   * @returns {SlotReturnValue} 溢出指标展示渲染内容dom
    */
   private handleMetricEllipsisTip(ellipsisList: string[]) {
     return (
@@ -348,6 +362,8 @@ export class AlertScenario extends BaseScenario {
 
   /**
    * @description 关联信息(extend_info) 列 hover事件
+   * @param {MouseEvent} e 鼠标事件
+   * @param {any} info 关联信息
    */
   private handleExtendInfoHover(e: MouseEvent, info: any) {
     let content = '--';
@@ -380,6 +396,7 @@ export class AlertScenario extends BaseScenario {
 
   /**
    * @description 关联信息(extend_info) 列 不同类型需要展示不同的内容
+   * @param {AlertTableItem} row 告警项
    */
   private getExtendInfoColumn(row: AlertTableItem) {
     const extendInfo = row.extend_info;
@@ -420,8 +437,10 @@ export class AlertScenario extends BaseScenario {
   }
 
   /**
-   * @description: 关联信息(extend_info) 列 click 事件
+   * @method handleGotoMore 关联信息(extend_info) 列 click 事件
    * @description 处理不同类型的跳转逻辑
+   * @param {Record<string, any>} extendInfo 关联信息
+   * @param {string} bizId 业务ID
    */
   private handleGotoMore(extendInfo: Record<string, any>, bizId: string) {
     const origin = process.env.NODE_ENV === 'development' ? process.env.proxyUrl.replace(/\/$/, '') : location.origin;
@@ -480,6 +499,7 @@ export class AlertScenario extends BaseScenario {
 
   /**
    * @description 处理复制事件
+   * @param {string} text 复制文本
    */
   private handleCopy(text) {
     copyText(text || '--', msg => {
@@ -497,7 +517,8 @@ export class AlertScenario extends BaseScenario {
 
   /**
    * @description 拼接 策略详情 页面url
-   *
+   * @param {string} strategy_id 策略ID
+   * @param {string} bk_biz_id 业务ID
    */
   private getStrategyUrl(strategy_id, bk_biz_id) {
     if (!strategy_id) return;
@@ -505,7 +526,12 @@ export class AlertScenario extends BaseScenario {
   }
 
   /**
-   * @description 告警确认文案
+   * @description 获取告警确认文案
+   * @param {boolean} isAak 是否确认
+   * @param {string} status 告警状态
+   * @param {string} ackOperator 确认人
+   * @param {boolean} followerDisabled 是否关注人
+   * @return {string} 告警确认提示文案
    */
   private askTipMsg(isAak, status, ackOperator, followerDisabled) {
     const statusNames = {
@@ -523,6 +549,8 @@ export class AlertScenario extends BaseScenario {
 
   /**
    * @description 获取更多操作下拉菜单 Menu dom
+   * @param {AlertTableItem} row 告警项
+   * @returns {Element} 更多操作下拉菜单 dom
    */
   private getMoreMenuDom(row: AlertTableItem) {
     return (
@@ -567,6 +595,9 @@ export class AlertScenario extends BaseScenario {
 
   /**
    * @description alert Table 数据行操作栏中 更多 按钮点击回调
+   * @param {MouseEvent} e 鼠标事件
+   * @param {AlertTableItem} row 告警项
+   * @param {string} colKey 列key
    */
   private handleMoreOperationClick(e: MouseEvent, row: AlertTableItem, colKey: string) {
     const dom = this.getMoreMenuDom(row);
