@@ -65,6 +65,7 @@ from apps.utils.local import (
 )
 from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter
+from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import timestamp_to_timeformat
 from bkm_ipchooser.constants import CommonEnum
 from django.utils.translation import gettext as _
@@ -890,13 +891,30 @@ class UnifyQueryHandler:
         # 获取基础查询条件
         query_conditions = copy.deepcopy(self.base_dict_list)
 
+        # 多线程请求数据
+        multi_execute_func = MultiExecuteFunc()
+
         for index, query_condition in enumerate(query_conditions):
             agg_field = self.agg_fields[index]
 
-            # 构建完整查询条件
-            self._build_complete_query_condition(query_condition, agg_field)
+            multi_execute_func_params = {
+                "agg_field": agg_field,
+                "query_condition": query_condition,
+                "size": self.search_params.get("size"),
+            }
 
-            query_result = self.query_ts_reference(query_condition)
+            multi_execute_func.append(
+                result_key=f"union_search_terms_{agg_field}",
+                func=self._terms_unify_query,
+                params=multi_execute_func_params,
+                multi_func_params=True,
+            )
+
+        multi_result = multi_execute_func.run()
+
+        for agg_field in self.agg_fields:
+            query_result = multi_result.get(f"union_search_terms_{agg_field}", {})
+
             series = query_result.get("series", None)
 
             if series:
@@ -940,12 +958,13 @@ class UnifyQueryHandler:
 
         return {agg_field: {"buckets": buckets}} if buckets else dict()
 
-    def _build_complete_query_condition(self, query_condition: dict, agg_field: str) -> None:
+    def _terms_unify_query(self, agg_field, query_condition, size):
         """
-        构建完整查询条件
+        unify_query 查询 terms
         """
+        # 构建完整查询条件
         for query in query_condition["query_list"]:
-            query["limit"] = self.search_params.get("size", 10)
+            query["limit"] = size
             query["function"] = [{"method": "count", "dimensions": [agg_field]}]
 
             # 增加字段不为空的条件
@@ -956,6 +975,8 @@ class UnifyQueryHandler:
             query["reference_name"] = "a"
 
         query_condition.update({"order_by": ["-_value"], "metric_merge": "a"})
+
+        return self.query_ts_reference(query_condition)
 
     def date_histogram(self):
         params = copy.deepcopy(self.base_dict)
