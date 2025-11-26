@@ -33,6 +33,7 @@ const ExtractLinkView = { name: 'ExtractLinkView', template: '<router-view></rou
 const LogCleanView = { name: 'LogCleanView', template: '<router-view></router-view>' };
 const LogCleanTempView = { name: 'LogCleanTempView', template: '<router-view></router-view>' };
 const LogDesensitizeView = { name: 'LogDesensitizeView', template: '<router-view></router-view>' };
+const ClientLogView = { name: 'ClientLogView', template: '<router-view></router-view>' };
 
 // 管理模块各组件异步声明（用于路由懒加载）
 const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
@@ -41,6 +42,7 @@ const ManageCollection = () => import(
   /* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection'
 );
 const AccessSteps = () => import(/* webpackChunkName: 'access-steps' */ '@/components/collection-access');
+const ClientLog = () => import(/* webpackChunkName: 'client-log' */ '@/views/manage-v2/client-log/index.tsx');
 const IndexList = () => import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');
 const ManageIndex = () => import(/* webpackChunkName: 'mange-index' */ '@/views/manage/manage-access/components/index-set/manage');
 const CreateIndex = () => import(/* webpackChunkName: 'create-index' */ '@/views/manage/manage-access/components/index-set/create');
@@ -284,6 +286,36 @@ const getManageRoutes = () => [
                 component: MaskingEdit,
               },
             ],
+          },
+        ],
+      },
+      {
+        path: 'client-log',
+        name: 'client-log',
+        component: ClientLogView,
+        redirect: '/manage/client-log/list',
+        children: [
+          // 客户端日志列表
+          {
+            path: 'list',
+            name: 'client-log-list',
+            meta: {
+              title: '客户端日志',
+              navId: 'client-log',
+            },
+            component: ClientLog,
+          },
+          // 清洗配置
+          {
+            path: 'clean-config',
+            name: 'clean-config',
+            meta: {
+              title: '清洗配置',
+              needBack: true,
+              backName: 'client-log-list',
+              navId: 'client-log',
+            },
+            component: cleanCreate,
           },
         ],
       },

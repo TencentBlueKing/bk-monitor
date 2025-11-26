@@ -1,0 +1,68 @@
+.log-table {
+  .name-button {
+    width: 100%;
+    text-align: left;
+
+    >div {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        overflow-wrap: normal;
+        white-space: nowrap;
+      }
+    
+  }
+
+  .status-row {
+    display: flex;
+
+    .status-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      margin-right: 7px;
+
+      .claimed-expired {
+        width: 8px;
+        height: 8px;
+        background: #FFDDDD;
+        border: 1px solid #EA3636;
+        border-radius: 50%;
+      }
+    }
+  }
+
+  .log-table-operate {
+    display: flex;
+    align-items: center;
+
+    .king-button {
+      margin-right: 16px;
+    }
+  }
+
+    .bk-table {
+      .bk-table-header-wrapper {
+        .filter-column {
+          .cell {
+            display: flex;
+          }
+        }
+      }
+
+      .bk-table-fixed-right-patch {
+        position: relative;
+        width: 0px;
+      }
+    }
+
+  .overflow-hidden-text {
+    .cell {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      overflow-wrap: normal;
+      white-space: nowrap;
+    }
+  }
+}
