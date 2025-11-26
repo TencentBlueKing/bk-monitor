@@ -776,3 +776,6 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-enter-3:before {
 	content: "\e237";
 }
+.bklog-client-log:before {
+	content: "\e239";
+}
