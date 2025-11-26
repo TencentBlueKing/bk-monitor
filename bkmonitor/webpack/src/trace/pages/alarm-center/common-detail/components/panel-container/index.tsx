@@ -26,7 +26,9 @@
 import { type PropType, defineComponent, shallowRef } from 'vue';
 
 import { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
+import { storeToRefs } from 'pinia';
 
+import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import K8sSceneSelector from './components/k8s-scene-selector/k8s-scene-selector';
 import PanelContainerDashboard from './components/panel-container-dashboard/panel-container-dashboard';
@@ -41,6 +43,10 @@ export default defineComponent({
   setup(_props) {
     /** 场景 */
     const scene = shallowRef<SceneEnum>(SceneEnum.Performance);
+    const {
+      /** 数据时间范围 */
+      timeRange,
+    } = storeToRefs(useAlarmCenterDetailStore());
 
     /**
      * @description 切换场景回调
@@ -56,7 +62,7 @@ export default defineComponent({
       console.log('================ v ================', v);
     }
 
-    return { scene, handleToK8s, handleSceneChange };
+    return { scene, timeRange, handleToK8s, handleSceneChange };
   },
   render() {
     return (
@@ -88,7 +94,10 @@ export default defineComponent({
           </div>
         </div>
         <div class='panel-k8s-chart-wrap'>
-          <PanelContainerDashboard scene={this.scene} />
+          <PanelContainerDashboard
+            scene={this.scene}
+            timeRange={this.timeRange}
+          />
         </div>
       </div>
     );

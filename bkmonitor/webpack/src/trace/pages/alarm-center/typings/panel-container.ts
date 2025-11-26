@@ -24,36 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, shallowRef, watchEffect } from 'vue';
-
-import { get } from '@vueuse/core';
-
-import { getHostSceneView } from '../services/alarm-detail';
-
-import type { BookMarkModel } from 'monitor-ui/chart-plugins/typings';
-
-/**
- * @description 主机场景仪表盘视图配置 hook
- */
-export const useHostSceneView = (bizId: MaybeRef<number>) => {
-  /** 主机监控 需要渲染的仪表盘面板配置数组 */
-  const hostSceneView = shallowRef<BookMarkModel>(null);
-  /** 是否处于请求加载状态 */
-  const loading = shallowRef(false);
-
-  /**
-   * @description 获取仪表盘数据数组
-   */
-  const getDashboardPanels = async () => {
-    loading.value = true;
-    hostSceneView.value = await getHostSceneView(get(bizId));
-    loading.value = false;
-  };
-
-  watchEffect(getDashboardPanels);
-  return {
-    hostSceneView,
-    loading,
-    getDashboardPanels,
-  };
-};
+export interface AlertK8SMetricItem {
+  children?: AlertK8SMetricItem[];
+  count?: number;
+  id: string;
+  name: string;
+  unit?: string;
+}
