@@ -43,7 +43,7 @@ class _BKNodeApi:
 
     @property
     def use_apigw(self):
-        return settings.ENABLE_MULTI_TENANT_MODE
+        return settings.USE_APIGW
 
     def _build_url(self, new_path, old_path):
         return (
@@ -87,8 +87,9 @@ class _BKNodeApi:
         )
         self.get_subscription_instance_status = DataAPI(
             method="POST",
-            url=self._build_url("system/backend/api/subscription/instance_status/",
-                                "backend/api/subscription/instance_status/"),
+            url=self._build_url(
+                "system/backend/api/subscription/instance_status/", "backend/api/subscription/instance_status/"
+            ),
             module=self.MODULE,
             description="查询订阅实例状态",
             before_request=get_bk_node_request_before,
@@ -96,7 +97,9 @@ class _BKNodeApi:
         )
         self.get_subscription_task_status = DataAPI(
             method="POST",
-            url=self._build_url("system/backend/api/subscription/task_result/", "backend/api/subscription/task_result/"),
+            url=self._build_url(
+                "system/backend/api/subscription/task_result/", "backend/api/subscription/task_result/"
+            ),
             module=self.MODULE,
             description="查看订阅任务运行状态",
             before_request=get_bk_node_request_before,
@@ -113,8 +116,9 @@ class _BKNodeApi:
         )
         self.check_subscription_task_ready = DataAPI(
             method="POST",
-            url=self._build_url("system/backend/api/subscription/check_task_ready/",
-                                "backend/api/subscription/check_task_ready/"),
+            url=self._build_url(
+                "system/backend/api/subscription/check_task_ready/", "backend/api/subscription/check_task_ready/"
+            ),
             module=self.MODULE,
             description="查看订阅任务是否发起",
             before_request=get_bk_node_request_before,
@@ -130,8 +134,9 @@ class _BKNodeApi:
         )
         self.get_subscription_task_detail = DataAPI(
             method="POST",
-            url=self._build_url("system/backend/api/subscription/task_result_detail/",
-                                "backend/api/subscription/task_result_detail/"),
+            url=self._build_url(
+                "system/backend/api/subscription/task_result_detail/", "backend/api/subscription/task_result_detail/"
+            ),
             module=self.MODULE,
             description="查询订阅任务中实例的详细状态",
             before_request=get_bk_node_request_before,
@@ -155,8 +160,10 @@ class _BKNodeApi:
         )
         self.query_host_subscriptions = DataAPI(
             method="GET",
-            url=self._build_url("system/backend/api/subscription/query_host_subscriptions/",
-                                "backend/api/subscription/query_host_subscriptions/"),
+            url=self._build_url(
+                "system/backend/api/subscription/query_host_subscriptions/",
+                "backend/api/subscription/query_host_subscriptions/",
+            ),
             module=self.MODULE,
             description="获取主机订阅列表",
             before_request=get_bk_node_request_before,
