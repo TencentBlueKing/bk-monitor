@@ -1645,7 +1645,8 @@ class ApmAlertHelper:
 
         # 判断主调/被调类型，并获取对应的有效标签列表
         kind: str = cls._get_rpc_kind(strategy)
-        valid_tags = RPCMetricTag.caller_tags() if kind == "caller" else RPCMetricTag.callee_tags()
+        rpc_tags: list[dict[str, str]] = RPCMetricTag.caller_tags() if kind == "caller" else RPCMetricTag.callee_tags()
+        valid_tags = [tag["value"] for tag in rpc_tags]
 
         call_filter: list[dict[str, Any]] = []
         for k, v in dimensions.items():
