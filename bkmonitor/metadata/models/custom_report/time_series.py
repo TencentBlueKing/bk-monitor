@@ -1223,7 +1223,7 @@ class TimeSeriesScope(models.Model):
 
     @classmethod
     def _common_check_scopes(cls, bk_tenant_id, scopes):
-        # 1.1 验证所有 group_id 是否存在且属于当前租户
+        # 验证所有 group_id 是否存在且属于当前租户
         group_ids = {scope["group_id"] for scope in scopes}
         valid_groups = set(
             TimeSeriesGroup.objects.filter(
@@ -1233,26 +1233,27 @@ class TimeSeriesScope(models.Model):
         invalid_group_ids = group_ids - valid_groups
         if invalid_group_ids:
             raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
-        # 1.2 验证所有 scope_name 格式并提取 scope_key
-        scope_keys = []
+        # 验证所有 scope_name 格式
         for scope_data in scopes:
             try:
                 cls._validate_scope_name(scope_data["scope_name"])
-                scope_keys.append((scope_data["group_id"], scope_data["scope_name"]))
             except ValueError as e:
                 raise ValueError(_("指标分组名[{}]格式不合法: {}").format(scope_data["scope_name"], str(e)))
-        return group_ids, scope_keys
 
     @classmethod
-    def _check_scopes_for_create(cls, bk_tenant_id: str, scopes: list[dict]) -> set:
+    def _check_scopes_for_create(cls, bk_tenant_id: str, scopes: list[dict]):
         """检查批量创建的分组数据
 
         :param bk_tenant_id: 租户ID
         :param scopes: 批量创建的分组列表
         """
-        group_ids, scope_keys = cls._common_check_scopes(bk_tenant_id, scopes)
+        cls._common_check_scopes(bk_tenant_id, scopes)
 
-        # 1.3 检查是否有重复的 scope_name
+        # 1.1 提取 scope_keys
+        scope_keys = [(scope_data["group_id"], scope_data["scope_name"]) for scope_data in scopes]
+
+        # 1.2 检查是否有重复的 scope_name
+        group_ids = {scope["group_id"] for scope in scopes}
         existing_scopes = {
             (s.group_id, s.scope_name): s
             for s in cls.objects.filter(group_id__in=group_ids, scope_name__in=[s["scope_name"] for s in scopes])
@@ -1264,14 +1265,11 @@ class TimeSeriesScope(models.Model):
         if duplicate_scopes:
             raise ValueError(_("指标分组名已存在，请确认后重试: {}").format(", ".join(duplicate_scopes)))
 
-        return group_ids
-
     @classmethod
-    def _create_scope_data(cls, scopes: list[dict], group_ids: set) -> dict:
+    def _create_scope_data(cls, scopes: list[dict]) -> dict:
         """创建分组数据
 
         :param scopes: 批量创建的分组列表
-        :param group_ids: 分组ID集合
         :return: 创建的分组字典 {(group_id, scope_name): scope_obj}
         """
         # 2.1 批量创建新记录（优化：创建前就计算好 dimension_config）
@@ -1296,6 +1294,7 @@ class TimeSeriesScope(models.Model):
             cls.objects.bulk_create(scopes_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
         # 2.2 查询已创建的对象并返回
+        group_ids = {scope["group_id"] for scope in scopes}
         scope_names = [s["scope_name"] for s in scopes]
         created_scopes = {
             (s.group_id, s.scope_name): s
@@ -1351,36 +1350,35 @@ class TimeSeriesScope(models.Model):
         :return: 创建结果列表
         """
         # 第一步：检查
-        group_ids = cls._check_scopes_for_create(bk_tenant_id, scopes)
+        cls._check_scopes_for_create(bk_tenant_id, scopes)
 
-        # 第二步：更新
-        created_scopes = cls._create_scope_data(scopes, group_ids)
+        # 第二步：创建
+        created_scopes = cls._create_scope_data(scopes)
 
         # 第三步：返回
         return cls._build_scope_results(scopes, created_scopes)
 
     @classmethod
-    def _check_scopes_for_modify(cls, bk_tenant_id: str, scopes: list[dict]) -> tuple[set, dict]:
+    def _check_scopes_for_modify(cls, bk_tenant_id: str, scopes: list[dict]) -> dict:
         """检查批量修改的分组数据
 
         :param bk_tenant_id: 租户ID
         :param scopes: 批量修改的分组列表
-        :return: (group_ids, scope_keys, existing_scopes)
-        :raises ValueError: 当验证失败时抛出异常
+        :return: existing_scopes 现有分组对象字典
         """
 
-        group_ids, scope_keys = cls._common_check_scopes(bk_tenant_id, scopes)
+        cls._common_check_scopes(bk_tenant_id, scopes)
 
-        # 1.3 批量查询要更新的记录
+        # 1.1 批量查询要更新的记录
         scope_conditions = Q()
         for scope_data in scopes:
             scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=scope_data["scope_name"])
 
         existing_scopes = {(s.group_id, s.scope_name): s for s in cls.objects.filter(scope_conditions)}
 
-        # 1.4 检查是否所有 scope 都存在
+        # 1.2 检查是否所有 scope 都存在
         found_scopes = set(existing_scopes.keys())
-        requested_scopes = set(scope_keys)
+        requested_scopes = set((scope_data["group_id"], scope_data["scope_name"]) for scope_data in scopes)
         missing_scopes = requested_scopes - found_scopes
         if missing_scopes:
             missing_names = [f"{gid}:{name}" for gid, name in missing_scopes]
@@ -1395,7 +1393,7 @@ class TimeSeriesScope(models.Model):
                     _("指标分组[{}]不允许编辑: {}").format(f"{scope_obj.group_id}:{scope_obj.scope_name}", str(e))
                 )
 
-        # 1.6 检查新分组名（如果提供了 new_scope_name）
+        # 1.3 检查新分组名（如果提供了 new_scope_name）
         for scope_data in scopes:
             new_scope_name = scope_data.get("new_scope_name")
             # 提前跳过：没有提供新分组名
@@ -1418,7 +1416,7 @@ class TimeSeriesScope(models.Model):
                     _("指标分组名已存在: group_id={}, scope_name={}").format(scope_obj.group_id, new_scope_name)
                 )
 
-        return group_ids, existing_scopes
+        return existing_scopes
 
     @classmethod
     def _update_scopes_data(cls, scopes: list[dict], existing_scopes: dict) -> dict:
@@ -1518,7 +1516,7 @@ class TimeSeriesScope(models.Model):
         :return: 修改结果列表
         """
         # 第一步：检查
-        group_ids, existing_scopes = cls._check_scopes_for_modify(bk_tenant_id, scopes)
+        existing_scopes = cls._check_scopes_for_modify(bk_tenant_id, scopes)
 
         # 第二步：更新
         updated_scopes = cls._update_scopes_data(scopes, existing_scopes)
