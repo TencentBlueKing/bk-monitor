@@ -631,6 +631,7 @@ export default class DimensionTableSlide extends tsc<any> {
       disabled: false,
       common: false,
       isNew: true,
+      type: 'dimension',
       selection: false,
     });
   }
