@@ -690,7 +690,7 @@
     "is_deleted": false,
     "is_peripheral": true,
     "name": "新版ITSM流程服务",
-    "plugin_key": "itsm",
+    "plugin_key": "itsmv4",
     "plugin_source": "peripheral",
     "plugin_type": "common",
     "config_schema": {
