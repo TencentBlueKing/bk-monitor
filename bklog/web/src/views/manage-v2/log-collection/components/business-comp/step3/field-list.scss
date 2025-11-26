@@ -182,12 +182,18 @@
       padding: 0 10px;
       position: relative;
       background: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       .select-angle {
         position: absolute;
         color: #979BA5;
         font-size: 20px;
         right: 4px;
         top: 10px;
+      }
+      .bk-loading-wrapper {
+        margin-top: 6px;
       }
     }
     .word-breaker-edit {

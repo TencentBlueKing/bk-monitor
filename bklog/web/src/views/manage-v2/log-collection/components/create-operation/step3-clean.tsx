@@ -139,6 +139,11 @@ export default defineComponent({
     const cleaningMode = ref('bk_log_json');
     const enableMetaData = ref(false);
     const loading = ref(false);
+    const logOriginalLoading = ref(false);
+    /**
+     * 是否刷新值
+     */
+    const isValueRefresh = ref(false);
     /**
      * 模版列表
      */
@@ -247,10 +252,18 @@ export default defineComponent({
           },
         });
         if (res.data) {
+          const { etl_fields, clean_type } = res.data;
+          const timeField = etl_fields?.find(item => item.is_time);
+          const logReportingTime = !timeField; // 如果存在is_time为true的字段，则log_reporting_time为false
+          const fieldName = timeField?.field_name || '';
+          cleaningMode.value = clean_type;
           formData.value = {
             ...formData.value,
             ...res.data,
+            log_reporting_time: logReportingTime,
+            field_name: fieldName,
           };
+          // console.log(logReportingTime, res.data, 'res.data----getCleanStash');
         }
       } catch (error) {}
     };
@@ -269,14 +282,12 @@ export default defineComponent({
         .then(async res => {
           if (res.data) {
             store.commit('collect/setCurCollect', res.data);
-            console.log('res.data-----', res.data, curCollect.value, props.isClone, id);
-            builtInFieldsList.value = curCollect.value.fields;
-            // getDetail();
+            builtInFieldsList.value = curCollect.value.fields.filter(item => item.is_built_in);
             if (props.isEdit || props.isClone) {
               getDataLog('init');
+
               await getCleanStash(id);
             }
-            // getDataLog('init');
           }
         })
         .finally(() => {
@@ -287,7 +298,6 @@ export default defineComponent({
      * 路径元数据 - 调试按钮
      */
     const debuggerPathRegex = () => {
-      console.log('debugHandler', props.configData);
       const data = {
         etl_config: 'bk_log_regexp',
         etl_params: {
@@ -326,7 +336,8 @@ export default defineComponent({
     /**
      * 清洗模式 - 清洗/调试按钮
      */
-    const debugHandler = () => {
+    const debugHandler = (type = 'default') => {
+      const isRefresh = type === 'refresh';
       const { etl_params } = formData.value;
       const data = {
         etl_config: cleaningMode.value,
@@ -341,7 +352,8 @@ export default defineComponent({
       }
       let requestUrl = 'clean/getEtlPreview';
       const urlParams = {};
-      isDebugLoading.value = true;
+      isDebugLoading.value = !isRefresh;
+      isValueRefresh.value = isRefresh;
       // 先置空防止接口失败显示旧数据
       formData.value.etl_params.metadata_fields = [];
       if (props.isTempField) {
@@ -368,21 +380,30 @@ export default defineComponent({
             arr.push(field);
             return arr;
           }, []);
-          // 如果接口返回的字段数量大于原有字段，则保留原有字段并追加新字段
-          // 否则直接使用接口返回的完整字段列表
-          if (list.length > fields.length) {
-            const newFields = list.slice(fields.length);
-            formData.value.etl_fields = [...fields, ...newFields];
-          } else {
-            formData.value.etl_fields = list;
+          /**
+           * 当只刷新值的时候，只更新对应字段的值
+           */
+          if (type === 'refresh') {
+            formData.value.etl_fields = fields.map(item => {
+              const info = list.find(ele => ele.field_name === item.field_name);
+              return {
+                ...item,
+                value: info.value,
+              };
+            });
+            return;
           }
-          // console.log('合并后的字段列表:', formData.value.etl_fields);
+          /**
+           * 当点击调试/清洗按钮的，更新字段表格里的所有内容
+           */
+          formData.value.etl_fields = list;
         })
         .catch(err => {
           console.log(err);
         })
         .finally(() => {
           isDebugLoading.value = false;
+          isValueRefresh.value = false;
         });
     };
     /** 根据清洗模式，渲染不同的内容 */
@@ -481,6 +502,8 @@ export default defineComponent({
      * @param type
      */
     const getDataLog = type => {
+      console.log(type, 'type---');
+      logOriginalLoading.value = type === 'refresh';
       $http
         .request('source/dataList', {
           params: {
@@ -505,6 +528,9 @@ export default defineComponent({
         })
         .catch(err => {
           console.log(err);
+        })
+        .finally(() => {
+          logOriginalLoading.value = false;
         });
     };
     /**
@@ -613,10 +639,8 @@ export default defineComponent({
           },
         })
         .then(res => {
-          if (res?.result) {
-            timeCheckErrContent.value = '';
-            result = true;
-          }
+          timeCheckErrContent.value = '';
+          result = true;
         })
         .catch(err => {
           timeCheckErrContent.value = err;
@@ -705,7 +729,10 @@ export default defineComponent({
         </div>
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('日志样例')}</span>
-          <div class='form-box'>
+          <div
+            class='form-box'
+            v-bkloading={{ isLoading: logOriginalLoading.value }}
+          >
             <div class='example-box mt-5'>
               <span
                 class='form-link'
@@ -718,7 +745,7 @@ export default defineComponent({
               </span>
               <span
                 class='form-link'
-                on-click={getDataLog}
+                on-click={() => getDataLog('refresh')}
               >
                 <i class='bklog-icon bklog-refresh2 link-icon' />
                 {t('刷新')}
@@ -770,11 +797,13 @@ export default defineComponent({
               data={formData.value.etl_fields || []}
               extractMethod={formData.value.etl_config}
               loading={isDebugLoading.value}
+              refresh={isValueRefresh.value}
               originalTextTokenizeOnChars={defaultParticipleStr.value}
               selectEtlConfig={cleaningMode.value}
               on-change={data => {
                 formData.value.etl_fields = data;
               }}
+              on-refresh={() => debugHandler('refresh')}
             />
           </div>
         </div>
@@ -976,21 +1005,21 @@ export default defineComponent({
     /**
      * 保存按钮
      */
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
       loading.value = true;
       /**
        * 校验时间格式， 校验通过之后，把指定的时间字段的 is_time 设置为 true
        */
       if (!formData.value.log_reporting_time) {
-        requestCheckTime().then(res => {
-          if (res?.result) {
-            const list = formData.value.etl_fields.map(item => ({
-              ...item,
-              is_time: item.field_name === formData.value.field_name,
-            }));
-            formData.value.etl_fields = list;
-          }
-        });
+        const res = await requestCheckTime();
+        if (!res) {
+          return;
+        }
+        const list = formData.value.etl_fields.map(item => ({
+          ...item,
+          is_time: item.field_name === formData.value.field_name,
+        }));
+        formData.value.etl_fields = list;
       }
       /**
        * 创建清洗
@@ -1021,7 +1050,10 @@ export default defineComponent({
         });
     };
     return () => (
-      <div class='operation-step3-clean'>
+      <div
+        class='operation-step3-clean'
+        v-bkloading={{ isLoading: basicLoading.value }}
+      >
         {cardRender(cardConfig)}
         <ReportLogSlider
           isShow={showReportLogSlider.value}

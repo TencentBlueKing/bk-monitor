@@ -134,8 +134,15 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /**
+     * 是否刷新值
+     */
+    refresh: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['change'],
+  emits: ['change', 'refresh'],
 
   setup(props, { emit }) {
     // 最大 int 类型值
@@ -267,7 +274,7 @@ export default defineComponent({
                         data-test-id={`fieldExtractionBox_button_filterMethod${option.id}`}
                         disabled={!cacheData.value.is_analyzed && option.id === 'custom'}
                         size='small'
-                        // disabled={getCustomizeDisabled(props.row)}
+                        // disabled={() => getCustomizeDisabled(row)}
                         on-click={() => handleChangeParticipleState(option.id)}
                       >
                         {option.name}
@@ -290,7 +297,6 @@ export default defineComponent({
                   <bk-switcher
                     // disabled={getCustomizeDisabled(props.row)}
                     theme='primary'
-                    // v-model={currentIsCaseSensitive.value}
                     value={cacheData.value.is_case_sensitive}
                     on-change={value => {
                       cacheData.value.is_case_sensitive = value;
@@ -319,7 +325,7 @@ export default defineComponent({
                   </bk-button>
                   <bk-button
                     size='small'
-                    onClick={handleWordBreakerCancelClick}
+                    on-Click={handleWordBreakerCancelClick}
                   >
                     {t('取消')}
                   </bk-button>
@@ -338,7 +344,15 @@ export default defineComponent({
      */
     const renderValue = (row: any) => {
       if (!row.is_built_in) {
-        return <span class='word-breaker bg-gray'>{row.value}</span>;
+        return (
+          <span
+            class='word-breaker bg-gray'
+            title={row.value}
+            v-bkloading={{ isLoading: props.refresh, size: 'mini' }}
+          >
+            {row.value}
+          </span>
+        );
       }
       return <span class='disabled-work'>{t('暂无预览')}</span>;
     };
@@ -424,6 +438,7 @@ export default defineComponent({
      */
     const handleFreshValue = () => {
       // TODO: 实现刷新值的逻辑
+      emit('refresh');
     };
 
     /**
@@ -716,7 +731,6 @@ export default defineComponent({
      */
     const showTableList = computed(() => {
       return showBuiltIn.value ? [...showData.value, ...props.builtInFieldsList] : showData.value;
-      // return showBuiltIn.value ? showData.value : showData.value.filter(item => !item.is_built_in);
     });
 
     const handleShowBuiltIn = () => {
@@ -726,8 +740,12 @@ export default defineComponent({
      * 删除字段
      * @param row 行数据
      */
-    const deleteField = row => {
-      // TODO: 实现删除字段的逻辑
+    const deleteField = (row: FieldItem) => {
+      // 从列表中过滤掉要删除的字段
+      const newList = props.data.filter(
+        item => !(item.field_index === row.field_index && item.field_name === row.field_name),
+      );
+      emit('change', newList);
     };
     /**
      * 显示或者隐藏某个字段

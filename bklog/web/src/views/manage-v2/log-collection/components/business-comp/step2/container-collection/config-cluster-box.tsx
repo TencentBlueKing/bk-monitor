@@ -207,7 +207,9 @@ export default defineComponent({
      * @param config - 配置项对象
      * @returns 确保存在的容器配置对象
      */
-    const ensureContainerConfig = (config: IConfigItem): IContainerConfig & {
+    const ensureContainerConfig = (
+      config: IConfigItem,
+    ): IContainerConfig & {
       workload_type: string;
       workload_name: string;
       container_name: string;
@@ -341,13 +343,15 @@ export default defineComponent({
      */
     const getScopeSelectShow = (): Partial<Record<ScopeType, boolean>> => {
       const config = props.config as IConfigItem;
-      return config.noQuestParams?.scopeSelectShow || {
-        namespace: true,
-        label: true,
-        load: true,
-        containerName: true,
-        annotation: true,
-      };
+      return (
+        config.noQuestParams?.scopeSelectShow || {
+          namespace: true,
+          label: true,
+          load: true,
+          containerName: true,
+          annotation: true,
+        }
+      );
     };
 
     /**
@@ -395,7 +399,7 @@ export default defineComponent({
       nameSpaceRequest.value = true;
 
       try {
-        const res = await $http.request('container/getNameSpace', { query }) as { code: number; data: ISelectItem[] };
+        const res = (await $http.request('container/getNameSpace', { query })) as { code: number; data: ISelectItem[] };
 
         if (isFirstUpdateSelect) {
           // 首次切换集群时，合并现有命名空间和接口返回的命名空间，用于详情页数据回显
