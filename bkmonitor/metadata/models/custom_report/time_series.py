@@ -23,6 +23,7 @@ from django.utils.functional import cached_property
 from django.utils.timezone import make_aware
 from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext as _
+from django.db.models import Q
 
 from bkmonitor.utils.db.fields import JsonField
 from constants.common import DEFAULT_TENANT_ID
@@ -1367,7 +1368,6 @@ class TimeSeriesScope(models.Model):
         :return: (group_ids, scope_keys, existing_scopes)
         :raises ValueError: 当验证失败时抛出异常
         """
-        from django.db.models import Q
 
         group_ids, scope_keys = cls._common_check_scopes(bk_tenant_id, scopes)
 
@@ -1428,8 +1428,6 @@ class TimeSeriesScope(models.Model):
         :param existing_scopes: 现有分组对象字典
         :return: 更新后的分组字典 {(group_id, scope_name): scope_obj}
         """
-        from django.db.models import Q
-
         # 2.1 准备更新数据
         scopes_to_update = []  # 需要批量更新的 scope 对象列表
         update_fields = set()  # 需要更新的字段集合
@@ -1596,8 +1594,6 @@ class TimeSeriesMetric(models.Model):
 
         :return: Django Q 对象
         """
-        from django.db.models import Q
-
         return Q(field_scope="default") | Q(field_scope__endswith="||default")
 
     def make_table_id(self, bk_biz_id, bk_data_id, table_name=None):
