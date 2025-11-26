@@ -1313,7 +1313,9 @@ class TimeSeriesScope(models.Model):
         """
         results = []
         for scope_data in scopes:
-            scope_key = (scope_data["group_id"], scope_data["scope_name"])
+            # 如果修改了分组名，需要使用新的分组名作为 key
+            final_scope_name = scope_data.get("new_scope_name") or scope_data["scope_name"]
+            scope_key = (scope_data["group_id"], final_scope_name)
             time_series_scope = scope_objects[scope_key]
             results.append(
                 {
@@ -1393,6 +1395,29 @@ class TimeSeriesScope(models.Model):
                     _("指标分组[{}]不允许编辑: {}").format(f"{scope_obj.group_id}:{scope_obj.scope_name}", str(e))
                 )
 
+        # 1.6 检查新分组名（如果提供了 new_scope_name）
+        for scope_data in scopes:
+            new_scope_name = scope_data.get("new_scope_name")
+            # 提前跳过：没有提供新分组名
+            if new_scope_name is None:
+                continue
+
+            scope_key = (scope_data["group_id"], scope_data["scope_name"])
+            scope_obj = existing_scopes[scope_key]
+
+            # 提前跳过：新分组名与当前分组名相同
+            if new_scope_name == scope_obj.scope_name:
+                continue
+
+            # 验证新分组名格式
+            cls._validate_scope_name(new_scope_name)
+
+            # 检查新分组名是否已存在
+            if cls.objects.filter(group_id=scope_obj.group_id, scope_name=new_scope_name).exists():
+                raise ValueError(
+                    _("指标分组名已存在: group_id={}, scope_name={}").format(scope_obj.group_id, new_scope_name)
+                )
+
         return group_ids, existing_scopes
 
     @classmethod
@@ -1407,6 +1432,7 @@ class TimeSeriesScope(models.Model):
 
         # 2.1 准备更新数据
         scopes_to_update = []  # 需要批量更新的 scope 对象列表
+        update_fields = set()  # 需要更新的字段集合
 
         for scope_data in scopes:
             scope_key = (scope_data["group_id"], scope_data["scope_name"])
@@ -1414,21 +1440,31 @@ class TimeSeriesScope(models.Model):
 
             has_updates = False
 
+            # 更新 scope_name（如果提供了 new_scope_name）
+            new_scope_name = scope_data.get("new_scope_name")
+            if new_scope_name is not None and new_scope_name != scope_obj.scope_name:
+                scope_obj.scope_name = new_scope_name
+                update_fields.add("scope_name")
+                has_updates = True
+
             # 更新 dimension_config
             if scope_data.get("dimension_config") is not None:
                 scope_obj.dimension_config = scope_data["dimension_config"]
+                update_fields.add("dimension_config")
                 has_updates = True
 
             # 更新 manual_list
             manual_list = scope_data.get("manual_list")
             if manual_list is not None:
                 scope_obj.manual_list = manual_list
+                update_fields.add("manual_list")
                 has_updates = True
 
             # 更新 auto_rules
             auto_rules = scope_data.get("auto_rules")
             if auto_rules is not None:
                 scope_obj.auto_rules = auto_rules
+                update_fields.add("auto_rules")
                 has_updates = True
 
             # 如果更新了 manual_list 或 auto_rules，需要重新计算维度配置
@@ -1436,6 +1472,7 @@ class TimeSeriesScope(models.Model):
                 delete_unmatched_dimensions = scope_data.get("delete_unmatched_dimensions", False)
                 # 直接在内存对象上更新维度配置
                 scope_obj.update_matched_dimension_config(delete_unmatched_dimensions=delete_unmatched_dimensions)
+                update_fields.add("dimension_config")
                 has_updates = True
 
             if has_updates:
@@ -1445,14 +1482,16 @@ class TimeSeriesScope(models.Model):
         if scopes_to_update:
             cls.objects.bulk_update(
                 scopes_to_update,
-                ["dimension_config", "manual_list", "auto_rules"],
+                list(update_fields),
                 batch_size=BULK_UPDATE_BATCH_SIZE,
             )
 
         # 2.3 最后统一查询一次以获取所有最新数据
         scope_conditions = Q()
         for scope_data in scopes:
-            scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=scope_data["scope_name"])
+            # 如果修改了分组名，需要使用新的分组名查询
+            final_scope_name = scope_data.get("new_scope_name") or scope_data["scope_name"]
+            scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=final_scope_name)
 
         updated_scopes = {(s.group_id, s.scope_name): s for s in cls.objects.filter(scope_conditions)}
 
@@ -1472,6 +1511,7 @@ class TimeSeriesScope(models.Model):
             [{
                 "group_id": 1,
                 "scope_name": "test_scope",
+                "new_scope_name": "new_test_scope",  # 可选，用于修改分组名
                 "dimension_config": {},  # 可选
                 "manual_list": [],  # 可选
                 "auto_rules": [],  # 可选

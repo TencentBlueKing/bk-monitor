@@ -1631,6 +1631,7 @@ class ModifyTimeSeriesScopeResource(Resource):
         class ScopeSerializer(serializers.Serializer):
             group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
             scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+            new_scope_name = serializers.CharField(required=False, label="新的指标分组名", max_length=255)
             dimension_config = serializers.DictField(required=False, label="分组下的维度配置")
             manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
             auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
