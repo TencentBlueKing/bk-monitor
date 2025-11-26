@@ -33,7 +33,7 @@ def register_builtin_plugins(sender, **kwargs):
     from bkmonitor.models.fta import ActionPlugin
 
     print("start to  register_builtin_plugin ")
-    initial_file = os.path.join(settings.PROJECT_ROOT, "support-files/fta/action_plugin_initial.json")
+    initial_file = os.path.join(settings.PROJECT_ROOT, "support-files/fta/action_config_incident_manager.json")
     # 注册故障分析SaaS插件服务，取决于是否开启和部署
     try:
         ActionPlugin.origin_objects.count()
@@ -46,10 +46,69 @@ def register_builtin_plugins(sender, **kwargs):
             # 多租户情况下禁用itsmv3插件
             if plugin["plugin_key"] == "itsm" and settings.ENABLE_MULTI_TENANT_MODE:
                 continue
+
+            # 开启标准排障的情况下,才可注册标准排障插件
+            if plugin["plugin_key"] == "bk_incident" and not settings.ENABLE_BK_INCIDENT_PLUGIN:
+                continue
             instance, created = ActionPlugin.origin_objects.update_or_create(
                 id=plugin.pop("id"), is_builtin=True, defaults=plugin
             )
             print("{} plugin: [{}]".format("register" if created else "update", instance.name))
+
+
+def register_incident_manager_plugin(sender, **kwargs):
+    """
+    注册标准排障插件配置
+    使用 plugin_key 作为唯一键，不会覆盖已存在的记录
+    """
+    import json
+    import os
+
+    from django.conf import settings
+
+    from bkmonitor.models.fta import ActionPlugin
+
+    print("start to register_incident_manager_plugin")
+    initial_file = os.path.join(settings.PROJECT_ROOT, "support-files/fta/action_config_incident_manager.json")
+
+    try:
+        ActionPlugin.origin_objects.count()
+    except Exception:
+        # 首次部署，表未就绪
+        return
+
+    if not os.path.exists(initial_file):
+        print(f"配置文件不存在: {initial_file}")
+        return
+
+    with open(initial_file, encoding="utf-8") as f:
+        plugins = json.loads(f.read())
+        for plugin in plugins:
+            # 多租户情况下禁用itsmv3插件
+            if plugin.get("plugin_key") == "itsm" and settings.ENABLE_MULTI_TENANT_MODE:
+                continue
+
+            plugin_key = plugin.get("plugin_key")
+            if not plugin_key:
+                print(f"跳过插件注册，缺少 plugin_key: {plugin.get('name', 'unknown')}")
+                continue
+
+            # 移除 id 字段，因为使用 plugin_key 作为唯一键
+            plugin_data = plugin.copy()
+            plugin_data.pop("id", None)
+
+            # 确保 category 字段存在，如果不存在则使用 plugin_type 作为默认值
+            if "category" not in plugin_data:
+                plugin_data["category"] = plugin_data.get("plugin_type", "common")
+
+            # 使用 get_or_create，不会覆盖已存在的记录
+            # 仅使用 plugin_key 作为唯一键
+            instance, created = ActionPlugin.origin_objects.get_or_create(plugin_key=plugin_key, defaults=plugin_data)
+
+            if created:
+                print(f"注册插件: [{instance.name}] (plugin_key: {plugin_key})")
+            else:
+                print(f"插件已存在，跳过: [{instance.name}] (plugin_key: {plugin_key})")
 
 
 def register_builtin_action_configs(sender, **kwargs):
