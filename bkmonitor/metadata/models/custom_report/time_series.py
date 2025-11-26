@@ -1051,10 +1051,9 @@ class TimeSeriesScope(models.Model):
         verbose_name = "自定义时序数据分组记录"
         verbose_name_plural = "自定义时序数据分组记录表"
 
-    def check_editable(self):
+    def is_create_from_data(self):
         """检查是否允许编辑"""
-        if self.create_from == TimeSeriesScope.CREATE_FROM_DATA:
-            raise ValueError(_("数据自动创建的分组不允许编辑"))
+        return self.create_from == TimeSeriesScope.CREATE_FROM_DATA
 
     @classmethod
     def _validate_scope_name(cls, scope_name: str):
@@ -1366,7 +1365,7 @@ class TimeSeriesScope(models.Model):
         # 1.5 检查是否可编辑
         for scope_key, scope_obj in existing_scopes.items():
             try:
-                scope_obj.check_editable()
+                scope_obj.is_create_from_data()
             except ValueError as e:
                 raise ValueError(
                     _("指标分组[{}]不允许编辑: {}").format(f"{scope_obj.group_id}:{scope_obj.scope_name}", str(e))
@@ -1502,6 +1501,93 @@ class TimeSeriesScope(models.Model):
 
         # 第三步：返回
         return cls._build_scope_results(scopes, updated_scopes)
+
+    @classmethod
+    @atomic(config.DATABASE_CONNECTION_NAME)
+    def bulk_delete_scopes(
+        cls,
+        bk_tenant_id: str,
+        scopes: list[dict],
+    ):
+        """批量删除自定义时序指标分组
+
+        :param bk_tenant_id: 租户ID
+        :param scopes: 批量删除的分组列表，格式:
+            [{
+                "group_id": 1,
+                "scope_name": "test_scope"
+            }]
+        """
+        # 验证所有 group_id 是否存在且属于当前租户
+        group_ids = {scope["group_id"] for scope in scopes}
+        valid_groups = set(
+            TimeSeriesGroup.objects.filter(
+                time_series_group_id__in=group_ids, bk_tenant_id=bk_tenant_id, is_delete=False
+            ).values_list("time_series_group_id", flat=True)
+        )
+
+        invalid_group_ids = group_ids - valid_groups
+        if invalid_group_ids:
+            raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
+
+        # 批量获取要删除的 TimeSeriesScope
+        scope_conditions = Q()
+        for scope_data in scopes:
+            scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=scope_data["scope_name"])
+
+        time_series_scopes = cls.objects.filter(scope_conditions)
+
+        # 检查是否所有 scope 都存在
+        found_scopes = {(s.group_id, s.scope_name) for s in time_series_scopes}
+        requested_scopes = {(s["group_id"], s["scope_name"]) for s in scopes}
+        missing_scopes = requested_scopes - found_scopes
+
+        if missing_scopes:
+            missing_names = [f"{gid}:{name}" for gid, name in missing_scopes]
+            raise ValueError(_("指标分组不存在，请确认后重试: {}").format(", ".join(missing_names)))
+
+        # 分类处理：区分 data 类型和 user 类型
+        data_scopes = []  # 数据自动创建的 scope
+        user_scopes = []  # 用户手动创建的 scope
+
+        for time_series_scope in time_series_scopes:
+            if time_series_scope.is_create_from_data():
+                data_scopes.append(time_series_scope)
+            else:
+                user_scopes.append(time_series_scope)
+
+        # 对于 data 类型的 scope：清空 manual_list 和 auto_rules，并清理 dimension_config
+        if data_scopes:
+            for scope in data_scopes:
+                # 1. 清空 manual_list 和 auto_rules
+                scope.manual_list = []
+                scope.auto_rules = []
+
+                # 2. 从 metric 表中获取对应数据分组 scope 的所有 metric 的维度
+                # 查询该分组下的所有指标
+                metrics = TimeSeriesMetric.objects.filter(group_id=scope.group_id, field_scope=scope.scope_name)
+
+                # 3. 计算所有 metric 的维度并集
+                all_metric_dimensions = set()
+                for metric in metrics:
+                    if metric.tag_list:
+                        all_metric_dimensions.update(metric.tag_list)
+
+                # 4. 从 dimension_config 中删除不属于这些维度的配置
+                current_dimension_config = scope.dimension_config or {}
+                # 只保留属于 metric 维度的配置
+                scope.dimension_config = {
+                    dim_name: dim_config
+                    for dim_name, dim_config in current_dimension_config.items()
+                    if dim_name in all_metric_dimensions
+                }
+
+            # 批量更新 data 类型的 scope
+            cls.objects.bulk_update(data_scopes, ["manual_list", "auto_rules", "dimension_config"], batch_size=100)
+
+        # 对于 user 类型的 scope：直接删除
+        if user_scopes:
+            cls.objects.filter(pk__in=[scope.pk for scope in user_scopes]).delete()
 
 
 class TimeSeriesMetric(models.Model):

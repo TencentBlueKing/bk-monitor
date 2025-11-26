@@ -1663,44 +1663,10 @@ class DeleteTimeSeriesScopeResource(Resource):
         scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量删除的分组列表", min_length=1)
 
     def perform_request(self, validated_request_data):
-        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
-        scopes = validated_request_data["scopes"]
-
-        # 验证所有 group_id 是否存在且属于当前租户
-        group_ids = {scope["group_id"] for scope in scopes}
-        valid_groups = set(
-            models.TimeSeriesGroup.objects.filter(
-                time_series_group_id__in=group_ids, bk_tenant_id=bk_tenant_id, is_delete=False
-            ).values_list("time_series_group_id", flat=True)
+        models.TimeSeriesScope.bulk_delete_scopes(
+            bk_tenant_id=validated_request_data.pop("bk_tenant_id"),
+            scopes=validated_request_data["scopes"],
         )
-
-        invalid_group_ids = group_ids - valid_groups
-        if invalid_group_ids:
-            raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
-
-        # 批量获取要删除的 TimeSeriesScope
-        scope_conditions = Q()
-        for scope_data in scopes:
-            scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=scope_data["scope_name"])
-
-        time_series_scopes = models.TimeSeriesScope.objects.filter(scope_conditions)
-
-        # 检查是否所有 scope 都存在
-        found_scopes = {(s.group_id, s.scope_name) for s in time_series_scopes}
-        requested_scopes = {(s["group_id"], s["scope_name"]) for s in scopes}
-        missing_scopes = requested_scopes - found_scopes
-
-        if missing_scopes:
-            missing_names = [f"{gid}:{name}" for gid, name in missing_scopes]
-            raise ValueError(_("指标分组不存在，请确认后重试: {}").format(", ".join(missing_names)))
-
-        # 检查是否可编辑
-        for time_series_scope in time_series_scopes:
-            time_series_scope.check_editable()
-
-        # 批量删除
-        time_series_scopes.delete()
-        return
 
 
 class QueryTimeSeriesScopeResource(Resource):
