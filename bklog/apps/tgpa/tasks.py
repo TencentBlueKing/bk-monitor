@@ -71,7 +71,8 @@ def process_single_task(task: dict):
         TGPATaskHandler(bk_biz_id=task["cc_id"], task_info=task).download_and_process_file()
         task_obj.process_status = TGPATaskProcessStatusEnum.SUCCESS.value
         task_obj.save()
-    except Exception:
+    except Exception as e:
         logger.exception("failed to process task %s", task["id"])
         task_obj.process_status = TGPATaskProcessStatusEnum.FAILED.value
+        task_obj.error_message = str(e)
         task_obj.save()

@@ -31,6 +31,7 @@ class TGPATask(models.Model):
     log_path = models.TextField(_("日志路径"), null=True, blank=True)
     process_status = models.CharField(_("处理状态"), max_length=64, default=TGPATaskProcessStatusEnum.PENDING.value)
     processed_at = models.DateTimeField(_("处理时间"), auto_now_add=True)
+    error_message = models.TextField(_("错误信息"), null=True, blank=True)
 
     class Meta:
         verbose_name = _("TGPA任务")
