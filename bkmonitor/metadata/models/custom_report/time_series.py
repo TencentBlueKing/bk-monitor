@@ -1056,7 +1056,7 @@ class TimeSeriesScope(models.Model):
             raise ValueError(_("数据自动创建的分组不允许编辑"))
 
     @classmethod
-    def validate_scope_name(cls, scope_name: str):
+    def _validate_scope_name(cls, scope_name: str):
         """验证 scope_name 格式是否合法
 
         :param scope_name: 指标分组名称
@@ -1068,120 +1068,6 @@ class TimeSeriesScope(models.Model):
         if not cls.SCOPE_NAME_REGEX.match(scope_name):
             raise ValueError(_("指标分组名只能包含中文、英文、数字和下划线"))
 
-    @classmethod
-    @atomic(config.DATABASE_CONNECTION_NAME)
-    def create_time_series_scope(
-        cls,
-        group_id: int,
-        scope_name: str,
-        dimension_config: dict | None = None,
-        manual_list: list | None = None,
-        auto_rules: list | None = None,
-        update_dimension_from_metrics: bool = True,
-    ):
-        """创建 TimeSeriesScope 记录
-
-        :param group_id: 自定义分组ID
-        :param scope_name: 指标分组名称
-        :param dimension_config: 维度配置字典（可选），默认为空字典
-        :param manual_list: 手动分组的指标列表（可选），默认为空列表
-        :param auto_rules: 自动分组的匹配规则列表（可选），默认为空列表
-        :param update_dimension_from_metrics: 是否根据 manual_list 和 auto_rules 更新 dimension_config，默认为 True
-        :return: TimeSeriesScope 实例
-        """
-        try:
-            # 验证 scope_name 格式
-            cls.validate_scope_name(scope_name)
-
-            # 检查记录是否已存在
-            if cls.objects.filter(group_id=group_id, scope_name=scope_name).exists():
-                raise ValueError(_("指标分组名[{}]已存在，请确认后重试").format(scope_name))
-
-            # 创建新记录
-            scope = cls.objects.create(
-                group_id=group_id,
-                scope_name=scope_name,
-                dimension_config=dimension_config or {},
-                manual_list=manual_list or [],
-                auto_rules=auto_rules or [],
-                create_from=cls.CREATE_FROM_USER,
-            )
-
-            # 如果需要根据指标更新维度配置
-            if update_dimension_from_metrics and (scope.manual_list or scope.auto_rules):
-                scope.update_matched_dimension_config(delete_unmatched_dimensions=False)
-
-            return scope
-        except Exception as e:
-            logger.exception(f"Failed to create TimeSeriesScope for group_id={group_id}, scope_name={scope_name}: {e}")
-            raise
-
-    @classmethod
-    @atomic(config.DATABASE_CONNECTION_NAME)
-    def update_time_series_scope(
-        cls,
-        group_id: int,
-        scope_name: str,
-        dimension_config: dict | None = None,
-        manual_list: list | None = None,
-        auto_rules: list | None = None,
-        update_dimension_from_metrics: bool = False,
-        delete_unmatched_dimensions: bool = False,
-    ):
-        """更新 TimeSeriesScope 记录
-
-        :param group_id: 自定义分组ID
-        :param scope_name: 指标分组名称
-        :param dimension_config: 维度配置字典（可选），如果提供则更新
-        :param manual_list: 手动分组的指标列表（可选），如果提供则更新
-        :param auto_rules: 自动分组的匹配规则列表（可选），如果提供则更新
-        :param update_dimension_from_metrics: 是否根据 manual_list 和 auto_rules 更新 dimension_config，默认为 False
-        :param delete_unmatched_dimensions: 是否删除不再匹配的维度配置（仅在 update_dimension_from_metrics=True 时生效）
-        :return: TimeSeriesScope 实例
-        """
-        try:
-            # 验证 scope_name 格式
-            cls.validate_scope_name(scope_name)
-
-            # 获取要更新的记录
-            scope = cls.objects.filter(group_id=group_id, scope_name=scope_name).first()
-            if not scope:
-                raise ValueError(_("指标分组[{}]不存在，请确认后重试").format(scope_name))
-
-            scope.check_editable()
-
-            # 更新字段
-            update_fields = []
-
-            # 更新 dimension_config
-            if dimension_config is not None:
-                scope.dimension_config = dimension_config
-                update_fields.append("dimension_config")
-
-            # 更新 manual_list
-            if manual_list is not None:
-                scope.manual_list = manual_list
-                update_fields.append("manual_list")
-
-            # 更新 auto_rules
-            if auto_rules is not None:
-                scope.auto_rules = auto_rules
-                update_fields.append("auto_rules")
-
-            # 保存更新
-            if update_fields:
-                scope.save(update_fields=update_fields)
-                scope.refresh_from_db()
-
-            # 如果需要根据指标更新维度配置
-            if update_dimension_from_metrics:
-                scope.update_matched_dimension_config(delete_unmatched_dimensions=delete_unmatched_dimensions)
-
-            return scope
-        except Exception as e:
-            logger.exception(f"Failed to update TimeSeriesScope for group_id={group_id}, scope_name={scope_name}: {e}")
-            raise
-
     def update_matched_dimension_config(self, delete_unmatched_dimensions=False):
         """
         1. 获取分组下的 dimension_config 字典 X
@@ -1190,7 +1076,7 @@ class TimeSeriesScope(models.Model):
            - 如果为 True: X & Y 做交集得到 Z，Z | Y 的并集得到新的 dimension_config
            - 如果为 False: 保留 X 中的所有配置，并添加 Y 中的新维度
 
-        :param delete_unmatched_dimensions: 是否删除不再匹配的维度配置，默认为 True
+        :param delete_unmatched_dimensions: 是否删除不再匹配的维度配置，默认为 False
         """
         # 1. 获取当前分组下已有的维度配置（X）
         current_dimension_config = self.dimension_config or {}
@@ -1206,7 +1092,7 @@ class TimeSeriesScope(models.Model):
         # 遍历所有指标，找出匹配的指标的维度
         for metric in available_metrics:
             # 判断指标是否匹配当前 scope 的规则
-            if self.match_metric(metric.field_name):
+            if self._match_metric(metric.field_name):
                 # 将该指标的所有维度加入到集合中
                 if metric.tag_list:
                     matched_metric_dimensions.update(metric.tag_list)
@@ -1225,17 +1111,9 @@ class TimeSeriesScope(models.Model):
                 updated_dimension_config.setdefault(dimension_name, {})
 
         # 更新 dimension_config
-        if updated_dimension_config != current_dimension_config:
-            self.dimension_config = updated_dimension_config
-            self.save(update_fields=["dimension_config"])
-            logger.info(
-                "Updated dimension_config for group_id: %s, scope_name: %s, dimensions: %s",
-                self.group_id,
-                self.scope_name,
-                list(updated_dimension_config.keys()),
-            )
+        self.dimension_config = updated_dimension_config
 
-    def match_metric(self, field_name: str) -> bool:
+    def _match_metric(self, field_name: str) -> bool:
         """判断指标名称是否匹配 manual_list 或 auto_rules"""
         import re
 
@@ -1271,7 +1149,6 @@ class TimeSeriesScope(models.Model):
 
         :param group_id: 自定义分组ID
         :param scope_dimensions_map: scope 名称到维度列表的映射字典，格式: {scope_name: [dimension1, dimension2, ...]}
-        :return: None
         """
         if not scope_dimensions_map:
             return
@@ -1280,7 +1157,7 @@ class TimeSeriesScope(models.Model):
         valid_scope_dimensions_map = {}
         for scope_name in scope_dimensions_map.keys():
             try:
-                cls.validate_scope_name(scope_name)
+                cls._validate_scope_name(scope_name)
                 valid_scope_dimensions_map[scope_name] = scope_dimensions_map[scope_name]
             except ValueError as e:
                 logger.warning(
@@ -1342,6 +1219,274 @@ class TimeSeriesScope(models.Model):
         # 批量创建新记录
         if scopes_to_create:
             cls.objects.bulk_create(scopes_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
+
+    @classmethod
+    def _common_check_scopes(cls, bk_tenant_id, scopes):
+        # 1.1 验证所有 group_id 是否存在且属于当前租户
+        group_ids = {scope["group_id"] for scope in scopes}
+        valid_groups = set(
+            TimeSeriesGroup.objects.filter(
+                time_series_group_id__in=group_ids, bk_tenant_id=bk_tenant_id, is_delete=False
+            ).values_list("time_series_group_id", flat=True)
+        )
+        invalid_group_ids = group_ids - valid_groups
+        if invalid_group_ids:
+            raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
+        # 1.2 验证所有 scope_name 格式并提取 scope_key
+        scope_keys = []
+        for scope_data in scopes:
+            try:
+                cls._validate_scope_name(scope_data["scope_name"])
+                scope_keys.append((scope_data["group_id"], scope_data["scope_name"]))
+            except ValueError as e:
+                raise ValueError(_("指标分组名[{}]格式不合法: {}").format(scope_data["scope_name"], str(e)))
+        return group_ids, scope_keys
+
+    @classmethod
+    def _check_scopes_for_create(cls, bk_tenant_id: str, scopes: list[dict]) -> set:
+        """检查批量创建的分组数据
+
+        :param bk_tenant_id: 租户ID
+        :param scopes: 批量创建的分组列表
+        """
+        group_ids, scope_keys = cls._common_check_scopes(bk_tenant_id, scopes)
+
+        # 1.3 检查是否有重复的 scope_name
+        existing_scopes = {
+            (s.group_id, s.scope_name): s
+            for s in cls.objects.filter(group_id__in=group_ids, scope_name__in=[s["scope_name"] for s in scopes])
+        }
+        duplicate_scopes = []
+        for scope_key in scope_keys:
+            if scope_key in existing_scopes:
+                duplicate_scopes.append(f"{scope_key[0]}:{scope_key[1]}")
+        if duplicate_scopes:
+            raise ValueError(_("指标分组名已存在，请确认后重试: {}").format(", ".join(duplicate_scopes)))
+
+        return group_ids
+
+    @classmethod
+    def _create_scope_data(cls, scopes: list[dict], group_ids: set) -> dict:
+        """创建分组数据
+
+        :param scopes: 批量创建的分组列表
+        :param group_ids: 分组ID集合
+        :return: 创建的分组字典 {(group_id, scope_name): scope_obj}
+        """
+        # 2.1 批量创建新记录（优化：创建前就计算好 dimension_config）
+        scopes_to_create = []
+        for scope_data in scopes:
+            scope_obj = cls(
+                group_id=scope_data["group_id"],
+                scope_name=scope_data["scope_name"],
+                dimension_config=scope_data.get("dimension_config", {}),
+                manual_list=scope_data.get("manual_list", []),
+                auto_rules=scope_data.get("auto_rules", []),
+                create_from=cls.CREATE_FROM_USER,
+            )
+            # 如果提供了 manual_list 或 auto_rules，在创建前就计算维度配置
+            if scope_obj.manual_list or scope_obj.auto_rules:
+                scope_obj.update_matched_dimension_config(delete_unmatched_dimensions=False)
+
+            scopes_to_create.append(scope_obj)
+
+        if scopes_to_create:
+            # 一次性创建，包含已计算好的 dimension_config
+            cls.objects.bulk_create(scopes_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
+
+        # 2.2 查询已创建的对象并返回
+        scope_names = [s["scope_name"] for s in scopes]
+        created_scopes = {
+            (s.group_id, s.scope_name): s
+            for s in cls.objects.filter(group_id__in=group_ids, scope_name__in=scope_names)
+        }
+
+        return created_scopes
+
+    @classmethod
+    def _build_scope_results(cls, scopes: list[dict], scope_objects: dict) -> list[dict]:
+        """构建分组结果列表
+
+        :param scopes: 原始分组列表
+        :param scope_objects: 分组对象字典 {(group_id, scope_name): scope_obj}
+        :return: 结果列表
+        """
+        results = []
+        for scope_data in scopes:
+            scope_key = (scope_data["group_id"], scope_data["scope_name"])
+            time_series_scope = scope_objects[scope_key]
+            results.append(
+                {
+                    "group_id": time_series_scope.group_id,
+                    "scope_name": time_series_scope.scope_name,
+                    "dimension_config": time_series_scope.dimension_config,
+                    "manual_list": time_series_scope.manual_list,
+                    "auto_rules": time_series_scope.auto_rules,
+                    "create_from": time_series_scope.create_from,
+                }
+            )
+        return results
+
+    @classmethod
+    @atomic(config.DATABASE_CONNECTION_NAME)
+    def bulk_create_scopes(
+        cls,
+        bk_tenant_id: str,
+        scopes: list[dict],
+    ) -> list[dict]:
+        """批量创建自定义时序指标分组
+
+        :param bk_tenant_id: 租户ID
+        :param scopes: 批量创建的分组列表，格式:
+            [{
+                "group_id": 1,
+                "scope_name": "test_scope",
+                "dimension_config": {},
+                "manual_list": [],
+                "auto_rules": []
+            }]
+        :return: 创建结果列表
+        """
+        # 第一步：检查
+        group_ids = cls._check_scopes_for_create(bk_tenant_id, scopes)
+
+        # 第二步：更新
+        created_scopes = cls._create_scope_data(scopes, group_ids)
+
+        # 第三步：返回
+        return cls._build_scope_results(scopes, created_scopes)
+
+    @classmethod
+    def _check_scopes_for_modify(cls, bk_tenant_id: str, scopes: list[dict]) -> tuple[set, dict]:
+        """检查批量修改的分组数据
+
+        :param bk_tenant_id: 租户ID
+        :param scopes: 批量修改的分组列表
+        :return: (group_ids, scope_keys, existing_scopes)
+        :raises ValueError: 当验证失败时抛出异常
+        """
+        from django.db.models import Q
+
+        group_ids, scope_keys = cls._common_check_scopes(bk_tenant_id, scopes)
+
+        # 1.3 批量查询要更新的记录
+        scope_conditions = Q()
+        for scope_data in scopes:
+            scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=scope_data["scope_name"])
+
+        existing_scopes = {(s.group_id, s.scope_name): s for s in cls.objects.filter(scope_conditions)}
+
+        # 1.4 检查是否所有 scope 都存在
+        found_scopes = set(existing_scopes.keys())
+        requested_scopes = set(scope_keys)
+        missing_scopes = requested_scopes - found_scopes
+        if missing_scopes:
+            missing_names = [f"{gid}:{name}" for gid, name in missing_scopes]
+            raise ValueError(_("指标分组不存在，请确认后重试: {}").format(", ".join(missing_names)))
+
+        # 1.5 检查是否可编辑
+        for scope_key, scope_obj in existing_scopes.items():
+            try:
+                scope_obj.check_editable()
+            except ValueError as e:
+                raise ValueError(
+                    _("指标分组[{}]不允许编辑: {}").format(f"{scope_obj.group_id}:{scope_obj.scope_name}", str(e))
+                )
+
+        return group_ids, existing_scopes
+
+    @classmethod
+    def _update_scopes_data(cls, scopes: list[dict], existing_scopes: dict) -> dict:
+        """更新分组数据
+
+        :param scopes: 批量修改的分组列表
+        :param existing_scopes: 现有分组对象字典
+        :return: 更新后的分组字典 {(group_id, scope_name): scope_obj}
+        """
+        from django.db.models import Q
+
+        # 2.1 准备更新数据
+        scopes_to_update = []  # 需要批量更新的 scope 对象列表
+
+        for scope_data in scopes:
+            scope_key = (scope_data["group_id"], scope_data["scope_name"])
+            scope_obj = existing_scopes[scope_key]
+
+            has_updates = False
+
+            # 更新 dimension_config
+            if scope_data.get("dimension_config") is not None:
+                scope_obj.dimension_config = scope_data["dimension_config"]
+                has_updates = True
+
+            # 更新 manual_list
+            manual_list = scope_data.get("manual_list")
+            if manual_list is not None:
+                scope_obj.manual_list = manual_list
+                has_updates = True
+
+            # 更新 auto_rules
+            auto_rules = scope_data.get("auto_rules")
+            if auto_rules is not None:
+                scope_obj.auto_rules = auto_rules
+                has_updates = True
+
+            # 如果更新了 manual_list 或 auto_rules，需要重新计算维度配置
+            if manual_list is not None or auto_rules is not None:
+                delete_unmatched_dimensions = scope_data.get("delete_unmatched_dimensions", False)
+                # 直接在内存对象上更新维度配置
+                scope_obj.update_matched_dimension_config(delete_unmatched_dimensions=delete_unmatched_dimensions)
+                has_updates = True
+
+            if has_updates:
+                scopes_to_update.append(scope_obj)
+
+        # 2.2 一次性批量更新所有字段
+        if scopes_to_update:
+            cls.objects.bulk_update(
+                scopes_to_update,
+                ["dimension_config", "manual_list", "auto_rules"],
+                batch_size=BULK_UPDATE_BATCH_SIZE,
+            )
+
+        # 2.3 最后统一查询一次以获取所有最新数据
+        scope_conditions = Q()
+        for scope_data in scopes:
+            scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=scope_data["scope_name"])
+
+        updated_scopes = {(s.group_id, s.scope_name): s for s in cls.objects.filter(scope_conditions)}
+
+        return updated_scopes
+
+    @classmethod
+    @atomic(config.DATABASE_CONNECTION_NAME)
+    def bulk_modify_scopes(
+        cls,
+        bk_tenant_id: str,
+        scopes: list[dict],
+    ) -> list[dict]:
+        """批量修改自定义时序指标分组
+
+        :param bk_tenant_id: 租户ID
+        :param scopes: 批量修改的分组列表，格式:
+            [{
+                "group_id": 1,
+                "scope_name": "test_scope",
+                "dimension_config": {},  # 可选
+                "manual_list": [],  # 可选
+                "auto_rules": [],  # 可选
+                "delete_unmatched_dimensions": False  # 可选
+            }]
+        :return: 修改结果列表
+        """
+        # 第一步：检查
+        group_ids, existing_scopes = cls._check_scopes_for_modify(bk_tenant_id, scopes)
+
+        # 第二步：更新
+        updated_scopes = cls._update_scopes_data(scopes, existing_scopes)
+
+        # 第三步：返回
+        return cls._build_scope_results(scopes, updated_scopes)
 
 
 class TimeSeriesMetric(models.Model):

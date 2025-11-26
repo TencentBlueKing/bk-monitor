@@ -1612,42 +1612,12 @@ class CreateTimeSeriesScopeResource(Resource):
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         scopes = validated_request_data["scopes"]
-        results = []
 
-        # 验证所有 group_id 是否存在且属于当前租户
-        group_ids = {scope["group_id"] for scope in scopes}
-        valid_groups = set(
-            models.TimeSeriesGroup.objects.filter(
-                time_series_group_id__in=group_ids, bk_tenant_id=bk_tenant_id, is_delete=False
-            ).values_list("time_series_group_id", flat=True)
+        # 调用模型的批量创建方法
+        return models.TimeSeriesScope.bulk_create_scopes(
+            bk_tenant_id=bk_tenant_id,
+            scopes=scopes,
         )
-
-        invalid_group_ids = group_ids - valid_groups
-        if invalid_group_ids:
-            raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
-
-        # 批量创建
-        for scope_data in scopes:
-            time_series_scope = models.TimeSeriesScope.create_time_series_scope(
-                group_id=scope_data["group_id"],
-                scope_name=scope_data["scope_name"],
-                dimension_config=scope_data.get("dimension_config", {}),
-                manual_list=scope_data.get("manual_list", []),
-                auto_rules=scope_data.get("auto_rules", []),
-                update_dimension_from_metrics=True,
-            )
-            results.append(
-                {
-                    "group_id": time_series_scope.group_id,
-                    "scope_name": time_series_scope.scope_name,
-                    "dimension_config": time_series_scope.dimension_config,
-                    "manual_list": time_series_scope.manual_list,
-                    "auto_rules": time_series_scope.auto_rules,
-                    "create_from": time_series_scope.create_from,
-                }
-            )
-
-        return results
 
 
 class ModifyTimeSeriesScopeResource(Resource):
@@ -1675,49 +1645,12 @@ class ModifyTimeSeriesScopeResource(Resource):
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         scopes = validated_request_data["scopes"]
-        results = []
 
-        # 验证所有 group_id 是否存在且属于当前租户
-        group_ids = {scope["group_id"] for scope in scopes}
-        valid_groups = set(
-            models.TimeSeriesGroup.objects.filter(
-                time_series_group_id__in=group_ids, bk_tenant_id=bk_tenant_id, is_delete=False
-            ).values_list("time_series_group_id", flat=True)
+        # 调用模型的批量修改方法
+        return models.TimeSeriesScope.bulk_modify_scopes(
+            bk_tenant_id=bk_tenant_id,
+            scopes=scopes,
         )
-
-        invalid_group_ids = group_ids - valid_groups
-        if invalid_group_ids:
-            raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
-
-        # 批量修改
-        for scope_data in scopes:
-            # 判断是否需要更新维度配置
-            # 如果提供了 manual_list 或 auto_rules，则需要根据指标更新维度配置
-            manual_list = scope_data.get("manual_list")
-            auto_rules = scope_data.get("auto_rules")
-            update_dimension_from_metrics = manual_list is not None or auto_rules is not None
-
-            time_series_scope = models.TimeSeriesScope.update_time_series_scope(
-                group_id=scope_data["group_id"],
-                scope_name=scope_data["scope_name"],
-                dimension_config=scope_data.get("dimension_config"),
-                manual_list=manual_list,
-                auto_rules=auto_rules,
-                update_dimension_from_metrics=update_dimension_from_metrics,
-                delete_unmatched_dimensions=scope_data.get("delete_unmatched_dimensions", False),
-            )
-            results.append(
-                {
-                    "group_id": time_series_scope.group_id,
-                    "scope_name": time_series_scope.scope_name,
-                    "dimension_config": time_series_scope.dimension_config,
-                    "manual_list": time_series_scope.manual_list,
-                    "auto_rules": time_series_scope.auto_rules,
-                    "create_from": time_series_scope.create_from,
-                }
-            )
-
-        return results
 
 
 class DeleteTimeSeriesScopeResource(Resource):
