@@ -2407,7 +2407,7 @@ class ESStorage(models.Model, StorageResultTable):
         """
         return self._get_index_infos(ESNamespacedClientType.INDICES.value)
 
-    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2), reraise=True)
     def current_index_info(self):
         """
         返回当前使用的最新index相关的信息
