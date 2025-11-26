@@ -1046,7 +1046,7 @@ class RPCMetricTag(CachedEnum):
                 self.CITY: _("城市"),
                 self.REGION: _("地域"),
                 self.CANARY: _("金丝雀"),
-                self.VERSION: _("版本"),
+                self.VERSION: _("SDK 版本"),
                 self.SDK_NAME: _("SDK 名称"),
                 self.ENV_NAME: _("用户环境"),
                 self.NAMESPACE: _("物理环境"),
@@ -1096,50 +1096,45 @@ class RPCMetricTag(CachedEnum):
 
     @classmethod
     def callee_tags(cls) -> list[dict[str, str]]:
-        replace_tags = {
-            cls.CALLEE_IP.value: cls.INSTANCE.value,
-            cls.CALLEE_CONTAINER.value: cls.CONTAINER_NAME.value,
-        }
-        return [
-            {
-                **tag,
-                "value": replace_tags.get(tag["value"], tag["value"]),
-            }
-            for tag in cls.tags()
+        callee_tags: list[dict[str, str]] = []
+        for tag in cls.tags():
             # 被调已经固定「被调服务」，不需要展示
-            if tag["value"] != cls.CALLEE_SERVER.value
-        ]
+            if tag["value"] == cls.CALLEE_SERVER.value:
+                continue
+            if tag["value"] == cls.CALLEE_IP.value:
+                tag.update(value=cls.INSTANCE.value)
+            elif tag["value"] == cls.CALLEE_CONTAINER.value:
+                tag.update(value=cls.CONTAINER_NAME.value)
+            callee_tags.append(tag)
+
+        return callee_tags
 
     @classmethod
     def caller_tags(cls) -> list[dict[str, str]]:
-        replace_tags = {
-            cls.CALLER_IP.value: cls.INSTANCE.value,
-            cls.CALLER_CONTAINER.value: cls.CONTAINER_NAME.value,
-        }
-        return [
-            {
-                **tag,
-                "value": replace_tags.get(tag["value"], tag["value"]),
-            }
-            for tag in cls.tags()
+        caller_tags: list[dict[str, str]] = []
+        for tag in cls.tags():
             # 主调已经固定「主调服务」，不需要展示
-            if tag["value"] != cls.CALLER_SERVER.value
-        ]
+            if tag["value"] == cls.CALLER_SERVER.value:
+                continue
+            if tag["value"] == cls.CALLER_IP.value:
+                tag.update(value=cls.INSTANCE.value)
+            elif tag["value"] == cls.CALLER_CONTAINER.value:
+                tag.update(value=cls.CONTAINER_NAME.value)
+            caller_tags.append(tag)
+
+        return caller_tags
 
     @classmethod
     def tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
         return {
             "caller": {"field": "kind", "value": [SpanKind.SPAN_KIND_CLIENT, SpanKind.SPAN_KIND_PRODUCER]},
-            cls.CALLER_SERVER.value: {"field": ResourceAttributes.SERVICE_NAME},
             cls.CALLER_SERVICE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_SERVICE}"},
             cls.CALLER_METHOD.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_METHOD}"},
-            cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
-            cls.INSTANCE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
             "callee": {"field": "kind", "value": [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_CONSUMER]},
-            cls.CALLEE_SERVER.value: {"field": ResourceAttributes.SERVICE_NAME},
             cls.CALLEE_SERVICE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_SERVICE}"},
             cls.CALLEE_METHOD.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_METHOD}"},
-            cls.CALLEE_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
+            cls.INSTANCE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
+            cls.SERVICE_NAME.value: {"field": f"{ResourceAttributes.SERVICE_NAME}"},
             cls.NAMESPACE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_NAMESPACE}"},
             cls.ENV_NAME.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_ENV_NAME}"},
             cls.CODE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_STATUS_CODE}"},
@@ -1151,10 +1146,17 @@ class RPCMetricTag(CachedEnum):
         获取主调场景的标签到 Trace 字段的映射关系
         :return: 主调场景的标签映射字典
         """
-        exclude_tags = {"callee", cls.CALLEE_SERVER.value}
-        return {
-            tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in exclude_tags
-        }
+        tag_trace_mapping: dict[str, dict[str, Any]] = cls.tag_trace_mapping()
+        tag_trace_mapping.pop("callee", None)
+        tag_trace_mapping.update(
+            {
+                cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
+                cls.CALLER_SERVER.value: {"field": ResourceAttributes.SERVICE_NAME},
+                cls.CALLEE_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
+            }
+        )
+
+        return tag_trace_mapping
 
     @classmethod
     def callee_tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
@@ -1162,16 +1164,16 @@ class RPCMetricTag(CachedEnum):
         获取被调场景的标签到 Trace 字段的映射关系
         :return: 被调场景的标签映射字典
         """
-        exclude_tags = {"caller", cls.CALLER_SERVER.value}
-        replace_tag_fields = {
-            cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
-            cls.CALLEE_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
-        }
-        return {
-            tag: replace_tag_fields.get(tag, trace_tag_info)
-            for tag, trace_tag_info in cls.tag_trace_mapping().items()
-            if tag not in exclude_tags
-        }
+        tag_trace_mapping: dict[str, dict[str, Any]] = cls.tag_trace_mapping()
+        tag_trace_mapping.pop("caller", None)
+        tag_trace_mapping.update(
+            {
+                cls.CALLEE_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
+                cls.CALLEE_SERVER.value: {"field": ResourceAttributes.SERVICE_NAME},
+                cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
+            }
+        )
+        return tag_trace_mapping
 
 
 class RPCLogTag(CachedEnum):
@@ -1646,7 +1648,7 @@ class ApmAlertHelper:
         # 判断主调/被调类型，并获取对应的有效标签列表
         kind: str = cls._get_rpc_kind(strategy)
         rpc_tags: list[dict[str, str]] = RPCMetricTag.caller_tags() if kind == "caller" else RPCMetricTag.callee_tags()
-        valid_tags = [tag["value"] for tag in rpc_tags]
+        valid_tags: list[str] = [tag["value"] for tag in rpc_tags]
 
         call_filter: list[dict[str, Any]] = []
         for k, v in dimensions.items():
@@ -1697,11 +1699,10 @@ class ApmAlertHelper:
         # 判断主调/被调类型
         kind: str = cls._get_rpc_kind(strategy)
         # 根据主调/被调类型，获取对应的 tag_trace_mapping
-        tag_trace_type_mapping = {
+        tag_trace_mapping: dict[str, dict[str, Any]] = {
             "caller": RPCMetricTag.caller_tag_trace_mapping(),
             "callee": RPCMetricTag.callee_tag_trace_mapping(),
-        }
-        tag_trace_mapping = tag_trace_type_mapping[kind]
+        }[kind]
 
         where: list[dict[str, Any]] = []
         for k, v in dimensions.items():
