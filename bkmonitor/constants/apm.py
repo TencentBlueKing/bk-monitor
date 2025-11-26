@@ -1134,7 +1134,7 @@ class RPCMetricTag(CachedEnum):
             cls.CALLEE_SERVICE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_SERVICE}"},
             cls.CALLEE_METHOD.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_METHOD}"},
             cls.INSTANCE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
-            cls.SERVICE_NAME.value: {"field": f"{ResourceAttributes.SERVICE_NAME}"},
+            cls.SERVICE_NAME.value: {"field": f"{OtlpKey.RESOURCE}.{ResourceAttributes.SERVICE_NAME}"},
             cls.NAMESPACE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_NAMESPACE}"},
             cls.ENV_NAME.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_ENV_NAME}"},
             cls.CODE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_STATUS_CODE}"},
@@ -1150,8 +1150,8 @@ class RPCMetricTag(CachedEnum):
         tag_trace_mapping.pop("callee", None)
         tag_trace_mapping.update(
             {
-                cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
-                cls.CALLER_SERVER.value: {"field": ResourceAttributes.SERVICE_NAME},
+                cls.CALLER_IP.value: {"field": f"{OtlpKey.RESOURCE}.{SpanAttributes.NET_HOST_IP}"},
+                cls.CALLER_SERVER.value: {"field": f"{OtlpKey.RESOURCE}.{ResourceAttributes.SERVICE_NAME}"},
                 cls.CALLEE_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
             }
         )
@@ -1168,8 +1168,8 @@ class RPCMetricTag(CachedEnum):
         tag_trace_mapping.pop("caller", None)
         tag_trace_mapping.update(
             {
-                cls.CALLEE_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
-                cls.CALLEE_SERVER.value: {"field": ResourceAttributes.SERVICE_NAME},
+                cls.CALLEE_IP.value: {"field": f"{OtlpKey.RESOURCE}.{SpanAttributes.NET_HOST_IP}"},
+                cls.CALLEE_SERVER.value: {"field": f"{OtlpKey.RESOURCE}.{ResourceAttributes.SERVICE_NAME}"},
                 cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
             }
         )
