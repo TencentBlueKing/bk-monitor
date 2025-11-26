@@ -166,9 +166,9 @@ export const useAlarmCenterStore = defineStore('alarmCenter', () => {
   /** 初始化service */
   const initAlarmService = () => {
     alarmService.value = AlarmServiceFactory(alarmType.value);
-    alarmService.value.getListSearchFavorite({ search_type: alarmType.value }).then(data => {
-      favoriteList.value = data;
-    });
+    // alarmService.value.getListSearchFavorite({ search_type: alarmType.value }).then(data => {
+    //   favoriteList.value = data;
+    // });
   };
   initAlarmService();
 

@@ -26,7 +26,25 @@
 
 import type { EMode, IWhereItem } from '../../../../components/retrieval-filter/typing';
 import type { TimeRangeType } from '../../../../components/time-range/utils';
+import type { CommonCondition } from 'trace/pages/alarm-center/typings/services';
 
+/** 告警收藏配置 */
+export interface IAlarmFavoriteConfig {
+  bk_biz_ids: number[];
+  componentData: {
+    commonWhere: IWhereItem[];
+    filterMode: EMode;
+    queryString: string;
+    quickFilterValue: CommonCondition[];
+    refreshInterval: number;
+    timeRange: TimeRangeType;
+  };
+  queryParams: {
+    conditions: IWhereItem[];
+    queryString: string;
+    status: string[];
+  };
+}
 export type IFavorite = keyof FavoriteConfigMap;
 export interface IFavoriteGroup<T extends IFavorite | unknown = unknown> {
   editable: string;
@@ -42,7 +60,11 @@ export interface IFavoriteGroup<T extends IFavorite | unknown = unknown> {
     update_user: string;
   }[];
 }
+
 type FavoriteConfigMap = {
+  alarm_action: IAlarmFavoriteConfig;
+  alarm_alert: IAlarmFavoriteConfig;
+  alarm_incident: IAlarmFavoriteConfig;
   event: IEventFavoriteConfig;
   metric: IMetricFavoriteConfig;
   trace: ITraceFavoriteConfig;

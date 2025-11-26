@@ -26,6 +26,7 @@
 import { type ShallowRef, computed, defineComponent, onBeforeMount, shallowRef, watch } from 'vue';
 
 import { tryURLDecodeParse } from 'monitor-common/utils';
+import FavoriteBox from 'trace/pages/trace-explore/components/favorite-box';
 import { useRoute, useRouter } from 'vue-router';
 
 import { EFieldType, EMode } from '../../components/retrieval-filter/typing';
@@ -58,6 +59,8 @@ import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
 
 import type { SelectOptions } from '@blueking/tdesign-ui/.';
+
+const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
 import './alarm-center.scss';
 export default defineComponent({
@@ -104,6 +107,9 @@ export default defineComponent({
     const selectedRowKeys = shallowRef<string[]>([]);
     /* 是否是所选中告警记录行的关注人 */
     const isSelectedFollower = shallowRef(false);
+
+    /** 是否展示收藏夹 */
+    const isShowFavorite = shallowRef(false);
     /**
      * @description 检索栏字段列表
      */
@@ -378,6 +384,11 @@ export default defineComponent({
       return true;
     };
 
+    const handleFavoriteShowChange = (isShow: boolean) => {
+      isShowFavorite.value = isShow;
+      localStorage.setItem(ALARM_CENTER_SHOW_FAVORITE, JSON.stringify(isShow));
+    };
+
     watch(
       () => data.value,
       () => {
@@ -419,6 +430,7 @@ export default defineComponent({
       alertDialogBizId,
       alertDialogIds,
       alertDialogParam,
+      isShowFavorite,
       setUrlParams,
       handleSelectedRowKeysChange,
       handleAlertDialogShow,
@@ -444,121 +456,141 @@ export default defineComponent({
       handleDetailShowChange,
       handlePreviousDetail,
       handleNextDetail,
+      handleFavoriteShowChange,
     };
   },
   render() {
     return (
-      <div class='alarm-center'>
-        <AlarmCenterHeader class='alarm-center-header' />
-        <AlarmRetrievalFilter
-          class='alarm-center-filters'
-          bizIds={this.alarmStore.bizIds}
-          bizList={this.appStore.bizList}
-          conditions={this.alarmStore.conditions}
-          favoriteList={this.favoriteList}
-          fields={this.retrievalFilterFields}
-          filterMode={this.alarmStore.filterMode}
-          getValueFn={this.getRetrievalFilterValueData}
-          handleGetUserConfig={this.handleGetResidentSettingUserConfig}
-          handleSetUserConfig={this.handleSetResidentSettingUserConfig}
-          needIncidentOption={this.alarmStore.alarmType === AlarmType.INCIDENT}
-          queryString={this.alarmStore.queryString}
-          residentCondition={this.alarmStore.residentCondition}
-          residentSettingOnlyId={this.residentSettingOnlyId}
-          onBizIdsChange={this.handleBizIdsChange}
-          onConditionChange={this.handleConditionChange}
-          onFilterModeChange={this.handleFilterModeChange}
-          onQuery={this.handleQuery}
-          onQueryStringChange={this.handleQueryStringChange}
-          onResidentConditionChange={this.handleResidentConditionChange}
-        />
-        <div class='alarm-center-main'>
-          <TraceExploreLayout
-            class='alarm-center-layout'
-            v-slots={{
-              aside: () => {
-                return (
-                  <div class='quick-filtering'>
-                    <QuickFiltering
-                      filterList={this.quickFilterList}
-                      filterValue={this.alarmStore.quickFilterValue}
-                      loading={this.quickFilterLoading}
-                      onClose={this.updateIsCollapsed}
-                      onUpdate:filterValue={this.handleFilterValueChange}
-                    />
-                  </div>
-                );
-              },
-              default: () => {
-                return (
-                  <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
-                    <div class='chart-trend'>
-                      <AlarmTrendChart />
-                    </div>
-                    <div class='alarm-analysis'>
-                      <AlarmAnalysis onConditionChange={this.handleAddCondition} />
-                    </div>
-                    <div class='alarm-center-table'>
-                      <AlarmTable
-                        pagination={{
-                          currentPage: this.page,
-                          pageSize: this.pageSize,
-                          total: this.total,
-                        }}
-                        tableSettings={{
-                          checked: this.storageColumns,
-                          fields: this.allTableFields,
-                          disabled: this.lockedTableFields,
-                        }}
-                        columns={this.tableSourceColumns}
-                        data={this.data}
-                        isSelectedFollower={this.isSelectedFollower}
-                        loading={this.loading}
-                        selectedRowKeys={this.selectedRowKeys}
-                        sort={this.ordering}
-                        onCurrentPageChange={this.handleCurrentPageChange}
-                        onDisplayColFieldsChange={displayColFields => {
-                          this.storageColumns = displayColFields;
-                        }}
-                        onOpenAlertDialog={this.handleAlertDialogShow}
-                        onPageSizeChange={this.handlePageSizeChange}
-                        onSelectionChange={this.handleSelectedRowKeysChange}
-                        onShowActionDetail={this.handleShowActionDetail}
-                        onShowAlertDetail={this.handleShowAlertDetail}
-                        onSortChange={sort => this.handleSortChange(sort as string)}
-                      />
-                    </div>
-                  </div>
-                );
-              },
-            }}
-            initialDivide={208}
-            isCollapsed={this.isCollapsed}
-            maxWidth={500}
-            minWidth={160}
-            onUpdate:isCollapsed={this.updateIsCollapsed}
+      <div class='alarm-center-page'>
+        <div
+          style={{ display: this.isShowFavorite ? 'block' : 'none' }}
+          class='alarm-center-favorite-box'
+        >
+          <FavoriteBox
+            key={`alarm_${this.alarmStore.alarmType}`}
+            ref='favoriteBox'
+            type={`alarm_${this.alarmStore.alarmType}`}
+            // onChange={this.handleFavoriteChange}
+            onClose={() => this.handleFavoriteShowChange(false)}
+            // onOpenBlank={this.handleFavoriteOpenBlank}
           />
         </div>
+        <div class='alarm-center'>
+          <AlarmCenterHeader
+            class='alarm-center-header'
+            isShowFavorite={this.isShowFavorite}
+            onFavoriteShowChange={this.handleFavoriteShowChange}
+          />
+          <AlarmRetrievalFilter
+            class='alarm-center-filters'
+            bizIds={this.alarmStore.bizIds}
+            bizList={this.appStore.bizList}
+            conditions={this.alarmStore.conditions}
+            favoriteList={this.favoriteList}
+            fields={this.retrievalFilterFields}
+            filterMode={this.alarmStore.filterMode}
+            getValueFn={this.getRetrievalFilterValueData}
+            handleGetUserConfig={this.handleGetResidentSettingUserConfig}
+            handleSetUserConfig={this.handleSetResidentSettingUserConfig}
+            needIncidentOption={this.alarmStore.alarmType === AlarmType.INCIDENT}
+            queryString={this.alarmStore.queryString}
+            residentCondition={this.alarmStore.residentCondition}
+            residentSettingOnlyId={this.residentSettingOnlyId}
+            onBizIdsChange={this.handleBizIdsChange}
+            onConditionChange={this.handleConditionChange}
+            onFilterModeChange={this.handleFilterModeChange}
+            onQuery={this.handleQuery}
+            onQueryStringChange={this.handleQueryStringChange}
+            onResidentConditionChange={this.handleResidentConditionChange}
+          />
+          <div class='alarm-center-main'>
+            <TraceExploreLayout
+              class='alarm-center-layout'
+              v-slots={{
+                aside: () => {
+                  return (
+                    <div class='quick-filtering'>
+                      <QuickFiltering
+                        filterList={this.quickFilterList}
+                        filterValue={this.alarmStore.quickFilterValue}
+                        loading={this.quickFilterLoading}
+                        onClose={this.updateIsCollapsed}
+                        onUpdate:filterValue={this.handleFilterValueChange}
+                      />
+                    </div>
+                  );
+                },
+                default: () => {
+                  return (
+                    <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
+                      <div class='chart-trend'>
+                        <AlarmTrendChart />
+                      </div>
+                      <div class='alarm-analysis'>
+                        <AlarmAnalysis onConditionChange={this.handleAddCondition} />
+                      </div>
+                      <div class='alarm-center-table'>
+                        <AlarmTable
+                          pagination={{
+                            currentPage: this.page,
+                            pageSize: this.pageSize,
+                            total: this.total,
+                          }}
+                          tableSettings={{
+                            checked: this.storageColumns,
+                            fields: this.allTableFields,
+                            disabled: this.lockedTableFields,
+                          }}
+                          columns={this.tableSourceColumns}
+                          data={this.data}
+                          isSelectedFollower={this.isSelectedFollower}
+                          loading={this.loading}
+                          selectedRowKeys={this.selectedRowKeys}
+                          sort={this.ordering}
+                          onCurrentPageChange={this.handleCurrentPageChange}
+                          onDisplayColFieldsChange={displayColFields => {
+                            this.storageColumns = displayColFields;
+                          }}
+                          onOpenAlertDialog={this.handleAlertDialogShow}
+                          onPageSizeChange={this.handlePageSizeChange}
+                          onSelectionChange={this.handleSelectedRowKeysChange}
+                          onShowActionDetail={this.handleShowActionDetail}
+                          onShowAlertDetail={this.handleShowAlertDetail}
+                          onSortChange={sort => this.handleSortChange(sort as string)}
+                        />
+                      </div>
+                    </div>
+                  );
+                },
+              }}
+              initialDivide={208}
+              isCollapsed={this.isCollapsed}
+              maxWidth={500}
+              minWidth={160}
+              onUpdate:isCollapsed={this.updateIsCollapsed}
+            />
+          </div>
 
-        <AlarmCenterDetail
-          alarmId={this.alarmId}
-          show={this.alarmDetailShow}
-          onNext={this.handleNextDetail}
-          onPrevious={this.handlePreviousDetail}
-          onUpdate:show={this.handleDetailShowChange}
-        />
-        <AlertOperationDialogs
-          alarmBizId={this.alertDialogBizId}
-          alarmIds={this.alertDialogIds}
-          dialogParam={this.alertDialogParam}
-          dialogType={this.alertDialogType}
-          show={this.alertDialogShow}
-          onConfirm={this.handleAlertDialogConfirm}
-          onUpdate:show={() => {
-            this.handleAlertDialogHide();
-            this.setUrlParams({ autoShowAlertAction: '' });
-          }}
-        />
+          <AlarmCenterDetail
+            alarmId={this.alarmId}
+            show={this.alarmDetailShow}
+            onNext={this.handleNextDetail}
+            onPrevious={this.handlePreviousDetail}
+            onUpdate:show={this.handleDetailShowChange}
+          />
+          <AlertOperationDialogs
+            alarmBizId={this.alertDialogBizId}
+            alarmIds={this.alertDialogIds}
+            dialogParam={this.alertDialogParam}
+            dialogType={this.alertDialogType}
+            show={this.alertDialogShow}
+            onConfirm={this.handleAlertDialogConfirm}
+            onUpdate:show={() => {
+              this.handleAlertDialogHide();
+              this.setUrlParams({ autoShowAlertAction: '' });
+            }}
+          />
+        </div>
       </div>
     );
   },

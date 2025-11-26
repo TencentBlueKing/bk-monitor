@@ -38,7 +38,16 @@ import './alarm-center-header.scss';
 
 export default defineComponent({
   name: 'AlarmCenterHeader',
-  setup() {
+  props: {
+    isShowFavorite: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  emits: {
+    favoriteShowChange: (_value: boolean) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
     const alarmStore = useAlarmCenterStore();
 
@@ -64,6 +73,10 @@ export default defineComponent({
 
     function handleGotoOld() {}
 
+    const handleFavoriteShowChange = () => {
+      emit('favoriteShowChange', !props.isShowFavorite);
+    };
+
     return {
       t,
       alarmTypeMap,
@@ -74,6 +87,7 @@ export default defineComponent({
       handleTimezoneChange,
       handleGotoOld,
       alarmStore,
+      handleFavoriteShowChange,
     };
   },
   render() {
@@ -92,17 +106,30 @@ export default defineComponent({
         >
           {{
             left: () => (
-              <ul class='alarm-type-nav-bar'>
-                {this.alarmTypeMap.map(item => (
-                  <li
-                    key={item.value}
-                    class={['alarm-type-nav-bar-item', { active: item.value === this.alarmStore.alarmType }]}
-                    onClick={() => this.handleAlarmTypeChange(item.value)}
+              <div class='alarm-center-header-left'>
+                <div class='favorite-container'>
+                  <div
+                    class={['favorite-btn', { active: this.isShowFavorite }]}
+                    onClick={this.handleFavoriteShowChange}
                   >
-                    <div class='bar-name'>{item.label}</div>
-                  </li>
-                ))}
-              </ul>
+                    <i
+                      class='icon-monitor icon-shoucangjia'
+                      v-bk-tooltips={{ content: this.t(this.isShowFavorite ? '收起收藏夹' : '展开收藏夹') }}
+                    />
+                  </div>
+                </div>
+                <ul class='alarm-type-nav-bar'>
+                  {this.alarmTypeMap.map(item => (
+                    <li
+                      key={item.value}
+                      class={['alarm-type-nav-bar-item', { active: item.value === this.alarmStore.alarmType }]}
+                      onClick={() => this.handleAlarmTypeChange(item.value)}
+                    >
+                      <div class='bar-name'>{item.label}</div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ),
           }}
         </CommonHeader>
