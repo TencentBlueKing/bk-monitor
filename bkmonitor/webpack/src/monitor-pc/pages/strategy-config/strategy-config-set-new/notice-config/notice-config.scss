@@ -54,7 +54,8 @@
   }
 
   .voice-notice {
-    display: flex;
+    display: none; // 暂时隐藏，等后端开发完成再放开
+    // display: flex;
     align-items: center;
     justify-content: flex-start;
     padding: 11px 0;
