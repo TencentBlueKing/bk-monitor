@@ -9,7 +9,6 @@
 
 | 字段           | 类型   | 必选 | 描述        |
 | -------------- | ------ | ---- | ----------- |
-| bk_tenant_id  | string | 是   | 租户ID |
 | scopes | list | 是 | 批量创建的分组列表，至少包含一个分组 |
 
 #### scopes 列表项字段说明
@@ -38,7 +37,6 @@
 
 ```json
 {
-	"bk_tenant_id": "default",
 	"scopes": [
 		{
 			"group_id": 123,

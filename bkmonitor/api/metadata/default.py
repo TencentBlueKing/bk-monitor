@@ -507,8 +507,6 @@ class CreateTimeSeriesScopeResource(MetaDataAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
-
         class ScopeSerializer(serializers.Serializer):
             group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
             scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
@@ -528,8 +526,6 @@ class ModifyTimeSeriesScopeResource(MetaDataAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
-
         class ScopeSerializer(serializers.Serializer):
             group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
             scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
@@ -553,8 +549,6 @@ class DeleteTimeSeriesScopeResource(MetaDataAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
-
         class ScopeSerializer(serializers.Serializer):
             group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
             scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
@@ -572,7 +566,6 @@ class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
     backend_cache_type = CacheType.METADATA
 
     class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
         scope_name = serializers.CharField(required=False, label="指标分组名")
 

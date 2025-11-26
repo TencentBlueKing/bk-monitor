@@ -10,7 +10,6 @@
 
 | 字段           | 类型   | 必选 | 描述        |
 | -------------- | ------ | ---- | ----------- |
-| bk_tenant_id  | string | 是   | 租户ID |
 | group_id | int | 否 | 自定义时序数据源ID，对 APM 场景需要传递 scope_name 来区分不同的服务 |
 | scope_name | string | 否 | 指标分组名，支持模糊匹配 |
 
@@ -19,7 +18,6 @@
 
 ```json
 {
-	"bk_tenant_id": "default",
 	"group_id": 123,
 	"scope_name": "指标分组名"
 }

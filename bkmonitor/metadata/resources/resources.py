@@ -1610,13 +1610,10 @@ class CreateTimeSeriesScopeResource(Resource):
         scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量创建的分组列表", min_length=1)
 
     def perform_request(self, validated_request_data):
-        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
-        scopes = validated_request_data["scopes"]
-
         # 调用模型的批量创建方法
         return models.TimeSeriesScope.bulk_create_scopes(
-            bk_tenant_id=bk_tenant_id,
-            scopes=scopes,
+            bk_tenant_id=validated_request_data.pop("bk_tenant_id"),
+            scopes=validated_request_data["scopes"],
         )
 
 
@@ -1644,13 +1641,10 @@ class ModifyTimeSeriesScopeResource(Resource):
         scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量修改的分组列表", min_length=1)
 
     def perform_request(self, validated_request_data):
-        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
-        scopes = validated_request_data["scopes"]
-
         # 调用模型的批量修改方法
         return models.TimeSeriesScope.bulk_modify_scopes(
-            bk_tenant_id=bk_tenant_id,
-            scopes=scopes,
+            bk_tenant_id=validated_request_data.pop("bk_tenant_id"),
+            scopes=validated_request_data["scopes"],
         )
 
 
