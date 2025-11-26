@@ -1056,7 +1056,7 @@ paths:
         matchSubpath: false
         backend:
           name: default
-          method: post
+          method: get
           path: /api/v3/meta/query_time_series_scope/
           matchSubpath: false
         authConfig:
