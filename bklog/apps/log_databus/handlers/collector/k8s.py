@@ -313,6 +313,7 @@ class K8sCollectorHandler(CollectorHandler):
             "params": model_to_dict(self.data, exclude=["deleted_at", "created_at", "updated_at"]),
         }
         user_operation_record.delay(operation_record)
+
         if "configs" in data:
             self.compare_config(data_configs=data["configs"], collector_config_id=self.data.collector_config_id)
 
@@ -1614,21 +1615,24 @@ class K8sCollectorHandler(CollectorHandler):
                 )
                 container_config.save()
                 container_configs.append(container_config)
-            self.create_container_release(container_config=container_config)
+        # 增量比对后，需要真正删除配置
         delete_container_configs = container_configs[config_length::]
-        for config in delete_container_configs:
-            # 增量比对后，需要真正删除配置
-            self.delete_container_release(config, delete_config=True)
+        # 判断采集项状态，停用时只操作本地数据库；启用则下发配置
+        if self.data.is_active:
+            for config in container_configs[:config_length]:
+                self.create_container_release(container_config=config)
+
+            for config in delete_container_configs:
+                self.delete_container_release(config, delete_config=True)
+        else:
+            for config in delete_container_configs:
+                config.delete()
 
     def create_container_release(self, container_config: ContainerCollectorConfig, **kwargs):
         """
         创建容器采集配置
         :param container_config: 容器采集配置实例
         """
-
-        if not self.data.is_active:
-            return
-
         from apps.log_databus.tasks.collector import create_container_release
 
         if self.data.yaml_config_enabled and container_config.raw_config:
@@ -1663,9 +1667,6 @@ class K8sCollectorHandler(CollectorHandler):
         )
 
     def delete_container_release(self, container_config, delete_config=False):
-        if not self.data.is_active:
-            return
-
         from apps.log_databus.tasks.collector import delete_container_release
 
         name = self._generate_bklog_config_name(container_config.id)

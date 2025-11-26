@@ -94,6 +94,14 @@ export default defineComponent({
       type: Array as () => IListItem[],
       default: () => [],
     },
+    selectedIndex: {
+      type: Number,
+      default: -1,
+    },
+    selectableItems: {
+      type: Array as () => IListItem[],
+      default: () => [],
+    },
   },
   emits: ['handleClickOutSide', 'handleClickMenuItem', 'openDialog'],
   setup(props, { emit }) {
@@ -141,6 +149,18 @@ export default defineComponent({
     //   getUserConfigId();
     // }
 
+    // 判断当前项是否被键盘选中
+    const isKeyboardSelected = (item: IListItem) => {
+      if (props.selectedIndex < 0 || item.type === 'group-title') {
+        return false;
+      }
+      // 找到当前项在 selectableItems 中的索引
+      const selectableIndex = props.selectableItems.findIndex(
+        selectableItem => selectableItem.id === item.id && selectableItem.space_uid === item.space_uid,
+      );
+      return selectableIndex === props.selectedIndex;
+    };
+
     // 渲染函数
     return () => (
       <div class={['biz-list-wrap', props.theme]}>
@@ -157,10 +177,13 @@ export default defineComponent({
                 >
                   <div
                     key={item.id || index}
+                    data-id={item.id}
+                    data-space-uid={item.space_uid}
                     class={[
                       item.type === 'group-title' ? 'list-group-title' : 'list-item',
                       props.theme,
                       { checked: item.space_uid === props.checked },
+                      { 'keyboard-selected': isKeyboardSelected(item) },
                       props.commonList.length > 0 && index === props.commonList.length ? 'last-common-item' : '',
                     ]}
                     onClick={() => handleSelected(item)}

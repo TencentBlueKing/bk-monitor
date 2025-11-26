@@ -184,6 +184,14 @@ class UnifyQueryHandler:
         # 基础查询参数初始化
         self.base_dict = self.init_base_dict()
 
+        # 基础查询结果合并参数初始化
+        self.result_merge_base_dict = self.init_result_merge_base_dict(self.base_dict)
+
+        if self.index_set_ids:
+            time_field_info = SearchHandler.init_time_field(self.index_set_ids[0])
+            if time_field_info:
+                self.time_field = time_field_info[0]
+
     @staticmethod
     def query_ts(search_dict, raise_exception=True):
         """
@@ -217,12 +225,9 @@ class UnifyQueryHandler:
             search_dict = copy.deepcopy(search_dict)
             pre_search_seconds = settings.PRE_SEARCH_SECONDS
             first_field, order = self.origin_order_by[0] if self.origin_order_by else [None, None]
-            if (
-                pre_search
-                and pre_search_seconds
-                and self.start_time
-                and first_field == self.search_params.get("time_field", "")
-            ):
+            if pre_search:
+                if not (pre_search_seconds and self.start_time and first_field == self.time_field):
+                    return {"list": []}
                 # 预查询处理
                 pre_search_end_time = int(
                     arrow.get(self.start_time).shift(seconds=pre_search_seconds).timestamp() * 1000
@@ -614,6 +619,17 @@ class UnifyQueryHandler:
             "timezone": self.search_params.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE),
             "bk_biz_id": self.bk_biz_id,
         }
+
+    @staticmethod
+    def init_result_merge_base_dict(base_dict):
+        get_base_dict = copy.deepcopy(base_dict)
+
+        for query in get_base_dict.get("query_list", []):
+            query["reference_name"] = "a"
+
+        get_base_dict.update({"metric_merge": "a"})
+
+        return get_base_dict
 
     def _deal_query_result(self, result_dict: dict) -> dict:
         log_list = []

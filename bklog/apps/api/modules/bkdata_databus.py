@@ -101,6 +101,15 @@ class _BkDataDatabusApi:
             before_request=add_esb_info_before_request_for_bkdata_user,
             bk_tenant_id=biz_to_tenant_getter(),
         )
+        self.databus_clean_debug = DataAPI(
+            method="POST",
+            url=f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v3/databus/clean/debug/",
+            module=self.MODULE,
+            description="清洗配置调试",
+            default_return_value=None,
+            before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=settings.BK_APP_TENANT_ID,
+        )
         self.post_tasks = DataAPI(
             method="POST",
             url=self._build_url("tasks/", "tasks/"),

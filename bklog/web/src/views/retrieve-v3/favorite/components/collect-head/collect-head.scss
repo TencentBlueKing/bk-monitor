@@ -1,36 +1,45 @@
 .collect-head-box {
+  display: flex;
   width: 100%;
   padding: 14px 2px;
-  display: flex;
+
   .collect-head-box-left {
     flex: 1;
+
     .collect-head-box-left-title {
       font-size: 14px;
       color: #313238;
     }
+
     .collect-head-box-left-num {
-      align-items: center;
-      background: #a3b1cc;
-      border-radius: 8px;
-      color: #fff;
       display: inline-flex;
+      align-items: center;
+      height: 16px;
+      padding: 0 8px;
+      margin: 0 4px;
+      font-family: RobotoMono-Medium;
       font-size: 12px;
       font-weight: 700;
-      height: 16px;
-      letter-spacing: 0;
       line-height: 16px;
-      margin: 0 4px;
-      padding: 0 8px;
+      color: #fff;
       text-align: center;
-      font-family: RobotoMono-Medium;
+      letter-spacing: 0;
+      background: #a3b1cc;
+      border-radius: 8px;
     }
   }
+
   .collect-head-box-right {
     color: #4d4f56;
+
     .box-icon {
+      margin-left: 12px;
       font-size: 16px;
       cursor: pointer;
-      margin-left: 12px;
+    }
+
+    .bklog-refresh-icon {
+      font-size: 14px;
     }
   }
 }

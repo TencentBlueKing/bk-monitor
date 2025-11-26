@@ -34,7 +34,7 @@ const notKeywordDecorator = Decoration.mark({
 });
 
 function highlightNotKeywords() {
-  return EditorView.decorations.of(view => {
+  return EditorView.decorations.of((view) => {
     const decorations = [];
     const text = view.state.doc.toString();
     const regex = /\bNOT\b/g;
@@ -59,7 +59,15 @@ function highlightNotKeywords() {
  * @param {String} params.value 初始值
  * @param {Function} params.stopDefaultKeyboard 阻止默认键盘行为回调 'ArrowUp', 'ArrowDown'
  */
-export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter, value, stopDefaultKeyboard }) => {
+export default ({ target,
+  onChange,
+  onFocusChange,
+  onFocusPosChange,
+  onKeyEnter,
+  onCtrlEnter,
+  value,
+  stopDefaultKeyboard,
+}) => {
   // 键盘操作事件处理函数
   // 这里通过回调函数处理，如果 stopDefaultKeyboard 返回true，则会阻止编辑器默认的监盘行为
   const stopKeyboardList = ['ArrowUp', 'ArrowDown'].map(keymap => ({
@@ -69,7 +77,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     },
   }));
 
-  const debouncedTrack = debounce(update => {
+  const debouncedTrack = debounce((update) => {
     onChange?.(update.state.doc);
     onFocusPosChange?.(update.state);
   });
@@ -81,8 +89,14 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
         {
           key: 'Enter',
           mac: 'Enter',
-          run: view => {
+          run: (view) => {
             return onKeyEnter?.(view) ?? false;
+          },
+        }, {
+          key: 'Ctrl-Enter',
+          mac: 'Cmd-Enter',
+          run: (view) => {
+            return onCtrlEnter?.(view) ?? false;
           },
         },
         ...stopKeyboardList,
@@ -95,7 +109,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
       EditorView.focusChangeEffect.of((state, focusing) => {
         onFocusChange?.(state, focusing);
       }),
-      EditorView.updateListener.of(update => {
+      EditorView.updateListener.of((update) => {
         if (update.selectionSet) {
           onFocusPosChange?.(update.state);
         }
@@ -111,7 +125,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     parent: target,
   });
 
-  const appendText = value => {
+  const appendText = (value) => {
     view.dispatch({
       changes: { from: view.state.doc.length, insert: value },
     });
@@ -170,7 +184,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     }
   };
 
-  const setFocus = focusPosition => {
+  const setFocus = (focusPosition) => {
     if (!view) return;
 
     view.focus();
