@@ -120,6 +120,7 @@ class UnifyQueryHandler:
 
         # 聚合查询：字段名称
         self.agg_field = self.search_params.get("agg_field", "")
+        self.agg_fields = self.search_params.get("agg_fields", "")
 
         # 请求用户名
         self.request_username = get_request_external_username() or get_request_username()
@@ -181,11 +182,14 @@ class UnifyQueryHandler:
         # 是否开启高亮
         self.highlight = self.search_params.get("can_highlight", True)
 
-        # 基础查询参数初始化
-        self.base_dict = self.init_base_dict()
+        if self.agg_fields:
+            self.base_dict_list = self.init_base_dict_list()
+        else:
+            # 基础查询参数初始化
+            self.base_dict = self.init_base_dict()
 
-        # 基础查询结果合并参数初始化
-        self.result_merge_base_dict = self.init_result_merge_base_dict(self.base_dict)
+            # 基础查询结果合并参数初始化
+            self.result_merge_base_dict = self.init_result_merge_base_dict(self.base_dict)
 
         if self.index_set_ids:
             time_field_info = SearchHandler.init_time_field(self.index_set_ids[0])
@@ -573,7 +577,7 @@ class UnifyQueryHandler:
             return list(unsupported_fields)
         return []
 
-    def init_base_dict(self):
+    def init_base_dict(self, agg_field=None):
         # 自动周期处理
         if self.search_params.get("interval", "auto") == "auto":
             interval = self._init_default_interval()
@@ -601,6 +605,8 @@ class UnifyQueryHandler:
 
             if self.agg_field:
                 query_dict["field_name"] = self.agg_field
+            elif self.agg_fields:
+                query_dict["field_name"] = agg_field
             else:
                 # 时间字段 & 类型 & 单位
                 time_field, time_field_type, time_field_unit = SearchHandler.init_time_field(index_info["index_set_id"])
@@ -619,6 +625,13 @@ class UnifyQueryHandler:
             "timezone": self.search_params.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE),
             "bk_biz_id": self.bk_biz_id,
         }
+
+    def init_base_dict_list(self):
+        base_dict_list = list()
+        for agg_field in self.agg_fields:
+            base_dict = self.init_base_dict(agg_field=agg_field)
+            base_dict_list.append(base_dict)
+        return base_dict_list
 
     @staticmethod
     def init_result_merge_base_dict(base_dict):
@@ -869,6 +882,80 @@ class UnifyQueryHandler:
             self._save_history(result, search_type)
 
         return result
+
+    def terms(self):
+        aggs = dict()
+        aggs_items = dict()
+
+        # 获取基础查询条件
+        query_conditions = copy.deepcopy(self.base_dict_list)
+
+        for index, query_condition in enumerate(query_conditions):
+            agg_field = self.agg_fields[index]
+
+            # 构建完整查询条件
+            self._build_complete_query_condition(query_condition, agg_field)
+
+            query_result = self.query_ts_reference(query_condition)
+            series = query_result.get("series", None)
+
+            if series:
+                # 处理获得聚合结果
+                agg = self.obtain_agg(agg_field, series)
+                agg_items = self.obtain_agg_items(agg_field, agg)
+                if agg and agg_items:
+                    aggs.update(agg)
+                    aggs_items.update(agg_items)
+
+        return {"aggs": aggs, "aggs_items": aggs_items}
+
+    @staticmethod
+    def obtain_agg_items(agg_field: str, agg: dict) -> dict:
+        """
+        处理聚合结果, 获得聚合后数据列表
+        """
+        agg_field_data = agg.get(agg_field, dict())
+        buckets = agg_field_data.get("buckets", [])
+
+        agg_item_list = [item["key"] for item in buckets if item.get("key")]
+
+        return {agg_field: agg_item_list} if agg_item_list else dict()
+
+    @staticmethod
+    def obtain_agg(agg_field: str, series: list) -> dict:
+        """
+        处理响应中的有效数据, 生成聚合结果
+        """
+        buckets = list()
+
+        for item in series:
+            group_values = item.get("group_values", None)
+            values = item.get("values", None)
+
+            if group_values and values:
+                buckets.append({"key": group_values[0], "doc_count": values[0][1]})
+
+        # 按数量倒叙排序
+        buckets = sorted(buckets, key=lambda x: x.get("doc_count"), reverse=True)
+
+        return {agg_field: {"buckets": buckets}} if buckets else dict()
+
+    def _build_complete_query_condition(self, query_condition: dict, agg_field: str) -> None:
+        """
+        构建完整查询条件
+        """
+        for query in query_condition["query_list"]:
+            query["limit"] = self.search_params.get("size", 10)
+            query["function"] = [{"method": "count", "dimensions": [agg_field]}]
+
+            # 增加字段不为空的条件
+            if len(query["conditions"]["field_list"]) > 0:
+                query["conditions"]["condition_list"].append("and")
+            query["conditions"]["field_list"].append({"field_name": agg_field, "value": [""], "op": "ne"})
+
+            query["reference_name"] = "a"
+
+        query_condition.update({"order_by": ["-_value"], "metric_merge": "a"})
 
     def date_histogram(self):
         params = copy.deepcopy(self.base_dict)
