@@ -141,7 +141,7 @@ export default defineComponent({
     };
 
     // 任务操作
-    const handleOperateTask = (task, type) => {
+    const handleOperateTask = (task: any, type: string) => {
       logData.value = task;
       operateType.value = type;
       setSidebarOpen(true);

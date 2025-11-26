@@ -242,7 +242,7 @@ export default defineComponent({
       // 关键词搜索
       if (props.keyword) {
         const keywordLower = props.keyword.trim().toLowerCase();
-        logList = logList.filter((item) => {
+        logList = logList.filter((item: Record<string, any>) => {
           const searchFields = [
             item.id?.toString() || '',
             item.task_name || '',
@@ -301,9 +301,8 @@ export default defineComponent({
     };
 
     // 过滤条件是否为空
-    const filterIsNotCompared = (val) => {
+    const filterIsNotCompared = (val: string | any[]) => {
       if (typeof val === 'string' && val === '') return true;
-      if (typeof val === 'object' && JSON.stringify(val) === '{}') return true;
       if (Array.isArray(val) && !val.length) return true;
       return false;
     };
@@ -320,22 +319,22 @@ export default defineComponent({
     };
 
     // 克隆任务
-    const cloneTask = (task) => {
+    const cloneTask = (task: any) => {
       emit('clone-task', task);
     };
 
     // 查看任务
-    const viewTask = (task) => {
+    const viewTask = (task: any) => {
       emit('view-task', task);
     };
 
     // 下载文件
-    const downloadFile = (downloadUrl) => {
+    const downloadFile = (downloadUrl: string) => {
       window.open(downloadUrl);
     };
 
     // 检查字段显示
-    const checkFields = (field) => {
+    const checkFields = (field: string) => {
       return columnSetting.value.selectedFields.some(item => item.id === field);
     };
 

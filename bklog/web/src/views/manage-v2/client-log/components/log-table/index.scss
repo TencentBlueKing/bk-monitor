@@ -42,13 +42,20 @@
     }
   }
 
-  .bk-table .bk-table-header-wrapper {
-    .filter-column {
-      .cell {
-        display: flex;
+    .bk-table {
+      .bk-table-header-wrapper {
+        .filter-column {
+          .cell {
+            display: flex;
+          }
+        }
+      }
+
+      .bk-table-fixed-right-patch {
+        position: relative;
+        width: 0px;
       }
     }
-  }
 
   .overflow-hidden-text {
     .cell {

@@ -166,7 +166,7 @@ export default defineComponent({
     };
 
     // 设置表单数据
-    const setFormData = (data) => {
+    const setFormData = (data: Record<string, any>) => {
       formData.value = {
         task_name: data.task_name,
         openid: data.openid,
