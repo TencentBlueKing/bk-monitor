@@ -1046,7 +1046,7 @@ class RPCMetricTag(CachedEnum):
                 self.CITY: _("城市"),
                 self.REGION: _("地域"),
                 self.CANARY: _("金丝雀"),
-                self.VERSION: _("SDK 版本"),
+                self.VERSION: _("版本"),
                 self.SDK_NAME: _("SDK 名称"),
                 self.ENV_NAME: _("用户环境"),
                 self.NAMESPACE: _("物理环境"),
@@ -1095,27 +1095,36 @@ class RPCMetricTag(CachedEnum):
         ]
 
     @classmethod
-    def get_rpc_tags(cls, kind) -> set[str]:
-        """
-        获取主调/被调场景对应的有效标签集合
-        :param kind: 主调/被调场景
-        :return:
-        """
-        rpc_tags = set()
-        for tag in cls.tags():
-            value = tag["value"]
-            if kind == "caller" and value in (cls.CALLER_SERVER.value, cls.CALLER_CONTAINER.value):
-                continue
-            if kind == "callee" and value in (cls.CALLEE_SERVER.value, cls.CALLEE_CONTAINER.value):
-                continue
+    def callee_tags(cls) -> list[dict[str, str]]:
+        replace_tags = {
+            cls.CALLEE_IP.value: cls.INSTANCE.value,
+            cls.CALLEE_CONTAINER.value: cls.CONTAINER_NAME.value,
+        }
+        return [
+            {
+                **tag,
+                "value": replace_tags.get(tag["value"], tag["value"]),
+            }
+            for tag in cls.tags()
+            # 被调已经固定「被调服务」，不需要展示
+            if tag["value"] != cls.CALLEE_SERVER.value
+        ]
 
-            if value in (cls.CALLER_IP.value, cls.CALLEE_IP.value):
-                rpc_tags.add(cls.INSTANCE.value)
-            else:
-                rpc_tags.add(value)
-        rpc_tags.add(cls.CONTAINER_NAME.value)
-
-        return rpc_tags
+    @classmethod
+    def caller_tags(cls) -> list[dict[str, str]]:
+        replace_tags = {
+            cls.CALLER_IP.value: cls.INSTANCE.value,
+            cls.CALLER_CONTAINER.value: cls.CONTAINER_NAME.value,
+        }
+        return [
+            {
+                **tag,
+                "value": replace_tags.get(tag["value"], tag["value"]),
+            }
+            for tag in cls.tags()
+            # 主调已经固定「主调服务」，不需要展示
+            if tag["value"] != cls.CALLER_SERVER.value
+        ]
 
     @classmethod
     def tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
@@ -1124,7 +1133,7 @@ class RPCMetricTag(CachedEnum):
             cls.CALLER_SERVER.value: {"field": ResourceAttributes.SERVICE_NAME},
             cls.CALLER_SERVICE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_SERVICE}"},
             cls.CALLER_METHOD.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_METHOD}"},
-            cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
+            cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
             cls.INSTANCE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
             "callee": {"field": "kind", "value": [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_CONSUMER]},
             cls.CALLEE_SERVER.value: {"field": ResourceAttributes.SERVICE_NAME},
@@ -1142,7 +1151,7 @@ class RPCMetricTag(CachedEnum):
         获取主调场景的标签到 Trace 字段的映射关系
         :return: 主调场景的标签映射字典
         """
-        exclude_tags = {"callee", cls.CALLEE_SERVER.value, cls.CALLER_IP.value}
+        exclude_tags = {"callee", cls.CALLEE_SERVER.value}
         return {
             tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in exclude_tags
         }
@@ -1153,9 +1162,15 @@ class RPCMetricTag(CachedEnum):
         获取被调场景的标签到 Trace 字段的映射关系
         :return: 被调场景的标签映射字典
         """
-        exclude_tags = {"caller", cls.CALLER_SERVER.value, cls.CALLEE_IP.value}
+        exclude_tags = {"caller", cls.CALLER_SERVER.value}
+        replace_tag_fields = {
+            cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
+            cls.CALLEE_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
+        }
         return {
-            tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in exclude_tags
+            tag: replace_tag_fields.get(tag, trace_tag_info)
+            for tag, trace_tag_info in cls.tag_trace_mapping().items()
+            if tag not in exclude_tags
         }
 
 
@@ -1630,7 +1645,7 @@ class ApmAlertHelper:
 
         # 判断主调/被调类型，并获取对应的有效标签列表
         kind: str = cls._get_rpc_kind(strategy)
-        valid_tags: set[str] = RPCMetricTag.get_rpc_tags(kind)
+        valid_tags = RPCMetricTag.caller_tags() if kind == "caller" else RPCMetricTag.callee_tags()
 
         call_filter: list[dict[str, Any]] = []
         for k, v in dimensions.items():
