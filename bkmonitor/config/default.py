@@ -1208,8 +1208,14 @@ JOB_URL = os.getenv("BK_JOB_SITE_URL") or os.getenv("BK_JOB_HOST", JOB_URL)
 BK_CC_URL = BK_PAAS_HOST.replace("paas", "cmdb")
 BK_CC_URL = os.getenv("BK_CC_SITE_URL") or os.getenv("BK_CC_HOST", BK_CC_URL)
 
+# 新版ITSM
+BK_ITSM_V4_HOST = os.getenv("BK_ITSM_V4_HOST", "")
+BK_ITSM_V4_API_URL = os.getenv("BK_ITSM_V4_API_URL", f"{BK_COMPONENT_API_URL}/api/cw-aitsm/prod")
+BK_ITSM_V4_SYSTEM_ID = os.getenv("BK_ITSM_V4_SYSTEM_ID", APP_CODE)
+
 BK_ITSM_HOST = os.getenv("BK_ITSM_HOST", f"{BK_PAAS_HOST}/o/bk_itsm/")
 BK_SOPS_HOST = os.getenv("BK_SOPS_URL", f"{BK_PAAS_HOST}/o/bk_sops/")
+BK_INCIDENT_SAAS_HOST = os.getenv("BK_INCIDENT_SAAS_HOST", f"{BK_PAAS_HOST}/o/bk_incident/")
 # todo  新增BK_CI_URL 需要在bin/environ.sh 模板中定义
 BK_BCS_HOST = os.getenv("BK_BCS_URL", f"{BK_PAAS_HOST}/o/bk_bcs_app/")
 BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
@@ -1222,6 +1228,11 @@ EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST, "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}"
 )
 MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
+
+# 故障分析
+BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
+# 是否开启故障分析功能，默认不开启
+ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lower() == "true"
 
 # IAM
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
@@ -1490,6 +1501,8 @@ APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split('
 
 # 是否启用新版的数据链路，默认开启
 ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == "true"
+# 是否启用事件组V4数据链路，默认关闭
+ENABLE_V4_EVENT_GROUP_DATA_LINK = os.getenv("ENABLE_V4_EVENT_GROUP_DATA_LINK", "false").lower() == "true"
 # 插件数据是否启用接入V4链路，默认开启
 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
 # 是否启用influxdb，默认关闭
@@ -1633,11 +1646,17 @@ K8S_V2_BIZ_LIST = []
 # APM UnifyQuery 查询业务黑名单
 APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
+# 事件 UnifyQuery 查询业务黑名单
+EVENT_UNIFY_QUERY_BLACK_BIZ_LIST = []
+
 # APM 调用分析启用全局指标的应用列表
 APM_RPC_GLOBAL_METRIC_ENABLE_APP_LIST = []
 
 # APM 按服务缓存指标的灰度应用列表，格式：["业务ID-应用名1", "业务ID-应用名2"]
 APM_SERVICE_CACHE_APPLICATIONS = []
+
+# 企业微信模块化（layouts）消息通知灰度业务列表
+WECOM_LAYOUTS_BIZ_LIST = []
 
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"

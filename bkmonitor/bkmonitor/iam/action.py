@@ -106,6 +106,36 @@ class ActionEnum:
         version=1,
     )
 
+    USING_METRICS_MCP = ActionMeta(
+        id="using_metrics_mcp",
+        name=_("使用指标MCP"),
+        name_en="Using Metrics MCP",
+        type="view",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+    
+    USING_LOG_MCP = ActionMeta(
+        id="using_log_mcp",
+        name=_("使用日志MCP"),
+        name_en="Using Log MCP",
+        type="view",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+    
+    USING_ALARM_MCP = ActionMeta(
+        id="using_alarm_mcp",
+        name=_("使用告警MCP"),
+        name_en="Using Alarm MCP",
+        type="view",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+
     EXPLORE_METRIC = ActionMeta(
         id="explore_metric_v2",
         name=_("指标检索"),

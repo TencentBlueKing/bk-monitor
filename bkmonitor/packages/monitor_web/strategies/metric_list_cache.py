@@ -290,6 +290,7 @@ class BaseMetricCacheManager:
                 metric_hash_dict[metric_id] = m
 
         # 遍历非缓存数据[最新数据]
+        processed_metric_ids: set[str] = set()
         for table in self.get_tables():
             for metric in self.get_metrics_by_table(table):
                 # 处理result_table_id长度
@@ -324,6 +325,12 @@ class BaseMetricCacheManager:
                     metric["metric_field"],
                     metric.get("related_id", ""),
                 )
+
+                # 重复指标，不处理
+                if metric_id in processed_metric_ids:
+                    continue
+                processed_metric_ids.add(metric_id)
+
                 metric_instance = metric_hash_dict.pop(metric_id, None)
                 # 处理新增指标
                 if metric_instance is None:
@@ -456,19 +463,6 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
 
     data_sources = ((DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),)
 
-    def get_metric_pool(self):
-        # 自定义指标，补上进程采集相关(映射到了，bkmonitor + timeseries[业务id为0])
-        # 这里不filter 业务id 是因为基类 _run 方法已有兜底过滤
-        queryset = super().get_metric_pool()
-
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            return queryset
-
-        return queryset | MetricListCache.objects.filter(
-            result_table_id__in=BuildInProcessMetric.result_table_list(),
-            bk_tenant_id=self.bk_tenant_id,
-        )
-
     def get_tables(self):
         custom_ts_result = api.metadata.query_time_series_group(
             bk_biz_id=self.bk_biz_id, bk_tenant_id=self.bk_tenant_id
@@ -485,7 +479,7 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         )
 
         db_name_list.extend([f"{plugin[0]}_{plugin[1]}".lower() for plugin in plugin_data])
-        # process插件
+        # 进程采集插件
         db_name_list.extend(["process_perf", "process_port"])
         # 拨测
         db_name_list.extend(
@@ -1524,15 +1518,11 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
     def get_metric_pool(self):
         # 去掉进程采集相关,因为实际是自定义指标上报上来的。
-        metric_queryset = MetricListCache.objects.filter(
+        return MetricListCache.objects.filter(
             data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
             data_type_label=DataTypeLabel.TIME_SERIES,
             bk_tenant_id=self.bk_tenant_id,
         ).exclude(result_table_id="")
-
-        if not settings.ENABLE_MULTI_TENANT_MODE:
-            metric_queryset = metric_queryset.exclude(result_table_id__in=BuildInProcessMetric.result_table_list())
-        return metric_queryset
 
     def get_tables(self):
         """
@@ -1578,6 +1568,105 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
         # 插件类指标
         yield from self.get_plugin_tables()
+
+        # 进程采集插件
+        if self.bk_biz_id == 0:
+            yield from self.get_process_plugin_tables()
+
+    def get_process_plugin_tables(self):
+        """
+        获取进程采集相关表数据
+        """
+        # process.port
+        yield {
+            "bk_biz_id": 0,
+            "table_type": "plugin",
+            "table_id": "process.port",
+            "data_label": "process",
+            "table_name_zh": "进程端口",
+            "label": "host_process",
+            "source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+            "type_label": DataTypeLabel.TIME_SERIES,
+            "field_list": [
+                {
+                    "field_name": "alive",
+                    "tag": "metric",
+                    "description": "端口存活",
+                    "alias_name": "端口存活",
+                    "unit": "",
+                    "unit_conversion": 1.0,
+                },
+                *[
+                    {
+                        "field_name": field["id"],
+                        "tag": "dimension",
+                        "description": "",
+                        "alias_name": field["name"],
+                        "unit": "",
+                        "unit_conversion": 1.0,
+                    }
+                    for field in PROCESS_PORT_METRIC_DIMENSIONS
+                ],
+            ],
+            "config_json": [],
+            "metric_info": {
+                "bk_biz_id": 0,
+                "collect_interval": 60,
+                "related_id": "process",
+                "related_name": "进程采集",
+                "category_display": "进程采集",
+                "plugin_type": "process",
+                "collect_config": "进程采集",
+                "collect_config_ids": [],
+            },
+        }
+
+        # process.perf
+        yield {
+            "bk_biz_id": 0,
+            "table_type": "plugin",
+            "table_id": "process.perf",
+            "data_label": "process",
+            "table_name_zh": "进程性能",
+            "label": "host_process",
+            "source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+            "type_label": DataTypeLabel.TIME_SERIES,
+            "field_list": [
+                *[
+                    {
+                        "field_name": field["metric_field"],
+                        "tag": "metric",
+                        "description": "",
+                        "alias_name": field["metric_field_name"],
+                        "unit": field["unit"],
+                        "unit_conversion": 1.0,
+                    }
+                    for field in PROCESS_METRICS
+                ],
+                *[
+                    {
+                        "field_name": field["id"],
+                        "tag": "dimension",
+                        "description": "",
+                        "alias_name": field["name"],
+                        "unit": "",
+                        "unit_conversion": 1.0,
+                    }
+                    for field in PROCESS_METRIC_DIMENSIONS
+                ],
+            ],
+            "config_json": [],
+            "metric_info": {
+                "bk_biz_id": 0,
+                "collect_interval": 60,
+                "related_id": "process",
+                "related_name": "进程采集",
+                "category_display": "进程采集",
+                "plugin_type": "process",
+                "collect_config": "进程采集",
+                "collect_config_ids": [],
+            },
+        }
 
     def get_plugin_tables(self):
         """
@@ -1635,7 +1724,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                     "bk_biz_id": plugin.bk_biz_id,
                     "table_type": "plugin",
                     "table_id": plugin_version.get_result_table_id(plugin, table["table_name"]).lower(),
-                    "data_label": (f"{plugin.plugin_type}_{plugin.plugin_id}").lower(),
+                    "data_label": f"{plugin.plugin_type}_{plugin.plugin_id}".lower(),
                     "table_name_zh": table["table_desc"],
                     "default_storage": "",
                     "label": plugin.label,

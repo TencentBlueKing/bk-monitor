@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from dataclasses import dataclass, field
-from typing import Dict, List
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -18,17 +17,19 @@ from constants.aiops import MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD, Sc
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
-def enum(**enums):
-    return type(str("Enum"), (), enums)
-
-
 # Agent状态
-AGENT_STATUS = enum(UNKNOWN=-1, ON=0, OFF=1, NOT_EXIST=2, NO_DATA=3)
+class AGENT_STATUS:
+    UNKNOWN = -1
+    ON = 0
+    OFF = 1
+    NOT_EXIST = 2
+    NO_DATA = 3
+
 
 UPTIME_CHECK_DB = "uptimecheck"
 
 
-class AlgorithmType(object):
+class AlgorithmType:
     Threshold = "Threshold"
     SimpleRingRatio = "SimpleRingRatio"
     AdvancedRingRatio = "AdvancedRingRatio"
@@ -37,7 +38,7 @@ class AlgorithmType(object):
     PartialNodes = "PartialNodes"
 
 
-class EventLevel(object):
+class EventLevel:
     EVENT_LEVEL = (
         (1, _("致命")),
         (2, _("预警")),
@@ -46,12 +47,20 @@ class EventLevel(object):
     EVENT_LEVEL_MAP = dict(list(EVENT_LEVEL))
 
 
-EVENT_TYPE = enum(SYSTEM="system", CUSTOM_EVENT="custom_event", KEYWORDS="keywords")
+class EVENT_TYPE:
+    """事件类型"""
 
-ETL_CONFIG = enum(
-    CUSTOM_EVENT="bk_standard_v2_event",
-    CUSTOM_TS="bk_standard_v2_time_series",
-)
+    CUSTOM_EVENT = "custom_event"
+    KEYWORDS = "keywords"
+    SYSTEM = "system"
+
+
+class ETL_CONFIG:
+    """数据清洗类型"""
+
+    CUSTOM_EVENT = "bk_standard_v2_event"
+    CUSTOM_TS = "bk_standard_v2_time_series"
+
 
 EVENT_FIELD_CHINESE = dict(
     id="ID",
@@ -72,19 +81,6 @@ EVENT_FIELD_CHINESE = dict(
     shield_type=_("屏蔽类型"),
 )
 
-OVERVIEW_ICON = (
-    "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB3aWR0aD0iMT"
-    "ZweCIgaGVpZ2h0PSIxNnB4IiB2aWV3Qm94PSIwIDAgMTYgMTYiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudz"
-    "Mub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CiAgICA8dGl0bGU+aW"
-    "Nvbi/mpoLop4gv5bey6YCJ5oupPC90aXRsZT4KICAgIDxnIGlkPSJpY29uL+amguiniC/lt7LpgInmi6kiIHN0cm9rZT0ibm"
-    "9uZSIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPgogICAgICAgIDxnIGlkPSLnvJ"
-    "bnu4QiIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEuMDAwMDAwLCAxLjAwMDAwMCkiPgogICAgICAgICAgICA8cmVjdCBpZD0i55"
-    "+p5b2iIiBmaWxsPSIjM0E4NEZGIiBmaWxsLXJ1bGU9Im5vbnplcm8iIHg9IjAiIHk9IjAiIHdpZHRoPSI1IiBoZWlnaHQ9Ij"
-    "E0Ij48L3JlY3Q+CiAgICAgICAgICAgIDxyZWN0IGlkPSLnn6nlvaLlpIfku70iIGZpbGw9IiM2MUIyQzIiIHg9IjYiIHk9Ij"
-    "AiIHdpZHRoPSI4IiBoZWlnaHQ9IjMiPjwvcmVjdD4KICAgICAgICAgICAgPHJlY3QgaWQ9IuefqeW9ouWkh+S7vS0yIiBmaW"
-    "xsPSIjRkZCODQ4IiB4PSI2IiB5PSI0IiB3aWR0aD0iOCIgaGVpZ2h0PSIxMCI+PC9yZWN0PgogICAgICAgIDwvZz4KICAgID"
-    "wvZz4KPC9zdmc+"
-)  # noqa
 
 # 多指标异常检测主机场景默认select
 MULTIVARIATE_ANOMALY_DETECTION_SCENE_HOST_FILTER_FIELDS = [
@@ -98,15 +94,15 @@ MULTIVARIATE_ANOMALY_DETECTION_SCENE_HOST_FILTER_FIELDS = [
 
 @dataclass
 class MultivariateAnomalyDetectionSceneParams:
-    agg_dimensions: List
-    sql_build_params: Dict
-    intelligent_detect_config: Dict
+    agg_dimensions: list
+    sql_build_params: dict
+    intelligent_detect_config: dict
 
 
 @dataclass
 class HostSceneParams(MultivariateAnomalyDetectionSceneParams):
-    agg_dimensions: List = field(default_factory=lambda: MULTIVARIATE_ANOMALY_DETECTION_SCENE_HOST_FILTER_FIELDS)
-    sql_build_params: Dict = field(
+    agg_dimensions: list = field(default_factory=lambda: MULTIVARIATE_ANOMALY_DETECTION_SCENE_HOST_FILTER_FIELDS)
+    sql_build_params: dict = field(
         default_factory=lambda: {
             "data_source_label": DataSourceLabel.BK_DATA,
             "data_type_label": DataTypeLabel.TIME_SERIES,
@@ -117,7 +113,7 @@ class HostSceneParams(MultivariateAnomalyDetectionSceneParams):
             + [MULTIVARIATE_ANOMALY_DETECTION_SCENE_INPUT_FIELD],
         }
     )
-    intelligent_detect_config: Dict = field(
+    intelligent_detect_config: dict = field(
         default_factory=lambda: {
             "scene_id": settings.BK_DATA_SCENE_ID_MULTIVARIATE_ANOMALY_DETECTION,
             "plan_id": settings.BK_DATA_PLAN_ID_MULTIVARIATE_ANOMALY_DETECTION,

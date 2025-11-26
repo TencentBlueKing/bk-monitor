@@ -1,9 +1,9 @@
 <script setup>
-import { defineEmits, defineProps, computed, watch, ref, onMounted } from 'vue';
-import useStore from '@/hooks/use-store';
-import useLocale from '@/hooks/use-locale';
-import { useRoute } from 'vue-router/composables';
 import $http from '@/api';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import { computed, defineEmits, defineProps, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router/composables';
 import DashboardDialog from './components/dashboard-dialog.vue';
 const props = defineProps({
   value: {
@@ -20,7 +20,7 @@ const route = useRoute();
 
 const emit = defineEmits(['input']);
 
-const indexSetIds = computed(() => store.state.indexItem.ids);
+const indexSetIds = computed(() => store.state.indexItem.ids.map(id => `${id}`));
 const indexSetId = computed(() => indexSetIds.value[0]);
 const bkBizId = computed(() => store.state.bkBizId);
 

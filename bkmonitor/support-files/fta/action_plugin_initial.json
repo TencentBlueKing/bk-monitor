@@ -681,5 +681,149 @@
         "next_function": "schedule"
       }
     ]
-  }
+  },
+  {
+    "id": 7,
+    "description": "流程服务可自定义设计的流程模块，可以通过工单流程来满足协作的需求。<a href=\\\"{plugin_url}\\\" target=\\\"_blank\\\">前往流程服务</a>\\n\\n* 新建服务 &gt; 关联已有流程/创建新流程 &gt; 完成\\n\\n* 提单信息可通过处理套餐进行上下文传参",
+    "has_child": true,
+    "is_builtin": true,
+    "is_deleted": false,
+    "is_peripheral": true,
+    "name": "新版ITSM流程服务",
+    "plugin_key": "itsm",
+    "plugin_source": "peripheral",
+    "plugin_type": "common",
+    "config_schema": {
+    "content_template": "故障工单套餐【{{action_name}}】处理{{status_display}}, 请关注！！",
+    "content_template_with_url": "根据套餐【{{action_name}}】的配置成功创建故障工单[{{sn}}]，点击$查看工单详情$",
+    "detail": {
+      "init_kwargs": {
+        "url": "{{itsm_v4_api_url}}/api/v1/workflows/"
+      },
+      "mapping": {
+        "key": "{{key}}",
+        "name": "{{name}}",
+        "placeholder": "{{desc}}",
+        "required": "{{required}}",
+        "value": "{{default or ''}}"
+      },
+      "name": "提单信息",
+      "request_data_mapping": {
+        "workflow_keys": "{{template_id}}"
+      },
+      "resource_class": "CommonBaseResource",
+      "resource_data": "response.items[].form_canvas_data.form_data.layout[].list[].{key: key, desc: desc, name: tips,default:defaultValue,required:verification.required.value}",
+      "resource_module": "api.common.default"
+    },
+    "plugin_url": {
+      "mapping": {
+        "tips": "前往流程服务",
+        "url": "{{itsm_v4_site_url}}/#/system/processList"
+      }
+    },
+    "template": {
+      "init_kwargs": {
+        "url": "{{itsm_v4_api_url}}/api/v1/system_workflow/list/"
+      },
+      "mapping": {
+        "id": "{{key}}",
+        "name": "{{name}}",
+        "url": "{{itsm_v4_site_url}}/#/ticket/ticketInfo?workflowId={{key}}&type=create"
+      },
+      "name": "服务名称",
+      "request_data_mapping": {
+        "is_enable": "True",
+        "system_id": "{{itsm_v4_system_id}}"
+      },
+      "resource_class": "CommonBaseResource",
+      "resource_data": "response.results[].{name: name, key: key}",
+      "resource_module": "api.common.default"
+    }
+  },
+    "backend_config": [
+    {
+      "function": "create_task",
+      "init_kwargs": {
+        "method": "POST",
+        "url": "{{itsm_v4_api_url}}/api/v1/ticket/create/"
+      },
+      "inputs": [
+        {
+          "format": "jmespath",
+          "key": "workflow_key",
+          "type": "str",
+          "value": "execute_config.template_id"
+        },
+        {
+          "format": "jmespath",
+          "key": "form_data",
+          "type": "dict",
+          "value": "execute_config.template_detail_dict"
+        }
+      ],
+      "log_template": "根据套餐【{{action_name}}】的配置已成功创建故障工单[{{sn}}]，点击$查看工单详情$",
+      "name": "创建单据",
+      "need_insert_log": true,
+      "outputs": [
+        {
+          "format": "jmespath",
+          "key": "sn",
+          "value": "response.sn"
+        },
+        {
+          "format": "jmespath",
+          "key": "id",
+          "value": "response.id"
+        },
+        {
+          "format": "jmespath",
+          "key": "url",
+          "value": "response.frontend_url"
+        }
+      ],
+      "resource_class": "CommonBaseResource",
+      "resource_module": "api.common.default"
+    },
+    {
+      "finished_rule": {
+        "key": "current_status",
+        "method": "equal",
+        "value": "finished"
+      },
+      "function": "schedule",
+      "init_kwargs": {
+        "method": "GET",
+        "url": "{{itsm_v4_api_url}}/api/v1/ticket/detail/"
+      },
+      "inputs": [
+        {
+          "format": "jmespath",
+          "key": "id",
+          "type": "string",
+          "value": "pre_node_outputs.id"
+        }
+      ],
+      "name": "轮询状态",
+      "need_schedule": true,
+      "next_function": "schedule",
+      "outputs": [
+        {
+          "format": "jmespath",
+          "key": "current_status",
+          "type": "string",
+          "value": "response.status"
+        },
+        {
+          "format": "jmespath",
+          "key": "url",
+          "type": "string",
+          "value": "response.frontend_url"
+        }
+      ],
+      "resource_class": "CommonBaseResource",
+      "resource_module": "api.common.default",
+      "schedule_timedelta": 2
+    }
+  ]
+}
 ]

@@ -543,11 +543,6 @@ class DataBusConfig(DataLinkResourceConfigBase):
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
             render_params["tenant"] = self.bk_tenant_id
 
         return utils.compose_config(
@@ -610,11 +605,6 @@ class DataBusConfig(DataLinkResourceConfigBase):
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
             render_params["tenant"] = self.bk_tenant_id
 
         return utils.compose_config(
@@ -675,11 +665,6 @@ class DataBusConfig(DataLinkResourceConfigBase):
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
             render_params["tenant"] = self.bk_tenant_id
 
         return utils.compose_config(
@@ -733,11 +718,6 @@ class ConditionalSinkConfig(DataLinkResourceConfigBase):
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
             render_params["tenant"] = self.bk_tenant_id
 
         return utils.compose_config(

@@ -1,0 +1,65 @@
+@import '@/scss/mixins/flex.scss';
+
+.cluster-select-filter {
+  border: none;
+
+  .filter-box {
+    color: #313238;
+  }
+
+  .icon-funnel {
+    font-size: 14px;
+    color: #c4c6cc;
+    cursor: pointer;
+  }
+
+  .is-active {
+    color: #3a84ff;
+  }
+}
+
+.cluster-select-filter-popover {
+  .bk-option.is-selected {
+    /* stylelint-disable-next-line declaration-no-important */
+    background: none !important;
+  }
+
+  .bk-option:hover {
+    background: #f4f6fa;
+  }
+
+  .bk-select-extension {
+    /* stylelint-disable-next-line declaration-no-important */
+    background: transparent !important;
+  }
+
+  .ext-box {
+    height: 32px;
+
+    @include flex-center();
+
+    .bk-checkbox-text {
+      font-size: 12px;
+    }
+  }
+
+  .bk-checkbox-text {
+    width: calc(100% - 20px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .group-list.group-loading {
+    width: 100%;
+    min-height: 40px;
+
+    @include flex-center();
+  }
+
+  .extension-box {
+    padding: 12px 0;
+
+    @include flex-justify(flex-start);
+  }
+}

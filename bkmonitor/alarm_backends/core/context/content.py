@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import json
 import logging
@@ -26,6 +26,7 @@ from bkmonitor.models import AnomalyRecord
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.template import NoticeRowRenderer
 from constants.alert import TARGET_DIMENSIONS
+from constants.apm import ApmAlertHelper
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from core.unit import load_unit
@@ -75,17 +76,17 @@ class DefaultContent(BaseContextObject):
             if self.parent.notice_way in settings.MD_SUPPORTED_NOTICE_WAYS:
                 # 所有支持markdown语法的通知方式，默认用markdown格式
                 content_type = "markdown"
-            if hasattr(self, "{}_{}".format(item, content_type)):
-                value = object.__getattribute__(self, "{}_{}".format(item, content_type))
+            if hasattr(self, f"{item}_{content_type}"):
+                value = object.__getattribute__(self, f"{item}_{content_type}")
             else:
-                value = super(DefaultContent, self).__getattribute__(item)
+                value = super().__getattribute__(item)
 
             if value is None:
                 return ""
             else:
                 return NoticeRowRenderer.format(content_type, self.Labels[item][content_type], value)
 
-        return super(DefaultContent, self).__getattribute__(item)
+        return super().__getattribute__(item)
 
     # 告警级别
     @cached_property
@@ -265,6 +266,34 @@ class DefaultContent(BaseContextObject):
                     )
                     value = "|".join([item for item in [cluster, node, namespace, pod, container] if item])
                     display_dimensions.append({"value": value, "link": link})
+            elif getattr(alert.event, "category", None) == "apm" and alert.strategy:
+                dimensions: dict[str, str | None] = {
+                    d["key"].replace("tags.", ""): d["value"] for d in alert.common_dimensions
+                }
+                apm_target: dict[str, str | None] = ApmAlertHelper.get_target(alert.strategy, dimensions)
+                app_name, service_name = apm_target.get("app_name"), apm_target.get("service_name")
+                if not app_name:
+                    continue
+                if service_name:
+                    display_dimensions.append(
+                        {
+                            "value": _(f"**APM 服务 <{app_name} | {service_name}>**"),
+                            "link": urllib.parse.urljoin(
+                                monitor_host,
+                                f"?bizId={self.parent.business.bk_biz_id}#/apm/service"
+                                f"?filter-service_name={service_name}&filter-app_name={app_name}",
+                            ),
+                        }
+                    )
+                else:
+                    display_dimensions.append(
+                        {
+                            "value": _(f"**APM 应用<{app_name}>**"),
+                            "link": urllib.parse.urljoin(
+                                monitor_host, f"?bizId={self.parent.business.bk_biz_id}#/apm/home?app_name={app_name}"
+                            ),
+                        }
+                    )
             else:
                 bk_cloud_id = getattr(alert.event, "bk_cloud_id", 0)
                 dimensions = {d["key"]: d for d in alert.target_dimensions}
@@ -276,9 +305,9 @@ class DefaultContent(BaseContextObject):
                     display_value = dimensions[key].get("display_value") or value
                     link = ""
                     if key in ["ip", "bk_target_ip"]:
-                        route_path = base64.b64encode(
-                            f"#/performance/detail/{value}-{bk_cloud_id}".encode("utf8")
-                        ).decode("utf8")
+                        route_path = base64.b64encode(f"#/performance/detail/{value}-{bk_cloud_id}".encode()).decode(
+                            "utf8"
+                        )
                         link = urllib.parse.urljoin(
                             monitor_host, f"route/?bizId={self.parent.business.bk_biz_id}&route_path={route_path}"
                         )
@@ -292,13 +321,13 @@ class DefaultContent(BaseContextObject):
                 target_dict[dimension["value"]]["count"] = 1
         targets = []
         for value, item in target_dict.items():
-            if item['link']:
+            if item["link"]:
                 targets.append(
                     f"[{value}({item['count']})]({item['link']})" if item["count"] > 1 else f"[{value}]({item['link']})"
                 )
             else:
                 # 需要保证targets里都是字符串
-                targets.append(f"{value}({item['count']})" if item['count'] > 1 else str(value))
+                targets.append(f"{value}({item['count']})" if item["count"] > 1 else str(value))
 
         return ", ".join(targets) if targets else None
 
@@ -396,7 +425,7 @@ class DimensionCollectContent(DefaultContent):
     def sms_forced_related_info_sms(self):
         if len(self.parent.alarm.related_info) > 300:
             # 默认不能大于300个字符，当大于300的时候，仅保留300字符
-            return "{}...".format(self.parent.alarm.related_info[:297])
+            return f"{self.parent.alarm.related_info[:297]}..."
         return self.parent.alarm.related_info
 
     # 邮件
@@ -439,7 +468,7 @@ class DimensionCollectContent(DefaultContent):
         try:
             unit = load_unit(self.parent.strategy.items[0].unit)
             value, suffix = unit.fn.auto_convert(self.parent.alarm.current_value, decimal=settings.POINT_PRECISION)
-            return "{}{}".format(value, suffix)
+            return f"{value}{suffix}"
         except BaseException as error:
             # 出现异常的时候，直接返回当前值
             logger.info("get alarm current value of email error %s", str(error))
@@ -454,7 +483,11 @@ class DimensionCollectContent(DefaultContent):
     def dimension_markdown(self):
         if not self.parent.alarm.dimension_string_list:
             return ""
-        dimension_string_list = ["\\n> " + dimension_str for dimension_str in self.parent.alarm.dimension_string_list]
+
+        dimension_string_list: list[str] = []
+        for dimension_str in self.parent.alarm.dimension_string_list:
+            k, v = dimension_str.split(": ", 1)
+            dimension_string_list.append(f"\\n> **{k}**: {v}")
         dimension_str = "".join(dimension_string_list) + "\\n"
         return dimension_str
 
@@ -468,7 +501,7 @@ class DimensionCollectContent(DefaultContent):
             log_related_info = json.loads(topo_related_info)
             bklog_link = log_related_info.pop("bklog_link", "")
             log_related_info = json.dumps(log_related_info)
-            log_related_info += "[日志详情]({})".format(bklog_link)
+            log_related_info += f"[日志详情]({bklog_link})"
         except JSONDecodeError as error:
             # 如果json loads不成功， 忽略
             logger.debug("json loads alarm log_related_info failed %s", str(error))
@@ -575,10 +608,7 @@ class MultiStrategyCollectContent(DefaultContent):
         max_time = time_tools.localtime(max(source_times))
         min_time = time_tools.localtime(min(source_times))
 
-        time_range = "{min_time} ~ {max_time}".format(
-            min_time=min_time.strftime(settings.DATETIME_FORMAT),
-            max_time=max_time.strftime(settings.DATETIME_FORMAT),
-        )
+        time_range = f"{min_time.strftime(settings.DATETIME_FORMAT)} ~ {max_time.strftime(settings.DATETIME_FORMAT)}"
         return time_range
 
     @cached_property

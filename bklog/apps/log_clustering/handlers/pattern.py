@@ -350,7 +350,10 @@ class PatternHandler:
         start_time, end_time = generate_time_range(
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
-        if self._clustering_config.new_cls_strategy_output:
+        if self._clustering_config.use_mini_link:
+            # TODO: 使用监控新类告警结果判定
+            new_classes = []
+        elif self._clustering_config.new_cls_strategy_output:
             # 新类异常检测逻辑适配
             try:
                 select_fields = NEW_CLASS_QUERY_FIELDS + self._clustering_config.group_fields
@@ -428,6 +431,9 @@ class PatternHandler:
         """
         获取 小型化 链路的 pattern 数据
         """
+        start_time, end_time = generate_time_range(
+            NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
+        )
         result = UnifyQueryApi.query_ts_raw(
             {
                 "bk_biz_id": self._clustering_config.bk_biz_id,
@@ -438,7 +444,7 @@ class PatternHandler:
                             self._index_set_id,
                             pattern_rt=True,
                         ),
-                    }
+                    },
                 ],
                 "conditions": {
                     "field_list": {
@@ -448,8 +454,8 @@ class PatternHandler:
                     }
                 },
                 "limit": 10000,
-                "start_time": self._query["start_time"],
-                "end_time": self._query["end_time"],
+                "start_time": str(int(start_time.shift(days=-1).timestamp() * 1000)),
+                "end_time": str(int(arrow.now().timestamp() * 1000)),
             }
         )
         return [
@@ -459,6 +465,7 @@ class PatternHandler:
                 "origin_log": record["log"],
             }
             for record in result["list"]
+            if record["signature"]
         ]
 
     def set_clustering_owner(self, params: dict):

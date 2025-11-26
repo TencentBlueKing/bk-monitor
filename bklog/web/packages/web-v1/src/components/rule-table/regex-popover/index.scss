@@ -1,0 +1,88 @@
+.event-tippy {
+  .event-icons {
+    flex-direction: column;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .event-box {
+    min-width: 240px;
+    height: 32px;
+    padding: 0 10px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    &:hover {
+      background: #eaf3ff;
+    }
+
+    .event-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: left;
+
+      &:hover {
+        color: #3a84ff;
+      }
+
+      .icon {
+        display: inline-block;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .icon-eye {
+        margin-right: 6px;
+      }
+
+      .icon-copy {
+        margin-left: -4px;
+        font-size: 24px;
+      }
+    }
+
+    .new-link {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+  }
+}
+
+.retrieve-event-popover {
+  .bk-tooltip-ref {
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  mark {
+    color: #313238;
+    background: #f0f1f5;
+  }
+
+  &.is-inline {
+    display: inline;
+
+    .bk-tooltip-ref {
+      display: inline;
+    }
+
+    .tippy-tooltip {
+      padding-left: 0;
+    }
+  }
+}

@@ -1,0 +1,92 @@
+.create-subscription-form-container {
+  .card-container {
+    padding: 16px 24px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+
+    &:nth-of-type(n + 2) {
+      margin-top: 16px;
+    }
+
+    .title {
+      margin-bottom: 22px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #63656e;
+    }
+
+    .slider-container {
+      display: flex;
+
+      .slider {
+        width: 180px;
+        margin: 0 10px;
+      }
+    }
+
+    .bk-form-radio {
+      margin-right: 10px;
+      line-height: 30px;
+    }
+  }
+
+  .text-content {
+    font-size: 12px;
+    color: #63656e;
+  }
+
+  .bk-form-radio {
+    font-size: 12px;
+  }
+
+  .bk-label-text {
+    font-size: 12px;
+  }
+
+  .bk-radio-button-text {
+    font-size: 12px;
+  }
+
+  .bk-checkbox-text {
+    font-size: 12px;
+  }
+
+  .bk-form-item.is-error {
+    [data-is-show-error-msg='true'] {
+      .user-selector-container {
+        color: #ea3636;
+        border-color: #ea3636;
+      }
+    }
+
+    [data-is-show-error-msg='false'] {
+      input[type='text'] {
+        color: #63656e;
+        border-color: #c4c6cc;
+      }
+
+      .bk-form-input:focus {
+        /* stylelint-disable-next-line declaration-no-important */
+        border-color: #3a84ff !important;
+      }
+    }
+  }
+
+  // 这里处理组件库的显示 bug ，不然 DatePicker 无法正常显示。
+  .no-relative {
+    &.bk-form-item {
+      position: static;
+    }
+
+    .bk-form-content {
+      position: static;
+    }
+  }
+
+  .effective-end {
+    ::placeholder {
+      color: #63656e;
+    }
+  }
+}

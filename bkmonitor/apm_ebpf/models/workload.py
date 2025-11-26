@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from collections import defaultdict
 
 from django.db import models
@@ -54,8 +54,8 @@ class ClusterRelation(models.Model):
     def all_cluster_ids(cls):
         res = defaultdict(set)
         for i in ClusterRelation.objects.all():
-            # 正常来说集群只会关联一个 CC 业务 这里写松一点
             res[i.cluster_id].add(i.related_bk_biz_id)
+            res[i.cluster_id].add(i.bk_biz_id)
         return res
 
 

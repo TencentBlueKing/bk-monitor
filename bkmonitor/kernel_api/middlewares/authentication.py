@@ -225,6 +225,10 @@ class AuthenticationMiddleware(MiddlewareMixin):
         """
         return request.META.get("HTTP_X_BK_REQUEST_SOURCE") == settings.AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE
 
+    @staticmethod
+    def use_api_token_auth(request):
+        return "HTTP_AUTHORIZATION" in request.META and request.META["HTTP_AUTHORIZATION"].startswith("Bearer ")
+
     def _handle_mcp_auth(self, request, username=None):
         """
         处理MCP权限校验
@@ -232,6 +236,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         """
         # 导入放在这里避免循环依赖
         from bkmonitor.iam.drf import MCPPermission
+        from bkmonitor.iam.action import get_action_by_id
 
         logger.info("MCPAuthentication: Handling MCP authentication")
 
@@ -268,9 +273,23 @@ class AuthenticationMiddleware(MiddlewareMixin):
             logger.error(f"MCPAuthentication: Invalid bk_biz_id format: {bk_biz_id}")
             return HttpResponseForbidden(f"Invalid bk_biz_id format: {bk_biz_id}")
 
+        # 从请求头中获取权限动作ID，并动态加载对应的权限
+        permission_action_id = request.META.get("HTTP_X_BKAPI_PERMISSION_ACTION")
+        logger.info(f"MCPAuthentication: Permission action from header: {permission_action_id}")
+
         # 使用 MCPPermission 进行权限校验
         try:
-            permission = MCPPermission()
+            # 根据请求头动态获取权限动作
+            action = None
+            if permission_action_id:
+                try:
+                    action = get_action_by_id(permission_action_id)
+                    logger.info(f"MCPAuthentication: Using action: {action.id} - {action.name}")
+                except Exception as e:
+                    logger.warning(f"MCPAuthentication: Failed to get action by id '{permission_action_id}': {e}")
+                    # 如果找不到对应的权限，使用默认权限
+
+            permission = MCPPermission(action=action)
             # 创建一个简单的 mock view 对象
             mock_view = type("MockView", (), {"kwargs": {}})()
 
@@ -283,6 +302,48 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         logger.info(f"MCPAuthentication: Authentication Success: user={username}, bk_biz_id={request.biz_id}")
         return None
+
+    def _handle_api_token_auth(self, request, view):
+        token = request.META["HTTP_AUTHORIZATION"][7:]
+        try:
+            record = ApiAuthToken.objects.get(token=token)
+        except ApiAuthToken.DoesNotExist:
+            record = None
+
+        if not record:
+            return HttpResponseForbidden("API Token is invalid")
+
+        if record.is_expired():
+            return HttpResponseForbidden("API Token has expired")
+
+        if not record.is_allowed_view(view):
+            return HttpResponseForbidden("API Token is not allowed")
+
+        # TODO: 检查命名空间与租户id是否匹配
+        if not record.is_allowed_namespace(f"biz#{request.biz_id}"):
+            if not request.biz_id:
+                return HttpResponseForbidden("params `bk_biz_id` is required")
+            return HttpResponseForbidden(
+                f"namespace biz#{request.biz_id} is not allowed in [{','.join(record.namespaces)}]"
+            )
+
+        # grafana、as_code场景权限模式：替换请求用户为令牌创建者
+        if record.type.lower() in ["as_code", "grafana"]:
+            username = "system" if record.type.lower() == "as_code" else "admin"
+            user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
+            auth.login(request, user)
+            request.skip_check = True
+        elif record.type.lower() == "entity":
+            # 实体关系权限模式：替换请求用户为令牌创建者
+            username = record.create_user or "system"
+            user = auth.authenticate(username=username, tenant_id=record.bk_tenant_id)
+            auth.login(request, user)
+            request.token = token
+            request.skip_check = True
+        else:
+            # 观测场景、告警事件场景权限模式：保留原用户信息,判定action是否符合token鉴权场景
+            request.token = token
+        return
 
     def process_view(self, request, view, *args, **kwargs):
         # 登录豁免
@@ -353,6 +414,9 @@ class AuthenticationMiddleware(MiddlewareMixin):
             logger.info("=" * 80)
 
             return self._handle_mcp_auth(request, username=username)
+
+        if self.use_api_token_auth(request):
+            return self._handle_api_token_auth(request, view)
 
         # 后台仪表盘渲染豁免
         # TODO: 多租户支持验证

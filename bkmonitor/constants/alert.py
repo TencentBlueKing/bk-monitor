@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import typing
+from functools import cached_property
 
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.models import NO_DATA_TAG_DIMENSION
+
+from constants.apm import CachedEnum
 
 
 class EventTargetType:
@@ -145,20 +148,20 @@ OLD_DEFAULT_TEMPLATE: str = (
     "{{content.related_info}}\n"
 )
 
-DEFAULT_TEMPLATE: str = OLD_DEFAULT_TEMPLATE + "{{content.recommended_metrics}}\n" "{{content.anomaly_dimensions}}\n"
+DEFAULT_TEMPLATE: str = OLD_DEFAULT_TEMPLATE + "{{content.recommended_metrics}}\n{{content.anomaly_dimensions}}\n"
 
 DEFAULT_TITLE_TEMPLATE: str = "{{business.bk_biz_name}} - {{alarm.name}} {{alarm.display_type}}"
 
 
 # TODO(crayon) 灰度验证无误后再进行调整
-DEFAULT_NOTICE_MESSAGE_TEMPLATE: typing.List[typing.Dict[str, str]] = [
+DEFAULT_NOTICE_MESSAGE_TEMPLATE: list[dict[str, str]] = [
     {"signal": "abnormal", "message_tmpl": OLD_DEFAULT_TEMPLATE, "title_tmpl": DEFAULT_TITLE_TEMPLATE},
     {"signal": "recovered", "message_tmpl": OLD_DEFAULT_TEMPLATE, "title_tmpl": DEFAULT_TITLE_TEMPLATE},
     {"signal": "closed", "message_tmpl": OLD_DEFAULT_TEMPLATE, "title_tmpl": DEFAULT_TITLE_TEMPLATE},
 ]
 
 
-PUBLIC_NOTICE_CONFIG: typing.Dict[str, typing.Union[str, typing.List[typing.Dict]]] = {
+PUBLIC_NOTICE_CONFIG: dict[str, str | list[dict]] = {
     "alert_notice": [
         {
             "time_range": "00:00:00--23:59:59",
@@ -183,7 +186,7 @@ PUBLIC_NOTICE_CONFIG: typing.Dict[str, typing.Union[str, typing.List[typing.Dict
 }
 
 
-DEFAULT_NOTICE_GROUPS: typing.List[typing.Dict[str, typing.Any]] = [
+DEFAULT_NOTICE_GROUPS: list[dict[str, typing.Any]] = [
     {
         "name": _("主备负责人"),
         "notice_receiver": [{"id": "operator", "type": "group"}, {"id": "bk_bak_operator", "type": "group"}],
@@ -194,3 +197,27 @@ DEFAULT_NOTICE_GROUPS: typing.List[typing.Dict[str, typing.Any]] = [
     {"name": _("测试"), "notice_receiver": [{"id": "bk_biz_tester", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
     {"name": _("产品"), "notice_receiver": [{"id": "bk_biz_productor", "type": "group"}], **PUBLIC_NOTICE_CONFIG},
 ]
+
+
+class AlertRedirectType(CachedEnum):
+    DETAIL = "detail"
+    QUERY = "query"
+    LOG_SEARCH = "log_search"
+    APM_RPC = "apm_rpc"
+    APM_TRACE = "apm_trace"
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.DETAIL: _("告警详情"),
+                self.QUERY: _("指标检索"),
+                self.LOG_SEARCH: _("日志检索"),
+                self.APM_RPC: _("调用分析"),
+                self.APM_TRACE: _("Tracing 检索"),
+            }.get(self, self.value)
+        )

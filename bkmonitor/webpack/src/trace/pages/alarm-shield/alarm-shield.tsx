@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref as deepRef, defineComponent, provide, reactive, shallowRef, computed } from 'vue';
+import { computed, ref as deepRef, defineComponent, provide, reactive, shallowRef } from 'vue';
 
 import {
   type FilterValue,
@@ -185,13 +185,13 @@ export default defineComponent({
         disabled: true,
       },
     ]);
-    const columnComputed = computed(()=>{
+    const columnComputed = computed(() => {
       // 失效时间只在屏蔽失效tab展示
       if (!shieldStatus.value) {
-        return columns.value.filter((item) => item.id !== EColumn.failureTime);
+        return columns.value.filter(item => item.id !== EColumn.failureTime);
       }
       return columns.value;
-    })
+    });
     const tableLoading = deepRef(false);
 
     const pagination = reactive({
@@ -719,9 +719,11 @@ export default defineComponent({
                 modelValue={this.dateRange}
                 placeholder={this.t('选择屏蔽时间范围')}
                 type='datetimerange'
-                onChange={v => (this.dateRange = v)}
                 onClear={() => this.handleDatePickClear()}
                 onPick-success={this.handleDatePick}
+                onUpdate:modelValue={v => {
+                  this.dateRange = v;
+                }}
               />
               <SearchSelect
                 class='shield-search'
@@ -782,6 +784,7 @@ export default defineComponent({
                 }}
                 data={this.tableList}
                 filterValue={this.filterValue}
+                hover={true}
                 needCustomScroll={false}
                 rowKey='id'
                 showSortColumnBgColor={true}
@@ -811,8 +814,8 @@ export default defineComponent({
         </div>
         <AlarmShieldDetail
           id={this.detailData.id}
-          show={this.detailData.show}
           failureTime={this.detailData.failureTime}
+          show={this.detailData.show}
           onShowChange={this.handleDetailShowChange}
         />
       </div>

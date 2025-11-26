@@ -71,7 +71,7 @@
                 :name="dimension.key"
                 shape="square"
               >
-                {{ dimension.displayValue }}
+                {{ `${dimension.displayKey || dimension.key}(${dimension.displayValue || dimension.value})` }}
               </van-checkbox>
             </van-checkbox-group>
             <span

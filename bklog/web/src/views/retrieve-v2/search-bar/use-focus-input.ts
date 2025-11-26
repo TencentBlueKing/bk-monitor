@@ -49,6 +49,7 @@ export default (
     handleWrapperClick,
     onInputFocus,
     afterShowKeyEnter,
+    showPopoverOnClick = true,
   },
 ) => {
   const modelValue = ref([]);
@@ -112,7 +113,9 @@ export default (
       if (!isInstanceShown()) {
         setIsInputTextFocus(true);
         onInputFocus?.();
-        delayShowInstance(getPopTarget());
+        if (showPopoverOnClick) { // 是否在点击时显示弹窗
+          delayShowInstance(getPopTarget());
+        }
       }
       return input;
     }

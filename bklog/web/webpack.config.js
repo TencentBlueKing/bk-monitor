@@ -33,15 +33,12 @@ const LogWebpackPlugin = require('./webpack/log-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const CliMonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const { createMonitorConfig } = require('./scripts/create-monitor');
-const devProxyUrl = 'http://appdev.bktencent.com:9002';
-const loginHost = 'https://paas-dev.bktencent.com';
+
 const devPort = 8001;
 
 let devConfig = {
   port: devPort,
-  devProxyUrl,
-  loginHost,
-  proxy: {},
+  proxy: [{}],
   cache: null,
 };
 const logPluginConfig = {
@@ -89,16 +86,57 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   const localConfig = require('./local.settings');
   devConfig = Object.assign({}, devConfig, localConfig);
 }
-module.exports = (baseConfig, { app, mobile, production, fta, log, email = false }) => {
+module.exports = (baseConfig, { app, mobile, production, fta, log: _log, email = false }) => {
   const isMonitorRetrieveBuild = ['apm', 'trace'].includes(process.env.MONITOR_APP) && production; // 判断是否监控检索构建
   const config = baseConfig;
   const distUrl = path.resolve('../static/dist');
   if (!production) {
+    // 开发环境：复制 @blueking/log-web 到静态目录，方便开发时访问
+    const logWebDistPath = path.resolve(__dirname, './node_modules/@blueking/log-web/dist');
+    const logWebDistExists = fs.existsSync(logWebDistPath);
+
+    if (logWebDistExists) {
+      config.plugins.push(
+        new CopyWebpackPlugin({
+          patterns: [
+            {
+              from: logWebDistPath,
+              to: path.resolve(distUrl, './log-web1-dll'),
+              noErrorOnMissing: true, // 如果包不存在，不报错
+            },
+          ],
+        }),
+      );
+    }
+
     config.devServer = Object.assign({}, config.devServer || {}, {
       port: devConfig.port,
       host: devConfig.host,
       open: false,
-      static: [],
+      static: [
+        // 开发环境：优先直接从 node_modules 提供 log-web1-dll 资源
+        // 只有当目录存在时才添加此配置
+        ...(logWebDistExists
+          ? [
+            {
+              directory: logWebDistPath,
+              publicPath: '/static/dist/log-web1-dll',
+              serveIndex: false, // 禁用目录索引
+              watch: false, // 不监听文件变化
+            },
+          ]
+          : []),
+        // 添加静态目录，使 devServer 可以提供其他静态资源
+        {
+          directory: path.resolve(__dirname, '../static/dist'),
+          publicPath: '/static/dist',
+          serveIndex: false, // 禁用目录索引
+        },
+      ],
+      // 配置 MIME 类型，确保 CSS 文件正确返回
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+      },
       proxy: [...devConfig.proxy],
     });
     config.plugins.push(
@@ -124,6 +162,12 @@ module.exports = (baseConfig, { app, mobile, production, fta, log, email = false
           {
             from: path.resolve(__dirname, './src/images/new-logo.svg'),
             to: path.resolve(distUrl, './img'),
+          },
+          // 复制 @blueking/log-web 整个 dist 目录到目标位置（V1版本兼容包）
+          {
+            from: path.resolve(__dirname, './node_modules/@blueking/log-web/dist'),
+            to: path.resolve(distUrl, './log-web1-dll'),
+            noErrorOnMissing: true, // 如果包不存在，不报错
           },
         ],
       }),
@@ -177,23 +221,23 @@ module.exports = (baseConfig, { app, mobile, production, fta, log, email = false
         '@': path.resolve('src'),
       },
     },
-    plugins: baseConfig.plugins.map(plugin => {
+    plugins: baseConfig.plugins.map((plugin) => {
       return plugin instanceof webpack.ProgressPlugin
         ? new WebpackBar({
-            profile: true,
-            name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`,
-          })
+          profile: true,
+          name: `日志平台 ${production ? 'Production模式' : 'Development模式'} 构建`,
+        })
         : plugin;
     }),
     cache: production
       ? false
       : {
-          buildDependencies: {
-            config: [__filename],
-          },
-          cacheDirectory: path.resolve(__dirname, '.cache'),
-          name: `${process.env.MONITOR_APP || config.app}-cache`,
-          type: 'filesystem',
+        buildDependencies: {
+          config: [__filename],
         },
+        cacheDirectory: path.resolve(__dirname, '.cache'),
+        name: `${process.env.MONITOR_APP || config.app}-cache`,
+        type: 'filesystem',
+      },
   };
 };

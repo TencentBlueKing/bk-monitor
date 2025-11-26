@@ -1,0 +1,24 @@
+.field-select-config {
+  margin-left: 16px;
+  font-weight: normal;
+
+  .dropdown-trigger-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 68px;
+    height: 32px;
+    color: #313238;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  .dropdown-trigger-text .bklog-icon {
+    margin-top: 2px;
+    margin-right: 4px;
+    font-size: 12px;
+  }
+}
