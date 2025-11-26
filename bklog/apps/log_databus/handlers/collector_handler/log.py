@@ -108,6 +108,7 @@ class LogCollectorHandler:
 
     def get_collector_config_info(
         self,
+        keyword: str = None,
         parent_index_set_id: int = None,
         scenario_id_list: list = None,
         collector_config_name_list: list = None,
@@ -121,6 +122,7 @@ class LogCollectorHandler:
     ) -> list[dict]:
         """
          获取采集项信息
+        :param keyword: 搜索关键字
         :param parent_index_set_id: 归属索引集ID
         :param scenario_id_list: 接入情景
         :param collector_config_name_list: 采集名称
@@ -140,6 +142,9 @@ class LogCollectorHandler:
             return []
 
         qs = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id)
+
+        if keyword:
+            qs = qs.filter(Q(collector_config_name__icontains=keyword) | Q(table_id__icontains=keyword))
 
         if Scenario.LOG in scenario_id_list and CollectorScenarioEnum.CUSTOM.value not in collector_scenario_id_list:
             qs = qs.exclude(collector_scenario_id=CollectorScenarioEnum.CUSTOM.value)
@@ -164,7 +169,10 @@ class LogCollectorHandler:
             qs = qs.filter(collector_config_id__in=collector_config_list)
 
         if collector_config_name_list:
-            qs = qs.filter(collector_config_name__in=collector_config_name_list)
+            query = Q()
+            for name in collector_config_name_list:
+                query |= Q(collector_config_name__icontains=name)
+            qs = qs.filter(query)
         if collector_scenario_id_list:
             qs = qs.filter(collector_scenario_id__in=collector_scenario_id_list)
         if created_by_list:
@@ -172,10 +180,9 @@ class LogCollectorHandler:
         if updated_by_list:
             qs = qs.filter(updated_by__in=updated_by_list)
         if table_id_list:
-            # 存储名查询，忽略前缀
             query = Q()
             for table_id in table_id_list:
-                query |= Q(table_id__endswith=table_id)
+                query |= Q(table_id__icontains=table_id)
             qs = qs.filter(query)
 
         collector_configs = qs.values()
@@ -207,6 +214,7 @@ class LogCollectorHandler:
 
     def get_log_index_set_info(
         self,
+        keyword: str = None,
         parent_index_set_id: int = None,
         scenario_id_list: list = None,
         index_set_name_list: list = None,
@@ -218,6 +226,7 @@ class LogCollectorHandler:
     ) -> list[dict]:
         """
          获取索引集内容
+        :param keyword: 搜索关键字
         :param parent_index_set_id: 归属索引集ID
         :param scenario_id_list: 接入情景
         :param index_set_name_list: 索引集名称
@@ -242,16 +251,26 @@ class LogCollectorHandler:
 
         if scenario_id_list:
             log_index_sets = log_index_sets.filter(scenario_id__in=scenario_id_list)
+
         if index_set_name_list:
-            log_index_sets = log_index_sets.filter(index_set_name__in=index_set_name_list)
+            query = Q()
+            for name in index_set_name_list:
+                query |= Q(index_set_name__icontains=name)
+            log_index_sets = log_index_sets.filter(query)
+
         if created_by_list:
-            log_index_sets = log_index_sets.filter(created_at__in=created_by_list)
+            log_index_sets = log_index_sets.filter(created_by__in=created_by_list)
         if updated_by_list:
             log_index_sets = log_index_sets.filter(updated_by__in=updated_by_list)
 
         log_index_set_data = LogIndexSetData.objects.all()
         if result_table_id_list:
-            log_index_set_data = log_index_set_data.filter(result_table_id__in=result_table_id_list)
+            query = Q()
+            for table_id in result_table_id_list:
+                query |= Q(result_table_id__icontains=table_id)
+            log_index_set_data = log_index_set_data.filter(query)
+        if keyword:
+            log_index_set_data = log_index_set_data.filter(Q(result_table_id__icontains=keyword))
         index_set_id_list = []
         log_index_set_data_mappings = defaultdict(list)
         for obj in log_index_set_data:
@@ -260,6 +279,11 @@ class LogCollectorHandler:
 
         if result_table_id_list:
             log_index_sets = log_index_sets.filter(index_set_id__in=index_set_id_list)
+
+        if keyword:
+            log_index_sets = log_index_sets.filter(
+                Q(index_set_name__icontains=keyword) | Q(index_set_id__in=index_set_id_list)
+            )
 
         index_set_ids = []
         source_ids = []
@@ -327,6 +351,7 @@ class LogCollectorHandler:
 
     def get_log_collectors(self, data):
         """获取日志采集信息"""
+        keyword = data.get("keyword")
         conditions = data.get("conditions", [])
         scenario_id_list = []
         name_list = []
@@ -359,6 +384,7 @@ class LogCollectorHandler:
 
         # 获取采集项信息
         collector_configs = self.get_collector_config_info(
+            keyword=keyword,
             parent_index_set_id=data.get("parent_index_set_id"),
             scenario_id_list=scenario_id_list,
             collector_config_name_list=name_list,
@@ -381,6 +407,7 @@ class LogCollectorHandler:
         else:
             # 获取索引集信息
             log_index_sets = self.get_log_index_set_info(
+                keyword=keyword,
                 parent_index_set_id=data.get("parent_index_set_id"),
                 scenario_id_list=scenario_id_list,
                 index_set_name_list=name_list,
