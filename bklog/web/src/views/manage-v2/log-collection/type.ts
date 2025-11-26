@@ -16,6 +16,7 @@ export interface ISelectItem {
 export interface IExtraLabel {
   key?: string;
   value?: string;
+  operator?: string;
 }
 
 // 用于描述路径项结构（含value字段的对象）
@@ -82,6 +83,7 @@ export interface IContainerConfigItem {
   };
   label_selector?: ILabelSelector;
   match_labels?: any[];
+  extra_labels: IExtraLabel[];
   match_expressions?: any[];
   data_encoding?: string;
   params?: IHostCollectionParams;
@@ -99,13 +101,13 @@ export interface IFormData {
   collector_config_name_en?: string;
   bk_biz_id?: number;
   description?: string;
-  target_nodes?: any[];
+  target_nodes?: { bk_host_id: string }[];
   category_id?: string;
   collector_scenario_id?: string;
   environment?: string;
   target_object_type?: string;
   data_encoding?: string;
-  parent_index_set_ids?: any[];
+  parent_index_set_ids?: number[];
 
   // 容器采集配置
   bcs_cluster_id?: string;

@@ -28,7 +28,7 @@ import { defineComponent, ref, computed, watch, nextTick } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-
+import { useRoute } from 'vue-router/composables';
 import InfoTips from '../../common-comp/info-tips';
 import IndexSetSelect from './index-set-select';
 import $http from '@/api';
@@ -59,12 +59,20 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /**
+     * 是否为clone模式
+     */
+    isClone: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['change'],
 
   setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
+    const route = useRoute();
 
     // ==================== 响应式数据 ====================
     /** 表单数据 */
@@ -88,6 +96,8 @@ export default defineComponent({
     // ==================== 全局数据 ====================
     /** 全局数据（包含自定义上报类型列表） */
     const globalsData = computed(() => store.getters['globals/globalsData']);
+
+    const disabled = computed(() => route.name === 'collectEdit' && props.isEdit);
 
     // ==================== 校验相关 ====================
     /** 数据名格式正则：只支持字母、数字、下划线 */
@@ -116,7 +126,7 @@ export default defineComponent({
      * @returns
      */
     const checkEnNameRepeat = async (val: string) => {
-      if (props.isEdit) return true;
+      if (disabled.value) return true;
       const result = await getEnNameIsRepeat(val);
       return result;
     };
@@ -313,7 +323,7 @@ export default defineComponent({
         buttons.push(
           <bk-button
             key={item.id}
-            disabled={props.isEdit}
+            disabled={disabled.value}
             class={isSelected ? 'is-selected' : ''}
             on-click={() => handleChangeType(item.id)}
           >
@@ -386,7 +396,7 @@ export default defineComponent({
               <bk-input
                 maxlength={50}
                 minlength={5}
-                disabled={props.isEdit}
+                disabled={disabled.value}
                 placeholder={t('用于索引和数据源，仅支持数字、字母、下划线，5～50 字符')}
                 value={formData.value.collector_config_name_en}
                 onInput={val => updateFormField('collector_config_name_en', val)}

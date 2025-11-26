@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted, nextTick, type PropType } from 'vue';
+import { defineComponent, ref, onMounted, nextTick, type PropType, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -70,11 +70,13 @@ export default defineComponent({
     // 元数据分组列表
     const groupList = ref<IGroupItem[]>([]);
     // 选中的元数据字段
-    const selectValue = ref<IMetaItem[]>([]);
+    const selectValue = ref<string[]>([]);
     // 开关状态
     const switcherValue = ref(false);
     // 自定义标签验证错误状态
     const isExtraError = ref(false);
+    // 标记是否已经初始化过回填，避免后续编辑时重复回填
+    const hasInitialized = ref(false);
 
     onMounted(() => {
       getDeviceMetaData();
@@ -95,6 +97,53 @@ export default defineComponent({
       }
     };
 
+    /**
+     * 回填元数据
+     * 将 metadata 中的 key 去掉 'host.' 前缀后回填到 selectValue
+     * 将不在 groupList 中的项作为自定义标签回填到 extraLabelList
+     */
+    const fillMetadataData = () => {
+      if (!props.metadata || props.metadata.length === 0 || groupList.value.length === 0) {
+        return;
+      }
+
+      // 回填选中的元数据字段（去掉 'host.' 前缀）
+      const selectedFields: string[] = [];
+      props.metadata.forEach((item: IMetaItem) => {
+        if (item.key && item.key.startsWith('host.')) {
+          const field = item.key.slice(5); // 去掉 'host.' 前缀
+          // 检查该字段是否在 groupList 中
+          if (groupList.value.some(groupItem => groupItem.field === field)) {
+            selectedFields.push(field);
+          }
+        }
+      });
+      selectValue.value = selectedFields;
+
+      // 回填自定义标签（不在 groupList 中的 metadata 项）
+      extraLabelList.value = props.metadata
+        .filter((metadataItem: IMetaItem) => {
+          // 如果不是以 'host.' 开头，是自定义标签
+          if (!metadataItem.key.startsWith('host.')) {
+            return true;
+          }
+          // 如果以 'host.' 开头，但不在 groupList 中，也是自定义标签
+          const field = metadataItem.key.slice(5);
+          const isInGroupList = groupList.value.some(groupItem => groupItem.field === field);
+          return !isInGroupList;
+        })
+        .map((item: IMetaItem) => {
+          return {
+            key: item.key,
+            value: item.value,
+            duplicateKey: false,
+          };
+        });
+
+      // 标记已初始化
+      hasInitialized.value = true;
+    };
+
     // 获取元数据
     const getDeviceMetaData = async () => {
       try {
@@ -112,24 +161,10 @@ export default defineComponent({
             return item;
           }),
         );
-        const sliceLen = 5;
-        selectValue.value = (props.metadata || []).map((item: IMetaItem) => {
-          if (item.key.startsWith('host.')) {
-            return item.key.slice(sliceLen);
-          }
-        });
-        extraLabelList.value = props.metadata
-          .filter((metadataItem: IExtraLabel) => {
-            const isDuplicate = groupList.value.some(groupItem => groupItem.field === metadataItem.key.slice(5));
-            return !isDuplicate;
-          })
-          .map((item: IExtraLabel) => {
-            return {
-              key: item.key,
-              value: item.value,
-              duplicateKey: false,
-            };
-          });
+        // groupList 加载完成后，如果 metadata 有值且未初始化过，则回填
+        if (props.metadata && props.metadata.length > 0 && !hasInitialized.value) {
+          fillMetadataData();
+        }
       } catch (e) {
         console.warn(e);
       }
@@ -265,6 +300,24 @@ export default defineComponent({
       return true;
     };
 
+    watch(
+      () => props.metadata,
+      (newVal, oldVal) => {
+        // 深度比较，避免相同引用时重复初始化
+        if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+          // 更新开关状态
+          switcherValue.value = newVal && newVal.length > 0;
+          
+          // 只在第一次进入页面且 groupList 已加载时回填
+          // 后续编辑时不再回填，避免覆盖用户的操作
+          if (!hasInitialized.value && groupList.value.length > 0 && newVal && newVal.length > 0) {
+            fillMetadataData();
+          }
+        }
+      },
+      { deep: true },
+    );
+
     // 暴露方法给父组件
     expose({
       extraLabelsValidate,
@@ -275,11 +328,11 @@ export default defineComponent({
           <bk-input
             class={{ 'extra-error': item.key === '' && isExtraError.value }}
             value={item.key}
-            onBlur={() => {
+            on-Blur={() => {
               isExtraError.value = false;
               item.duplicateKey = false;
             }}
-            onInput={(val: string) => handleExtraLabelChange(index, 'key', val)}
+            on-Input={(val: string) => handleExtraLabelChange(index, 'key', val)}
           />
           {item.duplicateKey && (
             <i
@@ -292,10 +345,10 @@ export default defineComponent({
         <bk-input
           class={{ 'extra-error': item.value === '' && isExtraError.value }}
           value={item.value}
-          onBlur={() => {
+          on-Blur={() => {
             isExtraError.value = false;
           }}
-          onInput={(val: string) => handleExtraLabelChange(index, 'value', val)}
+          on-Input={(val: string) => handleExtraLabelChange(index, 'value', val)}
         />
         <span
           class='bk-icon icon-plus-circle-shape icons'

@@ -156,7 +156,6 @@ export default defineComponent({
     const validateValue = (): boolean => {
       const isEmpty = !formData.inputValue || !String(formData.inputValue).trim();
       isError.value = isEmpty;
-      console.log('validateValue', !isEmpty);
       return !isEmpty;
     };
 

@@ -28,7 +28,7 @@ import { defineComponent, ref, onMounted, computed } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-
+import { useRoute } from 'vue-router/composables';
 import { useOperation } from '../../hook/useOperation';
 import { showMessage } from '../../utils';
 import FieldList from '../business-comp/step3/field-list';
@@ -37,8 +37,6 @@ import InfoTips from '../common-comp/info-tips';
 import $http from '@/api';
 
 import type { ISelectItem } from '../../utils';
-// 使用 webpack 的 require.context 预加载该目录下的所有 png 资源
-// const iconsContext = (require as any).context('@/images/log-collection', false, /\.png$/);
 
 import './step3-clean.scss';
 
@@ -57,6 +55,20 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /**
+     * 是否为清洗模版
+     */
+    isTempField: {
+      type: Boolean,
+      default: false,
+    },
+    /**
+     * 是否为clone模式
+     */
+    isClone: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: ['next', 'prev', 'cancel'],
@@ -64,6 +76,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const store = useStore();
     const { t } = useLocale();
+    const route = useRoute();
     const defaultRegex = '(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]';
     const { cardRender } = useOperation();
     const showReportLogSlider = ref(false);
@@ -125,6 +138,7 @@ export default defineComponent({
     ];
     const cleaningMode = ref('bk_log_json');
     const enableMetaData = ref(false);
+    const loading = ref(false);
     /**
      * 模版列表
      */
@@ -149,7 +163,10 @@ export default defineComponent({
      */
     const timeZone = computed(() => (globalsData.value?.time_zone || []).toReversed());
 
-    const isTempField = ref(false);
+    /**
+     * 是否为编辑
+     */
+    const isUpdate = computed(() => route.name === 'collectEdit' && props.isEdit);
 
     const formData = ref({
       // 最后一次正确的结果，保存以此数据为准
@@ -196,41 +213,29 @@ export default defineComponent({
       tokenize_on_chars: '',
       participleState: 'default',
     });
-    const isUnmodifiable = ref(false);
-    const params = ref({
-      // 此处为可以变动的数据，如果调试成功，则将此条件保存至formData，保存时还需要对比此处与formData是否有差异
-      etl_config: 'bk_log_text',
-      etl_params: {
-        separator_regexp: '',
-        separator: '',
-      },
-    });
 
     const showDebugPathRegexBtn = computed(() => formData.value.etl_params.path_regexp && pathExample.value);
 
-    const fieldsObjectData = ref([]);
-
     onMounted(() => {
-      // getDetail();
-      setDetail(curCollect.value.collector_config_id || 3247);
+      setDetail();
       getTemplate();
     });
-
-    const getTemplate = (isSave = false) => {
+    /**
+     * 获取模版列表
+     * @param isSave
+     */
+    const getTemplate = () => {
       templateListLoading.value = true;
       $http
         .request('clean/cleanTemplate', {
           query: {
-            // bk_biz_id: bkBizId.value,
-            bk_biz_id: 100605,
+            bk_biz_id: bkBizId.value,
           },
         })
         .then(res => {
           templateListLoading.value = false;
           if (res.data) {
             templateList.value = res.data;
-            console.log(res.data);
-            // this.currentTemplateList = res.data;
           }
         });
     };
@@ -246,28 +251,31 @@ export default defineComponent({
             ...formData.value,
             ...res.data,
           };
-          console.log('res.data.getCleanStash====', res.data);
         }
       } catch (error) {}
     };
 
     // 新建、编辑采集项时获取更新详情
-    const setDetail = id => {
+    const setDetail = () => {
+      const id = isUpdate.value ? curCollect.value.collector_config_id : route.query.collectorId;
       if (!id) {
         return;
       }
       basicLoading.value = true;
       $http
         .request('collect/details', {
-          params: { collector_config_id: id },
+          params: { collector_config_id: curCollect.value.collector_config_id },
         })
         .then(async res => {
           if (res.data) {
             store.commit('collect/setCurCollect', res.data);
-            console.log('res.data-----', res.data, curCollect.value);
+            console.log('res.data-----', res.data, curCollect.value, props.isClone, id);
             builtInFieldsList.value = curCollect.value.fields;
             // getDetail();
-            props.isEdit && (await getCleanStash(id));
+            if (props.isEdit || props.isClone) {
+              getDataLog('init');
+              await getCleanStash(id);
+            }
             // getDataLog('init');
           }
         })
@@ -293,8 +301,6 @@ export default defineComponent({
       const updateData = { params: urlParams, data };
       // 先置空防止接口失败显示旧数据
       formData.value.etl_params.metadata_fields = [];
-      // formData.value.etl_params.metadata_fields?.splice(0, formData.value.etl_params.metadata_fields?.length);
-      // this.metaDataList.splice(0, this.metaDataList.length);
       $http
         .request('collect/getEtlPreview', updateData)
         .then(res => {
@@ -338,7 +344,7 @@ export default defineComponent({
       isDebugLoading.value = true;
       // 先置空防止接口失败显示旧数据
       formData.value.etl_params.metadata_fields = [];
-      if (isTempField.value) {
+      if (props.isTempField) {
         requestUrl = 'clean/getEtlPreview';
       } else {
         urlParams.collector_config_id = curCollect.value.collector_config_id;
@@ -348,7 +354,6 @@ export default defineComponent({
       $http
         .request(requestUrl, updateData)
         .then(res => {
-          console.log('res.data=======', res.data);
           const dataFields = res.data.fields;
           const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/;
           for (const item of dataFields) {
@@ -363,11 +368,15 @@ export default defineComponent({
             arr.push(field);
             return arr;
           }, []);
-          formData.value.etl_fields.splice(0, fields.length, ...list);
-          console.log('list=====', list, formData.value.etl_fields);
-          // formData.value.etl_fields = res.data?.fields || [];
-          // const fields = res.data?.fields || [];
-          // formData.value.etl_params?.metadata_fields.push(...fields);
+          // 如果接口返回的字段数量大于原有字段，则保留原有字段并追加新字段
+          // 否则直接使用接口返回的完整字段列表
+          if (list.length > fields.length) {
+            const newFields = list.slice(fields.length);
+            formData.value.etl_fields = [...fields, ...newFields];
+          } else {
+            formData.value.etl_fields = list;
+          }
+          // console.log('合并后的字段列表:', formData.value.etl_fields);
         })
         .catch(err => {
           console.log(err);
@@ -472,15 +481,6 @@ export default defineComponent({
      * @param type
      */
     const getDataLog = type => {
-      console.log('type', type, props.configData);
-      // this.refresh = false;
-      // if (type === 'init') {
-      //   this.basicLoading = true;
-      // } else if (type === 'logOriginRefresh') {
-      //   this.logOriginalLoding = true;
-      // } else if (type === 'pathRefresh') {
-      //   this.pathExampleLoading = true;
-      // }
       $http
         .request('source/dataList', {
           params: {
@@ -494,34 +494,17 @@ export default defineComponent({
             jsonText.value = data.origin || {};
             pathExample.value = jsonText.value.filename;
             logOriginal.value = data.etl.data || '';
-            if (logOriginal.value) {
-              // this.requestEtlPreview(isInit);
-            }
             // biome-ignore lint/complexity/noForEach: <explanation>
             copyBuiltField.value.forEach(item => {
               const fieldName = item.field_name;
               if (fieldName) {
-                if (Object.hasOwn(item, 'value')) {
-                  item.value = copyText.value[fieldName];
-                } else {
-                  // this.$set(item, 'value', copyText.value[fieldName]);
-                }
+                item.value = copyText.value[fieldName];
               }
             });
           }
         })
         .catch(err => {
           console.log(err);
-        })
-        .finally(() => {
-          // if (type === 'init') {
-          //   this.basicLoading = false;
-          // } else if (type === 'logOriginRefresh') {
-          //   this.logOriginalLoding = false;
-          // } else if (type === 'pathRefresh') {
-          //   this.pathExampleLoading = false;
-          // }
-          // this.refresh = true;
         });
     };
     /**
@@ -537,7 +520,6 @@ export default defineComponent({
         etl_fields,
         clean_type,
       };
-      console.log(cacheTemplateData.value, 'cacheData');
     };
 
     /**
@@ -631,8 +613,10 @@ export default defineComponent({
           },
         })
         .then(res => {
-          timeCheckErrContent.value = '';
-          result = true;
+          if (res?.result) {
+            timeCheckErrContent.value = '';
+            result = true;
+          }
         })
         .catch(err => {
           timeCheckErrContent.value = err;
@@ -727,7 +711,6 @@ export default defineComponent({
                 class='form-link'
                 on-click={() => {
                   showReportLogSlider.value = true;
-                  getDataLog();
                 }}
               >
                 <i class='bklog-icon bklog-audit link-icon' />
@@ -990,6 +973,53 @@ export default defineComponent({
         renderFn: renderAdvanced,
       },
     ];
+    /**
+     * 保存按钮
+     */
+    const handleSubmit = () => {
+      loading.value = true;
+      /**
+       * 校验时间格式， 校验通过之后，把指定的时间字段的 is_time 设置为 true
+       */
+      if (!formData.value.log_reporting_time) {
+        requestCheckTime().then(res => {
+          if (res?.result) {
+            const list = formData.value.etl_fields.map(item => ({
+              ...item,
+              is_time: item.field_name === formData.value.field_name,
+            }));
+            formData.value.etl_fields = list;
+          }
+        });
+      }
+      /**
+       * 创建清洗
+       */
+      const { etl_params, etl_fields } = formData.value;
+      $http
+        .request('clean/updateCleanStash', {
+          params: {
+            collector_config_id: curCollect.value.collector_config_id,
+          },
+          data: {
+            bk_biz_id: bkBizId.value,
+            clean_type: cleaningMode.value,
+            etl_params,
+            etl_fields,
+          },
+        })
+        .then(res => {
+          loading.value = false;
+          if (res?.result) {
+            const data = isUpdate.value ? { ...formData.value, ...curCollect.value } : formData.value;
+            emit('next', data);
+          }
+        })
+        .catch(err => {
+          console.log(err);
+          loading.value = false;
+        });
+    };
     return () => (
       <div class='operation-step3-clean'>
         {cardRender(cardConfig)}
@@ -1012,49 +1042,8 @@ export default defineComponent({
           <bk-button
             class='width-88 mr-8'
             theme='primary'
-            on-click={() => {
-              /**
-               * 校验时间格式， 校验通过之后，把指定的时间字段的 is_time 设置为 true
-               */
-              if (!formData.value.log_reporting_time) {
-                requestCheckTime().then(res => {
-                  if (res?.result) {
-                    const list = formData.value.etl_fields.map(item => ({
-                      ...item,
-                      is_time: item.field_name === formData.value.field_name,
-                    }));
-                    formData.value.etl_fields = list;
-                  }
-                });
-              }
-              /**
-               * 创建清洗
-               */
-              const { etl_params, etl_fields } = formData.value;
-              $http
-                .request('clean/updateCleanStash', {
-                  params: {
-                    collector_config_id: curCollect.value.collector_config_id,
-                  },
-                  data: {
-                    bk_biz_id: bkBizId.value,
-                    clean_type: cleaningMode.value,
-                    etl_params,
-                    etl_fields,
-                  },
-                })
-                .then(res => {
-                  if (res?.result) {
-                    const data = props.isEdit ? { ...formData.value, ...curCollect.value } : formData.value;
-                    emit('next', data);
-                  }
-                })
-                .catch(err => {
-                  console.log(err);
-                });
-
-              console.log('formData.value------', formData.value);
-            }}
+            loading={loading.value}
+            on-click={handleSubmit}
           >
             {t('下一步')}
           </bk-button>

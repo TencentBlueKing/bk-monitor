@@ -118,16 +118,19 @@ export const SETTING_FIELDS = [
   {
     id: 'index_set_id',
     label: window.$t('所属索引集'),
+    disabled: true,
   },
   // 接入类型
   {
     id: 'category_name',
     label: window.$t('接入类型'),
+    disabled: true,
   },
   // 日志类型
   {
     id: 'collector_scenario_name',
     label: window.$t('日志类型'),
+    disabled: true,
   },
   // 集群名
   {
@@ -147,6 +150,18 @@ export const SETTING_FIELDS = [
   {
     id: 'es_host_state',
     label: window.$t('采集状态'),
+    disabled: true,
+  },
+  // 创建人
+  {
+    id: 'created_by',
+    label: window.$t('创建人'),
+    disabled: true,
+  },
+  // 更新时间
+  {
+    id: 'created_at',
+    label: window.$t('创建时间'),
   },
   // 更新人
   {
@@ -178,7 +193,7 @@ export const MENU_LIST = [
   // },
   {
     label: window.$t('存储设置'),
-    key: 'storage_setting',
+    key: 'storage',
   },
   {
     label: window.$t('克隆'),
@@ -186,7 +201,7 @@ export const MENU_LIST = [
   },
   {
     label: window.$t('停用'),
-    key: 'disable',
+    key: 'stop',
   },
   {
     label: window.$t('删除'),

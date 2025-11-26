@@ -28,23 +28,14 @@ import { computed, ref } from 'vue';
 
 // biome-ignore lint/performance/noNamespaceImport: <explanation>
 import * as authorityMap from '@/common/authority-map';
-import {
-  projectManages,
-  // clearTableFilter,
-  // getDefaultSettingSelectFiled,
-  // setDefaultSettingSelectFiled,
-  // deepClone,
-} from '@/common/util';
-// import useLocale from "@/hooks/use-locale";
+import { projectManages } from '@/common/util';
 import useStore from '@/hooks/use-store';
 import { useRouter, useRoute } from 'vue-router/composables';
-// import $http from '@/api';
 
 /**
  * 采集列表的自定义 Hook
  */
 export const useCollectList = () => {
-  // const { t } = useLocale();
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
@@ -152,22 +143,6 @@ export const useCollectList = () => {
       }
       return;
     }
-    // running 状态不能删除
-    if (operateType === 'delete') {
-      if (!collectProject.value) {
-        return;
-      }
-      if (!row.is_active && row.status !== 'running') {
-        // this.$bkInfo({
-        //   type: 'warning',
-        //   subTitle: t('当前采集项名称为{n}，确认要删除？', { n: row.collector_config_name }),
-        //   confirmFn: () => {
-        //     this.requestDeleteCollect(row);
-        //   },
-        // });
-      }
-      return;
-    }
 
     // biome-ignore lint/suspicious/noEvolvingTypes: <explanation>
     let backRoute = null;
@@ -181,10 +156,11 @@ export const useCollectList = () => {
       field: 'collectField',
       search: 'retrieve',
       clean: 'clean-edit',
-      storage: 'collectStorage',
+      storage: 'collectEdit',
       clone: 'collectAdd',
       masking: 'collectMasking',
     };
+    query.typeKey = typeKey;
     const targetRoute = routeMap[operateType];
     // 查看详情 - 如果处于未完成状态，应该跳转到编辑页面
     if (targetRoute === 'manage-collection' && !row.table_id) {
@@ -225,7 +201,9 @@ export const useCollectList = () => {
       if (['bkdata', 'es'].includes(typeKey)) {
         params.collectorId = row.index_set_id;
       }
-      query.typeKey = typeKey;
+    }
+    if (operateType === 'storage') {
+      query.step = 3;
     }
     store.commit('collect/setCurCollect', row);
 
@@ -238,7 +216,6 @@ export const useCollectList = () => {
         backRoute,
       },
     });
-    console.log(params, query, backRoute, '======');
   };
 
   const operateHandler = (row, operateType, typeKey) => {

@@ -28,6 +28,7 @@ import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { useRoute } from 'vue-router/composables';
 
 import { useOperation } from '../../hook/useOperation';
 import { showMessage } from '../../utils';
@@ -51,6 +52,13 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /**
+     * 是否为clone模式
+     */
+    isClone: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: ['prev', 'cancel'],
@@ -58,6 +66,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
+    const route = useRoute();
     const { cardRender, sortByPermission } = useOperation();
     const activeName = ref(['shared', 'exclusive']);
     const storageList = ref([]);
@@ -122,8 +131,13 @@ export default defineComponent({
     });
 
     const prependText = computed(() => {
-      return props.configData.collector_config_name_en;
+      return formData.value.table_id || curCollect.value.table_id || props.configData.collector_config_name_en;
     });
+
+    /**
+     * 是否为编辑
+     */
+    const isUpdate = computed(() => route.name === 'collectEdit' && props.isEdit);
 
     /**
      * 异步获取存储列表并按权限排序
@@ -169,10 +183,15 @@ export default defineComponent({
      */
 
     const getCleanStash = async () => {
+      const isStorageEdit = route.name === 'collectEdit' && route.query.step;
+      let id = curCollect.value.collector_config_id;
+      if (isStorageEdit) {
+        id = route.params.collectorId;
+      }
       try {
         const res = await $http.request('clean/getCleanStash', {
           params: {
-            collector_config_id: curCollect.value.collector_config_id,
+            collector_config_id: id,
           },
         });
         if (res.data) {
@@ -180,7 +199,25 @@ export default defineComponent({
         }
       } catch (error) {}
     };
-    onMounted(() => {
+    onMounted(async () => {
+      loading.value = true;
+      const isStorageEdit = route.name === 'collectEdit' && route.query.step;
+      if (isStorageEdit) {
+        await $http
+          .request('collect/details', {
+            params: { collector_config_id: route.params.collectorId },
+          })
+          .then(res => {
+            if (res?.data) {
+              const { storage_cluster_id } = res.data;
+              formData.value = {
+                ...formData.value,
+                ...res.data,
+              };
+              clusterSelect.value = storage_cluster_id;
+            }
+          });
+      }
       getStorage();
       if (!isCustomReport.value) {
         getCleanStash();
@@ -223,7 +260,10 @@ export default defineComponent({
 
     /** 集群选择 */
     const renderCluster = () => (
-      <div class='cluster-box'>
+      <div
+        class='cluster-box'
+        v-bkloading={{ isLoading: loading.value }}
+      >
         <bk-collapse value={activeName.value}>{collapseList.value.map(item => renderCollapseItem(item))}</bk-collapse>
       </div>
     );
@@ -340,10 +380,8 @@ export default defineComponent({
         es_shards,
         parent_index_set_ids,
       } = formData.value;
-      console.log('formData.value====', formData.value, props.configData);
-      // return;
       $http
-        .request(`custom/${props.isEdit ? 'setCustom' : 'createCustom'}`, {
+        .request(`custom/${isUpdate.value ? 'setCustom' : 'createCustom'}`, {
           params: {
             collector_config_id: props.configData.collector_config_id,
           },
@@ -376,14 +414,19 @@ export default defineComponent({
     const handleNormalSubmit = () => {
       submitLoading.value = true;
       const { etl_params, etl_fields, clean_type } = cleanStash.value;
-
+      const { collector_config_id, retention, allocation_min_days, storage_replies, es_shards, table_id } =
+        formData.value;
       const data = {
+        collector_config_id,
+        retention,
+        allocation_min_days,
+        storage_replies,
         etl_params,
+        es_shards,
         fields: etl_fields,
         etl_config: clean_type,
-        table_id: curCollect.value.collector_config_name_en,
+        table_id: table_id || curCollect.value.collector_config_name_en,
         storage_cluster_id: clusterSelect.value,
-        ...formData.value,
       };
       $http
         .request('collect/fieldCollection', {
@@ -425,17 +468,31 @@ export default defineComponent({
         handleNormalSubmit();
       }
     };
+    /**
+     * 初始化回填数据
+     * @param val
+     */
+    const initData = val => {
+      if (val) {
+        formData.value = { ...formData.value, ...props.configData };
+        clusterSelect.value = props.configData.storage_cluster_id;
+      }
+    };
     watch(
       () => props.isEdit,
       val => {
-        if (val) {
-          formData.value = { ...formData.value, ...props.configData };
-          clusterSelect.value = props.configData.storage_cluster_id;
-          console.log(clusterSelect.value, 'clusterSelect.value');
-        }
+        initData(val);
       },
       { immediate: true },
     );
+    watch(
+      () => props.isClone,
+      val => {
+        initData(val);
+      },
+      { immediate: true },
+    );
+
     return () => (
       <div class='operation-step4-storage'>
         {cardRender(cardConfig)}

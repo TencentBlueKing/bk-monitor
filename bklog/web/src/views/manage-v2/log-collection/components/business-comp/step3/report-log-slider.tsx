@@ -30,6 +30,7 @@ import { copyText } from '@/components/monitor-echarts/utils';
 import useLocale from '@/hooks/use-locale';
 
 import './report-log-slider.scss';
+import { showMessage } from '../../../utils';
 /**
  * 上报日志详情
  */
@@ -63,7 +64,10 @@ export default defineComponent({
               <span class='title'>{t('上报日志详情')}</span>
               <span
                 class='copy-btn'
-                on-click={() => copyText(JSON.stringify(props.jsonText))}
+                on-click={() => {
+                  copyText(JSON.stringify(props.jsonText));
+                  showMessage(t('复制成功'));
+                }}
               >
                 {t('复制')}
               </span>

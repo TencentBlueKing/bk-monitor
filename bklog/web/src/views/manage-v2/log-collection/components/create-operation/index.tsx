@@ -27,7 +27,7 @@
 import { defineComponent, onBeforeUnmount, onMounted, ref, computed, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
-import { useRoute } from 'vue-router/composables';
+import { useRoute, useRouter } from 'vue-router/composables';
 import { useCollectList } from '../../hook/useCollectList';
 import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
 import StepClassify from './step1-classify';
@@ -46,6 +46,7 @@ export default defineComponent({
   setup() {
     const { t } = useLocale();
     const route = useRoute();
+    const router = useRouter();
     const mainRef = ref<HTMLDivElement>();
     const DEFAULT_STEP = 1;
     const step = ref(DEFAULT_STEP);
@@ -92,6 +93,10 @@ export default defineComponent({
      */
     const collectId = computed(() => route.params.collectorId);
     /**
+     *
+     */
+    const isClone = computed(() => route.query.type === 'clone' && !!route.query.collectorId);
+    /**
      * 是否是编辑状态
      */
     const isEdit = computed(() => !!collectId.value);
@@ -103,39 +108,28 @@ export default defineComponent({
     );
     /**
      * 当前步骤流程
+     * 根据不同的日志类型（第三方日志、自定义日志、标准日志）和编辑/新建模式返回对应的步骤配置
+     * - 编辑模式：跳过第一步（索引集分类），步骤图标从 1 开始重新编号
+     * - 新建模式：包含第一步（索引集分类），保持原有图标编号
      */
     const currentStep = computed(() => {
-      if (['bkdata', 'es'].includes(typeKey.value)) {
-        const data = [...thirdLogStep];
-        return isEdit.value
-          ? data.map((item, ind) => {
-              return {
-                ...item,
-                icon: ind + 1,
-              };
-            })
-          : [...firstStep, ...thirdLogStep];
+      // 根据日志类型选择对应的步骤配置
+      const targetSteps = ['bkdata', 'es'].includes(typeKey.value)
+        ? thirdLogStep // 第三方日志流程（计算平台、第三方ES接入）
+        : typeKey.value === 'custom_report'
+          ? customReportStep // 自定义日志流程
+          : stepDesc; // 标准日志流程（主机日志等）
+
+      // 编辑/克隆模式：跳过第一步，重新编号图标从 1 开始
+      if (isEdit.value || isClone.value) {
+        return targetSteps.map((item, index) => ({
+          ...item,
+          icon: index + 1,
+        }));
       }
-      if (typeKey.value === 'custom_report') {
-        const data = [...customReportStep];
-        return isEdit.value
-          ? data.map((item, ind) => {
-              return {
-                ...item,
-                icon: ind + 1,
-              };
-            })
-          : [...firstStep, ...customReportStep];
-      }
-      const data = [...stepDesc];
-      return isEdit.value
-        ? data.map((item, ind) => {
-            return {
-              ...item,
-              icon: ind + 1,
-            };
-          })
-        : [...firstStep, ...stepDesc];
+
+      // 新建模式：包含第一步（索引集分类）+ 后续步骤
+      return [...firstStep, ...targetSteps];
     });
 
     const isShowStatusBtn = computed(() => isNeedIssue.value && step.value !== 1 && !!currentCollectorId.value);
@@ -144,7 +138,15 @@ export default defineComponent({
     let resizeObserver: ResizeObserver | null = null;
     const pollingTimer = ref<number | null>(null);
 
+    // 在 setup 阶段就初始化 typeKey，避免 watch 导致组件重新挂载
+    if (isEdit.value || isClone.value) {
+      typeKey.value = (route.query.typeKey as string) || typeKey.value;
+    }
+
     onMounted(() => {
+      if (route.query.step) {
+        step.value = Number(route.query.step);
+      }
       step.value !== 1 && isEdit && collectId.value && getCollectStatus(Number(collectId.value));
       if (mainRef.value) {
         resizeObserver = new ResizeObserver(entries => {
@@ -172,6 +174,12 @@ export default defineComponent({
      */
     const chooseType = data => {
       typeKey.value = data.value;
+      router.replace({
+        query: {
+          ...route.query,
+          typeKey: typeKey.value,
+        },
+      });
     };
     /**
      * 相关操作项
@@ -207,8 +215,6 @@ export default defineComponent({
           },
         })
         .then(res => {
-          console.log(res, 'statusRes');
-
           if (!res.result) {
             return;
           }
@@ -238,14 +244,27 @@ export default defineComponent({
         });
     };
 
+    const initTypeKey = val => {
+      if (val && route.query.typeKey) {
+        // 只在 typeKey 实际变化时才更新，避免不必要的重新渲染
+        const newTypeKey = route.query.typeKey as string;
+        if (typeKey.value !== newTypeKey) {
+          typeKey.value = newTypeKey;
+        }
+      }
+    };
+
     watch(
       () => isEdit.value,
       val => {
-        if (val) {
-          typeKey.value = route.query.typeKey as string;
-        }
+        initTypeKey(val);
       },
-      { immediate: true },
+    );
+    watch(
+      () => isClone.value,
+      val => {
+        initTypeKey(val);
+      },
     );
 
     return () => {
@@ -299,17 +318,18 @@ export default defineComponent({
             </span>
           </div>
           <Component
-            key={`${typeKey.value}-${step.value}`}
+            // key={`${typeKey.value}-${step.value}`}
             configData={dataConfig.value}
             scenarioId={typeKey.value}
             on-cancel={handleCancel}
             on-handle={handleFunction}
             isEdit={isEdit.value}
+            isClone={isClone.value}
             on-next={data => {
               dataConfig.value = data;
               console.log(step.value, 'step.value', data);
 
-              if (isNeedIssue.value && step.value === 2) {
+              if (isNeedIssue.value && ((step.value === 2 && !isEdit.value) || (isEdit.value && step.value === 1))) {
                 currentCollectorId.value = data.collector_config_id;
                 getCollectStatus(data.collector_config_id);
               }

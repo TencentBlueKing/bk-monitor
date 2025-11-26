@@ -32,8 +32,8 @@ export default defineComponent({
   name: 'InputAddGroup',
   props: {
     valueList: {
-      type: Array as PropType<{ value: string }[]>,
-      default: () => [''],
+      type: Array as PropType<{ value: string }[] | string[]>,
+      default: () => [{ value: '' }],
     },
   },
 
@@ -43,15 +43,23 @@ export default defineComponent({
     // 存储错误状态的索引数组（使用数组而不是 Set，以便 Vue 能追踪变化）
     const errorIndexes = ref<number[]>([]);
 
+    // 规范化数据格式：将字符串数组转换为对象数组
+    const normalizeValueList = (list: { value: string }[] | string[]): { value: string }[] => {
+      return list.map(item => (typeof item === 'string' ? { value: item } : item));
+    };
+
     const handleAdd = () => {
-      emit('update', [...props.valueList, '']);
+      const normalizedList = normalizeValueList(props.valueList);
+      emit('update', [...normalizedList, { value: '' }]);
       // 清除新增项的错误状态（新增项在最后，不需要处理）
     };
     /**
      * 新增
      */
     const handleChange = (index: number, val: string) => {
-      const nextList = [...props.valueList];
+      const normalizedList = normalizeValueList(props.valueList);
+      const nextList = [...normalizedList];
+      console.log(nextList, 'nextList', index);
       nextList[index].value = String(val);
       emit('update', nextList);
       // 如果输入了值，清除该索引的错误状态
@@ -63,13 +71,14 @@ export default defineComponent({
      * 删除（删到只有 1 行时，此时是清空 input 的交互）
      */
     const handleDel = (index: number) => {
-      const nextList = [...props.valueList];
+      const normalizedList = normalizeValueList(props.valueList);
+      const nextList = [...normalizedList];
       if (nextList.length > 1) {
         nextList.splice(index, 1);
         // 更新错误索引（删除后索引会变化）
         errorIndexes.value = errorIndexes.value
           .filter(errorIndex => errorIndex !== index)
-          .map(errorIndex => errorIndex > index ? errorIndex - 1 : errorIndex);
+          .map(errorIndex => (errorIndex > index ? errorIndex - 1 : errorIndex));
       } else {
         nextList[0].value = '';
         errorIndexes.value = [];
@@ -85,14 +94,16 @@ export default defineComponent({
       // 清除之前的错误状态
       errorIndexes.value = [];
 
+      const normalizedList = normalizeValueList(props.valueList);
+
       // 检查长度是否为0
-      if (props.valueList.length === 0) {
+      if (normalizedList.length === 0) {
         return false;
       }
 
       // 检查是否有空值
       const emptyIndexes: number[] = [];
-      props.valueList.forEach((item, index) => {
+      normalizedList.forEach((item, index) => {
         const isEmpty = !item.value || !item.value.trim();
         if (isEmpty) {
           emptyIndexes.push(index);
@@ -133,10 +144,13 @@ export default defineComponent({
         </div>
       );
     };
-    return () => (
-      <div class='input-add-group-main'>
-        {props.valueList.map((item: { value: string }, index: number) => renderInputItem(item, index))}
-      </div>
-    );
+    return () => {
+      const normalizedList = normalizeValueList(props.valueList);
+      return (
+        <div class='input-add-group-main'>
+          {normalizedList.map((item: { value: string }, index: number) => renderInputItem(item, index))}
+        </div>
+      );
+    };
   },
 });

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref, nextTick, onBeforeMount } from 'vue';
+import { computed, defineComponent, onMounted, ref, onBeforeMount } from 'vue';
 
 import LogIpSelector, { toTransformNode, toSelectorNode } from '@/components/log-ip-selector/log-ip-selector'; // 日志IP选择器组件
 import useLocale from '@/hooks/use-locale';
@@ -96,6 +96,13 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /**
+     * 是否为clone模式
+     */
+    isClone: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: ['next', 'prev', 'cancel'],
@@ -116,6 +123,14 @@ export default defineComponent({
     const collectorType = ref('container_log_config');
     const configurationItemListRef = ref();
     const loading = ref(false);
+
+    const baseConditions = {
+      type: 'none',
+      match_type: 'include',
+      match_content: '',
+      separator: '|',
+      separator_filters: [{ fieldindex: '', word: '', op: '=', logic_op: 'and' }],
+    };
     /**
      * 行首正则是否为空
      */
@@ -133,14 +148,12 @@ export default defineComponent({
       'setTemplate',
       'manualInput',
     ];
-    const isUpdate = ref(false);
 
     /**
      * 上报链路列表
      */
     const linkConfigurationList = ref([]);
     const linkListLoading = ref(false);
-    const isClone = ref(false);
     const otherSpeciesList = ref([]);
     const loadingSave = ref(false);
 
@@ -170,11 +183,16 @@ export default defineComponent({
     const showClusterListKeys = ['std_log_config', 'file_log_config'];
 
     const eventSettingList = ref([{ type: 'winlog_event_id', list: [], isCorrect: true }]);
+    const isClone = computed(() => route.query.type === 'clone');
     // 获取全局数据
     const globalsData = computed(() => store.getters['globals/globalsData']);
     const environment = computed(() => (props.scenarioId === 'wineventlog' ? 'windows' : 'linux'));
     // 是否是编辑或者克隆
     const isCloneOrUpdate = computed(() => props.isEdit || isClone.value);
+    /**
+     * 是否为编辑
+     */
+    const isUpdate = computed(() => route.name === 'collectEdit' && props.isEdit);
     /**
      * 是否为采集主机日志
      */
@@ -203,6 +221,9 @@ export default defineComponent({
         data_encoding: 'UTF-8',
         parent_index_set_ids: [],
         tail_files: true,
+        params: {
+          conditions: baseConditions,
+        },
       };
     });
     const formData = ref<IFormData>({
@@ -220,6 +241,7 @@ export default defineComponent({
         formData.value = {
           ...formData.value,
           params: {
+            ...formData.value.params,
             winlog_name: selectLogSpeciesList.value,
           },
         };
@@ -240,9 +262,6 @@ export default defineComponent({
         formData.value = {
           ...formData.value,
           ...CONTAINER_COLLECTION_CONFIG,
-          // config: {
-          //   collector_type: 'container_log_config',
-          // },
         };
       }
       /**
@@ -324,15 +343,17 @@ export default defineComponent({
     /**
      * 修改路径黑名单
      */
-    const handleUpdateBlacklist = (data: string[]) => {
-      formData.value.params.exclude_files = data;
+    const handleUpdateBlacklist = (data: { value: string }[] | string[]) => {
+      // 将对象数组转换为字符串数组，以匹配 exclude_files 的格式
+      formData.value.params.exclude_files = data.map(item => (typeof item === 'string' ? item : item.value));
     };
     /**
      * 修改设备元数据
      * @param data
      */
     const handleMetadataList = data => {
-      formData.value.params.extra_labels = data;
+      // formData.value.params.extra_labels = data;
+      formData.value.extra_labels = data;
     };
     /**
      * 显示行首正则调试弹窗
@@ -377,113 +398,209 @@ export default defineComponent({
       if (showClusterListKeys.includes(props.scenarioId)) {
         getBcsClusterList();
       }
-      if (props.isEdit) {
+      /**
+       * 编辑/克隆状态下去拉取详情接口
+       */
+      if (props.isEdit || props.isClone) {
         setDetail();
       }
-      // console.log('props.isEdit', props.isEdit);
     });
+    /**
+     * 将字符串数组转换为输入框组件的值格式
+     * @param items - 字符串数组
+     * @returns 转换后的值数组，如果为空则返回包含空字符串的数组
+     */
+    const transformStringArrayToInputValue = (items?: string[]): Array<{ value: string }> => {
+      return items?.map(item => ({ value: item })) || [{ value: '' }];
+    };
 
-    const setDetail = () => {
+    /**
+     * 处理 Windows 事件日志的配置数据
+     * @param params - 参数对象
+     */
+    const handleWindowsEventLogConfig = (params: any) => {
+      const { paths, exclude_files, winlog_match_op, winlog_name, ...restParams } = params;
+
+      // 构建事件设置列表，排除已处理的字段
+      eventSettingList.value = Object.keys(restParams).map(key => ({
+        type: key,
+        list: restParams[key],
+        isCorrect: true,
+      }));
+
+      // 过滤出自定义的日志种类（不在预定义列表中的）
+      otherSpeciesList.value = winlog_name.filter(item => LOG_SPECIES_LIST.findIndex(i => i.id === item) === -1);
+
+      // 如果没有自定义种类，从选择列表中移除 'Other' 选项
+      if (otherSpeciesList.value.length === 0) {
+        selectLogSpeciesList.value = selectLogSpeciesList.value.filter(item => item !== 'Other');
+      }
+    };
+
+    /**
+     * 处理容器采集的单个配置项
+     * @param configItem - 配置项数据
+     * @returns 处理后的配置项
+     */
+    const transformContainerConfigItem = (configItem: any) => {
+      const {
+        namespaces,
+        container_name,
+        match_expressions,
+        match_labels,
+        workload_name,
+        workload_type,
+        container_name_exclude,
+        match_annotations,
+        namespaces_exclude,
+        params: itemParams,
+      } = configItem;
+
+      // 转换路径和排除文件格式
+      const paths = transformStringArrayToInputValue(itemParams.paths);
+      const excludeFiles = transformStringArrayToInputValue(itemParams.exclude_files);
+
+      // 构建标签选择器和注解选择器
+      const labelSelector = getLabelSelectorArray({
+        match_expressions,
+        match_labels,
+      });
+      const annotationSelector = getLabelSelectorArray({
+        match_annotations: match_annotations || [],
+      });
+
+      // 确定容器和命名空间的排除操作符
+      const containerExclude = container_name_exclude ? '!=' : '=';
+      const namespacesExclude = namespaces_exclude?.length ? '!=' : '=';
+      const containerNameList = getContainerNameList(container_name || container_name_exclude);
+
+      // 处理命名空间字符串（如果是 '*' 则返回空字符串）
+      const namespaceStr = namespaces.length === 1 && namespaces[0] === '*' ? '' : namespaces.join(',');
+
+      // 构建范围选择显示配置
+      const noQuestParams = {
+        scopeSelectShow: {
+          namespace: !namespaces.length,
+          label: !labelSelector.length,
+          load: !(Boolean(workload_type) || Boolean(workload_name)),
+          containerName: !containerNameList.length,
+          annotation: !annotationSelector.length,
+        },
+        namespaceStr,
+        containerExclude,
+        namespacesExclude,
+      };
+
+      return {
+        ...configItem,
+        noQuestParams,
+        label_selector: {
+          match_labels,
+          match_expressions,
+        },
+        annotation_selector: {
+          match_annotations,
+        },
+        container: {
+          workload_type,
+          workload_name,
+          container_name,
+        },
+        params: {
+          ...itemParams,
+          paths,
+          exclude_files: excludeFiles,
+        },
+      };
+    };
+
+    /**
+     * 处理容器采集的配置列表
+     * @param configs - 配置列表
+     * @param collectorScenarioId - 采集场景ID
+     */
+    const handleContainerCollectionConfig = (configs: any[], collectorScenarioId: string) => {
+      logType.value = collectorScenarioId;
+      collectorType.value = configs[0]?.collector_type;
+
+      // 转换所有配置项
+      const transformedConfigs = (configs || []).map(transformContainerConfigItem);
+      formData.value.configs = transformedConfigs;
+    };
+
+    /**
+     * 初始化基础表单数据
+     * @param detailData - 详情数据
+     */
+    const initializeBaseFormData = (detailData: IFormData) => {
+      const { collector_config_name, params } = detailData;
+
+      // 转换路径和排除文件格式
+      const paths = transformStringArrayToInputValue(params.paths);
+      const excludeFiles = transformStringArrayToInputValue(params.exclude_files);
+
+      formData.value = {
+        ...formData.value,
+        ...detailData,
+        params: {
+          ...params,
+          paths,
+          exclude_files: excludeFiles,
+        },
+        index_set_name: collector_config_name,
+      };
+      /**
+       * 克隆的时候数据处理
+       */
+      if (props.isClone) {
+        const { collector_config_name } = formData.value;
+        const cloneName = `${collector_config_name}_clone`;
+        formData.value = {
+          ...formData.value,
+          collector_config_name: cloneName,
+          index_set_name: cloneName,
+          collector_config_name_en: '',
+        };
+      }
+    };
+
+    /**
+     * 编辑时初始化详情数据
+     * 根据不同的场景类型处理相应的配置数据
+     */
+    const setDetail = async () => {
       loading.value = true;
-      $http
-        .request('collect/details', {
-          params: { collector_config_id: route.params.collectorId },
-        })
-        .then(res => {
-          if (res.data) {
-            const { configs, collector_scenario_id, collector_config_name, params, extra_labels } = res.data;
-            const paths = params.paths?.map(item => ({ value: item })) || [{ value: '' }];
-            const exclude_files = params.exclude_files?.map(item => ({ value: item })) || [{ value: '' }];
-            formData.value = {
-              ...formData.value,
-              ...res.data,
-              params: {
-                ...params,
-                paths,
-                exclude_files,
-              },
-              index_set_name: collector_config_name,
-              configs,
-            };
-            if (props.scenarioId === 'wineventlog') {
-              const { paths, exclude_files, winlog_match_op, winlog_name, ...rect } = params;
-              eventSettingList.value = Object.keys(rect).map(key => {
-                return { type: key, list: rect[key], isCorrect: true };
-              });
-              otherSpeciesList.value = winlog_name.filter(
-                item => LOG_SPECIES_LIST.findIndex(i => i.id === item) === -1,
-              );
-              if (otherSpeciesList.value.length === 0) {
-                selectLogSpeciesList.value = selectLogSpeciesList.value.filter(item => item !== 'Other');
-              }
-            }
-            /**
-             * 容器采集的时候
-             */
-            if (showClusterListKeys.includes(props.scenarioId)) {
-              logType.value = collector_scenario_id;
-              collectorType.value = configs[0]?.collector_type;
-              formData.value.params.extra_labels = extra_labels;
-              const newConfigs = (configs || []).map(item => {
-                const {
-                  namespaces,
-                  container_name,
-                  match_expressions,
-                  match_labels,
-                  workload_name,
-                  workload_type,
-                  container_name_exclude,
-                  match_annotations,
-                  namespaces_exclude,
-                  params,
-                } = item;
-                console.log(item, '===');
-                const paths = params.paths?.map(item => ({ value: item })) || [{ value: '' }];
-                const exclude_files = params.exclude_files?.map(item => ({ value: item })) || [{ value: '' }];
-                const labelSelector = getLabelSelectorArray({
-                  match_expressions,
-                  match_labels,
-                });
-                const annotationSelector = getLabelSelectorArray({
-                  match_annotations: match_annotations || [],
-                });
-                const containerExclude = container_name_exclude ? '!=' : '=';
-                const namespacesExclude = namespaces_exclude?.length ? '!=' : '=';
-                const containerNameList = getContainerNameList(container_name || container_name_exclude);
-                const namespaceStr = namespaces.length === 1 && namespaces[0] === '*' ? '' : namespaces.join(',');
-                const noQuestParams = {
-                  scopeSelectShow: {
-                    namespace: !namespaces.length,
-                    label: !labelSelector.length,
-                    load: !(Boolean(workload_type) || Boolean(workload_name)),
-                    containerName: !containerNameList.length,
-                    annotation: !annotationSelector.length,
-                  },
-                  namespaceStr,
-                  containerExclude,
-                  namespacesExclude,
-                };
-                return {
-                  ...item,
-                  noQuestParams,
-                  params: {
-                    ...params,
-                    paths,
-                    exclude_files,
-                  },
-                };
-              });
-              formData.value.configs = newConfigs;
-            }
-            store.commit('collect/setCurCollect', res.data);
-          }
-        })
-        .catch(err => {
-          console.log(err);
-        })
-        .finally(() => {
-          loading.value = false;
+      const collectorConfigId = props.isEdit ? route.params.collectorId : route.query.collectorId;
+      try {
+        const res = await $http.request('collect/details', {
+          params: { collector_config_id: collectorConfigId },
         });
+
+        if (!res.data) {
+          return;
+        }
+
+        const { configs, collector_scenario_id, params } = res.data;
+
+        // 初始化基础表单数据
+        initializeBaseFormData(res.data);
+
+        // 根据场景类型处理特定配置
+        if (props.scenarioId === 'wineventlog') {
+          // Windows 事件日志特殊处理
+          handleWindowsEventLogConfig(params);
+        } else if (showClusterListKeys.includes(props.scenarioId)) {
+          // 容器采集（文件采集和标准输出）特殊处理
+          handleContainerCollectionConfig(configs, collector_scenario_id);
+        }
+
+        // 更新 store 中的当前采集配置
+        store.commit('collect/setCurCollect', res.data);
+      } catch (err) {
+        console.log('获取采集配置详情失败:', err);
+      } finally {
+        loading.value = false;
+      }
     };
 
     /**
@@ -493,11 +610,10 @@ export default defineComponent({
       <BaseInfo
         ref={baseInfoRef}
         data={formData.value}
-        isEdit={props.isEdit}
+        isEdit={isUpdate.value}
         on-change={data => {
-          const { index_set_name, ...rest } = data;
-          rest.collector_config_name = index_set_name;
-          formData.value = { ...formData.value, ...rest };
+          const { index_set_name } = data;
+          formData.value = { ...formData.value, ...data, collector_config_name: index_set_name };
         }}
       />
     );
@@ -566,22 +682,34 @@ export default defineComponent({
     /**
      * 日志过滤
      */
-    const renderLogFilter = () => (
-      <LogFilter
-        ref={logFilterRef}
-        conditions={formData.value.params.conditions}
-        isCloneOrUpdate={isCloneOrUpdate.value}
-        on-conditions-change={val => {
-          formData.value.params.conditions = val;
-        }}
-      />
-    );
+    const renderLogFilter = () => {
+      // 确保 params 和 conditions 存在
+      if (!formData.value.params) {
+        formData.value.params = {
+          conditions: baseConditions,
+        };
+      }
+      if (!formData.value.params.conditions) {
+        formData.value.params.conditions = baseConditions;
+      }
+      return (
+        <LogFilter
+          ref={logFilterRef}
+          conditions={formData.value.params.conditions}
+          isCloneOrUpdate={isCloneOrUpdate.value}
+          on-conditions-change={val => {
+            formData.value.params.conditions = val;
+          }}
+        />
+      );
+    };
     /**
      * 设备元数据
      */
     const renderDeviceMetadata = () => (
       <DeviceMetadata
-        metadata={formData.value.params.extra_labels}
+        metadata={formData.value.extra_labels}
+        // metadata={formData.value.params.extra_labels}
         on-extra-labels-change={handleMetadataList}
       />
     );
@@ -626,7 +754,7 @@ export default defineComponent({
               class='form-box'
               clearable={false}
               loading={linkListLoading.value}
-              disabled={props.isEdit}
+              disabled={isUpdate.value}
               value={formData.value.bcs_cluster_id}
               on-selected={val => {
                 formData.value.bcs_cluster_id = val;
@@ -861,7 +989,7 @@ export default defineComponent({
         <bk-select
           class='form-box'
           clearable={false}
-          disabled={props.isEdit}
+          disabled={isUpdate.value}
           loading={linkListLoading.value}
           value={formData.value.data_link_id}
           on-selected={val => {
@@ -926,7 +1054,9 @@ export default defineComponent({
         dynamic_group_list: dynamicGroupList = [],
       } = value;
 
-      // 按优先级顺序检查目标类型
+      /**
+       * 按优先级顺序检查目标类型
+       */
       const targetChecks: Array<[TargetType, any[]]> = [
         [TARGET_TYPES.TOPO, nodeList],
         [TARGET_TYPES.INSTANCE, hostList],
@@ -954,66 +1084,164 @@ export default defineComponent({
       formData.value.target_nodes = toTransformNode(nodes, type);
     };
 
-    // 新增/修改采集
+    /**
+     * 提取路径值的函数
+     * @param params
+     * @returns
+     */
+    const extractPaths = params => {
+      return params?.paths ? params.paths.map(item => item.value) : [];
+    };
+
+    // 处理wineventlog场景的请求数据
+    const handleWineventlogRequestData = (baseParam, newParams, data_encoding) => {
+      const { paths, exclude_files, winlog_match_op, ...rect } = newParams;
+      return {
+        ...baseParam,
+        params: rect,
+        data_encoding,
+      };
+    };
+
+    /**
+     * 处理主机采集的请求数据
+     * @param requestData
+     * @param extra_labels
+     * @returns
+     */
+    const handleHostLogRequestData = (requestData, extra_labels, data_encoding) => {
+      requestData.params.extra_labels = extra_labels;
+      requestData.data_encoding = data_encoding;
+      return requestData;
+    };
+
+    /**
+     * 处理容器采集的请求数据
+     * @param requestData
+     * @param configs
+     * @param add_pod_annotation
+     * @param add_pod_label
+     * @param extra_labels
+     * @param bcs_cluster_id
+     * @returns
+     */
+    const handleContainerRequestData = (
+      requestData,
+      configs,
+      add_pod_annotation,
+      add_pod_label,
+      extra_labels,
+      bcs_cluster_id,
+    ) => {
+      const { data_encoding, params, target_object_type, target_node_type, target_nodes, ...rect } = requestData;
+      const newConfig = (configs || []).map(item => {
+        const { data_encoding, container, params, collector_type, namespaces, label_selector, annotation_selector } =
+          item;
+        return {
+          data_encoding,
+          container,
+          params: {
+            ...params,
+            exclude_files: params.exclude_files.map(item => item.value),
+            paths: extractPaths(params),
+          },
+          collector_type,
+          namespaces,
+          label_selector,
+          annotation_selector,
+        };
+      });
+      return {
+        ...rect,
+        configs: newConfig,
+        add_pod_annotation,
+        add_pod_label,
+        extra_labels,
+        bcs_cluster_id,
+      };
+    };
+    /**
+     * 新增/修改配置
+     */
     const setCollection = () => {
       loadingSave.value = true;
-      const { params } = formData.value;
+      const {
+        params,
+        extra_labels,
+        collector_config_name,
+        collector_config_name_en,
+        collector_scenario_id,
+        description,
+        data_link_id,
+        target_node_type,
+        target_nodes,
+        environment,
+        target_object_type,
+        data_encoding,
+        configs,
+        parent_index_set_ids,
+        add_pod_annotation,
+        add_pod_label,
+        bcs_cluster_id,
+      } = formData.value;
+
+      const baseParam = {
+        collector_config_name,
+        collector_config_name_en,
+        collector_scenario_id,
+        description,
+        data_link_id,
+        target_node_type,
+        target_nodes,
+        environment,
+        target_object_type,
+        parent_index_set_ids,
+        bk_biz_id: bkBizId.value,
+      };
       const newParams = {
         ...params,
-        paths: params?.paths.map(item => item.value),
+        paths: extractPaths(params),
       };
       const urlParams = {};
       let requestUrl = 'collect/addCollection';
-      if (props.isEdit) {
+      if (isUpdate.value) {
         urlParams.collector_config_id = route.params.collectorId;
         requestUrl = 'collect/updateCollection';
       }
 
-      let requestData = { ...formData.value, params: newParams };
+      let requestData = { ...baseParam, params: newParams };
 
       // 当为 wineventlog 时，过滤空值和空对象
       if (props.scenarioId === 'wineventlog') {
-        const {
-          collector_config_name,
-          collector_config_name_en,
-          collector_scenario_id,
-          description,
-          data_link_id,
-          target_node_type,
-          target_nodes,
-          environment,
-          target_object_type,
-          data_encoding,
-        } = formData.value;
-        const { paths, exclude_files, winlog_match_op, ...rect } = newParams;
-        requestData = {
-          params: rect,
-          collector_config_name,
-          collector_config_name_en,
-          collector_scenario_id,
-          description,
-          data_link_id,
-          target_node_type,
-          target_nodes,
-          environment,
-          target_object_type,
-          data_encoding,
-        };
-        console.log(requestData, 'requestData');
+        requestData = handleWineventlogRequestData(baseParam, newParams, data_encoding);
+      }
+      /**
+       * 主机采集的时候
+       */
+      if (isHostLog.value) {
+        requestData = handleHostLogRequestData(requestData, extra_labels, data_encoding);
       }
       /**
        * 容器采集的时候
        */
       if (showClusterListKeys.includes(props.scenarioId)) {
-        requestData.extra_labels = params.extra_labels;
+        requestData = handleContainerRequestData(
+          requestData,
+          configs,
+          add_pod_annotation,
+          add_pod_label,
+          extra_labels,
+          bcs_cluster_id,
+        );
       }
+
       $http
         .request(requestUrl, {
           params: urlParams,
           data: requestData,
         })
         .then(res => {
-          store.commit(`collect/${props.isEdit ? 'updateCurCollect' : 'setCurCollect'}`, {
+          store.commit(`collect/${isUpdate.value ? 'updateCurCollect' : 'setCurCollect'}`, {
             ...formData.value,
             ...res.data,
           });
@@ -1021,7 +1249,8 @@ export default defineComponent({
           emit('next', res.data);
         })
         .catch(err => {
-          console.log(err);
+          console.log('保存采集配置出错:', err);
+          // 这里可以添加显示错误信息给用户的逻辑，例如通过弹窗或提示组件
         })
         .finally(() => {
           loadingSave.value = false;
@@ -1031,6 +1260,7 @@ export default defineComponent({
      * 保存配置
      */
     const handleSubmitSave = () => {
+      loadingSave.value = true;
       isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
       /**
        * 日志路径校验
@@ -1060,7 +1290,7 @@ export default defineComponent({
       /**
        * 是否为容器采集并且配置项校验通过
        */
-      console.log(isConfigError, 'configurationItemListRef');
+      // console.log(isConfigError, 'configurationItemListRef');
       baseInfoRef.value
         .validate()
         .then(() => {
@@ -1069,12 +1299,12 @@ export default defineComponent({
             return;
           }
           if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && !isSegmentError.value && isConfigError) {
-            console.log('可以跳转下一步');
             setCollection();
           }
         })
         .catch(() => {
           console.log('error');
+          loadingSave.value = false;
         });
     };
     return () => (
@@ -1090,7 +1320,7 @@ export default defineComponent({
           original-value={ipSelectorOriginalValue.value}
           panel-list={ipSelectorPanelList}
           show-dialog={showSelectDialog.value}
-          show-view-diff={props.isEdit}
+          show-view-diff={isUpdate.value}
           value={selectorNodes.value}
           allow-host-list-miss-host-id
           {...{
@@ -1113,7 +1343,7 @@ export default defineComponent({
           />
         )}
         <div class='classify-btns-fixed'>
-          {!props.isEdit && (
+          {!isCloneOrUpdate.value && (
             <bk-button
               class='mr-8'
               on-click={() => {

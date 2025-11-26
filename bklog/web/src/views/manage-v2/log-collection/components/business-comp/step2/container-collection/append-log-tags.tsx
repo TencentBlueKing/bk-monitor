@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, nextTick } from 'vue';
+import { defineComponent, ref, nextTick, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -140,7 +140,16 @@ export default defineComponent({
         add_pod_annotation: props.config.add_pod_annotation,
       };
     };
-    syncPropsToLocal(); // 初始化时同步
+    watch(
+      () => props.config,
+      (newVal, oldVal) => {
+        // 深度比较，避免相同引用时重复初始化
+        if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
+          syncPropsToLocal();
+        }
+      },
+      { deep: true },
+    );
 
     return () => (
       <div class='append-log-tags-main'>
@@ -159,7 +168,7 @@ export default defineComponent({
                 }}
                 placeholder={t('请输入Key')}
                 value={item.key}
-                onBlur={() => {
+                on-Blur={() => {
                   // 失焦时重新校验
                   handleChangeSubmit();
                 }}
@@ -170,7 +179,7 @@ export default defineComponent({
                 class={{ 'extra-error': item.key !== '' && item.value === '' && isExtraError.value }}
                 placeholder={t('请输入Value')}
                 value={item.value}
-                onBlur={() => {
+                on-Blur={() => {
                   // 失焦时重新校验
                   handleChangeSubmit();
                 }}

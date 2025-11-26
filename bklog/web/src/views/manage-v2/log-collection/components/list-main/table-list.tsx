@@ -33,7 +33,7 @@ import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue'
 import { getScenarioIdType, formatBytes, getOperatorCanClick, showMessage } from '../../utils';
 import useResizeObserver from '@/hooks/use-resize-observe';
 import { projectManages } from '@/common/util';
-
+import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
 import $http from '@/api';
 // import { useRouter } from 'vue-router/composables';
 
@@ -80,6 +80,7 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
+    const showCollectIssuedSlider = ref(false);
     /**
      * 是否展示一键检测
      */
@@ -106,12 +107,15 @@ export default defineComponent({
     const maxTableHeight = ref<number>(0); // 表格最大可用高度
 
     let tippyInstances: Instance[] = [];
+    let columnConfigTippyInstance: Instance | null = null;
+    const columnConfigTriggerRef = ref<HTMLElement | null>(null);
+    const columnConfigContentRef = ref<HTMLElement | null>(null);
     const searchKey = ref<SearchKeyItem[]>([]);
     const createdValues = ref([]); // 创建者筛选值
     const updatedByValues = ref([]); // 更新者筛选值
     // 过滤条件
-    const conditions = ref<Array<{ key: string; value: any[] }>>([
-      { key: 'name', value: ['zxp02252', 'test_012', 'hrlspf', '0911_test'] },
+    const conditions = ref<Array<{ key: string; value: string[] }>>([
+      { key: 'name', value: ['zxp02252', 'test_012', 'hrlspf', '0911_test', 'test_012_clone'] },
     ]);
 
     const pagination = ref({
@@ -120,34 +124,48 @@ export default defineComponent({
       pageSize: 10,
       limitList: [10, 20, 50],
     });
-    const settingFields = SETTING_FIELDS;
 
     const collectProject = computed(() => projectManages(store.state.topMenu, 'collection-item'));
 
     const sortConfig = ref({});
 
+    // 列配置相关状态
+    const isShowColumnConfig = ref(false);
+    // SETTING_FIELDS 中的 label 已经是字符串，直接使用
+    const columnConfigFields = ref([...SETTING_FIELDS]);
+    // 字段映射：SETTING_FIELDS 的 id 映射到 columns 的 colKey
+    const fieldIdToColKeyMap: Record<string, string> = {
+      collector_config_name: 'name',
+      storage_usage: 'daily_usage',
+      total_usage: 'total_usage',
+      table_id: 'bk_data_name',
+      index_set_id: 'index_set_name',
+      category_name: 'scenario_name',
+      collector_scenario_name: 'collector_scenario_name',
+      storage_cluster_name: 'storage_cluster_name',
+      retention: 'retention',
+      label: 'tags',
+      es_host_state: 'status',
+      updated_by: 'updated_by',
+      updated_at: 'updated_at',
+    };
+    // 默认显示的列（disabled: true 的列）
+    const defaultVisibleColumns = computed(() => {
+      return columnConfigFields.value
+        .filter(field => field.disabled)
+        .map(field => fieldIdToColKeyMap[field.id] || field.id);
+    });
+    // 用户选择的可见列（初始值为所有列）
+    const visibleColumns = ref<string[]>(
+      columnConfigFields.value.map(field => fieldIdToColKeyMap[field.id] || field.id),
+    );
+    // 临时选择的列（用于确认前）
+    const tempVisibleColumns = ref<string[]>([]);
+
     // 高度计算相关常量
     const HEIGHT_CONSTANTS = {
-      MIN_TABLE_HEIGHT: 200, // 最小表格高度（至少显示 6-7 行数据）
-      DEFAULT_HEADER_HEIGHT: 48, // 默认头部高度
-      DEFAULT_TOOL_HEIGHT: 60, // 默认工具栏高度
-      DEFAULT_PAGINATION_HEIGHT: 50, // 默认分页器高度
-      TOOL_MARGIN_BOTTOM: 12, // 工具栏 margin-bottom
-      PAGINATION_PADDING: 24, // 分页器 padding (上下各 12px)
-      OTHER_SPACING: 6, // 其他间距
-    };
-
-    /**
-     * 获取元素的实际高度（包括 margin/padding）
-     * @param element 目标元素
-     * @param defaultHeight 默认高度
-     * @param extraSpacing 额外的间距（如 margin、padding）
-     * @returns 元素总高度
-     */
-    const getElementHeight = (element: HTMLElement | null, defaultHeight: number, extraSpacing = 0): number => {
-      if (!element) return defaultHeight;
-      const rect = element.getBoundingClientRect();
-      return rect.height > 0 ? rect.height + extraSpacing : defaultHeight;
+      MIN_TABLE_HEIGHT: 250, // 最小表格高度（至少显示 6-7 行数据）
+      COLUMNS_HEIGHT: 50,
     };
 
     /**
@@ -156,19 +174,24 @@ export default defineComponent({
      */
     const calculateHeightByWindow = (): number => {
       const windowHeight = window.innerHeight;
-      const fixedElementsHeight =
-        HEIGHT_CONSTANTS.DEFAULT_HEADER_HEIGHT +
-        HEIGHT_CONSTANTS.DEFAULT_TOOL_HEIGHT +
-        HEIGHT_CONSTANTS.TOOL_MARGIN_BOTTOM +
-        HEIGHT_CONSTANTS.DEFAULT_PAGINATION_HEIGHT +
-        HEIGHT_CONSTANTS.PAGINATION_PADDING +
-        HEIGHT_CONSTANTS.OTHER_SPACING;
+      const fixedElementsHeight = 400;
       return Math.max(HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT, windowHeight - fixedElementsHeight);
     };
 
     /**
      * 根据屏幕大小计算表格最大可用高度
-     * 首先计算容器总高度，然后减去所有固定元素的高度
+     *
+     * 该方法用于动态计算表格组件的最大可用高度，确保表格能够自适应容器大小，
+     * 同时考虑固定元素（如头部、工具栏、分页器等）占用的空间。
+     *
+     * 计算逻辑：
+     * 1. 使用 nextTick 确保在 DOM 更新后执行，获取准确的容器尺寸
+     * 2. 优先使用容器高度进行计算，如果容器未挂载或高度无效，则使用窗口高度作为后备方案
+     * 3. 从容器高度中减去固定元素高度（150px），得到表格可用高度
+     * 4. 确保计算出的高度不小于最小表格高度（MIN_TABLE_HEIGHT）
+     * 5. 根据实际数据量和分页大小进行最终调整：
+     *    - 如果分页数据的总高度超过计算出的最大高度，则使用最大高度（启用滚动）
+     *    - 如果数据量较少，则根据实际行数计算高度（避免空白区域）
      */
     const calculateMaxTableHeight = () => {
       nextTick(() => {
@@ -186,30 +209,19 @@ export default defineComponent({
           return;
         }
 
-        // 获取各个固定元素的高度
-        const headerElement = container.querySelector('.v2-log-collection-table-header') as HTMLElement;
-        const headerHeight = getElementHeight(headerElement, HEIGHT_CONSTANTS.DEFAULT_HEADER_HEIGHT);
-
-        const toolElement = container.querySelector('.v2-log-collection-table-tool') as HTMLElement;
-        const toolHeight = getElementHeight(
-          toolElement,
-          HEIGHT_CONSTANTS.DEFAULT_TOOL_HEIGHT,
-          HEIGHT_CONSTANTS.TOOL_MARGIN_BOTTOM,
-        );
-
-        const paginationElement = container.querySelector('.t-table__pagination') as HTMLElement;
-        const paginationHeight = getElementHeight(
-          paginationElement,
-          HEIGHT_CONSTANTS.DEFAULT_PAGINATION_HEIGHT,
-          HEIGHT_CONSTANTS.PAGINATION_PADDING,
-        );
-
-        // 计算表格最大可用高度：容器高度 - 所有固定元素高度
-        const calculatedMaxHeight =
-          containerHeight - headerHeight - toolHeight - paginationHeight - HEIGHT_CONSTANTS.OTHER_SPACING;
+        // 计算表格最大可用高度：容器高度 - 所有固定元素高度（头部、工具栏、分页器等）
+        const calculatedMaxHeight = containerHeight - 150;
 
         // 确保高度在合理范围内（不小于最小高度）
         maxTableHeight.value = Math.max(HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT, calculatedMaxHeight);
+
+        // 根据实际数据量和分页大小进行最终调整
+        const listLen = tableList.value.length;
+        const totalListHeight = listLen * HEIGHT_CONSTANTS.COLUMNS_HEIGHT + 5;
+
+        // 如果分页数据总高度超过最大高度，使用最大高度（启用滚动）
+        // 否则根据实际数据行数计算高度（避免空白区域）
+        maxTableHeight.value = totalListHeight > maxTableHeight.value ? maxTableHeight.value : totalListHeight;
       });
     };
 
@@ -292,7 +304,8 @@ export default defineComponent({
       return MENU_LIST;
     };
 
-    const columns = computed(() => [
+    // 所有列定义
+    const allColumns = [
       {
         title: t('采集名'),
         colKey: 'name',
@@ -506,7 +519,23 @@ export default defineComponent({
           </div>
         ),
       },
-    ]);
+    ];
+
+    // 根据可见列过滤后的列配置
+    const columns = computed(() => {
+      // 操作列始终显示
+      const operationCol = allColumns.find(col => col.colKey === 'operation');
+      // 根据 visibleColumns 过滤列，但始终包含默认列和操作列
+      const filteredColumns = allColumns.filter(col => {
+        if (col.colKey === 'operation') return false; // 操作列单独处理
+        // 默认列始终显示
+        if (defaultVisibleColumns.value.includes(col.colKey)) return true;
+        // 其他列根据 visibleColumns 决定
+        return visibleColumns.value.includes(col.colKey);
+      });
+      // 将操作列添加到末尾
+      return operationCol ? [...filteredColumns, operationCol] : filteredColumns;
+    });
 
     /** 销毁所有tippy */
     const destroyTippyInstances = () => {
@@ -575,6 +604,44 @@ export default defineComponent({
       tippyInstances = Array.isArray(instances) ? instances : [instances];
     };
 
+    // 初始化列配置 tippy
+    const initColumnConfigTippy = () => {
+      if (!columnConfigTriggerRef.value || !columnConfigContentRef.value) {
+        return;
+      }
+
+      // 销毁旧实例
+      if (columnConfigTippyInstance) {
+        columnConfigTippyInstance.destroy();
+        columnConfigTippyInstance = null;
+      }
+
+      columnConfigTippyInstance = tippy(columnConfigTriggerRef.value, {
+        trigger: 'click',
+        placement: 'bottom-end',
+        theme: 'light column-config-popover',
+        interactive: true,
+        hideOnClick: 'toggle', // 点击外部区域时关闭，点击触发器时切换
+        arrow: false,
+        offset: [-52, 4],
+        appendTo: () => document.body,
+        onShow() {
+          handleOpenColumnConfig();
+        },
+        onHide() {
+          // 直接更新状态，不要调用 handleCloseColumnConfig，避免循环
+          isShowColumnConfig.value = false;
+        },
+        content() {
+          // 使用函数返回内容，确保能正确获取元素
+          if (!columnConfigContentRef.value) {
+            return document.createElement('div');
+          }
+          return columnConfigContentRef.value as unknown as Element;
+        },
+      });
+    };
+
     onMounted(() => {
       nextTick(() => {
         !authGlobalInfo.value && checkCreateAuth();
@@ -583,11 +650,20 @@ export default defineComponent({
         calculateMaxTableHeight();
         // 监听窗口大小变化
         window.addEventListener('resize', handleWindowResize);
+        // 初始化列配置 tippy - 使用 nextTick 确保 DOM 已渲染
+        nextTick(() => {
+          initColumnConfigTippy();
+        });
       });
     });
 
     onBeforeUnmount(() => {
       destroyTippyInstances();
+      // 销毁列配置 tippy
+      if (columnConfigTippyInstance) {
+        columnConfigTippyInstance.destroy();
+        columnConfigTippyInstance = null;
+      }
       // 移除窗口大小变化监听
       window.removeEventListener('resize', handleWindowResize);
     });
@@ -657,9 +733,10 @@ export default defineComponent({
           pagesize: pageSize,
           conditions: conditions.value.length > 0 ? conditions.value : undefined,
         };
-        if (props.indexSet.index_set_id !== 'all') {
+        const indexSetId = (props.indexSet as IListItemData)?.index_set_id;
+        if (indexSetId && indexSetId !== 'all') {
           Object.assign(params, {
-            parent_index_set_id: props.indexSet.index_set_id,
+            parent_index_set_id: indexSetId,
           });
         }
         const res = await $http.request('collect/newCollectList', {
@@ -735,6 +812,16 @@ export default defineComponent({
         i?.hide();
       }
       console.log(key, row);
+      /**
+       * 停用
+       */
+      if (key === 'stop') {
+        showCollectIssuedSlider.value = true;
+        return;
+      }
+      /**
+       * 删除操作
+       */
       if (key === 'delete') {
         if (!collectProject.value) return;
         if (!row.is_active && row.status !== 'running') {
@@ -765,7 +852,7 @@ export default defineComponent({
           });
         return;
       }
-      handleEditOperation(row, 'key');
+      handleEditOperation(row, key);
     };
     /**
      * 表格分页
@@ -975,14 +1062,67 @@ export default defineComponent({
       }
     };
 
+    // 列配置相关方法
+    const handleOpenColumnConfig = () => {
+      isShowColumnConfig.value = true;
+      // 初始化临时选择为当前可见列，确保包含默认列
+      const allCurrentColumns = [
+        ...defaultVisibleColumns.value,
+        ...visibleColumns.value.filter(key => !defaultVisibleColumns.value.includes(key)),
+      ];
+      tempVisibleColumns.value = [...allCurrentColumns];
+    };
+
+    const handleCloseColumnConfig = () => {
+      // 手动关闭 tippy（用于取消按钮点击）
+      if (columnConfigTippyInstance) {
+        columnConfigTippyInstance.hide();
+      }
+      isShowColumnConfig.value = false;
+    };
+
+    const handleColumnConfigChange = (fieldId: string, checked: boolean) => {
+      const colKey = fieldIdToColKeyMap[fieldId] || fieldId;
+      // 如果是默认列，不允许取消
+      if (!checked && defaultVisibleColumns.value.includes(colKey)) {
+        return;
+      }
+
+      if (checked) {
+        if (!tempVisibleColumns.value.includes(colKey)) {
+          tempVisibleColumns.value.push(colKey);
+        }
+      } else {
+        tempVisibleColumns.value = tempVisibleColumns.value.filter(key => key !== colKey);
+      }
+    };
+
+    const handleColumnConfigConfirm = () => {
+      // 确保默认列始终包含在内
+      const finalColumns = [
+        ...defaultVisibleColumns.value,
+        ...tempVisibleColumns.value.filter(key => !defaultVisibleColumns.value.includes(key)),
+      ];
+      visibleColumns.value = finalColumns;
+      isShowColumnConfig.value = false;
+      columnConfigTippyInstance?.hide();
+    };
+
+    const isColumnChecked = (fieldId: string): boolean => {
+      const colKey = fieldIdToColKeyMap[fieldId] || fieldId;
+      return tempVisibleColumns.value.includes(colKey);
+    };
+
     return () => (
       <div
         ref={containerRef}
         class='v2-log-collection-table'
       >
         <div class='v2-log-collection-table-header'>
-          {props.indexSet.index_set_name}
-          <span class='table-header-count'>{props.indexSet.index_count}</span>
+          <div class='header-left'>
+            {(props.indexSet as IListItemData)?.index_set_name || ''}
+            <span class='table-header-count'>{(props.indexSet as IListItemData)?.index_count || 0}</span>
+          </div>
         </div>
         <div class='v2-log-collection-table-tool'>
           <div class='tool-btns'>
@@ -1006,10 +1146,65 @@ export default defineComponent({
           ref={tableMainRef}
           class='v2-log-collection-table-main'
         >
+          <div class='table-set'>
+            <div
+              ref={columnConfigTriggerRef}
+              class='column-config-trigger'
+            >
+              <i class='bk-icon icon-cog-shape'></i>
+            </div>
+            <div
+              ref={columnConfigContentRef}
+              class='column-config-dropdown'
+            >
+              <div class='column-config-title'>{t('字段显示设置')}</div>
+              <div class='column-config-list'>
+                {columnConfigFields.value.map(field => {
+                  const colKey = fieldIdToColKeyMap[field.id] || field.id;
+                  const isDefault = field.disabled || defaultVisibleColumns.value.includes(colKey);
+                  const checked = isColumnChecked(field.id);
+                  return (
+                    <span
+                      key={field.id}
+                      class='column-config-item'
+                    >
+                      <bk-checkbox
+                        value={checked}
+                        disabled={isDefault}
+                        on-change={(val: boolean) => {
+                          if (!isDefault) {
+                            handleColumnConfigChange(field.id, val);
+                          }
+                        }}
+                      >
+                        {field.label}
+                      </bk-checkbox>
+                    </span>
+                  );
+                })}
+              </div>
+              <div class='column-config-footer'>
+                <bk-button
+                  theme='primary'
+                  size='small'
+                  on-click={handleColumnConfigConfirm}
+                >
+                  {t('确定')}
+                </bk-button>
+                <bk-button
+                  size='small'
+                  on-click={handleCloseColumnConfig}
+                >
+                  {t('取消')}
+                </bk-button>
+              </div>
+            </div>
+          </div>
           <TConfigProvider
             class='log-collection-table'
             globalConfig={globalLocale}
           >
+            {/* @ts-ignore - TTable type definition issue */}
             <TTable
               cache={true}
               cellEmptyContent={'--'}
@@ -1021,11 +1216,7 @@ export default defineComponent({
               on-page-change={handlePageChange}
               pagination={pagination.value}
               row-key='key'
-              height={
-                pagination.value.pageSize * 50 > maxTableHeight.value
-                  ? maxTableHeight.value
-                  : pagination.value.pageSize * 50
-              }
+              height={maxTableHeight.value}
               rowHeight={32}
               scroll={{ type: 'lazy', bufferSize: 10 }}
               virtual={true}
@@ -1061,6 +1252,14 @@ export default defineComponent({
             is-show={isShowDetection.value}
             quick-close={true}
             transfer
+          />
+          {/* 停用 */}
+          <CollectIssuedSlider
+            isShow={showCollectIssuedSlider.value}
+            // status={currentStatus.value.status}
+            on-change={value => {
+              showCollectIssuedSlider.value = value;
+            }}
           />
         </div>
       </div>
