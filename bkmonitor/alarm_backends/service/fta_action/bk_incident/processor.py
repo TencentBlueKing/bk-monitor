@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 
 from alarm_backends.service.fta_action.common.processor import ActionProcessor as CommonActionProcessor
@@ -19,7 +17,7 @@ logger = logging.getLogger("fta_action.run")
 
 class ActionProcessor(CommonActionProcessor):
     """
-    标准运维处理器
+    标准排障处理器
     """
 
     def start_task(self, **kwargs):

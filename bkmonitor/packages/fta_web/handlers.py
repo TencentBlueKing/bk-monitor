@@ -48,7 +48,7 @@ def register_builtin_plugins(sender, **kwargs):
                 continue
 
             # 开启标准排障的情况下,才可注册标准排障插件
-            if plugin["plugin_key"] == "bk_incident" and not settings.ENABLE_BK_INCIDENT_PLUGIN:
+            if plugin["plugin_key"] != "bk_incident":
                 continue
             instance, created = ActionPlugin.origin_objects.update_or_create(
                 id=plugin.pop("id"), is_builtin=True, defaults=plugin
