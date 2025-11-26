@@ -1233,12 +1233,6 @@ class TimeSeriesScope(models.Model):
         invalid_group_ids = group_ids - valid_groups
         if invalid_group_ids:
             raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
-        # 验证所有 scope_name 格式
-        for scope_data in scopes:
-            try:
-                cls._validate_scope_name(scope_data["scope_name"])
-            except ValueError as e:
-                raise ValueError(_("指标分组名[{}]格式不合法: {}").format(scope_data["scope_name"], str(e)))
 
     @classmethod
     def _check_scopes_for_create(cls, bk_tenant_id: str, scopes: list[dict]):
@@ -1249,10 +1243,15 @@ class TimeSeriesScope(models.Model):
         """
         cls._common_check_scopes(bk_tenant_id, scopes)
 
-        # 1.1 提取 scope_keys
-        scope_keys = [(scope_data["group_id"], scope_data["scope_name"]) for scope_data in scopes]
+        # 1.1 验证所有 scope_name 格式
+        for scope_data in scopes:
+            try:
+                cls._validate_scope_name(scope_data["scope_name"])
+            except ValueError as e:
+                raise ValueError(_("指标分组名[{}]格式不合法: {}").format(scope_data["scope_name"], str(e)))
 
         # 1.2 检查是否有重复的 scope_name
+        scope_keys = [(scope_data["group_id"], scope_data["scope_name"]) for scope_data in scopes]
         group_ids = {scope["group_id"] for scope in scopes}
         existing_scopes = {
             (s.group_id, s.scope_name): s
