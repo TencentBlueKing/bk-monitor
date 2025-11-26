@@ -56,10 +56,19 @@ const buildRequestConfig = (
   appendHeaders?: Record<string, string>,
 ) => {
   // URL 处理（对应 axios 拦截器中的 URL 检查）
-  // if (!/^(https|http)?:\/\//.test(url)) {
-  //   const prefix = url.indexOf('?') === -1 ? '?' : '&';
-  // }
-  const fullUrl = join(baseURL, url);
+  // 如果URL是外部API（如 /api/bk-user-web），直接使用，不拼接 baseURL
+  // 如果URL是相对路径，拼接 baseURL
+  let fullUrl: string;
+  if (url.startsWith('/api/bk-user-web')) {
+    // 外部API，直接使用完整路径
+    fullUrl = url;
+  } else if (/^(https|http)?:\/\//.test(url)) {
+    // 绝对URL，直接使用
+    fullUrl = url;
+  } else {
+    // 相对路径，拼接 baseURL
+    fullUrl = join(baseURL, url);
+  }
 
   // 构建 headers（对应 axios 配置）
   const headers: Record<string, string> = {
