@@ -44,7 +44,7 @@ class ServiceDiscover(Discover):
             .execute()
         )
 
-        if len(result_list) == self.MAX_DIMENSION_COMBINATION_LIMIT:
+        if len(result_list) >= self.MAX_DIMENSION_COMBINATION_LIMIT:
             EventReportHelper.report(
                 f"应用：({self.bk_biz_id}){self.app_name} Profile 服务 sample 发现超过了上限({self.MAX_DIMENSION_COMBINATION_LIMIT}), 需要人工介入"
             )
