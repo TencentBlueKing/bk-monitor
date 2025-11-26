@@ -17,7 +17,7 @@
 | -------------- | ------ | ---- |------------------------------------------------------------------|
 | group_id | int | 是 | 自定义时序数据源 ID                                                      |
 | scope_name | string | 是 | 指标分组名，最大长度 255                                                   |
-| new_scope_name | string | 否 | 新的指标分组名，最大长度 255，用于修改分组名                                         |
+| new_scope_name | string | 否 | 新的指标分组名，最大长度 255，用于修改分组名, data 创建来源的 scope 不允许修改 scope_name      |
 | dimension_config | dict | 否 | 分组下的维度配置                                                         |
 | manual_list | list | 否 | 手动分组的指标列表                                                        |
 | auto_rules | list | 否 | 自动分组的匹配规则列表                                                      |

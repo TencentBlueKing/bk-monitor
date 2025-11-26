@@ -1362,15 +1362,6 @@ class TimeSeriesScope(models.Model):
             missing_names = [f"{gid}:{name}" for gid, name in missing_scopes]
             raise ValueError(_("指标分组不存在，请确认后重试: {}").format(", ".join(missing_names)))
 
-        # 1.5 检查是否可编辑
-        for scope_key, scope_obj in existing_scopes.items():
-            try:
-                scope_obj.is_create_from_data()
-            except ValueError as e:
-                raise ValueError(
-                    _("指标分组[{}]不允许编辑: {}").format(f"{scope_obj.group_id}:{scope_obj.scope_name}", str(e))
-                )
-
         # 1.3 检查新分组名（如果提供了 new_scope_name）
         for scope_data in scopes:
             new_scope_name = scope_data.get("new_scope_name")
@@ -1380,6 +1371,14 @@ class TimeSeriesScope(models.Model):
 
             scope_key = (scope_data["group_id"], scope_data["scope_name"])
             scope_obj = existing_scopes[scope_key]
+
+            # 检查：data 类型的 scope 不允许修改 scope_name
+            if scope_obj.is_create_from_data():
+                raise ValueError(
+                    _("数据自动创建的分组不允许修改分组名: group_id={}, scope_name={}").format(
+                        scope_obj.group_id, scope_obj.scope_name
+                    )
+                )
 
             # 提前跳过：新分组名与当前分组名相同
             if new_scope_name == scope_obj.scope_name:
@@ -1416,7 +1415,7 @@ class TimeSeriesScope(models.Model):
 
             # 更新 scope_name（如果提供了 new_scope_name）
             new_scope_name = scope_data.get("new_scope_name")
-            if new_scope_name is not None and new_scope_name != scope_obj.scope_name:
+            if new_scope_name is not None:
                 scope_obj.scope_name = new_scope_name
                 update_fields.add("scope_name")
                 has_updates = True
