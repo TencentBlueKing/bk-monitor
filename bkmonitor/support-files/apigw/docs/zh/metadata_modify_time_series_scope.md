@@ -1,9 +1,8 @@
 
-
 ### 功能描述
 
-修改自定义时序指标分组
-修改指定自定义时序数据源下的指标分组配置，支持更新维度配置、手动分组列表和自动分组规则
+批量修改自定义时序指标分组
+修改指定自定义时序数据源下的指标分组配置，支持更新维度配置、手动分组列表和自动分组规则，支持批量修改多个分组
 
 
 ### 请求参数
@@ -11,8 +10,15 @@
 | 字段           | 类型   | 必选 | 描述        |
 | -------------- | ------ | ---- | ----------- |
 | bk_tenant_id  | string | 是   | 租户ID |
+| scopes | list | 是 | 批量修改的分组列表，至少包含一个分组 |
+
+#### scopes 列表项字段说明
+
+| 字段           | 类型   | 必选 | 描述        |
+| -------------- | ------ | ---- | ----------- |
 | group_id | int | 是 | 自定义时序数据源ID |
 | scope_name | string | 是 | 指标分组名，最大长度255 |
+| new_scope_name | string | 否 | 新的指标分组名，最大长度255，用于修改分组名 |
 | dimension_config | dict | 否 | 分组下的维度配置 |
 | manual_list | list | 否 | 手动分组的指标列表 |
 | auto_rules | list | 否 | 自动分组的匹配规则列表 |
@@ -35,16 +41,28 @@
 ```json
 {
 	"bk_tenant_id": "default",
-	"group_id": 123,
-	"scope_name": "指标分组名",
-	"dimension_config": {
-		"dimension1": {
-			"description": "维度1描述"
+	"scopes": [
+		{
+			"group_id": 123,
+			"scope_name": "指标分组名1",
+			"new_scope_name": "新指标分组名1",
+			"dimension_config": {
+				"dimension1": {
+					"description": "维度1描述"
+				}
+			},
+			"manual_list": ["metric1", "metric2"],
+			"auto_rules": ["metric_prefix_*"],
+			"delete_unmatched_dimensions": false
+		},
+		{
+			"group_id": 123,
+			"scope_name": "指标分组名2",
+			"dimension_config": {},
+			"manual_list": [],
+			"auto_rules": []
 		}
-	},
-	"manual_list": ["metric1", "metric2"],
-	"auto_rules": ["metric_prefix_*"],
-	"delete_unmatched_dimensions": false
+	]
 }
 ```
 
@@ -55,15 +73,19 @@
 | result     | bool   | 请求是否成功 |
 | code       | int    | 返回的状态码 |
 | message    | string | 描述信息     |
-| data       | dict   | 数据         |
+| data       | list   | 数据列表      |
 | request_id | string | 请求ID       |
 
 #### data字段说明
 
+data 为列表类型，包含所有修改成功的分组结果
+
+#### data列表项字段说明
+
 | 字段                   | 类型   | 描述             |
 | ---------------------- | ------ | ---------------- |
 | group_id               | int    | 自定义时序数据源ID |
-| scope_name             | string | 指标分组名         |
+| scope_name             | string | 指标分组名（如果使用了 new_scope_name，则返回新的分组名） |
 | dimension_config       | dict   | 分组下的维度配置   |
 | manual_list            | list   | 手动分组的指标列表 |
 | auto_rules             | list   | 自动分组的匹配规则列表 |
@@ -75,20 +97,29 @@
 {
     "message":"OK",
     "code":200,
-    "data": {
-        "group_id": 123,
-        "scope_name": "指标分组名",
-        "dimension_config": {
-            "dimension1": {
-                "description": "维度1描述"
-            }
+    "data": [
+        {
+            "group_id": 123,
+            "scope_name": "新指标分组名1",
+            "dimension_config": {
+                "dimension1": {
+                    "description": "维度1描述"
+                }
+            },
+            "manual_list": ["metric1", "metric2"],
+            "auto_rules": ["metric_prefix_*"],
+            "create_from": "user"
         },
-        "manual_list": ["metric1", "metric2"],
-        "auto_rules": ["metric_prefix_*"],
-        "create_from": "user"
-    },
+        {
+            "group_id": 123,
+            "scope_name": "指标分组名2",
+            "dimension_config": {},
+            "manual_list": [],
+            "auto_rules": [],
+            "create_from": "user"
+        }
+    ],
     "result":true,
     "request_id":"408233306947415bb1772a86b9536867"
 }
 ```
-

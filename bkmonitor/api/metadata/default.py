@@ -500,7 +500,7 @@ class QueryTimeSeriesGroupResource(CacheResource):
 
 class CreateTimeSeriesScopeResource(MetaDataAPIGWResource):
     """
-    创建自定义时序指标分组
+    批量创建自定义时序指标分组
     """
 
     action = "/app/metadata/create_time_series_scope/"
@@ -508,16 +508,20 @@ class CreateTimeSeriesScopeResource(MetaDataAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = serializers.CharField(required=True, label="租户ID")
-        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
-        scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
-        dimension_config = serializers.DictField(required=False, label="分组下的维度配置", default={})
-        manual_list = serializers.ListField(required=False, label="手动分组的指标列表", default=[])
-        auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表", default=[])
+
+        class ScopeSerializer(serializers.Serializer):
+            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+            scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+            dimension_config = serializers.DictField(required=False, label="分组下的维度配置", default={})
+            manual_list = serializers.ListField(required=False, label="手动分组的指标列表", default=[])
+            auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表", default=[])
+
+        scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量创建的分组列表", min_length=1)
 
 
 class ModifyTimeSeriesScopeResource(MetaDataAPIGWResource):
     """
-    修改自定义时序指标分组
+    批量修改自定义时序指标分组
     """
 
     action = "/app/metadata/modify_time_series_scope/"
@@ -525,19 +529,24 @@ class ModifyTimeSeriesScopeResource(MetaDataAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = serializers.CharField(required=True, label="租户ID")
-        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
-        scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
-        dimension_config = serializers.DictField(required=False, label="分组下的维度配置")
-        manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
-        auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
-        delete_unmatched_dimensions = serializers.BooleanField(
-            required=False, default=False, label="是否删除不再匹配的维度配置"
-        )
+
+        class ScopeSerializer(serializers.Serializer):
+            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+            scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+            new_scope_name = serializers.CharField(required=False, label="新的指标分组名", max_length=255)
+            dimension_config = serializers.DictField(required=False, label="分组下的维度配置")
+            manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
+            auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
+            delete_unmatched_dimensions = serializers.BooleanField(
+                required=False, default=False, label="是否删除不再匹配的维度配置"
+            )
+
+        scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量修改的分组列表", min_length=1)
 
 
 class DeleteTimeSeriesScopeResource(MetaDataAPIGWResource):
     """
-    删除自定义时序指标分组
+    批量删除自定义时序指标分组
     """
 
     action = "/app/metadata/delete_time_series_scope/"
@@ -545,8 +554,12 @@ class DeleteTimeSeriesScopeResource(MetaDataAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = serializers.CharField(required=True, label="租户ID")
-        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
-        scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+
+        class ScopeSerializer(serializers.Serializer):
+            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+            scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+
+        scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量删除的分组列表", min_length=1)
 
 
 class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
