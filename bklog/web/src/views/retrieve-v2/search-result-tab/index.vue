@@ -175,7 +175,7 @@ onMounted(() => {
     <div class="retrieve2-tab-right">
       <div
         class="btn-alert-dashboard btn-spacing"
-        @click="()=>handleSliderUpdate(true)"
+        @click="handleSliderUpdate(true)"
       >
         <span
           class="bklog-icon bklog-log-setting"
@@ -206,7 +206,7 @@ onMounted(() => {
       </div>
       <PersonalizedConfigurationSlider
         :is-show="showSlider"
-        @cancel-slider="()=>handleSliderUpdate(false)"
+        @cancel-slider="handleSliderUpdate(false)"
       />
     </div>
     <DashboardDialog

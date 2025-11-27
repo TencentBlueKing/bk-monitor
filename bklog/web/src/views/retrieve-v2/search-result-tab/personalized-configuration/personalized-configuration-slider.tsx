@@ -28,15 +28,19 @@ import { defineComponent, ref, watch } from 'vue';
 
 import { t } from '@/hooks/use-locale';
 import { TAB_TYPES, TabType } from '../constants';
-
-import ConfigurationTable from './configuration-table';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import useStore from '@/hooks/use-store';
+import GradeOption from '@/components/monitor-echarts/components/grade-option';
+import LogKeywordSetting from './log-keyword-setting';
+import LogMetric from './log-metric';
 
 import './personalized-configuration-slider.scss';
 
 export default defineComponent({
   name: 'PersonalizedConfigurationSlider',
   components: {
-    ConfigurationTable,
+    LogKeywordSetting,
+    LogMetric,
   },
   props: {
     isShow: {
@@ -47,17 +51,23 @@ export default defineComponent({
   emits: ['cancel-slider'],
 
   setup(props, { emit }) {
+    const store = useStore();
+
     const tabs = ref([
       // tab配置
       {
-        title: TAB_TYPES.KEYWORD,
+        title: TAB_TYPES.LOG_LEVEL,
       },
       {
-        title: TAB_TYPES.METRIC,
+        title: TAB_TYPES.LOG_KEYWORD,
+      },
+      {
+        title: TAB_TYPES.LOG_METRIC,
       },
     ]);
-    const activeTab = ref<TabType>(TAB_TYPES.KEYWORD); // 激活的tab
+    const activeTab = ref<TabType>(TAB_TYPES.LOG_LEVEL); // 激活的tab
     const tableData = ref([]); // 表格数据
+    const refGradeOption = ref();
 
     // 关键词配置数据
     const keywordConfigs = ref([]);
@@ -74,7 +84,11 @@ export default defineComponent({
     watch(
       activeTab,
       (title: TabType) => {
-        if (title === TAB_TYPES.KEYWORD) {
+        if (title === TAB_TYPES.LOG_LEVEL) {
+          // 更新分级配置
+          const cfg = store.state.indexFieldInfo.custom_config?.grade_options ?? {};
+          refGradeOption.value?.updateOptions?.(cfg);
+        } else if (title === TAB_TYPES.LOG_KEYWORD) {
           tableData.value = keywordConfigs.value;
         } else {
           tableData.value = metricConfigs.value;
@@ -86,6 +100,14 @@ export default defineComponent({
     // 取消操作/关闭侧滑弹窗
     const handleCancel = () => {
       emit('cancel-slider');
+    };
+
+    // 分级配置变更回调
+    const handleGradeOptionChange = ({ isSave }) => {
+      handleCancel();
+      if (isSave) {
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH); // 触发趋势图刷新
+      }
     };
 
     return () => (
@@ -114,17 +136,27 @@ export default defineComponent({
                 ))}
               </div>
               <div class='personalized-configuration-content'>
-                {/* 内容部分 */}
-                <bk-button
-                  theme='primary'
-                  title={t('新建')}
-                >
-                  {t('新建')}
-                </bk-button>
-                <ConfigurationTable
-                  tabType={activeTab.value}
-                  data={tableData.value}
-                />
+                {/* 日志分级展示 */}
+                {activeTab.value === TAB_TYPES.LOG_LEVEL && (
+                  <div class='bklog-v3-grade-setting'>
+                    <GradeOption
+                      ref={refGradeOption}
+                      on-Change={handleGradeOptionChange}
+                    />
+                  </div>
+                )}
+                {/* 日志关键词设置 */}
+                {activeTab.value === TAB_TYPES.LOG_KEYWORD && (
+                  <div>
+                    <LogKeywordSetting />
+                  </div>
+                )}
+                {/* 日志转指标部分 */}
+                {activeTab.value === TAB_TYPES.LOG_METRIC && (
+                  <div>
+                    <LogMetric />
+                  </div>
+                )}
               </div>
             </div>
           </div>

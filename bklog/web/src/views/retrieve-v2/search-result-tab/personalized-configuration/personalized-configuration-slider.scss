@@ -23,11 +23,27 @@
     }
 
     .personalized-configuration-content {
-        padding: 12px 40px 0;
+        padding-left: 40px;
 
-        .bk-button {
-            padding: 0 30px;
-            margin-bottom: 12px;
+        .bklog-v3-grade-setting {
+            padding-top: 6px;
+            border: none;
+            box-shadow: none;
+
+            .grade-row {
+                padding: 0;
+            }
+
+            .grade-footer {
+                justify-content: flex-start;
+                padding: 0 64px;
+                background: #FFFFFF;
+                box-shadow: none;
+                
+                button {
+                    width: 88px;
+                } 
+            }
         }
     }
 }
