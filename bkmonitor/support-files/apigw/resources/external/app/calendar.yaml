@@ -144,7 +144,7 @@ paths:
           resourcePermissionRequired: true
         descriptionEn: delete item
   /app/calendar/item/detail/:
-    get:
+    post:
       operationId: item_detail
       description: 获取某些日历下某个时间点的所有事项
       x-bk-apigateway-resource:
@@ -153,7 +153,7 @@ paths:
         matchSubpath: false
         backend:
           name: default
-          method: get
+          method: post
           path: /api/v4/calendars/item_detail/
           matchSubpath: false
         authConfig:
@@ -162,7 +162,7 @@ paths:
           resourcePermissionRequired: true
         descriptionEn: item detail
   /app/calendar/item/list/:
-    get:
+    post:
       operationId: item_list
       description: 查询规定日期内的所有日历事项列表
       x-bk-apigateway-resource:
@@ -171,7 +171,7 @@ paths:
         matchSubpath: false
         backend:
           name: default
-          method: get
+          method: post
           path: /api/v4/calendars/item_list/
           matchSubpath: false
         authConfig:
