@@ -77,7 +77,7 @@ def get_request_username(default="admin"):
 
     username = ""
     with ignored(Exception):
-        username = get_request().user.username or get_local_param("request.username") or ""
+        username = get_request().user.username or get_local_param("request.username", default="")
     if not username and "celery" in sys.argv:
         username = default
         if settings.ENABLE_MULTI_TENANT_MODE:
