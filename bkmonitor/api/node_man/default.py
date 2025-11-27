@@ -17,8 +17,7 @@ from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request_username
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-from bkmonitor.utils.user import get_admin_username, get_backend_username, get_global_user
+from bkmonitor.utils.user import get_admin_username
 from constants.cmdb import TargetNodeType
 from core.drf_resource import APIResource
 from core.drf_resource.base import Resource
@@ -58,7 +57,17 @@ class NodeManAPIGWResource(APIResource, metaclass=abc.ABCMeta):
         return response_data
 
     def full_request_data(self, validated_request_data):
+        # 由于节点管理的有些接口存在独立的鉴权系统，因此不能直接使用请求的用户，否则会导致鉴权失败
+        # 记录真实请求用户
+        origin_user = get_request_username()
+        if not origin_user:
+            validated_request_data["_origin_user"] = origin_user
+
+        # 使用租户下的管理员用户
+        setattr(self, "bk_username", get_admin_username(bk_tenant_id=self._get_tenant_id()))
+
         validated_request_data = super().full_request_data(validated_request_data)
+
         # 业务id判定
         if "bk_biz_id" not in validated_request_data:
             return validated_request_data
@@ -682,13 +691,6 @@ class GetProxiesByBizResource(NodeManAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
 
-    def full_request_data(self, validated_request_data):
-        validated_request_data = super().full_request_data(validated_request_data)
-        validated_request_data["_origin_user"] = get_global_user()
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(validated_request_data["bk_biz_id"])
-        setattr(self, "bk_username", get_admin_username(bk_tenant_id=bk_tenant_id))
-        return validated_request_data
-
 
 PLUGIN_JOB_TUPLE = (
     "MAIN_START_PLUGIN",
@@ -757,8 +759,6 @@ class PluginSearch(NodeManAPIGWResource):
         pagesize = serializers.IntegerField(required=True, label="数量")
 
     def full_request_data(self, validated_request_data):
-        # plugin search 在节点管理侧会针对请求用户鉴权，监控有自己的鉴权系统，此处直接使用后台账户进行查询
-        setattr(self, "bk_username", get_backend_username(bk_tenant_id=self.bk_tenant_id))
         return super().full_request_data(validated_request_data)
 
 

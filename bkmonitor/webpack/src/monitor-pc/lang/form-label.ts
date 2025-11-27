@@ -144,6 +144,9 @@ export default {
   修改优先级: 'Modify priority',
   基于分派规则通知: 'Alarm Routing',
   修改告警内容: 'Modify Alarm',
+  语音拨打顺序: 'Voice Call Order',
+  串行: 'Serial',
+  并行: 'Parallel',
 
   // 专业表单 - 图表相关
   已选图表: 'Selected charts',

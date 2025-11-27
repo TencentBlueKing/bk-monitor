@@ -206,7 +206,7 @@ class LogQueryResource(ApiAuthResource):
         for record in records:
             # UnifyQuery 查询结果携带 _meta 字段，需剔除。
             record.pop("_meta", None)
-            _record = {"time": self.get_time(record, time_field)}
+            _record: dict[str, Any] = {"time": self.get_time(record, time_field)}
 
             if params["data_source_label"] in (DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM) and params[
                 "data_type_label"
@@ -228,12 +228,12 @@ class LogQueryResource(ApiAuthResource):
                     ]:
                         dimensions.pop(dimension, None)
 
-                event = record.pop("event", {})
-                content = event.get("content", "")
-                count = event.get("count", 1)
+                event: dict[str, Any] = record.pop("event", {})
+                _record["event.count"] = event.get("count", 1)
+                _record["event.content"] = event.get("content", "")
+                _record.update({f"event.extra.{key}": value for key, value in event.get("extra", {}).items()})
+
                 _record.update({f"dimensions.{key}": value for key, value in dimensions.items()})
-                _record["event.content"] = content
-                _record["event.count"] = count
                 _record.update(record)
             elif params["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH and "log" in record:
                 _record["event.content"] = record["log"]

@@ -1757,7 +1757,10 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
             query: dict[str, Any] = copy.deepcopy(base_query)
             method: str = metric["method"].lower()
             # 非时间聚合，直接使用传入的方法
-            func_method: str = "sum" if (self.is_time_agg and self.time_alignment) else method
+            func_method: str = method
+            if self.is_time_agg and self.time_alignment and method == "count":
+                # 时间聚合场景下且进行对齐的场景下，COUNT 外层需使用 SUM 进行聚合。
+                func_method = "sum"
             function: dict[str, Any] = {
                 "method": self.FUNC_METHOD_MAPPING.get(func_method, func_method),
                 "dimensions": group_by,
@@ -2228,10 +2231,6 @@ class BkMonitorLogDataSource(BaseBkMonitorLogDataSource):
             processed_record: dict[str, Any] = {}
             exists_object_fields: set[str] = set()
             for field, value in record.items():
-                if field in ["_meta"]:
-                    # 排除无需返回的字段。
-                    continue
-
                 if self.OBJECT_FIELD_SEPERATOR not in field:
                     # 不包含分隔符，设置 kv 并提前返回。
                     processed_record[field] = value

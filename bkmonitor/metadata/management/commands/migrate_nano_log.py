@@ -171,6 +171,8 @@ class Command(BaseCommand):
             record.pk = None
             if hasattr(record, "origin_table_id"):
                 record.origin_table_id = new_table_id
+            if hasattr(record, "index_set") and getattr(record, "index_set", None):
+                record.index_set += "_nano"
             record.table_id = record.table_id.split(".")[0] + "_nano" + ".__default__"
             record.save()
 

@@ -36,6 +36,7 @@ import {
 } from 'fta-solutions/pages/setting/set-meal/set-meal-add/meal-content/meal-content-data';
 import SetMealAddStore from 'fta-solutions/store/modules/set-meal-add';
 import { deepClone } from 'monitor-common/utils/utils';
+import { xssFilter } from 'monitor-common/utils/xss';
 
 import AIWhaleIcon from '../../../../components/ai-whale-icon/ai-whale-icon';
 import TemplateInput from '../../strategy-config-set/strategy-template-input/strategy-template-input.vue';
@@ -116,6 +117,7 @@ interface IAdvancedConfig {
   interval_notify_mode: string; // "standard" 间隔模式
   notify_interval: number; // 通知间隔
   template: { message_tmpl: string; signal: string; title_tmpl: string }[];
+  voice_notice?: VoiceNoticeType; // 语音拨打顺序（仅在告警组数量大于等于2时展示该选项）
 }
 
 interface INoticeConfigNewEvent {
@@ -133,6 +135,8 @@ interface INoticeConfigNewProps {
   userList?: IAlarmGroupList[]; // 告警组
   value?: INoticeValue;
 }
+
+type VoiceNoticeType = 'parallel' | 'serial';
 
 @Component({
   name: 'NoticeConfigNew',
@@ -190,6 +194,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
         { signal: 'recovered', message_tmpl: '', title_tmpl: '' },
         { signal: 'closed', message_tmpl: '', title_tmpl: '' },
       ],
+      voice_notice: 'serial',
     },
   };
 
@@ -292,6 +297,15 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
   @Watch('value', { immediate: true, deep: true })
   handleValue(data: INoticeValue) {
     this.data = data;
+
+    // 语音拨打顺序字段不存在或者为空时，默认串行; 删减告警组只剩1个时页面隐藏该选项，字段值改为串行
+    if (
+      !Object.keys(data.config).includes('voice_notice') ||
+      !data.config.voice_notice ||
+      data.user_groups.length === 1
+    ) {
+      this.data.config.voice_notice = 'serial';
+    }
 
     Object.keys(this.assignMode).forEach(key => {
       this.assignMode[key] = (data.options?.assign_mode || []).includes(key);
@@ -533,6 +547,19 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
     });
   }
 
+  // 语音拨打顺序单选 不能取消
+  // voiceNoticeBeforeChange(val) {
+  //   return this.data.config?.voice_notice !== val;
+  // }
+
+  // 语音拨打顺序 复选框模拟单选逻辑
+  // handleVoiceNoticeChange(val) {
+  //   if (val !== '') {
+  //     this.data.config.voice_notice = val;
+  //     this.handleChange();
+  //   }
+  // }
+
   beforeDestroy() {
     this.hideAllPopoverInstance();
   }
@@ -687,15 +714,76 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
               >
                 <VerifyItem errorMsg={this.errMsg.user_groups}>
                   {!this.alarmGroupLoading ? (
-                    <AlarmGroup
-                      class='alarm-group'
-                      list={this.userList}
-                      readonly={this.readonly}
-                      showAddTip={false}
-                      strategyId={this.strategyId}
-                      value={this.data.user_groups}
-                      onChange={data => this.handleUserGroup(data)}
-                    />
+                    [
+                      <AlarmGroup
+                        key='alarm-group'
+                        class='alarm-group'
+                        list={this.userList}
+                        readonly={this.readonly}
+                        showAddTip={false}
+                        strategyId={this.strategyId}
+                        value={this.data.user_groups}
+                        onChange={data => this.handleUserGroup(data)}
+                      />,
+                      this.data.user_groups.length > 1 ? (
+                        <div
+                          key='voice-notice'
+                          class='voice-notice'
+                        >
+                          <span class='voice-notice-label'>{this.$t('语音拨打顺序')}</span>
+                          <bk-radio-group
+                            class='voice-notice-radio-group'
+                            v-model={this.data.config.voice_notice}
+                            onChange={() => this.handleChange()}
+                          >
+                            <bk-radio
+                              ext-cls='voice-notice-radio'
+                              value='serial'
+                            >
+                              {this.$t('串行')}
+                            </bk-radio>
+                            <bk-radio
+                              ext-cls='voice-notice-radio'
+                              value='parallel'
+                            >
+                              {this.$t('并行')}
+                            </bk-radio>
+                          </bk-radio-group>
+                          {/* <bk-checkbox
+                            ext-cls='voice-notice-checkbox'
+                            v-model={this.data.config.voice_notice}
+                            before-change={() => this.voiceNoticeBeforeChange('serial')}
+                            false-value=''
+                            true-value='serial'
+                            on-change={() => this.handleVoiceNoticeChange('serial')}
+                          >
+                            {this.$t('串行')}
+                          </bk-checkbox>
+                          <bk-checkbox
+                            ext-cls='voice-notice-checkbox'
+                            v-model={this.data.config.voice_notice}
+                            before-change={() => this.voiceNoticeBeforeChange('parallel')}
+                            false-value=''
+                            true-value='parallel'
+                            on-change={() => this.handleVoiceNoticeChange('parallel')}
+                          >
+                            {this.$t('并行')}
+                          </bk-checkbox> */}
+                          <i
+                            class='icon-monitor icon-tishi ai-whale-icon'
+                            v-bk-tooltips={{
+                              content: xssFilter(
+                                this.$t(
+                                  '并行：组间同时拨打，组内顺序依次拨打；<br>串行：多个用户组人员顺序合并后依次拨打，<br>重复人员以前置组优先'
+                                ) as string
+                              ),
+                              trigger: 'mouseenter',
+                              allowHTML: true,
+                            }}
+                          />
+                        </div>
+                      ) : undefined,
+                    ]
                   ) : (
                     <div class='skeleton-element alarm-group-skeleton' />
                   )}

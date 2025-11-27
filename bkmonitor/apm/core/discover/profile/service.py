@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
 import logging
 import re
@@ -17,6 +17,7 @@ from django.utils import timezone
 from apm.constants import ProfileApiType
 from apm.core.discover.profile.base import Discover
 from apm.models.profile import ProfileService
+from apm.utils.report_event import EventReportHelper
 
 logger = logging.getLogger("apm")
 
@@ -24,6 +25,7 @@ logger = logging.getLogger("apm")
 class ServiceDiscover(Discover):
     """Profile 服务 + 采样类型发现"""
 
+    MAX_DIMENSION_COMBINATION_LIMIT = 3000
     LARGE_SERVICE_SIZE = 10000
 
     def discover(self, start_time: int, end_time: int):
@@ -31,15 +33,21 @@ class ServiceDiscover(Discover):
         logger.info(f"[ProfileServiceDiscover] start at {check_time}")
 
         # Step1: 获取 service_name，type，sample_type
+
         result_list = (
             self.get_builder()
             .with_api_type(ProfileApiType.AGGREGATE)
             .with_time(start_time, end_time)
             .with_metric_fields("count(1)")
             .with_dimension_fields("service_name,sample_type,type")
-            .with_offset_limit(0, 1000)
+            .with_offset_limit(0, self.MAX_DIMENSION_COMBINATION_LIMIT)
             .execute()
         )
+
+        if len(result_list) >= self.MAX_DIMENSION_COMBINATION_LIMIT:
+            EventReportHelper.report(
+                f"应用：({self.bk_biz_id}){self.app_name} Profile 服务 sample 发现超过了上限({self.MAX_DIMENSION_COMBINATION_LIMIT}), 需要人工介入"
+            )
 
         instances = []
 

@@ -36,8 +36,8 @@ import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 import { bkMessage } from 'bk-magic-vue';
 
-
 import './index.scss';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
 export default defineComponent({
   name: 'V3Searchbar',
@@ -92,7 +92,7 @@ export default defineComponent({
      * @TODO 本周发布BKOP开启助手，上云环境关闭助手，此处需要暂时调整为 false
      */
     const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
-
+    const formatValue = computed(() => store.getters.retrieveParams.format);
     /**
      * 更新AI助手位置
      */
@@ -177,39 +177,56 @@ export default defineComponent({
      */
     const handleTextToQuery = (value: string): void => {
       isAiLoading.value = true;
-      RetrieveHelper.aiAssitantHelper.requestTextToQueryString({
-        index_set_id: store.state.indexItem.ids[0],
-        description: value,
-        domain: window.location.origin,
-        fields: fieldsJsonValue.value,
-        keyword: value,
-      }).then((resp) => {
-        const content = resp.choices[0]?.delta?.content ?? '{}';
-        try {
-          const contentObj = JSON.parse(content);
-          const queryString = contentObj.query_string;
-          if (queryString) {
-            store.commit('updateIndexItemParams', { keyword: queryString });
-            router.replace({
-              name: 'retrieve',
-              params: route.params,
-              query: {
-                ...route.query,
-                keyword: queryString,
-              },
-            }).then(() => {
-              RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
-              store.dispatch('requestIndexSetQuery');
+      RetrieveHelper.aiAssitantHelper
+        .requestTextToQueryString({
+          index_set_id: store.state.indexItem.ids[0],
+          description: value,
+          domain: window.location.origin,
+          fields: fieldsJsonValue.value,
+          keyword: value,
+        })
+        .then((resp) => {
+          const content = resp.choices[0]?.delta?.content ?? '{}';
+          try {
+            const contentObj = JSON.parse(content);
+            const { end_time: endTime, start_time: startTime, query_string: queryString } = contentObj;
+            const queryParams = {};
+            let needReplace = false;
+            if (startTime && endTime) {
+              const results = handleTransformToTimestamp([startTime, endTime], formatValue.value);
+              Object.assign(queryParams, { start_time: results[0], end_time: results[1] });
+              store.commit('updateIndexItemParams', { datePickerValue: [startTime, endTime] });
+              needReplace = true;
+            }
+            if (queryString) {
+              Object.assign(queryParams, { keyword: queryString });
+              needReplace = true;
+            }
+
+            if (needReplace) {
+              store.commit('updateIndexItemParams', queryParams);
+              router
+                .replace({
+                  name: 'retrieve',
+                  params: route.params,
+                  query: {
+                    ...route.query,
+                    ...queryParams,
+                  },
+                })
+                .then(() => {
+                  RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+                  store.dispatch('requestIndexSetQuery');
+                });
+            }
+          } catch (e) {
+            console.error(e);
+            bkMessage({
+              theme: 'error',
+              message: e.message,
             });
           }
-        } catch (e) {
-          console.error(e);
-          bkMessage({
-            theme: 'error',
-            message: e.message,
-          });
-        }
-      })
+        })
         .finally(() => {
           isAiLoading.value = false;
         });

@@ -150,7 +150,7 @@ export default defineComponent({
     // }
 
     // 判断当前项是否被键盘选中
-    const isKeyboardSelected = (item: IListItem, index: number) => {
+    const isKeyboardSelected = (item: IListItem) => {
       if (props.selectedIndex < 0 || item.type === 'group-title') {
         return false;
       }
@@ -183,7 +183,7 @@ export default defineComponent({
                       item.type === 'group-title' ? 'list-group-title' : 'list-item',
                       props.theme,
                       { checked: item.space_uid === props.checked },
-                      { 'keyboard-selected': isKeyboardSelected(item, index) },
+                      { 'keyboard-selected': isKeyboardSelected(item) },
                       props.commonList.length > 0 && index === props.commonList.length ? 'last-common-item' : '',
                     ]}
                     onClick={() => handleSelected(item)}
