@@ -1592,9 +1592,10 @@ class QueryTimeSeriesGroupResource(Resource):
         return list(chain.from_iterable(instance.to_json_v2() for instance in query_set))
 
 
-class CreateTimeSeriesScopeResource(Resource):
+class CreateOrUpdateTimeSeriesScopeResource(Resource):
     """
-    批量创建自定义时序指标分组
+    批量创建或更新自定义时序指标分组
+    如果指标分组已存在则更新，不存在则创建
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -1603,49 +1604,65 @@ class CreateTimeSeriesScopeResource(Resource):
         class ScopeSerializer(serializers.Serializer):
             group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
             scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+            new_scope_name = serializers.CharField(
+                required=False, label="新的指标分组名（仅更新时生效）", max_length=255
+            )
             dimension_config = serializers.DictField(required=False, label="分组下的维度配置", default={})
             manual_list = serializers.ListField(required=False, label="手动分组的指标列表", default=[])
             auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表", default=[])
-
-        scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量创建的分组列表", min_length=1)
-
-    def perform_request(self, validated_request_data):
-        # 调用模型的批量创建方法
-        return models.TimeSeriesScope.bulk_create_scopes(
-            bk_tenant_id=validated_request_data.pop("bk_tenant_id"),
-            scopes=validated_request_data["scopes"],
-        )
-
-
-class ModifyTimeSeriesScopeResource(Resource):
-    """
-    批量修改自定义时序指标分组
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
-
-        class ScopeSerializer(serializers.Serializer):
-            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
-            scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
-            new_scope_name = serializers.CharField(required=False, label="新的指标分组名", max_length=255)
-            dimension_config = serializers.DictField(required=False, label="分组下的维度配置")
-            manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
-            auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
             # 是否删除不再匹配 manual_list 和 auto_rules 的 dimension_config
             # 对于导入分组场景来说，这个字段应该为 False，否则可能由于无法匹配而导入失败
             delete_unmatched_dimensions = serializers.BooleanField(
-                required=False, default=False, label="是否删除不再匹配的维度配置"
+                required=False, default=False, label="是否删除不再匹配的维度配置（仅更新时生效）"
             )
 
-        scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量修改的分组列表", min_length=1)
+        scopes = serializers.ListField(
+            required=True, child=ScopeSerializer(), label="批量创建或更新的分组列表", min_length=1
+        )
 
     def perform_request(self, validated_request_data):
-        # 调用模型的批量修改方法
-        return models.TimeSeriesScope.bulk_modify_scopes(
-            bk_tenant_id=validated_request_data.pop("bk_tenant_id"),
-            scopes=validated_request_data["scopes"],
-        )
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        scopes = validated_request_data["scopes"]
+
+        # 查询哪些分组已存在
+        scope_conditions = Q()
+        for scope_data in scopes:
+            scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=scope_data["scope_name"])
+
+        existing_scopes = {
+            (s.group_id, s.scope_name): s for s in models.TimeSeriesScope.objects.filter(scope_conditions)
+        }
+
+        # 分离创建和更新的分组
+        scopes_to_create = []
+        scopes_to_update = []
+
+        for scope_data in scopes:
+            scope_key = (scope_data["group_id"], scope_data["scope_name"])
+            if scope_key in existing_scopes:
+                scopes_to_update.append(scope_data)
+            else:
+                scopes_to_create.append(scope_data)
+
+        results = []
+
+        # 批量创建
+        if scopes_to_create:
+            create_results = models.TimeSeriesScope.bulk_create_scopes(
+                bk_tenant_id=bk_tenant_id,
+                scopes=scopes_to_create,
+            )
+            results.extend(create_results)
+
+        # 批量更新
+        if scopes_to_update:
+            update_results = models.TimeSeriesScope.bulk_modify_scopes(
+                bk_tenant_id=bk_tenant_id,
+                scopes=scopes_to_update,
+            )
+            results.extend(update_results)
+
+        return results
 
 
 class DeleteTimeSeriesScopeResource(Resource):
