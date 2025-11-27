@@ -877,6 +877,9 @@ class DataLink(models.Model):
 
         config_list, conditions = [], []
         for record in federal_records:
+            if not record.fed_builtin_metric_table_id:
+                continue
+
             # 联邦代理集群的RT名
             proxy_k8s_metric_vmrt_name = utils.compose_bkdata_table_id(record.fed_builtin_metric_table_id)
             relabels = [{"name": "bcs_cluster_id", "value": record.fed_cluster_id}]
@@ -1112,7 +1115,7 @@ class DataLink(models.Model):
         except RetryError as e:
             logger.error("apply_data_link: data_link_name->[%s] retry error->[%s]", self.data_link_name, e.__cause__)
             # 抛出底层错误原因，而非直接RetryError
-            raise e.__cause__
+            raise e.__cause__ if e.__cause__ else e
         except Exception as e:  # pylint: disable=broad-except
             logger.error("apply_data_link: data_link_name->[%s] apply error->[%s]", self.data_link_name, e)
             raise e
