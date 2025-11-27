@@ -1133,7 +1133,7 @@ class RPCMetricTag(CachedEnum):
             "callee": {"field": "kind", "value": [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_CONSUMER]},
             cls.CALLEE_SERVICE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_SERVICE}"},
             cls.CALLEE_METHOD.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_METHOD}"},
-            cls.INSTANCE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
+            cls.INSTANCE.value: {"field": f"{OtlpKey.RESOURCE}.{SpanAttributes.NET_HOST_IP}"},
             cls.SERVICE_NAME.value: {"field": f"{OtlpKey.RESOURCE}.{ResourceAttributes.SERVICE_NAME}"},
             cls.NAMESPACE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_NAMESPACE}"},
             cls.ENV_NAME.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_ENV_NAME}"},
