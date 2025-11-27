@@ -27,7 +27,6 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.tgpa.constants import TGPA_TASK_EXE_CODE_SUCCESS, TGPATaskProcessStatusEnum, FEATURE_TOGGLE_TGPA_TASK
 from apps.tgpa.handlers.task import TGPATaskHandler
 from apps.tgpa.models import TGPATask
-from apps.utils.function import ignored
 from apps.utils.log import logger
 
 
@@ -53,10 +52,9 @@ def fetch_and_process_tgpa_tasks():
             continue
 
         for task in new_tasks:
-            with ignored(Exception, log_exception=True):
-                if task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
-                    TGPATask.objects.create(bk_biz_id=bk_biz_id, task_id=task["id"], log_path=task["log_path"])
-                    process_single_task.delay(task)
+            if task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
+                TGPATask.objects.create(bk_biz_id=bk_biz_id, task_id=task["id"], log_path=task["log_path"])
+                process_single_task.delay(task)
 
 
 @app.task(ignore_result=True, queue="tgpa_task")
