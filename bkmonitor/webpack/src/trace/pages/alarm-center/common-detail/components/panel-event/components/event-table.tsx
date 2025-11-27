@@ -41,7 +41,7 @@ import { formatTime } from 'trace/utils/utils';
 import { useI18n } from 'vue-i18n';
 
 import EventTableExpandContent from './event-table-expand-content';
-import { SourceTypeEnum } from './typing';
+import { eventChartMap, SourceTypeEnum } from './typing';
 
 import './event-table.scss';
 
@@ -91,7 +91,7 @@ export default defineComponent({
               <span
                 class={[
                   'icon-monitor icon-mc-arrow-right table-expand-icon',
-                  { 'rotate-90': expandedRowKeys.value.includes(row.event_id) },
+                  { 'rotate-90': expandedRowKeys.value.includes(row.key) },
                 ]}
               />
               <span class='time-value'>{formatTime(+row[tableColumnKey.TIME].value)}</span>
@@ -435,7 +435,7 @@ export default defineComponent({
             expandOnRowClick={true}
             needCustomScroll={false}
             resizable={true}
-            rowClassName={({ row }) => `row-event-status-${row.severity}`}
+            rowClassName={({ row }) => `row-event-status-${eventChartMap[row.type.value]}`}
             rowKey={'key'}
             size={'small'}
             sort={this.sort}

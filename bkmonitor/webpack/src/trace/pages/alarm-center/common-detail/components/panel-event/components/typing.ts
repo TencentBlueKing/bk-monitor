@@ -35,4 +35,19 @@ export const SourceTypeEnum = {
   HOST: 'HOST',
 } as const;
 
+/**
+ * @description 事件type类型枚举
+ */
+export enum DimensionsTypeEnum {
+  DEFAULT = 'Default',
+  NORMAL = 'Normal',
+  WARNING = 'Warning',
+}
+
 export type ESourceType = (typeof SourceTypeEnum)[keyof typeof SourceTypeEnum];
+
+export const eventChartMap = {
+  [DimensionsTypeEnum.WARNING]: 0,
+  [DimensionsTypeEnum.NORMAL]: 1,
+  [DimensionsTypeEnum.DEFAULT]: 2,
+};

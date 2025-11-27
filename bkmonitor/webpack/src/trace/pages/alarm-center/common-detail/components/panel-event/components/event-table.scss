@@ -50,7 +50,8 @@
   .relation-event-table {
     @include source-item;
 
-    $statusColors: #ea3635 #ff9c00 #699df4;
+
+    $statusColors: #F5C78E, #70A0FF, #A3B1CC;
 
     @for $i from 1 through length($statusColors) {
       .row-event-status-#{$i} {

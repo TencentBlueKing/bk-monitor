@@ -33,6 +33,8 @@ import { formatTime } from 'trace/utils/utils';
 import { useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 
+import { DimensionsTypeEnum, eventChartMap } from './typing';
+
 import './event-table-expand-content.scss';
 
 const TabEnum = {
@@ -112,7 +114,7 @@ export default defineComponent({
       <div
         class={[
           'alarm-center-detail-panel-relation-event-table-expand-content',
-          `expand-content-status-${this.data.severity}`,
+          `expand-content-status-${eventChartMap[this.data?.type?.value || DimensionsTypeEnum.DEFAULT]}`,
         ]}
       >
         <div class='view-header'>
@@ -136,11 +138,12 @@ export default defineComponent({
           v-show={this.isKVTab}
         >
           <div class='content-operation'>
-            <i
-              class='icon-monitor icon-mc-copy'
-              v-bk-tooltips={{ content: this.$t('复制'), distance: 5 }}
-              onClick={() => this.handleCopy(this.data)}
-            />
+            <i onClick={() => this.handleCopy(this.data)}>
+              <i
+                class='icon-monitor icon-mc-copy'
+                v-bk-tooltips={{ content: this.$t('复制'), distance: 5 }}
+              />
+            </i>
           </div>
           <div class='explore-kv-list'>
             {this.kvList.map((item, index) => (
