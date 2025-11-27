@@ -61,15 +61,17 @@ export default defineComponent({
     const { dashboards } = useK8sChartPanel({
       scene: toRef(props, 'scene'),
       groupByField: K8sTableColumnKeysEnum.POD,
-      clusterId: 'BCS-K8S-00000',
+      clusterId: 'BCS-K8S-40003',
       filterBy: {
-        [K8sTableColumnKeysEnum.NAMESPACE]: ['bcs-system'],
-        [K8sTableColumnKeysEnum.POD]: ['bcs-bkcmdb-synchronizer-0'],
+        pod: ['bkbase-bksql-language-server-69dc5bd9fb-tw8qk'],
+        namespace: ['bkbase'],
+        workload: ['Deployment:bkbase-bksql-language-server'],
       },
       resourceListData: [
         {
-          namespace: 'bcs-system',
-          pod: 'bcs-bkcmdb-synchronizer-0',
+          pod: 'bkbase-bksql-language-server-69dc5bd9fb-tw8qk',
+          namespace: 'bkbase',
+          workload: 'Deployment:bkbase-bksql-language-server',
         },
       ],
     });
@@ -91,9 +93,10 @@ export default defineComponent({
           <AlarmMetricsDashboard
             key={dashboard.id}
             viewOptions={{
-              interval: 'auto',
+              interval: '1m',
               method: 'sum',
               unit: undefined,
+              time_shift: ' ',
             }}
             dashboardId={this.dashboardId}
             dashboardTitle={dashboard?.title}
