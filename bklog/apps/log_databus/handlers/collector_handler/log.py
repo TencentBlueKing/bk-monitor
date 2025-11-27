@@ -212,6 +212,7 @@ class LogCollectorHandler:
         # 添加status_name采集状态, 如果status_name存在则进行过滤
         for item in tmp_result_list:
             original_status = collector_status_mappings.get(item["collector_config_id"], {}).get("status", "")
+            print(original_status)
             new_status = CollectStatusEnum.get_collect_status(original_status)
             if status_list and new_status not in status_list:
                 continue
@@ -385,7 +386,7 @@ class LogCollectorHandler:
                 created_at_list = item["value"]
             elif item["key"] == "updated_by":
                 updated_by_list = item["value"]
-            elif item["key"] == "status_name":
+            elif item["key"] == "status":
                 status_list = item["value"]
             elif item["key"] == "storage_cluster_name":
                 storage_cluster_name_list = item["value"]
