@@ -188,7 +188,6 @@ class UnifyQueryHandler:
         else:
             # 基础查询参数初始化
             self.base_dict = self.init_base_dict()
-
             # 基础查询结果合并参数初始化
             self.result_merge_base_dict = self.init_result_merge_base_dict(self.base_dict)
 
@@ -604,10 +603,10 @@ class UnifyQueryHandler:
                 clustered_rt = index_info["indices"]
             query_dict["table_id"] = BaseIndexSetHandler.get_data_label(index_info["index_set_id"], clustered_rt)
 
-            if self.agg_field:
-                query_dict["field_name"] = self.agg_field
-            elif self.agg_fields:
+            if agg_field:
                 query_dict["field_name"] = agg_field
+            elif self.agg_field:
+                query_dict["field_name"] = self.agg_field
             else:
                 # 时间字段 & 类型 & 单位
                 time_field, time_field_type, time_field_unit = SearchHandler.init_time_field(index_info["index_set_id"])
@@ -891,7 +890,7 @@ class UnifyQueryHandler:
         # 获取基础查询条件
         query_conditions = copy.deepcopy(self.base_dict_list)
 
-        # 多线程请求数据
+        # 多线程
         multi_execute_func = MultiExecuteFunc()
 
         for index, query_condition in enumerate(query_conditions):
@@ -903,6 +902,7 @@ class UnifyQueryHandler:
                 "size": self.search_params.get("size"),
             }
 
+            # 多线程请求 unify-query
             multi_execute_func.append(
                 result_key=f"union_search_terms_{agg_field}",
                 func=self._terms_unify_query,
@@ -915,7 +915,7 @@ class UnifyQueryHandler:
         for agg_field in self.agg_fields:
             query_result = multi_result.get(f"union_search_terms_{agg_field}", {})
 
-            series = query_result.get("series", None)
+            series = query_result.get("series")
 
             if series:
                 # 处理获得聚合结果
@@ -947,8 +947,8 @@ class UnifyQueryHandler:
         buckets = list()
 
         for item in series:
-            group_values = item.get("group_values", None)
-            values = item.get("values", None)
+            group_values = item.get("group_values")
+            values = item.get("values")
 
             if group_values and values:
                 buckets.append({"key": group_values[0], "doc_count": values[0][1]})
@@ -958,7 +958,7 @@ class UnifyQueryHandler:
 
         return {agg_field: {"buckets": buckets}} if buckets else dict()
 
-    def _terms_unify_query(self, agg_field, query_condition, size):
+    def _terms_unify_query(self, agg_field, query_condition, size=10000):
         """
         unify_query 查询 terms
         """
