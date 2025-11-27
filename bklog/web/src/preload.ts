@@ -29,6 +29,7 @@ import { SET_APP_STATE } from './store';
 import { urlArgs } from './store/default-values';
 import { BK_LOG_STORAGE } from './store/store.type';
 import BkUserDisplayName from '@blueking/bk-user-display-name';
+import { tenantManager } from './views/retrieve-core/tenant-manager';
 window.__VUE_PROD_HYDRATION_MISMATCH_DETAILS__ = false;
 
 /** 外部版根据空间授权权限显示菜单 */
@@ -259,6 +260,7 @@ export default ({
       emptyText: '--',
     });
 
+    tenantManager.setTenantId(resp.data.bk_tenant_id);
     return resp.data;
   });
 

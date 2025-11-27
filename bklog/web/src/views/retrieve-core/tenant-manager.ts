@@ -26,26 +26,46 @@
 
 import { join } from '@/global/utils/path';
 import { requestJson } from '@/request';
+import { EventEmitter } from './event';
 
 // 用户信息接口定义
 interface UserDisplayInfo {
-  username: string;
+  login_name: string;
+  full_name: string;
   display_name: string;
+  groups?: string[]; // 用户所属的分组列表
   [key: string]: any;
+}
+
+// 事件类型定义
+export type TenantManagerEvent = 'userInfoLoaded' | 'userInfoUpdated';
+
+// 用户信息加载事件参数
+export interface UserInfoLoadedEventData {
+  tenantIds: string[];
+  userInfo: Map<string, UserDisplayInfo>;
 }
 
 // 租户管理器
 // 用于管理租户ID，并提供租户ID的设置和获取
-export class TenantManager {
+export class TenantManager extends EventEmitter<TenantManagerEvent> {
   private tenantId: string | null | undefined;
   // 用户信息缓存：租户ID -> 用户信息
   private userCache: Map<string, UserDisplayInfo> = new Map();
+  // 分组映射：分组名称 -> 该分组下的人员 login_name 集合
+  private groupMap: Map<string, Set<string>> = new Map();
+  // 默认分组名称
+  private readonly DEFAULT_GROUP = 'default';
   // 请求队列：待请求的租户ID集合（去重）
   private requestQueue: Set<string> = new Set();
   // 正在请求的租户ID集合（避免重复请求）
   private pendingRequests: Set<string> = new Set();
   // 请求处理定时器ID
   private processTimer: number | null = null;
+  // 正在进行的请求 Promise 集合（用于等待所有请求完成）
+  private pendingPromises: Set<Promise<void>> = new Set();
+  // 当前正在执行的 processQueue Promise（用于等待队列处理完成）
+  private processQueuePromise: Promise<void> | null = null;
   // API基础路径
   private readonly API_BASE_URL = join(
     process.env.NODE_ENV === 'development' ? '/api/bk-user-web/prod' : window.BK_LOGIN_URL,
@@ -55,6 +75,7 @@ export class TenantManager {
   private readonly MAX_URL_LENGTH = 2000;
 
   constructor(tenantId?: string | null) {
+    super();
     this.tenantId = tenantId;
   }
 
@@ -77,6 +98,29 @@ export class TenantManager {
    */
   private isMultiTenant(): boolean {
     return !!this.tenantId && this.tenantId.trim() !== '';
+  }
+
+  /**
+   * 将用户添加到指定分组
+   * @param loginName 用户登录名
+   * @param group 分组名称
+   */
+  private addUserToGroup(loginName: string, group: string): void {
+    if (!this.groupMap.has(group)) {
+      this.groupMap.set(group, new Set());
+    }
+    this.groupMap.get(group)!.add(loginName);
+
+    // 更新用户信息中的 groups 字段
+    const userInfo = this.userCache.get(loginName);
+    if (userInfo) {
+      if (!userInfo.groups) {
+        userInfo.groups = [];
+      }
+      if (!userInfo.groups.includes(group)) {
+        userInfo.groups.push(group);
+      }
+    }
   }
 
   /**
@@ -108,20 +152,28 @@ export class TenantManager {
   /**
    * 获取用户显示信息
    * @param tenantId 租户ID（在多租户环境下）或用户名（在非多租户环境下）
+   * @param group 分组名称，默认为 'default'
    * @returns 用户显示信息
    */
-  async getUserDisplayInfo(tenantId: string): Promise<UserDisplayInfo | null> {
+  async getUserDisplayInfo(tenantId: string, group: string = this.DEFAULT_GROUP): Promise<UserDisplayInfo | null> {
     // 非多租户环境，直接返回租户ID作为用户名
     if (!this.isMultiTenant()) {
-      return {
-        username: tenantId,
+      const userInfo: UserDisplayInfo = {
+        login_name: tenantId,
+        full_name: tenantId,
         display_name: tenantId,
+        groups: [group],
       };
+      this.addUserToGroup(tenantId, group);
+      return userInfo;
     }
 
     // 检查缓存
     if (this.userCache.has(tenantId)) {
-      return this.userCache.get(tenantId)!;
+      const userInfo = this.userCache.get(tenantId)!;
+      // 将用户添加到指定分组
+      this.addUserToGroup(tenantId, group);
+      return userInfo;
     }
 
     // 添加到请求队列
@@ -131,28 +183,42 @@ export class TenantManager {
     this.scheduleProcess();
 
     // 返回一个默认值，实际数据会在请求完成后更新缓存
+    // 注意：这里先添加到分组，即使数据还没加载完成
+    this.addUserToGroup(tenantId, group);
     return {
-      username: tenantId,
+      login_name: tenantId,
+      full_name: tenantId,
       display_name: tenantId,
+      groups: [group],
     };
   }
 
   /**
    * 批量获取用户显示信息
    * @param tenantIds 租户ID数组
+   * @param group 分组名称，默认为 'default'
    * @returns 用户显示信息Map
    */
-  async batchGetUserDisplayInfo(tenantIds: string[]): Promise<Map<string, UserDisplayInfo>> {
+  async batchGetUserDisplayInfo(tenantIds: string[], group: string = this.DEFAULT_GROUP): Promise<Map<string, UserDisplayInfo>> {
     const result = new Map<string, UserDisplayInfo>();
 
     // 非多租户环境，直接返回租户ID作为用户名
     if (!this.isMultiTenant()) {
       tenantIds.forEach((id) => {
-        result.set(id, {
-          username: id,
+        const userInfo: UserDisplayInfo = {
+          login_name: id,
+          full_name: id,
           display_name: id,
-        });
+          groups: [group],
+        };
+        result.set(id, userInfo);
+        this.addUserToGroup(id, group);
       });
+
+      this.emit('userInfoUpdated', {
+        tenantIds: tenantIds,
+        userInfo: result,
+      } as UserInfoLoadedEventData);
       return result;
     }
 
@@ -160,7 +226,10 @@ export class TenantManager {
     const uncachedIds: string[] = [];
     tenantIds.forEach((id) => {
       if (this.userCache.has(id)) {
-        result.set(id, this.userCache.get(id)!);
+        const userInfo = this.userCache.get(id)!;
+        result.set(id, userInfo);
+        // 将用户添加到指定分组
+        this.addUserToGroup(id, group);
       } else {
         uncachedIds.push(id);
       }
@@ -175,12 +244,17 @@ export class TenantManager {
       this.scheduleProcess();
     }
 
-    // 对于未缓存的ID，先返回默认值
+    // 对于未缓存的ID，先返回默认值，并添加到分组
     uncachedIds.forEach((id) => {
-      result.set(id, {
-        username: id,
+      const userInfo: UserDisplayInfo = {
+        login_name: id,
+        full_name: id,
         display_name: id,
-      });
+        groups: [group],
+      };
+      result.set(id, userInfo);
+      // 注意：这里先添加到分组，即使数据还没加载完成
+      this.addUserToGroup(id, group);
     });
 
     return result;
@@ -188,27 +262,45 @@ export class TenantManager {
 
   /**
    * 调度请求处理（低优先级，不阻塞渲染）
+   * @returns Promise，当队列处理完成时 resolve
    */
-  private scheduleProcess() {
-    if (this.processTimer !== null) {
-      return; // 已经调度过了
+  private scheduleProcess(): Promise<void> {
+    // 如果已经有正在执行的 processQueue Promise，返回它
+    if (this.processQueuePromise !== null) {
+      return this.processQueuePromise;
     }
 
-    // 使用 requestIdleCallback（如果支持）或 setTimeout 延迟执行
-    if (typeof requestIdleCallback !== 'undefined') {
-      requestIdleCallback(
-        () => {
-          this.processTimer = null;
-          this.processQueue();
-        },
-        { timeout: 5000 },
-      );
-    } else {
-      this.processTimer = window.setTimeout(() => {
+    // 创建 processQueue Promise
+    this.processQueuePromise = new Promise<void>((resolve) => {
+      // 使用 requestIdleCallback（如果支持）或 Promise.resolve().then 延迟执行
+      const executeProcess = () => {
         this.processTimer = null;
-        this.processQueue();
-      }, 100);
-    }
+        this.processQueue()
+          .then(() => {
+            this.processQueuePromise = null;
+            resolve();
+          })
+          .catch((err) => {
+            this.processQueuePromise = null;
+            console.error('Error in processQueue:', err);
+            resolve(); // 即使出错也 resolve，避免阻塞
+          });
+      };
+
+      if (typeof requestIdleCallback !== 'undefined') {
+        const idleCallbackId = requestIdleCallback(executeProcess, { timeout: 5000 });
+        // requestIdleCallback 返回的是 number 类型的 ID
+        this.processTimer = idleCallbackId as unknown as number;
+      } else {
+        // 使用 Promise.resolve().then 而不是 setTimeout，这样可以被等待
+        Promise.resolve().then(() => {
+          this.processTimer = null;
+          executeProcess();
+        });
+      }
+    });
+
+    return this.processQueuePromise;
   }
 
   /**
@@ -278,6 +370,23 @@ export class TenantManager {
       return;
     }
 
+    // 创建请求 Promise 并添加到跟踪集合
+    const requestPromise = this.executeBatchRequest(tenantIds);
+    this.pendingPromises.add(requestPromise);
+
+    try {
+      await requestPromise;
+    } finally {
+      // 请求完成后从跟踪集合中移除
+      this.pendingPromises.delete(requestPromise);
+    }
+  }
+
+  /**
+   * 执行批量请求
+   * @param tenantIds 租户ID数组
+   */
+  private async executeBatchRequest(tenantIds: string[]): Promise<void> {
     // 构建URL并检查长度
     const queryParam = tenantIds.join(',');
     const url = `${this.API_BASE_URL}/-/display_info/?bk_usernames=${queryParam}`;
@@ -287,8 +396,8 @@ export class TenantManager {
       // 将当前批次进一步拆分
       const midPoint = Math.floor(tenantIds.length / 2);
       await Promise.all([
-        this.fetchBatchUserInfo(tenantIds.slice(0, midPoint)),
-        this.fetchBatchUserInfo(tenantIds.slice(midPoint)),
+        this.executeBatchRequest(tenantIds.slice(0, midPoint)),
+        this.executeBatchRequest(tenantIds.slice(midPoint)),
       ]);
       return;
     }
@@ -298,19 +407,57 @@ export class TenantManager {
     };
 
     try {
-      const response = await requestJson<{ results?: UserDisplayInfo[] }>({
+      const response = await requestJson<{ data: UserDisplayInfo[] }>({
         url,
         method: 'GET',
         headers,
       });
 
       // 处理响应结果
-      if (response.data?.results && Array.isArray(response.data.results)) {
-        response.data.results.forEach((userInfo: UserDisplayInfo) => {
-          if (userInfo.username) {
-            this.userCache.set(userInfo.username, userInfo);
+      // response.data 是 { data: UserDisplayInfo[] }，所以需要 response.data.data
+      const loadedTenantIds: string[] = [];
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        response.data.data.forEach((userInfo: UserDisplayInfo) => {
+          if (userInfo.login_name) {
+            const loginName = userInfo.login_name;
+            const wasCached = this.userCache.has(loginName);
+            const cachedUserInfo = this.userCache.get(loginName);
+            
+            // 如果用户已缓存，保留原有的 groups 信息
+            if (cachedUserInfo && cachedUserInfo.groups) {
+              userInfo.groups = cachedUserInfo.groups;
+            }
+            
+            this.userCache.set(loginName, userInfo);
+            
+            // 如果用户有 groups 信息，确保用户存在于这些分组中
+            if (userInfo.groups && Array.isArray(userInfo.groups)) {
+              userInfo.groups.forEach((group) => {
+                this.addUserToGroup(loginName, group);
+              });
+            }
+            
+            if (!wasCached) {
+              loadedTenantIds.push(loginName);
+            }
           }
         });
+
+        // 触发用户信息加载事件
+        if (loadedTenantIds.length > 0) {
+          const loadedUserInfo = new Map<string, UserDisplayInfo>();
+          loadedTenantIds.forEach((id) => {
+            const info = this.userCache.get(id);
+            if (info) {
+              loadedUserInfo.set(id, info);
+            }
+          });
+
+          this.emit('userInfoUpdated', {
+            tenantIds: loadedTenantIds,
+            userInfo: loadedUserInfo,
+          } as UserInfoLoadedEventData);
+        }
       }
     } catch {
       // 如果批量请求失败，尝试单个请求
@@ -345,14 +492,43 @@ export class TenantManager {
     };
 
     try {
-      const response = await requestJson<UserDisplayInfo>({
+      const response = await requestJson<{ data: UserDisplayInfo }>({
         url,
         method: 'GET',
         headers,
       });
 
-      if (response.data) {
-        this.userCache.set(tenantId, response.data);
+      // response.data 是 { data: UserDisplayInfo }，所以需要 response.data.data
+      if (response.data?.data && response.data.data.login_name) {
+        const userInfo = response.data.data;
+        const loginName = userInfo.login_name;
+        const wasCached = this.userCache.has(loginName);
+        const cachedUserInfo = this.userCache.get(loginName);
+        
+        // 如果用户已缓存，保留原有的 groups 信息
+        if (cachedUserInfo && cachedUserInfo.groups) {
+          userInfo.groups = cachedUserInfo.groups;
+        }
+        
+        this.userCache.set(loginName, userInfo);
+        
+        // 如果用户有 groups 信息，确保用户存在于这些分组中
+        if (userInfo.groups && Array.isArray(userInfo.groups)) {
+          userInfo.groups.forEach((group) => {
+            this.addUserToGroup(loginName, group);
+          });
+        }
+
+        // 如果是新加载的用户信息，触发事件
+        if (!wasCached) {
+          const loadedUserInfo = new Map<string, UserDisplayInfo>();
+          loadedUserInfo.set(loginName, userInfo);
+
+          this.emit('userInfoUpdated', {
+            tenantIds: [loginName],
+            userInfo: loadedUserInfo,
+          } as UserInfoLoadedEventData);
+        }
       }
     } catch (err) {
       console.error(`Failed to fetch user info for ${tenantId}:`, err);
@@ -361,10 +537,90 @@ export class TenantManager {
   }
 
   /**
+   * 获取指定分组下的所有用户信息
+   * @param group 分组名称，默认为 'default'
+   * @returns 用户信息Map（login_name -> 用户信息）
+   */
+  getUsersByGroup(group: string = this.DEFAULT_GROUP): Map<string, UserDisplayInfo> {
+    const result = new Map<string, UserDisplayInfo>();
+    const loginNames = this.groupMap.get(group);
+    
+    if (loginNames) {
+      loginNames.forEach((loginName) => {
+        const userInfo = this.userCache.get(loginName);
+        if (userInfo) {
+          result.set(loginName, userInfo);
+        }
+      });
+    }
+    
+    return result;
+  }
+
+  /**
+   * 获取所有用户信息
+   * 如果当前有执行中的请求，等待任务执行完再返回；如果没有则直接返回
+   * @param group 可选的分组名称，如果指定则只返回该分组下的用户信息
+   * @returns Promise，返回用户信息的Map（login_name -> 用户信息）
+   */
+  async getAllUserInfo(group?: string): Promise<Map<string, UserDisplayInfo>> {
+    // 如果没有正在进行的请求，直接返回
+    if (this.pendingPromises.size === 0 && this.requestQueue.size === 0 && this.pendingRequests.size === 0 && this.processQueuePromise === null) {
+      // 如果指定了分组，返回该分组下的用户信息
+      if (group) {
+        return this.getUsersByGroup(group);
+      }
+      return this.userCache;
+    }
+
+    // 使用 Promise 链式等待，完全避免轮询
+    // 循环等待直到所有请求都完成（包括在等待过程中新加入的请求）
+    while (this.pendingPromises.size > 0 || this.requestQueue.size > 0 || this.pendingRequests.size > 0 || this.processQueuePromise !== null) {
+      // 如果有待处理的队列且没有正在处理的，触发处理并获取 Promise
+      let processPromise: Promise<void> | null = null;
+      if (this.requestQueue.size > 0 && this.processQueuePromise === null) {
+        processPromise = this.scheduleProcess();
+      } else if (this.processQueuePromise !== null) {
+        processPromise = this.processQueuePromise;
+      }
+
+      // 收集所有需要等待的 Promise
+      const waitPromises: Promise<void>[] = [];
+
+      // 等待 processQueue 完成
+      if (processPromise !== null) {
+        waitPromises.push(processPromise);
+      }
+
+      // 等待所有正在进行的请求 Promise
+      if (this.pendingPromises.size > 0) {
+        waitPromises.push(...Array.from(this.pendingPromises));
+      }
+
+      // 等待所有 Promise 完成（如果没有 Promise，说明状态不一致，直接退出循环）
+      if (waitPromises.length > 0) {
+        await Promise.all(waitPromises);
+      } else {
+        // 如果没有 Promise 但还有待处理的状态，说明可能是非多租户环境或状态异常，直接退出
+        break;
+      }
+    }
+
+    // 如果指定了分组，返回该分组下的用户信息
+    if (group) {
+      return this.getUsersByGroup(group);
+    }
+    
+    // 返回所有用户信息
+    return this.userCache;
+  }
+
+  /**
    * 清除缓存
    */
   clearCache() {
     this.userCache.clear();
+    this.groupMap.clear();
   }
 
   /**
