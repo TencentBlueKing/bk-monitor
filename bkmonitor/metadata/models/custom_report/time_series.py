@@ -1517,17 +1517,7 @@ class TimeSeriesScope(models.Model):
                 "scope_name": "test_scope"
             }]
         """
-        # 验证所有 group_id 是否存在且属于当前租户
-        group_ids = {scope["group_id"] for scope in scopes}
-        valid_groups = set(
-            TimeSeriesGroup.objects.filter(
-                time_series_group_id__in=group_ids, bk_tenant_id=bk_tenant_id, is_delete=False
-            ).values_list("time_series_group_id", flat=True)
-        )
-
-        invalid_group_ids = group_ids - valid_groups
-        if invalid_group_ids:
-            raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
+        cls._common_check_scopes(bk_tenant_id, scopes)
 
         # 批量获取要删除的 TimeSeriesScope
         scope_conditions = Q()
@@ -1582,7 +1572,9 @@ class TimeSeriesScope(models.Model):
                 }
 
             # 批量更新 data 类型的 scope
-            cls.objects.bulk_update(data_scopes, ["manual_list", "auto_rules", "dimension_config"], batch_size=100)
+            cls.objects.bulk_update(
+                data_scopes, ["manual_list", "auto_rules", "dimension_config"], batch_size=BULK_UPDATE_BATCH_SIZE
+            )
 
         # 对于 user 类型的 scope：直接删除
         if user_scopes:
