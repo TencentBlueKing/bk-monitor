@@ -62,7 +62,6 @@ export function useAlarmBasicInfo() {
   watch(
     () => alarmCenterDetailStore.alarmDetail,
     newVal => {
-      console.log(newVal);
       if (newVal) {
         getHandleListData();
       }

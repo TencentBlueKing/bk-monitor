@@ -33,7 +33,7 @@ export const ALARM_CENTER_PANEL_TAB_MAP = {
   PROCESS: 'process',
   CONTAINER: 'container',
   EVENT: 'event',
-  METRIC: 'metric',
+  // METRIC: 'metric',
   ALARM: 'alarm',
 } as const;
 
@@ -45,7 +45,7 @@ export const ALARM_CENTER_PANEL_TAB_LABEL_MAP = {
   [ALARM_CENTER_PANEL_TAB_MAP.PROCESS]: window.i18n.t('进程'),
   [ALARM_CENTER_PANEL_TAB_MAP.CONTAINER]: window.i18n.t('容器'),
   [ALARM_CENTER_PANEL_TAB_MAP.EVENT]: window.i18n.t('关联事件'),
-  [ALARM_CENTER_PANEL_TAB_MAP.METRIC]: window.i18n.t('相关性指标'),
+  // [ALARM_CENTER_PANEL_TAB_MAP.METRIC]: window.i18n.t('相关性指标'),
   [ALARM_CENTER_PANEL_TAB_MAP.ALARM]: window.i18n.t('收敛的告警'),
 } satisfies Record<AlarmCenterPanelTabType, string>;
 

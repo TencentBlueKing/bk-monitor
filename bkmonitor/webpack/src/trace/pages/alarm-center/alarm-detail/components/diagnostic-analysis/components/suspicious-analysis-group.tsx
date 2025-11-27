@@ -72,12 +72,22 @@ export default defineComponent({
             onClick={this.toggleExpand}
           >
             <i class='icon-monitor icon-arrow-right arrow-icon' />
-            <div class={['group-name', { 'link-text': !!this.data?.groupHeader.name.link }]}>
+            <div
+              class={['group-name', { 'link-text': !!this.data?.groupHeader.name.link }]}
+              onClick={e => {
+                this.data?.groupHeader.name.link && e.stopPropagation();
+              }}
+            >
               {this.data?.groupHeader.name.title}
               {!!this.data?.groupHeader.name.link && <i class='icon-monitor icon-fenxiang' />}
             </div>
             {this.data?.groupHeader.detail && (
-              <div class='link-text'>
+              <div
+                class='link-text'
+                onClick={e => {
+                  e.stopPropagation();
+                }}
+              >
                 <i class='icon-monitor' />
                 {this.data?.groupHeader.detail.title}
               </div>
