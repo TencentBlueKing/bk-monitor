@@ -290,6 +290,7 @@ class ClusterInfo(models.Model):
                 "raw_ssl_certificate_key": self.ssl_certificate_key,
                 "cluster_id": self.cluster_id,
                 "cluster_name": self.cluster_name,
+                "display_name": self.display_name,
                 "version": self.version,
                 "custom_option": self.custom_option,
                 "registered_system": self.registered_system,
