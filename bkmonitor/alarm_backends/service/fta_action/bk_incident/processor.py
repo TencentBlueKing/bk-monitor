@@ -8,17 +8,19 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from core.drf_resource import resource
-from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from kernel_api.resource.metrics import TimeSeriesGroupListResource
+import logging
+
+from alarm_backends.service.fta_action.common.processor import ActionProcessor as CommonActionProcessor
+
+logger = logging.getLogger("fta_action.run")
 
 
-class MetricsViewSet(ResourceViewSet):
+class ActionProcessor(CommonActionProcessor):
     """
-    指标相关接口
+    标准排障处理器
     """
 
-    resource_routes = [
-        ResourceRoute("POST", resource.strategies.get_metric_list_v2, endpoint="get_metric_list"),
-        ResourceRoute("POST", TimeSeriesGroupListResource, endpoint="list_time_series_groups"),
-    ]
+    def start_task(self, **kwargs):
+        """执行任务"""
+        task_config = self.function_config.get("start_task")
+        self.run_node_task(task_config, **kwargs)
