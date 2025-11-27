@@ -2451,7 +2451,7 @@ class ESStorage(models.Model, StorageResultTable):
         # 如果index_re为空，说明没找到任何可用的index
         if index_version == "":
             logger.info("index->[%s] has no index now, will raise a fake not found error", self.index_name)
-            raise elasticsearch5.NotFoundError(self.index_name)
+            raise elasticsearch5.NotFoundError(404, f"index {self.index_name} not found", None)
 
         if index_version == "v2":
             index_re = self.index_re_v2
@@ -3304,7 +3304,7 @@ class ESStorage(models.Model, StorageResultTable):
                 actions,
                 new_index_name,
             )
-            raise elasticsearch5.NotFoundError(new_index_name)
+            raise elasticsearch5.NotFoundError(404, f"index {new_index_name} not found", None)
 
         try:
             response = self.es_client.indices.update_aliases(
