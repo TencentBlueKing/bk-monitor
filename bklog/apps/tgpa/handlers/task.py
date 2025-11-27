@@ -120,7 +120,6 @@ class TGPATaskHandler:
                     "max_file_num": task["max_file_num"],
                     "start_time": task["start_time"],
                     "end_time": task["end_time"],
-                    "download_url": task["download_url"],
                     "comment": task["comment"],
                     "created_by": task["created_by"],
                     "created_at": task["created_at"],

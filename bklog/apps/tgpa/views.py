@@ -26,7 +26,8 @@ from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field, BusinessActionPermission
 from apps.tgpa.handlers.task import TGPATaskHandler
-from apps.tgpa.serializers import CreateTGPATaskSerializer, GetTGPATaskListSerializer
+from apps.tgpa.serializers import CreateTGPATaskSerializer, GetTGPATaskListSerializer, GetDownloadUrlSerializer
+from bkm_search_module.constants import list_route
 
 
 class TGPATaskViewSet(APIViewSet):
@@ -35,6 +36,8 @@ class TGPATaskViewSet(APIViewSet):
     def get_permissions(self):
         if self.action == "create":
             return [BusinessActionPermission(ActionEnum.CREATE_CLIENT_LOG_TASK)]
+        if self.action == "get_download_url":
+            return [BusinessActionPermission(ActionEnum.DOWNLOAD_CLIENT_LOG)]
         return [ViewBusinessPermission()]
 
     @insert_permission_field(
@@ -44,11 +47,17 @@ class TGPATaskViewSet(APIViewSet):
         data_field=lambda d: d["list"],
     )
     def list(self, request, *args, **kwargs):
+        """
+        获取日志拉取任务列表
+        """
         params = self.params_valid(GetTGPATaskListSerializer)
         params["cc_id"] = params.pop("bk_biz_id")
         return Response(TGPATaskHandler.get_task_list(params, need_format=True))
 
     def create(self, request, *args, **kwargs):
+        """
+        创建日志拉取任务
+        """
         params = self.params_valid(CreateTGPATaskSerializer)
         params["cc_id"] = params.pop("bk_biz_id")
         params["logpath"] = params.pop("log_path")
@@ -56,3 +65,12 @@ class TGPATaskViewSet(APIViewSet):
         params["username"] = request.user.username
         TGPATaskApi.create_single_user_log_task_v2(params)
         return Response()
+
+    @list_route(methods=["GET"], url_path="download_url")
+    def get_download_url(self, request, *args, **kwargs):
+        """
+        获取文件下载链接
+        """
+        params = self.params_valid(GetDownloadUrlSerializer)
+        url = TGPATaskHandler(bk_biz_id=params["bk_biz_id"], task_id=params["task_id"]).task_info["download_url"]
+        return Response({"url": url})
