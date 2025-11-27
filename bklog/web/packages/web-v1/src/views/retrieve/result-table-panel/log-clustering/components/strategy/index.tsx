@@ -323,13 +323,13 @@ export default class Strategy extends tsc<object> {
   }
   /** 跳转告警策略列表 */
   handleJumpStrategyList() {
-    window.open(
+    window.iframeParent.open(
       `${window.MONITOR_URL}/?bizId=${this.bkBizId}#/strategy-config?strategyLabels=${JSON.stringify(this.labelName)}`,
       '_blank',
     );
   }
   handleCreateUserGroups() {
-    window.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/alarm-group/add`, '_blank');
+    window.iframeParent.open(`${window.MONITOR_URL}/?bizId=${this.bkBizId}#/alarm-group/add`, '_blank');
   }
   render() {
     if (this.isExternal) {
