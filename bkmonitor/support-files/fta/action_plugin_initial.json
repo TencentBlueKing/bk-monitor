@@ -759,7 +759,13 @@
           "key": "form_data",
           "type": "dict",
           "value": "execute_config.template_detail_dict"
-        }
+        },
+        {
+            "key": "operator",
+            "value": "operator",
+            "type": "string",
+            "format": "jmespath"
+          }
       ],
       "log_template": "根据套餐【{{action_name}}】的配置已成功创建故障工单[{{sn}}]，点击$查看工单详情$",
       "name": "创建单据",
@@ -862,7 +868,7 @@
                 "request_data_mapping": {
                     "bk_template_id": "{{template_id}}"
                 },
-                "resource_data": "response.pipeline_tree.constants.* | [?show_type == 'show']",
+                "resource_data": "response.pipeline_tree.constants.*",
                 "mapping": {
                     "key": "{{key}}",
                     "name": "{{name}}",
