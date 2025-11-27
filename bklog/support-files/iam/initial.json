@@ -524,9 +524,9 @@
         {
             "operation":"upsert_action",
             "data":{
-                "id":"search_client_log",
-                "name":"业务日志检索",
-                "name_en":"Search Client Log",
+                "id":"download_client_log",
+                "name":"客户端日志下载",
+                "name_en":"Download Client Log",
                 "type":"view",
                 "version":1,
                 "related_resource_types":[
@@ -553,9 +553,9 @@
         {
             "operation":"upsert_action",
             "data":{
-                "id":"collect_client_log",
-                "name":"业务日志捞取",
-                "name_en":"Collect Client Log",
+                "id":"create_client_log_task",
+                "name":"客户端日志采集任务创建",
+                "name_en":"Create Client Log Task",
                 "type":"manage",
                 "version":1,
                 "related_resource_types":[
@@ -656,14 +656,14 @@
                             ]
                         },
                         {
-                            "name":"业务日志",
+                            "name":"客户端日志",
                             "name_en":"Client Log",
                             "actions":[
                                 {
-                                    "id":"search_client_log"
+                                    "id":"download_client_log"
                                 },
                                 {
-                                    "id":"collect_client_log"
+                                    "id":"create_client_log_task"
                                 }
                             ]
                         },
@@ -782,10 +782,10 @@
                             "id":"manage_extract_config_v2"
                         },
                         {
-                            "id":"search_client_log"
+                            "id":"download_client_log"
                         },
                         {
-                            "id":"collect_client_log"
+                            "id":"create_client_log_task"
                         },
                         {
                             "id":"manage_desensitize_rule"
@@ -809,7 +809,7 @@
                             "id":"view_dashboard_v2"
                         },
                         {
-                            "id":"search_client_log"
+                            "id":"download_client_log"
                         }
                     ]
                 }

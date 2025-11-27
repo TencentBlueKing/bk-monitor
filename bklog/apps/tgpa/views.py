@@ -34,11 +34,11 @@ class TGPATaskViewSet(APIViewSet):
 
     def get_permissions(self):
         if self.action == "create":
-            return [BusinessActionPermission(ActionEnum.COLLECTOR_CLIENT_LOG)]
+            return [BusinessActionPermission(ActionEnum.CREATE_CLIENT_LOG_TASK)]
         return [ViewBusinessPermission()]
 
     @insert_permission_field(
-        actions=[ActionEnum.SEARCH_CLIENT_LOG],
+        actions=[ActionEnum.DOWNLOAD_CLIENT_LOG],
         resource_meta=ResourceEnum.BUSINESS,
         id_field=lambda d: d["bk_biz_id"],
         data_field=lambda d: d["list"],

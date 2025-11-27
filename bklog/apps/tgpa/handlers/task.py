@@ -280,7 +280,7 @@ class TGPATaskHandler:
             }
         )
         Bcs(bcs_cluster_id).save_bklog_config(
-            bklog_config_name=f"client-log-{bk_biz_id}",
+            bklog_config_name=f"bklog-client-log-{bk_biz_id}",
             bklog_config=container_release_params,
         )
         return CollectorConfig.objects.get(collector_config_id=collector_create_result["collector_config_id"])

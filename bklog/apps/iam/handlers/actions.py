@@ -214,20 +214,20 @@ class ActionEnum:
         version=1,
     )
 
-    SEARCH_CLIENT_LOG = ActionMeta(
-        id="search_client_log",
-        name=_("业务日志检索"),
-        name_en="Search Client Log",
+    DOWNLOAD_CLIENT_LOG = ActionMeta(
+        id="download_client_log",
+        name=_("客户端日志下载"),
+        name_en="Download Client Log",
         type="view",
         related_resource_types=[ResourceEnum.BUSINESS],
         related_actions=[VIEW_BUSINESS.id],
         version=1,
     )
 
-    COLLECTOR_CLIENT_LOG = ActionMeta(
-        id="collect_client_log",
-        name=_("业务日志捞取"),
-        name_en="Collect Client Logg",
+    CREATE_CLIENT_LOG_TASK = ActionMeta(
+        id="create_client_log_task",
+        name=_("客户端日志采集任务创建"),
+        name_en="Create Client Log Task",
         type="manage",
         related_resource_types=[ResourceEnum.BUSINESS],
         related_actions=[VIEW_BUSINESS.id],
