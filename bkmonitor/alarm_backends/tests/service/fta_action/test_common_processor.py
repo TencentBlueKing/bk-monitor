@@ -284,6 +284,7 @@ class TestItsmV4ActionProcessor:
     def get_action_processor(self):
         action_instance = self.get_action_instance()
         processor = ActionProcessor(action_instance.id, MagicMock())
+        processor.notice_receivers = ["zhangsan"]
         return processor
 
     def test_instantiate_common_base_resource(self):
@@ -332,6 +333,7 @@ class TestItsmV4ActionProcessor:
         action_config = get_action_configs()[1]
         assert request_call_args["workflow_key"] == action_config["execute_config"]["template_id"]
         assert request_call_args["form_data"] == action_config["execute_config"]["template_detail"]
+        assert request_call_args["operator"] == "zhangsan"
 
         # 验证输出数据
         assert outputs["id"] == mock_create_ticket._ticket_id
