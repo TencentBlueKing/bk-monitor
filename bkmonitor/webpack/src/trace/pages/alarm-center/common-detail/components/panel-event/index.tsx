@@ -25,7 +25,8 @@
  */
 import { type PropType, defineComponent } from 'vue';
 
-import { searchEvent } from 'monitor-api/modules/alert';
+import { eventLogs } from 'monitor-api/modules/apm_event';
+import { random } from 'monitor-common/utils/utils';
 
 import EventTable from './components/event-table';
 
@@ -42,37 +43,39 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const getData = async (params: { page: number; pageSize: number }) => {
-      const requestParams = {
-        bk_biz_id: props.detail.bk_biz_id,
-        alert_id: props.detail.id,
-        query_string: '',
+    const getData = async (params: { limit: number; offset: number; sort: string[]; where: unknown[] }) => {
+      const res = await eventLogs({
+        query_configs: [
+          {
+            data_source_label: 'apm',
+            data_type_label: 'event',
+            table: 'builtin',
+            query_string: '',
+            where: params.where,
+            group_by: ['type'],
+            filter_dict: {},
+          },
+        ],
+        app_name: 'tilapia',
+        service_name: 'example.greeter',
         start_time: props.detail.begin_time,
-        end_time: props.detail.end_time,
-        page: params.page,
-        page_size: params.pageSize,
-        record_history: true,
-        ordering: ['create_time'],
-      };
-      const res = await searchEvent(requestParams, { needRes: true })
-        .then(res => {
-          return (
-            res.data || {
-              events: [],
-              total: 0,
-            }
-          );
-        })
-        .catch(_res => {
-          return {
-            events: [],
-            total: 0,
-          };
-        })
-        .finally(() => {});
+        end_time: props.detail.latest_time,
+        bk_biz_id: props.detail.bk_biz_id,
+        limit: params.limit,
+        offset: params.offset,
+        sort: params.sort,
+      }).catch(() => {
+        return {
+          list: [],
+          total: 0,
+        };
+      });
       return {
-        data: res.events,
-        total: res.total,
+        data: (res.list || []).map(item => ({
+          ...item,
+          key: random(8),
+        })),
+        total: res?.total || 0,
       };
     };
 

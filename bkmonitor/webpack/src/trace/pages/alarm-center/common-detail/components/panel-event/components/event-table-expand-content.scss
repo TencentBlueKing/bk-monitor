@@ -1,3 +1,4 @@
+/* stylelint-disable selector-class-pattern */
 .alarm-center-detail-panel-relation-event-table-expand-content {
   padding: 0 10px;
   background-image: linear-gradient(to right, #a3b1cc, #a3b1cc), linear-gradient(#f5f7fa, #f5f7fa);
@@ -68,12 +69,38 @@
           background-color: #fff;
         }
 
+
         .item-label {
           display: flex;
           flex-shrink: 0;
           column-gap: 4px;
           width: 210px;
           color: #4d4f56;
+        
+          .option-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+
+            .option-icon-icon {
+              font-size: 16px;
+
+              &.icon-Others {
+                transform: scale(0.7);
+              }
+            }
+
+            .option-icon-xing {
+              position: relative;
+              top: 6px;
+              display: block;
+              font-size: 26px;
+              line-height: 14px;
+            }
+          }
         }
 
         .item-value {
