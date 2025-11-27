@@ -5,6 +5,7 @@ import useStore from '@/hooks/use-store';
 import { computed, defineEmits, defineProps, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router/composables';
 import DashboardDialog from './components/dashboard-dialog.vue';
+import PersonalizedConfigurationSlider from './personalized-configuration/personalized-configuration-slider.tsx';
 const props = defineProps({
   value: {
     type: String,
@@ -14,6 +15,7 @@ const props = defineProps({
 
 
 const showDialog = ref(false); // 控制弹窗显示状态
+const showSlider = ref(false); // 控制侧边栏显示状态
 const { $t } = useLocale();
 const store = useStore();
 const route = useRoute();
@@ -133,6 +135,11 @@ const handleActive = (panel) => {
   emit('input', panel, panel === 'origin');
 };
 
+// 更新侧栏显示状态
+const handleSliderUpdate = (newVal) => {
+  showSlider.value = newVal;
+};
+
 watch(
   () => [isGrepEnable.value, isChartEnable.value, isAiopsToggle.value],
   ([grepEnable, graphEnable, aiopsEnable]) => {
@@ -168,6 +175,16 @@ onMounted(() => {
     <div class="retrieve2-tab-right">
       <div
         class="btn-alert-dashboard btn-spacing"
+        @click="()=>handleSliderUpdate(true)"
+      >
+        <span
+          class="bklog-icon bklog-log-setting"
+          style="font-size: 16px"
+        />
+        <span>{{ $t('个性化配置') }}</span>
+      </div>
+      <div
+        class="btn-alert-dashboard btn-spacing"
         @click="handleAddAlertDashboard"
       >
         <span
@@ -187,6 +204,10 @@ onMounted(() => {
         />
         <span>{{ $t('添加告警策略') }}</span>
       </div>
+      <PersonalizedConfigurationSlider
+        :is-show="showSlider"
+        @cancel-slider="()=>handleSliderUpdate(false)"
+      />
     </div>
     <DashboardDialog
       :is-show="showDialog"

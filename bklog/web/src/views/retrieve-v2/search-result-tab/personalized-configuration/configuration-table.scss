@@ -1,0 +1,18 @@
+.configuration-table {
+    .mr16 {
+        margin-right: 16px;
+    }
+
+    .name-button {
+        width: 100%;
+        text-align: left;
+
+        >div {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            overflow-wrap: normal;
+            white-space: nowrap;
+        }
+
+    }
+}
