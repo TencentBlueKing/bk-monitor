@@ -71,6 +71,7 @@ class LogCollectorHandler:
                     "parent_index_sets": item.get("parent_index_sets", []),
                     "log_access_type": log_access_type,
                     "log_access_type_name": LogAccessTypeEnum.get_choice_label(log_access_type),
+                    "task_id_list": item.get("task_id_list", []),
                 }
             )
         return result_list
