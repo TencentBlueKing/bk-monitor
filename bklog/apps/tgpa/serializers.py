@@ -19,6 +19,28 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-# from rest_framework import serializers
+from rest_framework import serializers
 
-# Create your serializers here.
+
+class CreateTGPATaskSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label="业务ID")
+    task_name = serializers.CharField(label="任务名称")
+    openid = serializers.CharField(label="openid")
+    log_path = serializers.CharField(label="客户端日志路径")
+    platform = serializers.CharField(label="客户端类型", required=False)
+    start_time = serializers.DateTimeField(label="文件修改时间范围起始时间", required=False)
+    end_time = serializers.DateTimeField(label="文件修改时间范围结束时间", required=False)
+    max_file_num = serializers.IntegerField(label="最大捞取文件数", required=False)
+    scene = serializers.IntegerField(label="任务阶段", required=False)
+    frequency = serializers.CharField(label="触发频率", required=False)
+    trigger_duration = serializers.IntegerField(label="持续触发时间(s)", required=False)
+    comment = serializers.CharField(label="备注", required=False, allow_blank=True)
+
+
+class GetTGPATaskListSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label="业务ID")
+
+
+class GetDownloadUrlSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label="业务ID")
+    task_id = serializers.IntegerField(label="任务ID")

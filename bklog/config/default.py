@@ -72,6 +72,7 @@ INSTALLED_APPS += (
     "apps.bk_log_admin",
     "apps.grafana",
     "apps.ai_assistant",
+    "apps.tgpa",
     "bk_monitor",
     "home_application",
     "console",
@@ -226,6 +227,7 @@ CELERY_IMPORTS = (
     "apps.log_clustering.tasks.sync_pattern",
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
+    "apps.tgpa.tasks",
 )
 
 # bk crypto sdk配置
@@ -669,6 +671,12 @@ MENUS = [
                         "name": _("日志采集"),
                         "feature": "on",
                         "scenes": "scenario_log",
+                        "icon": "document",
+                    },
+                    {
+                        "id": "client_log",
+                        "name": _("客户端日志"),
+                        "feature": "on",
                         "icon": "document",
                     },
                     {
@@ -1286,6 +1294,11 @@ except ValueError:
 
 # TGPA
 TGPA_TASK_APIGW_ROOT = os.getenv("BKAPP_TGPA_TASK_APIGATEWAY_ROOT", "")
+TGPA_TASK_QCLOUD_SECRET_ID = os.getenv("BKAPP_TGPA_TASK_QCLOUD_SECRET_ID", "")
+TGPA_TASK_QCLOUD_SECRET_KEY = os.getenv("BKAPP_TGPA_TASK_QCLOUD_SECRET_KEY", "")
+TGPA_TASK_QCLOUD_COS_REGION = os.getenv("BKAPP_TGPA_TASK_QCLOUD_COS_REGION", "")
+TGPA_TASK_QCLOUD_COS_BUCKET = os.getenv("BKAPP_TGPA_TASK_QCLOUD_COS_BUCKET", "")
+TGPA_TASK_QCLOUD_COS_DOMAIN = os.getenv("BKAPP_TGPA_TASK_QCLOUD_DOMAIN", "")
 
 """
 以下为框架代码 请勿修改
