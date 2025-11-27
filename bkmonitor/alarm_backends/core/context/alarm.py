@@ -969,7 +969,7 @@ class Alarm(BaseContextObject):
             return None
 
         return ApmAlertHelper.get_rpc_url(
-            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, self.begin_timestamp, self.duration
+            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, alert.event.time, self.duration
         )
 
     @cached_property
