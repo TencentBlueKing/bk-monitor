@@ -522,7 +522,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
         },
         {
           id: 'assignee',
-          name: this.$t('通知人'),
+          name: this.$t('告警接收人'),
           disabled: false,
           checked: true,
           props: {
@@ -1414,6 +1414,7 @@ export default class EventTable extends tsc<IEventTableProps, IEventTableEvent> 
                 formatter={row => (!row[column.id] && row[column.id] !== 0 ? '--' : row[column.id])}
                 label={column.name}
                 prop={column.id}
+                width={column.props.width}
               />
             );
           }

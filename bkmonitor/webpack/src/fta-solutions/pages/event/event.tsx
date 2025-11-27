@@ -470,7 +470,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   noDataString: any = '';
   bussinessTips: TranslateResult = '';
 
-  // 统计 未恢复告警的通知人 栏为空的人数。
+  // 统计 未恢复告警的告警接收人 栏为空的人数。
   numOfEmptyAssignee = 0;
 
   // 缓存topn概览数据（用于添加字段是无需调用接口）
@@ -643,11 +643,11 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
     (contentWrap as HTMLDivElement).removeEventListener('scroll', this.handleDisableHover, false);
     window.clearInterval(this.refleshInstance);
   }
-  // 拼一个查询语句，然后查询 未恢复的且处理阶段都不满足 的异常通知人数据（显示是通知人为空）
+  // 拼一个查询语句，然后查询 未恢复的且处理阶段都不满足 的异常告警接收人数据（显示是告警接收人为空）
   setQueryStringForCheckingEmptyAssignee() {
-    let queryString = `${this.$t('通知人')} : "" AND ${this.$t('状态')} : 未恢复`;
-    // 通过点击查看空通知人按钮进来的查询语句需要拼接到原先查询语句的后方
-    // 需要判断原查询语句是否已经带有 查询通知人为空 的语句，防止重复拼接
+    let queryString = `${this.$t('告警接收人')} : "" AND ${this.$t('状态')} : 未恢复`;
+    // 通过点击查看空告警接收人按钮进来的查询语句需要拼接到原先查询语句的后方
+    // 需要判断原查询语句是否已经带有 查询告警接收人为空 的语句，防止重复拼接
     if (!this.queryString.includes(queryString)) {
       if (this.queryString.length) {
         queryString = `${this.queryString} AND ${queryString}`;
@@ -805,7 +805,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
             )
             .filter(item => item.value?.length)
         : [], // 过滤条件，二维数组
-      // 在查询前，将 queryString 中查询 通知人 为空的语句进行替换。
+      // 在查询前，将 queryString 中查询 告警接收人 为空的语句进行替换。
       // 为什么不在 input 框（queryString）上替换，会有意料之外的bug，也符合操作直觉。
       query_string: !onlyOverview ? this.replaceSpecialCondition(this.queryString) : '', // 查询字符串
       start_time: startTime, // 开始时间
@@ -1138,8 +1138,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
           });
         }
       });
-      // 特殊添加一个空选项给 通知人 ，注意：仅仅加个 空 值还不够，之后查询之前还要执行一次 replaceSpecialCondition
-      // 去替换这里添加的 空值 ，使之最后替换成这样 'NOT 通知人 : *'
+      // 特殊添加一个空选项给 告警接收人 ，注意：仅仅加个 空 值还不够，之后查询之前还要执行一次 replaceSpecialCondition
+      // 去替换这里添加的 空值 ，使之最后替换成这样 'NOT 告警接收人 : *'
       if (valueMap.assignee) {
         valueMap.assignee.unshift({
           id: '""',
@@ -1327,8 +1327,8 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
   // 在验证 queryString 和 告警列表 查询时会使用
   replaceSpecialCondition(qs: string) {
     // 由于验证 queryString 不允许使用单引号，为提升体验，这里单双引号的空串都会进行替换。
-    const regExp = new RegExp(`${this.$t('通知人')}\\s*:\\s*(""|'')`, 'gi');
-    return qs.replace(regExp, `NOT ${this.$t('通知人')} : *`);
+    const regExp = new RegExp(`${this.$t('告警接收人')}\\s*:\\s*(""|'')`, 'gi');
+    return qs.replace(regExp, `NOT ${this.$t('告警接收人')} : *`);
   }
   /**
    * @description: 获取表格数据
@@ -1386,7 +1386,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
         followerDisabled: this.searchType === 'alert' ? getOperatorDisabled(item.follower, item.assignee) : false,
       })) || [];
 
-    // 查找当前表格的 告警 标签是否有 通知人 为空的情况。BugID: 1010158081103484871
+    // 查找当前表格的 告警 标签是否有 告警接收人 为空的情况。BugID: 1010158081103484871
     this.numOfEmptyAssignee = this.tableData.filter(
       (item: IEventItem) => this.searchType === 'alert' && !item.assignee?.length && item.status === 'ABNORMAL'
     ).length;
@@ -2679,7 +2679,7 @@ class Event extends Mixins(authorityMixinCreate(eventAuth)) {
               >
                 <template slot='title'>
                   <span class='alert-text'>
-                    {this.$t('当前有 {0} 个未恢复告警的通知人是空的', [this.numOfEmptyAssignee])} ,
+                    {this.$t('当前有 {0} 个未恢复告警的告警接收人是空的', [this.numOfEmptyAssignee])} ,
                   </span>
 
                   <bk-button

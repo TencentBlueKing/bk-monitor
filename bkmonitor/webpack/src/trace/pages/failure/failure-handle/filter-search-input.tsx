@@ -235,7 +235,7 @@ export default defineComponent({
       },
       {
         id: 'assignee',
-        name: t('通知人'),
+        name: t('告警接收人'),
       },
       {
         id: 'strategy_name',
