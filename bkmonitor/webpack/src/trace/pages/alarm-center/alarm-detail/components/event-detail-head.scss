@@ -40,13 +40,13 @@ $fatal-red: #ea3536;
   .event-detail-head-content {
     flex: 1;
     height: 100%;
-    padding: 4px 0;
     line-height: 16px;
   }
 
   .event-id {
     display: block;
     font-size: 12px;
+    line-height: 24px;
     color: #757880;
 
     .temporary-share {

@@ -574,6 +574,7 @@ export default defineComponent({
           <AlarmCenterDetail
             alarmId={this.alarmId}
             show={this.alarmDetailShow}
+            showStepBtn={this.data.length > 1}
             onNext={this.handleNextDetail}
             onPrevious={this.handlePreviousDetail}
             onUpdate:show={this.handleDetailShowChange}

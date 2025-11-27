@@ -42,7 +42,7 @@ import AlarmStatusDialog from './components/alarm-info/alarm-status-dialog';
 import ManualDebugStatusDialog from './components/alarm-info/manual-debug-status-dialog';
 import ManualProcessDialog from './components/alarm-info/manual-process-dialog';
 import AlarmView from './components/alarm-view/alarm-view';
-import PanelAlarm from './components/panel-alarm';
+import PanelAlarm from './components/panel-alarm/panel-alarm';
 import PanelContainer from './components/panel-container';
 import PanelEvent from './components/panel-event';
 import PanelHost from './components/panel-host';
@@ -169,8 +169,8 @@ export default defineComponent({
           return <PanelEvent detail={alarmCenterDetailStore.alarmDetail} />;
         case 'metric':
           return <PanelMetric />;
-        case 'alarm':
-          return <PanelAlarm />;
+        case ALARM_CENTER_PANEL_TAB_MAP.ALARM:
+          return <PanelAlarm detail={alarmCenterDetailStore.alarmDetail} />;
         default:
           return null;
       }

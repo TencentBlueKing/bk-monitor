@@ -50,6 +50,11 @@ export default defineComponent({
       type: Boolean,
       required: true,
     },
+    /** 是否展示上一步和下一步按钮 */
+    showStepBtn: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: ['update:show', 'previous', 'next'],
   setup(props, { emit }) {
@@ -111,6 +116,7 @@ export default defineComponent({
           header: () => (
             <EventDetailHead
               isFullscreen={this.isFullscreen}
+              showStepBtn={this.showStepBtn}
               onNext={this.handleNextDetail}
               onPrevious={this.handlePreviousDetail}
               onToggleFullscreen={val => {
@@ -126,6 +132,7 @@ export default defineComponent({
           ),
         }}
         isShow={this.show}
+        render-directive='if'
         onUpdate:isShow={this.handleShowChange}
       />
     );

@@ -51,6 +51,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    showStepBtn: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: {
     toggleFullscreen: val => typeof val === 'boolean',
@@ -84,13 +88,13 @@ export default defineComponent({
           id: 'previous',
           title: t('上一个'),
           icon: 'icon-back-left',
-          isShow: true,
+          isShow: props.showStepBtn,
         },
         {
           id: 'next',
           title: t('下一个'),
           icon: 'icon-back-right',
-          isShow: true,
+          isShow: props.showStepBtn,
         },
         {
           id: 'wx-chart',
@@ -106,7 +110,7 @@ export default defineComponent({
         },
         {
           id: 'fullscreen',
-          title: t('全屏'),
+          title: props.isFullscreen ? t('退出全屏') : t('全屏'),
           icon: props.isFullscreen ? 'icon-mc-unfull-screen' : 'icon-fullscreen',
           isShow: true,
         },
