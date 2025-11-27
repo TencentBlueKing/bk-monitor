@@ -4,14 +4,15 @@ from itertools import chain
 from django.core.paginator import Paginator
 from django.db.models import Q
 
-from apps.api import TransferApi
+from apps.api import TransferApi, BkDataMetaApi
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.storage import StorageHandler
-from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType, LogAccessTypeEnum
+from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType, LogAccessTypeEnum, CollectStatusEnum
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, AccessSourceConfig, Scenario
 from apps.log_databus.models import CollectorConfig
+from apps.utils.thread import MultiExecuteFunc
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -56,6 +57,7 @@ class LogCollectorHandler:
                     "is_active": item.get("is_active", ""),
                     "collector_scenario_id": collector_scenario_id,
                     "collector_scenario_name": CollectorScenarioEnum.get_choice_label(collector_scenario_id),
+                    "storage_cluster_id": item.get("storage_cluster_id", ""),
                     "storage_cluster_name": item.get("storage_cluster_name", ""),
                     "tags": item.get("tags", ""),
                     "category_id": item.get("category_id", ""),
@@ -63,6 +65,7 @@ class LogCollectorHandler:
                     "is_editable": item.get("is_editable", ""),
                     "scenario_id": scenario_id,
                     "scenario_name": scenario_choices.get(scenario_id, ""),
+                    "status": item.get("status", ""),
                     "status_name": item.get("status_name", ""),
                     "environment": item.get("environment", ""),
                     "parent_index_sets": item.get("parent_index_sets", []),
@@ -120,7 +123,7 @@ class LogCollectorHandler:
         created_by_list: list = None,
         updated_by_list: list = None,
         storage_cluster_name_list: list = None,
-        status_name_list: list = None,
+        status_list: list = None,
         log_access_type_list: list = None,
     ) -> list[dict]:
         """
@@ -134,7 +137,7 @@ class LogCollectorHandler:
         :param created_by_list: 创建者
         :param updated_by_list: 创建者
         :param storage_cluster_name_list: 集群名
-        :param status_name_list: 采集状态
+        :param status_list: 采集状态
         :param log_access_type_list: 日志接入类型
         """
         _scenario_id_list, _collector_scenario_id_list = LogAccessTypeEnum.get_scenario_info(log_access_type_list)
@@ -207,10 +210,12 @@ class LogCollectorHandler:
         result_list = []
         # 添加status_name采集状态, 如果status_name存在则进行过滤
         for item in tmp_result_list:
-            status_name = collector_status_mappings.get(item["collector_config_id"], {}).get("status_name", "")
-            if status_name_list and status_name not in status_name_list:
+            original_status = collector_status_mappings.get(item["collector_config_id"], {}).get("status", "")
+            new_status = CollectStatusEnum.get_collect_status(original_status)
+            if status_list and new_status not in status_list:
                 continue
-            item["status_name"] = status_name
+            item["status"] = new_status
+            item["status_name"] = CollectStatusEnum.get_choice_label(new_status)
             result_list.append(item)
         result_list = CollectorHandler.add_tags_info(result_list)
         return result_list
@@ -363,7 +368,7 @@ class LogCollectorHandler:
         collector_scenario_id_list = []
         created_at_list = []
         updated_by_list = []
-        status_name_list = []
+        status_list = []
         storage_cluster_name_list = []
         log_access_type_list = []
         for item in conditions:
@@ -380,7 +385,7 @@ class LogCollectorHandler:
             elif item["key"] == "updated_by":
                 updated_by_list = item["value"]
             elif item["key"] == "status_name":
-                status_name_list = item["value"]
+                status_list = item["value"]
             elif item["key"] == "storage_cluster_name":
                 storage_cluster_name_list = item["value"]
             elif item["key"] == "log_access_type":
@@ -397,13 +402,13 @@ class LogCollectorHandler:
             created_by_list=created_at_list,
             updated_by_list=updated_by_list,
             storage_cluster_name_list=storage_cluster_name_list,
-            status_name_list=status_name_list,
+            status_list=status_list,
             log_access_type_list=log_access_type_list,
         )
 
         lists_to_check = [
             collector_scenario_id_list,
-            status_name_list,
+            status_list,
         ]
         if any(chain.from_iterable(lists_to_check)):
             # 如果存在对采集名称、存储名、日志类型、采集状态不为空的查询,直接返回
@@ -446,23 +451,48 @@ class LogCollectorHandler:
         )
         return collector_count + index_set_count
 
-    def get_cluster_enum(self):
+    def get_bkdata_cluster_names(self) -> set:
+        """
+        获取bkdata集群名
+        """
+        # 查询当前业务下bkdata的索引
+        index_set_ids = LogIndexSet.objects.filter(space_uid=self.space_uid, scenario_id=Scenario.BKDATA).values_list(
+            "index_set_id", flat=True
+        )
+        result_tables = (
+            LogIndexSetData.objects.filter(index_set_id__in=index_set_ids)
+            .values_list("result_table_id", flat=True)
+            .distinct()
+        )
+
+        multi_execute_func = MultiExecuteFunc()
+        for rt_id in result_tables:
+            multi_execute_func.append(
+                result_key=rt_id, func=BkDataMetaApi.result_tables.storages, params={"result_table_id": rt_id}
+            )
+        result = multi_execute_func.run()
+
+        bkdata_cluster_names = set()
+        for cluster_info in result.values():
+            es_info = cluster_info.get("es")
+            if not es_info:
+                continue
+            bkdata_cluster_names.add(es_info["storage_cluster"]["cluster_name"])
+        return bkdata_cluster_names
+
+    def get_metadata_cluster_names(self) -> set:
         params = {"cluster_type": STORAGE_CLUSTER_TYPE}
         cluster_info = TransferApi.get_cluster_info(params)
-        visible_clusters = []
+        metadata_cluster_names = set()
         for cluster in cluster_info:
             if StorageHandler().can_visible(
                 self.bk_biz_id,
                 cluster["cluster_config"].get("custom_option"),
                 cluster["cluster_config"]["registered_system"],
             ):
-                visible_clusters.append(
-                    {
-                        "key": cluster["cluster_config"].get("cluster_name"),
-                        "value": cluster["cluster_config"].get("cluster_id"),
-                    }
-                )
-        return visible_clusters
+                if cluster_name := cluster["cluster_config"].get("cluster_name"):
+                    metadata_cluster_names.add(cluster_name)
+        return metadata_cluster_names
 
     def get_collector_field_enums(self):
         """
@@ -498,6 +528,8 @@ class LogCollectorHandler:
         # 过滤空值并转换为字典格式
         created_by_dict = [{"key": item, "value": item} for item in created_by_enums if item]
         updated_by_dict = [{"key": item, "value": item} for item in updated_by_enums if item]
-        cluster_dict = self.get_cluster_enum()
+        # 获取集群名枚举
+        cluster_names = self.get_metadata_cluster_names() | self.get_bkdata_cluster_names()
+        cluster_name_dict = [{"key": item, "value": item} for item in cluster_names if item]
 
-        return {"created_by": created_by_dict, "updated_by": updated_by_dict, "storage_cluster": cluster_dict}
+        return {"created_by": created_by_dict, "updated_by": updated_by_dict, "storage_cluster": cluster_name_dict}
