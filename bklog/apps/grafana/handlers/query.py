@@ -817,8 +817,6 @@ class GrafanaQueryHandler:
         result = AggsViewAdapter().terms(index_set_id, data)
         data["bk_biz_id"] = self.bk_biz_id if self.bk_biz_id else None
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            if not data.get("bk_biz_id"):
-                return dict()
             data["index_set_ids"] = [index_set_id]
             data.setdefault("agg_fields", data.pop("fields", []))
             return UnifyQueryHandler(data).terms()

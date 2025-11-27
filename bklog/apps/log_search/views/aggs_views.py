@@ -97,8 +97,6 @@ class AggsViewSet(APIViewSet):
         """
         data = self.params_valid(AggsTermsSerializer)
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            if not data.get("bk_biz_id"):
-                return Response()
             data["index_set_ids"] = [index_set_id]
             data.setdefault("agg_fields", data.pop("fields", []))
             return Response(UnifyQueryHandler(data).terms())
@@ -316,8 +314,6 @@ class AggsViewSet(APIViewSet):
         """
         data = self.params_valid(UnionSearchAggsTermsSerializer)
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            if not data.get("bk_biz_id"):
-                return Response()
             data.setdefault("agg_fields", data.pop("fields", []))
             return Response(UnifyQueryHandler(data).terms())
         return Response(AggsViewAdapter().union_search_terms(data))

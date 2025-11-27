@@ -30,6 +30,7 @@ from apps.log_search.models import (
     IndexSetFieldsConfig,
     LogIndexSet,
     UserIndexSetFieldsConfig,
+    LogIndexSetData,
 )
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -37,7 +38,7 @@ from apps.models import model_to_dict
 from apps.utils.local import get_request_username
 from bkm_search_module.api import AbstractBkApi
 from bkm_search_module.constants import ScopeType
-from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 
 class BkApi(AbstractBkApi):
@@ -86,15 +87,8 @@ class BkApi(AbstractBkApi):
 
         data = {"fields": fields}
 
-        index_set_instance = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-        space_uid = index_set_instance.space_uid
-
-        space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
-
-        if space_uids:
-            paternal_space_uid = space_uids[0]
-            paternal_bk_biz_id = space_uid_to_bk_biz_id(paternal_space_uid)
-            data["bk_biz_id"] = paternal_bk_biz_id
+        index_set_data_instance = LogIndexSetData.objects.filter(index_set_id=index_set_id).first()
+        data["bk_biz_id"] = index_set_data_instance.bk_biz_id
 
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data["index_set_ids"] = [index_set_id]
