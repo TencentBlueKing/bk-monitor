@@ -1,41 +1,43 @@
-
 ### 功能描述
 
 批量创建或更新自定义时序指标分组
 如果指标分组已存在则更新，不存在则创建。支持批量操作多个分组。
 
-
 ### 请求参数
 
-| 字段           | 类型   | 必选 | 描述        |
-| -------------- | ------ | ---- | ----------- |
-| scopes | list | 是 | 批量创建或更新的分组列表，至少包含一个分组 |
+| 字段     | 类型   | 必选 | 描述                    |
+|--------|------|----|-----------------------|
+| scopes | list | 是  | 批量创建或更新的分组列表，至少包含一个分组 |
 
 #### scopes 列表项字段说明
 
-| 字段           | 类型   | 必选 | 描述                                                   |
-| -------------- | ------ | ---- |------------------------------------------------------|
-|scope_id| int|  自定义时序指标分组 ID|
-| group_id | int | 是 | 自定义时序数据源 ID                                          |
-| scope_name | string | 是 | 指标分组名，最大长度 255，对于 default 分组无法编辑                     |
-| new_scope_name | string | 否 | 新的指标分组名（仅更新时生效），最大长度 255                             |
-| dimension_config | dict | 否 | 分组下的维度配置，默认为空字典                                      |
-| manual_list | list | 否 | 手动分组的指标列表，默认为空列表                                     |
-| auto_rules | list | 否 | 自动分组的匹配规则列表，默认为空列表                                   |
-| delete_unmatched_dimensions | bool | 否 | 是否删除不再匹配的维度配置（仅更新时生效），默认为 false。对于导入分组场景，建议设置为 false |
+| 字段                          | 类型     | 必选 | 描述                                                   |
+|-----------------------------|--------|----|------------------------------------------------------|
+| scope_id                    | int    | 否  | 自定义时序指标分组 ID，存在时更新，反之创建                              
+| group_id                    | int    | 是  | 自定义时序数据源 ID                                          |
+| scope_name                  | string | 是  | 指标分组名，最大长度 255，对于 default 分组无法编辑                     |
+| new_scope_name              | string | 否  | 新的指标分组名（仅更新时生效），最大长度 255                             |
+| dimension_config            | dict   | 否  | 分组下的维度配置，默认为空字典                                      |
+| manual_list                 | list   | 否  | 手动分组的指标列表，默认为空列表                                     |
+| auto_rules                  | list   | 否  | 自动分组的匹配规则列表，默认为空列表                                   |
+| delete_unmatched_dimensions | bool   | 否  | 是否删除不再匹配的维度配置（仅更新时生效），默认为 false。对于导入分组场景，建议设置为 false |
 
 #### manual_list 和 auto_rules 说明
+
 1. auto_rules 在后端没有作用，仅用于存储与返回
 2. auto_rules 在上游自行匹配 default 数据分组中的指标
 3. 请求创建和更新时，需要将完整指标都放入的 manual_list（后端会进行逻辑校验——新增的指标是否都在 default 数据分组）
 
 #### dimension_config 说明
+
 对于创建：
+
 1. dimension_config 视为 X
 2. manual_list 视为 Y
 3. 最终维度集合是 X | Y
 
 对于更新
+
 1. 先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，视为 X
 2. manual_list 视为 Y
 3. 当 delete_unmatched_dimensions 为 true 则最终集合为 (X & Y) | Y，反之 X | Y
@@ -46,7 +48,6 @@
 {
   "scopes": [
     {
-      "scope_id": 1,
       "group_id": 123,
       "scope_name": "指标分组名1",
       "dimension_config": {
@@ -75,26 +76,25 @@
 
 ### 响应参数
 
-| 字段       | 类型   | 描述         |
-| ---------- | ------ | ------------ |
-| result     | bool   | 请求是否成功 |
-| code       | int    | 返回的状态码 |
-| message    | string | 描述信息     |
+| 字段         | 类型     | 描述           |
+|------------|--------|--------------|
+| result     | bool   | 请求是否成功       |
+| code       | int    | 返回的状态码       |
+| message    | string | 描述信息         |
 | data       | list   | 创建或更新的分组结果列表 |
-| request_id | string | 请求ID       |
+| request_id | string | 请求ID         |
 
 #### data 列表项字段说明
 
-| 字段       | 类型   | 描述         |
-| ---------- | ------ | ------------ |
-|scope_id| int|  自定义时序指标分组 ID|
-| group_id   | int    | 自定义时序数据源 ID |
-| scope_name | string | 指标分组名 |
-| dimension_config       | dict   | 分组下的维度配置    |
-| manual_list            | list   | 手动分组的指标列表   |
-| auto_rules             | list   | 自动分组的匹配规则列表 |
-| create_from            | string | 创建来源        |
-
+| 字段               | 类型     | 描述           |
+|------------------|--------|--------------|
+| scope_id         | int    | 自定义时序指标分组 ID |
+| group_id         | int    | 自定义时序数据源 ID  |
+| scope_name       | string | 指标分组名        |
+| dimension_config | dict   | 分组下的维度配置     |
+| manual_list      | list   | 手动分组的指标列表    |
+| auto_rules       | list   | 自动分组的匹配规则列表  |
+| create_from      | string | 创建来源         |
 
 ### 响应参数示例
 
