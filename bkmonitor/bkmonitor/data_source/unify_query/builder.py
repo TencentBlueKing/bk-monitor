@@ -113,7 +113,7 @@ class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
         clone.query.set_reference_name(alias)
         return clone
 
-    def metric(self, field: str, method: str, alias: str | None = None) -> "QueryConfigBuilder":
+    def metric(self, field: str, method: str, alias: str | None = "") -> "QueryConfigBuilder":
         clone = self._clone()
         clone.query.add_metric(field, method, alias)
         return clone
