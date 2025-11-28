@@ -191,11 +191,9 @@ class LogQueryResource(ApiAuthResource):
             )
             records: list[dict[str, Any]] = list(queryset.add_query(q).limit(limit).offset(params["offset"]))
             try:
-                total: int = list(
-                    queryset.add_query(q.metric(field="_index", method="COUNT", alias="a", search_type="total")).limit(
-                        1
-                    )
-                )[0]["_result_"]
+                total: int = list(queryset.add_query(q.metric(field="_index", method="COUNT", alias="a")).limit(1))[0][
+                    "_result_"
+                ]
             except Exception:  # pylint: disable=broad-except
                 total = len(records)
         else:

@@ -86,8 +86,8 @@ class QueryConfig(Query):
     def set_interval(self, interval: int):
         self.interval = interval
 
-    def add_metric(self, field: str, method: str, alias: str | None = "", **kwargs):
-        self.metrics.append({"field": field, "alias": alias or method, "method": method, **kwargs})
+    def add_metric(self, field: str, method: str, alias: str | None = ""):
+        self.metrics.append({"field": field, "alias": alias or method, "method": method})
 
     def add_func(self, _id: str, params: list[dict[str, Any]]):
         self.functions.append({"id": _id, "params": params})
@@ -113,9 +113,9 @@ class QueryConfigBuilder(BaseDataQuery, QueryMixin, DslMixin):
         clone.query.set_reference_name(alias)
         return clone
 
-    def metric(self, field: str, method: str, alias: str | None = "", **kwargs) -> "QueryConfigBuilder":
+    def metric(self, field: str, method: str, alias: str | None = None) -> "QueryConfigBuilder":
         clone = self._clone()
-        clone.query.add_metric(field, method, alias, **kwargs)
+        clone.query.add_metric(field, method, alias)
         return clone
 
     def func(self, _id: str, params: list[dict[str, Any]]) -> "QueryConfigBuilder":
