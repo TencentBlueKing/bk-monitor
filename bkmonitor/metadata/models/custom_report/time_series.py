@@ -1054,6 +1054,15 @@ class TimeSeriesScope(models.Model):
     def is_create_from_data(self):
         """检查是否允许编辑"""
         return self.create_from == TimeSeriesScope.CREATE_FROM_DATA
+    
+    @staticmethod
+    def _is_default_scope(scope_name: str) -> bool:
+        """判断 scope_name 是否为 default 分组
+        :return: 如果是 default 分组返回 True，否则返回 False
+        """
+        return scope_name == TimeSeriesMetric.DEFAULT_SCOPE or scope_name.endswith(
+            f"||{TimeSeriesMetric.DEFAULT_SCOPE}"
+        )
 
     @classmethod
     def _validate_scope_name(cls, scope_name: str):
@@ -1150,6 +1159,16 @@ class TimeSeriesScope(models.Model):
         :param group_id: 自定义分组ID
         :param scope_dimensions_map: scope 名称到维度列表的映射字典，格式: {scope_name: [dimension1, dimension2, ...]}
         """
+        if not scope_dimensions_map:
+            return
+
+        # 过滤掉 default 分组，不允许创建和更新 default 分组（包括 "default" 和以 "||default" 结尾的分组）
+        scope_dimensions_map = {
+            scope_name: dimensions
+            for scope_name, dimensions in scope_dimensions_map.items()
+            if not cls._is_default_scope(scope_name)
+        }
+
         if not scope_dimensions_map:
             return
 
