@@ -1646,10 +1646,6 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
 
         return False
 
-    def _fetch_white_list(self) -> list[str | int]:
-        """获取日志UnifyQuery查询业务白名单"""
-        return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
-
 
 class BaseBkMonitorLogDataSource(DataSource, ABC):
     RESERVED_FIELDS: list[str] = ["_after_key_"]
