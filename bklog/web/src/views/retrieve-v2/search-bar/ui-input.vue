@@ -351,6 +351,9 @@ const handleSaveQueryClick = (payload) => {
 
 // 用于判定当前 key.enter 是全局绑定触发还是 input.key.enter触发
 const isGlobalKeyEnter = ref(false);
+// 标记是否正在输入法组合过程中
+const isComposing = ref(false);
+
 const handleGlobalSaveQueryClick = (payload) => {
   isGlobalKeyEnter.value = true;
   handleSaveQueryClick(payload);
@@ -362,6 +365,11 @@ const handleGlobalSaveQueryClick = (payload) => {
  * @param e
  */
 const handleInputValueEnter = (e) => {
+  // 如果正在输入法组合过程中，不处理Enter事件
+  if (e.isComposing || isComposing.value) {
+    return;
+  }
+
   // 如果选择列表弹出框显示，处理选择列表的回车键
   if (choicePopInstanceUtil.isShown()) {
     e.preventDefault();
@@ -383,6 +391,16 @@ const handleInputValueEnter = (e) => {
   }
 
   isGlobalKeyEnter.value = false;
+};
+
+// 输入法组合开始
+const handleCompositionStart = () => {
+  isComposing.value = true;
+};
+
+// 输入法组合结束
+const handleCompositionEnd = () => {
+  isComposing.value = false;
 };
 
 const handleCancelClick = () => {
@@ -765,6 +783,8 @@ const handleBatchInputChange = (isShow) => {
         @keydown="handleChoiceListKeydown"
         @keyup.delete="handleDeleteItem"
         @keyup.enter.stop="handleInputValueEnter"
+        @compositionstart="handleCompositionStart"
+        @compositionend="handleCompositionEnd"
       >
     </li>
     <li

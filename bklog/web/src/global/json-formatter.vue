@@ -9,6 +9,11 @@
         'is-json': formatJson,
         'is-hidden': !isRowIntersecting && isResolved,
         'show-all-word': showAllWords,
+        'is-single-line':
+          typeof props.limitRow === 'number'
+          && props.limitRow === 1
+          && !formatJson
+          && !isLimitExpandText,
       },
     ]"
     :style="rootElementStyle"
@@ -115,6 +120,11 @@ const rootElementStyle = computed(() => {
   }
 
   if (typeof props.limitRow === 'number') {
+    // 如果是1行，不设置 maxHeight，由样式类 is-single-line 处理单行溢出
+    if (props.limitRow === 1) {
+      return {};
+    }
+    // 如果是3行或其他，使用多行限制
     return {
       maxHeight: `${20 * props.limitRow}px`,
     };
@@ -134,6 +144,10 @@ const fieldList = computed(() => {
 });
 
 const showMoreTextAction = computed(() => {
+  // 单行溢出不需要显示"更多"按钮
+  if (typeof props.limitRow === 'number' && props.limitRow === 1) {
+    return false;
+  }
   if (typeof props.limitRow === 'number' && !formatJson.value && !isLimitExpandText.value) {
     return true;
   }
@@ -392,6 +406,10 @@ onBeforeUnmount(() => {
         white-space: pre-wrap;
       }
 
+      .field-value {
+        word-break: break-all;
+      }
+
       &:not(:first-child) {
         margin-top: 1px;
       }
@@ -526,6 +544,78 @@ onBeforeUnmount(() => {
 
         .field-value {
           word-break: break-all;
+        }
+      }
+    }
+
+    &.is-single-line {
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
+      max-width: 100%;
+      width: 100%;
+      display: block;
+      box-sizing: border-box;
+
+      .bklog-root-field {
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        display: flex;
+        align-items: center;
+        max-width: 100%;
+        width: 100%;
+        box-sizing: border-box;
+
+        .field-name {
+          display: inline-block;
+          white-space: nowrap !important;
+          flex-shrink: 0;
+
+          &[data-is-virtual-root='true'] {
+            display: none !important;
+          }
+        }
+
+        .field-value {
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+          display: inline-block;
+          flex: 1;
+          min-width: 0;
+          word-break: normal !important;
+          box-sizing: border-box;
+
+          .segment-content,
+          .bklog-scroll-cell,
+          .segment-content.bklog-scroll-cell {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            display: inline-block;
+            max-width: 100%;
+            word-break: normal !important;
+
+            span {
+              white-space: nowrap !important;
+              display: inline;
+            }
+          }
+        }
+
+        // 当字段名被隐藏时，字段值占据全部宽度
+        .field-name[data-is-virtual-root='true'] + .field-value {
+          flex: 1 1 100%;
+          max-width: 100%;
+        }
+
+        [data-with-intersection] {
+          white-space: nowrap !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          max-width: 100%;
+          display: inline-block;
         }
       }
     }

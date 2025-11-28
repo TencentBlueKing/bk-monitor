@@ -29,6 +29,7 @@ import { SET_APP_STATE } from './store';
 import { urlArgs } from './store/default-values';
 import { BK_LOG_STORAGE } from './store/store.type';
 import BkUserDisplayName from '@blueking/bk-user-display-name';
+import { tenantManager } from './views/retrieve-core/tenant-manager';
 window.__VUE_PROD_HYDRATION_MISMATCH_DETAILS__ = false;
 
 /** 外部版根据空间授权权限显示菜单 */
@@ -52,17 +53,19 @@ export const getExternalMenuListBySpace = (space) => {
  */
 export const getAllSpaceList = (http, store) => {
   window.scheduler.postTask(() => {
-    http.request('space/getMySpaceList').then((resp) => {
-      const spaceList = resp.data;
-      spaceList.forEach((item) => {
-        item.bk_biz_id = `${item.bk_biz_id}`;
-        item.space_uid = `${item.space_uid}`;
-        item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
-      });
+    http
+      .request('space/getMySpaceList')
+      .then((resp) => {
+        const spaceList = resp.data;
+        spaceList.forEach((item) => {
+          item.bk_biz_id = `${item.bk_biz_id}`;
+          item.space_uid = `${item.space_uid}`;
+          item.space_full_code_name = `${item.space_name}(#${item.space_id})`;
+        });
 
-      store.commit('updateMySpaceList', spaceList);
-      store.commit(SET_APP_STATE, { spaceListLoaded: true });
-    })
+        store.commit('updateMySpaceList', spaceList);
+        store.commit(SET_APP_STATE, { spaceListLoaded: true });
+      })
       .catch((e) => {
         store.commit('updateMySpaceList', []);
         store.commit(SET_APP_STATE, { spaceListLoaded: true });
@@ -98,13 +101,17 @@ export default ({
   const getSpaceByIndexId = () => {
     if (urlArgs.index_id && !urlArgs.spaceUid) {
       return http
-        .request('indexSet/getSpaceByIndexId', {
-          params: {
-            index_set_id: urlArgs.index_id,
+        .request(
+          'indexSet/getSpaceByIndexId',
+          {
+            params: {
+              index_set_id: urlArgs.index_id,
+            },
           },
-        }, {
-          catchIsShowMessage: false,
-        })
+          {
+            catchIsShowMessage: false,
+          },
+        )
         .then((resp) => {
           if (resp.result) {
             store.commit('updateSpace', resp.data);
@@ -156,20 +163,21 @@ export default ({
       catchIsShowMessage: false,
     });
     const spaceRequestData = getSpaceRequestData();
-    return requestSpaceList(spaceRequestData).then((resp) => {
-      const spaceList = resp.data;
-      if (spaceList.length) {
+    return requestSpaceList(spaceRequestData)
+      .then((resp) => {
+        const spaceList = resp.data;
+        if (spaceList.length) {
+          return Promise.resolve(resp);
+        }
+
+        if (spaceRequestData.query.space_uid) {
+          spaceRequestData.query.space_uid = undefined;
+          spaceRequestData.query.has_permission = 1;
+          return requestSpaceList(spaceRequestData);
+        }
+
         return Promise.resolve(resp);
-      }
-
-      if (spaceRequestData.query.space_uid) {
-        spaceRequestData.query.space_uid = undefined;
-        spaceRequestData.query.has_permission = 1;
-        return requestSpaceList(spaceRequestData);
-      }
-
-      return Promise.resolve(resp);
-    })
+      })
       .catch((e) => {
         console.error('获取空间列表失败', e);
         return Promise.resolve(null);
@@ -245,13 +253,14 @@ export default ({
       // 必填，租户 ID
       tenantId: resp.data.bk_tenant_id,
       // 必填，网关地址
-      apiBaseUrl: process.env.NODE_ENV === 'development' ? '' : window.BK_LOGIN_URL,
+      apiBaseUrl: process.env.NODE_ENV === 'development' ? '/api/bk-user-web/prod' : window.BK_LOGIN_URL,
       // 可选，缓存时间，单位为毫秒, 默认 5 分钟, 只对单一值生效
       cacheDuration: 1000 * 60 * 5,
       // 可选，当输入为空时，显示的文本，默认为 '--'
       emptyText: '--',
     });
 
+    tenantManager.setTenantId(resp.data.bk_tenant_id);
     return resp.data;
   });
 

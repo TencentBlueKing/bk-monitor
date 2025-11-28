@@ -209,3 +209,5 @@ window.ResizeObserver = class ResizeObserver extends BaseResizeObserver {
 window.$t = function (key, params) {
   return i18n.t(key, params);
 };
+
+window.iframeParent = window.top;
