@@ -28,7 +28,6 @@ import { computed, defineComponent, ref, watch, nextTick, type PropType } from '
 
 import { xssFilter } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
 
 import { showMessage } from '../../utils';
 import $http from '@/api';
@@ -98,14 +97,6 @@ interface IExecuteDetailsResponse {
   log_result: IDetailResult;
 }
 
-/**
- * 当前采集配置接口
- */
-interface ICurCollect {
-  /** 采集配置ID */
-  collector_config_id: number | string;
-}
-
 export default defineComponent({
   name: 'HostDetail',
   props: {
@@ -124,11 +115,13 @@ export default defineComponent({
       type: Array as PropType<ITabItem[]>,
       default: () => [],
     },
+    collectorConfigId: {
+      type: Number,
+    },
   },
 
   setup(props) {
     const { t } = useLocale();
-    const store = useStore();
 
     /** 当前激活的Tab键值 */
     const activeKey = ref<HostStatus | string>('all');
@@ -140,8 +133,6 @@ export default defineComponent({
     const log = ref<string>('');
     /** 采集详情结果 */
     const detail = ref<IDetailResult>({});
-    /** 当前采集配置 */
-    const curCollect = computed<ICurCollect>(() => store.getters['collect/curCollect'] || {});
     /** 日志内容容器的引用 */
     const logContentRef = ref<HTMLDivElement | null>(null);
 
@@ -207,7 +198,7 @@ export default defineComponent({
       }
 
       // 校验采集配置ID
-      if (!curCollect.value?.collector_config_id) {
+      if (!props.collectorConfigId) {
         showMessage(t('采集配置ID不存在'), 'error');
         return;
       }
@@ -216,7 +207,7 @@ export default defineComponent({
       $http
         .request('collect/executDetails', {
           params: {
-            collector_id: curCollect.value.collector_config_id,
+            collector_id: props.collectorConfigId,
           },
           query: {
             instance_id: item.instance_id,
@@ -328,7 +319,10 @@ export default defineComponent({
         </span>
 
         {/* 主内容区域 */}
-        <div v-bkloading={{ isLoading: props.loading }}>
+        <div
+          v-bkloading={{ isLoading: props.loading }}
+          class='host-detail-main'
+        >
           {showList.value.length === 0 ? (
             // 空状态展示
             <bk-exception

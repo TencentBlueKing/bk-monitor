@@ -73,16 +73,20 @@
             }
         }
     }
+    .host-detail-main {
+        width: 100%;
+        height: calc(100% - 56px);
+    }
     .host-detail-main-empty {
         width: 100%;
-        height: calc(100vh - 160px);
+        height: calc(100% - 160px);
         padding-top: 150px;
     }
     .host-detail-content {
         width: 100%;
         margin-top: 12px;
         display: flex;
-        height: calc(100vh - 160px);
+        height: calc(100% - 12px);
         .detail-content-item {
             height: 100%;
         }
@@ -107,6 +111,7 @@
                 width: 100%;
                 height: calc(100% - 42px);
                 overflow-y: auto;
+                border-bottom: 1px solid #DCDEE5;
                 .left-item {
                     font-size: 12px;
                     color: #4D4F56;

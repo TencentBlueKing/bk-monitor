@@ -45,19 +45,19 @@ export const STATUS_ENUM = [
 export const STATUS_ENUM_FILTER = [
   {
     label: window.$t('部署中'),
-    value: 'RUNNING,UNKNOWN,PREPARE',
+    value: 'running',
   },
   {
     label: window.$t('正常'),
-    value: 'SUCCESS',
+    value: 'success',
   },
   {
     label: window.$t('异常'),
-    value: 'FAILED',
+    value: 'failed',
   },
   {
     label: window.$t('停用'),
-    value: 'TERMINATED',
+    value: 'terminated',
   },
 ];
 /**
@@ -122,13 +122,13 @@ export const SETTING_FIELDS = [
   },
   // 接入类型
   {
-    id: 'category_name',
+    id: 'scenario_id',
     label: window.$t('接入类型'),
     disabled: true,
   },
   // 日志类型
   {
-    id: 'collector_scenario_name',
+    id: 'collector_scenario_id',
     label: window.$t('日志类型'),
     disabled: true,
   },
@@ -202,6 +202,10 @@ export const MENU_LIST = [
   {
     label: window.$t('停用'),
     key: 'stop',
+  },
+  {
+    label: window.$t('启用'),
+    key: 'start',
   },
   {
     label: window.$t('删除'),
@@ -451,21 +455,19 @@ export function formatBytes(size) {
   return formatFileSize(size, true);
 }
 
-export const getOperatorCanClick = (row, operateType, collectProject) => {
-  if (operateType === 'search') {
-    return !(!row.is_active || (!row.index_set_id && !row.bkdata_index_set_ids.length));
+export const getOperatorCanClick = (row, operateType) => {
+  /**
+   * 未完成的情况下，只能进行编辑和清洗
+   */
+  const keys = ['search', 'storage', 'stop', 'clone', 'delete', 'one_key_check'];
+  if (keys.includes(operateType)) {
+    return row.storage_cluster_id !== -1;
   }
-  if (['clean', 'storage', 'clone'].includes(operateType)) {
-    return !row.status || row.table_id;
-  }
-  if (['stop', 'start'].includes(operateType)) {
-    return (
-      !(!row.status || row.status === 'running' || row.status === 'prepare' || !collectProject) ||
-      row.is_active !== undefined
-    );
-  }
+  /**
+   * 不在运行中的状态才可以删除
+   */
   if (operateType === 'delete') {
-    return !(!row.status || row.status === 'running' || row.is_active || !collectProject);
+    return row.status !== 'running';
   }
   return true;
 };

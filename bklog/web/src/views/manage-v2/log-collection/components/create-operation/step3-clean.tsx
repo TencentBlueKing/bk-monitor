@@ -81,6 +81,7 @@ export default defineComponent({
     const { cardRender } = useOperation();
     const showReportLogSlider = ref(false);
     const jsonText = ref({});
+    const fieldListRef = ref();
 
     const templateDialogVisible = ref(false);
     const templateName = ref('');
@@ -252,7 +253,7 @@ export default defineComponent({
           },
         });
         if (res.data) {
-          const { etl_fields, clean_type } = res.data;
+          const { etl_fields, clean_type, etl_params } = res.data;
           const timeField = etl_fields?.find(item => item.is_time);
           const logReportingTime = !timeField; // 如果存在is_time为true的字段，则log_reporting_time为false
           const fieldName = timeField?.field_name || '';
@@ -263,6 +264,9 @@ export default defineComponent({
             log_reporting_time: logReportingTime,
             field_name: fieldName,
           };
+          if (cleaningMode.value === 'bk_log_delimiter') {
+            delimiter.value = etl_params.separator;
+          }
           // console.log(logReportingTime, res.data, 'res.data----getCleanStash');
         }
       } catch (error) {}
@@ -270,14 +274,14 @@ export default defineComponent({
 
     // 新建、编辑采集项时获取更新详情
     const setDetail = () => {
-      const id = isUpdate.value ? curCollect.value.collector_config_id : route.query.collectorId;
+      const id = isUpdate.value ? route.params.collectorId : route.query.collectorId;
       if (!id) {
         return;
       }
       basicLoading.value = true;
       $http
         .request('collect/details', {
-          params: { collector_config_id: curCollect.value.collector_config_id },
+          params: { collector_config_id: id },
         })
         .then(async res => {
           if (res.data) {
@@ -436,6 +440,7 @@ export default defineComponent({
                 value={delimiter.value}
                 on-change={val => {
                   delimiter.value = val;
+                  formData.value.etl_params.separator = val;
                 }}
               >
                 {globalDataDelimiter.value.map(option => (
@@ -502,7 +507,6 @@ export default defineComponent({
      * @param type
      */
     const getDataLog = type => {
-      console.log(type, 'type---');
       logOriginalLoading.value = type === 'refresh';
       $http
         .request('source/dataList', {
@@ -793,9 +797,10 @@ export default defineComponent({
           <span class='label-title no-require'>{t('字段列表')}</span>
           <div class='form-box'>
             <FieldList
+              ref={fieldListRef}
               builtInFieldsList={builtInFieldsList.value}
               data={formData.value.etl_fields || []}
-              extractMethod={formData.value.etl_config}
+              extractMethod={cleaningMode.value}
               loading={isDebugLoading.value}
               refresh={isValueRefresh.value}
               originalTextTokenizeOnChars={defaultParticipleStr.value}
@@ -1007,12 +1012,23 @@ export default defineComponent({
      */
     const handleSubmit = async () => {
       loading.value = true;
+      // 校验字段表格
+      const validatePromises = fieldListRef.value?.validateFieldTable();
+      if (validatePromises && validatePromises.length > 0) {
+        try {
+          await Promise.all(validatePromises);
+        } catch (error) {
+          loading.value = false;
+          return;
+        }
+      }
       /**
        * 校验时间格式， 校验通过之后，把指定的时间字段的 is_time 设置为 true
        */
       if (!formData.value.log_reporting_time) {
         const res = await requestCheckTime();
         if (!res) {
+          loading.value = false;
           return;
         }
         const list = formData.value.etl_fields.map(item => ({
@@ -1021,21 +1037,40 @@ export default defineComponent({
         }));
         formData.value.etl_fields = list;
       }
-      /**
-       * 创建清洗
-       */
       const { etl_params, etl_fields } = formData.value;
+      /**
+       * 编辑/创建清洗
+       */
+      const url = isUpdate.value ? 'collect/fieldCollection' : 'clean/updateCleanStash';
+      const { storage_cluster_id, allocation_min_days, storage_replies, es_shards, table_id, retention } =
+        curCollect.value;
+      const data = {
+        bk_biz_id: bkBizId.value,
+        etl_params,
+      };
+      const requestData = isUpdate.value
+        ? {
+            ...data,
+            fields: etl_fields,
+            storage_cluster_id,
+            allocation_min_days,
+            storage_replies,
+            es_shards,
+            table_id,
+            retention,
+            etl_config: cleaningMode.value,
+          }
+        : {
+            ...data,
+            etl_fields,
+            clean_type: cleaningMode.value,
+          };
       $http
-        .request('clean/updateCleanStash', {
+        .request(url, {
           params: {
             collector_config_id: curCollect.value.collector_config_id,
           },
-          data: {
-            bk_biz_id: bkBizId.value,
-            clean_type: cleaningMode.value,
-            etl_params,
-            etl_fields,
-          },
+          data: requestData,
         })
         .then(res => {
           loading.value = false;
@@ -1044,8 +1079,7 @@ export default defineComponent({
             emit('next', data);
           }
         })
-        .catch(err => {
-          console.log(err);
+        .catch(() => {
           loading.value = false;
         });
     };

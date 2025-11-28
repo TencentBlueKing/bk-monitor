@@ -52,16 +52,23 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    config: {
+      type: Object,
+      default: () => {},
+    },
+    collectorConfigId: {
+      type: Number,
+    },
   },
 
-  emits: ['change'],
+  emits: ['change', 'refresh'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const store = useStore();
-    const collectionName = ref();
+    // const store = useStore();
+
     const loading = ref(false);
-    const curCollect = computed(() => store.getters['collect/curCollect']);
+    // const curCollect = computed(() => store.getters['collect/curCollect']);
     const curTaskIdList = ref([]);
     const errorNum = ref(0);
     // 节点管理准备好了吗
@@ -94,9 +101,11 @@ export default defineComponent({
         count: 0,
       },
     ]);
+    const isHandle = ref(false);
     const stopStatusPolling = () => {
       clearTimeout(timer.value);
     };
+    const collectionName = computed(() => props.config.name);
 
     // onMounted(() => {});
     const calcTabNum = () => {
@@ -148,7 +157,7 @@ export default defineComponent({
       }
 
       const params = {
-        collector_config_id: curCollect.value.collector_config_id,
+        collector_config_id: props.collectorConfigId,
       };
       const cacheTimeNum = timerNum.value;
 
@@ -202,12 +211,35 @@ export default defineComponent({
         }, 500);
       }
     };
+    /**
+     * 停用
+     */
+    const handleStop = () => {
+      isHandle.value = true;
+      $http
+        .request('collect/stopCollect', {
+          params: {
+            collector_config_id: props.collectorConfigId,
+          },
+        })
+        .then(res => {
+          if (res.result) {
+            emit('refresh');
+          }
+        })
+        .catch(() => {
+          showMessage(t('停用失败'), 'error');
+        })
+        .finally(() => {
+          isHandle.value = false;
+        });
+    };
 
     watch(
       () => props.isShow,
       val => {
         if (val) {
-          for (const id of curCollect.value?.task_id_list ?? []) {
+          for (const id of props.config?.task_id_list ?? []) {
             curTaskIdList.value.push(id);
           }
           requestIssuedClusterList();
@@ -227,7 +259,7 @@ export default defineComponent({
         {props.isStopCollection ? (
           <div class='collect-link'>
             {t('编辑采集项')}
-            <span style='padding: 3px 9px; background-color: #f0f1f5'>
+            <span class='link-name'>
               <span class='bk-icon bklog-icon bklog-position' />
               {collectionName.value}
             </span>
@@ -246,11 +278,36 @@ export default defineComponent({
             {t('采集下发存在失败，请点击 重试，如再次失败请 联系助手。')}
           </div>
         )}
-        <HostDetail
-          list={tableListAll.value}
-          loading={loading.value}
-          tabList={tabList.value}
-        />
+        <div
+          class='content-host'
+          style={{ height: props.isStopCollection ? 'calc(100% - 90px)' : 'calc(100% - 44px)' }}
+        >
+          <HostDetail
+            list={tableListAll.value}
+            loading={loading.value}
+            tabList={tabList.value}
+            collectorConfigId={props.collectorConfigId}
+          />
+        </div>
+        {props.isStopCollection && (
+          <div class='content-footer'>
+            <bk-button
+              theme='primary'
+              class='mr-12'
+              on-click={handleStop}
+              loading={isHandle.value}
+            >
+              {t('停用')}
+            </bk-button>
+            <bk-button
+              on-click={() => {
+                emit('change', false);
+              }}
+            >
+              {t('取消')}
+            </bk-button>
+          </div>
+        )}
       </div>
     );
 

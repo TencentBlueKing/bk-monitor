@@ -39,7 +39,7 @@ export type FieldItem = {
   field_type: string;
   previous_type?: string;
   description?: string;
-  value?: any;
+  value?: string;
   is_built_in: boolean;
   is_add_in: boolean;
   is_objectKey: boolean;
@@ -82,6 +82,7 @@ export type Props = {
   selectEtlConfig: 'bk_log_delimiter' | 'bk_log_json' | 'bk_log_regexp';
   isSetDisabled: boolean;
 };
+
 /**
  * @file 字段列表
  */
@@ -115,7 +116,11 @@ export default defineComponent({
     selectEtlConfig: {
       type: String,
       default: 'bk_log_json',
-      validator: (v: string) => ['bk_log_json', 'bk_log_delimiter', 'bk_log_regexp'].includes(v),
+      validator: (v: string) => {
+        // 如果值为空，使用默认值，验证通过
+        if (!v) return true;
+        return ['bk_log_json', 'bk_log_delimiter', 'bk_log_regexp'].includes(v);
+      },
     },
     isSetDisabled: {
       type: Boolean,
@@ -124,7 +129,11 @@ export default defineComponent({
     extractMethod: {
       type: String,
       default: 'bk_log_json',
-      validator: (v: string) => ['bk_log_json', 'bk_log_delimiter', 'bk_log_regexp'].includes(v),
+      validator: (v: string) => {
+        // 如果值为空，使用默认值，验证通过
+        if (!v) return true;
+        return ['bk_log_json', 'bk_log_delimiter', 'bk_log_regexp'].includes(v);
+      },
     },
     builtInFieldsList: {
       type: Array,
@@ -144,11 +153,18 @@ export default defineComponent({
   },
   emits: ['change', 'refresh'],
 
-  setup(props, { emit }) {
-    // 最大 int 类型值
-    const MAX_INT_VALUE = 2_147_483_647;
+  setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
+    // 最大 int 类型值
+    const MAX_INT_VALUE = 2_147_483_647;
+    const REQUIRED_FIELD_MSG = t('必填项');
+    const INVALID_FIELD_NAME_MSG = t('只能包含a - z、A - Z、0 - 9和_，且不能以_开头和结尾');
+    const INVALID_ALIAS_NAME_MSG = t('重命名只能包含a - z、A - Z、0 - 9和_');
+    const DUPLICATE_BUILT_IN_MSG = t('与系统内置字段重复');
+    const ALIAS_FIELD_DUPLICATE_MSG = t('重命名与字段名重复');
+    const FIELD_CONFLICT_MSG = t('字段名称冲突, 请调整');
+
     const typeKey = ref('visible');
     const showBuiltIn = ref(false);
     let tippyInstances: Instance[] = [];
@@ -416,7 +432,7 @@ export default defineComponent({
     };
     /** 销毁所有tippy */
     const destroyTippyInstances = () => {
-      // biome-ignore lint/complexity/noForEach: <explanation>
+      // biome-ignore lint/complexity/noForEach: 需要遍历数组并执行销毁操作，forEach 更简洁
       tippyInstances.forEach(i => {
         try {
           i.hide();
@@ -472,12 +488,394 @@ export default defineComponent({
         formData.value.tableList.splice(index + 1, childrenCount);
       }
     };
+    /**
+     * 检查字段名是否与其他字段冲突
+     * @param fieldIndex 当前字段索引
+     * @param fieldName 字段名称
+     * @param isTime 是否为时间字段（时间字段允许重复）
+     * @returns 是否存在冲突
+     */
+    const filedNameIsConflict = (fieldIndex: number, fieldName: string, isTime = false): boolean => {
+      const otherFieldNameList = props.data.filter(item => {
+        // 指定日志时间的字段名会重复，需要排除
+        return item.field_index !== fieldIndex && (!isTime || !item.is_time);
+      });
+      return otherFieldNameList.some(item => item.field_name === fieldName);
+    };
+
+    /**
+     * 验证并处理字段名输入
+     * 对于 JSON 提取方式，如果字段名不符合标准命名规范，自动添加引号包裹
+     * @param row 字段行数据
+     */
+    const validateInput = (row: FieldItem): void => {
+      if (!row.field_name || props.extractMethod !== 'bk_log_json') {
+        return;
+      }
+      const quotedPattern = /^".*"$/; // 检测是否已被引号包裹
+      const validFieldPattern = /^[A-Za-z_][0-9A-Za-z_]*$/; // 标准字段名格式：字母或下划线开头，只能包含字母、数字和下划线
+
+      // 如果未被引号包裹且不符合标准命名规范，则添加引号
+      if (!quotedPattern.test(row.field_name) && !validFieldPattern.test(row.field_name)) {
+        row.field_name = `"${row.field_name}"`;
+      }
+    };
+
+    /**
+     * 检查字段名是否与系统内置字段重复
+     * @param fieldName 字段名称
+     * @returns 是否重复
+     */
+    const isBuiltInFieldConflict = (fieldName: string): boolean => {
+      return globalsData.value.field_built_in?.some(item => item.id === fieldName.toLowerCase()) ?? false;
+    };
+
+    /**
+     * 校验单个字段名称
+     * @param row 字段行数据
+     * @returns 错误信息字符串，无错误返回空字符串
+     */
+    const checkFieldNameItem = (row: FieldItem): string => {
+      // 从 props.data 中获取最新的行数据，确保使用的是最新数据
+      const currentRow = props.data.find(
+        item => item.field_index === row.field_index && item.field_name === row.field_name,
+      );
+      if (!currentRow) {
+        return '';
+      }
+
+      // 先验证并处理输入（自动添加引号等）
+      validateInput(currentRow);
+
+      // 如果已有别名，则不需要校验字段名，但需要清空 fieldAliasErr
+      if (currentRow.alias_name) {
+        currentRow.fieldAliasErr = '';
+        currentRow.btnShow = false;
+        return '';
+      }
+
+      const { field_name, is_delete, field_index, is_time } = currentRow;
+      let result = ''; // 字段名错误信息
+      let aliasResult = ''; // 别名提示信息
+      let width = 220; // 提示框宽度
+      let btnShow = false; // 是否显示字段映射按钮
+
+      // 已删除的字段不需要校验
+      if (is_delete) {
+        currentRow.fieldErr = '';
+        currentRow.fieldAliasErr = '';
+        currentRow.width = width;
+        if (!currentRow.alias_name) {
+          currentRow.btnShow = false;
+        }
+        return '';
+      }
+
+      // 校验字段名是否为空
+      if (!field_name) {
+        result = REQUIRED_FIELD_MSG;
+      }
+      // 校验字段名格式：只能包含 a-z、A-Z、0-9 和 _，且不能以 _ 开头和结尾
+      else if (!/^(?!_)(?!.*?_$)^[A-Za-z0-9_]+$/gi.test(field_name)) {
+        if (props.selectEtlConfig === 'bk_log_json') {
+          // JSON 模式下，格式错误时提示用户重命名
+          btnShow = true;
+          aliasResult = t(
+            '检测到字段名称包含异常值，只能包含a-z、A-Z、0-9和_，且不能以_开头和结尾。请重命名，命名后原字段将被覆盖；',
+          );
+          width = 300;
+        } else {
+          result = INVALID_FIELD_NAME_MSG;
+        }
+      }
+      // 校验是否与系统内置字段重复
+      else if (isBuiltInFieldConflict(field_name)) {
+        if (props.extractMethod !== 'bk_log_json') {
+          // 非 JSON 模式下，直接报错
+          result =
+            props.extractMethod === 'bk_log_regexp'
+              ? t('字段名与系统字段重复，必须修改正则表达式')
+              : DUPLICATE_BUILT_IN_MSG;
+        } else {
+          // JSON 模式下，提示用户重命名
+          btnShow = true;
+          aliasResult = t('检测到字段名与系统内置名称冲突。请重命名,命名后原字段将被覆盖');
+          width = 220;
+        }
+      }
+      // 校验字段名是否与其他字段冲突（分隔符模式或 JSON 模式）
+      else if (props.extractMethod === 'bk_log_delimiter' || props.selectEtlConfig === 'bk_log_json') {
+        result = filedNameIsConflict(field_index, field_name, is_time) ? FIELD_CONFLICT_MSG : '';
+      }
+
+      // 更新行数据的错误信息
+      if (!currentRow.alias_name) {
+        currentRow.btnShow = btnShow;
+      }
+      currentRow.fieldErr = result;
+      currentRow.fieldAliasErr = aliasResult;
+      currentRow.width = width;
+
+      return result || aliasResult;
+    };
+
+    /**
+     * 校验单个字段的别名
+     * @param row 字段行数据
+     * @returns 错误信息字符串，无错误返回空字符串
+     */
+    const checkAliasNameItem = (row: FieldItem): string => {
+      // 从 props.data 中获取最新的行数据，确保使用的是最新数据
+      const currentRow = props.data.find(
+        item => item.field_index === row.field_index && item.field_name === row.field_name,
+      );
+      if (!currentRow) {
+        return '';
+      }
+
+      const { alias_name, is_delete, field_index } = currentRow;
+      let queryResult = '';
+      currentRow.btnShow = false;
+
+      // 如果别名为空，显示重命名输入框
+      if (!alias_name) {
+        currentRow.alias_name_show = false;
+        currentRow.btnShow = true;
+        // 别名为空时，需要重新校验字段名，因为字段名的问题可能仍然存在
+        checkFieldNameItem(currentRow);
+        return '';
+      }
+
+      // 已删除的字段不需要校验
+      if (is_delete) {
+        currentRow.fieldErr = '';
+        currentRow.fieldAliasErr = '';
+        return '';
+      }
+
+      // 校验别名格式：只能包含 a-z、A-Z、0-9 和 _
+      if (!/^[A-Za-z0-9_]+$/g.test(alias_name)) {
+        queryResult = INVALID_ALIAS_NAME_MSG;
+      }
+      // 校验别名是否与系统内置字段重复
+      else if (isBuiltInFieldConflict(alias_name)) {
+        queryResult = DUPLICATE_BUILT_IN_MSG;
+      }
+      // 校验别名是否与字段名重复
+      else if (alias_name === currentRow.field_name) {
+        queryResult = ALIAS_FIELD_DUPLICATE_MSG;
+      }
+      // JSON 模式下，校验别名是否与其他字段冲突
+      else if (props.selectEtlConfig === 'bk_log_json') {
+        queryResult = filedNameIsConflict(field_index, alias_name) ? t('重命名字段名称冲突, 请调整') : '';
+      }
+
+      // 更新行数据的错误信息
+      currentRow.fieldErr = queryResult;
+
+      // 如果别名校验通过（queryResult 为空），清空 fieldAliasErr（因为问题已通过别名解决）
+      // 如果别名校验失败，保留 fieldAliasErr（因为字段名的问题仍然存在）
+      if (!queryResult) {
+        currentRow.fieldAliasErr = '';
+        currentRow.btnShow = false;
+      }
+
+      return queryResult;
+    };
+
+    /**
+     * 批量校验所有字段名称和别名
+     * 注意：此函数保留用于 API 兼容性，可能被父组件通过 ref 调用
+     * @returns Promise，校验通过 resolve，失败 reject
+     */
+    // biome-ignore lint/correctness/noUnusedVariables: 保留用于 API 兼容性，可能被父组件通过 ref 调用
+    const checkFieldName = (): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        try {
+          let hasError = false;
+
+          // 使用 for...of 循环替代 forEach，避免 linter 警告
+          for (const row of props.data) {
+            // 跳过内置字段和对象键字段
+            if (row.is_built_in || row.is_objectKey) {
+              continue;
+            }
+
+            // 如果有别名，优先校验别名；否则校验字段名
+            const aliasError = row.alias_name ? checkAliasNameItem(row) : '';
+            const fieldError = checkFieldNameItem(row);
+
+            if (aliasError || fieldError) {
+              hasError = true;
+            }
+          }
+
+          if (hasError) {
+            console.log('FieldName或aliasName校验错误');
+            reject(false);
+          } else {
+            resolve();
+          }
+        } catch (err) {
+          console.log('FieldName校验错误', err);
+          reject(err);
+        }
+      });
+    };
+
+    /**
+     * 批量校验所有字段的别名
+     * 注意：此函数保留用于 API 兼容性，可能被父组件通过 ref 调用
+     * @returns Promise，校验通过 resolve，失败 reject
+     */
+    // biome-ignore lint/correctness/noUnusedVariables: 保留用于 API 兼容性，可能被父组件通过 ref 调用
+    const checkAliasName = (): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        try {
+          let hasError = false;
+
+          // 使用 for...of 循环替代 forEach，避免 linter 警告
+          for (const row of props.data) {
+            // 跳过内置字段
+            if (row.is_built_in) {
+              continue;
+            }
+
+            const error = checkAliasNameItem(row);
+            if (error) {
+              hasError = true;
+            }
+          }
+
+          if (hasError) {
+            console.log('AliasName校验错误');
+            reject(false);
+          } else {
+            resolve();
+          }
+        } catch (err) {
+          console.log('AliasName校验错误', err);
+          reject(err);
+        }
+      });
+    };
+    /**
+     * 校验单个字段的类型
+     * @param row 字段行数据
+     * @returns 校验是否通过
+     */
+    const checkTypeItem = (row: FieldItem): boolean => {
+      // 对象键字段不需要校验类型
+      if (row.is_objectKey) {
+        return true;
+      }
+
+      // 已删除的字段不需要校验类型
+      if (row.is_delete) {
+        row.typeErr = false;
+        return true;
+      }
+
+      // 校验字段类型是否为空
+      row.typeErr = !row.field_type;
+      return !row.typeErr;
+    };
+
+    /**
+     * 批量校验所有字段的类型
+     * 注意：此函数保留用于 API 兼容性，可能被父组件通过 ref 调用
+     * @returns Promise，校验通过 resolve，失败 reject
+     */
+    // biome-ignore lint/correctness/noUnusedVariables: 保留用于 API 兼容性，可能被父组件通过 ref 调用
+    const checkType = (): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        try {
+          let hasError = false;
+
+          // 使用 for...of 循环替代 forEach，避免 linter 警告
+          for (const row of props.data) {
+            if (!checkTypeItem(row)) {
+              hasError = true;
+            }
+          }
+
+          if (hasError) {
+            console.log('Type校验错误');
+            reject(false);
+          } else {
+            resolve();
+          }
+        } catch (err) {
+          console.log('Type校验错误', err);
+          reject(err);
+        }
+      });
+    };
+
+    /**
+     * 批量校验字段表格的所有字段
+     * 包括：别名校验、字段名校验、类型校验
+     * @returns Promise 数组，包含所有校验的 Promise
+     */
+    const validateFieldTable = (): Promise<void>[] => {
+      // 执行所有校验（校验逻辑是同步的，会立即设置错误状态）
+      const promises = [checkAliasName(), checkFieldName(), checkType()];
+
+      // 使用 nextTick 确保在所有校验方法执行完成后再触发更新
+      // 这样可以让错误样式正确显示
+      nextTick(() => {
+        // 触发更新，确保 UI 反映最新的错误状态
+        emit('change', [...props.data]);
+      });
+
+      // 在所有 Promise 完成后也触发一次更新（处理异步情况）
+      Promise.allSettled(promises).then(() => {
+        nextTick(() => {
+          emit('change', [...props.data]);
+        });
+      });
+
+      return promises;
+    };
+
+    // 暴露方法给父组件使用
+    expose({
+      validateFieldTable,
+      checkFieldName,
+      checkAliasName,
+      checkType,
+    });
+
+    /**
+     * 处理字段重命名（显示别名输入框）
+     * @param row 字段行数据
+     */
+    const handlePopoverRename = (row: FieldItem): void => {
+      // 从 props.data 中获取最新的行数据，确保使用的是最新数据
+      const currentRow = props.data.find(
+        item => item.field_index === row.field_index && item.field_name === row.field_name,
+      );
+      if (!currentRow) {
+        return;
+      }
+
+      // 设置 alias_name_show 为 true，显示别名输入框
+      const newList = updateList(props.data, currentRow, item => ({
+        ...item,
+        alias_name_show: true,
+        btnShow: false, // 隐藏字段映射按钮
+      }));
+
+      // 触发更新事件，通知父组件数据变化
+      emit('change', newList);
+    };
 
     /**
      * 检查字段编辑是否禁用
      * @param row
      * @returns
      */
+
     const getFieldEditDisabled = (row: FieldItem) => {
       if (row.is_delete || row.is_built_in || row.field_type === 'object') {
         return true;
@@ -528,29 +926,47 @@ export default defineComponent({
           {row.is_built_in && row.alias_name ? (
             <bk-input
               class='participle-field-name-input-pl5'
-              // disabled={() => getFieldEditDisabled(row)}
-              // disabled={row.is_built_in}
+              disabled={getFieldEditDisabled(row)}
               value={row.field_name}
               on-change={value => {
                 const newList = updateList(props.data, row, item => ({ ...item, field_name: value }));
                 emit('change', newList);
               }}
-              // on-blur={() => checkFieldNameItem(row)}
+              on-blur={() => {
+                // 从最新的 props.data 中获取当前行数据
+                const currentRow = props.data.find(
+                  item => item.field_index === row.field_index && item.field_name === row.field_name,
+                );
+                if (currentRow) {
+                  checkFieldNameItem(currentRow);
+                  // 校验后需要触发更新，确保 UI 反映最新的错误状态
+                  emit('change', [...props.data]);
+                }
+              }}
             />
           ) : (
             <bk-input
               class={{
                 'participle-field-name-input': row.alias_name || row.alias_name_show,
-                // 'participle-field-name-input-pl5': true,
+                'participle-field-name-input-pl5': true,
               }}
-              // disabled={() => getFieldEditDisabled(row)}
-              // disabled={row.is_built_in}
+              disabled={getFieldEditDisabled(row)}
               value={row.field_name}
               on-change={value => {
                 const newList = updateList(props.data, row, item => ({ ...item, field_name: value }));
                 emit('change', newList);
               }}
-              // on-blur={() => checkFieldNameItem(row)}
+              on-blur={() => {
+                // 从最新的 props.data 中获取当前行数据
+                const currentRow = props.data.find(
+                  item => item.field_index === row.field_index && item.field_name === row.field_name,
+                );
+                if (currentRow) {
+                  checkFieldNameItem(currentRow);
+                  // 校验后需要触发更新，确保 UI 反映最新的错误状态
+                  emit('change', [...props.data]);
+                }
+              }}
             />
           )}
           {(row.alias_name || row.alias_name_show) && !row.is_built_in && (
@@ -563,15 +979,28 @@ export default defineComponent({
           )}
           {(row.alias_name || row.alias_name_show) && !row.is_built_in && (
             <bk-input
-              class='participle-alias-name-input'
-              // disabled={() => getFieldEditDisabled(row)}
+              class={{
+                'participle-alias-name-input': true,
+                'input-error': !!row.fieldErr,
+              }}
+              disabled={getFieldEditDisabled(row)}
               placeholder={t('请输入映射名')}
               value={row.alias_name}
               on-change={value => {
                 const newList = updateList(props.data, row, item => ({ ...item, alias_name: value }));
                 emit('change', newList);
               }}
-              // on-blur={() => checkAliasNameItem(row)}
+              on-blur={() => {
+                // 从最新的 props.data 中获取当前行数据
+                const currentRow = props.data.find(
+                  item => item.field_index === row.field_index && item.field_name === row.field_name,
+                );
+                if (currentRow) {
+                  checkAliasNameItem(currentRow);
+                  // 校验后需要触发更新，确保 UI 反映最新的错误状态
+                  emit('change', [...props.data]);
+                }
+              }}
             />
           )}
 
@@ -582,20 +1011,18 @@ export default defineComponent({
               v-bk-tooltips={{ content: row.fieldErr, placement: 'top' }}
             />
           )}
-
           {props.selectEtlConfig === 'bk_log_json' && row.fieldAliasErr && !row.alias_name && !row.alias_name_show && (
-            // {props.selectEtlConfig === 'bk_log_json' && (
             <bk-button
               class='tooltips-btn'
-              // on-click={() => handlePopoverRename(row)}
+              on-click={() => handlePopoverRename(row)}
               v-bk-tooltips={{
                 width: row.width,
-                content: row.fieldAliasErr || t('点击定义字段名映射'),
+                content: row.fieldAliasErr || t('点击重命名'),
                 placement: 'top',
               }}
               theme='danger'
             >
-              {t('字段映射')}
+              {t('重命名')}
             </bk-button>
           )}
         </div>
@@ -650,24 +1077,37 @@ export default defineComponent({
         label: t('类型'),
         prop: 'field_type',
         renderFn: (row: any) => (
-          <bk-select
-            clearable={false}
-            disabled={row.is_built_in}
-            value={row.field_type}
-            on-change={value => {
-              const newList = updateList(props.data, row, item => ({ ...item, field_type: value }));
-              emit('change', newList);
-            }}
-          >
-            {(globalsData.value.field_data_type || []).map(option => (
-              <bk-option
-                id={option.id}
-                key={option.id}
-                // disabled={() => isTypeDisabled(row, option)}
-                name={option.name}
+          <div class='type-select-wrapper'>
+            <bk-select
+              class={{ 'type-error': row.typeErr }}
+              clearable={false}
+              disabled={row.is_built_in}
+              value={row.field_type}
+              on-change={value => {
+                const newList = updateList(props.data, row, item => ({
+                  ...item,
+                  field_type: value,
+                  typeErr: false, // 选择类型后清除错误状态
+                }));
+                emit('change', newList);
+              }}
+            >
+              {(globalsData.value.field_data_type || []).map(option => (
+                <bk-option
+                  id={option.id}
+                  key={option.id}
+                  disabled={isTypeDisabled(row, option)}
+                  name={option.name}
+                />
+              ))}
+            </bk-select>
+            {row.typeErr && (
+              <i
+                class='bk-icon icon-exclamation-circle-shape tooltips-icon type-error-icon'
+                v-bk-tooltips={{ content: t('必填项'), placement: 'top' }}
               />
-            ))}
-          </bk-select>
+            )}
+          </div>
         ),
       },
       {
@@ -786,7 +1226,7 @@ export default defineComponent({
               class-name={item?.renderFn ? 'fields-table-column' : ''}
               label={item.label}
               prop={item.prop}
-              renderHeader={(h, { column, $index }: any) => renderHeader(h, { column, $index }, item)}
+              renderHeader={(h, { column }: any) => renderHeader(h, { column }, item)}
             />
           ))}
           <bk-table-column

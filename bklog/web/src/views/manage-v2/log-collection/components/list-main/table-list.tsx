@@ -32,14 +32,12 @@ import tippy, { type Instance } from 'tippy.js';
 import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue';
 import { getScenarioIdType, formatBytes, getOperatorCanClick, showMessage } from '../../utils';
 import useResizeObserver from '@/hooks/use-resize-observe';
-import { projectManages } from '@/common/util';
 import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
 import $http from '@/api';
 // import { useRouter } from 'vue-router/composables';
 
 import { useCollectList } from '../../hook/useCollectList';
 import {
-  STATUS_ENUM,
   SETTING_FIELDS,
   MENU_LIST,
   GLOBAL_CATEGORIES_ENUM,
@@ -52,12 +50,6 @@ import type { IListItemData } from '../../type';
 
 import './table-list.scss';
 import 'tdesign-vue/es/style/index.css';
-
-export type SearchKeyItem = {
-  id: string;
-  name: string;
-  values: any[];
-};
 
 export default defineComponent({
   name: 'TableList',
@@ -78,9 +70,10 @@ export default defineComponent({
 
   emits: [],
 
-  setup(props, { emit }) {
+  setup(props) {
     const { t } = useLocale();
     const showCollectIssuedSlider = ref(false);
+    const currentRow = ref({});
     /**
      * 是否展示一键检测
      */
@@ -110,13 +103,14 @@ export default defineComponent({
     let columnConfigTippyInstance: Instance | null = null;
     const columnConfigTriggerRef = ref<HTMLElement | null>(null);
     const columnConfigContentRef = ref<HTMLElement | null>(null);
-    const searchKey = ref<SearchKeyItem[]>([]);
-    const createdValues = ref([]); // 创建者筛选值
-    const updatedByValues = ref([]); // 更新者筛选值
+    const searchKey = ref('aaa');
+    const filterValues = ref({
+      created_by: [],
+      updated_by: [],
+      storage_cluster_name: [],
+    });
     // 过滤条件
-    const conditions = ref<Array<{ key: string; value: string[] }>>([
-      { key: 'name', value: ['demodemo0723001', 'zxp02252', 'test_012', 'hrlspf', '0911_test', 'test_012_clone'] },
-    ]);
+    const conditions = ref<Array<{ key: string; value: string[] }>>([]);
 
     const pagination = ref({
       current: 1,
@@ -124,8 +118,6 @@ export default defineComponent({
       pageSize: 10,
       limitList: [10, 20, 50],
     });
-
-    const collectProject = computed(() => projectManages(store.state.topMenu, 'collection-item'));
 
     const sortConfig = ref({});
 
@@ -140,8 +132,8 @@ export default defineComponent({
       total_usage: 'total_usage',
       table_id: 'bk_data_name',
       index_set_id: 'index_set_name',
-      category_name: 'scenario_name',
-      collector_scenario_name: 'collector_scenario_name',
+      scenario_id: 'scenario_id',
+      collector_scenario_id: 'collector_scenario_id',
       storage_cluster_name: 'storage_cluster_name',
       retention: 'retention',
       label: 'tags',
@@ -217,7 +209,7 @@ export default defineComponent({
 
         // 根据实际数据量和分页大小进行最终调整
         const listLen = tableList.value.length;
-        const totalListHeight = listLen * HEIGHT_CONSTANTS.COLUMNS_HEIGHT + 5;
+        const totalListHeight = (listLen + 1) * HEIGHT_CONSTANTS.COLUMNS_HEIGHT + 4;
 
         // 如果分页数据总高度超过最大高度，使用最大高度（启用滚动）
         // 否则根据实际数据行数计算高度（避免空白区域）
@@ -257,55 +249,48 @@ export default defineComponent({
       },
     );
 
-    // 完整的搜索字段数据（原始数据，不修改）
-    const allSearchFilterData = [
-      {
-        name: t('采集名'),
-        id: 'name',
-      },
-      {
-        name: t('存储名'),
-        id: 'bk_data_name',
-      },
-      {
-        name: t('集群名'),
-        id: 'scenario_name',
-      },
-      {
-        name: t('创建人'),
-        id: 'created_by',
-      },
-      {
-        name: t('更新人'),
-        id: 'updated_by',
-      },
-    ];
-
-    // 可用的搜索字段数据（动态过滤）
-    const searchFilterData = ref([...allSearchFilterData]);
     /** 状态渲染 */
-    const renderStatus = (key: string) => {
-      const info = STATUS_ENUM.find(item => item.value === key);
-      return info ? <span class={`table-status ${info.value}`}>{info.label}</span> : '--';
+    const renderStatus = row => {
+      return <span class={`table-status ${row.status}`}>{row.status_name}</span>;
     };
 
     const renderMenu = row => {
-      const { scenario_id, environment, collector_scenario_id } = row;
+      const { scenario_id, environment, collector_scenario_id, status } = row;
       const typeConfig = getScenarioIdType(scenario_id, environment, collector_scenario_id);
       if (!typeConfig) {
-        return MENU_LIST;
+        return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
       }
       if (typeConfig.value === 'custom_report') {
-        return MENU_LIST.filter(item => ['clean', 'desensitization', 'disable', 'delete'].includes(item.key));
+        return MENU_LIST.filter(item => ['desensitization', 'disable', 'delete'].includes(item.key));
       }
       if (['bkdata', 'es'].includes(typeConfig.value)) {
         return MENU_LIST.filter(item => ['desensitization', 'delete'].includes(item.key));
       }
-      return MENU_LIST;
+      return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
+    };
+    /**
+     * 获取表格过滤配置
+     * @param filter
+     * @returns
+     */
+    const getColumnsFilter = (filter: { label: string; value: string; key?: string }[]) => {
+      const data = filter.map(item => ({
+        ...item,
+        label: item.label || item.key,
+      }));
+      return {
+        type: 'single',
+        list: [{ label: t('全部'), value: '' }, ...data],
+        confirmEvents: ['onChange'],
+        // 支持透传全部 Popup 组件属性
+        popupProps: {
+          overlayInnerClassName: 't-table__list-filter-input--sticky custom-filter-popup',
+        },
+      };
     };
 
     // 所有列定义
-    const allColumns = [
+    const allColumns = computed(() => [
       {
         title: t('采集名'),
         colKey: 'name',
@@ -316,11 +301,12 @@ export default defineComponent({
             class='link'
             on-click={() => handleEditOperation(row, 'view')}
           >
+            {row.storage_cluster_id === -1 && <span class='link-tag'>{t('未完成')}</span>}
             {row.name}
           </span>
         ),
         fixed: 'left',
-        minWidth: 180,
+        width: 220,
         ellipsis: true,
       },
       {
@@ -328,7 +314,7 @@ export default defineComponent({
         colKey: 'daily_usage',
         sorter: true,
         sortType: 'all',
-        minWidth: 100,
+        width: 100,
         cell: (h, { row }) => <span>{formatBytes(row.daily_usage)}</span>,
       },
       {
@@ -336,7 +322,7 @@ export default defineComponent({
         colKey: 'total_usage',
         sorter: true,
         sortType: 'all',
-        minWidth: 100,
+        width: 100,
         cell: (h, { row }) => <span>{formatBytes(row.total_usage)}</span>,
       },
       {
@@ -350,7 +336,7 @@ export default defineComponent({
         colKey: 'index_set_name',
         width: 200,
         cell: (h, { row }) => {
-          const indexSetName = row.parent_index_sets.map(item => {
+          const indexSetName = (row.parent_index_sets || []).map(item => {
             return {
               ...item,
               name: item.index_set_name,
@@ -368,39 +354,24 @@ export default defineComponent({
       },
       {
         title: t('接入类型'),
-        colKey: 'scenario_name',
+        colKey: 'scenario_id',
         width: 100,
-        filter: {
-          type: 'single',
-          list: [{ label: t('全部'), value: '' }, ...GLOBAL_CATEGORIES_ENUM],
-          // confirm to search and hide filter popup
-          confirmEvents: ['onChange'],
-          // 支持透传全部 Popup 组件属性
-          popupProps: {
-            overlayInnerClassName: 't-table__list-filter-input--sticky custom-filter-popup',
-          },
-        },
+        cell: (h, { row }) => <span>{row.scenario_name}</span>,
+        filter: getColumnsFilter(GLOBAL_CATEGORIES_ENUM),
       },
       {
         title: t('日志类型'),
-        colKey: 'collector_scenario_name',
+        colKey: 'collector_scenario_id',
         width: 100,
-        filter: {
-          type: 'single',
-          list: [{ label: t('全部'), value: '' }, ...COLLECTOR_SCENARIO_ENUM],
-          // confirm to search and hide filter popup
-          confirmEvents: ['onChange'],
-          // 支持透传全部 Popup 组件属性
-          popupProps: {
-            overlayInnerClassName: 't-table__list-filter-input--sticky custom-filter-popup',
-          },
-        },
+        cell: (h, { row }) => <span>{row.collector_scenario_name}</span>,
+        filter: getColumnsFilter(COLLECTOR_SCENARIO_ENUM),
       },
       {
         title: t('集群名'),
         colKey: 'storage_cluster_name',
         minWidth: 140,
         ellipsis: true,
+        filter: getColumnsFilter(filterValues.value.storage_cluster_name),
       },
       {
         title: t('过期时间'),
@@ -431,24 +402,14 @@ export default defineComponent({
         title: t('采集状态'),
         colKey: 'status',
         width: 100,
-        cell: (h, { row }) => renderStatus(row.status),
-        filter: {
-          type: 'single',
-          list: [{ label: t('全部'), value: '' }, ...STATUS_ENUM_FILTER],
-          // confirm to search and hide filter popup
-          confirmEvents: ['onChange'],
-          // 支持透传全部 Popup 组件属性
-          popupProps: {
-            overlayInnerClassName: 't-table__list-filter-input--sticky custom-filter-popup',
-          },
-        },
+        cell: (h, { row }) => renderStatus(row),
+        filter: getColumnsFilter(STATUS_ENUM_FILTER),
       },
       {
         title: t('创建人'),
         colKey: 'created_by',
         width: 100,
-        filterValue: createdValues.value,
-        filters: [],
+        filter: getColumnsFilter(filterValues.value.created_by),
       },
       {
         title: t('创建时间'),
@@ -461,8 +422,7 @@ export default defineComponent({
         title: t('更新人'),
         width: 100,
         colKey: 'updated_by',
-        filterValue: updatedByValues.value,
-        filters: [],
+        filter: getColumnsFilter(filterValues.value.updated_by),
       },
       {
         title: t('更新时间'),
@@ -481,7 +441,7 @@ export default defineComponent({
             <span
               class={{
                 'link mr-6': true,
-                disabled: !getOperatorCanClick(row, 'search', collectProject.value),
+                disabled: !getOperatorCanClick(row, 'search'),
               }}
               on-click={() => handleEditOperation(row, 'search')}
             >
@@ -490,7 +450,7 @@ export default defineComponent({
             <span
               class={{
                 link: true,
-                disabled: !getOperatorCanClick(row, 'edit', collectProject.value),
+                disabled: !getOperatorCanClick(row, 'edit'),
               }}
               on-click={() => handleEditOperation(row, 'edit')}
             >
@@ -507,7 +467,7 @@ export default defineComponent({
                     key={item.key}
                     class={{
                       'menu-item': true,
-                      disabled: !getOperatorCanClick(row, item.key, collectProject.value),
+                      disabled: !getOperatorCanClick(row, item.key),
                     }}
                     on-Click={() => handleMenuClick(item.key, row)}
                   >
@@ -519,14 +479,14 @@ export default defineComponent({
           </div>
         ),
       },
-    ];
+    ]);
 
     // 根据可见列过滤后的列配置
     const columns = computed(() => {
       // 操作列始终显示
-      const operationCol = allColumns.find(col => col.colKey === 'operation');
+      const operationCol = allColumns.value.find(col => col.colKey === 'operation');
       // 根据 visibleColumns 过滤列，但始终包含默认列和操作列
-      const filteredColumns = allColumns.filter(col => {
+      const filteredColumns = allColumns.value.filter(col => {
         if (col.colKey === 'operation') return false; // 操作列单独处理
         // 默认列始终显示
         if (defaultVisibleColumns.value.includes(col.colKey)) return true;
@@ -548,6 +508,13 @@ export default defineComponent({
       });
       tippyInstances = [];
     };
+    /**
+     * 重新刷新表格
+     */
+    const reloadList = () => {
+      pagination.value.current = 1;
+      getTableList();
+    };
     watch(
       () => listLoading.value,
       val => {
@@ -561,8 +528,7 @@ export default defineComponent({
     watch(
       () => props.indexSet,
       () => {
-        pagination.value.current = 1;
-        getTableList();
+        reloadList();
       },
     );
 
@@ -572,6 +538,7 @@ export default defineComponent({
       destroyTippyInstances();
 
       const targets = document.querySelectorAll('.v2-log-collection-table .t-table--layout-fixed .table-more-btn');
+      console.log(targets.length, 'targets=======');
       if (!targets.length) {
         return;
       }
@@ -602,6 +569,7 @@ export default defineComponent({
 
       // tippy 返回单个或数组，这里统一转为数组
       tippyInstances = Array.isArray(instances) ? instances : [instances];
+      console.log(tippyInstances, 'tippyInstances=========');
     };
 
     // 初始化列配置 tippy
@@ -643,6 +611,7 @@ export default defineComponent({
     };
 
     onMounted(() => {
+      getCollectorFieldEnums();
       nextTick(() => {
         !authGlobalInfo.value && checkCreateAuth();
         listLoading.value = true;
@@ -691,34 +660,6 @@ export default defineComponent({
           });
         });
     };
-    /**
-     * 获取采集状态
-     */
-    const getCollectStatus = index_set_ids => {
-      $http
-        .request('collect/getCollectStatus', {
-          query: {
-            collector_id_list: index_set_ids.filter(id => id != null && id !== '').join(','),
-          },
-        })
-        .then(res => {
-          if (!res.result) {
-            return;
-          }
-          tableList.value = tableList.value.map(item => {
-            const info = res.data.find(val => val.collector_id === item.index_set_id);
-            const { status_name, status } = info || {};
-            return {
-              ...item,
-              status,
-              status_name,
-            };
-          });
-        })
-        .catch(() => {
-          // 请求失败时也停止轮询
-        });
-    };
 
     /**
      * 获取列表数据
@@ -731,6 +672,7 @@ export default defineComponent({
           space_uid: spaceUid.value,
           page: current,
           pagesize: pageSize,
+          keyword: searchKey.value ? searchKey.value : undefined,
           conditions: conditions.value.length > 0 ? conditions.value : undefined,
         };
         const indexSetId = (props.indexSet as IListItemData)?.index_set_id;
@@ -745,25 +687,42 @@ export default defineComponent({
         const index_set_ids = [];
         tableList.value = res.data?.list || [];
         pagination.value.total = res.data?.total || 0;
-        tableList.value.map(item => index_set_ids.push(item.index_set_id));
-
+        tableList.value.map(item => {
+          index_set_ids.push(item.index_set_id);
+        });
         // 保存原始数据顺序的索引映射
         originalOrderMap.value = new Map();
         tableList.value.forEach((item, index) => {
           originalOrderMap.value.set(item.index_set_id, index);
         });
-
         /**
          * 获取存储用量
          */
         if (index_set_ids.length > 0) {
           getStorageUsage(index_set_ids);
-          getCollectStatus(index_set_ids);
         }
       } catch (e) {
         console.log(e);
       } finally {
         listLoading.value = false;
+      }
+    };
+    /**
+     * 获取枚举值
+     */
+    const getCollectorFieldEnums = async () => {
+      try {
+        const res = await $http.request('collect/collectorFieldEnums', {
+          query: { space_uid: spaceUid.value },
+        });
+        if (res.data) {
+          filterValues.value = {
+            ...filterValues.value,
+            ...res.data,
+          };
+        }
+      } catch (e) {
+        console.log('获取字段枚举失败:', e);
       }
     };
 
@@ -797,8 +756,7 @@ export default defineComponent({
           if (res.result) {
             // 重新获取表格数据
             showMessage(t('删除成功'));
-            pagination.value.current = 1;
-            getTableList();
+            reloadList();
           }
         })
         .catch(() => {
@@ -807,11 +765,32 @@ export default defineComponent({
     };
 
     const handleMenuClick = (key: string, row: any) => {
+      currentRow.value = row;
       // 关闭 tippy
       for (const i of tippyInstances) {
         i?.hide();
       }
       console.log(key, row);
+      /**
+       * 启用
+       */
+      if (key === 'start') {
+        $http
+          .request('collect/startCollect', {
+            params: {
+              collector_config_id: row.collector_config_id,
+            },
+          })
+          .then(res => {
+            if (res.result) {
+              reloadList();
+            }
+          })
+          .catch(() => {
+            showMessage(t('启用失败'), 'error');
+          });
+        return;
+      }
       /**
        * 停用
        */
@@ -823,8 +802,7 @@ export default defineComponent({
        * 删除操作
        */
       if (key === 'delete') {
-        if (!collectProject.value) return;
-        if (!row.is_active && row.status !== 'running') {
+        if (row.status !== 'running') {
           window.mainComponent?.$bkInfo({
             type: 'warning',
             subTitle: t('当前采集项名称为{n}，确认要删除？', { n: row.collector_config_name || row.name }),
@@ -875,131 +853,23 @@ export default defineComponent({
     };
     /** 表格过滤 */
 
-    const handleFilterChange = (filters: any) => {
+    const handleFilterChange = filters => {
+      console.log(filters, 'filters====');
       // 创建新的搜索条件数组
-      const newSearchKey = [...searchKey.value];
-      const newConditions: Array<{ key: string; value: any[] }> = [];
+      const newConditions: Array<{ key: string; value: string[] }> = [];
 
-      // 处理 scenario_name (接入类型) 筛选器
-      if (filters.scenario_name && filters.scenario_name.length > 0 && filters.scenario_name[0] !== '') {
+      Object.keys(filters || {}).map(key => {
         newConditions.push({
-          key: 'scenario_id',
-          value: [filters.scenario_name],
+          key,
+          value: [filters[key]],
         });
-      }
-
-      // 处理 collector_scenario_name (日志类型) 筛选器
-      if (
-        filters.collector_scenario_name &&
-        filters.collector_scenario_name.length > 0 &&
-        filters.collector_scenario_name[0] !== ''
-      ) {
-        newConditions.push({
-          key: 'collector_scenario_id',
-          value: [filters.collector_scenario_name],
-        });
-      }
-
-      // 处理 status (采集状态) 筛选器
-      if (filters.status && filters.status.length > 0 && filters.status[0] !== '') {
-        // 将字符串按照逗号拆分为数组
-        const statusValue = Array.isArray(filters.status) ? filters.status[0] : filters.status;
-        const statusArray =
-          typeof statusValue === 'string'
-            ? statusValue
-                .split(',')
-                .map(s => s.trim())
-                .filter(s => s !== '')
-            : [statusValue];
-
-        if (statusArray.length > 0) {
-          newConditions.push({
-            key: 'status',
-            value: statusArray,
-          });
-        }
-      }
-
-      // 更新搜索条件和过滤条件
-      searchKey.value = newSearchKey;
-      conditions.value = newConditions;
-
-      // 重新获取表格数据
-      pagination.value.current = 1;
-      getTableList();
-    };
-
-    const handleSearchChange = (val: SearchKeyItem[]) => {
-      // 更新搜索条件
-      searchKey.value = val;
-
-      // 获取已选择的字段 id 列表
-      const selectedIds = val.map(item => item.id);
-
-      // 从完整的搜索字段数据中过滤掉已存在的值，动态更新 searchFilterData
-      searchFilterData.value = allSearchFilterData.filter(item => !selectedIds.includes(item.id));
-
-      // 将搜索值转换成条件格式 [{"key": "name", "value": ["111"]}, ...]
-      const searchConditions: Array<{ key: string; value: any[] }> = val
-        .filter(item => item.values && item.values.length > 0)
-        .map(item => {
-          // 提取 values 中的 id 或 name，组成数组
-          const values = item.values
-            .map((v: any) => {
-              // 如果值是对象，优先取 id，其次取 name；否则直接使用值
-              if (typeof v === 'object' && v !== null) {
-                return v.id || v.name || v;
-              }
-              return v;
-            })
-            .filter((v: any) => v !== null && v !== undefined && v !== '');
-
-          // 字段映射：scenario_name 映射到 scenario_id
-          let key = item.id;
-          if (item.id === 'scenario_name') {
-            key = 'scenario_id';
-          }
-
-          return {
-            key,
-            value: values,
-          };
-        });
-
-      // 获取当前表格过滤器的条件（保留表格过滤条件）
-      // 表格过滤器的 key 包括：scenario_id, collector_scenario_id, status
-      const tableFilterKeys = ['scenario_id', 'collector_scenario_id', 'status'];
-      const tableFilterConditions = conditions.value.filter(item => tableFilterKeys.includes(item.key));
-
-      // 合并搜索条件和表格过滤条件
-      // 如果搜索条件中有 scenario_id，需要与表格过滤器中的 scenario_id 合并
-      const mergedConditions: Array<{ key: string; value: any[] }> = [];
-      const allConditions = [...searchConditions, ...tableFilterConditions];
-
-      // 合并相同 key 的条件
-      allConditions.forEach(condition => {
-        const existingIndex = mergedConditions.findIndex(item => item.key === condition.key);
-        if (existingIndex >= 0) {
-          // 如果已存在相同的 key，合并 value 并去重
-          const existingValues = mergedConditions[existingIndex].value;
-          const newValues = condition.value;
-          const combinedValues = [...new Set([...existingValues, ...newValues])];
-          mergedConditions[existingIndex] = {
-            key: condition.key,
-            value: combinedValues,
-          };
-        } else {
-          // 如果不存在，直接添加
-          mergedConditions.push(condition);
-        }
       });
 
-      // 更新 conditions
-      conditions.value = mergedConditions;
-
+      // 更新搜索条件和过滤条件
+      conditions.value = newConditions;
+      console.log(conditions.value, 'conditions.value');
       // 重新获取表格数据
-      pagination.value.current = 1;
-      getTableList();
+      reloadList();
     };
 
     const sortChange = (sortInfo: { descending?: boolean; sortBy?: string }): void => {
@@ -1134,12 +1004,22 @@ export default defineComponent({
               {t('采集项')}
             </bk-button>
           </div>
-          <bk-search-select
+          <bk-input
             class='tool-search-select'
-            data={searchFilterData.value}
-            placeholder={t('搜索 采集名、存储名、集群名、创建人、更新人')}
             value={searchKey.value}
-            on-change={handleSearchChange}
+            placeholder={t('搜索 采集名、存储名')}
+            clearable
+            right-icon={'bk-icon icon-search'}
+            on-input={val => {
+              searchKey.value = val;
+            }}
+            on-clear={() => {
+              searchKey.value = '';
+              reloadList();
+            }}
+            on-enter={() => {
+              reloadList();
+            }}
           />
         </div>
         <div
@@ -1206,7 +1086,6 @@ export default defineComponent({
           >
             {/* @ts-ignore - TTable type definition issue */}
             <TTable
-              cache={true}
               cellEmptyContent={'--'}
               columns={columns.value}
               data={tableList.value}
@@ -1219,7 +1098,6 @@ export default defineComponent({
               height={maxTableHeight.value}
               rowHeight={32}
               scroll={{ type: 'lazy', bufferSize: 10 }}
-              virtual={true}
               on-sort-change={sortChange}
               on-filter-change={handleFilterChange}
               scopedSlots={{
@@ -1256,10 +1134,14 @@ export default defineComponent({
           {/* 停用 */}
           <CollectIssuedSlider
             isShow={showCollectIssuedSlider.value}
-            // status={currentStatus.value.status}
+            collectorConfigId={currentRow.value.collector_config_id}
+            status={currentRow.value.status}
+            config={currentRow.value}
+            isStopCollection={true}
             on-change={value => {
               showCollectIssuedSlider.value = value;
             }}
+            on-refresh={reloadList}
           />
         </div>
       </div>
