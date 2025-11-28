@@ -926,13 +926,10 @@ export default {
   正在解析语句: 'Parsing statement...',
   AI搜索: 'AI Search',
   自动刷新设置: 'Auto refresh settings',
-<<<<<<< HEAD
   克隆采集: 'Cloning collection',
   查看采集: 'View collection',
-=======
   请输入检索需求: 'Please enter search requirements',
   检索需求: 'Search requirements',
   扁平化对象: 'Flatten object',
   自然语言转查询语句: 'Natural language to search statement',
->>>>>>> 1a8d38a68f71dec4f7f7cefbd5328505185be095
 };
