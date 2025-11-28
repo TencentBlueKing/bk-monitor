@@ -16,7 +16,7 @@ import logging
 import re
 import time
 import traceback
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import arrow
 import curator
@@ -79,10 +79,14 @@ from .influxdb_cluster import (
 
 logger = logging.getLogger("metadata")
 
-ResultTableField = None
-ResultTableFieldOption = None
-ResultTable = None
-EventGroup = None
+
+if TYPE_CHECKING:
+    from metadata.models.custom_report import EventGroup
+    from metadata.models.result_table import ResultTable, ResultTableField
+else:
+    ResultTableField = None
+    ResultTable = None
+    EventGroup = None
 
 
 class ClusterInfo(models.Model):
@@ -91,6 +95,9 @@ class ClusterInfo(models.Model):
     此处的集群信息，主要是指对于外部使用监控kafka集群或者influxDB-proxy集群的信息
     如果需要看到influxDB-proxy后面的实际集群信息，请看InfluxDBClusterInfo记录
     """
+
+    # 集群英文名正则表达式，要求符合 [_A-Za-z0-9][_A-Za-z0-9-]* 格式，且长度不超过50，与bkbase的集群名命名规则一致
+    CLUSTER_NAME_REGEX = re.compile(r"^[_A-Za-z0-9][_A-Za-z0-9-]{0,49}$")
 
     CONSUL_PREFIX_PATH = f"{config.CONSUL_PATH}/unify-query/data/storage"
     CONSUL_VERSION_PATH = f"{config.CONSUL_PATH}/unify-query/version/storage"
@@ -122,8 +129,8 @@ class ClusterInfo(models.Model):
 
     bk_tenant_id = models.CharField("租户ID", max_length=64, default=DEFAULT_TENANT_ID)
     cluster_id = models.AutoField("集群ID", primary_key=True)
-    # 集群中文名，便于管理员维护
-    cluster_name = models.CharField("集群名称", max_length=128)
+    cluster_name = models.CharField("集群英文名", max_length=128)
+    display_name = models.CharField("集群显示名称", max_length=128, default="", blank=True)
     cluster_type = models.CharField("集群类型", max_length=32, db_index=True)
     domain_name = models.CharField("集群域名", max_length=128)
     port = models.IntegerField("端口")
@@ -156,6 +163,7 @@ class ClusterInfo(models.Model):
 
     # 描述该存储集群被何系统使用
     registered_system = models.CharField("注册来源系统", default=DEFAULT_REGISTERED_SYSTEM, max_length=128)
+    registered_to_bkbase = models.BooleanField("是否已经注册到bkbase平台", default=False)
 
     # GSE注册相关
     # 是否需要往GSE注册
@@ -237,7 +245,7 @@ class ClusterInfo(models.Model):
 
         logger.info(f"all es table info is refresh to consul success count->[{total_count}].")
 
-    def base64_with_prefix(self, content: str) -> str:
+    def base64_with_prefix(self, content: str | None) -> str | None:
         """编码，并添加上前缀"""
         # 如果为空，则直接返回
         if not content:
@@ -282,6 +290,7 @@ class ClusterInfo(models.Model):
                 "raw_ssl_certificate_key": self.ssl_certificate_key,
                 "cluster_id": self.cluster_id,
                 "cluster_name": self.cluster_name,
+                "display_name": self.display_name,
                 "version": self.version,
                 "custom_option": self.custom_option,
                 "registered_system": self.registered_system,
@@ -357,6 +366,7 @@ class ClusterInfo(models.Model):
         port,
         registered_system,
         operator,
+        display_name="",
         description="",
         username="",
         password="",
@@ -400,6 +410,11 @@ class ClusterInfo(models.Model):
         :param extranet_port: 外网端口
         :return: clusterInfo object
         """
+        from metadata.models.data_link.data_link_configs import ClusterConfig
+
+        # 如果未提供显示名称，则使用集群名作为显示名称
+        if not display_name:
+            display_name = cluster_name
 
         # 1. 判断请求的数据是否有冲突
         # 基本数据校验
@@ -430,6 +445,7 @@ class ClusterInfo(models.Model):
         new_cluster = cls.objects.create(
             bk_tenant_id=bk_tenant_id,
             cluster_name=cluster_name,
+            display_name=display_name,
             cluster_type=cluster_type,
             domain_name=domain_name,
             port=port,
@@ -460,12 +476,16 @@ class ClusterInfo(models.Model):
         )
         new_cluster.cluster_init()
 
+        # 同步集群配置到bkbase
+        ClusterConfig.sync_cluster_config(cluster=new_cluster)
+
         return new_cluster
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def modify(
         self,
         operator,
+        display_name=None,
         description=None,
         username=None,
         password=None,
@@ -486,6 +506,7 @@ class ClusterInfo(models.Model):
         """
         修改存储集群信息
         :param operator: 操作者
+        :param display_name: 显示名称
         :param description: 描述信息
         :param username: 用户名
         :param password: 密码
@@ -503,7 +524,11 @@ class ClusterInfo(models.Model):
         :param extranet_port: 外网端口
         :return: True | raise Exception
         """
+
+        from metadata.models.data_link.data_link_configs import ClusterConfig
+
         args = {
+            "display_name": display_name,
             "description": description,
             "username": username,
             "password": password,
@@ -534,6 +559,10 @@ class ClusterInfo(models.Model):
 
         self.save()
         logger.info(f"cluster->[{self.cluster_name}] update success.")
+
+        # 同步集群配置到bkbase
+        ClusterConfig.sync_cluster_config(cluster=self)
+
         return True
 
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -556,11 +585,13 @@ class ClusterInfo(models.Model):
             )
             raise ValueError(_("存在未关闭的结果表 {}").format(",".join(enable_rts)))
 
-        super().delete(*args, **kwargs)
+        result = super().delete(*args, **kwargs)
 
         logger.info(
             f"cluster->[{self.cluster_name}] cluster_type->[{self.cluster_type}] has deleted by [{self.registered_system}]"
         )
+
+        return result
 
 
 class KafkaTopicInfo(models.Model):
@@ -620,7 +651,6 @@ class KafkaTopicInfo(models.Model):
 class StorageResultTable:
     """实际结果表基类，提供公共方法的模板"""
 
-    bk_tenant_id: str
     STORAGE_TYPE = None
     UPGRADE_FIELD_CONFIG = ()
 
@@ -2421,7 +2451,7 @@ class ESStorage(models.Model, StorageResultTable):
         # 如果index_re为空，说明没找到任何可用的index
         if index_version == "":
             logger.info("index->[%s] has no index now, will raise a fake not found error", self.index_name)
-            raise elasticsearch5.NotFoundError(self.index_name)
+            raise elasticsearch5.NotFoundError(404, f"index {self.index_name} not found", None)
 
         if index_version == "v2":
             index_re = self.index_re_v2
@@ -3274,7 +3304,7 @@ class ESStorage(models.Model, StorageResultTable):
                 actions,
                 new_index_name,
             )
-            raise elasticsearch5.NotFoundError(new_index_name)
+            raise elasticsearch5.NotFoundError(404, f"index {new_index_name} not found", None)
 
         try:
             response = self.es_client.indices.update_aliases(

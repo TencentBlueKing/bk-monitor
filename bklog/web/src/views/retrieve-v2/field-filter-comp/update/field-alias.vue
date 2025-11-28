@@ -220,14 +220,14 @@ const checkQueryAliasItem = (row) => {
       row.aliasErr = $t("别名与字段名重复");
       return false;
     }
-    if (
-      globalsData.value.field_built_in.find(
-        (item) => item.id === queryAlias.toLocaleLowerCase()
-      )
-    ) {
-      row.aliasErr = $t("别名不能与内置字段名相同");
-      return false;
-    }
+    // if (
+    //   globalsData.value.field_built_in.find(
+    //     (item) => item.id === queryAlias.toLocaleLowerCase()
+    //   )
+    // ) {
+    //   row.aliasErr = $t("别名不能与内置字段名相同");
+    //   return false;
+    // }
   }
   row.aliasErr = "";
   return true;

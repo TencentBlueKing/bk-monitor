@@ -149,7 +149,7 @@ export default {
     },
     // 跳转到 es 源
     jumpToEsAccess() {
-      window.open(
+      window.iframeParent.open(
         this.$router.resolve({
           name: 'es-cluster-manage',
           query: {
@@ -173,7 +173,7 @@ export default {
             },
           ],
         });
-        window.open(res.data.apply_url);
+        window.iframeParent.open(res.data.apply_url);
       } catch (err) {
         console.warn(err);
       } finally {
