@@ -26,20 +26,21 @@
 
 1. auto_rules 在后端没有作用，仅用于存储与返回
 2. auto_rules 在上游自行匹配 default 数据分组中的指标
-3. 请求创建和更新时，需要将完整指标都放入的 manual_list（后端会进行逻辑校验——新增的指标是否都在 default 数据分组）
+3. 请求创建和更新时，需要将完整指标都放入 manual_list（后端会进行逻辑校验——新增的指标是否都在 default 数据分组）
 
 #### dimension_config 说明
+> 创建和更新都需要传递完整的 dimension_config
 
 对于创建：
 
 1. dimension_config 视为 X
-2. manual_list 视为 Y
+2. manual_list 的维度集合视为 Y
 3. 最终维度集合是 X | Y
 
 对于更新
 
 1. 先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，视为 X
-2. manual_list 视为 Y
+2. manual_list 的维度集合视为 Y
 3. 当 delete_unmatched_dimensions 为 true 则最终集合为 (X & Y) | Y，反之 X | Y
 
 ### 请求参数示例
@@ -122,7 +123,7 @@
       "create_from": "user"
     },
     {
-      "scope_id": 1,
+      "scope_id": 2,
       "group_id": 123,
       "scope_name": "新的指标分组名2",
       "dimension_config": {},
