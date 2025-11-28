@@ -1060,6 +1060,7 @@ class TimeSeriesScope(models.Model):
         """判断 scope_name 是否为 default 分组
         :return: 如果是 default 分组返回 True，否则返回 False
         """
+        # todo hhh 这里的过滤逻辑需要支持 APM service_name
         return scope_name == TimeSeriesMetric.DEFAULT_SCOPE or scope_name.endswith(
             f"||{TimeSeriesMetric.DEFAULT_SCOPE}"
         )
@@ -1079,42 +1080,50 @@ class TimeSeriesScope(models.Model):
 
     def update_matched_dimension_config(self, delete_unmatched_dimensions=False):
         """
-        1. 获取分组下的 dimension_config 字典 X
-        2. 根据 manual_list 和 auto_rules 获取匹配的指标列表的 tag_list 做并集得到 Y
-        3. 根据 delete_unmatched_dimensions 参数决定是否删除不再匹配的维度配置
-           - 如果为 True: X & Y 做交集得到 Z，Z | Y 的并集得到新的 dimension_config
-           - 如果为 False: 保留 X 中的所有配置，并添加 Y 中的新维度
+        更新维度配置
+
+        创建维度配置：
+        1. dimension_config 视为 X
+        2. manual_list 视为 Y（从 manual_list 中的指标获取维度）
+        3. 最终维度集合是 X | Y
+
+        更新维度配置：
+        1. 先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，视为 X
+        2. manual_list 视为 Y
+        3. 当 delete_unmatched_dimensions 为 true 则最终集合为 (X & Y) | Y，反之 X | Y
 
         :param delete_unmatched_dimensions: 是否删除不再匹配的维度配置，默认为 False
         """
         # 1. 获取当前分组下已有的维度配置（X）
         current_dimension_config = self.dimension_config or {}
 
-        # 2. 根据 manual_list 和 auto_rules 获取匹配的指标列表的 tag_list 做并集（Y）
+        # 2. 根据 manual_list 获取匹配的指标列表的 tag_list 做并集（Y）
+        # 注意：只使用 manual_list，不使用 auto_rules
         matched_metric_dimensions = set()
 
-        # 查询该分组下可操作的指标
-        available_metrics = TimeSeriesMetric.objects.filter(group_id=self.group_id).filter(
-            TimeSeriesMetric.get_enable_edit_scope_filter()
-        )
+        if self.manual_list:
+            # 查询该分组下可操作的指标
+            available_metrics = TimeSeriesMetric.objects.filter(group_id=self.group_id).filter(
+                TimeSeriesMetric.get_enable_edit_scope_filter()
+            )
 
-        # 遍历所有指标，找出匹配的指标的维度
-        for metric in available_metrics:
-            # 判断指标是否匹配当前 scope 的规则
-            if self._match_metric(metric.field_name):
-                # 将该指标的所有维度加入到集合中
-                if metric.tag_list:
-                    matched_metric_dimensions.update(metric.tag_list)
+            # 遍历所有指标，找出在 manual_list 中的指标的维度
+            for metric in available_metrics:
+                # 判断指标是否在 manual_list 中
+                if metric.field_name in self.manual_list:
+                    # 将该指标的所有维度加入到集合中
+                    if metric.tag_list:
+                        matched_metric_dimensions.update(metric.tag_list)
 
         # 3. 计算新的维度配置
         if delete_unmatched_dimensions:
-            # 只保留匹配的维度（新维度使用空配置，已有维度保留原配置）
+            # (X & Y) | Y = Y（只保留 Y 中的维度）
             updated_dimension_config = {
                 dimension_name: current_dimension_config.get(dimension_name, {})
                 for dimension_name in matched_metric_dimensions
             }
         else:
-            # 保留所有已有的维度配置，并添加新匹配的维度
+            # X | Y（保留 X 中的所有配置，并添加 Y 中的新维度）
             updated_dimension_config = current_dimension_config.copy()
             for dimension_name in matched_metric_dimensions:
                 updated_dimension_config.setdefault(dimension_name, {})
@@ -1145,6 +1154,79 @@ class TimeSeriesScope(models.Model):
                     )
                     continue
         return False
+
+    @classmethod
+    def _get_ungrouped_metrics(cls, group_id: int) -> set:
+        """获取未分组下的指标
+
+        未分组指标 = 该 group_id default 数据分组的指标 - 该 group_id 下所有 manual_list 的并集
+
+        :param group_id: 自定义时序数据源ID
+        :return: 未分组指标的集合
+        """
+        # 1. 查询该分组下所有在 default 数据分组中的指标
+        # todo hhh 这里的过滤逻辑需要支持 APM service_name
+        default_metrics = (
+            TimeSeriesMetric.objects.filter(group_id=group_id)
+            .filter(TimeSeriesMetric.get_enable_edit_scope_filter())
+            .values_list("field_name", flat=True)
+        )
+
+        default_metric_set = set(default_metrics)
+
+        # 2. 查询该 group_id 下所有 scope 的 manual_list 并集
+        # 注意：在更新场景中，新的 manual_list 还未保存到数据库，所以数据库中的值仍是旧的
+        # 因此直接使用数据库查询结果即可
+        all_manual_lists = cls.objects.filter(group_id=group_id).values_list("manual_list", flat=True)
+        all_manual_metrics = set()
+        for manual_list in all_manual_lists:
+            if manual_list:
+                all_manual_metrics.update(manual_list)
+
+        # 3. 计算未分组指标 = default 指标 - 所有 manual_list 的并集
+        ungrouped_metrics = default_metric_set - all_manual_metrics
+
+        return ungrouped_metrics
+
+    @classmethod
+    def _validate_manual_list_metrics_in_default_scope(
+        cls, group_id: int, manual_list: list | None, old_manual_list: list | None = None
+    ):
+        """校验 manual_list 中的指标是否都在 default 数据分组
+
+        对于新增的指标，需要确保它们在未分组下的指标列表中
+
+        :param group_id: 自定义时序数据源ID
+        :param manual_list: 新的 manual_list
+        :param old_manual_list: 旧的 manual_list，用于计算新增的指标。如果为 None，则视为创建场景（旧列表为空）
+        """
+        if not manual_list:
+            return
+
+        # 获取旧的 manual_list（从参数获取，如果没有提供则视为空列表）
+        old_manual_list = old_manual_list or []
+
+        # 获取新的 manual_list
+        new_manual_list = manual_list or []
+
+        # 计算新增的指标
+        old_manual_set = set(old_manual_list)
+        new_manual_set = set(new_manual_list)
+        added_metrics = new_manual_set - old_manual_set
+
+        # 如果有新增的指标，需要检查它们是否在未分组下的指标列表中
+        if added_metrics:
+            ungrouped_metrics = cls._get_ungrouped_metrics(group_id=group_id)
+
+            # 检查新增的指标是否在未分组列表中
+            invalid_added_metrics = [metric for metric in added_metrics if metric not in ungrouped_metrics]
+
+            if invalid_added_metrics:
+                raise ValueError(
+                    _("新增的指标不在未分组列表中，可能已被其他分组使用: group_id={}, invalid_added_metrics={}").format(
+                        group_id, invalid_added_metrics
+                    )
+                )
 
     @classmethod
     def bulk_ensure_or_merge_scopes(
@@ -1262,6 +1344,15 @@ class TimeSeriesScope(models.Model):
         if duplicate_scopes:
             raise ValueError(_("指标分组名已存在，请确认后重试: {}").format(", ".join(duplicate_scopes)))
 
+        # 1.3 校验 manual_list 中的指标是否都在 default 数据分组
+        for scope_data in scopes:
+            manual_list = scope_data.get("manual_list")
+            if manual_list is not None:
+                # 创建场景，没有旧的 manual_list
+                cls._validate_manual_list_metrics_in_default_scope(
+                    group_id=scope_data["group_id"], manual_list=manual_list, old_manual_list=None
+                )
+
     @classmethod
     def _create_scope_data(cls, scopes: list[dict]) -> dict:
         """创建分组数据
@@ -1280,8 +1371,9 @@ class TimeSeriesScope(models.Model):
                 auto_rules=scope_data.get("auto_rules", []),
                 create_from=cls.CREATE_FROM_USER,
             )
-            # 如果提供了 manual_list 或 auto_rules，在创建前就计算维度配置
-            if scope_obj.manual_list or scope_obj.auto_rules:
+            # 创建时：X | Y（dimension_config 视为 X，manual_list 视为 Y）
+            # 如果提供了 manual_list，需要计算维度配置
+            if scope_obj.manual_list:
                 scope_obj.update_matched_dimension_config(delete_unmatched_dimensions=False)
 
             scopes_to_create.append(scope_obj)
@@ -1447,6 +1539,18 @@ class TimeSeriesScope(models.Model):
                     _("指标分组名已存在: group_id={}, scope_name={}").format(scope_obj.group_id, new_scope_name)
                 )
 
+        # 1.5 校验 manual_list 中的指标是否都在 default 数据分组
+        for scope_data in scopes:
+            manual_list = scope_data.get("manual_list")
+            if manual_list is not None:
+                scope_id = scope_data["scope_id"]
+                scope_obj = existing_scopes[scope_id]
+                # 更新场景，需要获取旧的 manual_list
+                old_manual_list = scope_obj.manual_list or []
+                cls._validate_manual_list_metrics_in_default_scope(
+                    group_id=scope_obj.group_id, manual_list=manual_list, old_manual_list=old_manual_list
+                )
+
         return existing_scopes
 
     @classmethod
@@ -1474,18 +1578,22 @@ class TimeSeriesScope(models.Model):
                 update_fields.add("scope_name")
                 has_updates = True
 
-            # 更新 dimension_config
+            # 更新 dimension_config（先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，视为 X）
+            dimension_config_updated = False
             if scope_data.get("dimension_config") is not None:
                 scope_obj.dimension_config = scope_data["dimension_config"]
                 update_fields.add("dimension_config")
                 has_updates = True
+                dimension_config_updated = True
 
             # 更新 manual_list
             manual_list = scope_data.get("manual_list")
+            manual_list_updated = False
             if manual_list is not None:
                 scope_obj.manual_list = manual_list
                 update_fields.add("manual_list")
                 has_updates = True
+                manual_list_updated = True
 
             # 更新 auto_rules
             auto_rules = scope_data.get("auto_rules")
@@ -1494,8 +1602,11 @@ class TimeSeriesScope(models.Model):
                 update_fields.add("auto_rules")
                 has_updates = True
 
-            # 如果更新了 manual_list 或 auto_rules，需要重新计算维度配置
-            if manual_list is not None or auto_rules is not None:
+            # 如果更新了 dimension_config 或 manual_list，且 manual_list 存在，需要重新计算维度配置
+            # 更新时：先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，视为 X
+            # manual_list 视为 Y（使用当前的 manual_list，可能是旧的也可能是新的）
+            # 当 delete_unmatched_dimensions 为 true 则最终集合为 (X & Y) | Y，反之 X | Y
+            if (dimension_config_updated or manual_list_updated) and scope_obj.manual_list:
                 delete_unmatched_dimensions = scope_data.get("delete_unmatched_dimensions", False)
                 # 直接在内存对象上更新维度配置
                 scope_obj.update_matched_dimension_config(delete_unmatched_dimensions=delete_unmatched_dimensions)
@@ -1696,6 +1807,7 @@ class TimeSeriesMetric(models.Model):
 
         :return: Django Q 对象
         """
+        # todo hhh 对于 APM 过滤 default 数据分组时，还需要传递 service_name
         return Q(field_scope="default") | Q(field_scope__endswith="||default")
 
     def make_table_id(self, bk_biz_id, bk_data_id, table_name=None):
