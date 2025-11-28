@@ -1068,17 +1068,6 @@ class TimeSeriesScope(models.Model):
         if not cls.SCOPE_NAME_REGEX.match(scope_name):
             raise ValueError(_("指标分组名只能包含中文、英文、数字和下划线"))
 
-    @staticmethod
-    def _is_editable_scope(scope_name: str) -> bool:
-        """判断 scope 是否为可编辑分组（default 或 ||default 结尾）
-
-        :param scope_name: 指标分组名称
-        :return: 如果是可编辑分组返回 True，否则返回 False
-        """
-        if not scope_name:
-            return False
-        return scope_name == "default" or scope_name.endswith("||default")
-
     def update_matched_dimension_config(self, delete_unmatched_dimensions=False):
         """
         1. 获取分组下的 dimension_config 字典 X
@@ -1153,7 +1142,6 @@ class TimeSeriesScope(models.Model):
         cls,
         group_id: int,
         scope_dimensions_map: dict,
-        metrics_records: list = None,
     ):
         """批量确保 TimeSeriesScope 记录存在，如果存在则合并维度配置
 
@@ -1161,7 +1149,6 @@ class TimeSeriesScope(models.Model):
 
         :param group_id: 自定义分组ID
         :param scope_dimensions_map: scope 名称到维度列表的映射字典，格式: {scope_name: [dimension1, dimension2, ...]}
-        :param metrics_records: 即将创建/更新的 TimeSeriesMetric 记录列表（可选）
         """
         if not scope_dimensions_map:
             return
@@ -1174,37 +1161,6 @@ class TimeSeriesScope(models.Model):
             scope.scope_name: scope for scope in cls.objects.filter(group_id=group_id, scope_name__in=scope_names)
         }
 
-        # 如果包含可编辑分组（default 或 ||default 结尾），需要获取该分组下的所有指标名称
-        # 使用字典存储每个可编辑分组对应的指标名称列表: {scope_name: [metric_name1, metric_name2, ...]}
-        editable_scope_metrics_map = {}
-
-        # 获取所有可编辑分组
-        editable_scopes = [name for name in scope_names if cls._is_editable_scope(name)]
-
-        if editable_scopes:
-            # 从即将创建/更新的记录中提取可编辑分组的指标名称
-            if metrics_records:
-                for record in metrics_records:
-                    # 判断是否为可编辑的 scope，并且该 scope 在当前处理的 scope_names 中
-                    if cls._is_editable_scope(record.field_scope) and record.field_scope in editable_scopes:
-                        editable_scope_metrics_map.setdefault(record.field_scope, []).append(record.field_name)
-
-            # 查询数据库中已存在的可编辑分组指标，按 field_scope 分组
-            existing_metrics = (
-                TimeSeriesMetric.objects.filter(group_id=group_id)
-                .filter(TimeSeriesMetric.get_enable_edit_scope_filter())
-                .values_list("field_scope", "field_name")
-            )
-
-            # 将已存在的指标按分组归类
-            for field_scope, field_name in existing_metrics:
-                if field_scope in editable_scopes:
-                    editable_scope_metrics_map.setdefault(field_scope, []).append(field_name)
-
-            # 对每个分组的指标列表去重
-            for scope_name in editable_scope_metrics_map:
-                editable_scope_metrics_map[scope_name] = list(set(editable_scope_metrics_map[scope_name]))
-
         # 准备批量更新和创建的记录
         scopes_to_update = []
         scopes_to_create = []
@@ -1213,40 +1169,22 @@ class TimeSeriesScope(models.Model):
             if scope_name in existing_scopes:
                 # 记录已存在，合并维度配置（添加新维度，保留已有配置）
                 scope = existing_scopes[scope_name]
-                if scope.dimension_config is None:
-                    scope.dimension_config = {}
+                existing_config = scope.dimension_config or {}
                 for dim in dimensions:
-                    scope.dimension_config.setdefault(dim, {})
+                    existing_config.setdefault(dim, {})
+                scope.dimension_config = existing_config
                 # 始终使用数据分组
                 scope.create_from = cls.CREATE_FROM_DATA
-
-                # 如果是可编辑分组（default 或 ||default 结尾），更新 manual_list
-                if scope_name in editable_scope_metrics_map:
-                    scope_metric_names = editable_scope_metrics_map[scope_name]
-                    if scope_metric_names:
-                        # 合并现有的 manual_list 和该分组的指标名称，去重
-                        existing_manual_list = set(scope.manual_list or [])
-                        existing_manual_list.update(scope_metric_names)
-                        scope.manual_list = list(existing_manual_list)
-
                 scopes_to_update.append(scope)
             else:
                 # 记录不存在，准备创建新记录
                 dimension_config = {dim: {} for dim in dimensions}
-                manual_list = []
-
-                # 如果是可编辑分组（default 或 ||default 结尾），设置 manual_list
-                if scope_name in editable_scope_metrics_map:
-                    scope_metric_names = editable_scope_metrics_map[scope_name]
-                    if scope_metric_names:
-                        manual_list = scope_metric_names
-
                 scopes_to_create.append(
                     cls(
                         group_id=group_id,
                         scope_name=scope_name,
                         dimension_config=dimension_config,
-                        manual_list=manual_list,
+                        manual_list=[],
                         auto_rules=[],
                         create_from=cls.CREATE_FROM_DATA,
                     )
@@ -1254,16 +1192,9 @@ class TimeSeriesScope(models.Model):
 
         # 批量更新已存在的记录
         if scopes_to_update:
-            # 如果有可编辑分组（default 或 ||default 结尾）需要更新 manual_list，则需要在 bulk_update 中包含该字段
-            update_fields = ["dimension_config", "create_from"]
-            # 检查是否有任何可编辑分组有指标需要更新
-            has_metrics_to_update = any(
-                scope_name in editable_scope_metrics_map and editable_scope_metrics_map[scope_name]
-                for scope_name in scope_names
+            cls.objects.bulk_update(
+                scopes_to_update, ["dimension_config", "create_from"], batch_size=BULK_UPDATE_BATCH_SIZE
             )
-            if has_metrics_to_update:
-                update_fields.append("manual_list")
-            cls.objects.bulk_update(scopes_to_update, update_fields, batch_size=BULK_UPDATE_BATCH_SIZE)
 
         # 批量创建新记录
         if scopes_to_create:
@@ -1869,7 +1800,6 @@ class TimeSeriesMetric(models.Model):
             TimeSeriesScope.bulk_ensure_or_merge_scopes(
                 group_id=group_id,
                 scope_dimensions_map=scope_dimensions_list_map,
-                metrics_records=records,
             )
 
         # 开始批量创建指标
@@ -2018,7 +1948,6 @@ class TimeSeriesMetric(models.Model):
             TimeSeriesScope.bulk_ensure_or_merge_scopes(
                 group_id=group_id,
                 scope_dimensions_map=scope_dimensions_list_map,
-                metrics_records=records,
             )
 
         # 批量更新指定的字段
