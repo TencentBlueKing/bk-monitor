@@ -1602,7 +1602,7 @@ class CreateOrUpdateTimeSeriesScopeResource(Resource):
         bk_tenant_id = TenantIdField(label="租户ID")
 
         class ScopeSerializer(serializers.Serializer):
-            scope_id = serializers.CharField(required=False, label="指标分组ID")  #  todo
+            scope_id = serializers.CharField(required=False, label="指标分组ID")
             group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
             scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
             dimension_config = serializers.DictField(required=False, label="分组下的维度配置", default={})
@@ -1622,24 +1622,17 @@ class CreateOrUpdateTimeSeriesScopeResource(Resource):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         scopes = validated_request_data["scopes"]
 
-        # 查询哪些分组已存在
-        scope_conditions = Q()
-        for scope_data in scopes:
-            scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=scope_data["scope_name"])
-
-        existing_scopes = {
-            (s.group_id, s.scope_name): s for s in models.TimeSeriesScope.objects.filter(scope_conditions)
-        }
-
-        # 分离创建和更新的分组
+        # 分离创建和更新的分组（通过 scope_id 判断）
         scopes_to_create = []
         scopes_to_update = []
 
         for scope_data in scopes:
-            scope_key = (scope_data["group_id"], scope_data["scope_name"])
-            if scope_key in existing_scopes:
+            scope_id = scope_data.get("scope_id")
+            if scope_id:
+                # scope_id 存在，执行更新操作
                 scopes_to_update.append(scope_data)
             else:
+                # scope_id 不存在，执行创建操作
                 scopes_to_create.append(scope_data)
 
         results = []

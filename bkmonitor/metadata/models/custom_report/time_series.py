@@ -1054,7 +1054,7 @@ class TimeSeriesScope(models.Model):
     def is_create_from_data(self):
         """检查是否允许编辑"""
         return self.create_from == TimeSeriesScope.CREATE_FROM_DATA
-    
+
     @staticmethod
     def _is_default_scope(scope_name: str) -> bool:
         """判断 scope_name 是否为 default 分组
@@ -1305,26 +1305,20 @@ class TimeSeriesScope(models.Model):
         """构建分组结果列表
 
         :param scopes: 原始分组列表
-        :param scope_objects: 分组对象字典 {(group_id, scope_name): scope_obj}
+        :param scope_objects: 分组对象字典，可能是 {scope_id: scope_obj} 或 {(group_id, scope_name): scope_obj}
         :return: 结果列表
         """
         results = []
         for scope_data in scopes:
-            # 优先尝试使用 new_scope_name（更新场景），如果找不到则使用 scope_name（创建场景）
-            new_scope_name = scope_data.get("new_scope_name")
-            scope_name = scope_data["scope_name"]
-            group_id = scope_data["group_id"]
-
-            # 先尝试用 new_scope_name 查找（更新场景）
-            if new_scope_name:
-                scope_key = (group_id, new_scope_name)
-                time_series_scope = scope_objects.get(scope_key)
-                # 如果找不到，说明是创建场景，使用原始 scope_name
-                if time_series_scope is None:
-                    scope_key = (group_id, scope_name)
-                    time_series_scope = scope_objects[scope_key]
+            # 判断 scope_objects 的 key 类型
+            # 如果有 scope_id，说明是更新场景，使用 scope_id 查找
+            if "scope_id" in scope_data:
+                scope_id = scope_data["scope_id"]
+                time_series_scope = scope_objects[scope_id]
             else:
-                # 没有 new_scope_name，直接使用 scope_name
+                # 否则是创建场景，使用 (group_id, scope_name) 查找
+                scope_name = scope_data["scope_name"]
+                group_id = scope_data["group_id"]
                 scope_key = (group_id, scope_name)
                 time_series_scope = scope_objects[scope_key]
 
@@ -1376,53 +1370,79 @@ class TimeSeriesScope(models.Model):
 
         :param bk_tenant_id: 租户ID
         :param scopes: 批量修改的分组列表
-        :return: existing_scopes 现有分组对象字典
+        :return: existing_scopes 现有分组对象字典 {scope_id: scope_obj}
         """
 
         cls._common_check_scopes(bk_tenant_id, scopes)
 
-        # 1.1 批量查询要更新的记录
-        scope_conditions = Q()
-        for scope_data in scopes:
-            scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=scope_data["scope_name"])
-
-        existing_scopes = {(s.group_id, s.scope_name): s for s in cls.objects.filter(scope_conditions)}
+        # 1.1 批量查询要更新的记录（通过 scope_id）
+        scope_ids = [scope_data["scope_id"] for scope_data in scopes]
+        existing_scopes = {s.id: s for s in cls.objects.filter(id__in=scope_ids)}
 
         # 1.2 检查是否所有 scope 都存在
-        found_scopes = set(existing_scopes.keys())
-        requested_scopes = set((scope_data["group_id"], scope_data["scope_name"]) for scope_data in scopes)
-        missing_scopes = requested_scopes - found_scopes
-        if missing_scopes:
-            missing_names = [f"{gid}:{name}" for gid, name in missing_scopes]
-            raise ValueError(_("指标分组不存在，请确认后重试: {}").format(", ".join(missing_names)))
+        found_scope_ids = set(existing_scopes.keys())
+        requested_scope_ids = set(scope_ids)
+        missing_scope_ids = requested_scope_ids - found_scope_ids
+        if missing_scope_ids:
+            raise ValueError(
+                _("指标分组不存在，请确认后重试: scope_id={}").format(", ".join(map(str, missing_scope_ids)))
+            )
 
-        # 1.3 检查新分组名（如果提供了 new_scope_name）
+        # 1.3 检查批次内部是否有重复的 scope_name（同一 group_id 下）
+        # 构建批次内的最终 scope_name 映射：{(group_id, final_scope_name): [scope_id1, scope_id2, ...]}
+        batch_scope_names = {}
         for scope_data in scopes:
-            new_scope_name = scope_data.get("new_scope_name")
+            scope_id = scope_data["scope_id"]
+            scope_obj = existing_scopes[scope_id]
+
+            # 确定最终的 scope_name（如果提供了新名称则使用新名称，否则使用原名称）
+            final_scope_name = scope_data.get("scope_name", scope_obj.scope_name)
+
+            key = (scope_obj.group_id, final_scope_name)
+            batch_scope_names.setdefault(key, []).append(scope_id)
+
+        # 检查批次内是否有重复
+        for (group_id, scope_name), scope_ids in batch_scope_names.items():
+            if len(scope_ids) > 1:
+                raise ValueError(
+                    _("批次内存在重复的分组名: group_id={}, scope_name={}, scope_ids={}").format(
+                        group_id, scope_name, ", ".join(map(str, scope_ids))
+                    )
+                )
+
+        # 1.4 检查分组名（如果要修改 scope_name）
+        for scope_data in scopes:
+            scope_id = scope_data["scope_id"]
+            new_scope_name = scope_data.get("scope_name")
+
             # 提前跳过：没有提供新分组名
             if new_scope_name is None:
                 continue
 
-            scope_key = (scope_data["group_id"], scope_data["scope_name"])
-            scope_obj = existing_scopes[scope_key]
-
-            # 检查：data 类型的 scope 不允许修改 scope_name
-            if scope_obj.is_create_from_data():
-                raise ValueError(
-                    _("数据自动创建的分组不允许修改分组名: group_id={}, scope_name={}").format(
-                        scope_obj.group_id, scope_obj.scope_name
-                    )
-                )
+            scope_obj = existing_scopes[scope_id]
 
             # 提前跳过：新分组名与当前分组名相同
             if new_scope_name == scope_obj.scope_name:
                 continue
 
+            # 检查：data 类型的 scope 不允许修改 scope_name
+            if scope_obj.is_create_from_data():
+                raise ValueError(
+                    _("数据自动创建的分组不允许修改分组名: scope_id={}, scope_name={}").format(
+                        scope_obj.id, scope_obj.scope_name
+                    )
+                )
+
             # 验证新分组名格式
             cls._validate_scope_name(new_scope_name)
 
-            # 检查新分组名是否已存在
-            if cls.objects.filter(group_id=scope_obj.group_id, scope_name=new_scope_name).exists():
+            # 检查新分组名是否已存在于数据库中（同一 group_id 下，排除本批次要更新的记录）
+            all_scope_ids_in_batch = [s["scope_id"] for s in scopes]
+            if (
+                cls.objects.filter(group_id=scope_obj.group_id, scope_name=new_scope_name)
+                .exclude(id__in=all_scope_ids_in_batch)
+                .exists()
+            ):
                 raise ValueError(
                     _("指标分组名已存在: group_id={}, scope_name={}").format(scope_obj.group_id, new_scope_name)
                 )
@@ -1434,22 +1454,22 @@ class TimeSeriesScope(models.Model):
         """更新分组数据
 
         :param scopes: 批量修改的分组列表
-        :param existing_scopes: 现有分组对象字典
-        :return: 更新后的分组字典 {(group_id, scope_name): scope_obj}
+        :param existing_scopes: 现有分组对象字典 {scope_id: scope_obj}
+        :return: 更新后的分组字典 {scope_id: scope_obj}
         """
         # 2.1 准备更新数据
         scopes_to_update = []  # 需要批量更新的 scope 对象列表
         update_fields = set()  # 需要更新的字段集合
 
         for scope_data in scopes:
-            scope_key = (scope_data["group_id"], scope_data["scope_name"])
-            scope_obj = existing_scopes[scope_key]
+            scope_id = scope_data["scope_id"]
+            scope_obj = existing_scopes[scope_id]
 
             has_updates = False
 
-            # 更新 scope_name（如果提供了 new_scope_name）
-            new_scope_name = scope_data.get("new_scope_name")
-            if new_scope_name is not None:
+            # 更新 scope_name
+            new_scope_name = scope_data.get("scope_name")
+            if new_scope_name is not None and new_scope_name != scope_obj.scope_name:
                 scope_obj.scope_name = new_scope_name
                 update_fields.add("scope_name")
                 has_updates = True
@@ -1493,14 +1513,9 @@ class TimeSeriesScope(models.Model):
                 batch_size=BULK_UPDATE_BATCH_SIZE,
             )
 
-        # 2.3 最后统一查询一次以获取所有最新数据
-        scope_conditions = Q()
-        for scope_data in scopes:
-            # 如果修改了分组名，需要使用新的分组名查询
-            final_scope_name = scope_data.get("new_scope_name") or scope_data["scope_name"]
-            scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=final_scope_name)
-
-        updated_scopes = {(s.group_id, s.scope_name): s for s in cls.objects.filter(scope_conditions)}
+        # 2.3 最后统一查询一次以获取所有最新数据（通过 scope_id）
+        scope_ids = [scope_data["scope_id"] for scope_data in scopes]
+        updated_scopes = {s.id: s for s in cls.objects.filter(id__in=scope_ids)}
 
         return updated_scopes
 
@@ -1516,9 +1531,8 @@ class TimeSeriesScope(models.Model):
         :param bk_tenant_id: 租户ID
         :param scopes: 批量修改的分组列表，格式:
             [{
-                "group_id": 1,
-                "scope_name": "test_scope",
-                "new_scope_name": "new_test_scope",  # 可选，用于修改分组名
+                "scope_id": 1,  # 必填，分组ID
+                "scope_name": "new_test_scope",  # 可选，用于修改分组名
                 "dimension_config": {},  # 可选
                 "manual_list": [],  # 可选
                 "auto_rules": [],  # 可选
