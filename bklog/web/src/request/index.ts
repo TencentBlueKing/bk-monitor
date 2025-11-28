@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { join } from '@/global/utils/path';
 import { random } from '@/common/util';
+import { join } from '@/global/utils/path';
 import store from '@/store';
 import { FetchResponse } from './types';
 
@@ -54,12 +54,22 @@ const buildRequestConfig = (
   params?: any,
   method: 'POST' | 'GET' = 'POST',
   appendHeaders?: Record<string, string>,
+  signal?: AbortSignal,
 ) => {
   // URL 处理（对应 axios 拦截器中的 URL 检查）
-  // if (!/^(https|http)?:\/\//.test(url)) {
-  //   const prefix = url.indexOf('?') === -1 ? '?' : '&';
-  // }
-  const fullUrl = join(baseURL, url);
+  // 如果URL是外部API（如 /api/bk-user-web），直接使用，不拼接 baseURL
+  // 如果URL是相对路径，拼接 baseURL
+  let fullUrl: string;
+  if (url.startsWith('/api/bk-user-web')) {
+    // 外部API，直接使用完整路径
+    fullUrl = url;
+  } else if (/^(https|http)?:\/\//.test(url)) {
+    // 绝对URL，直接使用
+    fullUrl = url;
+  } else {
+    // 相对路径，拼接 baseURL
+    fullUrl = join(baseURL, url);
+  }
 
   // 构建 headers（对应 axios 配置）
   const headers: Record<string, string> = {
@@ -92,6 +102,7 @@ const buildRequestConfig = (
     headers: { ...headers, ...appendHeaders },
     credentials: 'include', // 对应 axios withCredentials: true
     body: params ? JSON.stringify(params) : undefined,
+    signal, // 支持 AbortController
   };
 
   return { url: fullUrl, config: fetchConfig };
@@ -99,7 +110,12 @@ const buildRequestConfig = (
 
 /**
  * @description 请求 API
- * @param args {{ url: string, params?: any, method: 'POST' | 'GET', headers?: Record<string, string> }}
+ * @param args 请求参数
+ * @param args.url 请求 URL
+ * @param args.params 请求参数
+ * @param args.method 请求方法
+ * @param args.headers 请求头
+ * @param args.signal AbortSignal 用于取消请求
  * @returns {Promise<Response>}
  */
 export const request = (args: {
@@ -107,9 +123,10 @@ export const request = (args: {
   params?: any;
   method?: 'POST' | 'GET';
   headers?: Record<string, string>;
+  signal?: AbortSignal;
 }) => {
-  const { url, params = {}, method = 'POST', headers = {} } = args;
-  const { url: fullUrl, config } = buildRequestConfig(url, params, method, headers);
+  const { url, params = {}, method = 'POST', headers = {}, signal } = args;
+  const { url: fullUrl, config } = buildRequestConfig(url, params, method, headers, signal);
   return fetch(fullUrl, config);
 };
 
@@ -137,4 +154,19 @@ export const requestText = (args: Parameters<typeof request>[0]): Promise<string
   return request(args)
     .then(response => response.text())
     .then(data => data);
+};
+
+/**
+ * @description 请求 API，返回 Blob 响应（用于处理长整型精度问题）
+ * @param args 请求参数
+ * @returns {Promise<Response>} 返回 Response 对象，可以通过 response.blob() 获取 Blob
+ */
+export const requestBlob = (args: Parameters<typeof request>[0]): Promise<Response> => {
+  const { headers = {} } = args;
+  // 确保 Accept header 包含 application/json，以便后端返回正确的 Content-Type
+  const blobHeaders = {
+    Accept: 'application/json',
+    ...headers,
+  };
+  return request({ ...args, headers: blobHeaders });
 };

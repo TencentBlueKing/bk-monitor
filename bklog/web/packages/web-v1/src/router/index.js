@@ -35,7 +35,7 @@ import VueRouter from 'vue-router';
 // import reportLogStore from '@/store/modules/report-log';
 import exception from '@/views/404';
 import unAuthorized from '@/views/un-authorized';
-
+import manageRoutes from './manage';
 import retrieveRoutes from './retrieve';
 import http from '@/api';
 import store from '@/store';
@@ -84,6 +84,7 @@ const getRoutes = (spaceId, bkBizId) => {
     },
     // 检索模块路由
     ...retrieveRoutes(),
+    ...manageRoutes(),
     {
       path: '/un-authorized',
       name: 'un-authorized',

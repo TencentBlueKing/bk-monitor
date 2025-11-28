@@ -28,7 +28,7 @@ import { Component, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type.ts';
-import { isElement, debounce, throttle, isEqual } from 'lodash-es';
+import { debounce, isElement, isEqual, throttle } from 'lodash-es';
 
 import SqlPanel from './SqlPanel.vue';
 import GraphChart from './chart/index.tsx';
@@ -45,12 +45,13 @@ interface IProps {
   data: any;
 }
 
-enum OptionList {
+/* eslint-disable no-unused-vars */
+export enum OptionList {
   Analysis = 'analysis',
   Overview = 'overview',
 }
 
-enum GraphCategory {
+export enum GraphCategory {
   BAR = 'bar',
   CHART = 'chart',
   LINE = 'line',
@@ -59,6 +60,7 @@ enum GraphCategory {
   PIE = 'pie',
   TABLE = 'table',
 }
+/* eslint-enable no-unused-vars */
 
 @Component({
   components: {
@@ -117,12 +119,12 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     scrollTop: 0,
   };
 
-  debounceCallback = debounce(entry => {
+  debounceCallback = debounce((entry) => {
     const { offsetWidth, offsetHeight } = entry.target;
     Object.assign(this.canvasBodyStyle, { with: offsetWidth, height: offsetHeight });
   }, 120);
 
-  throttleScrollCallback = throttle(event => {
+  throttleScrollCallback = throttle((event) => {
     Object.assign(this.canvasBodyStyle, { scrollTop: (event.target as HTMLElement).scrollTop });
   });
 
@@ -130,10 +132,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   isRequesting = false;
 
   get exceptionStyle() {
-    const scrollHeight =
-      this.canvasBodyStyle.scrollTop < this.sqlEditorHeight ? this.canvasBodyStyle.scrollTop : this.sqlEditorHeight;
+    const scrollHeight = this.canvasBodyStyle.scrollTop < this.sqlEditorHeight
+      ? this.canvasBodyStyle.scrollTop
+      : this.sqlEditorHeight;
 
-      const announcementHeight = this.$store.state.showAlert ? 40 : 0;
+    const announcementHeight = this.$store.state.showAlert ? 40 : 0;
 
     return {
       '--exception-width': `${this.canvasBodyStyle.with}px`,
@@ -305,7 +308,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     }
 
     this.activeGraphCategory = category;
-    this.chartCounter++;
+    this.chartCounter += 1;
     this.$store.commit('updateChartParams', {
       activeGraphCategory: this.activeGraphCategory,
       chartActiveType: this.chartActiveType,
@@ -319,7 +322,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   renderGraphCategory() {
-    return this.graphCategoryList.map(category => {
+    return this.graphCategoryList.map((category) => {
       const item = this.graphCategory[category];
       const isActive = this.activeGraphCategory === category;
       const imgHref = isActive ? item.images.active : item.images.def;
@@ -358,7 +361,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   }
 
   renderFieldsSetting() {
-    return this.fieldList.map(field => {
+    return this.fieldList.map((field) => {
       return (
         <div
           key={field}
@@ -451,7 +454,8 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
   handleCanvasTypeChange(t?: GraphCategory) {
     this.chartActiveType = t;
-    this.chartCounter++;
+    this.chartCounter += 1;
+
     this.$store.commit('updateChartParams', { chartActiveType: t });
   }
 
@@ -481,10 +485,9 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
   getChartConfigValidate() {
     let showException = false;
-    const message =
-      this.activeGraphCategory === GraphCategory.PIE
-        ? this.$t('至少需要一个指标，一个维度')
-        : this.$t('至少需要一个指标，一个维度/时间维度');
+    const message =      this.activeGraphCategory === GraphCategory.PIE
+      ? this.$t('至少需要一个指标，一个维度')
+      : this.$t('至少需要一个指标，一个维度/时间维度');
     let tips: any;
     const isGraphCategoryPie = this.activeGraphCategory === GraphCategory.PIE;
     const isNumber = this.activeGraphCategory === GraphCategory.NUMBER;
@@ -573,7 +576,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
                     {this.$t('我知道了')}
                   </bk-button>
                 </div>,
-              ]
+            ]
             : ''}
         </bk-exception>
       );
@@ -625,12 +628,11 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
     if (this.yFields.length === 0) {
       const filterList = list.filter(
-        item =>
-          !(
-            /date|time/.test(item.field_alias) ||
-            this.xFields.includes(item.field_alias) ||
-            this.dimensions.includes(item.field_alias)
-          ),
+        item => !(
+          /date|time/.test(item.field_alias)
+            || this.xFields.includes(item.field_alias)
+            || this.dimensions.includes(item.field_alias)
+        ),
       );
 
       const defValue = filterList?.find(
@@ -654,13 +656,13 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
     this.setDefaultFieldSettings(this.resultSchema);
     this.chartData = resp;
     this.$set(this, 'chartData', resp);
-    this.chartCounter++;
+    this.chartCounter += 1;
     this.isSqlValueChanged = false;
   }
 
   updateChartData(axis, newValue) {
     this[axis] = (Array.isArray(newValue) ? newValue : [newValue]).filter(t => !!t);
-    this.chartCounter++;
+    this.chartCounter += 1;
 
     this.$store.commit('updateChartParams', { [axis]: this[axis] });
   }
@@ -670,7 +672,7 @@ export default class GraphAnalysisIndex extends tsc<IProps> {
 
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
-      this.resizeObserver = new ResizeObserver(entries => {
+      this.resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
           // 获取元素的新高度
           this.debounceCallback(entry);
