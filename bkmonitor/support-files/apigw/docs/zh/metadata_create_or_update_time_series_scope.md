@@ -16,7 +16,6 @@
 | scope_id                    | int    | 否  | 自定义时序指标分组 ID，存在时更新，反之创建                              
 | group_id                    | int    | 是  | 自定义时序数据源 ID                                          |
 | scope_name                  | string | 是  | 指标分组名，最大长度 255，对于 default 分组无法编辑                     |
-| new_scope_name              | string | 否  | 新的指标分组名（仅更新时生效），最大长度 255                             |
 | dimension_config            | dict   | 否  | 分组下的维度配置，默认为空字典                                      |
 | manual_list                 | list   | 否  | 手动分组的指标列表，默认为空列表                                     |
 | auto_rules                  | list   | 否  | 自动分组的匹配规则列表，默认为空列表                                   |
@@ -68,7 +67,6 @@
       "scope_id": 2,
       "group_id": 123,
       "scope_name": "指标分组名2",
-      "new_scope_name": "新的指标分组名2",
       "delete_unmatched_dimensions": true
     }
   ]
