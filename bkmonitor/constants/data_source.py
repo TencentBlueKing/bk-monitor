@@ -229,6 +229,7 @@ UnifyQueryDataSources = [
     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.BK_APM, DataTypeLabel.EVENT),
+    (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
 ]
 # 灰度统一查询模块数据源
 GrayUnifyQueryDataSources = [
@@ -236,6 +237,7 @@ GrayUnifyQueryDataSources = [
     (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
     (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+    (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
 ]
 
 # V3链路版本

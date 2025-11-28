@@ -46,7 +46,7 @@ from bkmonitor.utils.time_tools import (
 )
 from constants.alert import EventStatus
 from constants.apm import OtlpKey, PreCalculateSpecificField, DEFAULT_DATA_LABEL as APM_METRIC_DATA_LABEL
-from constants.data_source import RECOVERY, DataSourceLabel, DataTypeLabel
+from constants.data_source import RECOVERY, DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
 from constants.strategy import (
     AGG_METHOD_REAL_TIME,
     SPLIT_DIMENSIONS,
@@ -1596,7 +1596,7 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.metrics = [{"field": "_index", "method": "COUNT"}]
+        self.metrics = self.metrics or [{"field": "_index", "method": "COUNT"}]
 
     @property
     def metric_display(self):
@@ -1604,6 +1604,51 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
         if self.interval > 60:
             time_display = _("{}分钟").format(self.interval // 60)
         return _("{}内匹配到关键字次数").format(time_display)
+
+    def to_unify_query_config(self) -> list[dict]:
+        query_list = super().to_unify_query_config()
+        for query in query_list:
+            query["data_source"] = "bklog"
+            # 设置为[]，表示列出所有字段
+            query["keep_columns"] = []
+            query["conditions"]["field_list"] = []
+            if self.metrics:
+                for metric in self.metrics:
+                    if metric.get("search_type") == "total":
+                        if query.get("function"):
+                            if query["function"]:
+                                # method 为sum用于查询时序图和日原始日志，method为count用于查询total
+                                query["function"][0]["method"] = "count"
+                        else:
+                            query["function"] = [{"method": "count"}]
+        return query_list
+
+    def _fetch_white_list(self) -> list[str | int]:
+        """获取日志UnifyQuery查询业务白名单"""
+        return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
+
+    def switch_unify_query(self, bk_biz_id):
+        # 对于日志数据源(BK_LOG_SEARCH)，默认使用统一查询模块
+        if self.data_source_label == DataSourceLabel.BK_LOG_SEARCH:
+            return True
+
+        # 如果使用了查询函数或者需要特殊处理，则使用统一查询
+        if getattr(self, "functions", []):
+            return True
+
+        # 如果数据源在UnifyQueryDataSources列表中，则使用统一查询
+        if (self.data_source_label, self.data_type_label) in UnifyQueryDataSources:
+            return True
+
+        white_list: list[str | int] = self._fetch_white_list()
+        if bk_biz_id in white_list or str(bk_biz_id) in white_list:
+            return True
+
+        return False
+
+    def _fetch_white_list(self) -> list[str | int]:
+        """获取日志UnifyQuery查询业务白名单"""
+        return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
 
 
 class BaseBkMonitorLogDataSource(DataSource, ABC):
