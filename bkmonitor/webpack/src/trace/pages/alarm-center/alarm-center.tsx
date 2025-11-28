@@ -23,10 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type ShallowRef, computed, defineComponent, onBeforeMount, shallowRef, watch } from 'vue';
+import {
+  type ComponentPublicInstance,
+  type ShallowRef,
+  computed,
+  defineComponent,
+  onBeforeMount,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
 
 import { tryURLDecodeParse } from 'monitor-common/utils';
-import FavoriteBox from 'trace/pages/trace-explore/components/favorite-box';
+import FavoriteBox, {
+  type IFavorite,
+  type IFavoriteGroup,
+  EditFavorite,
+} from 'trace/pages/trace-explore/components/favorite-box';
 import { useRoute, useRouter } from 'vue-router';
 
 import { EFieldType, EMode } from '../../components/retrieval-filter/typing';
@@ -62,10 +75,14 @@ import type { SelectOptions } from '@blueking/tdesign-ui/.';
 
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
+import { Message } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
+
 import './alarm-center.scss';
 export default defineComponent({
   name: 'AlarmCenter',
   setup() {
+    const { t } = useI18n();
     const router = useRouter();
     const route = useRoute();
     const alarmStore = useAlarmCenterStore();
@@ -94,6 +111,34 @@ export default defineComponent({
       handleAlertDialogHide,
       handleAlertDialogConfirm,
     } = useAlertDialogs(data as unknown as ShallowRef<AlertTableItem[]>);
+
+    const favoriteBox = useTemplateRef<ComponentPublicInstance<typeof FavoriteBox>>('favoriteBox');
+    const allFavoriteList = computed(() => {
+      return favoriteBox.value?.getFavoriteList() || [];
+    });
+    // 收藏列表（检索条件栏使用）
+    const retrievalFavoriteList = computed(() => {
+      return allFavoriteList.value.map(item => ({
+        ...item,
+        config: {
+          queryString: item?.config?.queryParams?.query || '',
+          where: item?.config?.queryParams?.filters || [],
+          commonWhere: item?.config?.componentData?.commonWhere || [],
+        },
+      }));
+    });
+    /* 当前选择的收藏项 */
+    const currentFavorite = shallowRef(null);
+    // 当前选择的收藏项（检索条件栏使用）
+    const retrievalSelectFavorite = computed(() => {
+      if (currentFavorite.value) {
+        return {
+          commonWhere: currentFavorite.value?.config?.componentData?.commonWhere || [],
+          where: currentFavorite.value?.config?.queryParams?.filters || [],
+        };
+      }
+      return null;
+    });
     const { getRetrievalFilterValueData } = useAlarmFilter(() => ({
       alarmType: alarmStore.alarmType,
       commonFilterParams: alarmStore.commonFilterParams,
@@ -110,6 +155,8 @@ export default defineComponent({
 
     /** 是否展示收藏夹 */
     const isShowFavorite = shallowRef(false);
+    const editFavoriteData = shallowRef<IFavoriteGroup['favorites'][number]>(null);
+    const editFavoriteShow = shallowRef(false);
     /**
      * @description 检索栏字段列表
      */
@@ -141,27 +188,14 @@ export default defineComponent({
       return filterFields;
     });
     /**
-     * @description 检索栏收藏列表
-     */
-    const favoriteList = computed(() => {
-      return (
-        alarmStore.favoriteList.map(item => ({
-          groupName: '',
-          id: item.id,
-          name: item.name,
-          config: {
-            queryString: item?.params?.query_string || '',
-            where: [],
-            commonWhere: [],
-          },
-        })) || []
-      );
-    });
-    /**
      * @description 检索栏常驻设置唯一id
      */
     const residentSettingOnlyId = computed(() => {
       return `ALARM_CENTER_RESIDENT_SETTING__${alarmStore.alarmType}`;
+    });
+
+    const favoriteType = computed(() => {
+      return `alarm_${alarmStore.alarmType}`;
     });
 
     const updateIsCollapsed = (v: boolean) => {
@@ -389,6 +423,40 @@ export default defineComponent({
       localStorage.setItem(ALARM_CENTER_SHOW_FAVORITE, JSON.stringify(isShow));
     };
 
+    const handleFavoriteSave = async (isEdit: boolean) => {
+      const params = {
+        config: {
+          componentData: {
+            conditions: alarmStore.conditions,
+            filterMode: alarmStore.filterMode,
+            residentCondition: alarmStore.residentCondition,
+            timeRange: alarmStore.timeRange,
+            refreshInterval: alarmStore.refreshInterval,
+          },
+          queryParams: {
+            ...alarmStore.commonFilterParams,
+          },
+        },
+      } as any;
+      if (isEdit) {
+        await alarmStore.alarmService.updateFavorite(currentFavorite.value.id, {
+          type: favoriteType.value,
+          ...params,
+        });
+        favoriteBox.value.refreshGroupList();
+        Message({
+          theme: 'success',
+          message: t('收藏成功'),
+        });
+      } else {
+        editFavoriteData.value = params;
+        editFavoriteShow.value = true;
+      }
+    };
+    const handleEditFavoriteShow = (isShow: boolean) => {
+      editFavoriteShow.value = isShow;
+    };
+
     watch(
       () => data.value,
       () => {
@@ -421,7 +489,6 @@ export default defineComponent({
       alarmStore,
       appStore,
       retrievalFilterFields,
-      favoriteList,
       residentSettingOnlyId,
       alarmId,
       alarmDetailShow,
@@ -431,6 +498,11 @@ export default defineComponent({
       alertDialogIds,
       alertDialogParam,
       isShowFavorite,
+      editFavoriteData,
+      editFavoriteShow,
+      favoriteType,
+      retrievalFavoriteList,
+      retrievalSelectFavorite,
       setUrlParams,
       handleSelectedRowKeysChange,
       handleAlertDialogShow,
@@ -457,6 +529,8 @@ export default defineComponent({
       handlePreviousDetail,
       handleNextDetail,
       handleFavoriteShowChange,
+      handleFavoriteSave,
+      handleEditFavoriteShow,
     };
   },
   render() {
@@ -467,9 +541,9 @@ export default defineComponent({
           class='alarm-center-favorite-box'
         >
           <FavoriteBox
-            key={`alarm_${this.alarmStore.alarmType}`}
+            key={this.favoriteType}
             ref='favoriteBox'
-            type={`alarm_${this.alarmStore.alarmType}`}
+            type={this.favoriteType as IFavorite}
             // onChange={this.handleFavoriteChange}
             onClose={() => this.handleFavoriteShowChange(false)}
             // onOpenBlank={this.handleFavoriteOpenBlank}
@@ -486,7 +560,7 @@ export default defineComponent({
             bizIds={this.alarmStore.bizIds}
             bizList={this.appStore.bizList}
             conditions={this.alarmStore.conditions}
-            favoriteList={this.favoriteList}
+            favoriteList={this.retrievalFavoriteList}
             fields={this.retrievalFilterFields}
             filterMode={this.alarmStore.filterMode}
             getValueFn={this.getRetrievalFilterValueData}
@@ -496,8 +570,10 @@ export default defineComponent({
             queryString={this.alarmStore.queryString}
             residentCondition={this.alarmStore.residentCondition}
             residentSettingOnlyId={this.residentSettingOnlyId}
+            selectFavorite={this.retrievalSelectFavorite}
             onBizIdsChange={this.handleBizIdsChange}
             onConditionChange={this.handleConditionChange}
+            onFavoriteSave={this.handleFavoriteSave}
             onFilterModeChange={this.handleFilterModeChange}
             onQuery={this.handleQuery}
             onQueryStringChange={this.handleQueryStringChange}
@@ -592,6 +668,13 @@ export default defineComponent({
             }}
           />
         </div>
+        <EditFavorite
+          data={this.editFavoriteData}
+          isCreate={true}
+          isShow={this.editFavoriteShow}
+          onClose={() => this.handleEditFavoriteShow(false)}
+          onSuccess={() => this.handleEditFavoriteShow(false)}
+        />
       </div>
     );
   },

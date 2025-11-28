@@ -119,7 +119,7 @@ export default defineComponent({
       }
       const name = searchLocalFields.value[index].name;
       const delIndex = localFields.value.findIndex(item => item.name === name);
-      const item = structuredClone(localFields.value[delIndex]);
+      const item = JSON.parse(JSON.stringify(localFields.value[delIndex]));
       localFields.value.splice(delIndex, 1);
       selectedFields.value.push(item);
       triggerShallowRef(localFields);

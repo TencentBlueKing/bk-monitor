@@ -26,23 +26,24 @@
 
 import type { EMode, IWhereItem } from '../../../../components/retrieval-filter/typing';
 import type { TimeRangeType } from '../../../../components/time-range/utils';
-import type { CommonCondition } from 'trace/pages/alarm-center/typings/services';
 
 /** 告警收藏配置 */
 export interface IAlarmFavoriteConfig {
   bk_biz_ids: number[];
   componentData: {
-    commonWhere: IWhereItem[];
+    conditions: IWhereItem[];
     filterMode: EMode;
-    queryString: string;
-    quickFilterValue: CommonCondition[];
     refreshInterval: number;
-    timeRange: TimeRangeType;
+    residentCondition: IWhereItem[];
+    timeRange: string[];
   };
   queryParams: {
-    conditions: IWhereItem[];
-    queryString: string;
-    status: string[];
+    bk_biz_ids: number[];
+    conditions: any[];
+    end_time: number;
+    query_string: string;
+    start_time: number;
+    status: any[];
   };
 }
 export type IFavorite = keyof FavoriteConfigMap;

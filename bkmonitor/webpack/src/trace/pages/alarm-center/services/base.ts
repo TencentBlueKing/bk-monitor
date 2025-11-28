@@ -27,6 +27,7 @@
 import { isEn } from '@/i18n/i18n';
 
 import { alertEventCount, alertRelatedInfo, listAlertTags } from 'monitor-api/modules/alert';
+import { updateFavorite } from 'monitor-api/modules/model';
 
 import { AlarmType } from '../typings';
 
@@ -124,12 +125,6 @@ export abstract class AlarmService<S = AlarmType> {
   >(params: Partial<CommonFilterParams>): Promise<FilterTableResponse<T>>;
 
   /**
-   * @description 获取收藏列表
-   * @param params
-   * @param config
-   */
-  abstract getListSearchFavorite(params: Partial<{ search_type: AlarmType }>, config?: Record<string, any>);
-  /**
    * @description: 获取快速筛选列表
    * @param {Partial<CommonFilterParams>} params
    */
@@ -140,4 +135,13 @@ export abstract class AlarmService<S = AlarmType> {
    * @param config
    */
   abstract getRetrievalFilterValues(params: Partial<CommonFilterParams>, config?: Record<string, any>);
+
+  /**
+   * @description 更新收藏
+   * @param id
+   * @param params
+   */
+  updateFavorite(id: string, params: any) {
+    return updateFavorite(id, params);
+  }
 }
