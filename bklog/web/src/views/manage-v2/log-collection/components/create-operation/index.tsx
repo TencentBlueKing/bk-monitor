@@ -277,6 +277,8 @@ export default defineComponent({
           <CollectIssuedSlider
             isShow={showCollectIssuedSlider.value}
             status={currentStatus.value.status}
+            config={dataConfig.value}
+            collectorConfigId={currentCollectorId.value}
             on-change={value => {
               showCollectIssuedSlider.value = value;
             }}

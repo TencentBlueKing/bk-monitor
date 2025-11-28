@@ -266,6 +266,14 @@ const delIndexGroup = {
   method: 'delete',
 };
 
+/**
+ * 获取采集列表过滤相关枚举值
+ */
+const collectorFieldEnums = {
+  url: '/databus/log_access/collector_field_enums/',
+  method: 'get',
+};
+
 export {
   getStorage,
   globals,
@@ -312,4 +320,5 @@ export {
   addIndexGroup,
   updateIndexGroup,
   delIndexGroup,
+  collectorFieldEnums,
 };

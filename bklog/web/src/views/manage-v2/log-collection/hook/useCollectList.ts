@@ -155,7 +155,7 @@ export const useCollectList = () => {
       edit: 'collectEdit',
       field: 'collectField',
       search: 'retrieve',
-      clean: 'clean-edit',
+      clean: 'collectEdit',
       storage: 'collectEdit',
       clone: 'collectAdd',
       masking: 'collectMasking',
@@ -181,6 +181,7 @@ export const useCollectList = () => {
       params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
     }
     if (operateType === 'clean') {
+      query.step = 2;
       params.collectorId = row.collector_config_id;
       if (row.itsm_ticket_status === 'applying') {
         return operateHandler(row, 'field', typeKey);
@@ -205,6 +206,7 @@ export const useCollectList = () => {
     if (operateType === 'storage') {
       query.step = 3;
     }
+
     store.commit('collect/setCurCollect', row);
 
     router.push({

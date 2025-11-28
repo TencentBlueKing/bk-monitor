@@ -63,12 +63,13 @@ export default defineComponent({
           </div>
         )}
         <div class='v2-log-collection-right'>
-          <span
+          <button
             class='right-btn-box'
-            on-Click={handleShowLeft}
+            onClick={handleShowLeft}
+            type='button'
           >
             <i class={`bk-icon icon-angle-${isShowLeft.value ? 'left' : 'right'} right-btn`} />
-          </span>
+          </button>
           <TableList indexSet={currentIndexSet.value} />
         </div>
       </div>

@@ -30,6 +30,10 @@
       top: 50%;
       transform: translateY(-50%);
       cursor: pointer;
+      z-index: 100;
+      border: none;
+      padding: 0;
+      outline: none;
       .right-btn {
         font-size: 20px;
         font-weight: 700;

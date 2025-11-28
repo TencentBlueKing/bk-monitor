@@ -76,6 +76,15 @@
         display: flex;
         align-items: center;
       }
+      // 错误样式
+      &.is-error {
+        .bk-form-input {
+          border: 1px solid #ea3636 !important;
+        }
+        .bk-select {
+          border-color: #ea3636 !important;
+        }
+      }
     }
     .disable-background {
       background-color: #fafbfd;
@@ -88,7 +97,8 @@
       display: inline-block;
       font-size: 16px;
       left: 50%;
-      transform: translateX(-50%);
+      top: 50%;
+      transform: translate(-50%, -50%);
       width: 22px;
       height: 18px;
       line-height: 16px;
@@ -105,6 +115,24 @@
       .bk-form-input {
         padding-left: 15px;
       }
+      // 别名输入框错误样式
+      &.input-error {
+        .bk-form-input {
+          border-color: #ea3636 !important;
+        }
+      }
+    }
+    .alias-input-wrapper {
+      position: relative;
+      width: 50%;
+      .alias-error-icon {
+        position: absolute;
+        right: 8px;
+        top: 16px;
+        color: #ea3636;
+        font-size: 16px;
+        z-index: 10;
+      }
     }
     .participle-field-name-input-pl5 {
       input {
@@ -112,13 +140,21 @@
       }
     }
     .tooltips-icon {
-      top: 18px;
+      position: absolute;
+      top: 16px;
+      color: #ea3636;
+      font-size: 16px;
     }
     .tooltips-btn {
       position: absolute;
       right: 5px;
       background: #ea3636;
       border-radius: 2px;
+      padding: 0;
+      font-size: 12px;
+      height: 24px;
+      line-height: 24px;
+      min-width: 48px;
     }
     .bk-table-body-wrapper .fields-table-column {
       background: #fafbfd;
@@ -144,6 +180,21 @@
         .bk-select-name {
           height: 42px;
           line-height: 42px;
+        }
+        // 类型选择器错误样式
+        &.type-error {
+          border: 1px solid #ea3636 !important;
+        }
+      }
+      .type-select-wrapper {
+        position: relative;
+        align-items: center;
+        .type-error-icon {
+          position: absolute;
+          right: 22px;
+          top: 14px;
+          color: #ea3636;
+          font-size: 16px;
         }
       }
     }
