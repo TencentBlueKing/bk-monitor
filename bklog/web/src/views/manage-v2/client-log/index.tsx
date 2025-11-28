@@ -30,6 +30,7 @@ import useStore from '@/hooks/use-store';
 import { useRouter } from 'vue-router/composables';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import { t } from '@/hooks/use-locale';
+import * as authorityMap from '../../../common/authority-map';
 
 import LogTable from './components/log-table';
 import CollectionSlider from './collection-slider';
@@ -77,6 +78,7 @@ export default defineComponent({
     const logData = ref(null); // 日志数据
     const searchKeyword = ref(''); // 搜索关键词
     const operateType = ref('create'); // 操作类型： create、clone、view
+    const isAllowedCreate = ref(false); // 是否允许创建
 
     // tab点击事件
     const handleTabClick = (title: TabType) => {
@@ -157,6 +159,48 @@ export default defineComponent({
       });
     };
 
+    // 检查创建权限
+    const checkCreateAuth = async () => {
+      try {
+        const res = await store.dispatch('checkAllowed', {
+          action_ids: [authorityMap.CREATE_CLIENT_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'space',
+              id: store.state.spaceUid,
+            },
+          ],
+        });
+        isAllowedCreate.value = res.isAllowed;
+      } catch (err) {
+        console.warn(err);
+        isAllowedCreate.value = false;
+      }
+    };
+
+    // 新建采集
+    const handleCreateTask = async () => {
+      if (isAllowedCreate.value) {
+        setSidebarOpen(true);
+      } else {
+        const paramData = {
+          action_ids: [authorityMap.CREATE_CLIENT_COLLECTION_AUTH],
+          resources: [
+            {
+              type: 'space',
+              id: store.state.spaceUid,
+            },
+          ],
+        };
+        const res = await store.dispatch('getApplyData', paramData);
+        console.log(res);
+        store.commit('updateState', { authDialogData: res.data });
+      }
+    };
+
+    // 检查创建权限
+    checkCreateAuth();
+
     // 监听activeTab变化
     watch(
       activeTab,
@@ -201,7 +245,8 @@ export default defineComponent({
               <div>
                 <bk-button
                   theme='primary'
-                  onClick={() => setSidebarOpen(true)}
+                  v-cursor={{ active: isAllowedCreate.value === false }}
+                  onClick={handleCreateTask}
                   disabled={isLoading.value}
                 >
                   {t('新建采集')}

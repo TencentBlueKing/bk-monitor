@@ -51,3 +51,6 @@ export const MANAGE_EXTRACT_AUTH = 'manage_extract_config_v2'; // 日志提取�
 // 日志脱敏
 export const MANAGE_DESENSITIZE_RULE = 'manage_desensitize_rule'; // 业务日志脱敏
 export const MANAGE_GLOBAL_DESENSITIZE_RULE = 'manage_global_desensitize_rule'; // 全局日志脱敏
+
+// 客户端日志
+export const CREATE_CLIENT_COLLECTION_AUTH = 'create_client_log_task'; // 新建采集

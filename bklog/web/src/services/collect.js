@@ -241,6 +241,12 @@ const createCollectionTask = {
   method: 'post',
 };
 
+// 客户端日志-获取下载链接
+const getDownloadLink = {
+  url: '/tgpa/task/download_url/',
+  method: 'get',
+};
+
 export {
   getStorage,
   globals,
@@ -283,4 +289,5 @@ export {
   getStorageUsage,
   getTaskLogList,
   createCollectionTask,
+  getDownloadLink,
 };

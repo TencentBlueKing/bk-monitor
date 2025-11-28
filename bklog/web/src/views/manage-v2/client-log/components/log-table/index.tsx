@@ -30,7 +30,10 @@ import { clearTableFilter, getDefaultSettingSelectFiled, setDefaultSettingSelect
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../../constant';
+import http from '@/api';
 
 import './index.scss';
 
@@ -55,6 +58,8 @@ export default defineComponent({
   },
   emits: ['clear-keyword', 'clone-task', 'view-task'],
   setup(props, { emit }) {
+    const store = useStore();
+
     const pagination = ref({
       current: 1,
       count: props.total,
@@ -329,8 +334,22 @@ export default defineComponent({
     };
 
     // 下载文件
-    const downloadFile = (downloadUrl: string) => {
-      window.open(downloadUrl);
+    const downloadFile = async (id: number) => {
+      try {
+        const params = {
+          query: {
+            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+            task_id: id,
+          },
+        };
+        const response = await http.request('collect/getDownloadLink', params);
+        const downloadUrl = response.data.url;
+        if (downloadUrl) {
+          window.open(downloadUrl);
+        }
+      } catch (error) {
+        console.warn('获取下载链接失败:', error);
+      }
     };
 
     // 检查字段显示
@@ -447,8 +466,8 @@ export default defineComponent({
             class='king-button'
             text
             theme='primary'
-            disabled={!row.permission?.search_client_log || row.download_url === ''}
-            on-click={() => downloadFile(row.download_url)}
+            disabled={!row.permission?.download_client_log}
+            on-click={() => downloadFile(row.id)}
           >
             {t('下载文件')}
           </bk-button>
