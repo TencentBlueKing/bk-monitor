@@ -212,7 +212,6 @@ class LogCollectorHandler:
         # 添加status_name采集状态, 如果status_name存在则进行过滤
         for item in tmp_result_list:
             original_status = collector_status_mappings.get(item["collector_config_id"], {}).get("status", "")
-            print(original_status)
             new_status = CollectStatusEnum.get_collect_status(original_status)
             if status_list and new_status not in status_list:
                 continue
