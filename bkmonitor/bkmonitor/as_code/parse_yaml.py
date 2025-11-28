@@ -259,8 +259,10 @@ class StrategyConfigParser(BaseConfigParser):
                         expression_tokens[index] = f"{query_config['agg_method']}({metric.metric_field_name})"
                         break
 
-        # 如果是promql，使用promql作为名称，否则使用表达式作为名称
-        if query_configs[0].get("promql"):
+        # 名称获取优先级： 配置名称 > promql名称 > 表达式名称
+        if config.get("name"):
+            name = config["name"]
+        elif query_configs[0].get("promql"):
             name = query_configs[0]["promql"]
         else:
             name = " ".join(expression_tokens)

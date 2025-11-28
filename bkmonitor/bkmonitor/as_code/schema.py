@@ -33,6 +33,7 @@ DEFAULT_TEMPLATE_CONTENT = """{{content.level}}
 
 BkMonitorQuerySchema = Schema(
     {
+        Optional("name", default=""): "",
         Optional("type", default="bk_monitor"): "bk_monitor",
         "data_source": Or(
             DataSourceLabel.BK_MONITOR_COLLECTOR,
