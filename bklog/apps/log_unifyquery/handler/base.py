@@ -235,10 +235,13 @@ class UnifyQueryHandler:
                 pre_search_start_time = int(
                     arrow.get(self.end_time).shift(seconds=-pre_search_seconds).timestamp() * 1000
                 )
+                # 时间单位统一
+                real_start_time = int(arrow.get(self.start_time).timestamp() * 1000)
+                real_end_time = int(arrow.get(self.end_time).timestamp() * 1000)
                 if order == "desc" and self.start_time < pre_search_start_time:
-                    search_dict.update({"start_time": str(pre_search_start_time)})
+                    search_dict.update({"start_time": str(pre_search_start_time), "end_time": str(real_end_time)})
                 elif order == "asc" and self.end_time > pre_search_end_time:
-                    search_dict.update({"end_time": str(pre_search_end_time)})
+                    search_dict.update({"start_time": str(real_start_time), "end_time": str(pre_search_end_time)})
             return UnifyQueryApi.query_ts_raw(search_dict)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("query ts raw error: %s, search params: %s", e, search_dict)
