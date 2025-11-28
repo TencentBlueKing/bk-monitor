@@ -1602,9 +1602,9 @@ class CreateOrUpdateTimeSeriesScopeResource(Resource):
         bk_tenant_id = TenantIdField(label="租户ID")
 
         class ScopeSerializer(serializers.Serializer):
-            scope_id = serializers.CharField(required=False, label="指标分组ID")
+            scope_id = serializers.IntegerField(required=False, label="指标分组ID")
             group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
-            scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+            scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255)
             dimension_config = serializers.DictField(required=False, label="分组下的维度配置", default={})
             manual_list = serializers.ListField(required=False, label="手动分组的指标列表", default=[])
             auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表", default=[])
@@ -1858,7 +1858,7 @@ class QueryTimeSeriesScopeResource(Resource):
                 field_config = metric.field_config or {}
                 metric_info = {
                     "metric_name": metric.field_name,
-                    "desc": field_config.get("desc") or metric.description or "",
+                    "desc": field_config.get("desc", ""),
                     "unit": field_config.get("unit", ""),
                     "hidden": field_config.get("hidden", False),
                     "aggregate_method": field_config.get("aggregate_method", ""),

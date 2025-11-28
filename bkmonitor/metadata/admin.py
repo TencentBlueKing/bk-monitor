@@ -130,7 +130,7 @@ class TimeSeriesMetricAdmin(admin.ModelAdmin):
 
 
 class TimeSeriesScopeAdmin(admin.ModelAdmin):
-    list_display = ("group_id", "scope_name", "manual_list", "auto_rules", "last_modify_time")
+    list_display = ("id", "group_id", "scope_name", "manual_list", "auto_rules", "last_modify_time")
     search_fields = ("group_id", "scope_name")
     list_filter = ("group_id", "scope_name")
 

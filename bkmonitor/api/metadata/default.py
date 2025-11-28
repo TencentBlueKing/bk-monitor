@@ -510,7 +510,7 @@ class CreateOrUpdateTimeSeriesScopeResource(MetaDataAPIGWResource):
         class ScopeSerializer(serializers.Serializer):
             scope_id = serializers.IntegerField(required=False, label="自定义时序指标分组ID")
             group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
-            scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+            scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255)
             new_scope_name = serializers.CharField(
                 required=False, label="新的指标分组名（仅更新时生效）", max_length=255
             )
