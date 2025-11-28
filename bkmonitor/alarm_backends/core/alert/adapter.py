@@ -259,7 +259,7 @@ class MonitorEventAdapter:
 
         if pod:
             # pod 对象, 数据维度有pod 信息，直接查出 workload 和 namespace
-            pod_instance = BCSPod.get_instance(cluster_id=bcs_cluster_id, name=pod, bk_biz_id=bk_biz_id)
+            pod_instance = BCSPod.get_instance_with_cache(name=pod, bcs_cluster_id=bcs_cluster_id, namespace=namespace)
             if pod_instance:
                 additional_dimensions = {}
                 # 补充维度信息
