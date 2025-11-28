@@ -33,7 +33,7 @@ DEFAULT_TEMPLATE_CONTENT = """{{content.level}}
 
 BkMonitorQuerySchema = Schema(
     {
-        Optional("name", default=""): "",
+        Optional("name", default=""): And(str, lambda p: 255 >= len(p) >= 0),
         Optional("type", default="bk_monitor"): "bk_monitor",
         "data_source": Or(
             DataSourceLabel.BK_MONITOR_COLLECTOR,
@@ -90,7 +90,7 @@ UserSchema = Regex(r"^(user#|group#)?[a-zA-Z0-9-_]+$")
 
 StrategySchema = Schema(
     {
-        "name": And(str, lambda p: 255 >= len(p) >= 0),
+        "name": And(str, lambda p: 128 >= len(p) > 0),
         Optional(
             "version",
             default=MinVersion.STRATEGY,
