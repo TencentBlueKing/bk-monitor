@@ -30,6 +30,7 @@ from apps.log_databus.constants import (
     ETL_DELIMITER_DELETE,
     ETL_DELIMITER_END,
     ETL_DELIMITER_IGNORE,
+    CollectStatus,
 )
 from apps.log_search.exceptions import (
     ESQuerySyntaxException,
@@ -1925,3 +1926,35 @@ class LogAccessTypeEnum(ChoicesEnum):
             else:
                 scenario_id_list.append(access_type)
         return scenario_id_list, collector_scenario_id_list
+
+
+class CollectStatusEnum(ChoicesEnum):
+    """
+    采集状态枚举
+    """
+
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+    TERMINATED = "terminated"
+
+    _choices_labels = (
+        (RUNNING, _("部署中")),
+        (SUCCESS, _("正常")),
+        (FAILED, _("异常")),
+        (TERMINATED, _("停用")),
+    )
+
+    @classmethod
+    def get_collect_status(cls, original_status) -> str:
+        """将旧的采集状态转换为新的采集状态"""
+        if not original_status:
+            return ""
+        elif original_status == CollectStatus.SUCCESS:
+            return cls.SUCCESS.value
+        elif original_status == CollectStatus.FAILED:
+            return cls.FAILED.value
+        elif original_status == CollectStatus.TERMINATED:
+            return cls.TERMINATED.value
+        else:
+            return cls.RUNNING.value
