@@ -533,4 +533,4 @@ class LogCollectorHandler:
         cluster_names = self.get_metadata_cluster_names() | self.get_bkdata_cluster_names()
         cluster_name_dict = [{"key": item, "value": item} for item in cluster_names if item]
 
-        return {"created_by": created_by_dict, "updated_by": updated_by_dict, "storage_cluster": cluster_name_dict}
+        return {"created_by": created_by_dict, "updated_by": updated_by_dict, "storage_cluster_name": cluster_name_dict}
