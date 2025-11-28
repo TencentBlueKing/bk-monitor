@@ -158,6 +158,7 @@ class Command(BaseCommand):
         # 获取虚拟RT的data_label
         virtual_data_labels = list(virtual_result_tables.values_list("data_label", flat=True))
 
+        new_virtual_table_ids: set[str] = set()
         new_records_list = [
             *virtual_es_storages,
             *virtual_result_tables,
@@ -171,14 +172,17 @@ class Command(BaseCommand):
             record.pk = None
             if hasattr(record, "origin_table_id"):
                 record.origin_table_id = new_table_id
+            if hasattr(record, "index_set") and getattr(record, "index_set", None):
+                record.index_set += "_nano"
             record.table_id = record.table_id.split(".")[0] + "_nano" + ".__default__"
+            new_virtual_table_ids.add(record.table_id)
             record.save()
 
         # 新rt对应的虚拟路由表需要增加时间字段别名，兼容新旧rt时间字段
-        for virtual_table_id in virtual_table_ids:
+        for new_virtual_table_id in new_virtual_table_ids:
             # 设置新表时间字段别名
             models.ESFieldQueryAliasOption.objects.update_or_create(
-                table_id=virtual_table_id,
+                table_id=new_virtual_table_id,
                 query_alias="dtEventTimeStamp",
                 field_path="dtEventTimeStampNanos",
                 bk_tenant_id=bk_tenant_id,

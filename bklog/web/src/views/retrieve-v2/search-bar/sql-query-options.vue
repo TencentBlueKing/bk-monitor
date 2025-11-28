@@ -36,15 +36,13 @@ const store = useStore();
 const { $t } = useLocale();
 const { getQualifiedFieldName, getQualifiedFieldAttrs } = useFieldNameHook({ store });
 
-
-
 const shortCutClsName = computed(() => {
   const iconMap = {
     cmd: 'bklog-icon bklog-command',
     ctrl: 'bklog-icon bklog-ctrl',
   };
 
-  const osName = getOsCommandLabel();
+  const osName = getOsCommandLabel()?.toLocaleLowerCase() ?? 'ctrl';
 
   return iconMap[osName] ?? iconMap.ctrl;
 });
@@ -567,27 +565,27 @@ const isRetractShow = ref(true);
 const matchList = ref([
   {
     name: $t('精确匹配(支持AND、OR):'),
-    value: 'author:"John Smith" AND age:20',
+    value: ['author:"John Smith" AND age:20'],
   },
   {
     name: $t('字段名匹配(*代表通配符):'),
-    value: 'status:active \n title:(quick brown)',
+    value: ['status:active', 'title:(quick brown)'],
   },
   {
     name: $t('字段名模糊匹配:'),
-    value: 'vers\\*on:(quick brown)',
+    value: ['vers\\*on:(quick brown)'],
   },
   {
     name: $t('通配符匹配:'),
-    value: 'qu?ck bro*',
+    value: ['qu?ck bro*'],
   },
   {
     name: $t('正则匹配:'),
-    value: 'name:/joh?n(ath[oa]n)/',
+    value: ['name:/joh?n(ath[oa]n)/'],
   },
   {
     name: $t('范围匹配:'),
-    value: 'count:[1 TO 5] \n  count:[1 TO 5} \n count:[10 TO *]',
+    value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'],
   },
 ]);
 
@@ -658,11 +656,12 @@ watch(activeIndex, () => {
                 height="18"
               >
             </span>
-            <span class="item-text-label">{{ $t('AI 搜索') }}:</span>
+            <span class="item-text-label">{{ $t('AI搜索') }}:</span>
             <span class="item-text-value">{{ aiPreviewText }}</span>
             <span class="short-cut-icon">
-              <i :class="shortCutClsName"></i>
-              <i class="bklog-icon bklog-enter-3"></i>
+              <i :class="shortCutClsName" />
+              <i class="bklog-icon bklog-plus" />
+              <i class="bklog-icon bklog-enter-3" />
             </span>
           </li>
         </template>
@@ -865,8 +864,11 @@ watch(activeIndex, () => {
           <span class="value">{{ $t('确认结果') }}</span>
         </div>
         <div class="ui-shortcut-item">
-          <span class="label">{{ getOsCommandLabel() }} + Enter</span>
-          <span class="value">{{ $t('AI 搜索') }}</span>
+          <span class="label">
+            <i :class="shortCutClsName" />
+            <i class="bklog-icon bklog-plus" />
+            <i class="bklog-icon bklog-enter-3" /></span>
+          <span class="value">{{ $t('AI搜索') }}</span>
         </div>
       </div>
     </div>
@@ -885,14 +887,20 @@ watch(activeIndex, () => {
           </div>
           <div
             v-for="item in matchList"
-            :key="item.value"
+            :key="item.name"
             class="sql-query-list"
           >
             <div class="sql-query-name">
               {{ item.name }}
             </div>
             <div class="sql-query-value">
-              {{ item.value }}
+              <div
+                v-for="childValue in item.value"
+                :key="childValue"
+                class="sql-query-value-item"
+              >
+                {{ childValue }}
+              </div>
             </div>
           </div>
         </div>
@@ -1022,30 +1030,22 @@ watch(activeIndex, () => {
         }
 
         .sql-query-list {
-          margin-bottom: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
           overflow-y: auto;
           font-size: 12px;
-          white-space: pre-line;
 
           .sql-query-name {
-            margin-bottom: 2px;
             font-weight: 700;
-            line-height: 16px;
             color: #313238;
+            margin: 12px 0 8px 0;
           }
 
           .sql-query-value {
-            /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
             font-family: 'Roboto Mono', monospace;
-            line-height: 18px;
             color: #4d4f56;
             word-break: break-all;
-          }
-
-          &:first-child {
-            .sql-query-value {
-              line-height: 20px;
-            }
           }
         }
       }

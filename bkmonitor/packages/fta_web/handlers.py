@@ -46,6 +46,10 @@ def register_builtin_plugins(sender, **kwargs):
             # 多租户情况下禁用itsmv3插件
             if plugin["plugin_key"] == "itsm" and settings.ENABLE_MULTI_TENANT_MODE:
                 continue
+
+            # 开启标准排障的情况下,才可注册标准排障插件
+            if plugin["plugin_key"] == "bk_incident" and not settings.ENABLE_BK_INCIDENT_PLUGIN:
+                continue
             instance, created = ActionPlugin.origin_objects.update_or_create(
                 id=plugin.pop("id"), is_builtin=True, defaults=plugin
             )

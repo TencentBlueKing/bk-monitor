@@ -171,7 +171,7 @@ export default defineComponent({
 
     // 使用 use-list-sort 进行文本匹配和排序
     // 匹配的字段：space_name, py_text, space_uid, bk_biz_id, space_code
-    const matchKeys = ['space_name', 'py_text', 'space_uid', 'bk_biz_id', 'space_code'];
+    const matchKeys = ['space_name', 'py_text', 'space_uid'];
     const { sortList: authorizedList, updateList, updateSearchText } = useListSort(
       baseFilteredList.value,
       matchKeys,

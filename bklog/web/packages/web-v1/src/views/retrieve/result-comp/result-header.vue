@@ -485,7 +485,7 @@
             type: val === 'logMasking' ? 'masking' : undefined,
           },
         });
-        window.open(href, '_blank');
+        window.iframeParent.open(href, '_blank');
       },
       handleShowSettingMenuListChange() {
         const isShowClusterSet = this.clusteringData?.is_active || this.storeIsShowClusterStep;

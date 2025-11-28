@@ -45,7 +45,7 @@ export default {
             },
           })
           .then(res => {
-            window.open(res.data, '_blank');
+            window.iframeParent.open(res.data, '_blank');
           })
           .catch(() => false);
       }
