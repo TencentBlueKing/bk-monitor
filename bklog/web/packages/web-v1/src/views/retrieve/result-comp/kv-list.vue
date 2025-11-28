@@ -312,7 +312,7 @@
 
         if (path) {
           const url = `${window.MONITOR_URL}${path}`;
-          window.open(url, '_blank');
+          window.iframeParent.open(url, '_blank');
         }
       },
       /**

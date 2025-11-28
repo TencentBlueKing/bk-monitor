@@ -165,13 +165,13 @@
         }
       },
       handleNewBusiness() {
-        window.open(this.data.newBusiness.url);
+        window.iframeParent.open(this.data.newBusiness.url);
       },
       handleDemoBusiness() {
-        window.open(this.data.demoBusiness.url);
+        window.iframeParent.open(this.data.demoBusiness.url);
       },
       handleGetAccess() {
-        window.open(this.data.getAccess.url);
+        window.iframeParent.open(this.data.getAccess.url);
       },
     },
   };
