@@ -63,10 +63,11 @@ export default defineComponent({
         title: TAB_TYPES.COLLECT,
         count: 0,
       },
-      {
-        title: TAB_TYPES.REPORT,
-        count: 0,
-      },
+      // 暂时隐藏 用户上报
+      // {
+      //   title: TAB_TYPES.REPORT,
+      //   count: 0,
+      // },
     ]);
     const activeTab = ref<TabType>(TAB_TYPES.COLLECT); // 激活的tab
     const showSlider = ref(false); // 新建采集侧边栏打开状态
