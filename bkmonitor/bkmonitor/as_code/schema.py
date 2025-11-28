@@ -90,7 +90,7 @@ UserSchema = Regex(r"^(user#|group#)?[a-zA-Z0-9-_]+$")
 
 StrategySchema = Schema(
     {
-        "name": str,
+        "name": And(str, lambda p: 255 >= len(p) >= 0),
         Optional(
             "version",
             default=MinVersion.STRATEGY,

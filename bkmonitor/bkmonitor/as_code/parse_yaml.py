@@ -260,8 +260,8 @@ class StrategyConfigParser(BaseConfigParser):
                         break
 
         # 名称获取优先级： 配置名称 > promql名称 > 表达式名称
-        if config.get("name"):
-            name = config["name"]
+        if config["query"].get("name"):
+            name = config["query"]["name"]
         elif query_configs[0].get("promql"):
             name = query_configs[0]["promql"]
         else:
