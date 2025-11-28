@@ -148,7 +148,12 @@ export default class AlarmConfirm extends tsc<AlarmConfirmProps, IEvent> {
             type='info'
           >
             <div slot='title'>
-              <div>{`${this.$t('告警确认后，该告警在 1 小时内不再发送，请及时处理')}。`}</div>
+              <div>{`${this.$t('当该告警确认需要处理，并且希望该告警不再通知时，可以直接进行告警确认')}。`}</div>
+              <div>
+                {`${this.$t('注意')}：${this.$t(
+                  '告警确认不会影响其他告警，只是避免当前告警的周期间隔发送和处理套餐的执行'
+                )}。`}
+              </div>
             </div>
           </bk-alert>
           {this.infoContent.length
