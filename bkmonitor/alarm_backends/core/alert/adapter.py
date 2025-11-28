@@ -114,13 +114,16 @@ class MonitorEventAdapter:
             alert_name = self.strategy["name"]
 
         # event.tags 主要用于页面检索
+        additional_dimensions = data_dimensions.pop("__additional_dimensions", {})
         tags = [{"key": key, "value": value} for key, value in data_dimensions.items()]
+        if additional_dimensions:
+            tags += [{"key": key, "value": value} for key, value in additional_dimensions.items()]
+
         for k, v in self.record.get("context", {}).items():
             if k not in self.SPECIAL_ALERT_TAG_KEY_WHITELIST:
                 continue
 
             tags.append({"key": k, "value": v})
-        additional_dimensions = data_dimensions.pop("__additional_dimensions", {})
         metric = [conf["metric_id"] for item in self.strategy["items"] for conf in item.get("query_configs", [])]
         metric += [item["name"] for item in self.strategy["items"]]
         metric += [
