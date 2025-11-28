@@ -13,16 +13,32 @@
 
 #### scopes 列表项字段说明
 
-| 字段           | 类型   | 必选 | 描述             |
-| -------------- | ------ | ---- |----------------|
-| group_id | int | 是 | 自定义时序数据源 ID    |
-| scope_name | string | 是 | 指标分组名，最大长度 255 |
-| new_scope_name | string | 否 | 新的指标分组名（仅更新时生效），最大长度 255 |
-| dimension_config | dict | 否 | 分组下的维度配置，默认为空字典 |
-| manual_list | list | 否 | 手动分组的指标列表，默认为空列表 |
-| auto_rules | list | 否 | 自动分组的匹配规则列表，默认为空列表 |
+| 字段           | 类型   | 必选 | 描述                                                   |
+| -------------- | ------ | ---- |------------------------------------------------------|
+|scope_id| int|  自定义时序指标分组 ID|
+| group_id | int | 是 | 自定义时序数据源 ID                                          |
+| scope_name | string | 是 | 指标分组名，最大长度 255，对于 default 分组无法编辑                     |
+| new_scope_name | string | 否 | 新的指标分组名（仅更新时生效），最大长度 255                             |
+| dimension_config | dict | 否 | 分组下的维度配置，默认为空字典                                      |
+| manual_list | list | 否 | 手动分组的指标列表，默认为空列表                                     |
+| auto_rules | list | 否 | 自动分组的匹配规则列表，默认为空列表                                   |
 | delete_unmatched_dimensions | bool | 否 | 是否删除不再匹配的维度配置（仅更新时生效），默认为 false。对于导入分组场景，建议设置为 false |
 
+#### manual_list 和 auto_rules 说明
+1. auto_rules 在后端没有作用，仅用于存储与返回
+2. auto_rules 在上游自行匹配 default 数据分组中的指标
+3. 请求创建和更新时，需要将完整指标都放入的 manual_list（后端会进行逻辑校验——新增的指标是否都在 default 数据分组）
+
+#### dimension_config 说明
+对于创建：
+1. dimension_config 视为 X
+2. manual_list 视为 Y
+3. 最终维度集合是 X | Y
+
+对于更新
+1. 先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，视为 X
+2. manual_list 视为 Y
+3. 当 delete_unmatched_dimensions 为 true 则最终集合为 (X & Y) | Y，反之 X | Y
 
 ### 请求参数示例
 
@@ -30,6 +46,7 @@
 {
   "scopes": [
     {
+      "scope_id": 1,
       "group_id": 123,
       "scope_name": "指标分组名1",
       "dimension_config": {
@@ -46,6 +63,7 @@
       ]
     },
     {
+      "scope_id": 2,
       "group_id": 123,
       "scope_name": "指标分组名2",
       "new_scope_name": "新的指标分组名2",
@@ -54,48 +72,6 @@
   ]
 }
 ```
-
-### 创建的逻辑说明
-- **创建**：如果指定的 group_id 和 scope_name 组合不存在，则创建新的指标分组
-
-#### dimension_config 具体内容说明
-
-维度配置是一个字典，key 为维度名称，value 为维度配置信息
-
-#### manual_list 具体内容说明
-
-手动分组的指标列表，包含需要手动分组的指标名称
-
-#### auto_rules 具体内容说明
-
-自动分组的匹配规则列表，每个规则用于匹配指标名称
-
-#### dimension_config 与 manual_list 、 auto_rules 之间的关系
-1. dimension_config 视为 X
-2. 根据 manual_list 和 auto_rules 获取指标维度的并集，视为 Y
-3. 最终维度集合是 X | Y
-
-### 更新的逻辑说明
-- **更新**：如果指定的 group_id 和 scope_name 组合已存在，则更新该分组
-    - 如果提供了 new_scope_name，则会重命名分组
-    - 如果 delete_unmatched_dimensions 为 true，会删除不再匹配 manual_list 和 auto_rules 的维度配置
-
-#### dimension_config 具体内容说明
-
-维度配置是一个字典，key 为维度名称，value 为维度配置信息
-
-#### manual_list 具体内容说明
-
-手动分组的指标列表，包含需要手动分组的指标名称
-
-#### auto_rules 具体内容说明
-
-自动分组的匹配规则列表，每个规则用于匹配指标名称
-
-#### dimension_config 与 manual_list 、 auto_rules 和 delete_unmatched_dimensions 之间的关系
-1. 先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，得到 X
-2. 根据 manual_list 和 auto_rules 获取指标维度的并集，得到 Y
-3. 当 delete_unmatched_dimensions 为 true 则最终集合为 (X & Y) | Y，反之 X | Y
 
 ### 响应参数
 
@@ -111,6 +87,7 @@
 
 | 字段       | 类型   | 描述         |
 | ---------- | ------ | ------------ |
+|scope_id| int|  自定义时序指标分组 ID|
 | group_id   | int    | 自定义时序数据源 ID |
 | scope_name | string | 指标分组名 |
 | dimension_config       | dict   | 分组下的维度配置    |
@@ -127,6 +104,7 @@
   "code": 200,
   "data": [
     {
+      "scope_id": 1,
       "group_id": 123,
       "scope_name": "指标分组名1",
       "dimension_config": {
@@ -144,6 +122,7 @@
       "create_from": "user"
     },
     {
+      "scope_id": 1,
       "group_id": 123,
       "scope_name": "新的指标分组名2",
       "dimension_config": {},
