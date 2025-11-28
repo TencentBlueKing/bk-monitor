@@ -10,6 +10,8 @@
 | group_id   | int    | 否  | 自定义时序数据源 ID，对 APM 场景需要传递 scope_name 来区分不同的服务 |
 | scope_name | string | 否  | 指标分组名，支持模糊匹配                                 |
 
+- 当 scope_name 为空串时，返回的是未分组的指标
+
 ### 请求参数示例
 
 ```json
