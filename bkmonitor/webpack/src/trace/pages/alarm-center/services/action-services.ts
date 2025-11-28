@@ -25,7 +25,6 @@
  */
 
 import { actionTopN, searchAction } from 'monitor-api/modules/alert';
-import { listSearchFavorite } from 'monitor-api/modules/model';
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
 import {
@@ -415,12 +414,6 @@ export class ActionService extends AlarmService<AlarmType.ACTION> {
         data: [],
       }));
     console.info('ActionService getFilterTableList', data, '==========');
-    return data;
-  }
-  async getListSearchFavorite(params: Partial<{ search_type: AlarmType }>) {
-    const data = await listSearchFavorite(params).catch(() => {
-      return [];
-    });
     return data;
   }
   async getQuickFilterList(params: Partial<CommonFilterParams>): Promise<QuickFilterItem[]> {

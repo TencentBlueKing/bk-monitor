@@ -35,6 +35,7 @@ import {
   type IGetValueFnParams,
   type IHandleGetUserConfig,
   type IHandleSetUserConfig,
+  type IWhereItem,
   type IWhereValueOptionsItem,
   EMode,
 } from '../../../../components/retrieval-filter/typing';
@@ -121,6 +122,14 @@ export default defineComponent({
       type: Function as PropType<IHandleSetUserConfig>,
       default: () => Promise.resolve(false),
     },
+    // 当前选择收藏项
+    selectFavorite: {
+      type: Object as PropType<{
+        commonWhere?: IWhereItem[];
+        where?: IWhereItem[];
+      }>,
+      default: () => null,
+    },
   },
   emits: {
     conditionChange: (_v: CommonCondition[]) => true,
@@ -129,6 +138,7 @@ export default defineComponent({
     residentConditionChange: (_v: CommonCondition[]) => true,
     query: () => true,
     bizIdsChange: (_v: (number | string)[]) => true,
+    favoriteSave: (_isEdit: boolean) => true,
   },
   setup(_props, { emit }) {
     const { t } = useI18n();
@@ -163,6 +173,10 @@ export default defineComponent({
       emit('bizIdsChange', val);
     }
 
+    const handleFavoriteSave = val => {
+      emit('favoriteSave', val);
+    };
+
     return {
       showAlarmModule,
       t,
@@ -172,6 +186,7 @@ export default defineComponent({
       handleFilterModeChange,
       handleResidentConditionChange,
       handleBizIdsChange,
+      handleFavoriteSave,
       ...useSpaceSelect(),
     };
   },
@@ -196,12 +211,14 @@ export default defineComponent({
         handleSetUserConfig={this.handleSetUserConfig}
         isShowClear={true}
         isShowCopy={true}
+        isShowFavorite={true}
         isShowResident={true}
         loadDelay={0}
         queryString={this.queryString}
         residentSettingOnlyId={this.residentSettingOnlyId}
         where={this.conditions}
         onCommonWhereChange={this.handleResidentConditionChange}
+        onFavorite={this.handleFavoriteSave}
         onModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}
         onSearch={this.handleQuery}

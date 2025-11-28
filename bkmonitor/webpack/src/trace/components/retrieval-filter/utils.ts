@@ -290,7 +290,9 @@ export function getTopDocument(node = document) {
   return currentRoot === document ? document : currentRoot;
 }
 export function triggerShallowRef<T>(shallowRef: ShallowRef<T>) {
-  shallowRef.value = structuredClone(shallowRef.value);
+  if (typeof shallowRef.value === 'object') {
+    shallowRef.value = JSON.parse(JSON.stringify(shallowRef.value));
+  }
 }
 
 /* 通配符字段key */

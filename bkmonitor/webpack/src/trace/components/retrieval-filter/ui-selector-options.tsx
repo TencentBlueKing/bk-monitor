@@ -238,7 +238,7 @@ export default defineComponent({
       },
       isFocus = false
     ) {
-      checkedItem.value = structuredClone(item);
+      checkedItem.value = JSON.parse(JSON.stringify(item));
       values.value = value || [];
       /* 耗时字段特殊处理 */
       if (isDurationKey.value) {
