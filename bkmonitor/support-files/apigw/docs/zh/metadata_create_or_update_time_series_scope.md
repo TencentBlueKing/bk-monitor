@@ -28,28 +28,30 @@
 
 ```json
 {
-	"scopes": [
-		{
-			"group_id": 123,
-			"scope_name": "指标分组名1",
-			"dimension_config": {
-				"metric1": ["dim1", "dim2"]
-			},
-			"manual_list": ["metric1", "metric2"],
-			"auto_rules": [
-				{
-					"pattern": "cpu_*",
-					"type": "wildcard"
-				}
-			]
-		},
-		{
-			"group_id": 123,
-			"scope_name": "指标分组名2",
-			"new_scope_name": "新的指标分组名2",
-			"delete_unmatched_dimensions": true
-		}
-	]
+  "scopes": [
+    {
+      "group_id": 123,
+      "scope_name": "指标分组名1",
+      "dimension_config": {
+        "dimension1": {
+          "description": "维度1描述"
+        }
+      },
+      "manual_list": [
+        "metric1",
+        "metric2"
+      ],
+      "auto_rules": [
+        "metric_prefix_*"
+      ]
+    },
+    {
+      "group_id": 123,
+      "scope_name": "指标分组名2",
+      "new_scope_name": "新的指标分组名2",
+      "delete_unmatched_dimensions": true
+    }
+  ]
 }
 ```
 
@@ -111,27 +113,46 @@
 | ---------- | ------ | ------------ |
 | group_id   | int    | 自定义时序数据源 ID |
 | scope_name | string | 指标分组名 |
-| action     | string | 操作类型，created 或 updated |
+| dimension_config       | dict   | 分组下的维度配置    |
+| manual_list            | list   | 手动分组的指标列表   |
+| auto_rules             | list   | 自动分组的匹配规则列表 |
+| create_from            | string | 创建来源        |
+
 
 ### 响应参数示例
 
 ```json
 {
-    "message":"OK",
-    "code":200,
-    "data": [
-        {
-            "group_id": 123,
-            "scope_name": "指标分组名1",
-            "action": "created"
-        },
-        {
-            "group_id": 123,
-            "scope_name": "新的指标分组名2",
-            "action": "updated"
+  "message": "OK",
+  "code": 200,
+  "data": [
+    {
+      "group_id": 123,
+      "scope_name": "指标分组名1",
+      "dimension_config": {
+        "dimension1": {
+          "description": "维度1描述"
         }
-    ],
-    "result":true,
-    "request_id":"408233306947415bb1772a86b9536867"
+      },
+      "manual_list": [
+        "metric1",
+        "metric2"
+      ],
+      "auto_rules": [
+        "metric_prefix_*"
+      ],
+      "create_from": "user"
+    },
+    {
+      "group_id": 123,
+      "scope_name": "新的指标分组名2",
+      "dimension_config": {},
+      "manual_list": [],
+      "auto_rules": [],
+      "create_from": "user"
+    }
+  ],
+  "result": true,
+  "request_id": "408233306947415bb1772a86b9536867"
 }
 ```

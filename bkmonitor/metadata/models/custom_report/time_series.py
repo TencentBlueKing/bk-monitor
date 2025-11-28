@@ -1291,10 +1291,24 @@ class TimeSeriesScope(models.Model):
         """
         results = []
         for scope_data in scopes:
-            # 如果修改了分组名，需要使用新的分组名作为 key
-            final_scope_name = scope_data.get("new_scope_name") or scope_data["scope_name"]
-            scope_key = (scope_data["group_id"], final_scope_name)
-            time_series_scope = scope_objects[scope_key]
+            # 优先尝试使用 new_scope_name（更新场景），如果找不到则使用 scope_name（创建场景）
+            new_scope_name = scope_data.get("new_scope_name")
+            scope_name = scope_data["scope_name"]
+            group_id = scope_data["group_id"]
+
+            # 先尝试用 new_scope_name 查找（更新场景）
+            if new_scope_name:
+                scope_key = (group_id, new_scope_name)
+                time_series_scope = scope_objects.get(scope_key)
+                # 如果找不到，说明是创建场景，使用原始 scope_name
+                if time_series_scope is None:
+                    scope_key = (group_id, scope_name)
+                    time_series_scope = scope_objects[scope_key]
+            else:
+                # 没有 new_scope_name，直接使用 scope_name
+                scope_key = (group_id, scope_name)
+                time_series_scope = scope_objects[scope_key]
+
             results.append(
                 {
                     "group_id": time_series_scope.group_id,
