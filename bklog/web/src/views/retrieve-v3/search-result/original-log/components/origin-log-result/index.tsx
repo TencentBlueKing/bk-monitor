@@ -77,6 +77,8 @@ export default defineComponent({
     const timeField = computed(() => store.state.indexFieldInfo.time_field);
     const timeFieldType = computed(() => fieldsMap.value[timeField.value]?.field_type);
     const visibleFields = computed(() => store.getters.visibleFields);
+    // 结果展示行数配置
+    const resultDisplayLines = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES] ?? 3);
 
     const requestOtherparams = cloneDeep(props.retrieveParams);
     delete requestOtherparams.format;
@@ -526,7 +528,7 @@ export default defineComponent({
                           class='bklog-column-wrapper'
                           fields={visibleFields.value}
                           jsonValue={row}
-                          limitRow={null}
+                          limitRow={resultDisplayLines.value}
                           onMenu-click={handleMenuClick}
                         ></JsonFormatter>
                       </RenderJsonCell>
