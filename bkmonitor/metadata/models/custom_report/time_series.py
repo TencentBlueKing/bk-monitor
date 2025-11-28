@@ -1078,7 +1078,9 @@ class TimeSeriesScope(models.Model):
         if not cls.SCOPE_NAME_REGEX.match(scope_name):
             raise ValueError(_("指标分组名只能包含中文、英文、数字和下划线"))
 
-    def update_matched_dimension_config(self, delete_unmatched_dimensions=False):
+    def update_matched_dimension_config(
+        self, delete_unmatched_dimensions=False
+    ):  # todo hhh 补充 APM 的 service_name参数进行过滤
         """
         更新维度配置
 
@@ -1102,7 +1104,7 @@ class TimeSeriesScope(models.Model):
         matched_metric_dimensions = set()
 
         if self.manual_list:
-            # 查询该分组下可操作的指标
+            # 查询该分组下可操作的指标# todo hhh 补充 APM 的 service_name参数进行过滤
             available_metrics = TimeSeriesMetric.objects.filter(group_id=self.group_id).filter(
                 TimeSeriesMetric.get_enable_edit_scope_filter()
             )
@@ -1156,7 +1158,7 @@ class TimeSeriesScope(models.Model):
         return False
 
     @classmethod
-    def _get_ungrouped_metrics(cls, group_id: int) -> set:
+    def get_ungrouped_metrics(cls, group_id: int) -> set:
         """获取未分组下的指标
 
         未分组指标 = 该 group_id default 数据分组的指标 - 该 group_id 下所有 manual_list 的并集
@@ -1216,7 +1218,7 @@ class TimeSeriesScope(models.Model):
 
         # 如果有新增的指标，需要检查它们是否在未分组下的指标列表中
         if added_metrics:
-            ungrouped_metrics = cls._get_ungrouped_metrics(group_id=group_id)
+            ungrouped_metrics = cls.get_ungrouped_metrics(group_id=group_id)
 
             # 检查新增的指标是否在未分组列表中
             invalid_added_metrics = [metric for metric in added_metrics if metric not in ungrouped_metrics]

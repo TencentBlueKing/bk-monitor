@@ -1695,6 +1695,9 @@ class QueryTimeSeriesScopeResource(Resource):
         group_id = validated_request_data.get("group_id")
         scope_name = validated_request_data.get("scope_name")
 
+        # 判断是否查询未分组（根据文档：当 scope_name 为空串时，返回的是未分组的指标）
+        is_query_ungrouped = scope_name == ""
+
         # 构建查询条件
         query_set = models.TimeSeriesScope.objects.all()
 
@@ -1721,20 +1724,161 @@ class QueryTimeSeriesScopeResource(Resource):
             query_set = query_set.filter(group_id__in=valid_group_ids)
 
         # 返回所有结果
-        results = [
-            {
-                "scope_id": scope.id,
-                "group_id": scope.group_id,
-                "scope_name": scope.scope_name,
-                "dimension_config": scope.dimension_config,
-                "manual_list": scope.manual_list,
-                "auto_rules": scope.auto_rules,
-                "metric_list": [],  # todo
-                "create_from": scope.create_from,
-            }
-            for scope in query_set
-        ]
+        results = []
+        for scope in query_set:
+            metric_list = self._get_metric_list(scope)
+            results.append(
+                {
+                    "scope_id": scope.id,
+                    "group_id": scope.group_id,
+                    "scope_name": scope.scope_name,
+                    "dimension_config": scope.dimension_config,
+                    "manual_list": scope.manual_list,
+                    "auto_rules": scope.auto_rules,
+                    "metric_list": metric_list,
+                    "create_from": scope.create_from,
+                }
+            )
+
+        # 如果需要查询未分组，添加虚拟的未分组记录
+        if is_query_ungrouped:
+            # 确定需要查询的 group_id 列表
+            if group_id is not None:
+                group_ids = [group_id]
+            else:
+                group_ids = list(
+                    models.TimeSeriesGroup.objects.filter(bk_tenant_id=bk_tenant_id, is_delete=False).values_list(
+                        "time_series_group_id", flat=True
+                    )
+                )
+
+            # 为每个 group_id 添加未分组记录
+            for gid in group_ids:
+                metric_list = self._get_ungrouped_metric_list(gid)
+                results.append(
+                    {
+                        "scope_id": None,  # 未分组没有 scope_id
+                        "group_id": gid,
+                        "scope_name": "",  # 未分组的 scope_name 为空
+                        "dimension_config": {},
+                        "manual_list": [],
+                        "auto_rules": [],
+                        "metric_list": metric_list,
+                        "create_from": None,
+                    }
+                )
+
         return results
+
+    def _get_ungrouped_metric_list(self, group_id):
+        """获取未分组的指标列表
+
+        未分组下的指标 = default 数据分组的指标 - 所有 manual_list
+
+        :param group_id: 自定义时序数据源ID
+        :return: 指标列表，格式参考文档
+        """
+        from metadata.models.custom_report.time_series import TimeSeriesScope
+
+        # 获取未分组指标名称
+        metric_names = list(TimeSeriesScope.get_ungrouped_metrics(group_id))
+        if not metric_names:
+            return []
+
+        # 查询 default 数据分组的指标
+        metrics = models.TimeSeriesMetric.objects.filter(group_id=group_id, field_name__in=metric_names).filter(
+            models.TimeSeriesMetric.get_enable_edit_scope_filter()
+        )
+
+        return self._convert_metrics_to_list(metrics, metric_names)
+
+    def _get_metric_list(self, scope):
+        """获取指标列表
+
+        1. 用户分组：manual_list 中的指标（来自 default 数据分组）
+        2. 数据分组：manual_list + 数据分组的指标
+
+        :param scope: TimeSeriesScope 对象
+        :return: 指标列表，格式参考文档
+        """
+        from metadata.models.custom_report.time_series import TimeSeriesScope
+
+        manual_list = set(scope.manual_list or [])
+
+        # 用户分组：只查询 manual_list 中的指标
+        if scope.create_from != TimeSeriesScope.CREATE_FROM_DATA:
+            if not manual_list:
+                return []
+            metrics = models.TimeSeriesMetric.objects.filter(
+                group_id=scope.group_id, field_name__in=manual_list
+            ).filter(models.TimeSeriesMetric.get_enable_edit_scope_filter())
+            return self._convert_metrics_to_list(metrics, list(manual_list))
+
+        # 数据分组：查询 manual_list + 数据分组的指标
+        data_group_metrics = models.TimeSeriesMetric.objects.filter(
+            group_id=scope.group_id, field_scope=scope.scope_name
+        ).values_list("field_name", flat=True)
+
+        all_metric_names = manual_list | set(data_group_metrics)
+        if not all_metric_names:
+            return []
+
+        # 分别查询两类指标
+        metrics_dict = {}
+
+        # 查询 manual_list 中的指标（来自 default 数据分组）
+        if manual_list:
+            for metric in models.TimeSeriesMetric.objects.filter(
+                group_id=scope.group_id, field_name__in=manual_list
+            ).filter(models.TimeSeriesMetric.get_enable_edit_scope_filter()):
+                metrics_dict[metric.field_name] = metric
+
+        # 查询数据分组的指标
+        for metric in models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, field_scope=scope.scope_name):
+            metrics_dict[metric.field_name] = metric
+
+        return self._convert_metrics_to_list(list(metrics_dict.values()), list(all_metric_names))
+
+    @staticmethod
+    def _convert_metrics_to_list(metrics, metric_names):
+        """将指标对象列表转换为文档格式
+
+        :param metrics: TimeSeriesMetric 对象列表
+        :param metric_names: 指标名称列表
+        :return: 指标列表，格式参考文档
+        """
+        # 构建指标名称到指标对象的映射
+        metric_map = {metric.field_name: metric for metric in metrics}
+
+        # 转换为文档格式
+        metric_list = []
+        for metric_name in metric_names:
+            metric = metric_map.get(metric_name)
+            if metric:
+                field_config = metric.field_config or {}
+                metric_info = {
+                    "metric_name": metric.field_name,
+                    "desc": field_config.get("desc") or metric.description or "",
+                    "unit": field_config.get("unit", ""),
+                    "hidden": field_config.get("hidden", False),
+                    "aggregate_method": field_config.get("aggregate_method", ""),
+                    "function": field_config.get("function", ""),
+                    "interval": field_config.get("interval", 0),
+                }
+            else:
+                # 指标不存在时使用默认值
+                metric_info = {
+                    "metric_name": metric_name,
+                    "desc": "",
+                    "unit": "",
+                    "hidden": False,
+                    "aggregate_method": "",
+                    "function": "",
+                    "interval": 0,
+                }
+            metric_list.append(metric_info)
+
+        return metric_list
 
 
 class QueryBCSMetricsResource(Resource):
