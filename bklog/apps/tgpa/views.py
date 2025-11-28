@@ -35,9 +35,9 @@ class TGPATaskViewSet(APIViewSet):
 
     def get_permissions(self):
         if self.action == "create":
-            return [BusinessActionPermission(ActionEnum.CREATE_CLIENT_LOG_TASK)]
+            return [BusinessActionPermission([ActionEnum.CREATE_CLIENT_LOG_TASK])]
         if self.action == "get_download_url":
-            return [BusinessActionPermission(ActionEnum.DOWNLOAD_CLIENT_LOG)]
+            return [BusinessActionPermission([ActionEnum.DOWNLOAD_CLIENT_LOG])]
         return [ViewBusinessPermission()]
 
     @insert_permission_field(
