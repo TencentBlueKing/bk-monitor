@@ -71,6 +71,7 @@ export default defineComponent({
 
     const dialogVisible = ref(false); // Dialog 显示状态
     const labelWidth = ref(store.state.isEnLanguage ? 130 : 70); // 标签宽度
+    const formRef = ref(null);
     const formData = ref<FormData>({
       taskName: '', // 任务名称
       matchType: MatchType.FIELD, // 匹配类型
@@ -87,8 +88,69 @@ export default defineComponent({
       },
     });
 
+    // 通用表单验证规则
+    const basicRules = {
+      required: true,
+      trigger: 'blur',
+    };
+
+    const formRules = computed(() => {
+      return {
+        taskName: [basicRules],
+        matchType: [basicRules],
+        selectField: [basicRules],
+        regex: [basicRules],
+        actionType: [basicRules],
+        tagName: [
+          {
+            required: formData.value.actionType === ActionType.MARK,
+            trigger: 'blur',
+          },
+        ],
+        color: [basicRules],
+        jumpLink: [basicRules],
+        relatedResource: [basicRules],
+        'relatedConfig.appInstance': [basicRules],
+        'relatedConfig.serviceInstance': [basicRules],
+      };
+    });
+
     const handleValueChange = (value: boolean) => {
       dialogVisible.value = value;
+      if (!value) {
+        handleReset();
+        formRef.value?.clearError();
+      }
+    };
+
+    // 重置表单
+    const handleReset = () => {
+      formData.value = {
+        taskName: '',
+        matchType: MatchType.FIELD,
+        selectField: '',
+        regex: '',
+        actionType: ActionType.MARK,
+        tagName: '',
+        color: '',
+        jumpLink: '',
+        relatedResource: RelatedResource.HOST,
+        relatedConfig: {
+          appInstance: '',
+          serviceInstance: '',
+        },
+      };
+    };
+
+    // 新建关键字
+    const handleConfirm = async () => {
+      console.log('新建关键字', formData.value);
+      // 先进行表单验证
+      const isValid = await formRef.value.validate();
+      if (!isValid) {
+        return;
+      }
+      dialogVisible.value = false;
     };
 
     // label宽度计算属性
@@ -193,17 +255,21 @@ export default defineComponent({
         <bk-dialog
           value={dialogVisible.value}
           on-value-change={handleValueChange}
+          on-confirm={handleConfirm}
           mask-close={false}
+          auto-close={false}
           title={t('日志关键字')}
           header-position='left'
           width='532'
           ext-cls='log-keyword-setting-dialog'
         >
           <bk-form
+            ref={formRef}
             label-width={labelWidthValue.value}
             {...{
               props: {
                 model: formData.value,
+                rules: formRules.value,
               },
             }}
           >
