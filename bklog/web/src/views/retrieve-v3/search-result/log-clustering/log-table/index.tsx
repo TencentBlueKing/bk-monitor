@@ -37,7 +37,6 @@ import useLocale from '@/hooks/use-locale';
 import MainHeader from './main-header';
 import $http from '@/api';
 import ClusteringLoader from '@/skeleton/clustering-loader.vue';
-import AiAssitant from '@/global/ai-assitant.tsx';
 import ContentTable, { IPagination, GroupListState } from './content-table';
 import { type LogPattern } from '@/services/log-clustering';
 import { type IResponseData } from '@/services/type';
@@ -74,7 +73,6 @@ export default defineComponent({
     MainHeader,
     ClusteringLoader,
     ContentTable,
-    AiAssitant,
   },
   props: {
     clusterSwitch: {
@@ -116,7 +114,7 @@ export default defineComponent({
     const logTableRef = ref<HTMLElement>();
     const tablesRef = ref<any>(null);
     const mainHeaderRef = ref<any>();
-    const aiAssitantRef = ref<any>(null);
+    // const aiAssitantRef = ref<any>(null);
     const tableLoading = ref(false);
     const widthList = ref<Record<string, string>>({});
     const filterSortMap = ref(initFilterSortMap());
@@ -143,8 +141,7 @@ export default defineComponent({
 
     const retrieveParams = computed(() => store.getters.retrieveParams);
     const showGroupBy = computed(
-      () =>
-        props.requestData?.group_by.length > 0 && displayType.value === 'group',
+      () => props.requestData?.group_by.length > 0 && displayType.value === 'group',
     );
 
     const smallLoaderWidthList = computed(() => {
@@ -153,8 +150,7 @@ export default defineComponent({
         : loadingWidthList.notCompared;
     });
 
-    const tableColumnWidth = computed(() =>
-      store.getters.isEnLanguage ? enTableWidth : cnTableWidth,
+    const tableColumnWidth = computed(() => (store.getters.isEnLanguage ? enTableWidth : cnTableWidth),
     );
 
     const loadingWidthList = {
@@ -202,10 +198,13 @@ export default defineComponent({
      */
     useIntersectionObserver(paginationRef, (entry) => {
       if (entry.isIntersecting) {
-        (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty('visibility', 'visible');
+        (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty(
+          'visibility',
+          'visible',
+        );
         if (
-          pagination.value.current * pagination.value.limit <
-          pagination.value.count
+          pagination.value.current * pagination.value.limit
+          < pagination.value.count
         ) {
           pagination.value.current += 1;
         }
@@ -244,7 +243,8 @@ export default defineComponent({
 
       // 组合为 53 位整数（JavaScript 安全整数范围）
       const combined = (h1 & 0x1fffff) * 0x1000000000 + (h2 & 0xfffffff);
-      return combined.toString(36).padStart(length, '0').slice(-length);
+      return combined.toString(36).padStart(length, '0')
+        .slice(-length);
     }
 
     /**
@@ -256,7 +256,7 @@ export default defineComponent({
     ) => {
       const groupList: ITableItem[] = [];
       const sortObj = Object.entries(filterSortMap.value.sort).find(
-        (item) => !!item[1],
+        item => !!item[1],
       );
       const groupMap = new Map<string, ITableItem[]>();
       pagination.value.visibleCount = 0;
@@ -315,7 +315,7 @@ export default defineComponent({
       pagination.value.visibleCount = 0;
 
       const sortObj = Object.entries(filterSortMap.value.sort).find(
-        (item) => !!item[1],
+        item => !!item[1],
       );
 
       for (let i = 0; i < targetList.length; i++) {
@@ -375,7 +375,7 @@ export default defineComponent({
         if (filterOwners) {
           result = noOwner
             ? (item.data?.owners?.value.length ?? 0) > 0
-            : (item.data?.owners.value ?? []).some((item) => !!ownersMap[item]);
+            : (item.data?.owners.value ?? []).some(item => !!ownersMap[item]);
         }
 
         if (filterRemark && result) {
@@ -388,8 +388,8 @@ export default defineComponent({
       };
 
       if (
-        displayType.value === 'group' &&
-        props.requestData.group_by?.length > 0
+        displayType.value === 'group'
+        && props.requestData.group_by?.length > 0
       ) {
         tableList.value = sortGroupList(targetList, filterFn);
         return;
@@ -404,8 +404,7 @@ export default defineComponent({
      */
     const setPaginationCount = () => {
       if (displayType.value === 'group') {
-        pagination.value.count =
-          pagination.value.groupCount + pagination.value.childCount;
+        pagination.value.count = pagination.value.groupCount + pagination.value.childCount;
         return;
       }
 
@@ -415,9 +414,9 @@ export default defineComponent({
     const refreshTable = () => {
       // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
       if (
-        tableLoading.value ||
-        !props.clusterSwitch ||
-        !props.isClusterActive
+        tableLoading.value
+        || !props.clusterSwitch
+        || !props.isClusterActive
       ) {
         return;
       }
@@ -439,8 +438,8 @@ export default defineComponent({
             value:
               item.hidden_values && item.hidden_values.length > 0
                 ? item.value.filter(
-                    (value) => !item.hidden_values.includes(value),
-                  )
+                  value => !item.hidden_values.includes(value),
+                )
                 : item.value,
           });
         }
@@ -537,7 +536,7 @@ export default defineComponent({
 
           updateTableList(tempList);
 
-          if (!hasOpenedGroup) {
+          if (!hasOpenedGroup && tempList.length > 0) {
             groupState[tempList[0].hashKey]!.isOpen = true;
           }
 
@@ -556,7 +555,7 @@ export default defineComponent({
     };
 
     addEvent(
-      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE],
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.AUTO_REFRESH],
       refreshTable,
     );
 
@@ -573,15 +572,6 @@ export default defineComponent({
       });
       filterSortMap.value.sort[field] = order;
       updateTableList();
-    };
-
-    const handleOpenAi = (row: LogPattern, index: number) => {
-      aiAssitantRef.value.open(true, {
-        space_uid: store.getters.spaceUid,
-        index_set_id: store.getters.indexId,
-        log_data: row,
-        index,
-      });
     };
 
     /**
@@ -615,8 +605,7 @@ export default defineComponent({
     useWheel({
       target: rootElement,
       callback: (event: WheelEvent) => {
-        const maxOffset =
-          scrollXBarInnerWidth.value - scrollXBarOuterWidth.value;
+        const maxOffset = scrollXBarInnerWidth.value - scrollXBarOuterWidth.value;
         let scrollLeft = 0;
         // 检查是否按住 shift 键
         if (event.shiftKey) {
@@ -627,8 +616,7 @@ export default defineComponent({
             event.preventDefault();
 
             // 使用系统默认的滚动行为，通过 refScrollXBar 执行横向滚动
-            const currentScrollLeft =
-              refScrollXBar.value.getScrollLeft?.() || 0;
+            const currentScrollLeft = refScrollXBar.value.getScrollLeft?.() || 0;
             const scrollStep = event.deltaY || event.deltaX;
             const newScrollLeft = Math.max(
               0,
@@ -684,8 +672,7 @@ export default defineComponent({
         });
       }
 
-      groupListState.value[row.hashKey].isOpen =
-        !groupListState.value[row.hashKey].isOpen;
+      groupListState.value[row.hashKey].isOpen = !groupListState.value[row.hashKey].isOpen;
     };
 
     onMounted(() => {
@@ -709,9 +696,9 @@ export default defineComponent({
       };
 
       if (
-        retrieveParams.value.addition.length > 0 ||
-        owners.length > 0 ||
-        remark.length > 0
+        retrieveParams.value.addition.length > 0
+        || owners.length > 0
+        || remark.length > 0
       ) {
         option.type = 'search-empty';
         option.text = t('搜索结果为空');
@@ -771,7 +758,6 @@ export default defineComponent({
                 groupListState={groupListState.value}
                 pagination={pagination.value}
                 indexId={props.indexId}
-                on-open-ai={handleOpenAi}
                 on-open-cluster-config={() => emit('open-cluster-config')}
                 on-group-state-change={handleGroupStateChange}
               />,
@@ -785,7 +771,6 @@ export default defineComponent({
             <span>loading ...</span>
           </div>
         </div>
-        <AiAssitant ref={aiAssitantRef} on-close='handleAiClose' />
         <ScrollTop on-scroll-top={handleScrollTop}></ScrollTop>
         <ScrollXBar
           ref={refScrollXBar}

@@ -127,15 +127,15 @@ class SNMPPluginManager(PluginManager):
 
     def _get_collector_json(self, plugin_params):
         file_name = "config.yaml.tpl"
-        config_yaml_path = None
+        config_yaml_path = ""
 
         # 获取 config.yaml.tpl 的文件路径
         for filename in self.filename_list:
             if os.path.basename(str(filename)) == file_name:
                 config_yaml_path = filename
                 break
-        if config_yaml_path is None:
-            raise PluginParseError({"msg": _(f"无法获取SNMP对应的配置文件 {file_name}")})
+        if not config_yaml_path:
+            raise PluginParseError({"msg": _("无法获取SNMP对应的配置文件")})
 
         content = yaml.load(self._decode_file(self.plugin_configs[config_yaml_path]), Loader=yaml.FullLoader)
         content["if_mib"].pop("auth")

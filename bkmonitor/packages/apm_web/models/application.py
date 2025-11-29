@@ -606,9 +606,10 @@ class Application(AbstractRecordModel):
             api.node_man.switch_subscription(
                 {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"}
             )
-            LogTracePluginConfig().run_subscription_task(app.plugin_config["subscription_id"], "STOP")
             # 删除节点管理采集订阅任务
-            return api.node_man.delete_subscription({"subscription_id": app.plugin_config["subscription_id"]})
+            return LogTracePluginConfig().run_subscription_task(
+                app.plugin_config["subscription_id"], "UNINSTALL_AND_DELETE"
+            )
 
     def set_init_datasource(self, datasource_option, enabled_profiling, enabled_trace, enabled_metric, enabled_log):
         # 更新数据源开关

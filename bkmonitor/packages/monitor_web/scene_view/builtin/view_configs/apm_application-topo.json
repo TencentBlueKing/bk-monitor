@@ -95,9 +95,9 @@
               },
               {
                 "id": 2,
-                "title": "请求数",
+                "title": "_(请求数)",
                 "type": "apm-timeseries-chart",
-                "alias": "请求数",
+                "alias": "_(请求数)",
                 "targets": [
                   {
                     "data_type": "time_series",
@@ -304,15 +304,15 @@
               },
               {
                 "id": 3,
-                "title": "错误数",
+                "title": "_(错误数)",
                 "type": "apm-timeseries-chart",
-                "alias": "错误数",
+                "alias": "_(错误数)",
                 "targets": [
                   {
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "错误数",
+                    "alias": "_(错误数)",
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
@@ -397,7 +397,7 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "错误率",
+                    "alias": "_(错误率)",
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
@@ -534,9 +534,9 @@
               },
               {
                 "id": 4,
-                "title": "耗时",
+                "title": "_(耗时)",
                 "type": "apm-timeseries-chart",
-                "alias": "耗时",
+                "alias": "_(耗时)",
                 "targets": [
                   {
                     "data_type": "time_series",
@@ -1121,9 +1121,9 @@
               },
               {
                 "id": 2,
-                "title": "请求数",
+                "title": "_(请求数)",
                 "type": "apm-timeseries-chart",
-                "alias": "请求数",
+                "alias": "_(请求数)",
                 "targets": [
                   {
                     "data_type": "time_series",
@@ -1334,15 +1334,15 @@
               },
               {
                 "id": 3,
-                "title": "错误数",
+                "title": "_(错误数)",
                 "type": "apm-timeseries-chart",
-                "alias": "错误数",
+                "alias": "_(错误数)",
                 "targets": [
                   {
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "错误数",
+                    "alias": "_(错误数)",
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
@@ -1428,7 +1428,7 @@
                     "data_type": "time_series",
                     "api": "apm_metric.dynamicUnifyQuery",
                     "datasource": "time_series",
-                    "alias": "错误率",
+                    "alias": "_(错误率)",
                     "data": {
                       "app_name": "${app_name}",
                       "service_name": "${service_name}",
@@ -1568,9 +1568,9 @@
               },
               {
                 "id": 4,
-                "title": "耗时",
+                "title": "_(耗时)",
                 "type": "apm-timeseries-chart",
-                "alias": "耗时",
+                "alias": "_(耗时)",
                 "targets": [
                   {
                     "data_type": "time_series",

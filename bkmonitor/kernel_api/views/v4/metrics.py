@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -11,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from kernel_api.resource.metrics import TimeSeriesGroupListResource
 
 
 class MetricsViewSet(ResourceViewSet):
@@ -18,4 +18,7 @@ class MetricsViewSet(ResourceViewSet):
     指标相关接口
     """
 
-    resource_routes = [ResourceRoute("POST", resource.strategies.get_metric_list_v2, endpoint="get_metric_list")]
+    resource_routes = [
+        ResourceRoute("POST", resource.strategies.get_metric_list_v2, endpoint="get_metric_list"),
+        ResourceRoute("POST", TimeSeriesGroupListResource, endpoint="list_time_series_groups"),
+    ]

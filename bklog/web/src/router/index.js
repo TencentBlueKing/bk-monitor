@@ -32,11 +32,13 @@
 import Vue from 'vue';
 import VueRouter from 'vue-router';
 
-import reportLogStore from '@/store/modules/report-log';
+// import reportLogStore from '@/store/modules/report-log';
 import exception from '@/views/404';
+import unAuthorized from '@/views/un-authorized';
 
 import dashboardRoutes from './dashboard';
-import monitorRoutes from './dashboard';
+import monitorRoutes from './monitor';
+
 // 1.导入各业务模块的路由（检索、监控、仪表盘、管理）
 import manageRoutes from './manage';
 import retrieveRoutes from './retrieve';
@@ -80,10 +82,17 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
     // 当用户访问根路径/时，根据当前环境和参数，自动跳转到检索页or管理页
     {
       path: '',
-      redirect: to => ({
-        name: getDefRouteName(),
-        query: { ...(to?.query ?? {}), spaceUid: spaceId, bizId: bkBizId },
-      }),
+      redirect: (to) => {
+        const targetRoute = {
+          name: getDefRouteName(),
+          query: {
+            ...(to?.query || {}),
+            spaceUid: spaceId,
+            bizId: bkBizId,
+          },
+        };
+        return targetRoute;
+      },
       meta: { title: '检索', navId: 'retrieve' },
     },
     // 检索模块路由
@@ -94,6 +103,15 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
     ...dashboardRoutes(),
     // 管理模块路由
     ...manageRoutes(),
+    {
+      path: '/un-authorized',
+      name: 'un-authorized',
+      component: unAuthorized,
+      meta: {
+        navId: 'un-authorized',
+        title: '无权限页面',
+      },
+    },
     // 无权限页面路由
     {
       path: '*',
@@ -108,10 +126,10 @@ const getRoutes = (spaceId, bkBizId, externalMenu) => {
 };
 
 // 4.根据 navId 获取路由配置
-export function getRouteConfigById(id, space_uid, bk_biz_id, externalMenu) {
-  const flatConfig = getRoutes(space_uid, bk_biz_id, externalMenu).flatMap(config => {
+export function getRouteConfigById(id, spaceUid, bkBizId, externalMenu) {
+  const flatConfig = getRoutes(spaceUid, bkBizId, externalMenu).flatMap((config) => {
     if (config.children?.length) {
-      return config.children.flatMap(set => {
+      return config.children.flatMap((set) => {
         if (set.children?.length) {
           return set.children;
         }
@@ -154,36 +172,40 @@ export default (spaceId, bkBizId, externalMenu) => {
       );
     }
     if (
-      window.IS_EXTERNAL &&
-      JSON.parse(window.IS_EXTERNAL) &&
-      !['retrieve', 'extract-home', 'extract-create', 'extract-clone'].includes(to.name)
+      window.IS_EXTERNAL
+      && JSON.parse(window.IS_EXTERNAL)
+      && !['retrieve', 'extract-home', 'extract-create', 'extract-clone'].includes(to.name)
     ) {
-      // 非外部版路由重定向
+      // 非外部版路由重定向，保留 query 和 params 参数
       const routeName = store.state.externalMenu.includes('retrieve') ? 'retrieve' : 'manage';
-      next({ name: routeName });
+      next({
+        name: routeName,
+        query: to.query,
+        params: to.params,
+      });
     } else {
       next();
     }
   });
 
-  let stringifyExternalMenu = '[]';
-  try {
-    stringifyExternalMenu = JSON.stringify(externalMenu);
-  } catch (e) {
-    console.warn('externalMenu JSON.stringify error', e);
-  }
+  // let stringifyExternalMenu = '[]';
+  // try {
+  //   stringifyExternalMenu = JSON.stringify(externalMenu);
+  // } catch (e) {
+  //   console.warn('externalMenu JSON.stringify error', e);
+  // }
 
   // 路由后置钩子：每次路由切换后上报路由日志
-  router.afterEach(to => {
+  router.afterEach((to) => {
     if (to.name === 'exception') {
       return;
     }
-    reportLogStore.reportRouteLog({
-      route_id: to.name,
-      nav_id: to.meta.navId,
-      nav_name: to.meta?.title ?? undefined,
-      external_menu: stringifyExternalMenu,
-    });
+    // reportLogStore.reportRouteLog({
+    //   route_id: to.name,
+    //   nav_id: to.meta.navId,
+    //   nav_name: to.meta?.title ?? undefined,
+    //   external_menu: stringifyExternalMenu,
+    // });
   });
 
   return router;

@@ -317,10 +317,12 @@ class AbstractConfig(metaclass=abc.ABCMeta):
     @staticmethod
     def _get_username():
         try:
-            from blueapps.utils import get_request
+            from bkmonitor.utils.request import get_request
 
+            # 这里不能直接用 blueapps 的 get_request，没有适配多线程调用场景。
             username = get_request().user.username
-        except IndexError:
+        except Exception:  # pylint: disable=broad-except
+            # 后台任务场景，取不到 request，则使用 system 用户。
             username = "system"
         return username
 

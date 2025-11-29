@@ -27,6 +27,7 @@
 import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS } from 'apm/pages/alarm-template/constant';
 import { isEqual } from 'lodash';
 import { getSceneView, getSceneViewList } from 'monitor-api/modules/scene_view';
 import bus from 'monitor-common/utils/event-bus';
@@ -147,13 +148,17 @@ export const MIN_DASHBOARD_PANEL_WIDTH = '640';
 export type ShowModeType = 'dashboard' | 'default' | 'list';
 // 事件tab的query
 export const Event_EXPORT_QUERY_KEYS = ['targets', 'filterMode', 'commonWhere', 'showResidentBtn', 'prop', 'order'];
+/** 告警模板查询条件 */
+const ALARM_TEMPLATE_QUERY_KEYS = ['quickStatus', 'searchKeyword', 'sort'];
 const customRouterQueryKeys = [
   'sliceStartTime',
   'sliceEndTime',
   'callOptions',
+  ...APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS,
   // log-retrieve图所需的路由参数
   ...APM_LOG_ROUTER_QUERY_KEYS,
   ...Event_EXPORT_QUERY_KEYS,
+  ...ALARM_TEMPLATE_QUERY_KEYS,
 ];
 @Component({
   components: {
@@ -1560,7 +1565,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /** 处理跳转视图详情 */
   handleLinkToDetail(data: ITableItem<'link'>) {
     this.$router.replace({
-      path: `${window.__BK_WEWEB_DATA__?.baseroute || ''}${data.url}`.replace(/\/\//g, '/'),
+      path: `${window.__BK_WEWEB_DATA__?.parentRoute || ''}${data.url}`.replace(/\/\//g, '/'),
     });
     this.handleSetDefaultParams();
     this.handleTabChange(this.dashboardId);
@@ -1820,7 +1825,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
             showSelectPanel={false}
             tabList={this.tabList}
             onAddTab={() => this.handleAddTab('edit-tab')}
-            onFilterChange={val => (this.filterActive = val)}
+            onFilterChange={val => {
+              this.filterActive = val;
+            }}
             onListPanelChange={this.handleDashboardModeChange}
             onSearchChange={this.handleSearchChange}
             onSelectPanelChange={this.handleSelectPanelActive}
@@ -1904,8 +1911,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   specialDrag={!this.sceneData.options?.only_index_list}
                   title={this.$t('列表').toString()}
                   toggleSet={this.toggleSet}
-                  onShowChange={show => !show && (this.isSelectPanelActive = false)}
-                  onShrink={() => (this.isSelectPanelActive = !this.isSelectPanelActive)}
+                  onShowChange={show => {
+                    !show && (this.isSelectPanelActive = false);
+                  }}
+                  onShrink={() => {
+                    this.isSelectPanelActive = !this.isSelectPanelActive;
+                  }}
                   onWidthChange={this.handleLeftPanelWidthChange}
                 />
               )}
@@ -1926,7 +1937,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                             ref='collapseRef'
                             expand={this.filterActive}
                             renderAnimation={false}
-                            onExpandChange={val => (this.filterActive = val)}
+                            onExpandChange={val => {
+                              this.filterActive = val;
+                            }}
                           >
                             <div
                               class={[
@@ -2135,8 +2148,12 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
                   sceneId={this.sceneId}
                   title={this.title}
                   viewType={this.localSceneType}
-                  onActiveChange={val => (this.activeSettingId = val)}
-                  onPanelChange={val => (this.isPanelChange = val)}
+                  onActiveChange={val => {
+                    this.activeSettingId = val;
+                  }}
+                  onPanelChange={val => {
+                    this.isPanelChange = val;
+                  }}
                 />
               )}
             </SettingModal>

@@ -9,13 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import os
 from collections import namedtuple
-from pathlib import Path
 
 from django.utils.translation import gettext as _
 
 from core.drf_resource import resource
-from core.errors.plugin import PluginParseError
 from monitor_web.commons.file_manager import PluginFileManager
 from monitor_web.plugin.constant import OS_TYPE_TO_DIRNAME, ParamMode
 from monitor_web.plugin.manager.base import PluginManager
@@ -232,15 +231,21 @@ class ExporterPluginManager(PluginManager):
         for sys_name, sys_dir in list(OS_TYPE_TO_DIRNAME.items()):
             # 获取不同操作系统下的文件名
             collector_name = f"{self.plugin.plugin_id}.exe" if sys_name == "windows" else self.plugin.plugin_id
-            collector_path = Path(self.plugin.plugin_id, sys_dir, self.plugin.plugin_id, collector_name)
-            if collector_path not in self.plugin_configs:
-                raise PluginParseError(_(f"未找到采集器文件,path:{collector_path}"))
+            collector_path = os.path.join(sys_dir, self.plugin.plugin_id, collector_name)
+            # _path = collector_path.replace('\\', '/')
+            # 查找匹配的完整路径
+            matching_path = None
+            for file_path in self.filename_list:
+                if collector_path in str(file_path) or collector_path.replace(os.sep, "/") in str(file_path):
+                    matching_path = file_path
+                    break
 
-            # 读取文件内容
-            collector_file[sys_name] = self.CollectorFile(
-                data=self._decode_file(self.plugin_configs[collector_path]),
-                name=collector_name,
-            )
+            if matching_path:
+                # 读取文件内容
+                collector_file[sys_name] = self.CollectorFile(
+                    data=self._decode_file(self.plugin_configs[matching_path]),
+                    name=collector_name,
+                )
 
         collector_json = {}
         # collector_json存入文件系统

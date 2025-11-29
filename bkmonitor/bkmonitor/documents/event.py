@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -13,15 +12,16 @@ from django_elasticsearch_dsl.registries import registry
 from elasticsearch_dsl import field
 
 from bkmonitor.documents.base import BaseDocument, Date
+from bkmonitor.documents.constants import ES_INDEX_SETTINGS
 from core.errors.alert import EventNotFoundError
 
 
 @registry.register_document
 class EventDocument(BaseDocument):
-
     # time 字段在时间偏移量范围内，使用 time 字段作为索引时间
     INDEX_TIME_OFFSET = 24 * 60 * 60
 
+    bk_tenant_id = field.Keyword()
     # 事件标识
     id = field.Keyword(required=True)
     event_id = field.Keyword(required=True)
@@ -91,7 +91,6 @@ class EventDocument(BaseDocument):
 
     @classmethod
     def get_by_metric_id_and_target(cls, metric_id, target, start_time=None):
-
         search_object = cls.search(all_indices=True)
         if start_time:
             search_object = search_object.filter("range", create_time={"gte": start_time})
@@ -104,7 +103,7 @@ class EventDocument(BaseDocument):
             .hits
         )
         if not hits:
-            raise EventNotFoundError({"event_id": "{}_{}".format(metric_id, target)})
+            raise EventNotFoundError({"event_id": f"{metric_id}_{target}"})
         return cls(**hits[0].to_dict())
 
     def to_dict(self, include_meta=False, skip_empty=False):
@@ -112,4 +111,4 @@ class EventDocument(BaseDocument):
 
     class Index:
         name = "bkfta_event"
-        settings = {"number_of_shards": 3, "number_of_replicas": 1, "refresh_interval": "1s"}
+        settings = ES_INDEX_SETTINGS.copy()

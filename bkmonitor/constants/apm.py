@@ -1,10 +1,14 @@
 import re
 import base64
+import json
+import urllib.parse
 from dataclasses import dataclass
 from enum import Enum
 from functools import lru_cache, cache
 from typing import Any
+from collections.abc import Callable
 
+from django.conf import settings
 from django.db.models import TextChoices
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -22,6 +26,52 @@ DEFAULT_DATA_LABEL = "APM"  # 数据标签，用来查询数据时三段式前�
 APM_METRIC_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
 
 APM_TRACE_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?trace_.*")
+
+
+class CachedEnum(Enum):
+    @classmethod
+    @cache
+    def from_value(cls, value):
+        try:
+            return cls(value)
+        except Exception:  # pylint: disable=broad-except
+            return cls.get_default(value)  # 处理未找到的情况
+
+    @classmethod
+    def get_default(cls, value):
+        class _DefaultEnum:
+            def __init__(self):
+                self._value = value
+                self._label = value
+
+            @property
+            def value(self):
+                return self._value
+
+            @property
+            def label(self):
+                return self._label
+
+            @label.setter
+            def label(self, v):
+                self._label = v
+
+            def __getattr__(self, item):
+                return getattr(self, item, None)
+
+            def __setattr__(self, item, default_value):
+                object.__setattr__(self, item, default_value)
+
+        return _DefaultEnum()
+
+
+def get_label_from_enums(value: Any, enums: list[type[CachedEnum]]) -> str:
+    for enum in enums:
+        label: str = enum.from_value(value).label
+        if label != value:
+            # label 不等于 value 时，认为已找到别名，直接返回。
+            return label
+    return value
 
 
 class TraceDataSourceConfig:
@@ -854,7 +904,7 @@ class TrpcAttributes:
     TRPC_STATUS_CODE = "trpc.status_code"
 
 
-class CommonMetricTag:
+class CommonMetricTag(CachedEnum):
     APP_NAME = "app_name"
     SERVICE_NAME = "service_name"
     SCOPE_NAME = "scope_name"
@@ -880,30 +930,40 @@ class CommonMetricTag:
     RPC_METHOD = "rpc_method"
 
     @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+    @classmethod
     def tags(cls) -> list[dict[str, str]]:
-        return [
-            {"value": cls.SCOPE_NAME, "text": _("指标分组名")},
-            {"value": cls.APP_NAME, "text": _("APM 应用")},
-            {"value": cls.SERVICE_NAME, "text": _("APM 服务")},
-            {"value": cls.BK_INSTANCE_ID, "text": _("实例")},
-            {"value": cls.KIND, "text": _("Span 类型")},
-            {"value": cls.SPAN_NAME, "text": _("Span 名称")},
-            {"value": cls.TELEMETRY_SDK_NAME, "text": _("SDK 名称")},
-            {"value": cls.TELEMETRY_SDK_VERSION, "text": _("SDK 版本")},
-            {"value": cls.TELEMETRY_SDK_LANGUAGE, "text": _("SDK 语言")},
-            {"value": cls.HTTP_METHOD, "text": _("HTTP 方法")},
-            {"value": cls.HTTP_FLAVOR, "text": _("HTTP 服务名称")},
-            {"value": cls.HTTP_SCHEME, "text": _("HTTP 协议")},
-            {"value": cls.HTTP_STATUS_CODE, "text": _("HTTP 状态码")},
-            {"value": cls.DB_NAME, "text": _("DB 名称")},
-            {"value": cls.DB_SYSTEM, "text": _("DB 类型")},
-            {"value": cls.RPC_SYSTEM, "text": _("RPC 类型")},
-            {"value": cls.RPC_SERVICE, "text": _("RPC 服务")},
-            {"value": cls.RPC_METHOD, "text": _("RPC 方法")},
-        ]
+        return [{"value": value, "text": text} for value, text in cls.choices()]
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.SCOPE_NAME: _("指标分组名"),
+                self.APP_NAME: _("APM 应用"),
+                self.SERVICE_NAME: _("APM 服务"),
+                self.BK_INSTANCE_ID: _("实例"),
+                self.KIND: _("Span 类型"),
+                self.SPAN_NAME: _("Span 名称"),
+                self.TELEMETRY_SDK_NAME: _("SDK 名称"),
+                self.TELEMETRY_SDK_VERSION: _("SDK 版本"),
+                self.TELEMETRY_SDK_LANGUAGE: _("SDK 语言"),
+                self.HTTP_METHOD: _("HTTP 方法"),
+                self.HTTP_FLAVOR: _("HTTP 服务名称"),
+                self.HTTP_SCHEME: _("HTTP 协议"),
+                self.HTTP_STATUS_CODE: _("HTTP 状态码"),
+                self.DB_NAME: _("DB 名称"),
+                self.DB_SYSTEM: _("DB 类型"),
+                self.RPC_SYSTEM: _("RPC 类型"),
+                self.RPC_SERVICE: _("RPC 服务"),
+                self.RPC_METHOD: _("RPC 方法"),
+            }.get(self, self.value)
+        )
 
 
-class RPCMetricTag:
+class RPCMetricTag(CachedEnum):
     # 通用
     CITY = "city"
     REGION = "region"
@@ -921,68 +981,101 @@ class RPCMetricTag:
     CONTAINER_NAME = "container_name"
 
     # 主调
-    CALLER_SERVER: str = "caller_server"
-    CALLER_SERVICE: str = "caller_service"
-    CALLER_METHOD: str = "caller_method"
-    CALLER_IP: str = "caller_ip"
-    CALLER_CONTAINER: str = "caller_container"
-    CALLER_CON_SETID: str = "caller_con_setid"
-    CALLER_GROUP: str = "caller_group"
+    CALLER_SERVER = "caller_server"
+    CALLER_SERVICE = "caller_service"
+    CALLER_METHOD = "caller_method"
+    CALLER_IP = "caller_ip"
+    CALLER_CONTAINER = "caller_container"
+    CALLER_CON_SETID = "caller_con_setid"
+    CALLER_GROUP = "caller_group"
 
     # 被调
-    CALLEE_SERVER: str = "callee_server"
-    CALLEE_SERVICE: str = "callee_service"
-    CALLEE_METHOD: str = "callee_method"
-    CALLEE_IP: str = "callee_ip"
-    CALLEE_CONTAINER: str = "callee_container"
-    CALLEE_CON_SETID: str = "callee_con_setid"
+    CALLEE_SERVER = "callee_server"
+    CALLEE_SERVICE = "callee_service"
+    CALLEE_METHOD = "callee_method"
+    CALLEE_IP = "callee_ip"
+    CALLEE_CONTAINER = "callee_container"
+    CALLEE_CON_SETID = "callee_con_setid"
 
-    TARGET: str = "target"
+    TARGET = "target"
     # 后续不同上报端都会使用该字段唯一标识一个 RPC 服务
-    SERVICE_NAME: str = "service_name"
+    SERVICE_NAME = "service_name"
     # 特殊维度
-    APP: str = "app"
-    SERVER: str = "server"
+    APP = "app"
+    SERVER = "server"
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
 
     @classmethod
     def tags(cls) -> list[dict[str, str]]:
         return [
-            {"value": cls.CALLER_SERVER, "text": _("主调服务")},
-            {"value": cls.CALLER_SERVICE, "text": _("主调 Service")},
-            {"value": cls.CALLER_METHOD, "text": _("主调接口")},
-            {"value": cls.CALLER_IP, "text": _("主调 IP")},
-            {"value": cls.CALLER_CONTAINER, "text": _("主调容器")},
-            {"value": cls.CALLER_CON_SETID, "text": _("主调 SetID")},
-            {"value": cls.CALLER_GROUP, "text": _("主调流量组")},
-            {"value": cls.CALLEE_SERVER, "text": _("被调服务")},
-            {"value": cls.CALLEE_SERVICE, "text": _("被调 Service")},
-            {"value": cls.CALLEE_METHOD, "text": _("被调接口"), "default_group_by_field": True},
-            {"value": cls.CALLEE_IP, "text": _("被调 IP")},
-            {"value": cls.CALLEE_CONTAINER, "text": _("被调容器")},
-            {"value": cls.CALLEE_CON_SETID, "text": _("被调 SetID")},
-            {"value": cls.NAMESPACE, "text": _("物理环境")},
-            {"value": cls.ENV_NAME, "text": _("用户环境")},
-            {"value": cls.CODE, "text": _("返回码")},
-            {"value": cls.VERSION, "text": _("SDK 版本")},
-            {"value": cls.REGION, "text": _("地域")},
-            {"value": cls.CANARY, "text": _("金丝雀")},
-            {"value": cls.USER_EXT1, "text": _("预留字段1")},
-            {"value": cls.USER_EXT2, "text": _("预留字段2")},
-            {"value": cls.USER_EXT3, "text": _("预留字段3")},
+            {"text": cls.CALLER_SERVER.label, "value": cls.CALLER_SERVER.value},
+            {"text": cls.CALLER_SERVICE.label, "value": cls.CALLER_SERVICE.value},
+            {"text": cls.CALLER_METHOD.label, "value": cls.CALLER_METHOD.value},
+            {"text": cls.CALLER_IP.label, "value": cls.CALLER_IP.value},
+            {"text": cls.CALLER_CONTAINER.label, "value": cls.CALLER_CONTAINER.value},
+            {"text": cls.CALLER_CON_SETID.label, "value": cls.CALLER_CON_SETID.value},
+            {"text": cls.CALLER_GROUP.label, "value": cls.CALLER_GROUP.value},
+            {"text": cls.CALLEE_SERVER.label, "value": cls.CALLEE_SERVER.value},
+            {"text": cls.CALLEE_SERVICE.label, "value": cls.CALLEE_SERVICE.value},
+            {"text": cls.CALLEE_METHOD.label, "value": cls.CALLEE_METHOD.value, "default_group_by_field": True},
+            {"text": cls.CALLEE_IP.label, "value": cls.CALLEE_IP.value},
+            {"text": cls.CALLEE_CONTAINER.label, "value": cls.CALLEE_CONTAINER.value},
+            {"text": cls.CALLEE_CON_SETID.label, "value": cls.CALLEE_CON_SETID.value},
+            {"text": cls.NAMESPACE.label, "value": cls.NAMESPACE.value},
+            {"text": cls.ENV_NAME.label, "value": cls.ENV_NAME.value},
+            {"text": cls.CODE.label, "value": cls.CODE.value},
+            {"text": cls.VERSION.label, "value": cls.VERSION.value},
+            {"text": cls.REGION.label, "value": cls.REGION.value},
+            {"text": cls.CANARY.label, "value": cls.CANARY.value},
+            {"text": cls.USER_EXT1.label, "value": cls.USER_EXT1.value},
+            {"text": cls.USER_EXT2.label, "value": cls.USER_EXT2.value},
+            {"text": cls.USER_EXT3.label, "value": cls.USER_EXT3.value},
         ]
 
     @classmethod
     def all_tags(cls) -> list[dict[str, str]]:
-        return cls.tags() + [
-            {"value": cls.SERVICE_NAME, "text": _("APM 服务")},
-            {"value": cls.APP, "text": _("RPC 应用")},
-            {"value": cls.SERVER, "text": _("RPC 服务")},
-            {"value": cls.INSTANCE, "text": _("实例")},
-            {"value": cls.CONTAINER_NAME, "text": _("容器名")},
-            {"value": cls.CITY, "text": _("城市")},
-            {"value": cls.CODE_TYPE, "text": _("返回码类型")},
-            {"value": cls.SDK_NAME, "text": _("SDK 名称")},
-        ]
+        return [{"value": value, "text": text} for value, text in cls.choices()]
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.CITY: _("城市"),
+                self.REGION: _("地域"),
+                self.CANARY: _("金丝雀"),
+                self.VERSION: _("SDK 版本"),
+                self.SDK_NAME: _("SDK 名称"),
+                self.ENV_NAME: _("用户环境"),
+                self.NAMESPACE: _("物理环境"),
+                self.USER_EXT1: _("预留字段1"),
+                self.USER_EXT2: _("预留字段2"),
+                self.USER_EXT3: _("预留字段3"),
+                self.CODE: _("返回码"),
+                self.CODE_TYPE: _("返回码类型"),
+                self.INSTANCE: _("实例"),
+                self.CONTAINER_NAME: _("容器名"),
+                self.CALLER_SERVER: _("主调服务"),
+                self.CALLER_SERVICE: _("主调 Service"),
+                self.CALLER_METHOD: _("主调接口"),
+                self.CALLER_IP: _("主调 IP"),
+                self.CALLER_CONTAINER: _("主调容器"),
+                self.CALLER_CON_SETID: _("主调 SetID"),
+                self.CALLER_GROUP: _("主调流量组"),
+                self.CALLEE_SERVER: _("被调服务"),
+                self.CALLEE_SERVICE: _("被调 Service"),
+                self.CALLEE_METHOD: _("被调接口"),
+                self.CALLEE_IP: _("被调 IP"),
+                self.CALLEE_CONTAINER: _("被调容器"),
+                self.CALLEE_CON_SETID: _("被调 SetID"),
+                self.TARGET: _("目标"),
+                self.SERVICE_NAME: _("APM 服务"),
+                self.APP: _("RPC 应用"),
+                self.SERVER: _("RPC 服务"),
+            }.get(self, self.value)
+        )
 
     @classmethod
     def common_tags(cls) -> list[dict[str, str]]:
@@ -991,51 +1084,151 @@ class RPCMetricTag:
             for tag in cls.all_tags()
             if tag["value"]
             in [
-                cls.APP,
-                cls.SERVER,
-                cls.ENV_NAME,
-                cls.NAMESPACE,
-                cls.SERVICE_NAME,
-                cls.INSTANCE,
-                cls.CONTAINER_NAME,
+                cls.APP.value,
+                cls.SERVER.value,
+                cls.ENV_NAME.value,
+                cls.NAMESPACE.value,
+                cls.SERVICE_NAME.value,
+                cls.INSTANCE.value,
+                cls.CONTAINER_NAME.value,
             ]
         ]
 
     @classmethod
     def callee_tags(cls) -> list[dict[str, str]]:
-        # 被调已经固定「被调服务」，不需要展示
-        return [tag for tag in cls.tags() if tag["value"] != cls.CALLEE_SERVER]
+        callee_tags: list[dict[str, str]] = []
+        for tag in cls.tags():
+            # 被调已经固定「被调服务」，不需要展示
+            if tag["value"] == cls.CALLEE_SERVER.value:
+                continue
+            if tag["value"] == cls.CALLEE_IP.value:
+                tag.update(value=cls.INSTANCE.value)
+            elif tag["value"] == cls.CALLEE_CONTAINER.value:
+                tag.update(value=cls.CONTAINER_NAME.value)
+            callee_tags.append(tag)
+
+        return callee_tags
 
     @classmethod
     def caller_tags(cls) -> list[dict[str, str]]:
-        # 主调已经固定「主调服务」，不需要展示
-        return [tag for tag in cls.tags() if tag["value"] != cls.CALLER_SERVER]
+        caller_tags: list[dict[str, str]] = []
+        for tag in cls.tags():
+            # 主调已经固定「主调服务」，不需要展示
+            if tag["value"] == cls.CALLER_SERVER.value:
+                continue
+            if tag["value"] == cls.CALLER_IP.value:
+                tag.update(value=cls.INSTANCE.value)
+            elif tag["value"] == cls.CALLER_CONTAINER.value:
+                tag.update(value=cls.CONTAINER_NAME.value)
+            caller_tags.append(tag)
+
+        return caller_tags
 
     @classmethod
     def tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
         return {
-            "caller": {"field": "kind", "value": [SpanKind.SPAN_KIND_CLIENT, SpanKind.SPAN_KIND_CONSUMER]},
-            cls.CALLER_SERVER: {"field": ResourceAttributes.SERVICE_NAME},
-            cls.CALLER_SERVICE: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_SERVICE}"},
-            cls.CALLER_METHOD: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_METHOD}"},
-            cls.CALLER_IP: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_HOST_IP}"},
-            "callee": {"field": "kind", "value": [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_PRODUCER]},
-            cls.CALLEE_SERVER: {"field": ResourceAttributes.SERVICE_NAME},
-            cls.CALLEE_SERVICE: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_SERVICE}"},
-            cls.CALLEE_METHOD: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_METHOD}"},
-            cls.CALLEE_IP: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
-            cls.NAMESPACE: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_NAMESPACE}"},
-            cls.ENV_NAME: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_ENV_NAME}"},
-            cls.CODE: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_STATUS_CODE}"},
+            "caller": {"field": "kind", "value": [SpanKind.SPAN_KIND_CLIENT, SpanKind.SPAN_KIND_PRODUCER]},
+            cls.CALLER_SERVICE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_SERVICE}"},
+            cls.CALLER_METHOD.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLER_METHOD}"},
+            "callee": {"field": "kind", "value": [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_CONSUMER]},
+            cls.CALLEE_SERVICE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_SERVICE}"},
+            cls.CALLEE_METHOD.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_CALLEE_METHOD}"},
+            cls.INSTANCE.value: {"field": f"{OtlpKey.RESOURCE}.{SpanAttributes.NET_HOST_IP}"},
+            cls.SERVICE_NAME.value: {"field": f"{OtlpKey.RESOURCE}.{ResourceAttributes.SERVICE_NAME}"},
+            cls.NAMESPACE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_NAMESPACE}"},
+            cls.ENV_NAME.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_ENV_NAME}"},
+            cls.CODE.value: {"field": f"{OtlpKey.ATTRIBUTES}.{TrpcAttributes.TRPC_STATUS_CODE}"},
         }
 
     @classmethod
     def caller_tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
-        return {tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in ["callee"]}
+        """
+        获取主调场景的标签到 Trace 字段的映射关系
+        :return: 主调场景的标签映射字典
+        """
+        tag_trace_mapping: dict[str, dict[str, Any]] = cls.tag_trace_mapping()
+        tag_trace_mapping.pop("callee", None)
+        tag_trace_mapping.update(
+            {
+                cls.CALLER_IP.value: {"field": f"{OtlpKey.RESOURCE}.{SpanAttributes.NET_HOST_IP}"},
+                cls.CALLER_SERVER.value: {"field": f"{OtlpKey.RESOURCE}.{ResourceAttributes.SERVICE_NAME}"},
+                cls.CALLEE_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
+            }
+        )
+
+        return tag_trace_mapping
 
     @classmethod
     def callee_tag_trace_mapping(cls) -> dict[str, dict[str, Any]]:
-        return {tag: trace_tag_info for tag, trace_tag_info in cls.tag_trace_mapping().items() if tag not in ["caller"]}
+        """
+        获取被调场景的标签到 Trace 字段的映射关系
+        :return: 被调场景的标签映射字典
+        """
+        tag_trace_mapping: dict[str, dict[str, Any]] = cls.tag_trace_mapping()
+        tag_trace_mapping.pop("caller", None)
+        tag_trace_mapping.update(
+            {
+                cls.CALLEE_IP.value: {"field": f"{OtlpKey.RESOURCE}.{SpanAttributes.NET_HOST_IP}"},
+                cls.CALLEE_SERVER.value: {"field": f"{OtlpKey.RESOURCE}.{ResourceAttributes.SERVICE_NAME}"},
+                cls.CALLER_IP.value: {"field": f"{OtlpKey.ATTRIBUTES}.{SpanAttributes.NET_PEER_IP}"},
+            }
+        )
+        return tag_trace_mapping
+
+
+class RPCLogTag(CachedEnum):
+    RESOURCE_ENV = "resource.env"
+    RESOURCE_INSTANCE = "resource.instance"
+    RESOURCE_SERVER = "resource.server"
+    RESOURCE_SERVICE_NAME = "resource.service_name"
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.RESOURCE_ENV: _("用户环境"),
+                self.RESOURCE_INSTANCE: _("实例"),
+                self.RESOURCE_SERVER: _("服务"),
+                self.RESOURCE_SERVICE_NAME: _("服务"),
+            }.get(self, self.value)
+        )
+
+    @classmethod
+    def get_metric_tag(cls, value: str) -> str | None:
+        return {
+            cls.RESOURCE_ENV.value: RPCMetricTag.ENV_NAME.value,
+            cls.RESOURCE_INSTANCE.value: RPCMetricTag.INSTANCE.value,
+            cls.RESOURCE_SERVER.value: RPCMetricTag.SERVICE_NAME.value,
+            cls.RESOURCE_SERVICE_NAME.value: RPCMetricTag.SERVICE_NAME.value,
+        }.get(value)
+
+
+class K8SMetricTag(CachedEnum):
+    BCS_CLUSTER_ID = "bcs_cluster_id"
+    NAMESPACE = "namespace"
+    POD_NAME = "pod_name"
+    CONTAINER_NAME = "container_name"
+    REASON = "reason"
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.BCS_CLUSTER_ID: _("集群 ID"),
+                self.NAMESPACE: _("命名空间"),
+                self.POD_NAME: _("Pod 名称"),
+                self.CONTAINER_NAME: _("容器名"),
+                self.REASON: _("异常原因"),
+            }.get(self, self.value)
+        )
 
 
 class TrpcTagDrillOperation:
@@ -1053,10 +1246,10 @@ class TrpcTagDrillOperation:
                 "text": _("主调"),
                 "value": cls.CALLEE,
                 "tags": [
-                    RPCMetricTag.CALLER_SERVICE,
-                    RPCMetricTag.CALLER_METHOD,
-                    RPCMetricTag.CALLEE_SERVICE,
-                    RPCMetricTag.CALLEE_METHOD,
+                    RPCMetricTag.CALLER_SERVICE.value,
+                    RPCMetricTag.CALLER_METHOD.value,
+                    RPCMetricTag.CALLEE_SERVICE.value,
+                    RPCMetricTag.CALLEE_METHOD.value,
                 ],
             },
             {
@@ -1066,9 +1259,9 @@ class TrpcTagDrillOperation:
                 "tag_trace_mapping": tag_trace_mapping,
             },
             # 主调视图下，第一个 group by 字段为「被调服务」时，可以跳转到拓扑页
-            {"text": _("拓扑"), "value": cls.TOPO, "tags": [RPCMetricTag.CALLEE_SERVER]},
+            {"text": _("拓扑"), "value": cls.TOPO, "tags": [RPCMetricTag.CALLEE_SERVER.value]},
             # 主调视图下，跳转到该服务的主被调界面，默认展示「被调」
-            {"text": _("查看"), "value": cls.SERVICE, "tags": [RPCMetricTag.CALLEE_SERVER]},
+            {"text": _("查看"), "value": cls.SERVICE, "tags": [RPCMetricTag.CALLEE_SERVER.value]},
         ]
 
     @classmethod
@@ -1079,10 +1272,10 @@ class TrpcTagDrillOperation:
                 "text": _("被调"),
                 "value": cls.CALLEE,
                 "tags": [
-                    RPCMetricTag.CALLER_SERVICE,
-                    RPCMetricTag.CALLER_METHOD,
-                    RPCMetricTag.CALLEE_SERVICE,
-                    RPCMetricTag.CALLEE_METHOD,
+                    RPCMetricTag.CALLER_SERVICE.value,
+                    RPCMetricTag.CALLER_METHOD.value,
+                    RPCMetricTag.CALLEE_SERVICE.value,
+                    RPCMetricTag.CALLEE_METHOD.value,
                 ],
             },
             {
@@ -1093,9 +1286,9 @@ class TrpcTagDrillOperation:
             },
             # TODO：需要检查下服务在不在，不在的话最好是有另外的交互提示
             # 被调视图下，第一个 group by 字段为「主调服务」时，可以跳转到拓扑页
-            {"text": _("拓扑"), "value": cls.TOPO, "tags": [RPCMetricTag.CALLER_SERVER]},
+            {"text": _("拓扑"), "value": cls.TOPO, "tags": [RPCMetricTag.CALLER_SERVER.value]},
             # 被调视图下，跳转到该服务的主被调界面，默认展示「被调」
-            {"text": _("查看"), "value": cls.SERVICE, "tags": [RPCMetricTag.CALLER_SERVER]},
+            {"text": _("查看"), "value": cls.SERVICE, "tags": [RPCMetricTag.CALLER_SERVER.value]},
         ]
 
 
@@ -1318,6 +1511,249 @@ class ApmMetricProcessor:
             processor.process(table)
 
 
+class ApmAlertHelper:
+    """APM 告警相关工具函数"""
+
+    _STRATEGY_APP_LABEL_REGEX = re.compile(r"APM-APP\((.*?)\)")
+    _STRATEGY_SERVICE_LABEL_REGEX = re.compile(r"APM-SERVICE\((.*?)\)")
+
+    _RPC_METRIC_REGEX = re.compile(r"^rpc_(client|server)_handled_(?:total|seconds_(?:sum|min|max|count|bucket))$")
+
+    _TABLE_APP_NAME_REGEX = re.compile(r"^(?:space_)?\d+_bkapm_(?:metric|trace)_([a-zA-Z0-9_-]+)\.__default__$")
+
+    _TAG_ENUMS: list[type[CachedEnum]] = [
+        CommonMetricTag,
+        RPCMetricTag,
+        RPCLogTag,
+    ]
+
+    @classmethod
+    def _reg_extract(cls, regex: re.Pattern, string: str) -> str | None:
+        match: re.Match | None = regex.match(string)
+        if match:
+            return match.group(1)
+        return None
+
+    @classmethod
+    def _get_value_from_label(cls, regex: re.Pattern, label: str) -> str | None:
+        return cls._reg_extract(regex, label)
+
+    @classmethod
+    def _get_value_from_labels(cls, regex: re.Pattern, labels: list[str]) -> str | None:
+        for label in labels:
+            value: str | None = cls._get_value_from_label(regex, label)
+            if value:
+                return value
+        return None
+
+    @classmethod
+    def _is_rpc_metric(cls, metric_field: str) -> bool:
+        return cls._RPC_METRIC_REGEX.match(metric_field) is not None
+
+    @classmethod
+    def is_match(cls, strategy: dict[str, Any]) -> bool:
+        """判断是否为 APM 告警策略"""
+        target: dict[str, str | None] = cls.get_target(strategy, {})
+        if target.get("app_name"):
+            return True
+
+        try:
+            query_config: dict[str, Any] = strategy["items"][0]["query_configs"][0]
+        except (KeyError, IndexError):
+            return False
+
+        table: dict[str, str] = {
+            "data_label": query_config.get("data_label", ""),
+            "table_id": query_config.get("result_table_id", ""),
+        }
+        return ApmMetricProcessor.is_match_data_label(table) or ApmMetricProcessor.is_match_table_id(table)
+
+    @classmethod
+    def is_rpc_system(cls, strategy: dict[str, Any]) -> bool:
+        """判断是否为调用分析场景"""
+        is_rpc_metric: bool = False
+        try:
+            is_rpc_metric: bool = cls._is_rpc_metric(strategy["items"][0]["query_configs"][0]["metric_field"])
+        except (KeyError, IndexError):
+            pass
+
+        return "APM-SYSTEM(RPC)" in strategy.get("labels", []) or is_rpc_metric
+
+    @classmethod
+    def get_tag_label(cls, tag: str) -> str:
+        return get_label_from_enums(tag, cls._TAG_ENUMS)
+
+    @classmethod
+    def get_target(cls, strategy: dict[str, Any] | None, dimensions: dict[str, Any]) -> dict[str, str | None]:
+        """获取告警目标"""
+        # 1. 尝试从告警维度中获取。
+        app_name: str | None = dimensions.get(CommonMetricTag.APP_NAME.value)
+        service_name: str | None = dimensions.get(CommonMetricTag.SERVICE_NAME.value)
+        if app_name and service_name:
+            return {"app_name": app_name, "service_name": service_name}
+
+        if not strategy:
+            return {"app_name": app_name, "service_name": service_name}
+
+        # 2. 尝试从告警策略标签中获取。
+        labels: list[str] = strategy.get("labels") or []
+        if not app_name:
+            app_name = cls._get_value_from_labels(cls._STRATEGY_APP_LABEL_REGEX, labels)
+        if not service_name:
+            service_name = cls._get_value_from_labels(cls._STRATEGY_SERVICE_LABEL_REGEX, labels)
+
+        if app_name and service_name:
+            return {"app_name": app_name, "service_name": service_name}
+
+        # 3. 尝试从结果表中获取 app_name。
+        if not app_name:
+            try:
+                app_name = cls._reg_extract(
+                    cls._TABLE_APP_NAME_REGEX, strategy["items"][0]["query_configs"][0]["result_table_id"]
+                )
+            except (KeyError, IndexError):
+                pass
+
+        return {"app_name": app_name, "service_name": service_name}
+
+    @classmethod
+    def _get_rpc_kind(cls, strategy: dict[str, Any]) -> str:
+        """判断RPC调用类型
+        通过分析告警策略中的指标名称前缀来判断调用类型：
+            - rpc_client_* 开头的指标表示主调（caller）
+            - rpc_server_* 开头的指标表示被调（callee）
+            - 无法判断时默认返回被调（callee）
+        :param strategy: 告警策略配置字典，包含items、query_configs等信息
+        :return: "caller"表示主调 ; "callee"表示被调
+        """
+        try:
+            metric_field: str = strategy["items"][0]["query_configs"][0]["metric_field"]
+            return "caller" if metric_field.startswith("rpc_client_") else "callee"
+        except (KeyError, IndexError):
+            # 策略配置不完整时，默认返回被调类型
+            return "callee"
+
+    @classmethod
+    def get_rpc_url(
+        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], timestamp: int, duration: int
+    ) -> str | None:
+        """获取调用分析跳转链接"""
+        if not cls.is_rpc_system(strategy):
+            return None
+
+        target: dict[str, str | None] = cls.get_target(strategy, dimensions)
+        if not target.get("app_name") or not target.get("service_name"):
+            return None
+
+        # 判断主调/被调类型，并获取对应的有效标签列表
+        kind: str = cls._get_rpc_kind(strategy)
+        rpc_tags: list[dict[str, str]] = RPCMetricTag.caller_tags() if kind == "caller" else RPCMetricTag.callee_tags()
+        valid_tags: list[str] = [tag["value"] for tag in rpc_tags]
+
+        call_filter: list[dict[str, Any]] = []
+        for k, v in dimensions.items():
+            key: str = RPCLogTag.get_metric_tag(k) or k
+            if key in [CommonMetricTag.APP_NAME.value, CommonMetricTag.SERVICE_NAME.value]:
+                continue
+            # 只添加当前场景（主调/被调）支持的标签
+            if key not in valid_tags:
+                continue
+
+            call_filter.append({"key": key, "method": "eq", "value": [v or ""], "condition": "and"})
+
+        call_options: dict[str, Any] = {
+            "kind": kind,
+            "call_filter": call_filter,
+            "perspective_type": "multiple",
+            "perspective_group_by": [RPCMetricTag.CALLEE_METHOD.value, RPCMetricTag.CODE.value],
+        }
+
+        offset: int = FIVE_MIN_SECONDS * 1000
+        params: dict[str, str | int] = {
+            "filter-app_name": target["app_name"],
+            "filter-service_name": target["service_name"],
+            "callOptions": json.dumps(call_options),
+            "dashboardId": "service-default-caller_callee",
+            "from": timestamp * 1000 - duration * 1000 - offset,
+            "to": timestamp * 1000 + offset,
+            "sceneId": "apm_service",
+        }
+        encoded_params: str = urllib.parse.urlencode(params)
+        return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"?bizId={bk_biz_id}#/apm/service?{encoded_params}")
+
+    @classmethod
+    def _get_rpc_trace_url(
+        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], timestamp: int, duration: int
+    ) -> str | None:
+        """获取调用分析调用链跳转链接"""
+        if not cls.is_rpc_system(strategy):
+            return None
+
+        target: dict[str, str | None] = cls.get_target(strategy, dimensions)
+        if not target.get("app_name"):
+            return None
+
+        if target.get("service_name"):
+            dimensions = {**dimensions, "service_name": target["service_name"]}
+
+        # 判断主调/被调类型
+        kind: str = cls._get_rpc_kind(strategy)
+        # 根据主调/被调类型，获取对应的 tag_trace_mapping
+        tag_trace_mapping: dict[str, dict[str, Any]] = {
+            "caller": RPCMetricTag.caller_tag_trace_mapping(),
+            "callee": RPCMetricTag.callee_tag_trace_mapping(),
+        }[kind]
+
+        where: list[dict[str, Any]] = []
+        for k, v in dimensions.items():
+            if k in [CommonMetricTag.APP_NAME.value]:
+                continue
+
+            key: str = RPCLogTag.get_metric_tag(k) or k
+            if key not in tag_trace_mapping:
+                continue
+
+            where.append({"key": tag_trace_mapping[key]["field"], "operator": "equal", "value": [v or ""]})
+
+        # 添加 kind 过滤
+        where.append(
+            {
+                "key": tag_trace_mapping[kind]["field"],
+                "operator": "equal",
+                "value": tag_trace_mapping[kind]["value"],
+                "options": {"group_relation": "OR"},
+            }
+        )
+
+        offset: int = FIVE_MIN_SECONDS * 1000
+        params: dict[str, str] = {
+            "app_name": target["app_name"],
+            "sceneMode": "span",
+            "where": json.dumps(where),
+            # Trace 数据量较大，duration 最长只支持 1 小时。
+            "start_time": timestamp * 1000 - min(duration, 3600) * 1000 - offset,
+            "end_time": timestamp * 1000 + offset,
+            # 按status_code降序排序
+            "sortBy": OtlpKey.STATUS_CODE,
+            "descending": "true",
+        }
+        encoded_params: str = urllib.parse.urlencode(params)
+        return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"/?bizId={bk_biz_id}/#/trace/home/?{encoded_params}")
+
+    @classmethod
+    def get_trace_url(
+        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], timestamp: int, duration: int
+    ) -> str | None:
+        """获取调用链跳转链接"""
+        # 目前只有 RPC 场景能明确跳转调用链，后续有其他场景再补充。
+        getters: list[Callable[..., str | None]] = [cls._get_rpc_trace_url]
+        for getter in getters:
+            url: str | None = getter(bk_biz_id, strategy, dimensions, timestamp, duration)
+            if url:
+                return url
+        return None
+
+
 class OtlpProtocol:
     GRPC: str = "grpc"
     HTTP_JSON: str = "http/json"
@@ -1412,7 +1848,7 @@ class MetricTemporality:
         return {
             "temporality": temporality,
             "server_filter_method": "eq",
-            "server_field": RPCMetricTag.SERVICE_NAME,
+            "server_field": RPCMetricTag.SERVICE_NAME.value,
             "service_field": "${service_name}",
         }
 
@@ -1430,34 +1866,6 @@ class Vendor:
         if not service_sdk:
             return False
         return any(cls.equal(expect_sdk, i.get("name")) for i in service_sdk)
-
-
-class CachedEnum(Enum):
-    @classmethod
-    @cache
-    def from_value(cls, value):
-        try:
-            return cls(value)
-        except Exception:  # pylint: disable=broad-except
-            return cls.get_default(value)  # 处理未找到的情况
-
-    @classmethod
-    def get_default(cls, value):
-        class _DefaultEnum:
-            def __init__(self):
-                self._value = value
-
-            @property
-            def value(self):
-                return self._value
-
-            def __getattr__(self, item):
-                return getattr(self, item, None)
-
-            def __setattr__(self, item, default_value):
-                object.__setattr__(self, item, default_value)
-
-        return _DefaultEnum()
 
 
 class SpanKindCachedEnum(CachedEnum):

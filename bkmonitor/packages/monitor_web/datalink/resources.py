@@ -15,6 +15,7 @@ import time
 from collections import OrderedDict, deque
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Any
 
 from django.db.models import Q
 
@@ -243,7 +244,7 @@ class BaseStatusResource(Resource):
         for table in metric_json:
             # 分表模式下，这里table_id都为__default__
             table["table_name"] = table["table_name"] if not group_list else "__default__"
-            table["table_id"] = self.get_result_table_id(table["table_name"])
+            table["table_id"] = self.get_result_table_id(self.bk_biz_id, plugin, table["table_name"])
             metric_names: list[str] = list()
             for field in table["fields"]:
                 if not field["is_active"]:
@@ -254,9 +255,18 @@ class BaseStatusResource(Resource):
             table["metric_names"] = metric_names
         return metric_json
 
-    def get_result_table_id(self, table_name: str) -> str:
+    @staticmethod
+    def get_result_table_id(bk_biz_id: int, plugin: CollectorPluginMeta, table_name: str) -> str:
         """通过采集插件配置，拼接最终 RT_ID"""
-        return PluginVersionHistory.get_result_table_id(self.collect_config.plugin, table_name).lower()
+        # 适配自定义上报版本的进程采集
+        if plugin.plugin_type == CollectorPluginMeta.PluginType.PROCESS:
+            tsg = api.metadata.query_time_series_group(
+                time_series_group_name=f"process_{table_name}", bk_biz_id=bk_biz_id
+            )
+            if tsg:
+                return tsg[0]["table_id"].split(".")[0] + ".__default__"
+
+        return PluginVersionHistory.get_result_table_id(plugin, table_name).lower()
 
     def has_strategies(self) -> bool:
         return len(self.strategy_ids) > 0
@@ -419,9 +429,7 @@ class CollectingTargetStatusResource(BaseStatusResource):
                 for time_bucket in target_bucket.time.buckets:
                     end_alerts[target_bucket.key][int(time_bucket.key_as_string) * 1000] = time_bucket.doc_count
         logger.info(
-            "Search collecting alerts, init_alert={}, begine_alerts={}, end_alerts={}".format(
-                init_alerts, begine_alerts, end_alerts
-            )
+            f"Search collecting alerts, init_alert={init_alerts}, begine_alerts={begine_alerts}, end_alerts={end_alerts}"
         )
 
         # 初始化主机分桶信息，每个分桶里按照时间分桶初始化 0
@@ -563,7 +571,7 @@ class TransferLatestMsgResource(BaseStatusResource):
                 # str类型 ISO 8601格式
                 "2023-01-01T00:00:00Z",
                 "2023-01-01 00:00:00",
-                '2025-02-26T09:59:39.407Z',
+                "2025-02-26T09:59:39.407Z",
             ]
             ```
             """
@@ -637,7 +645,7 @@ class TransferLatestMsgResource(BaseStatusResource):
                         if _is_valid_time_value(v, iso8601_pattern):
                             _add_unique_value(v, result, seen)
                     queue.append(v)
-            elif isinstance(current, (list, tuple)):
+            elif isinstance(current, list | tuple):
                 queue.extend(current)
 
         logger.info(f"find_timestamps: {result}")
@@ -668,11 +676,12 @@ class StorageStatusResource(BaseStatusResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         collect_config_id = serializers.IntegerField(required=True, label="采集配置ID")
 
-    def perform_request(self, params):
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        collect_config_id = validated_request_data["collect_config_id"]
+
         try:
-            collect_config = CollectConfigMeta.objects.get(
-                id=params["collect_config_id"], bk_biz_id=params["bk_biz_id"]
-            )
+            collect_config = CollectConfigMeta.objects.get(id=collect_config_id, bk_biz_id=bk_biz_id)
         except CollectConfigMeta.DoesNotExist:
             return {}
 
@@ -687,7 +696,7 @@ class StorageStatusResource(BaseStatusResource):
             metric_json = collect_config.deployment_config.metrics
             if not metric_json:
                 return {}
-            table_id = PluginVersionHistory.get_result_table_id(plugin, metric_json[0]["table_name"])
+            table_id = self.get_result_table_id(bk_biz_id, plugin, metric_json[0]["table_name"])
 
         # 同一个采集项下所有表存储配置都是一致的，取第一个结果表即可
         storager = get_storager(table_id=table_id)

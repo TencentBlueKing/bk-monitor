@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.utils.translation import gettext_lazy as _
+
 
 class TendencyDiagrammer:
     value_key = "sum(value)"
@@ -88,7 +90,7 @@ class TendencyDiagrammer:
                     "target": target,
                     "type": "bar",
                     "unit": unit,
-                    "dimensions": {"device_name": '查询项'},
+                    "dimensions": {"device_name": _("查询项")},
                 },
                 {
                     "alias": "_result_",
@@ -104,7 +106,7 @@ class TendencyDiagrammer:
                     "target": target,
                     "type": "bar",
                     "unit": unit,
-                    "dimensions": {"device_name": '对比项'},
+                    "dimensions": {"device_name": _("对比项")},
                 },
             ]
         }

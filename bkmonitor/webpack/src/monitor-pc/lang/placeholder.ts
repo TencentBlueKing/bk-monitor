@@ -91,6 +91,7 @@ export default {
   '输入指标名/ID': 'Enter Metric Name/ID',
   '输入屏蔽内容、ID、策略ID': 'Enter the intensity content, ID, strategy ID to be blocked',
   '输入关键字，模糊搜索': 'Enter keywords for fuzzy search',
+  '搜索 主机ID、主机名、内网IP、外网IP、OS名称': 'Search for Host ID, Host Name, Internal IP, External IP, OS Name',
   '输入空间ID、空间名': 'Space ID / Name',
   输入规则组名: 'Enter rule group name',
   输入正整数: 'Enter a positive integer',
@@ -125,7 +126,8 @@ export default {
   输入优先级: 'Enter priority',
   输入目录名称: 'Enter directory name',
   输入仪表盘名称: 'Enter dashboard name',
-  '输入 ID 可精准查询': 'Enter the ID for exact query',
+  // '输入 ID 可精准查询': 'Enter the ID for exact query',
+  '搜索 ID': 'Search ID',
   输入群ID: 'Enter group ID',
   '请输入Trace ID': 'Enter Trace ID',
   '请输入{0}': 'Enter {0} ',
@@ -242,14 +244,18 @@ export default {
   '搜索 仪表盘': 'Search dashboard',
   '搜索 图表': 'Search chart',
   '全站搜索，可以跨业务直接搜索任意资源': 'Site-wide search, can directly search for any resources across spaces',
-  '搜索IP / 主机名': 'Search IP / Hostname',
-  '搜索事件源名称、ID、分类、方式、作者、创建人、更新人':
+  // '搜索IP / 主机名': 'Search IP / Hostname',
+  '搜索 IP、主机名': 'Search IP, Hostname',
+  '搜索 事件源名称、ID、分类、方式、作者、创建人、更新人':
     'Search event source name, ID, category, method, author, creator, updater',
-  '搜索套餐名称 / 类型 / 修改人': 'Search Solution /  Type / Modifier',
+  // '搜索套餐名称 / 类型 / 修改人': 'Search Solution /  Type / Modifier',
+  '搜索 套餐名称、类型、修改人': 'Search Solution /  Type / Modifier',
   '搜索 ID / 名称': 'Search ID / Name ',
   '搜索 索引 / 索引集名称': 'Support Index/Indices name',
   '搜索 模板名称、模板别名、模板说明、创建人、更新人':
     'Search template name, template alias, template description, creator, updater',
+  '搜索 模板名称、模板类型、最近更新人、关联服务、告警组、启停':
+    'Search template name, template type, last updater, associated service, alarm team, start/stop',
   '搜索 消费场景': 'Search consumption scenario',
 
   你可以将该搜索内容直接自定义为指标选项: 'You can directly customize the search content as a metric option',
@@ -268,8 +274,11 @@ export default {
 
   // 规范：举例：  e.g.
   'HTTP请求返回码，如200，304，404等...': 'HTTP return code, e.g. 200, 304, 404, etc...',
-  '采集名称 / 策略名称 / 仪表盘名称': 'Collection name / Rule name / Dashboard name',
+  // '采集名称 / 策略名称 / 仪表盘名称': 'Collection name / Rule name / Dashboard name',
+  '搜索 采集名称、策略名称、仪表盘名称': 'Search Collection name / Rule name / Dashboard name',
   '任务ID / 告警组名称 / IP / 指标ID': 'Task ID / Alarm team name / IP / metric',
+  '搜索 策略ID、策略名、告警组、服务分类、拨测任务ID':
+    'Search policy ID, Rule name, alarm team, service classification, probe task ID',
   // 'ID / 告警组名称': 'ID / Alarm Team Name',
   'ID / 告警组名称': 'ID / Alarm Team Name / Rotation Rule / Notify Target',
   '一级分类 / 二级分类': 'First-level / Second-level ',
@@ -310,6 +319,7 @@ export default {
   '选择应用/服务': 'Select Application/Service',
   请输入关键字或标签: 'Please enter keywords or tags',
   搜索指标: 'Search Metrics',
+  '搜索 指标': 'Search Metrics',
   选择方案: 'Select Plan',
   选择服务: 'Select Service',
   选择应用: 'Select Application',
@@ -328,7 +338,8 @@ export default {
   '快速定位到搜索，请输入关键词...': 'Quickly locate the search, please enter keywords...',
   '快捷键 / ，请输入...': 'Quick key/, please enter...',
   '快捷键 / ，可直接输入 Trace ID / Span ID 快捷检索': 'Quick key/, can directly enter Trace ID / Span ID to search',
-  'ID / 告警组名称 / 轮值规则 / 通知对象': 'ID / Alarm Team Name / Rotation Rule / Notify Target',
+  // 'ID / 告警组名称 / 轮值规则 / 通知对象': 'ID / Alarm Team Name / Rotation Rule / Notify Target',
+  '搜索 ID、告警组名称、轮值规则、通知对象': 'Search ID, Alarm Team Name, Rotation Rule, Notify Target',
   请输入需要解读的内容: 'Please enter the content to be interpreted',
   请输入需要翻译的内容: 'Please enter the content to be translated',
   请选择语言: 'Please select the language',
@@ -344,6 +355,19 @@ export default {
     'Case-sensitive characters, numbers, underscores, and dots (.), up to 50 characters',
   '1～50 字符，仅支持 英文小写、数字、下划线（保存后不可修改）':
     '1-50 characters, only support lowercase English, numbers, and underscores (cannot be modified after saving)',
-  '请选择或输入': 'Please select or enter',
-  
+  请选择或输入: 'Please select or enter',
+  '搜索 告警ID、告警名称、状态、告警内容、级别': 'Search Alarm ID, Alarm Name, Status, Alarm Content, Level',
+  '搜索 任务名称': 'Search Task Name',
+  '搜索 节点名称': 'Search Node Name',
+  '搜索 应用名、ID': 'Search Application Name, ID',
+  '搜索 名称': 'Search Name',
+  '搜索 告警组名称': 'Search Alarm Team Name',
+  '搜索 ID、规则名称': 'Search ID, Rule Name',
+  '搜索 屏蔽ID、策略ID': 'Search Shield ID, probe task ID',
+  '搜索 事项': 'Search Items',
+  '搜索 空间名': 'Search Space Name',
+  '搜索 函数': 'Search Function',
+  '搜索 分组名': 'Search Groups Name',
+  '搜索 收藏名称': 'Search Favorite Name',
+  '请输入 关键字': 'Please enter keywords',
 };

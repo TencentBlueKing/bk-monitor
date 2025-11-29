@@ -987,6 +987,7 @@ class NoticeSubscribe(Model):
     )
     is_enable = models.BooleanField("是否启用", default=True)
     priority = models.IntegerField("优先级", default=-1)
+    update_time = models.DateTimeField("修改时间", auto_now=True)
 
     class Meta:
         verbose_name = "告警策略订阅"

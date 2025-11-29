@@ -498,7 +498,6 @@
                         <bk-input
                           v-model="verifyData.groupName"
                           :placeholder="$t('{n}, （长度30个字符）', { n: $t('请输入组名') })"
-                          clearable
                         ></bk-input>
                       </bk-form-item>
                     </bk-form>

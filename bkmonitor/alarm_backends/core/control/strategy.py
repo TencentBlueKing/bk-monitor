@@ -19,12 +19,12 @@ from django.utils.translation import gettext as _
 from alarm_backends.constants import CONST_MINUTES, CONST_ONE_HOUR, NO_DATA_LEVEL
 from alarm_backends.core.cache import key
 from alarm_backends.core.cache.calendar import CalendarCacheManager
-from alarm_backends.core.cache.cmdb.business import BusinessManager
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.i18n import i18n
-from bkmonitor.utils import time_tools
 from bkmonitor.models.strategy import AlgorithmModel
+from bkmonitor.utils import time_tools
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.errors.alarm_backends import StrategyItemNotFound
 
 logger = logging.getLogger("core.control")
@@ -42,14 +42,14 @@ class Strategy:
         return self._config
 
     @property
-    def strategy_group_key(self):
+    def strategy_group_key(self) -> str:
         if not self.config.get("items"):
             return ""
 
         return self.config["items"][0].get("query_md5", "")
 
     @property
-    def use_api_sdk(self):
+    def use_api_sdk(self) -> bool:
         for query_config in self.config["items"][0]["query_configs"]:
             if "intelligent_detect" in query_config:
                 return bool(query_config["intelligent_detect"].get("use_sdk"))
@@ -79,42 +79,57 @@ class Strategy:
 
         return min_interval or CONST_MINUTES
 
+    @cached_property
+    def bk_tenant_id(self) -> str:
+        return bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+
     @property
     def priority(self):
         return self.config.get("priority")
 
     @property
-    def priority_group_key(self):
+    def priority_group_key(self) -> str:
         return self.config.get("priority_group_key", "")
 
     @cached_property
-    def is_service_target(self):
+    def is_service_target(self) -> bool:
         """
         判断是否是"服务"层
         """
         return self.config.get("scenario") in ("component", "service_module", "service_process")
 
     @cached_property
-    def is_host_target(self):
+    def is_host_target(self) -> bool:
         """
         判断是否为"主机"层
         """
         return self.config.get("scenario") in ("os", "host_process")
 
     @cached_property
-    def bk_biz_id(self):
+    def bk_biz_id(self) -> str:
         return self.config.get("bk_biz_id", "0")
 
     @cached_property
-    def scenario(self):
+    def scenario(self) -> str:
         return self.config.get("scenario", "")
 
     @cached_property
-    def name(self):
+    def name(self) -> str:
         return self.config.get("name") or _("--")
 
     @cached_property
-    def items(self):
+    def labels(self) -> str:
+        """策略标签"""
+        return ",".join(self.config.get("labels", []))
+
+    @cached_property
+    def item(self) -> Item:
+        if self.items:
+            return self.items[0]
+        return Item({}, self)
+
+    @cached_property
+    def items(self) -> list[Item]:
         results = []
         item_list = self.config.get("items") or []
         for item_config in item_list:
@@ -122,15 +137,15 @@ class Strategy:
         return results
 
     @cached_property
-    def type(self):
+    def type(self) -> str:
         return self.config.get("type", "monitor")
 
     @cached_property
-    def notice(self):
+    def notice(self) -> dict:
         return self.config.get("notice", {})
 
     @cached_property
-    def actions(self):
+    def actions(self) -> list:
         return self.config.get("actions", [])
 
     def in_alarm_time(self, now_time=None) -> tuple[bool, str]:
@@ -228,7 +243,7 @@ class Strategy:
             return item_messages
 
         calendars: list[list[dict]] = CalendarCacheManager.mget(
-            calendar_ids=calendar_ids, bk_tenant_id=BusinessManager.get_tenant_id(self.bk_biz_id)
+            calendar_ids=calendar_ids, bk_tenant_id=self.bk_tenant_id
         )
         for items in calendars:
             for item in items:

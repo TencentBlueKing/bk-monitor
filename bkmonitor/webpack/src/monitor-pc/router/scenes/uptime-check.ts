@@ -93,9 +93,7 @@ export default applyGuidePage([
     path: '/uptime-check/task-add',
     name: 'uptime-check-task-add',
     // 组件指向 name 为 noCache 的 router-view 。
-    components: {
-      noCache: UptimeCheckForm,
-    },
+    component: UptimeCheckForm,
     meta: {
       needBack: true,
       customContent: true,

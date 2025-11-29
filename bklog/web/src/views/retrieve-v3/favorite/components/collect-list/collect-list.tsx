@@ -420,15 +420,18 @@ export default defineComponent({
       const tipsData = [
         {
           title: t('创建人'),
-          value: item.created_by,
+          value: item.created_by || '--',
+          isUserAccount: true
         },
         {
           title: t('更新人'),
-          value: item.updated_by,
+          value: item.updated_by || '--',
+          isUserAccount: true
         },
         {
           title: t('创建时间'),
-          value: utcFormatDate(item.created_at),
+          value: utcFormatDate(item.created_at) || '--',
+          isUserAccount: false
         },
       ];
 
@@ -451,7 +454,8 @@ export default defineComponent({
               key={ind}
               class='tips-item'
             >
-              {`${tips.title}：${tips.value || '--'}`}
+              {`${tips.title}：` }
+              { tips.isUserAccount ? <bk-user-display-name user-id={tips.value}></bk-user-display-name> : tips.value }
             </div>
           ))}
         </div>
@@ -505,7 +509,7 @@ export default defineComponent({
                 {item.favorites.map(child => (
                   <BklogPopover
                     class='child-item-name'
-                    options={{ offset: [10, 12], placement: 'right', appendTo: document.body, theme: 'dark' } as any}
+                    options={{ offset: [10, 12], placement: 'right', appendTo: document.body, theme: 'dark', allowHTML: true } as any}
                     trigger='hover'
                     {...{
                       scopedSlots: { content: () => renderTips(child) },

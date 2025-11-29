@@ -543,7 +543,7 @@ export async function setDimensionsOfStrategy(strategyId, setData: (valuesMap) =
             data_source_label: queryConfig.data_source_label,
             data_type_label: queryConfig.data_type_label,
             field: dimensionKey,
-            metric_field: queryConfig.metric_field,
+            metric_field: queryConfig.metric_field || queryConfig.metric_id?.split('.')?.pop() || '',
             result_table_id: queryConfig.result_table_id,
             where: [],
           },

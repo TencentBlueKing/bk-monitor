@@ -160,7 +160,11 @@
         :label="$t('创建人')"
         :render-header="$renderHeader"
         prop="created_by"
-      ></bk-table-column>
+      >
+        <template #default="props">
+          <bk-user-display-name :user-id="props.row.created_by"></bk-user-display-name>
+        </template>
+      </bk-table-column>
       <bk-table-column
         :width="operatorWidth"
         :label="$t('操作')"

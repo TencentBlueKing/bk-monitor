@@ -39,7 +39,7 @@ import useStore from '@/hooks/use-store';
 import logoImg from '@/images/log-logo.png';
 import platformConfigStore from '@/store/modules/platform-config';
 import { BK_LOG_STORAGE } from '@/store/store.type';
-import { bkDropdownMenu } from 'bk-magic-vue';
+import { bkDropdownMenu, bkMessage } from 'bk-magic-vue';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
 
@@ -47,6 +47,8 @@ import { MENU_LISTS } from './complete-menu';
 import LogVersion from './log-version';
 
 import './index.scss';
+import { requestJson } from '@/request';
+import { join } from '../utils/path';
 
 export default defineComponent({
   name: 'HeaderNavTsx',
@@ -71,7 +73,7 @@ export default defineComponent({
       const matchedList = route.matched;
       const menuList = store.state.menuList;
       return (
-        menuList.find(item => {
+        menuList.find((item) => {
           return matchedList.some(record => record.name === item.id);
         }) || {}
       );
@@ -94,6 +96,7 @@ export default defineComponent({
     const state = reactive({
       isFirstLoad: true,
       username: '',
+      bk_tenant_id: null,
       usernameRequested: false,
       isShowLanguageDropdown: false,
       isShowGlobalDropdown: false,
@@ -144,6 +147,7 @@ export default defineComponent({
       try {
         const res = store.state.userMeta;
         state.username = res?.username || '';
+        state.bk_tenant_id = res?.bk_tenant_id || null;
         if ((window as any).__aegisInstance && state.username) {
           (window as any).__aegisInstance.setConfig({ uin: state.username });
         }
@@ -245,8 +249,30 @@ export default defineComponent({
       jsCookie.set('blueking_language', value, {
         expires: 3600,
         domain:
-          envConfig.value.bkDomain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, ''),
+          envConfig.value.bkDomain || location.host.split('.').slice(-2)
+            .join('.')
+            .replace(`:${location.port}`, ''),
       });
+
+      if (state.bk_tenant_id) {
+        const url = join(
+          (window as any).BK_PASS_API_HOST,
+          '/api/bk-user-web/prod/api/v3/open-web/tenant/current-user/language/',
+        );
+        requestJson({ url, params: { language: value }, headers: { 'X-Bk-Tenant-Id': state.bk_tenant_id } }).catch(
+          (err) => {
+            bkMessage({
+              message: err.message,
+              theme: 'error',
+            }).finally(() => {
+              location.reload();
+            });
+          },
+        );
+
+        return;
+      }
+
       if (envConfig.value.host) {
         try {
           useJSONP(
@@ -293,10 +319,9 @@ export default defineComponent({
      */
     function handleGoToMyApplication() {
       state.showGlobalDialog = false;
-      const host =
-        process.env.NODE_ENV === 'development'
-          ? `http://${(process as any).env.devHost}:7001`
-          : (window as any).MONITOR_URL;
+      const host =        process.env.NODE_ENV === 'development'
+        ? `http://${(process as any).env.devHost}:7001`
+        : (window as any).MONITOR_URL;
       const targetSrc = `${host}/?bizId=${bkBizId.value}&needMenu=false#/trace/report/my-applied-report`;
       state.globalDialogTitle = t('我申请的');
       state.showGlobalDialog = true;
@@ -308,10 +333,9 @@ export default defineComponent({
      */
     function handleGoToMyReport() {
       state.showGlobalDialog = false;
-      const host =
-        process.env.NODE_ENV === 'development'
-          ? `http://${(process as any).env.devHost}:7001`
-          : (window as any).MONITOR_URL;
+      const host =        process.env.NODE_ENV === 'development'
+        ? `http://${(process as any).env.devHost}:7001`
+        : (window as any).MONITOR_URL;
       const targetSrc = `${host}/?bizId=${bkBizId.value}&needMenu=false#/trace/report/my-report`;
       state.globalDialogTitle = t('我的订阅');
       state.showGlobalDialog = true;
@@ -368,10 +392,9 @@ export default defineComponent({
 
     // 计算可见菜单（外部版根据 externalMenu 限制）
     const menuList = computed(() => {
-      const list =
-        (navMenu.topMenu as any).value?.filter((menu: any) => {
-          return menu.feature === 'on' && (isExternal.value ? store.state.externalMenu.includes(menu.id) : true);
-        }) || [];
+      const list =        (navMenu.topMenu as any).value?.filter((menu: any) => {
+        return menu.feature === 'on' && (isExternal.value ? store.state.externalMenu.includes(menu.id) : true);
+      }) || [];
       if (process.env.NODE_ENV === 'development' && (process as any).env.MONITOR_APP === 'apm' && list.length) {
         return [...list, { id: 'monitor-apm-log', name: 'APM Log检索' }];
       }
@@ -512,8 +535,8 @@ export default defineComponent({
                 <ul class='bk-dropdown-list'>
                   <li>
                     {renderDropdownLink(t('产品文档'), () => dropdownHelpTriggerHandler('docCenter'))}
-                    {!isExternal.value &&
-                      renderDropdownLink(t('版本日志'), () => dropdownHelpTriggerHandler('logVersion'))}
+                    {!isExternal.value
+                      && renderDropdownLink(t('版本日志'), () => dropdownHelpTriggerHandler('logVersion'))}
                     {renderDropdownLink(t('问题反馈'), () => dropdownHelpTriggerHandler('feedback'))}
                   </li>
                 </ul>

@@ -118,11 +118,12 @@ export default class MetricTemplate extends tsc<object> {
   /**
    * @description 缓存条件参数知路由
    */
-  setRouterParams() {
+  setRouterParams(otherParams: Record<string, any> = {}) {
     const query = {
       ...this.$route.query,
       sort: this.sort,
       searchKeyword: JSON.stringify(this.searchKeyword),
+      ...otherParams,
     };
     const targetRoute = this.$router.resolve({
       query,
@@ -190,6 +191,13 @@ export default class MetricTemplate extends tsc<object> {
   }
 
   /**
+   * @description 将url中自动显示详情侧弹抽屉的参数配置清除
+   */
+  handleDisabledAutoShowSlider() {
+    this.setRouterParams({ sliderShow: false, sliderActiveId: '' });
+  }
+
+  /**
    * @description 跳转至 新建查询模板 页面
    */
   jumpToCreatePage() {
@@ -232,6 +240,7 @@ export default class MetricTemplate extends tsc<object> {
             onClearSearch={() => this.handleSearchChange([])}
             onCurrentPageChange={this.handleCurrentPageChange}
             onDeleteTemplate={this.deleteTemplateById}
+            onDisabledAutoShowSlider={this.handleDisabledAutoShowSlider}
             onPageSizeChange={this.handlePageSizeChange}
             onSortChange={this.handleSortChange}
           />

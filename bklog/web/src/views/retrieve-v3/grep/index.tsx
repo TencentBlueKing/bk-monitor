@@ -123,7 +123,7 @@ export default defineComponent({
       const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
 
       const { start_time, end_time, keyword, addition } = store.state.indexItem;
-      const { alias_settings, sort_list } = useFieldAliasRequestParams();
+      const { alias_settings: aliasSettings, sort_list: sortList } = useFieldAliasRequestParams();
 
       const params: any = {
         method: 'post',
@@ -140,8 +140,8 @@ export default defineComponent({
           grep_query: grepQuery.value,
           grep_field: field.value,
           begin: grepRequestResult.value.offset,
-          sort_list: sort_list.value,
-          alias_settings: alias_settings.value,
+          sort_list: sortList.value,
+          alias_settings: aliasSettings.value,
           size: 100,
         },
       };
@@ -265,7 +265,11 @@ export default defineComponent({
     };
 
     const { addEvent } = useRetrieveEvent();
-    addEvent([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE], handleRequestResult);
+    addEvent(
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.AUTO_REFRESH],
+      handleRequestResult,
+    );
+
     addEvent([RetrieveEvent.SEARCHING_CHANGE, RetrieveEvent.INDEX_SET_ID_CHANGE], handleSearchingChange);
 
     const handleParamsChange = ({ isParamsChange, option }: { isParamsChange: boolean; option: any }) => {

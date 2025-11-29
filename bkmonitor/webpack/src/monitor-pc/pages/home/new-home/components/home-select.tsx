@@ -892,7 +892,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
             class={['home-select-input', { 'is-hidden': this.textareaRow === 1 }]}
             v-model={this.searchValue}
             autofocus={!this.isBarToolShow}
-            placeholder={this.$tc('请输入 IP / Trace ID / 容器集群 / 告警ID / 策略名 进行搜索')}
+            placeholder={this.$tc('搜索 IP、Trace ID、容器集群、告警ID、策略名')}
             rows={this.textareaRow}
             spellcheck={false}
             onClick={this.handleClick}

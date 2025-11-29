@@ -219,6 +219,7 @@ export default {
   'button-执行中': 'Running',
   '执行中...': 'Executing...',
   下发中: 'Downloading', // 查看语境
+  下发: 'Download',
 
   // - Tab Text：选项卡文本，用于描述选项卡的作用，例如“基本信息”、“高级设置”等。
 
@@ -370,6 +371,8 @@ export default {
   开启Kubernetes监控: 'Start Kubernetes Monitoring',
   开启容器监控: 'Start Container Monitoring',
   开启综合拨测: 'Start Synthetic',
+  开启自动下发: 'Start Auto Deployment',
+  关闭自动下发: 'Stop Auto Deployment',
 
   '启/停策略': 'On/Off Rule',
   开启周期回调: 'Periodic Callback',
@@ -512,4 +515,5 @@ export default {
   刷新列表: 'Refresh List',
   添加告警策略: 'Add Alert Policy',
   更多地址: 'More',
+  维度聚合: 'Group by',
 };

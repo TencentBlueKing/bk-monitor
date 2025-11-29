@@ -643,9 +643,10 @@ class CreateActionProcessor:
                 # 告警升级
                 supervisors = assignee_manager.get_supervisors()
                 followers = assignee_manager.get_supervisors(user_type=UserGroupType.FOLLOWER)
+                # 这里不再做判定，由于可能 action 执行队列堵塞， 导致这里获取到的 supervisor 为空，引起升级告警 action 未创建
+                # 仅记录日志
                 if not supervisors:
-                    logger.info("ignore to send supervise notice for alert(%s) due to empty supervisor", alert.id)
-                    continue
+                    logger.warning("notice for alert(%s) get empty supervisor", alert.id)
                 is_qos, current_qos_count = self.alert_objs[alert.id].qos_calc(self.signal)
                 if is_qos:
                     qos_alerts.append(alert.id)
@@ -669,6 +670,30 @@ class CreateActionProcessor:
 
             # 告警关注人
             alerts_follower[alert.id] = self.get_alert_related_users(followers, alerts_follower[alert.id])
+
+            # 获取订阅的 follower 用户并合并到 alerts_follower
+            if assignee_manager and assignee_manager.match_manager:
+                subscription_notify_info, subscription_follow_notify_info = (
+                    assignee_manager.get_subscription_notify_info()
+                )
+                # 从订阅的 follower 通知信息中提取所有用户（格式: {notice_way: [user_list]}）
+                subscription_follower_users = []
+                for notice_way, users in subscription_follow_notify_info.items():
+                    # 排除特殊字段（如 wxbot_mention_users）
+                    if notice_way != "wxbot_mention_users" and users:
+                        subscription_follower_users.extend(users)
+                # 去重并合并到 alerts_follower
+                if subscription_follower_users:
+                    # 使用集合去重，保持顺序
+                    unique_subscription_followers = list(dict.fromkeys(subscription_follower_users))
+                    alerts_follower[alert.id] = self.get_alert_related_users(
+                        unique_subscription_followers, alerts_follower[alert.id]
+                    )
+                    logger.info(
+                        "[alert_subscription] alert(%s) added subscription followers: %s",
+                        alert.id,
+                        unique_subscription_followers,
+                    )
 
             for action in actions + itsm_actions:
                 action_config = action_configs.get(str(action["config_id"]))
@@ -805,7 +830,7 @@ class CreateActionProcessor:
                 setattr(alert, key, value)
             update_alerts.append(AlertDocument(**update_data))
         cached_alerts = [Alert(data=alert.to_dict()) for alert in self.alerts]
-        AlertCache.save_alert_to_cache(cached_alerts)
+        AlertCache.update_alert_to_cache(cached_alerts)
         AlertCache.save_alert_snapshot(cached_alerts)
         retry_times = 0
         while retry_times < 3:

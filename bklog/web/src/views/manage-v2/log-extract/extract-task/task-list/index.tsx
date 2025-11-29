@@ -375,7 +375,7 @@ export default defineComponent({
             clearable={true}
             data-test-id='fromBox_input_searchExtraction'
             left-icon='bk-icon icon-search'
-            placeholder={t('搜索文件名、创建人，按 enter 键搜索')}
+            placeholder={t('搜索 文件名、创建人')}
             value={searchKeyword.value}
             on-left-icon-click={handleSearch}
             onChange={val => (searchKeyword.value = val)}
@@ -459,6 +459,7 @@ export default defineComponent({
             min-width='100'
             prop='created_by'
             renderHeader={renderHeader}
+            scopedSlots={{ default: (props: any) => <bk-user-display-name user-id={props.row.created_by}></bk-user-display-name> }}
           />
 
           {/* 任务状态列 */}

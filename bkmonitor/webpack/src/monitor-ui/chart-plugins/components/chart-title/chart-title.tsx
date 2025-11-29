@@ -62,6 +62,8 @@ export interface IChartTitleProps {
   collectIntervalDisplay?: string;
   /** 修改掉菜单的点击区域, 为true时 菜单区域仅为icon区域 */
   customArea?: boolean;
+  // 是否自定义指标添加策略icon单独显示逻辑(1.常显 2.添加禁用样式)
+  customEscalationStrategyIcon?: boolean;
   // 带icon说明
   description?: string;
   dragging?: boolean;
@@ -91,6 +93,8 @@ export interface IChartTitleProps {
   subtitle?: string;
   // 主标题
   title: string;
+  // 获取告警数据参数
+  getFetchItemStatusParams?: (metrics?: IExtendMetricData[]) => Record<string, any>;
 }
 
 interface IChartTitleEvent {
@@ -121,6 +125,7 @@ export default class ChartTitle extends tsc<
   @Prop({ default: false }) showMore: boolean;
   @Prop({ default: true }) needMoreMenu: boolean;
   @Prop({ default: false }) customArea: boolean;
+  @Prop({ default: false }) customEscalationStrategyIcon: boolean;
   @Prop() menuList: ChartTitleMenuType[];
   @Prop({ default: () => [] }) drillDownOption: IMenuChildItem[];
   @Prop() dragging: boolean;
@@ -132,6 +137,8 @@ export default class ChartTitle extends tsc<
   @Prop({ type: String, default: '' }) collectIntervalDisplay: string;
   /** title的内容是否需要hover才展示 */
   @Prop({ type: Boolean, default: false }) isHoverShow: boolean;
+  // 获取告警数据参数
+  @Prop({ type: Function }) getFetchItemStatusParams: (metrics?: IExtendMetricData[]) => Record<string, any>;
 
   @Ref('chartTitle') chartTitleRef: HTMLDivElement;
   // 是否只读模式
@@ -192,7 +199,7 @@ export default class ChartTitle extends tsc<
   }
 
   get currentMetricsIds() {
-    return this.metrics[0].metric_id || `${this.metrics[0].result_table_id}.${this.metrics[0].metric_field}`;
+    return this.metrics?.[0]?.metric_id || `${this.metrics?.[0]?.result_table_id}.${this.metrics?.[0]?.metric_field}`;
   }
   get showAddStrategy() {
     return !this.$route.name.includes('strategy');
@@ -200,12 +207,18 @@ export default class ChartTitle extends tsc<
   get isMac() {
     return /Macintosh|Mac/.test(navigator.userAgent);
   }
+  // 添加策略按钮是否显示
+  get showStrategyIcon() {
+    return this.showAddStrategy && this.showTitleIcon && this.showMetricAlarm && this.metricTitleData;
+  }
   @Watch('metrics', { immediate: true })
-  async handleMetricChange(v, o) {
-    if (this.metrics?.length !== 1) return;
-    const oldId = o?.length ? o[0].metric_id || `${o[0].result_table_id}.${o[0].metric_field}` : '';
+  async handleMetricChange(_v, o) {
+    if (this.metrics?.length < 1) {
+      return;
+    }
+    const oldId = o?.length ? o[0]?.metric_id || `${o[0]?.result_table_id}.${o[0]?.metric_field}` : '';
     if (this.currentMetricsIds === oldId) return;
-    !this.readonly && this.handleFetchItemStatus();
+    !this.readonly && (await this.handleFetchItemStatus());
     this.allowUpdateStatus = true;
   }
 
@@ -235,6 +248,7 @@ export default class ChartTitle extends tsc<
       metric_ids: [ids],
       ...otherParams,
       bk_biz_id: this.viewOptions?.filters?.bk_biz_id || this.$store.getters.bizId,
+      ...(this.getFetchItemStatusParams?.(this.metrics) || {}),
     };
     const data = await fetchItemStatus(params).catch(() => ({ [ids]: 0 }));
     this.alarmStatus = data?.[ids];
@@ -443,7 +457,7 @@ export default class ChartTitle extends tsc<
               >
                 {this.$scopedSlots.iconList?.('')}
               </span>,
-              this.showAddStrategy && this.showTitleIcon && this.showMetricAlarm && this.metricTitleData ? (
+              this.showStrategyIcon && !this.customEscalationStrategyIcon ? (
                 <i
                   key={'添加策略'}
                   style={{
@@ -458,6 +472,22 @@ export default class ChartTitle extends tsc<
                     delay: 200,
                   }}
                   onClick={this.handleAllMetricSelect}
+                />
+              ) : undefined,
+              // 自定义指标添加策略图标单独处理：1.常显 2.不满足原有添加策略条件时，需要展示禁用状态
+              this.customEscalationStrategyIcon ? (
+                <i
+                  key={'添加策略'}
+                  style={{
+                    display: this.showMore && this.showAddMetric ? 'flex' : 'none',
+                    opacity: this.showStrategyIcon ? '1' : '0.5',
+                  }}
+                  class='icon-monitor icon-mc-add-strategy strategy-icon icon-btn'
+                  v-bk-tooltips={{
+                    content: this.showStrategyIcon ? this.$t('添加策略') : this.$t('上报数据后方可配置策略'),
+                    delay: 200,
+                  }}
+                  onClick={this.showStrategyIcon ? this.handleAllMetricSelect : () => {}}
                 />
               ) : undefined,
               <span

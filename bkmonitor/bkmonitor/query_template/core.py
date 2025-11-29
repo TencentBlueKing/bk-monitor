@@ -13,6 +13,7 @@ import copy
 import json
 from typing import Any
 
+
 from bkmonitor.models import query_template as models
 
 from . import constants, serializers
@@ -30,6 +31,7 @@ class BaseQuery:
         expression: str | None = None,
         space_scope: list[str] | None = None,
         functions: list[dict[str, Any] | str] | None = None,
+        unit: str | None = None,
         **kwargs,
     ):
         self.name: str = name
@@ -41,6 +43,7 @@ class BaseQuery:
         self.expression: str = expression or ""
         self.space_scope: list[str] = space_scope or []
         self.functions: list[dict[str, Any] | str] = functions or []
+        self.unit = unit or ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -53,6 +56,7 @@ class BaseQuery:
             "expression": self.expression,
             "space_scope": self.space_scope,
             "functions": self.functions,
+            "unit": self.unit,
         }
 
 
@@ -62,14 +66,22 @@ class QueryInstance(BaseQuery):
 
 class BaseVariableRender(abc.ABC):
     TYPE: str = None
+    _DEFAULT_VALUE: Any = None
 
-    def __init__(self, variables: list[dict[str, Any]], query_instance: QueryInstance):
-        self._variables = [variable for variable in variables if variable["type"] == self.TYPE]
-        self._query_instance = query_instance
+    def __init__(self, variables: list[dict[str, Any]], query_instance: QueryInstance | None = None):
+        self._variables: list[dict[str, Any]] = [variable for variable in variables if variable["type"] == self.TYPE]
+        self._query_instance: QueryInstance | None = query_instance
 
     @classmethod
     def to_template(cls, name: str) -> str:
         return "${" + name + "}"
+
+    @classmethod
+    def _get_default(cls, variable: dict[str, Any]) -> Any:
+        default_value = variable["config"].get("default")
+        if default_value is None:
+            return cls._DEFAULT_VALUE
+        return default_value
 
     @classmethod
     def get_value(cls, context: dict[str, Any], variable: dict[str, Any]) -> Any:
@@ -77,11 +89,24 @@ class BaseVariableRender(abc.ABC):
         if value is not None:
             return value
 
-        return variable["config"].get("default")
+        return cls._get_default(variable)
+
+    def get_default_context(self) -> dict[str, Any]:
+        context: dict[str, Any] = {}
+        for variable in self._variables:
+            default_value: Any = self._get_default(variable)
+            if default_value is not None:
+                context[variable["name"]] = copy.deepcopy(default_value)
+        return context
 
     @abc.abstractmethod
     def render(self, context: dict[str, Any] = None) -> QueryInstance:
         raise NotImplementedError
+
+
+class EmptyVariableRender(BaseVariableRender):
+    def render(self, context: dict[str, Any] = None) -> QueryInstance:
+        return self._query_instance
 
 
 class ConstantVariableRender(BaseVariableRender):
@@ -112,12 +137,11 @@ class ConstantVariableRender(BaseVariableRender):
 
 class GroupByVariableRender(BaseVariableRender):
     TYPE = constants.VariableType.GROUP_BY.value
+    _DEFAULT_VALUE = []
 
     def render(self, context: dict[str, Any] = None) -> QueryInstance:
         for variable in self._variables:
-            value: list[str] | None = self.get_value(context, variable)
-            if value is None:
-                continue
+            value: list[str] = self.get_value(context, variable)
 
             val_tmpl: str = self.to_template(variable["name"])
             for query_config in self._query_instance.query_configs:
@@ -133,12 +157,11 @@ class GroupByVariableRender(BaseVariableRender):
 
 class TagValuesVariableRender(BaseVariableRender):
     TYPE = constants.VariableType.TAG_VALUES.value
+    _DEFAULT_VALUE = []
 
     def render(self, context: dict[str, Any] = None) -> QueryInstance:
         for variable in self._variables:
-            value: list[str] | None = self.get_value(context, variable)
-            if value is None:
-                continue
+            value: list[str] = self.get_value(context, variable)
 
             val_tmpl: str = self.to_template(variable["name"])
             for query_config in self._query_instance.query_configs:
@@ -162,12 +185,11 @@ class TagValuesVariableRender(BaseVariableRender):
 class ConditionsVariableRender(BaseVariableRender):
     _VARIABLE_FIELD: str = "where"
     TYPE = constants.VariableType.CONDITIONS.value
+    _DEFAULT_VALUE = []
 
     def render(self, context: dict[str, Any] = None) -> QueryInstance:
         for variable in self._variables:
-            value: list[dict[str, Any]] | None = self.get_value(context, variable)
-            if value is None:
-                continue
+            value: list[dict[str, Any]] = self.get_value(context, variable)
 
             val_tmpl: str = self.to_template(variable["name"])
             for query_config in self._query_instance.query_configs:
@@ -215,12 +237,11 @@ class MethodVariableRender(BaseVariableRender):
 
 class ExpressionFunctionsVariableRender(BaseVariableRender):
     TYPE = constants.VariableType.EXPRESSION_FUNCTIONS.value
+    _DEFAULT_VALUE = []
 
     def render(self, context: dict[str, Any] = None) -> QueryInstance:
         for variable in self._variables:
-            value: list[dict[str, Any]] | None = self.get_value(context, variable)
-            if value is None:
-                continue
+            value: list[dict[str, Any]] = self.get_value(context, variable)
 
             result_functions: list[dict[str, Any]] = []
             val_tmpl: str = self.to_template(variable["name"])
@@ -234,18 +255,17 @@ class ExpressionFunctionsVariableRender(BaseVariableRender):
         return self._query_instance
 
 
-VARIABLE_HANDLERS: dict[str, type[BaseVariableRender]] = {
-    constants.VariableType.CONSTANTS.value: ConstantVariableRender,
-    constants.VariableType.GROUP_BY.value: GroupByVariableRender,
-    constants.VariableType.TAG_VALUES.value: TagValuesVariableRender,
-    constants.VariableType.CONDITIONS.value: ConditionsVariableRender,
-    constants.VariableType.FUNCTIONS.value: FunctionsVariableRender,
-    constants.VariableType.METHOD.value: MethodVariableRender,
-    constants.VariableType.EXPRESSION_FUNCTIONS.value: ExpressionFunctionsVariableRender,
-}
-
-
 class QueryTemplateWrapper(BaseQuery):
+    _VARIABLE_HANDLERS: dict[str, type[BaseVariableRender]] = {
+        constants.VariableType.CONSTANTS.value: ConstantVariableRender,
+        constants.VariableType.GROUP_BY.value: GroupByVariableRender,
+        constants.VariableType.TAG_VALUES.value: TagValuesVariableRender,
+        constants.VariableType.CONDITIONS.value: ConditionsVariableRender,
+        constants.VariableType.FUNCTIONS.value: FunctionsVariableRender,
+        constants.VariableType.METHOD.value: MethodVariableRender,
+        constants.VariableType.EXPRESSION_FUNCTIONS.value: ExpressionFunctionsVariableRender,
+    }
+
     def __init__(
         self,
         name: str,
@@ -258,6 +278,7 @@ class QueryTemplateWrapper(BaseQuery):
         space_scope: list[str] | None = None,
         functions: list[dict[str, Any] | str] | None = None,
         variables: list[dict[str, Any]] | None = None,
+        unit: str | None = None,
         **kwargs,
     ):
         self.variables: list[dict[str, Any]] = variables or []
@@ -275,19 +296,70 @@ class QueryTemplateWrapper(BaseQuery):
             expression=expression,
             space_scope=space_scope,
             functions=functions,
+            unit=unit,
             **kwargs,
         )
+
+    @classmethod
+    def _get_variable_handler(cls, var_type: str) -> type[BaseVariableRender] | None:
+        return cls._VARIABLE_HANDLERS.get(var_type, EmptyVariableRender)
+
+    def get_default_context(self) -> dict[str, Any]:
+        context: dict[str, Any] = {}
+        for var_type, variables in self._type_to_variables.items():
+            context.update(self._get_variable_handler(var_type)(variables, None).get_default_context())
+        return context
 
     def render(self, context: dict[str, Any] = None) -> dict[str, Any]:
         context = context or {}
         query_instance: QueryInstance = QueryInstance(**copy.deepcopy(self.to_dict()))
         for var_type, variables in self._type_to_variables.items():
-            if var_type not in VARIABLE_HANDLERS:
+            query_instance = self._get_variable_handler(var_type)(variables, query_instance).render(context)
+        return query_instance.to_dict()
+
+    def render_to_strategy_item(self, context: dict[str, Any] = None) -> dict[str, Any]:
+        query_configs: list[dict[str, Any]] = []
+        query_instance_dict: dict[str, Any] = self.render(context)
+        for query_config in query_instance_dict["query_configs"]:
+            if query_config.get("promql"):
+                query_configs.append(
+                    {
+                        "data_label": query_config["data_label"],
+                        "data_source_label": query_config["data_source_label"],
+                        "data_type_label": query_config["data_type_label"],
+                        "promql": query_config["promql"],
+                        "agg_interval": query_config["interval"],
+                        "alias": query_config.get("alias") or "a",
+                    }
+                )
                 continue
 
-            query_instance = VARIABLE_HANDLERS[var_type](variables, query_instance).render(context)
+            query_configs.append(
+                {
+                    "data_label": query_config["data_label"],
+                    "data_source_label": query_config["data_source_label"],
+                    "data_type_label": query_config["data_type_label"],
+                    "agg_condition": query_config.get("where", []),
+                    "agg_dimension": query_config["group_by"],
+                    "agg_interval": query_config["interval"],
+                    "agg_method": query_config["metrics"][0]["method"],
+                    "alias": query_config["metrics"][0]["alias"],
+                    "functions": query_config.get("functions", []),
+                    "metric_field": query_config["metrics"][0]["field"],
+                    "result_table_id": query_config["table"],
+                    "index_set_id": query_config.get("index_set_id") or "",
+                    "query_string": query_config.get("query_string") or "",
+                    "name": query_config["metrics"][0]["field"],
+                    "unit": "",
+                }
+            )
 
-        return query_instance.to_dict()
+        return {
+            "name": self.alias or self.name,
+            "query_configs": query_configs,
+            "functions": query_instance_dict["functions"],
+            "expression": query_instance_dict["expression"],
+        }
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
@@ -315,5 +387,33 @@ class QueryTemplateWrapper(BaseQuery):
                 "space_scope": obj.space_scope,
                 "functions": obj.functions,
                 "variables": obj.variables,
+                "unit": obj.unit,
             }
         )
+
+    @classmethod
+    def from_unique_key(cls, bk_biz_id: int, name: str) -> "QueryTemplateWrapper | None":
+        try:
+            obj: models.QueryTemplate = models.QueryTemplate.objects.get(bk_biz_id=bk_biz_id, name=name)
+        except models.QueryTemplate.DoesNotExist:
+            return None
+
+        return cls.from_obj(obj)
+
+    @classmethod
+    def from_unique_keys(cls, keys: list[tuple[int, str]]) -> dict[tuple[int, str], "QueryTemplateWrapper"]:
+        if not keys:
+            return {}
+
+        key_qtw_map: dict[tuple[int, str], QueryTemplateWrapper] = {}
+        for query_template_obj in models.QueryTemplate.objects.filter(
+            bk_biz_id__in={key[0] for key in keys},
+            name__in={key[1] for key in keys},
+        ):
+            unique_key: tuple[int, str] = (query_template_obj.bk_biz_id, query_template_obj.name)
+            if unique_key not in keys:
+                continue
+
+            key_qtw_map[unique_key] = cls.from_obj(query_template_obj)
+
+        return key_qtw_map

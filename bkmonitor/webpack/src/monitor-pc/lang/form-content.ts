@@ -190,4 +190,9 @@ export default {
   '示例日志：': 'Example log:',
   '（共 {0} 条日志）': ' (total {0} logs)',
   独立查看: 'View independently',
+  '在{0}个周期内累计满足{1}次检测算法': 'In {0} cycles, the detection algorithm is met {1} times',
+  '较{0}对比': 'Compare with {0}',
+  '上升{0}%时触发告警': 'Trigger an alarm when rising {0}%',
+  '下降{0}%时触发告警': 'Trigger an alarm when falling {0}%',
+  '{0}上升{1}%或下降{2}%': '{0} rises {1}% or falls {2}%',
 };

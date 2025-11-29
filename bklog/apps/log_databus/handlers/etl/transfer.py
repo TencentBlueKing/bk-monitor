@@ -19,17 +19,18 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
+
 from django.conf import settings
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
+from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import update_clustering_clean
-from apps.log_databus.exceptions import CollectorActiveException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
+from apps.log_databus.handlers.collector_scenario.utils import build_es_option_type
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
@@ -59,21 +60,16 @@ class TransferEtlHandler(EtlHandler):
         **kwargs,
     ):
         etl_params = etl_params or {}
-        # 停止状态下不能编辑
-        if self.data and not self.data.is_active:
-            raise CollectorActiveException()
+        user_fields = copy.deepcopy(fields)
 
         # 存储集群信息
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
         self.check_es_storage_capacity(cluster_info, storage_cluster_id)
         is_add = False if self.data.table_id else True
 
-        if FeatureToggleObject.switch("etl_record_parse_failure", self.data.bk_biz_id):
-            # 增加清洗结果字段记录
-            etl_params["record_parse_failure"] = True
-
         if self.data.is_clustering:
-            handler = ClusteringConfigHandler(collector_config_id=self.data.collector_config_id)
+            clustering_config = ClusteringConfig.objects.get(collector_config_id=self.data.collector_config_id)
+
             update_clustering_clean.delay(
                 collector_config_id=self.data.collector_config_id,
                 fields=fields,
@@ -81,7 +77,7 @@ class TransferEtlHandler(EtlHandler):
                 etl_params=etl_params,
             )
 
-            if handler.data.bkdata_data_id and handler.data.bkdata_data_id != self.data.bk_data_id:
+            if clustering_config.bkdata_data_id and clustering_config.bkdata_data_id != self.data.bk_data_id:
                 # 旧版聚类链路，由于入库链路不是独立的，需要更新 transfer 的结果表配置；新版则无需更新
                 etl_params["etl_flat"] = True
                 etl_params["separator_node_action"] = ""
@@ -99,13 +95,39 @@ class TransferEtlHandler(EtlHandler):
                             f"{EtlStorage.separator_node_name}.", ""
                         )
 
-        # 暂时去掉这个效验逻辑，底下的逻辑都是幂等的，可以继续也必须继续往下走
-        # # 判断是否已存在同result_table_id
-        # if is_add and CollectorConfig(table_id=table_id).get_result_table_by_id():
-        #     logger.error(f"result_table_id {table_id} already exists")
-        #     raise CollectorResultTableIDDuplicateException(
-        #         CollectorResultTableIDDuplicateException.MESSAGE.format(result_table_id=table_id)
-        #     )
+            if clustering_config.use_mini_link:
+                fields = CollectorScenario.fields_insert_field_index(
+                    source_fields=fields,
+                    dst_fields=[
+                        {
+                            "field_name": "signature",
+                            "field_type": "string",
+                            "tag": "dimension",
+                            "alias_name": "signature",
+                            "description": "signature",
+                            "option": build_es_option_type("keyword", cluster_info["cluster_config"]["version"]),
+                            "is_built_in": True,
+                            "is_time": False,
+                            "is_analyzed": False,
+                            "is_dimension": True,
+                            "is_delete": False,
+                        }
+                    ],
+                )
+
+                # 接入聚类小型化必须要创建 pattern 结果表
+                EtlStorage.update_or_create_pattern_result_table(
+                    instance=self.data,
+                    table_id=clustering_config.signature_pattern_rt,
+                    storage_cluster_id=storage_cluster_id,
+                    allocation_min_days=allocation_min_days,
+                    storage_replies=storage_replies,
+                    es_version=cluster_info["cluster_config"]["version"],
+                    hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
+                    es_shards=es_shards,
+                    total_shards_per_node=total_shards_per_node,
+                )
+
         index_set_obj = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
         if sort_fields is None and index_set_obj:
             sort_fields = index_set_obj.sort_fields
@@ -175,7 +197,7 @@ class TransferEtlHandler(EtlHandler):
             {
                 "clean_type": etl_config,
                 "etl_params": etl_params,
-                "etl_fields": fields,
+                "etl_fields": user_fields,
                 "bk_biz_id": self.data.bk_biz_id,
             }
         )
@@ -190,3 +212,56 @@ class TransferEtlHandler(EtlHandler):
             "retention": retention,
             "es_shards": es_shards,
         }
+
+    def patch_update(
+        self,
+        storage_cluster_id=None,
+        retention=None,
+        allocation_min_days=None,
+        storage_replies=None,
+        es_shards=None,
+    ):
+        from apps.log_databus.handlers.collector import CollectorHandler
+
+        handler = CollectorHandler(self.collector_config_id)
+        collect_config = handler.retrieve()
+        clean_stash = handler.get_clean_stash()
+
+        etl_params = clean_stash["etl_params"] if clean_stash else collect_config["etl_params"]
+        etl_fields = (
+            clean_stash["etl_fields"]
+            if clean_stash
+            else [field for field in collect_config["fields"] if not field["is_built_in"]]
+        )
+
+        storage_cluster_id = (
+            storage_cluster_id if storage_cluster_id is not None else collect_config["storage_cluster_id"]
+        )
+        retention = retention if retention is not None else collect_config["retention"]
+        allocation_min_days = (
+            allocation_min_days if allocation_min_days is not None else collect_config["allocation_min_days"]
+        )
+        storage_replies = storage_replies if storage_replies is not None else collect_config["storage_replies"]
+        es_shards = es_shards if es_shards is not None else collect_config["storage_shards_nums"]
+
+        if storage_cluster_id:
+            cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
+            hot_warm_enabled = (
+                cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config", {}).get("is_enabled")
+            )
+        else:
+            hot_warm_enabled = False
+
+        etl_params = {
+            "table_id": self.data.collector_config_name_en,
+            "storage_cluster_id": storage_cluster_id,
+            "retention": retention,
+            "allocation_min_days": allocation_min_days if hot_warm_enabled else 0,
+            "storage_replies": storage_replies,
+            "es_shards": es_shards,
+            "etl_params": etl_params,
+            "etl_config": collect_config["etl_config"],
+            "fields": etl_fields,
+        }
+
+        return self.update_or_create(**etl_params)

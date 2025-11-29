@@ -108,8 +108,7 @@ class LogGroup(CustomGroupBase):
         # 需要刷新一次外部依赖的consul，触发transfer更新
         from metadata.models import DataSource
 
-        # 不存在跨租户日志分组,所以无需添加租户属性用于过滤
-        DataSource.objects.get(bk_data_id=bk_data_id).refresh_consul_config()
+        DataSource.objects.get(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).refresh_consul_config()
 
         # 更新 BkDataToken
         group.bk_data_token = group.get_bk_data_token()

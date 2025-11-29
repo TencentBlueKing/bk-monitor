@@ -9,7 +9,7 @@
 | plugin_id | string | 插件id |
 
 
-### 请求参水示例
+### 请求参数示例
 ```json
 {
     "plugin_id": "sss_script"

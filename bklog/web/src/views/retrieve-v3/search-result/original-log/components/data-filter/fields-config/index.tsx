@@ -46,9 +46,11 @@ export default defineComponent({
     const displayFieldNames = ref<string[]>([]); // 展示的字段名
     const confirmLoading = ref(false);
 
-    const totalFieldNames = computed(() => store.state.indexFieldInfo.fields.map(item => item.field_name));
-    const restFieldNames = computed(() =>
-      totalFieldNames.value.filter(field => !displayFieldNames.value.includes(field)),
+    const totalFiels = computed(() => store.state.indexFieldInfo.fields);
+    const totalFieldNames = computed(() => totalFiels.value.map(item => item.field_name));
+    const restFieldNames = computed(() => totalFieldNames.value.filter((field) => {
+      return !displayFieldNames.value.includes(field);
+    }),
     );
     const disabledRemove = computed(() => displayFieldNames.value.length <= 1);
 
@@ -61,13 +63,12 @@ export default defineComponent({
 
     watch(
       () => store.state.retrieve.catchFieldCustomConfig,
-      config => {
+      (config) => {
         const fields = config.contextDisplayFields;
         if (fields?.length > 0) {
-          displayFieldNames.value = fields;
-        } else {
-          displayFieldNames.value = totalFieldNames.value.includes('log') ? ['log'] : totalFieldNames.value;
+          displayFieldNames.value = fields.filter(f => totalFieldNames.value.includes(f));
         }
+
         setTimeout(() => {
           emit('success', displayFieldNames.value);
         });

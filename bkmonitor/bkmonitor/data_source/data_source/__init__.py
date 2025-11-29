@@ -12,7 +12,7 @@ import copy
 import json
 import logging
 import re
-from abc import ABCMeta
+from abc import ABCMeta, ABC, abstractmethod
 from collections import defaultdict
 from functools import reduce
 from itertools import product
@@ -25,6 +25,7 @@ from django.utils import timezone, tree
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
+from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 import constants.event
 from bkm_space.api import SpaceApi
@@ -228,6 +229,14 @@ def conditions_to_q(conditions):
 
 def filter_dict_to_conditions(filter_dict: dict, conditions: list[dict]):
     return _filter_dict_to_conditions(filter_dict, conditions)
+
+
+def q_to_conditions(q: Q) -> list[dict]:
+    return _filter_dict_to_conditions(q_to_dict(q), [])
+
+
+def filter_dict_to_q(filter_dict: dict, conditions: list[dict] | None = None) -> Q:
+    return conditions_to_q(filter_dict_to_conditions(filter_dict, conditions or []))
 
 
 def _list_to_q(key, value):
@@ -1597,52 +1606,47 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
         return _("{}内匹配到关键字次数").format(time_display)
 
 
-class BkMonitorLogDataSource(DataSource):
-    data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
-    data_type_label = DataTypeLabel.LOG
+class BaseBkMonitorLogDataSource(DataSource, ABC):
+    RESERVED_FIELDS: list[str] = ["_after_key_"]
+    INNER_DIMENSIONS: list[str] = []
+    DISTINCT_METHODS: set[str] = {"AVG", "SUM", "COUNT"}
 
-    RESERVED_FIELDS = ["_after_key_"]
-    INNER_DIMENSIONS = ["event_name", "target"]
-    DISTINCT_METHODS = {"AVG", "SUM", "COUNT"}
-    METHOD_DESC = {
-        "avg": _lazy("均值"),
-        "sum": _lazy("总和"),
-        "max": _lazy("最大值"),
-        "min": _lazy("最小值"),
-        "count": "",
+    EXTRA_DISTINCT_FIELD: str | None = None
+    EXTRA_AGG_DIMENSIONS: list[str] = []
+
+    # 对象字段分隔符
+    OBJECT_FIELD_SEPERATOR: str = "."
+
+    # 查询操作符映射关系：监控 -> UnifyQuery
+    OPERATOR_MAPPING: dict[str, str] = {
+        "reg": "req",
+        "nreg": "nreq",
+        "neq": "ne",
+        "exists": "existed",
+        "nexists": "nexisted",
+        "include": "contains",
+        "exclude": "ncontains",
+        "gt": "gt",
+        "lt": "lt",
+        "gte": "gte",
+        "lte": "lte",
+        "wildcard": "wildcard",
+        "nwildcard": "nwildcard",
     }
 
-    EXTRA_DISTINCT_FIELD = "dimensions.bk_module_id"
-    EXTRA_AGG_DIMENSIONS = ["dimensions.bk_target_ip", "dimensions.bk_target_cloud_id"]
+    # 分位数聚合方法映射关系：监控 -> UnifyQuery
+    PERCENTILES_AGG_TRANSLATE: dict[float, str] = {
+        CpAggMethods["cp50"].vargs_list[0]: "50.0",
+        CpAggMethods["cp90"].vargs_list[0]: "90.0",
+        CpAggMethods["cp95"].vargs_list[0]: "95.0",
+        CpAggMethods["cp99"].vargs_list[0]: "99.0",
+    }
 
-    @classmethod
-    def init_by_query_config(cls, query_config: dict, name="", *args, bk_biz_id: int, **kwargs):
-        # 过滤空维度
-        agg_dimension = [dimension for dimension in query_config.get("agg_dimension", []) if dimension]
+    # 聚合函数映射，背景：UnifyQuery / SaaS 对去重、求和等函数名定义可能不一致，此处统一映射为 UnifyQuery 所支持的函数
+    FUNC_METHOD_MAPPING: dict[str, str] = {"distinct": "cardinality"}
 
-        # 统计聚合目标节点
-        topo_nodes = defaultdict(list)
-        if query_config.get("target") and query_config["target"][0]:
-            target = query_config["target"][0][0]
-            if target["field"] in ["host_topo_node", "service_topo_node"]:
-                for value in target["value"]:
-                    topo_nodes[value["bk_obj_id"]].append(value["bk_inst_id"])
-
-        # 指标设置
-        metrics = [{"field": "event.count", "method": query_config["agg_method"]}]
-        time_field = query_config.get("time_field")
-
-        return cls(
-            bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
-            name=name,
-            table=query_config["result_table_id"],
-            metrics=metrics,
-            interval=query_config.get("agg_interval", 60),
-            group_by=agg_dimension,
-            where=query_config.get("agg_condition", []),
-            time_field=time_field,
-            topo_nodes=topo_nodes,
-        )
+    # 默认展示字段
+    DEFAULT_SELECT: list[str] = []
 
     def __init__(
         self,
@@ -1674,19 +1678,139 @@ class BkMonitorLogDataSource(DataSource):
         self.group_by = group_by or []
         self.time_field = time_field or self.DEFAULT_TIME_FIELD
         self.order_by = order_by or [f"{self.time_field} desc"]
-        self.select = select
+        self.select = select or self.DEFAULT_SELECT
         self.distinct = distinct
         # 是否使用索引全名进行检索
         self.use_full_index_names = use_full_index_names
 
         # 过滤空维度
         self.group_by = [d for d in self.group_by if d]
-        self._update_params_by_advance_method()
 
         # 如果维度中包含实例，则不按节点聚合
         if {"bk_target_ip", "bk_target_service_instance_id"} & set(self.group_by):
             topo_nodes = {}
         self.topo_nodes = topo_nodes or {}
+
+        # 是否进行时间聚合
+        self.is_time_agg: bool = kwargs.get("is_time_agg", True)
+        # 是否按时间对齐，不对齐将返回最后一个周期（数据点）的实时数据。
+        self.time_alignment: bool = kwargs.get("time_alignment", True)
+        self.reference_name: str = kwargs.get("reference_name") or "a"
+
+        bk_biz_id: int = kwargs.get("bk_biz_id", 0)
+        if self.ADVANCE_CONDITION_METHOD and not self.switch_unify_query(bk_biz_id):
+            # 没有切换 UnifyQuery 场景下，需要处理高级条件。
+            self._update_params_by_advance_method()
+
+    @abstractmethod
+    def _fetch_black_list(self) -> list[str | int]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def _get_unify_query_table(self) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def process_unify_query_data(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def process_unify_query_log(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    def switch_unify_query(self, bk_biz_id: int) -> bool:
+        for ordering in self.order_by or []:
+            # _value 是内置的聚合排序（TopK）关键字，仅 UnifyQuery 支持。
+            field: str = ordering.split(maxsplit=1)[0]
+            if field == "_value":
+                return True
+
+        # query_string 可能存在 nested 场景，仅 UnifyQuery 支持。
+        if self.query_string and self.query_string != "*":
+            return True
+
+        # 如果业务在黑名单中，则不使用 UnifyQuery。
+        black_list: list[str | int] = self._fetch_black_list()
+        return bk_biz_id not in black_list and str(bk_biz_id) not in black_list
+
+    def to_unify_query_config(self) -> list[dict]:
+        group_by: list[str] = self._get_group_by()
+        base_query: dict[str, Any] = {
+            "driver": "influxdb",
+            # UnifyQuery 数据源字段，目前没有 custom 来表示自定义事件，故统一用 bkapm 代表监控侧的数据源（事件、Trace）。
+            "data_source": "bkapm",
+            "table_id": self._get_unify_query_table(),
+            "reference_name": "",
+            "field_name": "",
+            "time_field": self.time_field,
+            "dimensions": group_by,
+            "query_string": self.query_string or "*",
+            "conditions": self._get_conditions(),
+            "function": [],
+            "time_aggregation": {},
+            "keep_columns": [],
+            "order_by": [],
+        }
+
+        query_list: list[dict[str, Any]] = []
+        for metric in self.metrics:
+            query: dict[str, Any] = copy.deepcopy(base_query)
+            method: str = metric["method"].lower()
+            # 非时间聚合，直接使用传入的方法
+            func_method: str = method
+            if self.is_time_agg and self.time_alignment and method == "count":
+                # 时间聚合场景下且进行对齐的场景下，COUNT 外层需使用 SUM 进行聚合。
+                func_method = "sum"
+            function: dict[str, Any] = {
+                "method": self.FUNC_METHOD_MAPPING.get(func_method, func_method),
+                "dimensions": group_by,
+            }
+            if method in CpAggMethods:
+                cp_agg_method = CpAggMethods[method]
+                function["vargs_list"] = [float(self.PERCENTILES_AGG_TRANSLATE[CpAggMethods[method].vargs_list[0]])]
+                function["method"] = "percentiles"
+                query["time_aggregation"]["position"] = cp_agg_method.position
+                query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
+
+            query["function"].append(function)
+
+            if self.is_time_agg:
+                if self.time_alignment:
+                    # 日志场景是根据 Log 条数统计，一条日志可以看成时序的一个点，即使用 Count 计算点数。
+                    agg_func_name: str = f"{method}_over_time"
+                    query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
+                else:
+                    # 非时间对齐场景，直接在查询函数里指定聚合周期，由对应的存储后端进行聚合，不走 Prom 引擎。
+                    function["window"] = f"{self.interval}s"
+
+            query["field_name"] = metric["field"]
+            query["reference_name"] = (metric.get("alias") or metric["field"]).lower()
+
+            if self.is_time_agg and self.time_alignment:
+                time_aggregation, functions = _parse_function_params(self.functions, group_by)
+                query["function"].extend(functions)
+                if time_aggregation:
+                    query["time_aggregation"].update(time_aggregation)
+
+            query_list.append(query)
+
+        if not query_list:
+            query: dict[str, Any] = copy.deepcopy(base_query)
+            query["reference_name"] = self.reference_name or "a"
+            # distinct 表示根据某个字段进行折叠，仅返回折叠序最高的数据，通常用于数据整行去重，例如 Trace 列表场景。
+            # 为什么需要折叠？相对于聚合来说，支持分页、排序，并且查询效率更高，此外，Doris / ES 都支持类似语义。
+            if self.distinct:
+                query["collapse"] = {"field": self.distinct}
+
+            # 原始数据保留字段
+            for select_field in self.select:
+                if "(" in select_field and ")" in select_field:
+                    continue
+                query["keep_columns"].append(select_field)
+
+            query_list.append(query)
+
+        return query_list
 
     def is_dimensions_field(self, field: str) -> bool:
         """
@@ -1703,6 +1827,9 @@ class BkMonitorLogDataSource(DataSource):
         if methods & self.DISTINCT_METHODS and self.EXTRA_DISTINCT_FIELD:
             metrics.append({"field": self.EXTRA_DISTINCT_FIELD, "method": "distinct", "alias": "distinct"})
         return metrics
+
+    def _get_conditions(self) -> dict[str, list[Any]]:
+        return _parse_conditions(self._get_filter_dict(), self._get_where(), self.OPERATOR_MAPPING)
 
     def _get_group_by(self, bk_obj_id: str = None) -> list:
         """
@@ -1786,7 +1913,9 @@ class BkMonitorLogDataSource(DataSource):
         return self._add_dimension_prefix(filter_dict)
 
     def _process_distinct_calculate_group_by(self, group_by: list[str]):
-        group_by.append(self.time_field)
+        if self.interval:
+            # 聚合场景下才需要按时间字段去重复。
+            group_by.append(self.time_field)
 
     def _distinct_calculate(self, group_by: list[str], records: list[dict]) -> list:
         """
@@ -1864,10 +1993,15 @@ class BkMonitorLogDataSource(DataSource):
                 group_by.append(builtin_dimension)
 
     def _process_data_queryset(self, queryset):
-        return queryset
+        # Q: 为什么执行 _process_log_queryset？
+        # A: query_data 存在按时间聚合及非聚合（计算一段时间内的汇总数据）的场景，当 interval 不存在时，一样需要停用日期分桶。
+        return self._process_log_queryset(queryset)
 
     def _process_log_queryset(self, queryset):
-        return queryset
+        if self.interval:
+            return queryset
+        # 原始日志查询场景，停用日期分桶。
+        return queryset.dsl_date_histogram(False)
 
     @classmethod
     def handle_limit(cls, limit) -> int | None:
@@ -1995,6 +2129,139 @@ class BkMonitorLogDataSource(DataSource):
         result = [record["_source"] for record in data["hits"]["hits"][:limit]]
         return result, total
 
+
+class BkMonitorLogDataSource(BaseBkMonitorLogDataSource):
+    data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR
+    data_type_label = DataTypeLabel.LOG
+
+    _INDEX: str = "_index"
+
+    INNER_DIMENSIONS: list[str] = ["target", "event_name", "event.content", "event.count", "time"]
+
+    EXTRA_DISTINCT_FIELD: str | None = "dimensions.bk_module_id"
+    EXTRA_AGG_DIMENSIONS: list[str] = ["dimensions.bk_target_ip", "dimensions.bk_target_cloud_id"]
+
+    OBJECT_FIELDS: set[str] = {"dimensions", "event"}
+
+    METHOD_DESC: dict[str, str] = {
+        "avg": _lazy("均值"),
+        "sum": _lazy("总和"),
+        "max": _lazy("最大值"),
+        "min": _lazy("最小值"),
+        "count": "",
+    }
+
+    DEFAULT_SELECT: list[str] = ["dimensions", "event", "time", "target", "event_name"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        for metric in self.metrics:
+            is_index_field: bool = metric["field"] in [self._INDEX, self._INDEX.upper(), "__INDEX__"]
+            if self.is_dimensions_field(metric["field"]) and not is_index_field:
+                metric["field"] = f"dimensions.{metric['field']}"
+
+            if not self.is_time_agg:
+                continue
+
+            if metric["field"] == "event.count" and metric["method"] == "COUNT":
+                metric["method"] = "SUM"
+            elif is_index_field:
+                metric["field"] = self._INDEX
+                metric["method"] = "COUNT"
+
+    def _get_conditions(self) -> dict[str, list[Any]]:
+        # unify-query 查询场景，补充 topo_nodes 过滤条件（仅日志关键字场景支持）。
+        filter_dict: dict[str, Any] = self._get_filter_dict()
+        for bk_inst_id, bk_obj_ids in self.topo_nodes.items():
+            filter_dict[f"dimensions.bk_{bk_inst_id}_id"] = bk_obj_ids
+        return _parse_conditions(filter_dict, self._get_where(), self.OPERATOR_MAPPING)
+
+    def _fetch_black_list(self) -> list[str | int]:
+        return settings.EVENT_UNIFY_QUERY_BLACK_BIZ_LIST
+
+    def switch_unify_query(self, bk_biz_id: int) -> bool:
+        if "type" in self.group_by:
+            # 聚合补 0 仅 UnifyQuery 支持。
+            return True
+
+        return super().switch_unify_query(bk_biz_id)
+
+    def _get_unify_query_table(self) -> str:
+        return f"{self.table}.__default__"
+
+    @classmethod
+    def init_by_query_config(cls, query_config: dict, name="", *args, bk_biz_id: int, **kwargs):
+        # 过滤空维度
+        agg_dimension = [dimension for dimension in query_config.get("agg_dimension", []) if dimension]
+
+        # 统计聚合目标节点
+        topo_nodes = defaultdict(list)
+        if query_config.get("target") and query_config["target"][0]:
+            target = query_config["target"][0][0]
+            if target["field"] in ["host_topo_node", "service_topo_node"]:
+                for value in target["value"]:
+                    topo_nodes[value["bk_obj_id"]].append(value["bk_inst_id"])
+
+        # 指标设置
+        metrics = [{"field": "event.count", "method": query_config["agg_method"], "alias": "a"}]
+        time_field = query_config.get("time_field")
+
+        return cls(
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
+            name=name,
+            table=query_config["result_table_id"],
+            metrics=metrics,
+            interval=query_config.get("agg_interval", 60),
+            group_by=agg_dimension,
+            where=query_config.get("agg_condition", []),
+            time_field=time_field,
+            topo_nodes=topo_nodes,
+        )
+
+    def process_unify_query_data(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        # TODO 日志关键字在配置告警时，需要通过 distinct_calculate 按 IP / 管控区域 对事件进行去重，后续切换时需要考虑。
+        records: list[dict[str, Any]] = self._remove_dimensions_prefix(records)
+        return records
+
+    def process_unify_query_log(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        processed_records: list[dict[str, Any]] = []
+        for record in records:
+            processed_record: dict[str, Any] = {}
+            exists_object_fields: set[str] = set()
+            for field, value in record.items():
+                if self.OBJECT_FIELD_SEPERATOR not in field:
+                    # 不包含分隔符，设置 kv 并提前返回。
+                    processed_record[field] = value
+                    continue
+
+                root_field, attr_field = field.split(".", 1)
+                if root_field in self.OBJECT_FIELDS:
+                    exists_object_fields.add(root_field)
+                    if attr_field.startswith("extra."):
+                        extra_field: str = attr_field.split(".", 1)[1]
+                        processed_record.setdefault(root_field, {}).setdefault("extra", {})[extra_field] = value
+                    else:
+                        processed_record.setdefault(root_field, {})[attr_field] = value
+                else:
+                    processed_record[field] = value
+
+            if self.select:
+                # 指定某些字段进行返回，仅需确保这些字段存在。
+                select_object_fields: set[str] = set(self.select) & self.OBJECT_FIELDS
+            else:
+                select_object_fields = self.OBJECT_FIELDS
+
+            for field in select_object_fields:
+                if field not in exists_object_fields:
+                    # 如果 select 中的对象字段不存在，则添加空对象。
+                    processed_record[field] = {}
+
+            processed_records.append(processed_record)
+
+        return processed_records
+
     @property
     def metric_display(self):
         time_display = _("{}秒").format(self.interval)
@@ -2004,11 +2271,9 @@ class BkMonitorLogDataSource(DataSource):
         return _("{}内接收到事件次数{}").format(time_display, self.METHOD_DESC[method])
 
 
-class BkApmTraceDataSource(BkMonitorLogDataSource):
+class BkApmTraceDataSource(BaseBkMonitorLogDataSource):
     data_source_label = DataSourceLabel.BK_APM
     data_type_label = DataTypeLabel.LOG
-
-    DEFAULT_TIME_FIELD = "time"
 
     EXTRA_DISTINCT_FIELD = None
     EXTRA_AGG_DIMENSIONS = []
@@ -2028,44 +2293,17 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
 
     NESTED_FIELDS: set[str] = {OtlpKey.EVENTS, OtlpKey.LINKS}
 
-    # 对象字段分隔符
-    OBJECT_FIELD_SEPERATOR: str = "."
-
     # 字段映射
     # 背景：后台 API 模块在接口层部分字段强制转换以规范命名，为保证数据 ES & UnifyQuery 返回数据一致，UnifyQuery 查询结果也相应进行转换。
     # refer：kernel_api/adapters.py
     FIELD_MAPPING: dict[str, str] = {"biz_id": "bk_biz_id", "app_id": "bk_app_code"}
 
-    OPERATOR_MAPPING: dict[str, str] = {
-        "neq": "ne",
-        "exists": "existed",
-        "nexists": "nexisted",
-        "include": "contains",
-        "exclude": "ncontains",
-        "gt": "gt",
-        "lt": "lt",
-        "gte": "gte",
-        "lte": "lte",
-        "wildcard": "wildcard",
-        "nwildcard": "nwildcard",
-    }
-
-    # 聚合函数映射，背景：UnifyQuery / SaaS 对去重、求和等函数名定义可能不一致，此处统一映射为 UnifyQuery 所支持的函数
-    FUNC_METHOD_MAPPING: dict[str, str] = {"distinct": "cardinality"}
-
-    PERCENTILES_AGG_TRANSLATE = {
-        CpAggMethods["cp50"].vargs_list[0]: "50.0",
-        CpAggMethods["cp90"].vargs_list[0]: "90.0",
-        CpAggMethods["cp95"].vargs_list[0]: "95.0",
-        CpAggMethods["cp99"].vargs_list[0]: "99.0",
-    }
-
-    def __init__(self, *args, reference_name: str | None = None, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.reference_name: str = reference_name
         self.use_full_index_names: bool = True
-        self.is_time_agg: bool = kwargs.get("is_time_agg", True)
-        self.time_alignment: bool = kwargs.get("time_alignment", True)
+
+    def _fetch_black_list(self) -> list[str | int]:
+        return settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
 
     def switch_unify_query(self, bk_biz_id: int) -> bool:
         for field_cond in self._get_conditions().get("field_list", []):
@@ -2084,28 +2322,14 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
                 if field_name.startswith(nested_field):
                     return True
 
-        for ordering in self.order_by or []:
-            # _value 是内置的聚合排序（TopK）关键字，仅 UnifyQuery 支持。
-            field: str = ordering.split(maxsplit=1)[0]
-            if field == "_value":
-                return True
-
-        # query_string 可能存在 nested 场景，仅 UnifyQuery 支持。
-        if self.query_string and self.query_string != "*":
-            return True
-
-        # 如果业务在黑名单中，则不使用 UnifyQuery。
-        return (
-            bk_biz_id not in settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
-            and str(bk_biz_id) not in settings.APM_UNIFY_QUERY_BLACK_BIZ_LIST
-        )
+        return super().switch_unify_query(bk_biz_id)
 
     def _get_unify_query_table(self) -> str:
         table_mapping: dict[str, str] = settings.UNIFY_QUERY_TABLE_MAPPING_CONFIG or {}
         return table_mapping.get(self.table, self.table)
 
-    def _get_conditions(self) -> dict[str, list[Any]]:
-        return _parse_conditions(self._get_filter_dict(), self._get_where(), self.OPERATOR_MAPPING)
+    def process_unify_query_data(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return records
 
     def process_unify_query_log(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         processed_records: list[dict[str, Any]] = []
@@ -2164,78 +2388,6 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
 
         return processed_records
 
-    def to_unify_query_config(self) -> list[dict]:
-        group_by: list[str] = self._get_group_by()
-        base_query: dict[str, Any] = {
-            "driver": "influxdb",
-            "data_source": "bkapm",
-            "table_id": self._get_unify_query_table(),
-            "reference_name": "",
-            "field_name": "",
-            "time_field": self.time_field,
-            "dimensions": group_by,
-            "query_string": self.query_string or "*",
-            "conditions": self._get_conditions(),
-            "function": [],
-            "time_aggregation": {},
-            "keep_columns": [],
-            "order_by": [],
-        }
-
-        query_list: list[dict[str, Any]] = []
-        for metric in self.metrics:
-            query: dict[str, Any] = copy.deepcopy(base_query)
-            method: str = metric["method"].lower()
-            func_method: str = (method, "sum")[self.is_time_agg and self.time_alignment]
-            function: dict[str, Any] = {
-                "method": self.FUNC_METHOD_MAPPING.get(func_method, func_method),
-                "dimensions": group_by,
-            }
-            if method in CpAggMethods:
-                cp_agg_method = CpAggMethods[method]
-                function["vargs_list"] = [float(self.PERCENTILES_AGG_TRANSLATE[CpAggMethods[method].vargs_list[0]])]
-                function["method"] = "percentiles"
-                query["time_aggregation"]["position"] = cp_agg_method.position
-                query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
-
-            query["function"].append(function)
-
-            if self.is_time_agg:
-                if self.time_alignment:
-                    agg_func_name: str = f"{method}_over_time"
-                    query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
-                else:
-                    function["window"] = f"{self.interval}s"
-
-            field: str = metric["field"]
-            query["field_name"] = field
-            query["reference_name"] = (metric.get("alias") or field).lower()
-
-            if self.is_time_agg and self.time_alignment:
-                time_aggregation, functions = _parse_function_params(self.functions, group_by)
-                query["function"].extend(functions)
-                if time_aggregation:
-                    query["time_aggregation"].update(time_aggregation)
-
-            query_list.append(query)
-
-        if not query_list:
-            query: dict[str, Any] = copy.deepcopy(base_query)
-            query["reference_name"] = self.reference_name or "a"
-            # distinct 表示根据某个字段进行折叠，仅返回折叠序最高的数据，通常用于数据整行去重，例如 Trace 列表场景。
-            # 为什么需要折叠？相对于聚合来说，支持分页、排序，并且查询效率更高，此外，Doris / ES 都支持类似语义。
-            if self.distinct:
-                query["collapse"] = {"field": self.distinct}
-
-            for select_field in self.select:
-                if "(" in select_field and ")" in select_field:
-                    continue
-                query["keep_columns"].append(select_field)
-
-            query_list.append(query)
-
-        return query_list
-
     @classmethod
     def init_by_query_config(cls, query_config: dict, *args, bk_biz_id: int, **kwargs):
         return cls(
@@ -2271,13 +2423,8 @@ class BkApmTraceDataSource(BkMonitorLogDataSource):
             group_by.append(self.time_field)
 
     def _process_data_queryset(self, queryset):
-        q = self._process_log_queryset(queryset)
-        return q.dsl_group_hits(-1)
-
-    def _process_log_queryset(self, queryset):
-        if self.interval:
-            return queryset
-        return queryset.dsl_date_histogram(False)
+        # 聚合场景下，不需要返回原始日志，设置 dsl_group_hits 为 -1。
+        return super()._process_log_queryset(queryset.dsl_group_hits(-1))
 
     @classmethod
     def handle_limit(cls, limit) -> int:
@@ -2327,7 +2474,9 @@ class CustomEventDataSource(BkMonitorLogDataSource):
 
     data_source_label = DataSourceLabel.CUSTOM
     data_type_label = DataTypeLabel.EVENT
-    INNER_DIMENSIONS = ["target", "event_name"]
+
+    # 内置事件表
+    INNER_TABLE: set[str] = ["system_event", "k8s_event", "cicd_event"]
 
     @classmethod
     def init_by_query_config(cls, query_config: dict, name="", *args, bk_biz_id: int, **kwargs):
@@ -2339,7 +2488,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         return cls(
             bk_tenant_id=bk_biz_id_to_bk_tenant_id(bk_biz_id),
             name=name,
-            metrics=[{"field": "_index", "method": "COUNT"}],
+            metrics=[{"field": "_index", "method": "COUNT", "alias": "a"}],
             table=query_config.get("result_table_id", ""),
             interval=query_config.get("agg_interval", 60),
             group_by=agg_dimension,
@@ -2348,7 +2497,7 @@ class CustomEventDataSource(BkMonitorLogDataSource):
             time_field=time_fields,
             custom_event_name=custom_event_name,
             data_label=query_config.get("data_label", ""),
-            bk_biz_id=kwargs.get("bk_biz_id", 0),
+            bk_biz_id=bk_biz_id,
         )
 
     def __init__(self, *args, **kwargs):
@@ -2361,17 +2510,24 @@ class CustomEventDataSource(BkMonitorLogDataSource):
         # 过滤掉恢复事件
         self.filter_dict["event_type__neq"] = RECOVERY
 
-        for metric in self.metrics:
-            if metric["field"] == "event.count":
-                metric["method"] = "SUM"
-            else:
-                metric["field"] = "_index"
-                metric["method"] = "COUNT"
+        bk_biz_id: int = kwargs.get("bk_biz_id", 0)
+        if not self.switch_unify_query(bk_biz_id):
+            # 使用 UnifyQuery 查询的情况下，无需 SaaS 处理空间路由，否则，增加空间查询条件。
+            self.filter_dict.update(judge_auto_filter(bk_biz_id, self.table))
 
-        # 平台级且业务不等于绑定的平台业务
-        self.filter_dict.update(judge_auto_filter(kwargs.get("bk_biz_id", 0), self.table))
+    def switch_unify_query(self, bk_biz_id: int) -> bool:
+        if self.table in self.INNER_TABLE:
+            # 内置事件表必须使用 unify-query
+            return True
+        return super().switch_unify_query(bk_biz_id)
 
-    def add_recovery_filter(self, datasource):
+    def _get_unify_query_table(self) -> str:
+        if self.table in self.INNER_TABLE:
+            return self.table
+        return super()._get_unify_query_table()
+
+    @classmethod
+    def add_recovery_filter(cls, datasource):
         """
         去除原有默认的异常事件筛选，增加恢复过滤条件
         :return: 增加恢复事件筛选的DataSource
@@ -2418,167 +2574,12 @@ class CustomEventDataSource(BkMonitorLogDataSource):
             start_time=start_time,
             end_time=end_time,
         )
+        q = self._process_data_queryset(q)
 
         records = self._remove_dimensions_prefix(q.raw_data)
         records = self._filter_by_advance_method(records)
         records = self._format_time_series_records(records)
         return records[:limit]
-
-
-class NewBkMonitorLogDataSource(BkMonitorLogDataSource):
-    data_source_label = DataSourceLabel.BK_MONITOR_COLLECTOR_NEW
-    data_type_label = DataTypeLabel.LOG
-
-    _INDEX: str = "_index"
-    INNER_DIMENSIONS = ["target", "event_name", "event.content", "event.count", "time"]
-
-    OPERATOR_MAPPING: dict[str, str] = {
-        "reg": "req",
-        "nreg": "nreq",
-        "neq": "ne",
-        "exists": "exists",
-        "nexists": "nexists",
-        "include": "contains",
-        "exclude": "ncontains",
-    }
-
-    PERCENTILES_AGG_TRANSLATE = {
-        CpAggMethods["cp50"].vargs_list[0]: "50.0",
-        CpAggMethods["cp90"].vargs_list[0]: "90.0",
-        CpAggMethods["cp95"].vargs_list[0]: "95.0",
-        CpAggMethods["cp99"].vargs_list[0]: "99.0",
-    }
-
-    # UnifyQuery 检索已支持正则，无需后置过滤。
-    ADVANCE_CONDITION_METHOD = []
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.is_time_agg: bool = kwargs.get("is_time_agg", True)
-        self.time_alignment: bool = kwargs.get("time_alignment", True)
-        self.reference_name: str = kwargs.get("reference_name") or "a"
-
-        if self.is_time_agg:
-            for metric in self.metrics:
-                if metric["field"] == "event.count" and metric["method"] == "COUNT":
-                    metric["method"] = "SUM"
-                elif metric["field"] == self._INDEX:
-                    metric["method"] = "COUNT"
-
-    def process_unify_query_data(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        # TODO 日志关键字在配置告警时，需要通过 distinct_calculate 按 IP / 管控区域 对事件进行去重，后续切换时需要考虑。
-        records: list[dict[str, Any]] = self._remove_dimensions_prefix(records)
-        records: list[dict[str, Any]] = self._filter_by_advance_method(records)
-        return records
-
-    def _get_unify_query_table(self) -> str:
-        if self.table in {"system_event", "k8s_event", "cicd_event"}:
-            return self.table
-        return f"{self.table}.__default__"
-
-    def to_unify_query_config(self) -> list[dict]:
-        group_by: list[str] = self._get_group_by()
-        where: list[dict[str, Any]] = self._get_where()
-        filter_dict: dict[str, Any] = self._get_filter_dict()
-        base_query: dict[str, Any] = {
-            "driver": "influxdb",
-            "data_source": "bkapm",
-            "table_id": self._get_unify_query_table(),
-            "reference_name": "",
-            "field_name": "",
-            "time_field": self.time_field,
-            "dimensions": group_by,
-            "query_string": self.query_string or "*",
-            "conditions": _parse_conditions(filter_dict, where, self.OPERATOR_MAPPING),
-            "function": [],
-            "time_aggregation": {},
-            "keep_columns": [],
-            "order_by": [],
-        }
-
-        query_list: list[dict[str, Any]] = []
-        for metric in self.metrics:
-            query: dict[str, Any] = copy.deepcopy(base_query)
-            method: str = metric["method"].lower()
-            # 非时间聚合，直接使用传入的方法
-            func_method: str = (method, "sum")[self.is_time_agg and self.time_alignment]
-            function: dict[str, Any] = {"method": func_method, "dimensions": group_by}
-            if method in CpAggMethods:
-                cp_agg_method = CpAggMethods[method]
-                function["vargs_list"] = [float(self.PERCENTILES_AGG_TRANSLATE[CpAggMethods[method].vargs_list[0]])]
-                function["method"] = "percentiles"
-                query["time_aggregation"]["position"] = cp_agg_method.position
-                query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
-
-            query["function"].append(function)
-
-            if self.is_time_agg:
-                if self.time_alignment:
-                    # 日志场景是根据 Log 条数统计，一条日志可以看成时序的一个点，即使用 Count 计算点数。
-                    agg_func_name: str = f"{method}_over_time"
-                    query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
-                else:
-                    # 非时间对齐场景，直接在查询函数里指定聚合周期，由对应的存储后端进行聚合，不走 Prom 引擎。
-                    function["window"] = f"{self.interval}s"
-
-            field: str = metric["field"]
-            if self.is_dimensions_field(field) and field != self._INDEX:
-                query["field_name"] = f"dimensions.{field}"
-            else:
-                query["field_name"] = field
-
-            query["reference_name"] = (metric.get("alias") or field).lower()
-
-            if self.is_time_agg and self.time_alignment:
-                time_aggregation, functions = _parse_function_params(self.functions, group_by)
-                query["function"].extend(functions)
-                if time_aggregation:
-                    query["time_aggregation"].update(time_aggregation)
-
-            query_list.append(query)
-
-        if not query_list:
-            query: dict[str, Any] = copy.deepcopy(base_query)
-            query["reference_name"] = self.reference_name or "a"
-
-            # 原始数据保留字段
-            for select_field in self.select:
-                if "(" in select_field and ")" in select_field:
-                    continue
-                query["keep_columns"].append(select_field)
-
-            query_list.append(query)
-
-        return query_list
-
-
-class NewCustomEventDataSource(NewBkMonitorLogDataSource):
-    data_source_label = DataSourceLabel.BK_APM
-    data_type_label = DataTypeLabel.EVENT
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # 添加自定义事件过滤条件
-        if kwargs.get("custom_event_name"):
-            self.filter_dict["event_name"] = kwargs["custom_event_name"]
-
-        # 过滤掉恢复事件
-        self.filter_dict["event_type__neq"] = RECOVERY
-
-    @classmethod
-    def add_recovery_filter(cls, datasource):
-        """
-        去除原有默认的异常事件筛选，增加恢复过滤条件
-        :return: 增加恢复事件筛选的DataSource
-        """
-        # 原有 datasource 默认不筛选恢复事件，弹出
-        datasource.filter_dict.pop("event_type__neq")
-
-        # 新增恢复事件筛选条件
-        datasource.filter_dict["event_type__eq"] = RECOVERY
-
-        return datasource
 
 
 class BkMonitorEventDataSource(DataSource):
@@ -2811,6 +2812,7 @@ class BkMonitorAlertDataSource(BkFtaEventDataSource):
             self.filter_dict["strategy_id"] = self.strategy_id
 
 
+@lru_cache_with_ttl(ttl=120)
 def judge_auto_filter(bk_biz_id: int, table_id: str) -> dict[str, Any]:
     """
     是否注入 bk_biz_id / projectId 过滤条件逻辑：
@@ -2870,22 +2872,30 @@ def judge_auto_filter(bk_biz_id: int, table_id: str) -> dict[str, Any]:
                 platform_biz_id = data_name.split("_")[0]
     else:
         result_table = ResultTable.objects.filter(table_id=table_id).first()
-        if not result_table or result_table.bk_biz_id != 0:
+        if not result_table:
             return {}
 
         data_id = DataSourceResultTable.objects.get(table_id=table_id).bk_data_id
         data_source_data = DataSource.objects.get(bk_data_id=data_id)
+
+        # 如果数据源不是平台级数据源且结果表业务ID不为0，则不进行过滤
+        if not data_source_data.is_platform_data_id and result_table.bk_biz_id != 0:
+            return {}
+
         space_uid = data_source_data.space_uid
         space_type_id = data_source_data.space_type_id
         if space_uid:
+            # 通过space_uid确认管理业务
             platform_biz_id = space_uid.split("__", -1)[-1]
         else:
+            # 通过data_name确认管理业务
             data_name = data_source_data.data_name
             if EventGroup.objects.filter(bk_data_id=data_id).exists():
                 platform_biz_id = data_name.split("_")[-1]
             else:
                 platform_biz_id = data_name.split("_")[0]
 
+    # 如果空间类型为BKCI，则需要使用projectId来进行数据过滤
     if space_type_id == SpaceTypeEnum.BKCI.value:
         space = SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
         if space.space_id == platform_biz_id:
@@ -2914,8 +2924,6 @@ def load_data_source(data_source_label: str, data_type_label: str) -> type[DataS
         BkFtaAlertDataSource,
         BkFtaEventDataSource,
         BkApmTraceDataSource,
-        NewCustomEventDataSource,
-        NewBkMonitorLogDataSource,
         BkApmTraceTimeSeriesDataSource,
         PrometheusTimeSeriesDataSource,
     ]

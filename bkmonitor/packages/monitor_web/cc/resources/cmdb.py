@@ -68,9 +68,13 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, int]:
 
         bk_host_id = None
         if record.get("bk_host_id"):
-            bk_host_id = int(record["bk_host_id"])
-        elif record.get("bk_target_ip") and record.get("bk_target_cloud_id") is not None:
-            bk_host_id = ip_to_host_id.get((record["bk_target_ip"], int(record["bk_target_cloud_id"])))
+            try:
+                bk_host_id = int(record["bk_host_id"])
+            except ValueError:
+                pass
+        if not bk_host_id:
+            if record.get("bk_target_ip") and record.get("bk_target_cloud_id") is not None:
+                bk_host_id = ip_to_host_id.get((record["bk_target_ip"], int(record["bk_target_cloud_id"])))
 
         if bk_host_id:
             status[bk_host_id] = AGENT_STATUS.ON
@@ -261,13 +265,13 @@ def get_host_performance_data(bk_biz_id: int, hosts: list[Host] = None) -> dict[
                 bk_host_id = ip_to_host_id.get((record["bk_target_ip"], int(record["bk_target_cloud_id"])))
 
             if bk_host_id in bk_host_ids:
-                _data[bk_host_id][metric["field"]] = round(record["_result_"], 2)
+                _data[bk_host_id][metric["field"]] = round(record["_result_"] * metric.get("ratio", 1), 2)
 
     metrics = [
         {"field": "cpu_load", "result_table_id": "system.load", "metric_field": "load5"},
         {"field": "cpu_usage", "result_table_id": "system.cpu_summary", "metric_field": "usage"},
         {"field": "disk_in_use", "result_table_id": "system.disk", "metric_field": "in_use"},
-        {"field": "io_util", "result_table_id": "system.io", "metric_field": "util"},
+        {"field": "io_util", "result_table_id": "system.io", "metric_field": "util", "ratio": 100},
         {"field": "mem_usage", "result_table_id": "system.mem", "metric_field": "pct_used"},
         {"field": "psc_mem_usage", "result_table_id": "system.mem", "metric_field": "psc_pct_used"},
     ]

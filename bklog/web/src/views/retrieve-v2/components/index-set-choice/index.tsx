@@ -24,16 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import {
-  computed,
-  defineComponent,
-  onBeforeUnmount,
-  onMounted,
-  ref,
-  watch,
-  type PropType,
-  type Ref,
-} from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch, type PropType, type Ref } from 'vue';
 
 import { getOsCommandLabel } from '../../../../common/util';
 import BklogPopover from '../../../../components/bklog-popover';
@@ -131,7 +122,7 @@ export default defineComponent({
         if (props.activeTab === 'union') {
           emit(
             'value-change',
-            unionListValue.length ? unionListValue : props.indexSetValue,
+            (unionListValue.length ? unionListValue : props.indexSetValue).map(v => v?.unique_id ?? v),
             'union',
           );
         }
@@ -141,9 +132,7 @@ export default defineComponent({
     const rootStyle = computed(() => {
       return {
         '--indexset-root-h': `${props.height}px`,
-        '--indexset-root-w': /^\d+\.?\d*$/.test(`${props.width}`)
-          ? `${props.width}px`
-          : props.width,
+        '--indexset-root-w': /^\d+\.?\d*$/.test(`${props.width}`) ? `${props.width}px` : props.width,
         '--indexset-root-max-w': `${props.maxWidth}px`,
         '--indexset-root-min-w': `${props.minWidth}px`,
       };
@@ -152,8 +141,7 @@ export default defineComponent({
     /**
      * 扁平化树形列表
      */
-    const getFlatList = () =>
-      (props.indexSetList ?? []).map((t: any) => [t, t.children]).flat(3);
+    const getFlatList = () => (props.indexSetList ?? []).map((t: any) => [t, t.children]).flat(3);
 
     /**
      * 查询选中结果值，新版索引ID格式为： pid_childId, 如果为根节点，格式为： #_childId
@@ -164,9 +152,7 @@ export default defineComponent({
       const values = props.indexSetValue.map((v) => {
         const target = flatList.find((i: any) => `${i.unique_id}` === `${v}`);
         if (!target) {
-          return flatList.find(
-            (i: any) => `${i.index_set_id}` === `${v.split('_').at(-1)}`,
-          );
+          return flatList.find((i: any) => `${i.index_set_id}` === `${v.split('_').at(-1)}`);
         }
 
         return target;
@@ -195,14 +181,10 @@ export default defineComponent({
      * @param value
      * @returns
      */
-    const handleValueChange = (
-      value: any,
-      type: 'single' | 'union',
-      id: number | string,
-    ) => {
+    const handleValueChange = (value: any, type: 'single' | 'union', id: number | string) => {
       // 如果是单选操作直接抛出事件
       if (['single', 'history', 'favorite'].includes(props.activeTab)) {
-        emit('value-change', value, type, id);
+        emit('value-change', value.unique_id ?? value, type, id);
         refRootElement.value?.hide();
         return;
       }
@@ -212,9 +194,9 @@ export default defineComponent({
       if (props.activeTab === 'union') {
         unionListValue = value;
         const flatList = getFlatList();
-        selectedValues.value = value.map((v) =>
-          flatList.find((i) => i.unique_id === v),
-        );
+        selectedValues.value = value
+          .map(v => flatList.find(i => i.unique_id === (v?.unique_id ?? v)))
+          .filter(v => v !== undefined);
       }
     };
 
@@ -295,7 +277,7 @@ export default defineComponent({
             placement='right'
             {...{
               scopedSlots: {
-                item: (v) => (
+                item: v => (
                   <span class='index-set-value-item'>
                     <span class='index-set-name'>{v.index_set_name}</span>
                     <span class='index-set-lighten-name'>{v.lightenName}</span>

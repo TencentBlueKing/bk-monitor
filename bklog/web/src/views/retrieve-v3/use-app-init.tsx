@@ -29,7 +29,7 @@ import { VIEW_BUSINESS } from '@/common/authority-map';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
-import { getDefaultRetrieveParams, update_URL_ARGS } from '@/store/default-values';
+import { getDefaultRetrieveParams, updateURLArgs as updateUrlArgs } from '@/store/default-values';
 import { BK_LOG_STORAGE, RouteParams, SEARCH_MODE_DIC } from '@/store/store.type';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
@@ -59,7 +59,7 @@ export default () => {
    * 更新相关参数到store
    */
   const reoverRouteParams = () => {
-    update_URL_ARGS(route);
+    updateUrlArgs(route);
     const routeParams = getDefaultRetrieveParams({
       spaceUid: store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID],
       bkBizId: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
@@ -89,24 +89,26 @@ export default () => {
     store.commit('updateIndexItem', routeParams);
     store.commit('updateSpace', routeParams.spaceUid);
     store.commit('updateState', { indexId: routeParams.index_id });
-    store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab });
+    store.commit('updateStorage', {
+      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: activeTab,
+    });
   };
 
   RetrieveHelper.setScrollSelector('.v3-bklog-content');
 
-  const handleSearchBarHeightChange = height => {
+  const handleSearchBarHeightChange = (height) => {
     searchBarHeight.value = height;
   };
 
-  const handleFavoriteWidthChange = width => {
+  const handleFavoriteWidthChange = (width) => {
     favoriteWidth.value = width;
   };
 
-  const hanldeFavoriteShown = isShown => {
+  const hanldeFavoriteShown = (isShown) => {
     isFavoriteShown.value = isShown;
   };
 
-  const handleGraphHeightChange = height => {
+  const handleGraphHeightChange = (height) => {
     trendGraphHeight.value = height;
   };
 
@@ -121,6 +123,10 @@ export default () => {
 
   const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
   const fromMonitor = computed(() => route.query.from === 'monitor');
+
+  /**
+   * 扁平化索引集列表
+   */
   const flatIndexSetList = computed(() => store.state.retrieve.flatIndexSetList);
 
   const stickyStyle = computed(() => {
@@ -146,12 +152,12 @@ export default () => {
   });
 
   const setSearchMode = () => {
-    const { search_mode, addition, keyword } = route.query;
+    const { search_mode: searchMode, addition, keyword } = route.query;
 
     // 此时说明来自旧版URL，同时带有 addition 和 keyword
     // 这种情况下需要将 addition 转换为 keyword 进行查询合并
     // 同时设置 search_mode 为 sql
-    if (!search_mode) {
+    if (!searchMode) {
       if (addition?.length > 4 && keyword?.length > 0) {
         // 这里不好做同步请求，所以直接设置 search_mode 为 sql
         router.push({
@@ -170,7 +176,7 @@ export default () => {
                 addition: target.addition,
               },
             })
-            .then(res => {
+            .then((res) => {
               if (res.result) {
                 const newKeyword = `${keyword} AND ${res.data?.querystring}`;
                 router.replace({
@@ -179,7 +185,7 @@ export default () => {
                 store.commit('updateIndexItemParams', { keyword: newKeyword });
               }
             })
-            .catch(err => {
+            .catch((err) => {
               console.error(err);
             });
         }
@@ -201,13 +207,11 @@ export default () => {
     }
   };
 
-  setSearchMode();
-  reoverRouteParams();
-
   /**
    * 拉取索引集列表
+   * @param beforeResolveFn 在结果返回解析之后，尚未进行路由解析之前的处理函数
    */
-  const getIndexSetList = () => {
+  const getIndexSetList = (beforeResolveFn?: () => void) => {
     store.commit('updateIndexSetQueryResult', {
       origin_log_list: [],
       list: [],
@@ -229,8 +233,8 @@ export default () => {
         .reduce(
           (out, cur) => {
             if (cur.indexOf('_') > 0) {
-              const [p_id, id] = cur.split('_');
-              out[0].push(p_id);
+              const [pid, id] = cur.split('_');
+              out[0].push(pid);
               out[1].push(id);
               return out;
             }
@@ -251,21 +255,42 @@ export default () => {
         is_group: true,
       })
       .then(() => {
+        // 如果扁平化索引集列表为空，则跳转到无权限页面
+        // 避免出现索引集列表为空导致的频繁错误请求和异常提示
+        if (flatIndexSetList.value.length === 0) {
+          router.push({
+            name: 'un-authorized',
+            query: {
+              page_from: route.name,
+              type: 'indexset',
+            },
+          });
+          return;
+        }
+
+        beforeResolveFn?.();
         isPreApiLoaded.value = true;
 
         // 在路由不带indexId的情况下 检查 unionList 和 tags 参数 是否存在联合查询索引集参数
         // tags 是 BCS索引集注入内置标签特殊检索
         if (!indexSetIdList.value.length && route.query.tags?.length) {
           const tagList = Array.isArray(route.query.tags) ? route.query.tags : route.query.tags.split(',');
+
           const indexSetMatch = flatIndexSetList.value
             .filter(item => item.tags.some(tag => tagList.includes(tag.name)))
             .map(val => val.index_set_id);
           if (indexSetMatch.length) {
-            store.commit('updateIndexItem', { ids: indexSetMatch, isUnionIndex: true, selectIsUnionSearch: true });
+            store.commit('updateIndexItem', {
+              ids: indexSetMatch,
+              isUnionIndex: true,
+              selectIsUnionSearch: true,
+            });
             store.commit('updateState', {
               unionIndexItemList: tagList,
             });
-            store.commit('updateStorage', { [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'union' });
+            store.commit('updateStorage', {
+              [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: 'union',
+            });
           }
         }
 
@@ -274,9 +299,8 @@ export default () => {
         if (!indexSetIdList.value.length) {
           const lastIndexSetIds = store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID]?.[spaceUid.value];
           if (lastIndexSetIds?.length) {
-            const validateIndexSetIds = lastIndexSetIds.filter(id =>
-              flatIndexSetList.value.some(item => filterFn(id, item)),
-            );
+            const firstFilterFn = id => flatIndexSetList.value.some(item => filterFn(id, item));
+            const validateIndexSetIds = lastIndexSetIds.filter(firstFilterFn);
             if (validateIndexSetIds.length) {
               commitIdexId(validateIndexSetIds);
               store.commit('updateStorage', {
@@ -298,7 +322,7 @@ export default () => {
         const indexSetIds = [];
 
         if (indexSetIdList.value.length) {
-          indexSetIdList.value.forEach(id => {
+          indexSetIdList.value.forEach((id) => {
             const item = flatIndexSetList.value.find(item => filterFn(id, item));
             if (!item) {
               emptyIndexSetList.push(id);
@@ -313,10 +337,10 @@ export default () => {
           if (emptyIndexSetList.length) {
             store.commit('updateIndexItem', { ids: [], items: [] });
             store.commit('updateState', { indexId: '' });
-            store.commit('updateIndexSetQueryResult', {
-              is_error: true,
-              exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
-            });
+            // store.commit('updateIndexSetQueryResult', {
+            //   is_error: true,
+            //   exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
+            // });
           }
 
           if (indexSetItems.length) {
@@ -326,10 +350,9 @@ export default () => {
 
         // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
         if (!indexSetIdList.value.length) {
-          const defIndexItem =
-            flatIndexSetList.value.find(
-              item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
-            ) ?? flatIndexSetList.value[0];
+          const defIndexItem = flatIndexSetList.value.find(
+            item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
+          ) ?? flatIndexSetList.value[0];
           const defaultId = [defIndexItem?.index_set_id];
 
           if (defaultId) {
@@ -339,20 +362,21 @@ export default () => {
           }
         }
 
-        let indexId =
-          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
-            ? store.state.indexItem.ids[0]
-            : undefined;
-        const unionList =
-          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
+        const indexId = store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
+          ? store.state.indexItem.ids[0]
+          : undefined;
+        const unionList = store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
 
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
 
           const type = (indexId ?? route.params.indexId) ? 'single' : 'union';
           if (indexId && type === 'single') {
-            store.commit('updateState', { indexId: indexId });
-            store.commit('updateUnionIndexList', { updateIndexItem: false, list: [] });
+            store.commit('updateState', { indexId });
+            store.commit('updateUnionIndexList', {
+              updateIndexItem: false,
+              list: [],
+            });
           }
 
           if (type === 'union') {
@@ -366,15 +390,15 @@ export default () => {
 
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
-          store.dispatch('requestIndexSetFieldInfo').then(resp => {
+          store.dispatch('requestIndexSetFieldInfo').then((resp) => {
             RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
             RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
 
             if (
-              route.query.tab === 'origin' ||
-              route.query.tab === undefined ||
-              route.query.tab === null ||
-              route.query.tab === ''
+              route.query.tab === 'origin'
+              || route.query.tab === undefined
+              || route.query.tab === null
+              || route.query.tab === ''
             ) {
               if (resp?.data?.fields?.length) {
                 store.dispatch('requestIndexSetQuery').then(() => {
@@ -402,7 +426,10 @@ export default () => {
 
           if (defaultId) {
             const strId = `${defaultId}`;
-            store.commit('updateIndexItem', { ids: [strId], items: [flatIndexSetList.value[0]] });
+            store.commit('updateIndexItem', {
+              ids: [strId],
+              items: [flatIndexSetList.value[0]],
+            });
             store.commit('updateState', { indexId: strId });
           }
         }
@@ -413,14 +440,16 @@ export default () => {
           store.getters.isUnionSearch,
         );
 
-        router.replace({
-          params: { ...route.params, indexId },
-          query: {
-            ...route.query,
-            ...queryTab,
-            unionList: unionList ? JSON.stringify(unionList) : undefined,
-          },
-        });
+        if (indexId) {
+          router.replace({
+            params: { ...route.params, indexId },
+            query: {
+              ...route.query,
+              ...queryTab,
+              unionList: unionList ? JSON.stringify(unionList) : undefined,
+            },
+          });
+        }
       });
   };
 
@@ -439,12 +468,11 @@ export default () => {
     });
   };
 
-  const beforeMounted = () => {
+  getIndexSetList(() => {
+    setSearchMode();
+    reoverRouteParams();
     setDefaultRouteUrl();
-    getIndexSetList();
-  };
-
-  beforeMounted();
+  });
 
   const handleSpaceIdChange = () => {
     const { start_time, end_time, timezone, datePickerValue } = store.state.indexItem;
@@ -497,7 +525,7 @@ export default () => {
   // 滚动时，检索结果距离顶部高度
   const searchResultTop = ref(0);
 
-  addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {
+  addEvent(RetrieveEvent.GLOBAL_SCROLL, (event) => {
     const scrollTop = (event.target as HTMLElement).scrollTop;
     paddingTop.value = scrollTop > subBarHeight.value ? subBarHeight.value : scrollTop;
 
@@ -507,7 +535,7 @@ export default () => {
 
   useResizeObserve(
     RetrieveHelper.getScrollSelector(),
-    entry => {
+    (entry) => {
       scrollContainerHeight.value = (entry.target as HTMLElement).offsetHeight;
     },
     0,

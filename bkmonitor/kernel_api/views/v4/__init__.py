@@ -18,6 +18,7 @@ from .bcs import *  # noqa
 from .calendars import *  # noqa
 from .collect import *  # noqa
 from .custom_report import *  # noqa
+from .entity import *  # noqa
 from .event import *  # noqa
 from .event_plugin import *  # noqa
 from .grafana import *  # noqa
@@ -33,4 +34,5 @@ from .strategy_v2 import *  # noqa
 from .strategy_v3 import *  # noqa
 from .event_v2 import *  # noqa
 from .gse import *  # noqa
+from .log_search import *  # noqa
 from .subscribe import *  # noqa

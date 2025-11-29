@@ -450,46 +450,83 @@ export function handleToLink(node, bkzIds, incidentDetailData) {
 }
 
 /**
- * 生成长度可缩短的二次贝塞尔平行曲线
+ * 生成长度可缩短的二次/三次贝塞尔平行曲线
  * @param {Array} path - G6路径数组，格式如 [['M', x0, y0], ['Q', cx, cy, x2, y2]]
  * @param {number} offset - 偏移距离（正数向上，负数向下）
  * @param {number} [shortenBy=0] - 路径缩短长度（默认0）
  * @param {number} [segments=50] - 采样点数量
  * @returns {Array} - 新路径数组（格式与输入相同）
  */
-export const createParallelCurve = (
-  path: [number[] | string, number[] | string],
-  offset: number,
-  shortenBy = 0,
-  segments = 50
-) => {
-  // 1. 解析控制点
-  const [[, x0, y0], [, cx, cy, x2, y2]] = path;
-  const P0 = { x: x0, y: y0 };
-  const Pc = { x: cx, y: cy };
-  const P2 = { x: x2, y: y2 };
+export const createParallelCurve = (path: any[], offset: number, shortenBy = 0, segments = 50) => {
+  // 1. 检测路径类型
+  const isQuadratic = path.length >= 2 && path[1][0] === 'Q'; // 二次贝塞尔曲线
+  const isCubic = path.length >= 2 && path[1][0] === 'C'; // 三次贝塞尔曲线（自环边）
+  const isLoop = path.length >= 4 && path[3][0] === 'C'; // 自环边可能有多个C命令
 
-  // 2. 初始化变量
+  if (!isQuadratic && !isCubic && !isLoop) {
+    console.warn('Unsupported path type for parallel curve:', path);
+    return path;
+  }
+
+  // 2. 解析控制点
+  let controlPoints = [];
+
+  if (isQuadratic) {
+    // 二次贝塞尔曲线: [['M', x0, y0], ['Q', cx, cy, x2, y2]]
+    const [[, x0, y0], [, cx, cy, x2, y2]] = path;
+    controlPoints = [
+      { x: x0, y: y0 }, // P0
+      { x: cx, y: cy }, // Pc (控制点)
+      { x: x2, y: y2 }, // P2
+    ];
+  } else if (isCubic || isLoop) {
+    // 三次贝塞尔曲线: [['M', x0, y0], ['C', cx1, cy1, cx2, cy2, x2, y2]]
+    const [[, x0, y0], [, cx1, cy1, cx2, cy2, x2, y2]] = path;
+    controlPoints = [
+      { x: x0, y: y0 }, // P0
+      { x: cx1, y: cy1 }, // P1 (控制点1)
+      { x: cx2, y: cy2 }, // P2 (控制点2)
+      { x: x2, y: y2 }, // P3
+    ];
+  }
+
+  // 3. 初始化变量
   const points = []; // 存储偏移点
   let totalLength = 0; // 原始曲线长度
   const cumulativeLengths = [0]; // 累计长度数组
 
-  // 3. 采样计算曲线长度和偏移点
+  // 4. 采样计算曲线长度和偏移点
   for (let i = 0; i <= segments; i++) {
     const t = i / segments;
+    let Bt, Tx, Ty;
 
-    // 3.1 计算当前点 B(t)
-    const Bt = {
-      x: (1 - t) ** 2 * P0.x + 2 * (1 - t) * t * Pc.x + t ** 2 * P2.x,
-      y: (1 - t) ** 2 * P0.y + 2 * (1 - t) * t * Pc.y + t ** 2 * P2.y,
-    };
+    if (isQuadratic) {
+      // 二次贝塞尔曲线计算
+      const [P0, Pc, P2] = controlPoints;
+      Bt = {
+        x: (1 - t) ** 2 * P0.x + 2 * (1 - t) * t * Pc.x + t ** 2 * P2.x,
+        y: (1 - t) ** 2 * P0.y + 2 * (1 - t) * t * Pc.y + t ** 2 * P2.y,
+      };
 
-    // 3.2 计算切向量 T(t)
-    const Tx = 2 * (1 - t) * (Pc.x - P0.x) + 2 * t * (P2.x - Pc.x);
-    const Ty = 2 * (1 - t) * (Pc.y - P0.y) + 2 * t * (P2.y - Pc.y);
-    const magnitude = Math.sqrt(Tx * Tx + Ty * Ty) || 0.001; // 防除零
+      // 切线向量
+      Tx = 2 * (1 - t) * (Pc.x - P0.x) + 2 * t * (P2.x - Pc.x);
+      Ty = 2 * (1 - t) * (Pc.y - P0.y) + 2 * t * (P2.y - Pc.y);
+    } else {
+      // 三次贝塞尔曲线计算
+      const [P0, P1, P2, P3] = controlPoints;
+      Bt = {
+        x: (1 - t) ** 3 * P0.x + 3 * (1 - t) ** 2 * t * P1.x + 3 * (1 - t) * t ** 2 * P2.x + t ** 3 * P3.x,
+        y: (1 - t) ** 3 * P0.y + 3 * (1 - t) ** 2 * t * P1.y + 3 * (1 - t) * t ** 2 * P2.y + t ** 3 * P3.y,
+      };
 
-    // 3.3 计算法向量并偏移
+      // 切线向量
+      Tx = 3 * (1 - t) ** 2 * (P1.x - P0.x) + 6 * (1 - t) * t * (P2.x - P1.x) + 3 * t ** 2 * (P3.x - P2.x);
+      Ty = 3 * (1 - t) ** 2 * (P1.y - P0.y) + 6 * (1 - t) * t * (P2.y - P1.y) + 3 * t ** 2 * (P3.y - P2.y);
+    }
+
+    const magnitude = Math.sqrt(Tx * Tx + Ty * Ty) || 0.001;
+
+    // 计算法向量并偏移
     const Nx = -Ty / magnitude;
     const Ny = Tx / magnitude;
     const offsetPoint = {
@@ -498,7 +535,7 @@ export const createParallelCurve = (
     };
     points.push(offsetPoint);
 
-    // 3.4 累计曲线长度（从第二个点开始）
+    // 累计曲线长度
     if (i > 0) {
       const dx = points[i].x - points[i - 1].x;
       const dy = points[i].y - points[i - 1].y;
@@ -507,17 +544,17 @@ export const createParallelCurve = (
     }
   }
 
-  // 4. 计算需保留的采样点数量
+  // 5. 计算需保留的采样点数量
   const targetLength = Math.max(0, totalLength - shortenBy);
   let validPointCount = segments;
   for (let i = cumulativeLengths.length - 1; i >= 0; i--) {
     if (cumulativeLengths[i] <= targetLength) {
-      validPointCount = i + 1; // +1 包含起点
+      validPointCount = i + 1;
       break;
     }
   }
 
-  // 5. 构建新路径（截断到目标长度）
+  // 6. 构建新路径
   const newPath = [['M', points[0].x, points[0].y]];
   for (let i = 1; i < validPointCount; i++) {
     newPath.push(['L', points[i].x, points[i].y]);
@@ -525,43 +562,50 @@ export const createParallelCurve = (
 
   return newPath;
 };
+
 /**
  * 生成两条与原始曲线平行并连接其起点的新曲线
+ * 针对自环边进行特殊处理
  * @param {Array} path - G6路径数组，格式如 [['M', x0, y0], ['Q', cx, cy, x2, y2]]
  * @param {number} offset - 偏移距离（正数向上，负数向下）
  * @param {number} shortenBy - 路径缩短长度（默认0）
  * @param {number} segments - 采样点数量
  * @returns {Object} - 含上下路径及连接路径的新曲线
  */
-export const createConnectedParallelCurves = (
-  path: [number[] | string, number[] | string],
-  offset: number,
-  shortenBy = 0,
-  segments = 50
-) => {
-  // 上偏移曲线
-  const upperCurve = createParallelCurve(path, offset, shortenBy, segments);
+export const createConnectedParallelCurves = (path: any[], offset: number, shortenBy = 0, segments = 50) => {
+  // 检测是否为自环边（包含多个C命令）
+  const isLoop = path.length >= 4 && path[3][0] === 'C';
 
-  // 下偏移曲线（负偏移）
-  const lowerCurve = createParallelCurve(path, -offset, shortenBy, segments);
+  if (isLoop) {
+    // 自环边特殊处理：使用原始路径的偏移，不添加连接线
+    const upperCurve = createParallelCurve(path, offset, shortenBy, segments);
+    const lowerCurve = createParallelCurve(path, -offset, shortenBy, segments);
 
-  // 提取上下曲线的起点
-  const upperStartPoint = upperCurve[0].slice(1);
-  const lowerStartPoint = lowerCurve[0].slice(1);
+    // 对于自环边，不添加中间的连接线，直接返回两条平行曲线
+    return [upperCurve, lowerCurve, []];
+  } else {
+    // 普通边的原有逻辑
+    const upperCurve = createParallelCurve(path, offset, shortenBy, segments);
+    const lowerCurve = createParallelCurve(path, -offset, shortenBy, segments);
 
-  // 计算用于生成椭圆曲线连接的中间控制点
-  const controlPoint = {
-    x: (upperStartPoint[0] + lowerStartPoint[0]) / 2,
-    y: (upperStartPoint[1] + lowerStartPoint[1]) / 2 + Math.abs(offset), // 提高控制点的垂直位置
-  };
+    // 提取上下曲线的起点
+    const upperStartPoint = upperCurve[0].slice(1);
+    const lowerStartPoint = lowerCurve[0].slice(1);
 
-  // 创建椭圆曲线连接线
-  const connectingLine = [
-    ['M', upperStartPoint[0], upperStartPoint[1]],
-    ['Q', controlPoint.x, controlPoint.y, lowerStartPoint[0], lowerStartPoint[1]],
-  ];
+    // 计算用于生成椭圆曲线连接的中间控制点
+    const controlPoint = {
+      x: (upperStartPoint[0] + lowerStartPoint[0]) / 2,
+      y: (upperStartPoint[1] + lowerStartPoint[1]) / 2 + Math.abs(offset), // 提高控制点的垂直位置
+    };
 
-  return [upperCurve, lowerCurve, connectingLine];
+    // 创建椭圆曲线连接线
+    const connectingLine = [
+      ['M', upperStartPoint[0], upperStartPoint[1]],
+      ['Q', controlPoint.x, controlPoint.y, lowerStartPoint[0], lowerStartPoint[1]],
+    ];
+
+    return [upperCurve, lowerCurve, connectingLine];
+  }
 };
 
 /**

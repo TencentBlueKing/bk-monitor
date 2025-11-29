@@ -45,10 +45,10 @@ export default class Rotation extends tsc<object> {
   get rotationData() {
     return JSON.stringify({
       host: this.rotationHost,
-      baseroute: '/trace/',
+      parentRoute: '/trace/',
     });
   }
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _fromm, next) {
     unmount(wewebId);
     next();
   }
@@ -59,7 +59,7 @@ export default class Rotation extends tsc<object> {
           id={wewebId}
           class='rotation-iframe'
           data={this.rotationData}
-          setShodowDom={true}
+          setShadowDom={true}
           showSourceCode={true}
           url={this.rotationUrl}
         />

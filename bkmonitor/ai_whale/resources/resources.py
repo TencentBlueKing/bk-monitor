@@ -22,7 +22,9 @@ from ai_agent.services.metrics_reporter import (
     extract_agent_code_from_request,
     ai_enhanced_streaming_metrics,
 )
+from ai_agent.core.custom_config_manager import get_mcp_access_token
 from core.prometheus import metrics
+from blueapps.utils.request_provider import get_local_request
 
 logger = logging.getLogger("ai_whale")
 
@@ -47,17 +49,21 @@ class CreateChatSessionResource(Resource):
     class RequestSerializer(serializers.Serializer):
         session_code = serializers.CharField(label="会话代码", required=True)
         session_name = serializers.CharField(label="会话名称", required=True)
+        is_temporary = serializers.BooleanField(label="是否是临时会话", required=False, default=False)
         agent_code = serializers.CharField(label="Agent代码", required=False, default=settings.AIDEV_AGENT_APP_CODE)
 
     @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
     def perform_request(self, validated_request_data):
         session_code = validated_request_data.get("session_code")
         session_name = validated_request_data.get("session_name")
+        is_temporary = validated_request_data.get("is_temporary", False)
         username = get_request_username()
         logger.info(
-            "CreateChatSessionResource: try to create session with session_code->[%s], session_name->[%s]",
+            "CreateChatSessionResource: try to create session with session_code->[%s], session_name->[%s], "
+            "is_temporary->[%s]",
             session_code,
             session_name,
+            is_temporary,
         )
         session_res = aidev_interface.create_chat_session(params=validated_request_data, username=username)
         return session_res
@@ -137,6 +143,45 @@ class RenameChatSessionResource(Resource):
             return aidev_interface.rename_chat_session(session_code=session_code)
         else:
             return aidev_interface.rename_chat_session_by_user_question(session_code=session_code)
+
+
+class GetFeedbackReasonsResource(Resource):
+    """
+    获取反馈原因列表
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        rate = serializers.IntegerField(label="评分", required=True)
+
+    @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
+    def perform_request(self, validated_request_data):
+        return aidev_interface.get_feedback_reasons(params=validated_request_data)
+
+
+class CreateFeedbackResource(Resource):
+    """
+    创建会话内容反馈
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        comment = serializers.CharField(label="评论内容", required=False, allow_blank=True, default="")
+        labels = serializers.ListField(label="标签", required=False, allow_empty=True, default=[])
+        rate = serializers.IntegerField(label="评分", required=True)
+        session_code = serializers.CharField(label="会话代码", required=True)
+        session_content_ids = serializers.ListField(label="会话内容ID", required=False)
+
+    @ai_metrics_decorator(ai_metrics_reporter=metrics_reporter)
+    def perform_request(self, validated_request_data):
+        session_code = validated_request_data.get("session_code")
+        rate = validated_request_data.get("rate")
+        username = get_request_username()
+        logger.info(
+            "CreateFeedbackResource: try to create feedback with session_code->[%s], rate->[%s], username->[%s]",
+            session_code,
+            rate,
+            username,
+        )
+        return aidev_interface.create_chat_session_feedback(params=validated_request_data, username=username)
 
 
 # -------------------- 会话内容管理 -------------------- #
@@ -296,3 +341,16 @@ class CreateChatCompletionResource(Resource):
             temperature=settings.AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE,
             switch_agent_by_scene=switch_agent_by_scene,
         )
+
+
+# -------------------- 凭证管理 -------------------- #
+class GetMCPAccessTokenResource(Resource):
+    """
+    获取MCP AccessToken
+    """
+
+    def perform_request(self, validated_request_data):
+        request = get_local_request()
+        username = get_request_username()
+        logger.info("GetMCPAccessTokenResource: try to get mcp access token, username->[%s]", username)
+        return {"access_token": get_mcp_access_token(request=request)}

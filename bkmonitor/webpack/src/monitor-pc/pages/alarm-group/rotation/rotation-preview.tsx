@@ -438,7 +438,17 @@ export default class RotationPreview extends tsc<IProps> {
             class='duty-preview-component-user-item-tip'
           >
             <div class='time'>{this.popover.time}</div>
-            <div class='users'>{this.popover.users}</div>
+            <div class='users'>
+              {Array.isArray(this.popover.users)
+                ? this.popover.users?.map((u, i) => [
+                    <bk-user-display-name
+                      key={u.id}
+                      user-id={u.name}
+                    />,
+                    i < this.popover?.users?.length - 1 ? ', ' : '',
+                  ])
+                : this.popover.users}
+            </div>
           </div>
         </div>
       </div>

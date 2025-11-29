@@ -39,6 +39,7 @@ from monitor_web.scene_view.builtin import (
     get_view_config,
     list_processors_view,
     post_handle_view_list_config,
+    post_handle_view_config,
 )
 
 logger = logging.getLogger(__name__)
@@ -113,7 +114,6 @@ class GetSceneViewListResource(ApiAuthResource):
         scene_id = params["scene_id"]
         scene_type = params.get("type", "")
         bk_biz_id = params["bk_biz_id"]
-
         # 添加自定义视图
         views = SceneViewModel.objects.filter(bk_biz_id=bk_biz_id, scene_id=scene_id, type=scene_type)
 
@@ -141,7 +141,7 @@ class GetSceneViewListResource(ApiAuthResource):
                 result.append(
                     {
                         "id": view.id,
-                        "name": view.name,
+                        "name": _(view.name),
                         "show_panel_count": view_config.get("options", {}).get("show_panel_count", False),
                         "mode": view_config.get("mode", ""),
                         "type": scene_type,
@@ -161,7 +161,7 @@ class GetSceneViewListResource(ApiAuthResource):
                 result.append(
                     {
                         "id": view.id,
-                        "name": view.name,
+                        "name": _(view.name),
                         "show_panel_count": False,
                         "mode": mode,
                         "type": scene_type,
@@ -348,6 +348,7 @@ class GetSceneViewResource(ApiAuthResource):
         if params["is_split"]:
             return self.process_split(view_config, params["split_variables"])
 
+        post_handle_view_config(scene_id, view_config)
         return view_config
 
 

@@ -18,6 +18,8 @@ from django.db.models import Count, Q, QuerySet
 from rest_framework import serializers
 
 from apm_web.utils import get_interval_number
+from bkm_space.errors import NoRelatedResourceError
+from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.models import BCSWorkload
 from core.drf_resource import Resource, resource
 from monitor_web.k8s.core.filters import load_resource_filter
@@ -67,6 +69,13 @@ class WorkloadOverview(Resource):
         namespace = serializers.CharField(required=False, label="命名空间")
         query_string = serializers.CharField(required=False, label="名字过滤")
 
+        def validate_bk_biz_id(self, bk_biz_id):
+            try:
+                bk_biz_id = validate_bk_biz_id(bk_biz_id)
+            except NoRelatedResourceError:
+                bk_biz_id = bk_biz_id
+            return bk_biz_id
+
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         bcs_cluster_id = validated_request_data["bcs_cluster_id"]
@@ -109,6 +118,13 @@ class NamespaceWorkloadOverview(Resource):
         query_string = serializers.CharField(required=False, label="名字过滤", default="", allow_blank=True)
         page_size = serializers.IntegerField(required=False, default=5, label="分页大小")
         page = serializers.IntegerField(required=False, default=1, label="页数")
+
+        def validate_bk_biz_id(self, bk_biz_id):
+            try:
+                bk_biz_id = validate_bk_biz_id(bk_biz_id)
+            except NoRelatedResourceError:
+                bk_biz_id = bk_biz_id
+            return bk_biz_id
 
     @classmethod
     def _get_workload_count(cls, workload_overview: list[list[int]]) -> int:

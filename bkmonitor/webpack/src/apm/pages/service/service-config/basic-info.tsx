@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Inject, Ref } from 'vue-property-decorator';
+import { Component, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { applicationList, CMDBInfoList, logList, serviceInfo } from 'monitor-api/modules/apm_base_info';
@@ -37,6 +37,7 @@ import ChangeRecord from 'monitor-pc/components/change-record/change-record';
 
 import EditableFormItem from '../../../components/editable-form-item/editable-form-item';
 import PanelItem from '../../../components/panel-item/panel-item';
+import authorityStore from '../../../store/modules/authority';
 import {
   type IAppInfoItem,
   type IApplicationItem,
@@ -65,8 +66,12 @@ export default class BasicInfo extends tsc<object> {
   @Ref() appForm: any;
   @Ref() apdexForm: any;
 
-  @Inject('authority') authority;
-  @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail;
+  @ProvideReactive('authority') authority: { [propsName: string]: boolean } = {};
+  // 显示申请权限的详情
+  @Provide('handleShowAuthorityDetail')
+  handleShowAuthorityDetail(actionId: string) {
+    authorityStore.getAuthorityDetail(actionId || this.$route.meta.authority?.map?.MANAGE_AUTH);
+  }
 
   isLoading = false;
   isSubmitLoading = false;
@@ -318,6 +323,7 @@ export default class BasicInfo extends tsc<object> {
       created_at: createTime,
       updated_by: updateUser,
       updated_at: updateTime,
+      permission,
     } = data;
     this.record.data = { createUser, createTime, updateTime, updateUser };
     this.uriList = (relation.uri_relation || []).map(item => item.uri);
@@ -327,6 +333,8 @@ export default class BasicInfo extends tsc<object> {
       relation,
       labels,
     });
+    this.authority.MANAGE_AUTH = permission?.[authorityMap.MANAGE_AUTH] ?? false;
+    this.authority.VIEW_AUTH = permission?.[authorityMap.VIEW_AUTH] ?? false;
     await this.setRelationInfo();
     this.isLoading = false;
   }
@@ -926,6 +934,7 @@ export default class BasicInfo extends tsc<object> {
               <div class='edit-form-item'>
                 <bk-select
                   vModel={this.localRelationInfo.cmdb}
+                  search-placeholder={this.$t('请输入 关键字')}
                   searchable
                   onChange={v => this.handleCmdbChange(v)}
                 >
@@ -1013,6 +1022,7 @@ export default class BasicInfo extends tsc<object> {
                   display-key='name'
                   id-Key='id'
                   list={this.bizSelectList}
+                  search-placeholder={this.$t('请输入 关键字')}
                   enable-virtual-scroll
                   searchable
                   onChange={v => this.handleBizChange(v)}
@@ -1030,6 +1040,7 @@ export default class BasicInfo extends tsc<object> {
                     <bk-select
                       style='width:290px'
                       vModel={this.localRelationInfo.appId}
+                      search-placeholder={this.$t('请输入 关键字')}
                       searchable
                     >
                       {this.appList.map(option => (
@@ -1424,13 +1435,15 @@ export default class BasicInfo extends tsc<object> {
           </div>
           {!this.isEditing && (
             <bk-button
-              class='edit-btn'
-              v-authority={{ active: !this.authority }}
+              class={['edit-btn', { 'edit-btn-no-authority': !this.authority?.MANAGE_AUTH }]}
+              v-authority={{ active: !this.authority?.MANAGE_AUTH }}
               size='small'
               theme='primary'
               outline
               onClick={() => {
-                this.authority ? this.handleEditClick(true) : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH);
+                this.authority?.MANAGE_AUTH
+                  ? this.handleEditClick(true)
+                  : this.handleShowAuthorityDetail(authorityMap.MANAGE_AUTH);
               }}
             >
               {this.$t('button-编辑')}

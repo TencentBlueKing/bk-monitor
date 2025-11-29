@@ -297,7 +297,7 @@ export default defineComponent({
           <div class='repository-search fr'>
             <bk-input
               data-test-id='storehouseContainer_input_searchTableItem'
-              placeholder={t('请输入仓库名称')}
+              placeholder={t('搜索 仓库名称')}
               right-icon='bk-icon icon-search'
               value={params.keyword}
               clearable
@@ -373,7 +373,7 @@ export default defineComponent({
             <bk-table-column
               label={t('创建人')}
               renderHeader={renderHeader}
-              scopedSlots={{ default: (props: any) => props.row.creator }}
+              scopedSlots={{ default: (props: any) => <bk-user-display-name user-id={props.row.creator}></bk-user-display-name> }}
             />
             <bk-table-column
               label={t('创建时间')}

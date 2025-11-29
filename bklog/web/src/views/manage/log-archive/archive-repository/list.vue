@@ -46,6 +46,7 @@
           data-test-id="storehouseContainer_input_searchTableItem"
           @change="handleSearchChange"
           @enter="handleSearch"
+
         >
         </bk-input>
       </div>
@@ -121,7 +122,7 @@
           :render-header="$renderHeader"
         >
           <template #default="props">
-            {{ props.row.creator }}
+            <bk-user-display-name :user-id="props.row.creator"></bk-user-display-name>
           </template>
         </bk-table-column>
         <bk-table-column

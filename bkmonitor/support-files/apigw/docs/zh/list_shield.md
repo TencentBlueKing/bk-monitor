@@ -17,9 +17,6 @@
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "bk_biz_id": 1,
     "is_active": true,
     "time_range": "2018-01-01 -- 2019-01-01",

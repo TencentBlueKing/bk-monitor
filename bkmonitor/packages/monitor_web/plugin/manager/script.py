@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import base64
-from pathlib import Path
+import os
 
 import yaml
 from django.utils.translation import gettext as _
@@ -201,13 +201,19 @@ class ScriptPluginManager(PluginManager):
 
         collector_json = {}
         for os_name, file_info in list(meta_dict["scripts"].items()):
-            script_path = Path(
-                self.plugin.plugin_id, OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"]
-            )
-            if script_path not in self.plugin_configs:
-                raise PluginParseError({"msg": _(f"无法找到脚本文件, path: {script_path}")})
+            script_path = os.path.join(OS_TYPE_TO_DIRNAME[os_name], self.plugin.plugin_id, file_info["filename"])
 
-            script_content = self._decode_file(self.plugin_configs[script_path])
+            # 查找匹配的完整路径
+            matching_path = None
+            for file_path in self.filename_list:
+                if script_path in str(file_path) or script_path.replace(os.sep, "/") in str(file_path):
+                    matching_path = file_path
+                    break
+
+            if not matching_path:
+                raise PluginParseError({"msg": _("无法找到脚本文件: {}").format(file_info["filename"])})
+
+            script_content = self._decode_file(self.plugin_configs[matching_path])
             collector_json[os_name] = {
                 "filename": file_info["filename"],
                 "type": file_info["type"],

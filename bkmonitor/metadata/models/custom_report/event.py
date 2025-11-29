@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
-
 import logging
 from typing import Any
 
@@ -309,6 +308,19 @@ class EventGroup(CustomGroupBase):
         :param bk_tenant_id: 租户ID
         :return: group object
         """
+        # 添加默认的option配置
+        additional_options = copy.deepcopy(cls.DEFAULT_RESULT_TABLE_OPTIONS)
+
+        # 添加ES文档ID配置
+        fields = cls.STORAGE_FIELD_LIST
+        option_value = [field["field_name"] for field in fields]
+        option_value.append("time")
+        additional_options[ResultTableOption.OPTION_ES_DOCUMENT_ID] = option_value
+
+        # 如果启用事件组V4数据链路，则添加V4数据链路配置
+        if settings.ENABLE_V4_EVENT_GROUP_DATA_LINK:
+            additional_options[ResultTableOption.OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK] = True
+
         group = super().create_custom_group(
             bk_data_id=bk_data_id,
             bk_biz_id=bk_biz_id,
@@ -319,26 +331,9 @@ class EventGroup(CustomGroupBase):
             table_id=table_id,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
-            additional_options=copy.deepcopy(cls.DEFAULT_RESULT_TABLE_OPTIONS),
+            additional_options=additional_options,
+            bk_biz_id_alias="dimensions.bk_biz_id",
         )
-
-        fields = cls.STORAGE_FIELD_LIST
-        option_value = [field["field_name"] for field in fields]
-        option_value.append("time")
-
-        ResultTableOption.create_option(
-            table_id=group.table_id,
-            name=ResultTableOption.OPTION_ES_DOCUMENT_ID,
-            value=option_value,
-            creator="system",
-            bk_tenant_id=bk_tenant_id,
-        )
-
-        # 需要刷新一次外部依赖的consul，触发transfer更新
-        from metadata.models import DataSource
-
-        # 除1000外不存在跨租户事件,因此无需携带租户属性过滤
-        DataSource.objects.get(bk_data_id=bk_data_id).refresh_consul_config()
 
         return group
 

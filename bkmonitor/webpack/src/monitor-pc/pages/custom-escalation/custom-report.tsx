@@ -606,7 +606,7 @@ class CustomReport extends Mixins(authorityMixinCreate(customAuth)) {
               <bk-input
                 extCls='operator-input'
                 v-model={this.search}
-                placeholder={this.$tc('搜索 ID / 名称')}
+                placeholder={this.$tc('搜索 名称')}
                 rightIcon='bk-icon icon-search'
                 on-change={this.handleSearch}
               />

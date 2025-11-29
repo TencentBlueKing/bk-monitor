@@ -13,7 +13,6 @@ import logging
 
 import arrow
 from django.utils.translation import gettext as _
-from six import string_types
 
 from alarm_backends.core.cache.cmdb.dynamic_group import DynamicGroupManager
 from alarm_backends.core.cache.key import NOTICE_SHIELD_KEY_LOCK
@@ -30,6 +29,7 @@ from bkmonitor.utils.range import (
 from bkmonitor.utils.range.conditions import AndCondition, EqualCondition, OrCondition
 from bkmonitor.utils.range.period import TimeMatch, TimeMatchBySingle
 from bkmonitor.utils.send import Sender
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.shield import ScopeType, ShieldCategory
 from core.errors.alarm_backends import StrategyNotFound
 
@@ -125,11 +125,14 @@ class ShieldObj:
             # 查询动态分组所属的主机
             dynamic_groups = []
             if dynamic_group_ids:
-                dynamic_groups = DynamicGroupManager.multi_get(dynamic_group_ids)
+                bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.config["bk_biz_id"])
+                dynamic_groups = list(
+                    DynamicGroupManager.mget(bk_tenant_id=bk_tenant_id, dynamic_group_ids=dynamic_group_ids).values()
+                )
 
             bk_host_ids: set = {0}
             for dynamic_group in dynamic_groups:
-                if dynamic_group and dynamic_group.get("bk_obj_id") == "host":
+                if dynamic_group.get("bk_obj_id") == "host":
                     bk_host_ids.update(dynamic_group["bk_inst_ids"])
             # 动态分组所属的主机为空，则表示屏蔽规则失效，依然需要将bk_host_id: [0] 设置到待匹配维度中
             clean_dimension["bk_host_id"] = list(bk_host_ids)
@@ -150,7 +153,7 @@ class ShieldObj:
             :param : str|list
             :return: bool
             """
-            if isinstance(para, string_types):
+            if isinstance(para, str):
                 return "00" == para
             elif isinstance(para, list):
                 return "00" in para
@@ -162,7 +165,7 @@ class ShieldObj:
             :param parm:str
             :return: bool
             """
-            if isinstance(parm, string_types):
+            if isinstance(parm, str):
                 return parm[0] == "_"
             return False
 
@@ -173,7 +176,7 @@ class ShieldObj:
             :return: bool
             """
             category = parm.get("category")
-            if isinstance(category, string_types):
+            if isinstance(category, str):
                 return category == "all"
             elif isinstance(category, list):
                 return "all" in category
@@ -315,6 +318,7 @@ class ShieldObj:
 
         for notice_way in self.config["notice_config"]["notice_way"]:
             sender = Sender(
+                bk_tenant_id=bk_biz_id_to_bk_tenant_id(self.config["bk_biz_id"]),
                 title_template_path=f"notice/shield/{notice_way}_title.jinja",
                 content_template_path=f"notice/shield/{notice_way}_content.jinja",
                 context=context,

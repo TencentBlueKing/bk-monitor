@@ -86,7 +86,7 @@ class Algorithms:
                 raise InvalidDataPoint(data_point=data_point)
 
         context = self.get_context(data_point)
-        if not hasattr(data_point, "__debug__"):
+        if "__debug__" not in data_point.as_dict():
             return eval(self.byte_code, {}, context)
         # debug only
         ret = False
@@ -135,7 +135,9 @@ class Algorithms:
         for data_point in data_points:
             try:
                 check_result = self.detect(data_point)
-            except Exception:
+            except Exception as e:
+                logger.debug(e)
+                # 这里记录数据点异常检测的异常堆栈，默认不开
                 continue
             if check_result:
                 ap = self.gen_anomaly_point(data_point, check_result, level)

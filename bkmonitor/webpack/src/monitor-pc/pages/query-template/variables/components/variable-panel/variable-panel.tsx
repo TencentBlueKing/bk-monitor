@@ -68,6 +68,8 @@ interface VariablePanelProps {
   isUseVariable?: boolean;
   metricFunctions?: any[];
   scene?: 'create' | 'detail' | 'edit';
+  showConditionTag?: boolean;
+  showLabel?: boolean;
   variable: VariableModelType;
   variableList?: VariableModelType[];
 }
@@ -79,7 +81,10 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
   @Prop({ default: () => [] }) metricFunctions: any[];
   /** 变量是否使用 */
   @Prop({ default: false, type: Boolean }) isUseVariable: boolean;
-
+  @Prop({ default: true }) showLabel!: boolean;
+  /** condition类型是否展示and/or tag */
+  @Prop({ default: false, type: Boolean }) showConditionTag: boolean;
+  /** 变量列表,目前用于判断变量名是否重复 */
   @ProvideReactive('variableList')
   @Prop({ type: Array, default: () => [] })
   variableList: VariableModelType[];
@@ -229,6 +234,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
       case VariableTypeEnum.METHOD:
         return (
           <EditMethodVariableValue
+            showLabel={this.showLabel}
             variable={this.variable as MethodVariableModel}
             onBlur={this.handleEditValueBlur}
             onFocus={this.handleEditValueFocus}
@@ -238,6 +244,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
       case VariableTypeEnum.GROUP_BY:
         return (
           <EditDimensionVariableValue
+            showLabel={this.showLabel}
             variable={this.variable as DimensionVariableModel}
             onBlur={this.handleEditValueBlur}
             onFocus={this.handleEditValueFocus}
@@ -247,6 +254,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
       case VariableTypeEnum.TAG_VALUES:
         return (
           <EditDimensionValueVariableValue
+            showLabel={this.showLabel}
             variable={this.variable as DimensionValueVariableModel}
             onBlur={this.handleEditValueBlur}
             onFocus={this.handleEditValueFocus}
@@ -258,6 +266,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
         return (
           <EditFunctionVariableValue
             metricFunctions={this.metricFunctions}
+            showLabel={this.showLabel}
             variable={this.variable as FunctionVariableModel}
             onBlur={this.handleEditValueBlur}
             onFocus={this.handleEditValueFocus}
@@ -267,6 +276,8 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
       case VariableTypeEnum.CONDITIONS:
         return (
           <EditConditionVariableValue
+            showConditionTag={this.showConditionTag}
+            showLabel={this.showLabel}
             variable={this.variable as ConditionVariableModel}
             onBlur={this.handleEditValueBlur}
             onFocus={this.handleEditValueFocus}
@@ -276,6 +287,7 @@ export default class VariablePanel extends tsc<VariablePanelProps, VariablePanel
       default:
         return (
           <EditConstantVariableValue
+            showLabel={this.showLabel}
             variable={this.variable as ConstantVariableModel}
             onBlur={this.handleEditValueBlur}
             onFocus={this.handleEditValueFocus}

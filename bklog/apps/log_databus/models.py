@@ -189,6 +189,8 @@ class CollectorConfig(CollectorBase):
     rule_id = models.IntegerField(_("bcs规则集id"), default=0)
     is_display = models.BooleanField(_("采集项是否对用户可见"), default=True)
     log_group_id = models.BigIntegerField(_("自定义日志组ID"), null=True, blank=True)
+    is_nanos = models.BooleanField(_("采集项是否为纳秒采集"), default=False)
+    enable_v4 = models.BooleanField(_("采集项是否为v4链路"), default=False)
 
     def get_name(self):
         return self.collector_config_name
@@ -209,7 +211,7 @@ class CollectorConfig(CollectorBase):
         multi_execute_func.append(
             "result_table_config",
             TransferApi.get_result_table,
-            params={"table_id": self.table_id},
+            params={"table_id": self.table_id, "no_request": True},
             use_request=False,
         )
         multi_execute_func.append(
@@ -218,7 +220,14 @@ class CollectorConfig(CollectorBase):
             params={"result_table_list": self.table_id, "storage_type": "elasticsearch", "no_request": True},
             use_request=False,
         )
-        result = multi_execute_func.run()
+        result = multi_execute_func.run(return_exception=True)
+
+        # 检查API调用是否成功
+        if isinstance(result.get("result_table_config"), Exception):
+            raise result["result_table_config"]
+        if isinstance(result.get("result_table_storage"), Exception):
+            raise result["result_table_storage"]
+
         from apps.log_databus.handlers.etl_storage import EtlStorage
 
         self.etl_config = EtlStorage.get_etl_config(result["result_table_config"], default=self.etl_config)

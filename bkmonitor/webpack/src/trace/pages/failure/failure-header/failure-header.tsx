@@ -29,6 +29,7 @@ import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted
 import { Dialog, Form, Input, Loading, Message, Popover, Progress, Tag } from 'bkui-vue';
 import { editIncident, incidentAlertAggregate } from 'monitor-api/modules/incident';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import ChatGroup from '../alarm-detail/chat-group/chat-group';
 import { LEVEL_LIST } from '../constant';
@@ -37,7 +38,7 @@ import FailureEditDialog from './failure-edit-dialog';
 
 import type { IIncident } from '../types';
 import type { IAggregationRoot } from '../types';
-import { useRoute } from 'vue-router'
+
 import './failure-header.scss';
 
 export default defineComponent({
@@ -91,11 +92,14 @@ export default defineComponent({
     });
     const getIncidentAlertAggregate = () => {
       listLoading.value = true;
-      incidentAlertAggregate({
-        id: incidentId.value,
-        aggregate_bys: [],
-        bk_biz_ids: [-1],
-      })
+      incidentAlertAggregate(
+        {
+          id: incidentId.value,
+          aggregate_bys: [],
+          bk_biz_ids: [-1],
+        },
+        { needMessage: false }
+      )
         .then(res => {
           alertAggregateData.value = res;
           const list: IAggregationRoot[] = Object.values(res || {});

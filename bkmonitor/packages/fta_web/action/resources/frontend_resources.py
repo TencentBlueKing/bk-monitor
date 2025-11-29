@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import logging
 import time
@@ -34,6 +34,7 @@ from bkmonitor.models import GlobalConfig
 from bkmonitor.models.fta import ActionConfig, ActionInstance, ActionPlugin
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.template import AlarmNoticeTemplate, NoticeRowRenderer
+from bkmonitor.utils.user import get_user_display_name
 from bkmonitor.views import serializers
 from constants.action import (
     CONVERGE_DIMENSION,
@@ -322,7 +323,9 @@ class RenderNoticeTemplate(Resource):
                 "mail": {
                     "level": NoticeRowRenderer.format("mail", _("告警级别"), _("致命")),
                     "begin_time": "",
-                    "time": NoticeRowRenderer.format("mail", _("时间范围"), "1970-01-01 00:00:00 - 1970-01-01 10:00:00"),
+                    "time": NoticeRowRenderer.format(
+                        "mail", _("时间范围"), "1970-01-01 00:00:00 - 1970-01-01 10:00:00"
+                    ),
                     "duration": "",
                     "target_type": "",
                     "data_source": NoticeRowRenderer.format("mail", _("数据来源"), _("蓝鲸监控")),
@@ -349,7 +352,7 @@ class RenderNoticeTemplate(Resource):
                 context["content"] = single_content[notice_way["type"]]
                 single = single.render(context)
             except Exception as e:
-                logger.info("template render error, {}".format(e))
+                logger.info(f"template render error, {e}")
                 single = custom_template
                 single_error = str(e)
 
@@ -360,7 +363,7 @@ class RenderNoticeTemplate(Resource):
                 context["content"] = multi_content[notice_way["type"]]
                 multi = multi.render(context)
             except Exception as e:
-                logger.info("template render error, {}".format(e))
+                logger.info(f"template render error, {e}")
                 multi = custom_template
                 multi_error = str(e)
 
@@ -620,7 +623,9 @@ class AssignAlertResource(Resource):
 
     def perform_request(self, validated_request_data):
         operator = get_request_username()
+        operator_display_name = get_user_display_name(operator)
         appointees = validated_request_data["appointees"]
+        appointees_display_names = [get_user_display_name(appointee) for appointee in appointees]
         appointees_set = set(appointees)
         assign_reason = validated_request_data["reason"]
         alert_ids = validated_request_data["alert_ids"]
@@ -630,7 +635,7 @@ class AssignAlertResource(Resource):
                 op_type=AlertLog.OpType.ACTION,
                 alert_id=alert_ids,
                 description=_("{creator}分派告警给({appointees}), 分派原因：{reason}").format(
-                    creator=operator, appointees=",".join(appointees), reason=assign_reason
+                    creator=operator_display_name, appointees=",".join(appointees_display_names), reason=assign_reason
                 ),
                 time=current_time,
                 create_time=current_time,
@@ -701,7 +706,9 @@ class GetActionConfigByAlerts(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.CharField(label="业务ID", required=True)
-        alert_ids = serializers.ListField(label="告警ID集合", required=True, child=serializers.CharField(allow_blank=False))
+        alert_ids = serializers.ListField(
+            label="告警ID集合", required=True, child=serializers.CharField(allow_blank=False)
+        )
 
     def perform_request(self, validated_request_data):
         alert_ids = validated_request_data["alert_ids"]
@@ -787,7 +794,7 @@ class RegisterBkPlugin(Resource):
         # 2.解析蓝鲸插件部署信息
         deployed, plugin_code, plugin_info = parse_bk_plugin_deployed_info(response_data)
         if not deployed:
-            return "failed: bk_plugin: [{}] does not deployed".format(plugin_code)
+            return f"failed: bk_plugin: [{plugin_code}] does not deployed"
 
         # 3.根据 plugin_code update_or_create
         instance, created = ActionPlugin.origin_objects.update_or_create(plugin_key=plugin_code, defaults=plugin_info)

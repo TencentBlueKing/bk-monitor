@@ -11,10 +11,13 @@ specific language governing permissions and limitations under the License.
 import logging
 from aidev_agent.services.chat import ExecuteKwargs
 from aidev_agent.api.bk_aidev import BKAidevApi
+
 from aidev_agent.services.agent import AgentInstanceFactory
 from aidev_agent.enums import AgentBuildType
 from ai_agent.utils import get_langfuse_callback, handle_streaming_response_with_metrics
 from ai_agent.services.local_command_handler import LocalCommandProcessor
+from aidev_agent.core.extend.agent.qa import CommonQAAgent
+from ai_agent.core.custom_config_manager import CustomConfigManager
 
 logger = logging.getLogger("ai_whale")
 
@@ -34,6 +37,7 @@ class AIDevInterface:
             if isinstance(data, dict) and "prompt_setting" in data:
                 # 避免提示词泄漏
                 del data["prompt_setting"]
+            del data["saas_url"]  # TODO 移除 ping url,后续完善后补充
         except Exception as e:  # 出现异常不应影响主流程
             logger.warning("get_agent_info: failed to strip prompt_setting: %s", e)
         return res
@@ -62,6 +66,20 @@ class AIDevInterface:
             "create_chat_session: create session and add system prompt successfully,session_code->[%s]", session_code
         )
         return session_res
+
+    def create_chat_session_feedback(self, params, username):
+        """
+        会话反馈（点赞/点踩）
+        """
+        res = self.api_client.api.create_feedback(json=params, headers={"X-BKAIDEV-USER": username})
+        return res
+
+    def get_feedback_reasons(self, params):
+        """
+        获取反馈原因
+        """
+        res = self.api_client.api.get_feedback_reasons(params=params)
+        return res
 
     def retrieve_chat_session(self, session_code):
         """获取单个会话"""
@@ -193,6 +211,8 @@ class AIDevInterface:
     ):
         """发起流式/非流式会话"""
         callbacks = [get_langfuse_callback()]  # 添加Langfuse回调
+        session_info = self.retrieve_chat_session(session_code=session_code)
+        is_temporary = session_info.get("data", {}).get("is_temporary", False)
         agent_instance = AgentInstanceFactory.build_agent(
             agent_code=agent_code,
             build_type=AgentBuildType.SESSION,
@@ -201,6 +221,9 @@ class AIDevInterface:
             callbacks=callbacks,
             temperature=temperature,
             switch_agent_by_scene=switch_agent_by_scene,
+            is_temporary=is_temporary,
+            agent_cls=CommonQAAgent,  # 显式传入正确的类
+            config_manager_class=CustomConfigManager,
         )  # 工厂方法构建Agent实例
         if execute_kwargs.get("stream", False):
             # 使用增强的流式处理函数

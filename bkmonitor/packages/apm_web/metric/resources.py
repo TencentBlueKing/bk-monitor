@@ -519,6 +519,9 @@ class DynamicUnifyQueryResource(Resource, PreCalculateHelperMixin):
             query_config["table"] = result["table_id"]
             query_config["metrics"][0]["field"] = result["metric"]
 
+            # 去掉可能存在的 data_label
+            query_config.pop("data_label", None)
+
         if is_pre_cal_hit and not is_time_shift_exists:
             query_params["start_time"], query_params["end_time"] = helper.adjust_time_range(
                 query_params["start_time"], query_params["end_time"]
@@ -870,7 +873,7 @@ class ServiceListResource(PageListResource):
                     res.append(
                         {
                             "id": f["id"],
-                            "name": f["name"],
+                            "name": _(f["name"]),
                             "count": count_mapping[f["id"]],
                         }
                     )
@@ -1035,7 +1038,7 @@ class ServiceListResource(PageListResource):
         fields = field_groups.get(mode) or [field for group in field_groups.values() for field in group]
         res = []
         for f in fields:
-            res.append({"id": f.key, "name": f.name, "data": f.list_filter_fields(services)})
+            res.append({"id": f.key, "name": _(f.name), "data": f.list_filter_fields(services)})
         return res
 
     def _filter_by_fields(self, services, field_conditions):

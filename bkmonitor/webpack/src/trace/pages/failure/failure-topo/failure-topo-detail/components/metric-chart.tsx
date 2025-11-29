@@ -39,6 +39,7 @@ import dayjs from 'dayjs';
 import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants';
 import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
+import { useI18n } from 'vue-i18n';
 
 import { handleYAxisLabelFormatter, removeTrailingZeros } from '../../utils';
 
@@ -90,6 +91,7 @@ export default defineComponent({
   },
   emits: ['init', 'destroy', 'eventClick'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const chartDomRef = shallowRef<HTMLDivElement | null>(null);
     const chart = shallowRef<echarts.ECharts | null>(null);
     // 图表是否在可视区域
@@ -458,11 +460,13 @@ export default defineComponent({
     });
 
     return {
+      t,
       chartDomRef,
       isMultiDimension,
     };
   },
   render() {
+    const isEmptyData = Object.keys(this.metricItem.time_series).length === 0;
     return (
       <>
         <div
@@ -474,10 +478,22 @@ export default defineComponent({
         >
           {this.metricItem.metric_alias}
         </div>
-        <div
-          ref='chartDomRef'
-          style={{ width: '316px', height: this.isMultiDimension ? '150px' : '118px' }}
-        />
+        {/* 根据数据状态显示图表或空白提示 */}
+        {isEmptyData ? (
+          <div
+            style={{
+              height: this.isMultiDimension ? '150px' : '118px',
+            }}
+            class='no-data'
+          >
+            {this.t('暂无数据')}
+          </div>
+        ) : (
+          <div
+            ref='chartDomRef'
+            style={{ width: '316px', height: this.isMultiDimension ? '150px' : '118px' }}
+          />
+        )}
       </>
     );
   },

@@ -2,18 +2,22 @@
   &.condition-value {
     width: 100%;
 
+    .template-condition-creator-component {
+      line-height: normal;
+    }
+
     .variable-value {
-      height: 50px;
+      min-height: 50px;
 
       .variable-value-label {
-        height: 50px;
-        line-height: 50px;
+        display: flex;
+        align-items: center;
+        height: 100%;
       }
 
       .variable-value-input {
         display: flex;
       }
-
     }
   }
 }

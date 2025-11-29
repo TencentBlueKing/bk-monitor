@@ -722,7 +722,7 @@ class CollectorHandler:
         return [node["bk_inst_id"] for node in nodes if node["bk_obj_id"] == node_type]
 
     @staticmethod
-    @caches_one_hour(key=CACHE_KEY_CLUSTER_INFO, need_deconstruction_name="result_table_list")
+    @caches_one_hour(key=CACHE_KEY_CLUSTER_INFO, need_deconstruction_name="result_table_list", need_md5=True)
     def bulk_cluster_infos(result_table_list: list):
         """
         bulk_cluster_infos
@@ -864,7 +864,7 @@ class CollectorHandler:
                 data_name=cls.build_bk_data_name(instance.get_bk_biz_id(), instance.get_en_name()),
                 description=instance.description,
                 encoding=META_DATA_ENCODING,
-                bk_biz_id=instance.get_bk_biz_id()
+                bk_biz_id=instance.get_bk_biz_id(),
             )
             return bk_data_id
 
@@ -1290,7 +1290,7 @@ class CollectorHandler:
                 data_name=self.build_bk_data_name(bkdata_biz_id, collector_config_name_en),
                 description=collector_config_params["description"],
                 encoding=META_DATA_ENCODING,
-                bk_biz_id=bkdata_biz_id
+                bk_biz_id=bkdata_biz_id,
             )
             self.data.save()
 
@@ -1472,11 +1472,19 @@ class CollectorHandler:
         if data_link_id:
             return data_link_id
         # 业务可见的私有链路ID
-        data_link_obj = DataLinkConfig.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=get_request_tenant_id()).order_by("data_link_id").first()
+        data_link_obj = (
+            DataLinkConfig.objects.filter(bk_biz_id=bk_biz_id, bk_tenant_id=get_request_tenant_id())
+            .order_by("data_link_id")
+            .first()
+        )
         if data_link_obj:
             return data_link_obj.data_link_id
         # 公共链路ID
-        data_link_obj = DataLinkConfig.objects.filter(bk_biz_id=0, bk_tenant_id=get_request_tenant_id()).order_by("data_link_id").first()
+        data_link_obj = (
+            DataLinkConfig.objects.filter(bk_biz_id=0, bk_tenant_id=get_request_tenant_id())
+            .order_by("data_link_id")
+            .first()
+        )
         if data_link_obj:
             return data_link_obj.data_link_id
 
@@ -1526,11 +1534,12 @@ class CollectorHandler:
         return bk_data_name
 
     @classmethod
-    def build_result_table_id(cls, bk_biz_id: int, collector_config_name_en: str) -> str:
+    def build_result_table_id(cls, bk_biz_id: int, collector_config_name_en: str, is_pattern_rt: bool = False) -> str:
         """
         根据bk_biz_id和collector_config_name_en构建result_table_id
         @param bk_biz_id:
         @param collector_config_name_en:
+        @param is_pattern_rt: 是否为聚类结果表
         @return:
         """
         bk_biz_id = int(bk_biz_id)
@@ -1540,4 +1549,6 @@ class CollectorHandler:
             result_table_id = (
                 f"{settings.TABLE_SPACE_PREFIX}_{-bk_biz_id}_{settings.TABLE_ID_PREFIX}.{collector_config_name_en}"
             )
+        if is_pattern_rt:
+            return f"{result_table_id}__pattern"
         return result_table_id

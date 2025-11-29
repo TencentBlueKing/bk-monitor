@@ -25,8 +25,8 @@
  */
 import { defineComponent, ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 
-import { parseTableRowData } from '@/common/util';
-import { readBlobRespToJson, parseBigNumberList, formatDate } from '@/common/util';
+import { parseTableRowData, readBlobRespToJson, parseBigNumberList, xssFilter } from '@/common/util';
+
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -34,6 +34,7 @@ import { BK_LOG_STORAGE } from '@/store/store.type';
 import SearchBar from '@/views/retrieve-v2/search-bar/index.vue';
 import DOMPurify from 'dompurify';
 import { cloneDeep, debounce } from 'lodash-es';
+import RetrieveHelper from '@/views/retrieve-helper';
 
 import RenderJsonCell from './render-json-cell';
 import { axiosInstance } from '@/api';
@@ -67,13 +68,17 @@ export default defineComponent({
     const listLoading = ref(false);
     const isCollapsed = ref(false);
 
-    const fieldsMap = computed(() =>
-      (store.state.indexFieldInfo.fields || []).reduce((dataMap, item) => {
-        dataMap[item.field_name] = item;
-        return dataMap;
-      }, {}),
+    const fieldsMap = computed(() => (store.state.indexFieldInfo.fields || []).reduce((dataMap, item) => {
+      dataMap[item.field_name] = item;
+      return dataMap;
+    }, {}),
     );
-    const visibleFields = computed(() => store.state.visibleFields);
+
+    const timeField = computed(() => store.state.indexFieldInfo.time_field);
+    const timeFieldType = computed(() => fieldsMap.value[timeField.value]?.field_type);
+    const visibleFields = computed(() => store.getters.visibleFields);
+    // 结果展示行数配置
+    const resultDisplayLines = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES] ?? 3);
 
     const requestOtherparams = cloneDeep(props.retrieveParams);
     delete requestOtherparams.format;
@@ -144,7 +149,7 @@ export default defineComponent({
                 logList.value.push(...list);
                 if (isManualSearch) {
                   choosedIndex.value = -1;
-                  handleChooseRow(0);
+                  handleChooseRow(0, list[0]);
                 }
               }
             });
@@ -236,20 +241,19 @@ export default defineComponent({
       return mappingKey[operator] ?? operator; // is is not 值映射
     };
 
-    const getValidUISearchValue = (searchValue: any[]) =>
-      searchValue.reduce((addtions, item) => {
-        if (!item.disabled) {
-          addtions.push({
-            field: item.field,
-            operator: item.operator,
-            value:
-              item.hidden_values?.length > 0
-                ? item.value.filter(value => !item.hidden_values.includes(value))
-                : item.value,
-          });
-        }
-        return addtions;
-      }, []);
+    const getValidUISearchValue = (searchValue: any[]) => searchValue.reduce((addtions, item) => {
+      if (!item.disabled) {
+        addtions.push({
+          field: item.field,
+          operator: item.operator,
+          value:
+            item.hidden_values?.length > 0
+              ? item.value.filter(value => !item.hidden_values.includes(value))
+              : item.value,
+        });
+      }
+      return addtions;
+    }, []);
 
     const handleMenuClick = (data: {
       option: {
@@ -315,13 +319,13 @@ export default defineComponent({
       requestLogList(isManualSearch);
     };
 
-    const handleChooseRow = (index: number) => {
+    const handleChooseRow = (index: number, row: any) => {
       if (choosedIndex.value === index) {
         return;
       }
 
       choosedIndex.value = index;
-      const rowInfo = logList.value[index];
+      const rowInfo = row;
       const contextFields = store.state.indexSetOperatorConfig.contextAndRealtime.extra?.context_fields;
       const timeField = store.state.indexFieldInfo.time_field;
       const dialogNewParams = {};
@@ -331,7 +335,7 @@ export default defineComponent({
       if (Array.isArray(contextFields) && contextFields.length) {
         // 传参配置指定字段
         contextFields.push(timeField);
-        contextFields.forEach(field => {
+        contextFields.forEach((field) => {
           if (field === 'bk_host_id') {
             if (rowInfo[field]) {
               dialogNewParams[field] = rowInfo[field];
@@ -385,6 +389,10 @@ export default defineComponent({
       emit('toggle-collapse', isCollapsed.value);
     };
 
+    const renderTimeCell = (row: any) => {
+      return xssFilter(RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value));
+    };
+
     onMounted(() => {
       addSegmentLightStyle();
     });
@@ -416,7 +424,7 @@ export default defineComponent({
               relation: 'OR',
               showAll: true,
             }));
-            addAdditionList.forEach(addition => {
+            addAdditionList.forEach((addition) => {
               searchBarRef.value.addValue(addition);
             });
           }
@@ -446,6 +454,10 @@ export default defineComponent({
       },
       reset: handleReset,
     });
+
+    const rowStyle = `font-family: var(--bklog-v3-row-ctx-font);
+    font-size: var(--table-fount-size);
+    color: var(--table-fount-color);`;
 
     return () => (
       <div class='log-result-main'>
@@ -487,17 +499,17 @@ export default defineComponent({
             <thead>
               <tr class='table-header'>
                 <th style='width:90px;padding-left:42px'>{t('行号')}</th>
-                <th style='width:140px'>{t('时间')}</th>
+                <th style='width:200px'>{t('时间')}</th>
                 <th style='min-width:300px'>{t('原始日志')}</th>
               </tr>
             </thead>
             <tbody v-bkloading={{ isLoading: listLoading.value, opacity: 0.6 }}>
-              {logList.value.length > 0 &&
-                logList.value.map((row, index) => (
+              {logList.value.length > 0
+                && logList.value.map((row, index) => (
                   <tr
                     key={`${index}_${row.time}`}
                     class={{ 'is-choosed': choosedIndex.value === index }}
-                    on-click={() => handleChooseRow(index)}
+                    on-click={() => handleChooseRow(index, row)}
                   >
                     <td>
                       <div class='index-column'>
@@ -509,14 +521,14 @@ export default defineComponent({
                         </div>
                       </div>
                     </td>
-                    <td>{formatDate(Number(row.time))}</td>
+                    <td style={rowStyle} domProps={{ innerHTML: renderTimeCell(row) }}></td>
                     <td style='padding:4px 0'>
                       <RenderJsonCell>
                         <JsonFormatter
                           class='bklog-column-wrapper'
                           fields={visibleFields.value}
                           jsonValue={row}
-                          limitRow={null}
+                          limitRow={resultDisplayLines.value}
                           onMenu-click={handleMenuClick}
                         ></JsonFormatter>
                       </RenderJsonCell>

@@ -36,11 +36,11 @@ from apps.log_search.constants import (
     SCROLL,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
+    ASYNC_EXPORT_SCROLL,
 )
-from apps.log_search.exceptions import BaseSearchResultAnalyzeException
+from apps.log_search.exceptions import BaseSearchResultAnalyzeException, PreCheckSortFieldException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
 from apps.log_search.handlers.search.aggs_handlers import AggsHandlers
-from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import (
     LogIndexSet,
@@ -52,6 +52,7 @@ from apps.log_search.models import (
 from apps.log_search.permission import Permission
 from apps.log_search.utils import handle_es_query_error
 from apps.log_unifyquery.constants import BASE_OP_MAP, MAX_LEN_DICT
+from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.log_unifyquery.utils import deal_time_format, transform_advanced_addition
 from apps.utils.cache import cache_five_minute
 from apps.utils.core.cache.cmdb_host import CmdbHostCache
@@ -183,6 +184,14 @@ class UnifyQueryHandler:
         # 基础查询参数初始化
         self.base_dict = self.init_base_dict()
 
+        # 基础查询结果合并参数初始化
+        self.result_merge_base_dict = self.init_result_merge_base_dict(self.base_dict)
+
+        if self.index_set_ids:
+            time_field_info = SearchHandler.init_time_field(self.index_set_ids[0])
+            if time_field_info:
+                self.time_field = time_field_info[0]
+
     @staticmethod
     def query_ts(search_dict, raise_exception=True):
         """
@@ -216,12 +225,9 @@ class UnifyQueryHandler:
             search_dict = copy.deepcopy(search_dict)
             pre_search_seconds = settings.PRE_SEARCH_SECONDS
             first_field, order = self.origin_order_by[0] if self.origin_order_by else [None, None]
-            if (
-                pre_search
-                and pre_search_seconds
-                and self.start_time
-                and first_field == self.search_params.get("time_field", "")
-            ):
+            if pre_search:
+                if not (pre_search_seconds and self.start_time and first_field == self.time_field):
+                    return {"list": []}
                 # 预查询处理
                 pre_search_end_time = int(
                     arrow.get(self.start_time).shift(seconds=pre_search_seconds).timestamp() * 1000
@@ -229,10 +235,13 @@ class UnifyQueryHandler:
                 pre_search_start_time = int(
                     arrow.get(self.end_time).shift(seconds=-pre_search_seconds).timestamp() * 1000
                 )
+                # 时间单位统一
+                real_start_time = int(arrow.get(self.start_time).timestamp() * 1000)
+                real_end_time = int(arrow.get(self.end_time).timestamp() * 1000)
                 if order == "desc" and self.start_time < pre_search_start_time:
-                    search_dict.update({"start_time": str(pre_search_start_time)})
+                    search_dict.update({"start_time": str(pre_search_start_time), "end_time": str(real_end_time)})
                 elif order == "asc" and self.end_time > pre_search_end_time:
-                    search_dict.update({"end_time": str(pre_search_end_time)})
+                    search_dict.update({"start_time": str(real_start_time), "end_time": str(pre_search_end_time)})
             return UnifyQueryApi.query_ts_raw(search_dict)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("query ts raw error: %s, search params: %s", e, search_dict)
@@ -420,7 +429,7 @@ class UnifyQueryHandler:
         else:
             search_ip_list = []
 
-        final_fields_list, _ = MappingHandlers(
+        final_fields_list, _ = UnifyQueryMappingHandler(
             index_set_id=index_info["index_set_id"],
             indices=index_info["origin_indices"],
             scenario_id=index_info["origin_scenario_id"],
@@ -503,7 +512,7 @@ class UnifyQueryHandler:
                     return sort_list
         # 安全措施, 用户未设置排序规则，且未创建默认配置时, 使用默认排序规则
         index_info = self.index_info_list[0]
-        return MappingHandlers(
+        return UnifyQueryMappingHandler(
             indices=index_info["scenario_id"],
             index_set_id=index_info["index_set_id"],
             scenario_id=index_info["scenario_id"],
@@ -548,6 +557,24 @@ class UnifyQueryHandler:
 
         # 反转结果，因为是从最低位开始计算的
         return "".join(reversed(result))
+
+    @staticmethod
+    def check_sort_list(fields: list, sort_list: list, raise_exception: bool = True) -> list:
+        """
+        校验前端传递的字段是否支持排序
+        @param {list} fields 索引集字段列表 [{"field_name": "test", "es_doc_values": True}]
+        @param {list} sort_list 排序字段列表 [["field_name", "asc"]]
+        """
+        agg_fields = {field["field_name"] for field in fields if field.get("es_doc_values", False)}
+        sort_fields = {item[0] for item in sort_list}
+        unsupported_fields = sort_fields - agg_fields
+        if unsupported_fields:
+            if raise_exception:
+                raise PreCheckSortFieldException(
+                    PreCheckSortFieldException.MESSAGE.format(fields=", ".join(unsupported_fields))
+                )
+            return list(unsupported_fields)
+        return []
 
     def init_base_dict(self):
         # 自动周期处理
@@ -595,6 +622,17 @@ class UnifyQueryHandler:
             "timezone": self.search_params.get("time_zone") or get_local_param("time_zone", settings.TIME_ZONE),
             "bk_biz_id": self.bk_biz_id,
         }
+
+    @staticmethod
+    def init_result_merge_base_dict(base_dict):
+        get_base_dict = copy.deepcopy(base_dict)
+
+        for query in get_base_dict.get("query_list", []):
+            query["reference_name"] = "a"
+
+        get_base_dict.update({"metric_merge": "a"})
+
+        return get_base_dict
 
     def _deal_query_result(self, result_dict: dict) -> dict:
         log_list = []
@@ -1080,7 +1118,7 @@ class UnifyQueryHandler:
         """
         search_params = copy.deepcopy(self.base_dict)
         search_params["limit"] = MAX_RESULT_WINDOW
-        search_params["scroll"] = SCROLL
+        search_params["scroll"] = ASYNC_EXPORT_SCROLL
         # 全文下载不分片
         search_params["slice_max"] = MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT if is_quick_export else 0
 
@@ -1121,7 +1159,7 @@ class UnifyQueryHandler:
         scenario_id = index_info["origin_scenario_id"]
         is_union_search = self.search_params.get("is_union_search", False)
         time_field, time_field_type, time_field_unit = self.init_time_field(index_set_id, scenario_id)
-        mapping_handlers = MappingHandlers(
+        mapping_handlers = UnifyQueryMappingHandler(
             index_info["origin_indices"],
             index_info["index_set_id"],
             index_info["origin_scenario_id"],
@@ -1129,14 +1167,18 @@ class UnifyQueryHandler:
             time_field,
             start_time=self.start_time,
             end_time=self.end_time,
-            time_zone=get_local_param("time_zone", settings.TIME_ZONE),
         )
         field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
         )
+        default_sort_list = mapping_handlers.get_default_sort_list(
+            index_set_id=index_set_id,
+            scenario_id=scenario_id,
+            default_sort_tag=self.search_params.get("default_sort_tag", False),
+        )
 
         if not is_union_search:
-            sort_list: list = MappingHandlers.get_sort_list_by_index_id(index_set_id=index_set_id, scope=scope)
+            sort_list: list = UnifyQueryMappingHandler.get_sort_list_by_index_id(index_set_id=index_set_id, scope=scope)
         else:
             sort_list = list()
 
@@ -1149,6 +1191,7 @@ class UnifyQueryHandler:
 
         result_dict: dict = {
             "fields": field_result,
+            "default_sort_list": default_sort_list,
             "display_fields": display_fields,
             "sort_list": sort_field_list,
             "time_field": time_field,
@@ -1158,6 +1201,7 @@ class UnifyQueryHandler:
         }
 
         if is_union_search:
+            result_dict["config"].append(self.analyze_fields(field_result))
             return result_dict
 
         for _fields_config in [
@@ -1247,7 +1291,7 @@ class UnifyQueryHandler:
         # 设置了自定义排序字段的，默认认为支持上下文
         if self.index_set["index_set_obj"].target_fields and self.index_set["index_set_obj"].sort_fields:
             return True, {"reason": "", "context_fields": []}
-        result = MappingHandlers.analyze_fields(field_result)
+        result = UnifyQueryMappingHandler.analyze_fields(field_result)
         if result["context_search_usable"]:
             return True, {"reason": "", "context_fields": result.get("context_fields", [])}
         return False, {"reason": result["usable_reason"]}
@@ -1274,14 +1318,14 @@ class UnifyQueryHandler:
         @return:
         """
         sort_fields = self.index_set["index_set_obj"].sort_fields if self.index_set else []
-        result = MappingHandlers.async_export_fields(field_result, scenario_id, sort_fields)
+        result = UnifyQueryMappingHandler.async_export_fields(field_result, scenario_id, sort_fields)
         if result["async_export_usable"]:
             return True, {"fields": result["async_export_fields"]}
         return False, {"usable_reason": result["async_export_usable_reason"]}
 
     @fields_config("ip_topo_switch")
     def ip_topo_switch(self, index_set_id):
-        return MappingHandlers.init_ip_topo_switch(index_set_id)
+        return UnifyQueryMappingHandler.init_ip_topo_switch(index_set_id)
 
     @fields_config("apm_relation")
     def apm_relation(self, index_set_id):

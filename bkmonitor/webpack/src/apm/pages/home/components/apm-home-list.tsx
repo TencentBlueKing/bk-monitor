@@ -170,6 +170,20 @@ export default class ApmServiceList extends tsc<
       },
     });
   }
+  /**
+   * @description 跳转告警模板
+   */
+  handleGotoAppAlarmTemplate() {
+    this.$router.push({
+      name: 'application',
+      query: {
+        'filter-app_name': this.appName,
+        dashboardId: 'alarm_template',
+        sceneId: 'apm_application',
+        sceneType: 'overview',
+      },
+    });
+  }
   handleGoToAppConfig() {
     this.$router.push({
       name: 'application-config',
@@ -575,11 +589,38 @@ export default class ApmServiceList extends tsc<
               />
               <div
                 style='height: 32px; width: 88px'
+                class='skeleton-element mr-8'
+              />
+              <div
+                style='height: 32px; width: 88px'
                 class='skeleton-element'
               />
             </div>
           ) : (
             <div class='header-right'>
+              <div
+                v-bk-tooltips={{
+                  content: this.$t('接入中'),
+                  disabled: !this.isConnecting,
+                }}
+              >
+                <bk-button
+                  class={['header-btn', { disabled: !this.authority }]}
+                  v-authority={{ active: !this.authority }}
+                  disabled={this.isConnecting}
+                  size='small'
+                  theme='primary'
+                  text
+                  onClick={() =>
+                    this.authority
+                      ? this.handleGotoAppAlarmTemplate()
+                      : this.handleShowAuthorityDetail(this.authorityDetail)
+                  }
+                >
+                  <i class='icon-monitor icon-gaojing' />
+                  {this.$t('告警模板')}
+                </bk-button>
+              </div>
               <div
                 v-bk-tooltips={{
                   content: this.$t('接入中'),
@@ -720,7 +761,7 @@ export default class ApmServiceList extends tsc<
                   <div class='app-list-search'>
                     <bk-input
                       v-model={this.searchKeyWord}
-                      placeholder={this.$t('请输入服务搜索')}
+                      placeholder={this.$t('搜索 服务名称')}
                       right-icon='bk-icon icon-search'
                       clearable
                       show-clear-only-hover

@@ -3,6 +3,7 @@
 查询插件列表
 
 
+
 ### 请求参数
 
 | 字段       | 类型   | 描述     |
@@ -79,7 +80,7 @@
 | second_label       | string  | 插件标签|
 | second_label_name       | string  |插件标签名|
 
-### 请求参数示例
+### 响应参数示例
 
 ```json
 {

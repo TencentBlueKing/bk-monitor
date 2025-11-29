@@ -68,13 +68,13 @@ class IntroduceStore {
   // 通过 tag 参数获取介绍数据
   async getIntroduce(tag: IntroduceRouteKey) {
     // 如果已有数据，直接返回
-    if (this.data[tag].introduce) return;
+    if (this.data[tag].introduce && !this.data[tag]?.introduce?.is_no_data) return;
 
     // 如果正在加载，等待加载完成
     if (this.data[tag].loading) {
       await new Promise(resolve => {
         const interval = setInterval(() => {
-          if (this.data[tag].introduce) {
+          if (!this.data[tag].loading && this.data[tag].introduce) {
             clearInterval(interval);
             resolve(undefined);
           }
@@ -95,8 +95,8 @@ class IntroduceStore {
       is_no_data: true,
       is_no_source: true,
     }));
-    this.data[tag].loading = false;
     this.data[tag].introduce = data;
+    this.data[tag].loading = false;
   }
 
   // 获取路由对应的 getIntroduce 方法
@@ -115,7 +115,7 @@ class IntroduceStore {
     const toNavId = to.meta.navId;
     for (const [tag, value] of Object.entries(this.data)) {
       // 如果已有数据，直接返回
-      if (value.introduce) return;
+      if (value.introduce && !value.introduce?.is_no_data) return;
       if (!value.loading) {
         requestIdleCallback(() => {
           if (toNavId === tag) {

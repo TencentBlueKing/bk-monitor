@@ -65,7 +65,7 @@ abstract class VariableBase {
   abstract defaultValue: any;
   description = '';
   id = '';
-  /** value值是否编辑过 */
+  /** value值是否编辑过，该字段不能自动判断是否编辑，需要手动修改 */
   isValueEditable = false;
   name = '';
   type: VariableTypeEnumType;
@@ -157,7 +157,7 @@ export class ConstantVariableModel extends VariableBase {
   constructor(config: IConstantVariableModel) {
     super(config);
     this.defaultValue = config.defaultValue || '';
-    if (config.value) {
+    if (config.value !== undefined) {
       this.value = config.value;
     } else {
       this.value = this.defaultValue;
@@ -331,7 +331,7 @@ export async function getCreateVariableParams(
   /** 需要获取详情的指标id列表 */
   const metricIds = [];
   for (const variable of params) {
-    const { related_metrics } = variable.config;
+    const { related_metrics } = variable?.config || {};
     if (related_metrics) {
       for (const metric of related_metrics) {
         /** 去重且已有指标详情列表中不含有该指标 */
@@ -353,29 +353,30 @@ export async function getCreateVariableParams(
   }
 
   return params.map(item => {
-    const {
-      type,
-      name,
-      alias,
-      description,
-      config: { default: defaultValue, related_metrics, related_tag, options },
-    } = item;
+    const { type, name, alias, description, value } = item;
+
+    const { default: defaultValue, related_metrics, related_tag, options } = item?.config || {};
 
     let metric = null;
     if (related_metrics) {
       const [{ metric_id }] = related_metrics;
       metric = metrics.find(item => item.metric_id === metric_id);
     }
+    let curValue = null;
+    if (value) {
+      curValue = value;
+    }
 
     return {
       name: `\${${name}}`,
       type,
       alias,
-      description,
+      description: description || '--',
       defaultValue,
       metric,
       related_tag,
-      options: options ? (options.length ? options : ['all']) : [],
+      options: options ? (options.length ? options : ['all']) : undefined,
+      value: curValue || undefined,
     };
   });
 }

@@ -31,6 +31,7 @@ def format_query_params(query_params: dict[str, Any]) -> dict[str, Any]:
         "functions": query_params.get("functions", []),
         "expression": query_params["expression"],
         "query_configs": query_params["query_configs"],
+        "unit": query_params["unit"],
     }
 
 
@@ -58,6 +59,7 @@ def callee_success_rate_query_params() -> dict[str, Any]:
 
     query_params.setdefault("functions", [])
     query_params["functions"].append("${EXPRESSION_FUNCTIONS}")
+    query_params["unit"] = "percent"
 
     return format_query_params(query_params)
 
@@ -84,6 +86,7 @@ def callee_p99_query_params() -> dict[str, Any]:
     for query_config in query_params["query_configs"]:
         query_config["where"].append("${CONDITIONS}")
         query_config["functions"].append("${FUNCTIONS}")
+    query_params["unit"] = "ms"
 
     return format_query_params(query_params)
 
@@ -170,6 +173,7 @@ CALLEE_SUCCESS_RATE_QUERY_INSTANCE: dict[str, Any] = {
             ],
             "functions": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}],
             "group_by": ["service_name", "callee_method"],
+            "query_string": "*",
         },
         {
             "table": "APM.__default__",
@@ -183,11 +187,13 @@ CALLEE_SUCCESS_RATE_QUERY_INSTANCE: dict[str, Any] = {
             "where": [{"key": "rpc_system", "method": "eq", "value": [""]}],
             "functions": [{"id": "increase", "params": [{"id": "window", "value": "1m"}]}],
             "group_by": ["service_name", "callee_method"],
+            "query_string": "*",
         },
     ],
     "expression": "(a or b < bool 0) / (b > 0) * 100",
     "space_scope": [],
     "functions": [{"id": "abs", "params": []}],
+    "unit": "percent",
 }
 
 

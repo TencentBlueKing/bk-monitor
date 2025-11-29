@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import logging
 import time
-from typing import List
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -36,6 +35,7 @@ from bkmonitor.utils import extended_json
 from bkmonitor.utils.common_utils import count_md5
 from constants.action import ActionSignal, AssignMode
 from constants.alert import EventStatus
+from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataTypeLabel
 from core.prometheus import metrics
 
@@ -86,7 +86,7 @@ class Alert:
         self._status_changed = False
 
         # 流水日志
-        self.logs: List[dict] = []
+        self.logs: list[dict] = []
 
         # 最新事件
         self.last_event = None
@@ -382,6 +382,10 @@ class Alert:
         self.logs.append(params)
 
     @property
+    def bk_tenant_id(self) -> str:
+        return self.data.get("bk_tenant_id") or DEFAULT_TENANT_ID
+
+    @property
     def alert_name(self) -> str:
         return self.data["alert_name"]
 
@@ -461,7 +465,7 @@ class Alert:
         return self.severity
 
     @property
-    def dimensions(self) -> List:
+    def dimensions(self) -> list:
         return self.data.get("dimensions", [])
 
     @property
@@ -519,7 +523,7 @@ class Alert:
         # 如果没有这个key则追加
         self.data["dimensions"].append(data)
 
-    def update_key_value_field(self, field_name, new_value: List):
+    def update_key_value_field(self, field_name, new_value: list):
         self.data.setdefault(field_name, [])
         field_value_dict = {item["key"]: item for item in self.data[field_name]}
         new_value_dict = {item["key"]: item for item in new_value}
@@ -601,7 +605,7 @@ class Alert:
     def update_labels(self, value):
         self.data["labels"] = value
 
-    def update_assign_tags(self, value: List):
+    def update_assign_tags(self, value: list):
         """
         更新分派的tags信息
         """
@@ -613,7 +617,7 @@ class Alert:
         self.data["assign_tags"] = list(all_tags.values())
         self.update_top_event_tags(value)
 
-    def update_top_event_tags(self, value: List):
+    def update_top_event_tags(self, value: list):
         if not self.top_event:
             return
         event_tags = {item["key"]: item for item in self.data["event"]["tags"]}
@@ -697,6 +701,7 @@ class Alert:
         """
         create_time = int(time.time())
         data = {
+            "bk_tenant_id": event.bk_tenant_id,
             "dedupe_md5": event.dedupe_md5,
             "create_time": create_time,
             "update_time": create_time,
@@ -730,6 +735,10 @@ class Alert:
             alert.add_dimension(
                 key, event.get_field(key), event.get_tag_display_key(key), event.get_tag_display_value(key)
             )
+        # 如果有 additional_dimensions，则添加到维度中
+        if "additional_dimensions" in event.extra_info:
+            for key, value in event.extra_info["additional_dimensions"].items():
+                alert.add_dimension(key, value)
 
         alert.set_next_status(EventStatus.CLOSED, cls.CLOSE_WINDOW_SIZE)
         alert._refresh_db = True
@@ -788,7 +797,7 @@ class Alert:
         return alert
 
     @classmethod
-    def mget(cls, alert_keys: List[AlertKey]) -> List["Alert"]:
+    def mget(cls, alert_keys: list[AlertKey]) -> list["Alert"]:
         """
         批量获取告警，优先从Redis快照获取，没有则从ES获取
         :param alert_keys: 告警标识列表
@@ -884,7 +893,9 @@ class Alert:
 
         if is_blocked:
             # 被熔断，返回熔断日志
-            message = _("告警所属策略在当前窗口期（{window} min）内产生的告警数量({current_count})个，已大于QOS阈值({threshold})，当前告警被流控").format(
+            message = _(
+                "告警所属策略在当前窗口期（{window} min）内产生的告警数量({current_count})个，已大于QOS阈值({threshold})，当前告警被流控"
+            ).format(
                 window=qos_threshold["window"] // 60, current_count=current_count, threshold=qos_threshold["threshold"]
             )
         else:
@@ -941,11 +952,13 @@ class Alert:
         return current_count > threshold["threshold"], current_count
 
     @staticmethod
-    def create_qos_log(alerts: List[str], total_count, qos_actions):
+    def create_qos_log(alerts: list[str], total_count, qos_actions):
         return AlertLog(
             op_type=AlertLog.OpType.ACTION,
             alert_id=alerts,
-            description=_("告警所属策略在当前窗口期（%s min）内产生的处理次数为%s次，已超过QOS阈值(%s)，当前告警的(%s)个处理被抑制")
+            description=_(
+                "告警所属策略在当前窗口期（%s min）内产生的处理次数为%s次，已超过QOS阈值(%s)，当前告警的(%s)个处理被抑制"
+            )
             % (
                 settings.QOS_DROP_ACTION_WINDOW // 60,
                 total_count,
@@ -1033,7 +1046,7 @@ class AlertUIDManager:
 class AlertCache:
     # todo 下面两个可以合并
     @staticmethod
-    def save_alert_to_cache(alerts: List[Alert]):
+    def save_alert_to_cache(alerts: list[Alert]):
         alerts_to_saved = {}
         for alert in alerts:
             current_alert = alerts_to_saved.get(alert.dedupe_md5)
@@ -1061,8 +1074,73 @@ class AlertCache:
         pipeline.execute()
         return update_count, finished_count
 
+    # 仅id一致更新，否则跳过
     @staticmethod
-    def save_alert_snapshot(alerts: List[Alert]):
+    def update_alert_to_cache(alerts: list[Alert]):
+        alerts_to_saved = {}
+        for alert in alerts:
+            current_alert = alerts_to_saved.get(alert.dedupe_md5)
+            if not current_alert or alert.create_time > current_alert.create_time:
+                # 哪些告警需要刷新到缓存呢？
+                # 1. 从未出现过的维度
+                # 2. 维度已经出现过，但告警的创建时间更加新
+                alerts_to_saved[alert.dedupe_md5] = alert
+
+        update_count = 0
+        finished_count = 0
+        skip_count = 0
+
+        # 先获取现有缓存中的告警数据，检查ID是否一致
+        cache_keys = []
+        for alert in alerts_to_saved.values():
+            key = ALERT_DEDUPE_CONTENT_KEY.get_key(strategy_id=alert.strategy_id or 0, dedupe_md5=alert.dedupe_md5)
+            cache_keys.append((key, alert))
+
+        # 批量获取缓存中的数据
+        pipeline_get = ALERT_DEDUPE_CONTENT_KEY.client.pipeline(transaction=False)
+        for key, _value in cache_keys:
+            pipeline_get.get(key)
+        cached_data_list = pipeline_get.execute()
+
+        # 通过 pipeline 批量更新告警，只更新ID一致的告警
+        pipeline = ALERT_DEDUPE_CONTENT_KEY.client.pipeline(transaction=False)
+        for (key, alert), cached_data in zip(cache_keys, cached_data_list):
+            should_update = True
+
+            if cached_data:
+                try:
+                    cached_alert_data = Alert(data=json.loads(cached_data))
+                    cached_alert_id = cached_alert_data.id
+                    if cached_alert_id and cached_alert_id != alert.id:
+                        # 如果缓存中的告警ID与当前告警ID不一致，跳过更新
+                        should_update = False
+                        skip_count += 1
+                except (json.JSONDecodeError, KeyError) as e:
+                    # 如果解析失败，允许更新
+                    logger.warning("load alert failed: invalid json data: %s, origin data: %s", e, cached_data)
+                except Exception as e:
+                    # 其他异常，记录日志但允许更新
+                    logger.warning("load alert failed: %s, origin data: %s", e, cached_data)
+
+            if not should_update:
+                continue
+
+            if alert.is_end():
+                # 如果告警已经结束，不做删除，更新告警内容
+                finished_count += 1
+            else:
+                # 如果告警未结束就更新
+                update_count += 1
+            pipeline.set(key, json.dumps(alert.to_dict()), ALERT_DEDUPE_CONTENT_KEY.ttl)
+
+        pipeline.execute()
+        logger.debug(
+            "update_alert_to_cache: updated=%d, finished=%d, skipped=%d", update_count, finished_count, skip_count
+        )
+        return update_count, finished_count
+
+    @staticmethod
+    def save_alert_snapshot(alerts: list[Alert]):
         if not alerts:
             return 0
 

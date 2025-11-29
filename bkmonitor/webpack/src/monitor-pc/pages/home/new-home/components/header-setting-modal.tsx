@@ -62,6 +62,12 @@ class HeaderSettingModal extends Mixins(UserConfigMixin) {
   // 组件创建时调用，初始化用户配置和路由数据
   async created() {
     // 初始化平面路由列表
+    if (window.bk_tenant_id !== 'system') {
+      const globalFeatureRoute = COMMON_ROUTE_LIST.find(item => item.id === 'global-feature');
+      globalFeatureRoute.children = globalFeatureRoute.children?.filter(
+        item => !['healthz', 'global-config'].includes(item.id)
+      );
+    }
     this.flatRoutes = COMMON_ROUTE_LIST;
   }
 
