@@ -25,38 +25,14 @@
  */
 
 // 嵌套路由视图组件声明（用于实现多层嵌套路由结构时，多级 children 路由的占位）
-const LogCollectionView = {
-  name: 'LogCollection',
-  template: '<router-view></router-view>',
-};
-const CollectionItemView = {
-  name: 'CollectionItemView',
-  template: '<router-view></router-view>',
-};
-const IndexSetView = {
-  name: 'IndexSet',
-  template: '<router-view :key="Date.now()"></router-view>',
-};
-const CustomReportView = {
-  name: 'CustomReportView',
-  template: '<router-view></router-view>',
-};
-const ExtractLinkView = {
-  name: 'ExtractLinkView',
-  template: '<router-view></router-view>',
-};
-const LogCleanView = {
-  name: 'LogCleanView',
-  template: '<router-view></router-view>',
-};
-const LogCleanTempView = {
-  name: 'LogCleanTempView',
-  template: '<router-view></router-view>',
-};
-const LogDesensitizeView = {
-  name: 'LogDesensitizeView',
-  template: '<router-view></router-view>',
-};
+const LogCollectionView = { name: 'LogCollection', template: '<router-view></router-view>' };
+const CollectionItemView = { name: 'CollectionItemView', template: '<router-view></router-view>' };
+const IndexSetView = { name: 'IndexSet', template: '<router-view :key="Date.now()"></router-view>' };
+const CustomReportView = { name: 'CustomReportView', template: '<router-view></router-view>' };
+const ExtractLinkView = { name: 'ExtractLinkView', template: '<router-view></router-view>' };
+const LogCleanView = { name: 'LogCleanView', template: '<router-view></router-view>' };
+const LogCleanTempView = { name: 'LogCleanTempView', template: '<router-view></router-view>' };
+const LogDesensitizeView = { name: 'LogDesensitizeView', template: '<router-view></router-view>' };
 
 // 管理模块各组件异步声明（用于路由懒加载）
 const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
