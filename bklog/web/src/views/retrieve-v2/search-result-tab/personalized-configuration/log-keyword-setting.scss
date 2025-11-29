@@ -1,8 +1,60 @@
 .log-keyword-setting {
     margin-right: 40px;
-    
+
     .new-button {
         width: 88px;
         margin: 12px 0;
+    }
+}
+
+.log-keyword-setting-dialog {
+    .bk-form {
+        .bk-label {
+            text-align: left;
+        }
+
+        .bk-form-radio {
+            margin-right: 24px;
+        }
+
+        .bk-radio-text {
+            margin-left: 6px;
+        }
+
+        .prepend-text {
+
+            display: inline-block;
+            width: 58px;
+            max-width: 200px;
+            height: 30px;
+            overflow: hidden;
+            font-size: 12px;
+            line-height: 30px;
+            color: #4D4F56;
+            text-align: center;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            background: #FAFBFD;
+            border-radius: 2px 0 0 2px;
+        }
+
+        .color-item {
+            display: flex;
+
+            .prepend-text {
+                width: 59px;
+                height: 32px;
+                border: 1px solid #c4c6cc;
+                border-right: none;
+            }
+
+            .bk-color-picker {
+                border-radius: 0 2px 2px 0;
+            }
+        }
+
+        .mt22 {
+            margin-top: 22px;
+        }
     }
 }

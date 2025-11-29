@@ -27,7 +27,7 @@
 import { defineComponent, ref, watch } from 'vue';
 
 import { t } from '@/hooks/use-locale';
-import { TAB_TYPES, TabType } from '../constants';
+import { TabType } from './types';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import useStore from '@/hooks/use-store';
 import GradeOption from '@/components/monitor-echarts/components/grade-option';
@@ -35,6 +35,12 @@ import LogKeywordSetting from './log-keyword-setting';
 import LogMetric from './log-metric';
 
 import './personalized-configuration-slider.scss';
+
+const TAB_TYPE_LABELS: Record<TabType, string> = {
+  [TabType.LOG_LEVEL]: t('日志分级展示'),
+  [TabType.LOG_KEYWORD]: t('日志关键词设置'),
+  [TabType.LOG_METRIC]: t('日志转指标'),
+} as const;
 
 export default defineComponent({
   name: 'PersonalizedConfigurationSlider',
@@ -55,17 +61,11 @@ export default defineComponent({
 
     const tabs = ref([
       // tab配置
-      {
-        title: TAB_TYPES.LOG_LEVEL,
-      },
-      {
-        title: TAB_TYPES.LOG_KEYWORD,
-      },
-      {
-        title: TAB_TYPES.LOG_METRIC,
-      },
+      TabType.LOG_LEVEL,
+      TabType.LOG_KEYWORD,
+      TabType.LOG_METRIC,
     ]);
-    const activeTab = ref<TabType>(TAB_TYPES.LOG_LEVEL); // 激活的tab
+    const activeTab = ref<TabType>(TabType.LOG_LEVEL); // 激活的tab
     const tableData = ref([]); // 表格数据
     const refGradeOption = ref();
 
@@ -84,11 +84,11 @@ export default defineComponent({
     watch(
       activeTab,
       (title: TabType) => {
-        if (title === TAB_TYPES.LOG_LEVEL) {
+        if (title === TabType.LOG_LEVEL) {
           // 更新分级配置
           const cfg = store.state.indexFieldInfo.custom_config?.grade_options ?? {};
           refGradeOption.value?.updateOptions?.(cfg);
-        } else if (title === TAB_TYPES.LOG_KEYWORD) {
+        } else if (title === TabType.LOG_KEYWORD) {
           tableData.value = keywordConfigs.value;
         } else {
           tableData.value = metricConfigs.value;
@@ -126,18 +126,18 @@ export default defineComponent({
               <div class='tabs'>
                 {tabs.value.map(tab => (
                   <div
-                    class={['tab-item', activeTab.value === tab.title && 'active']}
+                    class={['tab-item', activeTab.value === tab && 'active']}
                     onClick={() => {
-                      handleTabClick(tab.title as TabType);
+                      handleTabClick(tab);
                     }}
                   >
-                    {tab.title}
+                    {TAB_TYPE_LABELS[tab]}
                   </div>
                 ))}
               </div>
               <div class='personalized-configuration-content'>
                 {/* 日志分级展示 */}
-                {activeTab.value === TAB_TYPES.LOG_LEVEL && (
+                {activeTab.value === TabType.LOG_LEVEL && (
                   <div class='bklog-v3-grade-setting'>
                     <GradeOption
                       ref={refGradeOption}
@@ -146,13 +146,13 @@ export default defineComponent({
                   </div>
                 )}
                 {/* 日志关键词设置 */}
-                {activeTab.value === TAB_TYPES.LOG_KEYWORD && (
+                {activeTab.value === TabType.LOG_KEYWORD && (
                   <div>
                     <LogKeywordSetting />
                   </div>
                 )}
                 {/* 日志转指标部分 */}
-                {activeTab.value === TAB_TYPES.LOG_METRIC && (
+                {activeTab.value === TabType.LOG_METRIC && (
                   <div>
                     <LogMetric />
                   </div>
