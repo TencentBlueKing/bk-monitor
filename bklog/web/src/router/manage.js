@@ -194,7 +194,6 @@ const getManageRoutes = () => [
                   navId: 'log-collection',
                 },
                 component: AccessSteps,
-                // component: oldAccessSteps,
               },
               // 字段清洗
               {
