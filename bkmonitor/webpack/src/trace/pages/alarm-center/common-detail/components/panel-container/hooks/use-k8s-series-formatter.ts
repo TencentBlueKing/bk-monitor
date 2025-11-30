@@ -34,6 +34,27 @@ import type { ValueFormatter } from '../../../../../trace-explore/components/exp
 import type { AlertK8SSeriesItem } from '../../../../typings';
 
 /**
+ * 图例数据项结构
+ */
+interface ILegendItem {
+  avg: number | string;
+  avgSource: number;
+  color: string;
+  dimensions?: Record<string, string>;
+  lineStyleType?: string;
+  max: number | string;
+  maxSource: number;
+  metricField?: string;
+  min: number | string;
+  minSource: number;
+  name: string;
+  show: boolean;
+  silent?: boolean;
+  total: number | string;
+  totalSource: number;
+}
+
+/**
  * @method useK8sSeriesFormatter 容器图表数据格式化处理hooks
  * @description k8s 图表接口返回 series 数据处理
  */
@@ -46,11 +67,11 @@ export const useK8sSeriesFormatter = () => {
    * @returns {string} 处理后的 series name
    */
   const handleSeriesName = (item: IDataQuery, set) => {
-    const { dimensions = {}, dimensions_translation = {} } = set;
+    const { dimensions = {}, dimensions_translation: dimensionsTranslation = {} } = set;
     if (!item.alias)
       return Object.values({
         ...dimensions,
-        ...dimensions_translation,
+        ...dimensionsTranslation,
       }).join('|');
     const aliasFix = Object.values(dimensions).join('|');
     if (!aliasFix.length) return item.alias;
@@ -101,58 +122,223 @@ export const useK8sSeriesFormatter = () => {
    * @method handleTransformSeries 处理 series 数据
    * @param series series 数据
    * @param {string[]} colors 颜色数组
-   * @returns {ITimeSeriesItem[]} 处理后的 series 数据
+   * @param {number} chartHeight 图表高度，用于计算线段重叠
+   * @returns {object} 处理后的 series 数据和图例数据
    */
-  const handleTransformSeries = (series: AlertK8SSeriesItem[], colors?: string[]) => {
+  const handleTransformSeries = (series: AlertK8SSeriesItem[], colors?: string[], chartHeight = 300) => {
+    const legendData: ILegendItem[] = [];
     const specialSeriesCount = series.filter(item => item.name in SpecialSeriesColorMap)?.length || 0;
+
+    // 用于检测特殊线段的首个值
+    let limitFirstY = 0;
+    let requestFirstY = 0;
+    let capacityFirstY = 0;
+
     const transformSeries = series.map((item, index) => {
       const colorList = COLOR_LIST;
       const color = item.color || (colors || colorList)[Math.max(index - specialSeriesCount, 0) % colorList.length];
       let showSymbol = false;
-      const data = item.data?.map?.((seriesItem: any, seriesIndex: number) => {
-        if (!seriesItem?.length || typeof seriesItem[1] !== 'number') return seriesItem;
-        // 当前点数据
-        const pre = item.data[seriesIndex - 1] as [number, number];
-        const next = item.data[seriesIndex + 1] as [number, number];
-        // 是否为孤立的点
-        const hasNoBrother =
-          (!pre && !next) || (pre && next && pre.length && next.length && pre[1] === null && next[1] === null);
-        if (hasNoBrother) {
-          showSymbol = true;
-        }
-        return {
-          symbolSize: hasNoBrother ? 10 : 6,
-          value: [seriesItem[0], seriesItem[1]],
-          itemStyle: {
-            borderWidth: hasNoBrother ? 10 : 6,
-            enabled: true,
-            shadowBlur: 0,
-            opacity: 1,
-          },
-        } as any;
-      });
-      // // 获取y轴上可设置的最小的精确度
+
+      // 初始化图例项
+      const legendItem: ILegendItem = {
+        avg: 0,
+        avgSource: 0,
+        color,
+        dimensions: item.dimensions ?? {},
+        lineStyleType: 'solid',
+        max: 0,
+        maxSource: 0,
+        metricField: item.metricField,
+        min: '',
+        minSource: 0,
+        name: String(item.name),
+        show: true,
+        silent: false,
+        total: 0,
+        totalSource: 0,
+      };
+
+      // 动态单位转换
+      const unitFormatter = !['', 'none', undefined, null].includes(item.unit)
+        ? getValueFormat(item.unit || '')
+        : (v: unknown) => ({ text: v });
+
+      let hasValueLength = 0;
+
+      const data =
+        item.data?.map?.((seriesItem: unknown, seriesIndex: number) => {
+          const typedItem = seriesItem as [number, null | number] | undefined;
+          if (!typedItem?.length || typeof typedItem[1] !== 'number') return typedItem;
+
+          // 当前点数据
+          const pre = item.data[seriesIndex - 1] as [number, null | number] | undefined;
+          const next = item.data[seriesIndex + 1] as [number, null | number] | undefined;
+          const y = +typedItem[1];
+          hasValueLength += 1;
+
+          // 设置图例数据
+          legendItem.max = Math.max(+(legendItem.max as number), y);
+          legendItem.min = legendItem.min === '' ? y : Math.min(+(legendItem.min as number), y);
+          legendItem.total = +(legendItem.total as number) + y;
+
+          // 是否为孤立的点
+          const hasNoBrother =
+            (!pre && !next) || (pre && next && pre.length && next.length && pre[1] === null && next[1] === null);
+          if (hasNoBrother) {
+            showSymbol = true;
+          }
+
+          return {
+            itemStyle: {
+              borderWidth: hasNoBrother ? 10 : 6,
+              enabled: true,
+              opacity: 1,
+              shadowBlur: 0,
+            },
+            symbolSize: hasNoBrother ? 10 : 6,
+            value: [typedItem[0], typedItem[1]],
+          };
+        }) ?? [];
+
+      // 计算统计数据
+      legendItem.avg = +(+(legendItem.total as number) / (hasValueLength || 1)).toFixed(2);
+      legendItem.total = Number(legendItem.total as number).toFixed(2);
+
+      // 获取y轴上可设置的最小的精确度
       const precision = handleGetMinPrecision(
-        item?.data?.filter?.((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
+        item?.data
+          ?.filter?.((set: unknown) => {
+            const typedSet = set as [number, null | number] | undefined;
+            return typedSet && typeof typedSet[1] === 'number';
+          })
+          .map((set: unknown) => {
+            const typedSet = set as [number, number];
+            return typedSet[1];
+          }) ?? [],
         getValueFormat(item.unit || ''),
         item.unit
       );
+
+      // 处理特殊系列（limit, request, capacity）
+      const isSpecialSeries = ['request', 'limit', 'capacity'].includes(item.name);
+      let markPoint = {};
+
+      if (isSpecialSeries) {
+        const colorMap = SpecialSeriesColorMap[item.name];
+        const isLimit = item.name === 'limit';
+        const isCapacity = item.name === 'capacity';
+
+        const firstValue = data?.find((d: unknown) => {
+          const typedData = d as [number, number] | { value?: [number, number] };
+          return Array.isArray(typedData) ? typedData[1] : (typedData as { value?: [number, number] }).value?.[1];
+        });
+        const firstValueY = Array.isArray(firstValue)
+          ? firstValue[1]
+          : ((firstValue as { value?: [number, number] })?.value?.[1] ?? 0);
+
+        if (item.name === 'limit') {
+          limitFirstY = firstValueY;
+        } else if (item.name === 'capacity') {
+          capacityFirstY = firstValueY;
+        } else {
+          requestFirstY = firstValueY;
+        }
+
+        const labelColor = colorMap.labelColor;
+        const itemColor = colorMap.itemColor;
+
+        markPoint = {
+          data: [
+            {
+              coord: Array.isArray(firstValue)
+                ? firstValue
+                : ((firstValue as { value?: [number, number] })?.value ?? undefined),
+            },
+          ],
+          emphasis: {
+            disabled: true,
+          },
+          itemStyle: {
+            color: itemColor,
+          },
+          label: {
+            color: labelColor,
+            formatter: () => item.name,
+            show: true,
+          },
+          symbol: 'rect',
+          symbolOffset: ['50%', 0],
+          symbolSize: [isLimit ? 30 : isCapacity ? 52 : 46, 16],
+        };
+
+        legendItem.color = colorMap.color;
+        legendItem.lineStyleType = 'dashed';
+        legendItem.silent = true;
+      }
+
+      // 格式化图例数据
+      if (item.name) {
+        for (const key of ['min', 'max', 'avg', 'total']) {
+          const val = legendItem[key as keyof ILegendItem];
+          legendItem[`${key}Source` as keyof ILegendItem] = val as unknown as number;
+          const formattedVal: { suffix?: string; text: string } = unitFormatter(
+            val,
+            item.unit !== 'none' && precision < 1 ? 2 : precision
+          );
+          legendItem[key as keyof ILegendItem] = (formattedVal.text + (formattedVal.suffix || '')) as unknown;
+        }
+        legendData.push(legendItem);
+      }
+
       return {
         ...item,
         color,
-        // type: 'line',
         data,
-        showSymbol,
-        symbol: 'circle',
-        z: 4,
-        smooth: 0,
-        precision: precision || 4,
         lineStyle: {
           width: 2,
         },
+        markPoint,
+        precision: precision || 4,
+        showSymbol,
+        smooth: 0,
+        symbol: 'circle',
+        unitFormatter,
+        z: 4,
       };
     });
-    return transformSeries;
+
+    // 检测线段重叠
+    let minValue = 0;
+    let maxValue = 0;
+    for (const item of legendData) {
+      const minV = Number(item.minSource);
+      const maxV = Number(item.maxSource);
+      if (minV < minValue) {
+        minValue = minV;
+      }
+      if (maxV > maxValue) {
+        maxValue = maxV;
+      }
+    }
+
+    const limitEqualRequest =
+      Math.abs(limitFirstY - requestFirstY) / (maxValue - minValue) < 16 / (chartHeight - 26) ||
+      Math.abs(capacityFirstY - requestFirstY) / (maxValue - minValue) < 16 / (chartHeight - 26);
+    const capacityEqualRequest =
+      Math.abs(limitFirstY - capacityFirstY) / (maxValue - minValue) < 16 / (chartHeight - 26);
+
+    // 处理重叠时的标记点隐藏
+    const finalSeries = transformSeries.map(item => {
+      if ((limitEqualRequest && item.name === 'request') || (capacityEqualRequest && item.name === 'capacity')) {
+        return {
+          ...item,
+          markPoint: {},
+        };
+      }
+      return item;
+    });
+
+    return { series: finalSeries, legendData };
   };
 
   /**
@@ -160,13 +346,17 @@ export const useK8sSeriesFormatter = () => {
    * @param seriesData 原始接口返回的 series 数据
    * @param {IDataQuery} target panel 查询配置项 target
    * @param {PanelModel} panel panel 模型
+   * @param {number} chartHeight 图表高度
    * @returns {object} 格式化后的 series 数据
    */
-  const formatterSeriesData = (seriesData, target: IDataQuery, panel: PanelModel) => {
-    const { series: sourceSeries, ...rest } = seriesData;
+  const formatterSeriesData = (seriesData: unknown, target: IDataQuery, panel: PanelModel, chartHeight?: number) => {
+    const data = seriesData as { series?: unknown[] };
+    const { series: sourceSeries, ...rest } = data;
     let series = sourceSeries;
+    let legendData: ILegendItem[] = [];
+
     if (series?.length) {
-      series = series
+      series = (series as Array<{ alias?: string; dimensions?: Record<string, string>; unit?: string }>)
         .filter(item => ['extra_info', '_result_'].includes(item.alias))
         .map(set => {
           let name = handleSeriesName(target, set);
@@ -176,17 +366,24 @@ export const useK8sSeriesFormatter = () => {
           name = name.replace(/\|/g, ':');
           return {
             ...set,
-            name,
-            // @ts-expect-error
-            unit: set.unit || panel?.options?.unit,
             alias: name,
+            name,
+            // @ts-expect-error panel type compatibility
             precision: 2,
+            unit: set.unit || (panel?.options as { unit?: string })?.unit,
           };
         });
-      series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
-      series = handleTransformSeries(series);
+      series = series.toSorted((a, b) => {
+        const aName = (a as { name?: string }).name ?? '';
+        const bName = (b as { name?: string }).name ?? '';
+        return bName.localeCompare?.(aName) ?? 0;
+      });
+      const transformed = handleTransformSeries(series as AlertK8SSeriesItem[], undefined, chartHeight);
+      series = transformed.series;
+      legendData = transformed.legendData;
     }
-    return { series, ...rest };
+
+    return { legendData, series, ...rest };
   };
 
   return { formatterSeriesData };
