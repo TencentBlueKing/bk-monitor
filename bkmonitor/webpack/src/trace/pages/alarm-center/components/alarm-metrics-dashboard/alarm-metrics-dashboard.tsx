@@ -23,13 +23,18 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent, inject, useTemplateRef } from 'vue';
 
+import { get } from '@vueuse/core';
 import { type IPanelModel, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import { convertToSeconds } from 'monitor-ui/chart-plugins/utils';
 import { getVariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import ChartCollapse from '../../../trace-explore/components/explore-chart/chart-collapse';
 import AlarmLazyChart from './components/alarm-lazy-chart';
+
+import type { IDataQuery } from '../../../../plugins/typings';
 
 import './alarm-metrics-dashboard.scss';
 
@@ -76,25 +81,45 @@ export default defineComponent({
     },
     /** 对接口请求返回数据进行处理 */
     formatterData: {
-      type: Function as PropType<(val) => any>,
+      type: Function as PropType<(res: any, target: IDataQuery, panel: PanelModel) => any>,
       default: res => res,
     },
   },
   setup(props) {
+    /** 图表实例 */
+    const alarmDashboardRef = useTemplateRef<Element>('alarmDashboardRef');
+    const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
     /** css 变量 */
     const cssVars = computed(() => ({
       /** 仪表板面板每行显示的图表列数 */
       '--dashboard-grid-col': props.gridCol,
     }));
 
+    /** 将其中占位变量转换为实际值后的 panel 配置 */
     const panels = computed(() => {
       return props.panelModels.map(e => {
         let transformTargets = e?.targets;
         if (transformTargets?.length) {
-          transformTargets = transformTargets.map(item => ({
-            ...item,
-            data: getVariablesService().transformVariables(item.data, props.viewOptions),
-          }));
+          const [startTime, endTime] = handleTransformToTimestamp(get(timeRange));
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          const down_sample_range =
+            downSampleRangeComputed(props.viewOptions?.interval?.toString?.(), [startTime, endTime], 'unifyQuery') ||
+            '';
+          const [v] = down_sample_range.split('s');
+          const interval = props.viewOptions?.interval === 'auto' ? `${Math.ceil(+v / 60)}m` : down_sample_range;
+          transformTargets = transformTargets.map(item => {
+            return {
+              ...item,
+              data: {
+                ...getVariablesService().transformVariables(item.data, {
+                  ...(props.viewOptions ?? {}),
+                  interval,
+                  interval_second: convertToSeconds(interval),
+                }),
+                down_sample_range,
+              },
+            };
+          });
         }
         return new PanelModel({
           ...e,
@@ -102,6 +127,27 @@ export default defineComponent({
         });
       });
     });
+
+    /**
+     * @description 下采样粒度计算
+     */
+    const downSampleRangeComputed = (downSampleRange: string, timeRange: number[], api: string) => {
+      if (downSampleRange === 'raw' || !['unifyQuery', 'graphUnifyQuery'].includes(api)) {
+        return undefined;
+      }
+      const chartDom = alarmDashboardRef?.value?.querySelector('.alarm-lazy-chart');
+      if (downSampleRange === 'auto') {
+        let width = 1;
+        if (chartDom) {
+          width = chartDom?.clientWidth ?? 1;
+        }
+        if (width <= 0) {
+          return undefined;
+        }
+        const size = (timeRange[1] - timeRange[0]) / width;
+        return size > 0 ? `${Math.ceil(size)}s` : undefined;
+      }
+    };
     return {
       cssVars,
       panels,
@@ -110,6 +156,7 @@ export default defineComponent({
   render() {
     return (
       <div
+        ref='alarmDashboardRef'
         style={this.cssVars}
         class='alarm-metrics-dashboard'
       >

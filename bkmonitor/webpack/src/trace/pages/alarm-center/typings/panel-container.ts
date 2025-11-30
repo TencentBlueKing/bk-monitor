@@ -24,10 +24,16 @@
  * IN THE SOFTWARE.
  */
 
+import { type SeriesItem } from '@/pages/trace-explore/components/explore-chart/types';
+
 export interface AlertK8SMetricItem {
   children?: AlertK8SMetricItem[];
   count?: number;
   id: string;
   name: string;
   unit?: string;
+}
+
+export interface AlertK8SSeriesItem extends SeriesItem {
+  name?: string;
 }

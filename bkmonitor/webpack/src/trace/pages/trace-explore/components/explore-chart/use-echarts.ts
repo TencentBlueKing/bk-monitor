@@ -39,8 +39,8 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFor
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { useChartTooltips } from './use-chart-tooltips';
 
+import type { IDataQuery } from '../../../../plugins/typings';
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from './types';
-import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 export const useEcharts = (
@@ -48,7 +48,7 @@ export const useEcharts = (
   chartRef: Ref<HTMLElement>,
   $api: Record<string, () => Promise<any>>,
   params: MaybeRef<Record<string, any>>,
-  formatterSeriesData = res => res
+  formatterSeriesData: (res: any, target: IDataQuery, panel: PanelModel) => any = res => res
 ) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
@@ -93,7 +93,7 @@ export const useEcharts = (
           }
         )
         .then(res => {
-          const { series, metrics, query_config } = formatterSeriesData(res);
+          const { series, metrics, query_config } = formatterSeriesData(res, target, get(panel));
           for (const metric of metrics) {
             if (!metricList.value.some(item => item.metric_id === metric.metric_id)) {
               metricList.value.push(metric);

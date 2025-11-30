@@ -33,6 +33,7 @@ import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
 import { useK8sChartPanel } from '../../../../../composables/use-k8s-chart-panel';
+import { useK8sSeriesFormatter } from '../../hooks/use-k8s-series-formatter';
 
 import './panel-container-dashboard.scss';
 
@@ -63,18 +64,20 @@ export default defineComponent({
       groupByField: K8sTableColumnKeysEnum.POD,
       clusterId: 'BCS-K8S-40003',
       filterBy: {
-        pod: ['bkbase-bksql-language-server-69dc5bd9fb-tw8qk'],
+        pod: ['bkbase-queryengine-bkmonitor-8f798bcd6-vqd9f'],
         namespace: ['bkbase'],
-        workload: ['Deployment:bkbase-bksql-language-server'],
+        workload: ['Deployment:bkbase-queryengine-bkmonitor'],
       },
       resourceListData: [
         {
-          pod: 'bkbase-bksql-language-server-69dc5bd9fb-tw8qk',
+          pod: 'bkbase-queryengine-bkmonitor-8f798bcd6-vqd9f',
           namespace: 'bkbase',
-          workload: 'Deployment:bkbase-bksql-language-server',
+          workload: 'Deployment:bkbase-queryengine-bkmonitor',
         },
       ],
     });
+
+    const { formatterSeriesData } = useK8sSeriesFormatter();
 
     watch(
       () => dashboards.value,
@@ -84,7 +87,7 @@ export default defineComponent({
       }
     );
 
-    return { dashboardId, dashboards };
+    return { dashboardId, dashboards, formatterSeriesData };
   },
   render() {
     return (
@@ -93,13 +96,14 @@ export default defineComponent({
           <AlarmMetricsDashboard
             key={dashboard.id}
             viewOptions={{
-              interval: '1m',
+              interval: 'auto',
               method: 'sum',
               unit: undefined,
               time_shift: ' ',
             }}
             dashboardId={this.dashboardId}
             dashboardTitle={dashboard?.title}
+            formatterData={this.formatterSeriesData}
             panelModels={dashboard?.panels}
           />
         ))}

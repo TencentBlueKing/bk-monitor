@@ -38,6 +38,7 @@ import { useChartLegend } from './use-chart-legend';
 import { useChartTitleEvent } from './use-chart-title-event';
 import { useEcharts } from './use-echarts';
 
+import type { IDataQuery } from '../../../../plugins/typings';
 import type { DataZoomEvent } from './types';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -54,7 +55,7 @@ export default defineComponent({
       default: true,
     },
     formatterData: {
-      type: Function as PropType<(val) => any>,
+      type: Function as PropType<(res: any, target: IDataQuery, panel: PanelModel) => any>,
       default: res => res,
     },
     params: {
