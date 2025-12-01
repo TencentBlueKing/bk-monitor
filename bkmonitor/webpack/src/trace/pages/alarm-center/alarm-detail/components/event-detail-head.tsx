@@ -34,7 +34,6 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
 import TemporaryShare from '../../../../components/temporary-share/temporary-share';
-import { useAlarmCenterStore } from '../../../../store/modules/alarm-center';
 import { useAlarmCenterDetailStore } from '../../../../store/modules/alarm-center-detail';
 import { fetchListAlertFeedback } from '../../services/alarm-detail';
 import Feedback from './feedback';
@@ -65,7 +64,6 @@ export default defineComponent({
     const { t } = useI18n();
     const route = useRoute();
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const alarmCenterStore = useAlarmCenterStore();
     /** 是否反馈 */
     const isFeedback = shallowRef(false);
 
@@ -185,7 +183,6 @@ export default defineComponent({
     };
 
     const handleBtnClick = (id: string) => {
-      console.log(alarmCenterStore);
       switch (id) {
         case 'wx-chart':
           handleChatGroup();

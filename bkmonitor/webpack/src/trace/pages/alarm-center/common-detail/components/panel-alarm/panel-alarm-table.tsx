@@ -444,8 +444,10 @@ export default defineComponent({
         expandIcon={false}
         expandOnRowClick={true}
         loading={this.loading}
+        maxHeight={600}
         needCustomScroll={false}
         rowClassName='panel-alarm-table-row'
+        rowKey={'id'}
         resizable
         onExpandChange={this.handleExpandChange}
         onSortChange={this.handleSortChange}
