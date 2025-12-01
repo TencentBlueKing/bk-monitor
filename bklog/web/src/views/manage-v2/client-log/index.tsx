@@ -224,7 +224,7 @@ export default defineComponent({
         name: 'clean-config',
         query: {
           spaceUid: store.state.spaceUid,
-          backRoute: 'client-log',
+          backRoute: 'tgpa-task',
         },
       });
     };

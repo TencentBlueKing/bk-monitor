@@ -290,18 +290,18 @@ const getManageRoutes = () => [
         ],
       },
       {
-        path: 'client-log',
-        name: 'client-log',
+        path: 'tgpa-task',
+        name: 'tgpa-task',
         component: ClientLogView,
-        redirect: '/manage/client-log/list',
+        redirect: '/manage/tgpa-task/list',
         children: [
           // 客户端日志列表
           {
             path: 'list',
-            name: 'client-log-list',
+            name: 'tgpa-task-list',
             meta: {
               title: '客户端日志',
-              navId: 'client-log',
+              navId: 'tgpa-task',
             },
             component: ClientLog,
           },
@@ -312,8 +312,8 @@ const getManageRoutes = () => [
             meta: {
               title: '清洗配置',
               needBack: true,
-              backName: 'client-log-list',
-              navId: 'client-log',
+              backName: 'tgpa-task-list',
+              navId: 'tgpa-task',
             },
             component: cleanCreate,
           },
