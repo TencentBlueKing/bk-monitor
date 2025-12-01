@@ -255,6 +255,11 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick);
+  // 清理编辑器实例
+  if (editorInstance?.destroy) {
+    editorInstance.destroy();
+    editorInstance = null;
+  }
 });
 </script>
 <template>

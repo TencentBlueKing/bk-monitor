@@ -568,7 +568,7 @@
             spaceUid: currentIndexSet?.space_uid,
           },
         });
-        window.open(newURL.href, '_blank');
+        window.iframeParent.open(newURL.href, '_blank');
       },
       // 当前字段类型是否禁用
       isTypeDisabled(row, option) {
