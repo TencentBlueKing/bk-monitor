@@ -553,7 +553,7 @@ class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
-        scope_name = serializers.CharField(required=False, label="指标分组名")
+        scope_name = serializers.CharField(required=False, label="指标分组名", allow_blank=True)
 
 
 class QueryTagValuesResource(MetaDataAPIGWResource):
