@@ -671,7 +671,7 @@ const store = new Vuex.Store({
           }
         });
 
-        fieldAliasMap.values().forEach((value) => {
+        Array.from(fieldAliasMap.values()).forEach((value) => {
           if (value.count > 1) {
             const target = createFieldItem(value.field_alias, 'keyword', {
               ...(value.fields[0] ?? {}),

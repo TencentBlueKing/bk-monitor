@@ -25,7 +25,7 @@ from django.utils.translation import gettext_lazy as _lazy
 from bkmonitor.models import AnomalyRecord
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.template import NoticeRowRenderer
-from constants.alert import TARGET_DIMENSIONS
+from constants.alert import CMDB_TARGET_DIMENSIONS
 from constants.apm import ApmAlertHelper
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -297,7 +297,7 @@ class DefaultContent(BaseContextObject):
             else:
                 bk_cloud_id = getattr(alert.event, "bk_cloud_id", 0)
                 dimensions = {d["key"]: d for d in alert.target_dimensions}
-                for key in TARGET_DIMENSIONS:
+                for key in CMDB_TARGET_DIMENSIONS:
                     if key not in dimensions or key in ["bk_cloud_id", "bk_target_cloud_id"]:
                         # 云区域ID暂时去掉
                         continue

@@ -502,6 +502,7 @@ class ClusterInfo(models.Model):
         ssl_insecure_skip_verify: bool | None = None,
         extranet_domain_name: str | None = None,
         extranet_port: int | None = None,
+        **kwargs,
     ):
         """
         修改存储集群信息
