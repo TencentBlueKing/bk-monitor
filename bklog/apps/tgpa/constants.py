@@ -34,7 +34,7 @@ TGPA_TASK_COLLECTOR_CONFIG_NAME_EN = "tgpa_task_client_log"
 
 TGPA_TASK_ETL_PARAMS = {
     "retain_original_text": False,
-    "retain_extra_json": True,
+    "retain_extra_json": False,
     "enable_retain_content": True,
     "record_parse_failure": True,
 }
@@ -122,6 +122,8 @@ TGPA_TASK_ETL_FIELDS = [
         "is_delete": False,
     },
 ]
+
+CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "path", "lineno"]
 
 
 class TGPATaskTypeEnum(ChoicesEnum):

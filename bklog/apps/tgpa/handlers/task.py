@@ -25,6 +25,7 @@ import shutil
 import zipfile
 from pathlib import Path
 
+import arrow
 import magic
 import ujson
 from django.conf import settings
@@ -237,10 +238,43 @@ class TGPATaskHandler:
             try:
                 self.process_log_file(log_file_path)
             except Exception as e:
-                logger.error(f"Failed to process log file {log_file_path}: {e}")
+                logger.exception(f"Failed to process log file {log_file_path}: {e}")
 
         # 清理临时文件
         shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @staticmethod
+    def clear_expired_files(days=3):
+        """
+        清理过期文件和空目录
+        :param days: 过期天数阈值，默认为3天
+        """
+        if not os.path.exists(TGPA_BASE_DIR):
+            logger.warning(f"目录不存在，跳过清理: {TGPA_BASE_DIR}")
+            return
+
+        expire_time = arrow.now().shift(days=-days).timestamp()
+
+        for root, dirs, files in os.walk(TGPA_BASE_DIR, topdown=False):
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                try:
+                    if os.path.getmtime(file_path) < expire_time:
+                        os.remove(file_path)
+                        logger.info(f"已删除过期文件: {file_path}")
+                except Exception as e:
+                    logger.exception(f"删除文件失败 {file_path}: {e}")
+
+            # 处理空目录
+            for dir_name in dirs:
+                dir_path = os.path.join(root, dir_name)
+                try:
+                    # 检查目录是否为空且过期，空目录会在下一个周期被删除
+                    if not os.listdir(dir_path) and os.path.getmtime(dir_path) < expire_time:
+                        os.rmdir(dir_path)
+                        logger.info(f"已删除空目录: {dir_path}")
+                except Exception as e:
+                    logger.exception(f"删除目录失败 {dir_path}: {e}")
 
     @staticmethod
     def get_or_create_collector_config(bk_biz_id):
