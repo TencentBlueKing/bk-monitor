@@ -60,12 +60,21 @@ class UserModelBackend(ModelBackend):
 class CustomCachePublicKeyProvider(CachePublicKeyProvider):
     def provide(self, gateway_name: str, jwt_issuer: str | None = None, request: HttpRequest = None) -> str | None:
         """Return the public key specified by Settings"""
-        logger.warning(
-            f"""
-            test new internal api gateway,
-            gateway_name: {gateway_name}
-            """
-        )
+        new_internal_name = getattr(settings, "NEW_INTERNAL_APIGW_NAME", None)
+        if gateway_name and new_internal_name and gateway_name == new_internal_name:
+            logger.info(
+                """
+                This request is from new internal api gateway, 
+                use new internal public key: `NEW_INTERNAL_APIGW_PUBLIC_KEY`.
+                """
+            )
+            new_internal_public_key = getattr(settings, "NEW_INTERNAL_APIGW_PUBLIC_KEY", None)
+            if not new_internal_public_key:
+                logger.warning(
+                    "No `NEW_INTERNAL_APIGW_PUBLIC_KEY` can be found in settings, you should either configure it "
+                    "with a valid value or remove `ApiGatewayJWTExternalMiddleware` middleware entirely"
+                )
+            return new_internal_public_key
         external_public_key = getattr(settings, "EXTERNAL_APIGW_PUBLIC_KEY", None)
         if not request:
             return super().provide(gateway_name, jwt_issuer)
@@ -80,17 +89,6 @@ class CustomCachePublicKeyProvider(CachePublicKeyProvider):
                     "with a valid value or remove `ApiGatewayJWTExternalMiddleware` middleware entirely"
                 )
             return external_public_key
-        new_internal_name = getattr(settings, "NEW_INTERNAL_APIGW_NAME", None)
-        if gateway_name and new_internal_name and gateway_name == new_internal_name:
-            new_internal_public_key = getattr(settings, "NEW_INTERNAL_APIGW_PUBLIC_KEY", None)
-            if new_internal_public_key:
-                logger.info(
-                    """
-                    This request is from new internal api gateway, 
-                    use new internal public key: `NEW_INTERNAL_APIGW_PUBLIC_KEY`.
-                    """
-                )
-                return new_internal_public_key
         return super().provide(gateway_name, jwt_issuer)
 
 
