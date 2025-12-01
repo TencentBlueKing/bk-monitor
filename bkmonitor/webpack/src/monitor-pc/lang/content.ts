@@ -396,4 +396,5 @@ export default {
   手动创建: 'Manual create',
   至次日: 'To the next day',
   维度下钻分析: 'Dimension drill-down analysis',
+  全字段检索: 'Full field search',
 };

@@ -385,12 +385,12 @@ export default defineComponent({
 
     const handlePreviousDetail = () => {
       const index = data.value.findIndex(item => item.id === alarmId.value);
-      alarmId.value = (data.value as AlertTableItem[])[index === 1 ? data.value.length - 1 : index - 1].id;
+      alarmId.value = (data.value as AlertTableItem[])[index === 0 ? data.value.length - 1 : index - 1].id;
     };
 
     const handleNextDetail = () => {
       const index = data.value.findIndex(item => item.id === alarmId.value);
-      alarmId.value = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 1 : index + 1].id;
+      alarmId.value = (data.value as AlertTableItem[])[index === data.value.length - 1 ? 0 : index + 1].id;
     };
 
     /**

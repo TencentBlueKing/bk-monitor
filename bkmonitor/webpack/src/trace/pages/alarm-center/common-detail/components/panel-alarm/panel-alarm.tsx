@@ -26,7 +26,7 @@
 import { type PropType, defineComponent, onActivated, shallowRef } from 'vue';
 import { reactive } from 'vue';
 
-import { Pagination } from 'bkui-vue';
+import { Input, Pagination } from 'bkui-vue';
 import { searchEvent } from 'monitor-api/modules/alert';
 
 import PanelAlarmTable from './panel-alarm-table';
@@ -34,7 +34,6 @@ import EmptyStatus, {
   type EmptyStatusOperationType,
   type EmptyStatusType,
 } from '@/components/empty-status/empty-status';
-// import FilterSearchInput from '@/pages/failure/failure-handle/filter-search-input';
 
 import type { AlarmDetail } from '@/pages/alarm-center/typings';
 
@@ -51,12 +50,12 @@ export default defineComponent({
       type: Object as PropType<AlarmDetail>,
       default: () => null,
     },
-    params: { type: Object as PropType<IParams>, default: () => ({}) },
+    params: { type: Object as PropType<IParams>, default: null },
   },
   setup(props) {
     const emptyType = shallowRef<EmptyStatusType>('empty');
     const queryString = shallowRef('');
-    // const filterInputStatus = shallowRef('success');
+
     const data = shallowRef({
       events: [],
       total: 0,
@@ -87,10 +86,8 @@ export default defineComponent({
         record_history: true,
         ordering: tableSort.value,
       };
-      // this.getEventTopN(params);
       data.value = await searchEvent(params, { needRes: true })
         .then(res => {
-          // filterInputStatus.value = 'success';
           return (
             res.data || {
               events: [],
@@ -99,8 +96,6 @@ export default defineComponent({
           );
         })
         .catch(() => {
-          // filterInputStatus.value = res?.data?.code === 3324003 ? 'error' : 'success';
-          emptyType.value = '500';
           return {
             events: [],
             total: 0,
@@ -111,6 +106,10 @@ export default defineComponent({
         });
       pagination.count = data.value.total;
       isLoading.value = false;
+    };
+
+    const handleQueryStringChange = () => {
+      getData();
     };
 
     const handleEmptyOperation = (type: EmptyStatusOperationType) => {
@@ -138,9 +137,9 @@ export default defineComponent({
 
     onActivated(() => {
       queryString.value = '';
-      // if (props.params.start_time !== 0) {
-      //   queryString.value = `time: [${props.params.start_time} TO ${props.params.end_time}]`;
-      // }
+      if (props.params && props.params.start_time !== 0) {
+        queryString.value = `time: [${props.params.start_time} TO ${props.params.end_time}]`;
+      }
       getData();
     });
 
@@ -150,18 +149,26 @@ export default defineComponent({
       isLoading,
       pagination,
       queryString,
-      // filterInputStatus,
       handleEmptyOperation,
       handleTableSort,
       handleLimitChange,
       handlePageChange,
-      getData,
+      handleQueryStringChange,
     };
   },
 
   render() {
     return (
       <div class='alarm-center-detail-panel-convergent-alarm'>
+        <div class='search-input'>
+          <Input
+            v-model={this.queryString}
+            placeholder={this.$t('请输入关键字')}
+            onBlur={this.handleQueryStringChange}
+            onEnter={this.handleQueryStringChange}
+          />
+        </div>
+
         <PanelAlarmTable
           v-slots={{
             empty: () => (
