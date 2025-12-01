@@ -61,13 +61,6 @@ class CustomCachePublicKeyProvider(CachePublicKeyProvider):
     def provide(self, gateway_name: str, jwt_issuer: str | None = None, request: HttpRequest = None) -> str | None:
         """Return the public key specified by Settings"""
         new_internal_name = getattr(settings, "NEW_INTERNAL_APIGW_NAME", None)
-        logger.warning(
-            f"""
-            csh-test new internal api gateway: 
-            gateway_name -> {gateway_name}; 
-            new_internal_name -> {new_internal_name}; 
-            """
-        )
         if gateway_name and new_internal_name and gateway_name == new_internal_name:
             logger.info(
                 """
@@ -76,12 +69,6 @@ class CustomCachePublicKeyProvider(CachePublicKeyProvider):
                 """
             )
             new_internal_public_key = getattr(settings, "NEW_INTERNAL_APIGW_PUBLIC_KEY", None)
-            logger.warning(
-                f"""
-                csh-test new internal api gateway: 
-                new_internal_public_key -> {new_internal_public_key}; 
-                """
-            )
             if not new_internal_public_key:
                 logger.warning(
                     "No `NEW_INTERNAL_APIGW_PUBLIC_KEY` can be found in settings, you should either configure it "
@@ -114,15 +101,6 @@ class ApiGatewayJWTProvider(DefaultJWTProvider):
         try:
             jwt_header = self._decode_jwt_header(jwt_token)
             gateway_name = jwt_header.get("kid") or self.default_gateway_name
-            jwt_payload = self._decode_payload(jwt_token)
-            logger.warning(
-                f"""
-                csh-test new internal api gateway: 
-                jwt_header -> {jwt_header}; 
-                jwt_payload -> {jwt_payload}; 
-                gateway_name -> {gateway_name}
-                """
-            )
             public_key = CustomCachePublicKeyProvider(default_gateway_name=self.default_gateway_name).provide(
                 gateway_name=gateway_name, jwt_issuer=jwt_header.get("iss"), request=request
             )
