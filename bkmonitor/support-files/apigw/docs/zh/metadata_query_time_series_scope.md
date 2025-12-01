@@ -37,28 +37,31 @@ data 为列表类型，包含所有匹配的结果
 
 #### data列表项字段说明
 
-| 字段               | 类型     | 描述                               |
-|------------------|--------|----------------------------------|
-| scope_id         | int    | 自定义时序指标分组 ID                     |
-| group_id         | int    | 自定义时序数据源 ID                      |
-| scope_name       | string | 指标分组名                            |
-| dimension_config | dict   | 分组下的维度配置（key 为维度名，value 为维度配置对象） |
-| manual_list      | list   | 手动分组的指标列表                        |
-| auto_rules       | list   | 自动分组的匹配规则列表                      |
-| metric_list      | list   | 包含完整的指标配置信息列表                    |
-| create_from      | string | 创建来源（user: 用户创建，data: 数据自动创建）    |
+| 字段               | 类型     | 描述                                       |
+|------------------|--------|------------------------------------------|
+| scope_id         | int    | 自定义时序指标分组 ID（未分组时为 None）                 |
+| group_id         | int    | 自定义时序数据源 ID                              |
+| scope_name       | string | 指标分组名                                    |
+| dimension_config | dict   | 分组下的维度配置（key 为维度名，value 为维度配置对象）         |
+| manual_list      | list   | 手动分组的指标列表                                |
+| auto_rules       | list   | 自动分组的匹配规则列表                              |
+| metric_list      | list   | 包含完整的指标配置信息列表                            |
+| create_from      | string | 创建来源（user: 用户创建，data: 数据自动创建，未分组时为 None） |
 
 #### metric_list 列表项字段说明
 
 | 字段               | 类型     | 描述                    |
 |------------------|--------|-----------------------|
 | metric_name      | string | 指标名称                  |
+| field_id         | int    | 字段ID（可能为 None）        |
+| field_scope      | string | 字段所属分组（可能为 None）      |
 | desc             | string | 指标描述                  |
 | unit             | string | 指标单位                  |
 | hidden           | bool   | 是否隐藏                  |
 | aggregate_method | string | 聚合方法（如 avg、sum、max 等） |
 | function         | string | 常用聚合函数                |
 | interval         | int    | 默认聚合周期（秒）             |
+| disabled         | bool   | 是否禁用                  |
 
 #### dimension_config 配置对象字段说明
 
@@ -103,21 +106,27 @@ data 为列表类型，包含所有匹配的结果
       "metric_list": [
         {
           "metric_name": "metric1",
+          "field_id": 1001,
+          "field_scope": "default",
           "desc": "指标1描述",
           "unit": "ms",
           "hidden": false,
           "aggregate_method": "avg",
           "function": "sum",
-          "interval": 60
+          "interval": 60,
+          "disabled": false
         },
         {
           "metric_name": "metric2",
+          "field_id": 1002,
+          "field_scope": "default",
           "desc": "指标2描述",
           "unit": "count",
           "hidden": false,
           "aggregate_method": "sum",
           "function": "max",
-          "interval": 60
+          "interval": 60,
+          "disabled": false
         }
       ],
       "create_from": "user"

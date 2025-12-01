@@ -1767,6 +1767,7 @@ class TimeSeriesMetric(models.Model):
         "aggregate_method",  # 常用聚合方法
         "function",  # 常用聚合函数
         "interval",  # 默认聚合周期
+        "disabled",  # 是否禁用
     ]
 
     field_id = models.AutoField(verbose_name="字段ID", primary_key=True)

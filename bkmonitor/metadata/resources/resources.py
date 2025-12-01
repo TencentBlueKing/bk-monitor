@@ -1876,23 +1876,29 @@ class QueryTimeSeriesScopeResource(Resource):
                 field_config = metric.field_config or {}
                 metric_info = {
                     "metric_name": metric.field_name,
+                    "field_id": metric.field_id,
+                    "field_scope": metric.field_scope,
                     "desc": field_config.get("desc", ""),
                     "unit": field_config.get("unit", ""),
                     "hidden": field_config.get("hidden", False),
                     "aggregate_method": field_config.get("aggregate_method", ""),
                     "function": field_config.get("function", ""),
                     "interval": field_config.get("interval", 0),
+                    "disabled": field_config.get("disabled", ""),
                 }
             else:
                 # 指标不存在时使用默认值
                 metric_info = {
                     "metric_name": metric_name,
+                    "field_id": None,
+                    "field_scope": None,
                     "desc": "",
                     "unit": "",
                     "hidden": False,
                     "aggregate_method": "",
                     "function": "",
                     "interval": 0,
+                    "disabled": False,
                 }
             metric_list.append(metric_info)
 
