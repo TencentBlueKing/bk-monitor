@@ -1695,8 +1695,8 @@ class QueryTimeSeriesScopeResource(Resource):
         group_id = validated_request_data.get("group_id")
         scope_name = validated_request_data.get("scope_name")
 
-        # 判断是否查询未分组（根据文档：当 scope_name 为空串时，返回的是未分组的指标）
-        is_query_ungrouped = scope_name == ""
+        # 判断是否查询未分组（当 scope_name 为空串或 None 时，返回的是未分组的指标）
+        is_query_ungrouped = not scope_name
 
         # 构建查询条件
         query_set = models.TimeSeriesScope.objects.all()
@@ -1711,8 +1711,8 @@ class QueryTimeSeriesScopeResource(Resource):
 
             query_set = query_set.filter(group_id=group_id)
 
-        # 如果提供了 scope_name，使用模糊匹配
-        if scope_name is not None:
+        # 如果提供了 scope_name 且不为空，使用模糊匹配
+        if scope_name:
             query_set = query_set.filter(scope_name__icontains=scope_name)
 
         # 如果没有提供 group_id，需要通过 group_id 关联 TimeSeriesGroup 来过滤租户
@@ -1850,7 +1850,6 @@ class QueryTimeSeriesScopeResource(Resource):
         # 构建指标名称到指标对象的映射
         metric_map = {metric.field_name: metric for metric in metrics}
 
-        # 转换为文档格式
         metric_list = []
         for metric_name in metric_names:
             metric = metric_map.get(metric_name)

@@ -1177,8 +1177,7 @@ class TimeSeriesScope(models.Model):
         default_metric_set = set(default_metrics)
 
         # 2. 查询该 group_id 下所有 scope 的 manual_list 并集
-        # 注意：在更新场景中，新的 manual_list 还未保存到数据库，所以数据库中的值仍是旧的
-        # 因此直接使用数据库查询结果即可
+        # 在更新场景中，新的 manual_list 还未保存到数据库，所以数据库中的值仍是旧的，因此直接使用数据库查询结果即可
         all_manual_lists = cls.objects.filter(group_id=group_id).values_list("manual_list", flat=True)
         all_manual_metrics = set()
         for manual_list in all_manual_lists:
@@ -1362,7 +1361,7 @@ class TimeSeriesScope(models.Model):
         :param scopes: 批量创建的分组列表
         :return: 创建的分组字典 {(group_id, scope_name): scope_obj}
         """
-        # 2.1 批量创建新记录（优化：创建前就计算好 dimension_config）
+        # 2.1 批量创建新记录
         scopes_to_create = []
         for scope_data in scopes:
             scope_obj = cls(
@@ -1381,7 +1380,6 @@ class TimeSeriesScope(models.Model):
             scopes_to_create.append(scope_obj)
 
         if scopes_to_create:
-            # 一次性创建，包含已计算好的 dimension_config
             cls.objects.bulk_create(scopes_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
         # 2.2 查询已创建的对象并返回
@@ -1606,7 +1604,7 @@ class TimeSeriesScope(models.Model):
 
             # 如果更新了 dimension_config 或 manual_list，且 manual_list 存在，需要重新计算维度配置
             # 更新时：先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，视为 X
-            # manual_list 视为 Y（使用当前的 manual_list，可能是旧的也可能是新的）
+            # manual_list 视为 Y
             # 当 delete_unmatched_dimensions 为 true 则最终集合为 (X & Y) | Y，反之 X | Y
             if (dimension_config_updated or manual_list_updated) and scope_obj.manual_list:
                 delete_unmatched_dimensions = scope_data.get("delete_unmatched_dimensions", False)
