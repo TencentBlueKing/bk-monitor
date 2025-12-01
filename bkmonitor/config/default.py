@@ -37,10 +37,10 @@ from .tools.environment import (
     ROLE,
 )
 from .tools.mysql import (
+    get_backend_alert_mysql_settings,
     get_backend_mysql_settings,
     get_grafana_mysql_settings,
     get_saas_mysql_settings,
-    get_backend_alert_mysql_settings,
 )
 from .tools.service import get_service_url
 
@@ -349,6 +349,7 @@ ACTIVE_VIEWS = {
         "apm_event": "apm_web.event.views",
         "apm_profile": "apm_web.profile.views",
         "apm_container": "apm_web.container.views",
+        "apm_strategy": "apm_web.strategy.views",
     },
 }
 
@@ -527,6 +528,9 @@ APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG = (
     os.getenv("BKAPP_APM_IS_ADD_PLATFORM_METRIC_DIMENSION_CONFIG", "false").lower() == "true"
 )
 
+# 是否下发平台级别字段标准化配置
+APM_FIELD_NORMALIZER_ENABLED = True
+
 APM_APP_DEFAULT_ES_STORAGE_CLUSTER = -1
 APM_APP_DEFAULT_ES_RETENTION = 7
 APM_APP_DEFAULT_ES_SLICE_LIMIT = 100
@@ -546,13 +550,15 @@ APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE_EXPIRE = 30
 APM_APP_BKDATA_VIRTUAL_METRIC_STORAGE = ""
 APM_APP_PRE_CALCULATE_STORAGE_SLICE_SIZE = 100
 APM_APP_PRE_CALCULATE_STORAGE_RETENTION = 15
-APM_APP_PRE_CALCULATE_STORAGE_SHARDS = 3
+APM_APP_PRE_CALCULATE_STORAGE_SHARDS = 1
 APM_TRACE_DIAGRAM_CONFIG = {}
 APM_DORIS_STORAGE_CONFIG = {}
 # {2:["foo", "bar"], 3:["baz"]}
 APM_PROFILING_ENABLED_APPS = {}
 # dis/enable profiling for all apps
 APM_PROFILING_ENABLED = False
+# APM metrics维度补充功能应用白名单 {2:["app1", "app2"], 3:["app3"]}
+APM_RESOURCE_FILTER_METRICS_ENABLED_APPS = {}
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
 # {2:["app1", "app2"], 3:["app_name"]}
@@ -686,12 +692,6 @@ GRAFANA_ADMIN_USERNAME = os.getenv("BKAPP_GRAFANA_ADMIN_USERNAME", "admin")
 
 # 降噪时间窗口
 NOISE_REDUCE_TIMEDELTA = 5
-
-# 故障自愈是否已完成迁移
-IS_FTA_MIGRATED = False
-
-# 已经迁移完成的业务
-FTA_MIGRATE_BIZS = []
 
 # 指标上报默认任务标志
 DEFAULT_METRIC_PUSH_JOB = "SLI"
@@ -1050,7 +1050,7 @@ LINUX_UPTIME_CHECK_COLLECTOR_CONF_NAME = "uptimecheckbeat.conf"
 LINUX_GSE_AGENT_IPC_PATH = "/var/run/ipc.state.report"
 
 # 采集配置升级，使用订阅更新模式的业务列表
-COLLECTING_UPGRADE_WITH_UPDATE_BIZ = []
+COLLECTING_UPGRADE_WITH_UPDATE_BIZ = [0]
 
 # aix系统配置
 AIX_SCRIPT_EXT = "sh"
@@ -1173,6 +1173,7 @@ BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 # 通过 apigw 访问日志平台 api 的地址
 BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
+BKSOPS_API_BASE_URL = os.getenv("BKAPP_BKSOPS_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
 # 用户信息
@@ -1207,8 +1208,14 @@ JOB_URL = os.getenv("BK_JOB_SITE_URL") or os.getenv("BK_JOB_HOST", JOB_URL)
 BK_CC_URL = BK_PAAS_HOST.replace("paas", "cmdb")
 BK_CC_URL = os.getenv("BK_CC_SITE_URL") or os.getenv("BK_CC_HOST", BK_CC_URL)
 
+# 新版ITSM
+BK_ITSM_V4_HOST = os.getenv("BK_ITSM_V4_HOST", "")
+BK_ITSM_V4_API_URL = os.getenv("BK_ITSM_V4_API_URL", f"{BK_COMPONENT_API_URL}/api/cw-aitsm/prod")
+BK_ITSM_V4_SYSTEM_ID = os.getenv("BK_ITSM_V4_SYSTEM_ID", APP_CODE)
+
 BK_ITSM_HOST = os.getenv("BK_ITSM_HOST", f"{BK_PAAS_HOST}/o/bk_itsm/")
 BK_SOPS_HOST = os.getenv("BK_SOPS_URL", f"{BK_PAAS_HOST}/o/bk_sops/")
+BK_INCIDENT_SAAS_HOST = os.getenv("BK_INCIDENT_SAAS_HOST", f"{BK_PAAS_HOST}/o/bk_incident/")
 # todo  新增BK_CI_URL 需要在bin/environ.sh 模板中定义
 BK_BCS_HOST = os.getenv("BK_BCS_URL", f"{BK_PAAS_HOST}/o/bk_bcs_app/")
 BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
@@ -1221,6 +1228,11 @@ EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST, "?bizId={bk_biz_id}#/event-center?queryString=action_id%20%3A%20{collect_id}"
 )
 MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
+
+# 故障分析
+BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
+# 是否开启故障分析功能，默认不开启
+ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lower() == "true"
 
 # IAM
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
@@ -1405,6 +1417,7 @@ AIDEV_AGENT_LLM_GW_ENDPOINT = os.getenv("BK_AIDEV_AGENT_LLM_GW_ENDPOINT")
 AIDEV_AGENT_LLM_DEFAULT_TEMPERATURE = 0.3  # 默认温度
 AIDEV_COMMAND_AGENT_MAPPING = {}  # 快捷指令<->Agent映射
 AIDEV_AGENT_ENABLE_LANGFUSE = False  # 是否开启langfuse上报
+AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE = os.getenv("BK_AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE", "bkm-mcp-client")
 # AIAgent内容生成关键字
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
 # 是否开启AI RENAME
@@ -1488,6 +1501,8 @@ APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split('
 
 # 是否启用新版的数据链路，默认开启
 ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == "true"
+# 是否启用事件组V4数据链路，默认关闭
+ENABLE_V4_EVENT_GROUP_DATA_LINK = os.getenv("ENABLE_V4_EVENT_GROUP_DATA_LINK", "false").lower() == "true"
 # 插件数据是否启用接入V4链路，默认开启
 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
 # 是否启用influxdb，默认关闭
@@ -1514,7 +1529,7 @@ BKBASE_REDIS_WATCH_LOCK_RENEWAL_INTERVAL_SECONDS = 15
 # 计算平台Redis Watch锁过期时间(秒)
 BKBASE_REDIS_WATCH_LOCK_EXPIRE_SECONDS = 60
 # 单个任务最长执行时间(秒),默认一天
-BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS = 86400
+BKBASE_REDIS_TASK_MAX_EXECUTION_TIME_SECONDS = 600
 # 重连等待间隔时间(秒)
 BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 # Redis默认锁名称
@@ -1631,6 +1646,18 @@ K8S_V2_BIZ_LIST = []
 # APM UnifyQuery 查询业务黑名单
 APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
+# 事件 UnifyQuery 查询业务黑名单
+EVENT_UNIFY_QUERY_BLACK_BIZ_LIST = []
+
+# APM 调用分析启用全局指标的应用列表
+APM_RPC_GLOBAL_METRIC_ENABLE_APP_LIST = []
+
+# APM 按服务缓存指标的灰度应用列表，格式：["业务ID-应用名1", "业务ID-应用名2"]
+APM_SERVICE_CACHE_APPLICATIONS = []
+
+# 企业微信模块化（layouts）消息通知灰度业务列表
+WECOM_LAYOUTS_BIZ_LIST = []
+
 # 文档中心对应文档版本
 BK_DOC_VERSION = "3.9"
 
@@ -1668,8 +1695,12 @@ ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST = []
 # 用户管理web api地址
 BK_USER_WEB_API_URL = os.getenv("BK_USER_WEB_API_URL") or f"{BK_COMPONENT_API_URL}/api/bk-user-web/prod/"
 
-# 进程采集独立数据源模式业务ID列表
-PROCESS_INDEPENDENT_DATAID_BIZ_IDS = []
-
+# GSE消息槽
+GSE_SLOT_ID = int(os.getenv("GSE_SLOT_ID", 0))
+GSE_SLOT_TOKEN = os.getenv("GSE_SLOT_TOKEN", "")
 # 是否开启公共拨测节点鉴权
 ENABLE_PUBLIC_SYNTHETIC_LOCATION_AUTH = False
+
+# V4链路分业务系统事件初始化配置
+SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS", 1))
+SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS = int(os.getenv("SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS", 0))

@@ -31,44 +31,46 @@ class BkCollectorComp:
         "json": CONFIG_MAP_REPORT_V2_TPL_NAME,
         "prometheus": CONFIG_MAP_APPLICATION_TPL_NAME,
         "log": CONFIG_MAP_APPLICATION_TPL_NAME,
+        "manual": CONFIG_MAP_APPLICATION_TPL_NAME,
     }
 
     # Secrets 配置
     SECRET_SUBCONFIG_MAP = {  # 这里的名字不能随意变，逻辑上依赖，包括数字，每种类型中的所有 key 必须都存在
         "platform": {
             "secret_name_tpl": "bk-collector-platform",
-            "secret_name_hash_tpl": "bk-collector-platform",
             "secret_data_key_tpl": "platform.conf",
             "secret_data_max_count": 1,  # 平台配置只会有一份
             "secret_extra_label": "type=platform",
         },
         "apm": {
-            "secret_name_tpl": "bk-collector-subconfig-apm-{}-{}",
-            "secret_name_hash_tpl": "bk-collector-subconfig-apm-{}",
+            "secret_hash_ring_bucket_name_tpl": "bk-collector-subconfig-apm-{}-{}",
             "secret_data_key_tpl": "application-{}.conf",
-            "secret_data_max_count": 20,  # 这个数值不能随意变动，如需变更，需先清理所有apm的secrets再重新下发
+            "secret_hash_ring_bucket_count": 20,  # 这个数值不能随意变动，如需变更，需先清理所有apm的secrets再重新下发
             "secret_extra_label": "type=subconfig,source=apm",
         },
         "json": {
-            "secret_name_tpl": "bk-collector-subconfig-json-{}-{}",
-            "secret_name_hash_tpl": "bk-collector-subconfig-json-{}",
+            "secret_hash_ring_bucket_name_tpl": "bk-collector-subconfig-json-{}-{}",
             "secret_data_key_tpl": "report-v2-{}.conf",
-            "secret_data_max_count": 100,  # 这个数值不能随意变动，如需变更，需先清理所有json的secrets再重新下发
+            "secret_hash_ring_bucket_count": 100,  # 这个数值不能随意变动，如需变更，需先清理所有json的secrets再重新下发
             "secret_extra_label": "type=subconfig,source=custom_report_v2_json",
         },
         "prometheus": {
-            "secret_name_tpl": "bk-collector-subconfig-prometheus-{}-{}",
-            "secret_name_hash_tpl": "bk-collector-subconfig-prometheus-{}",
+            "secret_hash_ring_bucket_name_tpl": "bk-collector-subconfig-prometheus-{}-{}",
             "secret_data_key_tpl": "application-{}.conf",
-            "secret_data_max_count": 100,  # 这个数值不能随意变动，如需变更，需先清理所有prometheus的secrets再重新下发
+            "secret_hash_ring_bucket_count": 100,  # 这个数值不能随意变动，如需变更，需先清理所有prometheus的secrets再重新下发
             "secret_extra_label": "type=subconfig,source=custom_report_prometheus",
         },
         "log": {
-            "secret_name_tpl": "bk-collector-subconfig-log-{}-{}",
-            "secret_name_hash_tpl": "bk-collector-subconfig-log-{}",
+            "secret_hash_ring_bucket_name_tpl": "bk-collector-subconfig-log-{}-{}",
             "secret_data_key_tpl": "application-{}.conf",
-            "secret_data_max_count": 50,  # 这个数值不能随意变动，如需变更，需先清理所有log的secrets再重新下发
+            "secret_hash_ring_bucket_count": 50,  # 这个数值不能随意变动，如需变更，需先清理所有log的secrets再重新下发
             "secret_extra_label": "type=subconfig,source=custom_log",
+        },
+        "manual": {
+            "secret_hash_ring_bucket_name_tpl": "bk-collector-subconfig-manual-{}-{}",
+            "secret_data_key_tpl": "{}.conf",
+            "secret_hash_ring_bucket_count": 20,  # 这个数值不能随意变动
+            "secret_extra_label": "type=subconfig,source=manual",
         },
     }
     SECRET_COMMON_LABELS = "component=bk-collector,template=false"

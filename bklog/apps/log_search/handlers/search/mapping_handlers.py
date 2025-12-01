@@ -884,7 +884,7 @@ class MappingHandlers:
         return self._inner_get_bkdata_schema(index=index)
 
     @staticmethod
-    @cache_ten_minute("{index}_schema")
+    @cache_ten_minute("{index}_schema", need_md5=True)
     def _inner_get_bkdata_schema(*, index):
         try:
             data: dict = BkDataStorekitApi.get_schema_and_sql({"result_table_id": index})
@@ -894,7 +894,7 @@ class MappingHandlers:
             return []
 
     @staticmethod
-    @cache_one_minute("{indices}_meta_schema")
+    @cache_one_minute("{indices}_meta_schema", need_md5=True)
     def get_meta_schema(*, indices):
         indices = indices.split(",")
         try:
@@ -1190,7 +1190,7 @@ class MappingHandlers:
 
         date_candidate = []
         for _field in date_field_list:
-            field_name, field_type = _field.split(":")
+            field_name, field_type = _field.rsplit(":", maxsplit=1)
             date_candidate.append({"field_name": field_name, "field_type": field_type})
         return date_candidate
 

@@ -36,7 +36,7 @@ from metadata.models.data_link.constants import (
 )
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
-    VMResultTableConfig,
+    ResultTableConfig,
     VMStorageBindingConfig,
 )
 from metadata.models.space.constants import EtlConfigs
@@ -269,7 +269,7 @@ def create_or_delete_records(mocker):
 def test_Standard_V2_Time_Series_compose_configs(create_or_delete_records):
     """
     测试单指标单表类型链路是否能正确生成资源配置
-    需要测试：能否正确生成配置，是否正确创建了VMResultTableConfig、VMStorageBindingConfig、DataBusConfig三个实例
+    需要测试：能否正确生成配置，是否正确创建了ResultTableConfig、VMStorageBindingConfig、DataBusConfig三个实例
     """
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
@@ -314,7 +314,7 @@ def test_Standard_V2_Time_Series_compose_configs(create_or_delete_records):
     assert json.dumps(configs) == expected_configs
 
     # 测试实例是否正确创建
-    vm_table_id_ins = VMResultTableConfig.objects.get(name=bkbase_vmrt_name)
+    vm_table_id_ins = ResultTableConfig.objects.get(name=bkbase_vmrt_name)
     assert vm_table_id_ins.kind == DataLinkKind.RESULTTABLE.value
     assert vm_table_id_ins.name == bkbase_vmrt_name
     assert vm_table_id_ins.data_link_name == bkbase_data_name
@@ -584,9 +584,9 @@ def test_compose_configs_transaction_failure(create_or_delete_records):
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
     bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
 
-    # 模拟 VMResultTableConfig 的 get_or_create 操作抛出异常
+    # 模拟 ResultTableConfig 的 get_or_create 操作抛出异常
     with patch(
-        "metadata.models.data_link.data_link_configs.VMResultTableConfig.objects.get_or_create",
+        "metadata.models.data_link.data_link_configs.ResultTableConfig.objects.get_or_create",
         side_effect=IntegrityError("Simulated error"),
     ):
         with pytest.raises(IntegrityError):
@@ -604,7 +604,7 @@ def test_compose_configs_transaction_failure(create_or_delete_records):
 
     # 确保由于事务回滚，没有任何配置实例对象被创建
     assert DataLink.objects.filter(data_link_name=bkbase_data_name).exists()
-    assert not VMResultTableConfig.objects.filter(name=bkbase_vmrt_name).exists()
+    assert not ResultTableConfig.objects.filter(name=bkbase_vmrt_name).exists()
     assert not VMStorageBindingConfig.objects.filter(name=bkbase_vmrt_name).exists()
     assert not DataBusConfig.objects.filter(name=bkbase_vmrt_name).exists()
 
@@ -809,11 +809,11 @@ def test_create_bkbase_federal_proxy_data_link(create_or_delete_records, mocker)
         == f"{settings.DEFAULT_BKDATA_BIZ_ID}_{bkbase_vmrt_name}"
     )
 
-    vm_table_id_ins = models.VMResultTableConfig.objects.get(data_link_name=bkbase_data_name)
+    vm_table_id_ins = models.ResultTableConfig.objects.get(data_link_name=bkbase_data_name)
     assert vm_table_id_ins.name == bkbase_vmrt_name
     assert vm_table_id_ins.namespace == "bkmonitor"
 
-    databus_ins = models.VMResultTableConfig.objects.get(data_link_name=bkbase_data_name)
+    databus_ins = models.ResultTableConfig.objects.get(data_link_name=bkbase_data_name)
     assert databus_ins.name == bkbase_vmrt_name
     assert databus_ins.namespace == "bkmonitor"
 

@@ -42,7 +42,7 @@ def _get_span_detail(_bk_biz_id, _app_name, _span_id):
 # 从服务关联中找日志
 def process_service_relation(bk_biz_id, app_name, service_name, indexes_mapping, overwrite_method=None):
     result = []
-    relations = ServiceLogHandler.get_log_relations(bk_biz_id, app_name, service_name)
+    relations = ServiceLogHandler.get_log_relations(bk_biz_id, app_name, [service_name])
     for relation in relations:
         if relation.related_bk_biz_id != bk_biz_id:
             relation_full_indexes = get_biz_index_sets_with_cache(bk_biz_id=relation.related_bk_biz_id)
@@ -241,7 +241,7 @@ class ServiceLogInfoResource(Resource, HostIndexQueryMixin):
             return True
 
         # 2. 是否手动关联了日志索引集
-        if ServiceLogHandler.get_log_relations(bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name):
+        if ServiceLogHandler.get_log_relations(bk_biz_id=bk_biz_id, app_name=app_name, service_names=[service_name]):
             return True
 
         # 3. 是否有关联的 pod 日志

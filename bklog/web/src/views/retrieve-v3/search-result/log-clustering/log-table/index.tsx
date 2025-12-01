@@ -29,32 +29,50 @@ import {
   ref,
   watch,
   onMounted,
-  onBeforeUnmount,
-} from "vue";
-import useStore from "@/hooks/use-store";
-import useLocale from "@/hooks/use-locale";
-import MainHeader from "./main-header";
-import $http from "@/api";
-import ClusteringLoader from "@/skeleton/clustering-loader.vue";
-import AiAssitant from "@/global/ai-assitant.tsx";
-import ContentTable from "./content-table";
-import { type LogPattern } from "@/services/log-clustering";
-import { type IResponseData } from "@/services/type";
+  shallowRef,
+  set,
+} from 'vue';
+import useStore from '@/hooks/use-store';
+import useLocale from '@/hooks/use-locale';
+import MainHeader from './main-header';
+import $http from '@/api';
+import ClusteringLoader from '@/skeleton/clustering-loader.vue';
+import ContentTable, { IPagination, GroupListState } from './content-table';
+import { type LogPattern } from '@/services/log-clustering';
+import { type IResponseData } from '@/services/type';
 
-import "./index.scss";
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import { RetrieveEvent } from '@/views/retrieve-helper';
+
+import { orderBy, debounce } from 'lodash-es';
+import useIntersectionObserver from '@/hooks/use-intersection-observer';
+import ScrollTop from '@/views/retrieve-v2/components/scroll-top';
+import ScrollXBar from '@/views/retrieve-v2/components/scroll-x-bar';
+import useWheel from '@/hooks/use-wheel';
+import './index.scss';
 
 export interface TableInfo {
   group: string[];
   dataList: LogPattern[];
 }
 
+export interface ITableItem {
+  groupKey: string;
+  hashKey: string;
+  isGroupRow: boolean;
+  index: number;
+  group?: string[];
+  data?: LogPattern;
+  childCount?: number;
+  hidden?: boolean;
+}
+
 export default defineComponent({
-  name: "LogTable",
+  name: 'LogTable',
   components: {
     MainHeader,
     ClusteringLoader,
     ContentTable,
-    AiAssitant,
   },
   props: {
     clusterSwitch: {
@@ -68,10 +86,12 @@ export default defineComponent({
     requestData: {
       type: Object,
       require: true,
+      default: () => ({}),
     },
     indexId: {
       type: String,
       require: true,
+      default: undefined,
     },
   },
   setup(props, { expose, emit }) {
@@ -84,66 +104,74 @@ export default defineComponent({
         remark: [],
       },
       sort: {
-        count: "",
-        percentage: "",
-        year_on_year_count: "",
-        year_on_year_percentage: "",
+        count: '',
+        percentage: '',
+        year_on_year_count: '',
+        year_on_year_percentage: '',
       },
     });
 
     const logTableRef = ref<HTMLElement>();
-    const tablesRef = ref<any[]>([]);
-    const globalScrollbarWraperRef = ref<HTMLElement>();
-    const globalScrollbarRef = ref<HTMLElement>();
+    const tablesRef = ref<any>(null);
     const mainHeaderRef = ref<any>();
-    const aiAssitantRef = ref<any>(null);
+    // const aiAssitantRef = ref<any>(null);
     const tableLoading = ref(false);
-    const tablesInfoList = ref<TableInfo[]>([]);
-    const widthList = ref<string[]>([]);
+    const widthList = ref<Record<string, string>>({});
     const filterSortMap = ref(initFilterSortMap());
-    const displayType = ref("group");
+    const displayType = ref('group');
+    const paginationRef = ref<HTMLElement>();
+
+    const rootElement = ref<HTMLElement>();
+    const scrollXBarOuterWidth = ref(0);
+    const scrollXBarInnerWidth = ref(0);
+    const refScrollXBar = ref<any>();
+
+    const pagination = ref<IPagination>({
+      current: 1,
+      limit: 50,
+      count: 0,
+      groupCount: 0,
+      childCount: 0,
+      visibleCount: 0,
+    });
+
+    const tableList = shallowRef<ITableItem[]>([]);
+    const groupListState = ref<GroupListState>({});
+    const { addEvent } = useRetrieveEvent();
 
     const retrieveParams = computed(() => store.getters.retrieveParams);
     const showGroupBy = computed(
-      () =>
-        props.requestData?.group_by.length > 0 && displayType.value === "group"
+      () => props.requestData?.group_by.length > 0 && displayType.value === 'group',
     );
-    const isFlattenMode = computed(
-      () =>
-        props.requestData?.group_by.length > 0 && displayType.value !== "group"
-    );
+
     const smallLoaderWidthList = computed(() => {
       return props.requestData?.year_on_year_hour > 0
         ? loadingWidthList.compared
         : loadingWidthList.notCompared;
     });
 
-    const tableColumnWidth = computed(() =>
-      store.getters.isEnLanguage ? enTableWidth : cnTableWidth
+    const tableColumnWidth = computed(() => (store.getters.isEnLanguage ? enTableWidth : cnTableWidth),
     );
 
     const loadingWidthList = {
       // loading表头宽度列表
-      global: [""],
-      notCompared: [150, 90, 90, ""],
-      compared: [150, 90, 90, 100, 100, ""],
+      global: [''],
+      notCompared: [150, 90, 90, ''],
+      compared: [150, 90, 90, 100, 100, ''],
     };
 
     const enTableWidth = {
-      number: "110",
-      percentage: "116",
-      year_on_year_count: "171",
-      year_on_year_percentage: "171",
+      number: '110',
+      percentage: '116',
+      year_on_year_count: '171',
+      year_on_year_percentage: '171',
     };
     const cnTableWidth = {
-      number: "91",
-      percentage: "96",
-      year_on_year_count: "101",
-      year_on_year_percentage: "101",
+      number: '91',
+      percentage: '96',
+      year_on_year_count: '101',
+      year_on_year_percentage: '101',
     };
-
-    let localTotalList: LogPattern[] = [];
-    let localTablesInfoList: TableInfo[] = [];
 
     watch(
       () => props.requestData,
@@ -152,19 +180,243 @@ export default defineComponent({
       },
       {
         deep: true,
-      }
+      },
     );
 
-    watch(retrieveParams, () => {
-      refreshTable();
+    /**
+     * 加载更多触发元素隐藏操作
+     */
+    const debounceHiddenPaginationLoading = debounce(() => {
+      (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty(
+        'visibility',
+        'hidden',
+      );
+    }, 180);
+
+    /**
+     * 分页器观察器
+     */
+    useIntersectionObserver(paginationRef, (entry) => {
+      if (entry.isIntersecting) {
+        (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty(
+          'visibility',
+          'visible',
+        );
+        if (
+          pagination.value.current * pagination.value.limit
+          < pagination.value.count
+        ) {
+          pagination.value.current += 1;
+        }
+      }
+
+      debounceHiddenPaginationLoading();
     });
+
+    /**
+     * 计算自定义横向滚动条宽度
+     */
+    const computedScrollXWidth = () => {
+      scrollXBarInnerWidth.value = tablesRef.value?.$el?.scrollWidth;
+      scrollXBarOuterWidth.value = tablesRef.value?.$el?.offsetWidth;
+    };
+
+    /**
+     * 快速哈希
+     * @param text
+     * @param length
+     * @returns
+     */
+    function fastHash(text, length = 16) {
+      let h1 = 0xdeadbeef;
+      let h2 = 0x41c6ce57;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text.charCodeAt(i);
+        h1 = Math.imul(h1 ^ char, 2654435761);
+        h2 = Math.imul(h2 ^ char, 1597334677);
+
+        // 32 位循环移位
+        h1 = (h1 << 13) | (h1 >>> 19);
+        h2 = (h2 << 17) | (h2 >>> 15);
+      }
+
+      // 组合为 53 位整数（JavaScript 安全整数范围）
+      const combined = (h1 & 0x1fffff) * 0x1000000000 + (h2 & 0xfffffff);
+      return combined.toString(36).padStart(length, '0')
+        .slice(-length);
+    }
+
+    /**
+     * 分组模式排序
+     */
+    const sortGroupList = (
+      targetList: ITableItem[],
+      filterFn: (_arg: ITableItem) => boolean,
+    ) => {
+      const groupList: ITableItem[] = [];
+      const sortObj = Object.entries(filterSortMap.value.sort).find(
+        item => !!item[1],
+      );
+      const groupMap = new Map<string, ITableItem[]>();
+      pagination.value.visibleCount = 0;
+
+      for (const item of targetList) {
+        if (!groupMap.has(item.hashKey)) {
+          groupMap.set(item.hashKey, []);
+        }
+        if (item.isGroupRow) {
+          groupList.push(item);
+        } else {
+          groupMap.get(item.hashKey).push(item);
+        }
+      }
+
+      const resultList: ITableItem[] = [];
+      for (const group of groupList) {
+        resultList.push(group);
+        let childList = groupMap.get(group.hashKey);
+
+        if (sortObj) {
+          const [field, order] = sortObj;
+          const sortField = order === 'none' ? 'index' : `data.${field}`;
+          const orders = (order === 'none' ? 'asc' : order) as 'asc' | 'desc';
+          childList = orderBy(childList, [sortField], orders);
+        }
+
+        let isHiddenGroup = true;
+        for (const c of childList) {
+          c.hidden = !filterFn(c);
+          resultList.push(c);
+
+          if (!c.hidden) {
+            isHiddenGroup = false;
+            pagination.value.visibleCount += 1;
+          }
+        }
+        group.hidden = isHiddenGroup;
+      }
+
+      groupMap.clear();
+      return resultList;
+    };
+
+    /**
+     * 平铺模式排序
+     * @param targetList
+     * @param filterFn
+     */
+    const sortFlattenList = (
+      targetList: ITableItem[],
+      filterFn: (_arg: ITableItem) => boolean,
+    ) => {
+      const copyList = [];
+      let childList = [];
+      pagination.value.visibleCount = 0;
+
+      const sortObj = Object.entries(filterSortMap.value.sort).find(
+        item => !!item[1],
+      );
+
+      for (let i = 0; i < targetList.length; i++) {
+        const item = targetList[i];
+        if (item.isGroupRow) {
+          copyList.push(item);
+        } else {
+          childList.push(item);
+        }
+      }
+
+      if (sortObj) {
+        const [field, order] = sortObj;
+        const sortField = order === 'none' ? 'index' : `data.${field}`;
+        const orders = (order === 'none' ? 'asc' : order) as 'asc' | 'desc';
+
+        childList = orderBy(childList, [sortField], orders);
+      }
+
+      for (const c of childList) {
+        c.hidden = !filterFn(c);
+        copyList.push(c);
+
+        if (!c.hidden) {
+          pagination.value.visibleCount += 1;
+        }
+      }
+
+      return copyList;
+    };
+
+    /**
+     * 排序 | 过滤时更新列表数据
+     * @param list
+     */
+    const updateTableList = (list?: ITableItem[]) => {
+      const targetList = list ?? tableList.value;
+      const owners = filterSortMap.value.filter.owners;
+      const remark = filterSortMap.value.filter.remark;
+      const isRemarked = remark[0] === 'remarked';
+      const ownersMap = owners.reduce<Record<string, boolean>>(
+        (map, item) => Object.assign(map, { [item]: true }),
+        {},
+      );
+
+      const filterOwners = owners.length > 0;
+      const filterRemark = remark.length > 0;
+      const noOwner = owners.length === 1 && owners[0] === 'no_owner';
+
+      /**
+       * 检索当前行是否满足过滤条件
+       * @param item
+       * @returns
+       */
+      const filterFn = (item: ITableItem) => {
+        let result = true;
+        if (filterOwners) {
+          result = noOwner
+            ? (item.data?.owners?.value.length ?? 0) > 0
+            : (item.data?.owners.value ?? []).some(item => !!ownersMap[item]);
+        }
+
+        if (filterRemark && result) {
+          result = isRemarked
+            ? (item.data?.remark ?? []).length > 0
+            : !item.data?.remark.length;
+        }
+
+        return result;
+      };
+
+      if (
+        displayType.value === 'group'
+        && props.requestData.group_by?.length > 0
+      ) {
+        tableList.value = sortGroupList(targetList, filterFn);
+        return;
+      }
+
+      tableList.value = sortFlattenList(targetList, filterFn);
+    };
+
+    /**
+     * 设置分页器计数
+     * @returns
+     */
+    const setPaginationCount = () => {
+      if (displayType.value === 'group') {
+        pagination.value.count = pagination.value.groupCount + pagination.value.childCount;
+        return;
+      }
+
+      pagination.value.count = pagination.value.childCount;
+    };
 
     const refreshTable = () => {
       // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
       if (
-        tableLoading.value ||
-        !props.clusterSwitch ||
-        !props.isClusterActive
+        tableLoading.value
+        || !props.clusterSwitch
+        || !props.isClusterActive
       ) {
         return;
       }
@@ -172,7 +424,7 @@ export default defineComponent({
         start_time,
         end_time,
         size,
-        keyword = "*",
+        keyword = '*',
         ip_chooser,
         host_scopes,
         interval,
@@ -186,17 +438,20 @@ export default defineComponent({
             value:
               item.hidden_values && item.hidden_values.length > 0
                 ? item.value.filter(
-                    (value) => !item.hidden_values.includes(value)
-                  )
+                  value => !item.hidden_values.includes(value),
+                )
                 : item.value,
           });
         }
         return list;
       }, []);
+      tableList.value = [];
       tableLoading.value = true;
+      pagination.value.current = 1;
+      pagination.value.count = 0;
       (
         $http.request(
-          "/logClustering/clusterSearch",
+          '/logClustering/clusterSearch',
           {
             params: {
               index_set_id: props.indexId,
@@ -214,183 +469,262 @@ export default defineComponent({
               ...props.requestData,
             },
           },
-          { cancelWhenRouteChange: false }
+          { cancelWhenRouteChange: false },
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
         .then((res) => {
-          localTotalList = res.data;
-          const keyValueSetList: Array<Set<string>> = [];
-          props.requestData?.group_by.forEach((_, index) => {
-            keyValueSetList[index] = new Set();
-          });
-          res.data.forEach((item, index) => {
-            Object.assign(item, { id: index });
-            item.group.forEach((_, index) => {
-              keyValueSetList[index].add(item.group[index]);
-            });
-          });
-          const keyValueList = keyValueSetList.map((item) =>
-            Array.from(item).sort()
-          );
-          let valueList: any[] = [];
-          keyValueList.forEach((values) => {
-            let tmpValueList: any[] = [];
-            values.forEach((value) => {
-              if (valueList.length) {
-                valueList.forEach((existValue) => {
-                  const arr = [...existValue, value];
-                  tmpValueList.push(arr);
-                });
-              } else {
-                tmpValueList.push([value]);
-              }
-            });
-            valueList = tmpValueList;
-          });
-          valueList.sort((a, b) => a[0] - b[0]);
-          tablesInfoList.value = [];
-          valueList.forEach((values: string[]) => {
-            const tableInfo: TableInfo = {
-              group: values,
-              dataList: [],
-            };
-            res.data.forEach((item) => {
-              if (item.group.join(",") === values.join(",")) {
-                tableInfo.dataList.push(item);
-              }
-            });
-            if (tableInfo.dataList.length) {
-              tablesInfoList.value.push(tableInfo);
+          let listMap = new Map<string, LogPattern[]>();
+          let groupKeys = [];
+
+          res.data.forEach((item) => {
+            const groupList = item.group?.map(
+              (g, i) => `${props.requestData?.group_by[i] ?? '#'}=${g}`,
+            ) ?? ['#'];
+
+            const groupKey = groupList.length ? groupList.join(' | ') : '#';
+            if (!listMap.has(groupKey)) {
+              listMap.set(groupKey, []);
+              groupKeys.push(groupKey);
             }
+
+            listMap.get(groupKey).push(item);
           });
-          if (!tablesInfoList.value.length) {
-            tablesInfoList.value.push({ group: [], dataList: res.data });
+
+          let index = 0;
+          const groupState: GroupListState = {};
+          const tempList: ITableItem[] = [];
+          let hasOpenedGroup = false;
+
+          groupKeys.forEach((key) => {
+            const children = listMap.get(key) ?? [];
+            const hashKey = fastHash(key);
+            index += 1;
+            tempList.push({
+              groupKey: key,
+              isGroupRow: true,
+              group: children[0].group,
+              childCount: children.length,
+              hashKey,
+              index,
+            });
+
+            const isOpen = groupListState.value[hashKey]?.isOpen ?? false;
+            Object.assign(groupState, {
+              [hashKey]: {
+                isOpen,
+              },
+            });
+
+            if (isOpen) {
+              hasOpenedGroup = true;
+            }
+
+            children.forEach((item) => {
+              index += 1;
+              tempList.push({
+                groupKey: key,
+                hashKey,
+                isGroupRow: false,
+                data: Object.assign(item, {
+                  id: index,
+                  owners: ref(item.owners),
+                }),
+                index,
+              });
+            });
+          });
+
+          updateTableList(tempList);
+
+          if (!hasOpenedGroup && tempList.length > 0) {
+            groupState[tempList[0].hashKey]!.isOpen = true;
           }
 
-          localTablesInfoList = structuredClone(tablesInfoList.value);
+          groupListState.value = groupState;
+          pagination.value.groupCount = groupKeys.length;
+          pagination.value.childCount = res.data.length;
+          setPaginationCount();
+          setTimeout(computedScrollXWidth);
+          listMap.clear();
+          listMap = null;
+          groupKeys = null;
         })
         .finally(() => {
           tableLoading.value = false;
         });
     };
 
+    addEvent(
+      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.AUTO_REFRESH],
+      refreshTable,
+    );
+
     const handleColumnFilter = (field: string, value: any) => {
       filterSortMap.value.filter[field] = value;
+      updateTableList();
     };
 
     const handleColumnSort = (field: string, order: string) => {
       Object.keys(filterSortMap.value.sort).forEach((key) => {
         if (key !== field) {
-          filterSortMap.value.sort[key] = "";
+          filterSortMap.value.sort[key] = '';
         }
       });
       filterSortMap.value.sort[field] = order;
+      updateTableList();
     };
 
-    const handleOpenAi = (row: LogPattern, index: number) => {
-      aiAssitantRef.value.open(true, {
-        space_uid: store.getters.spaceUid,
-        index_set_id: store.getters.indexId,
-        log_data: row,
-        index,
+    /**
+     * 拖拽改变列宽
+     */
+    const handleHeaderResizeColumn = () => {
+      const columnWidth = mainHeaderRef.value.getColumnWidthList() ?? [];
+      columnWidth.forEach(([name, width]) => {
+        if (name !== null && name !== 'null') {
+          set(widthList.value, name, width);
+        }
       });
+      setTimeout(computedScrollXWidth);
     };
 
-    const handleHeaderResizeColumn = (scrollWidth: number) => {
-      globalScrollbarRef.value!.style.width = `${scrollWidth}px`;
-      widthList.value = mainHeaderRef.value.getColumnWidthList();
+    const handleScrollTop = () => {
+      pagination.value.current = 1;
     };
 
-    const handleGlobalScrollbarScroll = (e: Event) => {
-      const { scrollLeft } = e.target as HTMLDivElement;
-      mainHeaderRef.value.scroll(scrollLeft);
-      tablesRef.value.forEach((item) => item?.scroll(scrollLeft));
+    const handleScrollXChange = (event) => {
+      const scrollLeft = (event.target as HTMLElement)?.scrollLeft || 0;
+      for (const element of rootElement.value.querySelectorAll(
+        '.bklog-fill-offset-x',
+      )) {
+        element.scrollLeft = scrollLeft;
+      }
     };
 
-    const setTableItemRef = (index: number) => (el: HTMLElement | null) => {
-      tablesRef.value[index] = el;
-    };
+    let isAnimating = false;
 
-    const handleGlobalwheel = (e: any) => {
-      e.preventDefault();
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        if (
-          globalScrollbarWraperRef.value!.scrollWidth ===
-          globalScrollbarWraperRef.value!.clientWidth
-        ) {
+    useWheel({
+      target: rootElement,
+      callback: (event: WheelEvent) => {
+        const maxOffset = scrollXBarInnerWidth.value - scrollXBarOuterWidth.value;
+        let scrollLeft = 0;
+        // 检查是否按住 shift 键
+        if (event.shiftKey) {
+          // 当按住 shift 键时，让 refScrollXBar 执行系统默认的横向滚动能力
+          if (maxOffset > 0 && refScrollXBar.value) {
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            event.preventDefault();
+
+            // 使用系统默认的滚动行为，通过 refScrollXBar 执行横向滚动
+            const currentScrollLeft = refScrollXBar.value.getScrollLeft?.() || 0;
+            const scrollStep = event.deltaY || event.deltaX;
+            const newScrollLeft = Math.max(
+              0,
+              Math.min(maxOffset, currentScrollLeft + scrollStep),
+            );
+
+            refScrollXBar.value.scrollLeft(newScrollLeft);
+            scrollLeft = newScrollLeft;
+            handleScrollXChange({ target: { scrollLeft } });
+          }
           return;
         }
 
-        if (e.deltaX !== 0) {
-          globalScrollbarWraperRef.value!.scrollLeft += e.deltaX;
+        if (event.deltaX !== 0 && maxOffset > 0) {
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          event.preventDefault();
+          if (!isAnimating) {
+            isAnimating = true;
+            requestAnimationFrame(() => {
+              isAnimating = false;
+              const nextOffset = scrollLeft + event.deltaX;
+              if (nextOffset <= maxOffset && nextOffset >= 0) {
+                scrollLeft += event.deltaX;
+                refScrollXBar.value?.scrollLeft(nextOffset);
+                handleScrollXChange({ target: { scrollLeft } });
+              }
+            });
+          }
         }
-        return;
-      }
-
-      if (e.deltaY !== 0) {
-        logTableRef.value!.scrollTop += e.deltaY;
-      }
-    };
+      },
+    });
 
     const handleDisplayTypeChange = (value: string) => {
-      displayType.value = value;
-      if (value === "flatten") {
-        tablesInfoList.value = [{ group: [], dataList: localTotalList }];
-      } else {
-        tablesInfoList.value = localTablesInfoList;
-      }
+      tableLoading.value = true;
+      pagination.value.current = 1;
+      pagination.value.count = 0;
       setTimeout(() => {
-        logTableRef.value!.scrollTop = 0;
+        displayType.value = value;
+        setPaginationCount();
+        tableLoading.value = false;
       });
     };
 
-    const handleGlobalScroll = (e: any) => {
-      const { scrollHeight, clientHeight, scrollTop } = e.target;
-      if (scrollHeight === clientHeight) {
-        return;
+    /**
+     * 分组展开收起功能回调函数
+     * @param row
+     */
+    const handleGroupStateChange = (row: ITableItem) => {
+      if (groupListState.value[row.hashKey] === undefined) {
+        set(groupListState.value, row.hashKey, {
+          isOpen: false,
+        });
       }
-      if (clientHeight + scrollTop === scrollHeight) {
-        tablesRef.value[0].bottomAppendList();
-      }
+
+      groupListState.value[row.hashKey].isOpen = !groupListState.value[row.hashKey].isOpen;
     };
 
     onMounted(() => {
       refreshTable();
-      logTableRef.value!.addEventListener("wheel", handleGlobalwheel, {
-        passive: false,
-      });
-      logTableRef.value!.addEventListener("scroll", handleGlobalScroll);
-    });
-
-    onBeforeUnmount(() => {
-      logTableRef.value!.removeEventListener("wheel", handleGlobalwheel);
-      logTableRef.value!.removeEventListener("scroll", handleGlobalScroll);
     });
 
     expose({
       refreshTable,
     });
+
+    /**
+     * 可渲染结果为空的时候展示错误文本和类型
+     * @returns
+     */
+    const getExceptionOption = () => {
+      const owners = filterSortMap.value.filter.owners;
+      const remark = filterSortMap.value.filter.remark;
+      const option = {
+        type: 'empty',
+        text: t('暂无数据'),
+      };
+
+      if (
+        retrieveParams.value.addition.length > 0
+        || owners.length > 0
+        || remark.length > 0
+      ) {
+        option.type = 'search-empty';
+        option.text = t('搜索结果为空');
+      }
+
+      return (
+        <bk-exception type={option.type} scene='part' style='margin-top: 80px'>
+          <span>{option.text}</span>
+        </bk-exception>
+      );
+    };
+
     return () => (
-      <div
-        class="log-table-main"
-        style={{
-          height:
-            showGroupBy.value || isFlattenMode.value
-              ? "calc(100% - 90px)"
-              : "calc(100% - 60px)",
-        }}
-      >
+      <div class='log-table-main' ref={rootElement}>
         {props.requestData?.group_by.length > 0 && (
           <bk-radio-group
-            class="display-type-main"
+            class='display-type-main'
             value={displayType.value}
             on-change={handleDisplayTypeChange}
           >
-            <bk-radio value="flatten">{t("平铺模式")}</bk-radio>
-            <bk-radio value="group">{t("分组模式")}</bk-radio>
+            <bk-radio value='flatten'>{t('平铺模式')}</bk-radio>
+            <bk-radio value='group'>{t('分组模式')}</bk-radio>
           </bk-radio-group>
         )}
         <main-header
+          class='bklog-fill-offset-x'
           ref={mainHeaderRef}
           requestData={props.requestData}
           tableColumnWidth={tableColumnWidth.value}
@@ -402,8 +736,8 @@ export default defineComponent({
         />
         <div
           ref={logTableRef}
-          class="table-list-content"
-          style={{ padding: showGroupBy.value ? "0 12px" : "0px" }}
+          class='table-list-content'
+          style={{ padding: showGroupBy.value ? '0 12px' : '0px' }}
           v-bkloading={{ isLoading: tableLoading.value }}
         >
           {tableLoading.value ? (
@@ -411,41 +745,40 @@ export default defineComponent({
               width-list={smallLoaderWidthList.value}
               is-loading
             />
-          ) : tablesInfoList.value.length > 0 &&
-            tablesInfoList.value.every((item) => item.dataList.length > 0) ? (
-            tablesInfoList.value.map((info, index) => (
+          ) : pagination.value.visibleCount > 0 ? (
+            [
               <ContentTable
-                ref={setTableItemRef(index)}
-                tableInfo={info}
+                ref={tablesRef}
+                class='bklog-fill-offset-x'
+                tableList={tableList.value}
                 widthList={widthList.value}
                 displayMode={displayType.value}
-                index={index}
-                filterSortMap={filterSortMap.value}
                 requestData={props.requestData}
                 tableColumnWidth={tableColumnWidth.value}
+                groupListState={groupListState.value}
+                pagination={pagination.value}
                 indexId={props.indexId}
-                on-open-ai={handleOpenAi}
-                on-open-cluster-config={() => emit("open-cluster-config")}
-              />
-            ))
+                on-open-cluster-config={() => emit('open-cluster-config')}
+                on-group-state-change={handleGroupStateChange}
+              />,
+            ]
           ) : (
-            <bk-exception type="empty" scene="part" style="margin-top: 80px">
-              <span>
-                {retrieveParams.value.addition.length > 0
-                  ? t("搜索结果为空")
-                  : t("暂无数据")}
-              </span>
-            </bk-exception>
+            getExceptionOption()
           )}
         </div>
-        <AiAssitant ref={aiAssitantRef} on-close="handleAiClose" />
-        <div
-          class="global-scrollbar-wraper"
-          ref={globalScrollbarWraperRef}
-          on-scroll={handleGlobalScrollbarScroll}
-        >
-          <div class="global-scrollbar" ref={globalScrollbarRef}></div>
+        <div ref={paginationRef} style='width: 100%;'>
+          <div style='display: flex; justify-content: center;width: 100%; padding: 4px; visibility: hidden;'>
+            <span>loading ...</span>
+          </div>
         </div>
+        <ScrollTop on-scroll-top={handleScrollTop}></ScrollTop>
+        <ScrollXBar
+          ref={refScrollXBar}
+          outerWidth={scrollXBarOuterWidth.value}
+          innerWidth={scrollXBarInnerWidth.value}
+          right={26}
+          on-scroll-change={handleScrollXChange}
+        ></ScrollXBar>
       </div>
     );
   },

@@ -1,0 +1,37 @@
+{
+  "id": "alarm_template",
+  "type": "overview",
+  "mode": "custom",
+  "name": "告警模板",
+  "variables": [],
+  "panels": [
+    {
+      "id": 1,
+      "title": "",
+      "type": "alarm_template",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "targets": []
+    }
+  ],
+  "overview_panels": [
+    {
+      "id": 1,
+      "title": "",
+      "type": "alarm_template",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 24
+      },
+      "targets": []
+    }
+  ],
+  "order": [],
+  "options": {}
+}

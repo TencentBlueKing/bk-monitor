@@ -1,5 +1,7 @@
 import json
 
+import arrow
+
 from ai_agent.services.local_command_handler import (
     CommandHandler,
     local_command_handler,
@@ -123,3 +125,84 @@ class LogAnalysisCommandHandler(CommandHandler):
 {{ context }}
 ## 上下文内容结束 ##
         """
+
+
+@local_command_handler("querystring_generate")
+class QuerystringGenerateCommandHandler(CommandHandler):
+    """
+    生成查询语句命令处理器
+    """
+
+    @classmethod
+    def _get_index_set_fields(cls, index_set_id: int) -> dict:
+        """
+        获取索引集的字段信息
+
+        Args:
+            index_set_id: 索引集ID
+
+        Returns:
+            dict: 字段信息字典，格式为 {field_name: {type: str, query_alias?: str}}
+        """
+        from apps.log_search.models import LogIndexSet
+
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if not index_set_obj:
+            return {}
+
+        fields_info = index_set_obj.get_fields(use_snapshot=True)
+        if not fields_info.get("fields"):
+            return {}
+
+        fields = {}
+        for field_info in fields_info.get("fields"):
+            field_data = {"type": field_info["field_type"]}
+            if field_info.get("query_alias"):
+                field_data["query_alias"] = field_info["query_alias"]
+            fields[field_info["field_name"]] = field_data
+
+        return fields
+
+    def process_content(self, context: list[dict]) -> str:
+        template = self.get_template()
+        variables = self.extract_context_vars(context)
+
+        current_datetime = arrow.now().floor("minute").format("YYYY-MM-DD HH:mm:ss")
+
+        return self.jinja_env.render(
+            template,
+            {
+                "description": variables["description"],
+                "fields": variables.get("fields", "{}"),
+                "domain": variables["domain"],
+                "index_set_id": variables["index_set_id"],
+                "current_datetime": current_datetime,
+            },
+        )
+
+    def get_template(self) -> str:
+        return """
+## 检索需求
+{{ description }}
+
+## 字段信息
+{{ fields }}
+
+## 平台域名
+{{ domain }}
+
+## 索引集ID
+{{ index_set_id }}
+
+## 当前时间
+{{ current_datetime }}
+        """
+
+
+@local_command_handler("querystring_generate_json")
+class QuerystringGenerateJSONCommandHandler(QuerystringGenerateCommandHandler):
+    """
+    生成查询语句命令处理器 (JSON结构化版本)
+    """
+
+    pass

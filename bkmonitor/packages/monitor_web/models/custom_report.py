@@ -334,6 +334,7 @@ class CustomTSTable(OperateRecordModelBase):
                 "unit": field.config.get("unit", ""),
                 "description": field.description,
                 "type": field.type,
+                "aggregate_method": field.config.get("aggregate_method", ""),
             }
 
             if field.type == MetricType.METRIC:

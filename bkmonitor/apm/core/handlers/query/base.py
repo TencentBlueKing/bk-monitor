@@ -295,13 +295,22 @@ class BaseQuery:
         cls, retention: int, start_time: int | None = None, end_time: int | None = None
     ) -> tuple[int, int]:
         now: int = int(datetime.datetime.now().timestamp())
-        # 最早可查询时间
-        earliest_start_time: int = now - int(datetime.timedelta(days=retention).total_seconds())
 
-        # 开始时间不能小于 earliest_start_time
-        start_time = max(earliest_start_time, start_time or earliest_start_time)
+        retention_seconds: int = int(datetime.timedelta(days=retention).total_seconds())
+        # 最早可查询时间
+        earliest_start_time: int = now - retention_seconds
+
+        end_time: int = end_time or now
+        start_time: int = start_time or earliest_start_time
+        if end_time < earliest_start_time:
+            # 情况 1 - 查询返回不在有效查询时间内：-<start_time>-----<end_time>-----<earliest_start_time>----<now>--
+            start_time = max(end_time - retention_seconds, start_time)
+        else:
+            # 情况 2 - 查询时间部分或全部在有效查询时间内：-<start_time>---<earliest_start_time>---<end_time>----<now>--
+            start_time = max(earliest_start_time, start_time)
+
         # 结束时间不能大于 now
-        end_time = min(now, end_time or now)
+        end_time = min(now, end_time)
 
         # 通常我们会在页面拿到 TraceID 后便进行查询，「查询请求时间」可能 Trace 还未完成，前后补一个填充时间
         start_time = (start_time - cls.TIME_PADDING) * cls.TIME_FIELD_ACCURACY

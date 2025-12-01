@@ -64,5 +64,9 @@ export const getBkUserDisplayNameInstance = () => {
 };
 
 export const getUserCache = () => UserDisplayName.userCache;
+export const getUserCacheName = (id: string) => {
+  const data = UserDisplayName.userCache?.get(id)?.data?.data;
+  return data?.login_name || data?.bk_username || data?.display_name || id;
+};
 
 export default UserDisplayName;

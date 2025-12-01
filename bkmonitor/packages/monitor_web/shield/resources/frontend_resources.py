@@ -194,7 +194,7 @@ class FrontendShieldDetailResource(Resource):
 
     def __init__(self):
         super().__init__()
-        self.bk_biz_id = None
+        self.bk_biz_id: int = 0
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True, label="屏蔽id")
@@ -297,7 +297,7 @@ class FrontendShieldDetailResource(Resource):
 
     def perform_request(self, data):
         result: dict = resource.shield.shield_detail(**data)
-        self.bk_biz_id = data["bk_biz_id"]
+        self.bk_biz_id: int = data["bk_biz_id"]
         dimension_config = self.handle_dimension_config(result)
         notice_config = self.handle_notice_config(result["notice_config"]) if result["notice_config"] else {}
         result.update(dimension_config=dimension_config, notice_config=notice_config)

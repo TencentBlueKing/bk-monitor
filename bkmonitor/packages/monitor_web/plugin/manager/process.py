@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.conf import settings
 from django.utils.translation import gettext as _
 
 from constants.strategy import DataTarget
@@ -167,19 +166,13 @@ class ProcessPluginManager(BuiltInPluginManager):
         self.access(bk_biz_id)
 
     def get_data_id(self, bk_biz_id: int, ts_name: str):
-        if bk_biz_id not in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
-            bk_biz_id = 0
         data_name = resource.custom_report.create_custom_time_series.data_name(bk_biz_id, f"process_{ts_name}")
         return api.metadata.get_data_id({"data_name": data_name, "with_rt_info": False})["bk_data_id"]
 
     def perf_data_id(self, bk_biz_id: int):
-        if bk_biz_id not in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
-            bk_biz_id = 0
         return self.get_data_id(bk_biz_id, "perf")
 
     def port_data_id(self, bk_biz_id: int):
-        if bk_biz_id not in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
-            bk_biz_id = 0
         return self.get_data_id(bk_biz_id, "port")
 
     def setup(self):
@@ -211,22 +204,9 @@ class ProcessPluginManager(BuiltInPluginManager):
         接入数据源
         """
         for ts_name in self.metric_info:
-            # 独立数据源模式
-            if bk_biz_id in settings.PROCESS_INDEPENDENT_DATAID_BIZ_IDS:
-                table_id = ""
-                data_label = f"process.{ts_name},process"
-                is_split_measurement = True
-            else:
-                bk_biz_id = 0
-                table_id = f"process.{ts_name}"
-                data_label = "process"
-                is_split_measurement = False
-
             # 检查数据源是否存在
             try:
                 self.get_data_id(bk_biz_id, ts_name)
-                if table_id:
-                    api.metadata.get_result_table(table_id=table_id)
                 continue
             except BKAPIError:
                 pass
@@ -236,12 +216,9 @@ class ProcessPluginManager(BuiltInPluginManager):
                 "name": f"process_{ts_name}",
                 "scenario": self.label,
                 "metric_info_list": self.get_metric_info_list(ts_name),
-                "data_label": data_label,
-                "is_split_measurement": is_split_measurement,
+                "data_label": f"process.{ts_name},process",
+                "is_split_measurement": True,
             }
-
-            if table_id:
-                params["table_id"] = table_id
 
             # 创建自定义上报
             resource.custom_report.create_custom_time_series(params)

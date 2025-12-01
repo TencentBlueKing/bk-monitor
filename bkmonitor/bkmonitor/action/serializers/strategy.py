@@ -686,20 +686,24 @@ class UserGroupSlz(serializers.ModelSerializer):
         """
         获取轮值用户组的用户列表
         """
-        # 参考 DutyPlan.is_active_plan, 提前过滤部分未激活的计划
+        # 通过查询 DutyRule 和 DutyArrange 获取当前有效的用户组
         # 由于目前计划创建时，timezone 固定为默认值 "Asia/Shanghai"，所以为了使用索引，不使用 timezone 对当前时间进行转换
-        # 以后考虑将 start_time 和 finished_time 存为 UTC 时间，避免转换
+        # 以后考虑将 effective_time 和 end_time 存为 UTC 时间，避免转换
         user_group_ids = [group.id for group in groups]
         now = arrow.now("Asia/Shanghai").format("YYYY-MM-DD HH:mm:ss")
-        duty_plans = DutyPlan.objects.filter(
-            Q(finished_time__gte=now) | Q(finished_time__isnull=True),
-            start_time__lte=now,
-            user_group_id__in=user_group_ids,
-            is_effective=1,
+        # 查询有效且当前时间范围内的 DutyRule
+        active_rules = DutyRule.objects.filter(
+            enabled=True,
+            effective_time__lte=now,
+        ).filter(Q(end_time__gte=now) | Q(end_time__isnull=True) | Q(end_time__isnull=""))
+
+        # 关联查询对应的 DutyArrange
+        active_arranges = DutyArrange.objects.filter(
+            duty_rule_id__in=active_rules.values_list("id", flat=True), user_group_id__in=user_group_ids
         )
 
         group_rule_users = defaultdict(list)
-        for plan in DutyPlanSlz(instance=duty_plans, many=True).data:
+        for plan in DutyArrangeSlz(instance=active_arranges, many=True).data:
             group_rule_users[f"{plan['user_group_id']}-{plan['duty_rule_id']}"].append(plan)
 
         for group in groups:
@@ -712,9 +716,6 @@ class UserGroupSlz(serializers.ModelSerializer):
                     continue
                 users = []
                 for plan in rule_plans:
-                    if not plan["is_active"]:
-                        # 如果当前plan未激活，直接返回
-                        continue
                     for user in plan["users"]:
                         if user not in users:
                             users.append(user)

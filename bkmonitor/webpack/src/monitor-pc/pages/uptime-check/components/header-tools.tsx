@@ -63,6 +63,13 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
 
   searchValue = '';
 
+  get uptimeCheckPlaceholder() {
+    if (this.option.showNode) {
+      return this.$t('搜索 节点名称');
+    }
+    return this.$t('搜索 任务名称');
+  }
+
   @Watch('search')
   handleSearchWatch(v: string) {
     this.searchValue = v;
@@ -139,7 +146,7 @@ export default class HeaderTools extends tsc<IHeaderToolsProps, IHeaderToolsEven
           <bk-input
             class='search-input'
             v-model={this.searchValue}
-            placeholder={this.$t('输入')}
+            placeholder={this.uptimeCheckPlaceholder}
             right-icon='bk-icon icon-search'
             clearable
             on-change={(v: string) => this.handleSearch(v)}

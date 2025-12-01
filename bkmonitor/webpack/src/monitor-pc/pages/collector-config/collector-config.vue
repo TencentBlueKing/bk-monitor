@@ -109,7 +109,7 @@
         <bk-input
           v-model="panel.keyword"
           class="tool-search"
-          :placeholder="$t('采集配置名称/ID')"
+          :placeholder="$t('搜素 ID、名称')"
           right-icon="bk-icon icon-search"
           @change="handleSearch"
         />
@@ -456,6 +456,7 @@ export default {
           'collect-config-node',
           'collect-config-update',
           'collect-config-operate-detail',
+          'collect-config-detail',
         ].includes(from.name)
       ) {
         vm.panel.keyword = '';
@@ -463,7 +464,7 @@ export default {
         vm.panel.itemActive = '';
       }
       if (to.query.id) {
-        vm.panel.keyword = `ID：${to.query.id}`;
+        vm.panel.keyword = `ID: ${to.query.id}`;
       }
       if (vm.filterEnterRouter.includes(from.name)) {
         if (to.params.serviceCategory) {
@@ -480,7 +481,7 @@ export default {
       }
     });
   },
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _fromm, next) {
     typeof this.cancelFetch === 'function' && this.cancelFetch();
     this.side.show = false;
     next();
@@ -744,6 +745,7 @@ export default {
         if (this.$route.query.id && this.table.data.length) {
           const [{ id, name, status }] = this.table.data;
           const params = { id, name, status };
+          this.$router.replace({ name: 'collect-config' });
           this.handleShowDetail(params);
         }
       });
@@ -1350,6 +1352,7 @@ export default {
         height: 54px;
         font-size: 14px;
         color: #63656e;
+
         // border-bottom: 1px solid #dcdee5;
         // border-right: 1px solid #fafbfd;
         cursor: pointer;
@@ -1372,7 +1375,7 @@ export default {
           justify-content: center;
           min-width: 24px;
           height: 16px;
-          padding: 0px 4px;
+          padding: 0 4px;
           font-size: 12px;
           line-height: 14px;
           color: #fff;
@@ -1400,7 +1403,7 @@ export default {
 
       :deep(.bk-tab-header) {
         /* stylelint-disable-next-line declaration-no-important */
-        background-image: linear-gradient(transparent 53px, rgb(220, 222, 229) 1px) !important;
+        background-image: linear-gradient(transparent 53px, rgb(220 222 229) 1px) !important;
         border: 0;
       }
 
@@ -1457,7 +1460,7 @@ export default {
           border-bottom-color: #3a84ff;
         }
 
-        &:not(:last-child):after {
+        &:not(:last-child)::after {
           position: absolute;
           top: 31px;
           right: 0;
@@ -1512,7 +1515,7 @@ export default {
       flex: 0 0 240px;
       border: 1px solid #dcdee5;
       border-right: 0;
-      border-radius: 0px 0 0 2px;
+      border-radius: 0 0 0 2px;
     }
 
     .table-wrap {
@@ -1609,10 +1612,12 @@ export default {
               padding: 2px 6px;
               margin: 6px;
               font-size: 12px;
+
               // &:first-child{
               //     margin-left: 0;
               // }
               background: #f0f1f5;
+
               // .label-name {
               //     display: inline-block;
               //     height: 24px;

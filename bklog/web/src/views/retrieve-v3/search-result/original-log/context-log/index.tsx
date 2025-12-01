@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { getFlatObjValues } from '@/common/util';
 import FieldsConfig from '@/components/common/fields-config.vue';
@@ -33,10 +33,10 @@ import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
+import $http from '@/api';
 import CommonHeader from '../components/common-header';
 import DataFilter from '../components/data-filter';
 import LogResult from '../components/origin-log-result';
-import $http from '@/api';
 
 import './index.scss';
 
@@ -79,6 +79,7 @@ export default defineComponent({
     const store = useStore();
     const { t } = useLocale();
 
+    const logViewRef = ref();
     const dataFilterRef = ref();
     const logResultRef = ref();
     const contextLog = ref();
@@ -95,6 +96,8 @@ export default defineComponent({
     const showType = ref('log');
     const highlightList = ref([]);
     const localParams = ref<any>({});
+    const initialDivide = ref(250);
+    const isFilterEmpty = ref(false);
     const interval = ref({
       prev: 0,
       next: 0,
@@ -103,9 +106,10 @@ export default defineComponent({
     let rawList: any[] = [];
     let reverseRawList: any[] = [];
     let firstLogEl: HTMLElement | null = null;
-    let throttleTimer: NodeJS.Timeout;
-    let timer: NodeJS.Timeout;
+    let throttleTimer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout>;
     let displayFieldNames: string[] = [];
+
 
     watch(
       () => props.isShow,
@@ -126,6 +130,7 @@ export default defineComponent({
       () => [props.indexSetId, props.logParams],
       async () => {
         if (props.indexSetId && props.logParams) {
+          localParams.value = {};
           deepClone(props.logParams);
           await requestContentLog();
         }
@@ -134,6 +139,17 @@ export default defineComponent({
         immediate: true,
       },
     );
+
+    watch(activeFilterKey, () => {
+      setTimeout(() => {
+        const lineDomList = Array.from(logViewRef.value?.$el.querySelectorAll('.line') || []);
+        if (lineDomList.length && lineDomList.every((item: any) => item.style.display === 'none')) {
+          isFilterEmpty.value = true;
+          return;
+        }
+        isFilterEmpty.value = false;
+      });
+    });
 
     const initLogValues = () => {
       logLoading.value = false;
@@ -144,11 +160,12 @@ export default defineComponent({
       nextBegin.value = 0;
       prevBegin.value = 0;
       zero.value = true;
+      localParams.value = {};
     };
 
     const handleAfterLeave = () => {
-      dataFilterRef.value.reset();
-      logResultRef.value.reset();
+      dataFilterRef.value?.reset();
+      logResultRef.value?.reset();
       highlightList.value = [];
       interval.value = {
         prev: 0,
@@ -175,7 +192,8 @@ export default defineComponent({
 
     const handleKeyup = (event: any) => {
       if (event.keyCode === 27) {
-        emit('close-dialog');
+        contextLog.value?.removeEventListener('scroll', handleScroll);
+        handleAfterLeave();
       }
     };
 
@@ -183,13 +201,55 @@ export default defineComponent({
       for (const key in obj) {
         const prefixKey = prefix ? `${prefix}.${key}` : key;
         if (typeof obj[key] === 'object') {
-          deepClone(obj[key], prefixKey);
+          if (obj[key]?._isBigNumber) {
+            localParams.value[prefixKey] = obj[key].toString();
+          } else {
+            deepClone(obj[key], prefixKey);
+          }
         } else {
           localParams.value[prefixKey] = String(obj[key])
             .replace(/<mark>/g, '')
             .replace(/<\/mark>/g, '');
         }
       }
+    };
+
+    /**
+     * 获取显示的字段名
+     * 优先展示displayFieldNames，如果没有则展示log字段，如果没有则展示text类型字段，如果没有则展示页面可见字段
+     * @returns 获取显示的字段名
+     */
+    const getShowFieldNames = () => {
+      if (displayFieldNames.length) {
+        return displayFieldNames;
+      }
+
+      const allFields = store.getters.filteredFieldList;
+      let textField = undefined;
+      let logField = undefined;
+      for (const field of allFields) {
+        if (field.field_name === 'log') {
+          logField = field.field_name;
+          break;
+        }
+
+        if (field.field_type === 'text') {
+          textField = field.field_name;
+        }
+      }
+
+      const showFieldName = logField ?? textField;
+
+      if (showFieldName) {
+        return [showFieldName];
+      }
+
+      const pageVisibleFields = store.getters.visibleFields.map(item => item.field_name);
+      if (pageVisibleFields.length) {
+        return pageVisibleFields;
+      }
+
+      return ['log'];
     };
 
     const requestContentLog = async (direction?: string) => {
@@ -220,7 +280,7 @@ export default defineComponent({
 
         const { list } = res.data;
         if (list?.length > 0) {
-          const formatList = hadnleFormatList(list, displayFieldNames.length ? displayFieldNames : ['log']);
+          const formatList = handleFormatList(list, getShowFieldNames());
           if (direction) {
             if (direction === 'down') {
               logList.value.push(...formatList);
@@ -240,10 +300,8 @@ export default defineComponent({
             } else {
               logList.value.push(...formatList.slice(zeroIndex, list.length));
               rawList.push(...list.slice(zeroIndex, list.length));
-
               reverseLogList.value.unshift(...formatList.slice(0, zeroIndex));
               reverseRawList.unshift(...list.slice(0, zeroIndex));
-
               const value = zeroIndex - res.data.count_start;
               nextBegin.value = value + logList.value.length;
               prevBegin.value = value - reverseLogList.value.length;
@@ -270,13 +328,13 @@ export default defineComponent({
     /**
      * 将列表根据字段组合成字符串数组
      **/
-    const hadnleFormatList = (list, displayFieldNames) => {
+    const handleFormatList = (list, displayFieldNames) => {
       const filterDisplayList: any[] = [];
-      list.forEach(listItem => {
+      list.forEach((listItem) => {
         const displayObj = {};
         const { newObject } = getFlatObjValues(listItem);
         const { changeFieldName } = useFieldNameHook({ store });
-        displayFieldNames.forEach(field => {
+        displayFieldNames.forEach((field) => {
           Object.assign(displayObj, {
             [field]: newObject[changeFieldName(field)],
           });
@@ -289,8 +347,8 @@ export default defineComponent({
     // 确定设置显示字段
     const handleConfirmFieldsConfig = async (list: string[]) => {
       displayFieldNames = list;
-      logList.value = hadnleFormatList(rawList, list);
-      reverseLogList.value = hadnleFormatList(reverseRawList, list);
+      logList.value = handleFormatList(rawList, list);
+      reverseLogList.value = handleFormatList(reverseRawList, list);
     };
 
     const initLogScrollPosition = () => {
@@ -367,7 +425,7 @@ export default defineComponent({
       }
     };
 
-    const filterLog = value => {
+    const filterLog = (value) => {
       activeFilterKey.value = value;
       clearTimeout(throttleTimer);
       throttleTimer = setTimeout(() => {
@@ -383,6 +441,10 @@ export default defineComponent({
       initLogValues();
       deepClone(data);
       requestContentLog();
+    };
+
+    const handleToggleCollapse = (isCollapsed: boolean) => {
+      initialDivide.value = isCollapsed ? 42 : 250;
     };
 
     onMounted(() => {
@@ -411,10 +473,9 @@ export default defineComponent({
         <bk-resize-layout
           style='height: 100%'
           border={false}
-          initial-divide={250}
+          initial-divide={initialDivide.value}
+          min={42}
           placement='bottom'
-          auto-minimize
-          collapsible
         >
           <div
             class='context-log-wrapper'
@@ -436,19 +497,33 @@ export default defineComponent({
               <div
                 ref={contextLog}
                 class='dialog-log-markdown'
-                v-bkloading={{ isLoading: logLoading.value, opacity: 0.6 }}
+                v-bkloading={{
+                  isLoading: logLoading.value && !isFilterEmpty.value,
+                  opacity: 0.6,
+                }}
               >
                 {logList.value.length > 0 ? (
-                  <LogView
-                    filter-key={activeFilterKey.value}
-                    filter-type={filterType.value}
-                    ignore-case={ignoreCase.value}
-                    interval={interval.value}
-                    light-list={highlightList.value}
-                    log-list={logList.value}
-                    reverse-log-list={reverseLogList.value}
-                    show-type={showType.value}
-                  />
+                  isFilterEmpty.value ? (
+                    <bk-exception
+                      style='margin-top: 80px'
+                      scene='part'
+                      type='search-empty'
+                    >
+                      <span>{t('搜索结果为空')}</span>
+                    </bk-exception>
+                  ) : (
+                    <LogView
+                      ref={logViewRef}
+                      filter-key={activeFilterKey.value}
+                      filter-type={filterType.value}
+                      ignore-case={ignoreCase.value}
+                      interval={interval.value}
+                      light-list={highlightList.value}
+                      log-list={logList.value}
+                      reverse-log-list={reverseLogList.value}
+                      show-type={showType.value}
+                    />
+                  )
                 ) : !logLoading.value ? (
                   <bk-exception
                     style='margin-top: 80px'
@@ -469,6 +544,7 @@ export default defineComponent({
               logIndex={props.rowIndex}
               retrieveParams={props.retrieveParams}
               on-choose-row={handleChooseRow}
+              on-toggle-collapse={handleToggleCollapse}
             />
           )}
         </bk-resize-layout>

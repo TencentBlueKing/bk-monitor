@@ -39,8 +39,18 @@ class BaseCollector(Collector):
 
     @cached_property
     def biz_info(self) -> dict[int, Business]:
-        biz_list = api.cmdb.get_business(all=True)
-        return {business.bk_biz_id: business for business in biz_list}
+        """
+        获取业务信息
+        {bk_biz_id: Business}
+        """
+
+        business_dict = {}
+        for tenant in self.tenants:
+            if tenant["status"] != "enabled":
+                continue
+            biz_list = api.cmdb.get_business(all=True, bk_tenant_id=tenant["id"])
+            business_dict.update({business.bk_biz_id: business for business in biz_list})
+        return business_dict
 
     @cached_property
     def tenants(self) -> list[dict]:

@@ -187,6 +187,9 @@
           min-width="80"
           prop="cluster_config.creator"
         >
+        <template #default="props">
+          <bk-user-display-name :user-id="props.row.cluster_config.creator"></bk-user-display-name>
+        </template>
         </bk-table-column>
         <bk-table-column
           v-if="checkcFields('create_time')"

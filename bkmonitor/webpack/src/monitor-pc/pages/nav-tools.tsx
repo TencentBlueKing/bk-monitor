@@ -130,7 +130,9 @@ class NavTools extends DocumentLinkMixin {
         href: window.ce_url,
       },
     ];
-    this.setList = GLOBAL_FEATURE_LIST.map(({ name, ...args }) => ({
+    this.setList = GLOBAL_FEATURE_LIST.filter(item =>
+      window.bk_tenant_id === 'system' ? true : !['healthz', 'global-config'].includes(item.id)
+    ).map(({ name, ...args }) => ({
       name: `route-${name}`,
       ...args,
     }));

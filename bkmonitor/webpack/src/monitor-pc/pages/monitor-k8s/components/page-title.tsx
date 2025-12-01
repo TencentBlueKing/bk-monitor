@@ -312,6 +312,7 @@ export default class PageTitle extends tsc<IPageTitleProps, IPageTitleEvent> {
                             clearable={false}
                             data={this.searchData}
                             modelValue={this.searchValue}
+                            placeholder={this.$t('搜索')}
                             on-change={this.handleSearchChange}
                           />
                         </div>

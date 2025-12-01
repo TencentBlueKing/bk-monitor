@@ -25,8 +25,8 @@
  */
 import { defineComponent, ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 
-import { parseTableRowData } from '@/common/util';
-import { readBlobRespToJson, parseBigNumberList, formatDate } from '@/common/util';
+import { parseTableRowData, readBlobRespToJson, parseBigNumberList, xssFilter } from '@/common/util';
+
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -34,6 +34,7 @@ import { BK_LOG_STORAGE } from '@/store/store.type';
 import SearchBar from '@/views/retrieve-v2/search-bar/index.vue';
 import DOMPurify from 'dompurify';
 import { cloneDeep, debounce } from 'lodash-es';
+import RetrieveHelper from '@/views/retrieve-helper';
 
 import RenderJsonCell from './render-json-cell';
 import { axiosInstance } from '@/api';
@@ -61,19 +62,23 @@ export default defineComponent({
     const store = useStore();
 
     const searchBarRef = ref<any>();
-    const contentMainRef = ref<HTMLElement>();
     const tableRef = ref<HTMLElement>();
     const logList = ref<any[]>([]);
     const choosedIndex = ref(props.logIndex);
     const listLoading = ref(false);
+    const isCollapsed = ref(false);
 
-    const fieldsMap = computed(() =>
-      (store.state.indexFieldInfo.fields || []).reduce((dataMap, item) => {
-        dataMap[item.field_name] = item;
-        return dataMap;
-      }, {}),
+    const fieldsMap = computed(() => (store.state.indexFieldInfo.fields || []).reduce((dataMap, item) => {
+      dataMap[item.field_name] = item;
+      return dataMap;
+    }, {}),
     );
-    const visibleFields = computed(() => store.state.visibleFields);
+
+    const timeField = computed(() => store.state.indexFieldInfo.time_field);
+    const timeFieldType = computed(() => fieldsMap.value[timeField.value]?.field_type);
+    const visibleFields = computed(() => store.getters.visibleFields);
+    // 结果展示行数配置
+    const resultDisplayLines = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES] ?? 3);
 
     const requestOtherparams = cloneDeep(props.retrieveParams);
     delete requestOtherparams.format;
@@ -94,9 +99,9 @@ export default defineComponent({
     `;
 
     let styleElement: any = null;
-    let isInit = false;
     let begin = 0;
-    let size = 50;
+    const size = 50;
+    let total = 0;
 
     watch(
       () => props.logIndex,
@@ -108,13 +113,14 @@ export default defineComponent({
       },
     );
 
-    const requestLogList = () => {
+    const requestLogList = (isManualSearch = true) => {
       listLoading.value = true;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const searchUrl = `/search/index_set/${props.indexSetId}/search/`;
-      size = isInit ? 50 : props.logIndex > 50 ? props.logIndex + 20 : 50;
+      // size = props.logIndex > 50 ? props.logIndex + 20 : 50;
       const requestData = {
         ...requestOtherparams,
+        sort_list: store.state.indexFieldInfo.default_sort_list.filter(item => item.length > 0 && !!item[1]) || [],
         size,
         begin,
       };
@@ -137,18 +143,13 @@ export default defineComponent({
           if (resp.data && !resp.message) {
             readBlobRespToJson(resp.data).then(({ data, result }) => {
               if (result) {
+                begin += size;
+                total = data.total.toNumber();
                 const list = parseBigNumberList(data.list);
                 logList.value.push(...list);
-                if (!isInit) {
-                  setTimeout(() => {
-                    // 自动定位到选中行
-                    const isChoosedRow = Array.from(tableRef.value.querySelectorAll('.is-choosed'))[0];
-                    const positionInfo = isChoosedRow.getBoundingClientRect();
-                    if (positionInfo.top > window.innerHeight) {
-                      isChoosedRow.scrollIntoView();
-                    }
-                  });
-                  isInit = true;
+                if (isManualSearch) {
+                  choosedIndex.value = -1;
+                  handleChooseRow(0, list[0]);
                 }
               }
             });
@@ -240,20 +241,19 @@ export default defineComponent({
       return mappingKey[operator] ?? operator; // is is not 值映射
     };
 
-    const getValidUISearchValue = (searchValue: any[]) =>
-      searchValue.reduce((addtions, item) => {
-        if (!item.disabled) {
-          addtions.push({
-            field: item.field,
-            operator: item.operator,
-            value:
-              item.hidden_values?.length > 0
-                ? item.value.filter(value => !item.hidden_values.includes(value))
-                : item.value,
-          });
-        }
-        return addtions;
-      }, []);
+    const getValidUISearchValue = (searchValue: any[]) => searchValue.reduce((addtions, item) => {
+      if (!item.disabled) {
+        addtions.push({
+          field: item.field,
+          operator: item.operator,
+          value:
+            item.hidden_values?.length > 0
+              ? item.value.filter(value => !item.hidden_values.includes(value))
+              : item.value,
+        });
+      }
+      return addtions;
+    }, []);
 
     const handleMenuClick = (data: {
       option: {
@@ -304,68 +304,28 @@ export default defineComponent({
       }
     };
 
-    const handleSearch = (mode: string) => {
-      handleModeChange(mode);
-    };
-
-    const handleModeChange = (mode: string) => {
-      if (!isInit) {
-        const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
-        searchBarRef.value.setLocalMode(modeIndex);
-        requestOtherparams.search_mode = modeIndex === 0 ? 'ui' : 'sql';
-        const addition = props.retrieveParams.addition;
-        // 初始化带上常用查询设置
-        if (modeIndex === 0) {
-          // ui 模式
-          const searchValue = searchBarRef.value.getValue();
-          if (addition.length > 0 && !searchValue.length) {
-            // 常用设置项回填到搜索框
-            const addAdditionList = addition.map(item => ({
-              disabled: false,
-              field: item.field,
-              field_type: fieldsMap.value[item.field].field_type,
-              operator: item.operator,
-              value: item.value,
-              relation: 'OR',
-              showAll: true,
-            }));
-            addAdditionList.forEach(addition => {
-              searchBarRef.value.addValue(addition);
-            });
-          }
-          requestOtherparams.addition = addition;
-          requestOtherparams.keyword = '*';
-        } else {
-          // sql 模式
-          const keyword = props.retrieveParams.keyword;
-          requestOtherparams.keyword = keyword;
-          if (addition.length) {
-            requestOtherparams.addition = addition;
-          }
-        }
+    const handleSearch = (mode: string, isManualSearch = true) => {
+      requestOtherparams.search_mode = mode;
+      const searchValue = searchBarRef.value.getValue();
+      if (mode === 'ui') {
+        requestOtherparams.addition = getValidUISearchValue(searchValue);
+        requestOtherparams.keyword = '*';
       } else {
-        requestOtherparams.search_mode = mode;
-        const searchValue = searchBarRef.value.getValue();
-        if (mode === 'ui') {
-          requestOtherparams.addition = getValidUISearchValue(searchValue);
-          requestOtherparams.keyword = '*';
-        } else {
-          requestOtherparams.addition = [];
-          requestOtherparams.keyword = !searchValue ? '*' : searchValue;
-        }
-        handleReset();
+        requestOtherparams.addition = [];
+        requestOtherparams.keyword = !searchValue ? '*' : searchValue;
       }
+      handleReset();
 
-      requestLogList();
+      requestLogList(isManualSearch);
     };
 
-    const handleChooseRow = (index: number) => {
+    const handleChooseRow = (index: number, row: any) => {
       if (choosedIndex.value === index) {
         return;
       }
 
       choosedIndex.value = index;
-      const rowInfo = logList.value[index];
+      const rowInfo = row;
       const contextFields = store.state.indexSetOperatorConfig.contextAndRealtime.extra?.context_fields;
       const timeField = store.state.indexFieldInfo.time_field;
       const dialogNewParams = {};
@@ -375,7 +335,7 @@ export default defineComponent({
       if (Array.isArray(contextFields) && contextFields.length) {
         // 传参配置指定字段
         contextFields.push(timeField);
-        contextFields.forEach(field => {
+        contextFields.forEach((field) => {
           if (field === 'bk_host_id') {
             if (rowInfo[field]) {
               dialogNewParams[field] = rowInfo[field];
@@ -391,17 +351,13 @@ export default defineComponent({
     };
 
     const handleScrollContent = debounce((e: any) => {
+      if (logList.value.length === total) {
+        return;
+      }
+
       const { scrollTop, scrollHeight, clientHeight } = e.target;
       if (scrollHeight - scrollTop - clientHeight <= 1) {
-        if (size !== 50) {
-          // 从50条以上进来的
-          begin = size;
-          size = 50;
-        } else {
-          begin += size;
-        }
-
-        requestLogList();
+        requestLogList(false);
       }
     }, 600);
 
@@ -428,6 +384,15 @@ export default defineComponent({
       }
     };
 
+    const handleCollpaseToggle = () => {
+      isCollapsed.value = !isCollapsed.value;
+      emit('toggle-collapse', isCollapsed.value);
+    };
+
+    const renderTimeCell = (row: any) => {
+      return xssFilter(RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value));
+    };
+
     onMounted(() => {
       addSegmentLightStyle();
     });
@@ -437,12 +402,75 @@ export default defineComponent({
     });
 
     expose({
-      init: () => handleModeChange(requestOtherparams.search_mode),
+      // init: () => handleSearch(requestOtherparams.search_mode, false),
+      init: () => {
+        // 初始化搜索框
+        const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
+        searchBarRef.value.setLocalMode(modeIndex);
+        requestOtherparams.search_mode = modeIndex === 0 ? 'ui' : 'sql';
+        const addition = props.retrieveParams.addition;
+        // 初始化带上常用查询设置
+        if (modeIndex === 0) {
+          // ui 模式
+          const searchValue = searchBarRef.value.getValue();
+          if (addition.length > 0 && !searchValue.length) {
+            // 常用设置项回填到搜索框
+            const addAdditionList = addition.map(item => ({
+              disabled: false,
+              field: item.field,
+              field_type: fieldsMap.value[item.field].field_type,
+              operator: item.operator,
+              value: item.value,
+              relation: 'OR',
+              showAll: true,
+            }));
+            addAdditionList.forEach((addition) => {
+              searchBarRef.value.addValue(addition);
+            });
+          }
+          requestOtherparams.addition = addition;
+          requestOtherparams.keyword = '*';
+        } else {
+          // sql 模式
+          const keyword = props.retrieveParams.keyword;
+          requestOtherparams.keyword = keyword;
+          if (addition.length) {
+            requestOtherparams.addition = addition;
+          }
+        }
+        // 设置外部数据
+        const outerLogResult = store.state.indexSetQueryResult;
+        total = outerLogResult.total;
+        logList.value = outerLogResult.list.slice();
+        begin = logList.value.length;
+        setTimeout(() => {
+          // 自动定位到选中行
+          const isChoosedRow = Array.from(tableRef.value.querySelectorAll('.is-choosed'))[0];
+          const positionInfo = isChoosedRow.getBoundingClientRect();
+          if (positionInfo.top > window.innerHeight - 70) {
+            isChoosedRow.scrollIntoView();
+          }
+        });
+      },
       reset: handleReset,
     });
 
+    const rowStyle = `font-family: var(--bklog-v3-row-ctx-font);
+    font-size: var(--table-fount-size);
+    color: var(--table-fount-color);`;
+
     return () => (
       <div class='log-result-main'>
+        <div
+          class='collapse-main'
+          on-click={handleCollpaseToggle}
+        >
+          <log-icon
+            class={{ 'collpase-icon': true, 'is-collapsed': isCollapsed.value }}
+            type='angle-left'
+            common
+          />
+        </div>
         <div class='title-main'>
           <div class='title'>{t('原始日志检索结果')}</div>
           <div class='split-line'></div>
@@ -456,12 +484,11 @@ export default defineComponent({
             showFavorites={false}
             showQuerySetting={false}
             usageType='local'
-            on-mode-change={handleModeChange}
+            on-mode-change={handleSearch}
             on-search={handleSearch}
           />
         </div>
         <div
-          ref={contentMainRef}
           class='content-main'
           on-scroll={handleScrollContent}
         >
@@ -472,17 +499,17 @@ export default defineComponent({
             <thead>
               <tr class='table-header'>
                 <th style='width:90px;padding-left:42px'>{t('行号')}</th>
-                <th style='width:140px'>{t('时间')}</th>
+                <th style='width:200px'>{t('时间')}</th>
                 <th style='min-width:300px'>{t('原始日志')}</th>
               </tr>
             </thead>
             <tbody v-bkloading={{ isLoading: listLoading.value, opacity: 0.6 }}>
-              {logList.value.length > 0 &&
-                logList.value.map((row, index) => (
+              {logList.value.length > 0
+                && logList.value.map((row, index) => (
                   <tr
                     key={`${index}_${row.time}`}
                     class={{ 'is-choosed': choosedIndex.value === index }}
-                    on-click={() => handleChooseRow(index)}
+                    on-click={() => handleChooseRow(index, row)}
                   >
                     <td>
                       <div class='index-column'>
@@ -494,14 +521,14 @@ export default defineComponent({
                         </div>
                       </div>
                     </td>
-                    <td>{formatDate(Number(row.time))}</td>
+                    <td style={rowStyle} domProps={{ innerHTML: renderTimeCell(row) }}></td>
                     <td style='padding:4px 0'>
                       <RenderJsonCell>
                         <JsonFormatter
                           class='bklog-column-wrapper'
                           fields={visibleFields.value}
                           jsonValue={row}
-                          limitRow={null}
+                          limitRow={resultDisplayLines.value}
                           onMenu-click={handleMenuClick}
                         ></JsonFormatter>
                       </RenderJsonCell>

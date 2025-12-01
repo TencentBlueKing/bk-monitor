@@ -12,7 +12,7 @@ from typing import Any
 
 
 class QueryTemplateSet:
-    """查询模版集合"""
+    """查询模板集合"""
 
     NAMESPACE: str = ""
 

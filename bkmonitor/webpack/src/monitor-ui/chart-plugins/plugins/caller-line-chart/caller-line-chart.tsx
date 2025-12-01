@@ -27,6 +27,7 @@
 import { Component, Emit, Inject, InjectReactive, Ref, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
+import QuickAddStrategy from 'apm/pages/alarm-template/quick-add-strategy/quick-add-strategy';
 import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { toPng } from 'html-to-image';
@@ -48,6 +49,7 @@ import { downFile, fitPosition, handleRelateAlert, reviewInterval } from '../../
 import { getSeriesMaxInterval, getTimeSeriesXInterval } from '../../utils/axis';
 import { replaceRegexWhere } from '../../utils/method';
 import { VariablesService } from '../../utils/variable';
+import CodeRedefineSlider from '../apm-service-caller-callee/components/code/code-redefine-slider';
 import { getRecordCallOptionChart, setRecordCallOptionChart } from '../apm-service-caller-callee/utils';
 import { CommonSimpleChart } from '../common-simple-chart';
 import BaseEchart from '../monitor-base-echart';
@@ -80,7 +82,6 @@ import type { CallOptions, IFilterCondition } from '../apm-service-caller-callee
 import type { IPosition } from 'CustomEventMenu';
 
 import './caller-line-chart.scss';
-import CodeRedefineSlider from '../apm-service-caller-callee/components/code/code-redefine-slider';
 
 interface IProps {
   panel: PanelModel;
@@ -138,6 +139,10 @@ class CallerLineChart extends CommonSimpleChart {
   cacheEventConfig: Partial<EventTagConfig> = {};
 
   codeRedefineShow = false;
+
+  quickAddStrategyObj = {
+    show: false,
+  };
 
   get yAxisNeedUnitGetter() {
     return this.yAxisNeedUnit ?? true;
@@ -989,13 +994,7 @@ class CallerLineChart extends CommonSimpleChart {
    * @return {*}
    */
   handleAllMetricClick() {
-    const configs = this.panel.toStrategy(null);
-    if (configs) {
-      this.handleAddStrategy(this.panel, null, {});
-      return;
-    }
-    const copyPanel = this.getCopyPanel();
-    this.handleAddStrategy(copyPanel as any, null, {}, true);
+    this.quickAddStrategyObj.show = true;
   }
 
   getTimeShiftCompareValue() {
@@ -1105,17 +1104,39 @@ class CallerLineChart extends CommonSimpleChart {
     const metricIds = this.metrics.map(item => item.metric_id);
     switch (alarmStatus.status) {
       case 0:
-        this.handleAddStrategy(this.panel, null, this.viewOptions, true);
+        this.handleAllMetricClick();
         break;
       case 1:
-        window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${JSON.stringify(metricIds)}`));
+        window.open(
+          location.href.replace(
+            location.hash,
+            `#/strategy-config?filters=${encodeURIComponent(
+              JSON.stringify([
+                {
+                  key: 'metric_id',
+                  value: Array.from(new Set(metricIds)),
+                },
+                {
+                  key: 'label_name',
+                  value: this.getFetchItemStatusParams()
+                    ?.labels?.filter(item => item.includes('APM-SERVICE'))
+                    .map(item => `/${item}/`),
+                },
+              ])
+            )}`
+          )
+        );
         break;
       case 2: {
         const eventTargetStr = alarmStatus.targetStr;
         window.open(
           location.href.replace(
             location.hash,
-            `#/event-center?queryString=${metricIds.map(item => `metric : "${item}"`).join(' AND ')}${
+            `#/event-center?queryString=${Array.from(new Set(metricIds))
+              .map(item => `metric : "${item}"`)
+              .join(' AND ')} AND ${this.getFetchItemStatusParams()
+              ?.labels?.map(item => `策略标签 : "${item}"`)
+              .join(' AND ')}${
               eventTargetStr ? ` AND ${eventTargetStr}` : ''
             }&activeFilterId=NOT_SHIELDED_ABNORMAL&from=${this.timeRange[0]}&to=${this.timeRange[1]}`
           )
@@ -1212,6 +1233,20 @@ class CallerLineChart extends CommonSimpleChart {
       message: success ? this.$t('保存成功') : this.$t('保存失败'),
     });
   }
+
+  handleQuickAddStrategyShowChange(v: boolean) {
+    this.quickAddStrategyObj.show = v;
+  }
+  /** 获取告警数据参数 */
+  getFetchItemStatusParams() {
+    return {
+      labels: [
+        `APM-APP(${this.viewOptions.filters?.app_name})`,
+        `APM-SERVICE(${this.viewOptions.filters?.service_name})`,
+      ],
+    };
+  }
+
   render() {
     return (
       <div
@@ -1224,6 +1259,7 @@ class CallerLineChart extends CommonSimpleChart {
           customArea={true}
           description={this.panel.description}
           dragging={this.panel.dragging}
+          getFetchItemStatusParams={this.getFetchItemStatusParams}
           isInstant={this.panel.instant}
           menuList={this.menuList as any}
           metrics={this.metrics}
@@ -1414,17 +1450,26 @@ class CallerLineChart extends CommonSimpleChart {
             position={this.customMenuPosition}
           />
         )}
+        <QuickAddStrategy
+          params={{
+            app_name: this.viewOptions.filters?.app_name,
+            service_name: this.viewOptions.filters?.service_name,
+            strategy_template_codes: this.panel.options?.strategy_template_codes?.[this.callOptions?.kind] || [],
+          }}
+          show={this.quickAddStrategyObj.show}
+          onShowChange={this.handleQuickAddStrategyShowChange}
+        />
         {this.isCodeRedefine && (
           <CodeRedefineSlider
+            appName={this.viewOptions?.app_name}
+            callOptions={this.callOptions}
             isShow={this.codeRedefineShow}
+            service={this.viewOptions?.service_name}
+            type={this.callOptions.kind}
+            variablesData={this.variablesData}
             onShowChange={show => {
               this.codeRedefineShow = show;
             }}
-            type={this.callOptions.kind}
-            appName={this.viewOptions?.app_name}
-            callOptions={this.callOptions}
-            variablesData={this.variablesData}
-            service={this.viewOptions?.service_name}
           />
         )}
       </div>

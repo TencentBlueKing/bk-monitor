@@ -515,6 +515,7 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
                 label="存储类型",
                 default=models.ClusterInfo.TYPE_ES,
             )
+            is_enable = serializers.BooleanField(required=False, label="是否启用")
 
             class QueryAliasSettingSerializer(serializers.Serializer):
                 field_name = serializers.CharField(required=True, label="字段名", help_text="需要设置查询别名的字段名")
@@ -614,7 +615,9 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
             space_id,
         )
 
-    def _update_existing_table(self, bk_tenant_id: str, table_id: str, table_info: dict, data_label: str, result_table):
+    def _update_existing_table(
+        self, bk_tenant_id: str, table_id: str, table_info: dict, data_label: str, result_table: models.ResultTable
+    ):
         """更新现有结果表"""
         storage_type = table_info.get("storage_type", models.ClusterInfo.TYPE_ES)
 
@@ -622,6 +625,11 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
         if data_label and data_label != result_table.data_label:
             result_table.data_label = data_label
             result_table.save(update_fields=["data_label"])
+
+        # 更新结果表是否启用
+        if table_info.get("is_enable") is not None and table_info["is_enable"] != result_table.is_enable:
+            result_table.is_enable = table_info["is_enable"]
+            result_table.save(update_fields=["is_enable"])
 
         # 更新options
         if table_info.get("options"):
@@ -637,6 +645,11 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
         self, bk_tenant_id: str, space, table_id: str, table_info: dict, data_label: str, storage_type: str
     ):
         """创建新的结果表"""
+        # 如果结果表不启用，则不创建
+        is_enable = table_info.get("is_enable", True)
+        if is_enable is False:
+            return
+
         # 创建结果表
         models.ResultTable.objects.create(
             bk_tenant_id=bk_tenant_id,
@@ -796,3 +809,18 @@ class BulkCreateOrUpdateLogRouter(BaseLogRouter):
             logger.info("CreateOrUpdateLogDataLink: cleaned up %d excess table configurations", len(excess_table_ids))
         else:
             logger.info("CreateOrUpdateLogDataLink: no excess configurations found for data_label [%s]", data_label)
+
+
+class CleanLogRouter(Resource):
+    """清理日志路由数据"""
+
+    class RequestSerializer(ParamsSerializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        data_label = serializers.CharField(label="数据标签")
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
+        data_label = validated_request_data["data_label"]
+
+        # 将data_label关联的所有结果表都设为不启用
+        models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, data_label=data_label).update(is_enable=False)

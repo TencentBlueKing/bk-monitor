@@ -28,9 +28,6 @@ class DataSourceLabel:
     PROMETHEUS = "prometheus"
     DASHBOARD = "dashboard"
 
-    # UnifyQuery 灰度标签
-    BK_MONITOR_COLLECTOR_NEW = "bk_monitor_new"
-
 
 DATA_SOURCE_LABEL_ALIAS = {
     DataSourceLabel.BK_MONITOR_COLLECTOR: _lazy("监控采集指标"),
@@ -41,7 +38,6 @@ DATA_SOURCE_LABEL_ALIAS = {
     DataSourceLabel.BK_APM: _lazy("Trace明细指标"),
     DataSourceLabel.PROMETHEUS: _lazy("Prometheus"),
     DataSourceLabel.DASHBOARD: _lazy("DASHBOARD"),
-    DataSourceLabel.BK_MONITOR_COLLECTOR_NEW: _lazy("BK_MONITOR_COLLECTOR_NEW"),
 }
 
 
@@ -233,7 +229,7 @@ class MetricType:
 # 视图最大维度取值数
 # 单图最大展示线条数
 GRAPH_MAX_SLIMIT = 2000
-# 查询最大serires限制
+# 查询最大时序（series）限制
 TS_MAX_SLIMIT = 100
 
 # 自定义事件恢复关键词
@@ -244,12 +240,13 @@ UnifyQueryDataSources = [
     (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.BK_APM, DataTypeLabel.EVENT),
-    (DataSourceLabel.BK_MONITOR_COLLECTOR_NEW, DataTypeLabel.LOG),
 ]
 # 灰度统一查询模块数据源
 GrayUnifyQueryDataSources = [
-    (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
     (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
+    (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+    (DataSourceLabel.BK_DATA, DataTypeLabel.TIME_SERIES),
+    (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
 ]
 
 # V3链路版本

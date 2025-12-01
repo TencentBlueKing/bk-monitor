@@ -112,6 +112,9 @@ class PlatformConfig(BkCollectorConfig):
             "attribute_config": cls.get_attribute_config(),
         }
 
+        if settings.APM_FIELD_NORMALIZER_ENABLED:
+            plat_config["field_normalizer_config"] = cls.get_field_normalizer_config()
+
         if bcs_cluster_id and bcs_cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             resource_fill_dimensions_config = cls.get_resource_fill_dimensions_config(bcs_cluster_id)
             if resource_fill_dimensions_config:
@@ -174,18 +177,19 @@ class PlatformConfig(BkCollectorConfig):
                     {"metric_name": "bk_apm_duration_delta", "type": "delta_duration", "rules": metric_dimension_rules}
                 ],
             },
-            "metric_bk_apm_duration_bucket_config": {
-                "name": "traces_deriver/bucket",
-                "operations": [
-                    {
-                        "metric_name": "bk_apm_duration_bucket",
-                        "type": "bucket",
-                        "rules": metric_dimension_rules,
-                        # todo buckets 交由用户配置 暂时传递默认值
-                        "buckets": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
-                    }
-                ],
-            },
+            # 2025-10-13 临时去掉 bk_apm_duration_bucket 指标，待新方案上线后再放开，预计半年后
+            # "metric_bk_apm_duration_bucket_config": {
+            #     "name": "traces_deriver/bucket",
+            #     "operations": [
+            #         {
+            #             "metric_name": "bk_apm_duration_bucket",
+            #             "type": "bucket",
+            #             "rules": metric_dimension_rules,
+            #             # todo buckets 交由用户配置 暂时传递默认值
+            #             "buckets": [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+            #         }
+            #     ],
+            # },
         }
 
     @classmethod
@@ -258,6 +262,19 @@ class PlatformConfig(BkCollectorConfig):
         return {"name": "license_checker/common", **DEFAULT_PLATFORM_LICENSE_CONFIG}
 
     @classmethod
+    def get_field_normalizer_config(cls):
+        """
+        获取字段标准化配置
+        从 FieldNormalizerConfig 表中读取配置
+        """
+        from apm.models.config import FieldNormalizerConfig
+
+        # 将数据库配置转换为所需格式
+        fields = [config.to_json() for config in FieldNormalizerConfig.objects.all()]
+
+        return {"name": "field_normalizer/otel_mapping", "fields": fields}
+
+    @classmethod
     def get_token_checker_config(cls, bcs_cluster_id=None):
         # 需要判断是否有指定密钥，如有，优先级最高
         x_key = getattr(settings, settings.AES_X_KEY_FIELD)
@@ -276,7 +293,7 @@ class PlatformConfig(BkCollectorConfig):
             else settings.BK_DATA_AES_IV,
         }
 
-        if bcs_cluster_id:
+        if bcs_cluster_id and bcs_cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             # 集群内默认上报 APM 应用
             default_app_relation = BcsClusterDefaultApplicationRelation.objects.filter(
                 cluster_id=bcs_cluster_id
@@ -360,6 +377,7 @@ class PlatformConfig(BkCollectorConfig):
                     "timeout": "60s",
                     "interval": cache_interval,
                 },
+                "cache_name": "k8s_cache",
             },
         }
 
@@ -470,7 +488,7 @@ class PlatformConfig(BkCollectorConfig):
     @classmethod
     def deploy_to_k8s(cls, cluster_id, platform_config):
         secret_info_platform = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, "platform") or {}
-        secret_name = secret_info_platform.get("secret_name_tpl") or secret_info_platform.get("secret_name_hash_tpl")
+        secret_name = secret_info_platform.get("secret_name_tpl")
         secret_data_key = secret_info_platform.get("secret_data_key_tpl")
         if not secret_name or not secret_data_key:
             logger.info("has no secret platform config, please check if your platform config has been initialized")

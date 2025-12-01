@@ -48,7 +48,7 @@ import {
   Tooltip,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Exception, Loading, Message, Popover, Slider } from 'bkui-vue';
+import { Loading, Message, Popover, Slider } from 'bkui-vue';
 import { cloneDeep } from 'lodash';
 import isEqual from 'lodash/isEqual';
 import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/incident';
@@ -57,8 +57,7 @@ import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import ErrorImg from '../../../static/img/error.svg';
-import NoDataImg from '../../../static/img/no-data.svg';
+import ExceptionComp from '../../../components/exception';
 import ResourceGraph from '../resource-graph/resource-graph';
 import { useIncidentInject } from '../utils';
 import LegendPopoverContent from './components/legend-popover-content';
@@ -118,7 +117,6 @@ export default defineComponent({
     const rootComboMovePoint = ref({ x: null, y: null });
     let graph: Graph;
     let tooltips = null;
-    let nodeTooltips = null;
     // 边的动画定时器
     let edgeInterval = [];
     let playTime = null;
@@ -158,9 +156,6 @@ export default defineComponent({
     const detailType = ref<string>('node');
     const tooltipsRef = ref<InstanceType<typeof FailureTopoTooltips>>();
     const resourceGraphRef = ref<InstanceType<typeof ResourceGraph>>();
-    // 节点详情tooltips
-    const nodeDetailTips = ref([]);
-    const nodeDetailTipsRef = ref(null);
     let topoRawData: ITopoData = null;
     const autoAggregate = ref<boolean>(true);
     const aggregateCluster = ref(true);
@@ -527,8 +522,6 @@ export default defineComponent({
           attrs: {
             ...shape.attrs,
             stroke: 'rgba(58, 132, 255, 1)',
-            shadowColor: 'rgba(58, 132, 255, 0.3)',
-            shadowOffsetX: -3,
             endArrow: false,
             lineDash: false,
             lineWidth: 0,
@@ -540,8 +533,6 @@ export default defineComponent({
           attrs: {
             ...shape.attrs,
             stroke: 'rgba(58, 132, 255, 1)',
-            shadowColor: 'rgba(58, 132, 255, 0.3)',
-            shadowOffsetX: 3,
             endArrow: false,
             lineDash: false,
             lineWidth: 0,
@@ -748,8 +739,11 @@ export default defineComponent({
             }
             this.origin = { x: e.x, y: e.y };
           }
-          const labelTooltip = document.getElementById('combo-label-tooltip');
-          labelTooltip.style.visibility = 'hidden';
+          // 拖动combo或者节点时，隐藏Tooltip
+          const comboLabelTooltip = document.getElementById('combo-label-tooltip');
+          comboLabelTooltip.style.visibility = 'hidden';
+          const nodeInfoTooltip = document.getElementById('node-detail-tips');
+          nodeInfoTooltip.style.visibility = 'hidden';
         },
         onDrag(e) {
           const { item, x, y } = e;
@@ -1085,62 +1079,6 @@ export default defineComponent({
         },
       });
     };
-    /** 自定义node节点tips，展示node详情信息 */
-    const registerCustomNodeTooltip = () => {
-      nodeTooltips = new Tooltip({
-        offsetX: -100,
-        className: 'node-message-tooltip',
-        offsetY: -120,
-        fixToNode: [0, 0],
-        container: document.querySelector('.topo-graph') as HTMLDivElement,
-        itemTypes: ['node'],
-        getContent: e => {
-          // 用于根据文案数量动态偏移，保证tips不盖住节点
-          let top = 0;
-          nodeDetailTips.value = [];
-          const model = e.item.getModel() as ITopoNode;
-          const isShowRootText = model.is_feedback_root || model?.entity?.is_root;
-          // 节点名称
-          nodeDetailTips.value.push({ label: t('名称'), value: model.entity.entity_name });
-          // 节点告警信息
-          if (model.alert_display?.alert_name) {
-            top = 20;
-            nodeDetailTips.value.push({
-              label: t('包含告警'),
-              value: `${model.alert_display?.alert_name} ${
-                model.alert_display?.alert_name && model.alert_ids?.length > 1
-                  ? t('等共 {0} 个同类告警', [model.alert_ids.length])
-                  : ''
-              } `,
-            });
-          }
-          // 节点异常信息
-          if (isShowRootText && model.entity?.rca_trace_info?.abnormal_message) {
-            top += 22;
-            nodeDetailTips.value.push({ label: t('异常信息'), value: model.entity.rca_trace_info.abnormal_message });
-          }
-          // 节点其他信息组
-          const res = [
-            { label: t('分类'), value: model.entity.rank.rank_category.category_alias },
-            { label: t('节点类型'), value: model.entity.properties?.entity_category || model.entity.rank_name },
-            { label: t('所属业务'), value: `[#${model.bk_biz_id}] ${model.bk_biz_name}` },
-          ];
-          nodeDetailTips.value = nodeDetailTips.value.concat(res);
-          // 节点服务信息
-          if (model.entity?.tags?.BcsService) {
-            top += 22;
-            nodeDetailTips.value.push({ label: t('所属服务'), value: model.entity?.tags?.BcsService?.name });
-          }
-
-          // 动态计算提示窗y轴偏移，保证提示窗不盖住节点
-          const tooltipEl = document.querySelector('.node-message-tooltip');
-          if (tooltipEl) {
-            tooltipEl.style.setProperty('--offset', `-${top}px`);
-          }
-          return nodeDetailTipsRef.value as HTMLDivElement;
-        },
-      });
-    };
 
     /** 窗口变化 */
     function handleResize() {
@@ -1251,16 +1189,19 @@ export default defineComponent({
       loading.value = !isAutoRefresh;
       if (!wrapRef.value) return;
       clearTimeout(refreshTimeout);
-      const renderData = await incidentTopology({
-        id: incidentId.value,
-        auto_aggregate: autoAggregate.value,
-        aggregate_cluster: aggregateCluster.value ?? false,
-        aggregate_config: aggregateConfig.value,
-        only_diff: true,
-        start_time: isAutoRefresh
-          ? topoRawDataCache.value.diff[topoRawDataCache.value.diff.length - 1].create_time + 1
-          : incidentId.value.substr(0, 10),
-      })
+      const renderData = await incidentTopology(
+        {
+          id: incidentId.value,
+          auto_aggregate: autoAggregate.value,
+          aggregate_cluster: aggregateCluster.value ?? false,
+          aggregate_config: aggregateConfig.value,
+          only_diff: true,
+          start_time: isAutoRefresh
+            ? topoRawDataCache.value.diff[topoRawDataCache.value.diff.length - 1].create_time + 1
+            : incidentId.value.substr(0, 10),
+        },
+        { needMessage: false }
+      )
         .then(res => {
           const { latest, diff, complete } = res;
           complete.combos = latest.combos;
@@ -1473,7 +1414,6 @@ export default defineComponent({
       registerCustomBehavior();
       registerCustomEdge();
       registerCustomTooltip();
-      registerCustomNodeTooltip();
       registerCustomCombo();
       graph = new Graph({
         container: graphRef.value as HTMLElement,
@@ -1485,7 +1425,7 @@ export default defineComponent({
         minZoom: MIN_ZOOM,
         maxZoom: 2,
         groupByTypes: false,
-        plugins: [tooltips, nodeTooltips],
+        plugins: [tooltips],
         defaultNode: {
           type: 'circle',
           size: 40,
@@ -1637,8 +1577,9 @@ export default defineComponent({
         setTimeout(toFrontAnomalyEdge, 500);
       });
 
-      const labelTooltip = document.getElementById('combo-label-tooltip');
-      labelTooltip.innerHTML = ' ';
+      // 展示被截断的combo label的详细信息
+      const comboLabelTooltip = document.getElementById('combo-label-tooltip');
+      comboLabelTooltip.innerHTML = ' ';
       graph.on('combo:mouseenter', e => {
         const { item } = e;
         const model = item.getModel();
@@ -1654,14 +1595,14 @@ export default defineComponent({
           const x = containerRect.left + canvasPoint.x;
           const y = containerRect.top + canvasPoint.y;
 
-          labelTooltip.innerHTML = `
+          comboLabelTooltip.innerHTML = `
             <p><span class='combo-label-text'>名称：</span>${fullLabel as string}</p>
             <p><span class='combo-label-text'>类型：</span>${(model.entity as any)?.properties?.entity_category as string}</p>
           `;
-          const tooltipHeight = labelTooltip.offsetHeight;
-          labelTooltip.style.left = `${x}px`;
-          labelTooltip.style.top = `${y - tooltipHeight}px`;
-          labelTooltip.style.visibility = 'visible';
+          const tooltipHeight = comboLabelTooltip.offsetHeight;
+          comboLabelTooltip.style.left = `${x}px`;
+          comboLabelTooltip.style.top = `${y - tooltipHeight}px`;
+          comboLabelTooltip.style.visibility = 'visible';
         }
 
         // 移入展示"反馈新根因"文本
@@ -1675,7 +1616,7 @@ export default defineComponent({
 
       graph.on('combo:mouseleave', e => {
         // 移出隐藏combo label的Tooltip
-        labelTooltip.style.visibility = 'hidden';
+        comboLabelTooltip.style.visibility = 'hidden';
 
         // 移出隐藏"反馈新根因"文本
         const { item } = e;
@@ -1690,10 +1631,18 @@ export default defineComponent({
         if (feedbackText) feedbackText.attr('opacity', 0);
       });
 
+      // 展示节点的详细信息
+      const nodeInfoTooltip = document.getElementById('node-detail-tips');
+      // 初始化时清空工具提示内容
+      nodeInfoTooltip.innerHTML = ' ';
       graph.on('node:mouseenter', e => {
         const { item } = e;
         graph.setItemState(item, 'hover', true);
-        /** 移动到service Combo中的节点 需要给父级也加上hover态度 */
+
+        /**
+         * 处理组合节点Combo的悬停状态联动
+         * 当节点属于某个Combo时，需要同时激活父Combo的悬停状态
+         */
         const model = item.getModel() as ITopoNode;
         if (model.subComboId) {
           const combo = graph.findById(model.subComboId);
@@ -1704,6 +1653,45 @@ export default defineComponent({
           // }
           combo && graph.setItemState(combo, 'hover', true);
         }
+
+        /**
+         * 计算并显示节点信息工具提示
+         * 1. 获取节点在画布中的位置
+         * 2. 转换为页面绝对坐标
+         * 3. 动态调整提示框位置避免超出视口
+         */
+        // 获取节点的包围盒
+        const bbox = item.getBBox();
+        // 将画布坐标转换为页面坐标
+        // 获取节点左上角画布坐标
+        const canvasPoint = graph.getCanvasByPoint(bbox.x, bbox.y);
+        // 获取画布容器视口信息
+        const containerRect = graph.getContainer().getBoundingClientRect();
+        // 计算页面绝对X坐标、Y坐标
+        const x = containerRect.left + canvasPoint.x;
+        const y = containerRect.top + canvasPoint.y;
+
+        // 生成工具提示内容
+        nodeInfoTooltip.innerHTML = handleNodeInfoTooltip(model);
+        // 获取提示框渲染后尺寸
+        const { offsetWidth, offsetHeight } = nodeInfoTooltip;
+
+        // 判断节点是否靠近画布左侧/右侧边缘
+        const isNearLeft = canvasPoint.x < offsetWidth / 2;
+        const isNearRight = canvasPoint.x + offsetWidth / 2 >= containerRect.width;
+        if (isNearLeft) {
+          // 提示框左对齐节点左上角
+          nodeInfoTooltip.style.left = `${x}px`;
+        } else if (isNearRight) {
+          // 提示框右对齐节点左上角
+          nodeInfoTooltip.style.left = `${x - offsetWidth}px`;
+        } else {
+          // 提示框中心对齐节点顶部中心
+          nodeInfoTooltip.style.left = `${x - offsetWidth / 2 + 40}px`;
+        }
+        // 提示框底部对齐节点顶部，预留5px间隙
+        nodeInfoTooltip.style.top = `${y - offsetHeight - 5}px`;
+        nodeInfoTooltip.style.visibility = 'visible';
         return;
       });
       /** 监听手势缩放联动缩放轴数据 */
@@ -1731,8 +1719,11 @@ export default defineComponent({
       });
       // 监听鼠标离开节点
       graph.on('node:mouseleave', e => {
+        // 鼠标移出隐藏node详情Tooltip
+        nodeInfoTooltip.style.visibility = 'hidden';
+
         const nodeItem = e.item;
-        /** 移出隐藏名称 */
+        // 移出隐藏名称
         const model = nodeItem.getModel() as ITopoNode;
         if (model.subComboId) {
           const combo = graph.findById(model.subComboId);
@@ -1818,7 +1809,7 @@ export default defineComponent({
       graph.on('combo:click', e => {
         tooltipsRef.value?.hide?.();
         tooltips.hide();
-        labelTooltip.style.visibility = 'hidden';
+        comboLabelTooltip.style.visibility = 'hidden';
 
         // 点击"反馈新根因"，打开反馈弹窗
         const { target, item } = e;
@@ -1855,7 +1846,54 @@ export default defineComponent({
       graphRef.value && removeListener(graphRef.value as HTMLElement, onResize);
     });
 
-    // 处理单个边的公共逻辑
+    /** 处理节点详情info tooltip内部结构 */
+    const handleNodeInfoTooltip = (model: ITopoNode) => {
+      let nodeDetailTips = [];
+      const isShowRootText = model.is_feedback_root || model?.entity?.is_root;
+      // 节点名称
+      nodeDetailTips.push({ label: t('名称'), value: model.entity.entity_name });
+      // 节点告警信息
+      if (model.alert_display?.alert_name) {
+        nodeDetailTips.push({
+          label: t('包含告警'),
+          value: `${model.alert_display?.alert_name} ${
+            model.alert_display?.alert_name && model.alert_ids?.length > 1
+              ? t('等共 {0} 个同类告警', [model.alert_ids.length])
+              : ''
+          } `,
+        });
+      }
+      // 节点异常信息
+      if (isShowRootText && model.entity?.rca_trace_info?.abnormal_message) {
+        nodeDetailTips.push({ label: t('异常信息'), value: model.entity.rca_trace_info.abnormal_message });
+      }
+      // 节点其他信息组
+      const res = [
+        { label: t('分类'), value: model.entity.rank.rank_category.category_alias },
+        { label: t('节点类型'), value: model.entity.properties?.entity_category || model.entity.rank_name },
+        { label: t('所属业务'), value: `[#${model.bk_biz_id}] ${model.bk_biz_name}` },
+      ];
+      nodeDetailTips = nodeDetailTips.concat(res);
+      // 节点服务信息
+      if (model.entity?.tags?.BcsService) {
+        nodeDetailTips.push({ label: t('所属服务'), value: model.entity?.tags?.BcsService?.name });
+      }
+
+      return nodeDetailTips
+        .map(
+          item =>
+            `<div
+              key=${item.label}
+              class='node-detail-tips_item'
+            >
+              <span class='item-label'>${item.label}：</span>
+              <span class='item-value'>${item.value}</span>
+            </div>`
+        )
+        .join('');
+    };
+
+    /** 处理单个边的公共逻辑*/
     const processEdge = (edge, nodes, isAggregatedEdge = false) => {
       const model = deepClone(edge);
       model.id = `edge-${random(10)}`;
@@ -2576,8 +2614,6 @@ export default defineComponent({
       curLinkedEdges,
       refreshTime,
       showViewResource,
-      nodeDetailTipsRef,
-      nodeDetailTips,
       handleToDetail,
       handleHideToolTips,
       handleRootToSpan,
@@ -2640,23 +2676,13 @@ export default defineComponent({
               class='topo-graph-wrapper-padding'
             >
               {this.errorData.isError || this.isNoData ? (
-                <Exception
-                  class='exception-wrap'
-                  v-slots={{
-                    type: () => (
-                      <img
-                        class='custom-icon'
-                        alt=''
-                        src={this.isNoData ? NoDataImg : ErrorImg}
-                      />
-                    ),
-                  }}
-                >
-                  <div style={{ color: this.isNoData ? '#979BA5' : '#E04949' }}>
-                    <div class='exception-title'>{this.isNoData ? this.t('暂无数据') : this.t('查询异常')}</div>
-                    {this.errorData.isError && <div class='exception-desc'>{this.errorData.msg}</div>}
-                  </div>
-                </Exception>
+                <ExceptionComp
+                  errorMsg={this.errorData.msg}
+                  imgHeight={100}
+                  isDarkTheme={true}
+                  isError={this.errorData.isError}
+                  title={this.errorData.isError ? this.t('查询异常') : this.t('暂无数据')}
+                />
               ) : (
                 <>
                   <div
@@ -2789,22 +2815,10 @@ export default defineComponent({
           id='combo-label-tooltip'
           class='combo-label-tooltip'
         />
-        <div style='display: none'>
-          <div
-            ref='nodeDetailTipsRef'
-            class='node-detail-tips'
-          >
-            {this.nodeDetailTips.map(item => (
-              <span
-                key={item.label}
-                class='node-detail-tips_item'
-              >
-                <span class='item-label'>{item.label}：</span>
-                <span class='item-value'>{item.value}</span>
-              </span>
-            ))}
-          </div>
-        </div>
+        <div
+          id='node-detail-tips'
+          class='node-detail-tips'
+        />
       </div>
     );
   },

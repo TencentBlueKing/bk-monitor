@@ -5,7 +5,7 @@
 查询数据源指定指定tag/dimension的可选值
 
 
-#### 接口参数
+### 请求参数
 
 | 字段           | 类型   | 必选 | 描述        |
 | -------------- | ------ | ---- | ----------- |
@@ -13,19 +13,16 @@
 | tag_name | string | 是 | tag/dimension字段名 |
 
 
-#### 请求示例
+### 请求参数示例
 
 ```json
 {
-    "bk_app_code": "xxx",
-  	"bk_app_secret": "xxxxx",
-  	"bk_token": "xxxx",
 	"table_id": "2_bkmonitor_time_series_1500514.base",
 	"tag_name": "target"
 }
 ```
 
-### 返回结果
+### 响应参数
 
 | 字段       | 类型   | 描述         |
 | ---------- | ------ | ------------ |
@@ -41,7 +38,7 @@
 | ------------------- | ------ | -------- |
 | tag_values | list | tag/dimension的值  |
 
-####  结果示例
+### 响应参数示例
 
 ```json
 {

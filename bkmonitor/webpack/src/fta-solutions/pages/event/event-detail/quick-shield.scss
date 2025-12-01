@@ -16,6 +16,10 @@
       margin-bottom: 0;
     }
 
+    &.shield-time-tab {
+      overflow: unset;
+    }
+
     &.custom-time {
       position: relative;
       flex-direction: row;

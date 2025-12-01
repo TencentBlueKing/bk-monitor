@@ -25,6 +25,7 @@ from django.db.models import Q
 from django.utils.translation import gettext as _
 
 from apps.api import TransferApi
+from django.conf import settings
 from apps.log_databus.constants import KAFKA_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
 
@@ -34,54 +35,63 @@ class Command(BaseCommand):
         parser.add_argument("--es_cluster_id", type=int, nargs="*", help="elasticsearch cluster ids")
         parser.add_argument("--kafka_cluster_id", type=int, help="kafka cluster id")
         parser.add_argument("--transfer_cluster_id", type=str, help="transfer cluster id")
+        parser.add_argument("--bk_tenant_id", type=str, help="tenant id")
 
     def handle(self, **options):
         default_es_cluster_ids = options.get("es_cluster_id") or []
         default_kafka_cluster_id = options.get("kafka_cluster_id")
         transfer_cluster_id = options.get("transfer_cluster_id")
+        bk_tenant_id = options.get("bk_tenant_id") or settings.BK_APP_TENANT_ID
 
-        if DataLinkConfig.objects.all().exists():
-            print("[Init Default Data Link] DataLinkConfig item exist. SKIP.")
+        if DataLinkConfig.objects.filter(bk_tenant_id=bk_tenant_id).exists():
+            print("[Init Default Data Link] operate SUCCESS!DataLinkConfig item exist. SKIP.")
             return
 
-        if not default_es_cluster_ids:
-            es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True})
-            for es in es_clusters:
-                if es["cluster_config"]["is_default_cluster"]:
-                    default_es_cluster_ids.append(es["cluster_config"]["cluster_id"])
+        try:
+            if not default_es_cluster_ids:
+                es_clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True
+                                                            }, bk_tenant_id=bk_tenant_id)
+                for es in es_clusters:
+                    if es["cluster_config"]["is_default_cluster"]:
+                        default_es_cluster_ids.append(es["cluster_config"]["cluster_id"])
 
-        if not default_kafka_cluster_id:
-            kafka_clusters = TransferApi.get_cluster_info({"cluster_type": KAFKA_CLUSTER_TYPE, "no_request": True})
-            for kafka in kafka_clusters:
-                if kafka["cluster_config"]["is_default_cluster"]:
-                    default_kafka_cluster_id = kafka["cluster_config"]["cluster_id"]
-                    break
+            if not default_kafka_cluster_id:
+                kafka_clusters = TransferApi.get_cluster_info({"cluster_type": KAFKA_CLUSTER_TYPE, "no_request": True,
+                                                               }, bk_tenant_id=bk_tenant_id)
+                for kafka in kafka_clusters:
+                    if kafka["cluster_config"]["is_default_cluster"]:
+                        default_kafka_cluster_id = kafka["cluster_config"]["cluster_id"]
+                        break
 
-        if not transfer_cluster_id:
-            transfer_cluster_id = "default"
+            if not transfer_cluster_id:
+                transfer_cluster_id = "default"
 
-        print(
-            "create data link config with: es_cluster_ids: {}, kafka_cluster_id: {}, transfer_cluster_id: {}".format(
-                default_es_cluster_ids, default_kafka_cluster_id, transfer_cluster_id
+            print(
+                "[{}]create data link config with: es_cluster_ids: {}, kafka_cluster_id: {}, transfer_cluster_id: {}".format(
+                    bk_tenant_id, default_es_cluster_ids, default_kafka_cluster_id, transfer_cluster_id
+                )
             )
-        )
 
-        link = DataLinkConfig.objects.get_or_create(
-            defaults={
-                "bk_biz_id": 0,
-                "kafka_cluster_id": default_kafka_cluster_id,
-                "transfer_cluster_id": transfer_cluster_id,
-                "es_cluster_ids": default_es_cluster_ids,
-                "is_active": True,
-                "description": _("默认数据链路"),
-            },
-            link_group_name="default",
-            is_deleted=False,
-        )
+            link = DataLinkConfig.objects.get_or_create(
+                defaults={
+                    "bk_biz_id": 0,
+                    "bk_tenant_id": bk_tenant_id,
+                    "kafka_cluster_id": default_kafka_cluster_id,
+                    "transfer_cluster_id": transfer_cluster_id,
+                    "es_cluster_ids": default_es_cluster_ids,
+                    "is_active": True,
+                    "description": _("默认数据链路"),
+                },
+                link_group_name="default",
+                bk_tenant_id=bk_tenant_id,
+                is_deleted=False,
+            )
 
-        # 将存量采集配置的切换至默认链路
-        CollectorConfig.objects.filter(Q(data_link_id__isnull=True) | Q(data_link_id=0)).update(
-            data_link_id=link[0].data_link_id
-        )
+            # 将存量采集配置的切换至默认链路
+            CollectorConfig.objects.filter(Q(data_link_id__isnull=True) | Q(data_link_id=0)).update(
+                data_link_id=link[0].data_link_id
+            )
 
-        print("[Init Default Data Link] operate SUCCESS!")
+            print("[Init Default Data Link] operate SUCCESS!")
+        except Exception as e:
+            print(f"[Init Default Data Link] operate FAILED!details: {str(e)}")

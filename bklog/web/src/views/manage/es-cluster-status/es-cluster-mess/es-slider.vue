@@ -528,16 +528,14 @@
                 required
               >
                 <div class="principal">
-                  <bk-user-selector
-                    :api="userApi"
+                  <ValidateUserSelector
                     :class="isAdminError && 'is-error'"
                     :empty-text="$t('无匹配人员')"
                     :placeholder="$t('请选择集群负责人')"
                     :value="formData.admin"
                     @blur="handleBlur"
                     @change="handleChangePrincipal"
-                  >
-                  </bk-user-selector>
+                  />
                 </div>
               </bk-form-item>
               <!-- 集群说明 -->
@@ -591,13 +589,15 @@
   import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
   import BkUserSelector from '@blueking/user-selector';
   import { mapState, mapGetters } from 'vuex';
+  import ValidateUserSelector from '@/components/user-selector';
 
   import EsDialog from './es-dialog';
 
-  export default { 
+  export default {
     components: {
       EsDialog,
       BkUserSelector,
+      ValidateUserSelector,
     },
     mixins: [SidebarDiffMixin, SpaceSelectorMixin],
     props: {
@@ -1592,13 +1592,12 @@
       @include flex-center;
     }
   }
-
 </style>
 
 <style lang="scss">
   @import '@/scss/space-tag-option';
 
-  .tippy-tooltip{
-    padding: .3rem .6rem;
+  .tippy-tooltip {
+    padding: 0.3rem 0.6rem;
   }
 </style>

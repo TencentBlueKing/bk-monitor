@@ -15,7 +15,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from bkmonitor.data_source import get_auto_interval
-from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.data_source import DataSourceLabel
 from monitor_web.data_explorer.event.constants import EventDimensionTypeEnum
 
 
@@ -30,12 +30,11 @@ class EventDataSource(serializers.Serializer):
     data_type_label = serializers.CharField(label="数据类型标签")
     data_source_label = serializers.CharField(label="数据源标签")
 
-    def validate(self, attrs):
-        # 页面检索，统一走 UnifyQuery 灰度查询
-        if attrs["data_type_label"] == DataTypeLabel.LOG:
-            attrs["data_source_label"] = DataSourceLabel.BK_MONITOR_COLLECTOR_NEW
-        else:
-            attrs["data_source_label"] = DataSourceLabel.BK_APM
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        # 兼容老数据源
+        if attrs["data_source_label"] == DataSourceLabel.BK_APM:
+            attrs["data_source_label"] = DataSourceLabel.CUSTOM
         return attrs
 
 
@@ -83,7 +82,7 @@ class EventTimeSeriesRequestSerializer(BaseEventRequestSerializer):
     expression = serializers.CharField(label="查询表达式", allow_blank=True)
     # 事件/日志场景，无论最后一个点的数据是否完整都需要返回，所以默认不做时间对齐。
     time_alignment = serializers.BooleanField(label="是否对齐时间", required=False, default=False)
-    query_configs = serializers.ListField(label="查询配置列表", child=EventQueryConfigSerializer(), allow_empty=False)
+    query_configs = serializers.ListField(label="查询配置列表", child=EventQueryConfigSerializer(), allow_empty=True)
 
     query_method = serializers.CharField(label="查询方法", required=False)
 
@@ -105,7 +104,7 @@ class EventLogsRequestSerializer(BaseEventRequestSerializer):
     # 如果有 3 个数据源，limit=10 最多返回 30 条数据，为保证数据拉取不跳页，下次拉取时 offset 设置为 10 而不是 30。
     limit = serializers.IntegerField(label="数量限制", required=False, default=10)
     offset = serializers.IntegerField(label="偏移量", required=False, default=0)
-    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=True)
     sort = serializers.ListSerializer(
         label="排序字段", required=False, child=serializers.CharField(), default=[], allow_empty=True
     )
@@ -124,12 +123,12 @@ class EventTopKRequestSerializer(BaseEventRequestSerializer):
     fields = serializers.ListField(
         label="维度字段列表", child=serializers.CharField(label="维度字段"), allow_empty=False
     )
-    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=True)
     need_empty = serializers.BooleanField(label="是否需要统计空值", required=False, default=False)
 
 
 class EventTotalRequestSerializer(BaseEventRequestSerializer):
-    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=True)
 
     def validate(self, attrs):
         EventFilterSerializer.drop_group_by(attrs.get("query_configs") or [])
@@ -152,7 +151,7 @@ class EventStatisticsFieldSerializer(serializers.Serializer):
 
 class EventStatisticsInfoRequestSerializer(BaseEventRequestSerializer):
     field = EventStatisticsFieldSerializer(label="字段")
-    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=False)
+    query_configs = serializers.ListField(label="查询配置列表", child=EventFilterSerializer(), allow_empty=True)
 
 
 class EventStatisticsGraphRequestSerializer(EventTimeSeriesRequestSerializer):

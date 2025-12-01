@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+/* eslint-disable no-unused-vars */
 enum BK_LOG_STORAGE {
   /**
    * 当前 bk_biz_id
@@ -124,6 +126,10 @@ enum BK_LOG_STORAGE {
    * 趋势图是否折叠
    */
   TREND_CHART_IS_FOLD = '_17',
+  /**
+   * 结果展示行数：1 - 单行展示，3 - 三行展示
+   */
+  RESULT_DISPLAY_LINES = '_20',
 }
 
 export { BK_LOG_STORAGE };

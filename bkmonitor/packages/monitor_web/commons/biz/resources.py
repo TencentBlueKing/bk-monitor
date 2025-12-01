@@ -23,7 +23,8 @@ from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.common_utils import safe_int
-from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
+from bkmonitor.utils.request import get_request, get_request_username
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_local_username
 from bkmonitor.views import serializers
 from core.drf_resource import CacheResource, api, resource
@@ -122,6 +123,7 @@ class FetchBusinessInfoResource(Resource):
 
 class ListSpacesResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField()
         show_all = serializers.BooleanField(required=False, default=False, allow_null=True)
         show_detail = serializers.BooleanField(required=False, default=False, allow_null=True)
 
@@ -134,7 +136,7 @@ class ListSpacesResource(Resource):
     def perform_request(self, validated_request_data) -> list[dict]:
         request = get_request(peaceful=True)
         username = get_request_username()
-        bk_tenant_id = get_request_tenant_id()
+        bk_tenant_id = validated_request_data["bk_tenant_id"]
 
         if request and getattr(request, "external_user", None):
             spaces: list[dict] = SpaceApi.list_spaces_dict(bk_tenant_id=bk_tenant_id)

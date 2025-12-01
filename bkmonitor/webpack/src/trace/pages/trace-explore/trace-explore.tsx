@@ -83,6 +83,8 @@ const TRACE_EXPLORE_APPLICATION_ID_THUMBTACK = 'trace_explore_application_id_thu
 
 updateTimezone(window.timezone);
 
+import { useFavoriteFieldsState } from './components/trace-explore-table/utils/favorite-fields';
+
 import './trace-explore.scss';
 export default defineComponent({
   name: 'TraceExplore',
@@ -91,6 +93,12 @@ export default defineComponent({
     const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
     const { handleGetUserConfig: handleGetThumbtackUserConfig, handleSetUserConfig: handleSetThumbtackUserConfig } =
       useUserConfig();
+    const {
+      saveKey: saveTableFieldsKey,
+      config: tableFieldsConfig,
+      setConfig: setFavoriteTableConfig,
+      refreshConfig: refreshTableFieldsConfig,
+    } = useFavoriteFieldsState();
     const { t } = useI18n();
     const route = useRoute();
     const router = useRouter();
@@ -427,7 +435,7 @@ export default defineComponent({
     }
 
     function setUrlParams() {
-      const { favorite_id, trace_id, listType, query, ...otherQuery } = route.query;
+      const { ...otherQuery } = route.query;
       const queryParams = {
         ...otherQuery,
         start_time: store.timeRange[0],
@@ -576,9 +584,21 @@ export default defineComponent({
       if (data) {
         const favoriteConfig = data?.config;
         where.value = favoriteConfig?.queryParams?.filters || [];
-        commonWhere.value = favoriteConfig?.componentData?.commonWhere || [];
+        // commonWhere.value = favoriteConfig?.componentData?.commonWhere || [];
+        // 收藏的filters字段已经包含了commonWhere的条件，所以这里不需要再设置commonWhere
+        commonWhere.value = [];
         queryString.value = favoriteConfig?.queryParams?.query || '';
         filterMode.value = favoriteConfig?.componentData?.filterMode || EMode.ui;
+        if (favoriteConfig?.componentData?.tableFieldsConfig?.key) {
+          setFavoriteTableConfig(
+            favoriteConfig.componentData.tableFieldsConfig.key,
+            favoriteConfig.componentData.tableFieldsConfig?.config || {
+              displayFields: [],
+              fieldsWidth: {},
+            }
+          );
+          refreshTableFieldsConfig();
+        }
         store.init({
           mode: favoriteConfig?.queryParams?.mode || 'span',
           appName: favoriteConfig?.queryParams?.app_name || store.appName,
@@ -622,6 +642,11 @@ export default defineComponent({
             commonWhere: commonWhere.value,
             timeRange: store.timeRange,
             refreshInterval: store.refreshInterval,
+            tableFieldsConfig: {
+              // 表格显示字段也需要收藏
+              key: saveTableFieldsKey.value,
+              config: tableFieldsConfig.value,
+            },
           },
           queryParams: {
             app_name: store.appName,

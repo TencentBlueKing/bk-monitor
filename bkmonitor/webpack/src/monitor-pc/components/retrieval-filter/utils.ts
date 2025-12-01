@@ -26,6 +26,7 @@
 
 export enum ECondition {
   and = 'and',
+  or = 'or',
 }
 export enum EFieldType {
   all = 'all',

@@ -28,6 +28,7 @@ import { Ref } from 'vue';
 
 import { parseTableRowData } from '@/common/util';
 
+import AiAssitantHelper from '@/global/ai-assitant/ai-assitant-helper';
 import RetrieveBase from './retrieve-core/base';
 import { GradeFieldValueType, type GradeConfiguration, type GradeSetting } from './retrieve-core/interface';
 import OptimizedHighlighter from './retrieve-core/optimized-highlighter';
@@ -35,8 +36,11 @@ import RetrieveEvent from './retrieve-core/retrieve-events';
 import { RouteQueryTab } from './retrieve-v3/index.type';
 
 export enum STORAGE_KEY {
+  // eslint-disable-next-line no-unused-vars
   STORAGE_KEY_FAVORITE_SHOW = 'STORAGE_KEY_FAVORITE_SHOW',
+  // eslint-disable-next-line no-unused-vars
   STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE = 'STORAGE_KEY_FAVORITE_VIEW_CURRENT_CHANGE',
+  // eslint-disable-next-line no-unused-vars
   STORAGE_KEY_FAVORITE_WIDTH = 'STORAGE_KEY_FAVORITE_WIDTH',
 }
 
@@ -46,6 +50,7 @@ const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 class RetrieveHelper extends RetrieveBase {
   scrollEventAdded = false;
   mousedownEvent = null;
+  aiAssitantHelper: typeof AiAssitantHelper;
 
   constructor({ isFavoriteShow = false, isViewCurrentIndex = true, favoriteWidth = 0 }) {
     super();
@@ -54,6 +59,7 @@ class RetrieveHelper extends RetrieveBase {
     this.isViewCurrentIndex = isViewCurrentIndex;
     this.favoriteWidth = favoriteWidth;
     this.mousedownEvent = null;
+    this.aiAssitantHelper = AiAssitantHelper;
   }
 
   /**
@@ -121,10 +127,10 @@ class RetrieveHelper extends RetrieveBase {
         const expandedBottom = rect.bottom + lineSpacing;
 
         if (
-          clickPoint.x >= rect.left &&
-          clickPoint.x <= rect.right &&
-          clickPoint.y >= expandedTop &&
-          clickPoint.y <= expandedBottom
+          clickPoint.x >= rect.left
+          && clickPoint.x <= rect.right
+          && clickPoint.y >= expandedTop
+          && clickPoint.y <= expandedBottom
         ) {
           return true;
         }
@@ -287,7 +293,7 @@ class RetrieveHelper extends RetrieveBase {
       // 收集所有匹配的日志级别
       for (const match of matches) {
         const groups = match.groups || {};
-        Object.keys(groups).forEach(level => {
+        Object.keys(groups).forEach((level) => {
           if (groups[level]) levelSet.add(level.toUpperCase());
         });
       }
@@ -311,8 +317,8 @@ class RetrieveHelper extends RetrieveBase {
       const logSegment = target.slice(0, 1000);
       options.settings.forEach((item: GradeSetting) => {
         if (item.enable && item.id !== 'others') {
-          this.isMatchedGroup(item, logSegment, options.valueType === GradeFieldValueType.VALUE) &&
-            levels.push(item.id);
+          this.isMatchedGroup(item, logSegment, options.valueType === GradeFieldValueType.VALUE)
+            && levels.push(item.id);
         }
       });
 
@@ -368,10 +374,10 @@ class RetrieveHelper extends RetrieveBase {
 
   /**
    * 检索值变化
-   * @param type 检索类型：ui/sql/filter
+   * @param type 检索类型：ui/sql/filter/cluster
    * @param value
    */
-  searchValueChange(type: 'filter' | 'sql' | 'ui', value: Array<any> | string) {
+  searchValueChange(type: 'filter' | 'sql' | 'ui' | 'cluster', value: Array<any> | string) {
     this.runEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, { type, value });
   }
 
@@ -472,8 +478,8 @@ class RetrieveHelper extends RetrieveBase {
   routeQueryTabValueFix(indexSetItem, tabValue?: string | string[], isUnionSearch = false) {
     const isclusteringEnable = () => {
       return (
-        (indexSetItem?.scenario_id === 'log' && indexSetItem.collector_config_id !== null) ||
-        indexSetItem?.scenario_id === 'bkdata'
+        (indexSetItem?.scenario_id === 'log' && indexSetItem.collector_config_id !== null)
+        || indexSetItem?.scenario_id === 'bkdata'
       );
     };
 

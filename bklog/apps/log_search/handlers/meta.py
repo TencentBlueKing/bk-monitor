@@ -206,6 +206,7 @@ class MetaHandler(APIModel):
             "time_zone": data.get("time_zone", "Asia/Shanghai"),
             "chname": data.get("chname", username),
             "operator": username,
+            "bk_tenant_id": data.get("tenant_id"),
         }
 
     @classmethod

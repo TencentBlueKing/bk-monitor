@@ -513,7 +513,7 @@ export class TableChart extends CommonSimpleChart {
                   <bk-input
                     class='search-wrapper-input'
                     v-model={this.keyword}
-                    placeholder='搜索'
+                    placeholder='搜索 服务名称'
                     right-icon='bk-icon icon-search'
                     clearable
                     onChange={this.handleSearchChange}

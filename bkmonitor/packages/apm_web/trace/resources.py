@@ -8,8 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import abc
 import copy
 import logging
+from typing import Any
 
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -57,7 +59,7 @@ from constants.apm import (
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
-from core.drf_resource import Resource, api
+from core.drf_resource import Resource, api, FaultTolerantResource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.prometheus.base import OPERATION_REGISTRY
@@ -70,6 +72,10 @@ from .diagram.service_topo import trace_data_to_service_topo
 from .diagram.topo import trace_data_to_topo_data
 
 logger = logging.getLogger(__name__)
+
+
+class BaseTraceFaultTolerantResource(FaultTolerantResource, abc.ABC):
+    pass
 
 
 class TraceChatsResource(Resource):
@@ -88,16 +94,16 @@ class TraceChatsResource(Resource):
         return [
             {
                 "id": 1,
-                "title": "请求数",
+                "title": _lazy("请求数"),
                 "type": "apm-timeseries-chart",
                 "gridPos": {"x": 0, "y": 16, "w": 8, "h": 4},
-                "alias": "请求数",
+                "alias": _lazy("请求数"),
                 "targets": [
                     {
                         "data_type": "time_series",
                         "api": "apm_metric.dynamicUnifyQuery",
                         "datasource": "time_series",
-                        "alias": "主调",
+                        "alias": _lazy("主调"),
                         "data": {
                             "app_name": app.app_name,
                             "query_configs": [
@@ -147,7 +153,7 @@ class TraceChatsResource(Resource):
                         "data_type": "time_series",
                         "api": "apm_metric.dynamicUnifyQuery",
                         "datasource": "time_series",
-                        "alias": "被调",
+                        "alias": _lazy("被调"),
                         "data": {
                             "app_name": app.app_name,
                             "query_configs": [
@@ -204,7 +210,7 @@ class TraceChatsResource(Resource):
             },
             {
                 "id": 2,
-                "title": "错误数",
+                "title": _lazy("错误数"),
                 "type": "apm-timeseries-chart",
                 "gridPos": {"x": 8, "y": 16, "w": 8, "h": 4},
                 "targets": [
@@ -212,7 +218,7 @@ class TraceChatsResource(Resource):
                         "data_type": "time_series",
                         "api": "apm_metric.dynamicUnifyQuery",
                         "datasource": "time_series",
-                        "alias": "错误数",
+                        "alias": _lazy("错误数"),
                         "data": {
                             "app_name": app.app_name,
                             "query_configs": [
@@ -263,7 +269,7 @@ class TraceChatsResource(Resource):
                         "data_type": "time_series",
                         "api": "apm_metric.dynamicUnifyQuery",
                         "datasource": "time_series",
-                        "alias": "错误率",
+                        "alias": _lazy("错误率"),
                         "data": {
                             "app_name": app.app_name,
                             "unit": "percentunit",
@@ -351,7 +357,7 @@ class TraceChatsResource(Resource):
             },
             {
                 "id": 3,
-                "title": "耗时",
+                "title": _lazy("耗时"),
                 "gridPos": {"x": 16, "y": 16, "w": 8, "h": 4},
                 "type": "apm-timeseries-chart",
                 "targets": [
@@ -1331,17 +1337,32 @@ class ListTraceViewConfigResource(Resource):
         }
 
 
-class TraceFieldsTopKResource(Resource):
+class TraceFieldsTopKResource(BaseTraceFaultTolerantResource):
     """获取 trace 字段的 topk 数据"""
+
+    DEFAULT_RESPONSE_DATA = []
 
     RequestSerializer = TraceFieldsTopkRequestSerializer
 
     def perform_request(self, validated_data):
         return DimensionStatisticsAPIHandler.get_api_topk_data(validated_data)
 
+    def handle_response_data(self, validated_request_data: dict[str, Any]) -> Any:
+        return [
+            {"total": 0, "distinct_count": 0, "field": field, "list": []} for field in validated_request_data["fields"]
+        ]
 
-class TraceFieldStatisticsInfoResource(Resource):
+
+class TraceFieldStatisticsInfoResource(BaseTraceFaultTolerantResource):
     """获取 trace 字段的维度统计信息"""
+
+    DEFAULT_RESPONSE_DATA = {
+        "total_count": 0,
+        "field_count": 0,
+        "distinct_count": 0,
+        "field_percent": 0,
+        "value_analysis": {},
+    }
 
     RequestSerializer = TraceFieldStatisticsInfoRequestSerializer
 
@@ -1356,12 +1377,14 @@ class TraceFieldStatisticsInfoResource(Resource):
         return DimensionStatisticsAPIHandler.get_api_statistics_info_data(validated_data)
 
 
-class TraceFieldStatisticsGraphResource(Resource):
+class TraceFieldStatisticsGraphResource(BaseTraceFaultTolerantResource):
     """获取 trace 字段的维度统计图表"""
 
-    RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
-
     EMPTY_DATA = {"series": [{"datapoints": []}]}
+
+    DEFAULT_RESPONSE_DATA = EMPTY_DATA
+
+    RequestSerializer = TraceFieldStatisticsGraphRequestSerializer
 
     def perform_request(self, validated_data):
         field_info = validated_data["field"]
@@ -1378,7 +1401,9 @@ class TraceFieldStatisticsGraphResource(Resource):
         return DimensionStatisticsAPIHandler.get_api_statistics_graph_data(validated_data)
 
 
-class ListFlattenSpanResource(Resource):
+class ListFlattenSpanResource(BaseTraceFaultTolerantResource):
+    DEFAULT_RESPONSE_DATA = {"data": []}
+
     RequestSerializer = QuerySerializer
 
     def perform_request(self, data):
@@ -1387,7 +1412,9 @@ class ListFlattenSpanResource(Resource):
         return response
 
 
-class ListFlattenTraceResource(Resource):
+class ListFlattenTraceResource(BaseTraceFaultTolerantResource):
+    DEFAULT_RESPONSE_DATA = {"data": []}
+
     RequestSerializer = QuerySerializer
 
     def perform_request(self, data):

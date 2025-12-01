@@ -120,7 +120,11 @@ export default defineComponent({
         isOpened.value = false;
 
         if (props.activeTab === 'union') {
-          emit('value-change', unionListValue.length ? unionListValue : props.indexSetValue, 'union');
+          emit(
+            'value-change',
+            (unionListValue.length ? unionListValue : props.indexSetValue).map(v => v?.unique_id ?? v),
+            'union',
+          );
         }
       },
     } as any;
@@ -145,7 +149,7 @@ export default defineComponent({
      */
     const getSelectedValues = () => {
       const flatList = getFlatList();
-      let values = props.indexSetValue.map(v => {
+      const values = props.indexSetValue.map((v) => {
         const target = flatList.find((i: any) => `${i.unique_id}` === `${v}`);
         if (!target) {
           return flatList.find((i: any) => `${i.index_set_id}` === `${v.split('_').at(-1)}`);
@@ -180,7 +184,7 @@ export default defineComponent({
     const handleValueChange = (value: any, type: 'single' | 'union', id: number | string) => {
       // 如果是单选操作直接抛出事件
       if (['single', 'history', 'favorite'].includes(props.activeTab)) {
-        emit('value-change', value, type, id);
+        emit('value-change', value.unique_id ?? value, type, id);
         refRootElement.value?.hide();
         return;
       }
@@ -189,10 +193,14 @@ export default defineComponent({
       // 在弹出关闭时抛出事件，触发外部事件监听
       if (props.activeTab === 'union') {
         unionListValue = value;
+        const flatList = getFlatList();
+        selectedValues.value = value
+          .map(v => flatList.find(i => i.unique_id === (v?.unique_id ?? v)))
+          .filter(v => v !== undefined);
       }
     };
 
-    const handleKeyDown = event => {
+    const handleKeyDown = (event) => {
       // 检查是否按下了 ⌘/⌘/Ctrl + O 或 Cmd + O
       const isCtrlO = event.ctrlKey && event.key === 'o';
       const isCmdO = event.metaKey && event.key === 'o';
@@ -223,7 +231,7 @@ export default defineComponent({
       };
     });
 
-    const handleAuthRequest = item => {
+    const handleAuthRequest = (item) => {
       emit('auth-request', item);
       refRootElement.value?.hide();
     };
@@ -235,7 +243,10 @@ export default defineComponent({
           style={rootStyle.value}
           class={[
             'bklog-v3-indexset-container',
-            { 'is-opened': isOpened.value, 'is-multi': props.indexSetValue.length > 1 },
+            {
+              'is-opened': isOpened.value,
+              'is-multi': props.indexSetValue.length > 1,
+            },
           ]}
           data-shortcut-key={shortcutKey}
           options={tippyOptions}

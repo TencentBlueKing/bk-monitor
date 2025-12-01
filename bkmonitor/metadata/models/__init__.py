@@ -35,7 +35,7 @@ from .data_link import (  # noqa
     ESStorageBindingConfig,
     LogDataBusConfig,
     LogResultTableConfig,
-    VMResultTableConfig,
+    ResultTableConfig,
     VMStorageBindingConfig,
 )
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
@@ -53,6 +53,10 @@ from .influxdb_cluster import (
 )
 from .ping_server import PingServerSubscriptionConfig
 from .record_rule import RecordRule, ResultTableFlow
+from .entity_relation import (
+    CustomRelationStatus,
+    EntityMeta,
+)
 from .result_table import (
     CMDBLevelRecord,
     ESFieldQueryAliasOption,
@@ -69,7 +73,6 @@ from .space import (
     SpaceResource,
     SpaceStickyInfo,
     SpaceType,
-    SpaceTypeToResultTableFilterAlias,
 )
 from .storage import (
     ArgusStorage,
@@ -148,7 +151,6 @@ __all__ = [
     "SpaceResource",
     "SpaceStickyInfo",
     "BkAppSpaceRecord",
-    "SpaceTypeToResultTableFilterAlias",
     "AccessVMRecord",
     "SpaceVMInfo",
     "SpaceRelatedStorageInfo",
@@ -156,4 +158,7 @@ __all__ = [
     "RecordRule",
     "ResultTableFlow",
     "BkBaseResultTable",
+    # resource relation
+    "EntityMeta",
+    "CustomRelationStatus",
 ]

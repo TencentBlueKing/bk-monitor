@@ -37,6 +37,8 @@ import './alarm-group.scss';
 interface IAlarmList {
   disabled?: boolean;
   disabledList?: number[];
+  hasAddGroup?: boolean;
+  isOpenEditNewPage?: boolean; // 点击编辑按钮新开页
   isOpenNewPage?: boolean; // 点击创建按钮新开页
   isRefresh?: boolean;
   isSimple?: boolean; // 简洁模式（无预览，无回填）
@@ -66,9 +68,12 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
   @Prop({ default: false, type: Boolean }) readonly loading: boolean;
   @Prop({ default: '', type: [Number, String] }) readonly strategyId: number | string;
   @Prop({ default: true, type: Boolean }) showAddTip: boolean;
+  /** 是否有新增告警组功能 */
+  @Prop({ default: true, type: Boolean }) hasAddGroup: boolean;
   @Prop({ default: false, type: Boolean }) isSimple: boolean; // 简洁模式（无预览，无回填）
   @Prop({ default: null, type: Function }) tagClick: (id: number, e: Event) => void;
   @Prop({ default: false, type: Boolean }) isOpenNewPage: boolean; // 点击创建按钮新开页
+  @Prop({ default: false, type: Boolean }) isOpenEditNewPage: boolean; // 点击编辑按钮新开页
 
   // @Inject('authority') authority
   // @Inject('handleShowAuthorityDetail') handleShowAuthorityDetail
@@ -160,6 +165,11 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
    * 跳转编辑告警组
    */
   handleEditAlarmGroup(id) {
+    if (this.isOpenEditNewPage) {
+      const url = `${location.origin}${location.pathname}?bizId=${this.$store.getters.bizId}#/alarm-group/edit/${id}`;
+      window.open(url);
+      return;
+    }
     this.detail.show = false;
     this.$router.push({
       name: 'alarm-group-edit',
@@ -237,6 +247,7 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                 }}
                 ext-popover-cls='alarm-group-popover'
                 popover-width={380}
+                search-placeholder={this.$t('请输入 关键字')}
                 zIndex={5000}
                 multiple
                 searchable
@@ -262,57 +273,69 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
                           <span class='item-person-title'>{`${
                             option.needDuty ? `${window.i18n.t('当前轮值')}：` : ''
                           }`}</span>
-                          {option.receiver.join(',') || `(${window.i18n.t('空')})`}
+                          {option?.receiver?.length
+                            ? option?.receiver?.map?.((e, index, arr) => {
+                                return [
+                                  <bk-user-display-name
+                                    key={`${e}-${index}`}
+                                    user-id={e}
+                                  />,
+                                  index < arr.length - 1 ? ',' : '',
+                                ];
+                              })
+                            : `(${window.i18n.t('空')})`}
                         </div>
                       </div>
                       {this.localValue.includes(option.id) ? <i class='bk-icon icon-check-1 check-icon' /> : undefined}
                     </div>
                   </bk-option>
                 ))}
-                <div
-                  class='item-input-create'
-                  slot='extension'
-                  v-authority={{ active: !this.authority.ALARM_GROUP_MANAGE_AUTH }}
-                  onClick={() =>
-                    this.authority.ALARM_GROUP_MANAGE_AUTH
-                      ? this.handleCreateAlarmGroup()
-                      : this.handleShowAuthorityDetail(ruleAuth.ALARM_GROUP_MANAGE_AUTH)
-                  }
-                >
-                  <div class='add-container'>
-                    <i class='bk-icon icon-plus-circle' />
-                    <span
-                      class='add-text'
-                      v-bk-tooltips={{
-                        content: this.$t('进入新增页，新增完可直接返回不会丢失数据'),
-                        disabled: this.showAddTip || this.isOpenNewPage,
-                      }}
-                    >
-                      {this.$t('新增告警组')}
-                      {!this.isSimple && !this.isOpenNewPage && (
-                        <span style={{ marginLeft: '10px', color: '#ea3636' }}>{`(${this.$t(
-                          '新增后会进行回填'
-                        )})`}</span>
-                      )}
-                    </span>
-                  </div>
-                  {this.isRefresh && (
-                    <div
-                      class='loading-wrap'
-                      onClick={this.handleRefresh}
-                    >
-                      {this.loading ? (
-                        <img
-                          class='status-loading'
-                          alt=''
-                          src={require('../../../../static/images/svg/spinner.svg')}
-                        />
-                      ) : (
-                        <span class='icon-monitor icon-mc-retry' />
-                      )}
+                {this.hasAddGroup && (
+                  <div
+                    class='item-input-create'
+                    slot='extension'
+                    v-authority={{ active: !this.authority.ALARM_GROUP_MANAGE_AUTH }}
+                    onClick={() =>
+                      this.authority.ALARM_GROUP_MANAGE_AUTH
+                        ? this.handleCreateAlarmGroup()
+                        : this.handleShowAuthorityDetail(ruleAuth.ALARM_GROUP_MANAGE_AUTH)
+                    }
+                  >
+                    <div class='add-container'>
+                      <i class='bk-icon icon-plus-circle' />
+                      <span
+                        class='add-text'
+                        v-bk-tooltips={{
+                          content: this.$t('进入新增页，新增完可直接返回不会丢失数据'),
+                          disabled: this.showAddTip || this.isOpenNewPage,
+                        }}
+                      >
+                        {this.$t('新增告警组')}
+                        {!this.isSimple && !this.isOpenNewPage && (
+                          <span style={{ marginLeft: '10px', color: '#ea3636' }}>{`(${this.$t(
+                            '新增后会进行回填'
+                          )})`}</span>
+                        )}
+                      </span>
                     </div>
-                  )}
-                </div>
+                    {this.isRefresh && (
+                      <div
+                        class='loading-wrap'
+                        onClick={this.handleRefresh}
+                      >
+                        {this.loading ? (
+                          <img
+                            class='status-loading'
+                            alt=''
+                            src={require('../../../../static/images/svg/spinner.svg')}
+                          />
+                        ) : (
+                          <span class='icon-monitor icon-mc-retry' />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </bk-select>
               <span
                 class={['add-tag', { disabled: this.disabled }]}
@@ -341,7 +364,11 @@ export default class AlarmGroup extends tsc<IAlarmList, IEvent> {
           v-model={this.detail.show}
           customEdit
           onEditGroup={this.handleEditAlarmGroup}
-          onShowChange={val => !val && (this.detail.id = 0)}
+          onShowChange={val => {
+            if (!val) {
+              this.detail.id = 0;
+            }
+          }}
         />
       </div>
     );

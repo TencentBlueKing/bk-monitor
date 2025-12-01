@@ -543,7 +543,7 @@ REDIRECT_FIELD_NAME = "c_url"
 # 验证登录的cookie名
 BK_COOKIE_NAME = "bk_token"
 
-BK_SUPPLIER_ACCOUNT = os.getenv("BKAPP_BK_SUPPLIER_ACCOUNT", "")
+BK_SUPPLIER_ACCOUNT = os.getenv("BKAPP_BK_SUPPLIER_ACCOUNT", "0")
 
 # 数据库初始化 管理员列表
 ADMIN_USERNAME_LIST = ["admin"]
@@ -1258,9 +1258,12 @@ ENABLE_MULTI_TENANT_MODE = os.getenv("ENABLE_MULTI_TENANT_MODE", "false").lower(
 # 是否启用全局租户（blueapps依赖）
 IS_GLOBAL_TENANT = True
 # 为了统一多租户和非多租户场景的逻辑，默认使用system租户
-DEFAULT_TENANT_ID = "system"
+BK_APP_TENANT_ID = "system"
+ALL_TENANT_SET_ID = 1
 # 已经初始化的租户列表
-INITIALIZED_TENANT_LIST = [DEFAULT_TENANT_ID]
+INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
+# 兼容非多租户模式
+APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or 'test' in sys.argv)
 
 # 预查询时间, 默认6h小时, 0代表禁用
 try:

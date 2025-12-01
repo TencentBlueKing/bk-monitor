@@ -24,6 +24,9 @@ the project delivered to anyone in the future.
 """
 import sys  # noqa
 import uuid  # noqa
+
+from apps.api import BKLoginApi  # noqa
+
 from threading import local  # noqa
 
 from django.conf import settings  # noqa
@@ -74,9 +77,11 @@ def get_request_username(default="admin"):
 
     username = ""
     with ignored(Exception):
-        username = get_request().user.username
+        username = get_request().user.username or get_local_param("request.username", default="")
     if not username and "celery" in sys.argv:
         username = default
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            username = get_backend_username()
     return username
 
 
@@ -172,6 +177,66 @@ def get_request_tenant_id():
     """
     if settings.ENABLE_MULTI_TENANT_MODE:
         request = get_request(peaceful=True)
-        if request and request.user.tenant_id:
+        if request and request.META.get("HTTP_X_BK_TENANT_ID", ""):
+            return request.META.get("HTTP_X_BK_TENANT_ID", "")
+        if request and hasattr(request.user, "tenant_id"):
             return request.user.tenant_id
-    return settings.DEFAULT_TENANT_ID
+    return settings.BK_APP_TENANT_ID
+
+
+def get_admin_username(bk_tenant_id: str) -> str | None:
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return getattr(settings, "COMMON_USERNAME", None)
+
+    result = BKLoginApi.batch_lookup_virtual_user(
+        {"bk_tenant_id": bk_tenant_id, "lookup_field": "login_name", "lookups": "bk_admin", "bk_username": "admin"},
+        bk_tenant_id=bk_tenant_id,
+    )
+    if result:
+        return result[0].get("bk_username")
+    else:
+        raise BaseException("get_admin_username: 获取管理员用户失败")
+
+
+def get_backend_username(peaceful=True, bk_tenant_id: str = "") -> str | None:
+    """从配置中获取用户信息"""
+
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        if not bk_tenant_id:
+            bk_tenant_id = get_request_tenant_id()
+
+        if not bk_tenant_id:
+            if not peaceful:
+                raise BaseException("get_backend_username: 获取租户ID失败")
+            return None
+
+        return get_admin_username(bk_tenant_id)
+    else:
+        return "admin"
+
+
+def get_global_user(peaceful=True, bk_tenant_id: str = ""):
+    # 1. 用户信息： 获取顺序：
+    # 1.1 用户访问的request对象中的用户凭证
+    # 1.2 local获取用户名
+    # 1.3 系统配置的后台用户
+
+    username = (
+        get_request_username()
+        or get_local_username()
+        or get_backend_username(peaceful=peaceful, bk_tenant_id=bk_tenant_id)
+    )
+
+    if username:
+        return username
+
+    if not peaceful:
+        raise BaseException("get_global_user: 获取全局用户失败")
+
+
+def make_userinfo(bk_tenant_id: str = settings.BK_APP_TENANT_ID):
+    username = get_global_user(bk_tenant_id=bk_tenant_id)
+    if username:
+        return {"bk_username": username}
+
+    raise BaseException("make_userinfo: 获取用户信息失败")

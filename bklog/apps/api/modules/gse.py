@@ -54,7 +54,7 @@ class _GseApi:
     def __init__(self):
         self.query_route = DataAPI(
             method="POST",
-            url=GSE_APIGATEWAY_ROOT_V2 + "config_query_route",
+            url=GSE_APIGATEWAY_ROOT_V2 + ("api/v2/data/query_route", "config_query_route"),
             module=self.MODULE,
             description=_("查询数据路由配置信息"),
             before_request=add_esb_info_before_request,
@@ -62,7 +62,7 @@ class _GseApi:
         )
         self.query_stream_to = DataAPI(
             method="POST",
-            url=GSE_APIGATEWAY_ROOT_V2 + "config_query_streamto",
+            url=GSE_APIGATEWAY_ROOT_V2 + ("api/v2/data/query_streamto", "config_query_streamto"),
             module=self.MODULE,
             description=_("查询数据入库消息队列或第三方平台的配置"),
             before_request=add_esb_info_before_request,

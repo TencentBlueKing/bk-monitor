@@ -123,6 +123,12 @@ export const OPERATE_OPTIONS: IOperateOption[] = [
     iconClassName: 'icon-shezhi1',
   },
   {
+    id: 'appAlarmTemplate',
+    name: window.i18n.t('告警模板'),
+    authority: true,
+    iconClassName: 'icon-gaojing',
+  },
+  {
     id: 'accessService',
     name: window.i18n.t('服务接入'),
     authority: true,

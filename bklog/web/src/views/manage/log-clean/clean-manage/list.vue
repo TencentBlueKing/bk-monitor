@@ -46,6 +46,8 @@
           data-test-id="cleaningListBox_input_searchCleaningList"
           @change="handleSearchChange"
           @enter="search"
+          :placeholder="$t('搜索 任务名称、存储索引名称')"
+          
         >
         </bk-input>
         <div
@@ -112,7 +114,7 @@
           :render-header="$renderHeader"
         >
           <template #default="props">
-            {{ props.row.updated_by }}
+            <bk-user-display-name :user-id="props.row.updated_by"></bk-user-display-name>
           </template>
         </bk-table-column>
         <bk-table-column

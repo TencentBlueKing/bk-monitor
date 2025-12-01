@@ -547,6 +547,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                 right-icon='bk-icon icon-search'
                 clearable
                 show-clear-only-hover
+                placeholder={this.$t('搜索')}
                 onInput={this.handleGroupSearch}
                 onRightIconClick={this.handleGroupSearch}
               />
@@ -593,6 +594,7 @@ export default class FavoriteManageDialog extends tsc<FavoriteManageDialogProps,
                 right-icon='bk-icon icon-search'
                 clearable
                 show-clear-only-hover
+                placeholder={this.$t('搜索 收藏名称')}
                 onInput={this.handleFavoriteSearch}
                 onRightIconClick={this.handleFavoriteSearch}
               />

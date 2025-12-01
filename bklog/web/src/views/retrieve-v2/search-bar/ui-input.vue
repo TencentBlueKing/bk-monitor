@@ -1,25 +1,27 @@
 <script setup>
-import { ref, computed, set } from "vue";
+import { ref, computed, set } from 'vue';
 
 import {
   getOperatorKey,
   formatDateTimeField,
-  getOsCommandLabel,
-} from "@/common/util";
-import useFieldNameHook from "@/hooks/use-field-name";
-import useLocale from "@/hooks/use-locale";
-import useStore from "@/hooks/use-store";
+} from '@/common/util';
+import useFieldNameHook from '@/hooks/use-field-name';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
+import jsCookie from 'js-cookie';
 
 import {
   getInputQueryDefaultItem,
   getInputQueryIpSelectItem,
   FulltextOperatorKey,
   FulltextOperator,
-} from "./const.common";
-import { operatorMapping, translateKeys } from "./const-values";
-import IPSelector from "./ip-selector";
-import UiInputOptions from "./ui-input-option.vue";
-import useFocusInput from "./use-focus-input";
+} from './const.common';
+import { operatorMapping, translateKeys } from './const-values';
+import IPSelector from './ip-selector';
+import UiInputOptions from './ui-input-option.vue';
+import useFocusInput from './use-focus-input';
+import PopInstanceUtil from '@/global/pop-instance-util';
+
 const props = defineProps({
   value: {
     type: Array,
@@ -28,11 +30,33 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(["input", "change", "height-change", "popup-change"]);
+const emit = defineEmits(['input', 'change', 'height-change', 'popup-change', 'text-to-query']);
 const store = useStore();
 const { t } = useLocale();
 const popoverRefs = ref(new Map());
 const morePopoverRefs = ref([]);
+
+const refChoiceList = ref(null);
+
+const choicePopInstanceUtil = new PopInstanceUtil({ refContent: () => refChoiceList.value,
+  arrow: false,
+  newInstance: true,
+  tippyOptions: { placement: 'bottom-start', appendTo: document.body },
+});
+
+const language = (jsCookie.get('blueking_language') || 'zh-cn');
+const aiSpanPadding = ({
+  en: '126px',
+  'zh-cn': '94px',
+});
+
+const paddingLeft = computed(() => {
+  if (inputValueLength.value === 0) {
+    return aiSpanPadding[language];
+  }
+
+  return '0px';
+});
 const setPopoverRef = (el, parentIndex, childIndex) => {
   const key = `${parentIndex}-${childIndex}`;
   if (el) {
@@ -47,13 +71,15 @@ const setMorePopoverRef = (el, index) => {
   }
 };
 const inputValueLength = ref(0);
+// 当前选中的选择项索引：0=全文检索，1=AI搜索
+const selectedChoiceIndex = ref(0);
 // 动态设置placeHolder
 const inputPlaceholder = computed(() => {
   if (inputValueLength.value === 0) {
-    return `${t("快捷键")} /，${t("请输入")}...`;
+    return `${t('快捷键')} /，${t('请输入')}...`;
   }
 
-  return "";
+  return '';
 });
 
 const bkBizId = computed(() => store.state.bkBizId);
@@ -63,23 +89,23 @@ const bkBizId = computed(() => store.state.bkBizId);
  * @param {*} item
  */
 const formatModelValueItem = (item) => {
-  if (typeof item?.value === "string") {
-    item.value = item.value.split(",");
+  if (typeof item?.value === 'string') {
+    item.value = item.value.split(',');
   }
 
   item.showAll = item?.value?.length < 3;
-  if (!item?.relation) item.relation = "OR";
+  if (!item?.relation) item.relation = 'OR';
   return { disabled: item.disabled ?? false, ...(item ?? {}) };
 };
 
 const handleHeightChange = (height) => {
-  emit("height-change", height);
+  emit('height-change', height);
 };
 
 const operatorDictionary = computed(() => {
   const defVal = {
     [getOperatorKey(FulltextOperatorKey)]: {
-      label: t("包含"),
+      label: t('包含'),
       operator: FulltextOperator,
     },
   };
@@ -94,14 +120,13 @@ const operatorDictionary = computed(() => {
  * @param {*} item
  */
 const getOperatorLabel = (item) => {
-  if (item.field === "_ip-select_") {
-    return "";
+  if (item.field === '_ip-select_') {
+    return '';
   }
 
-  const key =
-    item.field === "*"
-      ? getOperatorKey(`*${item.operator}`)
-      : getOperatorKey(item.operator);
+  const key = item.field === '*'
+    ? getOperatorKey(`*${item.operator}`)
+    : getOperatorKey(item.operator);
   if (translateKeys.includes(operatorMapping[item.operator])) {
     const operator = operatorMapping[item.operator] ?? item.operator;
     if (/[\u4e00-\u9fff]/.test(operator)) {
@@ -112,9 +137,9 @@ const getOperatorLabel = (item) => {
   }
 
   return (
-    operatorMapping[item.operator] ??
-    operatorDictionary.value[key]?.label ??
-    item.operator
+    operatorMapping[item.operator]
+    ?? operatorDictionary.value[key]?.label
+    ?? item.operator
   );
 };
 
@@ -122,17 +147,17 @@ const refPopInstance = ref(null);
 const refUlRoot = ref(null);
 const refSearchInput = ref(null);
 const refHiddenFocus = ref(null);
-const queryItem = ref("");
+const queryItem = ref('');
 const activeIndex = ref(null);
 
 const showIpSelector = ref(false);
 
 const getSearchInputValue = () => {
-  return refSearchInput.value?.value ?? "";
+  return refSearchInput.value?.value ?? '';
 };
 
 const setSearchInputValue = (val) => {
-  refSearchInput.value.value = val ?? "";
+  refSearchInput.value.value = val ?? '';
   inputValueLength.value = refSearchInput.value?.value?.length ?? 0;
 };
 
@@ -140,7 +165,7 @@ const handleWrapperClickCapture = (e, { getTippyInstance }) => {
   const instance = getTippyInstance();
   const reference = instance?.reference;
 
-  const target = refSearchInput.value?.closest(".search-item");
+  const target = refSearchInput.value?.closest('.search-item');
   if (reference) {
     // 如果当前是input focus激活的弹出提示
     // 判定当前是否为点击 ui 搜索框
@@ -176,30 +201,27 @@ const {
   onShowFn: () => {
     setIsDocumentMousedown(true);
     refPopInstance.value?.beforeShowndFn?.();
-    emit("popup-change", { isShow: true });
+    emit('popup-change', { isShow: true });
   },
   onHiddenFn: () => {
-    emit("popup-change", { isShow: false });
+    emit('popup-change', { isShow: false });
     refPopInstance.value?.afterHideFn?.();
     return true;
   },
   handleWrapperClick: handleWrapperClickCapture,
   onInputFocus: () => {
-    queryItem.value = "";
+    queryItem.value = '';
     activeIndex.value = null;
   },
   tippyOptions: {
     hideOnClick: true,
-    placement: "top",
+    placement: 'top',
+    onHide: () => {
+      refPopInstance.value?.beforeHideFn?.();
+    },
   },
+  showPopoverOnClick: false,
 });
-
-const debounceShowInstance = () => {
-  const target = refSearchInput.value?.closest(".search-item");
-  if (target) {
-    delayShowInstance(target);
-  }
-};
 
 const closeTippyInstance = () => {
   setIsDocumentMousedown(false);
@@ -220,27 +242,27 @@ const showTagListItems = (target) => {
 };
 
 const getMatchName = (field) => {
-  if (field === "*") return t("全文");
-  if (field === "_ip-select_") return t("IP目标");
+  if (field === '*') return t('全文');
+  if (field === '_ip-select_') return t('IP目标');
 
   return getFieldName(field);
 };
 
 const emitChange = (value) => {
-  emit("input", value);
-  emit("change", value);
+  emit('input', value);
+  emit('change', value);
 };
 
 const handleAddItem = (e) => {
   setIsInputTextFocus(false);
-  const target = e.target.closest(".search-item");
-  queryItem.value = "";
+  const target = e.target.closest('.search-item');
+  queryItem.value = '';
   activeIndex.value = null;
   showTagListItems(target);
 };
 
 const handleTagItemClick = (e, item, index) => {
-  if (item.field === "_ip-select_") {
+  if (item.field === '_ip-select_') {
     showIpSelector.value = true;
     return;
   }
@@ -250,25 +272,25 @@ const handleTagItemClick = (e, item, index) => {
   queryItem.value = {};
   setIsInputTextFocus(false);
 
-  if (!Array.isArray(item.value)) item.value = item.value.split(",");
-  if (!item.relation) item.relation = "OR";
+  if (!Array.isArray(item.value)) item.value = item.value.split(',');
+  if (!item.relation) item.relation = 'OR';
   Object.assign(queryItem.value, itemCopy);
-  const target = e.target.closest(".search-item");
+  const target = e.target.closest('.search-item');
   activeIndex.value = index;
   showTagListItems(target);
 };
 
 const handleDisabledTagItem = (item) => {
-  set(item, "disabled", !item.disabled);
-  set(item, "hidden_values", []);
+  set(item, 'disabled', !item.disabled);
+  set(item, 'hidden_values', []);
   if (item.disabled) {
-    set(item, "hidden_values", [...item.value]);
+    set(item, 'hidden_values', [...item.value]);
   }
 
   emitChange(modelValue.value);
 };
 
-const handleDeleteTagItem = (index, item) => {
+const handleDeleteTagItem = (index, _item) => {
   modelValue.value.splice(index, 1);
   emitChange(modelValue.value);
 };
@@ -278,9 +300,9 @@ const handleDeleteTagItem = (index, item) => {
  * @param payload
  */
 const handleSaveQueryClick = (payload) => {
-  if (payload === "ip-select-show") {
+  if (payload === 'ip-select-show') {
     const copyValue = getInputQueryIpSelectItem();
-    if (!modelValue.value.some((f) => f.field === copyValue.field)) {
+    if (!modelValue.value.some(f => f.field === copyValue.field)) {
       modelValue.value.push({ ...copyValue, disabled: false });
     }
 
@@ -294,8 +316,7 @@ const handleSaveQueryClick = (payload) => {
   }
 
   const isPayloadValueEmpty = !(payload?.value?.length ?? 0);
-  const isFulltextEnterVlaue =
-    isInputTextFocus.value && isPayloadValueEmpty && !payload?.field;
+  const isFulltextEnterVlaue = isInputTextFocus.value && isPayloadValueEmpty && !payload?.field;
 
   const inputVal = getSearchInputValue();
   // 如果是全文检索，未输入任何内容就点击回车
@@ -306,11 +327,11 @@ const handleSaveQueryClick = (payload) => {
   }
 
   const targetValue = formatModelValueItem(
-    isFulltextEnterVlaue ? getInputQueryDefaultItem(inputVal) : payload
+    isFulltextEnterVlaue ? getInputQueryDefaultItem(inputVal) : payload,
   );
 
   if (isInputTextFocus.value) {
-    setSearchInputValue("");
+    setSearchInputValue('');
   }
 
   if (activeIndex.value !== null && activeIndex.value >= 0) {
@@ -330,10 +351,13 @@ const handleSaveQueryClick = (payload) => {
 
 // 用于判定当前 key.enter 是全局绑定触发还是 input.key.enter触发
 const isGlobalKeyEnter = ref(false);
+// 标记是否正在输入法组合过程中
+const isComposing = ref(false);
+
 const handleGlobalSaveQueryClick = (payload) => {
   isGlobalKeyEnter.value = true;
   handleSaveQueryClick(payload);
-  refSearchInput.value.style.setProperty("width", "12px");
+  refSearchInput.value.style.setProperty('width', '12px');
 };
 
 /**
@@ -341,43 +365,140 @@ const handleGlobalSaveQueryClick = (payload) => {
  * @param e
  */
 const handleInputValueEnter = (e) => {
+  // 如果正在输入法组合过程中，不处理Enter事件
+  if (e.isComposing || isComposing.value) {
+    return;
+  }
+
+  // 如果选择列表弹出框显示，处理选择列表的回车键
+  if (choicePopInstanceUtil.isShown()) {
+    e.preventDefault();
+    const type = selectedChoiceIndex.value === 0 ? 'fulltext' : 'ai';
+    choicePopInstanceUtil?.hide();
+
+    if (type === 'ai') {
+      handleChoiceItemClick(type);
+      selectedChoiceIndex.value = 0;
+      return;
+    }
+  }
+
+  // 正常处理输入框的回车键
   if (!isGlobalKeyEnter.value) {
     handleSaveQueryClick(undefined);
     repositionTippyInstance();
-    e.target.style.setProperty("width", "12px");
+    e.target.style.setProperty('width', '12px');
   }
 
   isGlobalKeyEnter.value = false;
 };
 
+// 输入法组合开始
+const handleCompositionStart = () => {
+  isComposing.value = true;
+};
+
+// 输入法组合结束
+const handleCompositionEnd = () => {
+  isComposing.value = false;
+};
+
 const handleCancelClick = () => {
-  setSearchInputValue("");
+  setSearchInputValue('');
   closeTippyInstance();
 };
 
-const handleInputTextClick = () => {
-  if (isInstanceShown() || isInputTextFocus.value) {
-    return;
-  }
-
-  debounceShowInstance();
-};
+let delayBlurTimer = null;
 
 const handleFullTextInputBlur = (e) => {
-  setIsInputTextFocus(false);
-  inputValueLength.value = 0;
-  e.target.style.setProperty("width", "12px");
-  e.target.value = "";
-  queryItem.value = "";
+  delayBlurTimer && clearTimeout(delayBlurTimer);
+  delayBlurTimer = setTimeout(() => {
+    setIsInputTextFocus(false);
+    inputValueLength.value = 0;
+    e.target.style.setProperty('width', '12px');
+    e.target.value = '';
+    queryItem.value = '';
+    // 重置选中状态
+    selectedChoiceIndex.value = 0;
+    // 隐藏弹出框
+    if (choicePopInstanceUtil.isShown()) {
+      choicePopInstanceUtil?.hide();
+    }
+  }, 300);
 };
 
 const handleInputValueChange = (e) => {
-  if (inputValueLength.value === 0 && e.target.value.length > 0) {
-    inputValueLength.value = e.target.value.length;
-    debounceShowInstance();
+  const currentLength = e.target.value.length;
+
+  // 如果输入框内容被清空，隐藏弹出框并重置选中状态
+  if (currentLength === 0) {
+    inputValueLength.value = 0;
+    selectedChoiceIndex.value = 0;
+    if (choicePopInstanceUtil.isShown()) {
+      choicePopInstanceUtil?.hide();
+    }
+    queryItem.value = '';
+    return;
+  }
+
+  // 如果之前长度为0，现在有内容，显示弹出框
+  if (inputValueLength.value === 0 && currentLength > 0) {
+    inputValueLength.value = currentLength;
+
+    if (!choicePopInstanceUtil.isShown()) {
+      choicePopInstanceUtil?.show(e.target);
+      // 弹出框显示时，默认选中全文检索
+      selectedChoiceIndex.value = 0;
+    }
+  } else {
+    inputValueLength.value = currentLength;
   }
 
   queryItem.value = e.target.value;
+};
+
+/**
+ * 点击全文检索或 AI搜索
+ * @param type fulltext or ai
+ */
+const handleChoiceItemClick = (type) => {
+  choicePopInstanceUtil?.hide();
+  selectedChoiceIndex.value = 0; // 重置选中状态
+  if (type === 'fulltext') {
+    modelValue.value.push({ field: '*', operator: FulltextOperator, value: refSearchInput.value?.value, disabled: false });
+    emitChange(modelValue.value);
+    return;
+  }
+
+  if (type === 'ai') {
+    delayBlurTimer && clearTimeout(delayBlurTimer);
+    emit('text-to-query', refSearchInput.value?.value);
+    return;
+  }
+};
+
+/**
+ * 处理选择列表的键盘事件（仅处理上下键）
+ * @param e 键盘事件
+ */
+const handleChoiceListKeydown = (e) => {
+  // 如果弹出框未显示，不做任何操作
+  if (!choicePopInstanceUtil.isShown()) {
+    return;
+  }
+
+  // 处理上下键切换选中项
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedChoiceIndex.value = selectedChoiceIndex.value === 0 ? 1 : 0;
+    return;
+  }
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedChoiceIndex.value = selectedChoiceIndex.value === 1 ? 0 : 1;
+    return;
+  }
 };
 
 // 键盘删除键
@@ -450,10 +571,10 @@ const moreOption = (index) => {
  */
 const getItemActionShowText = (item, child) => {
   if (item.hidden_values?.includes(child)) {
-    return "恢复这个选项";
+    return '恢复这个选项';
   }
 
-  return "隐藏这个选项";
+  return '隐藏这个选项';
 };
 
 /**
@@ -469,24 +590,37 @@ const handleBatchInputChange = (isShow) => {
 </script>
 
 <template>
-  <ul ref="refUlRoot" class="search-items">
-    <li class="search-item btn-add" @click.stop="handleAddItem">
-      <div class="tag-add">+</div>
-      <div class="tag-text">{{ t("添加条件") }}</div>
+  <ul
+    ref="refUlRoot"
+    class="search-items"
+  >
+    <li
+      class="search-item btn-add"
+      @click.stop="handleAddItem"
+    >
+      <div class="tag-add">
+        +
+      </div>
+      <div class="tag-text">
+        {{ t("添加条件") }}
+      </div>
     </li>
     <li
       v-for="(item, index) in modelValue"
+      :key="`${item.field}-${index}`"
       :class="[
         'search-item',
         'tag-item',
         { 'is-common-fixed': item.isCommonFixed },
       ]"
-      :key="`${item.field}-${index}`"
       @click.stop="(e) => handleTagItemClick(e, item, index)"
     >
       <div class="tag-row match-name">
         <span class="match-name-label">{{ getMatchName(item.field) }}</span>
-        <span class="symbol" :data-operator="item.operator">{{
+        <span
+          class="symbol"
+          :data-operator="item.operator"
+        >{{
           getOperatorLabel(item)
         }}</span>
       </div>
@@ -503,11 +637,14 @@ const handleBatchInputChange = (isShow) => {
               :bk-biz-id="bkBizId"
               :is-show.sync="showIpSelector"
               @change="handleIPChange"
-            ></IPSelector>
+            />
           </span>
         </template>
         <template v-else-if="Array.isArray(item.value)">
-          <span v-for="(child, childIndex) in item.value" :key="childIndex">
+          <span
+            v-for="(child, childIndex) in item.value"
+            :key="childIndex"
+          >
             <template v-if="item.showAll ? true : childIndex < 3">
               <bk-popover
                 :ref="(el) => setPopoverRef(el, index, childIndex)"
@@ -547,7 +684,7 @@ const handleBatchInputChange = (isShow) => {
               <span
                 v-if="
                   childIndex < item.value.length - 1 &&
-                  (childIndex < 2 || item.showAll)
+                    (childIndex < 2 || item.showAll)
                 "
                 class="match-value-relation"
               >
@@ -564,8 +701,8 @@ const handleBatchInputChange = (isShow) => {
             <span
               v-if="item.value.length > 3 && !item.showAll"
               style="color: #f59500"
-              @click.stop="moreOption(index)"
               class="match-value-more"
+              @click.stop="moreOption(index)"
             >
               +{{ item.value.length - 3 }}
             </span>
@@ -578,7 +715,7 @@ const handleBatchInputChange = (isShow) => {
                   placement="right"
                   theme="light"
                   trigger="click"
-                  extCls="match-value-popover"
+                  ext-cls="match-value-popover"
                 >
                   <div
                     class="match-value-child"
@@ -629,20 +766,60 @@ const handleBatchInputChange = (isShow) => {
         />
       </div>
     </li>
-    <li ref="refHiddenFocus" class="search-item-focus hidden-pointer"></li>
-    <li class="search-item is-focus-input" :data-attr-txt="inputPlaceholder">
+    <li
+      ref="refHiddenFocus"
+      class="search-item-focus hidden-pointer"
+    />
+    <li
+      class="search-item is-focus-input"
+      :data-attr-txt="inputPlaceholder"
+    >
       <input
         ref="refSearchInput"
         class="tag-option-focus-input"
         type="text"
         @blur.stop="handleFullTextInputBlur"
-        @click.stop="handleInputTextClick"
         @input="handleInputValueChange"
+        @keydown="handleChoiceListKeydown"
         @keyup.delete="handleDeleteItem"
         @keyup.enter.stop="handleInputValueEnter"
+        @compositionstart="handleCompositionStart"
+        @compositionend="handleCompositionEnd"
+      >
+    </li>
+    <li
+      class="search-item"
+      :style="{'margin-left': paddingLeft}"
+    >
+      <slot
+        name="custom-placeholder"
+        :is-empty-text="inputValueLength === 0"
       />
     </li>
     <div style="display: none">
+      <div
+        ref="refChoiceList"
+        class="v3-bklog-search-bar-choice-list"
+      >
+        <div
+          :class="[
+            'v3-bklog-search-bar-choice-list-item',
+            { 'is-selected': selectedChoiceIndex === 0 }
+          ]"
+          @click="handleChoiceItemClick('fulltext')"
+        >
+          {{ t('全文检索') }}
+        </div>
+        <div
+          :class="[
+            'v3-bklog-search-bar-choice-list-item',
+            { 'is-selected': selectedChoiceIndex === 1 }
+          ]"
+          @click="handleChoiceItemClick('ai')"
+        >
+          {{ t('AI搜索') }}
+        </div>
+      </div>
       <UiInputOptions
         ref="refPopInstance"
         :is-input-focus="isInputTextFocus"
@@ -650,7 +827,7 @@ const handleBatchInputChange = (isShow) => {
         @cancel="handleCancelClick"
         @save="handleGlobalSaveQueryClick"
         @batch-input-change="handleBatchInputChange"
-      ></UiInputOptions>
+      />
     </div>
   </ul>
 </template>
@@ -753,5 +930,32 @@ const handleBatchInputChange = (isShow) => {
 .match-value-popover {
   // eslint-disable-next-line
   left: 15px;
+}
+
+.v3-bklog-search-bar-choice-list {
+  padding: 4px 0;
+  background-color: #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
+
+  .v3-bklog-search-bar-choice-list-item {
+    padding: 4px 12px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #f5f7fa;
+    }
+
+    &.is-selected {
+      background-color: #f5f7fa;
+    }
+
+    &:not(:last-child) {
+      border-bottom: 1px solid #f0f1f5;
+    }
+  }
 }
 </style>

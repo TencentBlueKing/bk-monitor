@@ -405,6 +405,14 @@ export default {
   '在各消费场景，选择 {0} 后，可填入 {1}': 'In various consumption scenarios, after selecting {0}, you can fill in {1}',
   '仪表盘 Panel 级别的定位，需要一定的时间同步，如有需要请点击':
     'The positioning at the panel level of the dashboard requires a certain amount of time to synchronize. If necessary, please click',
+
+  // APM-告警模板
+  查看各服务告警情况: 'View alarm situation of each service',
+  查看全部关联服务: 'View all related services',
+  内置策略不可删除: 'Built-in policies cannot be deleted',
+  '该模板已下发服务，不可删除': 'This template has been issued to services and cannot be deleted',
+  '该模板已禁用，无法下发': 'This template has been disabled and cannot be issued',
+  '可以通过 {0} 来关联更多的服务。': 'You can associate more services through {0}',
   '应用一般是拥有独立的站点，由多个 Service 共同组成，提供完整的产品功能，拥有独立的软件架构。从技术方面来说应用是 Trace 数据的存储隔离，在同一个应用内的数据将进行统计和观测。{0}':
     'An application generally has an independent site, composed of multiple services working together to provide complete product functionalities, with a standalone software architecture. From a technical perspective, an application represents the storage isolation of trace data, where data within the same application will be aggregated and observed.{0}',
   更多请: 'For more',
@@ -412,4 +420,21 @@ export default {
   '配置修改保存后，需 5 分钟左右生效':
     'After the configuration modification is saved, it will take about 5 minutes to take effect',
   'AI 小鲸': 'AI Blueking',
+  '再次勾选「已配置」的策略，可重新下发，覆盖原有的策略':
+    'After checking the strategy that has been applied, you can re-issue it to override the existing strategy',
+  请先选择模版: 'Please select a template first',
+  '解除关联后，{0}服务下将不会配置该策略':
+    'After unassociating, the strategy will not be configured on the {0} service',
+  模板: 'Template',
+  '是否开启该功能?': 'Are you sure you want to enable this feature?',
+  '是否关闭该功能?': 'Are you sure you want to disable this feature?',
+  '开启后，该策略模板可以下发到需要的服务':
+    'After enabling, this strategy template can be issued to the required services',
+  '禁用后，该策略模板不可被下发到服务': 'After disabling, this strategy template cannot be issued to services',
+  '开启「自动下发」功能后，新增服务将自动配置该策略并生效':
+    'After enabling the automatic issuance feature, new services will automatically configure this strategy and take effect',
+  '关闭「自动下发」功能，新增服务将不会自动配置该策略':
+    'After disabling the automatic issuance feature, new services will not automatically configure this strategy',
+  '并行：组间同时拨打，组内顺序依次拨打；<br>串行：多个用户组人员顺序合并后依次拨打，<br>重复人员以前置组优先': 
+    'Parallel: Calls are made simultaneously between groups, and sequentially within each group.<br>Serial: The personnel from multiple user groups are merged in sequence and called one by one, <br>with repeated personnel given priority based on their earlier group.',
 };

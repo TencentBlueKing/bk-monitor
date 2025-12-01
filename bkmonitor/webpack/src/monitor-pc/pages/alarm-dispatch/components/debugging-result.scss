@@ -1,4 +1,3 @@
-
 @mixin flex-center {
   display: flex;
   align-items: center;
@@ -6,7 +5,6 @@
 }
 
 $statusColors: #ea3635 #ff9c00 #699df4;
-  
 
 .debugging-result-siderlider {
   .mr-4 {
@@ -54,7 +52,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
           width: 20px;
           height: 20px;
 
-          @include flex-center();
+          @include flex-center;
 
           .icon-mc-triangle-down {
             font-size: 20px;
@@ -75,10 +73,10 @@ $statusColors: #ea3635 #ff9c00 #699df4;
           .title {
             max-width: 570px;
             overflow: hidden;
+            text-overflow: ellipsis;
             font-size: 14px;
             font-weight: 700;
             color: #63656e;
-            text-overflow: ellipsis;
             white-space: nowrap;
           }
 
@@ -89,7 +87,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
             color: #979ba5;
             background: #fff;
 
-            @include flex-center();
+            @include flex-center;
           }
         }
 
@@ -105,7 +103,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
             background: #dbd4ed;
             border-radius: 2px;
 
-            @include flex-center();
+            @include flex-center;
           }
         }
 
@@ -118,7 +116,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
           border: 1px solid #3a84ff;
           border-radius: 2px;
 
-          @include flex-center();
+          @include flex-center;
 
           .icon-bianji {
             color: #3a84ff;
@@ -134,13 +132,14 @@ $statusColors: #ea3635 #ff9c00 #699df4;
           border: 1px solid #c4c6cc;
           border-radius: 2px;
 
-          @include flex-center();
+          @include flex-center;
         }
       }
 
       .expand-item-content {
         height: 0;
         overflow: hidden;
+
         // border-top: 1px solid #dfe0e5;
 
         .alarm-group-header {
@@ -163,9 +162,9 @@ $statusColors: #ea3635 #ff9c00 #699df4;
                 display: inline-block;
                 max-width: 107px;
                 overflow: hidden;
+                text-overflow: ellipsis;
                 font-weight: 700;
                 color: #63656e;
-                text-overflow: ellipsis;
               }
             }
 
@@ -218,7 +217,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
           color: #3a84ff;
           cursor: pointer;
           border-left: 4px solid #699df4;
-      
+
           @for $i from 1 through length($statusColors) {
             &.status-#{$i} {
               border-left-color: nth($statusColors, $i);
@@ -270,11 +269,12 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 .tag-column-wrap {
   display: flex;
   align-items: center;
-  height: 59px;
+
+  // height: 59px;
   overflow: hidden;
 
   .tag-column {
-    max-height: 59px;
+    // max-height: 59px;
     padding-top: 2px;
     overflow: hidden;
   }

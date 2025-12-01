@@ -144,6 +144,9 @@ export default {
   修改优先级: 'Modify priority',
   基于分派规则通知: 'Alarm Routing',
   修改告警内容: 'Modify Alarm',
+  语音拨打顺序: 'Voice Call Order',
+  串行: 'Serial',
+  并行: 'Parallel',
 
   // 专业表单 - 图表相关
   已选图表: 'Selected charts',
@@ -233,6 +236,7 @@ export default {
   服务名: 'Service Name',
   域名: 'Domain Name',
   搜索收藏名: 'Search Favorites',
+  '搜索 收藏名': 'Search Favorites',
   别名: 'Alias',
   组名: 'Group Name',
   收藏名: 'Favorite Name',
@@ -1303,7 +1307,8 @@ export default {
   命令行参数: 'Command-line Parameters',
   被关联插件: 'Associated Plugin',
   进程采集插件: 'Process collection plugin',
-  '插件名称(ID或别名)': 'Plugin Name (ID or Alias)',
+  // '插件名称(ID或别名)': 'Plugin Name (ID or Alias)',
+  '搜索 插件名称': 'Search Plugin Name',
   环境变量参数: 'Environment Variable Parameters',
   非官方插件: 'Unofficial Plugin',
   结合插件提供本地和远程采集两种方式: 'Combined with the plugin to provide local and remote collection two ways', // 确定位置
@@ -1536,8 +1541,9 @@ export default {
   审批成功: 'Approval successful',
   审批失败: 'Approval failed',
   服务类型: 'Service Type',
-  应用名或ID: 'Application name or ID',
+  '应用名、ID': 'Application name、ID',
   请输入服务搜索: 'Please enter a service search',
+  '搜索 服务名称': 'Search service name',
   接入中: 'Connecting',
   '确认删除应用？': 'Are you sure to delete the app?',
 
@@ -1644,7 +1650,6 @@ export default {
   当告警恢复时: 'When alarm recovers',
   当告警确认时: 'When alarm is acknowledged',
   当告警触发时: 'When alarm is triggered',
-  当告警触发时执行: 'Execute when alarm is triggered',
   告警事件内容: 'Alarm Event Content',
   告警事件屏蔽: 'Alarm Event Mute',
   告警事件链接: 'Alarm Event Link',
@@ -1702,7 +1707,8 @@ export default {
 
   '业务/集群/节点': 'Business/Cluster/Node',
   显示高级选项: 'Advanced',
-  '采集配置名称/ID': 'Collection configuration name/ID',
+  // '采集配置名称/ID': 'Collection configuration name/ID',
+  '搜素 ID、名称': 'Search ID, Name',
   '主机&云平台': 'Host & Cloud Platform',
   指标选择器: 'Metric Selector',
 
@@ -1975,4 +1981,9 @@ export default {
   主调服务: 'Caller service',
   '将根据「服务名」自动生成上报示例代码，你可以直接运行':
     'The reporting example code will be automatically generated based on the service name, and you can run it directly',
+
+  // APM-告警模板
+  全部模板: 'All templates',
+  内置模板: 'Built-in templates',
+  克隆模板: 'Clone template',
 };

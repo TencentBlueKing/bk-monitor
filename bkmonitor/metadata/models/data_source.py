@@ -14,6 +14,7 @@ import logging
 import time
 import traceback
 import uuid
+from typing import Any
 
 import kafka
 from django.conf import settings
@@ -29,10 +30,12 @@ from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSIO
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from metadata import config
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR
 from metadata.models.space.constants import (
     LOG_EVENT_ETL_CONFIGS,
     SPACE_UID_HYPHEN,
     SYSTEM_BASE_DATA_ETL_CONFIGS,
+    EtlConfigs,
     SpaceTypes,
 )
 from metadata.utils import consul_tools, hash_util
@@ -218,19 +221,14 @@ class DataSource(models.Model):
 
         return conf_list
 
-    def get_spaces_by_data_id(
-        self, bk_data_id: int, from_authorization: bool | None = False, bk_tenant_id=DEFAULT_TENANT_ID
-    ) -> list | dict:
-        """通过数据源 ID 查询空间为授权的或者为当前空间"""
+    def get_spaces_by_data_id(self, bk_tenant_id: str, bk_data_id: int) -> dict[str, Any]:
+        """通过数据源 ID 查询空间"""
         # 返回来源于授权空间信息,{space_type_id}__{space_id}__{bk_tenant_id}
         space_list = list(
             SpaceDataSource.objects.filter(
-                bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id, from_authorization=from_authorization
+                bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id, from_authorization=False
             ).values("space_type_id", "space_id", "bk_tenant_id")
         )
-        # 如果为授权，则直接返回
-        if from_authorization:
-            return space_list
 
         # 否则， 返回归属的空间，也就是第一个
         return space_list[0] if space_list else {}
@@ -349,6 +347,25 @@ class DataSource(models.Model):
         # data list 在consul中的作用被废弃，不再使用
         pass
 
+    def register_to_bkbase(self, bk_biz_id: int, namespace: str = "bkmonitor"):
+        """
+        将当前data_id注册到计算平台
+        """
+
+        from metadata.models.data_link import DataIdConfig, utils
+
+        bkbase_data_name = utils.compose_bkdata_data_id_name(self.data_name)
+        logger.info("register_to_bkbase: bkbase_data_name: %s", bkbase_data_name)
+        data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
+            name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id, bk_tenant_id=self.bk_tenant_id
+        )
+        data_id_config = data_id_config_ins.compose_predefined_config(data_source=self)
+        api.bkdata.apply_data_link(config=[data_id_config], bk_tenant_id=self.bk_tenant_id)
+
+        # 更新数据源的创建来源
+        self.created_from = DataIdCreatedFromSystem.BKDATA.value
+        self.save()
+
     # TODO：多租户,需要等待BkBase接口协议,理论上需要补充租户ID,不再有默认接入者概念
     @classmethod
     def apply_for_data_id_from_bkdata(
@@ -366,8 +383,13 @@ class DataSource(models.Model):
         from metadata.models.data_link.constants import DataLinkResourceStatus
         from metadata.models.data_link.service import apply_data_id_v2, get_data_id_v2
 
+        # 根据数据类型确定命名空间
+        namespace = BKBASE_NAMESPACE_BK_LOG if event_type == "log" else BKBASE_NAMESPACE_BK_MONITOR
+
         try:
-            apply_data_id_v2(data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base, event_type=event_type)
+            apply_data_id_v2(
+                data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base, event_type=event_type, namespace=namespace
+            )
             # 写入记录
         except BKAPIError as e:
             logger.error("apply data id from bkdata error: %s", e)
@@ -377,7 +399,7 @@ class DataSource(models.Model):
             # 等待 3s 后查询一次，减少请求次数
             time.sleep(3)
             try:
-                data = get_data_id_v2(data_name=data_name, is_base=is_base, bk_biz_id=bk_biz_id)
+                data = get_data_id_v2(data_name=data_name, is_base=is_base, bk_biz_id=bk_biz_id, namespace=namespace)
             except BKAPIError as e:
                 logger.error("get data id from bkdata error: %s", e)
                 continue
@@ -563,7 +585,12 @@ class DataSource(models.Model):
             from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
 
             # 开启V4链路后，特定etl_config的data_id均从计算平台获取
-            if settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
+            enabled_custom_event_v4 = (
+                etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value and settings.ENABLE_V4_EVENT_GROUP_DATA_LINK
+            )
+            if (
+                settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
+            ) or enabled_custom_event_v4:
                 logger.info(f"apply for data id from bkdata,type_label->{type_label},etl_config->{etl_config}")
                 is_base = False
 
@@ -674,6 +701,17 @@ class DataSource(models.Model):
                     logger.info(f"data_id->[{data_source.bk_data_id}] now set space uid->[{data_source.space_uid}]")
                 except ValueError:
                     raise ValueError(_("空间唯一标识{}错误").format(space_uid))
+            elif bk_biz_id:
+                # 记录数据源对应的空间信息，便于后续查询
+                if bk_biz_id > 0:
+                    space: Space = Space.objects.get(
+                        bk_tenant_id=bk_tenant_id, space_type_id=SpaceTypes.BKCC.value, space_id=str(bk_biz_id)
+                    )
+                else:
+                    space = Space.objects.get(bk_tenant_id=bk_tenant_id, id=-bk_biz_id)
+
+                data_source.space_uid = space.space_uid
+                data_source.save()
 
             # 创建option配置
             option = {} if option is None else option
@@ -690,9 +728,9 @@ class DataSource(models.Model):
             # 添加时间 option
             cls._add_time_unit_options(operator, data_source.bk_data_id, etl_config)
 
-        # 写入 空间与数据源的关系表，如果 data id 为全局不需要记录
+        # 写入 空间与数据源的关系表
         try:
-            if not is_platform_data_id and space_type_id and space_id:
+            if space_type_id and space_id:
                 cls()._save_space_datasource(
                     creator=operator,
                     space_type_id=space_type_id,
@@ -896,7 +934,7 @@ class DataSource(models.Model):
 
         if authorized_spaces is not None:
             # 写入 空间与数据源的关系表
-            space_info = self.get_spaces_by_data_id(self.bk_data_id, self.bk_tenant_id)
+            space_info = self.get_spaces_by_data_id(bk_tenant_id=self.bk_tenant_id, bk_data_id=self.bk_data_id)
             if space_info:
                 try:
                     self._save_space_datasource(
@@ -1335,7 +1373,7 @@ class DataSourceResultTable(models.Model):
         return f"<{self.bk_data_id},{self.table_id}>"
 
     @classmethod
-    def modify_table_id_datasource(cls, table_id=None, bk_data_id=None, bk_tenant_id=DEFAULT_TENANT_ID):
+    def modify_table_id_datasource(cls, bk_tenant_id: str, table_id=None, bk_data_id=None):
         if cls.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).exists():
             raise ValueError(_("数据源有跟结果表关联"))
 
@@ -1346,11 +1384,14 @@ class DataSourceResultTable(models.Model):
 
         with atomic(config.DATABASE_CONNECTION_NAME):
             # 解除老的关联关系
-            if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists():
-                if cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).count() != 1:
-                    raise ValueError(_("结果表有多个关联数据源"))
-                target = cls.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
-                logger.info("table_id => [%s] do not relation bk_data_id => [%s]", table_id, target.bk_data_id)
+            try:
+                target = cls.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+            except cls.MultipleObjectsReturned:
+                raise ValueError(_("结果表有多个关联数据源"))
+            except cls.DoesNotExist:
+                pass
+            else:
+                logger.info("table_id->[%s] do not relation bk_data_id->[%s]", table_id, target.bk_data_id)
                 target.delete()
                 refresh_consul_config_data_ids.append(target.bk_data_id)
 

@@ -37,10 +37,10 @@ import {
   getTitleAndSubtitle,
   isNumeric,
 } from '../../../../components/retrieval-filter/utils';
+import AddVariableWrap from '../../components/utils/add-variable-wrap';
+import VariableName from '../../components/utils/variable-name';
 import { type IFieldItem, type IFilterField, type IFilterItem, EFieldType } from './typing';
 import ValueTagSelector, { type IValue } from './value-tag-selector';
-import AddVariableWrap from '@/pages/query-template/components/utils/add-variable-wrap';
-import VariableName from '@/pages/query-template/components/utils/variable-name';
 
 import type { TGetValueFn } from '../../../../components/retrieval-filter/value-selector-typing';
 
@@ -180,7 +180,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
       } else {
         const item = this.fields.filter(f => ![EFieldType.custom_operator, EFieldType.variable].includes(f.type))?.[0];
         if (item) {
-          this.handleCheck(item);
+          this.handleCheck(item, '', [], false, true);
         }
         setTimeout(() => {
           this.searchInputRef?.focus();
@@ -508,7 +508,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
               <div class='form-item-label'>{this.$t('运算符')}</div>
               <div class='form-item-content mt-6'>
                 <bk-select
-                  ext-cls={'method-select'}
+                  ext-cls={`method-select ${this.method}`}
                   v-model={this.method}
                   popover-options={{
                     appendTo: 'parent',
@@ -574,7 +574,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                 v-model={this.searchValue}
                 behavior='simplicity'
                 left-icon='bk-icon icon-search'
-                placeholder={this.$t('请输入关键字')}
+                placeholder={this.$t('请输入 关键字')}
                 onChange={this.handleSearchChangeDebounce}
               />
             </div>

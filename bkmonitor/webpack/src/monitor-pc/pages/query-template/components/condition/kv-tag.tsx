@@ -31,7 +31,7 @@ import { xssFilter } from 'monitor-common/utils';
 import { isVariableName } from '../../variables/template/utils';
 import VariableName from '../utils/variable-name';
 
-import type { IFilterItem } from '@/components/retrieval-filter/utils';
+import type { IFilterItem } from 'monitor-pc/components/retrieval-filter/utils';
 
 import './kv-tag.scss';
 

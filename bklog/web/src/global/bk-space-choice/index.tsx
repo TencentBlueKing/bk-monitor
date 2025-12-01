@@ -34,6 +34,7 @@ import { useRouter, useRoute } from 'vue-router/composables';
 
 import * as authorityMap from '../../common/authority-map';
 import useStore from '../../hooks/use-store';
+import useListSort from '../../hooks/use-list-sort';
 import UserConfigMixin from '../../mixins/user-store-config';
 import List from './list';
 
@@ -76,11 +77,12 @@ export default defineComponent({
 
     const isExternal = computed(() => store.state.isExternal);
     const demoUid = computed(() => store.getters.demoUid);
-    const demoId = computed(() => mySpaceList.value.find(item => item.space_uid === demoUid.value)?.id || '');
+    const demoSpace = computed(() => mySpaceList.value.find(item => item.space_uid === demoUid.value));
 
     const menuSearchInput = ref();
     const bizListRef = ref();
     const bizBoxWidth = ref(418);
+    const selectedIndex = ref(-1); // 当前键盘选中的索引
 
     const commonListIdsLog = computed(() => store.state.storage[BK_LOG_STORAGE.COMMON_SPACE_ID_LIST] ?? []);
     const spaceUid = computed(() => store.state.storage[BK_LOG_STORAGE.BK_SPACE_UID]);
@@ -92,7 +94,9 @@ export default defineComponent({
       }
       return mySpaceList.value.find(item => item.space_uid === spaceUid.value)?.space_name ?? '';
     });
-    const bizNameIcon = computed(() => bizName.value?.[0]?.toLocaleUpperCase() ?? '');
+    const bizNameIcon = computed(() => {
+      return bizName.value?.[0]?.toLocaleUpperCase() ?? '';
+    });
 
     // 是否展示空间类型列表
     const showSpaceTypeIdList = computed(() => !isExternal.value && spaceTypeIdList.value.length > 1);
@@ -121,14 +125,18 @@ export default defineComponent({
     };
 
     // 监听showBizList
-    watch(showBizList, async val => {
+    watch(showBizList, async (val) => {
       if (val) {
         document.addEventListener('click', handleGlobalClick);
+        document.addEventListener('keydown', handleKeyDown);
+        selectedIndex.value = -1; // 重置选中索引
         await nextTick();
         const el = document.querySelector('#space-type-ul');
         bizBoxWidth.value = Math.max(394, el?.clientWidth ?? 394) + 24;
       } else {
         document.removeEventListener('click', handleGlobalClick);
+        document.removeEventListener('keydown', handleKeyDown);
+        selectedIndex.value = -1; // 重置选中索引
         bizListRef.value && (bizListRef.value.scrollTop = 0);
       }
     });
@@ -136,42 +144,54 @@ export default defineComponent({
     // 在组件卸载时清除监听
     onUnmounted(() => {
       document.removeEventListener('click', handleGlobalClick);
+      document.removeEventListener('keydown', handleKeyDown);
     });
 
-    const lowerCaseKeyword = computed(() => keyword.value.trim().toLocaleLowerCase());
-
-    const authorizedList = computed(() =>
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
-      mySpaceList.value.filter(item => {
-        let show = false;
+    // 先进行类型过滤和权限过滤，得到基础列表
+    const baseFilteredList = computed(() => {
+      return mySpaceList.value.filter((item) => {
+        // 类型过滤
         if (searchTypeId.value) {
-          show =
-            searchTypeId.value === 'bcs'
-              ? item.space_type_id === 'bkci' && !!item.space_code
-              : item.space_type_id === searchTypeId.value;
+          const typeMatch = searchTypeId.value === 'bcs'
+            ? item.space_type_id === 'bkci' && !!item.space_code
+            : item.space_type_id === searchTypeId.value;
+          if (!typeMatch) {
+            return false;
+          }
         }
-        if ((show && lowerCaseKeyword.value) || !(searchTypeId.value || show)) {
-          show =
-            item.space_name.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1 ||
-            item.py_text.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1 ||
-            item.space_uid.toLocaleLowerCase().indexOf(lowerCaseKeyword.value) > -1 ||
-            `${item.bk_biz_id}`.includes(lowerCaseKeyword.value) ||
-            `${item.space_code}`.includes(lowerCaseKeyword.value);
-        }
-        if (!show) {
-          return false;
-        }
+
+        // 权限过滤
         if (!item.permission?.[authorityMap.VIEW_BUSINESS]) {
           return false;
         }
+
         return true;
-      }),
+      });
+    });
+
+    // 使用 use-list-sort 进行文本匹配和排序
+    // 匹配的字段：space_name, py_text, space_uid, bk_biz_id, space_code
+    const matchKeys = ['space_name', 'py_text', 'space_uid'];
+    const { sortList: authorizedList, updateList, updateSearchText } = useListSort(
+      baseFilteredList.value,
+      matchKeys,
     );
 
+    // 监听基础列表变化，更新排序列表
+    watch(baseFilteredList, (newList) => {
+      updateList(newList);
+    }, { immediate: true });
+
+    // 监听搜索关键词变化，更新搜索文本
+    watch(keyword, (newKeyword) => {
+      updateSearchText(newKeyword);
+      // 搜索时重置选中索引
+      selectedIndex.value = -1;
+    }, { immediate: true });
+
     const commonList = computed(
-      () =>
-        commonListIdsLog.value.map(id => authorizedList.value.find(item => Number(item.id) === id)).filter(Boolean) ||
-        [],
+      () => commonListIdsLog.value.map(id => authorizedList.value.find(item => Number(item.id) === id)).filter(Boolean)
+        || [],
     );
 
     // 初始化业务列表
@@ -193,6 +213,125 @@ export default defineComponent({
       return [...generalList];
     });
 
+    // 获取可选择的业务项列表（过滤掉分组标题）
+    const selectableItems = computed(() => {
+      return groupList.value.filter(item => item.type !== 'group-title');
+    });
+
+    // 键盘事件处理
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 只在组件展开时处理键盘事件
+      if (!showBizList.value) {
+        return;
+      }
+
+      // 对于上下键、回车键和ESC键进行处理
+      if (['ArrowUp', 'ArrowDown', 'Enter', 'Escape'].includes(e.key)) {
+        switch (e.key) {
+          case 'ArrowDown':
+            e.preventDefault();
+            e.stopPropagation();
+            if (selectableItems.value.length > 0) {
+              selectedIndex.value = selectedIndex.value < selectableItems.value.length - 1
+                ? selectedIndex.value + 1
+                : 0;
+              scrollToSelectedItem();
+            }
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            e.stopPropagation();
+            if (selectableItems.value.length > 0) {
+              selectedIndex.value = selectedIndex.value > 0
+                ? selectedIndex.value - 1
+                : selectableItems.value.length - 1;
+              scrollToSelectedItem();
+            }
+            break;
+          case 'Enter':
+            // 阻止默认行为，避免表单提交等
+            e.preventDefault();
+            e.stopPropagation();
+
+            // 如果没有选中项，选择第一项；否则选择当前选中项
+            if (selectableItems.value.length > 0) {
+              let targetIndex = selectedIndex.value;
+
+              // 如果还没有选中项，选择第一项
+              if (targetIndex < 0 || targetIndex >= selectableItems.value.length) {
+                targetIndex = 0;
+                selectedIndex.value = 0;
+              }
+
+              const selectedItem = selectableItems.value[targetIndex];
+              if (selectedItem) {
+                handleClickMenuItem(selectedItem);
+              }
+            }
+            break;
+          case 'Escape':
+            e.preventDefault();
+            e.stopPropagation();
+            showBizList.value = false;
+            selectedIndex.value = -1;
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
+    // 滚动到选中的项
+    const scrollToSelectedItem = () => {
+      if (!bizListRef.value || selectedIndex.value < 0) {
+        return;
+      }
+
+      nextTick(() => {
+        // 找到虚拟滚动容器
+        const listContainer = bizListRef.value?.$el || bizListRef.value;
+        if (!listContainer) {
+          return;
+        }
+
+        // 获取所有列表项（排除分组标题）
+        const items = listContainer.querySelectorAll('.list-item');
+        if (items.length === 0) {
+          return;
+        }
+
+        // 找到当前选中的项在 DOM 中的位置
+        const selectedItem = selectableItems.value[selectedIndex.value];
+        if (!selectedItem) {
+          return;
+        }
+
+        // 遍历 DOM 项，找到匹配的项
+        let targetItem: Element | null = null;
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          const itemId = item.getAttribute('data-id') || item.querySelector('[data-space-uid]')?.getAttribute('data-space-uid');
+          if (itemId && (itemId === String(selectedItem.id) || itemId === selectedItem.space_uid)) {
+            targetItem = item;
+            break;
+          }
+        }
+
+        // 如果没找到，尝试通过索引查找
+        if (!targetItem && selectedIndex.value < items.length) {
+          targetItem = items[selectedIndex.value];
+        }
+
+        if (targetItem) {
+          // 滚动到目标项
+          targetItem.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+          });
+        }
+      });
+    };
+
     // 点击业务名称时触发，切换下拉框显示并聚焦搜索框
     const handleClickBizSelect = () => {
       showBizList.value = !showBizList.value;
@@ -209,6 +348,7 @@ export default defineComponent({
     // 点击下拉框外部，收起下拉框
     const handleClickOutSide = () => {
       showBizList.value = false;
+      selectedIndex.value = -1; // 重置选中索引
     };
 
     // 打开设置/取消默认弹窗
@@ -228,14 +368,14 @@ export default defineComponent({
       const bizId = isSetBizIdDefault.value ? Number(defaultSpace.value?.id) : 'undefined';
       userConfigMixin
         .handleSetUserConfig(DEFAULT_BIZ_ID_KEY, `${bizId}`, '')
-        .then(result => {
+        .then((result) => {
           if (result) {
             store.commit('SET_APP_STATE', {
               defaultBizId: bizId,
             });
           }
         })
-        .catch(e => {
+        .catch((e) => {
           console.log(e);
         })
         .finally(() => {
@@ -248,10 +388,17 @@ export default defineComponent({
     // 更新路由
     const debounceUpdateRouter = () => {
       return debounce(60, (space: any) => {
+        store.commit('updateSpace', space.space_uid);
+        store.commit('updateStorage', {
+          [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid,
+          [BK_LOG_STORAGE.BK_BIZ_ID]: space.bk_biz_id,
+        });
+
         if (`${space.bk_biz_id}` !== route.query.bizId || space.space_uid !== route.query.spaceUid) {
-          store.commit('updateSpace', space.space_uid);
-          store.commit('updateStorage', { [BK_LOG_STORAGE.BK_SPACE_UID]: space.space_uid });
+          const routeName = route.name === 'un-authorized' ? route.query.page_from as string : undefined;
+          const appendOptions = routeName ? { name: routeName } : {};
           router.push({
+            ...appendOptions,
             params: {
               ...(route.params ?? {}),
               indexId: undefined,
@@ -290,6 +437,7 @@ export default defineComponent({
         console.warn(error);
       } finally {
         showBizList.value = false;
+        selectedIndex.value = -1; // 重置选中索引
       }
     };
 
@@ -302,15 +450,6 @@ export default defineComponent({
       cacheIds.unshift(id);
 
       store.commit('updateStorage', { [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: cacheIds.slice(0, maxLen) });
-    };
-
-    // 点击体验demo按钮
-    const experienceDemo = () => {
-      showBizList.value = false;
-      checkSpaceChange(demoUid.value); // 切换到demo业务
-      if (demoId.value) {
-        updateCacheBizId(Number(demoId.value));
-      } // 更新常用业务缓存
     };
 
     // 下拉框内容渲染
@@ -365,6 +504,8 @@ export default defineComponent({
                 commonList={commonList.value}
                 list={groupList.value}
                 theme={props.theme as ThemeType}
+                selectedIndex={selectedIndex.value}
+                selectableItems={selectableItems.value}
                 on-HandleClickMenuItem={handleClickMenuItem}
                 on-HandleClickOutSide={handleClickOutSide}
                 on-OpenDialog={openDialog}
@@ -375,9 +516,9 @@ export default defineComponent({
               {!isExternal.value && demoUid.value && (
                 <div
                   class='menu-select-extension-item'
-                  onMousedown={e => {
+                  onMousedown={(e) => {
                     e.stopPropagation();
-                    experienceDemo();
+                    handleClickMenuItem(demoSpace.value);
                   }}
                 >
                   <span class='icon bklog-icon bklog-app-store' />

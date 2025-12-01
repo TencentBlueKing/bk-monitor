@@ -103,7 +103,7 @@ Component.registerHooks(['beforeRouteEnter']);
 // 群提醒人 需要有一个默认值
 const mentListDefaultItem = {
   id: 'all',
-  name: window.i18n.t('内部通知人'),
+  name: window.i18n.t('告警接收人'),
   logo: '',
   type: 'group',
   members: [],
@@ -177,7 +177,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
   bizIdLIst = [];
   channels: string[] = ['user'];
   alertTypeList = [
-    { id: 'user', name: this.$t('内部通知对象'), selected: true, icon: 'icon-mc-internal-user', show: true },
+    { id: 'user', name: this.$t('默认通知渠道'), selected: true, icon: 'icon-mc-internal-user', show: true },
     { id: 'wxwork-bot', name: this.$t('群机器人'), selected: false, icon: 'icon-mc-robot', show: true },
     { id: 'bkchat', name: this.$t('蓝鲸信息流'), selected: false, icon: 'icon-inform-circle', show: true },
   ];
@@ -276,8 +276,14 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     return noticeWayList;
   }
 
+  // 是否克隆入口进入
+  get isClone() {
+    return this.$route.name === 'alarm-group-clone';
+  }
+
   async created() {
-    this.updateNavData(this.groupId ? this.$tc('编辑') : this.$tc('新增告警组'));
+    // 面包屑文案 克隆使用新增告警组
+    this.updateNavData(this.groupId && !this.isClone ? this.$tc('编辑') : this.$tc('新增告警组'));
     this.formData.bizId = this.$store.getters.bizId;
     this.formData.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     this.bizIdLIst = this.$store.getters.bizList;
@@ -349,9 +355,15 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
           mention_list: mentionList,
         } = data;
         // this.type === 'monitor' && this.$store.commit('app/SET_NAV_TITLE', `${this.$t('编辑')} - #${id} ${name}`);
-        this.updateNavData(`${this.$t('编辑')} ${name}`);
+        // 面包屑文案 克隆使用新增告警组
+        !this.isClone && this.updateNavData(`${this.$t('编辑')} ${name}`);
         this.pageTitle = `#${this.groupId} ${name}`;
         this.formData.name = name;
+        // 克隆 1.告警组名称后面追加_copy; 2.不需要pageTitle
+        if (this.isClone) {
+          this.formData.name = `${name}_copy`;
+          this.pageTitle = '';
+        }
         this.formData.desc = desc;
         this.formData.bizId = bizId;
         this.formData.timezone = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -483,7 +495,7 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     for (const id of this.selectedMentionList) {
       const isGroup = groupMap.has(id);
       let type = isGroup ? 'group' : 'user';
-      // 特殊处理 内部通知人 的情况
+      // 特殊处理 告警接收人 的情况
       if (id === 'all') type = 'group';
       result.push({
         id,
@@ -625,11 +637,15 @@ export default class AlarmGroupAdd extends tsc<IAlarmGroupAdd> {
     };
     // 新增参数channels
     params.channels = this.channels;
-    const api = this.groupId ? params => updateUserGroup(this.groupId, params) : createUserGroup;
+    // 克隆调新建接口
+    const api = this.groupId && !this.isClone ? params => updateUserGroup(this.groupId, params) : createUserGroup;
     this.loading = true;
     api(params)
       .then(data => {
-        this.$bkMessage({ theme: 'success', message: this.groupId ? this.$t('编辑成功') : this.$t('创建成功') });
+        this.$bkMessage({
+          theme: 'success',
+          message: this.groupId && !this.isClone ? this.$t('编辑成功') : this.$t('创建成功'),
+        });
         this.handleRouterTo(data);
       })
       .finally(() => (this.loading = false));

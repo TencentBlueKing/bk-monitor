@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from typing import Dict, List
 
 from django.utils.functional import cached_property
+from django.utils.translation import gettext as _
 
 from alarm_backends.core.cache.cmdb import (
     BusinessManager,
@@ -20,7 +19,7 @@ from alarm_backends.core.cache.cmdb import (
     SetManager,
 )
 from alarm_backends.core.context import BaseContextObject
-from api.cmdb.define import Business
+from api.cmdb.define import Business, Module
 
 
 class MultiInstanceDisplay:
@@ -35,9 +34,9 @@ class MultiInstanceDisplay:
             if value is None:
                 continue
 
-            if isinstance(value, (str, float, int)):
+            if isinstance(value, str | float | int):
                 values.append(str(value))
-            elif isinstance(value, list) and value and isinstance(value[0], (str, float, int)):
+            elif isinstance(value, list) and value and isinstance(value[0], str | float | int):
                 values.extend([str(v) for v in value])
         return ",".join(values)
 
@@ -59,9 +58,9 @@ class Target(BaseContextObject):
 
         try:
             if event.bk_host_id:
-                result = HostManager.get_by_id(event.bk_host_id)
+                result = HostManager.get_by_id(bk_tenant_id=event.bk_tenant_id, bk_host_id=event.bk_host_id)
             else:
-                result = HostManager.get(ip=event.ip, bk_cloud_id=event.bk_cloud_id)
+                result = HostManager.get(bk_tenant_id=event.bk_tenant_id, ip=event.ip, bk_cloud_id=event.bk_cloud_id)
         except Exception:
             # 不存在就接返回
             return
@@ -78,7 +77,24 @@ class Target(BaseContextObject):
                 set_names.add(topo_link[1].bk_inst_name)
         result.module_string = ",".join(module_names)
         result.set_string = ",".join(set_names)
+        result.bk_env_string = self.get_host_env_string(result)
         return result
+
+    def get_host_env_string(self, host):
+        environment_mapping = {"1": _("测试"), "2": _("体验"), "3": _("正式")}
+        env_set = set()
+        for set_id in host.bk_set_ids:
+            bk_set = SetManager.get(bk_tenant_id=self.parent.alert.bk_tenant_id, bk_set_id=set_id)
+            if not bk_set:
+                continue
+            # 检查bk_set_env是否存在且不为None，允许"0"等值
+            if bk_set.bk_set_env is None or bk_set.bk_set_env == "":
+                continue
+            # 确保bk_set_env是字符串类型
+            env_value = str(bk_set.bk_set_env)
+            bk_env_name = environment_mapping.get(env_value, env_value)
+            env_set.add(bk_env_name)
+        return ",".join(sorted(env_set))
 
     @cached_property
     def hosts(self) -> MultiInstanceDisplay:
@@ -88,9 +104,9 @@ class Target(BaseContextObject):
 
             try:
                 if event.bk_host_id:
-                    host = HostManager.get_by_id(event.bk_host_id)
+                    host = HostManager.get_by_id(bk_tenant_id=event.bk_tenant_id, bk_host_id=event.bk_host_id)
                 else:
-                    host = HostManager.get(ip=event.ip, bk_cloud_id=event.bk_cloud_id)
+                    host = HostManager.get(bk_tenant_id=event.bk_tenant_id, ip=event.ip, bk_cloud_id=event.bk_cloud_id)
             except Exception:
                 continue
 
@@ -105,6 +121,7 @@ class Target(BaseContextObject):
                         set_names.add(topo_link[1].bk_inst_name)
                 host.module_string = module_names
                 host.set_string = set_names
+                host.bk_env_string = self.get_host_env_string(host)
                 hosts.append(host)
 
         return MultiInstanceDisplay(hosts)
@@ -118,7 +135,7 @@ class Target(BaseContextObject):
         return {process["bk_func_name"]: process for process in self.processes}
 
     @cached_property
-    def processes(self) -> List[Dict]:
+    def processes(self) -> list[dict]:
         """
         进程列表
         """
@@ -126,10 +143,14 @@ class Target(BaseContextObject):
         if self.service_instance:
             processes = self.service_instance.process_instances or []
         elif self.host:
-            service_instance_ids = ServiceInstanceManager.get_service_instance_id_by_host(self.host.bk_host_id)
-            for service_instance_id in service_instance_ids:
-                service_instance = ServiceInstanceManager.get(service_instance_id)
-                if service_instance and service_instance.process_instances:
+            service_instance_ids = ServiceInstanceManager.get_service_instance_id_by_host(
+                bk_tenant_id=self.business.bk_tenant_id, bk_host_id=self.host.bk_host_id
+            )
+            service_instances = ServiceInstanceManager.mget(
+                bk_tenant_id=self.business.bk_tenant_id, service_instance_ids=service_instance_ids
+            )
+            for service_instance in service_instances.values():
+                if service_instance.process_instances:
                     processes.extend(service_instance.process_instances)
         return [process["process"] for process in processes]
 
@@ -143,7 +164,9 @@ class Target(BaseContextObject):
         event = self.parent.alert.event
 
         if event.bk_service_instance_id:
-            return ServiceInstanceManager.get(event.bk_service_instance_id)
+            return ServiceInstanceManager.get(
+                bk_tenant_id=self.business.bk_tenant_id, service_instance_id=event.bk_service_instance_id
+            )
 
     @cached_property
     def service_instances(self) -> MultiInstanceDisplay:
@@ -157,7 +180,9 @@ class Target(BaseContextObject):
             if not event.bk_service_instance_id:
                 continue
 
-            instance = ServiceInstanceManager.get(event.bk_service_instance_id)
+            instance = ServiceInstanceManager.get(
+                bk_tenant_id=self.business.bk_tenant_id, service_instance_id=event.bk_service_instance_id
+            )
 
             if instance:
                 instances.append(instance)
@@ -179,7 +204,7 @@ class Target(BaseContextObject):
         return self.service_instances
 
     @cached_property
-    def business(self):
+    def business(self) -> Business:
         """
         业务对象
         """
@@ -200,21 +225,13 @@ class Target(BaseContextObject):
     def sets(self):
         if not self.host:
             return []
-        bk_sets = []
-        for bk_set_id in self.host.bk_set_ids:
-            biz_set = SetManager.get(bk_set_id)
-            if biz_set:
-                bk_sets.append(SetManager.get(bk_set_id))
-        return bk_sets
+        sets = SetManager.mget(bk_tenant_id=self.business.bk_tenant_id, bk_set_ids=self.host.bk_set_ids)
+        return [set for set in sets.values()]
 
     @cached_property
-    def modules(self):
+    def modules(self) -> list[Module]:
         if not self.host:
             return []
-        bk_modules = []
-        for bk_module_id in self.host.bk_module_ids:
-            bk_module = ModuleManager.get(bk_module_id)
-            if bk_module:
-                # 可能出现缓存不存在的情况，仅缓存存在的情况下才进行记录
-                bk_modules.append(bk_module)
-        return bk_modules
+
+        modules = ModuleManager.mget(bk_tenant_id=self.business.bk_tenant_id, bk_module_ids=self.host.bk_module_ids)
+        return [module for module in modules.values()]

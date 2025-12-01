@@ -29,6 +29,10 @@ local_mem = caches["space"]
 logger = logging.getLogger(__name__)
 
 
+# 空间缓存时间，单位：秒
+SPACE_CACHE_TIMEOUT = 600
+
+
 class Empty:
     pass
 
@@ -117,7 +121,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             )
 
         # 补充miss 的 space_uid 信息（非cmdb 空间）
-        local_mem.set(f"metadata:spaces_map:{space_info['space_uid']}", space_info, timeout=3600)
+        local_mem.set(f"metadata:spaces_map:{space_info['space_uid']}", space_info, timeout=SPACE_CACHE_TIMEOUT)
         return cls._init_space(space_info)
 
     @classmethod
@@ -129,11 +133,11 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
 
         ret: list[SpaceDefine] = local_mem.get(cache_key, miss_cache)
         if ret is miss_cache or refresh:
-            ret: list[SpaceDefine] = [
+            ret = [
                 SpaceDefine.from_dict(space_dict, cleaned=True)
                 for space_dict in cls.list_spaces_dict(using_cache=False, bk_tenant_id=bk_tenant_id)
             ]
-            local_mem.set(cache_key, ret, timeout=3600)
+            local_mem.set(cache_key, ret, timeout=SPACE_CACHE_TIMEOUT)
 
         return ret
 
@@ -168,6 +172,7 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
                        s.time_zone,
                        s.language,
                        s.is_bcs_valid,
+                       s.is_global,
                        CONCAT(s.space_type_id, '__', s.space_id) AS space_uid,
                        t.type_name
                 FROM
@@ -215,14 +220,14 @@ class InjectSpaceApi(space_api.AbstractSpaceApi):
             enrich_space_display_name(space)
             if cc_space:
                 # 仅针对cmdb空间，进行缓存， 非cc空间，需要额外resource信息，走api丰富。
-                local_mem.set(f"metadata:spaces_map:{space['space_uid']}", space, timeout=3600)
+                local_mem.set(f"metadata:spaces_map:{space['space_uid']}", space, timeout=SPACE_CACHE_TIMEOUT)
             else:
                 # 非cmdb 空间，内存暂存一份bk_biz_id -> space_uid 的映射
                 _space_transform[space["bk_biz_id"]] = space["space_uid"]
 
         # 如果指定了过滤条件，则不缓存
         if not filters:
-            local_mem.set(cache_key, spaces, timeout=3600)
+            local_mem.set(cache_key, spaces, timeout=SPACE_CACHE_TIMEOUT)
 
         return spaces
 

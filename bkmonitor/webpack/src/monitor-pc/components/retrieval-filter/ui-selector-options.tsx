@@ -50,6 +50,7 @@ import './ui-selector-options.scss';
 
 interface IProps {
   fields: IFilterField[];
+  isEnterSelect?: boolean;
   keyword?: string; // 上层传的关键字，用于搜索
   show?: boolean;
   value?: IFilterItem;
@@ -72,6 +73,8 @@ export default class UiSelectorOptions extends tsc<IProps> {
   @Prop({ type: Object, default: () => null }) value: IFilterItem;
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: String, default: '' }) keyword: string;
+  /* 快捷键操作中是否需要按下enter键才能选择项目 */
+  @Prop({ type: Boolean, default: false }) isEnterSelect: boolean;
 
   @Ref('allInput') allInputRef;
   @Ref('valueSelector') valueSelectorRef: ValueTagSelector;
@@ -159,7 +162,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
           }
         }
       } else {
-        this.handleCheck(this.fields[0]);
+        this.handleCheck(this.fields[0], '', [], false, true);
         setTimeout(() => {
           this.searchInputRef?.focus();
         }, 200);
@@ -304,7 +307,9 @@ export default class UiSelectorOptions extends tsc<IProps> {
           this.cursorIndex = this.searchLocalFields.length - 1;
         }
         this.updateSelection();
-        this.enterSelectionDebounce();
+        if (!this.isEnterSelect) {
+          this.enterSelectionDebounce();
+        }
         break;
       }
 
@@ -315,7 +320,9 @@ export default class UiSelectorOptions extends tsc<IProps> {
           this.cursorIndex = 0;
         }
         this.updateSelection();
-        this.enterSelectionDebounce();
+        if (!this.isEnterSelect) {
+          this.enterSelectionDebounce();
+        }
         break;
       }
       case 'Enter': {
@@ -451,7 +458,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
               <div class='form-item-label'>{this.$t('条件')}</div>
               <div class='form-item-content mt-6'>
                 <bk-select
-                  ext-cls={'method-select'}
+                  ext-cls={`method-select ${this.method}`}
                   v-model={this.method}
                   popover-options={{
                     appendTo: 'parent',
@@ -513,7 +520,7 @@ export default class UiSelectorOptions extends tsc<IProps> {
                 v-model={this.searchValue}
                 behavior='simplicity'
                 left-icon='bk-icon icon-search'
-                placeholder={this.$t('请输入关键字')}
+                placeholder={this.$t('请输入 关键字')}
                 onChange={this.handleSearchChangeDebounce}
               />
             </div>

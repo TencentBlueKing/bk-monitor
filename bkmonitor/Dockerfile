@@ -1,26 +1,14 @@
-FROM python:3.11-bookworm AS python-base
+ARG PYTHON_BASE_IMAGE=tencentos/tencentos4-minimal:4.4-v20250922
+
+FROM ${PYTHON_BASE_IMAGE} AS python-base
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # variables
 ARG username=bkmonitor
 ARG pypi_index_url=https://pypi.org/simple/
-ARG replace_debian_source=false
 
-# update debian source
-RUN if [ ${replace_debian_source} ] ; then \
-        echo "update debian source to tencent" && \
-        rm -rf /etc/apt/sources.list && \
-        echo "deb https://mirrors.tencent.com/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb-src https://mirrors.tencent.com/debian/ bullseye main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb https://mirrors.tencent.com/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb-src https://mirrors.tencent.com/debian/ bullseye-updates main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb https://mirrors.tencent.com/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb-src https://mirrors.tencent.com/debian/ bullseye-backports main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb https://mirrors.tencent.com/debian-security/ bullseye-security main contrib non-free" >>/etc/apt/sources.list && \
-        echo "deb-src https://mirrors.tencent.com/debian-security/ bullseye-security main contrib non-free" >>/etc/apt/sources.list; \
-    else \
-        echo "don't need change debian source"; \
-    fi
+# install tools
+RUN dnf install -y vim wget strace graphviz tini https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm && dnf clean all
 
 # install chinese fonts
 RUN --mount=type=cache,target=/app/fonts \
@@ -30,16 +18,15 @@ RUN --mount=type=cache,target=/app/fonts \
     && if [ ! -f /app/fonts/SourceHanSerifSC-VF.ttf ]; then \
         wget https://github.com/adobe-fonts/source-han-serif/raw/release/Variable/TTF/SourceHanSerifSC-VF.ttf -O /app/fonts/SourceHanSerifSC-VF.ttf; \
     fi \
+    && mkdir -p /usr/share/fonts/truetype/ \
     && install -m644 /app/fonts/* /usr/share/fonts/truetype/
-
-# install tools
-RUN apt-get update && apt-get install -y vim chromium wget strace graphviz tini
-
 
 # build python packages
 FROM python-base AS python-builder
 
 WORKDIR /app
+
+RUN dnf install -y gcc python3-devel
 
 # install python packages
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -82,6 +69,10 @@ USER ${username}
 
 # set workdir
 WORKDIR /app/code
+
+# set locale for UTF-8 support
+ENV LANG=en_US.utf8
+ENV LC_ALL=en_US.utf8
 
 # set python env
 ENV VIRTUAL_ENV=/app/venv

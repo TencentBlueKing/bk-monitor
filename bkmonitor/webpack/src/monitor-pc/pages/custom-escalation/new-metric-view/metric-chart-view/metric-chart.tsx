@@ -943,6 +943,7 @@ class NewMetricChart extends CommonSimpleChart {
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}
+          customEscalationStrategyIcon={true}
           isHoverShow={true}
           // isInstant={this.panel.instant}
           menuList={this.menuList as any}

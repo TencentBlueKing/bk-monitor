@@ -525,3 +525,31 @@ class IntelligentDiagnosisMetadataResource(Resource):
         except Exception as e:  # pylint: disable=broad-except
             logger.exception("metadata diagnose error, bk_data_id->[%s], error->[%s]", bk_data_id, e)
             return {"error": f"诊断过程中发生错误: {str(e)}"}
+
+
+class GseSlotResource(Resource):
+    """
+    接收GSE消息槽的异步处理接口
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        message_id = serializers.CharField(label="消息ID")
+        bk_agent_id = serializers.CharField(label="Agent ID")
+        content = serializers.CharField(required=False, label="请求内容")
+
+    def perform_request(self, validated_request_data: dict[str, str]):
+        if not settings.GSE_SLOT_ID or not settings.GSE_SLOT_TOKEN:
+            logger.warning("GseSlotResource: gse slot id or token is not set, skip")
+            return False
+
+        from metadata.task.tasks import process_gse_slot_message
+
+        logger.info("GseSlotResource: receive gse slot message, %s", validated_request_data)
+        process_gse_slot_message.delay(
+            message_id=validated_request_data["message_id"],
+            bk_agent_id=validated_request_data["bk_agent_id"],
+            content=validated_request_data["content"],
+            received_at=timezone.now().isoformat(),
+        )
+
+        return True

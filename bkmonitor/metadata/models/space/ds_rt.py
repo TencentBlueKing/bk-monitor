@@ -382,41 +382,22 @@ def get_cluster_data_ids(
     return data_id_cluster_id
 
 
-def get_table_id_cluster_id(table_id_list: list | set, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> dict[str, str]:
+def get_table_id_cluster_id(table_id_list: list | set, bk_tenant_id: str = DEFAULT_TENANT_ID) -> dict[str, str]:
     """获取结果表对应的集群 ID"""
-
-    if settings.ENABLE_MULTI_TENANT_MODE:
-        logger.info(
-            "get_table_id_cluster_id: try to get data with bk_tenant_id->[%s],table_id_list->[%s]",
-            bk_tenant_id,
-            table_id_list,
-        )
-        table_id_data_id = {
-            data["table_id"]: data["bk_data_id"]
-            for data in models.DataSourceResultTable.objects.filter(
-                table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
-            ).values("bk_data_id", "table_id")
-        }
-    else:
-        table_id_data_id = {
-            data["table_id"]: data["bk_data_id"]
-            for data in models.DataSourceResultTable.objects.filter(table_id__in=table_id_list).values(
-                "bk_data_id", "table_id"
-            )
-        }
+    table_id_data_id = {
+        data["table_id"]: data["bk_data_id"]
+        for data in models.DataSourceResultTable.objects.filter(
+            table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
+        ).values("bk_data_id", "table_id")
+    }
 
     data_ids = table_id_data_id.values()
     # 过滤到集群的数据源，仅包含两类，集群内置和集群自定义
     data_id_cluster_id = {
         data["K8sMetricDataID"]: data["cluster_id"]
-        for data in models.BCSClusterInfo.objects.filter(K8sMetricDataID__in=data_ids)
-        .exclude(
-            status__in=[
-                models.BCSClusterInfo.CLUSTER_STATUS_DELETED,
-                models.BCSClusterInfo.CLUSTER_RAW_STATUS_DELETED,
-            ]
+        for data in models.BCSClusterInfo.objects.filter(K8sMetricDataID__in=data_ids).values(
+            "K8sMetricDataID", "cluster_id"
         )
-        .values("K8sMetricDataID", "cluster_id")
     }
     data_id_cluster_id.update(
         {

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch } from 'vue';
+import { defineComponent, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 
 import { contextHighlightColor } from '@/common/util';
 
@@ -194,6 +194,35 @@ export default defineComponent({
       }
     };
 
+    const handleHighlightUp = () => {
+      if (currentViewIndex === 1) return;
+      handelChangeLight(currentViewIndex - 1);
+    };
+
+    const handleHighlightDown = () => {
+      if (currentViewIndex === lightSize.value) return;
+      handelChangeLight(currentViewIndex + 1);
+    };
+
+    const handleListenKeydown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowUp') {
+        handleHighlightUp();
+        return;
+      }
+
+      if (e.key === 'ArrowDown') {
+        handleHighlightDown();
+      }
+    };
+
+    onMounted(() => {
+      window.addEventListener('keydown', handleListenKeydown);
+    });
+
+    onBeforeUnmount(() => {
+      window.removeEventListener('keydown', handleListenKeydown);
+    });
+
     expose({
       initLightItemList,
     });
@@ -205,10 +234,12 @@ export default defineComponent({
             ref={jumpInputRef}
             class='jump-input'
             contenteditable
-            onBlur={handleBlur}
-            onFocus={() => (focus.value = true)}
-            onInput={handleInputChange}
-            onKeydown={handleKeyDown}
+            on-blur={handleBlur}
+            on-focus={() => {
+              focus.value = true;
+            }}
+            on-input={handleInputChange}
+            on-keydown={handleKeyDown}
           >
             {catchViewIndex.value}
           </span>
@@ -217,10 +248,7 @@ export default defineComponent({
         <div class='jump-btns-main'>
           <div
             class={{ 'jump-btn': true, 'is-disabled': isUpDisabled.value }}
-            onClick={() => {
-              if (currentViewIndex === 1) return;
-              handelChangeLight(currentViewIndex - 1);
-            }}
+            on-click={handleHighlightUp}
           >
             <i class='bk-icon icon-arrows-up'></i>
           </div>
@@ -230,10 +258,7 @@ export default defineComponent({
               'jump-btn': true,
               'is-disabled': isDownDisabled.value,
             }}
-            onClick={() => {
-              if (currentViewIndex === lightSize.value) return;
-              handelChangeLight(currentViewIndex + 1);
-            }}
+            on-click={handleHighlightDown}
           >
             <i class='bk-icon icon-arrows-down'></i>
           </div>

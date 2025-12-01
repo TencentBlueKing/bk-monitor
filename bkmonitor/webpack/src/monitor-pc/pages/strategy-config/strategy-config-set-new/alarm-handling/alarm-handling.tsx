@@ -255,7 +255,6 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
           title={this.$t('处理套餐')}
           show-semicolon
         >
-          <span>{this.$t('当告警触发时执行')}</span>
           <GroupSelect
             ref='selectMeal'
             class='select-warp'
@@ -359,6 +358,7 @@ export default class AlarmHandlingNew extends tsc<IAlarmHandlingNewProps, IAlarm
                 clearable={false}
                 popover-min-width={140}
                 readonly={this.readonly}
+                search-placeholder={this.$tc('请输入 关键字')}
                 size='small'
                 searchable
                 on-change={this.handleChange}

@@ -28,7 +28,6 @@ import { defineComponent, ref, watch, nextTick, onMounted, onBeforeUnmount } fro
 
 import { messageSuccess } from '@/common/bkmagic';
 import { getFlatObjValues } from '@/common/util';
-import FieldsConfig from '@/components/common/fields-config.vue';
 import LogView from '@/components/log-view/index.vue';
 import useLocale from '@/hooks/use-locale';
 
@@ -43,7 +42,6 @@ export default defineComponent({
   name: 'RealTimeLog',
   components: {
     LogView,
-    FieldsConfig,
     DataFilter,
     LogResult,
     CommonHeader,
@@ -77,6 +75,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
 
+    const logViewRef = ref();
     const dataFilterRef = ref();
     const logResultRef = ref();
     const contextLog = ref();
@@ -94,6 +93,8 @@ export default defineComponent({
     const highlightList = ref([]);
     const localParams = ref<any>({});
     const rowShowParams = ref<any>({});
+    const initialDivide = ref(250);
+    const isFilterEmpty = ref(false);
     const interval = ref({
       prev: 0,
       next: 0,
@@ -141,6 +142,17 @@ export default defineComponent({
         immediate: true,
       },
     );
+
+    watch(activeFilterKey, () => {
+      setTimeout(() => {
+        const lineDomList = Array.from(logViewRef.value?.$el.querySelectorAll('.line') || []);
+        if (lineDomList.length && lineDomList.every((item: any) => item.style.display === 'none')) {
+          isFilterEmpty.value = true;
+          return;
+        }
+        isFilterEmpty.value = false;
+      });
+    });
 
     const initLogValues = () => {
       logLoading.value = false;
@@ -242,7 +254,7 @@ export default defineComponent({
             localParams.value,
           ),
         })
-        .then(res => {
+        .then((res) => {
           // 通过gseindex 去掉出返回日志， 并加入现有日志
           const { list } = res.data;
           if (list?.length) {
@@ -253,7 +265,7 @@ export default defineComponent({
             }
 
             const logArr: any[] = [];
-            list.forEach(item => {
+            list.forEach((item) => {
               const { log } = item;
               logArr.push({ log });
             });
@@ -380,6 +392,10 @@ export default defineComponent({
       }
     };
 
+    const handleToggleCollapse = (isCollapsed: boolean) => {
+      initialDivide.value = isCollapsed ? 42 : 250;
+    };
+
     onMounted(() => {
       initLogScrollPosition();
       contextLog.value.addEventListener('scroll', handleScroll);
@@ -407,10 +423,9 @@ export default defineComponent({
         <bk-resize-layout
           style='height: 100%'
           border={false}
-          initial-divide={250}
+          initial-divide={initialDivide.value}
+          min={42}
           placement='bottom'
-          auto-minimize
-          collapsible
         >
           <div
             class='context-log-wrapper'
@@ -434,22 +449,36 @@ export default defineComponent({
               <div
                 ref={contextLog}
                 class='dialog-log-markdown'
-                v-bkloading={{ isLoading: logLoading.value, opacity: 0.6 }}
+                v-bkloading={{
+                  isLoading: logLoading.value && !isFilterEmpty.value,
+                  opacity: 0.6,
+                }}
               >
                 {logList.value.length > 0 ? (
-                  <LogView
-                    filter-key={activeFilterKey.value}
-                    filter-type={filterType.value}
-                    ignore-case={ignoreCase.value}
-                    interval={interval.value}
-                    light-list={highlightList.value}
-                    log-list={logList.value}
-                    max-length={maxLength}
-                    reverse-log-list={reverseLogList.value}
-                    shift-length={shiftLength}
-                    show-type={showType.value}
-                    isRealTimeLog
-                  />
+                  isFilterEmpty.value ? (
+                    <bk-exception
+                      style='margin-top: 80px'
+                      scene='part'
+                      type='search-empty'
+                    >
+                      <span>{t('搜索结果为空')}</span>
+                    </bk-exception>
+                  ) : (
+                    <LogView
+                      ref={logViewRef}
+                      filter-key={activeFilterKey.value}
+                      filter-type={filterType.value}
+                      ignore-case={ignoreCase.value}
+                      interval={interval.value}
+                      light-list={highlightList.value}
+                      log-list={logList.value}
+                      max-length={maxLength}
+                      reverse-log-list={reverseLogList.value}
+                      shift-length={shiftLength}
+                      show-type={showType.value}
+                      isRealTimeLog
+                    />
+                  )
                 ) : !logLoading.value ? (
                   <bk-exception
                     style='margin-top: 80px'
@@ -470,6 +499,7 @@ export default defineComponent({
               logIndex={props.rowIndex}
               retrieveParams={props.retrieveParams}
               on-choose-row={handleChooseRow}
+              on-toggle-collapse={handleToggleCollapse}
             />
           )}
         </bk-resize-layout>

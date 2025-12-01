@@ -2,6 +2,36 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  position: relative;
+
+  .collapse-main {
+    width: 64px;
+    height: 16px;
+    background: #dcdee5;
+    border-radius: 0 0 4px 4px;
+    position: absolute;
+    top: 0;
+    right: 50%;
+    transform: translateX(50%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+
+    &:hover {
+      background: #3a84ff;
+    }
+
+    .collpase-icon {
+      transform: rotate(-90deg);
+      font-size: 20px;
+      color: #fff;
+
+      &.is-collapsed {
+        transform: rotate(90deg);
+      }
+    }
+  }
 
   .title-main {
     display: flex;
@@ -131,6 +161,10 @@
                 color: #ffffff;
               }
             }
+          }
+
+          mark {
+            background: rgb(250, 238, 177);
           }
         }
       }

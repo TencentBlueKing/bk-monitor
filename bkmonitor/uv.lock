@@ -4,7 +4,7 @@ requires-python = "==3.11.*"
 
 [[package]]
 name = "aidev-agent"
-version = "1.0.0b39"
+version = "1.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "asgiref" },
@@ -22,9 +22,9 @@ dependencies = [
     { name = "pytz" },
     { name = "werkzeug" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9c/3f/9df28f906e623ec004e97ecfad78d450996370a1e3e179f21ac71bef727f/aidev_agent-1.0.0b39.tar.gz", hash = "sha256:33992aeb024f43f9e052cc34428b80eb5b87efaef93c4b7a71be5b187abd5fab", size = 111700, upload-time = "2025-09-15T15:56:24.785Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/98/af/173909905f1cc2d4caa9b9246cbb1571bd5e45627e5cc62f22fcfaf8fa3e/aidev_agent-1.0.3.tar.gz", hash = "sha256:23557da27681e2d8e83e13bb69f1a01b05c90557b7a5061e1d8c1b45236575c3", size = 117224, upload-time = "2025-11-07T08:11:17.574Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6d/6d/f6e011916cddbb99ba004b059025eecba1c62eb8546f1d6499e954d19476/aidev_agent-1.0.0b39-py3-none-any.whl", hash = "sha256:56f2e15dea12b55dba704e3d76fc2bb09d18f5f0d2493b8f010582e032f7a143", size = 140056, upload-time = "2025-09-15T15:56:22.709Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/ac/99d90223614b6319c19ffa1c80725e88ae405d6271c442ccc1654bc090a2/aidev_agent-1.0.3-py3-none-any.whl", hash = "sha256:e8606b4ba831b3dd2f972aba3250e0c97aea637b81b6520f299990c7afb9de75", size = 141871, upload-time = "2025-11-07T08:11:15.291Z" },
 ]
 
 [[package]]
@@ -439,7 +439,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aidev-agent", specifier = "==1.0.0b39" },
+    { name = "aidev-agent", specifier = "==1.0.3" },
     { name = "apigw-manager", specifier = "==4.0.4" },
     { name = "arrow", specifier = "==0.6.0" },
     { name = "babel", specifier = "==2.14.0" },
@@ -521,7 +521,7 @@ requires-dist = [
     { name = "redis", specifier = "==4.6.0" },
     { name = "requests-toolbelt", specifier = "==1.0.0" },
     { name = "schema", specifier = "==0.7.7" },
-    { name = "selenium", specifier = "<4.2" },
+    { name = "selenium", specifier = "==4.1.5" },
     { name = "six", specifier = "==1.17.0" },
     { name = "sqlparse", specifier = "==0.5.3" },
     { name = "supervisor", specifier = "==4.2.5" },
@@ -2547,6 +2547,18 @@ wheels = [
 ]
 
 [[package]]
+name = "outcome"
+version = "1.3.0.post0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/98/df/77698abfac98571e65ffeb0c1fba8ffd692ab8458d617a0eed7d9a8d38f2/outcome-1.3.0.post0.tar.gz", hash = "sha256:9dcf02e65f2971b80047b377468e72a268e15c0af3cf1238e6ff14f7f91143b8", size = 21060, upload-time = "2023-10-26T04:26:04.361Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/55/8b/5ab7257531a5d830fc8000c476e63c935488d74609b50f9384a643ec0a62/outcome-1.3.0.post0-py2.py3-none-any.whl", hash = "sha256:e771c5ce06d1415e356078d3bdd68523f284b4ce5419828922b6871e65eda82b", size = 10692, upload-time = "2023-10-26T04:26:02.532Z" },
+]
+
+[[package]]
 name = "packaging"
 version = "24.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2924,6 +2936,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pyopenssl"
+version = "25.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/04/8c/cd89ad05804f8e3c17dea8f178c3f40eeab5694c30e0c9f5bcd49f576fc3/pyopenssl-25.1.0.tar.gz", hash = "sha256:8d031884482e0c67ee92bf9a4d8cceb08d92aba7136432ffb0703c5280fc205b", size = 179937, upload-time = "2025-05-17T16:28:31.31Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/80/28/2659c02301b9500751f8d42f9a6632e1508aa5120de5e43042b8b30f8d5d/pyopenssl-25.1.0-py3-none-any.whl", hash = "sha256:2b11f239acc47ac2e5aca04fd7fa829800aeee22a2eb30d744572a157bd8a1ab", size = 56771, upload-time = "2025-05-17T16:28:29.197Z" },
+]
+
+[[package]]
 name = "pypinyin"
 version = "0.53.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2974,6 +2999,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/3b/b6/22558093784c774abf3851b45153019a72c0eead37d29844ea49cbb7bf85/pyroscope_io-0.8.8-py2.py3-none-macosx_11_0_x86_64.whl", hash = "sha256:18058e9c15d8229db4208b48ed16544d18a31220e87d60c954d9d637de69696b", size = 2470586, upload-time = "2024-11-22T10:25:07.951Z" },
     { url = "https://files.pythonhosted.org/packages/61/d3/28e5a1c74471dc00a59aae7ca2ecdd499d5fd2d282d6743ee109375a0711/pyroscope_io-0.8.8-py2.py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2312b55538deb240c1428591678ad9316a3f19af11bbcf15704d7d83c7adb7c7", size = 2520668, upload-time = "2024-11-22T10:25:09.702Z" },
     { url = "https://files.pythonhosted.org/packages/68/3f/55a14b1e8de36145c79a6bc92588f7cde1f93ccb08ba727b48ec5675a13c/pyroscope_io-0.8.8-py2.py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:422286f356d5be69bb0754671cb43c233a3fca68ac7c65c05451986f11bac0e3", size = 2628011, upload-time = "2024-11-22T10:25:12.276Z" },
+]
+
+[[package]]
+name = "pysocks"
+version = "1.7.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bd/11/293dd436aea955d45fc4e8a35b6ae7270f5b8e00b53cf6c024c83b657a11/PySocks-1.7.1.tar.gz", hash = "sha256:3f8804571ebe159c380ac6de37643bb4685970655d3bba243530d6558b799aa0", size = 284429, upload-time = "2019-09-20T02:07:35.714Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8d/59/b4572118e098ac8e46e399a1dd0f2d85403ce8bbaad9ec79373ed6badaf9/PySocks-1.7.1-py3-none-any.whl", hash = "sha256:2725bd0a9925919b9b51739eea5f9e2bae91e83288108a9ad338b2e3a4435ee5", size = 16725, upload-time = "2019-09-20T02:06:22.938Z" },
 ]
 
 [[package]]
@@ -3399,14 +3433,15 @@ wheels = [
 
 [[package]]
 name = "selenium"
-version = "3.141.0"
+version = "4.1.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "urllib3" },
+    { name = "trio" },
+    { name = "trio-websocket" },
+    { name = "urllib3", extra = ["secure", "socks"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ed/9c/9030520bf6ff0b4c98988448a93c04fcbd5b13cd9520074d8ed53569ccfe/selenium-3.141.0.tar.gz", hash = "sha256:deaf32b60ad91a4611b98d8002757f29e6f2c2d5fcaf202e1c9ad06d6772300d", size = 854669, upload-time = "2018-11-01T09:01:07.6Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/80/d6/4294f0b4bce4de0abf13e17190289f9d0613b0a44e5dd6a7f5ca98459853/selenium-3.141.0-py2.py3-none-any.whl", hash = "sha256:2d7131d7bc5a5b99a2d9b04aaf2612c411b03b8ca1b1ee8d3de5845a9be2cb3c", size = 904577, upload-time = "2018-11-01T09:01:35.607Z" },
+    { url = "https://files.pythonhosted.org/packages/76/92/f7582b8f28e3e716ccc496ed1ae105851c9611d1f8ba3b692e6ce3b88978/selenium-4.1.5-py3-none-any.whl", hash = "sha256:866b6dd6c459210662bff922ee7c33162d21920fbf6811e8e5a52be3866a687f", size = 979382, upload-time = "2022-05-05T15:40:22.967Z" },
 ]
 
 [[package]]
@@ -3643,6 +3678,37 @@ wheels = [
 ]
 
 [[package]]
+name = "trio"
+version = "0.31.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "cffi", marker = "implementation_name != 'pypy' and os_name == 'nt'" },
+    { name = "idna" },
+    { name = "outcome" },
+    { name = "sniffio" },
+    { name = "sortedcontainers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/76/8f/c6e36dd11201e2a565977d8b13f0b027ba4593c1a80bed5185489178e257/trio-0.31.0.tar.gz", hash = "sha256:f71d551ccaa79d0cb73017a33ef3264fde8335728eb4c6391451fe5d253a9d5b", size = 605825, upload-time = "2025-09-09T15:17:15.242Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/31/5b/94237a3485620dbff9741df02ff6d8acaa5fdec67d81ab3f62e4d8511bf7/trio-0.31.0-py3-none-any.whl", hash = "sha256:b5d14cd6293d79298b49c3485ffd9c07e3ce03a6da8c7dfbe0cb3dd7dc9a4774", size = 512679, upload-time = "2025-09-09T15:17:13.821Z" },
+]
+
+[[package]]
+name = "trio-websocket"
+version = "0.12.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "outcome" },
+    { name = "trio" },
+    { name = "wsproto" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d1/3c/8b4358e81f2f2cfe71b66a267f023a91db20a817b9425dd964873796980a/trio_websocket-0.12.2.tar.gz", hash = "sha256:22c72c436f3d1e264d0910a3951934798dcc5b00ae56fc4ee079d46c7cf20fae", size = 33549, upload-time = "2025-02-25T05:16:58.947Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c7/19/eb640a397bba49ba49ef9dbe2e7e5c04202ba045b6ce2ec36e9cadc51e04/trio_websocket-0.12.2-py3-none-any.whl", hash = "sha256:df605665f1db533f4a386c94525870851096a223adcb97f72a07e8b4beba45b6", size = 21221, upload-time = "2025-02-25T05:16:57.545Z" },
+]
+
+[[package]]
 name = "types-psycopg2"
 version = "2.9.21.20250809"
 source = { registry = "https://pypi.org/simple" }
@@ -3746,6 +3812,27 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e4/e8/6ff5e6bc22095cfc59b6ea711b687e2b7ed4bdb373f7eeec370a97d7392f/urllib3-1.26.20.tar.gz", hash = "sha256:40c2dc0c681e47eb8f90e7e27bf6ff7df2e677421fd46756da1161c39ca70d32", size = 307380, upload-time = "2024-08-29T15:43:11.37Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/33/cf/8435d5a7159e2a9c83a95896ed596f68cf798005fe107cc655b5c5c14704/urllib3-1.26.20-py2.py3-none-any.whl", hash = "sha256:0ed14ccfbf1c30a9072c7ca157e4319b70d65f623e91e7b32fadb2853431016e", size = 144225, upload-time = "2024-08-29T15:43:08.921Z" },
+]
+
+[package.optional-dependencies]
+secure = [
+    { name = "certifi" },
+    { name = "cryptography" },
+    { name = "idna" },
+    { name = "pyopenssl" },
+    { name = "urllib3-secure-extra" },
+]
+socks = [
+    { name = "pysocks" },
+]
+
+[[package]]
+name = "urllib3-secure-extra"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c9/67/76b7c055ea787729bb9f839a84689ea2f88e217519d59ae547824431ec95/urllib3-secure-extra-0.1.0.tar.gz", hash = "sha256:ee9409cbfeb4b8609047be4c32fb4317870c602767e53fd8a41005ebe6a41dff", size = 986, upload-time = "2022-08-01T14:51:36.091Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/90/cd/273b6978ace72ef1d3f35610206e44e4527d557500e3d7b39732f2b4dd3c/urllib3_secure_extra-0.1.0-py2.py3-none-any.whl", hash = "sha256:f7adcb108b4d12a4b26b99eb60e265d087f435052a76aefa396b6ee85e9a6ef9", size = 1444, upload-time = "2022-08-01T14:51:33.853Z" },
 ]
 
 [[package]]
@@ -3869,6 +3956,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/8f/fa/9fb6e594f2ce03ef03eddbdb5f4f90acb1452221a5351116c7c4708ac865/wrapt-1.17.2-cp311-cp311-win32.whl", hash = "sha256:4afd5814270fdf6380616b321fd31435a462019d834f83c8611a0ce7484c7317", size = 36419, upload-time = "2025-01-14T10:33:53.551Z" },
     { url = "https://files.pythonhosted.org/packages/47/f8/fb1773491a253cbc123c5d5dc15c86041f746ed30416535f2a8df1f4a392/wrapt-1.17.2-cp311-cp311-win_amd64.whl", hash = "sha256:acc130bc0375999da18e3d19e5a86403667ac0c4042a094fefb7eec8ebac7cf3", size = 38773, upload-time = "2025-01-14T10:33:56.323Z" },
     { url = "https://files.pythonhosted.org/packages/2d/82/f56956041adef78f849db6b289b282e72b55ab8045a75abad81898c28d19/wrapt-1.17.2-py3-none-any.whl", hash = "sha256:b18f2d1533a71f069c7f82d524a52599053d4c7166e9dd374ae2136b7f40f7c8", size = 23594, upload-time = "2025-01-14T10:35:44.018Z" },
+]
+
+[[package]]
+name = "wsproto"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "h11" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c9/4a/44d3c295350d776427904d73c189e10aeae66d7f555bb2feee16d1e4ba5a/wsproto-1.2.0.tar.gz", hash = "sha256:ad565f26ecb92588a3e43bc3d96164de84cd9902482b130d0ddbaa9664a85065", size = 53425, upload-time = "2022-08-23T19:58:21.447Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/78/58/e860788190eba3bcce367f74d29c4675466ce8dddfba85f7827588416f01/wsproto-1.2.0-py3-none-any.whl", hash = "sha256:b9acddd652b585d75b20477888c56642fdade28bdfd3579aa24a4d2c037dd736", size = 24226, upload-time = "2022-08-23T19:58:19.96Z" },
 ]
 
 [[package]]

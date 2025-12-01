@@ -46,7 +46,7 @@ function removeUndefined(obj) {
     } else if (value === undefined || (Array.isArray(obj) && value === 'undefined')) {
       // 如果属性值为undefined，则删除该属性
       if (Array.isArray(obj)) {
-        const delIndex = obj.findIndex(v => v === value);
+        const delIndex = obj.indexOf(value);
         if (delIndex > -1) {
           obj.splice(delIndex, 1);
         }

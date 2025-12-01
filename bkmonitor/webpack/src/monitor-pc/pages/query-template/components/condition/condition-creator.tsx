@@ -31,6 +31,7 @@ import { NUMBER_CONDITION_METHOD_LIST, STRING_CONDITION_METHOD_LIST } from '../.
 import { isEn } from '../../../../i18n/lang';
 import { fetchMetricDimensionValueList } from '../../service/dimension';
 import { isVariableName } from '../../variables/template/utils';
+import { CONDITIONS } from './condition-condition-tag';
 import ConditionCreatorSelector from './condition-creator-selector';
 import { EFieldType } from './typing';
 
@@ -55,6 +56,7 @@ interface IProps {
   hasVariableOperate?: boolean;
   metricDetail?: MetricDetailV2;
   options?: IConditionOptionsItem[];
+  showConditionTag?: boolean;
   showLabel?: boolean;
   value?: AggCondition[];
   variables?: IVariablesItem[];
@@ -79,6 +81,8 @@ export default class ConditionCreator extends tsc<IProps> {
   @Prop({ default: () => [], type: Array }) dimensionValueVariables: { name: string }[];
   /* 所有变量，用于校验变量名是否重复 */
   @Prop({ default: () => [] }) allVariables: { name: string }[];
+  /** 是否展示条件标签 */
+  @Prop({ default: false, type: Boolean }) showConditionTag: boolean;
 
   cacheDimensionValues = new Map();
 
@@ -91,7 +95,7 @@ export default class ConditionCreator extends tsc<IProps> {
       const keyName = curField?.alias || item.key;
       const methodName = curField?.supported_operations?.find(s => s.value === item.method)?.alias || item.method;
       return {
-        condition: { id: item.condition, name: item.condition },
+        condition: { id: item.condition, name: CONDITIONS.find(c => c.id === item.condition)?.name || item.condition },
         key: { id: item.key, name: keyName },
         method: { id: item.method, name: methodName },
         value: item.value.map(v => ({ id: v, name: v, isVariable: this.hasVariableOperate && isVariableName(v) })),
@@ -227,6 +231,7 @@ export default class ConditionCreator extends tsc<IProps> {
           fields={this.fields as IFilterField[]}
           getValueFn={this.getValueFn}
           hasVariableOperate={this.hasVariableOperate}
+          showConditionTag={this.showConditionTag}
           value={this.localValue}
           onChange={this.handleChange}
           onCreateValueVariable={this.handleCreateValueVariable}

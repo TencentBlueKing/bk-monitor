@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
@@ -103,3 +103,34 @@ class TracesSerializer(serializers.Serializer):
     limit = serializers.IntegerField(label=_("分页"), default=20)
     start = serializers.IntegerField(label=_("开始时间"), required=False)
     end = serializers.IntegerField(label=_("结束时间"), required=False)
+
+
+class GetDashboardDirectoryTreeSerializer(serializers.Serializer):
+    """
+    获取目录树
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+
+
+class CreateDashboardOrFolderSerializer(serializers.Serializer):
+    """
+    创建仪表盘或目录
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    title = serializers.CharField(label=_("标题"))
+    type = serializers.CharField(label=_("类型"))
+    folderId = serializers.IntegerField(label=_("目录ID"), required=False)
+
+
+class SaveToDashboardSerializer(serializers.Serializer):
+    """
+    保存到仪表盘
+    """
+
+    index_set_id = serializers.IntegerField(label=_("索引集ID"))
+    panel_name = serializers.CharField(label=_("面板名称"))
+    query_string = serializers.CharField(label=_("查询语句"), default="", allow_blank=True)
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    dashboard_uids = serializers.ListField(label=_("仪表盘UID"), child=serializers.CharField())

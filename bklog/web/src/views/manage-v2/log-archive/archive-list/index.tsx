@@ -281,7 +281,7 @@ export default defineComponent({
           <div class='fr list-search'>
             <bk-input
               data-test-id='archiveList_input_searchListItem'
-              placeholder={t('请输入名称')}
+              placeholder={t('搜索 名称')}
               right-icon='bk-icon icon-search'
               value={keyword.value}
               clearable

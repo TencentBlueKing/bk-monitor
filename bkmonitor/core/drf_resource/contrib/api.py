@@ -91,31 +91,15 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def module_name(self):
-        """
-        在apigw中的模块名
-        """
-        raise NotImplementedError
-
-    @property
-    @abc.abstractmethod
     def action(self):
         """
         url的后缀，通常是指定特定资源
         """
         raise NotImplementedError
 
-    @property
-    @abc.abstractmethod
-    def method(self):
-        """
-        请求方法，仅支持GET或POST
-        """
-        raise NotImplementedError
+    module_name: str
 
-    @method.setter
-    def method(self, value):
-        pass
+    method: str
 
     @staticmethod
     def split_request_data(data):

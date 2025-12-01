@@ -27,6 +27,7 @@ class QueryTemplate(AbstractRecordModel):
     functions = models.JSONField(verbose_name=_("计算函数"), default=list)
     query_configs = models.JSONField(verbose_name=_("查询配置"), default=list)
     variables = models.JSONField(verbose_name=_("模板变量"), default=list)
+    unit = models.CharField(verbose_name=_("单位"), max_length=32, default="", blank=True)
 
     class Meta:
         verbose_name = _("查询模板")

@@ -169,7 +169,7 @@ export default class FieldFilterComp extends tsc<object> {
     }
     return [
       ...objectField,
-      ...otherArr.filter(item => {
+      ...otherArr.filter((item) => {
         return !objectField.map(field => field.field_name).includes(item.field_name);
       }),
     ];
@@ -203,7 +203,7 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** 递归将tree变回数组 */
   convertNestedStructureToArray(nestedArray) {
-    const flatten = nodes => {
+    const flatten = (nodes) => {
       const result: any[] = [];
       for (const node of nodes) {
         const currentPath = node.field_name;
@@ -241,8 +241,9 @@ export default class FieldFilterComp extends tsc<object> {
     );
 
     const visibleBuiltLength = builtInFieldsValue.filter(item => item.filterVisible).length;
-    const hiddenFieldVisible =
-      !!initHiddenList.filter(item => item.filterVisible).length && visibleBuiltLength === builtInFieldsValue.length;
+    const hiddenFieldVisible = !!initHiddenList.filter(item => item.filterVisible).length
+      && visibleBuiltLength === builtInFieldsValue.length;
+
     return {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
       isShowBuiltExpandBtn: visibleBuiltLength || hiddenFieldVisible,
@@ -348,17 +349,16 @@ export default class FieldFilterComp extends tsc<object> {
     for (const fieldList of [this.visibleFields, this.hiddenFields]) {
       for (const fieldItem of fieldList) {
         regExp.lastIndex = 0; // 重置lastIndex,这个正则有全局标志
-        fieldItem.filterVisible =
-          regExp.test(fieldItem.field_name) ||
-          regExp.test(fieldItem.field_alias) ||
-          regExp.test(fieldItem.query_alias || '');
+        fieldItem.filterVisible = regExp.test(fieldItem.field_name)
+          || regExp.test(fieldItem.field_alias)
+          || regExp.test(fieldItem.query_alias || '');
       }
     }
     this.$nextTick(() => {
       for (const refName of Object.keys(this.$refs)) {
         if (refName.startsWith('bigTreeRef-')) {
           const bigTreeRef = this.$refs[refName];
-          bigTreeRef?.filter(searchKeyword);
+          (bigTreeRef as any)?.filter(searchKeyword);
         }
       }
     });
@@ -503,7 +503,7 @@ export default class FieldFilterComp extends tsc<object> {
             right-icon='icon-search'
             clearable
             onChange={() => this.filterListByCondition()}
-            // onClear={() => this.handleSearchException('clear-filter')}
+          // onClear={() => this.handleSearchException('clear-filter')}
           />
         </div>
         <div
@@ -515,7 +515,7 @@ export default class FieldFilterComp extends tsc<object> {
               style={{ marginTop: '20%' }}
               emptyType={this.searchKeyword ? 'search-empty' : '500'}
               showText={!!this.searchKeyword}
-              onOperation={this.handleSearchException}
+              on-operation={this.handleSearchException}
             >
               {!this.searchKeyword && (
                 <div class='error-empty'>
@@ -581,24 +581,23 @@ export default class FieldFilterComp extends tsc<object> {
               <div class='fields-container not-selected optional-field'>
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
-                  {this.showIndexSetFields.map((item, index) =>
-                    item.children?.length ? (
-                      this.bigTreeRender(item, `${index}select`)
-                    ) : (
-                      <FieldItem
-                        key={`${index}-${item}`}
-                        v-show={item.filterVisible}
-                        date-picker-value={this.datePickerValue}
-                        field-alias-map={this.fieldAliasMap}
-                        field-item={item}
-                        is-front-statistics={this.isFrontStatistics}
-                        retrieve-params={this.retrieveParams}
-                        show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
-                        statistical-field-data={this.statisticalFieldsData[item.field_name]}
-                        type='hidden'
-                        onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
-                      />
-                    ),
+                  {this.showIndexSetFields.map((item, index) => (item.children?.length ? (
+                    this.bigTreeRender(item, `${index}select`)
+                  ) : (
+                    <FieldItem
+                      key={`${index}-${item}`}
+                      v-show={item.filterVisible}
+                      date-picker-value={this.datePickerValue}
+                      field-alias-map={this.fieldAliasMap}
+                      field-item={item}
+                      is-front-statistics={this.isFrontStatistics}
+                      retrieve-params={this.retrieveParams}
+                      show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
+                      statistical-field-data={this.statisticalFieldsData[item.field_name]}
+                      type='hidden'
+                      onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
+                    />
+                  )),
                   )}
                   {this.getIsShowIndexSetExpand() && (
                     <div
@@ -622,24 +621,23 @@ export default class FieldFilterComp extends tsc<object> {
                   {(this.$t('label-内置字段') as string).replace('label-', '')}
                 </div>
                 <ul class='filed-list'>
-                  {this.builtInFieldsShowObj().builtInShowFields.map((item, index) =>
-                    item.children?.length ? (
-                      this.bigTreeRender(item, `${index}built`)
-                    ) : (
-                      <FieldItem
-                        key={`${index}-${item}`}
-                        v-show={item.filterVisible}
-                        date-picker-value={this.datePickerValue}
-                        field-alias-map={this.fieldAliasMap}
-                        field-item={item}
-                        is-front-statistics={this.isFrontStatistics}
-                        retrieve-params={this.retrieveParams}
-                        show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
-                        statistical-field-data={this.statisticalFieldsData[item.field_name]}
-                        type='hidden'
-                        onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
-                      />
-                    ),
+                  {this.builtInFieldsShowObj().builtInShowFields.map((item, index) => (item.children?.length ? (
+                    this.bigTreeRender(item, `${index}built`)
+                  ) : (
+                    <FieldItem
+                      key={`${index}-${item}`}
+                      v-show={item.filterVisible}
+                      date-picker-value={this.datePickerValue}
+                      field-alias-map={this.fieldAliasMap}
+                      field-item={item}
+                      is-front-statistics={this.isFrontStatistics}
+                      retrieve-params={this.retrieveParams}
+                      show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
+                      statistical-field-data={this.statisticalFieldsData[item.field_name]}
+                      type='hidden'
+                      onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
+                    />
+                  )),
                   )}
                   {/* {this.builtInFieldsShowObj().isShowBuiltExpandBtn && (
                     <div

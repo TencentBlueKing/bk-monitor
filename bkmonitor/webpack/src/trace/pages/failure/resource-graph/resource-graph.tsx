@@ -36,14 +36,13 @@ import {
   registerNode,
 } from '@antv/g6';
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
-import { Exception, Loading } from 'bkui-vue';
+import { Loading } from 'bkui-vue';
 import { incidentTopologyUpstream } from 'monitor-api/modules/incident';
 import { random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
 
-import ErrorImg from '../../../static/img/error.svg';
-import NoDataImg from '../../../static/img/no-data.svg';
+import ExceptionComp from '../../../components/exception';
 import FailureTopoTooltips from '../failure-topo/failure-topo-tooltips';
 import { NODE_TYPE_SVG } from '../failure-topo/node-type-svg';
 import TopoTooltip from '../failure-topo/topo-tppltip-plugin';
@@ -841,7 +840,7 @@ export default defineComponent({
               attrs: {
                 x: -w / 2 - 60,
                 y: comboxHeight / 2 + 14, // 定位在combo底部
-                width: w + 120,
+                width: w + 260,
                 height: 1,
                 fill: '#14161A',
               },
@@ -1310,22 +1309,24 @@ export default defineComponent({
             const prevBox = filterCombos[index - 1]?.getBBox();
             const padding = prevBox ? prevBox.y + prevBox.height : '';
             if (maxWidth > graphWidth) {
+              // 增加170的combo宽度，确保combo展开时不会挡在左侧标题栏
+              const mainWidth = maxWidth + 170;
               graph.updateItem(combo, {
-                size: [maxWidth, comboxHeight],
-                x: (maxWidth > graphWidth ? maxWidth : graphWidth) / 2 + 20,
+                size: [mainWidth, comboxHeight],
+                x: (maxWidth > graphWidth ? mainWidth : graphWidth) / 2,
                 y: bbox.height / 2 + Number(padding) + 5,
               });
               let shape = null;
               /** 宽度变化后修复左侧标题栏位置 */
               group.find((e): any => {
                 if (e.get('name') === 'resource-combo-count-text') {
-                  e.attr({ x: -maxWidth / 2 - 8 + (model.anomaly_count ? 10 : 0) });
+                  e.attr({ x: -maxWidth / 2 - 73 + (model.anomaly_count ? 10 : 0) });
                 } else if (e.get('name') === 'resource-combo-bg') {
-                  e.attr({ x: -maxWidth / 2 + 80 });
+                  e.attr({ x: -maxWidth / 2 + 15 });
                 } else if (e.get('name') === 'resource-combo-bottom-border') {
-                  e.attr({ x: -maxWidth / 2 - 60 });
+                  e.attr({ x: -maxWidth / 2 - 120 });
                 } else if (e.get('name') !== 'resource-combo-shape') {
-                  e.attr({ x: -maxWidth / 2 - 8 });
+                  e.attr({ x: -maxWidth / 2 - 73 });
                 } else {
                   shape = e;
                 }
@@ -1345,7 +1346,7 @@ export default defineComponent({
                 }
                 if (nodes.length === 1) {
                   graph.updateItem(node, {
-                    x: graphWidth / 2 + 80,
+                    x: graphWidth / 2 + 60,
                   });
                 }
               }
@@ -1496,23 +1497,14 @@ export default defineComponent({
       const { type, msg } = exceptionData.value;
       if (!type && !msg) return '';
       return (
-        <Exception
-          class='exception-wrap'
-          v-slots={{
-            type: () => (
-              <img
-                class='custom-icon'
-                alt=''
-                src={type === 'noData' ? NoDataImg : ErrorImg}
-              />
-            ),
-          }}
-        >
-          <div style={{ color: type === 'noData' ? '#979BA5' : '#E04949' }}>
-            <div class='exception-title'>{type === 'noData' ? msg : t('查询异常')}</div>
-            {type === 'error' && <span class='exception-desc'>{msg}</span>}
-          </div>
-        </Exception>
+        <ExceptionComp
+          class='resource-graph-exception'
+          errorMsg={msg}
+          imgHeight={100}
+          isDarkTheme={true}
+          isError={type === 'error'}
+          title={type === 'noData' ? msg : t('查询异常')}
+        />
       );
     };
     const handleCollapseResource = () => {

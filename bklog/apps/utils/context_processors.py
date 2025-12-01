@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 """
 context_processor for common(setting)
 
@@ -61,7 +61,8 @@ def mysetting(request):
         "LOGIN_URL": ConfFixture.LOGIN_URL,
         "LOGIN_SERVICE_URL": ConfFixture.LOGIN_URL,
         # 'LOGOUT_URL': settings.LOGOUT_URL,
-        "BK_PAAS_HOST": "%s/app/list/" % settings.BK_PAAS_HOST,
+        "BK_PASS_API_HOST": settings.PAAS_API_HOST,
+        "BK_PAAS_HOST": f"{settings.BK_PAAS_HOST}/app/list/",
         "BK_PLAT_HOST": settings.BK_PAAS_HOST
         if not bool(request.headers.get("Is-External", "false"))
         else settings.EXTERNAL_PAAS_HOST,
@@ -90,7 +91,9 @@ def mysetting(request):
         "DEMO_BIZ_ID": str(settings.DEMO_BIZ_ID),
         "ES_STORAGE_CAPACITY": str(settings.ES_STORAGE_CAPACITY),
         "TAM_AEGIS_KEY": settings.TAM_AEGIS_KEY,
-        "BK_LOGIN_URL": "{}/api/c/compapi/v2/usermanage/fs_list_users/".format(bk_login_url_prefix),
+        "BK_LOGIN_URL": f"{settings.PAAS_API_HOST}/api/bk-user-web/prod"
+        if settings.ENABLE_MULTI_TENANT_MODE
+        else f"{bk_login_url_prefix}/api/c/compapi/v2/usermanage/fs_list_users/",
         "MENU_LOGO_URL": f"{settings.STATIC_URL}{settings.MENU_LOGO_URL}",
         "BK_DOC_DATA_URL": settings.BK_DOC_DATA_URL,
         "BK_ARCHIVE_DOC_URL": settings.BK_ARCHIVE_DOC_URL,

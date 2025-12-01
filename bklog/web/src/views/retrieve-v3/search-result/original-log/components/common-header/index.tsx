@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed } from "vue";
-import useLocale from "@/hooks/use-locale";
+import { computed, defineComponent } from 'vue';
 
-import "./index.scss";
+import useLocale from '@/hooks/use-locale';
+
+import './index.scss';
 
 export default defineComponent({
-  name: "CommonHeader",
+  name: 'CommonHeader',
   props: {
     targetFields: {
       type: Array,
@@ -44,45 +45,46 @@ export default defineComponent({
   setup(props) {
     const { t } = useLocale();
 
-    const getTargetFieldsStr = computed(() =>
-      props.targetFields.reduce((acc, cur) => {
-        acc += `${cur}: ${props.paramsInfo[cur as string] || "/ "} `;
-        return acc;
-      }, "")
+    const getTargetFieldsStr = computed(() => props.targetFields.reduce((acc, cur) => {
+      acc += `${cur}: ${props.paramsInfo[cur as string] || '/ '} `;
+      return acc;
+    }, ''),
     );
 
     return () => (
-      <div class="common-header-main">
-        <span class="dialog-title">{t("上下文")}</span>
+      <div class='common-header-main'>
+        <span class='dialog-title'>{t('上下文')}</span>
         {!props.targetFields.length ? (
-          <div class="subtitle-list-main title-overflow">
-            <div class="subtitle-main">
-              <div class="title">IP： </div>
-              <div class="content title-overflow">
-                {props.paramsInfo.ip || props.paramsInfo.serverIp}
-              </div>
+          <div class='subtitle-list-main title-overflow'>
+            <div class='subtitle-main'>
+              <div class='title'>IP： </div>
+              <div class='content title-overflow'>{props.paramsInfo.ip || props.paramsInfo.serverIp}</div>
             </div>
-            <div class="subtitle-main">
-              <div class="title">{t("日志路径")}： </div>
-              <div class="content title-overflow" v-bk-overflow-tips>
+            <div class='subtitle-main'>
+              <div class='title'>{t('日志路径')}： </div>
+              <div
+                class='content title-overflow'
+                v-bk-overflow-tips
+              >
                 {props.paramsInfo.path || props.paramsInfo.logfile}
               </div>
             </div>
           </div>
         ) : (
           <div
-            class="subtitle-list-main title-overflow"
+            class='subtitle-list-main title-overflow'
             v-bk-tooltips={{
               content: getTargetFieldsStr.value,
-              placement: "bottom",
+              placement: 'bottom',
             }}
           >
             {props.targetFields.map((item, index) => (
-              <div class="subtitle-main" key={index}>
-                <div class="title">{item}：</div>
-                <div class="content title-overflow">
-                  {props.paramsInfo[item as string] || "/"}
-                </div>
+              <div
+                key={index}
+                class='subtitle-main'
+              >
+                <div class='title'>{item}：</div>
+                <div class='content title-overflow'>{props.paramsInfo[item as string] || '/'}</div>
               </div>
             ))}
           </div>

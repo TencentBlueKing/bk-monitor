@@ -25,21 +25,6 @@
     }
   }
 
-  .bklog-scroll-x {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    z-index: 4;
-    height: 14px;
-    overflow-x: auto;
-    background-color: transparent;
-
-    > div {
-      height: 1px;
-      background-color: transparent;
-    }
-  }
-
   .bklog-row-box {
     z-index: 1;
     display: flex;
@@ -60,6 +45,11 @@
     min-height: 32px;
     background-color: #fff;
     border-bottom: 1px solid #dfe0e5;
+
+    &.is-single-line-mode {
+      width: 100%;
+      max-width: 100%;
+    }
 
     .bklog-row-observe {
       display: inline-flex;
@@ -87,10 +77,31 @@
       line-height: 32px;
       color: var(--table-fount-color);
 
+      &.is-single-line-mode {
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
+      }
+
       .bklog-row-cell {
         align-self: flex-start;
         padding: 4px 12px;
         line-height: 22px;
+
+        &.is-single-line-cell {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          min-width: 0;
+          max-width: 100%;
+
+          > * {
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
 
         mark {
           background-color: rgb(250, 238, 177);

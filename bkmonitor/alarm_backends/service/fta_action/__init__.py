@@ -36,6 +36,7 @@ from bkmonitor.documents import AlertDocument, AlertLog, EventDocument
 from bkmonitor.models.fta import ActionInstance, ActionInstanceLog
 from bkmonitor.utils.send import ChannelBkchatSender, Sender
 from bkmonitor.utils.template import AlarmNoticeTemplate, Jinja2Renderer
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import (
     ACTION_DISPLAY_STATUS_DICT,
     ACTION_STATUS_DICT,
@@ -88,6 +89,7 @@ class BaseActionProcessor:
     def __init__(self, action_id, alerts=None):
         self.action = ActionInstance.objects.get(id=action_id)
         i18n.set_biz(self.action.bk_biz_id)
+        self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.action.bk_biz_id)
         self.alerts = alerts
         self.retry_times = 0
         self.max_retry_times = 0
@@ -115,8 +117,8 @@ class BaseActionProcessor:
         self.execute_config = self.action_config.get("execute_config", {})
         self.timeout_setting = self.execute_config.get("timeout")
         self.failed_retry = self.execute_config.get("failed_retry", {})
-        self.max_retry_times = self.failed_retry.get("max_retry_times", -1)
-        self.retry_interval = self.failed_retry.get("retry_interval", 0)
+        self.max_retry_times = int(self.failed_retry.get("max_retry_times", -1))
+        self.retry_interval = int(self.failed_retry.get("retry_interval", 0))
 
         # 当前的重试次数
         self.retry_times = self.action.outputs.get("retry_times", 0)
@@ -586,6 +588,7 @@ class BaseActionProcessor:
                 title_template_path=title_template_path,
                 content_template_path=content_template_path,
                 notice_type=NoticeType.ACTION_NOTICE,
+                bk_tenant_id=self.bk_tenant_id,
             )
             # 将通知提醒人员更新为当前获取的账户信息
             notify_sender.mentioned_users = wxbot_mention_users

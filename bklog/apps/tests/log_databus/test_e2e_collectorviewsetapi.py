@@ -176,6 +176,8 @@ COLLECTORS_LIST = {
                 "yaml_config_enabled": False,
                 "yaml_config": "",
                 "tags": [],
+                "is_nanos": False,
+                "enable_v4": False
             }
         ],
     },

@@ -233,13 +233,14 @@ import ReceiverList from './components/receiver-list.vue';
 import type { ITableColumnItem } from './types';
 
 const { i18n } = window;
-const frequencyMap: string[] = [
-  i18n.tc('仅一次'),
-  i18n.tc('每天'),
-  i18n.tc('每周'),
-  i18n.tc('每月'),
-  i18n.tc('按小时'),
-];
+const frequencyMap: Record<number, string> = {
+  1: i18n.tc('仅一次'),
+  2: i18n.tc('每天'),
+  3: i18n.tc('每周'),
+  4: i18n.tc('每月'),
+  5: i18n.tc('按小时'),
+};
+
 const hourTextMap = {
   0.5: i18n.tc('每个小时整点,半点发送'),
   1: i18n.tc('每个小时整点发送'),

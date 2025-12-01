@@ -10,6 +10,7 @@ from bkm_ipchooser.handlers.base import BaseHandler
 from bkm_ipchooser.query import resource
 from bkm_ipchooser.tools import batch_request, topo_tool
 from bkm_ipchooser.tools.gse_tool import fill_agent_status
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 
 logger = logging.getLogger("bkm_ipchooser")
 
@@ -209,12 +210,14 @@ class TopoHandler:
         return result
 
     @classmethod
-    def fill_cloud_name(cls, cc_hosts):
+    def fill_cloud_name(cls, bk_biz_id: int, cc_hosts):
         if not cc_hosts:
             return
 
         # 补充云区域名称
-        resp = BkApi.search_cloud_area({"page": {"start": 0, "limit": 1000}})
+        resp = BkApi.search_cloud_area(
+            {"bk_tenant_id": bk_biz_id_to_bk_tenant_id(bk_biz_id), "page": {"start": 0, "limit": 1000}}
+        )
 
         cloud_map = (
             {cloud_info["bk_cloud_id"]: cloud_info["bk_cloud_name"] for cloud_info in resp["info"]}
@@ -261,7 +264,7 @@ class TopoHandler:
 
         # TODO: 抽取常用cc查询接口到一个单独的文件，目前components下很多文件都没用，比如：components/cc,cmdb,itsm等
         TopoHandler.fill_agent_status(hosts, bk_biz_id)
-        TopoHandler.fill_cloud_name(hosts)
+        TopoHandler.fill_cloud_name(bk_biz_id, hosts)
 
         return hosts
 

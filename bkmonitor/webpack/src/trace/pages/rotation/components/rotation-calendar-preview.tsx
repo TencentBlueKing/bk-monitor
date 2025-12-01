@@ -167,8 +167,11 @@ export default defineComponent({
                           >
                             <span>
                               {data.users.map((u, index, arr) => [
-                                <bk-user-display-name user-id={u.name} />,
-                                index !== arr.length - 1 && ',',
+                                <bk-user-display-name
+                                  key={`${u.id}-${index}`}
+                                  user-id={u.name}
+                                />,
+                                index !== arr.length - 1 && ', ',
                               ])}
                             </span>
                           </div>
@@ -189,10 +192,11 @@ export default defineComponent({
                         <div class='time'>{data.other.time}</div>
                         <div class='users'>
                           {data.users.map((u, index, arr) => [
-                            `${u.id}(`,
-                            <bk-user-display-name user-id={u.name} />,
-                            ')',
-                            index !== arr.length - 1 && ',',
+                            <bk-user-display-name
+                              key={`${u.id}-${index}`}
+                              user-id={u.name}
+                            />,
+                            index !== arr.length - 1 && ', ',
                           ])}
                         </div>
                       </div>

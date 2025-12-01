@@ -2,7 +2,7 @@
 
 查询告警策略列表
 
-#### 接口参数
+### 请求参数
 
 | 字段                | 类型      | 必选  | 描述        |
 |-------------------|---------|-----|-----------|
@@ -101,7 +101,7 @@
     "hardware_device",
     "other_rt"
 
-#### 示例数据
+### 请求参数示例
 
 ```json
 {
@@ -131,7 +131,7 @@
 | strategy_config_list | int  | 策略配置列表(StrategyConfig) |
 | strategy_label_list  | list | 策略标签列表(StrategyLabel)  |
 
-#### DataSource
+#### data_source_list
 
 | 字段                | 类型     | 描述         |
 |-------------------|--------|------------|
@@ -142,7 +142,7 @@
 | count             | int    | 按数据源统计策略数量 |
 
 
-#### UserGroup
+#### user_group_list
 
 | 字段                | 类型   | 描述          |
 |-------------------|------|-------------|
@@ -150,7 +150,7 @@
 | user_group_name | dict | 通知组名称       |
 | count             | int  | 按通知组统计的策略数量 |
 
-#### Scenario
+#### scenario_list
 
 | 字段           | 类型     | 描述           |
 |--------------|--------|--------------|
@@ -158,7 +158,7 @@
 | display_name | string | 监控对象名称       |
 | count        | string | 按监控对象统计的策略数量 |
 
-#### StrategyConfig
+#### strategy_config_list
 | 字段                      | 类型      | 描述     |
 |:------------------------|---------|--------|
 | actions                 | list    | 处理套餐列表   |
@@ -184,7 +184,7 @@
 | bk_biz_id               | int     | 业务ID   |
 
 
-#### StrategyLabel
+#### strategy_label_list
 
 | 字段         | 类型     | 描述           |
 |------------|--------|--------------|
@@ -192,7 +192,7 @@
 | id         | int    | 策略标签ID       |
 | count      | string | 按策略标签统计的策略数量 |
 
-#### 示例数据
+### 响应参数示例
 
 ```json
 {

@@ -14,6 +14,7 @@ import time
 from collections import defaultdict
 from datetime import datetime
 from importlib import import_module
+from typing import Any
 
 import jmespath
 from django.conf import settings
@@ -105,7 +106,7 @@ class ActionPlugin(AbstractRecordModel):
     has_child = models.BooleanField("是否有子级联", default=False)
     category = models.CharField("插件分类", max_length=64, null=False)
     # 事件执行分类：回调类，轮询类，直调 需要放到这里吗？
-    config_schema = JsonField("参数配置格式")
+    config_schema: dict[str, Any] = JsonField("参数配置格式")  # type: ignore
     """
     比如标准运维：
     返回前端的样例
@@ -189,6 +190,11 @@ class ActionPlugin(AbstractRecordModel):
         "job_site_url": settings.JOB_URL.rstrip("/"),
         "sops_site_url": settings.BK_SOPS_HOST.rstrip("/"),
         "itsm_site_url": settings.BK_ITSM_HOST.rstrip("/"),
+        "itsm_v4_site_url": settings.BK_ITSM_V4_HOST.rstrip("/"),
+        "itsm_v4_api_url": settings.BK_ITSM_V4_API_URL.rstrip("/"),
+        "itsm_v4_system_id": settings.BK_ITSM_V4_SYSTEM_ID,
+        "incident_saas_site_url": settings.BK_INCIDENT_SAAS_HOST.rstrip("/"),  # 故障分析SaaS URL
+
     }
 
     @staticmethod
@@ -197,13 +203,14 @@ class ActionPlugin(AbstractRecordModel):
         return json.loads(Jinja2Renderer.render(json.dumps(data_mapping), validate_request_data))
 
     def perform_resource_request(self, req_type, **kwargs) -> list:
-        request_schema = self.config_schema[req_type]
+        request_schema: dict[str, Any] = self.config_schema[req_type]
 
         try:
-            resource_module = import_module(request_schema.get("resource_module"))
+            resource_module = import_module(request_schema.get("resource_module", ""))
         except ImportError as err:
             logger.exception(err)
             return []
+
         source_class = request_schema["resource_class"]
         if not hasattr(resource_module, source_class):
             return []

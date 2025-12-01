@@ -526,12 +526,9 @@
     "description": "标准运维是通过可视化的图形界面进行任务流程编排和执行的系统，是腾讯蓝鲸产品体系中一款轻量级的调度编排类 SaaS 产品。<a href=\"{plugin_url}\" target=\"_blank\">前往标准运维</a>\n\n* 在标准运维中创建一个流程\n\n* 流程里面可以添加各种原子\n\n* 处理套餐中可以上下文传参可以在标准运维流程中设置为 **全局变量**\n\n",
     "config_schema": {
       "template": {
-        "resource_class": "CommonBaseResource",
+        "resource_class": "GetCommonTemplateListResource",
         "name": "公共流程名称",
-        "init_kwargs": {
-          "url": "{{bk_paas_inner_host}}/api/c/compapi/v2/sops/get_common_template_list/"
-        },
-        "resource_module": "api.common.default",
+        "resource_module": "api.sops.default",
         "resource_data": "response[*]",
         "mapping": {
           "id": "{{id}}",
@@ -547,13 +544,10 @@
       },
       "detail": {
         "name": "任务参数",
-        "resource_class": "CommonBaseResource",
-        "resource_module": "api.common.default",
+        "resource_class": "GetCommonTemplateInfoResource",
+        "resource_module": "api.sops.default",
         "request_data_mapping": {
           "template_id": "{{template_id}}"
-        },
-        "init_kwargs": {
-          "url": "{{bk_paas_inner_host}}/api/c/compapi/v2/sops/get_common_template_info/"
         },
         "resource_data": "response.pipeline_tree.constants.* | [?show_type == 'show']",
         "mapping": {
@@ -687,5 +681,320 @@
         "next_function": "schedule"
       }
     ]
-  }
+  },
+  {
+    "id": 7,
+    "description": "流程服务可自定义设计的流程模块，可以通过工单流程来满足协作的需求。<a href=\\\"{plugin_url}\\\" target=\\\"_blank\\\">前往流程服务</a>\\n\\n* 新建服务 &gt; 关联已有流程/创建新流程 &gt; 完成\\n\\n* 提单信息可通过处理套餐进行上下文传参",
+    "has_child": true,
+    "is_builtin": true,
+    "is_deleted": false,
+    "is_peripheral": true,
+    "name": "新版ITSM流程服务",
+    "plugin_key": "itsmv4",
+    "plugin_source": "peripheral",
+    "plugin_type": "common",
+    "config_schema": {
+    "content_template": "故障工单套餐【{{action_name}}】处理{{status_display}}, 请关注！！",
+    "content_template_with_url": "根据套餐【{{action_name}}】的配置成功创建故障工单[{{sn}}]，点击$查看工单详情$",
+    "detail": {
+      "init_kwargs": {
+        "url": "{{itsm_v4_api_url}}/api/v1/workflows/"
+      },
+      "mapping": {
+        "key": "{{key}}",
+        "name": "{{name}}",
+        "placeholder": "{{desc}}",
+        "required": "{{required}}",
+        "value": "{{default or ''}}"
+      },
+      "name": "提单信息",
+      "request_data_mapping": {
+        "workflow_keys": "{{template_id}}"
+      },
+      "resource_class": "CommonBaseResource",
+      "resource_data": "response.items[].form_canvas_data.form_data.layout[].list[].{key: key, desc: desc, name: tips,default:defaultValue,required:verification.required.value}",
+      "resource_module": "api.common.default"
+    },
+    "plugin_url": {
+      "mapping": {
+        "tips": "前往流程服务",
+        "url": "{{itsm_v4_site_url}}/#/system/processList"
+      }
+    },
+    "template": {
+      "init_kwargs": {
+        "url": "{{itsm_v4_api_url}}/api/v1/system_workflow/list/"
+      },
+      "mapping": {
+        "id": "{{key}}",
+        "name": "{{name}}",
+        "url": "{{itsm_v4_site_url}}/#/ticket/ticketInfo?workflowId={{key}}&type=create"
+      },
+      "name": "服务名称",
+      "request_data_mapping": {
+        "is_enable": "True",
+        "system_id": "{{itsm_v4_system_id}}"
+      },
+      "resource_class": "CommonBaseResource",
+      "resource_data": "response.results[].{name: name, key: key}",
+      "resource_module": "api.common.default"
+    }
+  },
+    "backend_config": [
+    {
+      "function": "create_task",
+      "init_kwargs": {
+        "method": "POST",
+        "url": "{{itsm_v4_api_url}}/api/v1/ticket/create/"
+      },
+      "inputs": [
+        {
+          "format": "jmespath",
+          "key": "workflow_key",
+          "type": "str",
+          "value": "execute_config.template_id"
+        },
+        {
+          "format": "jmespath",
+          "key": "form_data",
+          "type": "dict",
+          "value": "execute_config.template_detail_dict"
+        },
+        {
+            "key": "operator",
+            "value": "operator",
+            "type": "string",
+            "format": "jmespath"
+          }
+      ],
+      "log_template": "根据套餐【{{action_name}}】的配置已成功创建故障工单[{{sn}}]，点击$查看工单详情$",
+      "name": "创建单据",
+      "need_insert_log": true,
+      "outputs": [
+        {
+          "format": "jmespath",
+          "key": "sn",
+          "value": "response.sn"
+        },
+        {
+          "format": "jmespath",
+          "key": "id",
+          "value": "response.id"
+        },
+        {
+          "format": "jmespath",
+          "key": "url",
+          "value": "response.frontend_url"
+        }
+      ],
+      "resource_class": "CommonBaseResource",
+      "resource_module": "api.common.default"
+    },
+    {
+      "finished_rule": {
+        "key": "current_status",
+        "method": "equal",
+        "value": "finished"
+      },
+      "function": "schedule",
+      "init_kwargs": {
+        "method": "GET",
+        "url": "{{itsm_v4_api_url}}/api/v1/ticket/detail/"
+      },
+      "inputs": [
+        {
+          "format": "jmespath",
+          "key": "id",
+          "type": "string",
+          "value": "pre_node_outputs.id"
+        }
+      ],
+      "name": "轮询状态",
+      "need_schedule": true,
+      "next_function": "schedule",
+      "outputs": [
+        {
+          "format": "jmespath",
+          "key": "current_status",
+          "type": "string",
+          "value": "response.status"
+        },
+        {
+          "format": "jmespath",
+          "key": "url",
+          "type": "string",
+          "value": "response.frontend_url"
+        }
+      ],
+      "resource_class": "CommonBaseResource",
+      "resource_module": "api.common.default",
+      "schedule_timedelta": 2
+    }
+  ]
+},
+      {
+        "id": 110,
+        "name": "标准排障",
+        "is_builtin": true,
+        "is_deleted": false,
+        "is_peripheral": true,
+        "plugin_source": "peripheral",
+        "plugin_type": "bk_incident",
+        "plugin_key": "bk_incident",
+        "has_child": true,
+        "description": "标准排障是通过可视化的图形界面进行故障排查流程编排和执行的系统，是腾讯蓝鲸产品体系中一款轻量级的调度编排类 SaaS 产品。<a href=\"{plugin_url}\" target=\"_blank\">前往标准排障</a>\\n\\n* 在标准排障中创建一个流程\\n* 流程里可以添加包括智能体在内的各种原子\\n* 处理套餐中可以上下文传参，可以在标准排障流程中设置为 **全局变量**",
+        "config_schema": {
+            "template": {
+                "resource_class": "GetTemplateListResource",
+                "name": "流程名称",
+                "resource_module": "api.bk_incident.default",
+                "resource_data": "response[*]",
+                "mapping": {
+                    "id": "{{id}}",
+                    "name": "{{name}}",
+                    "url": "{{incident_saas_site_url}}/{{scope_type}}_{{scope_value}}/flow/view/{{id}}"
+                }
+            },
+            "plugin_url": {
+                "mapping": {
+                    "url": "{{incident_saas_site_url}}",
+                    "tips": "前往标准排障"
+                }
+            },
+            "detail": {
+                "name": "任务参数",
+                "resource_class": "GetTemplateInfoResource",
+                "resource_module": "api.bk_incident.default",
+                "request_data_mapping": {
+                    "bk_template_id": "{{template_id}}"
+                },
+                "resource_data": "response.pipeline_tree.constants.*",
+                "mapping": {
+                    "key": "{{key}}",
+                    "name": "{{name}}",
+                    "value": "{{value.default or value or ''}}"
+                }
+            },
+            "content_template_with_url": "标准排障任务【{{action_name}}】处理{{status_display}}，点击$查看任务详情$",
+            "content_template": "标准排障任务【{{action_name}}】处理{{status_display}}, 请关注！！"
+        },
+        "backend_config": [
+            {
+                "function": "create_task",
+                "name": "创建标准排障任务",
+                "resource_class": "CreateTaskResource",
+                "resource_module": "api.bk_incident.default",
+                "inputs": [
+                    {
+                        "key": "bk_biz_id",
+                        "value": "bk_biz_id",
+                        "type": "int",
+                        "format": "jmespath"
+                    },
+                    {
+                        "key": "template_id",
+                        "value": "execute_config.template_id",
+                        "type": "int",
+                        "format": "jmespath"
+                    },
+                    {
+                        "key": "constants",
+                        "value": "execute_config.template_detail_dict",
+                        "type": "dict",
+                        "format": "jmespath"
+                    },
+                    {
+                        "key": "name",
+                        "value": "action_name",
+                        "type": "string",
+                        "format": "jmespath"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "key": "task_id",
+                        "value": "response.task_id",
+                        "format": "jmespath"
+                    },
+                    {
+                        "key": "url",
+                        "value": "response.task_url",
+                        "format": "jmespath"
+                    }
+                ],
+                "next_function": "start_task",
+                "need_insert_log": true,
+                "log_template": "成功创建标准排障任务【{{action_name}}】，点击$查看任务详情$"
+            },
+            {
+                "function": "start_task",
+                "name": "启动任务",
+                "resource_class": "OperateTaskResource",
+                "resource_module": "api.bk_incident.default",
+                "inputs": [
+                    {
+                        "key": "task_id",
+                        "value": "pre_node_outputs.task_id",
+                        "type": "int",
+                        "format": "jmespath"
+                    },
+                    {
+                        "key": "bk_biz_id",
+                        "value": "bk_biz_id",
+                        "type": "int",
+                        "format": "jmespath"
+                    }
+                ],
+                "outputs": [],
+                "next_function": "schedule"
+            },
+            {
+                "function": "schedule",
+                "name": "查询任务结果",
+                "resource_class": "GetTaskStatusResource",
+                "resource_module": "api.bk_incident.default",
+                "inputs": [
+                    {
+                        "key": "task_id",
+                        "value": "pre_node_outputs.task_id",
+                        "type": "int",
+                        "format": "jmespath"
+                    },
+                    {
+                        "key": "bk_biz_id",
+                        "value": "bk_biz_id",
+                        "type": "int",
+                        "format": "jmespath"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "key": "task_state",
+                        "value": "response.state",
+                        "type": "string",
+                        "format": "jmespath"
+                    }
+                ],
+                "finished_rule": {
+                    "key": "task_state",
+                    "method": "in",
+                    "value": [
+                        "FAILED",
+                        "FINISHED",
+                        "REVOKED"
+                    ]
+                },
+                "success_rule": {
+                    "key": "task_state",
+                    "method": "in",
+                    "value": [
+                        "FINISHED"
+                    ]
+                },
+                "need_schedule": true,
+                "schedule_timedelta": 2,
+                "next_function": "schedule"
+            }
+        ]
+    }
 ]

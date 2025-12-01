@@ -1356,7 +1356,10 @@ class PlainStrategyListV2Resource(Resource):
     """获取轻量的策略列表"""
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+        ids = serializers.ListField(
+            label=_("策略 ID 列表"), child=serializers.IntegerField(min_value=1), default=[], allow_empty=True
+        )
 
     @staticmethod
     def get_label_msg(scenario: str, labels: list) -> dict:
@@ -1380,9 +1383,11 @@ class PlainStrategyListV2Resource(Resource):
 
     def perform_request(self, validated_request_data):
         # 获取指定业务下启用的策略
-        bk_biz_id = validated_request_data.get("bk_biz_id")
+        q = Q(bk_biz_id=validated_request_data["bk_biz_id"])
+        if validated_request_data["ids"]:
+            q &= Q(id__in=validated_request_data["ids"])
         strategies = (
-            StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+            StrategyModel.objects.filter(q)
             .values("id", "name", "scenario", "is_enabled")
             .order_by("-is_enabled", "-update_time")
         )
@@ -3617,7 +3622,7 @@ class SaveStrategySubscribeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=False)
-        username = serializers.CharField(required=True)
+        sub_username = serializers.CharField(required=True, source="username")
         bk_biz_id = serializers.IntegerField(required=True)
         conditions = serializers.ListField(required=True, child=serializers.DictField())
         notice_ways = serializers.ListField(required=True, child=serializers.CharField())
@@ -3714,6 +3719,7 @@ class BulkDeleteStrategySubscribeResource(Resource):
             child=serializers.IntegerField(), required=True, allow_empty=False, help_text="要删除的订阅ID列表"
         )
         bk_biz_id = serializers.IntegerField(required=True)
+        sub_username = serializers.CharField(required=False, source="username", default="")
 
     def perform_request(self, params):
         ids = params["ids"]
@@ -3721,6 +3727,8 @@ class BulkDeleteStrategySubscribeResource(Resource):
 
         # 查询要删除的订阅记录
         qs = NoticeSubscribe.objects.filter(id__in=ids, bk_biz_id=bk_biz_id)
+        if params["username"]:
+            qs = qs.filter(username=params["username"])
 
         # 获取实际存在的订阅ID，用于返回结果
         existing_ids = list(qs.values_list("id", flat=True))
@@ -3755,10 +3763,11 @@ class DeleteStrategySubscribeResource(Resource):
     class RequestSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=True)
         bk_biz_id = serializers.IntegerField(required=True)
+        sub_username = serializers.CharField(required=False, source="username", default="")
 
     def perform_request(self, params):
         # 复用批量删除的逻辑
-        batch_params = {"ids": [params["id"]], "bk_biz_id": params["bk_biz_id"]}
+        batch_params = {"ids": [params["id"]], "bk_biz_id": params["bk_biz_id"], "sub_username": params["username"]}
 
         # 调用批量删除资源
         batch_resource = BulkDeleteStrategySubscribeResource()
@@ -3777,18 +3786,19 @@ class ListStrategySubscribeResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        username = serializers.CharField(required=True)
+        sub_username = serializers.CharField(required=False, source="username")
         bk_biz_id = serializers.IntegerField(required=True)
-        is_enable = serializers.BooleanField(required=False)
+        is_enable = serializers.BooleanField(required=False, default=True)
         page = serializers.IntegerField(required=False, default=1, min_value=1)
         page_size = serializers.IntegerField(required=False, default=100, min_value=1, max_value=500)
 
     def perform_request(self, params):
         # 只使用经过验证的字段进行过滤，避免潜在的安全风险
         filter_params = {
-            "username": params["username"],
             "bk_biz_id": params["bk_biz_id"],
         }
+        if params.get("username", ""):
+            filter_params["username"] = params["username"]
 
         # 可选的is_enable过滤
         if "is_enable" in params:

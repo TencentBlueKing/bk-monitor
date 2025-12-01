@@ -32,6 +32,7 @@ import aiWhaleStore from '@/store/modules/ai-whale';
 import '@blueking/bk-weweb';
 
 import type { AIBluekingShortcut } from '@/components/ai-whale/types';
+import type { Vue3WewebData } from '@/types/weweb/weweb';
 
 import './profiling.scss';
 const profilingAppId = 'profiling-explore';
@@ -49,10 +50,13 @@ export default class Profiling extends tsc<object> {
       ? `${this.profilingHost}/?bizId=${this.$store.getters.bizId}/#/trace/profiling`
       : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/profiling`;
   }
-  get profilingData() {
+  get profilingData(): Vue3WewebData {
     return {
       host: this.profilingHost,
-      baseroute: '/trace/',
+      parentRoute: '/trace/',
+      get enableAiAssistant() {
+        return aiWhaleStore.enableAiAssistant;
+      },
       setUnmountCallback: (callback: () => void) => {
         this.unmountCallback = callback;
       },
@@ -94,7 +98,7 @@ export default class Profiling extends tsc<object> {
       this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
     }, 300);
   }
-  beforeRouteLeave(to, from, next) {
+  beforeRouteLeave(_to, _fromm, next) {
     document.body.___zrEVENTSAVED = null; // echarts 微应用偶发tooltips错误问题
     next();
   }

@@ -216,6 +216,7 @@ class DataAPI:
         default_timeout=60,
         data_api_retry_cls=None,
         use_superuser=False,
+        no_query_params=False,
         pagination_style=PaginationStyle.LIMIT_OFFSET.value,
         bk_tenant_id: str | Callable[[dict], str] = "",
     ):
@@ -270,6 +271,8 @@ class DataAPI:
         self.pagination_style = pagination_style
 
         self.bk_tenant_id = bk_tenant_id
+        self.headers = None
+        self.no_query_params = no_query_params
 
     def __call__(
         self,
@@ -327,18 +330,28 @@ class DataAPI:
         return message
 
     def _send_request(self, params, timeout, request_id, request_cookies, bk_tenant_id):
+        # 请求前的参数清洗处理
+        origin_params = params.copy()
+        if self.before_request is not None:
+            # 将bk_tenant_id传到before_request进行处理（添加管理员账号）
+            _bk_tenant_id = bk_tenant_id or self.bk_tenant_id
+            if not origin_params.get("bk_tenant_id") and _bk_tenant_id:
+                if callable(_bk_tenant_id):
+                    _bk_tenant_id = _bk_tenant_id(params)
+                params["bk_tenant_id"] = _bk_tenant_id
+                params = self.before_request(params)
+                del params["bk_tenant_id"]
+            else:
+                params = self.before_request(params)
+
         # 缓存
         with ignored(Exception):
-            cache_key = self._build_cache_key(params)
+            cache_key = self._build_cache_key(params, origin_params)
             if self.cache_time:
                 result = self._get_cache(cache_key)
                 if result is not None:
                     # 有缓存时返回
                     return DataResponse(result, request_id)
-
-        # 请求前的参数清洗处理
-        if self.before_request is not None:
-            params = self.before_request(params)
 
         # 是否有默认返回，调试阶段可用
         if self.default_return_value is not None:
@@ -449,6 +462,7 @@ class DataAPI:
                 "method": self.method,
                 "method_override": self.method_override,
                 "query_params": params,
+                "headers": self.headers,
                 "response_result": response_result,
                 "response_code": response_code,
                 "response_data": response_data,
@@ -465,14 +479,16 @@ class DataAPI:
             else:
                 logger.exception(_log)
 
-    def _build_cache_key(self, params):
+    def _build_cache_key(self, params, origin_params=None):
         """
         缓存key的组装方式，保证URL和参数相同的情况下返回是一致的
         :param params:
         :return:
         """
         # 缓存
-        cache_str = f"url_{self.build_actual_url(params)}__params_{json.dumps(params, cls=LazyEncoder)}"
+        cache_str = (
+            f"url_{self.build_actual_url(params)}__params_{json.dumps(origin_params or params, cls=LazyEncoder)}"
+        )
         hash_md5 = hashlib.new("md5")
         hash_md5.update(cache_str.encode("utf-8"))
         cache_key = hash_md5.hexdigest()
@@ -535,11 +551,13 @@ class DataAPI:
             else:
                 bk_tenant_id = get_request_tenant_id()
         session.headers.update({"X-Bk-Tenant-Id": bk_tenant_id})
-
+        self.headers = session.headers
         url = self.build_actual_url(params)
 
         # 发出请求并返回结果
         query_params = {"bklog_request_id": request_id}
+        if self.no_query_params:
+            query_params = {}
         non_file_data, file_data = self._split_file_data(params)
         if self.method.upper() == "GET":
             params.update(query_params)

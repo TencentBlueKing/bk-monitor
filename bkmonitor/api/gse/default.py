@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import abc
+from typing import Any
 
 import six
 from django.conf import settings
@@ -273,7 +272,9 @@ class AddRoute(GseBaseResource):
         class StreamFilterInfoSerializer(serializers.Serializer):
             name = serializers.CharField(required=True, label="filter名字")
             field_index = serializers.IntegerField(required=True, label="字段索引")
-            field_data_type = serializers.ChoiceField(required=True, label="数据类型", choices=["int", "string", "bytes"])
+            field_data_type = serializers.ChoiceField(
+                required=True, label="数据类型", choices=["int", "string", "bytes"]
+            )
             field_data_value = serializers.CharField(required=True, label="数据值")
             field_separator = serializers.CharField(required=False, label="分隔符")
             field_in = serializers.ChoiceField(
@@ -377,7 +378,9 @@ class DeleteRoute(GseBaseResource):
 
         class SpecificationSerializer(serializers.Serializer):
             route = serializers.ListField(required=False, label="路由名称列表", child=serializers.CharField())
-            stream_filters = serializers.ListField(required=False, label="过滤条件名称列表", child=serializers.CharField())
+            stream_filters = serializers.ListField(
+                required=False, label="过滤条件名称列表", child=serializers.CharField()
+            )
 
         condition = ConditionSerializer(required=True, label="条件信息")
         operation = OperationSerializer(required=True, label="操作配置")
@@ -463,3 +466,18 @@ class ListAgentState(GseAPIBaseResource):
 
     class RequestSerializer(serializers.Serializer):
         agent_id_list = serializers.ListField(child=serializers.CharField())
+
+
+class DispatchMessage(GseAPIBaseResource):
+    action = "cluster/dispatch_message"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        message_id = serializers.CharField(label="消息ID", max_length=64)
+        agent_id_list = serializers.ListField(label="Agent ID列表", child=serializers.CharField(), min_length=1)
+        content = serializers.CharField(label="请求内容")
+
+    def perform_request(self, validated_request_data: dict[str, Any]):
+        validated_request_data["slot_id"] = settings.GSE_SLOT_ID
+        validated_request_data["token"] = settings.GSE_SLOT_TOKEN
+        return super().perform_request(validated_request_data)

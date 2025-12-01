@@ -23,7 +23,9 @@ import copy
 import json
 import math
 
+import arrow
 from django.conf import settings
+from django.http import StreamingHttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -32,7 +34,6 @@ from io import BytesIO
 
 from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
-from apps.exceptions import ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH, UNIFY_QUERY_SQL
 from apps.generic import APIViewSet
@@ -58,7 +59,7 @@ from apps.log_search.constants import (
     SQL_SUFFIX,
 )
 from apps.log_search.decorators import search_history_record
-from apps.log_search.exceptions import BaseSearchIndexSetException, TokenMissingException
+from apps.log_search.exceptions import BaseSearchIndexSetException
 from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
     IndexSetCustomConfigHandler,
@@ -102,6 +103,7 @@ from apps.log_search.serializers import (
     UserIndexSetCustomConfigSerializer,
     AliasSettingsSerializer,
     SearchLogForCodeSerializer,
+    SearchFieldsSerializer,
 )
 from apps.log_search.utils import create_download_response
 from apps.log_unifyquery.builder.context import build_context_params
@@ -149,6 +151,8 @@ class SearchViewSet(APIViewSet):
             "history",
             "chart",
             "generate_sql",
+            "grep_query",
+            "search_log_for_code",
         ]:
             return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
@@ -361,8 +365,8 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(SearchAttrSerializer)
-        search_handler = SearchHandlerEsquery(index_set_id, data)
         if data.get("is_scroll_search"):
+            search_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(search_handler.scroll_search())
 
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
@@ -370,6 +374,7 @@ class SearchViewSet(APIViewSet):
             query_handler = UnifyQueryHandler(data)
             return Response(query_handler.search())
         else:
+            search_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="search/original")
@@ -1058,24 +1063,35 @@ class SearchViewSet(APIViewSet):
             "result": true
         }
         """
+        params = self.params_valid(SearchFieldsSerializer)
+        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
         index_set_id = kwargs.get("index_set_id", "")
-        scope = request.GET.get("scope", SearchScopeEnum.DEFAULT.value)
-        is_realtime = bool(request.GET.get("is_realtime", False))
-        if scope is not None and scope not in SearchScopeEnum.get_keys():
-            raise ValidationError(_("scope取值范围：default、search_context"))
 
-        # 将日期中的&nbsp;替换为标准空格
-        start_time = request.GET.get("start_time", "").replace("&nbsp;", " ")
-        end_time = request.GET.get("end_time", "").replace("&nbsp;", " ")
-        custom_indices = request.GET.get("custom_indices", "")
+        scope = params["scope"]
+        is_realtime = params["is_realtime"]
+        start_time = params.get("start_time")
+        end_time = params.get("end_time")
+        custom_indices = params["custom_indices"]
+
         if scope == SearchScopeEnum.DEFAULT.value and not is_realtime and not start_time and not end_time:
             # 使用缓存
             fields = self.get_object().get_fields(use_snapshot=True)
+        elif FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
+            if not start_time and not end_time:
+                start_time = arrow.now().shift(days=-1).int_timestamp * 1000
+                end_time = arrow.now().int_timestamp * 1000
+            search_dict = {
+                "start_time": start_time,
+                "end_time": end_time,
+                "index_set_ids": [index_set_id],
+                "bk_biz_id": bk_biz_id,
+            }
+            fields = UnifyQueryHandler(search_dict).fields(scope)
         else:
             search_dict = {"start_time": start_time, "end_time": end_time}
             if custom_indices:
                 search_dict.update({"custom_indices": custom_indices})
-            search_handler_esquery = SearchHandlerEsquery(index_set_id, search_dict)
+            search_handler_esquery = SearchHandlerEsquery(int(index_set_id), search_dict)
             fields = search_handler_esquery.fields(scope)
 
         # 添加用户索引集自定义配置
@@ -1622,7 +1638,15 @@ class SearchViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UnionSearchFieldsSerializer)
-        fields = UnionSearchHandler().union_search_fields(data)
+
+        index_set_obj = LogIndexSet.objects.filter(index_set_id__in=data["index_set_ids"]).first()
+        if index_set_obj:
+            data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            fields = UnionSearchHandler().unifyquery_union_search_fields(data)
+        else:
+            fields = UnionSearchHandler().union_search_fields(data)
 
         # 添加用户索引集自定义配置
         index_set_config = UserIndexSetConfigHandler(
@@ -1915,7 +1939,7 @@ class SearchViewSet(APIViewSet):
     @detail_route(methods=["POST"], url_path="chart")
     def chart(self, request, index_set_id=None):
         """
-        @api {get} /search/index_set/$index_set_id/chart/
+        @api {post} /search/index_set/$index_set_id/chart/
         @apiDescription 获取图表信息
         @apiName chart
         @apiGroup 11_Search
@@ -1946,6 +1970,28 @@ class SearchViewSet(APIViewSet):
             instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
             result = instance.get_chart_data(params)
         return Response(result)
+
+    @detail_route(methods=["POST"], url_path="export_chart_data")
+    def export_chart_data(self, request, index_set_id=None):
+        """
+        @api {post} /search/index_set/$index_set_id/export_chart_data/
+        @apiDescription 导出图表数据
+        @apiName export_chart_data
+        @apiGroup 11_Search
+        """
+        params = self.params_valid(ChartSerializer)
+        bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+        params["index_set_ids"] = [index_set_id]
+        params["bk_biz_id"] = bk_biz_id
+
+        query_handler = UnifyQueryChartHandler(params)
+        file_name = f"bklog_{index_set_id}_{arrow.now().format('YYYYMMDD_HHmmss')}.csv"
+        response = StreamingHttpResponse(
+            query_handler.export_chart_data(),
+            content_type="application/octet-stream",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{file_name}"'
+        return response
 
     @detail_route(methods=["POST"], url_path="generate_sql")
     def generate_sql(self, request, index_set_id=None):
@@ -2053,10 +2099,10 @@ class SearchViewSet(APIViewSet):
         params = self.params_valid(AliasSettingsSerializer)
         return Response(IndexSetHandler(index_set_id=index_set_id).update_alias_settings(params["alias_settings"]))
 
-    @list_route(methods=["POST"], url_path="search_log_for_code")
-    def search_log_for_code(self, request):
+    @detail_route(methods=["POST"], url_path="search_log_for_code")
+    def search_log_for_code(self, request, index_set_id):
         """
-        @api {post} /search/index_set/search_log_for_code/ CodeCC日志搜索
+        @api {post} /search/index_set/$index_set_id/search_log_for_code/ CodeCC日志搜索
         @apiDescription 根据CodeCC token进行日志搜索，需要在请求头中传入 X-BKLOG-TOKEN
         @apiParam 接口参数参考query_ts_raw
         @apiParamExample {Json} 请求参数
@@ -2103,7 +2149,4 @@ class SearchViewSet(APIViewSet):
             }
         """
         data = self.params_valid(SearchLogForCodeSerializer)
-        token = getattr(request, "token")
-        if not token:
-            raise TokenMissingException()
-        return Response(UnifyQueryHandler.search_log_for_code(token, data))
+        return Response(UnifyQueryHandler.search_log_for_code(index_set_id, data))

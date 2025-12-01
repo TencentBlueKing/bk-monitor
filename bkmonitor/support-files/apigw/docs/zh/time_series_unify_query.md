@@ -3,7 +3,7 @@
 统一查询接口 (适配图表展示)
 
 
-#### 接口参数
+### 请求参数
 
 | 字段                     | 类型         | 必选 | 描述                                             |
 |------------------------|------------|----|------------------------------------------------|
@@ -24,6 +24,7 @@
 | format                 | str        | 否  | 输出格式，可选值为`time_series`(默认)、`heatmap`、`table`   |
 | type                   | str        | 否  | 类型，可选值为`instant`、`range`(默认)。                  |
 | series_num             | int        | 否  | 查询数据条数                                         |
+| not_time_align         | bool       | 否  | 是否不进行时间对齐，默认值为`false`                          |
 
 #### query_configs
 
@@ -68,7 +69,7 @@
 | id     | str        | 函数名 | 是    |
 | params | list[dict] | 参数  | 是    |
 
-#### 请求示例
+### 请求参数示例
 
 ```json
 //以下查询基本等价于：sum(rate(bk_monitor:container_cpu_usage_seconds_total{pod=~"(bk-monitor-unify-query-7b8658dc5d-9j8jr|bk-monitor-unify-query-7b8658dc5d-z22pv)"}[2m])) by(pod)
@@ -79,6 +80,7 @@
   "end_time": 1737445607,
   "expression": "a",
   "format": "time_series",
+  "not_time_align": false,
   "query_configs": [
     {
       "data_source_label": "bk_monitor",
@@ -203,7 +205,7 @@
 | is_dimension | bool | 是否为维度的标识 |
 | type         | str  | 维度的数据类型  |
 
-#### 响应示例
+### 响应参数示例
 
 ```json
 {
@@ -341,5 +343,3 @@
     ]
   }
 }
-```
-

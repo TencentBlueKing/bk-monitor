@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -10,14 +9,13 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
-from typing import Dict, List, Optional
 
-import six
 from django.conf import settings
 from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.country import CHINESE_PROVINCE_MAP, COUNTRY_MAP, ISP_MAP
+from constants.common import DEFAULT_TENANT_ID
 
 
 def _split_member_list(member_str):
@@ -28,7 +26,7 @@ def _split_member_list(member_str):
     """
     if not member_str:
         return []
-    if not isinstance(member_str, six.string_types):
+    if not isinstance(member_str, str):
         return member_str
     return [member for member in member_str.split(",") if member]
 
@@ -64,7 +62,7 @@ class BaseNode:
         setattr(self, key, value)
 
 
-class TopoNode(object):
+class TopoNode:
     """
     拓扑节点
     {
@@ -89,7 +87,7 @@ class TopoNode(object):
 
     @property
     def id(self):
-        return "{}|{}".format(self.bk_obj_id, self.bk_inst_id)
+        return f"{self.bk_obj_id}|{self.bk_inst_id}"
 
     def __eq__(self, other):
         return (self.bk_inst_id, self.bk_obj_id) == (other.bk_inst_id, other.bk_obj_id)
@@ -98,7 +96,7 @@ class TopoNode(object):
         return hash((self.bk_inst_id, self.bk_obj_id))
 
     def __repr__(self):
-        return "<TopoNode: {}({})-{}({})>".format(self.bk_obj_name, self.bk_obj_id, self.bk_inst_name, self.bk_inst_id)
+        return f"<TopoNode: {self.bk_obj_name}({self.bk_obj_id})-{self.bk_inst_name}({self.bk_inst_id})>"
 
     def get_attrs(self):
         node_attrs = {}
@@ -108,6 +106,14 @@ class TopoNode(object):
             else:
                 node_attrs[key] = value
         return node_attrs
+
+    def to_dict(self):
+        return {
+            "bk_obj_id": self.bk_obj_id,
+            "bk_inst_id": self.bk_inst_id,
+            "bk_obj_name": self.bk_obj_name,
+            "bk_inst_name": self.bk_inst_name,
+        }
 
 
 class Business(TopoNode):
@@ -142,6 +148,7 @@ class Business(TopoNode):
         bk_biz_productor=None,
         operator=None,
         time_zone="Asia/Shanghai",
+        bk_tenant_id=DEFAULT_TENANT_ID,
         **kwargs,
     ):
         """
@@ -150,9 +157,11 @@ class Business(TopoNode):
         :param str time_zone: 时区
         """
         kwargs.pop("bk_obj_id", "")
-        super(Business, self).__init__(
+        super().__init__(
             bk_obj_id="biz", bk_obj_name="business", bk_inst_id=bk_biz_id, bk_inst_name=bk_biz_name, **kwargs
         )
+
+        self.bk_tenant_id = bk_tenant_id
         self.bk_biz_id = int(bk_biz_id)
         if not bk_biz_name:
             space_name = kwargs.get("space_name", "")
@@ -183,13 +192,13 @@ class Business(TopoNode):
         获取自定义属性
         """
         if item == "_extra_attr":
-            return super(Business, self).__getattribute__(item)
+            return super().__getattribute__(item)
         if item in self._extra_attr:
             return self._extra_attr[item]
-        return super(Business, self).__getattribute__(item)
+        return super().__getattribute__(item)
 
     def __repr__(self):
-        return "<Business: {}-{}>".format(self.bk_biz_id, self.display_name)
+        return f"<Business: {self.bk_biz_id}-{self.display_name}>"
 
     @property
     def display_name(self):
@@ -214,9 +223,7 @@ class Set(TopoNode):
         :param int bk_set_id: 模块ID
         :param str bk_set_name: 模块名称
         """
-        super(Set, self).__init__(
-            bk_obj_id="set", bk_obj_name="set", bk_inst_id=bk_set_id, bk_inst_name=bk_set_name, **kwargs
-        )
+        super().__init__(bk_obj_id="set", bk_obj_name="set", bk_inst_id=bk_set_id, bk_inst_name=bk_set_name, **kwargs)
         self.bk_set_id = int(bk_set_id)
         self.bk_set_name = bk_set_name or ""
         self.set_template_id = set_template_id
@@ -228,13 +235,13 @@ class Set(TopoNode):
         获取自定义属性
         """
         if item == "_extra_attr":
-            return super(Set, self).__getattribute__(item)
+            return super().__getattribute__(item)
         if item in self._extra_attr:
             return self._extra_attr[item]
-        return super(Set, self).__getattribute__(item)
+        return super().__getattribute__(item)
 
     def __repr__(self):
-        return "<Set: {}-{}>".format(self.bk_set_id, self.bk_set_name)
+        return f"<Set: {self.bk_set_id}-{self.bk_set_name}>"
 
 
 class Module(TopoNode):
@@ -260,7 +267,7 @@ class Module(TopoNode):
         :param list[str] operator: 主负责人
         :param list[str] bk_bak_operator: 备份负责人
         """
-        super(Module, self).__init__(
+        super().__init__(
             bk_obj_id="module", bk_obj_name="module", bk_inst_id=bk_module_id, bk_inst_name=bk_module_name, **kwargs
         )
         self.bk_module_id = int(bk_module_id)
@@ -278,13 +285,13 @@ class Module(TopoNode):
         获取自定义属性
         """
         if item == "_extra_attr":
-            return super(Module, self).__getattribute__(item)
+            return super().__getattribute__(item)
         if item in self._extra_attr:
             return self._extra_attr[item]
-        return super(Module, self).__getattribute__(item)
+        return super().__getattribute__(item)
 
     def __repr__(self):
-        return "<Module: {}-{}>".format(self.bk_module_id, self.bk_module_name)
+        return f"<Module: {self.bk_module_id}-{self.bk_module_name}>"
 
 
 class TopoTree(TopoNode):
@@ -317,7 +324,7 @@ class TopoTree(TopoNode):
 
     def __init__(self, tree_data, parent=None):
         child = tree_data.pop("child", [])
-        super(TopoTree, self).__init__(**tree_data)
+        super().__init__(**tree_data)
         self._parent = parent
         # 子节点信息
         self.child = [TopoTree(c, parent=copy.deepcopy(self)) for c in child]
@@ -340,7 +347,7 @@ class TopoTree(TopoNode):
         for child in tree.child:
             cls.get_leaf_nodes(child, leaf_nodes)
 
-    def convert_to_topo_link(self) -> Dict[str, List[TopoNode]]:
+    def convert_to_topo_link(self) -> dict[str, list[TopoNode]]:
         """
         将拓扑树对象转换为拓扑链，拓扑链从叶子节点开始，自底向上
         :return: example: {
@@ -448,7 +455,7 @@ class Host(BaseNode):
         "bk_cpu",
     )
 
-    def __init__(self, attrs: Optional[dict] = None, **kwargs):
+    def __init__(self, attrs: dict | None = None, **kwargs):
         if attrs is None:
             attrs = {}
         attrs.update(kwargs)
@@ -547,7 +554,7 @@ class Host(BaseNode):
         return super().__getattribute__("_extra_attr")
 
 
-class Process(object):
+class Process:
     """
     进程信息
     {
@@ -617,14 +624,14 @@ class Process(object):
         return hash(self.bk_process_id)
 
     def __repr__(self):
-        return "<Process: {}({})>".format(self.bk_process_name, self.bk_func_name)
+        return f"<Process: {self.bk_process_name}({self.bk_func_name})>"
 
     @classmethod
     def _parse_port_num(cls, port_num):
         """
         检查端口号是否合法
         """
-        if isinstance(port_num, six.string_types) and port_num.strip().isdigit():
+        if isinstance(port_num, str) and port_num.strip().isdigit():
             port_num = int(port_num)
         elif isinstance(port_num, int):
             pass
@@ -683,7 +690,7 @@ class Process(object):
         return port_range_list
 
 
-class ServiceInstance(object):
+class ServiceInstance:
     """
     服务实例
     """
@@ -691,7 +698,7 @@ class ServiceInstance(object):
     def __init__(
         self,
         service_instance_id,
-        name=None,
+        name: str | None = None,
         bk_host_id=None,
         bk_module_id=None,
         service_category_id=0,
@@ -713,7 +720,7 @@ class ServiceInstance(object):
         self.bk_module_id = int(bk_module_id or 0)
         self.service_category_id = int(service_category_id or 0)
         self.labels = labels or {}
-        self.topo_link = {}
+        self.topo_link: dict[str, list[TopoNode]] = {}
 
         if topo_link:
             for node_id, nodes in topo_link.items():
@@ -727,10 +734,10 @@ class ServiceInstance(object):
         获取自定义属性
         """
         if item == "_extra_attr":
-            return super(ServiceInstance, self).__getattribute__(item)
+            return super().__getattribute__(item)
         if item in self._extra_attr:
             return self._extra_attr[item]
-        return super(ServiceInstance, self).__getattribute__(item)
+        return super().__getattribute__(item)
 
     def __eq__(self, other):
         return self.service_instance_id == other.service_instance_id
@@ -739,10 +746,27 @@ class ServiceInstance(object):
         return hash(self.service_instance_id)
 
     def __repr__(self):
-        return "<ServiceInstance: {}({})>".format(self.name, self.service_instance_id)
+        return f"<ServiceInstance: {self.name}({self.service_instance_id})>"
+
+    def to_dict(self):
+        data = {
+            "service_instance_id": self.service_instance_id,
+            "name": self.name,
+            "bk_host_id": self.bk_host_id,
+            "bk_module_id": self.bk_module_id,
+            "service_category_id": self.service_category_id,
+            "labels": self.labels,
+            "topo_link": {node_id: [node.to_dict() for node in nodes] for node_id, nodes in self.topo_link.items()},
+            **self._extra_attr,
+        }
+        if hasattr(self, "ip"):
+            data["ip"] = self.ip
+        if hasattr(self, "bk_cloud_id"):
+            data["bk_cloud_id"] = self.bk_cloud_id
+        return data
 
 
-class ServiceCategoryNode(object):
+class ServiceCategoryNode:
     """
     服务分类节点
     """
@@ -781,6 +805,6 @@ class ServiceCategoryTopo(ServiceCategoryNode):
 
     def __init__(self, tree_data):
         child = tree_data.pop("child", [])
-        super(ServiceCategoryTopo, self).__init__(**tree_data)
+        super().__init__(**tree_data)
         # 子节点信息
         self.child = [ServiceCategoryTopo(**c) for c in child]

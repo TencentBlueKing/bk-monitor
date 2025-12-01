@@ -230,6 +230,7 @@ export default class LogRelationList extends tsc<IProp> {
                 display-key='name'
                 id-Key='id'
                 list={this.bizSelectList}
+                search-placeholder={this.$t('请输入 关键字')}
                 enable-virtual-scroll
                 searchable
                 onChange={v => this.handleLogBizChange(index, v)}
@@ -241,6 +242,7 @@ export default class LogRelationList extends tsc<IProp> {
                 vModel={item.value_list}
                 auto-height={false}
                 multiple={true}
+                search-placeholder={this.$t('请输入 关键字')}
                 display-tag
                 searchable
                 onChange={() => this.handleChange()}

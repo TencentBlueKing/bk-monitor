@@ -185,7 +185,7 @@ class Container extends Mixins(authorityMixinCreate(ruleAuth)) {
         <bk-input
           class='search-input'
           behavior='simplicity'
-          placeholder={this.$t('搜索套餐名称 / 类型 / 修改人')}
+          placeholder={this.$t('搜索 套餐名称、类型、修改人')}
           right-icon='bk-icon icon-search'
           value={this.keyword}
           on-change={this.handleSearch}

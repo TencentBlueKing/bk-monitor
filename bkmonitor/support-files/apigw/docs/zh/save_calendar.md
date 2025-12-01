@@ -3,7 +3,7 @@
 创建日历
 
 
-#### 接口参数
+### 请求参数
 
 | 字段        | 类型   | 必选 | 描述         |
 | ----------- | ------ | ---- | ------------ |
@@ -11,13 +11,10 @@
 | deep_color  | String | 是   | 日历深色底色 |
 | Light_color | String | 是   | 日历浅色底色 |
 
-#### 示例数据
+### 请求参数示例
 
 ```json
 {
-    "bk_app_code": "xxx",
-    "bk_app_secret": "xxxxx",
-    "bk_token": "xxxx",
     "name": "测试日历",
     "deep_color": "#BBFFFF",
     "light_color": "#111111"
@@ -33,7 +30,7 @@
 | message | string | 描述信息     |
 | data    | dict   | 日历的id     |
 
-#### 示例数据
+### 响应参数示例
 
 ```json
 {

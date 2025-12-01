@@ -50,6 +50,7 @@ import {
 import { random } from 'monitor-common/utils/utils.js';
 import { useI18n } from 'vue-i18n';
 
+import ExceptionComp from '../../../components/exception';
 import SetMealAdd from '../../../store/modules/set-meal-add';
 import StatusTag from '../components/status-tag';
 import FeedbackCauseDialog from '../failure-topo/feedback-cause-dialog';
@@ -105,6 +106,12 @@ export default defineComponent({
   emits: ['refresh'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    // 错误状态/空状态
+    const exceptionData = shallowRef({
+      isError: false,
+      title: '',
+      errorMsg: '',
+    });
     const bkzIds = inject<Ref<string[]>>('bkzIds');
     const setMealAddModule = SetMealAdd();
     onBeforeMount(async () => await setMealAddModule.getVariableDataList());
@@ -754,21 +761,33 @@ export default defineComponent({
       dialog.quickShield.show = v;
     };
     const handleGetTable = () => {
+      // 如果 bkzIds 为空，不发送请求
+      if (!bkzIds.value || bkzIds.value.length === 0) {
+        return;
+      }
+
       tableLoading.value = true;
+      // 重置异常状态
+      exceptionData.value.isError = false;
+      exceptionData.value.errorMsg = '';
+
       const queryString = typeof alertIdsData.value === 'object' ? alertIdsData.value?.ids || '' : alertIdsData.value;
       const params = {
-        bk_biz_ids: bkzIds.value || [],
+        bk_biz_ids: bkzIds.value,
         id: incidentId.value,
         query_string: queryString,
       };
-      incidentAlertList(params)
+      incidentAlertList(params, { needMessage: false })
         .then(res => {
           tableLoading.value = false;
           alertData.value = res;
         })
-        .catch(() => {
+        .catch(err => {
           tableLoading.value = false;
           alertData.value = [];
+          // 异常状态赋值
+          exceptionData.value.isError = true;
+          exceptionData.value.errorMsg = err.message || '';
         });
       // const data = await incidentAlertList(Object.assign(params, props.filterSearch));
 
@@ -779,7 +798,6 @@ export default defineComponent({
       if (alarmDetailRef.value) {
         alarmDetailHeight.value = alarmDetailRef.value.offsetHeight;
       }
-      props.searchValidate && handleGetTable();
       document.body.addEventListener('click', handleHideMoreOperate);
     });
     onUnmounted(() => {
@@ -819,6 +837,17 @@ export default defineComponent({
       },
       { deep: true }
     );
+
+    watch(
+      () => bkzIds.value,
+      (newVal, oldVal) => {
+        // 当 bkzIds 有值并发生变化，且searchValidate为true时，重新请求数据
+        if (newVal && newVal.length > 0 && props.searchValidate) {
+          handleGetTable();
+        }
+      },
+      { immediate: true }
+    );
     return {
       t,
       alertData,
@@ -832,6 +861,7 @@ export default defineComponent({
       tableData,
       scrollLoading,
       chatGroupDialog,
+      exceptionData,
       quickShieldChange,
       getMoreOperate,
       handleChangeCollapse,
@@ -973,10 +1003,11 @@ export default defineComponent({
             );
           })}
           {alertData.length === 0 && (
-            <Exception
-              description={this.t('搜索数据为空')}
-              scene='part'
-              type='empty'
+            <ExceptionComp
+              errorMsg={this.exceptionData.errorMsg}
+              imgHeight={160}
+              isError={this.exceptionData.isError}
+              title={this.exceptionData.isError ? this.t('查询异常') : this.t('搜索数据为空')}
             />
           )}
         </div>

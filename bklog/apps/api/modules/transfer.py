@@ -28,7 +28,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW
-from apps.api.constants import CACHE_TIME_ONE_DAY
+from apps.api.constants import CACHE_TIME_FIVE_MINUTES
 
 
 def get_cluster_info_after(response_result):
@@ -200,7 +200,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("查询一个结果表的信息"),
             before_request=add_esb_info_before_request,
-            cache_time=CACHE_TIME_ONE_DAY,
+            cache_time=CACHE_TIME_FIVE_MINUTES,
         )
         self.get_result_table_storage = DataAPI(
             method="GET",
@@ -479,7 +479,7 @@ class _TransferApi:
 
     @property
     def use_apigw(self):
-        return settings.USE_NEW_MONITOR_APIGATEWAY
+        return settings.USE_NEW_MONITOR_APIGATEWAY or settings.ENABLE_MULTI_TENANT_MODE
 
     def _build_url(self, new_path, old_path):
         return (

@@ -152,6 +152,8 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.datasource_discover_cron", "* * * * *", "global"),
     # apm 配置下发: 每分钟触发，每次分片处理1/30应用
     ("apm.task.tasks.refresh_apm_config", "* * * * *", "global"),
+    # apm k8s 批量配置下发: 每5分钟触发，获取全部数据进行批量调度
+    ("apm.task.tasks.refresh_apm_config_to_k8s", "*/10 * * * *", "global"),
     ("apm.task.tasks.refresh_apm_platform_config", "*/30 * * * *", "global"),
     # apm 检测预计算表字段是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_pre_calculate_fields_update", "0 */1 * * *", "global"),
@@ -228,6 +230,8 @@ DEFAULT_CRONTAB += [
     ("metadata.task.custom_report.refresh_all_custom_report_2_node_man", "*/5 * * * *", "global"),
     # metadata同步自定义日志配置到节点管理，虽然 1 分钟一次，实际只会运行ID对30取模后和当前分钟对齐的任务
     ("metadata.task.custom_report.refresh_all_log_config", "* * * * *", "global"),
+    # metadata同步自定义日志k8s批量配置，每5分钟触发，获取全部数据进行批量调度
+    ("metadata.task.custom_report.refresh_all_log_config_to_k8s", "*/10 * * * *", "global"),
     # metadata自动部署bkmonitorproxy
     ("metadata.task.auto_deploy_proxy", "30 */2 * * *", "global"),
     ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
