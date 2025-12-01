@@ -11,7 +11,7 @@ from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType, LogAccessTypeEnum, CollectStatusEnum
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import LogIndexSet, LogIndexSetData, AccessSourceConfig, Scenario
-from apps.log_databus.models import CollectorConfig
+from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.utils.thread import MultiExecuteFunc
 from bkm_space.utils import space_uid_to_bk_biz_id
 
@@ -71,6 +71,7 @@ class LogCollectorHandler:
                     "parent_index_sets": item.get("parent_index_sets", []),
                     "log_access_type": log_access_type,
                     "log_access_type_name": LogAccessTypeEnum.get_choice_label(log_access_type),
+                    "container_collector_type": item.get("container_collector_type", ""),
                     "task_id_list": item.get("task_id_list", []),
                 }
             )
@@ -86,7 +87,9 @@ class LogCollectorHandler:
 
     @staticmethod
     def fill_parent_index_sets_info(data):
-        """补充归属索引集信息"""
+        """
+        补充归属索引集信息
+        """
 
         # 查询索引集ID及其归属索引集ID
         index_set_ids = [item["index_set_id"] for item in data if item.get("index_set_id")]
@@ -112,6 +115,21 @@ class LogCollectorHandler:
         # 添加归属索引集信息
         for item in data:
             item["parent_index_sets"] = parent_index_group_map.get(str(item["index_set_id"]), [])
+
+    @staticmethod
+    def fill_container_collector_type(data):
+        """
+        补充容器采集类型字段
+        """
+        collector_config_ids = [item["collector_config_id"] for item in data]
+        container_configs = ContainerCollectorConfig.objects.filter(collector_config_id__in=collector_config_ids)
+
+        collector_type_mappings = {}
+        for container_config in container_configs:
+            collector_type_mappings[container_config.collector_config_id] = container_config.collector_type
+
+        for item in data:
+            item["container_collector_type"] = collector_type_mappings.get(item["collector_config_id"], "")
 
     def get_collector_config_info(
         self,
@@ -194,6 +212,7 @@ class LogCollectorHandler:
 
         collector_configs = qs.values()
         collector_configs = CollectorHandler.add_cluster_info(collector_configs)
+        self.fill_container_collector_type(collector_configs)
 
         tmp_result_list = []
         collector_id_list = []
