@@ -1885,7 +1885,7 @@ class QueryTimeSeriesScopeResource(Resource):
                     "aggregate_method": field_config.get("aggregate_method", ""),
                     "function": field_config.get("function", ""),
                     "interval": field_config.get("interval", 0),
-                    "disabled": field_config.get("disabled", ""),
+                    "disabled": field_config.get("disabled", False),
                 }
             else:
                 # 指标不存在时使用默认值

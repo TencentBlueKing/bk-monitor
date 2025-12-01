@@ -55,6 +55,7 @@ data 为列表类型，包含所有匹配的结果
 | metric_name      | string | 指标名称                  |
 | field_id         | int    | 字段ID（可能为 None）        |
 | field_scope      | string | 字段所属分组（可能为 None）      |
+| tag_list         | list   | 指标的维度名称列表（字符串列表）      |
 | desc             | string | 指标描述                  |
 | unit             | string | 指标单位                  |
 | hidden           | bool   | 是否隐藏                  |
@@ -108,6 +109,10 @@ data 为列表类型，包含所有匹配的结果
           "metric_name": "metric1",
           "field_id": 1001,
           "field_scope": "default",
+          "tag_list": [
+            "dimension1",
+            "dimension2"
+          ],
           "desc": "指标1描述",
           "unit": "ms",
           "hidden": false,
@@ -120,6 +125,9 @@ data 为列表类型，包含所有匹配的结果
           "metric_name": "metric2",
           "field_id": 1002,
           "field_scope": "default",
+          "tag_list": [
+            "dimension1"
+          ],
           "desc": "指标2描述",
           "unit": "count",
           "hidden": false,
