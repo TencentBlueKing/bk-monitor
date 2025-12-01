@@ -311,7 +311,7 @@ class TGPATaskHandler:
             {
                 "dataId": collector_create_result["bk_data_id"],
                 "path": [os.path.join(TGPA_BASE_DIR, str(bk_biz_id))],
-                "logConfigType": ContainerCollectorType.CONTAINER.value,
+                "logConfigType": ContainerCollectorType.CONTAINER,
             }
         )
         Bcs(bcs_cluster_id).save_bklog_config(
