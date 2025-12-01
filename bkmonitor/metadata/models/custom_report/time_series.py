@@ -1988,6 +1988,11 @@ class TimeSeriesMetric(models.Model):
                     continue
 
                 dimensions = group_info.get("dimensions", [])
+
+                # 维度 [target] 必须存在; 如果不存在时，则需要添加 [target] 维度
+                if cls.TARGET_DIMENSION_NAME not in dimensions:
+                    dimensions.append(cls.TARGET_DIMENSION_NAME)
+
                 params = {
                     "field_name": field_name,
                     "group_id": group_id,
@@ -2160,6 +2165,10 @@ class TimeSeriesMetric(models.Model):
                     continue
                 new_dimensions = group_info.get("dimensions", [])
                 break
+
+            # 维度 [target] 必须存在; 如果不存在时，则需要添加 [target] 维度
+            if cls.TARGET_DIMENSION_NAME not in new_dimensions:
+                new_dimensions.append(cls.TARGET_DIMENSION_NAME)
 
             need_push_router = cls._collect_update_records(
                 last_modify_time, need_push_router, new_dimensions, obj, records
