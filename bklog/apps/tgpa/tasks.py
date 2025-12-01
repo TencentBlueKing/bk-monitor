@@ -50,7 +50,15 @@ def fetch_and_process_tgpa_tasks():
             task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
             if not TGPATask.objects.filter(bk_biz_id=bk_biz_id).exists():
                 TGPATask.objects.bulk_create(
-                    [TGPATask(bk_biz_id=bk_biz_id, task_id=task["id"], log_path=task["log_path"]) for task in task_list]
+                    [
+                        TGPATask(
+                            bk_biz_id=bk_biz_id,
+                            task_id=task["id"],
+                            log_path=task["log_path"],
+                            task_status=task["status"],
+                        )
+                        for task in task_list
+                    ]
                 )
                 continue
             # 获取增量任务
@@ -63,7 +71,9 @@ def fetch_and_process_tgpa_tasks():
         for task in new_tasks:
             # 未成功的任务先不存入数据库，这样不需要对比任务状态
             if task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
-                TGPATask.objects.create(bk_biz_id=bk_biz_id, task_id=task["id"], log_path=task["log_path"])
+                TGPATask.objects.create(
+                    bk_biz_id=bk_biz_id, task_id=task["id"], log_path=task["log_path"], task_status=task["status"]
+                )
                 process_single_task.delay(task)
 
 
