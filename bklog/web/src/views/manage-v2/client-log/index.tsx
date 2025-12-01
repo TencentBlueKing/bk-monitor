@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch } from 'vue';
+import { defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
 import { useRouter } from 'vue-router/composables';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '../../../common/authority-map';
+import { tenantManager, UserInfoLoadedEventData } from '@/views/retrieve-core/tenant-manager';
 
 import LogTable from './components/log-table';
 import CollectionSlider from './collection-slider';
@@ -56,6 +57,8 @@ export default defineComponent({
   setup() {
     const store = useStore();
     const router = useRouter();
+
+    const userDisplayMap = new Map(); // 用于创建人 到租户信息的映射
 
     const tabs = ref([
       // tab配置
@@ -128,7 +131,9 @@ export default defineComponent({
         isLoading.value = true;
         const response = await http.request('collect/getTaskLogList', params);
         if (activeTab.value === TAB_TYPES.COLLECT) {
+          const listWithTenantInfo = await processListWithTenantInfo(response.data.list);
           tableData.value = response.data;
+          tableData.value.list = listWithTenantInfo;
           tabs.value[0].count = response.data.total;
         }
       } catch (error) {
@@ -137,6 +142,69 @@ export default defineComponent({
         isLoading.value = false;
       }
     };
+
+    // 处理列表数据，添加租户信息
+    const processListWithTenantInfo = async (list: any[]) => {
+      if (list.length === 0) {
+        return list;
+      }
+      // 为每项添加 tenant_info 字段，并收集所有的 created_by
+      const tenantUserIds = [];
+
+      const listWithTenantInfo = list.map((item) => {
+        let tenantInfo = {
+          login_name: '',
+          full_name: '',
+          display_name: '',
+        };
+        if (userDisplayMap.get(item.created_by)) {
+          tenantInfo = userDisplayMap.get(item.created_by);
+        } else {
+          userDisplayMap.set(item.created_by, tenantInfo);
+        }
+        const newItem = {
+          ...item,
+          tenant_info: tenantInfo,
+        };
+
+        // 收集 created_by 用于批量查询用户信息
+        tenantUserIds.push(item.created_by);
+
+        return newItem;
+      });
+
+      // 批量获取用户信息
+      tenantManager.batchGetUserDisplayInfo(tenantUserIds);
+      return listWithTenantInfo;
+    };
+
+    // 处理用户信息更新事件
+    const handleUserInfoUpdate = (data: UserInfoLoadedEventData) => {
+      const userInfo = data.userInfo;
+
+      // 直接根据映射关系更新对应的列表项对象
+      userInfo.forEach((userInfo, userId) => {
+        const targetItem = userDisplayMap.get(userId);
+        if (targetItem && userInfo) {
+          // 修改映射中的对象
+          Object.assign(targetItem, {
+            login_name: userInfo.login_name || '',
+            full_name: userInfo.full_name || '',
+            display_name: userInfo.display_name || '',
+          });
+        }
+      });
+    };
+
+    onMounted(async () => {
+      // 监听事件
+      tenantManager.on('userInfoUpdated', handleUserInfoUpdate);
+    });
+
+    onBeforeUnmount(() => {
+      // 清理事件监听
+      tenantManager.off('userInfoUpdated', handleUserInfoUpdate);
+    });
 
     // 清除搜索关键词
     const handleClearKeyword = () => {

@@ -136,12 +136,15 @@ export default defineComponent({
       }
 
       // 提取创建方式
-      const types = [...new Set(props.data.map(item => item.create_type))].filter(Boolean);
+      const types = [...new Set(props.data.map((item: Record<string, any>) => item.create_type))].filter(Boolean);
       createTypes.value = types.map(type => ({ text: type, value: type }));
 
       // 提取创建人
-      const creators = [...new Set(props.data.map(item => item.created_by))].filter(Boolean);
-      createdBys.value = creators.map(creator => ({ text: creator, value: creator }));
+      const tenantInfos = [...new Set(props.data.map((item: Record<string, any>) => item.tenant_info))].filter(Boolean);
+      createdBys.value = tenantInfos.map(tenantInfo => ({
+        text: tenantInfo.display_name,
+        value: tenantInfo.login_name,
+      }));
     };
 
     // 监听data变化，更新提取的数据
@@ -255,7 +258,7 @@ export default defineComponent({
             item.create_type || '',
             item.status_name || '',
             item.scene_name || '',
-            item.created_by || '',
+            item.tenant_info.display_name || '',
           ];
 
           return searchFields.some(field => field.toLowerCase().includes(keywordLower));
