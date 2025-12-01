@@ -37,7 +37,6 @@ import { useChartLegend } from '../../../../../../trace-explore/components/explo
 import { useChartTitleEvent } from '../../../../../../trace-explore/components/explore-chart/use-chart-title-event';
 import { useK8sEcharts } from '../../hooks/use-k8s-echarts';
 
-import type { IDataQuery } from '../../../../../../../plugins/typings';
 import type { DataZoomEvent } from '../../../../../../trace-explore/components/explore-chart/types';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -54,7 +53,7 @@ export default defineComponent({
       default: true,
     },
     formatterData: {
-      type: Function as PropType<(res: any, target: IDataQuery, panel: PanelModel) => any>,
+      type: Function as PropType<(val) => any>,
       default: res => res,
     },
     params: {

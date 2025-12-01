@@ -40,12 +40,12 @@ import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../../.
 import { useChartTooltips } from '../../../../../trace-explore/components/explore-chart/use-chart-tooltips';
 import { type AlertK8sEchartSeriesItem, SpecialSeriesColorMap } from '../../../../typings';
 
-import type { IDataQuery } from '../../../../../../plugins/typings';
 import type {
   FormatterFunc,
   SeriesItem,
   ValueFormatter,
 } from '../../../../../trace-explore/components/explore-chart/types';
+import type { IDataQuery } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import type VueEcharts from 'vue-echarts';
 
@@ -55,7 +55,7 @@ export const useK8sEcharts = (
   chartInstance: Ref<InstanceType<typeof VueEcharts>>,
   $api: Record<string, () => Promise<any>>,
   params: MaybeRef<Record<string, any>>,
-  formatterSeriesData: (res: any, target: IDataQuery, panel: PanelModel) => any = res => res
+  formatterSeriesData = res => res
 ) => {
   /** 图表id，每次重新请求会修改该值 */
   const chartId = shallowRef(random(8));
@@ -275,7 +275,7 @@ export const useK8sEcharts = (
           }
         )
         .then(res => {
-          const { series, metrics, query_config } = formatterSeriesData(res, target, get(panel));
+          const { series, metrics, query_config } = formatterSeriesData(res);
           for (const metric of metrics) {
             if (!metricList.value.some(item => item.metric_id === metric.metric_id)) {
               metricList.value.push(metric);
