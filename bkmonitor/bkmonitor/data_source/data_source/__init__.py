@@ -1680,7 +1680,7 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
             else:
                 # 无聚合方法的场景（原始日志查询 query_raw）
                 query["field_name"] = ""
-                query["reference_name"] = metric.get("alias") or "_index"
+                query["reference_name"] = metric.get("alias") or "a"
                 query["dimensions"] = []
 
             query_list.append(query)
@@ -1710,11 +1710,13 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
         if (self.data_source_label, self.data_type_label) in UnifyQueryDataSources:
             return True
 
+        # 如果 white_list 非空且不包含 0，则使用灰度；否则就是全量（white_list 为 [] 或 [0] 时全量）
         white_list: list[str | int] = self._fetch_white_list()
-        if bk_biz_id in white_list or str(bk_biz_id) in white_list:
-            return True
-
-        return False
+        grayscale = bool(white_list) and 0 not in white_list and "0" not in white_list
+        if grayscale:
+            return bk_biz_id in white_list or str(bk_biz_id) in white_list
+        # 不灰度就是全量(灰度列表为空或包含0业务)
+        return True
 
 
 class BaseBkMonitorLogDataSource(DataSource, ABC):
