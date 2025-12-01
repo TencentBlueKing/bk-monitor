@@ -416,10 +416,12 @@ class GetKubernetesRelationResource(UnifyQueryAPIResource):
         query_list = []
         for source_info in request_data.pop("source_info_list", []):
             data_timestamp = source_info.pop("data_timestamp", int(time.time()))
+            target_type = source_info.pop("target_type", "system")
+            path_resource = source_info.pop("path_resource", ["node"])
             query_list.append(
                 {
-                    "target_type": "system",
-                    "path_resource": ["node"],
+                    "target_type": target_type,
+                    "path_resource": path_resource,
                     "timestamp": data_timestamp,
                     "source_info": source_info,
                 }

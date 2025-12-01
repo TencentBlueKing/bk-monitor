@@ -113,7 +113,7 @@ IGNORED_TAGS = (
     NO_DATA_TAG_DIMENSION,
 )
 
-TARGET_DIMENSIONS = [
+CMDB_TARGET_DIMENSIONS = [
     "bk_target_ip",
     "bk_target_cloud_id",
     "bk_target_service_instance_id",

@@ -1649,6 +1649,9 @@ APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 # 事件 UnifyQuery 查询业务黑名单
 EVENT_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
+# 日志 UnifyQuery 查询业务白名单
+LOG_UNIFY_QUERY_WHITE_BIZ_LIST = []
+
 # APM 调用分析启用全局指标的应用列表
 APM_RPC_GLOBAL_METRIC_ENABLE_APP_LIST = []
 
