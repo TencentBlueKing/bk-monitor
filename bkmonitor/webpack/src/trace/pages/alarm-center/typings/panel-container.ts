@@ -24,7 +24,27 @@
  * IN THE SOFTWARE.
  */
 
-import { type SeriesItem } from '@/pages/trace-explore/components/explore-chart/types';
+import type { EchartSeriesItem, SeriesItem } from '@/pages/trace-explore/components/explore-chart/types';
+
+export interface AlertK8sEchartSeriesItem extends Omit<EchartSeriesItem, 'data' | 'raw_data'> {
+  alias?: string;
+  connectNulls: boolean;
+  data?: EchartSeriesData[];
+  lineStyle?: EchartSeriesLineStyle;
+  markPoint?: EchartSeriesMarkPoint;
+  sampling?: string;
+  showAllSymbol?: 'auto' | boolean;
+  showSymbol?: boolean;
+  smooth?: boolean | number;
+  smoothMonotone?: string;
+  z?: number;
+  raw_data?: SeriesItem & {
+    maxMinValues?: {
+      max: number;
+      min: number;
+    };
+  };
+}
 
 export interface AlertK8SMetricItem {
   children?: AlertK8SMetricItem[];
@@ -36,4 +56,21 @@ export interface AlertK8SMetricItem {
 
 export interface AlertK8SSeriesItem extends SeriesItem {
   name?: string;
+}
+
+export interface EchartSeriesData {
+  value?: number;
+}
+export interface EchartSeriesLineStyle {
+  color?: string;
+  type?: 'dashed' | 'dotted' | 'solid';
+  width?: number;
+}
+
+export interface EchartSeriesMarkPoint {
+  data?: {
+    coord?: [number, number];
+    name?: string;
+    value?: number;
+  }[];
 }

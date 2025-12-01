@@ -176,7 +176,13 @@ export default defineComponent({
                 panel={panel}
                 params={this.params}
                 // onDataZoomChange={this.handleDataZoomChange}
-              />
+              >
+                {{
+                  customBaseChart: this.$slots?.customBaseChart
+                    ? renderContext => this.$slots?.customBaseChart?.(renderContext)
+                    : null,
+                }}
+              </AlarmLazyChart>
             ))}
           </div>
         </ChartCollapse>

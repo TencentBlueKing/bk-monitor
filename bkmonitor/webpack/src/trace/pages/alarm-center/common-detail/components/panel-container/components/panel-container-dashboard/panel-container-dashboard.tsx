@@ -33,7 +33,7 @@ import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
 import { useK8sChartPanel } from '../../../../../composables/use-k8s-chart-panel';
-import { useK8sSeriesFormatter } from '../../hooks/use-k8s-series-formatter';
+import K8SCustomChart from '../k8s-custom-chart/k8s-custom-chart';
 
 import './panel-container-dashboard.scss';
 
@@ -56,7 +56,7 @@ export default defineComponent({
     /** 是否立即刷新图表数据 */
     const refreshImmediate = shallowRef('');
 
-    provide('timeRange', toRef(props, 'timeRange'));
+    provide('timeRange', DEFAULT_TIME_RANGE);
     provide('refreshImmediate', refreshImmediate);
     /** 需要渲染的仪表盘面板配置数组 */
     const { dashboards } = useK8sChartPanel({
@@ -77,8 +77,6 @@ export default defineComponent({
       ],
     });
 
-    const { formatterSeriesData } = useK8sSeriesFormatter();
-
     watch(
       () => dashboards.value,
       () => {
@@ -87,7 +85,7 @@ export default defineComponent({
       }
     );
 
-    return { dashboardId, dashboards, formatterSeriesData };
+    return { dashboardId, dashboards };
   },
   render() {
     return (
@@ -103,9 +101,12 @@ export default defineComponent({
             }}
             dashboardId={this.dashboardId}
             dashboardTitle={dashboard?.title}
-            formatterData={this.formatterSeriesData}
             panelModels={dashboard?.panels}
-          />
+          >
+            {{
+              customBaseChart: renderContext => <K8SCustomChart {...renderContext} />,
+            }}
+          </AlarmMetricsDashboard>
         ))}
       </div>
     );

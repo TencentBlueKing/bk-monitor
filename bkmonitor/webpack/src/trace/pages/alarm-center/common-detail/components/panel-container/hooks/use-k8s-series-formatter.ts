@@ -125,7 +125,7 @@ export const useK8sSeriesFormatter = () => {
    * @param {number} chartHeight 图表高度，用于计算线段重叠
    * @returns {object} 处理后的 series 数据和图例数据
    */
-  const handleTransformSeries = (series: AlertK8SSeriesItem[], colors?: string[], chartHeight = 300) => {
+  const handleTransformSeries = (series: AlertK8SSeriesItem[], colors?: string[], chartHeight = 240) => {
     const legendData: ILegendItem[] = [];
     const specialSeriesCount = series.filter(item => item.name in SpecialSeriesColorMap)?.length || 0;
 
@@ -349,7 +349,7 @@ export const useK8sSeriesFormatter = () => {
    * @param {number} chartHeight 图表高度
    * @returns {object} 格式化后的 series 数据
    */
-  const formatterSeriesData = (seriesData: unknown, target: IDataQuery, panel: PanelModel, chartHeight?: number) => {
+  const formatterSeriesData = (seriesData: unknown, target: IDataQuery, panel: PanelModel, chartHeight = 198) => {
     const data = seriesData as { series?: unknown[] };
     const { series: sourceSeries, ...rest } = data;
     let series = sourceSeries;
@@ -368,8 +368,6 @@ export const useK8sSeriesFormatter = () => {
             ...set,
             alias: name,
             name,
-            // @ts-expect-error panel type compatibility
-            precision: 2,
             unit: set.unit || (panel?.options as { unit?: string })?.unit,
           };
         });

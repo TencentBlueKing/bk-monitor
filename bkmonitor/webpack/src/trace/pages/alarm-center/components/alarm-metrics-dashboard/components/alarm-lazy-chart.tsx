@@ -174,19 +174,20 @@ export default defineComponent({
     };
   },
   render() {
+    const renderContext = {
+      panel: this.viewerPanel,
+      params: this.viewerParams,
+      showTitle: this.showTitle,
+      onDataZoomChange: this.handleDataZoomChange,
+      onDurationChange: this.handleDurationChange,
+      formatterData: this.formatterData,
+    };
     return (
       <div
         ref='chartContainerRef'
         class='alarm-lazy-chart'
       >
-        <ExploreChart
-          formatterData={this.formatterData}
-          panel={this.viewerPanel}
-          params={this.viewerParams}
-          showTitle={this.showTitle}
-          onDataZoomChange={this.handleDataZoomChange}
-          onDurationChange={this.handleDurationChange}
-        />
+        {this.$slots?.customBaseChart?.(renderContext) || <ExploreChart {...renderContext} />}
       </div>
     );
   },
