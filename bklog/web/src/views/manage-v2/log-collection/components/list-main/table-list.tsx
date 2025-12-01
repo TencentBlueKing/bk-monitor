@@ -26,30 +26,147 @@
 
 import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, computed, type PropType } from 'vue';
 import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
 import ItemSkeleton from '@/skeleton/item-skeleton';
 import tippy, { type Instance } from 'tippy.js';
 import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue';
-import { getScenarioIdType, formatBytes, getOperatorCanClick, showMessage } from '../../utils';
-import useResizeObserver from '@/hooks/use-resize-observe';
-import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
-import $http from '@/api';
-// import { useRouter } from 'vue-router/composables';
-
-import { useCollectList } from '../../hook/useCollectList';
 import {
+  getScenarioIdType,
+  formatBytes,
+  getOperatorCanClick,
+  showMessage,
   SETTING_FIELDS,
   MENU_LIST,
   GLOBAL_CATEGORIES_ENUM,
   COLLECTOR_SCENARIO_ENUM,
   STATUS_ENUM_FILTER,
 } from '../../utils';
+import useResizeObserver from '@/hooks/use-resize-observe';
+import CollectIssuedSlider from '../business-comp/step3/collect-issued-slider';
+import $http from '@/api';
+import { useCollectList } from '../../hook/useCollectList';
 import TagMore from '../common-comp/tag-more';
-
 import type { IListItemData } from '../../type';
-
 import './table-list.scss';
 import 'tdesign-vue/es/style/index.css';
+
+/**
+ * 表格行数据类型定义
+ */
+interface TableRowData {
+  index_set_id: number | string;
+  collector_config_id?: number | string;
+  collector_config_name?: string;
+  name: string;
+  status: string;
+  status_name: string;
+  storage_cluster_id?: number;
+  storage_cluster_name?: string;
+  daily_usage?: number;
+  total_usage?: number;
+  bk_data_name?: string;
+  parent_index_sets?: Array<{ index_set_name: string; [key: string]: unknown }>;
+  scenario_id?: string;
+  scenario_name?: string;
+  collector_scenario_id?: string;
+  collector_scenario_name?: string;
+  retention?: number;
+  tags?: Array<{ name: string; [key: string]: unknown }>;
+  created_by?: string;
+  created_at?: string;
+  updated_by?: string;
+  updated_at?: string;
+  environment?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 菜单项类型
+ */
+interface MenuItem {
+  key: string;
+  label: string;
+}
+
+/**
+ * 过滤条件类型
+ */
+interface FilterCondition {
+  key: string;
+  value: string[];
+}
+
+/**
+ * 过滤值类型
+ */
+interface FilterValues {
+  created_by: Array<{ label: string; value: string; key?: string }>;
+  updated_by: Array<{ label: string; value: string; key?: string }>;
+  storage_cluster_name: Array<{ label: string; value: string; key?: string }>;
+}
+
+/**
+ * 分页信息类型
+ */
+interface PaginationInfo {
+  current: number;
+  pageSize: number;
+}
+
+/**
+ * 排序配置类型
+ */
+interface SortConfig {
+  descending?: boolean;
+  sortBy?: string;
+}
+
+/**
+ * 存储用量响应数据类型
+ */
+interface StorageUsageItem {
+  index_set_id: number | string;
+  daily_usage?: number;
+  total_usage?: number;
+  [key: string]: unknown;
+}
+
+/**
+ * 表格高度计算相关常量
+ */
+const HEIGHT_CONSTANTS = {
+  MIN_TABLE_HEIGHT: 250, // 最小表格高度（至少显示 6-7 行数据）
+  COLUMNS_HEIGHT: 50, // 每列高度
+  FIXED_ELEMENTS_HEIGHT: 150, // 固定元素高度（头部、工具栏、分页器等）
+  WINDOW_FIXED_HEIGHT: 400, // 窗口固定元素高度（用于后备方案）
+} as const;
+
+/**
+ * 延迟时间常量
+ */
+const DELAY_CONSTANTS = {
+  MENU_POP_INIT: 1000, // 菜单弹窗初始化延迟
+  PAGINATION_HEIGHT_CALC: 150, // 分页高度计算延迟
+  RESIZE_OBSERVER: 200, // 尺寸监听器延迟
+} as const;
+
+/**
+ * 字段ID到列键的映射
+ */
+const FIELD_ID_TO_COL_KEY_MAP: Record<string, string> = {
+  collector_config_name: 'name',
+  storage_usage: 'daily_usage',
+  total_usage: 'total_usage',
+  table_id: 'bk_data_name',
+  index_set_id: 'index_set_name',
+  scenario_id: 'scenario_id',
+  collector_scenario_id: 'collector_scenario_id',
+  storage_cluster_name: 'storage_cluster_name',
+  retention: 'retention',
+  label: 'tags',
+  es_host_state: 'status',
+  updated_by: 'updated_by',
+  updated_at: 'updated_at',
+} as const;
 
 export default defineComponent({
   name: 'TableList',
@@ -59,7 +176,7 @@ export default defineComponent({
       default: () => ({}),
     },
     data: {
-      type: Array,
+      type: Array as PropType<unknown[]>,
       default: () => [],
     },
     loading: {
@@ -73,7 +190,7 @@ export default defineComponent({
   setup(props) {
     const { t } = useLocale();
     const showCollectIssuedSlider = ref(false);
-    const currentRow = ref({});
+    const currentRow = ref<TableRowData>({} as TableRowData);
     /**
      * 是否展示一键检测
      */
@@ -85,11 +202,10 @@ export default defineComponent({
         filterIcon: () => <i class='bk-icon icon-funnel filter-icon' />,
       },
     };
-    // const router = useRouter();
-    const store = useStore();
+
     // 使用自定义 hook 管理状态
     const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId } = useCollectList();
-    const tableList = ref([]);
+    const tableList = ref<TableRowData[]>([]);
     const listLoading = ref(false);
     // 保存原始数据顺序的索引映射（用于恢复排序）
     const originalOrderMap = ref<Map<number | string, number>>(new Map());
@@ -97,20 +213,20 @@ export default defineComponent({
     // 容器和表格高度相关
     const containerRef = ref<HTMLElement | null>(null);
     const tableMainRef = ref<HTMLElement | null>(null);
-    const maxTableHeight = ref<number>(0); // 表格最大可用高度
+    const maxTableHeight = ref<number>(0);
 
     let tippyInstances: Instance[] = [];
     let columnConfigTippyInstance: Instance | null = null;
     const columnConfigTriggerRef = ref<HTMLElement | null>(null);
     const columnConfigContentRef = ref<HTMLElement | null>(null);
-    const searchKey = ref('aaa');
-    const filterValues = ref({
+    const searchKey = ref('');
+    const filterValues = ref<FilterValues>({
       created_by: [],
       updated_by: [],
       storage_cluster_name: [],
     });
     // 过滤条件
-    const conditions = ref<Array<{ key: string; value: string[] }>>([]);
+    const conditions = ref<FilterCondition[]>([]);
 
     const pagination = ref({
       current: 1,
@@ -119,46 +235,23 @@ export default defineComponent({
       limitList: [10, 20, 50],
     });
 
-    const sortConfig = ref({});
+    const sortConfig = ref<SortConfig>({});
 
     // 列配置相关状态
     const isShowColumnConfig = ref(false);
-    // SETTING_FIELDS 中的 label 已经是字符串，直接使用
     const columnConfigFields = ref([...SETTING_FIELDS]);
-    // 字段映射：SETTING_FIELDS 的 id 映射到 columns 的 colKey
-    const fieldIdToColKeyMap: Record<string, string> = {
-      collector_config_name: 'name',
-      storage_usage: 'daily_usage',
-      total_usage: 'total_usage',
-      table_id: 'bk_data_name',
-      index_set_id: 'index_set_name',
-      scenario_id: 'scenario_id',
-      collector_scenario_id: 'collector_scenario_id',
-      storage_cluster_name: 'storage_cluster_name',
-      retention: 'retention',
-      label: 'tags',
-      es_host_state: 'status',
-      updated_by: 'updated_by',
-      updated_at: 'updated_at',
-    };
     // 默认显示的列（disabled: true 的列）
     const defaultVisibleColumns = computed(() => {
       return columnConfigFields.value
         .filter(field => field.disabled)
-        .map(field => fieldIdToColKeyMap[field.id] || field.id);
+        .map(field => FIELD_ID_TO_COL_KEY_MAP[field.id] || field.id);
     });
     // 用户选择的可见列（初始值为所有列）
     const visibleColumns = ref<string[]>(
-      columnConfigFields.value.map(field => fieldIdToColKeyMap[field.id] || field.id),
+      columnConfigFields.value.map(field => FIELD_ID_TO_COL_KEY_MAP[field.id] || field.id),
     );
     // 临时选择的列（用于确认前）
     const tempVisibleColumns = ref<string[]>([]);
-
-    // 高度计算相关常量
-    const HEIGHT_CONSTANTS = {
-      MIN_TABLE_HEIGHT: 250, // 最小表格高度（至少显示 6-7 行数据）
-      COLUMNS_HEIGHT: 50,
-    };
 
     /**
      * 使用窗口高度作为后备方案计算表格高度
@@ -166,8 +259,7 @@ export default defineComponent({
      */
     const calculateHeightByWindow = (): number => {
       const windowHeight = window.innerHeight;
-      const fixedElementsHeight = 400;
-      return Math.max(HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT, windowHeight - fixedElementsHeight);
+      return Math.max(HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT, windowHeight - HEIGHT_CONSTANTS.WINDOW_FIXED_HEIGHT);
     };
 
     /**
@@ -179,11 +271,9 @@ export default defineComponent({
      * 计算逻辑：
      * 1. 使用 nextTick 确保在 DOM 更新后执行，获取准确的容器尺寸
      * 2. 优先使用容器高度进行计算，如果容器未挂载或高度无效，则使用窗口高度作为后备方案
-     * 3. 从容器高度中减去固定元素高度（150px），得到表格可用高度
-     * 4. 确保计算出的高度不小于最小表格高度（MIN_TABLE_HEIGHT）
-     * 5. 根据实际数据量和分页大小进行最终调整：
-     *    - 如果分页数据的总高度超过计算出的最大高度，则使用最大高度（启用滚动）
-     *    - 如果数据量较少，则根据实际行数计算高度（避免空白区域）
+     * 3. 从容器高度中减去固定元素高度，得到表格可用高度
+     * 4. 确保计算出的高度不小于最小表格高度
+     * 5. 根据实际数据量和分页大小进行最终调整
      */
     const calculateMaxTableHeight = () => {
       nextTick(() => {
@@ -201,8 +291,8 @@ export default defineComponent({
           return;
         }
 
-        // 计算表格最大可用高度：容器高度 - 所有固定元素高度（头部、工具栏、分页器等）
-        const calculatedMaxHeight = containerHeight - 150;
+        // 计算表格最大可用高度：容器高度 - 所有固定元素高度
+        const calculatedMaxHeight = containerHeight - HEIGHT_CONSTANTS.FIXED_ELEMENTS_HEIGHT;
 
         // 确保高度在合理范围内（不小于最小高度）
         maxTableHeight.value = Math.max(HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT, calculatedMaxHeight);
@@ -223,7 +313,7 @@ export default defineComponent({
       () => {
         calculateMaxTableHeight();
       },
-      200,
+      DELAY_CONSTANTS.RESIZE_OBSERVER,
     );
 
     // 监听窗口大小变化
@@ -245,44 +335,57 @@ export default defineComponent({
       () => {
         setTimeout(() => {
           calculateMaxTableHeight();
-        }, 150);
+        }, DELAY_CONSTANTS.PAGINATION_HEIGHT_CALC);
       },
     );
 
-    /** 状态渲染 */
-    const renderStatus = row => {
+    /**
+     * 渲染状态
+     * @param row - 表格行数据
+     * @returns JSX 元素
+     */
+    const renderStatus = (row: TableRowData) => {
       return <span class={`table-status ${row.status}`}>{row.status_name}</span>;
     };
 
-    const renderMenu = row => {
+    /**
+     * 根据行数据渲染菜单列表
+     * @param row - 表格行数据
+     * @returns 过滤后的菜单列表
+     */
+    const renderMenu = (row: TableRowData): MenuItem[] => {
       const { scenario_id, environment, collector_scenario_id, status } = row;
       const typeConfig = getScenarioIdType(scenario_id, environment, collector_scenario_id);
+
       if (!typeConfig) {
         return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
       }
+
       if (typeConfig.value === 'custom_report') {
         return MENU_LIST.filter(item => ['desensitization', 'disable', 'delete'].includes(item.key));
       }
+
       if (['bkdata', 'es'].includes(typeConfig.value)) {
         return MENU_LIST.filter(item => ['desensitization', 'delete'].includes(item.key));
       }
+
       return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
     };
+
     /**
      * 获取表格过滤配置
-     * @param filter
-     * @returns
+     * @param filter - 过滤选项数组
+     * @returns 过滤配置对象
      */
-    const getColumnsFilter = (filter: { label: string; value: string; key?: string }[]) => {
+    const getColumnsFilter = (filter: Array<{ label: string; value: string; key?: string }>) => {
       const data = filter.map(item => ({
         ...item,
-        label: item.label || item.key,
+        label: item.label || item.key || '',
       }));
       return {
         type: 'single',
         list: [{ label: t('全部'), value: '' }, ...data],
         confirmEvents: ['onChange'],
-        // 支持透传全部 Popup 组件属性
         popupProps: {
           overlayInnerClassName: 't-table__list-filter-input--sticky custom-filter-popup',
         },
@@ -296,7 +399,7 @@ export default defineComponent({
         colKey: 'name',
         sorter: true,
         sortType: 'all',
-        cell: (h, { row }) => (
+        cell: (h, { row }: { row: TableRowData }) => (
           <span
             class='link'
             on-click={() => handleEditOperation(row, 'view')}
@@ -315,7 +418,7 @@ export default defineComponent({
         sorter: true,
         sortType: 'all',
         width: 100,
-        cell: (h, { row }) => <span>{formatBytes(row.daily_usage)}</span>,
+        cell: (h, { row }: { row: TableRowData }) => <span>{formatBytes(row.daily_usage)}</span>,
       },
       {
         title: t('总用量'),
@@ -323,7 +426,7 @@ export default defineComponent({
         sorter: true,
         sortType: 'all',
         width: 100,
-        cell: (h, { row }) => <span>{formatBytes(row.total_usage)}</span>,
+        cell: (h, { row }: { row: TableRowData }) => <span>{formatBytes(row.total_usage)}</span>,
       },
       {
         title: t('存储名'),
@@ -335,13 +438,11 @@ export default defineComponent({
         title: t('所属索引集'),
         colKey: 'index_set_name',
         width: 200,
-        cell: (h, { row }) => {
-          const indexSetName = (row.parent_index_sets || []).map(item => {
-            return {
-              ...item,
-              name: item.index_set_name,
-            };
-          });
+        cell: (h, { row }: { row: TableRowData }) => {
+          const indexSetName = (row.parent_index_sets || []).map(item => ({
+            ...item,
+            name: item.index_set_name,
+          }));
           return row.parent_index_sets?.length > 0 ? (
             <TagMore
               tags={indexSetName}
@@ -356,14 +457,14 @@ export default defineComponent({
         title: t('接入类型'),
         colKey: 'scenario_id',
         width: 100,
-        cell: (h, { row }) => <span>{row.scenario_name}</span>,
+        cell: (h, { row }: { row: TableRowData }) => <span>{row.scenario_name}</span>,
         filter: getColumnsFilter(GLOBAL_CATEGORIES_ENUM),
       },
       {
         title: t('日志类型'),
         colKey: 'collector_scenario_id',
         width: 100,
-        cell: (h, { row }) => <span>{row.collector_scenario_name}</span>,
+        cell: (h, { row }: { row: TableRowData }) => <span>{row.collector_scenario_name}</span>,
         filter: getColumnsFilter(COLLECTOR_SCENARIO_ENUM),
       },
       {
@@ -376,7 +477,7 @@ export default defineComponent({
       {
         title: t('过期时间'),
         colKey: 'retention',
-        cell: (h, { row }) => (
+        cell: (h, { row }: { row: TableRowData }) => (
           <span class={{ 'text-disabled': row.status === 'stop' }}>
             {row.retention ? `${row.retention} ${t('天')}` : '--'}
           </span>
@@ -387,7 +488,7 @@ export default defineComponent({
         title: t('标签'),
         colKey: 'tags',
         showTips: false,
-        cell: (h, { row }) =>
+        cell: (h, { row }: { row: TableRowData }) =>
           (row.tags || []).length > 0 ? (
             <TagMore
               tags={row.tags}
@@ -402,7 +503,7 @@ export default defineComponent({
         title: t('采集状态'),
         colKey: 'status',
         width: 100,
-        cell: (h, { row }) => renderStatus(row),
+        cell: (h, { row }: { row: TableRowData }) => renderStatus(row),
         filter: getColumnsFilter(STATUS_ENUM_FILTER),
       },
       {
@@ -436,7 +537,7 @@ export default defineComponent({
         colKey: 'operation',
         width: 110,
         fixed: 'right',
-        cell: (h, { row }) => (
+        cell: (h, { row }: { row: TableRowData }) => (
           <div class='table-operation'>
             <span
               class={{
@@ -497,17 +598,22 @@ export default defineComponent({
       return operationCol ? [...filteredColumns, operationCol] : filteredColumns;
     });
 
-    /** 销毁所有tippy */
+    /**
+     * 销毁所有 tippy 实例
+     * 使用 for...of 循环替代 forEach，提高性能
+     */
     const destroyTippyInstances = () => {
-      // biome-ignore lint/complexity/noForEach: <explanation>
-      tippyInstances.forEach(i => {
+      for (const instance of tippyInstances) {
         try {
-          i.hide();
-          i.destroy();
-        } catch (_) {}
-      });
+          instance.hide();
+          instance.destroy();
+        } catch {
+          // 忽略销毁错误
+        }
+      }
       tippyInstances = [];
     };
+
     /**
      * 重新刷新表格
      */
@@ -515,16 +621,18 @@ export default defineComponent({
       pagination.value.current = 1;
       getTableList();
     };
+
     watch(
       () => listLoading.value,
       val => {
         if (!val) {
           setTimeout(() => {
             initMenuPop();
-          }, 1000);
+          }, DELAY_CONSTANTS.MENU_POP_INIT);
         }
       },
     );
+
     watch(
       () => props.indexSet,
       () => {
@@ -532,88 +640,123 @@ export default defineComponent({
       },
     );
 
-    /** 渲染操作下拉列表 */
+    /**
+     * 初始化操作下拉列表的 tippy 实例
+     */
     const initMenuPop = () => {
       // 销毁旧实例，避免重复绑定
       destroyTippyInstances();
 
       const targets = document.querySelectorAll('.v2-log-collection-table .t-table--layout-fixed .table-more-btn');
-      console.log(targets.length, 'targets=======');
-      if (!targets.length) {
+      // 确保 targets 存在且不为空
+      if (!targets || targets.length === 0) {
         return;
       }
 
-      const instances = tippy(targets as unknown as HTMLElement[], {
-        trigger: 'click',
-        placement: 'bottom-end',
-        theme: 'light table-menu-popover',
-        interactive: true,
-        hideOnClick: true,
-        arrow: false,
-        offset: [0, 4],
-        appendTo: () => document.body,
-        onShow(instance) {
-          (instance.reference as HTMLElement).classList.add('is-hover');
-        },
-        onHide(instance) {
-          (instance.reference as HTMLElement).classList.remove('is-hover');
-        },
-        content(reference) {
-          const btn = reference as HTMLElement;
-          // 约定：内容紧跟在按钮后的兄弟元素中
-          const container = btn.nextElementSibling as HTMLElement | null;
-          const contentNode = container?.querySelector('.row-menu-content') as HTMLElement | null;
-          return (contentNode ?? container ?? document.createElement('div')) as unknown as Element;
-        },
-      });
+      // 将 NodeList 转换为数组，并过滤掉 null 值
+      const validTargets = Array.from(targets).filter((target): target is HTMLElement => target instanceof HTMLElement);
 
-      // tippy 返回单个或数组，这里统一转为数组
-      tippyInstances = Array.isArray(instances) ? instances : [instances];
-      console.log(tippyInstances, 'tippyInstances=========');
+      if (validTargets.length === 0) {
+        return;
+      }
+
+      try {
+        const instances = tippy(validTargets, {
+          trigger: 'click',
+          placement: 'bottom-end',
+          theme: 'light table-menu-popover',
+          interactive: true,
+          hideOnClick: true,
+          arrow: false,
+          offset: [0, 4],
+          appendTo: () => document.body,
+          onShow(instance) {
+            const ref = instance.reference as HTMLElement;
+            ref?.classList?.add('is-hover');
+          },
+          onHide(instance) {
+            const ref = instance.reference as HTMLElement;
+            ref?.classList?.remove('is-hover');
+          },
+          content(reference) {
+            const btn = reference as HTMLElement;
+            if (!btn) {
+              return document.createElement('div');
+            }
+            // 约定：内容紧跟在按钮后的兄弟元素中
+            const container = btn.nextElementSibling as HTMLElement | null;
+            const contentNode = container?.querySelector('.row-menu-content') as HTMLElement | null;
+            return (contentNode ?? container ?? document.createElement('div')) as unknown as Element;
+          },
+        });
+
+        // tippy 返回单个或数组，这里统一转为数组
+        tippyInstances = Array.isArray(instances) ? instances : [instances];
+      } catch (error) {
+        console.error('初始化菜单弹窗失败:', error);
+      }
     };
 
-    // 初始化列配置 tippy
+    /**
+     * 初始化列配置 tippy 实例
+     */
     const initColumnConfigTippy = () => {
-      if (!columnConfigTriggerRef.value || !columnConfigContentRef.value) {
+      // 确保 ref 存在且是有效的 HTMLElement
+      const trigger = columnConfigTriggerRef.value;
+      const content = columnConfigContentRef.value;
+
+      if (!trigger || !(trigger instanceof HTMLElement) || !content || !(content instanceof HTMLElement)) {
         return;
       }
 
       // 销毁旧实例
       if (columnConfigTippyInstance) {
-        columnConfigTippyInstance.destroy();
+        try {
+          columnConfigTippyInstance.destroy();
+        } catch (error) {
+          console.error('销毁列配置 tippy 实例失败:', error);
+        }
         columnConfigTippyInstance = null;
       }
 
-      columnConfigTippyInstance = tippy(columnConfigTriggerRef.value, {
-        trigger: 'click',
-        placement: 'bottom-end',
-        theme: 'light column-config-popover',
-        interactive: true,
-        hideOnClick: 'toggle', // 点击外部区域时关闭，点击触发器时切换
-        arrow: false,
-        offset: [-52, 4],
-        appendTo: () => document.body,
-        onShow() {
-          handleOpenColumnConfig();
-        },
-        onHide() {
-          // 直接更新状态，不要调用 handleCloseColumnConfig，避免循环
-          isShowColumnConfig.value = false;
-        },
-        content() {
-          // 使用函数返回内容，确保能正确获取元素
-          if (!columnConfigContentRef.value) {
-            return document.createElement('div');
-          }
-          return columnConfigContentRef.value as unknown as Element;
-        },
-      });
+      try {
+        columnConfigTippyInstance = tippy(trigger, {
+          trigger: 'click',
+          placement: 'bottom-end',
+          theme: 'light column-config-popover',
+          interactive: true,
+          hideOnClick: 'toggle',
+          arrow: false,
+          offset: [-52, 4],
+          appendTo: () => document.body,
+          onShow() {
+            handleOpenColumnConfig();
+          },
+          onHide() {
+            // 直接更新状态，不要调用 handleCloseColumnConfig，避免循环
+            isShowColumnConfig.value = false;
+          },
+          content() {
+            // 使用函数返回内容，确保能正确获取元素
+            const contentRef = columnConfigContentRef.value;
+            if (!contentRef || !(contentRef instanceof HTMLElement)) {
+              return document.createElement('div');
+            }
+            return contentRef as unknown as Element;
+          },
+        });
+      } catch (error) {
+        console.error('初始化列配置 tippy 实例失败:', error);
+        columnConfigTippyInstance = null;
+      }
     };
 
     onMounted(() => {
       getCollectorFieldEnums();
       nextTick(() => {
-        !authGlobalInfo.value && checkCreateAuth();
+        if (!authGlobalInfo.value) {
+          checkCreateAuth();
+        }
         listLoading.value = true;
         // 初始化时计算表格最大高度
         calculateMaxTableHeight();
@@ -639,25 +782,45 @@ export default defineComponent({
 
     /**
      * 获取存储用量
-     * @param index_set_ids 索引集ID列表
+     * @param indexSetIds - 索引集ID列表
      */
-    const getStorageUsage = index_set_ids => {
+    const getStorageUsage = (indexSetIds: Array<number | string>) => {
+      const validIds = indexSetIds.filter(id => id != null && id !== '');
+      if (validIds.length === 0) {
+        return;
+      }
+
       $http
         .request('collect/getStorageUsage', {
           data: {
             bk_biz_id: bkBizId.value,
-            index_set_ids: index_set_ids.filter(id => id != null && id !== ''),
+            index_set_ids: validIds,
           },
         })
         .then(res => {
+          const usageMap = new Map<number | string, StorageUsageItem>();
+          // 构建使用量映射表，提高查找效率
+          for (const item of res.data || []) {
+            if (item.index_set_id != null) {
+              usageMap.set(Number(item.index_set_id), item);
+            }
+          }
+
+          // 更新表格数据
           tableList.value = tableList.value.map(item => {
-            const info = res.data.find(val => Number(val.index_set_id) === item.index_set_id);
-            const { index_set_id, ...rest } = info || {};
-            return {
-              ...item,
-              ...rest,
-            };
+            const usageInfo = usageMap.get(Number(item.index_set_id));
+            if (usageInfo) {
+              const { index_set_id: _id, ...rest } = usageInfo;
+              return {
+                ...item,
+                ...rest,
+              };
+            }
+            return item;
           });
+        })
+        .catch(error => {
+          console.log('获取存储用量失败:', error);
         });
     };
 
@@ -668,45 +831,55 @@ export default defineComponent({
       try {
         listLoading.value = true;
         const { current, pageSize } = pagination.value;
-        const params = {
+        const params: Record<string, unknown> = {
           space_uid: spaceUid.value,
           page: current,
           pagesize: pageSize,
-          keyword: searchKey.value ? searchKey.value : undefined,
-          conditions: conditions.value.length > 0 ? conditions.value : undefined,
         };
+
+        if (searchKey.value) {
+          params.keyword = searchKey.value;
+        }
+
+        if (conditions.value.length > 0) {
+          params.conditions = conditions.value;
+        }
+
         const indexSetId = (props.indexSet as IListItemData)?.index_set_id;
         if (indexSetId && indexSetId !== 'all') {
-          Object.assign(params, {
-            parent_index_set_id: indexSetId,
-          });
+          params.parent_index_set_id = indexSetId;
         }
+
         const res = await $http.request('collect/newCollectList', {
           data: params,
         });
-        const index_set_ids = [];
-        tableList.value = res.data?.list || [];
+
+        tableList.value = (res.data?.list || []) as TableRowData[];
         pagination.value.total = res.data?.total || 0;
-        tableList.value.map(item => {
-          index_set_ids.push(item.index_set_id);
-        });
-        // 保存原始数据顺序的索引映射
+
+        // 收集索引集ID并保存原始数据顺序
+        const indexSetIds: Array<number | string> = [];
         originalOrderMap.value = new Map();
-        tableList.value.forEach((item, index) => {
-          originalOrderMap.value.set(item.index_set_id, index);
-        });
-        /**
-         * 获取存储用量
-         */
-        if (index_set_ids.length > 0) {
-          getStorageUsage(index_set_ids);
+
+        for (let index = 0; index < tableList.value.length; index++) {
+          const item = tableList.value[index];
+          if (item.index_set_id != null) {
+            indexSetIds.push(item.index_set_id);
+            originalOrderMap.value.set(item.index_set_id, index);
+          }
         }
-      } catch (e) {
-        console.log(e);
+
+        // 获取存储用量
+        if (indexSetIds.length > 0) {
+          getStorageUsage(indexSetIds);
+        }
+      } catch (error) {
+        console.log('获取列表数据失败:', error);
       } finally {
         listLoading.value = false;
       }
     };
+
     /**
      * 获取枚举值
      */
@@ -721,31 +894,42 @@ export default defineComponent({
             ...res.data,
           };
         }
-      } catch (e) {
-        console.log('获取字段枚举失败:', e);
+      } catch (error) {
+        console.log('获取字段枚举失败:', error);
       }
     };
 
-    const handleCollectorCheck = async checkRecordId => {
-      const res = await $http.request('collect/getCheckInfos', {
-        data: {
-          check_record_id: checkRecordId,
-        },
-      });
-      if (res.data) {
-        checkInfo.value = res.data.infos || '';
+    /**
+     * 处理采集项检测
+     * @param checkRecordId - 检测记录ID
+     */
+    const handleCollectorCheck = async (checkRecordId: string | number) => {
+      try {
+        const res = await $http.request('collect/getCheckInfos', {
+          data: {
+            check_record_id: checkRecordId,
+          },
+        });
+        if (res.data) {
+          checkInfo.value = res.data.infos || '';
 
-        if (!res.data.finished && isShowDetection.value) {
-          // 未完成检测 且 弹窗未关闭则继续请求
-          setTimeout(() => {
-            handleCollectorCheck(checkRecordId);
-          }, 1000);
+          if (!res.data.finished && isShowDetection.value) {
+            // 未完成检测 且 弹窗未关闭则继续请求
+            setTimeout(() => {
+              handleCollectorCheck(checkRecordId);
+            }, 1000);
+          }
         }
+      } catch (error) {
+        console.log('获取检测信息失败:', error);
       }
     };
 
-    // 删除
-    const requestDeleteCollect = row => {
+    /**
+     * 删除采集项
+     * @param row - 表格行数据
+     */
+    const requestDeleteCollect = (row: TableRowData) => {
       $http
         .request('collect/deleteCollect', {
           params: {
@@ -754,26 +938,28 @@ export default defineComponent({
         })
         .then(res => {
           if (res.result) {
-            // 重新获取表格数据
             showMessage(t('删除成功'));
             reloadList();
           }
         })
         .catch(() => {
-          showMessage(t('删除失败', 'err'));
+          showMessage(t('删除失败'), 'error');
         });
     };
 
-    const handleMenuClick = (key: string, row: any) => {
+    /**
+     * 处理菜单点击事件
+     * @param key - 菜单项key
+     * @param row - 表格行数据
+     */
+    const handleMenuClick = (key: string, row: TableRowData) => {
       currentRow.value = row;
-      // 关闭 tippy
-      for (const i of tippyInstances) {
-        i?.hide();
+      // 关闭所有 tippy 实例
+      for (const instance of tippyInstances) {
+        instance?.hide();
       }
-      console.log(key, row);
-      /**
-       * 启用
-       */
+
+      // 启用
       if (key === 'start') {
         $http
           .request('collect/startCollect', {
@@ -791,16 +977,14 @@ export default defineComponent({
           });
         return;
       }
-      /**
-       * 停用
-       */
+
+      // 停用
       if (key === 'stop') {
         showCollectIssuedSlider.value = true;
         return;
       }
-      /**
-       * 删除操作
-       */
+
+      // 删除操作
       if (key === 'delete') {
         if (row.status !== 'running') {
           window.mainComponent?.$bkInfo({
@@ -813,7 +997,8 @@ export default defineComponent({
         }
         return;
       }
-      /** 一键检测 */
+
+      // 一键检测
       if (key === 'one_key_check') {
         $http
           .request('collect/runCheck', {
@@ -827,103 +1012,121 @@ export default defineComponent({
               const checkRecordId = res.data.check_record_id;
               handleCollectorCheck(checkRecordId);
             }
+          })
+          .catch(error => {
+            console.log('一键检测失败:', error);
           });
         return;
       }
+
       handleEditOperation(row, key);
     };
+
     /**
-     * 表格分页
-     * @param pageInfo
+     * 处理表格分页变化
+     * @param pageInfo - 分页信息
      */
-    const handlePageChange = pageInfo => {
+    const handlePageChange = (pageInfo: PaginationInfo) => {
       pagination.value.current = pageInfo.current;
       pagination.value.pageSize = pageInfo.pageSize;
       getTableList();
     };
-    /** 新增采集项 */
+
+    /**
+     * 新增采集项
+     */
     const handleCreateOperation = () => {
       operateHandler({}, 'add', 'host_log');
     };
 
-    const handleEditOperation = (row: any, type: string) => {
+    /**
+     * 处理编辑操作
+     * @param row - 表格行数据
+     * @param type - 操作类型
+     */
+    const handleEditOperation = (row: TableRowData, type: string) => {
       const { scenario_id, environment, collector_scenario_id } = row;
       const typeConfig = getScenarioIdType(scenario_id, environment, collector_scenario_id);
-      operateHandler(row, type, typeConfig.value);
+      operateHandler(row, type, typeConfig?.value || 'host_log');
     };
-    /** 表格过滤 */
 
-    const handleFilterChange = filters => {
-      console.log(filters, 'filters====');
+    /**
+     * 处理表格过滤变化
+     * @param filters - 过滤对象
+     */
+    const handleFilterChange = (filters: Record<string, string>) => {
       // 创建新的搜索条件数组
-      const newConditions: Array<{ key: string; value: string[] }> = [];
+      const newConditions: FilterCondition[] = [];
 
-      Object.keys(filters || {}).map(key => {
+      for (const key of Object.keys(filters || {})) {
         newConditions.push({
           key,
           value: [filters[key]],
         });
-      });
+      }
 
       // 更新搜索条件和过滤条件
       conditions.value = newConditions;
-      console.log(conditions.value, 'conditions.value');
       // 重新获取表格数据
       reloadList();
     };
 
-    const sortChange = (sortInfo: { descending?: boolean; sortBy?: string }): void => {
+    /**
+     * 处理排序变化
+     * @param sortInfo - 排序信息
+     */
+    const sortChange = (sortInfo: SortConfig): void => {
       sortConfig.value = sortInfo;
       handleSort(sortInfo);
     };
 
     /**
      * 将日期字符串转换为时间戳
-     * @param dateStr 日期字符串，格式如 "2025-11-21 03:43:19+0800"
+     * @param dateStr - 日期字符串，格式如 "2025-11-21 03:43:19+0800"
      * @returns 时间戳，如果转换失败返回 0
      */
     const parseDateToTimestamp = (dateStr: string | undefined | null): number => {
       if (!dateStr) return 0;
       try {
-        // 处理格式 "2025-11-21 03:43:19+0800"
         const date = new Date(dateStr);
-        return isNaN(date.getTime()) ? 0 : date.getTime();
+        return Number.isNaN(date.getTime()) ? 0 : date.getTime();
       } catch {
         return 0;
       }
     };
+
     /**
-     * 表格排序
-     * @param sort
+     * 处理表格排序
+     * @param sort - 排序配置
      */
-    const handleSort = (sort: { descending?: boolean; sortBy?: string }): void => {
+    const handleSort = (sort: SortConfig): void => {
       if (sort?.sortBy) {
         const { descending, sortBy } = sort;
-        tableList.value = tableList.value.concat().sort((a, b) => {
-          let aValue: any = a[sortBy];
-          let bValue: any = b[sortBy];
+        tableList.value = [...tableList.value].sort((a, b) => {
+          let aValue: number | string = a[sortBy] as number | string;
+          let bValue: number | string = b[sortBy] as number | string;
 
           // 处理日期字段：转换为时间戳
           if (sortBy === 'created_at' || sortBy === 'updated_at') {
-            aValue = parseDateToTimestamp(aValue);
-            bValue = parseDateToTimestamp(bValue);
+            aValue = parseDateToTimestamp(aValue as string);
+            bValue = parseDateToTimestamp(bValue as string);
           }
           // 处理 name 字段：字符串比较
           else if (sortBy === 'name') {
-            aValue = aValue || '';
-            bValue = bValue || '';
-            const comparison = aValue.localeCompare(bValue);
+            aValue = (aValue as string) || '';
+            bValue = (bValue as string) || '';
+            const comparison = (aValue as string).localeCompare(bValue as string);
             return descending ? -comparison : comparison;
           }
 
           // 其他字段：数值比较
-          const result = descending ? bValue - aValue : aValue - bValue;
+          const result = descending ? Number(bValue) - Number(aValue) : Number(aValue) - Number(bValue);
           return result;
         });
       } else {
         // 取消排序，恢复原始顺序
         if (originalOrderMap.value.size > 0) {
-          tableList.value = tableList.value.concat().sort((a, b) => {
+          tableList.value = [...tableList.value].sort((a, b) => {
             const aOrder = originalOrderMap.value.get(a.index_set_id) ?? 0;
             const bOrder = originalOrderMap.value.get(b.index_set_id) ?? 0;
             return aOrder - bOrder;
@@ -932,7 +1135,9 @@ export default defineComponent({
       }
     };
 
-    // 列配置相关方法
+    /**
+     * 打开列配置
+     */
     const handleOpenColumnConfig = () => {
       isShowColumnConfig.value = true;
       // 初始化临时选择为当前可见列，确保包含默认列
@@ -943,6 +1148,9 @@ export default defineComponent({
       tempVisibleColumns.value = [...allCurrentColumns];
     };
 
+    /**
+     * 关闭列配置
+     */
     const handleCloseColumnConfig = () => {
       // 手动关闭 tippy（用于取消按钮点击）
       if (columnConfigTippyInstance) {
@@ -951,8 +1159,13 @@ export default defineComponent({
       isShowColumnConfig.value = false;
     };
 
+    /**
+     * 处理列配置变化
+     * @param fieldId - 字段ID
+     * @param checked - 是否选中
+     */
     const handleColumnConfigChange = (fieldId: string, checked: boolean) => {
-      const colKey = fieldIdToColKeyMap[fieldId] || fieldId;
+      const colKey = FIELD_ID_TO_COL_KEY_MAP[fieldId] || fieldId;
       // 如果是默认列，不允许取消
       if (!checked && defaultVisibleColumns.value.includes(colKey)) {
         return;
@@ -967,6 +1180,9 @@ export default defineComponent({
       }
     };
 
+    /**
+     * 确认列配置
+     */
     const handleColumnConfigConfirm = () => {
       // 确保默认列始终包含在内
       const finalColumns = [
@@ -978,8 +1194,13 @@ export default defineComponent({
       columnConfigTippyInstance?.hide();
     };
 
+    /**
+     * 检查列是否被选中
+     * @param fieldId - 字段ID
+     * @returns 是否选中
+     */
     const isColumnChecked = (fieldId: string): boolean => {
-      const colKey = fieldIdToColKeyMap[fieldId] || fieldId;
+      const colKey = FIELD_ID_TO_COL_KEY_MAP[fieldId] || fieldId;
       return tempVisibleColumns.value.includes(colKey);
     };
 
@@ -1010,7 +1231,7 @@ export default defineComponent({
             placeholder={t('搜索 采集名、存储名')}
             clearable
             right-icon={'bk-icon icon-search'}
-            on-input={val => {
+            on-input={(val: string) => {
               searchKey.value = val;
             }}
             on-clear={() => {
@@ -1040,7 +1261,7 @@ export default defineComponent({
               <div class='column-config-title'>{t('字段显示设置')}</div>
               <div class='column-config-list'>
                 {columnConfigFields.value.map(field => {
-                  const colKey = fieldIdToColKeyMap[field.id] || field.id;
+                  const colKey = FIELD_ID_TO_COL_KEY_MAP[field.id] || field.id;
                   const isDefault = field.disabled || defaultVisibleColumns.value.includes(colKey);
                   const checked = isColumnChecked(field.id);
                   return (
@@ -1134,11 +1355,13 @@ export default defineComponent({
           {/* 停用 */}
           <CollectIssuedSlider
             isShow={showCollectIssuedSlider.value}
-            collectorConfigId={currentRow.value.collector_config_id}
+            collectorConfigId={
+              currentRow.value.collector_config_id ? Number(currentRow.value.collector_config_id) : undefined
+            }
             status={currentRow.value.status}
             config={currentRow.value}
             isStopCollection={true}
-            on-change={value => {
+            on-change={(value: boolean) => {
               showCollectIssuedSlider.value = value;
             }}
             on-refresh={reloadList}
