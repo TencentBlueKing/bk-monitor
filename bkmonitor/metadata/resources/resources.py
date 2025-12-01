@@ -1695,35 +1695,72 @@ class QueryTimeSeriesScopeResource(Resource):
         group_id = validated_request_data.get("group_id")
         scope_name = validated_request_data.get("scope_name")
 
-        # 判断是否查询未分组（当 scope_name 为空串或 None 时，返回的是未分组的指标）
-        is_query_ungrouped = not scope_name
+        # 判断查询类型
+        is_query_only_ungrouped = scope_name == ""  # 仅查询未分组
+        is_include_ungrouped = scope_name is None  # 包含未分组
 
-        # 构建查询条件
+        # 验证 group_id 的有效性（如果提供）
+        if group_id is not None:
+            self._validate_group_id(group_id, bk_tenant_id)
+
+        # 场景1：仅查询未分组指标
+        if is_query_only_ungrouped:
+            group_ids = self._get_target_group_ids(group_id, bk_tenant_id)
+            return self._build_ungrouped_results(group_ids)
+
+        # 场景2：查询已分组指标
+        query_set = self._build_scope_queryset(group_id, scope_name, bk_tenant_id)
+        results = self._build_grouped_results(query_set)
+
+        # 场景3：追加未分组指标（当 scope_name 为 None 时）
+        if is_include_ungrouped:
+            group_ids = self._get_target_group_ids(group_id, bk_tenant_id)
+            results.extend(self._build_ungrouped_results(group_ids))
+
+        return results
+
+    @staticmethod
+    def _validate_group_id(group_id, bk_tenant_id):
+        """验证 group_id 是否存在且属于当前租户"""
+        if not models.TimeSeriesGroup.objects.filter(
+            time_series_group_id=group_id, bk_tenant_id=bk_tenant_id, is_delete=False
+        ).exists():
+            raise ValueError(_("自定义时序分组不存在，请确认后重试"))
+
+    @staticmethod
+    def _get_target_group_ids(group_id, bk_tenant_id):
+        """获取目标 group_id 列表"""
+        if group_id is not None:
+            return [group_id]
+        return list(
+            models.TimeSeriesGroup.objects.filter(bk_tenant_id=bk_tenant_id, is_delete=False).values_list(
+                "time_series_group_id", flat=True
+            )
+        )
+
+    @staticmethod
+    def _build_scope_queryset(group_id, scope_name, bk_tenant_id):
+        """构建 TimeSeriesScope 查询集"""
         query_set = models.TimeSeriesScope.objects.all()
 
-        # 如果提供了 group_id，验证其存在性并过滤
+        # 按 group_id 过滤
         if group_id is not None:
-            # 验证 group_id 是否存在且属于当前租户
-            if not models.TimeSeriesGroup.objects.filter(
-                time_series_group_id=group_id, bk_tenant_id=bk_tenant_id, is_delete=False
-            ).exists():
-                raise ValueError(_("自定义时序分组不存在，请确认后重试"))
-
             query_set = query_set.filter(group_id=group_id)
-
-        # 如果提供了 scope_name 且不为空，使用模糊匹配
-        if scope_name:
-            query_set = query_set.filter(scope_name__icontains=scope_name)
-
-        # 如果没有提供 group_id，需要通过 group_id 关联 TimeSeriesGroup 来过滤租户
-        if group_id is None:
-            # 获取当前租户下的所有 group_id
+        else:
+            # 按租户过滤
             valid_group_ids = models.TimeSeriesGroup.objects.filter(
                 bk_tenant_id=bk_tenant_id, is_delete=False
             ).values_list("time_series_group_id", flat=True)
             query_set = query_set.filter(group_id__in=valid_group_ids)
 
-        # 返回所有结果
+        # 按 scope_name 模糊匹配
+        if scope_name:
+            query_set = query_set.filter(scope_name__icontains=scope_name)
+
+        return query_set
+
+    def _build_grouped_results(self, query_set):
+        """构建已分组指标的结果列表"""
         results = []
         for scope in query_set:
             metric_list = self._get_metric_list(scope)
@@ -1739,35 +1776,25 @@ class QueryTimeSeriesScopeResource(Resource):
                     "create_from": scope.create_from,
                 }
             )
+        return results
 
-        # 如果需要查询未分组，添加虚拟的未分组记录
-        if is_query_ungrouped:
-            # 确定需要查询的 group_id 列表
-            if group_id is not None:
-                group_ids = [group_id]
-            else:
-                group_ids = list(
-                    models.TimeSeriesGroup.objects.filter(bk_tenant_id=bk_tenant_id, is_delete=False).values_list(
-                        "time_series_group_id", flat=True
-                    )
-                )
-
-            # 为每个 group_id 添加未分组记录
-            for gid in group_ids:
-                metric_list = self._get_ungrouped_metric_list(gid)
-                results.append(
-                    {
-                        "scope_id": None,  # 未分组没有 scope_id
-                        "group_id": gid,
-                        "scope_name": "",  # 未分组的 scope_name 为空
-                        "dimension_config": {},
-                        "manual_list": [],
-                        "auto_rules": [],
-                        "metric_list": metric_list,
-                        "create_from": None,
-                    }
-                )
-
+    def _build_ungrouped_results(self, group_ids):
+        """构建未分组指标的结果列表"""
+        results = []
+        for gid in group_ids:
+            metric_list = self._get_ungrouped_metric_list(gid)
+            results.append(
+                {
+                    "scope_id": None,
+                    "group_id": gid,
+                    "scope_name": "",
+                    "dimension_config": {},
+                    "manual_list": [],
+                    "auto_rules": [],
+                    "metric_list": metric_list,
+                    "create_from": None,
+                }
+            )
         return results
 
     def _get_ungrouped_metric_list(self, group_id):
@@ -1776,7 +1803,6 @@ class QueryTimeSeriesScopeResource(Resource):
         未分组下的指标 = default 数据分组的指标 - 所有 manual_list
 
         :param group_id: 自定义时序数据源ID
-        :return: 指标列表，格式参考文档
         """
         from metadata.models.custom_report.time_series import TimeSeriesScope
 
@@ -1799,7 +1825,6 @@ class QueryTimeSeriesScopeResource(Resource):
         2. 数据分组：manual_list + 数据分组的指标
 
         :param scope: TimeSeriesScope 对象
-        :return: 指标列表，格式参考文档
         """
         from metadata.models.custom_report.time_series import TimeSeriesScope
 
@@ -1841,12 +1866,6 @@ class QueryTimeSeriesScopeResource(Resource):
 
     @staticmethod
     def _convert_metrics_to_list(metrics, metric_names):
-        """将指标对象列表转换为文档格式
-
-        :param metrics: TimeSeriesMetric 对象列表
-        :param metric_names: 指标名称列表
-        :return: 指标列表，格式参考文档
-        """
         # 构建指标名称到指标对象的映射
         metric_map = {metric.field_name: metric for metric in metrics}
 
