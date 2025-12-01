@@ -18,10 +18,10 @@ export const HOST_COLLECTION_CONFIG = {
     // 补充元数据
     extra_labels: [
       // 附加日志标签
-      // {
-      //   key: '',
-      //   value: '',
-      // },
+      {
+        key: '',
+        value: '',
+      },
     ],
     conditions: {
       type: 'none', // 过滤方式类型 match separator
@@ -54,7 +54,7 @@ export const CONTAINER_COLLECTION_CONFIG = {
   configs: [
     // 配置项列表
     {
-      namespaces: [],
+      namespaces: ['*'],
       collector_type: 'container_log_config',
       // namespaces: ['bcs-system', 'bk-system'],
       noQuestParams: {

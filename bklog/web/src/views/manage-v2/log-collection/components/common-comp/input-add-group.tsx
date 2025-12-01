@@ -59,7 +59,6 @@ export default defineComponent({
     const handleChange = (index: number, val: string) => {
       const normalizedList = normalizeValueList(props.valueList);
       const nextList = [...normalizedList];
-      console.log(nextList, 'nextList', index);
       nextList[index].value = String(val);
       emit('update', nextList);
       // 如果输入了值，清除该索引的错误状态

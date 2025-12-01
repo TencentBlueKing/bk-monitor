@@ -67,7 +67,7 @@ export const GLOBAL_CATEGORIES_ENUM = [
   { label: window.$t('采集接入'), value: 'log' },
   { label: window.$t('数据平台'), value: 'bkdata' },
   { label: window.$t('第三方ES'), value: 'es' },
-  // { label: window.$t('其他'), value: 'others' },
+  { label: window.$t('自定义上报'), value: 'custom_report' },
 ];
 /**
  * 自定义日志分类
@@ -122,7 +122,7 @@ export const SETTING_FIELDS = [
   },
   // 接入类型
   {
-    id: 'scenario_id',
+    id: 'log_access_type',
     label: window.$t('接入类型'),
     disabled: true,
   },
@@ -399,27 +399,29 @@ const data = [
 
 /**
  * 根据场景ID、环境和采集器场景ID来获取对应的索引集分类对象
- * @param {string} scenario_id - 场景ID，可能的值为 'bkdata', 'es', 'log'
+ * @param {string} scenarioId - 场景ID，可能的值为 'bkdata', 'es', 'log'
  * @param {string} environment - 环境，可能的值为 'container', 'windows', 'linux'
- * @param {string} collector_scenario_id - 采集器场景ID，可能的值为 'custom' 等
+ * @param {string} collectorScenarioId - 采集器场景ID，可能的值为 'custom' 等
+ * @param {string} containerCollectorType - "container_log_config"：容器,"node_log_config"：节点,"std_log_config"：标准输出
  * @returns {object|null} - 返回匹配的日志类型对象，如果没有找到则返回 null
  */
-export const getScenarioIdType = (scenario_id, environment, collector_scenario_id) => {
+// container_collector_type
+export const getScenarioIdType = (scenarioId, environment, collectorScenarioId, containerCollectorType) => {
   // 1. 优先处理自定义上报
-  if (collector_scenario_id === 'custom') {
+  if (collectorScenarioId === 'custom') {
     return data.find(item => item.value === 'custom_report');
   }
 
   // 2. 处理特定平台接入
-  if (scenario_id === 'bkdata') {
+  if (scenarioId === 'bkdata') {
     return data.find(item => item.value === 'bkdata');
   }
-  if (scenario_id === 'es') {
+  if (scenarioId === 'es') {
     return data.find(item => item.value === 'es');
   }
 
   // 3. 处理通用日志采集 'log'，并结合 environment 区分
-  if (scenario_id === 'log') {
+  if (scenarioId === 'log') {
     switch (environment) {
       case 'windows':
         return data.find(item => item.value === 'wineventlog');
@@ -427,6 +429,9 @@ export const getScenarioIdType = (scenario_id, environment, collector_scenario_i
         return data.find(item => item.value === 'host_log');
       case 'container':
         // 根据你的描述，容器采集对应 '文件采集'
+        if (containerCollectorType === 'std_log_config') {
+          return data.find(item => item.value === 'std_log_config');
+        }
         return data.find(item => item.value === 'file_log_config');
       default:
         // 如果 environment 是其他未定义的值，也返回 null

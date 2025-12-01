@@ -131,7 +131,10 @@ export default defineComponent({
     });
 
     const prependText = computed(() => {
-      return formData.value.table_id || curCollect.value.table_id || props.configData.collector_config_name_en;
+      const { table_id, collector_config_name_en } = curCollect.value;
+      return (
+        formData.value.table_id || table_id || collector_config_name_en || props.configData.collector_config_name_en
+      );
     });
 
     /**
@@ -368,6 +371,7 @@ export default defineComponent({
       submitLoading.value = true;
       const {
         collector_config_name,
+        collector_config_name_en,
         index_set_name,
         bk_data_id,
         custom_type,
@@ -396,6 +400,7 @@ export default defineComponent({
             description,
             es_shards,
             parent_index_set_ids,
+            collector_config_name_en,
             collector_config_name: collector_config_name || index_set_name,
             bk_biz_id: Number(bkBizId.value),
           },

@@ -420,7 +420,7 @@ export default defineComponent({
           nameSpacesSelectList.value.unshift({ name: t('所有'), id: '*' });
         }
       } catch (err) {
-        console.error('获取命名空间列表失败:', err);
+        console.log('获取命名空间列表失败:', err);
         nameSpacesSelectList.value = [];
       } finally {
         nameSpaceRequest.value = false;
@@ -534,7 +534,6 @@ export default defineComponent({
         }
         return nameSpacesSelectList.value.slice(1);
       }
-
       return nameSpacesSelectList.value;
     };
 
@@ -767,6 +766,7 @@ export default defineComponent({
               displayTag
               multiple
               searchable
+              loading={nameSpaceRequest.value}
               on-selected={option => {
                 config.namespaces = option;
                 handleNameSpaceSelect(option);

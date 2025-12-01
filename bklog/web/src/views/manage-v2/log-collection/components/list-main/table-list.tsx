@@ -46,6 +46,7 @@ import $http from '@/api';
 import { useCollectList } from '../../hook/useCollectList';
 import TagMore from '../common-comp/tag-more';
 import type { IListItemData } from '../../type';
+import EmptyStatus from '@/components/empty-status/index.vue';
 import './table-list.scss';
 import 'tdesign-vue/es/style/index.css';
 
@@ -134,7 +135,7 @@ interface StorageUsageItem {
  * 表格高度计算相关常量
  */
 const HEIGHT_CONSTANTS = {
-  MIN_TABLE_HEIGHT: 250, // 最小表格高度（至少显示 6-7 行数据）
+  MIN_TABLE_HEIGHT: 400, // 最小表格高度（至少显示 6-7 行数据）
   COLUMNS_HEIGHT: 50, // 每列高度
   FIXED_ELEMENTS_HEIGHT: 150, // 固定元素高度（头部、工具栏、分页器等）
   WINDOW_FIXED_HEIGHT: 400, // 窗口固定元素高度（用于后备方案）
@@ -144,7 +145,7 @@ const HEIGHT_CONSTANTS = {
  * 延迟时间常量
  */
 const DELAY_CONSTANTS = {
-  MENU_POP_INIT: 1000, // 菜单弹窗初始化延迟
+  MENU_POP_INIT: 1500, // 菜单弹窗初始化延迟
   PAGINATION_HEIGHT_CALC: 150, // 分页高度计算延迟
   RESIZE_OBSERVER: 200, // 尺寸监听器延迟
 } as const;
@@ -158,7 +159,7 @@ const FIELD_ID_TO_COL_KEY_MAP: Record<string, string> = {
   total_usage: 'total_usage',
   table_id: 'bk_data_name',
   index_set_id: 'index_set_name',
-  scenario_id: 'scenario_id',
+  log_access_type: 'log_access_type',
   collector_scenario_id: 'collector_scenario_id',
   storage_cluster_name: 'storage_cluster_name',
   retention: 'retention',
@@ -174,14 +175,6 @@ export default defineComponent({
     indexSet: {
       type: Object as PropType<IListItemData>,
       default: () => ({}),
-    },
-    data: {
-      type: Array as PropType<unknown[]>,
-      default: () => [],
-    },
-    loading: {
-      type: Boolean,
-      default: false,
     },
   },
 
@@ -230,7 +223,7 @@ export default defineComponent({
 
     const pagination = ref({
       current: 1,
-      total: props.data.length,
+      total: 0,
       pageSize: 10,
       limitList: [10, 20, 50],
     });
@@ -245,6 +238,13 @@ export default defineComponent({
       return columnConfigFields.value
         .filter(field => field.disabled)
         .map(field => FIELD_ID_TO_COL_KEY_MAP[field.id] || field.id);
+    });
+    /**
+     * 获取空状态类型
+     * @returns 空状态类型
+     */
+    const emptyType = computed(() => {
+      return hasFilterOrSearch.value ? 'search-empty' : 'empty';
     });
     // 用户选择的可见列（初始值为所有列）
     const visibleColumns = ref<string[]>(
@@ -299,6 +299,10 @@ export default defineComponent({
 
         // 根据实际数据量和分页大小进行最终调整
         const listLen = tableList.value.length;
+        if (listLen === 0) {
+          maxTableHeight.value = HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT;
+          return;
+        }
         const totalListHeight = (listLen + 1) * HEIGHT_CONSTANTS.COLUMNS_HEIGHT + 4;
 
         // 如果分页数据总高度超过最大高度，使用最大高度（启用滚动）
@@ -347,6 +351,15 @@ export default defineComponent({
     const renderStatus = (row: TableRowData) => {
       return <span class={`table-status ${row.status}`}>{row.status_name}</span>;
     };
+    /**
+     * 获取采集类型
+     * @para row
+     * @returns
+     */
+    const getTypeConfig = (row: TableRowData) => {
+      const { scenario_id, environment, collector_scenario_id, container_collector_type } = row;
+      return getScenarioIdType(scenario_id, environment, collector_scenario_id, container_collector_type);
+    };
 
     /**
      * 根据行数据渲染菜单列表
@@ -354,8 +367,7 @@ export default defineComponent({
      * @returns 过滤后的菜单列表
      */
     const renderMenu = (row: TableRowData): MenuItem[] => {
-      const { scenario_id, environment, collector_scenario_id, status } = row;
-      const typeConfig = getScenarioIdType(scenario_id, environment, collector_scenario_id);
+      const typeConfig = getTypeConfig(row);
 
       if (!typeConfig) {
         return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
@@ -455,9 +467,9 @@ export default defineComponent({
       },
       {
         title: t('接入类型'),
-        colKey: 'scenario_id',
+        colKey: 'log_access_type',
         width: 100,
-        cell: (h, { row }: { row: TableRowData }) => <span>{row.scenario_name}</span>,
+        cell: (h, { row }: { row: TableRowData }) => <span>{row.log_access_type_name}</span>,
         filter: getColumnsFilter(GLOBAL_CATEGORIES_ENUM),
       },
       {
@@ -628,9 +640,19 @@ export default defineComponent({
         if (!val) {
           setTimeout(() => {
             initMenuPop();
+            updateFilterIconStatus();
           }, DELAY_CONSTANTS.MENU_POP_INIT);
         }
       },
+    );
+
+    // 监听过滤条件变化，更新过滤图标状态
+    watch(
+      () => conditions.value,
+      () => {
+        updateFilterIconStatus();
+      },
+      { deep: true },
     );
 
     watch(
@@ -765,6 +787,7 @@ export default defineComponent({
         // 初始化列配置 tippy - 使用 nextTick 确保 DOM 已渲染
         nextTick(() => {
           initColumnConfigTippy();
+          updateFilterIconStatus();
         });
       });
     });
@@ -856,7 +879,6 @@ export default defineComponent({
 
         tableList.value = (res.data?.list || []) as TableRowData[];
         pagination.value.total = res.data?.total || 0;
-
         // 收集索引集ID并保存原始数据顺序
         const indexSetIds: Array<number | string> = [];
         originalOrderMap.value = new Map();
@@ -1045,9 +1067,8 @@ export default defineComponent({
      * @param type - 操作类型
      */
     const handleEditOperation = (row: TableRowData, type: string) => {
-      const { scenario_id, environment, collector_scenario_id } = row;
-      const typeConfig = getScenarioIdType(scenario_id, environment, collector_scenario_id);
-      operateHandler(row, type, typeConfig?.value || 'host_log');
+      const typeConfig = getTypeConfig(row);
+      operateHandler(row, type, typeConfig?.value);
     };
 
     /**
@@ -1204,6 +1225,108 @@ export default defineComponent({
       return tempVisibleColumns.value.includes(colKey);
     };
 
+    /**
+     * 判断是否有过滤条件或搜索关键词
+     * @returns 是否有过滤条件
+     */
+    const hasFilterOrSearch = computed(() => {
+      const hasSearch = searchKey.value && searchKey.value !== '' && searchKey.value !== '1201';
+      const hasFilter = conditions.value.length > 0;
+      return hasSearch || hasFilter;
+    });
+
+    /**
+     * 获取当前有过滤条件的列的 colKey 列表
+     * @returns 有过滤条件的列的 colKey 数组
+     */
+    const filteredColumnKeys = computed(() => {
+      return conditions.value.map(condition => condition.key);
+    });
+
+    /**
+     * 判断是否有有效的过滤条件（value 不为空）
+     * @returns 是否有有效的过滤条件
+     */
+    const hasValidFilterConditions = computed(() => {
+      return conditions.value.some(condition => {
+        // 检查 value 数组是否有非空值
+        return condition.value && condition.value.length > 0 && condition.value.some(v => v !== '' && v != null);
+      });
+    });
+
+    /**
+     * 更新过滤图标的选中状态
+     */
+    const updateFilterIconStatus = () => {
+      nextTick(() => {
+        // 获取所有表头单元格
+        const headerCells = document.querySelectorAll('.v2-log-collection-table .t-table__header th');
+
+        // 获取当前可见的列配置（用于匹配 colKey）
+        const visibleColumnsConfig = columns.value;
+
+        // 创建一个映射：表头文本 -> colKey
+        const titleToColKeyMap = new Map<string, string>();
+        visibleColumnsConfig.forEach(col => {
+          if (col.title && typeof col.title === 'string') {
+            titleToColKeyMap.set(col.title, col.colKey || '');
+          }
+        });
+
+        headerCells.forEach((cell, index) => {
+          // 获取过滤图标
+          const filterIcon = cell.querySelector('.filter-icon');
+          if (!filterIcon) return;
+
+          let colKey = '';
+
+          // 方法1: 尝试通过 data-col-key 属性获取
+          const dataColKey = cell.getAttribute('data-col-key');
+          if (dataColKey) {
+            colKey = dataColKey;
+          } else {
+            // 方法2: 通过列索引获取
+            const columnConfig = visibleColumnsConfig[index];
+            if (columnConfig) {
+              colKey = columnConfig.colKey || '';
+            } else {
+              // 方法3: 通过表头文本匹配
+              const headerText = cell.querySelector('.t-table__th-cell-inner')?.textContent?.trim() || '';
+              colKey = titleToColKeyMap.get(headerText) || '';
+            }
+          }
+
+          // 如果当前列有过滤条件，添加选中样式
+          if (colKey && filteredColumnKeys.value.includes(colKey)) {
+            filterIcon.classList.add('is-filtered');
+          } else {
+            filterIcon.classList.remove('is-filtered');
+          }
+        });
+      });
+    };
+
+    /**
+     * 处理空状态操作
+     * @param type - 操作类型
+     */
+    const handleEmptyOperation = (type: string) => {
+      if (type === 'clear-filter') {
+        conditions.value = [];
+      }
+      searchKey.value = '';
+      reloadList();
+    };
+
+    const renderEmpty = (type: string) => (
+      <div class='table-empty-content'>
+        <EmptyStatus
+          emptyType={emptyType.value}
+          on-operation={() => handleEmptyOperation(type)}
+        />
+      </div>
+    );
+
     return () => (
       <div
         ref={containerRef}
@@ -1301,6 +1424,9 @@ export default defineComponent({
               </div>
             </div>
           </div>
+          {hasValidFilterConditions.value && tableList.value.length === 0 && (
+            <div class='filter-empty'>{renderEmpty('clear-filter')}</div>
+          )}
           <TConfigProvider
             class='log-collection-table'
             globalConfig={globalLocale}
@@ -1334,9 +1460,11 @@ export default defineComponent({
                     />
                   </div>
                 ),
+                empty: renderEmpty,
               }}
             />
           </TConfigProvider>
+
           {/* 一键检测弹窗 */}
           <bk-sideslider
             width={800}

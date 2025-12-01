@@ -186,7 +186,12 @@ export default defineComponent({
     const isClone = computed(() => route.query.type === 'clone');
     // 获取全局数据
     const globalsData = computed(() => store.getters['globals/globalsData']);
-    const environment = computed(() => (props.scenarioId === 'wineventlog' ? 'windows' : 'linux'));
+    const environment = computed(() => {
+      if (showClusterListKeys.includes(props.scenarioId)) {
+        return 'container';
+      }
+      return props.scenarioId === 'wineventlog' ? 'windows' : 'linux';
+    });
     // 是否是编辑或者克隆
     const isCloneOrUpdate = computed(() => props.isEdit || isClone.value);
     /**
@@ -1094,24 +1099,41 @@ export default defineComponent({
     };
 
     // 处理wineventlog场景的请求数据
-    const handleWineventlogRequestData = (baseParam, newParams, data_encoding) => {
+    const handleWineventlogRequestData = (baseParam, newParams, dataEncoding) => {
       const { paths, exclude_files, winlog_match_op, ...rect } = newParams;
       return {
         ...baseParam,
         params: rect,
-        data_encoding,
+        data_encoding: dataEncoding,
       };
+    };
+
+    /**
+     * 检查 extra_labels 是否所有值都为空
+     * @param extraLabels - 标签数组
+     * @returns 如果所有值都为空则返回 true
+     */
+    const isEmptyExtraLabels = (extraLabels: { key: string; value: string }[]): boolean => {
+      if (!extraLabels || !Array.isArray(extraLabels) || extraLabels.length === 0) {
+        return true;
+      }
+      // 检查所有项的 key 和 value 是否都为空
+      return extraLabels.every(item => {
+        const key = item?.key || '';
+        const value = item?.value || '';
+        return !key.trim() && !value.trim();
+      });
     };
 
     /**
      * 处理主机采集的请求数据
      * @param requestData
-     * @param extra_labels
+     * @param extraLabels
      * @returns
      */
-    const handleHostLogRequestData = (requestData, extra_labels, data_encoding) => {
-      requestData.params.extra_labels = extra_labels;
-      requestData.data_encoding = data_encoding;
+    const handleHostLogRequestData = (requestData, extraLabels, dataEncoding) => {
+      requestData.params.extra_labels = extraLabels;
+      requestData.data_encoding = dataEncoding;
       return requestData;
     };
 
@@ -1119,21 +1141,22 @@ export default defineComponent({
      * 处理容器采集的请求数据
      * @param requestData
      * @param configs
-     * @param add_pod_annotation
-     * @param add_pod_label
+     * @param addPodAnnotation
+     * @param addPodLabel
      * @param extra_labels
-     * @param bcs_cluster_id
+     * @param bcsClusterId
      * @returns
      */
     const handleContainerRequestData = (
       requestData,
       configs,
-      add_pod_annotation,
-      add_pod_label,
-      extra_labels,
-      bcs_cluster_id,
+      addPodAnnotation,
+      addPodLabel,
+      extraLabels,
+      bcsClusterId,
     ) => {
-      const { data_encoding, params, target_object_type, target_node_type, target_nodes, ...rect } = requestData;
+      const { params, ...rect } = requestData;
+      // const { data_encoding, params, target_object_type, target_node_type, target_nodes, ...rect } = requestData;
       const newConfig = (configs || []).map(item => {
         const { data_encoding, container, params, collector_type, namespaces, label_selector, annotation_selector } =
           item;
@@ -1151,13 +1174,15 @@ export default defineComponent({
           annotation_selector,
         };
       });
+      // 如果 extra_labels 所有值都为空，则设置为空数组
+      const finalExtraLabels = isEmptyExtraLabels(extraLabels) ? [] : extraLabels;
       return {
         ...rect,
         configs: newConfig,
-        add_pod_annotation,
-        add_pod_label,
-        extra_labels,
-        bcs_cluster_id,
+        add_pod_annotation: addPodAnnotation,
+        add_pod_label: addPodLabel,
+        extra_labels: finalExtraLabels,
+        bcs_cluster_id: bcsClusterId,
       };
     };
     /**
@@ -1261,7 +1286,9 @@ export default defineComponent({
      */
     const handleSubmitSave = () => {
       loadingSave.value = true;
-      isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
+      if (!showClusterListKeys.includes(props.scenarioId)) {
+        isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
+      }
       /**
        * 日志路径校验
        */
