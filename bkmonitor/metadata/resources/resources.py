@@ -14,6 +14,7 @@ import logging
 import tempfile
 import time
 import uuid
+from collections import defaultdict
 from itertools import chain
 from typing import Any
 
@@ -53,6 +54,8 @@ from metadata.models.bcs import (
     ServiceMonitorInfo,
 )
 from metadata.models.constants import (
+    BULK_CREATE_BATCH_SIZE,
+    BULK_UPDATE_BATCH_SIZE,
     DT_TIME_STAMP_NANO,
     NANO_FORMAT,
     DataIdCreatedFromSystem,
@@ -1590,6 +1593,181 @@ class QueryTimeSeriesGroupResource(Resource):
             return {"count": count, "info": results}
 
         return list(chain.from_iterable(instance.to_json_v2() for instance in query_set))
+
+
+class CreateOrUpdateTimeSeriesMetricResource(Resource):
+    """批量创建或更新自定义时序指标"""
+
+    # 默认的字段分组
+    DEFAULT_FIELD_SCOPE = "default"
+
+    class RequestSerializer(serializers.Serializer):
+        class MetricSerializer(serializers.Serializer):
+            """单个指标的序列化器"""
+
+            field_id = serializers.IntegerField(required=False, label="字段ID")
+            group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
+            field_name = serializers.CharField(required=False, label="指标字段名称", max_length=255)
+            tag_list = serializers.ListField(
+                required=False, label="Tag列表", default=list, child=serializers.CharField()
+            )
+            field_config = serializers.DictField(required=False, label="字段其他配置", default=dict)
+            label = serializers.CharField(required=False, label="指标监控对象", default="", max_length=255)
+
+        bk_tenant_id = TenantIdField(label="租户ID")
+        metrics = serializers.ListField(
+            required=True,
+            label="批量指标列表",
+            child=MetricSerializer(),
+            allow_empty=False,
+        )
+
+    def perform_request(self, validated_request_data):
+        """执行批量创建或更新时序指标的请求"""
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        metrics = validated_request_data.pop("metrics")
+
+        # 批量查找已存在的指标
+        field_ids = [m.get("field_id") for m in metrics if m.get("field_id")]
+        existing_metrics_map = (
+            {metric.field_id: metric for metric in models.TimeSeriesMetric.objects.filter(field_id__in=field_ids)}
+            if field_ids
+            else {}
+        )
+
+        # 分离需要创建和更新的指标
+        metrics_to_create = []
+        metrics_to_update = []
+
+        for metric_data in metrics:
+            metric_data_copy = metric_data.copy()
+            field_id = metric_data_copy.get("field_id")
+            metric = existing_metrics_map.get(field_id) if field_id else None
+
+            if metric is None:
+                # 准备创建
+                group_id = metric_data_copy.get("group_id")
+                if not group_id:
+                    raise ValueError(_("创建指标时，group_id为必填项"))
+                metrics_to_create.append((metric_data_copy, group_id))
+            else:
+                # 准备更新
+                metrics_to_update.append((metric, metric_data_copy))
+
+        # 批量创建新指标
+        if metrics_to_create:
+            self._batch_create_metrics(metrics_to_create, bk_tenant_id)
+
+        # 批量更新现有指标
+        if metrics_to_update:
+            self._batch_update_metrics(metrics_to_update)
+
+    def _batch_create_metrics(self, metrics_to_create, bk_tenant_id):
+        """批量创建新的时序指标"""
+        # 获取所有需要验证的group_id对应的time_series_group_id:table_id映射
+        group_ids = {group_id for _, group_id in metrics_to_create}
+        time_series_groups = models.TimeSeriesGroup.objects.filter(
+            time_series_group_id__in=group_ids,
+            bk_tenant_id=bk_tenant_id,
+            is_delete=False,
+        ).values("time_series_group_id", "table_id")
+        time_series_groups_map = {g["time_series_group_id"]: g["table_id"] for g in time_series_groups}
+
+        # 验证所有group_id是否存在
+        missing_group_ids = group_ids - set(time_series_groups_map.keys())
+        if missing_group_ids:
+            raise ValueError(
+                "自定义时序分组不存在，请确认后重试。缺失的分组ID: {}".format(", ".join(map(str, missing_group_ids)))
+            )
+
+        # 检查字段名称冲突
+        self._validate_field_name_conflicts(metrics_to_create)
+
+        # 准备批量创建的数据
+        records_to_create = []
+        for metric_data, group_id in metrics_to_create:
+            table_id = time_series_groups_map[group_id]
+
+            # 确保包含target维度
+            self._ensure_target_dimension_in_tags(metric_data)
+
+            # 生成table_id
+            self._generate_table_id(metric_data, table_id)
+
+            # 设置默认字段分组
+            metric_data["field_scope"] = self.DEFAULT_FIELD_SCOPE
+            metric_data["group_id"] = group_id
+
+            records_to_create.append(models.TimeSeriesMetric(**metric_data))
+
+        # 批量创建
+        models.TimeSeriesMetric.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
+
+    def _batch_update_metrics(self, metrics_to_update):
+        """批量更新现有的时序指标"""
+        updatable_fields = ["tag_list", "field_config", "label"]
+        records_to_update = []
+
+        for metric, validated_request_data in metrics_to_update:
+            # 如果更新tag_list，确保包含target维度
+            if "tag_list" in validated_request_data:
+                self._ensure_target_dimension_in_tags(validated_request_data)
+
+            # 更新字段值
+            for field in updatable_fields:
+                if field in validated_request_data:
+                    setattr(metric, field, validated_request_data[field])
+
+            records_to_update.append(metric)
+
+        # 批量更新
+        if records_to_update:
+            models.TimeSeriesMetric.objects.bulk_update(
+                records_to_update, updatable_fields, batch_size=BULK_UPDATE_BATCH_SIZE
+            )
+
+    def _validate_field_name_conflicts(self, metrics_to_create):
+        """检查字段名称冲突"""
+        group_field_names = defaultdict(list)
+        for metric_data, group_id in metrics_to_create:
+            field_name = metric_data.get("field_name")
+            if not field_name:
+                raise ValueError("创建指标时，field_name为必填项")
+            group_field_names[group_id].append(field_name)
+
+        for group_id, field_names in group_field_names.items():
+            existing_field_names = set(
+                models.TimeSeriesMetric.objects.filter(
+                    group_id=group_id,
+                    field_scope=self.DEFAULT_FIELD_SCOPE,
+                    field_name__in=field_names,
+                ).values_list("field_name", flat=True)
+            )
+            conflicting_names = set(field_names) & existing_field_names
+            if conflicting_names:
+                raise ValueError(
+                    "指标字段名称[{}]在default分组下已存在，请使用其他名称".format(", ".join(conflicting_names))
+                )
+
+    @staticmethod
+    def _ensure_target_dimension_in_tags(validated_request_data):
+        """确保tag_list中包含target维度"""
+        tag_list = validated_request_data.get("tag_list") or []
+        target_dimension = models.TimeSeriesMetric.TARGET_DIMENSION_NAME
+
+        if target_dimension not in tag_list:
+            validated_request_data["tag_list"] = tag_list + [target_dimension]
+
+    @staticmethod
+    def _generate_table_id(validated_request_data, table_id):
+        """生成table_id"""
+        field_name = validated_request_data.get("field_name")
+        if not field_name:
+            raise ValueError(_("生成table_id时，field_name为必填项"))
+
+        # 从time_series_group的table_id中提取数据库名
+        database_name = table_id.split(".")[0]
+        validated_request_data["table_id"] = f"{database_name}.{field_name}"
 
 
 class QueryBCSMetricsResource(Resource):

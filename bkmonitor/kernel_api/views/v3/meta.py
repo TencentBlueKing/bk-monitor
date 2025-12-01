@@ -179,6 +179,10 @@ class QueryTimeSeriesGroupViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryTimeSeriesGroupResource)]
 
 
+class CreateOrUpdateTimeSeriesMetricViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateTimeSeriesMetricResource)]
+
+
 class QueryTagValuesViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryTagValuesResource)]
 

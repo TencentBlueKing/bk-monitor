@@ -498,6 +498,36 @@ class QueryTimeSeriesGroupResource(CacheResource):
         )
 
 
+class CreateOrUpdateTimeSeriesMetricResource(MetaDataAPIGWResource):
+    """
+    批量创建或更新自定义时序指标
+    """
+
+    action = "/app/metadata/create_or_update_time_series_metric/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        class MetricSerializer(serializers.Serializer):
+            """单个指标的序列化器"""
+
+            field_id = serializers.IntegerField(required=False, label="字段ID")
+            group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
+            field_name = serializers.CharField(required=False, label="指标字段名称", max_length=255)
+            tag_list = serializers.ListField(
+                required=False, label="Tag列表", default=list, child=serializers.CharField()
+            )
+            field_config = serializers.DictField(required=False, label="字段其他配置", default=dict)
+            label = serializers.CharField(required=False, label="指标监控对象", default="", max_length=255)
+
+        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
+        metrics = serializers.ListField(
+            required=True,
+            label="批量指标列表",
+            child=MetricSerializer(),
+            allow_empty=False,
+        )
+
+
 class QueryTagValuesResource(MetaDataAPIGWResource):
     """
     查询指定tag/dimension valuestag/dimension values
