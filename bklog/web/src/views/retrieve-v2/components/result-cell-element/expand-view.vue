@@ -115,7 +115,7 @@
     },
     computed: {
       visibleFields() {
-        return this.$store.state.visibleFields ?? [];
+        return this.$store.getters.visibleFields ?? [];
       },
       totalFields() {
         return this.$store.state.indexFieldInfo.fields ?? [];

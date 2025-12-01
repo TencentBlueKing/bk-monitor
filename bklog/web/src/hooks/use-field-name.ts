@@ -95,9 +95,10 @@ export default ({ store }) => {
 
   const getFieldList = (withAliasFieldMap = false) => {
     if (withAliasFieldMap) {
-      return [].concat(store.state.indexFieldInfo.fields, store.state.indexFieldInfo.alias_field_list);
+      return store.state.indexFieldInfo.fields;
     }
-    return store.state.indexFieldInfo.fields;
+
+    return store.state.indexFieldInfo.fields.filter(field => !field.is_virtual_alias_field);
   };
 
   /**
@@ -114,12 +115,12 @@ export default ({ store }) => {
    * @param name  字段名field_name
    * @returns 返回拼接字段名
    */
-  const getQualifiedFieldName = (field_name: string, list?: FieldInfoItem[], withAliasFieldMap = false) => {
-    const field = (list || getFieldList(withAliasFieldMap)).filter(item => item.field_name === field_name);
+  const getQualifiedFieldName = (fieldName: string, list?: FieldInfoItem[], withAliasFieldMap = false) => {
+    const field = (list || getFieldList(withAliasFieldMap)).filter(item => item.field_name === fieldName);
     if (field[0].query_alias) {
-      return `${field[0].query_alias}(${field_name})`;
+      return `${field[0].query_alias}(${fieldName})`;
     }
-    return field_name;
+    return fieldName;
   };
 
   /**
@@ -131,12 +132,12 @@ export default ({ store }) => {
    * @returns
    */
   const getQualifiedFieldAttrs = (
-    field_name: string,
+    fieldName: string,
     list?: FieldInfoItem[],
     withAliasFieldMap = false,
     attrs: string[] = [],
   ) => {
-    const field = (list || getFieldList(withAliasFieldMap)).find(item => item.field_name === field_name);
+    const field = (list || getFieldList(withAliasFieldMap)).find(item => item.field_name === fieldName);
     const reduceFn = (acc, attr) => {
       if (attr !== 'field_name') {
         acc[attr] = field[attr];
@@ -144,9 +145,9 @@ export default ({ store }) => {
       return acc;
     };
     if (field?.query_alias) {
-      return attrs.reduce(reduceFn, { field_name: `${field.query_alias}(${field_name})` });
+      return attrs.reduce(reduceFn, { field_name: `${field.query_alias}(${fieldName})` });
     }
-    return attrs.reduce(reduceFn, { field_name });
+    return attrs.reduce(reduceFn, { field_name: fieldName });
   };
 
   return {
