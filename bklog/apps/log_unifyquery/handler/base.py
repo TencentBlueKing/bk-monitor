@@ -944,17 +944,23 @@ class UnifyQueryHandler:
         """
         处理响应中的有效数据, 生成聚合结果
         """
-        buckets = list()
+        buckets_dict = dict()
 
         for item in series:
             group_values = item.get("group_values")
             values = item.get("values")
 
             if group_values and values:
-                buckets.append({"key": group_values[0], "doc_count": values[0][1]})
+                key = group_values[0]
+                doc_count = values[0][1]
+                # 合并结果
+                if key not in buckets_dict:
+                    buckets_dict[key] = {"key": key, "doc_count": doc_count}
+                else:
+                    buckets_dict[key]["doc_count"] += doc_count
 
         # 按数量倒叙排序
-        buckets = sorted(buckets, key=lambda x: x.get("doc_count"), reverse=True)
+        buckets = sorted(buckets_dict.values(), key=lambda x: x.get("doc_count"), reverse=True)
 
         return {agg_field: {"buckets": buckets}} if buckets else dict()
 
