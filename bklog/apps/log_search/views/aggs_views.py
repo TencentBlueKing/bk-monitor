@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from rest_framework import serializers
 from rest_framework.response import Response
 
@@ -35,6 +35,7 @@ from apps.log_trace.serializers import (
     UnionSearchDateHistogramSerializer,
 )
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.log_unifyquery.handler.date_histogram import UnifyQueryDateHistogramHandler
 from apps.utils.drf import detail_route, list_route
 
 
@@ -259,6 +260,8 @@ class AggsViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UnionSearchDateHistogramSerializer)
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            return Response(UnifyQueryDateHistogramHandler(data).union_search_date_histogram())
         return Response(AggsViewAdapter().union_search_date_histogram(data))
 
     @list_route(methods=["POST"], url_path="aggs/union_search/terms")

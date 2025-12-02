@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import datetime
 import time
 
@@ -132,6 +132,8 @@ class DateHistogramSerializer(TraceSearchAttrSerializer):
     group_field = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     time_zone = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
+
 
 class UnionSearchDateHistogramSerializer(DateHistogramSerializer):
     index_set_ids = serializers.ListField(
@@ -140,7 +142,6 @@ class UnionSearchDateHistogramSerializer(DateHistogramSerializer):
     union_configs = serializers.ListField(
         label=_("索引集配置"), required=False, default=[], child=UnionConfigSerializer()
     )
-
 
 
 class UnionSearchAggsTermsSerializer(AggsTermsSerializer):
