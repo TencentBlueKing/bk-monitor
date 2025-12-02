@@ -118,7 +118,7 @@ def process_single_task(task: dict):
         logger.exception("Failed to process task, ID %s", task["id"])
         task_obj.process_status = TGPATaskProcessStatusEnum.FAILED.value
         task_obj.error_message = str(e)
-        task_obj.save(update_fields=["process_status"])
+        task_obj.save(update_fields=["process_status", "error_message"])
 
 
 @periodic_task(run_every=crontab(minute="0", hour="1"), queue="tgpa_task")
