@@ -29,6 +29,7 @@ import useLocale from '@/hooks/use-locale';
 import ItemSkeleton from '@/skeleton/item-skeleton';
 import tippy, { type Instance } from 'tippy.js';
 import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue';
+import { tenantManager } from '@/views/retrieve-core/tenant-manager';
 import {
   getScenarioIdType,
   formatBytes,
@@ -145,7 +146,7 @@ const HEIGHT_CONSTANTS = {
  * 延迟时间常量
  */
 const DELAY_CONSTANTS = {
-  MENU_POP_INIT: 1500, // 菜单弹窗初始化延迟
+  MENU_POP_INIT: 1000, // 菜单弹窗初始化延迟
   PAGINATION_HEIGHT_CALC: 150, // 分页高度计算延迟
   RESIZE_OBSERVER: 200, // 尺寸监听器延迟
 } as const;
@@ -202,6 +203,8 @@ export default defineComponent({
     const listLoading = ref(false);
     // 保存原始数据顺序的索引映射（用于恢复排序）
     const originalOrderMap = ref<Map<number | string, number>>(new Map());
+    // 用户信息映射（username -> display_name）
+    const userDisplayNameMap = ref<Map<string, string>>(new Map());
 
     // 容器和表格高度相关
     const containerRef = ref<HTMLElement | null>(null);
@@ -404,6 +407,19 @@ export default defineComponent({
       };
     };
 
+    /**
+     * 同步获取用户显示名称
+     * @param username - 用户名
+     * @returns JSX 元素
+     */
+    const getName = (username: string | undefined | null) => {
+      if (!username) {
+        return <span>--</span>;
+      }
+      const displayName = userDisplayNameMap.value.get(username) || username;
+      return <span>{displayName}</span>;
+    };
+
     // 所有列定义
     const allColumns = computed(() => [
       {
@@ -522,6 +538,7 @@ export default defineComponent({
         title: t('创建人'),
         colKey: 'created_by',
         width: 100,
+        cell: (h, { row }: { row: TableRowData }) => getName(row.created_by),
         filter: getColumnsFilter(filterValues.value.created_by),
       },
       {
@@ -535,6 +552,7 @@ export default defineComponent({
         title: t('更新人'),
         width: 100,
         colKey: 'updated_by',
+        cell: (h, { row }: { row: TableRowData }) => getName(row.updated_by),
         filter: getColumnsFilter(filterValues.value.updated_by),
       },
       {
@@ -636,7 +654,7 @@ export default defineComponent({
 
     watch(
       () => listLoading.value,
-      val => {
+      (val: boolean) => {
         if (!val) {
           setTimeout(() => {
             initMenuPop();
@@ -736,7 +754,7 @@ export default defineComponent({
         try {
           columnConfigTippyInstance.destroy();
         } catch (error) {
-          console.error('销毁列配置 tippy 实例失败:', error);
+          console.log('销毁列配置 tippy 实例失败:', error);
         }
         columnConfigTippyInstance = null;
       }
@@ -768,7 +786,7 @@ export default defineComponent({
           },
         });
       } catch (error) {
-        console.error('初始化列配置 tippy 实例失败:', error);
+        console.log('初始化列配置 tippy 实例失败:', error);
         columnConfigTippyInstance = null;
       }
     };
@@ -853,6 +871,7 @@ export default defineComponent({
     const getTableList = async () => {
       try {
         listLoading.value = true;
+        tableList.value = [];
         const { current, pageSize } = pagination.value;
         const params: Record<string, unknown> = {
           space_uid: spaceUid.value,
@@ -885,7 +904,7 @@ export default defineComponent({
 
         for (let index = 0; index < tableList.value.length; index++) {
           const item = tableList.value[index];
-          if (item.index_set_id != null) {
+          if (item.index_set_id !== null) {
             indexSetIds.push(item.index_set_id);
             originalOrderMap.value.set(item.index_set_id, index);
           }
@@ -895,11 +914,64 @@ export default defineComponent({
         if (indexSetIds.length > 0) {
           getStorageUsage(indexSetIds);
         }
+
+        // 批量获取用户信息
+        const userIds = new Set<string>();
+        for (const item of tableList.value) {
+          if (item.created_by) {
+            userIds.add(item.created_by);
+          }
+          if (item.updated_by) {
+            userIds.add(item.updated_by);
+          }
+        }
+        if (userIds.size > 0) {
+          tenantManager
+            .batchGetUserDisplayInfo(Array.from(userIds))
+            .then(userMap => {
+              // 更新用户信息映射（创建新 Map 以确保响应式更新）
+              const newMap = new Map(userDisplayNameMap.value);
+              for (const [userId, userInfo] of userMap.entries()) {
+                if (userInfo?.display_name) {
+                  newMap.set(userId, userInfo.display_name);
+                }
+              }
+              userDisplayNameMap.value = newMap;
+            })
+            .catch(error => {
+              console.log('批量获取用户信息失败:', error);
+            });
+        }
       } catch (error) {
         console.log('获取列表数据失败:', error);
       } finally {
         listLoading.value = false;
       }
+    };
+
+    /**
+     * 从过滤选项数组中提取用户ID
+     * @param items - 过滤选项数组
+     * @returns 用户ID数组
+     */
+    const extractUserIds = (items: Array<{ key?: string; [key: string]: unknown }>): string[] => {
+      return (items || []).map(item => item.key).filter(Boolean) as string[];
+    };
+
+    /**
+     * 处理过滤选项，添加用户显示名称
+     * @param items - 过滤选项数组
+     * @param userInfoMap - 用户信息映射
+     * @returns 处理后的过滤选项数组
+     */
+    const processFilterItemsWithUserInfo = (
+      items: Array<{ key?: string; label?: string; [key: string]: unknown }>,
+      userInfoMap: Map<string, { display_name: string }>,
+    ) => {
+      return (items || []).map(item => ({
+        ...item,
+        label: userInfoMap.get(item.key || '')?.display_name || item.key || item.label || '',
+      }));
     };
 
     /**
@@ -911,9 +983,28 @@ export default defineComponent({
           query: { space_uid: spaceUid.value },
         });
         if (res.data) {
+          const { created_by, updated_by } = res.data;
+
+          // 提取所有用户ID并去重
+          const createdByUserIds = extractUserIds(created_by || []);
+          const updatedByUserIds = extractUserIds(updated_by || []);
+          const allUserIds = [...new Set([...createdByUserIds, ...updatedByUserIds])];
+
+          // 批量获取用户信息
+          let userInfoMap = new Map<string, { display_name: string }>();
+          if (allUserIds.length > 0) {
+            userInfoMap = await tenantManager.batchGetUserDisplayInfo(allUserIds);
+          }
+
+          // 处理过滤选项，添加用户显示名称
+          const processedCreatedBy = processFilterItemsWithUserInfo(created_by || [], userInfoMap);
+          const processedUpdatedBy = processFilterItemsWithUserInfo(updated_by || [], userInfoMap);
+
           filterValues.value = {
             ...filterValues.value,
             ...res.data,
+            created_by: processedCreatedBy,
+            updated_by: processedUpdatedBy,
           };
         }
       } catch (error) {

@@ -56,7 +56,7 @@ import InputAddGroup from '../common-comp/input-add-group'; // 输入框组组�
 import AppendLogTags from '../business-comp/step2/container-collection/append-log-tags'; // 附加日志标签组件
 import ConfigurationItemList from '../business-comp/step2/container-collection/configuration-item-list'; // 配置项组件
 import { HOST_COLLECTION_CONFIG, CONTAINER_COLLECTION_CONFIG } from './defaultConfig'; // 默认配置
-// import IndexConfigImportDialog from '../business-comp/step2/index-config-import-dialog';
+import IndexConfigImportDialog from '../business-comp/step2/index-config-import-dialog';
 import $http from '@/api'; // API请求封装
 
 import './step2-configuration.scss'; // 样式文件
@@ -1409,12 +1409,13 @@ export default defineComponent({
             {t('取消')}
           </bk-button>
         </div>
-        {/* <IndexConfigImportDialog
+        <IndexConfigImportDialog
           showDialog={isIndexConfigImport.value}
+          scenarioId={props.scenarioId}
           on-cancel={(val: boolean) => {
             isIndexConfigImport.value = val;
           }}
-        /> */}
+        />
       </div>
     );
   },
