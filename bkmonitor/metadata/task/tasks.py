@@ -1907,7 +1907,7 @@ def create_single_tenant_system_datalink():
                 "storage_cluster_id": vm_cluster.cluster_id,
                 "bk_base_data_id": datasource.bk_data_id,
                 "bk_base_data_name": datasource.data_name,
-                "vm_result_table_id": f"1_base_{table}",
+                "vm_result_table_id": f"1_sys_{table}",
             },
         )
 
