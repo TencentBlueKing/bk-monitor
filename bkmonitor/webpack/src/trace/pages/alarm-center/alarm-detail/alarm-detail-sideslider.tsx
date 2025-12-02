@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, provide, shallowReactive, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent, onMounted, provide, shallowReactive, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import * as authMap from 'monitor-pc/pages/event-center/authority-map';
 import { storeToRefs } from 'pinia';
 
 import DetailCommon from '../common-detail/common-detail';
+import { AlarmType } from '../typings';
 import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
@@ -46,6 +47,10 @@ export default defineComponent({
       type: String,
       required: true,
     },
+    alarmType: {
+      type: String as PropType<AlarmType>,
+      default: AlarmType.ALERT,
+    },
     show: {
       type: Boolean,
       required: true,
@@ -60,7 +65,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const isFullscreen = shallowRef(false);
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmId } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, alarmType } = storeToRefs(alarmCenterDetailStore);
     const authorityStore = useAuthorityStore();
     const authority = shallowReactive<IAuthority>({
       map: authMap,
@@ -73,8 +78,18 @@ export default defineComponent({
     watch(
       () => props.alarmId,
       newVal => {
-        if (newVal) {
+        if (newVal !== alarmId.value) {
           alarmId.value = newVal;
+        }
+      },
+      { immediate: true }
+    );
+
+    watch(
+      () => props.alarmType,
+      newVal => {
+        if (newVal !== alarmType.value) {
+          alarmType.value = newVal;
         }
       },
       { immediate: true }

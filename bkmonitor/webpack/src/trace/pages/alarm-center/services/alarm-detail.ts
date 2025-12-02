@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { alertDetail, listAlertFeedback } from 'monitor-api/modules/alert';
+import { actionDetail, alertDetail, listAlertFeedback } from 'monitor-api/modules/alert';
 import { scenarioMetricList } from 'monitor-api/modules/k8s';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
+import { type IActionDetail, ActionDetail } from '../typings/action-detail';
 import { AlarmDetail } from '../typings/detail';
 
 import type { IAlarmDetail } from '../typings/detail';
@@ -40,6 +41,15 @@ export const fetchAlarmDetail = (id: string): Promise<AlarmDetail | null> => {
     id,
   })
     .then(res => new AlarmDetail(res))
+    .catch(() => null);
+};
+
+export const fetchActionDetail = (id: string): Promise<ActionDetail | null> => {
+  if (!id) return Promise.resolve(null);
+  return actionDetail<IActionDetail>({
+    id,
+  })
+    .then(res => new ActionDetail(res))
     .catch(() => null);
 };
 

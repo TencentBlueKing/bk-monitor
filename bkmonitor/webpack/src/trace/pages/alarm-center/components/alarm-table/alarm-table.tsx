@@ -101,6 +101,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 表格默认选中高亮的行 */
+    defaultActiveRowKeys: {
+      type: Array as PropType<(number | string)[]>,
+      default: () => [],
+    },
   },
   emits: {
     currentPageChange: (currentPage: number) => typeof currentPage === 'number',
@@ -282,6 +287,7 @@ export default defineComponent({
           autoFillSpace={false}
           columns={this.transformedColumns}
           data={this.data}
+          defaultActiveRowKeys={this.defaultActiveRowKeys}
           empty={this.tableEmpty}
           loading={this.loading}
           pagination={this.pagination}

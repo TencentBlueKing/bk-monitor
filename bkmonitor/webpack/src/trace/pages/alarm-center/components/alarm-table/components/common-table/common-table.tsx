@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { type BkUiSettings, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { Exception, Pagination } from 'bkui-vue';
@@ -120,6 +120,11 @@ export default defineComponent({
     customCellRenderMap: {
       type: Object as PropType<Record<string, TableCellRenderer>>,
     },
+    /** 表格默认选中高亮的行 */
+    defaultActiveRowKeys: {
+      type: Array as PropType<(number | string)[]>,
+      default: () => [],
+    },
   },
   emits: {
     currentPageChange: (currentPage: number) => typeof currentPage === 'number',
@@ -143,7 +148,7 @@ export default defineComponent({
         selector: `.${COMMON_TABLE_ELLIPSIS_CLASS_NAME}`,
       },
     });
-
+    const activeRowKeys = shallowRef([]);
     /** 处理后的表格列配置 */
     const tableColumns = computed(() =>
       props.columns.map(column => ({
@@ -193,6 +198,13 @@ export default defineComponent({
 
       return parsedSorts;
     });
+
+    watch(
+      () => props.defaultActiveRowKeys,
+      val => {
+        activeRowKeys.value = val;
+      }
+    );
 
     onMounted(() => {
       setTimeout(() => {
@@ -291,6 +303,7 @@ export default defineComponent({
       tableSort,
       showPagination,
       tableSkeletonConfig,
+      activeRowKeys,
       tableCellRender,
       handleSortChange,
       handleCurrentPageChange,
@@ -307,6 +320,7 @@ export default defineComponent({
         <PrimaryTable
           ref='tableRef'
           class={`common-table ${this.tableSkeletonConfig?.tableClass}`}
+          v-model:activeRowKeys={this.activeRowKeys}
           v-slots={{
             empty: this.tableEmptyRender,
           }}
