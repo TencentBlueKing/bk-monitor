@@ -63,6 +63,13 @@ export default class PanelKeySelect extends tsc<IProps, IEmit> {
     return _.every(this.renderMetricsList, item => item.dimensions.length < 1);
   }
 
+  // 直接输入搜索的内容是否已存在
+  get hasExactMatch() {
+    return _.some(this.renderMetricsList, item =>
+      item.dimensions.some(dimensions => dimensions.alias === this.filterKey || dimensions.name === this.filterKey)
+    );
+  }
+
   @Watch('metricsList', { immediate: true })
   metricsListChange() {
     this.filterKey = '';
@@ -216,6 +223,25 @@ export default class PanelKeySelect extends tsc<IProps, IEmit> {
           class='wrapper'
           onMouseleave={this.handleMouseleave}
         >
+          {this.filterKey && !this.hasExactMatch && (
+            <div key='customInput'>
+              <div
+                class={['key-item', { 'is-selected': this.value === this.filterKey }]}
+                v-bk-tooltips={{
+                  content: this.filterKey,
+                  placement: 'left',
+                }}
+                onClick={() => this.handleChange(this.filterKey)}
+              >
+                <i18n
+                  class='highlight-wrap'
+                  path='直接输入 "{0}"'
+                >
+                  <span class='highlight'>{this.filterKey}</span>
+                </i18n>
+              </div>
+            </div>
+          )}
           {!this.isFilterEmpty &&
             this.renderMetricsList.map(metricsItem => (
               <div key={metricsItem.metric_name}>
@@ -241,7 +267,7 @@ export default class PanelKeySelect extends tsc<IProps, IEmit> {
                 ))}
               </div>
             ))}
-          {this.isFilterEmpty && (
+          {this.isFilterEmpty && !this.filterKey && (
             <bk-exception
               key='search-empty'
               style='margin-top: 80px'
