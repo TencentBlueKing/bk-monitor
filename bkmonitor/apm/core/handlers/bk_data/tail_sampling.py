@@ -172,7 +172,7 @@ class TailSamplingFlow(ApmFlow):
 
     @property
     def cleans_table_id(self):
-        return f"{self.cleans_names}_{self.app_name}"[:50]
+        return f"{self.cleans_names}_{self.app_name.replace('-', '_')}"[:50]
 
     @classmethod
     def get_deploy_params(cls, bk_biz_id, data_id, operator, name, deploy_description=None, extra_maintainers=None):
