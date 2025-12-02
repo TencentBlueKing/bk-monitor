@@ -15,6 +15,7 @@ import logging
 import os
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import jmespath
@@ -52,6 +53,7 @@ from constants.action import (
     NoticeType,
     NoticeWay,
     NotifyStep,
+    VoiceNoticeMode,
 )
 
 from .utils import (
@@ -129,6 +131,8 @@ class BaseActionProcessor:
             self.notice_receivers if isinstance(self.notice_receivers, list) else [self.notice_receivers]
         )
         self.notice_way_display = get_notice_display_mapping(self.context.get("notice_way", ""))
+        self.voice_notice_mode = self.action.inputs.get("voice_notice_mode", VoiceNoticeMode.SERIAL)
+        self.voice_notice_group = self.action.inputs.get("voice_notice_group", None)
         self.is_finished = self.action.status in ActionStatus.END_STATUS
 
         logger.info("load BaseActionProcessor for action(%s) finished", action_id)
@@ -601,6 +605,12 @@ class BaseActionProcessor:
                     )
                 )
                 continue
+
+            if self.voice_notice_mode == VoiceNoticeMode.PARALLEL and self.voice_notice_group:
+                parallel_results = self.parallel_notify_sender(notify_sender, notice_way, self.voice_notice_group)
+                notice_result[notice_way].append(parallel_results)
+                continue
+
             for notice_receiver in notice_receivers:
                 # 当为电话通知的时候，直接打电话
                 notice_result[notice_way].append(
@@ -667,3 +677,42 @@ class BaseActionProcessor:
                 ActionStatus.FAILURE,
                 message=_("异常防御审批执行时间套餐配置30分钟, 撤回单据失败，错误信息：{}").format(str(error)),
             )
+
+    def parallel_notify_sender(self, notify_sender, notice_way, voice_notice_group) -> dict:
+        """
+        并行发送通知
+        """
+        notice_results = {}
+
+        def send_to_group(user_group):
+            """发送语音通知到单个用户组"""
+            group_receivers = list(user_group)
+            return notify_sender.send(
+                notice_way,
+                notice_receivers=group_receivers,
+            )
+
+        # 使用线程池并行发送，最大并发数为用户组数量（通常不会太多）
+        max_workers = min(len(voice_notice_group), 10)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 提交所有任务
+            future_to_group = {
+                executor.submit(send_to_group, user_group): user_group for user_group in self.voice_notice_group
+            }
+
+            # 收集结果
+            for future in as_completed(future_to_group):
+                try:
+                    group_result = future.result()
+                    notice_results.update(group_result)
+                except Exception as error:
+                    user_group = future_to_group[future]
+                    logger.exception(f"Failed to send voice notice to group {user_group}: {error}")
+                    # 记录失败结果
+                    notice_results[",".join(user_group)] = {
+                        "result": False,
+                        "failure_type": FailureType.EXECUTE_ERROR,
+                        "message": str(error),
+                    }
+
+        return notice_results

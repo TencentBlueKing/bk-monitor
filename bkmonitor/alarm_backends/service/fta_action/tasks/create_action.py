@@ -39,6 +39,7 @@ from constants.action import (
     ActionSignal,
     IntervalNotifyMode,
     UserGroupType,
+    VoiceNoticeMode,
 )
 from constants.alert import EventSeverity, EventStatus, HandleStage
 from core.errors.alarm_backends import LockError
@@ -946,6 +947,36 @@ class CreateActionProcessor:
                 follow_notify_info[notice_way] = valid_receivers
             inputs["notify_info"] = notify_info
             inputs["follow_notify_info"] = follow_notify_info
+
+            voice_notice = (
+                action_config.get("execute_config", {})
+                .get("template_detail", {})
+                .get("voice_notice", VoiceNoticeMode.SERIAL)
+            )
+
+            # 设置语音通知模式
+            inputs["voice_notice_mode"] = voice_notice
+
+            # 如果告警组语音通知方式为并行，则获取告警组语音通知人
+            if voice_notice == VoiceNoticeMode.PARALLEL:
+                all_groups = assignee_manager.get_appointees(
+                    action_id=action_config["id"], by_group=True
+                ) or assignee_manager.get_origin_notice_receivers(by_group=True)
+
+                # 获取 MAIN 类型的用户组 ID 列表
+                if assignee_manager.is_matched:
+                    main_group_ids = assignee_manager.get_notice_appointees_object().user_groups
+                else:
+                    main_group_ids = assignee_manager.origin_notice_users_object.user_groups
+
+                # 只保留 MAIN 类型的用户组，并转换为元组列表
+                voice_notice_group = set()
+                for group_id, users in all_groups.items():
+                    if group_id in main_group_ids and users:
+                        voice_notice_group.add(tuple(users))
+
+                inputs["voice_notice_group"] = voice_notice_group
+
         try:
             # TODO: 如果有更多的处理场景，需要将二次确认的处理提到更前端
             DoubleCheckHandler(alert).handle(inputs)
