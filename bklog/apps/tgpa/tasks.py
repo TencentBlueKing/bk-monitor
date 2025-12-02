@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from celery.schedules import crontab
+from django.utils import timezone
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.tgpa.constants import TGPA_TASK_EXE_CODE_SUCCESS, TGPATaskProcessStatusEnum, FEATURE_TOGGLE_TGPA_TASK
@@ -41,20 +42,61 @@ def fetch_and_process_tgpa_tasks():
     bk_biz_id_list = feature_toggle.biz_id_white_list or []
 
     for bk_biz_id in bk_biz_id_list:
+        logger.info("Begin to sync client log tasks, business ID: %s", bk_biz_id)
         try:
             # 确保已经创建采集配置
             TGPATaskHandler.get_or_create_collector_config(bk_biz_id)
-            # 请求接口获取任务列表，过滤掉已经处理过的任务
+            # 获取任务列表，存量的任务只同步数据，不处理任务
             task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
-            processed_ids = set(TGPATask.objects.filter(bk_biz_id=bk_biz_id).values_list("task_id", flat=True))
-            new_tasks = [task for task in task_list if task["id"] not in processed_ids]
+            if not TGPATask.objects.filter(bk_biz_id=bk_biz_id).exists():
+                TGPATask.objects.bulk_create(
+                    [
+                        TGPATask(
+                            bk_biz_id=bk_biz_id,
+                            task_id=task["id"],
+                            log_path=task["log_path"],
+                            task_status=task["status"],
+                            file_status=task["exe_code"],
+                            process_status=TGPATaskProcessStatusEnum.INIT.value,
+                        )
+                        for task in task_list
+                    ]
+                )
+                continue
         except Exception:
+            logger.exception("Failed to sync client log tasks, business ID: %s", bk_biz_id)
             continue
 
-        for task in new_tasks:
-            if task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
-                TGPATask.objects.create(bk_biz_id=bk_biz_id, task_id=task["id"], log_path=task["log_path"])
-                process_single_task.delay(task)
+        # 对比任务列表和数据库中的任务
+        existed_tasks = TGPATask.objects.filter(bk_biz_id=bk_biz_id)
+        task_map = {task.task_id: task for task in existed_tasks}
+        for task in task_list:
+            if task_obj := task_map.get(task["id"]):
+                # 如果文件状态发生变化，并且文件状态为上传成功，处理任务
+                if task["exe_code"] != task_obj.file_status and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
+                    task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
+                    task_obj.save(update_fields=["process_status"])
+                    process_single_task.delay(task)
+                # 如果任务状态发生变化，更新任务状态
+                if task_obj.task_status != task["status"] or task_obj.file_status != task["exe_code"]:
+                    task_obj.task_status = task["status"]
+                    task_obj.file_status = task["exe_code"]
+                    task_obj.save(update_fields=["task_status", "file_status"])
+            else:
+                task_obj, created = TGPATask.objects.get_or_create(
+                    task_id=task["id"],
+                    defaults={
+                        "bk_biz_id": task["cc_id"],
+                        "log_path": task["log_path"],
+                        "task_status": task["status"],
+                        "file_status": task["exe_code"],
+                        "process_status": TGPATaskProcessStatusEnum.INIT.value,
+                    },
+                )
+                if created and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
+                    task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
+                    task_obj.save(update_fields=["process_status"])
+                    process_single_task.delay(task)
 
 
 @app.task(ignore_result=True, queue="tgpa_task")
@@ -62,15 +104,31 @@ def process_single_task(task: dict):
     """
     异步处理单个任务
     """
+    logger.info("Begin to process task, ID: %s", task["id"])
     task_obj = TGPATask.objects.get(task_id=task["id"])
-    task_obj.process_status = TGPATaskProcessStatusEnum.PROCESSING.value
-    task_obj.save()
+    if task_obj.process_status != TGPATaskProcessStatusEnum.PENDING.value:
+        return
+
+    task_obj.process_status = TGPATaskProcessStatusEnum.RUNNING.value
+    task_obj.processed_at = timezone.now()
+    task_obj.save(update_fields=["process_status", "processed_at"])
     try:
         TGPATaskHandler(bk_biz_id=task["cc_id"], task_info=task).download_and_process_file()
         task_obj.process_status = TGPATaskProcessStatusEnum.SUCCESS.value
-        task_obj.save()
+        task_obj.save(update_fields=["process_status"])
+        logger.info("Successfully processed task, ID: %s", task["id"])
     except Exception as e:
-        logger.exception("failed to process task %s", task["id"])
+        logger.exception("Failed to process task, ID %s", task["id"])
         task_obj.process_status = TGPATaskProcessStatusEnum.FAILED.value
         task_obj.error_message = str(e)
-        task_obj.save()
+        task_obj.save(update_fields=["process_status", "error_message"])
+
+
+@periodic_task(run_every=crontab(minute="0", hour="1"), queue="tgpa_task")
+def clear_expired_files():
+    """
+    清理过期文件
+    """
+    logger.info("Begin to clear expired client log files")
+    TGPATaskHandler.clear_expired_files()
+    logger.info("Successfully cleared expired client log files")

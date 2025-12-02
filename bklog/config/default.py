@@ -674,9 +674,9 @@ MENUS = [
                         "icon": "document",
                     },
                     {
-                        "id": "client_log",
+                        "id": "tgpa_task",
                         "name": _("客户端日志"),
-                        "feature": "on",
+                        "feature": "debug",
                         "icon": "document",
                     },
                     {

@@ -34,7 +34,7 @@ TGPA_TASK_COLLECTOR_CONFIG_NAME_EN = "tgpa_task_client_log"
 
 TGPA_TASK_ETL_PARAMS = {
     "retain_original_text": False,
-    "retain_extra_json": True,
+    "retain_extra_json": False,
     "enable_retain_content": True,
     "record_parse_failure": True,
 }
@@ -123,6 +123,9 @@ TGPA_TASK_ETL_FIELDS = [
     },
 ]
 
+CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "path", "lineno"]
+LOG_FILE_EXPIRE_DAYS = 3
+
 
 class TGPATaskTypeEnum(ChoicesEnum):
     """任务类型"""
@@ -183,14 +186,16 @@ class TGPATaskFrequencyEnum(ChoicesEnum):
 class TGPATaskProcessStatusEnum(ChoicesEnum):
     """任务处理状态"""
 
+    INIT = "init"
     PENDING = "pending"
-    PROCESSING = "running"
+    RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
 
     _choices_labels = (
+        (INIT, _("初始化")),
         (PENDING, _("待处理")),
-        (PROCESSING, _("处理中")),
+        (RUNNING, _("处理中")),
         (SUCCESS, _("成功")),
         (FAILED, _("失败")),
     )
