@@ -37,7 +37,7 @@ from bkmonitor.utils.time_tools import (
     utc2localtime,
 )
 from constants.action import ActionPluginType, ActionSignal, ConvergeType
-from constants.alert import EVENT_STATUS_DICT, TARGET_DIMENSIONS, EventStatus, EventTargetType, AlertRedirectType
+from constants.alert import EVENT_STATUS_DICT, CMDB_TARGET_DIMENSIONS, EventStatus, EventTargetType, AlertRedirectType
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 from constants.apm import ApmAlertHelper
 from core.errors.alert import AIOpsFunctionAccessedError
@@ -122,7 +122,7 @@ class Alarm(BaseContextObject):
 
             dimensions = {d["key"]: d for d in alert.target_dimensions}
             display_dimensions = []
-            for key in TARGET_DIMENSIONS:
+            for key in CMDB_TARGET_DIMENSIONS:
                 if key not in dimensions or key == "bk_cloud_id":
                     # 云区域ID暂时去掉
                     continue
@@ -959,7 +959,7 @@ class Alarm(BaseContextObject):
             return None
 
         return ApmAlertHelper.get_trace_url(
-            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, self.begin_timestamp, self.duration
+            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, alert.event.time, self.duration
         )
 
     @cached_property
@@ -969,7 +969,7 @@ class Alarm(BaseContextObject):
             return None
 
         return ApmAlertHelper.get_rpc_url(
-            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, self.begin_timestamp, self.duration
+            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, alert.event.time, self.duration
         )
 
     @cached_property

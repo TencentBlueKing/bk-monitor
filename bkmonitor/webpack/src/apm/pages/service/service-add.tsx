@@ -23,13 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Prop } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 import * as tsx from 'vue-tsx-support';
 
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 
-import authorityMixinCreate from '../../mixins/authorityMixin';
-import * as authorityMap from './../home/authority-map';
 import ServiceApply from './data-guide';
 
 import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -43,7 +42,7 @@ interface IProps {
 
 Component.registerHooks(['beforeRouteEnter']);
 @Component
-class ServiceAdd extends Mixins(authorityMixinCreate(authorityMap)) {
+class ServiceAdd extends tsc<undefined> {
   @Prop({ type: String, default: '' }) pluginId: IProps['pluginId'];
   @Prop({ type: String, default: '' }) appName: IProps['appName'];
   guideUrl: string;

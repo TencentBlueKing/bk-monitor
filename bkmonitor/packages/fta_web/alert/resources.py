@@ -655,8 +655,15 @@ class AlertDetailResource(Resource):
         topo_info = result["extend_info"].get("topo_info", "")
         result["relation_info"] = f"{topo_info} {relation_info}"
         self.add_project_name(result)
-
+        self.add_graph_extra_info(alert, result)
         return result
+
+    @classmethod
+    def add_graph_extra_info(cls, alert, data):
+        """
+        丰富图表额外信息(v2版本接口hook)
+        """
+        return data
 
     @classmethod
     def add_project_name(cls, data):
@@ -1271,63 +1278,6 @@ class AckAlertResource(Resource):
             "alerts_not_exist": list(alerts_not_exist),
             "alerts_already_ack": list(alerts_already_ack),
             "alerts_not_abnormal": list(alerts_not_abnormal),
-        }
-
-
-class CloseAlertResource(Resource):
-    """
-    告警关闭
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        ids = serializers.ListField(label="告警ID列表", child=AlertIDField())
-        message = serializers.CharField(allow_blank=True, label="确认信息", default="")
-
-    def perform_request(self, validated_request_data: dict[str, Any]):
-        alert_ids = validated_request_data["ids"]
-
-        # 需要关闭的告警
-        alerts_should_close = set()
-        # 已经结束的告警
-        alerts_already_end = set()
-
-        alerts = AlertDocument.mget(alert_ids)
-
-        for alert in alerts:
-            # 告警状态为异常且未确认，则需要关闭
-            if alert.status == EventStatus.ABNORMAL and not alert.is_ack:
-                alerts_should_close.add(alert.id)
-            else:
-                alerts_already_end.add(alert.id)
-
-        # 不存在的告警
-        alerts_not_exist = set(alert_ids) - alerts_should_close - alerts_already_end
-
-        now_time = int(time.time())
-        # 保存流水日志
-        AlertLog(
-            alert_id=list(alerts_should_close),
-            op_type=AlertLog.OpType.CLOSE,
-            create_time=now_time,
-            description=validated_request_data["message"],
-            operator=get_request_username(),
-        ).save()
-
-        # 更新告警确认状态
-        alert_documents = [
-            AlertDocument(
-                id=alert_id,
-                status=EventStatus.CLOSED,
-                update_time=now_time,
-            )
-            for alert_id in alerts_should_close
-        ]
-        AlertDocument.bulk_create(alert_documents, action=BulkActionType.UPDATE)
-        return {
-            "alerts_close_success": list(alerts_should_close),
-            "alerts_not_exist": list(alerts_not_exist),
-            "alerts_already_end": list(alerts_already_end),
         }
 
 

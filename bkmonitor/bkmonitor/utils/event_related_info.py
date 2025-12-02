@@ -11,16 +11,17 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+from typing import Any
 from urllib.parse import urlencode
 
 import arrow
 from django.conf import settings
 
-from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source import load_data_source, DataSource, UnifyQuery
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import Event, QueryConfigModel
 from bkmonitor.utils import time_tools
-from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.data_source import DataSourceLabel, DataTypeLabel, GrayUnifyQueryDataSources
 
 __all__ = ["get_event_relation_info", "get_alert_relation_info"]
 
@@ -50,20 +51,11 @@ def get_event_relation_info(event: Event):
     ):
         return ""
 
-    query_config = event.origin_config["items"][0]["query_configs"][0]
-    data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
-    data_source = data_source_class.init_by_query_config(query_config, bk_biz_id=event.bk_biz_id)
-
-    data_source.filter_dict.update(
-        {
-            key: value
-            for key, value in event.origin_alarm["data"]["dimensions"].items()
-            if key in query_config.get("agg_dimension", [])
-        }
-    )
-
+    bk_biz_id: int = event.bk_biz_id
+    query_config: dict[str, Any] = event.origin_config["items"][0]["query_configs"][0]
+    dimensions: dict[str, str] = event.origin_alarm.get("data", {}).get("dimensions", {})
     content = get_data_source_log(
-        event, data_source, query_config, int(event.latest_anomaly_record.source_time.timestamp())
+        bk_biz_id, query_config, dimensions, int(event.latest_anomaly_record.source_time.timestamp())
     )
     return content[: settings.EVENT_RELATED_INFO_LENGTH] if settings.EVENT_RELATED_INFO_LENGTH else content
 
@@ -278,20 +270,12 @@ def get_clustering_log(
 
 
 def get_alert_relation_info_for_log(alert: AlertDocument, is_raw=False):
-    query_config = alert.strategy["items"][0]["query_configs"][0]
-    data_source_class = load_data_source(query_config["data_source_label"], query_config["data_type_label"])
-    data_source = data_source_class.init_by_query_config(query_config, bk_biz_id=alert.event.bk_biz_id)
-
-    data_source.filter_dict.update(
-        {
-            key: value
-            for key, value in alert.origin_alarm.get("data", {}).get("dimensions", {}).items()
-            if key in query_config.get("agg_dimension", [])
-        }
-    )
+    bk_biz_id: int = alert.event.bk_biz_id
     retry_interval = settings.DELAY_TO_GET_RELATED_INFO_INTERVAL
+    query_config: dict[str, Any] = alert.strategy["items"][0]["query_configs"][0]
+    dimensions: dict[str, str] = alert.origin_alarm.get("data", {}).get("dimensions", {})
     try:
-        content = get_data_source_log(alert, data_source, query_config, alert.event.time, is_raw)
+        content = get_data_source_log(bk_biz_id, query_config, dimensions, alert.event.time, is_raw)
         if content:
             return content
         logger.info("alert(%s) related info is empty, try again after %s ms", alert.id, retry_interval)
@@ -300,42 +284,54 @@ def get_alert_relation_info_for_log(alert: AlertDocument, is_raw=False):
 
     # 当第一次获取失败之后，再重新获取一次
     time.sleep(retry_interval / 1000)
-    return get_data_source_log(alert, data_source, query_config, alert.event.time, is_raw)
+    return get_data_source_log(bk_biz_id, query_config, dimensions, alert.event.time, is_raw)
 
 
-def get_data_source_log(alert, data_source, query_config, source_time, is_raw=False):
+def get_data_source_log(
+    bk_biz_id: int, query_config: dict[str, Any], dimensions: dict[str, str], source_time: int, is_raw=False
+) -> str:
     """
-    查询时间为事件开始到5个周期后
-    :param alert:
-    :param data_source:
-    :param query_config:
-    :param source_time:
+    查询指定数据源日志
+    :param bk_biz_id: 业务 ID
+    :param query_config: 查询配置
+    :param dimensions: 告警维度
+    :param source_time: 异常事件时间戳
     :param is_raw:
     :return:
     """
+
+    data_source_key: tuple[str, str] = (query_config["data_source_label"], query_config["data_type_label"])
+    data_source: DataSource = load_data_source(*data_source_key).init_by_query_config(query_config, bk_biz_id=bk_biz_id)
+    data_source.filter_dict.update(
+        {key: value for key, value in dimensions.items() if key in query_config.get("agg_dimension", [])}
+    )
+
     # 查询时间为事件开始到5个周期后
-    interval = query_config.get("agg_interval", 60)
+    interval: int = query_config.get("agg_interval", 60)
     start_time = int(source_time) - 5 * interval
     end_time = int(source_time) + interval
-    records, _ = data_source.query_log(start_time=start_time * 1000, end_time=end_time * 1000, limit=1)
+    if data_source_key in GrayUnifyQueryDataSources:
+        # 支持 UnifyQuery 的数据源通过 UnifyQuery 模块进行查询，以支持多数据源联合查询的灰度能力。
+        uq: UnifyQuery = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="")
+        records, __ = uq.query_log(start_time * 1000, end_time * 1000, limit=1)
+    else:
+        records, __ = data_source.query_log(start_time=start_time * 1000, end_time=end_time * 1000, limit=1)
+
     if not records:
         return ""
 
     record = records[0]
-    if (
-        query_config["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH
-        and query_config["data_type_label"] == DataTypeLabel.LOG
-    ):
+    if data_source_key in ((DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),):
         index_set_id = query_config["index_set_id"]
         start_time_str = time_tools.utc2biz_str(start_time)
         end_time_str = time_tools.utc2biz_str(end_time)
         addition = [
             {"field": dimension_field, "operator": "=", "value": dimension_value}
-            for dimension_field, dimension_value in alert.origin_alarm.get("data", {}).get("dimensions", {}).items()
+            for dimension_field, dimension_value in dimensions.items()
             if dimension_field in query_config.get("agg_dimension", [])
         ]
         params = {
-            "bizId": alert.event.bk_biz_id,
+            "bizId": bk_biz_id,
             "addition": json.dumps(addition),
             "start_time": start_time_str,
             "end_time": end_time_str,

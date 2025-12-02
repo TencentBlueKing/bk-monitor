@@ -519,8 +519,6 @@ def test_create_and_modify_result_table_resource_with_bk_biz_id_alias(
 
     rt_ins = models.ResultTable.objects.get(table_id="2_bklog.rt_create")
     assert rt_ins.bk_biz_id_alias == "dimensions.bk_biz_id"
-    rt_alias_ins = models.SpaceTypeToResultTableFilterAlias.objects.get(table_id="2_bklog.rt_create")
-    assert rt_alias_ins.filter_alias == "dimensions.bk_biz_id"
 
     modify_params = dict(
         table_id="2_bklog.rt_create",
@@ -572,5 +570,3 @@ def test_create_and_modify_result_table_resource_with_bk_biz_id_alias(
 
     rt_ins = models.ResultTable.objects.get(table_id="2_bklog.rt_create")
     assert rt_ins.bk_biz_id_alias == "tags.bk_biz_id"
-    rt_alias_ins = models.SpaceTypeToResultTableFilterAlias.objects.get(table_id="2_bklog.rt_create")
-    assert rt_alias_ins.filter_alias == "tags.bk_biz_id"

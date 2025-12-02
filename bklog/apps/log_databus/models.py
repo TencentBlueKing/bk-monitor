@@ -191,6 +191,7 @@ class CollectorConfig(CollectorBase):
     is_display = models.BooleanField(_("采集项是否对用户可见"), default=True)
     log_group_id = models.BigIntegerField(_("自定义日志组ID"), null=True, blank=True)
     is_nanos = models.BooleanField(_("采集项是否为纳秒采集"), default=False)
+    enable_v4 = models.BooleanField(_("采集项是否为v4链路"), default=False)
 
     def get_name(self):
         return self.collector_config_name

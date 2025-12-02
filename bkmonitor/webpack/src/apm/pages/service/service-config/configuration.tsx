@@ -23,12 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide } from 'vue-property-decorator';
+import { Component } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 
-import authorityMixinCreate from '../../../mixins/authorityMixin';
-import * as authorityMap from '../../home/authority-map';
 import BasicInfo from './basic-info';
 
 import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -36,10 +35,7 @@ import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
 import './configuration.scss';
 
 @Component
-export default class ApplicationConfiguration extends Mixins(authorityMixinCreate(authorityMap)) {
-  @Provide('authority') authority;
-  @Provide('handleShowAuthorityDetail') handleShowAuthorityDetail;
-
+export default class ApplicationConfiguration extends tsc<undefined> {
   activeMenu = 'baseInfo';
   appName = '';
   serviceName = '';
