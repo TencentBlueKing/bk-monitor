@@ -71,12 +71,16 @@ def fetch_and_process_tgpa_tasks():
         for task in new_tasks:
             # 未成功的任务先不存入数据库，这样不需要对比任务状态
             if task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
-                if TGPATask.objects.filter(task_id=task["id"]).exists():
-                    continue
-                TGPATask.objects.create(
-                    bk_biz_id=bk_biz_id, task_id=task["id"], log_path=task["log_path"], task_status=task["status"]
+                _, created = TGPATask.objects.get_or_create(
+                    task_id=task["id"],
+                    defaults={
+                        "bk_biz_id": bk_biz_id,
+                        "log_path": task["log_path"],
+                        "task_status": task["status"],
+                    },
                 )
-                process_single_task.delay(task)
+                if created:
+                    process_single_task.delay(task)
 
 
 @app.task(ignore_result=True, queue="tgpa_task")
