@@ -87,14 +87,14 @@ class AlertManager(BaseAlertProcessor):
         :param alerts:
         :return:
         """
-        # 1. 告警关闭的告警 刚好es拉取到后到加锁处理前被关闭了,此时拿到的这批alerts部分告警在redis已经是关闭状态了
+        # 1. 告警关闭的告警 刚好es拉取到后到加锁处理前被关闭了，此时拿到的这批alerts部分告警在redis已经是关闭状态了
         alert_dedupe_keys = [
             ALERT_DEDUPE_CONTENT_KEY.get_key(strategy_id=alert.strategy_id, dedupe_md5=alert.dedupe_md5)
             for alert in alerts
         ]
         fetched_alert_ids = set([alert.id for alert in alerts])
 
-        alert_data = [ALERT_DEDUPE_CONTENT_KEY.client.get(cache_key) for cache_key in alert_dedupe_keys]
+        alert_data = ALERT_DEDUPE_CONTENT_KEY.client.mget(alert_dedupe_keys)
         current_alerts_mapping = {}
         for current_alert_data in alert_data:
             if not current_alert_data:
@@ -123,8 +123,8 @@ class AlertManager(BaseAlertProcessor):
         filtered_alert_ids = set([alert.id for alert in alerts]) - set([alert.id for alert in new_alerts])
         self.logger.info(
             "[manager] Lock fetched alerts: %s,Filtered alerts: %s",
-            ",".join(fetched_alert_ids),
-            ",".join(filtered_alert_ids),
+            ",".join(str(alert_id) for alert_id in fetched_alert_ids),
+            ",".join(str(alert_id) for alert_id in filtered_alert_ids),
         )
         return new_alerts
 
