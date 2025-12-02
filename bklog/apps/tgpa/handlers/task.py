@@ -47,6 +47,7 @@ from apps.tgpa.constants import (
     TGPA_TASK_ETL_PARAMS,
     TGPA_TASK_COLLECTOR_CONFIG_NAME,
     TGPA_TASK_COLLECTOR_CONFIG_NAME_EN,
+    LOG_FILE_EXPIRE_DAYS,
 )
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
@@ -238,19 +239,19 @@ class TGPATaskHandler:
             try:
                 self.process_log_file(log_file_path)
             except Exception as e:
-                logger.exception(f"Failed to process log file {log_file_path}: {e}")
+                logger.exception("Failed to process log file %s: %s", log_file_path, e)
 
         # 清理临时文件
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     @staticmethod
-    def clear_expired_files(days=3):
+    def clear_expired_files(days=LOG_FILE_EXPIRE_DAYS):
         """
         清理过期文件和空目录
         :param days: 过期天数阈值，默认为3天
         """
         if not os.path.exists(TGPA_BASE_DIR):
-            logger.warning(f"目录不存在，跳过清理: {TGPA_BASE_DIR}")
+            logger.warning("Directory does not exist, skip cleanup: %s", TGPA_BASE_DIR)
             return
 
         expire_time = arrow.now().shift(days=-days).timestamp()
@@ -261,9 +262,9 @@ class TGPATaskHandler:
                 try:
                     if os.path.getmtime(file_path) < expire_time:
                         os.remove(file_path)
-                        logger.info(f"已删除过期文件: {file_path}")
+                        logger.info("Deleted expired file: %s", file_path)
                 except Exception as e:
-                    logger.exception(f"删除文件失败 {file_path}: {e}")
+                    logger.exception("Failed to delete file %s: %s", file_path, e)
 
             # 处理空目录
             for dir_name in dirs:
@@ -272,9 +273,9 @@ class TGPATaskHandler:
                     # 检查目录是否为空且过期，空目录会在下一个周期被删除
                     if not os.listdir(dir_path) and os.path.getmtime(dir_path) < expire_time:
                         os.rmdir(dir_path)
-                        logger.info(f"已删除空目录: {dir_path}")
+                        logger.info("Deleted empty directory: %s", dir_path)
                 except Exception as e:
-                    logger.exception(f"删除目录失败 {dir_path}: {e}")
+                    logger.exception("Failed to delete directory %s: %s", dir_path, e)
 
     @staticmethod
     def get_or_create_collector_config(bk_biz_id):

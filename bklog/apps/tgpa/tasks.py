@@ -42,7 +42,7 @@ def fetch_and_process_tgpa_tasks():
     bk_biz_id_list = feature_toggle.biz_id_white_list or []
 
     for bk_biz_id in bk_biz_id_list:
-        logger.info("开始同步客户端日志任务，业务ID：%s", bk_biz_id)
+        logger.info("Begin to sync client log tasks, business ID: %s", bk_biz_id)
         try:
             # 确保已经创建采集配置
             TGPATaskHandler.get_or_create_collector_config(bk_biz_id)
@@ -65,12 +65,14 @@ def fetch_and_process_tgpa_tasks():
             processed_ids = set(TGPATask.objects.filter(bk_biz_id=bk_biz_id).values_list("task_id", flat=True))
             new_tasks = [task for task in task_list if task["id"] not in processed_ids]
         except Exception:
-            logger.exception("同步客户端日志任务失败，业务ID：%s", bk_biz_id)
+            logger.exception("Failed to sync client log tasks, business ID: %s", bk_biz_id)
             continue
 
         for task in new_tasks:
             # 未成功的任务先不存入数据库，这样不需要对比任务状态
             if task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
+                if TGPATask.objects.filter(task_id=task["id"]).exists():
+                    continue
                 TGPATask.objects.create(
                     bk_biz_id=bk_biz_id, task_id=task["id"], log_path=task["log_path"], task_status=task["status"]
                 )
@@ -82,7 +84,7 @@ def process_single_task(task: dict):
     """
     异步处理单个任务
     """
-    logger.info("开始处理任务，ID：%s", task["id"])
+    logger.info("Begin to process task, ID: %s", task["id"])
     task_obj = TGPATask.objects.get(task_id=task["id"])
     task_obj.process_status = TGPATaskProcessStatusEnum.PROCESSING.value
     task_obj.processed_at = timezone.now()
@@ -91,19 +93,19 @@ def process_single_task(task: dict):
         TGPATaskHandler(bk_biz_id=task["cc_id"], task_info=task).download_and_process_file()
         task_obj.process_status = TGPATaskProcessStatusEnum.SUCCESS.value
         task_obj.save()
-        logger.info("任务ID %s 处理完成", task["id"])
+        logger.info("Successfully processed task, ID: %s", task["id"])
     except Exception as e:
-        logger.exception("任务ID %s 处理失败", task["id"])
+        logger.exception("Failed to process task, ID %s", task["id"])
         task_obj.process_status = TGPATaskProcessStatusEnum.FAILED.value
         task_obj.error_message = str(e)
         task_obj.save()
 
 
-@periodic_task(run_every=crontab(minute="17", hour="11"), queue="tgpa_task")
+@periodic_task(run_every=crontab(minute="0", hour="1"), queue="tgpa_task")
 def clear_expired_files():
     """
     清理过期文件
     """
-    logger.info("开始清理客户端日志过期文件")
+    logger.info("Begin to clear expired client log files")
     TGPATaskHandler.clear_expired_files()
-    logger.info("清理客户端日志过期文件完成")
+    logger.info("Successfully cleared expired client log files")

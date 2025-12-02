@@ -124,6 +124,7 @@ TGPA_TASK_ETL_FIELDS = [
 ]
 
 CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "path", "lineno"]
+LOG_FILE_EXPIRE_DAYS = 3
 
 
 class TGPATaskTypeEnum(ChoicesEnum):
