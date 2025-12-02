@@ -1499,9 +1499,6 @@ class CustomTimeSeriesDataSource(TimeSeriesDataSource):
 
 class LogUnifyQueryMixin:
     """
-    提供日志 / 事件统一查询 (to_unify_query_config) 能力的 Mixin。
-
-    期望子类已具备或由本 Mixin 提供的成员：
     - self.metrics: list[dict]      指标配置，包含 field/method/alias 等
     - self.interval: int            聚合周期（秒）
     - self.functions: list[dict]    统一查询函数配置
@@ -1512,7 +1509,7 @@ class LogUnifyQueryMixin:
     - self.time_alignment: bool     是否对齐时间窗口
     - self.reference_name: str      没有指标时的引用名称（默认 "a"）
 
-    钩子方法（子类可覆写）：
+    钩子方法：
     - _get_unify_query_table() -> str
         返回统一查询使用的 table_id
     - _get_group_by(bk_obj_id: str | None = None) -> list[str]
@@ -1557,11 +1554,8 @@ class LogUnifyQueryMixin:
     DEFAULT_SELECT: list[str] = []
 
     def __init__(self, *args, **kwargs):
-        # 是否进行时间聚合，默认 True
         self.is_time_agg: bool = kwargs.get("is_time_agg", True)
-        # 是否按时间对齐，不对齐将返回最后一个周期（数据点）的实时数据。
         self.time_alignment: bool = kwargs.get("time_alignment", True)
-        # 没有 metrics 时（原始日志 / 列表场景）使用的引用名
         self.reference_name: str = kwargs.get("reference_name") or "a"
 
         # 保持多重继承链路，继续把参数传给下一个父类
