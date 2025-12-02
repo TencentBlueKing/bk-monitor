@@ -65,6 +65,7 @@ interface ILogItem {
   bk_obj_name: string;
   /** 子项列表（主机列表） */
   child: IHostItem[];
+  node_path: string;
 }
 
 /**
@@ -117,10 +118,12 @@ export default defineComponent({
     },
     collectorConfigId: {
       type: Number,
+      default: 0,
     },
   },
+  emits: ['retry'],
 
-  setup(props) {
+  setup(props, { emit }) {
     const { t } = useLocale();
 
     /** 当前激活的Tab键值 */
@@ -135,6 +138,7 @@ export default defineComponent({
     const detail = ref<IDetailResult>({});
     /** 日志内容容器的引用 */
     const logContentRef = ref<HTMLDivElement | null>(null);
+    const activeName = ref([]);
 
     /**
      * 根据当前激活的Tab筛选显示列表
@@ -264,7 +268,7 @@ export default defineComponent({
     // 监听log内容变化，同步更新DOM
     watch(
       () => log.value,
-      newValue => {
+      (newValue: string) => {
         nextTick(() => {
           if (logContentRef.value) {
             logContentRef.value.innerHTML = xssFilter(newValue || '');
@@ -287,8 +291,16 @@ export default defineComponent({
     // 监听activeKey变化，切换Tab时自动选中第一个item
     watch(
       () => activeKey.value,
-      () => {
+      (val: string) => {
         setDefaultItem();
+        /**
+         * 1. 【全部】Tab，默认展开第一个，其他都收起
+         * 2. 【其他状态】Tab，默认都展开
+         */
+        const keys = showList.value.map(item => item.bk_obj_id);
+        if (keys.length > 0) {
+          activeName.value = val === 'all' ? keys : [keys[0]];
+        }
       },
       {
         immediate: true,
@@ -334,33 +346,54 @@ export default defineComponent({
             <div class='host-detail-content'>
               {/* 左侧主机列表 */}
               <div class='content-left'>
-                {showList.value.map(logItem => (
-                  <div
-                    key={logItem.bk_obj_id}
-                    class='detail-content-item'
-                  >
-                    <div class='content-left-title'>{logItem.bk_obj_name}</div>
-                    <div class='left-list'>
-                      {logItem.child.map(item => (
-                        <div
-                          key={item.host_id}
-                          class={{
-                            'left-item': true,
-                            active: currentItem.value?.host_id === item.host_id,
-                          }}
-                          on-click={() => handleItemClick(item)}
-                        >
-                          {item.status === 'running' ? (
-                            <i class='running' />
-                          ) : (
-                            <span class={`item-circle ${item.status}`} />
-                          )}
-                          {item.ip}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                <bk-collapse value={activeName.value}>
+                  {showList.value.map(logItem => (
+                    <bk-collapse-item
+                      name={logItem.bk_obj_id}
+                      key={logItem.bk_obj_id}
+                      class='detail-content-item'
+                    >
+                      {logItem.node_path}
+                      <div
+                        slot='content'
+                        class='left-list'
+                      >
+                        {logItem.child.map(item => (
+                          <div
+                            key={item.host_id}
+                            class={{
+                              'left-item': true,
+                              active: currentItem.value?.host_id === item.host_id,
+                            }}
+                            on-click={() => handleItemClick(item)}
+                          >
+                            {item.status === 'running' ? (
+                              <i class='running' />
+                            ) : (
+                              <span class={`item-circle ${item.status}`} />
+                            )}
+                            <span
+                              class='item-name'
+                              title={item.ip}
+                            >
+                              {item.ip}
+                            </span>
+                            {item.status === 'FAILED' && (
+                              <span
+                                class='retry'
+                                on-click={() => {
+                                  emit('retry', item, logItem);
+                                }}
+                              >
+                                {t('重试')}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </bk-collapse-item>
+                  ))}
+                </bk-collapse>
               </div>
 
               {/* 右侧详情展示 */}

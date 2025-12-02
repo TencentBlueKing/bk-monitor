@@ -5,6 +5,14 @@
   .link-config {
     width: 45%;
   }
+  .config-import {
+    color: #3a84ff;
+    margin-left: 30px;
+    cursor: pointer;
+    .config-import-icon {
+      margin-left: 5px;
+    }
+  }
   .source-log-info {
     width: 100%;
     .label-form-box {

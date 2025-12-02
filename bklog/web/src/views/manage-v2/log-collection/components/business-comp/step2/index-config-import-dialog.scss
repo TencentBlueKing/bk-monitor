@@ -1,0 +1,25 @@
+.index-config-import-dialog {
+    width: 100%;
+    height: 100%;
+    .index-config-import-dialog-content {
+        width: 100%;
+        height: 100%;
+        .content-top {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            .bk-form-checkbox {
+                margin-right: 16px;
+            }
+        }
+        .content-bot {
+            margin-top: 10px;
+            width: 100%;
+            .content-bot-title {
+                color: #63656e;
+                font-size: 12px;
+                margin-bottom: 8px;
+            }
+        }
+    }
+}
