@@ -87,7 +87,7 @@ class AlertManager(BaseAlertProcessor):
         :param alerts:
         :return:
         """
-        # 1. 告警关闭的告警 刚好es拉取到后到加锁处理前被关闭了,此时拿到的这批alerts部分告警在redis已经是关闭状态了
+        # 1. 已关闭的告警 在ES拉取后到加锁处理前刚好被关闭了，此时拿到的这批alerts部分告警在redis已经是关闭状态了
         alert_dedupe_keys = [
             ALERT_DEDUPE_CONTENT_KEY.get_key(strategy_id=alert.strategy_id, dedupe_md5=alert.dedupe_md5)
             for alert in alerts
