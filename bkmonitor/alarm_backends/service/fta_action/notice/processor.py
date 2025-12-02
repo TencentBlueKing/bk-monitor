@@ -27,13 +27,7 @@ from alarm_backends.service.fta_action import ActionAlreadyFinishedError
 from alarm_backends.service.fta_action.common import BaseActionProcessor
 from bkmonitor.models import ActionInstance
 from bkmonitor.utils.send import Sender
-from constants.action import (
-    ActionSignal,
-    ActionStatus,
-    FailureType,
-    IntervalNotifyMode,
-    NoticeWay,
-)
+from constants.action import ActionSignal, ActionStatus, FailureType, IntervalNotifyMode, NoticeWay, VoiceNoticeMode
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("fta_action.run")
@@ -219,20 +213,39 @@ class ActionProcessor(BaseActionProcessor):
 
         need_send, collect_action_id = self.need_send_notice(self.notice_way)
         if need_send:
-            notice_results = notify_sender.send(
-                self.notice_way,
-                notice_receivers=self.notice_receivers,
-            )
+            if self.voice_notice_mode == VoiceNoticeMode.PARALLEL and self.voice_notice_group is not None:
+                # 并行语音通知：使用线程池按用户组并行拨打
+                notice_results = self.parallel_notify_sender(notify_sender, self.notice_way, self.voice_notice_group)
+            else:
+                notice_results = notify_sender.send(
+                    self.notice_way,
+                    notice_receivers=self.notice_receivers,
+                )
         else:
-            notice_results = {
-                ",".join(self.notice_receivers): {
-                    "result": False,
-                    "failure_type": FailureType.SYSTEM_ABORT,
-                    "message": _(
-                        "语音告警告被通知套餐（{}）防御收敛，防御原因：相同通知人在两分钟内同维度告警只能接收一次电话告警"
-                    ).format(collect_action_id),
+            # 防御收敛：根据并行/串行模式生成不同的失败结果
+            failure_message = _(
+                "语音告警告被通知套餐（{}）防御收敛，防御原因：相同通知人在两分钟内同维度告警只能接收一次电话告警"
+            ).format(collect_action_id)
+
+            if self.voice_notice_mode == VoiceNoticeMode.PARALLEL and self.voice_notice_group is not None:
+                # 并行模式：为每个用户组生成失败结果
+                notice_results = {
+                    ",".join(user_group): {
+                        "result": False,
+                        "failure_type": FailureType.SYSTEM_ABORT,
+                        "message": failure_message,
+                    }
+                    for user_group in self.voice_notice_group
                 }
-            }
+            else:
+                # 串行模式：为所有接收人生成失败结果
+                notice_results = {
+                    ",".join(self.notice_receivers): {
+                        "result": False,
+                        "failure_type": FailureType.SYSTEM_ABORT,
+                        "message": failure_message,
+                    }
+                }
         notify_content_outputs = {
             "title": notify_sender.title,
             "message": notify_sender.content,
