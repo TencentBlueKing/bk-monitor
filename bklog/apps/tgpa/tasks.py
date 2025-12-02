@@ -81,7 +81,7 @@ def fetch_and_process_tgpa_tasks():
                 if task_obj.task_status != task["status"] or task_obj.file_status != task["exe_code"]:
                     task_obj.task_status = task["status"]
                     task_obj.file_status = task["exe_code"]
-                    task_obj.save(update_fields=["task_status", "file_status", "process_status"])
+                    task_obj.save(update_fields=["task_status", "file_status"])
             else:
                 task_obj, created = TGPATask.objects.get_or_create(
                     task_id=task["id"],
@@ -108,17 +108,17 @@ def process_single_task(task: dict):
     task_obj = TGPATask.objects.get(task_id=task["id"])
     task_obj.process_status = TGPATaskProcessStatusEnum.RUNNING.value
     task_obj.processed_at = timezone.now()
-    task_obj.save()
+    task_obj.save(update_fields=["process_status", "processed_at"])
     try:
         TGPATaskHandler(bk_biz_id=task["cc_id"], task_info=task).download_and_process_file()
         task_obj.process_status = TGPATaskProcessStatusEnum.SUCCESS.value
-        task_obj.save()
+        task_obj.save(update_fields=["process_status"])
         logger.info("Successfully processed task, ID: %s", task["id"])
     except Exception as e:
         logger.exception("Failed to process task, ID %s", task["id"])
         task_obj.process_status = TGPATaskProcessStatusEnum.FAILED.value
         task_obj.error_message = str(e)
-        task_obj.save()
+        task_obj.save(update_fields=["process_status"])
 
 
 @periodic_task(run_every=crontab(minute="0", hour="1"), queue="tgpa_task")
