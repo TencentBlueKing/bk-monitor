@@ -35,7 +35,12 @@ from metadata.models.constants import (
     SYSTEM_PROC_DATA_LINK_CONFIGS,
     DataIdCreatedFromSystem,
 )
-from metadata.models.data_link.constants import BASEREPORT_SOURCE_SYSTEM, BASEREPORT_USAGES, DataLinkResourceStatus
+from metadata.models.data_link.constants import (
+    BASEREPORT_SOURCE_SYSTEM,
+    BASEREPORT_USAGES,
+    BKBASE_NAMESPACE_BK_MONITOR,
+    DataLinkResourceStatus,
+)
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.service import get_data_link_component_status
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
@@ -1885,7 +1890,13 @@ def create_single_tenant_system_datalink(bk_biz_id: int = 1, kafka_cluster_name:
         bk_biz_id: 业务ID
         kafka_cluster_name: 消息队列集群名称，默认使用kafka_outer_default
     """
-    datasource = DataSource.objects.get(bk_data_id=1001)
+
+    # 如果开启了多租户模式，则跳过
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        logger.info("create_single_tenant_system_datalink: multi tenant mode is enabled,return!")
+        return
+
+    datasource = DataSource.objects.get(bk_data_id=settings.SNAPSHOT_DATAID)
 
     # 如果数据源创建来源不是BKDATA，则更新为BKDATA，停止transfer任务
     if datasource.created_from != DataIdCreatedFromSystem.BKDATA.value:
@@ -1928,7 +1939,7 @@ def create_single_tenant_system_datalink(bk_biz_id: int = 1, kafka_cluster_name:
         data_link_name="basereport",
         defaults={
             "data_link_strategy": DataLink.BASEREPORT_TIME_SERIES_V1,
-            "namespace": "bkmonitor",
+            "namespace": BKBASE_NAMESPACE_BK_MONITOR,
             "bk_tenant_id": datasource.bk_tenant_id,
         },
     )
