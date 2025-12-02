@@ -72,7 +72,7 @@ def fetch_and_process_tgpa_tasks():
         task_map = {task.task_id: task for task in existed_tasks}
         for task in task_list:
             if task_obj := task_map.get(task["id"]):
-                # 如果文件状态发生变化，并且文件状态为上传重构，处理任务
+                # 如果文件状态发生变化，并且文件状态为上传成功，处理任务
                 if task["exe_code"] != task_obj.file_status and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
                     task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
                     task_obj.save(update_fields=["process_status"])
