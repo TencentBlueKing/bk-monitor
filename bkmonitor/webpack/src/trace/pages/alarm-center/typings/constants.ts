@@ -58,6 +58,25 @@ export enum AlertDetailHostSelectorTypeEnum {
 /** 进入页面后需要能自动打开展示dialog的事件 */
 export const CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS = [AlertAllActionEnum.CONFIRM, AlertAllActionEnum.SHIELD];
 
+/** 告警详情-容器tab图表特殊辅助线series颜色映射 */
+export const SpecialSeriesColorMap = {
+  request: {
+    color: '#FEA56B',
+    labelColor: '#E38B02',
+    itemColor: '#FDEED8',
+  },
+  limit: {
+    color: '#FF5656',
+    labelColor: '#E71818',
+    itemColor: '#FFEBEB',
+  },
+  capacity: {
+    color: '#4DA6FF', // 明亮的蓝色
+    labelColor: '#0073E6', // 稍深的蓝色，用于标签
+    itemColor: '#E6F2FF', // 非常浅的蓝色，用于背景
+  },
+};
+
 export const alarmTypeMap: { label: string; value: AlarmType }[] = [
   {
     label: window.i18n.t('告警'),

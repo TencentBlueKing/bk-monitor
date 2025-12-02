@@ -33,6 +33,7 @@ import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
 import AlarmMetricsDashboard from '../../../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
 import { useK8sChartPanel } from '../../../../../composables/use-k8s-chart-panel';
+import K8SCustomChart from '../k8s-custom-chart/k8s-custom-chart';
 
 import './panel-container-dashboard.scss';
 
@@ -55,21 +56,23 @@ export default defineComponent({
     /** 是否立即刷新图表数据 */
     const refreshImmediate = shallowRef('');
 
-    provide('timeRange', toRef(props, 'timeRange'));
+    provide('timeRange', DEFAULT_TIME_RANGE);
     provide('refreshImmediate', refreshImmediate);
     /** 需要渲染的仪表盘面板配置数组 */
     const { dashboards } = useK8sChartPanel({
       scene: toRef(props, 'scene'),
       groupByField: K8sTableColumnKeysEnum.POD,
-      clusterId: 'BCS-K8S-00000',
+      clusterId: 'BCS-K8S-40003',
       filterBy: {
-        [K8sTableColumnKeysEnum.NAMESPACE]: ['bcs-system'],
-        [K8sTableColumnKeysEnum.POD]: ['bcs-bkcmdb-synchronizer-0'],
+        pod: ['bkbase-queryengine-bkmonitor-8f798bcd6-vqd9f'],
+        namespace: ['bkbase'],
+        workload: ['Deployment:bkbase-queryengine-bkmonitor'],
       },
       resourceListData: [
         {
-          namespace: 'bcs-system',
-          pod: 'bcs-bkcmdb-synchronizer-0',
+          pod: 'bkbase-queryengine-bkmonitor-8f798bcd6-vqd9f',
+          namespace: 'bkbase',
+          workload: 'Deployment:bkbase-queryengine-bkmonitor',
         },
       ],
     });
@@ -94,11 +97,16 @@ export default defineComponent({
               interval: 'auto',
               method: 'sum',
               unit: undefined,
+              time_shift: ' ',
             }}
             dashboardId={this.dashboardId}
             dashboardTitle={dashboard?.title}
             panelModels={dashboard?.panels}
-          />
+          >
+            {{
+              customBaseChart: renderContext => <K8SCustomChart {...renderContext} />,
+            }}
+          </AlarmMetricsDashboard>
         ))}
       </div>
     );
