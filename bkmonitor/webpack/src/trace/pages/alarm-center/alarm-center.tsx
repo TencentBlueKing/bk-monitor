@@ -121,20 +121,22 @@ export default defineComponent({
       return allFavoriteList.value.map(item => ({
         ...item,
         config: {
-          queryString: item?.config?.queryParams?.query || '',
-          where: item?.config?.queryParams?.filters || [],
-          commonWhere: item?.config?.componentData?.commonWhere || [],
+          queryString: item?.config?.queryParams?.query_string || '',
+          where: item?.config?.componentData?.conditions || [],
+          commonWhere: item?.config?.componentData?.residentCondition || [],
         },
       }));
     });
+    /** 默认选择的收藏Id */
+    const defaultFavoriteId = shallowRef(null);
     /* 当前选择的收藏项 */
     const currentFavorite = shallowRef(null);
     // 当前选择的收藏项（检索条件栏使用）
     const retrievalSelectFavorite = computed(() => {
       if (currentFavorite.value) {
         return {
-          commonWhere: currentFavorite.value?.config?.componentData?.commonWhere || [],
-          where: currentFavorite.value?.config?.queryParams?.filters || [],
+          commonWhere: currentFavorite.value?.config?.componentData?.residentCondition || [],
+          where: currentFavorite.value?.config?.componentData?.conditions || [],
         };
       }
       return null;
@@ -312,6 +314,7 @@ export default defineComponent({
         alarmType,
         sortOrder,
         currentPage,
+        favorite_id: favoriteId,
       } = route.query;
       try {
         alarmStore.alarmType = (alarmType as AlarmType) || AlarmType.ALERT;
@@ -328,6 +331,10 @@ export default defineComponent({
         alarmStore.bizIds = tryURLDecodeParse(bizIds as string, [-1]);
         ordering.value = (sortOrder as string) || '';
         page.value = Number(currentPage || 1);
+        if (favoriteId) {
+          defaultFavoriteId.value = Number(favoriteId);
+        }
+        isShowFavorite.value = JSON.parse(localStorage.getItem(ALARM_CENTER_SHOW_FAVORITE) || 'false');
         alarmStore.initAlarmService();
       } catch (error) {
         console.log('route query:', error);
@@ -436,6 +443,9 @@ export default defineComponent({
             residentCondition: alarmStore.residentCondition,
             timeRange: alarmStore.timeRange,
             refreshInterval: alarmStore.refreshInterval,
+            timezone: alarmStore.timezone,
+            quickFilterValue: alarmStore.quickFilterValue,
+            bizIds: alarmStore.bizIds,
           },
           queryParams: {
             ...alarmStore.commonFilterParams,
@@ -459,6 +469,35 @@ export default defineComponent({
     };
     const handleEditFavoriteShow = (isShow: boolean) => {
       editFavoriteShow.value = isShow;
+    };
+
+    const handleFavoriteChange = data => {
+      console.log(data);
+      currentFavorite.value = data || null;
+      if (data) {
+        const favoriteConfig = data?.config;
+        alarmStore.timezone = favoriteConfig?.componentData?.timezone || getDefaultTimezone();
+        alarmStore.timeRange = favoriteConfig?.componentData?.timeRange || [];
+        alarmStore.refreshInterval = favoriteConfig?.componentData?.refreshInterval || -1;
+        alarmStore.queryString = favoriteConfig?.queryParams?.queryString || '';
+        alarmStore.conditions = favoriteConfig?.componentData?.conditions || [];
+        alarmStore.residentCondition = favoriteConfig?.componentData?.residentCondition || [];
+        alarmStore.quickFilterValue = favoriteConfig?.componentData?.quickFilterValue || [];
+        alarmStore.filterMode = favoriteConfig?.componentData?.filterMode || EMode.ui;
+        alarmStore.bizIds = favoriteConfig?.componentData?.bizIds || [-1];
+      } else {
+        alarmStore.conditions = [];
+        alarmStore.residentCondition = [];
+        alarmStore.quickFilterValue = [];
+        alarmStore.queryString = '';
+        defaultFavoriteId.value = null;
+      }
+    };
+
+    /** 收藏夹新开标签页 */
+    const handleFavoriteOpenBlank = data => {
+      const href = `${location.origin}${location.pathname}?bizId=${appStore.bizId}#${route.path}`;
+      window.open(`${href}?favorite_id=${data.id}`, '_blank');
     };
 
     watch(
@@ -508,6 +547,7 @@ export default defineComponent({
       favoriteType,
       retrievalFavoriteList,
       retrievalSelectFavorite,
+      defaultFavoriteId,
       setUrlParams,
       handleSelectedRowKeysChange,
       handleAlertDialogShow,
@@ -536,6 +576,8 @@ export default defineComponent({
       handleFavoriteShowChange,
       handleFavoriteSave,
       handleEditFavoriteShow,
+      handleFavoriteChange,
+      handleFavoriteOpenBlank,
     };
   },
   render() {
@@ -548,10 +590,11 @@ export default defineComponent({
           <FavoriteBox
             key={this.favoriteType}
             ref='favoriteBox'
+            defaultFavoriteId={this.defaultFavoriteId}
             type={this.favoriteType as IFavorite}
-            // onChange={this.handleFavoriteChange}
+            onChange={this.handleFavoriteChange}
             onClose={() => this.handleFavoriteShowChange(false)}
-            // onOpenBlank={this.handleFavoriteOpenBlank}
+            onOpenBlank={this.handleFavoriteOpenBlank}
           />
         </div>
         <div class='alarm-center'>
@@ -677,6 +720,7 @@ export default defineComponent({
           />
         </div>
         <EditFavorite
+          key={this.favoriteType}
           data={this.editFavoriteData}
           isCreate={true}
           isShow={this.editFavoriteShow}

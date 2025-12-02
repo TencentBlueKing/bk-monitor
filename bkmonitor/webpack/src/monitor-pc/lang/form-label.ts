@@ -1993,4 +1993,6 @@ export default {
   '处理建议：': 'Processing suggestion:',
   '处理经验：': 'Processing experience:',
   告警模块: 'Alarm module',
+  事件内容: 'Event content',
+  更多事件: 'More events',
 };

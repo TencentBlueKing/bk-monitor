@@ -112,6 +112,13 @@
       }
     }
 
+    .common-table-ellipsis {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .event-content-col {
       overflow: hidden;
       text-overflow: ellipsis;

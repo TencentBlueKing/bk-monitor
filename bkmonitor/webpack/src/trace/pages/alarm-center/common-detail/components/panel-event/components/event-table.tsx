@@ -41,7 +41,7 @@ import { formatTime } from 'trace/utils/utils';
 import { useI18n } from 'vue-i18n';
 
 import EventTableExpandContent from './event-table-expand-content';
-import { eventChartMap, SourceTypeEnum } from './typing';
+import { DimensionsTypeEnum, eventChartMap, SourceTypeEnum } from './typing';
 
 import './event-table.scss';
 
@@ -103,10 +103,7 @@ export default defineComponent({
         colKey: tableColumnKey.SOURCE,
         title: window.i18n.t('事件来源'),
         width: 160,
-        ellipsis: {
-          placement: 'top',
-          theme: 'default',
-        },
+        ellipsis: false,
         cell: (_h, { row }) => {
           const item = row[tableColumnKey.SOURCE];
           const { alias, value } = item;
@@ -115,7 +112,15 @@ export default defineComponent({
               {SourceIconMap[SourceTypeEnum.BCS] ? (
                 <span class={`source-icon icon-monitor ${SourceIconMap[value]}`} />
               ) : undefined}
-              <span> {alias}</span>
+              <span
+                class='common-table-ellipsis'
+                v-overflow-tips={{
+                  placement: 'top',
+                }}
+              >
+                {' '}
+                {alias}
+              </span>
             </span>
           );
         },
@@ -124,13 +129,19 @@ export default defineComponent({
         colKey: tableColumnKey.EVENT_NAME,
         title: window.i18n.t('事件名'),
         width: 160,
-        ellipsis: {
-          placement: 'top',
-          theme: 'default',
-        },
+        ellipsis: false,
         cell: (_h, { row }) => {
           const alias = row[tableColumnKey.EVENT_NAME]?.alias || row.origin_data?.[tableColumnKey.EVENT_NAME];
-          return alias;
+          return (
+            <span
+              class='common-table-ellipsis'
+              v-overflow-tips={{
+                placement: 'top',
+              }}
+            >
+              {alias}
+            </span>
+          );
         },
       },
       {
@@ -239,12 +250,13 @@ export default defineComponent({
     const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row }): any => {
       return (
         <EventTableExpandContent
-          data={row.origin_data}
+          data={row}
           detailData={row?.[tableColumnKey.CONTENT]?.detail || {}}
         />
       );
     });
     const sort = shallowRef<SortInfo>(null);
+    const isAllSourceType = shallowRef(false);
     const sourceType = shallowRef([]);
     const sourceTypeOptions = shallowRef([
       {
@@ -299,17 +311,16 @@ export default defineComponent({
       const res = await props.getTableData({
         offset: tableData.offset,
         limit: tableData.limit,
-        where:
-          sourceType.value.length < 4 && sourceType.value.length > 0
-            ? [
-                {
-                  key: 'source',
-                  method: 'eq',
-                  condition: 'and',
-                  value: sourceType.value,
-                },
-              ]
-            : [],
+        where: sourceType.value.length
+          ? [
+              {
+                key: 'source',
+                method: 'eq',
+                condition: 'and',
+                value: sourceType.value,
+              },
+            ]
+          : [],
         sort: sort.value ? [`${sort.value.descending ? '-' : ''}${sort.value.sortBy}`] : [],
       });
       tableData.data = [...tableData.data, ...res.data];
@@ -341,18 +352,22 @@ export default defineComponent({
     const handleGoEvent = () => {};
 
     const handleSourceTypeChange = (value: (typeof SourceTypeEnum)[keyof typeof SourceTypeEnum][]) => {
-      if (value.includes(SourceTypeEnum.ALL)) {
-        if (value.length <= 3 && value.length > 1) {
-          sourceType.value = value.filter(item => item !== SourceTypeEnum.ALL);
-        } else {
-          sourceType.value = sourceTypeOptions.value.map(item => item.value);
-        }
+      console.log(value);
+      sourceType.value = value;
+      isAllSourceType.value = sourceTypeOptions.value.length - 1 === value.length;
+      resetData();
+      handleLoad();
+    };
+
+    const handleChangeAllSourceType = (value: boolean) => {
+      console.log(value);
+      isAllSourceType.value = value;
+      if (value) {
+        sourceType.value = sourceTypeOptions.value
+          .filter(item => item.value !== SourceTypeEnum.ALL)
+          .map(item => item.value);
       } else {
-        if (value.length >= 3) {
-          sourceType.value = sourceTypeOptions.value.map(item => item.value);
-        } else {
-          sourceType.value = value.filter(item => item !== SourceTypeEnum.ALL);
-        }
+        sourceType.value = [];
       }
       resetData();
       handleLoad();
@@ -376,18 +391,31 @@ export default defineComponent({
       tableData,
       sort,
       loading,
+      isAllSourceType,
       handleSortChange,
       handleExpandChange,
       t,
       handleGoEvent,
       handleSourceTypeChange,
+      handleChangeAllSourceType,
     };
   },
   render() {
+    const allItem = this.sourceTypeOptions.find(item => item.value === SourceTypeEnum.ALL);
     return (
       <div class='alarm-center-detail-panel-alarm-relation-event-table'>
         <div class='header-operate'>
           <span style='margin-right: 8px;'>{window.i18n.t('事件来源')}:</span>
+          <Checkbox
+            class='mr-24'
+            modelValue={this.isAllSourceType}
+            onChange={this.handleChangeAllSourceType}
+          >
+            <span class='source-item'>
+              {allItem.icon ? <span class={`source-icon icon-monitor ${allItem.icon}`} /> : undefined}
+              <span>{allItem.label}</span>
+            </span>
+          </Checkbox>
           <Checkbox.Group
             class='header-operate-item'
             modelValue={this.sourceType}
@@ -395,17 +423,19 @@ export default defineComponent({
           >
             {{
               default: () => {
-                return this.sourceTypeOptions.map(item => (
-                  <Checkbox
-                    key={item.value}
-                    label={item.value}
-                  >
-                    <span class='source-item'>
-                      {item.icon ? <span class={`source-icon icon-monitor ${item.icon}`} /> : undefined}
-                      <span>{item.label}</span>
-                    </span>
-                  </Checkbox>
-                ));
+                return this.sourceTypeOptions
+                  .filter(item => item.value !== SourceTypeEnum.ALL)
+                  .map(item => (
+                    <Checkbox
+                      key={item.value}
+                      label={item.value}
+                    >
+                      <span class='source-item'>
+                        {item.icon ? <span class={`source-icon icon-monitor ${item.icon}`} /> : undefined}
+                        <span>{item.label}</span>
+                      </span>
+                    </Checkbox>
+                  ));
               },
             }}
           </Checkbox.Group>
@@ -427,6 +457,9 @@ export default defineComponent({
         ) : (
           <PrimaryTable
             class='relation-event-table'
+            rowClassName={({ row }) =>
+              `row-event-status-${eventChartMap[row.type.value || DimensionsTypeEnum.DEFAULT]}`
+            }
             columns={this.columns}
             data={this.tableData.data}
             expandedRow={this.expandedRow}
@@ -435,7 +468,6 @@ export default defineComponent({
             expandOnRowClick={true}
             needCustomScroll={false}
             resizable={true}
-            rowClassName={({ row }) => `row-event-status-${eventChartMap[row.type.value]}`}
             rowKey={'key'}
             size={'small'}
             sort={this.sort}

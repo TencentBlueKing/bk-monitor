@@ -66,18 +66,18 @@ export default defineComponent({
 
     const kvList = computed(() => {
       const list = [];
-      for (const key in props.data) {
+      for (const key in props.data?.origin_data || {}) {
         if (key === 'time') {
           list.push({
             k: key,
-            v: formatTime(+props.data[key]),
+            v: formatTime(+props.data?.origin_data[key]),
             type: 'date',
           });
         } else {
           list.push({
             k: key,
-            v: props.data[key],
-            type: typeof props.data[key] === 'number' ? 'integer' : 'keyword',
+            v: props.data?.origin_data[key],
+            type: typeof props.data?.origin_data[key] === 'number' ? 'integer' : 'keyword',
           });
         }
       }
@@ -138,7 +138,7 @@ export default defineComponent({
           v-show={this.isKVTab}
         >
           <div class='content-operation'>
-            <i onClick={() => this.handleCopy(this.data)}>
+            <i onClick={() => this.handleCopy(this.data?.origin_data || {})}>
               <i
                 class='icon-monitor icon-mc-copy'
                 v-bk-tooltips={{ content: this.$t('复制'), distance: 5 }}
@@ -178,7 +178,7 @@ export default defineComponent({
               v-bk-tooltips={{ content: this.$t('复制'), distance: 5 }}
             />
           </div>
-          <JsonPretty data={this.data} />
+          <JsonPretty data={this.data?.origin_data || {}} />
         </div>
       </div>
     );
