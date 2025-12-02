@@ -1875,18 +1875,30 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
     logger.info("check_bkcc_space_builtin_datalink: check bkcc space builtin datalink success")
 
 
-def create_single_tenant_system_datalink():
+def create_single_tenant_system_datalink(bk_biz_id: int = 1, kafka_cluster_name: str = "kafka_outer_default"):
     """创建单租户系统数据链路
 
-    Note: 单租户全新部署的情况下，将1001指定为BKDATA来源的数据源，并将内置结果表指向固定的vmrt。、
-          清洗配置和vmrt由bkbase内置，无需监控平台管理。
+    Note: 单租户全新部署的情况下，将1001指定为BKDATA来源的数据源，并将内置结果表指向固定的vmrt。
+          清洗配置和vmrt内置生成
+
+    Args:
+        bk_biz_id: 业务ID
+        kafka_cluster_name: 消息队列集群名称，默认使用kafka_outer_default
     """
     datasource = DataSource.objects.get(bk_data_id=1001)
 
     # 如果数据源创建来源不是BKDATA，则更新为BKDATA，停止transfer任务
     if datasource.created_from != DataIdCreatedFromSystem.BKDATA.value:
         datasource.created_from = DataIdCreatedFromSystem.BKDATA.value
+        #
+        bkdata_mq_cluster = ClusterInfo.objects.get(
+            cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name=kafka_cluster_name
+        )
+        datasource.mq_cluster_id = bkdata_mq_cluster.cluster_id
+        # 删除consul配置
         datasource.delete_consul_config()
+        # 注册到BKDATA
+        datasource.register_to_bkbase(bk_biz_id=bk_biz_id, bkbase_data_name="basereport")
         datasource.save()
 
     # 获取默认的VM集群
@@ -1907,9 +1919,26 @@ def create_single_tenant_system_datalink():
                 "storage_cluster_id": vm_cluster.cluster_id,
                 "bk_base_data_id": datasource.bk_data_id,
                 "bk_base_data_name": datasource.data_name,
-                "vm_result_table_id": f"1_sys_{table}",
+                "vm_result_table_id": f"{bk_biz_id}_sys_{table}",
             },
         )
+
+    # 创建数据链路
+    data_link_ins, _ = DataLink.objects.update_or_create(
+        data_link_name="basereport",
+        defaults={
+            "data_link_strategy": DataLink.BASEREPORT_TIME_SERIES_V1,
+            "namespace": "bkmonitor",
+            "bk_tenant_id": datasource.bk_tenant_id,
+        },
+    )
+    data_link_ins.apply_data_link(
+        data_source=datasource,
+        storage_cluster_name=vm_cluster.cluster_name,
+        bk_biz_id=bk_biz_id,
+        source=BASEREPORT_SOURCE_SYSTEM,
+        prefix=BASEREPORT_SOURCE_SYSTEM,
+    )
 
     # 刷新查询路由表数据
     SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_ids, is_publish=True)

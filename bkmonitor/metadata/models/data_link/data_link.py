@@ -528,7 +528,12 @@ class DataLink(models.Model):
         ]
 
     def compose_basereport_time_series_configs(
-        self, data_source: "DataSource", storage_cluster_name: str, bk_biz_id: int, source: str
+        self,
+        data_source: "DataSource",
+        storage_cluster_name: str,
+        bk_biz_id: int,
+        source: str,
+        prefix: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成基础采集时序链路配置
@@ -548,7 +553,10 @@ class DataLink(models.Model):
         )
 
         # 需要注意超出计算平台meta长度限制问题
-        bkbase_vmrt_prefix = f"base_{bk_biz_id}_{source}"
+        if prefix is None:
+            bkbase_vmrt_prefix = f"base_{bk_biz_id}_{source}"
+        else:
+            bkbase_vmrt_prefix = prefix
 
         config_list = []
         conditions = []
@@ -556,7 +564,10 @@ class DataLink(models.Model):
         with transaction.atomic():
             # 创建11个ResultTableConfig和VMStorageBindingConfig
             for usage in BASEREPORT_USAGES:
-                usage_vmrt_name = f"{bkbase_vmrt_prefix}_{usage}"
+                if bkbase_vmrt_prefix:
+                    usage_vmrt_name = f"{bkbase_vmrt_prefix}_{usage}"
+                else:
+                    usage_vmrt_name = usage
                 usage_cmdb_level_vmrt_name = f"{usage_vmrt_name}_cmdb"
                 logger.info(
                     "compose_basereport_configs: try to create rt and storage for usage->[%s],name->[%s]",
@@ -1199,22 +1210,18 @@ class DataLink(models.Model):
 
         bkbase_vmrt_prefix = f"base_{bk_biz_id}_{source}"
 
-        try:
-            with transaction.atomic():
-                # 创建11个ResultTableConfig和VMStorageBindingConfig
-                for usage in BASEREPORT_USAGES:
-                    vm_result_table_id = f"{bk_biz_id}_{bkbase_vmrt_prefix}_{usage}"
-                    result_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source}.{usage}"
-                    vm_record, _ = AccessVMRecord.objects.update_or_create(
-                        bk_tenant_id=self.bk_tenant_id,
-                        result_table_id=result_table_id,
-                        bk_base_data_id=datasource.bk_data_id,
-                        bk_base_data_name=datasource.data_name,
-                        defaults={
-                            "vm_result_table_id": vm_result_table_id,
-                            "vm_cluster_id": storage_cluster_id,
-                            "storage_cluster_id": storage_cluster_id,
-                        },
-                    )
-        except Exception as e:  # pylint: disable=broad-except
-            logger.error("sync_basereport_metadata: failed to create access vm record! error message->%s", e)
+        with transaction.atomic():
+            for usage in BASEREPORT_USAGES:
+                vm_result_table_id = f"{bk_biz_id}_{bkbase_vmrt_prefix}_{usage}"
+                result_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source}.{usage}"
+                AccessVMRecord.objects.update_or_create(
+                    bk_tenant_id=self.bk_tenant_id,
+                    result_table_id=result_table_id,
+                    bk_base_data_id=datasource.bk_data_id,
+                    bk_base_data_name=datasource.data_name,
+                    defaults={
+                        "vm_result_table_id": vm_result_table_id,
+                        "vm_cluster_id": storage_cluster_id,
+                        "storage_cluster_id": storage_cluster_id,
+                    },
+                )
