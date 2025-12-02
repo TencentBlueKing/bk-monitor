@@ -56,30 +56,46 @@ def fetch_and_process_tgpa_tasks():
                             task_id=task["id"],
                             log_path=task["log_path"],
                             task_status=task["status"],
+                            file_status=task["exe_code"],
+                            process_status=TGPATaskProcessStatusEnum.INIT.value,
                         )
                         for task in task_list
                     ]
                 )
                 continue
-            # 获取增量任务
-            processed_ids = set(TGPATask.objects.filter(bk_biz_id=bk_biz_id).values_list("task_id", flat=True))
-            new_tasks = [task for task in task_list if task["id"] not in processed_ids]
         except Exception:
             logger.exception("Failed to sync client log tasks, business ID: %s", bk_biz_id)
             continue
 
-        for task in new_tasks:
-            # 未成功的任务先不存入数据库，这样不需要对比任务状态
-            if task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
+        # 对比任务列表和数据库中的任务
+        existed_tasks = TGPATask.objects.filter(bk_biz_id=bk_biz_id)
+        task_map = {task.task_id: task for task in existed_tasks}
+        for task in task_list:
+            if task_obj := task_map.get(task["task_id"]):
+                # 如果文件状态发生变化，并且文件状态为上传重构，处理任务
+                if task["exe_code"] != task_obj.file_status and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
+                    task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
+                    task_obj.save(update_fields=["process_status"])
+                    process_single_task.delay(task)
+                # 如果任务状态发生变化，更新任务状态
+                if task_obj.task_status != task["status"] or task_obj.file_status != task["exe_code"]:
+                    task_obj.task_status = task["status"]
+                    task_obj.file_status = task["exe_code"]
+                    task_obj.save(update_fields=["task_status", "file_status", "process_status"])
+            else:
                 _, created = TGPATask.objects.get_or_create(
                     task_id=task["id"],
                     defaults={
-                        "bk_biz_id": bk_biz_id,
+                        "bk_biz_id": task["cc_id"],
                         "log_path": task["log_path"],
                         "task_status": task["status"],
+                        "file_status": task["exe_code"],
+                        "process_status": TGPATaskProcessStatusEnum.INIT.value,
                     },
                 )
-                if created:
+                if created and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
+                    task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
+                    task_obj.save(update_fields=["process_status"])
                     process_single_task.delay(task)
 
 
@@ -90,7 +106,7 @@ def process_single_task(task: dict):
     """
     logger.info("Begin to process task, ID: %s", task["id"])
     task_obj = TGPATask.objects.get(task_id=task["id"])
-    task_obj.process_status = TGPATaskProcessStatusEnum.PROCESSING.value
+    task_obj.process_status = TGPATaskProcessStatusEnum.RUNNING.value
     task_obj.processed_at = timezone.now()
     task_obj.save()
     try:

@@ -186,14 +186,16 @@ class TGPATaskFrequencyEnum(ChoicesEnum):
 class TGPATaskProcessStatusEnum(ChoicesEnum):
     """任务处理状态"""
 
+    INIT = "init"
     PENDING = "pending"
-    PROCESSING = "running"
+    RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
 
     _choices_labels = (
+        (INIT, _("初始化")),
         (PENDING, _("待处理")),
-        (PROCESSING, _("处理中")),
+        (RUNNING, _("处理中")),
         (SUCCESS, _("成功")),
         (FAILED, _("失败")),
     )
