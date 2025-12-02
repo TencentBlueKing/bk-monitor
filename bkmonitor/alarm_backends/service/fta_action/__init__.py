@@ -679,8 +679,7 @@ class BaseActionProcessor:
                 message=_("异常防御审批执行时间套餐配置30分钟, 撤回单据失败，错误信息：{}").format(str(error)),
             )
 
-    @classmethod
-    def parallel_notify_sender(cls, notify_sender, notice_way, voice_notice_group) -> dict:
+    def parallel_notify_sender(self, notify_sender, notice_way, voice_notice_group) -> dict:
         """
         并行发送通知
         """

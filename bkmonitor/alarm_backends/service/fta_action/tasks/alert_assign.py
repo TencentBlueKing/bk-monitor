@@ -347,7 +347,7 @@ class AlertAssigneeManager:
                 by_group=by_group, user_type=user_type
             )
 
-        return self.get_assignees(user_type=user_type, by_group=False)
+        return self.get_assignees(by_group=by_group, user_type=user_type)
 
     def get_supervisors(self, by_group=False, user_type=UserGroupType.MAIN):
         """
