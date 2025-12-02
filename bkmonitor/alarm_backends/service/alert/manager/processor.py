@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,13 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+import json
 import logging
-from typing import List
 
 from alarm_backends.core.alert import Alert, Event
 from alarm_backends.core.alert.alert import AlertKey
 from alarm_backends.core.cache import clear_mem_cache
-from alarm_backends.core.cache.key import ALERT_UPDATE_LOCK
+from alarm_backends.core.cache.key import ALERT_DEDUPE_CONTENT_KEY, ALERT_UPDATE_LOCK
 from alarm_backends.core.lock.service_lock import multi_service_lock
 from alarm_backends.service.alert.manager.checker.ack import AckChecker
 from alarm_backends.service.alert.manager.checker.action import ActionHandleChecker
@@ -40,12 +40,12 @@ INSTALLED_CHECKERS = (
 
 
 class AlertManager(BaseAlertProcessor):
-    def __init__(self, alert_keys: List[AlertKey]):
-        super(AlertManager, self).__init__()
+    def __init__(self, alert_keys: list[AlertKey]):
+        super().__init__()
         self.logger = logging.getLogger("alert.manager")
         self.alert_keys = alert_keys
 
-    def fetch_alerts(self) -> List[Alert]:
+    def fetch_alerts(self) -> list[Alert]:
         # 1. 根据告警ID，从ES拉出数据
         alerts = Alert.mget(self.alert_keys)
 
@@ -81,6 +81,53 @@ class AlertManager(BaseAlertProcessor):
                         alert.data[field] = getattr(alert_docs[alert.id], field, None)
         return alerts
 
+    def filter_alerts(self, alerts: list[Alert]) -> list[Alert]:
+        """
+        过滤不需要处理的告警
+        :param alerts:
+        :return:
+        """
+        # 1. 告警关闭的告警 刚好es拉取到后到加锁处理前被关闭了,此时拿到的这批alerts部分告警在redis已经是关闭状态了
+        alert_dedupe_keys = [
+            ALERT_DEDUPE_CONTENT_KEY.get_key(strategy_id=alert.strategy_id, dedupe_md5=alert.dedupe_md5)
+            for alert in alerts
+        ]
+        fetched_alert_ids = set([alert.id for alert in alerts])
+
+        alert_data = [ALERT_DEDUPE_CONTENT_KEY.client.get(cache_key) for cache_key in alert_dedupe_keys]
+        current_alerts_mapping = {}
+        for current_alert_data in alert_data:
+            if not current_alert_data:
+                # 如果从缓存中获取不到告警，表示当前告警应该为最新的告警信息，跳过过滤
+                continue
+            try:
+                current_alert = json.loads(current_alert_data)
+                current_alert = Alert(current_alert)
+            except Exception:
+                # 如果从缓存中获取不到告警，表示当前告警应该为最新的告警信息，跳过过滤
+                self.logger.warning("Failed to parse alert from cache: %s", current_alert_data)
+                continue
+            # 构造mapping，方便后续过滤
+            current_alerts_mapping[current_alert.dedupe_md5] = current_alert
+        new_alerts = []
+        for alert in alerts:
+            if alert.dedupe_md5 in current_alerts_mapping:
+                # 如果缓存中存在当前告警，则使用缓存中的告警状态进行判断
+                cache_alert = current_alerts_mapping.get(alert.dedupe_md5)
+                if cache_alert and not cache_alert.is_abnormal():
+                    # 如果缓存二次确认状态不为异常则过滤掉，拉取的都是异常告警，若不一致说明此时告警可能已经被关闭或者恢复
+                    continue
+            # 其他情况正常进行处理
+            new_alerts.append(alert)
+        # 打印过滤日志(包含过滤的告警id)
+        filtered_alert_ids = set([alert.id for alert in alerts]) - set([alert.id for alert in new_alerts])
+        self.logger.info(
+            "[manager] Lock fetched alerts: %s,Filtered alerts: %s",
+            ",".join(fetched_alert_ids),
+            ",".join(filtered_alert_ids),
+        )
+        return new_alerts
+
     def process(self):
         """
         处理入口
@@ -99,7 +146,8 @@ class AlertManager(BaseAlertProcessor):
                     locked_alerts.append(alert)
                 else:
                     fail_locked_alert_ids.append(alert.id)
-            # 加锁成功的告警，才会开始处理
+            # 加锁成功的告警，过滤掉不需要处理的告警，才会开始处理
+            locked_alerts = self.filter_alerts(locked_alerts)
             alerts_to_check = []
             alerts_to_update_directly = []
             for alert in locked_alerts:
@@ -140,7 +188,7 @@ class AlertManager(BaseAlertProcessor):
             self.logger.info("[refresh alert es] refresh ES directly: %s", alerts_to_update_directly)
             self.save_alerts(alerts_to_update_directly, action=BulkActionType.UPSERT, force_save=True)
 
-    def handle(self, alerts: List[Alert]):
+    def handle(self, alerts: list[Alert]):
         # #### 需要检测的告警，处理开始
         # 2. 再处理 DB 和 Redis 缓存中存在的告警
         for checker_cls in INSTALLED_CHECKERS:
