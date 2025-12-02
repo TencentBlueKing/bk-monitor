@@ -216,6 +216,7 @@ export default defineComponent({
         loadDelay={0}
         queryString={this.queryString}
         residentSettingOnlyId={this.residentSettingOnlyId}
+        selectFavorite={this.selectFavorite}
         where={this.conditions}
         onCommonWhereChange={this.handleResidentConditionChange}
         onFavorite={this.handleFavoriteSave}

@@ -41,7 +41,7 @@ import { formatTime } from 'trace/utils/utils';
 import { useI18n } from 'vue-i18n';
 
 import EventTableExpandContent from './event-table-expand-content';
-import { eventChartMap, SourceTypeEnum } from './typing';
+import { DimensionsTypeEnum, eventChartMap, SourceTypeEnum } from './typing';
 
 import './event-table.scss';
 
@@ -250,7 +250,7 @@ export default defineComponent({
     const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row }): any => {
       return (
         <EventTableExpandContent
-          data={row.origin_data}
+          data={row}
           detailData={row?.[tableColumnKey.CONTENT]?.detail || {}}
         />
       );
@@ -457,6 +457,9 @@ export default defineComponent({
         ) : (
           <PrimaryTable
             class='relation-event-table'
+            rowClassName={({ row }) =>
+              `row-event-status-${eventChartMap[row.type.value || DimensionsTypeEnum.DEFAULT]}`
+            }
             columns={this.columns}
             data={this.tableData.data}
             expandedRow={this.expandedRow}
@@ -465,7 +468,6 @@ export default defineComponent({
             expandOnRowClick={true}
             needCustomScroll={false}
             resizable={true}
-            rowClassName={({ row }) => `row-event-status-${eventChartMap[row.type.value]}`}
             rowKey={'key'}
             size={'small'}
             sort={this.sort}

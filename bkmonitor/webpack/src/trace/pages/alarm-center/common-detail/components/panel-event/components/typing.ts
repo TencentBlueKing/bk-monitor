@@ -47,7 +47,7 @@ export enum DimensionsTypeEnum {
 export type ESourceType = (typeof SourceTypeEnum)[keyof typeof SourceTypeEnum];
 
 export const eventChartMap = {
-  [DimensionsTypeEnum.WARNING]: 0,
-  [DimensionsTypeEnum.NORMAL]: 1,
-  [DimensionsTypeEnum.DEFAULT]: 2,
+  [DimensionsTypeEnum.WARNING]: 1,
+  [DimensionsTypeEnum.NORMAL]: 2,
+  [DimensionsTypeEnum.DEFAULT]: 3,
 };
