@@ -29,9 +29,10 @@ import { computed, onScopeDispose, shallowRef, watch } from 'vue';
 import { defineStore } from 'pinia';
 
 import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
+import { AlarmType } from '../../pages/alarm-center/typings';
 import { createAutoTimeRange } from '../../plugins/charts/failure-chart/failure-alarm-chart';
 import { useAppStore } from './app';
-import { fetchAlarmDetail } from '@/pages/alarm-center/services/alarm-detail';
+import { fetchActionDetail, fetchAlarmDetail } from '@/pages/alarm-center/services/alarm-detail';
 
 import type { AlarmDetail } from '../../pages/alarm-center/typings/detail';
 
@@ -40,6 +41,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   const alarmDetail = shallowRef<AlarmDetail | null>();
   /** 告警ID */
   const alarmId = shallowRef<string>('');
+  const alarmType = shallowRef<AlarmType>(AlarmType.ALERT);
   /** 加载状态 */
   const loading = shallowRef<boolean>(false);
   const appStore = useAppStore();
@@ -74,15 +76,35 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     loading.value = false;
   };
 
+  const getActionDetailData = async (id: string) => {
+    loading.value = true;
+    const data = await fetchActionDetail(id).catch(() => null);
+    alarmDetail.value = data;
+    loading.value = false;
+  };
+
   watch(
     () => alarmId.value,
     newVal => {
       if (newVal && !loading.value) {
-        getAlertDetailData(newVal);
+        getDetailData(newVal);
       }
     },
     { immediate: true }
   );
+
+  const getDetailData = (id: string) => {
+    switch (alarmType.value) {
+      case AlarmType.ALERT:
+        getAlertDetailData(id);
+        break;
+      case AlarmType.ACTION:
+        getActionDetailData(id);
+        break;
+      default:
+        break;
+    }
+  };
 
   onScopeDispose(() => {
     alarmId.value = '';
@@ -93,6 +115,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   return {
     alarmDetail,
     alarmId,
+    alarmType,
     loading,
     bizId,
     bizItem,

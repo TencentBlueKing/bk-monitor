@@ -150,6 +150,9 @@ export default defineComponent({
     const alarmDetailShow = shallowRef(false);
     /** table 选中的 rowKey 数组 */
     const selectedRowKeys = shallowRef<string[]>([]);
+    const defaultActiveRowKeys = computed(() => {
+      return alarmId.value ? [alarmId.value] : [];
+    });
     /* 是否是所选中告警记录行的关注人 */
     const isSelectedFollower = shallowRef(false);
 
@@ -342,6 +345,7 @@ export default defineComponent({
     /**  展示处理记录详情  */
     function handleShowActionDetail(_id: string) {
       console.info('handleShowActionDetail 展示处理记录详情逻辑待补充~');
+      alarmId.value = _id;
       // handleDetailShowChange(true);
     }
 
@@ -482,6 +486,7 @@ export default defineComponent({
       ordering,
       tableSourceColumns,
       selectedRowKeys,
+      defaultActiveRowKeys,
       isSelectedFollower,
       storageColumns,
       allTableFields,
@@ -619,6 +624,7 @@ export default defineComponent({
                           }}
                           columns={this.tableSourceColumns}
                           data={this.data}
+                          defaultActiveRowKeys={this.defaultActiveRowKeys}
                           isSelectedFollower={this.isSelectedFollower}
                           loading={this.loading}
                           selectedRowKeys={this.selectedRowKeys}
@@ -649,12 +655,14 @@ export default defineComponent({
 
           <AlarmCenterDetail
             alarmId={this.alarmId}
+            alarmType={this.alarmStore.alarmType}
             show={this.alarmDetailShow}
             showStepBtn={this.data.length > 1}
             onNext={this.handleNextDetail}
             onPrevious={this.handlePreviousDetail}
             onUpdate:show={this.handleDetailShowChange}
           />
+
           <AlertOperationDialogs
             alarmBizId={this.alertDialogBizId}
             alarmIds={this.alertDialogIds}
