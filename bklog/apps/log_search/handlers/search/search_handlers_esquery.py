@@ -862,9 +862,10 @@ class SearchHandler:
                 data = search_func(params)
                 # 把shards中的failures信息解析后raise异常出来
                 if data.get("_shards", {}).get("failed"):
-                    errors = data["_shards"]["failures"][0]["reason"]["reason"]
-                    raise LogSearchException(errors)
-
+                    # 找到第一个有失败原因的 shards，抛出异常
+                    for shard in data["_shards"]["failures"]:
+                        if shard["reason"]["reason"]:
+                            raise LogSearchException(shard["reason"]["reason"])
                 return data
             except Exception as e:
                 raise handle_es_query_error(e)
