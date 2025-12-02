@@ -1270,6 +1270,7 @@ ALL_TENANT_SET_ID = 1
 INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 # 兼容非多租户模式
 APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or 'test' in sys.argv)
+USE_APIGW = os.getenv("USE_APIGW", "false").lower() == "true"
 
 # 预查询时间, 默认6h小时, 0代表禁用
 try:
