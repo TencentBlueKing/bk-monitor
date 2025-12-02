@@ -213,7 +213,11 @@ class ActionProcessor(BaseActionProcessor):
 
         need_send, collect_action_id = self.need_send_notice(self.notice_way)
         if need_send:
-            if self.voice_notice_mode == VoiceNoticeMode.PARALLEL and self.voice_notice_group is not None:
+            if (
+                self.notice_way == NoticeWay.VOICE
+                and self.voice_notice_mode == VoiceNoticeMode.PARALLEL
+                and self.voice_notice_group is not None
+            ):
                 # 并行语音通知：使用线程池按用户组并行拨打
                 notice_results = self.parallel_notify_sender(notify_sender, self.notice_way, self.voice_notice_group)
             else:
