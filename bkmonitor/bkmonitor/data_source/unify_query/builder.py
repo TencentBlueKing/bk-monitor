@@ -296,6 +296,7 @@ class UnifyQueryCompiler(SQLCompiler):
                 "nested_paths": query_config_obj.nested_paths,
                 "order_by": query_config_obj.order_by,
                 "is_time_agg": self.query.is_time_agg,
+                "time_alignment": self.query.is_time_align,
             }
             if query_config_obj.interval:
                 query_config["interval"] = query_config_obj.interval
