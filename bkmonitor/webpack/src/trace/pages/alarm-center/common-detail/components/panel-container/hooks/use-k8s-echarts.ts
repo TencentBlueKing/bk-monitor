@@ -281,7 +281,7 @@ export const useK8sEcharts = (
               metricList.value.push(metric);
             }
           }
-          targets.value.push({ ...target, data: query_config });
+          targets.value.push({ ...target, data: query_config ?? target.data });
           return series?.length
             ? series
                 .filter(item => ['extra_info', '_result_'].includes(item.alias))

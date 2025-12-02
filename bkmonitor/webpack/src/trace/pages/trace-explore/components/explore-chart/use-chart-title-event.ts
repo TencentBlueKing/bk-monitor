@@ -46,7 +46,7 @@ import type { IExtendMetricData } from '@/plugins/typings/metric';
 export const useChartTitleEvent = (
   metrics: MaybeRef<Array<Record<string, any>>>,
   targets: MaybeRef<IDataQuery[]>,
-  title?: string,
+  title?: MaybeRef<string>,
   seriesData?: MaybeRef<IUnifyQuerySeriesItem[]>,
   chartRef?: MaybeRef<HTMLElement>
 ) => {
@@ -85,14 +85,14 @@ export const useChartTitleEvent = (
         // 300ms 关闭动画
         chartRef &&
           setTimeout(() => {
-            handleStoreImage(title, get(chartRef));
+            handleStoreImage(get(title), get(chartRef));
           }, 300);
         return;
       case 'export-csv': {
         if (seriesData && get(seriesData).length) {
           const { tableThArr, tableTdArr } = transformSrcData(get(seriesData));
           const csvString = transformTableDataToCsvStr(tableThArr, tableTdArr);
-          downCsvFile(csvString, title);
+          downCsvFile(csvString, get(title));
         }
       }
     }
