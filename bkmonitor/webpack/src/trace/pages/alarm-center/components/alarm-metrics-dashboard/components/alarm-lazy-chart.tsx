@@ -41,6 +41,8 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { DEFAULT_TIME_RANGE } from '../../../../../components/time-range/utils';
 import ExploreChart from '../../../../trace-explore/components/explore-chart/explore-chart';
 
+import type { IDataQuery } from '../../../../../plugins/typings';
+
 export default defineComponent({
   name: 'AlarmLazyChart',
   props: {
@@ -53,7 +55,7 @@ export default defineComponent({
       default: true,
     },
     formatterData: {
-      type: Function as PropType<(val) => any>,
+      type: Function as PropType<(res: any, target: IDataQuery, panel: PanelModel) => any>,
       default: res => res,
     },
     params: {
@@ -89,7 +91,7 @@ export default defineComponent({
     provide('timeRange', viewerTimeRange);
     provide('refreshImmediate', viewerRefreshImmediate);
 
-    watch([refreshImmediate, timeRange, () => props.panel, () => props.params], () => {
+    watch([refreshImmediate, () => get(timeRange), () => props.panel, () => props.params], () => {
       hasPanelChange.value = true;
       refreshChart();
     });
@@ -172,19 +174,20 @@ export default defineComponent({
     };
   },
   render() {
+    const renderContext = {
+      panel: this.viewerPanel,
+      params: this.viewerParams,
+      showTitle: this.showTitle,
+      onDataZoomChange: this.handleDataZoomChange,
+      onDurationChange: this.handleDurationChange,
+      formatterData: this.formatterData,
+    };
     return (
       <div
         ref='chartContainerRef'
         class='alarm-lazy-chart'
       >
-        <ExploreChart
-          formatterData={this.formatterData}
-          panel={this.viewerPanel}
-          params={this.viewerParams}
-          showTitle={this.showTitle}
-          onDataZoomChange={this.handleDataZoomChange}
-          onDurationChange={this.handleDurationChange}
-        />
+        {this.$slots?.customBaseChart?.(renderContext) || <ExploreChart {...renderContext} />}
       </div>
     );
   },

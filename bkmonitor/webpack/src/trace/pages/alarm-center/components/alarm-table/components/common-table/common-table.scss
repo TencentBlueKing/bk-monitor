@@ -4,11 +4,12 @@
   position: relative;
   display: flex;
   flex-direction: column;
+
   // 最小高度应为骨架屏高度避免出现空白
-  min-height: 370px;
+  // min-height: 370px;
 
   .common-table {
-    @include tableCommonTheme.table-theme();
+    @include tableCommonTheme.table-theme;
 
     .common-table-ellipsis {
       overflow: hidden;
@@ -44,7 +45,10 @@
     position: absolute;
     top: var(--trace-table-header-height, 34px);
     z-index: 100;
-    visibility: hidden;
+
+    // 使用 visibility 属性会影响布局计算，改用 display 属性
+    // visibility: hidden;
+    display: none;
     height: calc(100% - var(--trace-table-header-height, 34px));
     min-height: fit-content;
     padding: 10px 8px;
@@ -52,7 +56,9 @@
 
     &.common-skeleton-show-all,
     &.common-skeleton-show-body {
-      visibility: visible;
+      // 使用 visibility 属性会影响布局计算，改用 display 属性
+      // visibility: visible;
+      display: block;
     }
 
     &.common-skeleton-show-body {
