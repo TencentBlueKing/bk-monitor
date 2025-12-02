@@ -48,6 +48,7 @@ from apps.log_search.handlers.search.search_handlers_esquery import SearchHandle
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.log_unifyquery.handler.agg import UnifyQueryAggHandler
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.log_unifyquery.handler.terms_aggs import UnifyQueryTermsAggsHandler
 from apps.utils.log import logger
 from bk_dataview.grafana import client
 from bkm_ipchooser.constants import ObjectType
@@ -817,8 +818,7 @@ class GrafanaQueryHandler:
         data["bk_biz_id"] = self.bk_biz_id
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data["index_set_ids"] = [index_set_id]
-            data.setdefault("agg_fields", data.pop("fields", []))
-            result = UnifyQueryHandler(data).terms()
+            result = UnifyQueryTermsAggsHandler(data.pop("fields", []), data).terms()
         else:
             result = AggsViewAdapter().terms(index_set_id, data)
         return result["aggs_items"].get(field, [])

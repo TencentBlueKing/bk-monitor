@@ -33,7 +33,7 @@ from apps.log_search.models import (
     LogIndexSetData,
 )
 from apps.log_search.utils import create_download_response
-from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.log_unifyquery.handler.terms_aggs import UnifyQueryTermsAggsHandler
 from apps.models import model_to_dict
 from apps.utils.local import get_request_username
 from bkm_search_module.api import AbstractBkApi
@@ -92,8 +92,7 @@ class BkApi(AbstractBkApi):
 
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data["index_set_ids"] = [index_set_id]
-            data.setdefault("agg_fields", data.pop("fields", []))
-            terms_data = UnifyQueryHandler(data).terms()
+            terms_data = UnifyQueryTermsAggsHandler(data.pop("fields", []), data).terms()
         else:
             terms_data = AggsViewAdapter().terms(index_set_id=index_set_id, query_data=data)
 
