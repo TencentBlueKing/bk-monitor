@@ -26,7 +26,7 @@ from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
-from metadata.models import BkBaseResultTable, DataSource
+from metadata.models import BkBaseResultTable, ClusterInfo, DataSource
 from metadata.models.constants import (
     BASE_EVENT_RESULT_TABLE_FIELD_MAP,
     BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP,
@@ -40,6 +40,7 @@ from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.service import get_data_link_component_status
 from metadata.models.space.constants import EtlConfigs, SpaceTypes
 from metadata.models.space.space import Space
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.vm.record import AccessVMRecord
 from metadata.models.vm.utils import (
     create_fed_bkbase_data_link,
@@ -1436,10 +1437,12 @@ def create_base_event_datalink_for_bkcc(bk_tenant_id: str, bk_biz_id: int, stora
                     slice_size=500,
                     slice_gap=1440,
                     retention=30,
-                    index_settings=json.dumps({
-                        "number_of_shards": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS,
-                        "number_of_replicas": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS,
-                    }),
+                    index_settings=json.dumps(
+                        {
+                            "number_of_shards": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_SHARDS,
+                            "number_of_replicas": settings.SYSTEM_EVENT_DEFAULT_ES_INDEX_REPLICAS,
+                        }
+                    ),
                     mapping_settings='{"dynamic_templates":[{"discover_dimension":{"path_match":"dimensions.*","mapping":{"type":"keyword"}}}]}',
                     source_type="log",
                     need_create_index=True,
@@ -1870,3 +1873,47 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
                     task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 
     logger.info("check_bkcc_space_builtin_datalink: check bkcc space builtin datalink success")
+
+
+def create_single_tenant_system_datalink():
+    """创建单租户系统数据链路
+
+    Note: 单租户全新部署的情况下，将1001指定为BKDATA来源的数据源，并将内置结果表指向固定的vmrt。、
+          清洗配置和vmrt由bkbase内置，无需监控平台管理。
+    """
+    datasource = DataSource.objects.get(bk_data_id=1001)
+
+    # 如果数据源创建来源不是BKDATA，则更新为BKDATA，停止transfer任务
+    if datasource.created_from != DataIdCreatedFromSystem.BKDATA.value:
+        datasource.created_from = DataIdCreatedFromSystem.BKDATA.value
+        datasource.delete_consul_config()
+        datasource.save()
+
+    # 获取默认的VM集群
+    vm_cluster = ClusterInfo.objects.get(
+        bk_tenant_id=datasource.bk_tenant_id, is_default_cluster=True, cluster_type=ClusterInfo.TYPE_VM
+    )
+
+    # 创建内置结果表对应的AccessVMRecord
+    table_ids: list[str] = []
+    for table in BASEREPORT_USAGES:
+        table_id = f"system.{table}"
+        table_ids.append(table_id)
+        AccessVMRecord.objects.update_or_create(
+            bk_tenant_id=datasource.bk_tenant_id,
+            result_table_id=table_id,
+            defaults={
+                "data_type": AccessVMRecord.ACCESS_VM,
+                "storage_cluster_id": vm_cluster.cluster_id,
+                "bk_base_data_id": datasource.bk_data_id,
+                "bk_base_data_name": datasource.data_name,
+                "vm_result_table_id": f"1_base_{table}",
+            },
+        )
+
+    # 刷新查询路由表数据
+    SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_ids, is_publish=True)
+    SpaceTableIDRedis().push_multi_space_table_ids(
+        spaces=list(Space.objects.filter(space_type_id=SpaceTypes.BKCC.value)),
+        is_publish=True,
+    )
