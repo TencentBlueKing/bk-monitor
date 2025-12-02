@@ -106,6 +106,9 @@ def process_single_task(task: dict):
     """
     logger.info("Begin to process task, ID: %s", task["id"])
     task_obj = TGPATask.objects.get(task_id=task["id"])
+    if task_obj.process_status != TGPATaskProcessStatusEnum.PENDING.value:
+        return
+
     task_obj.process_status = TGPATaskProcessStatusEnum.RUNNING.value
     task_obj.processed_at = timezone.now()
     task_obj.save(update_fields=["process_status", "processed_at"])
