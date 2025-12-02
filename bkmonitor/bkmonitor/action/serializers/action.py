@@ -29,6 +29,7 @@ from constants.action import (
     IntervalNotifyMode,
     NoticeChannel,
     NotifyStep,
+    VoiceNoticeMode,
 )
 from constants.alert import EVENT_SEVERITY
 from core.errors.api import BKAPIError
@@ -216,6 +217,12 @@ class ExecutionSerializer(serializers.Serializer):
 
 class NotifyActionConfigSlz(PollModeConfig):
     template = TemplateSerializer(label="通知模板配置", many=True)
+    voice_notice = serializers.ChoiceField(
+        label="语音通知拨打顺序",
+        required=False,
+        default=VoiceNoticeMode.SERIAL,
+        choices=VoiceNoticeMode.CHOICES,
+    )
 
 
 class KVPairSlz(serializers.Serializer):
