@@ -608,7 +608,8 @@ class BaseActionProcessor:
 
             if self.voice_notice_mode == VoiceNoticeMode.PARALLEL and self.voice_notice_group:
                 parallel_results = self.parallel_notify_sender(notify_sender, notice_way, self.voice_notice_group)
-                notice_result[notice_way].append(parallel_results)
+                # 将并行结果拆分为多个单独的字典，与串行模式保持一致的数据结构
+                notice_result[notice_way].extend([{k: v} for k, v in parallel_results.items()])
                 continue
 
             for notice_receiver in notice_receivers:
@@ -678,7 +679,8 @@ class BaseActionProcessor:
                 message=_("异常防御审批执行时间套餐配置30分钟, 撤回单据失败，错误信息：{}").format(str(error)),
             )
 
-    def parallel_notify_sender(self, notify_sender, notice_way, voice_notice_group) -> dict:
+    @classmethod
+    def parallel_notify_sender(cls, notify_sender, notice_way, voice_notice_group) -> dict:
         """
         并行发送通知
         """
@@ -697,7 +699,7 @@ class BaseActionProcessor:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # 提交所有任务
             future_to_group = {
-                executor.submit(send_to_group, user_group): user_group for user_group in self.voice_notice_group
+                executor.submit(send_to_group, user_group): user_group for user_group in voice_notice_group
             }
 
             # 收集结果
