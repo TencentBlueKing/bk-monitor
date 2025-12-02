@@ -236,7 +236,7 @@ export default defineComponent({
                 {checkboxRender(textEllipsisDir.value, GLOBAL_SETTING_OPTIONS.textEllipsisDirs, setTextEllipsisDir)}
               </div>
             </div>
-            <div class='setting-item'>
+            {/* <div class='setting-item'>
               <div class='item-label'>{$t('结果展示')}</div>
               <div class='item-main'>
                 {checkboxRender(
@@ -245,7 +245,7 @@ export default defineComponent({
                   setResultDisplayLines,
                 )}
               </div>
-            </div>
+            </div> */}
           </div>
           <div class='setting-operation'>
             <bk-button
