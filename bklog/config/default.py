@@ -677,7 +677,7 @@ MENUS = [
                         "id": "tgpa_task",
                         "name": _("客户端日志"),
                         "feature": "debug",
-                        "icon": "document",
+                        "icon": "client-log",
                     },
                     {
                         "id": "bk_data_collection",
