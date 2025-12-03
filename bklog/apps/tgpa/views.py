@@ -23,8 +23,8 @@ from rest_framework.response import Response
 
 from apps.api import TGPATaskApi
 from apps.generic import APIViewSet
-from apps.iam import ActionEnum, ResourceEnum
-from apps.iam.handlers.drf import ViewBusinessPermission, insert_permission_field, BusinessActionPermission
+from apps.iam import ActionEnum
+from apps.iam.handlers.drf import ViewBusinessPermission, BusinessActionPermission
 from apps.tgpa.handlers.task import TGPATaskHandler
 from apps.tgpa.serializers import CreateTGPATaskSerializer, GetTGPATaskListSerializer, GetDownloadUrlSerializer
 from bkm_search_module.constants import list_route
@@ -40,12 +40,6 @@ class TGPATaskViewSet(APIViewSet):
             return [BusinessActionPermission([ActionEnum.DOWNLOAD_CLIENT_LOG])]
         return [ViewBusinessPermission()]
 
-    @insert_permission_field(
-        actions=[ActionEnum.DOWNLOAD_CLIENT_LOG],
-        resource_meta=ResourceEnum.BUSINESS,
-        id_field=lambda d: d["bk_biz_id"],
-        data_field=lambda d: d["list"],
-    )
     def list(self, request, *args, **kwargs):
         """
         获取日志拉取任务列表
