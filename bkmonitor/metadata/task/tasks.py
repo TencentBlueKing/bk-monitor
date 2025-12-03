@@ -1906,9 +1906,15 @@ def create_single_tenant_system_datalink(bk_biz_id: int | None = None, kafka_clu
     if datasource.created_from != DataIdCreatedFromSystem.BKDATA.value:
         datasource.created_from = DataIdCreatedFromSystem.BKDATA.value
         #
-        bkdata_mq_cluster = ClusterInfo.objects.get(
-            cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name=kafka_cluster_name
-        )
+        try:
+            bkdata_mq_cluster = ClusterInfo.objects.get(
+                cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name=kafka_cluster_name
+            )
+        except ClusterInfo.DoesNotExist:
+            logger.error(
+                f"create_single_tenant_system_datalink: Kafka cluster with name '{kafka_cluster_name}' does not exist, aborting."
+            )
+            return
         datasource.mq_cluster_id = bkdata_mq_cluster.cluster_id
         # 删除consul配置
         datasource.delete_consul_config()
