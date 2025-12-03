@@ -145,7 +145,7 @@ class LogCollectorHandler:
         """
         filtered_data = []
         for item in data:
-            # 多个 log_access_type 里面的条件之间是"或"的关系
+            # 多个 log_access_type 之间是"或"的关系
             for log_access_type in log_access_type_list:
                 _original_fields = LogAccessTypeEnum.get_original_fields(log_access_type)
                 collector_scenario_id_list = _original_fields.get("collector_scenario_id_list", [])
