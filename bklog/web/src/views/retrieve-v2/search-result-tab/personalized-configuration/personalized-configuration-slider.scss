@@ -1,0 +1,49 @@
+.personalized-configuration-container {
+    .tabs {
+        display: flex;
+        padding: 16px 0 0 16px;
+        background: #F5F7FA;
+
+        .tab-item {
+            height: 42px;
+            padding: 0px 24px;
+            margin-right: 8px;
+            font-size: 14px;
+            line-height: 42px;
+            color: #4D4F56;
+            cursor: pointer;
+            background: #EAEBF0;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .active {
+            color: #3A84FF;
+            background: #FFFFFF;
+        }
+    }
+
+    .personalized-configuration-content {
+        padding-left: 40px;
+
+        .bklog-v3-grade-setting {
+            padding-top: 6px;
+            border: none;
+            box-shadow: none;
+
+            .grade-row {
+                padding: 0;
+            }
+
+            .grade-footer {
+                justify-content: flex-start;
+                padding: 0 64px;
+                background: #FFFFFF;
+                box-shadow: none;
+                
+                button {
+                    width: 88px;
+                } 
+            }
+        }
+    }
+}
