@@ -1219,18 +1219,22 @@ class DataLink(models.Model):
 
         bkbase_vmrt_prefix = f"base_{bk_biz_id}_{source}"
 
-        with transaction.atomic():
-            for usage in BASEREPORT_USAGES:
-                vm_result_table_id = f"{bk_biz_id}_{bkbase_vmrt_prefix}_{usage}"
-                result_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source}.{usage}"
-                AccessVMRecord.objects.update_or_create(
-                    bk_tenant_id=self.bk_tenant_id,
-                    result_table_id=result_table_id,
-                    bk_base_data_id=datasource.bk_data_id,
-                    bk_base_data_name=datasource.data_name,
-                    defaults={
-                        "vm_result_table_id": vm_result_table_id,
-                        "vm_cluster_id": storage_cluster_id,
-                        "storage_cluster_id": storage_cluster_id,
-                    },
-                )
+        try:
+            with transaction.atomic():
+                # 创建11个ResultTableConfig和VMStorageBindingConfig
+                for usage in BASEREPORT_USAGES:
+                    vm_result_table_id = f"{bk_biz_id}_{bkbase_vmrt_prefix}_{usage}"
+                    result_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{source}.{usage}"
+                    vm_record, _ = AccessVMRecord.objects.update_or_create(
+                        bk_tenant_id=self.bk_tenant_id,
+                        result_table_id=result_table_id,
+                        bk_base_data_id=datasource.bk_data_id,
+                        bk_base_data_name=datasource.data_name,
+                        defaults={
+                            "vm_result_table_id": vm_result_table_id,
+                            "vm_cluster_id": storage_cluster_id,
+                            "storage_cluster_id": storage_cluster_id,
+                        },
+                    )
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error("sync_basereport_metadata: failed to create access vm record! error message->%s", e)
