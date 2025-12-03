@@ -1880,7 +1880,7 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
     logger.info("check_bkcc_space_builtin_datalink: check bkcc space builtin datalink success")
 
 
-def create_single_tenant_system_datalink(bk_biz_id: int = 1, kafka_cluster_name: str = "kafka_outer_default"):
+def create_single_tenant_system_datalink(bk_biz_id: int | None = None, kafka_cluster_name: str = "kafka_outer_default"):
     """创建单租户系统数据链路
 
     Note: 单租户全新部署的情况下，将1001指定为BKDATA来源的数据源，并将内置结果表指向固定的vmrt。
@@ -1895,6 +1895,10 @@ def create_single_tenant_system_datalink(bk_biz_id: int = 1, kafka_cluster_name:
     if settings.ENABLE_MULTI_TENANT_MODE:
         logger.info("create_single_tenant_system_datalink: multi tenant mode is enabled,return!")
         return
+
+    # 如果未指定业务ID，则使用默认业务ID
+    if bk_biz_id is None:
+        bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
 
     datasource = DataSource.objects.get(bk_data_id=settings.SNAPSHOT_DATAID)
 
@@ -1959,7 +1963,9 @@ def create_single_tenant_system_datalink(bk_biz_id: int = 1, kafka_cluster_name:
     )
 
 
-def create_single_tenant_system_proc_datalink(bk_biz_id: int = 1, kafka_cluster_name: str = "kafka_outer_default"):
+def create_single_tenant_system_proc_datalink(
+    bk_biz_id: int | None = None, kafka_cluster_name: str = "kafka_outer_default"
+):
     """创建单租户系统进程数据链路
 
     Note: 单租户全新部署的情况下，将1007/1013指定为BKDATA来源的数据源，并将内置结果表指向固定的vmrt。
@@ -1974,6 +1980,10 @@ def create_single_tenant_system_proc_datalink(bk_biz_id: int = 1, kafka_cluster_
     if settings.ENABLE_MULTI_TENANT_MODE:
         logger.info("create_single_tenant_system_proc_datalink: multi tenant mode is enabled,return!")
         return
+
+    # 如果未指定业务ID，则使用默认业务ID
+    if bk_biz_id is None:
+        bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
 
     # 获取默认的VM集群
     vm_cluster = ClusterInfo.objects.get(is_default_cluster=True, cluster_type=ClusterInfo.TYPE_VM)
