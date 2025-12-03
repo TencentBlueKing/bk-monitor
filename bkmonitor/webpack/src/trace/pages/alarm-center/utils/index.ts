@@ -24,6 +24,9 @@
  * IN THE SOFTWARE.
  */
 
+import dayjs from 'dayjs';
+import { isZh } from 'monitor-pc/common/constant';
+
 /**
  * @description 在关注人里面但不在通知人则禁用操作
  * @param follower
@@ -51,4 +54,56 @@ export const actionConfigGroupList = (actionConfigList): any[] => {
     groupList.push({ id: key, name: obj.groupName, children: obj.list });
   });
   return groupList;
+};
+
+/* 处理记录执行状态 */
+
+export const getStatusInfo = (status: string, failureType?: string) => {
+  const statusMap = {
+    success: window.i18n.t('成功'),
+    failure: window.i18n.t('失败'),
+    running: window.i18n.t('执行中'),
+    shield: window.i18n.t('已屏蔽'),
+    skipped: window.i18n.t('被收敛'),
+    framework_code_failure: window.i18n.t('系统异常'),
+    timeout: window.i18n.t('执行超时'),
+    execute_failure: window.i18n.t('执行失败'),
+    unknown: window.i18n.t('失败'),
+  };
+  let text = statusMap[status];
+  if (status === 'failure') {
+    text = statusMap[failureType] || window.i18n.t('失败');
+  }
+  return {
+    status,
+    text,
+  };
+};
+
+export const queryString = (type: 'defense' | 'trigger', id) => {
+  if (type === 'trigger') {
+    return isZh() ? `处理记录ID: ${id}` : `action_id: ${id}`;
+  }
+  return isZh() ? `收敛记录ID: ${id}` : `converge_id: ${id}`;
+};
+
+export const handleToAlertList = (
+  type: 'defense' | 'trigger',
+  detailInfo: { converge_id?: number; create_time: number; end_time: number; id: string },
+  bizId
+) => {
+  const curUnix = dayjs.tz().unix() * 1000;
+  const oneDay = 60 * 24 * 60 * 1000;
+  const startTime = dayjs.tz(detailInfo.create_time * 1000 - oneDay).format('YYYY-MM-DD HH:mm:ss');
+  const endTime = detailInfo.end_time
+    ? dayjs
+        .tz(detailInfo.end_time * 1000 + oneDay > curUnix ? curUnix : detailInfo.end_time * 1000 + oneDay)
+        .format('YYYY-MM-DD HH:mm:ss')
+    : dayjs.tz().format('YYYY-MM-DD HH:mm:ss');
+  window.open(
+    `${location.origin}${location.pathname}?bizId=${bizId}/#/trace/alarm-center?queryString=${queryString(
+      type,
+      detailInfo.id
+    )}&form=${startTime}&to=${endTime}`
+  );
 };

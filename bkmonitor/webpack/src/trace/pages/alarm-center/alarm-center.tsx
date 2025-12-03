@@ -350,10 +350,9 @@ export default defineComponent({
     }
 
     /**  展示处理记录详情  */
-    function handleShowActionDetail(_id: string) {
-      console.info('handleShowActionDetail 展示处理记录详情逻辑待补充~');
-      alarmId.value = _id;
-      // handleDetailShowChange(true);
+    function handleShowActionDetail(id: string) {
+      alarmId.value = id;
+      handleDetailShowChange(true);
     }
 
     function handleDetailShowChange(show: boolean) {
