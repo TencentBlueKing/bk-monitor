@@ -1345,9 +1345,22 @@ class TimeSeriesScope(models.Model):
         if duplicate_scopes:
             raise ValueError(_("指标分组名已存在，请确认后重试: {}").format(", ".join(duplicate_scopes)))
 
-        # todo hhh 同一批次内的 scope_name 不能重复
+        # 1.3 检查批次内部是否有重复的 scope_name（同一 group_id 下）
+        # 构建批次内的最终 scope_name 映射：{(group_id, final_scope_name): [index1, index2, ...]}
+        batch_scope_names = {}
+        for idx, scope_key in enumerate(scope_keys):
+            batch_scope_names.setdefault(scope_key, []).append(idx)
 
-        # 1.3 校验 manual_list 中的指标是否都在 default 数据分组
+        # 检查批次内是否有重复
+        for (group_id, scope_name), indices in batch_scope_names.items():
+            if len(indices) > 1:
+                raise ValueError(
+                    _("批次内存在重复的分组名: group_id={}, scope_name={}, 位置索引={}").format(
+                        group_id, scope_name, ", ".join(map(str, indices))
+                    )
+                )
+
+        # 1.4 校验 manual_list 中的指标是否都在 default 数据分组
         # todo hhh 同一批次内的 manual_list 可能会有重复
         for scope_data in scopes:
             manual_list = scope_data.get("manual_list")
