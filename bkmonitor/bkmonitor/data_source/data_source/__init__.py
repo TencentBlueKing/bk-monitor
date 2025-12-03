@@ -790,6 +790,201 @@ class InfluxdbDimensionFetcher:
         return api.unify_query.get_dimension_data(**query_data)
 
 
+class LogUnifyQueryMixin:
+    """
+    - self.metrics: list[dict]      指标配置，包含 field/method/alias 等
+    - self.interval: int            聚合周期（秒）
+    - self.functions: list[dict]    统一查询函数配置
+    - self.group_by: list[str]      聚合维度
+    - self.time_field: str          时间字段
+    - self.query_string: str        日志查询语句（空则视为 "*"）
+    - self.is_time_agg: bool        是否进行时间聚合
+    - self.time_alignment: bool     是否对齐时间窗口
+    - self.reference_name: str      没有指标时的引用名称（默认 "a"）
+
+    钩子方法：
+    - _get_unify_query_table() -> str
+        返回统一查询使用的 table_id
+    - _get_group_by(bk_obj_id: str | None = None) -> list[str]
+        返回最终的聚合维度列表
+    - _get_where() -> list[dict]
+        返回条件列表
+    - _get_filter_dict(...) -> dict
+        返回过滤条件字典
+    - _get_conditions() -> dict
+        返回 UnifyQuery 所需的 conditions 结构
+    """
+
+    # 查询操作符映射关系：监控 -> UnifyQuery
+    OPERATOR_MAPPING: dict[str, str] = {
+        "reg": "req",
+        "nreg": "nreq",
+        "neq": "ne",
+        "exists": "existed",
+        "nexists": "nexisted",
+        "include": "contains",
+        "exclude": "ncontains",
+        "gt": "gt",
+        "lt": "lt",
+        "gte": "gte",
+        "lte": "lte",
+        "wildcard": "wildcard",
+        "nwildcard": "nwildcard",
+    }
+
+    # 分位数聚合方法映射关系：监控 -> UnifyQuery
+    PERCENTILES_AGG_TRANSLATE: dict[float, str] = {
+        CpAggMethods["cp50"].vargs_list[0]: "50.0",
+        CpAggMethods["cp90"].vargs_list[0]: "90.0",
+        CpAggMethods["cp95"].vargs_list[0]: "95.0",
+        CpAggMethods["cp99"].vargs_list[0]: "99.0",
+    }
+
+    # 聚合函数映射，背景：UnifyQuery / SaaS 对去重、求和等函数名定义可能不一致，此处统一映射为 UnifyQuery 所支持的函数
+    FUNC_METHOD_MAPPING: dict[str, str] = {"distinct": "cardinality"}
+
+    # 默认展示字段
+    DEFAULT_SELECT: list[str] = []
+
+    def __init__(self, *args, **kwargs):
+        self.is_time_agg: bool = kwargs.get("is_time_agg", True)
+        self.time_alignment: bool = kwargs.get("time_alignment", True)
+        self.reference_name: str = kwargs.get("reference_name") or "a"
+
+        # 保持多重继承链路，继续把参数传给下一个父类
+        super().__init__(*args, **kwargs)
+
+    # ====== 通用辅助方法（LogSearchTimeSeriesDataSource 可以直接复用） ======
+
+    def _get_group_by(self, bk_obj_id: str = None) -> list:
+        """
+        聚合维度处理，判断是否需要按节点聚合
+        """
+        group_by = self.group_by[:]
+
+        # 去除补全的特殊维度
+        if "bk_obj_id" in group_by:
+            group_by.remove("bk_obj_id")
+        if "bk_inst_id" in group_by:
+            group_by.remove("bk_inst_id")
+
+        # 如果没有实例维度，则按节点聚合
+        if not ({"bk_target_ip", "bk_target_service_instance_id"} & set(group_by)) and bk_obj_id:
+            group_by.append(f"bk_{bk_obj_id}_id")
+
+        # 维度补充dimensions.前缀
+        return [
+            f"dimensions.{dimension}" if self.is_dimensions_field(dimension) else dimension for dimension in group_by
+        ]
+
+    def _get_where(self):
+        """
+        非内置维度需要补充dimensions.
+        """
+        where = copy.deepcopy(self.where)
+        for condition in where:
+            if self.is_dimensions_field(condition["key"]):
+                condition["key"] = f"dimensions.{condition['key']}"
+
+        # 去除采集配置ID条件
+        where = [c for c in where if c["key"] != "dimensions.bk_collect_config_id"]
+        return where
+
+    def _get_filter_dict(self, bk_obj_id: str = None, bk_inst_ids: list = None) -> dict:
+        """
+        过滤条件按target过滤及添加dimensions.前缀
+        """
+        filter_dict = self.filter_dict.copy() if self.filter_dict else {}
+        if bk_obj_id and bk_inst_ids:
+            filter_dict[f"bk_{bk_obj_id}_id"] = bk_inst_ids
+
+        return self._add_dimension_prefix(filter_dict)
+
+    def _get_conditions(self) -> dict[str, list[Any]]:
+        return _parse_conditions(self._get_filter_dict(), self._get_where(), self.OPERATOR_MAPPING)
+
+    # ====== 统一查询配置生成主逻辑 ======
+
+    def to_unify_query_config(self) -> list[dict]:
+        group_by: list[str] = self._get_group_by()
+        base_query: dict[str, Any] = {
+            "driver": "influxdb",
+            # UnifyQuery 数据源字段，目前没有 custom 来表示自定义事件，故统一用 bkapm 代表监控侧的数据源（事件、Trace）。
+            "data_source": "bkapm",
+            "table_id": self._get_unify_query_table(),
+            "reference_name": "",
+            "field_name": "",
+            "time_field": self.time_field,
+            "dimensions": group_by,
+            "query_string": self.query_string or "*",
+            "conditions": self._get_conditions(),
+            "function": [],
+            "time_aggregation": {},
+            "keep_columns": [],
+            "order_by": [],
+        }
+
+        query_list: list[dict[str, Any]] = []
+        for metric in self.metrics:
+            query: dict[str, Any] = copy.deepcopy(base_query)
+            method: str = metric["method"].lower()
+            # 非时间聚合，直接使用传入的方法
+            func_method: str = method
+            if self.is_time_agg and self.time_alignment and method == "count":
+                # 时间聚合场景下且进行对齐的场景下，COUNT 外层需使用 SUM 进行聚合。
+                func_method = "sum"
+            function: dict[str, Any] = {
+                "method": self.FUNC_METHOD_MAPPING.get(func_method, func_method),
+                "dimensions": group_by,
+            }
+            if method in CpAggMethods:
+                cp_agg_method = CpAggMethods[method]
+                function["vargs_list"] = [float(self.PERCENTILES_AGG_TRANSLATE[CpAggMethods[method].vargs_list[0]])]
+                function["method"] = "percentiles"
+                query["time_aggregation"]["position"] = cp_agg_method.position
+                query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
+
+            query["function"].append(function)
+
+            if self.is_time_agg:
+                if self.time_alignment:
+                    # 日志场景是根据 Log 条数统计，一条日志可以看成时序的一个点，即使用 Count 计算点数。
+                    agg_func_name: str = f"{method}_over_time"
+                    query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
+                else:
+                    # 非时间对齐场景，直接在查询函数里指定聚合周期，由对应的存储后端进行聚合，不走 Prom 引擎。
+                    function["window"] = f"{self.interval}s"
+
+            query["field_name"] = metric["field"]
+            query["reference_name"] = (metric.get("alias") or "a").lower()
+
+            if self.is_time_agg and self.time_alignment:
+                time_aggregation, functions = _parse_function_params(self.functions, group_by)
+                query["function"].extend(functions)
+                if time_aggregation:
+                    query["time_aggregation"].update(time_aggregation)
+
+            query_list.append(query)
+
+        if not query_list:
+            query: dict[str, Any] = copy.deepcopy(base_query)
+            query["reference_name"] = self.reference_name or "a"
+            # distinct 表示根据某个字段进行折叠，仅返回折叠序最高的数据，通常用于数据整行去重，例如 Trace 列表场景。
+            # 为什么需要折叠？相对于聚合来说，支持分页、排序，并且查询效率更高，此外，Doris / ES 都支持类似语义。
+            if self.distinct:
+                query["collapse"] = {"field": self.distinct}
+
+            # 原始数据保留字段
+            for select_field in self.select:
+                if "(" in select_field and ")" in select_field:
+                    continue
+                query["keep_columns"].append(select_field)
+
+            query_list.append(query)
+
+        return query_list
+
+
 class PrometheusTimeSeriesDataSource(DataSource):
     data_source_label = "prometheus"
     data_type_label = "time_series"
@@ -1497,201 +1692,6 @@ class CustomTimeSeriesDataSource(TimeSeriesDataSource):
         super().__init__(*args, **kwargs)
 
 
-class LogUnifyQueryMixin:
-    """
-    - self.metrics: list[dict]      指标配置，包含 field/method/alias 等
-    - self.interval: int            聚合周期（秒）
-    - self.functions: list[dict]    统一查询函数配置
-    - self.group_by: list[str]      聚合维度
-    - self.time_field: str          时间字段
-    - self.query_string: str        日志查询语句（空则视为 "*"）
-    - self.is_time_agg: bool        是否进行时间聚合
-    - self.time_alignment: bool     是否对齐时间窗口
-    - self.reference_name: str      没有指标时的引用名称（默认 "a"）
-
-    钩子方法：
-    - _get_unify_query_table() -> str
-        返回统一查询使用的 table_id
-    - _get_group_by(bk_obj_id: str | None = None) -> list[str]
-        返回最终的聚合维度列表
-    - _get_where() -> list[dict]
-        返回条件列表
-    - _get_filter_dict(...) -> dict
-        返回过滤条件字典
-    - _get_conditions() -> dict
-        返回 UnifyQuery 所需的 conditions 结构
-    """
-
-    # 查询操作符映射关系：监控 -> UnifyQuery
-    OPERATOR_MAPPING: dict[str, str] = {
-        "reg": "req",
-        "nreg": "nreq",
-        "neq": "ne",
-        "exists": "existed",
-        "nexists": "nexisted",
-        "include": "contains",
-        "exclude": "ncontains",
-        "gt": "gt",
-        "lt": "lt",
-        "gte": "gte",
-        "lte": "lte",
-        "wildcard": "wildcard",
-        "nwildcard": "nwildcard",
-    }
-
-    # 分位数聚合方法映射关系：监控 -> UnifyQuery
-    PERCENTILES_AGG_TRANSLATE: dict[float, str] = {
-        CpAggMethods["cp50"].vargs_list[0]: "50.0",
-        CpAggMethods["cp90"].vargs_list[0]: "90.0",
-        CpAggMethods["cp95"].vargs_list[0]: "95.0",
-        CpAggMethods["cp99"].vargs_list[0]: "99.0",
-    }
-
-    # 聚合函数映射，背景：UnifyQuery / SaaS 对去重、求和等函数名定义可能不一致，此处统一映射为 UnifyQuery 所支持的函数
-    FUNC_METHOD_MAPPING: dict[str, str] = {"distinct": "cardinality"}
-
-    # 默认展示字段
-    DEFAULT_SELECT: list[str] = []
-
-    def __init__(self, *args, **kwargs):
-        self.is_time_agg: bool = kwargs.get("is_time_agg", True)
-        self.time_alignment: bool = kwargs.get("time_alignment", True)
-        self.reference_name: str = kwargs.get("reference_name") or "a"
-
-        # 保持多重继承链路，继续把参数传给下一个父类
-        super().__init__(*args, **kwargs)
-
-    # ====== 通用辅助方法（LogSearchTimeSeriesDataSource 可以直接复用） ======
-
-    def _get_group_by(self, bk_obj_id: str = None) -> list:
-        """
-        聚合维度处理，判断是否需要按节点聚合
-        """
-        group_by = self.group_by[:]
-
-        # 去除补全的特殊维度
-        if "bk_obj_id" in group_by:
-            group_by.remove("bk_obj_id")
-        if "bk_inst_id" in group_by:
-            group_by.remove("bk_inst_id")
-
-        # 如果没有实例维度，则按节点聚合
-        if not ({"bk_target_ip", "bk_target_service_instance_id"} & set(group_by)) and bk_obj_id:
-            group_by.append(f"bk_{bk_obj_id}_id")
-
-        # 维度补充dimensions.前缀
-        return [
-            f"dimensions.{dimension}" if self.is_dimensions_field(dimension) else dimension for dimension in group_by
-        ]
-
-    def _get_where(self):
-        """
-        非内置维度需要补充dimensions.
-        """
-        where = copy.deepcopy(self.where)
-        for condition in where:
-            if self.is_dimensions_field(condition["key"]):
-                condition["key"] = f"dimensions.{condition['key']}"
-
-        # 去除采集配置ID条件
-        where = [c for c in where if c["key"] != "dimensions.bk_collect_config_id"]
-        return where
-
-    def _get_filter_dict(self, bk_obj_id: str = None, bk_inst_ids: list = None) -> dict:
-        """
-        过滤条件按target过滤及添加dimensions.前缀
-        """
-        filter_dict = self.filter_dict.copy() if self.filter_dict else {}
-        if bk_obj_id and bk_inst_ids:
-            filter_dict[f"bk_{bk_obj_id}_id"] = bk_inst_ids
-
-        return self._add_dimension_prefix(filter_dict)
-
-    def _get_conditions(self) -> dict[str, list[Any]]:
-        return _parse_conditions(self._get_filter_dict(), self._get_where(), self.OPERATOR_MAPPING)
-
-    # ====== 统一查询配置生成主逻辑 ======
-
-    def to_unify_query_config(self) -> list[dict]:
-        group_by: list[str] = self._get_group_by()
-        base_query: dict[str, Any] = {
-            "driver": "influxdb",
-            # UnifyQuery 数据源字段，目前没有 custom 来表示自定义事件，故统一用 bkapm 代表监控侧的数据源（事件、Trace）。
-            "data_source": "bkapm",
-            "table_id": self._get_unify_query_table(),
-            "reference_name": "",
-            "field_name": "",
-            "time_field": self.time_field,
-            "dimensions": group_by,
-            "query_string": self.query_string or "*",
-            "conditions": self._get_conditions(),
-            "function": [],
-            "time_aggregation": {},
-            "keep_columns": [],
-            "order_by": [],
-        }
-
-        query_list: list[dict[str, Any]] = []
-        for metric in self.metrics:
-            query: dict[str, Any] = copy.deepcopy(base_query)
-            method: str = metric["method"].lower()
-            # 非时间聚合，直接使用传入的方法
-            func_method: str = method
-            if self.is_time_agg and self.time_alignment and method == "count":
-                # 时间聚合场景下且进行对齐的场景下，COUNT 外层需使用 SUM 进行聚合。
-                func_method = "sum"
-            function: dict[str, Any] = {
-                "method": self.FUNC_METHOD_MAPPING.get(func_method, func_method),
-                "dimensions": group_by,
-            }
-            if method in CpAggMethods:
-                cp_agg_method = CpAggMethods[method]
-                function["vargs_list"] = [float(self.PERCENTILES_AGG_TRANSLATE[CpAggMethods[method].vargs_list[0]])]
-                function["method"] = "percentiles"
-                query["time_aggregation"]["position"] = cp_agg_method.position
-                query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
-
-            query["function"].append(function)
-
-            if self.is_time_agg:
-                if self.time_alignment:
-                    # 日志场景是根据 Log 条数统计，一条日志可以看成时序的一个点，即使用 Count 计算点数。
-                    agg_func_name: str = f"{method}_over_time"
-                    query["time_aggregation"].update({"function": agg_func_name, "window": f"{self.interval}s"})
-                else:
-                    # 非时间对齐场景，直接在查询函数里指定聚合周期，由对应的存储后端进行聚合，不走 Prom 引擎。
-                    function["window"] = f"{self.interval}s"
-
-            query["field_name"] = metric["field"]
-            query["reference_name"] = (metric.get("alias") or "a").lower()
-
-            if self.is_time_agg and self.time_alignment:
-                time_aggregation, functions = _parse_function_params(self.functions, group_by)
-                query["function"].extend(functions)
-                if time_aggregation:
-                    query["time_aggregation"].update(time_aggregation)
-
-            query_list.append(query)
-
-        if not query_list:
-            query: dict[str, Any] = copy.deepcopy(base_query)
-            query["reference_name"] = self.reference_name or "a"
-            # distinct 表示根据某个字段进行折叠，仅返回折叠序最高的数据，通常用于数据整行去重，例如 Trace 列表场景。
-            # 为什么需要折叠？相对于聚合来说，支持分页、排序，并且查询效率更高，此外，Doris / ES 都支持类似语义。
-            if self.distinct:
-                query["collapse"] = {"field": self.distinct}
-
-            # 原始数据保留字段
-            for select_field in self.select:
-                if "(" in select_field and ")" in select_field:
-                    continue
-                query["keep_columns"].append(select_field)
-
-            query_list.append(query)
-
-        return query_list
-
-
 class LogSearchTimeSeriesDataSource(LogUnifyQueryMixin, TimeSeriesDataSource):
     """
     日志时序型数据源
@@ -1708,7 +1708,9 @@ class LogSearchTimeSeriesDataSource(LogUnifyQueryMixin, TimeSeriesDataSource):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # 条件方法替换
+    # 封装条件方法替换
+    def _replace_condition_method(self):
+        self.where_copy = copy.deepcopy(self.where)
         condition_mapping = {
             "eq": "is one of",
             "neq": "is not one of",
@@ -1725,6 +1727,8 @@ class LogSearchTimeSeriesDataSource(LogUnifyQueryMixin, TimeSeriesDataSource):
         *args,
         **kwargs,
     ) -> list:
+        # 条件方法替换
+        self._replace_condition_method()
         # 日志查询中limit仅能限制返回的原始日志数量，因此固定为1
         if "limit" in kwargs:
             kwargs.pop("limit")
@@ -1740,6 +1744,8 @@ class LogSearchTimeSeriesDataSource(LogUnifyQueryMixin, TimeSeriesDataSource):
         *args,
         **kwargs,
     ) -> list:
+        # 条件方法替换
+        self._replace_condition_method()
         # 日志查询中limit仅能限制返回的原始日志数量，因此固定为1
         if "limit" in kwargs:
             kwargs.pop("limit")
@@ -1759,6 +1765,8 @@ class LogSearchTimeSeriesDataSource(LogUnifyQueryMixin, TimeSeriesDataSource):
         *args,
         **kwargs,
     ) -> tuple[list, int]:
+        # 条件方法替换
+        self._replace_condition_method()
         q = self._get_queryset(
             bk_tenant_id=self.bk_tenant_id,
             query_string=self.query_string,
@@ -1806,7 +1814,6 @@ class LogSearchTimeSeriesDataSource(LogUnifyQueryMixin, TimeSeriesDataSource):
         query_list = super().to_unify_query_config()
         for query in query_list:
             query["data_source"] = "bklog"
-            query["conditions"] = {}
         return query_list
 
     def _get_unify_query_table(self) -> str:
@@ -1851,115 +1858,6 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
         if self.interval > 60:
             time_display = _("{}分钟").format(self.interval // 60)
         return _("{}内匹配到关键字次数").format(time_display)
-
-    # def to_unify_query_config(self) -> list[dict]:
-    #     """
-    #     生成日志查询相关的统一查询配置
-    #     """
-    #     base_query: dict[str, Any] = {
-    #         "driver": "influxdb",
-    #         "data_source": "bklog",
-    #         "table_id": self.table,
-    #         "reference_name": "",
-    #         "field_name": "",
-    #         "time_field": self.time_field or self.DEFAULT_TIME_FIELD,
-    #         "dimensions": [],
-    #         "conditions": {"field_list": [], "condition_list": []},
-    #         "function": [],
-    #         "time_aggregation": {},
-    #         "keep_columns": [],
-    #         "offset": "",
-    #         "offset_forward": False,
-    #     }
-    #
-    #     query_list: list[dict[str, Any]] = []
-    #
-    #     for metric in self.metrics:
-    #         query: dict[str, Any] = copy.deepcopy(base_query)
-    #         method: str = metric.get("method", "").lower()
-    #
-    #         # 判断是否有聚合方法
-    #         has_method = method and method != AGG_METHOD_REAL_TIME
-    #
-    #         if has_method:
-    #             # 有聚合方法的场景（query_reference 或 query_data）
-    #             query["field_name"] = metric["field"]
-    #             query["reference_name"] = (metric.get("alias") or metric["field"]).lower()
-    #
-    #             # 设置维度（关键：根据 group_by 决定是 query_reference 还是 query_data）
-    #             query["dimensions"] = self.group_by
-    #
-    #             # 处理聚合方法
-    #             func_method: str = method
-    #
-    #             # 处理分位数方法
-    #             if method in CpAggMethods:
-    #                 cp_agg_method = CpAggMethods[method]
-    #                 func_method = cp_agg_method.method
-    #                 query["time_aggregation"]["position"] = cp_agg_method.position
-    #                 query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
-    #
-    #             # 关键判断：如果有 group_by 说明是聚合查询
-    #             if self.group_by and method == "count":
-    #                 # 聚合查询场景下外层要 sum 进行聚合
-    #                 func_method = "sum"
-    #
-    #             query["time_aggregation"].update({"function": f"{method}_over_time", "window": f"{self.interval}s"})
-    #
-    #             # 添加聚合函数
-    #             function: dict[str, Any] = {
-    #                 "method": func_method,
-    #                 "dimensions": self.group_by,
-    #             }
-    #
-    #             # 处理分位数方法的 vargs_list
-    #             if method in CpAggMethods:
-    #                 function["vargs_list"] = CpAggMethods[method].vargs_list
-    #
-    #             query["function"].append(function)
-    #
-    #             # 解析额外的函数参数
-    #             if self.group_by and self.functions:
-    #                 time_aggregation, functions = _parse_function_params(self.functions, self.group_by)
-    #                 query["function"].extend(functions)
-    #                 if time_aggregation:
-    #                     query["time_aggregation"].update(time_aggregation)
-    #         else:
-    #             # 无聚合方法的场景（原始日志查询 query_raw）
-    #             query["field_name"] = ""
-    #             query["reference_name"] = metric.get("alias") or "a"
-    #             query["dimensions"] = []
-    #
-    #         query_list.append(query)
-    #
-    #     if not query_list:
-    #         # 如果没有query_list，返回默认配置（原始日志查询）
-    #         query: dict[str, Any] = copy.deepcopy(base_query)
-    #         query["reference_name"] = getattr(self, "reference_name", "a") or "a"
-    #         query_list.append(query)
-    #
-    #     return query_list
-    #
-    # def _fetch_white_list(self) -> list[str | int]:
-    #     """获取日志UnifyQuery查询业务白名单"""
-    #     return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
-    #
-    # def switch_unify_query(self, bk_biz_id):
-    #     # 如果使用了查询函数或者需要特殊处理，则使用统一查询
-    #     if getattr(self, "functions", []):
-    #         return True
-    #
-    #     # 如果数据源在UnifyQueryDataSources列表中，则使用统一查询
-    #     if (self.data_source_label, self.data_type_label) in UnifyQueryDataSources:
-    #         return True
-    #
-    #     # 如果 white_list 非空且不包含 0，则使用灰度；否则就是全量（white_list 为 [] 或 [0] 时全量）
-    #     white_list: list[str | int] = self._fetch_white_list()
-    #     grayscale = bool(white_list) and 0 not in white_list and "0" not in white_list
-    #     if grayscale:
-    #         return bk_biz_id in white_list or str(bk_biz_id) in white_list
-    #     # 不灰度就是全量(灰度列表为空或包含0业务)
-    #     return True
 
 
 class BaseBkMonitorLogDataSource(LogUnifyQueryMixin, DataSource, ABC):
