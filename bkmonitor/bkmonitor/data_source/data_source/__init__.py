@@ -1710,7 +1710,6 @@ class LogSearchTimeSeriesDataSource(LogUnifyQueryMixin, TimeSeriesDataSource):
 
     # 封装条件方法替换
     def _replace_condition_method(self):
-        self.where_copy = copy.deepcopy(self.where)
         condition_mapping = {
             "eq": "is one of",
             "neq": "is not one of",
