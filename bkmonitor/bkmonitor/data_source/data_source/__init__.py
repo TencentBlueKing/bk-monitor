@@ -1840,6 +1840,9 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
 
         # 如果业务在黑名单中，则不使用 UnifyQuery。
         black_list: list[str | int] = self._fetch_black_list()
+        if "*" in black_list:
+            # * 在黑名单中，则不使用 UnifyQuery
+            return False
         return bk_biz_id not in black_list and str(bk_biz_id) not in black_list
 
     def to_unify_query_config(self) -> list[dict]:
