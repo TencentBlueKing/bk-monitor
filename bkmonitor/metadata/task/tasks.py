@@ -1880,7 +1880,9 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
     logger.info("check_bkcc_space_builtin_datalink: check bkcc space builtin datalink success")
 
 
-def create_single_tenant_system_datalink(bk_biz_id: int | None = None, kafka_cluster_name: str = "kafka_outer_default"):
+def create_single_tenant_system_datalink(
+    data_bk_biz_id: int | None = None, kafka_cluster_name: str = "kafka_outer_default"
+):
     """创建单租户系统数据链路
 
     Note: 单租户全新部署的情况下，将1001指定为BKDATA来源的数据源，并将内置结果表指向固定的vmrt。
@@ -1897,15 +1899,17 @@ def create_single_tenant_system_datalink(bk_biz_id: int | None = None, kafka_clu
         return
 
     # 如果未指定业务ID，则使用默认业务ID
-    if bk_biz_id is None:
+    if data_bk_biz_id is None:
         bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
+    else:
+        bk_biz_id = data_bk_biz_id
 
     datasource = DataSource.objects.get(bk_data_id=settings.SNAPSHOT_DATAID)
 
     # 如果数据源创建来源不是BKDATA，则更新为BKDATA，停止transfer任务
     if datasource.created_from != DataIdCreatedFromSystem.BKDATA.value:
         datasource.created_from = DataIdCreatedFromSystem.BKDATA.value
-        #
+        # 获取BKDATA使用的消息队列
         try:
             bkdata_mq_cluster = ClusterInfo.objects.get(
                 cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name=kafka_cluster_name
@@ -1970,7 +1974,7 @@ def create_single_tenant_system_datalink(bk_biz_id: int | None = None, kafka_clu
 
 
 def create_single_tenant_system_proc_datalink(
-    bk_biz_id: int | None = None, kafka_cluster_name: str = "kafka_outer_default"
+    data_bk_biz_id: int | None = None, kafka_cluster_name: str = "kafka_outer_default"
 ):
     """创建单租户系统进程数据链路
 
@@ -1988,14 +1992,24 @@ def create_single_tenant_system_proc_datalink(
         return
 
     # 如果未指定业务ID，则使用默认业务ID
-    if bk_biz_id is None:
+    if data_bk_biz_id is None:
         bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID
+    else:
+        bk_biz_id = data_bk_biz_id
 
     # 获取默认的VM集群
     vm_cluster = ClusterInfo.objects.get(is_default_cluster=True, cluster_type=ClusterInfo.TYPE_VM)
 
     # 获取kafka集群
-    bkdata_mq_cluster = ClusterInfo.objects.get(cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name=kafka_cluster_name)
+    try:
+        bkdata_mq_cluster = ClusterInfo.objects.get(
+            cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name=kafka_cluster_name
+        )
+    except ClusterInfo.DoesNotExist:
+        logger.error(
+            f"create_single_tenant_system_proc_datalink: Kafka cluster with name '{kafka_cluster_name}' does not exist, aborting."
+        )
+        return
 
     # 数据ID到BKDATA数据源名称、数据链路策略的映射
     data_ids = [settings.PROCESS_PERF_DATAID, settings.PROCESS_PORT_DATAID]
