@@ -31,6 +31,8 @@ from apps.log_databus.constants import (
     ETL_DELIMITER_END,
     ETL_DELIMITER_IGNORE,
     CollectStatus,
+    Environment,
+    ContainerCollectorType,
 )
 from apps.log_search.exceptions import (
     ESQuerySyntaxException,
@@ -1890,42 +1892,90 @@ class LogAccessTypeEnum(ChoicesEnum):
     日志接入类型枚举
     """
 
-    LOG = "log"
+    LINUX = "linux"
+    WIN_EVENT = "winevent"
+    CONTAINER_FILE = "container_file"
+    CONTAINER_STDOUT = "container_stdout"
     BKDATA = "bkdata"
     ES = "es"
     CUSTOM_REPORT = "custom_report"
 
     _choices_labels = (
-        (LOG, _("采集接入")),
-        (BKDATA, _("数据平台")),
+        (LINUX, _("主机日志")),
+        (WIN_EVENT, _("windows events 日志")),
+        (CONTAINER_FILE, _("文件采集")),
+        (CONTAINER_STDOUT, _("标准输出")),
+        (BKDATA, _("计算平台")),
         (ES, _("第三方ES")),
         (CUSTOM_REPORT, _("自定义上报")),
     )
 
     @classmethod
-    def get_log_access_type(cls, scenario_id: str, collector_scenario_id: str) -> str:
+    def get_log_access_type(
+        cls, scenario_id: str, collector_scenario_id: str, environment: str, container_collector_type: str
+    ) -> str:
         """
-        根据scenario_id和collector_scenario_id判断具体的接入类型
+        判断接入类型
         """
-        # 如果是自定义上报场景，返回CUSTOM_REPORT
-        if collector_scenario_id == CollectorScenarioEnum.CUSTOM.value:
-            return cls.CUSTOM_REPORT.value
-        return scenario_id
+        from apps.log_search.models import Scenario
+
+        if scenario_id:
+            if scenario_id == Scenario.BKDATA:
+                return cls.BKDATA.value
+            if scenario_id == Scenario.ES:
+                return cls.ES.value
+
+        elif environment == Environment.CONTAINER:
+            if container_collector_type in [ContainerCollectorType.CONTAINER, ContainerCollectorType.NODE]:
+                return cls.CONTAINER_FILE.value
+            elif container_collector_type == ContainerCollectorType.STDOUT:
+                return cls.CONTAINER_STDOUT.value
+
+        elif collector_scenario_id:
+            if collector_scenario_id == CollectorScenarioEnum.CUSTOM.value:
+                return cls.CUSTOM_REPORT.value
+            if collector_scenario_id in [CollectorScenarioEnum.ROW.value, CollectorScenarioEnum.SECTION.value]:
+                return cls.LINUX.value
+            if collector_scenario_id == CollectorScenarioEnum.WIN_EVENT.value:
+                return cls.WIN_EVENT.value
+        return ""
 
     @classmethod
-    def get_scenario_info(cls, log_access_types: list[str]) -> tuple:
+    def get_original_fields(cls, log_access_type: str) -> dict:
         """
-        根据日志接入类型获取对应的场景信息
+        根据日志接入类型获取原始字段
         """
+        from apps.log_search.models import Scenario
+
         scenario_id_list = []
         collector_scenario_id_list = []
-        for access_type in log_access_types:
-            if access_type == cls.CUSTOM_REPORT.value:
-                scenario_id_list.append(cls.LOG.value)
-                collector_scenario_id_list.append(CollectorScenarioEnum.CUSTOM.value)
-            else:
-                scenario_id_list.append(access_type)
-        return scenario_id_list, collector_scenario_id_list
+        environment_list = []
+        container_collector_type_list = []
+
+        if log_access_type == cls.LINUX.value:
+            environment_list.append(Environment.LINUX)
+            collector_scenario_id_list.extend([CollectorScenarioEnum.ROW.value, CollectorScenarioEnum.SECTION.value])
+        elif log_access_type == cls.WIN_EVENT.value:
+            collector_scenario_id_list.append(CollectorScenarioEnum.WIN_EVENT.value)
+        elif log_access_type == cls.CONTAINER_FILE.value:
+            environment_list.append(Environment.CONTAINER)
+            container_collector_type_list.extend([ContainerCollectorType.CONTAINER, ContainerCollectorType.NODE])
+        elif log_access_type == cls.CONTAINER_STDOUT.value:
+            environment_list.append(Environment.CONTAINER)
+            container_collector_type_list.append(ContainerCollectorType.STDOUT)
+        elif log_access_type == cls.BKDATA.value:
+            scenario_id_list.append(Scenario.BKDATA)
+        elif log_access_type == cls.ES.value:
+            scenario_id_list.append(Scenario.ES)
+        elif log_access_type == cls.CUSTOM_REPORT.value:
+            collector_scenario_id_list.append(CollectorScenarioEnum.CUSTOM.value)
+
+        return {
+            "scenario_id_list": scenario_id_list,
+            "collector_scenario_id_list": collector_scenario_id_list,
+            "environment_list": environment_list,
+            "container_collector_type_list": container_collector_type_list,
+        }
 
 
 class CollectStatusEnum(ChoicesEnum):

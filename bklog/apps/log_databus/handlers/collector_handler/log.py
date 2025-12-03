@@ -26,9 +26,7 @@ class LogCollectorHandler:
         result_list = []
         scenario_choices = dict(Scenario.CHOICES)
         for item in result:
-            scenario_id = item.get("scenario_id", Scenario.LOG)
-            collector_scenario_id = item.get("collector_scenario_id", "")
-            collector_config_name = item.get("collector_config_name", "")
+            # 获取数据名
             index_set_name = item.get("index_set_name", "")
             table_id = item.get("table_id", "")
             table_id_prefix = item.get("table_id_prefix", "")
@@ -38,7 +36,16 @@ class LogCollectorHandler:
                 bk_data_name = f"{table_id_prefix}{table_id}"
             else:
                 bk_data_name = ""
-            log_access_type = LogAccessTypeEnum.get_log_access_type(scenario_id, collector_scenario_id)
+            # 获取日志接入类型
+            scenario_id = item.get("scenario_id")
+            collector_scenario_id = item.get("collector_scenario_id", "")
+            collector_config_name = item.get("collector_config_name", "")
+            log_access_type = LogAccessTypeEnum.get_log_access_type(
+                scenario_id=scenario_id,
+                collector_scenario_id=collector_scenario_id,
+                environment=item.get("environment", ""),
+                container_collector_type=item.get("container_collector_type", ""),
+            )
             result_list.append(
                 {
                     "table_id": item.get("table_id", ""),
@@ -131,6 +138,37 @@ class LogCollectorHandler:
         for item in data:
             item["container_collector_type"] = collector_type_mappings.get(item["collector_config_id"], "")
 
+    @staticmethod
+    def filter_data_by_access_types(data, log_access_type_list):
+        """
+        根据日志接入类型列表过滤数据
+        """
+        filtered_data = []
+        for item in data:
+            # 多个 log_access_type 里面的条件之间是"或"的关系
+            for log_access_type in log_access_type_list:
+                _original_fields = LogAccessTypeEnum.get_original_fields(log_access_type)
+                collector_scenario_id_list = _original_fields.get("collector_scenario_id_list", [])
+                environment_list = _original_fields.get("environment_list", [])
+                container_collector_type_list = _original_fields.get("container_collector_type_list", [])
+
+                # 单个 log_access_type 里面的条件之间是"且"的关系
+                if not (collector_scenario_id_list or environment_list or container_collector_type_list):
+                    continue
+                if collector_scenario_id_list and item["collector_scenario_id"] not in collector_scenario_id_list:
+                    continue
+                if environment_list and item["environment"] not in environment_list:
+                    continue
+                if (
+                    container_collector_type_list
+                    and item["container_collector_type"] not in container_collector_type_list
+                ):
+                    continue
+                filtered_data.append(item)
+                break
+
+        return filtered_data
+
     def get_collector_config_info(
         self,
         keyword: str = None,
@@ -159,9 +197,6 @@ class LogCollectorHandler:
         :param status_list: 采集状态
         :param log_access_type_list: 日志接入类型
         """
-        _scenario_id_list, _collector_scenario_id_list = LogAccessTypeEnum.get_scenario_info(log_access_type_list)
-        scenario_id_list = scenario_id_list + _scenario_id_list
-        collector_scenario_id_list = collector_scenario_id_list + _collector_scenario_id_list
         if scenario_id_list and Scenario.LOG not in scenario_id_list:
             # 非日志采集查询，直接返回
             return []
@@ -170,9 +205,6 @@ class LogCollectorHandler:
 
         if keyword:
             qs = qs.filter(Q(collector_config_name__icontains=keyword) | Q(table_id__icontains=keyword))
-
-        if Scenario.LOG in scenario_id_list and CollectorScenarioEnum.CUSTOM.value not in collector_scenario_id_list:
-            qs = qs.exclude(collector_scenario_id=CollectorScenarioEnum.CUSTOM.value)
 
         # 先查询索引组下的索引集，再查询索引集对应的采集项
         if parent_index_set_id:
@@ -214,22 +246,22 @@ class LogCollectorHandler:
         collector_configs = CollectorHandler.add_cluster_info(collector_configs)
         self.fill_container_collector_type(collector_configs)
 
+        if log_access_type_list:
+            collector_configs = self.filter_data_by_access_types(collector_configs, log_access_type_list)
+
+        # 根据 storage_cluster_name 和 container_collector_type 进行过滤
         tmp_result_list = []
         collector_id_list = []
-        # 添加collector_scenario_name采集场景名称. 如果storage_cluster_name存在则进行过滤
         for collector_config in collector_configs:
             if storage_cluster_name_list and collector_config["storage_cluster_name"] not in storage_cluster_name_list:
                 continue
             tmp_result_list.append(collector_config)
             collector_id_list.append(collector_config["collector_config_id"])
 
-        # 获取采集状态信息
-        collector_status_mappings = self.get_collector_subscription_status(
-            collector_id_list,
-        )
-        # 如果status_list存在则进行过滤
+        # 获取采集状态信息并进行过滤（先过滤其他字段，尽量减少查询次数）
         result_list = []
         if status_list:
+            collector_status_mappings = self.get_collector_subscription_status(collector_id_list)
             for item in tmp_result_list:
                 original_status = collector_status_mappings.get(item["collector_config_id"], {}).get("status", "")
                 new_status = CollectStatusEnum.get_collect_status(original_status)
@@ -266,8 +298,14 @@ class LogCollectorHandler:
         :param storage_cluster_name_list: 集群名
         :param log_access_type_list: 日志接入类型
         """
-        _scenario_id_list, _ = LogAccessTypeEnum.get_scenario_info(log_access_type_list)
-        scenario_id_list.extend(_scenario_id_list)
+        _scenario_id_list = []
+        for log_access_type in log_access_type_list:
+            _scenario_id_list.extend(LogAccessTypeEnum.get_original_fields(log_access_type)["scenario_id_list"])
+            scenario_id_list.extend(_scenario_id_list)
+        # 根据 log_access_type_list 过滤，但没有符合条件的数据类型，则返回空列表
+        if log_access_type_list and not _scenario_id_list:
+            return []
+
         log_index_sets = LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid).exclude(
             scenario_id=Scenario.LOG
         )
