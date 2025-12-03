@@ -80,7 +80,9 @@ export interface RelatedConfig {
  * 日志关键字设置的完整表单数据结构
  */
 export interface FormData {
+  taskId: string; // 任务ID
   taskName: string; // 任务名称
+  creator: string; // 创建人
   matchType: MatchType; // 匹配类型
   selectField: string; // 选择字段
   regex: string; // 正则表达式
