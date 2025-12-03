@@ -227,8 +227,8 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
             cluster_name = cluster_metadata["name"]
             domain_name = cluster_spec.get(field_mappings["domain_name"])
             port = cluster_spec.get(field_mappings["port"])
-            username = cluster_spec.get(field_mappings["username"], "")
-            password = cluster_spec.get(field_mappings["password"], "")
+            username = cluster_spec.get(field_mappings["username"])
+            password = cluster_spec.get(field_mappings["password"])
             namespace = cluster_metadata["namespace"]
 
             # 同步ClusterConfig
@@ -267,7 +267,7 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                     # 更新集群信息
                     is_updated = False
                     for field, value in update_fields.items():
-                        if getattr(cluster, field) != value:
+                        if value is not None and getattr(cluster, field) != value:
                             setattr(cluster, field, value)
                             is_updated = True
 
