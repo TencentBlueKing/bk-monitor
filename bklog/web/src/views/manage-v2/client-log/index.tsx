@@ -83,6 +83,7 @@ export default defineComponent({
     const searchKeyword = ref(''); // 搜索关键词
     const operateType = ref('create'); // 操作类型： create、clone、view
     const isAllowedCreate = ref(false); // 是否允许创建
+    const isAllowedDownload = ref(false); // 是否允许下载
 
     // tab点击事件
     const handleTabClick = (title: TabType) => {
@@ -232,19 +233,39 @@ export default defineComponent({
     // 检查创建权限
     const checkCreateAuth = async () => {
       try {
-        const res = await store.dispatch('checkAllowed', {
-          action_ids: [authorityMap.CREATE_CLIENT_COLLECTION_AUTH],
-          resources: [
-            {
-              type: 'space',
-              id: store.state.spaceUid,
-            },
-          ],
-        });
-        isAllowedCreate.value = res.isAllowed;
+        const params = {
+          data: {
+            action_ids: [authorityMap.CREATE_CLIENT_COLLECTION_AUTH, authorityMap.DOWNLOAD_FILE_AUTH],
+            resources: [
+              {
+                type: 'space',
+                id: store.state.spaceUid,
+              },
+            ],
+          },
+        };
+
+        const response = await http.request('auth/checkAllowed', params);
+
+        // 处理返回的权限数据
+        if (response.data && Array.isArray(response.data)) {
+          response.data.forEach((item) => {
+            if (item.action_id === authorityMap.CREATE_CLIENT_COLLECTION_AUTH) {
+              isAllowedCreate.value = item.is_allowed;
+            }
+            if (item.action_id === authorityMap.DOWNLOAD_FILE_AUTH) {
+              isAllowedDownload.value = item.is_allowed;
+            }
+          });
+        } else {
+          // 如果数据格式不正确，默认为无权限
+          isAllowedCreate.value = false;
+          isAllowedDownload.value = false;
+        }
       } catch (err) {
-        console.warn(err);
+        console.warn('权限检查失败:', err);
         isAllowedCreate.value = false;
+        isAllowedDownload.value = false;
       }
     };
 
@@ -263,7 +284,6 @@ export default defineComponent({
           ],
         };
         const res = await store.dispatch('getApplyData', paramData);
-        console.log(res);
         store.commit('updateState', { authDialogData: res.data });
       }
     };
@@ -365,6 +385,7 @@ export default defineComponent({
           <section>
             <LogTable
               total={tableData.value.total}
+              isAllowedDownload={isAllowedDownload.value}
               data={tableData.value.list}
               v-bkloading={{ isLoading: isLoading.value }}
               keyword={searchKeyword.value}
