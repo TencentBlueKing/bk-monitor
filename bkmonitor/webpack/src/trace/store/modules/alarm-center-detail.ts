@@ -35,12 +35,18 @@ import { useAppStore } from './app';
 import { fetchActionDetail, fetchAlarmDetail } from '@/pages/alarm-center/services/alarm-detail';
 
 import type { AlarmDetail } from '../../pages/alarm-center/typings/detail';
+import type { ActionDetail } from '@/pages/alarm-center/typings/action-detail';
 
 export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => {
   /** 告警详情 */
   const alarmDetail = shallowRef<AlarmDetail | null>();
   /** 告警ID */
   const alarmId = shallowRef<string>('');
+  /** 处理记录ID */
+  const actionId = shallowRef<string>('');
+  /** 处理记录详情 */
+  const actionDetail = shallowRef<ActionDetail | null>();
+  /** 告警类型 */
   const alarmType = shallowRef<AlarmType>(AlarmType.ALERT);
   /** 加载状态 */
   const loading = shallowRef<boolean>(false);
@@ -79,7 +85,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   const getActionDetailData = async (id: string) => {
     loading.value = true;
     const data = await fetchActionDetail(id).catch(() => null);
-    alarmDetail.value = data;
+    actionDetail.value = data;
     loading.value = false;
   };
 
@@ -87,24 +93,20 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     () => alarmId.value,
     newVal => {
       if (newVal && !loading.value) {
-        getDetailData(newVal);
+        getAlertDetailData(newVal);
       }
     },
     { immediate: true }
   );
 
-  const getDetailData = (id: string) => {
-    switch (alarmType.value) {
-      case AlarmType.ALERT:
-        getAlertDetailData(id);
-        break;
-      case AlarmType.ACTION:
-        getActionDetailData(id);
-        break;
-      default:
-        break;
+  watch(
+    () => actionId.value,
+    newVal => {
+      if (newVal && !loading.value) {
+        getActionDetailData(newVal);
+      }
     }
-  };
+  );
 
   onScopeDispose(() => {
     alarmId.value = '';
@@ -115,12 +117,13 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   return {
     alarmDetail,
     alarmId,
+    actionId,
+    actionDetail,
     alarmType,
     loading,
     bizId,
     bizItem,
     interval,
     timeRange,
-    getAlertDetailData,
   };
 });

@@ -31,6 +31,8 @@ import { storeToRefs } from 'pinia';
 
 import DetailCommon from '../common-detail/common-detail';
 import { AlarmType } from '../typings';
+import ActionDetailHead from './components/action-detail-head';
+import ActionDetail from './components/action-detail/action-detail';
 import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
 import EventDetailHead from './components/event-detail-head';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
@@ -65,7 +67,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const isFullscreen = shallowRef(false);
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmId, alarmType } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, actionId, alarmType } = storeToRefs(alarmCenterDetailStore);
     const authorityStore = useAuthorityStore();
     const authority = shallowReactive<IAuthority>({
       map: authMap,
@@ -78,8 +80,13 @@ export default defineComponent({
     watch(
       () => props.alarmId,
       newVal => {
-        if (newVal !== alarmId.value) {
+        if (alarmType.value === AlarmType.ALERT && newVal && newVal !== alarmId.value) {
           alarmId.value = newVal;
+          return;
+        }
+        if (alarmType.value === AlarmType.ACTION && newVal && newVal !== actionId.value) {
+          actionId.value = newVal;
+          return;
         }
       },
       { immediate: true }
@@ -115,11 +122,53 @@ export default defineComponent({
       emit('next');
     };
 
+    const renderHeader = () => {
+      switch (alarmType.value) {
+        case AlarmType.ALERT:
+          return (
+            <EventDetailHead
+              isFullscreen={isFullscreen.value}
+              showStepBtn={props.showStepBtn}
+              onNext={handleNextDetail}
+              onPrevious={handlePreviousDetail}
+              onToggleFullscreen={val => {
+                isFullscreen.value = val;
+              }}
+            />
+          );
+        case AlarmType.ACTION:
+          return (
+            <ActionDetailHead
+              isFullscreen={isFullscreen.value}
+              onToggleFullscreen={val => {
+                isFullscreen.value = val;
+              }}
+            />
+          );
+      }
+    };
+
+    const renderContent = () => {
+      switch (alarmType.value) {
+        case AlarmType.ALERT:
+          return (
+            <div class='alarm-center-detail-wrapper'>
+              <DetailCommon />
+              <DiagnosticAnalysis />
+            </div>
+          );
+        case AlarmType.ACTION:
+          return <ActionDetail />;
+      }
+    };
+
     return {
       isFullscreen,
       handlePreviousDetail,
       handleNextDetail,
       handleShowChange,
+      renderHeader,
+      renderContent,
     };
   },
   render() {
@@ -128,23 +177,8 @@ export default defineComponent({
         width={this.isFullscreen ? '100%' : 1280}
         extCls='alarm-detail-sideslider'
         v-slots={{
-          header: () => (
-            <EventDetailHead
-              isFullscreen={this.isFullscreen}
-              showStepBtn={this.showStepBtn}
-              onNext={this.handleNextDetail}
-              onPrevious={this.handlePreviousDetail}
-              onToggleFullscreen={val => {
-                this.isFullscreen = val;
-              }}
-            />
-          ),
-          default: () => (
-            <div class='alarm-center-detail-wrapper'>
-              <DetailCommon />
-              <DiagnosticAnalysis />
-            </div>
-          ),
+          header: this.renderHeader,
+          default: this.renderContent,
         }}
         isShow={this.show}
         render-directive='if'

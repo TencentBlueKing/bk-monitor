@@ -54,6 +54,18 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    showFullScreenBtn: {
+      type: Boolean,
+      default: true,
+    },
+    showFeedbackBtn: {
+      type: Boolean,
+      default: true,
+    },
+    showWxChartBtn: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: {
     toggleFullscreen: val => typeof val === 'boolean',
@@ -78,7 +90,7 @@ export default defineComponent({
     });
     const feedbackDialog = shallowRef(false);
     /** 是否支持一键拉群 todo */
-    const enableCreateChatGroup = computed(() => Boolean(window.enable_create_chat_group));
+    const enableCreateChatGroup = computed(() => props.showWxChartBtn && Boolean(window.enable_create_chat_group));
     /** 右侧操作按钮 */
     const btnGroupObject = computed(() => {
       return [
@@ -104,13 +116,13 @@ export default defineComponent({
           id: 'feedback',
           title: isFeedback.value ? t('已反馈') : t('反馈'),
           icon: 'icon-a-FeedBackfankui',
-          isShow: true,
+          isShow: props.showFeedbackBtn,
         },
         {
           id: 'fullscreen',
           title: props.isFullscreen ? t('退出全屏') : t('全屏'),
           icon: props.isFullscreen ? 'icon-mc-unfull-screen' : 'icon-fullscreen',
-          isShow: true,
+          isShow: props.showFullScreenBtn,
         },
       ];
     });

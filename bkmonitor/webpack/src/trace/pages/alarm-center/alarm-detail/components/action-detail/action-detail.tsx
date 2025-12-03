@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,56 +23,32 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, watch } from 'vue';
+import { defineComponent } from 'vue';
 
 import { storeToRefs } from 'pinia';
 
-import DetailCommon from '../common-detail/common-detail';
-import DiagnosticAnalysis from './components/diagnostic-analysis/diagnostic-analysis';
-import EventDetailHead from './components/event-detail-head';
+import ActionDetailContent from './action-detail-content';
+import ActionDetailInfo from './action-detail-info';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
-import './alarm-detail-page.scss';
+import './action-detail.scss';
 
 export default defineComponent({
-  name: 'AlarmCenterDetail',
-  props: {
-    alarmId: {
-      type: String,
-      required: true,
-    },
-  },
+  name: 'ActionDetail',
   setup(props) {
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmId, alarmDetail } = storeToRefs(alarmCenterDetailStore);
-
-    watch(
-      () => props.alarmId,
-      newVal => {
-        if (newVal) {
-          alarmId.value = newVal;
-        }
-      },
-      { immediate: true }
-    );
+    const { actionDetail } = storeToRefs(alarmCenterDetailStore);
 
     return {
-      alarmDetail,
+      actionDetail,
     };
   },
   render() {
-    if (!this.alarmDetail) return null;
     return (
-      <div class='alarm-center-detail-page'>
-        <EventDetailHead
-          isFullscreen={true}
-          showFullScreenBtn={false}
-          showStepBtn={false}
-        />
-        <div class='alarm-center-detail-page-content'>
-          <DetailCommon />
-          <DiagnosticAnalysis />
-        </div>
+      <div class='action-detail-wrapper'>
+        <ActionDetailInfo detail={this.actionDetail} />
+
+        <ActionDetailContent detail={this.actionDetail} />
       </div>
     );
   },

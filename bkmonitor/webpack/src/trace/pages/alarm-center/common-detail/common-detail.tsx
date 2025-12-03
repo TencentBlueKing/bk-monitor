@@ -119,7 +119,6 @@ export default defineComponent({
      */
     const handleTimeChange = (time: string) => {
       alarmDetail.value = new AlarmDetail({ ...alarmDetail.value, shield_left_time: time, is_shielded: true });
-      // alarmCenterDetailStore.getAlertDetailData(alarmId.value);
     };
 
     /** 告警状态详情 */
