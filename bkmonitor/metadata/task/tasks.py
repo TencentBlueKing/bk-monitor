@@ -1957,3 +1957,92 @@ def create_single_tenant_system_datalink(bk_biz_id: int = 1, kafka_cluster_name:
         spaces=list(Space.objects.filter(space_type_id=SpaceTypes.BKCC.value)),
         is_publish=True,
     )
+
+
+def create_single_tenant_system_proc_datalink(bk_biz_id: int = 1, kafka_cluster_name: str = "kafka_outer_default"):
+    """创建单租户系统进程数据链路
+
+    Note: 单租户全新部署的情况下，将1007/1013指定为BKDATA来源的数据源，并将内置结果表指向固定的vmrt。
+          清洗配置和vmrt内置生成
+
+    Args:
+        bk_biz_id: 业务ID
+        kafka_cluster_name: 消息队列集群名称，默认使用kafka_outer_default
+    """
+
+    # 如果开启了多租户模式，则跳过
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        logger.info("create_single_tenant_system_proc_datalink: multi tenant mode is enabled,return!")
+        return
+
+    # 获取默认的VM集群
+    vm_cluster = ClusterInfo.objects.get(is_default_cluster=True, cluster_type=ClusterInfo.TYPE_VM)
+
+    # 获取kafka集群
+    bkdata_mq_cluster = ClusterInfo.objects.get(cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name=kafka_cluster_name)
+
+    # 数据ID到BKDATA数据源名称、数据链路策略的映射
+    data_ids = [settings.PROCESS_PERF_DATAID, settings.PROCESS_PORT_DATAID]
+    data_id_to_table_id = {
+        settings.PROCESS_PERF_DATAID: "system.proc",
+        settings.PROCESS_PORT_DATAID: "system.proc_port",
+    }
+    data_id_to_bkbase_data_name = {
+        settings.PROCESS_PERF_DATAID: "system_proc_perf",
+        settings.PROCESS_PORT_DATAID: "system_proc_port",
+    }
+    data_id_to_data_link_strategy = {
+        settings.PROCESS_PERF_DATAID: DataLink.SYSTEM_PROC_PERF,
+        settings.PROCESS_PORT_DATAID: DataLink.SYSTEM_PROC_PORT,
+    }
+
+    for data_id in data_ids:
+        datasource = DataSource.objects.get(bk_data_id=data_id)
+        if datasource.created_from != DataIdCreatedFromSystem.BKDATA.value:
+            datasource.created_from = DataIdCreatedFromSystem.BKDATA.value
+            # 切换到BKDATA使用的消息队列
+            datasource.mq_cluster_id = bkdata_mq_cluster.cluster_id
+            # 删除consul配置
+            datasource.delete_consul_config()
+            # 注册到BKDATA
+            datasource.register_to_bkbase(bk_biz_id=bk_biz_id, bkbase_data_name=data_id_to_bkbase_data_name[data_id])
+            datasource.save()
+
+        # 创建内置结果表对应的AccessVMRecord
+        AccessVMRecord.objects.update_or_create(
+            bk_tenant_id=datasource.bk_tenant_id,
+            result_table_id=data_id_to_table_id[data_id],
+            defaults={
+                "data_type": AccessVMRecord.ACCESS_VM,
+                "storage_cluster_id": vm_cluster.cluster_id,
+                "bk_base_data_id": datasource.bk_data_id,
+                "bk_base_data_name": datasource.data_name,
+                "vm_result_table_id": f"{bk_biz_id}_{data_id_to_bkbase_data_name[data_id]}",
+            },
+        )
+
+        # 创建数据链路
+        data_link_ins, _ = DataLink.objects.update_or_create(
+            data_link_name=data_id_to_bkbase_data_name[data_id],
+            defaults={
+                "data_link_strategy": data_id_to_data_link_strategy[data_id],
+                "namespace": BKBASE_NAMESPACE_BK_MONITOR,
+                "bk_tenant_id": datasource.bk_tenant_id,
+            },
+        )
+        data_link_ins.apply_data_link(
+            data_source=datasource,
+            storage_cluster_name=vm_cluster.cluster_name,
+            bk_biz_id=bk_biz_id,
+            table_id=data_id_to_table_id[data_id],
+            prefix="",
+        )
+
+    # 刷新查询路由表数据
+    SpaceTableIDRedis().push_table_id_detail(
+        bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=list(data_id_to_table_id.values()), is_publish=True
+    )
+    SpaceTableIDRedis().push_multi_space_table_ids(
+        spaces=list(Space.objects.filter(space_type_id=SpaceTypes.BKCC.value)),
+        is_publish=True,
+    )

@@ -465,6 +465,7 @@ class DataLink(models.Model):
         table_id: str,
         storage_cluster_name: str,
         bk_biz_id: int,
+        prefix: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成系统进程链路配置
@@ -479,7 +480,15 @@ class DataLink(models.Model):
             storage_cluster_name,
         )
 
-        bkbase_vmrt_name = f"base_{bk_biz_id}_{data_link_strategy}"
+        if prefix is None:
+            bkbase_vmrt_prefix = f"base_{bk_biz_id}"
+        else:
+            bkbase_vmrt_prefix = prefix
+
+        if bkbase_vmrt_prefix:
+            bkbase_vmrt_name = f"{bkbase_vmrt_prefix}_{data_link_strategy}"
+        else:
+            bkbase_vmrt_name = data_link_strategy
 
         transform_format_map = {
             DataLink.SYSTEM_PROC_PERF: SYSTEM_PROC_PERF_DATABUS_FORMAT,
