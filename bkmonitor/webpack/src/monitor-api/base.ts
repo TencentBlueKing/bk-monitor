@@ -108,12 +108,12 @@ const removePendingRequest = (method: string, url: string): void => {
 
 // 请求函数类型定义
 type RequestFunction = {
-  <T = any>(id: number | string, params?: Record<string, any>, config?: RequestConfig): Promise<T>;
-  <T = any>(params?: Record<string, any>, config?: RequestConfig): Promise<T>;
+  <T = any, U = any>(id: number | string, params?: T, config?: RequestConfig): Promise<U>;
+  <T = any, U = any>(params?: T, config?: RequestConfig): Promise<U>;
 };
 
 export const request = (method: RequestMethod, url: string): RequestFunction => {
-  return <T = any>(
+  return <T = any, U = any>(
     id?: number | Record<string, any> | string,
     params?: Record<string, any> | RequestConfig,
     config?: RequestConfig
@@ -169,7 +169,7 @@ export const request = (method: RequestMethod, url: string): RequestFunction => 
       })
         .then((res: any) => {
           if (config.needRes) {
-            return Promise.resolve(res as T);
+            return Promise.resolve(res as U);
           }
           return Promise.resolve(res.data);
         })
@@ -224,7 +224,7 @@ export const request = (method: RequestMethod, url: string): RequestFunction => 
     })
       .then((res: any) => {
         if (config.needRes) {
-          return Promise.resolve(res as T);
+          return Promise.resolve(res as U);
         }
         return Promise.resolve(res.data);
       })

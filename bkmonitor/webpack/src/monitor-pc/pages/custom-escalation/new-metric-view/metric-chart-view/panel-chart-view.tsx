@@ -27,7 +27,7 @@ import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-pro
 import { Component as tsc } from 'vue-tsx-support';
 
 import { connect, disconnect } from 'echarts/core';
-import { getCustomTsGraphConfig } from 'monitor-api/modules/scene_view';
+import { getCustomTsGraphConfig } from '../../service';
 import { Debounce, random } from 'monitor-common/utils';
 import { deepClone } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
