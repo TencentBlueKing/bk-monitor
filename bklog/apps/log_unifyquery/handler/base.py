@@ -874,27 +874,33 @@ class UnifyQueryHandler:
         params = copy.deepcopy(self.base_dict)
         interval = self.search_params["interval"]
         group_field = self.search_params["group_field"]
-        # count聚合
-        method = "count"
-        for q in params["query_list"]:
-            if group_field:
-                q["function"] = [{"method": method, "dimensions": [group_field]}]
-            else:
-                q["function"] = [{"method": method}]
-            q["function"].append({"method": "date_histogram", "window": interval})
-            q["time_aggregation"] = {}
-        params["step"] = interval
-        params["order_by"] = []
-        response = self.query_ts_reference(params)
-        return_data = {"aggs": {}}
-        if not response["series"]:
-            return return_data
 
-        time_field_mappings = defaultdict(list)
+        # 请求 unify-query
+        response = self._date_histogram_unify_query(interval, group_field, params)
+
+        if not response.get("series"):
+            return {"aggs": {}}
+
+        # 组装结果
+        return_data = self.obtain_result_data(
+            interval,
+            group_field,
+            response,
+        )
+
+        return return_data
+
+    @staticmethod
+    def obtain_result_data(interval, group_field, response):
+        """
+        组装结果
+        """
         return_data = {"aggs": {"group_by_histogram": {"buckets": []}}}
+
         datetime_format = AggsHandlers.DATETIME_FORMAT_MAP.get(interval, AggsHandlers.DATETIME_FORMAT)
         time_multiplicator = 10**3
-        # 无分组处理
+
+        # 无分组组装
         if not group_field:
             for value in response["series"][0]["values"]:
                 key_as_string = timestamp_to_timeformat(
@@ -903,12 +909,13 @@ class UnifyQueryHandler:
                 tmp = {"key_as_string": key_as_string, "key": value[0], "doc_count": value[1]}
                 return_data["aggs"]["group_by_histogram"]["buckets"].append(tmp)
             return return_data
+
         # 分组组装
-        for item in response["series"]:
+        time_field_mappings = defaultdict(list)
+        for item in response.get("series", []):
             group_value = item["group_values"][0]
             for value in item["values"]:
                 time_field_mappings[value[0]].append({"key": group_value, "doc_count": value[1]})
-
         for _timestamp, data_list in time_field_mappings.items():
             key_as_string = timestamp_to_timeformat(
                 _timestamp, time_multiplicator=time_multiplicator, t_format=datetime_format, tzformat=False
@@ -921,7 +928,32 @@ class UnifyQueryHandler:
                 group_field: {"buckets": data_list},
             }
             return_data["aggs"]["group_by_histogram"]["buckets"].append(tmp)
+
         return return_data
+
+    def _date_histogram_unify_query(self, interval, group_field, params):
+        """
+        unify_query 查询 date_histogram
+        """
+        # 构建完整查询条件
+        method = "count"
+
+        for query in params["query_list"]:
+            if group_field:
+                query["function"] = [{"method": method, "dimensions": [group_field]}]
+            else:
+                query["function"] = [{"method": method}]
+            query["function"].append({"method": "date_histogram", "window": interval})
+            query["time_aggregation"] = {}
+            query["reference_name"] = "a"
+
+        params["metric_merge"] = "a"
+        params["step"] = interval
+        params["order_by"] = []
+
+        response = self.query_ts_reference(params)
+
+        return response
 
     def _add_cmdb_fields(self, log):
         if not self.search_params.get("bk_biz_id"):

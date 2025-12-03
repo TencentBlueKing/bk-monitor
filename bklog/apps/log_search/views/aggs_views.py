@@ -35,7 +35,6 @@ from apps.log_trace.serializers import (
     UnionSearchDateHistogramSerializer,
 )
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
-from apps.log_unifyquery.handler.date_histogram import UnifyQueryDateHistogramHandler
 from apps.utils.drf import detail_route, list_route
 
 
@@ -180,7 +179,7 @@ class AggsViewSet(APIViewSet):
         }
         """
         data = self.params_valid(DateHistogramSerializer)
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+        if not FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data["index_set_ids"] = [index_set_id]
             return Response(UnifyQueryHandler(data).date_histogram())
         return Response(AggsViewAdapter().date_histogram(index_set_id, data))
@@ -260,8 +259,8 @@ class AggsViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UnionSearchDateHistogramSerializer)
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            return Response(UnifyQueryDateHistogramHandler(data).union_search_date_histogram())
+        if not FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            return Response(UnifyQueryHandler(data).date_histogram())
         return Response(AggsViewAdapter().union_search_date_histogram(data))
 
     @list_route(methods=["POST"], url_path="aggs/union_search/terms")
