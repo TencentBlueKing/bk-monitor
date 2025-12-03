@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { Ref, computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-
 // @ts-ignore
 import { formatDateTimeField, getCharLength, getOsCommandLabel, getRegExp } from '@/common/util';
+import { bkIcon } from 'bk-magic-vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import imgEnterKey from '@/images/icons/enter-key.svg';
@@ -1356,7 +1356,7 @@ defineExpose({
                 <span class="operator-content">
                   {{ getOperatorLable(activeOperator.label) }}
                 </span>
-                <bk-icon :type="isArrowDown ? 'angle-down' : 'angle-up'" />
+                <bkIcon :type="isArrowDown ? 'angle-down' : 'angle-up'" />
               </div>
               <div style="display: none">
                 <div

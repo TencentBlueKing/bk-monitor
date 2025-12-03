@@ -117,7 +117,7 @@ export default ({ store }) => {
    */
   const getQualifiedFieldName = (fieldName: string, list?: FieldInfoItem[], withAliasFieldMap = false) => {
     const field = (list || getFieldList(withAliasFieldMap)).filter(item => item.field_name === fieldName);
-    if (field[0].query_alias) {
+    if (field[0]?.query_alias) {
       return `${field[0].query_alias}(${fieldName})`;
     }
     return fieldName;

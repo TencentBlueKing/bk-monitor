@@ -32,7 +32,7 @@
 import Vue from 'vue';
 import VueRouter from 'vue-router';
 
-// import reportLogStore from '@/store/modules/report-log';
+import reportLogStore from '@/store/modules/report-log';
 import exception from '@/views/404';
 import unAuthorized from '@/views/un-authorized';
 
@@ -188,24 +188,24 @@ export default (spaceId, bkBizId, externalMenu) => {
     }
   });
 
-  // let stringifyExternalMenu = '[]';
-  // try {
-  //   stringifyExternalMenu = JSON.stringify(externalMenu);
-  // } catch (e) {
-  //   console.warn('externalMenu JSON.stringify error', e);
-  // }
+  let stringifyExternalMenu = '[]';
+  try {
+    stringifyExternalMenu = JSON.stringify(externalMenu);
+  } catch (e) {
+    console.warn('externalMenu JSON.stringify error', e);
+  }
 
   // 路由后置钩子：每次路由切换后上报路由日志
   router.afterEach((to) => {
     if (to.name === 'exception') {
       return;
     }
-    // reportLogStore.reportRouteLog({
-    //   route_id: to.name,
-    //   nav_id: to.meta.navId,
-    //   nav_name: to.meta?.title ?? undefined,
-    //   external_menu: stringifyExternalMenu,
-    // });
+    reportLogStore.reportRouteLog({
+      route_id: to.name,
+      nav_id: to.meta.navId,
+      nav_name: to.meta?.title ?? undefined,
+      external_menu: stringifyExternalMenu,
+    });
   });
 
   return router;
