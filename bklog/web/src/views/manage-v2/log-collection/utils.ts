@@ -66,8 +66,8 @@ export const STATUS_ENUM_FILTER = [
 export const GLOBAL_CATEGORIES_ENUM = [
   { label: window.$t('主机日志'), value: 'linux' },
   { label: window.$t('Windows Event 日志'), value: 'winevent' },
-  { label: window.$t('文件采集'), value: 'container_file' },
-  { label: window.$t('标准输出'), value: 'container_stdout' },
+  { label: window.$t('容器文件采集'), value: 'container_file' },
+  { label: window.$t('容器标准输出'), value: 'container_stdout' },
   { label: window.$t('计算平台'), value: 'bkdata' },
   { label: window.$t('第三方ES'), value: 'es' },
   { label: window.$t('自定义上报'), value: 'custom_report' },

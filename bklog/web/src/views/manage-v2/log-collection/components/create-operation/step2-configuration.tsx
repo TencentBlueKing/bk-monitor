@@ -261,6 +261,7 @@ export default defineComponent({
       if (props.scenarioId === 'wineventlog') {
         formData.value = {
           ...formData.value,
+          collector_scenario_id: 'wineventlog',
           params: {
             ...formData.value.params,
             winlog_name: selectLogSpeciesList.value,
