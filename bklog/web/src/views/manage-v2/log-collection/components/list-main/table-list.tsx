@@ -488,7 +488,7 @@ export default defineComponent({
       {
         title: t('接入类型'),
         colKey: 'log_access_type',
-        width: 100,
+        width: 140,
         cell: (h, { row }: { row: TableRowData }) => <span>{row.log_access_type_name}</span>,
         filter: getColumnsFilter(GLOBAL_CATEGORIES_ENUM),
       },
