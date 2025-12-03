@@ -1377,7 +1377,7 @@ class TimeSeriesScope(models.Model):
             if len(locations) > 1:
                 location_strs = [f"scope_name={loc[0]}, 位置索引={loc[1]}" for loc in locations]
                 raise ValueError(
-                    _("批次内存在重复的指标: group_id={}, metric={}{}, 出现位置=[{}]").format(
+                    _("批次内存在重复的指标: group_id={}, metric={}, 出现位置=[{}]").format(
                         group_id, metric, "; ".join(location_strs)
                     )
                 )
@@ -1608,7 +1608,7 @@ class TimeSeriesScope(models.Model):
             if len(locations) > 1:
                 location_strs = [f"scope_name={loc[0]}, 位置索引={loc[1]}" for loc in locations]
                 raise ValueError(
-                    _("批次内存在重复的指标: group_id={}, metric={}{}, 出现位置=[{}]").format(
+                    _("批次内存在重复的指标: group_id={}, metric={}, 出现位置=[{}]").format(
                         group_id, metric, "; ".join(location_strs)
                     )
                 )
