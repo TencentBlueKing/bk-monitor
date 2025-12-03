@@ -46,7 +46,7 @@ from bkmonitor.utils.time_tools import (
 )
 from constants.alert import EventStatus
 from constants.apm import OtlpKey, PreCalculateSpecificField, DEFAULT_DATA_LABEL as APM_METRIC_DATA_LABEL
-from constants.data_source import RECOVERY, DataSourceLabel, DataTypeLabel
+from constants.data_source import RECOVERY, DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
 from constants.strategy import (
     AGG_METHOD_REAL_TIME,
     SPLIT_DIMENSIONS,
@@ -1596,7 +1596,7 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.metrics = [{"field": "_index", "method": "COUNT"}]
+        self.metrics = self.metrics or [{"field": "_index", "method": "COUNT"}]
 
     @property
     def metric_display(self):
@@ -1604,6 +1604,115 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
         if self.interval > 60:
             time_display = _("{}分钟").format(self.interval // 60)
         return _("{}内匹配到关键字次数").format(time_display)
+
+    def to_unify_query_config(self) -> list[dict]:
+        """
+        生成日志查询相关的统一查询配置
+        """
+        base_query: dict[str, Any] = {
+            "driver": "influxdb",
+            "data_source": "bklog",
+            "table_id": self.table,
+            "reference_name": "",
+            "field_name": "",
+            "time_field": self.time_field or self.DEFAULT_TIME_FIELD,
+            "dimensions": [],
+            "conditions": {"field_list": [], "condition_list": []},
+            "function": [],
+            "time_aggregation": {},
+            "keep_columns": [],
+            "offset": "",
+            "offset_forward": False,
+        }
+
+        query_list: list[dict[str, Any]] = []
+
+        for metric in self.metrics:
+            query: dict[str, Any] = copy.deepcopy(base_query)
+            method: str = metric.get("method", "").lower()
+
+            # 判断是否有聚合方法
+            has_method = method and method != AGG_METHOD_REAL_TIME
+
+            if has_method:
+                # 有聚合方法的场景（query_reference 或 query_data）
+                query["field_name"] = metric["field"]
+                query["reference_name"] = (metric.get("alias") or metric["field"]).lower()
+
+                # 设置维度（关键：根据 group_by 决定是 query_reference 还是 query_data）
+                query["dimensions"] = self.group_by
+
+                # 处理聚合方法
+                func_method: str = method
+
+                # 处理分位数方法
+                if method in CpAggMethods:
+                    cp_agg_method = CpAggMethods[method]
+                    func_method = cp_agg_method.method
+                    query["time_aggregation"]["position"] = cp_agg_method.position
+                    query["time_aggregation"]["vargs_list"] = cp_agg_method.vargs_list
+
+                # 关键判断：如果有 group_by 说明是聚合查询
+                if self.group_by and method == "count":
+                    # 聚合查询场景下外层要 sum 进行聚合
+                    func_method = "sum"
+
+                query["time_aggregation"].update({"function": f"{method}_over_time", "window": f"{self.interval}s"})
+
+                # 添加聚合函数
+                function: dict[str, Any] = {
+                    "method": func_method,
+                    "dimensions": self.group_by,
+                }
+
+                # 处理分位数方法的 vargs_list
+                if method in CpAggMethods:
+                    function["vargs_list"] = CpAggMethods[method].vargs_list
+
+                query["function"].append(function)
+
+                # 解析额外的函数参数
+                if self.group_by and self.functions:
+                    time_aggregation, functions = _parse_function_params(self.functions, self.group_by)
+                    query["function"].extend(functions)
+                    if time_aggregation:
+                        query["time_aggregation"].update(time_aggregation)
+            else:
+                # 无聚合方法的场景（原始日志查询 query_raw）
+                query["field_name"] = ""
+                query["reference_name"] = metric.get("alias") or "a"
+                query["dimensions"] = []
+
+            query_list.append(query)
+
+        if not query_list:
+            # 如果没有query_list，返回默认配置（原始日志查询）
+            query: dict[str, Any] = copy.deepcopy(base_query)
+            query["reference_name"] = getattr(self, "reference_name", "a") or "a"
+            query_list.append(query)
+
+        return query_list
+
+    def _fetch_white_list(self) -> list[str | int]:
+        """获取日志UnifyQuery查询业务白名单"""
+        return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
+
+    def switch_unify_query(self, bk_biz_id):
+        # 如果使用了查询函数或者需要特殊处理，则使用统一查询
+        if getattr(self, "functions", []):
+            return True
+
+        # 如果数据源在UnifyQueryDataSources列表中，则使用统一查询
+        if (self.data_source_label, self.data_type_label) in UnifyQueryDataSources:
+            return True
+
+        # 如果 white_list 非空且不包含 0，则使用灰度；否则就是全量（white_list 为 [] 或 [0] 时全量）
+        white_list: list[str | int] = self._fetch_white_list()
+        grayscale = bool(white_list) and 0 not in white_list and "0" not in white_list
+        if grayscale:
+            return bk_biz_id in white_list or str(bk_biz_id) in white_list
+        # 不灰度就是全量(灰度列表为空或包含0业务)
+        return True
 
 
 class BaseBkMonitorLogDataSource(DataSource, ABC):

@@ -145,7 +145,7 @@ paths:
         descriptionEn: delete item
   /app/calendar/item/detail/:
     post:
-      operationId: item_detail
+      operationId: item_detail_v2
       description: 获取某些日历下某个时间点的所有事项
       x-bk-apigateway-resource:
         isPublic: true
@@ -163,7 +163,7 @@ paths:
         descriptionEn: item detail
   /app/calendar/item/list/:
     post:
-      operationId: item_list
+      operationId: item_list_v2
       description: 查询规定日期内的所有日历事项列表
       x-bk-apigateway-resource:
         isPublic: true

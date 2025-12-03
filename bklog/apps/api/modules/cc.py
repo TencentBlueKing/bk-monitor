@@ -54,7 +54,7 @@ class _CCApi:
 
     @property
     def use_apigw(self):
-        return settings.ENABLE_MULTI_TENANT_MODE
+        return settings.USE_APIGW
 
     def _build_url(self, new_path, old_path):
         return (
@@ -76,7 +76,9 @@ class _CCApi:
         )
         self.search_inst_by_object = DataAPI(
             method="POST",
-            url=self._build_url("api/v3/inst/search/owner/{bk_supplier_account}/object/{bk_obj_id}", "search_inst_by_object/"),
+            url=self._build_url(
+                "api/v3/inst/search/owner/{bk_supplier_account}/object/{bk_obj_id}", "search_inst_by_object/"
+            ),
             module=self.MODULE,
             description="查询CC对象列表",
             url_keys=["bk_supplier_account", "bk_obj_id"],
@@ -219,7 +221,9 @@ class _CCApi:
         )
         self.find_host_by_service_template = DataAPI(
             method="POST",
-            url=self._build_url("api/v3/findmany/hosts/by_service_templates/biz/{bk_biz_id}", "find_host_by_service_template"),
+            url=self._build_url(
+                "api/v3/findmany/hosts/by_service_templates/biz/{bk_biz_id}", "find_host_by_service_template"
+            ),
             module=self.MODULE,
             description="查询服务模板下的主机",
             url_keys=["bk_biz_id"],
@@ -268,7 +272,9 @@ class _CCApi:
         )
         self.list_host_total_mainline_topo = DataAPI(
             method="POST",
-            url=self._build_url("api/v3/findmany/hosts/total_mainline_topo/biz/{bk_biz_id}", "list_host_total_mainline_topo"),
+            url=self._build_url(
+                "api/v3/findmany/hosts/total_mainline_topo/biz/{bk_biz_id}", "list_host_total_mainline_topo"
+            ),
             module=self.MODULE,
             description="查询主机及其对应拓扑",
             url_keys=["bk_biz_id"],

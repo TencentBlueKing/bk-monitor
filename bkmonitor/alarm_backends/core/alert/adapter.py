@@ -19,7 +19,7 @@ from alarm_backends.core.cluster import get_cluster
 from alarm_backends.core.control.mixins.double_check import DoubleCheckStrategy
 from alarm_backends.core.control.record_parser import EventIDParser
 from alarm_backends.core.storage.kafka import KafkaQueue
-from bkmonitor.models import NO_DATA_TAG_DIMENSION
+from bkmonitor.models import NO_DATA_TAG_DIMENSION, BCSPod
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.alert import EventStatus, EventTargetType
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -107,20 +107,23 @@ class MonitorEventAdapter:
         target_type, target, data_dimensions = self.extract_target(
             self.strategy, self.record["data"]["dimensions"], self.record["data"].get("dimension_fields")
         )
-
         if NO_DATA_TAG_DIMENSION in data_dimensions:
             # 无数据告警的名称需要做特殊处理
             alert_name = _("[无数据] {alert_name}").format(alert_name=self.strategy["name"])
         else:
             alert_name = self.strategy["name"]
 
+        # event.tags 主要用于页面检索
+        additional_dimensions = data_dimensions.pop("__additional_dimensions", {})
         tags = [{"key": key, "value": value} for key, value in data_dimensions.items()]
+        if additional_dimensions:
+            tags += [{"key": key, "value": value} for key, value in additional_dimensions.items()]
+
         for k, v in self.record.get("context", {}).items():
             if k not in self.SPECIAL_ALERT_TAG_KEY_WHITELIST:
                 continue
 
             tags.append({"key": k, "value": v})
-
         metric = [conf["metric_id"] for item in self.strategy["items"] for conf in item.get("query_configs", [])]
         metric += [item["name"] for item in self.strategy["items"]]
         metric += [
@@ -143,6 +146,8 @@ class MonitorEventAdapter:
             "metric": list(dict.fromkeys(metric)),
             "category": self.strategy["scenario"],
             "data_type": self.strategy["items"][0]["query_configs"][0]["data_type_label"],
+            # 基于事件维度，生成唯一告警指纹。 实例化 Event内存对象，执行 clean 会补充默认字段: DEFAULT_DEDUPE_FIELDS
+            # 这里事件维度的 key 统一补充 tags. 前缀
             "dedupe_keys": [f"tags.{key}" for key in data_dimensions.keys()],
             "time": time or self.record["data"]["time"],
             "anomaly_time": EventIDParser(self.record["trigger"]["anomaly_ids"][0]).source_time,
@@ -151,6 +156,7 @@ class MonitorEventAdapter:
             "bk_biz_id": self.strategy["bk_biz_id"],
             "bk_tenant_id": bk_biz_id_to_bk_tenant_id(self.strategy["bk_biz_id"]),
             "extra_info": {
+                "additional_dimensions": additional_dimensions,
                 "origin_alarm": {
                     "trigger_time": now_time,
                     "data": self.record["data"],
@@ -158,7 +164,7 @@ class MonitorEventAdapter:
                     "anomaly": self.record.get("anomaly", {}),
                     "dimension_translation": {},
                     "strategy_snapshot_key": self.record["strategy_snapshot_key"],
-                }
+                },
             },
         }
         return event
@@ -168,6 +174,7 @@ class MonitorEventAdapter:
         """
         解析事件的 target，将对应的维度pop出去
         返回 target_type, target, data_dimensions
+        如果有补充维度， 则补充到 data_dimensions下的 __additional_dimensions
         """
         item = strategy["items"][0]
         agg_dimensions = set()
@@ -193,6 +200,7 @@ class MonitorEventAdapter:
             for key, value in data_dimensions.items()
             if key in agg_dimensions or key == NO_DATA_TAG_DIMENSION
         }
+        # 将维度中的 tags. 前缀去掉（后续 duplicate_keys 中会统一将维度加上 tags.的前缀）
         to_be_pop = []
         for key in data_dimensions:
             if key.startswith("tags."):
@@ -233,7 +241,66 @@ class MonitorEventAdapter:
                 bk_obj_id = data_dimensions.pop("bk_obj_id")
                 bk_inst_id = data_dimensions.pop("bk_inst_id")
                 return EventTargetType.TOPO, f"{bk_obj_id}|{bk_inst_id}", data_dimensions
+            elif "bcs_cluster_id" in data_dimensions:
+                # 容器场景目标解析
+                # K8S-POD, K8S-NODE, K8S-SERVICE, K8S-WORKLOAD
+                return cls.get_k8s_target(data_dimensions, strategy["bk_biz_id"])
 
         except KeyError:
             return EventTargetType.EMPTY, None, data_dimensions
         return EventTargetType.EMPTY, None, data_dimensions
+
+    @classmethod
+    def get_k8s_target(cls, dimensions: dict, bk_biz_id: int):
+        """
+        获取容器场景的目标
+        注意：此方法会修改传入的 dimensions 字典，补充相关维度信息
+        """
+        bcs_cluster_id = dimensions.get("bcs_cluster_id")
+        pod = dimensions.get("pod") or dimensions.get("pod_name")
+        namespace = dimensions.get("namespace")
+
+        if pod:
+            # pod 对象, 数据维度有pod 信息，直接查出 workload 和 namespace
+            pod_instance = BCSPod.get_instance_with_cache(name=pod, bcs_cluster_id=bcs_cluster_id, namespace=namespace)
+            if pod_instance:
+                additional_dimensions = {}
+                # 补充维度信息
+                if "workload_kind" not in dimensions:
+                    additional_dimensions["workload_kind"] = pod_instance.workload_type
+                if "workload_name" not in dimensions:
+                    additional_dimensions["workload_name"] = pod_instance.workload_name
+                if "namespace" not in dimensions:
+                    additional_dimensions["namespace"] = pod_instance.namespace
+                # 将丰富的维度信息补充到 event 的 extra_info 中，后续 alert 丰富使用
+                if additional_dimensions:
+                    dimensions["__additional_dimensions"] = additional_dimensions
+                return "K8S-POD", pod, dimensions
+            else:
+                # Pod 存在但查询不到实例，仍然按 Pod 处理，避免错误分类
+                # 检查 namespace 是否存在，Pod 是命名空间级别的资源
+                if namespace is None:
+                    return EventTargetType.EMPTY, None, dimensions
+                return "K8S-POD", pod, dimensions
+
+        workload_kind = dimensions.get("workload_kind")
+        workload_name = dimensions.get("workload_name")
+        if workload_kind and workload_name:
+            # workload 对象，需要 namespace
+            if namespace is None:
+                return EventTargetType.EMPTY, None, dimensions
+            return "K8S-WORKLOAD", f"{workload_kind}:{workload_name}", dimensions
+
+        node = dimensions.get("node") or dimensions.get("node_name")
+        if node:
+            # node 对象，Node 是集群级别资源，不需要 namespace
+            return "K8S-NODE", node, dimensions
+
+        service = dimensions.get("service") or dimensions.get("service_name")
+        if service:
+            # service 对象，需要 namespace
+            if namespace is None:
+                return EventTargetType.EMPTY, None, dimensions
+            return "K8S-SERVICE", service, dimensions
+
+        return EventTargetType.EMPTY, None, dimensions
