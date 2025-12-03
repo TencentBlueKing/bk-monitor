@@ -227,16 +227,18 @@ class LogCollectorHandler:
         collector_status_mappings = self.get_collector_subscription_status(
             collector_id_list,
         )
+        # 如果status_list存在则进行过滤
         result_list = []
-        # 添加status_name采集状态, 如果status_name存在则进行过滤
-        for item in tmp_result_list:
-            original_status = collector_status_mappings.get(item["collector_config_id"], {}).get("status", "")
-            new_status = CollectStatusEnum.get_collect_status(original_status)
-            if status_list and new_status not in status_list:
-                continue
-            item["status"] = new_status
-            item["status_name"] = CollectStatusEnum.get_choice_label(new_status)
-            result_list.append(item)
+        if status_list:
+            for item in tmp_result_list:
+                original_status = collector_status_mappings.get(item["collector_config_id"], {}).get("status", "")
+                new_status = CollectStatusEnum.get_collect_status(original_status)
+                if new_status not in status_list:
+                    continue
+                result_list.append(item)
+        else:
+            result_list = tmp_result_list
+
         result_list = CollectorHandler.add_tags_info(result_list)
         return result_list
 
@@ -553,3 +555,19 @@ class LogCollectorHandler:
         cluster_name_dict = [{"key": item, "value": item} for item in cluster_names if item]
 
         return {"created_by": created_by_dict, "updated_by": updated_by_dict, "storage_cluster_name": cluster_name_dict}
+
+    @staticmethod
+    def get_collector_status(collector_id_list):
+        original_status_list = CollectorHandler().get_subscription_status_by_list(collector_id_list)
+        result = []
+        for item in original_status_list:
+            original_status = item.get("status")
+            new_status = CollectStatusEnum.get_collect_status(original_status)
+            result.append(
+                {
+                    "collector_id": item["collector_id"],
+                    "status": new_status,
+                    "status_name": CollectStatusEnum.get_choice_label(new_status),
+                }
+            )
+        return result

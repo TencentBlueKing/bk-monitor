@@ -21,7 +21,11 @@ the project delivered to anyone in the future.
 
 from apps.generic import APIViewSet
 from rest_framework.response import Response
-from apps.log_databus.serializers import LogCollectorSerializer, GetCollectorFieldEnumsSerializer
+from apps.log_databus.serializers import (
+    LogCollectorSerializer,
+    GetCollectorFieldEnumsSerializer,
+    GetCollectorStatusSerializer,
+)
 
 from apps.utils.drf import list_route
 from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
@@ -53,4 +57,11 @@ class LogAccessViewSet(APIViewSet):
     def get_collector_field_enums(self, request):
         data = self.params_valid(GetCollectorFieldEnumsSerializer)
         result = LogCollectorHandler(data["space_uid"]).get_collector_field_enums()
+        return Response(result)
+
+    @list_route(methods=["GET"], url_path="collector_status")
+    def get_collector_status(self, request):
+        data = self.params_valid(GetCollectorStatusSerializer)
+        collector_id_list = data.get("collector_id_list").split(",")
+        result = LogCollectorHandler.get_collector_status(collector_id_list)
         return Response(result)
