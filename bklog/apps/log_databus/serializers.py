@@ -1789,3 +1789,7 @@ class LogCollectorSerializer(serializers.Serializer):
 
 class GetCollectorFieldEnumsSerializer(serializers.Serializer):
     space_uid = SpaceUIDField(label=_("空间唯一标识"))
+
+
+class GetCollectorStatusSerializer(serializers.Serializer):
+    collector_config_id_list = serializers.ListSerializer(label=_("采集项ID列表"), child=serializers.IntegerField())
