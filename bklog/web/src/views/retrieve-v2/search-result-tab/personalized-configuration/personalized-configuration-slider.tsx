@@ -63,7 +63,7 @@ export default defineComponent({
       // tab配置
       TabType.LOG_LEVEL,
       TabType.LOG_KEYWORD,
-      TabType.LOG_METRIC,
+      // TabType.LOG_METRIC,
     ]);
     const activeTab = ref<TabType>(TabType.LOG_LEVEL); // 激活的tab
     const tableData = ref([]); // 表格数据

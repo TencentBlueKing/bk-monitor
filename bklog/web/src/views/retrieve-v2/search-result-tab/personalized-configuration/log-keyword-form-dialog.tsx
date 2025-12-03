@@ -89,7 +89,7 @@ export default defineComponent({
     const actionTypeOptions = [
       { label: t('标记'), value: ActionType.MARK },
       { label: t('跳转'), value: ActionType.JUMP },
-      { label: t('关联'), value: ActionType.RELATED },
+      // { label: t('关联'), value: ActionType.RELATED },
     ];
 
     // 关联资源选项

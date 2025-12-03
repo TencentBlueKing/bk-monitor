@@ -201,14 +201,20 @@ export default defineComponent({
 
     // 跳转链接插槽
     const jumpLinkSlot = {
-      default: () => (
-        <bk-button
-          text
-          theme='primary'
-        >
-          {t('前往')}
-        </bk-button>
-      ),
+      default: ({ row }) => {
+        // 如果执行动作类型是跳转，则显示前往按钮，否则显示 /
+        if (row.actionType === ActionType.JUMP) {
+          return (
+            <bk-button
+              text
+              theme='primary'
+            >
+              {t('前往')}
+            </bk-button>
+          );
+        }
+        return <span class='jump-link-placeholder'>/</span>;
+      },
     };
 
     // 操作项插槽
