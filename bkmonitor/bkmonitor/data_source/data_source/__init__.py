@@ -1710,14 +1710,21 @@ class LogSearchTimeSeriesDataSource(LogUnifyQueryMixin, TimeSeriesDataSource):
 
     # 封装条件方法替换
     def _replace_condition_method(self):
+        # 如果已经处理过，就直接返回
+        if getattr(self, "_condition_method_replaced", False):
+            return
+
         condition_mapping = {
             "eq": "is one of",
             "neq": "is not one of",
         }
         for condition in self.where:
-            if condition["method"] in condition_mapping:
-                condition["_origin_method"] = condition["method"]
-                condition["method"] = condition_mapping[condition["method"]]
+            method = condition.get("method")
+            if method in condition_mapping:
+                condition["_origin_method"] = method
+                condition["method"] = condition_mapping[method]
+
+        self._condition_method_replaced = True
 
     def query_data(
         self,
