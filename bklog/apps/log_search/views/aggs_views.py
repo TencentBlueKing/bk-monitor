@@ -179,7 +179,7 @@ class AggsViewSet(APIViewSet):
         }
         """
         data = self.params_valid(DateHistogramSerializer)
-        if not FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data["index_set_ids"] = [index_set_id]
             return Response(UnifyQueryHandler(data).date_histogram())
         return Response(AggsViewAdapter().date_histogram(index_set_id, data))
@@ -259,7 +259,7 @@ class AggsViewSet(APIViewSet):
         }
         """
         data = self.params_valid(UnionSearchDateHistogramSerializer)
-        if not FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             return Response(UnifyQueryHandler(data).date_histogram())
         return Response(AggsViewAdapter().union_search_date_histogram(data))
 
