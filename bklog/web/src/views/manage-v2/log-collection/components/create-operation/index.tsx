@@ -158,21 +158,27 @@ export default defineComponent({
         resizeObserver.observe(mainRef.value);
       }
     });
+    /**
+     * 清除轮询定时器
+     */
+    const clearPolling = () => {
+      if (pollingTimer.value) {
+        clearInterval(pollingTimer.value);
+        pollingTimer.value = null;
+      }
+    };
 
     onBeforeUnmount(() => {
       if (resizeObserver) {
         resizeObserver.disconnect();
         resizeObserver = null;
       }
-      if (pollingTimer.value) {
-        clearInterval(pollingTimer.value);
-        pollingTimer.value = null;
-      }
+      clearPolling();
     });
     /**
      * 选择具体的索引集分类
      */
-    const chooseType = data => {
+    const chooseType = (data: { value: string }) => {
       typeKey.value = data.value;
       router.replace({
         query: {
@@ -195,15 +201,6 @@ export default defineComponent({
       goListPage();
     };
 
-    /**
-     * 清除轮询定时器
-     */
-    const clearPolling = () => {
-      if (pollingTimer.value) {
-        clearInterval(pollingTimer.value);
-        pollingTimer.value = null;
-      }
-    };
     /**
      * 获取采集状态
      */
@@ -243,8 +240,11 @@ export default defineComponent({
           clearPolling();
         });
     };
-
-    const initTypeKey = val => {
+    /**
+     * 初始化采集分类的类型
+     * @param val
+     */
+    const initTypeKey = (val: boolean) => {
       if (val && route.query.typeKey) {
         // 只在 typeKey 实际变化时才更新，避免不必要的重新渲染
         const newTypeKey = route.query.typeKey as string;
@@ -253,19 +253,18 @@ export default defineComponent({
         }
       }
     };
+    /**
+     * 跳转到接入指引
+     */
+    const handleOpenGuide = () => {
+      const docPath = 'markdown/ZH/LogSearch/4.7/UserGuide/ProductFeatures/integrations-logs/simple_log_collection.md';
+      const url = (window as any).BK_DOC_URL.replace(/\/$/, '');
+      url && window.open(`${url}/${docPath}`, '_blank');
+    };
 
-    watch(
-      () => isEdit.value,
-      val => {
-        initTypeKey(val);
-      },
-    );
-    watch(
-      () => isClone.value,
-      val => {
-        initTypeKey(val);
-      },
-    );
+    watch([() => isEdit.value, () => isClone.value], ([editVal, cloneVal]) => {
+      initTypeKey(editVal || cloneVal);
+    });
 
     return () => {
       const Component = currentStep.value.find(item => item.icon === step.value)?.components;
@@ -314,13 +313,15 @@ export default defineComponent({
                 steps={currentStep.value}
               />
             </div>
-            <span class='step-tips'>
+            <span
+              class='step-tips'
+              on-click={handleOpenGuide}
+            >
               <i class='bklog-icon bklog-help help-icon' />
               {t('接入指引')}
             </span>
           </div>
           <Component
-            // key={`${typeKey.value}-${step.value}`}
             configData={dataConfig.value}
             scenarioId={typeKey.value}
             on-cancel={handleCancel}
@@ -329,15 +330,15 @@ export default defineComponent({
             isClone={isClone.value}
             on-next={data => {
               dataConfig.value = data;
-              console.log(step.value, 'step.value', data);
-
               if (isNeedIssue.value && ((step.value === 2 && !isEdit.value) || (isEdit.value && step.value === 1))) {
                 currentCollectorId.value = data.collector_config_id;
                 getCollectStatus(data.collector_config_id);
               }
-              step.value++;
+              step.value = step.value + 1;
             }}
-            on-prev={() => step.value--}
+            on-prev={() => {
+              step.value = step.value - 1;
+            }}
           />
         </div>
       );

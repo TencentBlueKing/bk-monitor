@@ -46,7 +46,7 @@ import {
 
 import BaseInfo from '../business-comp/step2/base-info';
 
-import type { IFormData } from '../../type'; // 基础信息组件
+import type { IFormData, IExtraLabel, IContainerConfigItem } from '../../type'; // 基础信息组件
 import DeviceMetadata from '../business-comp/step2/device-metadata'; // 设备元数据组件
 import EventFilter from '../business-comp/step2/event-filter'; // 事件过滤器组件
 import LogFilter from '../business-comp/step2/log-filter'; // 日志过滤器组件
@@ -125,6 +125,10 @@ export default defineComponent({
     const configurationItemListRef = ref();
     const loading = ref(false);
     const isIndexConfigImport = ref(false);
+    /**
+     * 是否修改了内容
+     */
+    const isConfigChange = ref(false);
 
     const baseConditions = {
       type: 'none',
@@ -150,6 +154,14 @@ export default defineComponent({
       'setTemplate',
       'manualInput',
     ];
+
+    const typeMap: { [key: string]: string } = {
+      INSTANCE: 'host_list',
+      TOPO: 'node_list',
+      SERVICE_TEMPLATE: 'service_template_list',
+      SET_TEMPLATE: 'set_template_list',
+      DYNAMIC_GROUP: 'dynamic_group_list',
+    };
 
     /**
      * 上报链路列表
@@ -229,7 +241,9 @@ export default defineComponent({
         parent_index_set_ids: [],
         tail_files: true,
         params: {
-          conditions: baseConditions,
+          conditions: {
+            type: 'none',
+          },
         },
       };
     });
@@ -337,7 +351,8 @@ export default defineComponent({
      * 修改日志类型
      * @param item
      */
-    const handleLogType = item => {
+    const handleLogType = (item: { value: string }) => {
+      isConfigChange.value = true;
       logType.value = item.value;
       formData.value.collector_scenario_id = item.value;
     };
@@ -345,12 +360,14 @@ export default defineComponent({
      * 修改日志路径
      */
     const handleUpdateUrl = (data: { value: string }[]) => {
+      isConfigChange.value = true;
       formData.value.params.paths = data;
     };
     /**
      * 修改路径黑名单
      */
     const handleUpdateBlacklist = (data: { value: string }[] | string[]) => {
+      isConfigChange.value = true;
       // 将对象数组转换为字符串数组，以匹配 exclude_files 的格式
       formData.value.params.exclude_files = data.map(item => (typeof item === 'string' ? item : item.value));
     };
@@ -358,8 +375,8 @@ export default defineComponent({
      * 修改设备元数据
      * @param data
      */
-    const handleMetadataList = data => {
-      // formData.value.params.extra_labels = data;
+    const handleMetadataList = (data: IExtraLabel[]) => {
+      isConfigChange.value = true;
       formData.value.extra_labels = data;
     };
     /**
@@ -371,7 +388,7 @@ export default defineComponent({
     /**
      * 关闭行首正则调试弹窗
      */
-    const handleCancelMultilineReg = val => {
+    const handleCancelMultilineReg = (val: boolean) => {
       showMultilineRegDialog.value = val;
     };
     /**
@@ -379,6 +396,7 @@ export default defineComponent({
      * @param data
      */
     const handleFilterChange = data => {
+      isConfigChange.value = true;
       eventSettingList.value = data;
       (data || []).map(item => {
         formData.value.params[item.type] = item.list;
@@ -388,7 +406,8 @@ export default defineComponent({
      * 修改日志种类 - 其他 输入框内容
      * @param val
      */
-    const handleLogTypeOther = val => {
+    const handleLogTypeOther = (val: string[]) => {
+      isConfigChange.value = true;
       otherSpeciesList.value = val;
       formData.value.params.winlog_name = [...selectLogSpeciesList.value, ...val];
     };
@@ -587,10 +606,21 @@ export default defineComponent({
           return;
         }
 
-        const { configs, collector_scenario_id, params } = res.data;
+        const { configs, collector_scenario_id, params, target_node_type: type, target_nodes: nodes } = res.data;
 
         // 初始化基础表单数据
         initializeBaseFormData(res.data);
+        /**
+         * 初始化采集目标
+         */
+        if (props.scenarioId === 'wineventlog' || props.scenarioId === 'host_log') {
+          const targetList = toSelectorNode(nodes, type);
+          const result = {};
+          Object.keys(typeMap).forEach((key: string) => {
+            result[typeMap[key]] = type === key ? targetList : [];
+          });
+          selectorNodes.value = result;
+        }
 
         // 根据场景类型处理特定配置
         if (props.scenarioId === 'wineventlog') {
@@ -603,6 +633,7 @@ export default defineComponent({
 
         // 更新 store 中的当前采集配置
         store.commit('collect/setCurCollect', res.data);
+        isConfigChange.value = false;
       } catch (err) {
         console.log('获取采集配置详情失败:', err);
       } finally {
@@ -620,6 +651,7 @@ export default defineComponent({
         isEdit={isUpdate.value}
         on-change={data => {
           const { index_set_name } = data;
+          isConfigChange.value = true;
           formData.value = { ...formData.value, ...data, collector_config_name: index_set_name };
         }}
       />
@@ -638,6 +670,7 @@ export default defineComponent({
             }}
             value={data.multiline_pattern}
             on-input={val => {
+              isConfigChange.value = true;
               data.multiline_pattern = val;
             }}
           />
@@ -654,6 +687,7 @@ export default defineComponent({
             <bk-input
               value={data.multiline_max_lines}
               on-input={val => {
+                isConfigChange.value = true;
                 data.multiline_max_lines = val;
               }}
             >
@@ -671,6 +705,7 @@ export default defineComponent({
               class='time-box'
               value={data.multiline_timeout}
               on-input={val => {
+                isConfigChange.value = true;
                 data.multiline_timeout = val;
               }}
             >
@@ -705,6 +740,7 @@ export default defineComponent({
           conditions={formData.value.params.conditions}
           isCloneOrUpdate={isCloneOrUpdate.value}
           on-conditions-change={val => {
+            isConfigChange.value = true;
             formData.value.params.conditions = val;
           }}
         />
@@ -736,6 +772,7 @@ export default defineComponent({
                   active: collectorType.value === item.id,
                 }}
                 on-click={() => {
+                  isConfigChange.value = true;
                   collectorType.value = item.id;
                   formData.value.configs?.map(config => {
                     config.collector_type = item.id;
@@ -744,11 +781,7 @@ export default defineComponent({
                   });
                 }}
               >
-                <img
-                  alt=''
-                  src={item.img}
-                  class='img-box'
-                />
+                <i class={`bklog-icon bklog-${item.icon} method-item-icon`} />
                 {item.name}
               </span>
             ))}
@@ -764,6 +797,7 @@ export default defineComponent({
               disabled={isUpdate.value}
               value={formData.value.bcs_cluster_id}
               on-selected={val => {
+                isConfigChange.value = true;
                 formData.value.bcs_cluster_id = val;
               }}
             >
@@ -829,7 +863,8 @@ export default defineComponent({
               <bk-checkbox-group
                 class='log-type-box'
                 value={selectLogSpeciesList.value}
-                on-change={val => {
+                on-change={(val: string[]) => {
+                  isConfigChange.value = true;
                   selectLogSpeciesList.value = val;
                   formData.value.params.winlog_name = val;
                 }}
@@ -915,7 +950,8 @@ export default defineComponent({
                 clearable={false}
                 value={formData.value.data_encoding}
                 searchable
-                on-selected={val => {
+                on-selected={(val: string) => {
+                  isConfigChange.value = true;
                   formData.value.data_encoding = val;
                 }}
               >
@@ -934,6 +970,7 @@ export default defineComponent({
                 class='form-box'
                 value={formData.value.tail_files}
                 on-change={val => {
+                  isConfigChange.value = true;
                   formData.value.tail_files = val;
                 }}
               >
@@ -968,7 +1005,8 @@ export default defineComponent({
                   collectorType={collectorType.value}
                   data={formData.value.configs}
                   logType={logType.value}
-                  on-change={data => {
+                  on-change={(data: IContainerConfigItem[]) => {
+                    isConfigChange.value = true;
                     formData.value.configs = data;
                   }}
                 />
@@ -979,7 +1017,8 @@ export default defineComponent({
               <div class='form-box mt-5'>
                 <AppendLogTags
                   config={formData.value}
-                  on-change={data => {
+                  on-change={(data: IFormData) => {
+                    isConfigChange.value = true;
                     formData.value = { ...formData.value, ...data };
                   }}
                 />
@@ -1000,6 +1039,7 @@ export default defineComponent({
           loading={linkListLoading.value}
           value={formData.value.data_link_id}
           on-selected={val => {
+            isConfigChange.value = true;
             formData.value.data_link_id = val;
           }}
         >
@@ -1023,17 +1063,21 @@ export default defineComponent({
         title: t('源日志信息'),
         key: 'sourceLogInfo',
         renderFn: renderSourceLogInfo,
-        // subTitle: () => (
-        //   <span
-        //     class='config-import'
-        //     on-click={() => {
-        //       isIndexConfigImport.value = true;
-        //     }}
-        //   >
-        //     {t('索引配置导入')}
-        //     <i class='bklog-icon bklog-enter-3 config-import-icon' />
-        //   </span>
-        // ),
+        // subTitle: () => {
+        //   if (!props.isEdit) {
+        //     return (
+        //       <span
+        //         class='config-import'
+        //         on-click={() => {
+        //           isIndexConfigImport.value = true;
+        //         }}
+        //       >
+        //         {t('索引配置导入')}
+        //         <i class='bklog-icon bklog-import-daoru config-import-icon' />
+        //       </span>
+        //     );
+        //   }
+        // },
       },
       {
         title: t('链路配置'),
@@ -1330,10 +1374,16 @@ export default defineComponent({
       /**
        * 是否为容器采集并且配置项校验通过
        */
-      // console.log(isConfigError, 'configurationItemListRef');
       baseInfoRef.value
         .validate()
         .then(() => {
+          /**
+           * 判断用户是否有修改行为，如果没有则直接跳转到下一步
+           */
+          if (!isConfigChange.value) {
+            emit('next', formData.value);
+            return;
+          }
           if (props.scenarioId === 'wineventlog') {
             setCollection();
             return;
@@ -1343,7 +1393,6 @@ export default defineComponent({
           }
         })
         .catch(() => {
-          console.log('error');
           loadingSave.value = false;
         });
     };

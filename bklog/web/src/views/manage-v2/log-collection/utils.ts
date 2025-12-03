@@ -64,8 +64,11 @@ export const STATUS_ENUM_FILTER = [
  * 全局日志分类
  */
 export const GLOBAL_CATEGORIES_ENUM = [
-  { label: window.$t('采集接入'), value: 'log' },
-  { label: window.$t('数据平台'), value: 'bkdata' },
+  { label: window.$t('主机日志'), value: 'linux' },
+  { label: window.$t('Windows Event 日志'), value: 'winevent' },
+  { label: window.$t('文件采集'), value: 'container_file' },
+  { label: window.$t('标准输出'), value: 'container_stdout' },
+  { label: window.$t('计算平台'), value: 'bkdata' },
   { label: window.$t('第三方ES'), value: 'es' },
   { label: window.$t('自定义上报'), value: 'custom_report' },
 ];
@@ -276,8 +279,8 @@ export const LOG_TYPE_LIST = [
  * 采集方式列表
  */
 export const COLLECT_METHOD_LIST = [
-  { id: 'container_log_config', img: ContainerSvg, name: window.$t('按 container 采集'), isDisable: false },
-  { id: 'node_log_config', img: NodeSvg, name: window.$t('按 node 采集'), isDisable: false },
+  { id: 'container_log_config', icon: 'container', name: window.$t('按 container 采集'), isDisable: false },
+  { id: 'node_log_config', icon: 'node', name: window.$t('按 node 采集'), isDisable: false },
 ];
 
 /** 操作符列表 */

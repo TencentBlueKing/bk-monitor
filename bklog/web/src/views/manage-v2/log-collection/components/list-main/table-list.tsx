@@ -137,7 +137,7 @@ interface StorageUsageItem {
  */
 const HEIGHT_CONSTANTS = {
   MIN_TABLE_HEIGHT: 400, // 最小表格高度（至少显示 6-7 行数据）
-  COLUMNS_HEIGHT: 50, // 每列高度
+  COLUMNS_HEIGHT: 43, // 每列高度
   FIXED_ELEMENTS_HEIGHT: 150, // 固定元素高度（头部、工具栏、分页器等）
   WINDOW_FIXED_HEIGHT: 400, // 窗口固定元素高度（用于后备方案）
 } as const;
@@ -213,6 +213,7 @@ export default defineComponent({
 
     let tippyInstances: Instance[] = [];
     let columnConfigTippyInstance: Instance | null = null;
+    let collectStatusTimer: ReturnType<typeof setTimeout> | null = null;
     const columnConfigTriggerRef = ref<HTMLElement | null>(null);
     const columnConfigContentRef = ref<HTMLElement | null>(null);
     const searchKey = ref('');
@@ -430,7 +431,10 @@ export default defineComponent({
         cell: (h, { row }: { row: TableRowData }) => (
           <span
             class='link'
-            on-click={() => handleEditOperation(row, 'view')}
+            on-click={() => {
+              const type = row.storage_cluster_id !== -1 ? 'view' : 'edit';
+              handleEditOperation(row, type);
+            }}
           >
             {row.storage_cluster_id === -1 && <span class='link-tag'>{t('未完成')}</span>}
             {row.name}
@@ -817,6 +821,8 @@ export default defineComponent({
         columnConfigTippyInstance.destroy();
         columnConfigTippyInstance = null;
       }
+      // 清除状态轮询定时器
+      stopCollectStatusTimer();
       // 移除窗口大小变化监听
       window.removeEventListener('resize', handleWindowResize);
     });
@@ -826,8 +832,7 @@ export default defineComponent({
      * @param indexSetIds - 索引集ID列表
      */
     const getStorageUsage = (indexSetIds: Array<number | string>) => {
-      const validIds = indexSetIds.filter(id => id != null && id !== '');
-      if (validIds.length === 0) {
+      if (indexSetIds.length === 0) {
         return;
       }
 
@@ -835,7 +840,7 @@ export default defineComponent({
         .request('collect/getStorageUsage', {
           data: {
             bk_biz_id: bkBizId.value,
-            index_set_ids: validIds,
+            index_set_ids: indexSetIds,
           },
         })
         .then(res => {
@@ -862,6 +867,62 @@ export default defineComponent({
         })
         .catch(error => {
           console.log('获取存储用量失败:', error);
+        });
+    };
+    /**
+     * 停止轮询状态
+     */
+    const stopCollectStatusTimer = () => {
+      if (collectStatusTimer) {
+        clearTimeout(collectStatusTimer);
+        collectStatusTimer = null;
+      }
+    };
+    /**
+     * 轮询状态
+     * @param collectorConfigIdList
+     */
+    const getCollectStatus = (collectorConfigIdList: Array<number | string>) => {
+      if (collectorConfigIdList.length === 0) {
+        return;
+      }
+      $http
+        .request('collect/getCollectorStatus', {
+          data: {
+            collector_config_id_list: collectorConfigIdList,
+          },
+        })
+        .then(res => {
+          if (!res.result) {
+            stopCollectStatusTimer();
+            return;
+          }
+          const isHasRunning = res.data.filter(item => item.status === 'running').length > 0;
+          tableList.value = tableList.value.map(item => {
+            const info = res.data.find(val => val.collector_id === item.collector_config_id);
+            const { status_name, status } = info || {};
+            return {
+              ...item,
+              status,
+              status_name,
+            };
+          });
+
+          // 如果还有运行中的状态，则10s后继续轮询
+          if (isHasRunning) {
+            // 清除之前的定时器（如果存在）
+            stopCollectStatusTimer();
+            collectStatusTimer = setTimeout(() => {
+              getCollectStatus(collectorConfigIdList);
+            }, 10000);
+          } else {
+            // 没有运行中的状态，停止轮询
+            stopCollectStatusTimer();
+          }
+        })
+        .catch(() => {
+          // 请求失败时也停止轮询
+          stopCollectStatusTimer();
         });
     };
 
@@ -900,20 +961,20 @@ export default defineComponent({
         pagination.value.total = res.data?.total || 0;
         // 收集索引集ID并保存原始数据顺序
         const indexSetIds: Array<number | string> = [];
+        const collectorConfigIds: Array<number | string> = [];
         originalOrderMap.value = new Map();
 
         for (let index = 0; index < tableList.value.length; index++) {
           const item = tableList.value[index];
+          collectorConfigIds.push(item.collector_config_id);
           if (item.index_set_id !== null) {
             indexSetIds.push(item.index_set_id);
             originalOrderMap.value.set(item.index_set_id, index);
           }
         }
-
-        // 获取存储用量
-        if (indexSetIds.length > 0) {
-          getStorageUsage(indexSetIds);
-        }
+        // 获取存储用量 & 状态
+        getStorageUsage(indexSetIds);
+        getCollectStatus(collectorConfigIds);
 
         // 批量获取用户信息
         const userIds = new Set<string>();

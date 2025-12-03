@@ -281,9 +281,11 @@ export default defineComponent({
     // 监听loading状态，当加载完成时自动选中第一个item
     watch(
       () => props.loading,
-      val => {
+      (val: boolean) => {
         if (!val) {
           setDefaultItem();
+          const keys = showList.value.map(item => item.bk_obj_id);
+          activeName.value = keys;
         }
       },
     );
@@ -378,7 +380,7 @@ export default defineComponent({
                             >
                               {item.ip}
                             </span>
-                            {item.status === 'FAILED' && (
+                            {item.status === 'failed' && (
                               <span
                                 class='retry'
                                 on-click={() => {

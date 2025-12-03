@@ -11,6 +11,7 @@
     cursor: pointer;
     .config-import-icon {
       margin-left: 5px;
+      font-size: 16px;
     }
   }
   .source-log-info {
@@ -41,17 +42,16 @@
         border: 1px solid #3A84FF;
         color: #3A84FF;
       }
-      .img-box {
-        display: inline-block;
-        width: 28px;
-        height: 28px;
+      .method-item-icon {
+        font-size: 24px;
+        color: #A3B1CC;
         margin-right: 6px;
       }
       &.active {
         background: #E1ECFF;
         border: 1px solid #3A84FF;
         color: #3A84FF;
-        .img-box {
+        .method-item-icon {
           color: #3A84FF;
         }
       }
