@@ -1118,6 +1118,12 @@ USE_NEW_MONITOR_APIGATEWAY = os.getenv("BKAPP_USE_NEW_MONITOR_APIGATEWAY", "off"
 # 外部版网关密钥
 EXTERNAL_APIGW_PUBLIC_KEY = os.getenv("BKAPP_EXTERNAL_APIGW_PUBLIC_KEY", "")
 
+# 新内部版网关名称
+NEW_INTERNAL_APIGW_NAME = os.getenv("BKAPP_NEW_INTERNAL_APIGW_NAME", "")
+
+# 新内部版网关密钥
+NEW_INTERNAL_APIGW_PUBLIC_KEY = os.getenv("BKAPP_NEW_INTERNAL_APIGW_PUBLIC_KEY", "")
+
 # ==============================================================================
 # Templates
 # ==============================================================================
@@ -1284,7 +1290,8 @@ ALL_TENANT_SET_ID = 1
 # 已经初始化的租户列表
 INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 # 兼容非多租户模式
-APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or "test" in sys.argv)
+APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or 'test' in sys.argv)
+USE_APIGW = os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
 
 # 预查询时间, 默认6h小时, 0代表禁用
 try:

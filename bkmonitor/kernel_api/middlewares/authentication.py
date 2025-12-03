@@ -229,6 +229,17 @@ class AuthenticationMiddleware(MiddlewareMixin):
     def use_api_token_auth(request):
         return "HTTP_AUTHORIZATION" in request.META and request.META["HTTP_AUTHORIZATION"].startswith("Bearer ")
 
+    @staticmethod
+    def extract_tool_name_from_path(path: str) -> str:
+        """
+        从请求路径中提取工具名称
+        路径格式: /xxx/xx/xxx/tool_name/ -> 提取 tool_name
+        """
+        # 去除末尾的斜杠，然后按斜杠分割，取最后一个非空部分
+        path = path.rstrip("/")
+        parts = path.split("/")
+        return parts[-1] if parts else ""
+
     def _handle_mcp_auth(self, request, username=None):
         """
         处理MCP权限校验
@@ -239,6 +250,13 @@ class AuthenticationMiddleware(MiddlewareMixin):
         from bkmonitor.iam.action import get_action_by_id
 
         logger.info("MCPAuthentication: Handling MCP authentication")
+
+        # 提取工具名称，检查是否在豁免白名单中
+        tool_name = self.extract_tool_name_from_path(request.path)
+        if tool_name and tool_name in settings.MCP_PERMISSION_EXEMPT_TOOLS:
+            logger.info(f"MCPAuthentication: Tool '{tool_name}' is in exempt list, skipping permission check")
+            request.skip_check = True
+            return None
 
         # 获取业务ID（从GET或POST参数中获取）
         bk_biz_id = request.GET.get("bk_biz_id")

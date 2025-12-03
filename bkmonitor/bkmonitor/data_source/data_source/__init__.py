@@ -1698,10 +1698,6 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
         return settings.LOG_UNIFY_QUERY_WHITE_BIZ_LIST
 
     def switch_unify_query(self, bk_biz_id):
-        # 对于日志数据源(BK_LOG_SEARCH)，默认使用统一查询模块
-        if self.data_source_label == DataSourceLabel.BK_LOG_SEARCH:
-            return True
-
         # 如果使用了查询函数或者需要特殊处理，则使用统一查询
         if getattr(self, "functions", []):
             return True
@@ -1844,6 +1840,9 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
 
         # 如果业务在黑名单中，则不使用 UnifyQuery。
         black_list: list[str | int] = self._fetch_black_list()
+        if "*" in black_list:
+            # * 在黑名单中，则不使用 UnifyQuery
+            return False
         return bk_biz_id not in black_list and str(bk_biz_id) not in black_list
 
     def to_unify_query_config(self) -> list[dict]:
