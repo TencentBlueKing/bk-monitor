@@ -3205,3 +3205,39 @@ class GetAlertDataRetrievalResource(Resource):
             result = {}
 
         return result
+
+
+class EditDataMeaningResource(Resource):
+    class RequestSerializer(serializers.Serializer):
+        alert_id = serializers.CharField(required=True, label="告警ID")
+        data_meaning = serializers.CharField(required=True, label="数据含义")
+
+    def perform_request(self, request_data):
+        alert_id = request_data["alert_id"]
+        data_meaning = request_data["data_meaning"]
+
+        # 获取告警文档并验证存在性
+        alert = AlertDocument.get(alert_id)
+        if not alert:
+            raise ValueError(f"告警 {alert_id} 不存在")
+
+        # 安全获取extra_info结构
+        extra_info = alert.to_dict().setdefault("extra_info", {})
+        strategy = extra_info.setdefault("strategy", {})
+        items = strategy.setdefault("items", [])
+        if not items:
+            strategy["items"] = [{"name": data_meaning}]
+        else:
+            # 更新第一个item的name字段
+            items[0]["name"] = data_meaning
+
+        # 执行文档更新
+        AlertDocument.bulk_create(
+            [AlertDocument(id=alert_id, extra_info=extra_info)],
+            action=BulkActionType.UPDATE,
+        )
+
+        return {
+            "alert_id": alert_id,
+            "data_meaning": data_meaning,
+        }
