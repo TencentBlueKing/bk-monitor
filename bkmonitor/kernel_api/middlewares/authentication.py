@@ -29,6 +29,7 @@ from bkmonitor.utils.user import get_admin_username
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.errors.api import BKAPIError
+from core.prometheus import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -240,6 +241,33 @@ class AuthenticationMiddleware(MiddlewareMixin):
         parts = path.split("/")
         return parts[-1] if parts else ""
 
+    def _report_mcp_metric(self, tool_name, bk_biz_id, username, status, permission_action):
+        """
+        上报MCP调用指标
+        @param tool_name: 工具名称
+        @param bk_biz_id: 业务ID
+        @param username: 用户名
+        @param status: 调用状态 (success/permission_denied/invalid_params/error/exempt)
+        @param permission_action: 权限动作ID
+        """
+        try:
+            # 标签值处理，避免空值
+            labels = {
+                "tool_name": tool_name or "unknown",
+                "bk_biz_id": str(bk_biz_id) if bk_biz_id else "unknown",
+                "username": username or "unknown",
+                "status": status,
+                "permission_action": permission_action or "unknown",
+            }
+
+            # 上报请求计数
+            metrics.MCP_REQUESTS_TOTAL.labels(**labels).inc()
+
+            # 立即推送指标
+            metrics.report_all()
+        except Exception as err:  # pylint: disable=broad-except
+            logger.exception(f"MCPAuthentication: Failed to report mcp_requests metrics, error: {err}")
+
     def _handle_mcp_auth(self, request, username=None):
         """
         处理MCP权限校验
@@ -253,9 +281,21 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         # 提取工具名称，检查是否在豁免白名单中
         tool_name = self.extract_tool_name_from_path(request.path)
+
+        # 从请求头中获取权限动作ID
+        permission_action_id = request.META.get("HTTP_X_BKAPI_PERMISSION_ACTION", "")
+
         if tool_name and tool_name in settings.MCP_PERMISSION_EXEMPT_TOOLS:
             logger.info(f"MCPAuthentication: Tool '{tool_name}' is in exempt list, skipping permission check")
             request.skip_check = True
+            # 上报豁免工具的调用指标
+            self._report_mcp_metric(
+                tool_name=tool_name,
+                bk_biz_id=None,
+                username=username,
+                status="exempt",
+                permission_action=permission_action_id,
+            )
             return None
 
         # 获取业务ID（从GET或POST参数中获取）
@@ -283,16 +323,30 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
         if not bk_biz_id:
             logger.error("MCPAuthentication: Missing bk_biz_id in request parameters")
+            # 上报参数缺失的调用指标
+            self._report_mcp_metric(
+                tool_name=tool_name,
+                bk_biz_id=None,
+                username=username,
+                status="invalid_params",
+                permission_action=permission_action_id,
+            )
             return HttpResponseForbidden("Missing bk_biz_id in request parameters")
 
         try:
             request.biz_id = int(bk_biz_id)
         except (ValueError, TypeError):
             logger.error(f"MCPAuthentication: Invalid bk_biz_id format: {bk_biz_id}")
+            # 上报参数格式错误的调用指标
+            self._report_mcp_metric(
+                tool_name=tool_name,
+                bk_biz_id=bk_biz_id,
+                username=username,
+                status="invalid_params",
+                permission_action=permission_action_id,
+            )
             return HttpResponseForbidden(f"Invalid bk_biz_id format: {bk_biz_id}")
 
-        # 从请求头中获取权限动作ID，并动态加载对应的权限
-        permission_action_id = request.META.get("HTTP_X_BKAPI_PERMISSION_ACTION")
         logger.info(f"MCPAuthentication: Permission action from header: {permission_action_id}")
 
         # 使用 MCPPermission 进行权限校验
@@ -313,12 +367,36 @@ class AuthenticationMiddleware(MiddlewareMixin):
 
             if not permission.has_permission(request, mock_view):
                 logger.warning(f"MCPAuthentication: Permission denied for user={username}, bk_biz_id={request.biz_id}")
+                # 上报权限拒绝的调用指标
+                self._report_mcp_metric(
+                    tool_name=tool_name,
+                    bk_biz_id=request.biz_id,
+                    username=username,
+                    status="permission_denied",
+                    permission_action=permission_action_id,
+                )
                 return HttpResponseForbidden("Permission denied: insufficient MCP permissions")
         except Exception as e:
             logger.exception(f"MCPAuthentication: Permission check failed: {e}")
+            # 上报异常的调用指标
+            self._report_mcp_metric(
+                tool_name=tool_name,
+                bk_biz_id=request.biz_id,
+                username=username,
+                status="error",
+                permission_action=permission_action_id,
+            )
             return HttpResponseForbidden(f"Permission denied: {e}")
 
         logger.info(f"MCPAuthentication: Authentication Success: user={username}, bk_biz_id={request.biz_id}")
+        # 上报成功的调用指标
+        self._report_mcp_metric(
+            tool_name=tool_name,
+            bk_biz_id=request.biz_id,
+            username=username,
+            status="success",
+            permission_action=permission_action_id,
+        )
         return None
 
     def _handle_api_token_auth(self, request, view):
