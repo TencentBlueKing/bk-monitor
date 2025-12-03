@@ -993,6 +993,7 @@ class Alarm(BaseContextObject):
 
     @cached_property
     def apm_query_url(self):
+        """APM 自定义指标检索跳转链接生成"""
         # TODO 后续 APM 实现自定义指标功能后，再更新为跳转到自定义指标检索页面
         url: str | None = self.detail_url
         if url:
