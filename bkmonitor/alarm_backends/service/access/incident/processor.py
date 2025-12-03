@@ -159,7 +159,11 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 alert_count=len(sync_info["scope"]["alerts"]),
                 assignees=incident_document.assignees,
             )
-            self.generate_alert_operations(snapshot_alerts, incident_status=IncidentStatus(snapshot.status))
+            self.generate_alert_operations(
+                snapshot_alerts,
+                incident_status=IncidentStatus(snapshot.status),
+                new_incident_id=sync_info["incident_id"],
+            )
         except Exception as e:
             logger.error(f"[CREATE]Record incident operations error: {e}", exc_info=True)
             return
@@ -324,6 +328,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         snapshot_alerts: dict[int, AlertDocument],
         incident_status: IncidentStatus,
         last_snapshot: IncidentSnapshotDocument = None,
+        **kwargs,
     ) -> None:
         """生成故障快照记录的告警操作记录."""
         last_snapshot_alerts = (
@@ -338,7 +343,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             # 故障生成，创建告警触发记录
             if incident_status is IncidentStatus.ABNORMAL and alert_doc.id not in last_snapshot_alerts:
                 IncidentOperationManager.record_incident_alert_trigger(
-                    last_snapshot.incident_id,
+                    last_snapshot.incident_id if last_snapshot else kwargs.get("new_incident_id"),
                     int(alert_doc.begin_time),
                     alert_doc.alert_name,
                     alert_doc.id,
@@ -349,7 +354,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                     EventStatus.RECOVERED: IncidentOperationManager.record_incident_alert_recover,
                     EventStatus.CLOSED: IncidentOperationManager.record_incident_alert_invalid,
                 }.get(alert_doc.status)
-                if _operation and callable(_operation):
+                if _operation and callable(_operation) and last_snapshot:
                     _operation(
                         incident_id=int(last_snapshot.incident_id),
                         operate_time=int(alert_doc.update_time),
