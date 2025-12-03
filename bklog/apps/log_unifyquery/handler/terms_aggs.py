@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import copy
 
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
-from apps.utils.thread import MultiExecuteFunc
 
 
 class UnifyQueryTermsAggsHandler(UnifyQueryHandler):
@@ -19,49 +18,20 @@ class UnifyQueryTermsAggsHandler(UnifyQueryHandler):
         super().__init__(param)
 
         self.agg_fields = agg_fields
-        self.base_dict_list = self.init_base_dict_list()
-
-    def init_base_dict_list(self):
-        base_dict_list = list()
-        for agg_field in self.agg_fields:
-            base_dict = self.init_base_dict(agg_field=agg_field)
-            base_dict_list.append(base_dict)
-        return base_dict_list
+        self.base_dict = self.init_base_dict_list()
 
     def terms(self):
         aggs = dict()
         aggs_items = dict()
 
         # 获取基础查询条件
-        query_conditions = copy.deepcopy(self.base_dict_list)
+        query_condition = copy.deepcopy(self.base_dict)
 
-        # 多线程
-        multi_execute_func = MultiExecuteFunc()
-
-        for index, query_condition in enumerate(query_conditions):
-            agg_field = self.agg_fields[index]
-
-            multi_execute_func_params = {
-                "agg_field": agg_field,
-                "query_condition": query_condition,
-                "size": self.search_params.get("size"),
-            }
-
-            # 多线程请求 unify-query
-            multi_execute_func.append(
-                result_key=f"union_search_terms_{agg_field}",
-                func=self._terms_unify_query,
-                params=multi_execute_func_params,
-                multi_func_params=True,
-            )
-
-        multi_result = multi_execute_func.run()
+        # 请求 unify-query
+        series_dict = self._terms_unify_query(query_condition, self.search_params.get("size"))
 
         for agg_field in self.agg_fields:
-            query_result = multi_result.get(f"union_search_terms_{agg_field}", {})
-
-            series = query_result.get("series")
-
+            series = series_dict.get(agg_field)
             if series:
                 # 处理获得聚合结果
                 agg = self.obtain_agg(agg_field, series)
@@ -109,22 +79,65 @@ class UnifyQueryTermsAggsHandler(UnifyQueryHandler):
 
         return {agg_field: {"buckets": buckets}} if buckets else dict()
 
-    def _terms_unify_query(self, agg_field, query_condition, size=10000):
+    def _terms_unify_query(self, query_condition: dict, size: int = 10000) -> dict:
         """
         unify_query 查询 terms
         """
         # 构建完整查询条件
         for query in query_condition["query_list"]:
             query["limit"] = size
-            query["function"] = [{"method": "count", "dimensions": [agg_field]}]
+            query["function"] = [{"method": "count", "dimensions": [query.get("field_name")]}]
 
             # 增加字段不为空的条件
             if len(query["conditions"]["field_list"]) > 0:
                 query["conditions"]["condition_list"].append("and")
-            query["conditions"]["field_list"].append({"field_name": agg_field, "value": [""], "op": "ne"})
+            query["conditions"]["field_list"].append({"field_name": query.get("field_name"), "value": [""], "op": "ne"})
 
-            query["reference_name"] = "a"
+        query_condition.update({"order_by": ["-_value"]})
 
-        query_condition.update({"order_by": ["-_value"], "metric_merge": "a"})
+        result = self.query_ts_reference(query_condition)
 
-        return self.query_ts_reference(query_condition)
+        # 对返回的结果按聚合字段进行分组
+        series_dict = dict()
+
+        if not result.get("series"):
+            return series_dict
+
+        for item in result.get("series"):
+            group_keys = item.get("group_keys")
+            if not group_keys:
+                continue
+            group_key = group_keys[0]
+            if group_key not in series_dict:
+                series_dict[group_key] = []
+            series_dict[group_key].append(item)
+
+        return series_dict
+
+    def init_base_dict_list(self):
+        """
+        重构 unify-query 接口基础请求参数, 适配 terms 接口查询
+        """
+        base_dict = copy.deepcopy(self.result_merge_base_dict)
+
+        query_list = copy.deepcopy(base_dict.get("query_list"))
+
+        reference_name_list = ["a"]
+
+        # 多聚合字段查询的情况下, 创建相对应的查询参数
+        for index, agg_field in enumerate(self.agg_fields[1:]):
+            # 从 b 开始, 相同聚合字段的查询参数中 reference_name 也必须相同, 用于合并聚合结果
+            reference_name = self.generate_reference_name(index + 1)
+            reference_name_list.append(reference_name)
+
+            for query in query_list:
+                new_query = copy.deepcopy(query)
+                new_query["reference_name"] = reference_name
+                new_query["field_name"] = agg_field
+
+                base_dict["query_list"].append(new_query)
+
+        # 结果按不同聚合字段进行合并
+        base_dict["metric_merge"] = " or ".join(reference_name_list)
+
+        return base_dict
