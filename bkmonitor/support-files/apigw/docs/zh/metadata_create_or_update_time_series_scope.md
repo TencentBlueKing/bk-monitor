@@ -15,6 +15,7 @@
 |-----------------------------|--------|----|------------------------------------------------------|
 | scope_id                    | int    | 否  | 自定义时序指标分组 ID，存在时更新，反之创建                              
 | group_id                    | int    | 是  | 自定义时序数据源 ID                                          |
+| service_name                | string | 否  | 服务名（APM场景使用），最大长度 255，允许为空字符串                      |
 | scope_name                  | string | 否  | 指标分组名，最大长度 255，对于 default 分组无法编辑                     |
 | dimension_config            | dict   | 否  | 分组下的维度配置，默认为空字典                                      |
 | manual_list                 | list   | 否  | 手动分组的指标列表，默认为空列表                                     |
@@ -49,6 +50,7 @@
   "scopes": [
     {
       "group_id": 123,
+      "service_name": "my_service",
       "scope_name": "指标分组名1",
       "dimension_config": {
         "dimension1": {

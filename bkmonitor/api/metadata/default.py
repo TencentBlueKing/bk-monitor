@@ -510,6 +510,9 @@ class CreateOrUpdateTimeSeriesScopeResource(MetaDataAPIGWResource):
         class ScopeSerializer(serializers.Serializer):
             scope_id = serializers.IntegerField(required=False, label="自定义时序指标分组ID")
             group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+            service_name = serializers.CharField(
+                required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
+            )
             scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255)
             new_scope_name = serializers.CharField(
                 required=False, label="新的指标分组名（仅更新时生效）", max_length=255
@@ -538,6 +541,9 @@ class DeleteTimeSeriesScopeResource(MetaDataAPIGWResource):
         class ScopeSerializer(serializers.Serializer):
             group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
             scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+            service_name = serializers.CharField(
+                required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
+            )
 
         scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量删除的分组列表", min_length=1)
 
@@ -553,6 +559,9 @@ class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
 
     class RequestSerializer(serializers.Serializer):
         group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
+        service_name = serializers.CharField(
+            required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
+        )
         scope_name = serializers.CharField(required=False, label="指标分组名", allow_blank=True)
 
 

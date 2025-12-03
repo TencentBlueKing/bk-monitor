@@ -1604,6 +1604,9 @@ class CreateOrUpdateTimeSeriesScopeResource(Resource):
         class ScopeSerializer(serializers.Serializer):
             scope_id = serializers.IntegerField(required=False, label="指标分组ID")
             group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+            service_name = serializers.CharField(
+                required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
+            )
             scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255)
             dimension_config = serializers.DictField(required=False, label="分组下的维度配置", default={})
             manual_list = serializers.ListField(required=False, label="手动分组的指标列表", default=[])
@@ -1667,6 +1670,9 @@ class DeleteTimeSeriesScopeResource(Resource):
         class ScopeSerializer(serializers.Serializer):
             group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
             scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+            service_name = serializers.CharField(
+                required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
+            )
 
         scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量删除的分组列表", min_length=1)
 
@@ -1687,13 +1693,25 @@ class QueryTimeSeriesScopeResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
-        # 对 APM 场景需要传递 scope_name 来区分不同的服务
+        service_name = serializers.CharField(
+            required=False, label="服务名（APM场景使用，约定必须传递）", max_length=255, allow_blank=True
+        )
         scope_name = serializers.CharField(required=False, label="指标分组名", allow_blank=True)
 
     def perform_request(self, validated_request_data):
+        from metadata.models.custom_report.time_series import TimeSeriesMetric
+
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         group_id = validated_request_data.get("group_id")
         scope_name = validated_request_data.get("scope_name")
+        service_name = validated_request_data.get("service_name")
+
+        # 构建用于查询未分组指标的 scope_name
+        # 如果有 service_name，使用 {service_name}||default；否则使用 default
+        if service_name:
+            ungrouped_scope_name = f"{service_name}||{TimeSeriesMetric.DEFAULT_SCOPE}"
+        else:
+            ungrouped_scope_name = TimeSeriesMetric.DEFAULT_SCOPE
 
         # 判断查询类型
         is_query_only_ungrouped = scope_name == ""  # 仅查询未分组
@@ -1706,16 +1724,16 @@ class QueryTimeSeriesScopeResource(Resource):
         # 场景1：仅查询未分组指标
         if is_query_only_ungrouped:
             group_ids = self._get_target_group_ids(group_id, bk_tenant_id)
-            return self._build_ungrouped_results(group_ids)
+            return self._build_ungrouped_results(group_ids, ungrouped_scope_name)
 
         # 场景2：查询已分组指标
-        query_set = self._build_scope_queryset(group_id, scope_name, bk_tenant_id)
+        query_set = self._build_scope_queryset(group_id, scope_name, bk_tenant_id, service_name)
         results = self._build_grouped_results(query_set)
 
         # 场景3：追加未分组指标（当 scope_name 为 None 时）
         if is_include_ungrouped:
             group_ids = self._get_target_group_ids(group_id, bk_tenant_id)
-            results.extend(self._build_ungrouped_results(group_ids))
+            results.extend(self._build_ungrouped_results(group_ids, ungrouped_scope_name))
 
         return results
 
@@ -1739,7 +1757,7 @@ class QueryTimeSeriesScopeResource(Resource):
         )
 
     @staticmethod
-    def _build_scope_queryset(group_id, scope_name, bk_tenant_id):
+    def _build_scope_queryset(group_id, scope_name, bk_tenant_id, service_name=None):
         """构建 TimeSeriesScope 查询集"""
         query_set = models.TimeSeriesScope.objects.all()
 
@@ -1753,8 +1771,16 @@ class QueryTimeSeriesScopeResource(Resource):
             ).values_list("time_series_group_id", flat=True)
             query_set = query_set.filter(group_id__in=valid_group_ids)
 
-        # 按 scope_name 模糊匹配
-        if scope_name:
+        # 按 service_name 和 scope_name 过滤
+        # 对于 APM 场景，scope_name 的格式为 {service_name}||{scope_name}
+        if service_name and scope_name:
+            # 同时指定了 service_name 和 scope_name，匹配 {service_name}||{scope_name}
+            query_set = query_set.filter(scope_name__istartswith=f"{service_name}||", scope_name__icontains=scope_name)
+        elif service_name:
+            # 仅指定了 service_name，匹配以 {service_name}|| 开头的所有分组
+            query_set = query_set.filter(scope_name__istartswith=f"{service_name}||")
+        elif scope_name:
+            # 仅指定了 scope_name，模糊匹配
             query_set = query_set.filter(scope_name__icontains=scope_name)
 
         return query_set
@@ -1778,11 +1804,15 @@ class QueryTimeSeriesScopeResource(Resource):
             )
         return results
 
-    def _build_ungrouped_results(self, group_ids):
-        """构建未分组指标的结果列表"""
+    def _build_ungrouped_results(self, group_ids, scope_name):
+        """构建未分组指标的结果列表
+
+        :param group_ids: 自定义时序数据源ID列表
+        :param scope_name: 指标分组名，用于确定 default 数据分组的 scope
+        """
         results = []
         for gid in group_ids:
-            metric_list = self._get_ungrouped_metric_list(gid)
+            metric_list = self._get_ungrouped_metric_list(gid, scope_name)
             results.append(
                 {
                     "scope_id": None,
@@ -1797,26 +1827,25 @@ class QueryTimeSeriesScopeResource(Resource):
             )
         return results
 
-    def _get_ungrouped_metric_list(self, group_id):
+    def _get_ungrouped_metric_list(self, group_id, scope_name):
         """获取未分组的指标列表
 
         未分组下的指标 = default 数据分组的指标 - 所有 manual_list
 
         :param group_id: 自定义时序数据源ID
+        :param scope_name: 指标分组名，用于确定 default 数据分组的 scope
         """
         from metadata.models.custom_report.time_series import TimeSeriesScope
 
-        # 获取未分组指标名称
-        metric_names = list(TimeSeriesScope.get_ungrouped_metrics(group_id))
+        # 获取未分组指标的 QuerySet
+        ungrouped_metrics_qs = TimeSeriesScope.get_ungrouped_metrics_qs(group_id, scope_name=scope_name)
+
+        # 提取指标名称列表
+        metric_names = list(ungrouped_metrics_qs.values_list("field_name", flat=True))
         if not metric_names:
             return []
 
-        # 查询 default 数据分组的指标
-        metrics = models.TimeSeriesMetric.objects.filter(group_id=group_id, field_name__in=metric_names).filter(
-            models.TimeSeriesMetric.get_enable_edit_scope_filter()
-        )
-
-        return self._convert_metrics_to_list(metrics, metric_names)
+        return self._convert_metrics_to_list(ungrouped_metrics_qs, metric_names)
 
     def _get_metric_list(self, scope):
         """获取指标列表
@@ -1836,7 +1865,7 @@ class QueryTimeSeriesScopeResource(Resource):
                 return []
             metrics = models.TimeSeriesMetric.objects.filter(
                 group_id=scope.group_id, field_name__in=manual_list
-            ).filter(models.TimeSeriesMetric.get_enable_edit_scope_filter())
+            ).filter(models.TimeSeriesMetric.get_default_scope_metric_filter(scope_name=scope.scope_name))
             return self._convert_metrics_to_list(metrics, list(manual_list))
 
         # 数据分组：查询 manual_list + 数据分组的指标
@@ -1855,7 +1884,7 @@ class QueryTimeSeriesScopeResource(Resource):
         if manual_list:
             for metric in models.TimeSeriesMetric.objects.filter(
                 group_id=scope.group_id, field_name__in=manual_list
-            ).filter(models.TimeSeriesMetric.get_enable_edit_scope_filter()):
+            ).filter(models.TimeSeriesMetric.get_default_scope_metric_filter(scope_name=scope.scope_name)):
                 metrics_dict[metric.field_name] = metric
 
         # 查询数据分组的指标
