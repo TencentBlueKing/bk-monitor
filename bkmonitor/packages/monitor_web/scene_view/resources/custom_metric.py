@@ -12,7 +12,7 @@ import logging
 from collections import defaultdict
 
 from django.db import models
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -20,6 +20,7 @@ from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.models import CustomTSField, CustomTSTable
+from monitor_web.scene_view import mock_data
 
 logger = logging.getLogger("monitor_web")
 
@@ -30,8 +31,8 @@ class GetCustomMetricTargetListResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务")
-        id = serializers.IntegerField(label="自定义指标分组ID")
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+        id = serializers.IntegerField(label=_("自定义指标分组 ID"))
 
     def perform_request(self, params):
         config = CustomTSTable.objects.get(
@@ -49,10 +50,13 @@ class GetCustomTsMetricGroups(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务")
-        time_series_group_id = serializers.IntegerField(label="自定义指标ID")
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+        time_series_group_id = serializers.IntegerField(label=_("自定义指标 ID"))
+        is_mock = serializers.BooleanField(label=_("是否为 mock"), default=False)
 
-    def perform_request(self, params: dict) -> list[dict]:
+    def perform_request(self, params: dict) -> dict[str, list]:
+        if params["is_mock"]:
+            return mock_data.CUSTOM_TS_METRIC_GROUPS
         table = CustomTSTable.objects.get(
             models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
             pk=params["time_series_group_id"],
@@ -94,7 +98,7 @@ class GetCustomTsMetricGroups(Resource):
 
             # 如果 label 为空，则使用未分组
             if not labels:
-                labels = [_("未分组")]
+                labels = [str(_("未分组"))]
 
             # 分组
             for group in labels:
@@ -122,12 +126,28 @@ class GetCustomTsDimensionValues(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务")
-        time_series_group_id = serializers.IntegerField(label="自定义指标ID")
-        dimension = serializers.CharField(label="维度")
-        start_time = serializers.IntegerField(label="开始时间")
-        end_time = serializers.IntegerField(label="结束时间")
-        metrics = serializers.ListField(label="指标", child=serializers.CharField(), allow_empty=True)
+        class MetricSerializer(serializers.Serializer):
+            scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True, default="")
+            name = serializers.CharField(label=_("指标名称"))
+
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+        time_series_group_id = serializers.IntegerField(label=_("自定义指标 ID"))
+        dimension = serializers.CharField(label=_("维度"))
+        start_time = serializers.IntegerField(label=_("开始时间"))
+        end_time = serializers.IntegerField(label=_("结束时间"))
+        metrics = serializers.ListField(label=_("指标"), child=serializers.JSONField())
+
+        def validate(self, attrs):
+            metrics_list = []
+            for _metrics in attrs.get("metrics", []):
+                if isinstance(_metrics, str):
+                    metrics_list.append(_metrics)
+                else:
+                    s = self.MetricSerializer(data=_metrics)
+                    s.is_valid(raise_exception=True)
+                    metrics_list.append(s.validated_data["name"])
+            attrs["metrics"] = metrics_list
+            return super().validate(attrs)
 
     def perform_request(self, params: dict) -> list[dict]:
         # 如果指标为空，则返回空列表
@@ -166,55 +186,71 @@ class GetCustomTsGraphConfig(Resource):
 
     class RequestSerializer(serializers.Serializer):
         class CompareSerializer(serializers.Serializer):
-            type = serializers.ChoiceField(choices=["time", "metric"], label="对比模式", required=False)
-            offset = serializers.ListField(label="时间对比偏移量", default=list)
+            type = serializers.ChoiceField(label=_("对比模式"), choices=["time", "metric"], required=False)
+            offset = serializers.ListField(label=_("时间对比偏移量"), default=list)
 
         class LimitSerializer(serializers.Serializer):
-            function = serializers.ChoiceField(choices=["top", "bottom"], label="限制函数", default="")
-            limit = serializers.IntegerField(label="限制数量", default=0)
+            function = serializers.ChoiceField(label=_("限制函数"), choices=["top", "bottom"], default="")
+            limit = serializers.IntegerField(label=_("限制数量"), default=0)
 
         class GroupBySerializer(serializers.Serializer):
-            field = serializers.CharField(label="聚合维度")
-            split = serializers.BooleanField(label="是否拆分", default=False)
+            field = serializers.CharField(label=_("聚合维度"))
+            split = serializers.BooleanField(label=_("是否拆分"), default=False)
 
         class ConditionSerializer(serializers.Serializer):
-            key = serializers.CharField(label="字段名")
-            method = serializers.CharField(label="运算符")
-            value = serializers.ListField(label="值")
-            condition = serializers.ChoiceField(choices=["and", "or"], label="条件", default="and")
+            key = serializers.CharField(label=_("字段名"))
+            method = serializers.CharField(label=_("运算符"))
+            value = serializers.ListField(label=_("值"))
+            condition = serializers.ChoiceField(choices=["and", "or"], label=_("条件"), default="and")
 
-        bk_biz_id = serializers.IntegerField(label="业务")
-        time_series_group_id = serializers.IntegerField(label="自定义时序ID")
-        metrics = serializers.ListField(label="查询的指标", allow_empty=True)
-        where = ConditionSerializer(label="过滤条件", many=True, allow_empty=True, default=list)
-        group_by = GroupBySerializer(label="聚合维度", many=True, allow_empty=True, default=list)
-        common_conditions = serializers.ListField(label="常用维度过滤", default=list)
-        limit = LimitSerializer(label="限制返回的series数量", default={})
-        compare = CompareSerializer(label="对比配置", default={})
-        start_time = serializers.IntegerField(label="开始时间")
-        end_time = serializers.IntegerField(label="结束时间")
+        class MetricSerializer(serializers.Serializer):
+            scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True, default="")
+            name = serializers.CharField(label=_("指标名称"))
+
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+        time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"))
+        metrics = serializers.ListField(label=_("查询的指标"), default=[])
+        where = ConditionSerializer(label=_("过滤条件"), many=True, allow_empty=True, default=list)
+        group_by = GroupBySerializer(label=_("聚合维度"), many=True, allow_empty=True, default=list)
+        common_conditions = serializers.ListField(label=_("常用维度过滤"), default=list)
+        limit = LimitSerializer(label=_("限制返回的 series 数量"), default={})
+        compare = CompareSerializer(label=_("对比配置"), default={})
+        start_time = serializers.IntegerField(label=_("开始时间"))
+        end_time = serializers.IntegerField(label=_("结束时间"))
+
+        def validate(self, attrs):
+            metrics_list = []
+            for _metrics in attrs.get("metrics", []):
+                if isinstance(_metrics, str):
+                    metrics_list.append(_metrics)
+                else:
+                    s = self.MetricSerializer(data=_metrics)
+                    s.is_valid(raise_exception=True)
+                    metrics_list.append(s.validated_data["name"])
+            attrs["metrics"] = metrics_list
+            return super().validate(attrs)
 
     class ResponseSerializer(serializers.Serializer):
         class GroupSerializer(serializers.Serializer):
-            name = serializers.CharField(label="分组名称", allow_blank=True)
+            name = serializers.CharField(label=_("分组名称"), allow_blank=True)
 
             class PanelSerializer(serializers.Serializer):
-                title = serializers.CharField(label="图表标题", allow_blank=True)
-                sub_title = serializers.CharField(label="子标题", allow_blank=True)
+                title = serializers.CharField(label=_("图表标题"), allow_blank=True)
+                sub_title = serializers.CharField(label=_("子标题"), allow_blank=True)
 
                 class TargetSerializer(serializers.Serializer):
-                    expression = serializers.CharField(label="表达式")
-                    alias = serializers.CharField(label="别名", allow_blank=True)
-                    query_configs = serializers.ListField(label="查询配置")
-                    function = serializers.DictField(label="图表函数", allow_null=True, default={})
-                    metric = serializers.DictField(label="指标", allow_null=True, default={})
-                    unit = serializers.CharField(label="单位", allow_blank=True, default="")
+                    expression = serializers.CharField(label=_("表达式"))
+                    alias = serializers.CharField(label=_("别名"), allow_blank=True)
+                    query_configs = serializers.ListField(label=_("查询配置"))
+                    function = serializers.DictField(label=_("图表函数"), allow_null=True, default={})
+                    metric = serializers.DictField(label=_("指标"), allow_null=True, default={})
+                    unit = serializers.CharField(label=_("单位"), allow_blank=True, default="")
 
-                targets = TargetSerializer(label="目标", many=True)
+                targets = TargetSerializer(label=_("目标"), many=True)
 
-            panels = PanelSerializer(label="图表配置", many=True)
+            panels = PanelSerializer(label=_("图表配置"), many=True)
 
-        groups = GroupSerializer(label="分组", many=True, allow_empty=True)
+        groups = GroupSerializer(label=_("分组"), many=True, allow_empty=True)
 
     UNITY_QUERY_OPERATOR_MAPPING = {
         "reg": "req",
@@ -527,25 +563,25 @@ class GraphDrillDownResource(Resource):
                 params = serializers.ListField(child=serializers.DictField(), allow_empty=True)
 
             data_type_label = serializers.CharField(
-                label="数据类型", default="time_series", allow_null=True, allow_blank=True
+                label=_("数据类型"), default="time_series", allow_null=True, allow_blank=True
             )
-            data_source_label = serializers.CharField(label="数据来源")
-            table = serializers.CharField(label="结果表名", allow_blank=True, default="")
-            data_label = serializers.CharField(label="数据标签", allow_blank=True, default="")
-            metrics = serializers.ListField(label="查询指标", allow_empty=True, child=MetricSerializer(), default=[])
-            where = serializers.ListField(label="过滤条件", default=[])
+            data_source_label = serializers.CharField(label=_("数据来源"))
+            table = serializers.CharField(label=_("结果表名"), allow_blank=True, default="")
+            data_label = serializers.CharField(label=_("数据标签"), allow_blank=True, default="")
+            metrics = serializers.ListField(label=_("查询指标"), allow_empty=True, child=MetricSerializer(), default=[])
+            where = serializers.ListField(label=_("过滤条件"), default=[])
             # group_by = serializers.ListField(label="聚合字段", default=[])
-            interval_unit = serializers.ChoiceField(label="聚合周期单位", choices=("s", "m"), default="s")
-            interval = serializers.CharField(label="时间间隔", default="auto")
-            filter_dict = serializers.DictField(default={}, label="过滤条件")
-            time_field = serializers.CharField(label="时间字段", allow_blank=True, allow_null=True, required=False)
+            interval_unit = serializers.ChoiceField(label=_("聚合周期单位"), choices=("s", "m"), default="s")
+            interval = serializers.CharField(label=_("时间间隔"), default="auto")
+            filter_dict = serializers.DictField(label=_("过滤条件"), default={})
+            time_field = serializers.CharField(label=_("时间字段"), allow_blank=True, allow_null=True, required=False)
 
             # 日志平台配置
-            query_string = serializers.CharField(default="", allow_blank=True, label="日志查询语句")
-            index_set_id = serializers.IntegerField(required=False, label="索引集ID", allow_null=True)
+            query_string = serializers.CharField(label=_("日志查询语句"), default="", allow_blank=True)
+            index_set_id = serializers.IntegerField(label=_("索引集ID"), required=False, allow_null=True)
 
             # 计算函数参数
-            functions = serializers.ListField(label="计算函数参数", default=[], child=FunctionSerializer())
+            functions = serializers.ListField(label=_("计算函数参数"), default=[], child=FunctionSerializer())
 
             def validate(self, attrs):
                 # 索引集和结果表参数校验
@@ -561,27 +597,27 @@ class GraphDrillDownResource(Resource):
                         pass
                 return attrs
 
-        bk_biz_id = serializers.IntegerField(label="业务ID")
-        query_configs = serializers.ListField(label="查询配置列表", allow_empty=False, child=QueryConfigSerializer())
-        expression = serializers.CharField(label="查询表达式", allow_blank=True)
-        start_time = serializers.IntegerField(label="开始时间")
-        end_time = serializers.IntegerField(label="结束时间")
-        function = serializers.DictField(label="图表函数", required=False, default=dict)
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+        query_configs = serializers.ListField(label=_("查询配置列表"), allow_empty=False, child=QueryConfigSerializer())
+        expression = serializers.CharField(label=_("查询表达式"), allow_blank=True)
+        start_time = serializers.IntegerField(label=_("开始时间"))
+        end_time = serializers.IntegerField(label=_("结束时间"))
+        function = serializers.DictField(label=_("图表函数"), required=False, default=dict)
 
-        group_by = serializers.ListField(label="下钻维度列表", allow_empty=False)
+        group_by = serializers.ListField(label=_("下钻维度列表"), allow_empty=False)
 
     class ResponseSerializer(serializers.Serializer):
-        dimensions = serializers.DictField(label="维度值", allow_null=True)
-        value = serializers.FloatField(label="当前值", allow_null=True)
-        percentage = serializers.FloatField(label="占比", allow_null=True)
-        unit = serializers.CharField(label="单位", allow_blank=True)
+        dimensions = serializers.DictField(label=_("维度值"), allow_null=True)
+        value = serializers.FloatField(label=_("当前值"), allow_null=True)
+        percentage = serializers.FloatField(label=_("占比"), allow_null=True)
+        unit = serializers.CharField(label=_("单位"), allow_blank=True)
 
         class CompareValueSerializer(serializers.Serializer):
-            value = serializers.FloatField(label="对比值", allow_null=True)
-            offset = serializers.CharField(label="偏移量")
-            fluctuation = serializers.FloatField(label="波动值", allow_null=True)
+            value = serializers.FloatField(label=_("对比值"), allow_null=True)
+            offset = serializers.CharField(label=_("偏移量"))
+            fluctuation = serializers.FloatField(label=_("波动值"), allow_null=True)
 
-        compare_values = serializers.ListField(label="对比", default=[], child=CompareValueSerializer())
+        compare_values = serializers.ListField(label=_("对比"), default=[], child=CompareValueSerializer())
 
     many_response_data = True
 

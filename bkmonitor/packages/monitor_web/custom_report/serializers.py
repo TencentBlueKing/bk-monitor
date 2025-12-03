@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
@@ -17,10 +16,10 @@ from monitor_web.models.custom_report import CustomEventGroup, CustomTSTable
 
 class EventInfoSerializer(serializers.Serializer):
     class DimensionSerializer(serializers.Serializer):
-        dimension_name = serializers.RegexField(label="维度字段名称", regex=r"^[_a-zA-Z][a-zA-Z0-9_]*$")
+        dimension_name = serializers.RegexField(label=_("维度字段名称"), regex=r"^[_a-zA-Z][a-zA-Z0-9_]*$")
 
-    custom_event_id = serializers.IntegerField(required=False, label="事件ID")
-    custom_event_name = serializers.CharField(required=True, label="事件名称")
+    custom_event_id = serializers.IntegerField(label=_("事件 ID"), required=False)
+    custom_event_name = serializers.CharField(label=_("事件名称"), required=True)
     dimension_list = DimensionSerializer(required=True, many=True, allow_empty=False)
 
 
@@ -83,9 +82,10 @@ class CustomTSTableSerializer(serializers.ModelSerializer):
 
 
 class CustomTSGroupingRuleSerializer(serializers.Serializer):
-    name = serializers.CharField(required=True, label="分组名称")
-    manual_list = serializers.ListField(label="手动分组的指标列表", default=list)
-    auto_rules = serializers.ListField(label="自动分组的匹配规则列表", default=list)
+    scope_id = serializers.IntegerField(label=_("分组 ID"), default=0)  # TODO: 去除 default
+    name = serializers.CharField(label=_("分组名称"), required=True)
+    manual_list = serializers.ListField(label=_("手动分组的指标列表"), default=list)
+    auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), default=list)
 
     def validate(self, attrs: dict) -> dict:
         attrs["name"] = attrs["name"].strip()

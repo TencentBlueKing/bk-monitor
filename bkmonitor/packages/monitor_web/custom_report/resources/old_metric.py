@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -65,10 +64,27 @@ class GetCustomTimeSeriesLatestDataByFields(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        class MetricSerializer(serializers.Serializer):
+            scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True, default="")
+            name = serializers.CharField(label=_("指标名称"))
+
         result_table_id = serializers.CharField(required=True, label="结果表ID")
-        fields_list = serializers.ListField(label="字段列表", allow_empty=True, default=[])
+        fields_list = serializers.ListField(label="字段列表", default=[])
+
+        def validate(self, attrs):
+            fields_list = []
+            for _field in attrs.get("fields_list", []):
+                if isinstance(_field, str):
+                    fields_list.append(_field)
+                else:
+                    s = self.MetricSerializer(data=_field)
+                    s.is_valid(raise_exception=True)
+                    fields_list.append(s.validated_data["name"])
+            attrs["metrics"] = fields_list
+            return super().validate(attrs)
 
     def perform_request(self, validated_request_data):
+        # TODO: 修改响应格式
         result_table_id = validated_request_data["result_table_id"]
         fields_list = validated_request_data["fields_list"] or []
         fields_list = [str(i) for i in fields_list]
@@ -143,7 +159,7 @@ class ModifyCustomTsGroupingRuleList(Resource):
         group_names = {}
         for group in validated_request_data["group_list"]:
             if group_names.get(group["name"]):
-                raise CustomValidationLabelError(msg=_("自定义指标分组名{}不可重复").format(group['name']))
+                raise CustomValidationLabelError(msg=_("自定义指标分组名{}不可重复").format(group["name"]))
             group_names[group["name"]] = group
 
         # 清除残余分组记录

@@ -9,7 +9,7 @@ from django.core.paginator import Paginator
 from django.db import models
 from django.db.models import Max, Q
 from django.db.transaction import atomic
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -37,6 +37,7 @@ from monitor_web.models.custom_report import (
     CustomTSTable,
 )
 from monitor_web.strategies.resources import GetMetricListV2Resource
+from monitor_web.custom_report import mock_data
 
 logger = logging.getLogger(__name__)
 
@@ -172,16 +173,16 @@ class CreateCustomTimeSeries(Resource):
     CUSTOM_TS_NAME = "custom_time_series"
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        name = serializers.CharField(required=True, max_length=128, label="名称")
-        scenario = serializers.CharField(required=True, label="对象")
-        table_id = serializers.CharField(required=False, label="表名", default="")
-        metric_info_list = serializers.ListField(required=False, default=[], label="预定义表结构")
-        is_platform = serializers.BooleanField(required=False, label="平台级", default=False)
-        data_label = serializers.CharField(required=True, label="数据标签")
-        protocol = serializers.CharField(required=False, label="上报协议", default="json")
-        desc = serializers.CharField(required=False, label="说明", default="", allow_blank=True)
-        is_split_measurement = serializers.BooleanField(required=False, label="是否启动自动分表逻辑", default=True)
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"), required=True)
+        name = serializers.CharField(label=_("名称"), required=True, max_length=128)
+        scenario = serializers.CharField(label=_("对象"), required=True)
+        table_id = serializers.CharField(label=_("表名"), required=False, default="")
+        metric_info_list = serializers.ListField(label=_("预定义表结构"), required=False, default=[])
+        is_platform = serializers.BooleanField(label=_("平台级"), required=False, default=False)
+        data_label = serializers.CharField(label=_("数据标签"), required=True)
+        protocol = serializers.CharField(label=_("上报协议"), required=False, default="json")
+        desc = serializers.CharField(label=_("说明"), required=False, default="", allow_blank=True)
+        is_split_measurement = serializers.BooleanField(label=_("是否启动自动分表逻辑"), required=False, default=True)
 
         def validate(self, attrs):
             ValidateCustomTsGroupName().request(name=attrs["name"], bk_biz_id=attrs["bk_biz_id"])
@@ -307,26 +308,26 @@ class ModifyCustomTimeSeries(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"), required=True)
+        time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"), required=True)
 
-        name = serializers.CharField(required=False, max_length=128, label="名称")
-        is_platform = serializers.BooleanField(required=False, label="平台级")
-        data_label = serializers.CharField(required=False, label="数据标签")
-        desc = serializers.CharField(required=False, label="说明", allow_blank=True)
-        auto_discover = serializers.BooleanField(required=False, label="自动发现")
+        name = serializers.CharField(label=_("名称"), required=False, max_length=128)
+        is_platform = serializers.BooleanField(required=False, label=_("平台级"))
+        data_label = serializers.CharField(label=_("数据标签"), required=False)
+        desc = serializers.CharField(label=_("说明"), required=False, allow_blank=True)
+        auto_discover = serializers.BooleanField(required=False, label=_("自动发现"))
 
         class MetricListSerializer(serializers.Serializer):
             class FieldSerializer(serializers.Serializer):
-                unit = serializers.CharField(required=True, label="字段单位", allow_blank=True)
-                name = serializers.CharField(required=True, label="字段名")
-                description = serializers.CharField(required=True, label="字段描述", allow_blank=True)
-                monitor_type = serializers.CharField(required=True, label="字段类型，指标或维度")
+                unit = serializers.CharField(label=_("字段单位"), required=True, allow_blank=True)
+                name = serializers.CharField(label=_("字段名"), required=True)
+                description = serializers.CharField(label=_("字段描述"), required=True, allow_blank=True)
+                monitor_type = serializers.CharField(label=_("字段类型，指标或维度"), required=True)
 
-            fields = FieldSerializer(required=True, label="字段信息", many=True)
+            fields = FieldSerializer(label=_("字段信息"), required=True, many=True)
 
         # 向前兼容字段，后续页面不再使用
-        metric_json = serializers.ListField(label="指标配置", child=MetricListSerializer(), required=False)
+        metric_json = serializers.ListField(label=_("指标配置"), child=MetricListSerializer(), required=False)
 
         def validate(self, attrs):
             if attrs.get("name"):
@@ -418,8 +419,8 @@ class DeleteCustomTimeSeries(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"), required=True)
+        time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"), required=True)
 
     @atomic()
     def perform_request(self, params: dict):
@@ -447,12 +448,12 @@ class CustomTimeSeriesList(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID", default=0)
-        search_key = serializers.CharField(label="名称", required=False)
-        page_size = serializers.IntegerField(default=10, label="获取的条数")
-        page = serializers.IntegerField(default=1, label="页数")
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"), default=0)
+        search_key = serializers.CharField(label=_("名称"), required=False)
+        page_size = serializers.IntegerField(label=_("获取的条数"), default=10)
+        page = serializers.IntegerField(label=_("页数"), default=1)
         # 新增参数用以判定是否需要查询平台级 dataid
-        is_platform = serializers.BooleanField(required=False)
+        is_platform = serializers.BooleanField(label=_("是否平台级"), required=False)
 
     def perform_request(self, validated_request_data):
         queryset = CustomTSTable.objects.filter(bk_tenant_id=get_request_tenant_id()).order_by("-update_time")
@@ -506,15 +507,21 @@ class CustomTimeSeriesDetail(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
-        model_only = serializers.BooleanField(required=False, default=False, label="是否只查询自定义时序表信息")
-        with_target = serializers.BooleanField(required=False, default=False, label="是否查询target")
-        with_metrics = serializers.BooleanField(required=False, default=True, label="是否查询指标信息")
+        time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"), required=True)
+        model_only = serializers.BooleanField(label=_("是否只查询自定义时序表信息"), required=False, default=False)
+        with_target = serializers.BooleanField(label=_("是否查询 target"), required=False, default=False)
+        with_metrics = serializers.BooleanField(label=_("是否查询指标信息"), required=False, default=True)
         empty_if_not_found = serializers.BooleanField(
-            required=False, default=False, label="如果自定义时序表不存在，是否返回空数据"
+            label=_("是否返回空数据"),
+            required=False,
+            default=False,
+            help_text=_("如果自定义时序表不存在，是否返回空数据"),
         )
+        is_mock = serializers.BooleanField(label=_("是否是mock数据"), default=False)
 
     def perform_request(self, params):
+        if params["is_mock"]:
+            return mock_data.CUSTOM_TIME_SERIES_DETAIL
         # 获取自定义时序表信息
         config = CustomTSTable.objects.filter(bk_biz_id=params["bk_biz_id"], pk=params["time_series_group_id"]).first()
         if not config:
@@ -560,10 +567,13 @@ class GetCustomTsFields(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        bk_biz_id = serializers.IntegerField(label=_("业务 ID"), required=True)
+        time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"), required=True)
+        is_mock = serializers.BooleanField(label=_("是否 mock 数据"), default=False)
 
     def perform_request(self, params: dict):
+        if params["is_mock"]:
+            return mock_data.CUSTOM_TIME_SERIES_FIELDS
         table = CustomTSTable.objects.filter(
             bk_biz_id=params["bk_biz_id"],
             time_series_group_id=params["time_series_group_id"],
@@ -617,27 +627,29 @@ class ModifyCustomTsFields(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
+        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
 
         class FieldSerializer(serializers.Serializer):
-            name = serializers.CharField(required=True, label="字段名")
-            type = serializers.CharField(required=True, label="字段类型")
-            description = serializers.CharField(required=False, label="字段描述", allow_blank=True)
-            disabled = serializers.BooleanField(required=False, label="是否禁用")
+            scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True, default="")
+            field_id = serializers.IntegerField(label=_("字段 ID"), required=False)
+            name = serializers.CharField(required=True, label=_("字段名"))
+            type = serializers.CharField(required=True, label=_("字段类型"))
+            description = serializers.CharField(required=False, label=_("字段描述"), allow_blank=True)
+            disabled = serializers.BooleanField(required=False, label=_("是否禁用"))
 
             # 维度属性
-            common = serializers.BooleanField(required=False, label="是否常用字段")
+            common = serializers.BooleanField(required=False, label=_("是否常用字段"))
 
             # 指标属性
-            unit = serializers.CharField(required=False, label="字段单位", allow_blank=True)
-            hidden = serializers.BooleanField(required=False, label="是否隐藏")
-            aggregate_method = serializers.CharField(required=False, label="聚合方法", allow_blank=True)
-            function = serializers.JSONField(required=False, label="指标函数")
-            interval = serializers.IntegerField(required=False, label="指标周期")
+            unit = serializers.CharField(required=False, label=_("字段单位"), allow_blank=True)
+            hidden = serializers.BooleanField(required=False, label=_("是否隐藏"))
+            aggregate_method = serializers.CharField(required=False, label=_("聚合方法"), allow_blank=True)
+            function = serializers.JSONField(required=False, label=_("指标函数"))
+            interval = serializers.IntegerField(required=False, label=_("指标周期"))
 
-        update_fields = serializers.ListField(label="更新字段列表", child=FieldSerializer(), default=list)
-        delete_fields = serializers.ListField(label="删除字段列表", child=FieldSerializer(), default=list)
+        update_fields = serializers.ListField(label=_("更新字段列表"), child=FieldSerializer(), default=list)
+        delete_fields = serializers.ListField(label=_("删除字段列表"), child=FieldSerializer(), default=list)
 
     def perform_request(self, params: dict):
         table = CustomTSTable.objects.filter(
@@ -748,9 +760,9 @@ class AddCustomMetricResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        metric_field = serializers.CharField(required=True, label="指标名")
-        result_table_id = serializers.CharField(required=True, label="结果表ID")
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        metric_field = serializers.CharField(required=True, label=_("指标名"))
+        result_table_id = serializers.CharField(required=True, label=_("结果表 ID"))
+        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
 
     def perform_request(self, params: dict):
         queryset = CustomTSTable.objects.filter(bk_biz_id=params["bk_biz_id"])
@@ -812,10 +824,13 @@ class CustomTsGroupingRuleList(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
+        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
+        is_mock = serializers.BooleanField(label=_("是否为 mock 数据"), default=False)
 
     def perform_request(self, params: dict):
+        if params["is_mock"]:
+            return mock_data.CUSTOM_TS_GROUPING_RULE_LIST
         # 获取自定义时序表
         table = CustomTSTable.objects.get(
             bk_biz_id=params["bk_biz_id"], time_series_group_id=params["time_series_group_id"]
@@ -851,9 +866,9 @@ class ModifyCustomTsGroupingRuleList(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
-        group_list = serializers.ListField(label="分组列表", child=CustomTSGroupingRuleSerializer(), default=list)
+        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
+        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
+        group_list = serializers.ListField(label=_("分组列表"), child=CustomTSGroupingRuleSerializer(), default=list)
 
     def perform_request(self, params: dict):
         # 获取自定义时序表
@@ -929,8 +944,8 @@ class CreateOrUpdateGroupingRule(Resource):
     """
 
     class RequestSerializer(CustomTSGroupingRuleSerializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
+        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
 
     def perform_request(self, params: dict):
         # 获取自定义时序表
@@ -987,10 +1002,10 @@ class PreviewGroupingRule(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
-        manual_list = serializers.ListField(label="手动分组的指标列表", default=list)
-        auto_rules = serializers.ListField(label="自动分组的匹配规则列表", default=list)
+        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
+        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
+        manual_list = serializers.ListField(label=_("手动分组的指标列表"), default=list)
+        auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), default=list)
 
     def perform_request(self, params: dict):
         # 获取自定义时序表信息
@@ -1036,9 +1051,9 @@ class DeleteGroupingRule(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
-        name = serializers.CharField(required=True, label="分组规则名称")
+        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
+        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
+        name = serializers.CharField(required=True, label=_("分组规则名称"))
 
     def perform_request(self, params: dict):
         # 获取自定义时序表
@@ -1073,9 +1088,9 @@ class UpdateGroupingRuleOrder(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
-        group_names = serializers.ListField(required=True, label="分组规则名称列表")
+        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
+        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
+        group_names = serializers.ListField(required=True, label=_("分组规则名称列表"))
 
     def perform_request(self, params: dict):
         # 获取自定义时序表
@@ -1127,15 +1142,15 @@ class ImportCustomTimeSeriesFields(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
+        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
 
-        group_rules = CustomTSGroupingRuleSerializer(required=True, label="分组列表", many=True, allow_empty=True)
+        group_rules = CustomTSGroupingRuleSerializer(required=True, label=_("分组列表"), many=True, allow_empty=True)
         dimensions = ModifyCustomTsFields.RequestSerializer.FieldSerializer(
-            required=True, label="维度列表", many=True, allow_empty=True
+            required=True, label=_("维度列表"), many=True, allow_empty=True
         )
         metrics = ModifyCustomTsFields.RequestSerializer.FieldSerializer(
-            required=True, label="指标列表", many=True, allow_empty=True
+            required=True, label=_("指标列表"), many=True, allow_empty=True
         )
 
     def perform_request(self, params: dict):
@@ -1173,8 +1188,8 @@ class ExportCustomTimeSeriesFields(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
+        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
 
     def perform_request(self, params: dict):
         # 获取自定义时序表
