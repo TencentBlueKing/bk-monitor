@@ -261,7 +261,7 @@ def migrate_nano_log_table(
     new_result_table.refresh_etl_config()
 
     # 刷新路由
-    need_refresh_table_ids = virtual_table_ids + [new_table_id, table_id]
+    need_refresh_table_ids = virtual_table_ids + list(new_virtual_table_ids) + [new_table_id, table_id]
     need_refresh_data_labels = virtual_data_labels
 
     if refresh_router:

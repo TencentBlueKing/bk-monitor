@@ -51,6 +51,10 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
+    isAllowedDownload: {
+      type: Boolean,
+      default: false,
+    },
     data: {
       type: Array,
       default: () => [],
@@ -469,7 +473,7 @@ export default defineComponent({
             class='king-button'
             text
             theme='primary'
-            disabled={!row.permission?.download_client_log}
+            disabled={!props.isAllowedDownload}
             on-click={() => downloadFile(row.id)}
           >
             {t('下载文件')}

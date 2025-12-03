@@ -54,3 +54,4 @@ export const MANAGE_GLOBAL_DESENSITIZE_RULE = 'manage_global_desensitize_rule'; 
 
 // 客户端日志
 export const CREATE_CLIENT_COLLECTION_AUTH = 'create_client_log_task'; // 新建采集
+export const DOWNLOAD_FILE_AUTH = 'download_client_log'; // 下载文件

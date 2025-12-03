@@ -227,4 +227,7 @@ export default {
   清洗配置: 'Cleaning Configuration',
   下载文件: 'Download File',
   刷新收藏: 'Refresh Favorites',
+  用户上报: 'User Report',
+  清洗配置: 'Cleaning Configuration',
+  下载文件: 'Download File',
 };
