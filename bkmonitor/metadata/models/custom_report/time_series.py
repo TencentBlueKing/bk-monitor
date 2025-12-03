@@ -1473,32 +1473,62 @@ class TimeSeriesScope(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def bulk_create_scopes(
+    def bulk_create_or_update_scopes(
         cls,
         bk_tenant_id: str,
         scopes: list[dict],
     ) -> list[dict]:
-        """批量创建自定义时序指标分组
+        """批量创建或更新自定义时序指标分组
 
         :param bk_tenant_id: 租户ID
-        :param scopes: 批量创建的分组列表，格式:
+        :param scopes: 批量创建或更新的分组列表，格式:
             [{
+                "scope_id": 1,  # 可选，如果提供则更新，否则创建
                 "group_id": 1,
                 "scope_name": "test_scope",
                 "dimension_config": {},
                 "manual_list": [],
-                "auto_rules": []
+                "auto_rules": [],
+                "delete_unmatched_dimensions": False  # 可选，仅更新时生效
             }]
-        :return: 创建结果列表
+        :return: 创建或更新结果列表
         """
-        # 第一步：检查
-        cls._check_scopes_for_create(bk_tenant_id, scopes)
+        # 分离创建和更新的分组（通过 scope_id 判断）
+        scopes_to_create = []
+        scopes_to_update = []
 
-        # 第二步：创建
-        created_scopes = cls._create_scope_data(scopes)
+        for scope_data in scopes:
+            scope_id = scope_data.get("scope_id")
+            if scope_id:
+                # scope_id 存在，执行更新操作
+                scopes_to_update.append(scope_data)
+            else:
+                # scope_id 不存在，执行创建操作
+                scopes_to_create.append(scope_data)
 
-        # 第三步：返回
-        return cls._build_scope_results(scopes, created_scopes)
+        results = []
+
+        # 批量创建
+        if scopes_to_create:
+            # 第一步：检查
+            cls._check_scopes_for_create(bk_tenant_id, scopes_to_create)
+            # 第二步：创建
+            created_scopes = cls._create_scope_data(scopes_to_create)
+            # 第三步：构建结果
+            create_results = cls._build_scope_results(scopes_to_create, created_scopes)
+            results.extend(create_results)
+
+        # 批量更新
+        if scopes_to_update:
+            # 第一步：检查
+            existing_scopes = cls._check_scopes_for_modify(bk_tenant_id, scopes_to_update)
+            # 第二步：更新
+            updated_scopes = cls._update_scopes_data(scopes_to_update, existing_scopes)
+            # 第三步：构建结果
+            update_results = cls._build_scope_results(scopes_to_update, updated_scopes)
+            results.extend(update_results)
+
+        return results
 
     @classmethod
     def _check_scopes_for_modify(cls, bk_tenant_id: str, scopes: list[dict]) -> dict:
@@ -1708,36 +1738,6 @@ class TimeSeriesScope(models.Model):
         updated_scopes = {s.id: s for s in cls.objects.filter(id__in=scope_ids)}
 
         return updated_scopes
-
-    @classmethod
-    @atomic(config.DATABASE_CONNECTION_NAME)
-    def bulk_modify_scopes(
-        cls,
-        bk_tenant_id: str,
-        scopes: list[dict],
-    ) -> list[dict]:
-        """批量修改自定义时序指标分组
-
-        :param bk_tenant_id: 租户ID
-        :param scopes: 批量修改的分组列表，格式:
-            [{
-                "scope_id": 1,  # 必填，分组ID
-                "scope_name": "new_test_scope",  # 可选，用于修改分组名
-                "dimension_config": {},  # 可选
-                "manual_list": [],  # 可选
-                "auto_rules": [],  # 可选
-                "delete_unmatched_dimensions": False  # 可选
-            }]
-        :return: 修改结果列表
-        """
-        # 第一步：检查
-        existing_scopes = cls._check_scopes_for_modify(bk_tenant_id, scopes)
-
-        # 第二步：更新
-        updated_scopes = cls._update_scopes_data(scopes, existing_scopes)
-
-        # 第三步：返回
-        return cls._build_scope_results(scopes, updated_scopes)
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)

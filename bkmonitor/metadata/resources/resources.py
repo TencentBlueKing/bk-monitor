@@ -1625,36 +1625,11 @@ class CreateOrUpdateTimeSeriesScopeResource(Resource):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         scopes = validated_request_data["scopes"]
 
-        # 分离创建和更新的分组（通过 scope_id 判断）
-        scopes_to_create = []
-        scopes_to_update = []
-
-        for scope_data in scopes:
-            scope_id = scope_data.get("scope_id")
-            if scope_id:
-                # scope_id 存在，执行更新操作
-                scopes_to_update.append(scope_data)
-            else:
-                # scope_id 不存在，执行创建操作
-                scopes_to_create.append(scope_data)
-
-        results = []
-
-        # 批量创建
-        if scopes_to_create:
-            create_results = models.TimeSeriesScope.bulk_create_scopes(
-                bk_tenant_id=bk_tenant_id,
-                scopes=scopes_to_create,
-            )
-            results.extend(create_results)
-
-        # 批量更新
-        if scopes_to_update:
-            update_results = models.TimeSeriesScope.bulk_modify_scopes(
-                bk_tenant_id=bk_tenant_id,
-                scopes=scopes_to_update,
-            )
-            results.extend(update_results)
+        # 使用统一的事务方法批量创建或更新
+        results = models.TimeSeriesScope.bulk_create_or_update_scopes(
+            bk_tenant_id=bk_tenant_id,
+            scopes=scopes,
+        )
 
         return results
 
