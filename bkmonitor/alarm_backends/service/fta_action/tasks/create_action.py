@@ -965,7 +965,7 @@ class CreateActionProcessor:
 
                 # 获取 MAIN 类型的用户组 ID 列表
                 if assignee_manager.is_matched:
-                    main_group_ids = assignee_manager.get_notice_appointees_object().user_groups
+                    main_group_ids = assignee_manager.notice_appointees_object.user_groups
                 else:
                     main_group_ids = assignee_manager.origin_notice_users_object.user_groups
 
