@@ -1580,6 +1580,22 @@ class ApmAlertHelper:
         return "APM-SYSTEM(RPC)" in strategy.get("labels", []) or is_rpc_metric
 
     @classmethod
+    def is_rpc_custom_metric(cls, strategy: dict[str, Any]) -> bool:
+        """判断是否为调用分析场景下的自定义指标类型"""
+        has_rpc_label: bool = "APM-SYSTEM(RPC)" in strategy.get("labels", [])
+        if not has_rpc_label:
+            return False
+
+        is_rpc_metric: bool = False
+        try:
+            is_rpc_metric: bool = cls._is_rpc_metric(strategy["items"][0]["query_configs"][0]["metric_field"])
+        except (KeyError, IndexError):
+            pass
+
+        # 属于调用分析场景，若不是 RPC 指标，则是自定义指标
+        return not is_rpc_metric
+
+    @classmethod
     def get_tag_label(cls, tag: str) -> str:
         return get_label_from_enums(tag, cls._TAG_ENUMS)
 
