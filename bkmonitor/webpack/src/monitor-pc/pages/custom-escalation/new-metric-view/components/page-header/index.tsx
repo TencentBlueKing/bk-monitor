@@ -26,7 +26,7 @@
 import { Component } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import { customTimeSeriesList } from 'monitor-api/modules/custom_report';
+import { customTimeSeriesList } from '../../../service';
 import { copyText } from 'monitor-common/utils/utils';
 
 import customEscalationViewStore from '@store/modules/custom-escalation-view';

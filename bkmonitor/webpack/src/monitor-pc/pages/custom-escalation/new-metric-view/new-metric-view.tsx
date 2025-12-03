@@ -34,7 +34,7 @@ import PageHeadr from './components/page-header/index';
 import ViewColumn from './components/view-column/index';
 import ViewTab from './components/view-tab/index';
 import PanelChartView from './metric-chart-view/panel-chart-view';
-import { getCustomTsMetricGroups } from './services/scene_view_new';
+import { getCustomTsMetricGroups } from '../service';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';

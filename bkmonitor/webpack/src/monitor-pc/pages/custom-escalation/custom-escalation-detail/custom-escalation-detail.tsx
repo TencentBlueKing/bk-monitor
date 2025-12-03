@@ -27,11 +27,8 @@ import { Component, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
-import {
-  customTsGroupingRuleList,
-  importCustomTimeSeriesFields,
-  validateCustomTsGroupLabel,
-} from 'monitor-api/modules/custom_report';
+import { importCustomTimeSeriesFields, validateCustomTsGroupLabel } from 'monitor-api/modules/custom_report';
+import { customTsGroupingRuleList } from '../service';
 import { getFunctions } from 'monitor-api/modules/grafana';
 import { Debounce } from 'monitor-common/utils';
 
@@ -602,8 +599,8 @@ registry=registry, handler=bk_handler) # 上述自定义 handler`;
    */
   async getGroupList(): Promise<void> {
     const data = await customTsGroupingRuleList({
-      time_series_group_id: this.detailData.time_series_group_id,
-    }).catch(() => []);
+      time_series_group_id: this.detailData.time_series_group_id as unknown as number,
+    }).catch(() => [] as ServiceReturnType<typeof customTsGroupingRuleList>);
 
     this.groupList = data.map(item => ({
       name: item.name,
