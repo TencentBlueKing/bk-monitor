@@ -1361,21 +1361,25 @@ class TimeSeriesScope(models.Model):
                 )
 
         # 1.4 校验同一批次内的 manual_list 是否有重复
-        batch_manual_list_metrics = {}  # {metric_name: [(group_id, scope_name, idx), ...]}
+        batch_manual_list_metrics = {}  # {(group_id, service_name, metric_name): [(scope_name, idx), ...]}
         for idx, scope_data in enumerate(scopes):
             manual_list = scope_data.get("manual_list")
             if manual_list:
                 final_scope_name = cls._get_final_scope_name(scope_data)
                 group_id = scope_data["group_id"]
+                service_name = scope_data.get("service_name", "")
                 for metric in manual_list:
-                    batch_manual_list_metrics.setdefault(metric, []).append((group_id, final_scope_name, idx))
+                    key = (group_id, service_name, metric)
+                    batch_manual_list_metrics.setdefault(key, []).append((final_scope_name, idx))
 
-        # 检查批次内是否有重复的指标
-        for metric, locations in batch_manual_list_metrics.items():
+        # 检查批次内是否有重复的指标（同一 group_id 和 service_name 下）
+        for (group_id, service_name, metric), locations in batch_manual_list_metrics.items():
             if len(locations) > 1:
-                location_strs = [f"group_id={loc[0]}, scope_name={loc[1]}, 位置索引={loc[2]}" for loc in locations]
+                location_strs = [f"scope_name={loc[0]}, 位置索引={loc[1]}" for loc in locations]
                 raise ValueError(
-                    _("批次内存在重复的指标: metric={}, 出现位置=[{}]").format(metric, "; ".join(location_strs))
+                    _("批次内存在重复的指标: group_id={}, metric={}{}, 出现位置=[{}]").format(
+                        group_id, metric, "; ".join(location_strs)
+                    )
                 )
 
         # 1.5 校验 manual_list 中的指标是否都在 default 数据分组
@@ -1584,23 +1588,29 @@ class TimeSeriesScope(models.Model):
                 )
 
         # 1.5 校验同一批次内的 manual_list 是否有重复
-        batch_manual_list_metrics = {}  # {metric_name: [(group_id, scope_name, idx), ...]}
+        batch_manual_list_metrics = {}  # {(group_id, service_name, metric_name): [(scope_name, idx), ...]}
         for idx, scope_data in enumerate(scopes):
             manual_list = scope_data.get("manual_list")
             if manual_list:
                 scope_id = scope_data["scope_id"]
                 scope_obj = existing_scopes[scope_id]
+                # 从 scope_obj.scope_name 中提取 service_name（如果是 APM 格式）
+                if "||" in scope_obj.scope_name:
+                    service_name = scope_obj.scope_name.split("||", 1)[0]
+                else:
+                    service_name = ""
                 for metric in manual_list:
-                    batch_manual_list_metrics.setdefault(metric, []).append(
-                        (scope_obj.group_id, scope_obj.scope_name, idx)
-                    )
+                    key = (scope_obj.group_id, service_name, metric)
+                    batch_manual_list_metrics.setdefault(key, []).append((scope_obj.scope_name, idx))
 
-        # 检查批次内是否有重复的指标
-        for metric, locations in batch_manual_list_metrics.items():
+        # 检查批次内是否有重复的指标（同一 group_id 和 service_name 下）
+        for (group_id, service_name, metric), locations in batch_manual_list_metrics.items():
             if len(locations) > 1:
-                location_strs = [f"group_id={loc[0]}, scope_name={loc[1]}, 位置索引={loc[2]}" for loc in locations]
+                location_strs = [f"scope_name={loc[0]}, 位置索引={loc[1]}" for loc in locations]
                 raise ValueError(
-                    _("批次内存在重复的指标: metric={}, 出现位置=[{}]").format(metric, "; ".join(location_strs))
+                    _("批次内存在重复的指标: group_id={}, metric={}{}, 出现位置=[{}]").format(
+                        group_id, metric, "; ".join(location_strs)
+                    )
                 )
 
         # 1.6 校验 manual_list 中的指标是否都在 default 数据分组
