@@ -971,9 +971,15 @@ class CreateActionProcessor:
 
                 # 只保留 MAIN 类型的用户组，并转换为元组列表
                 voice_notice_group = set()
+                assigned_users = set()
+
                 for group_id, users in all_groups.items():
                     if group_id in main_group_ids and users:
-                        voice_notice_group.add(tuple(users))
+                        # 过滤掉已经在其他组中的用户
+                        unique_users = [user for user in users if user not in assigned_users]
+                        if unique_users:
+                            voice_notice_group.add(tuple(unique_users))
+                            assigned_users.update(unique_users)
 
                 inputs["voice_notice_group"] = voice_notice_group
 
