@@ -247,7 +247,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
         @param tool_name: 工具名称
         @param bk_biz_id: 业务ID
         @param username: 用户名
-        @param status: 调用状态 (success/permission_denied/invalid_params/error/exempt)
+        @param status: 调用状态 (accessed/permission_denied/invalid_params/error/exempt)
         @param permission_action: 权限动作ID
         """
         try:
@@ -394,7 +394,7 @@ class AuthenticationMiddleware(MiddlewareMixin):
             tool_name=tool_name,
             bk_biz_id=request.biz_id,
             username=username,
-            status="success",
+            status="accessed",
             permission_action=permission_action_id,
         )
         return None
