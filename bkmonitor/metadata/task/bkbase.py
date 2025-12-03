@@ -252,7 +252,7 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                     # 更新集群信息
                     is_updated = False
                     for field, value in update_fields.items():
-                        if getattr(cluster, field) != value:
+                        if value is not None and getattr(cluster, field) != value:
                             setattr(cluster, field, value)
                             is_updated = True
 
