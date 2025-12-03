@@ -1902,9 +1902,9 @@ class LogAccessTypeEnum(ChoicesEnum):
 
     _choices_labels = (
         (LINUX, _("主机日志")),
-        (WIN_EVENT, _("windows events 日志")),
-        (CONTAINER_FILE, _("文件采集")),
-        (CONTAINER_STDOUT, _("标准输出")),
+        (WIN_EVENT, _("Windows Event 日志")),
+        (CONTAINER_FILE, _("容器文件采集")),
+        (CONTAINER_STDOUT, _("容器标准输出")),
         (BKDATA, _("计算平台")),
         (ES, _("第三方ES")),
         (CUSTOM_REPORT, _("自定义上报")),
