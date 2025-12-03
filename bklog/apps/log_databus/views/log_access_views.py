@@ -59,9 +59,8 @@ class LogAccessViewSet(APIViewSet):
         result = LogCollectorHandler(data["space_uid"]).get_collector_field_enums()
         return Response(result)
 
-    @list_route(methods=["GET"], url_path="collector_status")
+    @list_route(methods=["POST"], url_path="collector_status")
     def get_collector_status(self, request):
         data = self.params_valid(GetCollectorStatusSerializer)
-        collector_id_list = data.get("collector_id_list").split(",")
-        result = LogCollectorHandler.get_collector_status(collector_id_list)
+        result = LogCollectorHandler.get_collector_status(data["collector_config_id_list"])
         return Response(result)

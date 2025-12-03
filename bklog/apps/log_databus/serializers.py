@@ -1791,11 +1791,4 @@ class GetCollectorFieldEnumsSerializer(serializers.Serializer):
 
 
 class GetCollectorStatusSerializer(serializers.Serializer):
-    collector_id_list = serializers.CharField(label=_("采集项ID"))
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-
-        if not validate_param_value(attrs["collector_id_list"]):
-            raise ValidationError(_("collector_id_list不符合格式，采集项ID（多个ID用半角,分隔）"))
-        return attrs
+    collector_config_id_list = serializers.ListSerializer(label=_("采集项ID列表"), child=serializers.IntegerField())
