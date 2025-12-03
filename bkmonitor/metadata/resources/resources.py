@@ -1890,6 +1890,8 @@ class QueryTimeSeriesScopeResource(Resource):
                     "function": field_config.get("function", ""),
                     "interval": field_config.get("interval", 0),
                     "disabled": field_config.get("disabled", False),
+                    "create_time": metric.create_time.timestamp() if metric.create_time else None,
+                    "last_modify_time": metric.last_modify_time.timestamp() if metric.last_modify_time else None,
                 }
             else:
                 # 指标不存在时使用默认值

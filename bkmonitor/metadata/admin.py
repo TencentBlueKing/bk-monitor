@@ -124,8 +124,8 @@ class TimeSeriesGroupAdmin(admin.ModelAdmin):
 
 
 class TimeSeriesMetricAdmin(admin.ModelAdmin):
-    list_display = ("group_id", "table_id", "field_name", "field_scope", "last_modify_time")
-    search_fields = ("group_id", "field_name", "field_scope", "last_modify_time")
+    list_display = ("group_id", "table_id", "field_name", "field_scope", "last_modify_time", "create_time")
+    search_fields = ("group_id", "field_name", "field_scope", "last_modify_time", "create_time")
     list_filter = ("group_id", "field_name", "field_scope", "table_id")
 
 

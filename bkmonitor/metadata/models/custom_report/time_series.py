@@ -1867,6 +1867,7 @@ class TimeSeriesMetric(models.Model):
     # 字段其他配置，可配置的字段 key 需要在 MetricConfigFields 中定义
     field_config = models.JSONField(verbose_name="字段其他配置", default=dict)
 
+    create_time = models.DateTimeField(verbose_name="创建时间", auto_now_add=True, null=True)
     last_modify_time = models.DateTimeField(verbose_name="最后更新时间", auto_now=True)
 
     label = models.CharField(verbose_name="指标监控对象", default="", max_length=255, db_index=True)

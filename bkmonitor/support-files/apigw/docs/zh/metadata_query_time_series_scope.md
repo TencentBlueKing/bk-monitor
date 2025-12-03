@@ -65,6 +65,8 @@ data 为列表类型，包含所有匹配的结果
 | function         | string | 常用聚合函数                |
 | interval         | int    | 默认聚合周期（秒）             |
 | disabled         | bool   | 是否禁用                  |
+| create_time      | float  | 创建时间（Unix时间戳，秒级浮点数，可能为 None） |
+| last_modify_time | float  | 最后更新时间（Unix时间戳，秒级浮点数，可能为 None） |
 
 #### dimension_config 配置对象字段说明
 
@@ -121,7 +123,9 @@ data 为列表类型，包含所有匹配的结果
           "aggregate_method": "avg",
           "function": "sum",
           "interval": 60,
-          "disabled": false
+          "disabled": false,
+          "create_time": 1732761330.123,
+          "last_modify_time": 1733122815.456
         },
         {
           "metric_name": "metric2",
@@ -136,7 +140,9 @@ data 为列表类型，包含所有匹配的结果
           "aggregate_method": "sum",
           "function": "max",
           "interval": 60,
-          "disabled": false
+          "disabled": false,
+          "create_time": 1732847400.789,
+          "last_modify_time": 1732968320.012
         }
       ],
       "create_from": "user"
