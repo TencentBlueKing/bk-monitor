@@ -71,7 +71,6 @@ export default defineComponent({
       limitList: [10, 20, 50, 100],
     });
 
-    const createTypes = ref([]); // 创建方式
     const createdBys = ref([]); // 创建人
     const logTableRef = ref(null); // 表格引用
     const settingCacheKey = 'clientLog'; // 设置缓存键
@@ -84,7 +83,6 @@ export default defineComponent({
       { id: 'id', label: t('任务 ID') },
       { id: 'task_name', label: t('任务名称'), disabled: true },
       { id: 'openid', label: 'openid', disabled: true },
-      { id: 'create_type', label: t('创建方式') },
       { id: 'status_name', label: t('任务状态') },
       { id: 'scene_name', label: t('任务阶段') },
       { id: 'created_by', label: t('创建人') },
@@ -138,10 +136,6 @@ export default defineComponent({
       if (!props.data || props.data.length === 0) {
         return;
       }
-
-      // 提取创建方式
-      const types = [...new Set(props.data.map((item: Record<string, any>) => item.create_type))].filter(Boolean);
-      createTypes.value = types.map(type => ({ text: type, value: type }));
 
       // 提取创建人
       const tenantInfos = [...new Set(props.data.map((item: Record<string, any>) => item.tenant_info))].filter(Boolean);
@@ -532,18 +526,6 @@ export default defineComponent({
             scopedSlots={openidSlot}
             sortable
           />
-          {checkFields('create_type') && (
-            <bk-table-column
-              key='create_type'
-              class-name='filter-column overflow-hidden-text'
-              min-width='100'
-              label={t('创建方式')}
-              prop='create_type'
-              column-key='create_type'
-              filters={createTypes}
-              filter-multiple={false}
-            />
-          )}
           {checkFields('status_name') && (
             <bk-table-column
               key='status_name'

@@ -27,7 +27,7 @@
 import { defineComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
-import { useRouter } from 'vue-router/composables';
+// import { useRouter } from 'vue-router/composables';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '../../../common/authority-map';
@@ -56,7 +56,7 @@ export default defineComponent({
   },
   setup() {
     const store = useStore();
-    const router = useRouter();
+    // const router = useRouter();
 
     const userDisplayMap = new Map(); // 用于创建人 到租户信息的映射
 
@@ -219,16 +219,16 @@ export default defineComponent({
       setSidebarOpen(true);
     };
 
-    // 清洗配置
-    const handleCleanConfig = () => {
-      router.push({
-        name: 'clean-config',
-        query: {
-          spaceUid: store.state.spaceUid,
-          backRoute: 'tgpa-task',
-        },
-      });
-    };
+    // // 清洗配置
+    // const handleCleanConfig = () => {
+    //   router.push({
+    //     name: 'clean-config',
+    //     query: {
+    //       spaceUid: store.state.spaceUid,
+    //       backRoute: 'tgpa-task',
+    //     },
+    //   });
+    // };
 
     // 检查创建权限
     const checkCreateAuth = async () => {
@@ -341,12 +341,12 @@ export default defineComponent({
                 >
                   {t('新建采集')}
                 </bk-button>
-                <bk-button
+                {/* <bk-button
                   disabled={isLoading.value}
                   onClick={handleCleanConfig}
                 >
                   {t('清洗配置')}
-                </bk-button>
+                </bk-button> */}
               </div>
               <div>
                 <bk-input
@@ -370,7 +370,7 @@ export default defineComponent({
                 title={t('Alert 文案占位，用于说明如果用 SDK 上报。')}
               ></bk-alert>
               <div class='operating-area'>
-                <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button>
+                {/* <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button> */}
                 <div>
                   <bk-input
                     placeholder={t('搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人')}
