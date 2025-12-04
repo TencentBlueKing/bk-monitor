@@ -50,10 +50,6 @@ export default defineComponent({
       type: Object,
       default: () => ({}),
     },
-    detailData: {
-      type: Object,
-      default: () => ({}),
-    },
     timezone: {
       type: Array,
       default: () => [],
@@ -110,6 +106,13 @@ export default defineComponent({
     };
   },
   render() {
+    const renderValue = value => {
+      if (Array.isArray(value)) {
+        return value.join(', ');
+      }
+      return value;
+    };
+
     return (
       <div
         class={[
@@ -163,7 +166,7 @@ export default defineComponent({
                   </span>
                   {item.k}
                 </div>
-                <div class='item-value'>{item.v}</div>
+                <div class='item-value'>{renderValue(item.v || '--')} </div>
               </div>
             ))}
           </div>

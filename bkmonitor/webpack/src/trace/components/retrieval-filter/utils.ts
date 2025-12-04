@@ -90,6 +90,12 @@ export const fieldTypeMap = {
     color: '#6498B3',
     bgColor: '#D9E5EB',
   },
+  object: {
+    name: window.i18n.t('对象'),
+    icon: 'icon-monitor icon-Object',
+    color: 'rgb(232, 234, 240)',
+    bgColor: 'rgb(151, 155, 165)',
+  },
 };
 
 export const RETRIEVAL_FILTER_UI_DATA_CACHE_KEY = '__vue3_RETRIEVAL_FILTER_UI_DATA_CACHE_KEY__';
