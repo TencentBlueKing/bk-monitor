@@ -517,9 +517,9 @@ class CreateOrUpdateTimeSeriesScopeResource(MetaDataAPIGWResource):
             new_scope_name = serializers.CharField(
                 required=False, label="新的指标分组名（仅更新时生效）", max_length=255
             )
-            dimension_config = serializers.DictField(required=False, label="分组下的维度配置", default=None)
-            manual_list = serializers.ListField(required=False, label="手动分组的指标列表", default=[])
-            auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表", default=[])
+            dimension_config = serializers.DictField(required=False, label="分组下的维度配置")
+            manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
+            auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
             delete_unmatched_dimensions = serializers.BooleanField(
                 required=False, default=False, label="是否删除不再匹配的维度配置（仅更新时生效）"
             )
