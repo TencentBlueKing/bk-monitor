@@ -64,7 +64,7 @@ class EventRecord(Filterer):
 
     @cached_property
     def event_time(self):
-        return arrow.get(self.raw_data["_time_"]).timestamp
+        return arrow.get(self.raw_data["_time_"]).int_timestamp
 
     @cached_property
     def md5_dimension(self):

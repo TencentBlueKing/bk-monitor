@@ -167,7 +167,7 @@ class UnifyQuery:
                 record = {**dimensions}
                 for column, column_type, v in zip(row["columns"], row["types"], value):
                     if column_type == "time":
-                        v = arrow.get(v).timestamp * 1000
+                        v = arrow.get(v).int_timestamp * 1000
 
                     if column == "_time":
                         column = "_time_"

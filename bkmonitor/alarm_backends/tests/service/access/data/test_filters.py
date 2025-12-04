@@ -44,13 +44,13 @@ class TestExpireFilter:
 
         arrow_now = arrow.utcnow()
         raw_data_1 = copy.deepcopy(RAW_DATA)
-        raw_data_1["_time_"] = arrow.get(arrow_now.datetime + datetime.timedelta(minutes=-28)).timestamp
+        raw_data_1["_time_"] = arrow.get(arrow_now.datetime + datetime.timedelta(minutes=-28)).int_timestamp
         raw_data_2 = copy.deepcopy(RAW_DATA)
-        raw_data_2["_time_"] = arrow.get(arrow_now.datetime + datetime.timedelta(minutes=-29)).timestamp
+        raw_data_2["_time_"] = arrow.get(arrow_now.datetime + datetime.timedelta(minutes=-29)).int_timestamp
         raw_data_3 = copy.deepcopy(RAW_DATA)
-        raw_data_3["_time_"] = arrow.get(arrow_now.datetime + datetime.timedelta(minutes=-30)).timestamp
+        raw_data_3["_time_"] = arrow.get(arrow_now.datetime + datetime.timedelta(minutes=-30)).int_timestamp
         raw_data_4 = copy.deepcopy(RAW_DATA)
-        raw_data_4["_time_"] = arrow.get(arrow_now.datetime + datetime.timedelta(minutes=-31)).timestamp
+        raw_data_4["_time_"] = arrow.get(arrow_now.datetime + datetime.timedelta(minutes=-31)).int_timestamp
 
         record = DataRecord(strategy.items[0], raw_data_1)
         assert f.filter(record) is False

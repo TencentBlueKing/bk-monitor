@@ -172,7 +172,7 @@ class TransferMetricHelper:
             return
 
         finished, _ = await asyncio.wait(tasks)
-        timestamp = arrow.now().timestamp * 1000
+        timestamp = arrow.now().int_timestamp * 1000
         for metrics in finished:
             result = metrics.result()
             if result:

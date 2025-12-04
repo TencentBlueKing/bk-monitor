@@ -129,7 +129,7 @@ def get_timestamp_range_by_biz_date(date):
     功能: 解析从浏览器传过来的日期格式字符串, 转成时间戳timestamp格式
     @return tuple(timestamp(unit: s), timestamp(unit: s))
     """
-    start_timestamp = arrow.get(date).replace(tzinfo=timezone.get_current_timezone().zone).timestamp
+    start_timestamp = arrow.get(date).replace(tzinfo=timezone.get_current_timezone().zone).int_timestamp
     end_timestamp = start_timestamp + 86400  # 24 * 3600
     return start_timestamp, end_timestamp
 
@@ -380,7 +380,7 @@ def timestamp_to_tz_datetime(timestamp, offset):
 
 
 def datetime_to_tz_timestamp(datetime, offset):
-    return arrow.get(datetime).shift(hours=-offset).timestamp
+    return arrow.get(datetime).shift(hours=-offset).int_timestamp
 
 
 def datetime2str(date_time: datetime.datetime, format="%Y-%m-%d %H:%M:%S"):
