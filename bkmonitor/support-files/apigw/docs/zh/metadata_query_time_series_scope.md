@@ -52,19 +52,19 @@ data 为列表类型，包含所有匹配的结果
 
 #### metric_list 列表项字段说明
 
-| 字段               | 类型     | 描述                    |
-|------------------|--------|-----------------------|
-| metric_name      | string | 指标名称                  |
-| field_id         | int    | 字段ID（可能为 None）        |
-| field_scope      | string | 字段所属分组（可能为 None）      |
-| tag_list         | list   | 指标的维度名称列表（字符串列表）      |
-| desc             | string | 指标描述                  |
-| unit             | string | 指标单位                  |
-| hidden           | bool   | 是否隐藏                  |
+| 字段               | 类型     | 描述                   |
+|------------------|--------|----------------------|
+| metric_name      | string | 指标名称                 |
+| field_id         | int    | 字段ID      |
+| field_scope      | string | 字段所属分组    |
+| tag_list         | list   | 指标的维度名称列表（字符串列表）     |
+| desc             | string | 指标描述                 |
+| unit             | string | 指标单位                 |
+| hidden           | bool   | 是否隐藏                 |
 | aggregate_method | string | 聚合方法（如 avg、sum、max 等） |
-| function         | string | 常用聚合函数                |
-| interval         | int    | 默认聚合周期（秒）             |
-| disabled         | bool   | 是否禁用                  |
+| function         | string | 常用聚合函数               |
+| interval         | int    | 默认聚合周期（秒）            |
+| disabled         | bool   | 是否禁用                 |
 | create_time      | float  | 创建时间（Unix时间戳，秒级浮点数，可能为 None） |
 | last_modify_time | float  | 最后更新时间（Unix时间戳，秒级浮点数，可能为 None） |
 
