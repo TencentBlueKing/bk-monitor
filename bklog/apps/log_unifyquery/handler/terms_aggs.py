@@ -15,17 +15,15 @@ from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
 class UnifyQueryTermsAggsHandler(UnifyQueryHandler):
     def __init__(self, agg_fields: list, param: dict):
-        super().__init__(param)
-
         self.agg_fields = agg_fields
-        self.terms_base_dict = self._init_terms_base_dict()
+        super().__init__(param)
 
     def terms(self):
         aggs = dict()
         aggs_items = dict()
 
         # 获取基础查询条件
-        query_condition = copy.deepcopy(self.terms_base_dict)
+        query_condition = copy.deepcopy(self.result_merge_base_dict)
 
         # 请求 unify-query
         series_dict = self._terms_unify_query(query_condition, self.search_params.get("size"))
@@ -114,13 +112,15 @@ class UnifyQueryTermsAggsHandler(UnifyQueryHandler):
 
         return series_dict
 
-    def _init_terms_base_dict(self):
+    def init_result_merge_base_dict(self, base_dict):
         """
-        重构 unify-query 接口基础请求参数, 适配 terms 接口查询
+        重写 unify-query 接口基础请求参数 (结果合并), 适配 terms 接口查询
         """
-        base_dict = copy.deepcopy(self.result_merge_base_dict)
+        result_merge_base_dict = super().init_result_merge_base_dict(base_dict)
 
-        query_list = copy.deepcopy(base_dict.get("query_list"))
+        terms_result_merge_base_dict = copy.deepcopy(result_merge_base_dict)
+
+        query_list = copy.deepcopy(terms_result_merge_base_dict.get("query_list"))
 
         reference_name_list = ["a"]
 
@@ -135,9 +135,17 @@ class UnifyQueryTermsAggsHandler(UnifyQueryHandler):
                 new_query["reference_name"] = reference_name
                 new_query["field_name"] = agg_field
 
-                base_dict["query_list"].append(new_query)
+                terms_result_merge_base_dict["query_list"].append(new_query)
 
         # 结果按不同聚合字段进行合并
-        base_dict["metric_merge"] = " or ".join(reference_name_list)
+        terms_result_merge_base_dict["metric_merge"] = " or ".join(reference_name_list)
 
-        return base_dict
+        return terms_result_merge_base_dict
+
+    def init_base_dict(self):
+        """
+        重写 unify-query 接口基础请求参数, 适配 terms 接口查询
+        """
+        self.agg_field = self.agg_fields[0] if self.agg_fields else ""
+
+        return super().init_base_dict()
