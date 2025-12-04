@@ -100,6 +100,20 @@ import { mapGetters, mapState } from 'vuex';
     watch: {
       '$route.query.spaceUid'(newSpaceUid, oldSpaceUid) {
         if (newSpaceUid !== oldSpaceUid) {
+          // 检查当前是否在 tgpa-task 相关路由
+          const isTgpaTaskRoute = this.checkIfTgpaTaskRoute();
+
+          if (isTgpaTaskRoute) {
+            // 检查权限
+            const hasPermission = this.checkTgpaTaskFeatureToggle();
+
+            if (!hasPermission) {
+              // 没有权限，跳转到管理页面第一个菜单项
+              this.redirectToFirstMenuItem();
+              return;
+            }
+          }
+
           // 获取最外层路径
           const topLevelRoute = this.getTopLevelRoute();
 
@@ -197,6 +211,33 @@ import { mapGetters, mapState } from 'vuex';
 
         // 默认不显示
         return false;
+      },
+      // 检查当前路由是否为 tgpa-task 相关路由
+      checkIfTgpaTaskRoute() {
+        return this.$route.meta?.navId === 'tgpa-task';
+      },
+      // 跳转到manage首页
+      redirectToFirstMenuItem() {
+        // 根据是否为外部版决定跳转目标
+        if (this.isExternal) {
+          // 外部版跳转到日志提取任务
+          this.$router.replace({
+            name: 'log-extract-task',
+            query: {
+              spaceUid: this.spaceUid,
+              bizId: this.bkBizId,
+            },
+          });
+        } else {
+          // 直接跳转到 manage 路由，让路由的 redirect 逻辑自动处理
+          this.$router.replace({
+            name: 'manage',
+            query: {
+              spaceUid: this.spaceUid,
+              bizId: this.bkBizId,
+            },
+          });
+        }
       },
     },
     mounted() {
