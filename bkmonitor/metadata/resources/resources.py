@@ -1762,9 +1762,33 @@ class QueryTimeSeriesScopeResource(Resource):
 
     def _build_grouped_results(self, query_set):
         """构建已分组指标的结果列表"""
+        from metadata.models.custom_report.time_series import TimeSeriesScope
+
         results = []
         for scope in query_set:
-            metric_list = self._get_metric_list(scope)
+            manual_list = set(scope.manual_list or [])
+            # 查询 manual_list 中的指标（来自 default 数据分组）
+            manual_metrics = []
+            if manual_list:
+                manual_metrics = list(
+                    models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, field_name__in=manual_list).filter(
+                        models.TimeSeriesMetric.get_default_scope_metric_filter(scope_name=scope.scope_name)
+                    )
+                )
+
+            # 用户分组：只查询 manual_list 中的指标
+            if scope.create_from != TimeSeriesScope.CREATE_FROM_DATA:
+                metric_list = self._convert_metrics_to_list(manual_metrics)
+            else:
+                # 数据分组：查询 manual_list + 数据分组的指标
+                # 查询数据分组的指标
+                data_group_metrics = list(
+                    models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, field_scope=scope.scope_name)
+                )
+
+                # 合并指标
+                all_metrics = data_group_metrics + manual_metrics
+                metric_list = self._convert_metrics_to_list(all_metrics)
             results.append(
                 {
                     "scope_id": scope.id,
@@ -1782,12 +1806,17 @@ class QueryTimeSeriesScopeResource(Resource):
     def _build_ungrouped_results(self, group_ids, scope_name):
         """构建未分组指标的结果列表
 
+        未分组下的指标 = default 数据分组的指标 - 所有 manual_list
         :param group_ids: 自定义时序数据源ID列表
         :param scope_name: 指标分组名，用于确定 default 数据分组的 scope
         """
+        from metadata.models.custom_report.time_series import TimeSeriesScope
+
         results = []
         for gid in group_ids:
-            metric_list = self._get_ungrouped_metric_list(gid, scope_name)
+            # 获取未分组指标的 QuerySet
+            ungrouped_metrics_qs = TimeSeriesScope.get_ungrouped_metrics_qs(gid, scope_name=scope_name)
+            metric_list = self._convert_metrics_to_list(ungrouped_metrics_qs)
             results.append(
                 {
                     "scope_id": None,
@@ -1802,112 +1831,27 @@ class QueryTimeSeriesScopeResource(Resource):
             )
         return results
 
-    def _get_ungrouped_metric_list(self, group_id, scope_name):
-        """获取未分组的指标列表
-
-        未分组下的指标 = default 数据分组的指标 - 所有 manual_list
-
-        :param group_id: 自定义时序数据源ID
-        :param scope_name: 指标分组名，用于确定 default 数据分组的 scope
-        """
-        from metadata.models.custom_report.time_series import TimeSeriesScope
-
-        # 获取未分组指标的 QuerySet
-        ungrouped_metrics_qs = TimeSeriesScope.get_ungrouped_metrics_qs(group_id, scope_name=scope_name)
-
-        # 提取指标名称列表
-        metric_names = list(ungrouped_metrics_qs.values_list("field_name", flat=True))
-        if not metric_names:
-            return []
-
-        return self._convert_metrics_to_list(ungrouped_metrics_qs, metric_names)
-
-    def _get_metric_list(self, scope):
-        """获取指标列表
-
-        1. 用户分组：manual_list 中的指标（来自 default 数据分组）
-        2. 数据分组：manual_list + 数据分组的指标
-
-        :param scope: TimeSeriesScope 对象
-        """
-        from metadata.models.custom_report.time_series import TimeSeriesScope
-
-        manual_list = set(scope.manual_list or [])
-
-        # 用户分组：只查询 manual_list 中的指标
-        if scope.create_from != TimeSeriesScope.CREATE_FROM_DATA:
-            if not manual_list:
-                return []
-            metrics = models.TimeSeriesMetric.objects.filter(
-                group_id=scope.group_id, field_name__in=manual_list
-            ).filter(models.TimeSeriesMetric.get_default_scope_metric_filter(scope_name=scope.scope_name))
-            return self._convert_metrics_to_list(metrics, list(manual_list))
-
-        # 数据分组：查询 manual_list + 数据分组的指标
-        data_group_metrics = models.TimeSeriesMetric.objects.filter(
-            group_id=scope.group_id, field_scope=scope.scope_name
-        ).values_list("field_name", flat=True)
-
-        all_metric_names = manual_list | set(data_group_metrics)
-        if not all_metric_names:
-            return []
-
-        # 分别查询两类指标
-        metrics_dict = {}
-
-        # 查询 manual_list 中的指标（来自 default 数据分组）
-        if manual_list:
-            for metric in models.TimeSeriesMetric.objects.filter(
-                group_id=scope.group_id, field_name__in=manual_list
-            ).filter(models.TimeSeriesMetric.get_default_scope_metric_filter(scope_name=scope.scope_name)):
-                metrics_dict[metric.field_name] = metric
-
-        # 查询数据分组的指标
-        for metric in models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, field_scope=scope.scope_name):
-            metrics_dict[metric.field_name] = metric
-
-        return self._convert_metrics_to_list(list(metrics_dict.values()), list(all_metric_names))
-
     @staticmethod
-    def _convert_metrics_to_list(metrics, metric_names):
-        # 构建指标名称到指标对象的映射
-        metric_map = {metric.field_name: metric for metric in metrics}
-
+    def _convert_metrics_to_list(metrics):
+        """将指标对象列表转换为字典列表"""
         metric_list = []
-        for metric_name in metric_names:
-            metric = metric_map.get(metric_name)
-            if metric:
-                field_config = metric.field_config or {}
-                metric_info = {
-                    "metric_name": metric.field_name,
-                    "field_id": metric.field_id,
-                    "field_scope": metric.field_scope,
-                    "tag_list": metric.tag_list,
-                    "desc": field_config.get("desc", ""),
-                    "unit": field_config.get("unit", ""),
-                    "hidden": field_config.get("hidden", False),
-                    "aggregate_method": field_config.get("aggregate_method", ""),
-                    "function": field_config.get("function", ""),
-                    "interval": field_config.get("interval", 0),
-                    "disabled": field_config.get("disabled", False),
-                    "create_time": metric.create_time.timestamp() if metric.create_time else None,
-                    "last_modify_time": metric.last_modify_time.timestamp() if metric.last_modify_time else None,
-                }
-            else:
-                # 指标不存在时使用默认值
-                metric_info = {
-                    "metric_name": metric_name,
-                    "field_id": None,
-                    "field_scope": None,
-                    "tag_list": [],
-                    "desc": "",
-                    "unit": "",
-                    "hidden": False,
-                    "aggregate_method": "",
-                    "function": "",
-                    "interval": 0,
-                    "disabled": False,
-                }
+        for metric in metrics:
+            field_config = metric.field_config or {}
+            metric_info = {
+                "metric_name": metric.field_name,
+                "field_id": metric.field_id,
+                "field_scope": metric.field_scope,
+                "tag_list": metric.tag_list,
+                "desc": field_config.get("desc", ""),
+                "unit": field_config.get("unit", ""),
+                "hidden": field_config.get("hidden", False),
+                "aggregate_method": field_config.get("aggregate_method", ""),
+                "function": field_config.get("function", ""),
+                "interval": field_config.get("interval", 0),
+                "disabled": field_config.get("disabled", False),
+                "create_time": metric.create_time.timestamp() if metric.create_time else None,
+                "last_modify_time": metric.last_modify_time.timestamp() if metric.last_modify_time else None,
+            }
             metric_list.append(metric_info)
 
         return metric_list

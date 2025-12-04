@@ -1007,7 +1007,6 @@ class TimeSeriesScope(models.Model):
     自定义时序指标分组
     """
 
-    # todo hhh 补充是否开启自动匹配正则的开关
     DimensionConfigFields = [
         "desc",  # 字段描述
         "common",  # 常用维度
