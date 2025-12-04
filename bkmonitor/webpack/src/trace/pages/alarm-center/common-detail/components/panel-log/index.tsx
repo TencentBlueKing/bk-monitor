@@ -27,6 +27,7 @@ import { type PropType, defineComponent, watch } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Button } from 'bkui-vue';
+import { request } from 'monitor-api/base';
 import { random } from 'monitor-common/utils';
 import { EMode } from 'trace/components/retrieval-filter/typing';
 import { useI18n } from 'vue-i18n';
@@ -34,9 +35,14 @@ import { useI18n } from 'vue-i18n';
 import RetrievalFilter from '../../../../../components/retrieval-filter/retrieval-filter';
 import { useAlarmLog } from '../../../composables/use-alarm-log';
 import IndexSetSelector from './index-set-selector/index-set-selector';
-import LogTable from './log-table/log-table';
+import LogTableNew from './log-table/log-table-new';
 
 import type { AlarmDetail } from '../../../typings/detail';
+export const getLogIndexSetSearch = request(
+  'POST' as any,
+  'apm_log_forward/bklog/api/v1/search/index_set/{pk}/search/'
+);
+export const getLogFieldsData = request('GET' as any, 'apm_log_forward/bklog/api/v1/search/index_set/{pk}/fields/');
 
 import './index.scss';
 
@@ -50,7 +56,7 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const { getIndexSetList, updateTableData, resetTableData } = useAlarmLog(props.detail);
+    const { getIndexSetList } = useAlarmLog(props.detail);
     const selectLoading = shallowRef(false);
     /** 索引集列表 */
     const indexSetList = shallowRef([]);
@@ -87,18 +93,55 @@ export default defineComponent({
      */
     async function getTableData(
       params = {
-        limit: 30,
+        size: 50,
         offset: 0,
       }
     ) {
-      const data = await updateTableData({
-        index_set_id: selectIndexSet.value,
-        keyword: keyword.value,
-        limit: params.limit,
-        offset: params.offset,
-      });
+      // const data = await updateTableData({
+      //   index_set_id: selectIndexSet.value,
+      //   keyword: keyword.value,
+      //   limit: params.limit,
+      //   offset: params.offset,
+      // });
+      const data = await getLogIndexSetSearch(selectIndexSet.value, {
+        bk_biz_id: props.detail?.bk_biz_id || window.bk_biz_id,
+        size: params.size,
+        start_time: 1764813893094,
+        end_time: 1764817493094,
+        addition: [
+          {
+            field: 'resource.server',
+            operator: '=',
+            value: ['example.greeter'],
+          },
+        ],
+        begin: params.offset,
+        ip_chooser: {},
+        host_scopes: {
+          modules: [],
+          ips: '',
+          target_nodes: [],
+          target_node_type: '',
+        },
+        interval: 'auto',
+        search_mode: 'ui',
+        sort_list: [['dtEventTimeStamp', 'desc']],
+        keyword: '*',
+      })
+        .then(res => {
+          console.log(res);
+        })
+        .catch(() => null);
       return data;
     }
+    const getFieldsData = async () => {
+      const data = await getLogFieldsData(selectIndexSet.value, {
+        is_realtime: 'True',
+        start_time: 1764813893094,
+        end_time: 1764817493094,
+      }).catch(() => null);
+      return data;
+    };
 
     /**
      * 切换索引集
@@ -106,7 +149,6 @@ export default defineComponent({
      */
     function handleChangeIndexSet(indexSetId: number | string) {
       selectIndexSet.value = indexSetId;
-      resetTableData();
       tableRefreshKey.value = random(8);
     }
 
@@ -122,7 +164,6 @@ export default defineComponent({
      * 日志搜索
      */
     function handleSearch() {
-      resetTableData();
       tableRefreshKey.value = random(8);
     }
 
@@ -160,6 +201,7 @@ export default defineComponent({
       handleQueryStringChange,
       handleModeChange,
       getTableData,
+      getFieldsData,
     };
   },
   render() {
@@ -195,8 +237,9 @@ export default defineComponent({
             onSearch={this.handleSearch}
           />
         </div>
-        <LogTable
-          getData={this.getTableData}
+        <LogTableNew
+          getFieldsData={this.getFieldsData}
+          getTableData={this.getTableData}
           refreshKey={this.tableRefreshKey}
         />
       </div>
