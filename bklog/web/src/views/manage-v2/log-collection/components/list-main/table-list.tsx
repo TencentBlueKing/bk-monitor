@@ -224,6 +224,15 @@ export default defineComponent({
     });
     // 过滤条件
     const conditions = ref<FilterCondition[]>([]);
+    // 表格过滤值（用于设置默认选中状态）
+    const filterValue = ref<Record<string, string>>({
+      log_access_type: '',
+      collector_scenario_id: '',
+      storage_cluster_name: '',
+      status: '',
+      created_by: '',
+      updated_by: '',
+    });
 
     const pagination = ref({
       current: 1,
@@ -1228,14 +1237,19 @@ export default defineComponent({
      * @param filters - 过滤对象
      */
     const handleFilterChange = (filters: Record<string, string>) => {
+      // 同步更新 filterValue
+      filterValue.value = { ...filterValue.value, ...filters };
+
       // 创建新的搜索条件数组
       const newConditions: FilterCondition[] = [];
 
       for (const key of Object.keys(filters || {})) {
-        newConditions.push({
-          key,
-          value: [filters[key]],
-        });
+        if (filters[key]) {
+          newConditions.push({
+            key,
+            value: [filters[key]],
+          });
+        }
       }
 
       // 更新搜索条件和过滤条件
@@ -1599,6 +1613,7 @@ export default defineComponent({
               scroll={{ type: 'lazy', bufferSize: 10 }}
               on-sort-change={sortChange}
               on-filter-change={handleFilterChange}
+              filterValue={filterValue.value}
               scopedSlots={{
                 loading: () => (
                   <div class='table-skeleton-box'>
