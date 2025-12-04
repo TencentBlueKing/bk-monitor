@@ -68,7 +68,7 @@ import { type ActiveConditionMenuTarget, type ExploreTableColumn, ExploreTableLo
 import { getTableList } from './utils/api-utils';
 import { isEllipsisActiveSingleLine } from './utils/dom-helper';
 
-import type { ConditionChangeEvent, ExploreFieldList, ICommonParams, IDimensionFieldTreeItem } from '../../typing';
+import type { ConditionChangeEvent, ICommonParams, IDimensionField, IDimensionFieldTreeItem } from '../../typing';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 import './trace-explore-table.scss';
@@ -99,21 +99,35 @@ export default defineComponent({
       type: Object as PropType<ICommonParams>,
       default: () => ({}),
     },
-    /** 不同视角下维度字段的列表 */
-    fieldListMap: {
-      type: Object as PropType<ExploreFieldList>,
-      default: () => ({
-        trace: [],
-        span: [],
-      }),
+    /** 需要显示渲染的列名数组 */
+    displayFields: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
+    /** 缓存的列宽配置 */
+    fieldsWidthConfig: {
+      type: Object as PropType<Record<string, number>>,
+      default: () => ({}),
+    },
+    /** 表格所有列字段配置数组(接口原始结构) */
+    sourceFieldConfigs: {
+      type: Array as PropType<IDimensionField[]>,
+      default: () => [],
     },
   },
   emits: {
+    /** 返回顶部 */
     backTop: () => true,
-
-    conditionChange: (val: ConditionChangeEvent) => true,
+    /** 筛选条件改变后触发的回调 */
+    conditionChange: (conditionEvent: ConditionChangeEvent) => conditionEvent,
+    /** 清除检索过滤 */
     clearRetrievalFilter: () => true,
+    /** 设置url参数 */
     setUrlParams: () => true,
+    /** 显示列字段变化 */
+    displayFieldChange: (displayFields: string[]) => Array.isArray(displayFields),
+    /** 列宽变化 */
+    columnResize: (context: { columnsWidth: { [colKey: string]: number } }) => !!context,
   },
   setup(props, { emit }) {
     const store = useTraceExploreStore();
@@ -233,18 +247,14 @@ export default defineComponent({
     });
 
     const { tableCellRender } = useTableCell(tableRowKeyField);
-    const {
-      tableColumns,
-      displayColumnFields,
-      tableDisplayColumns,
-      getCustomDisplayColumnFields,
-      handleDisplayColumnFieldsChange,
-      handleDisplayColumnResize,
-    } = useExploreColumnConfig({
-      props,
-      isSpanVisual,
+    const { tableColumns, tableDisplayColumns } = useExploreColumnConfig({
+      appName: toRef(props, 'appName'),
+      displayFields: toRef(props, 'displayFields'),
+      fieldsWidthConfig: toRef(props, 'fieldsWidthConfig'),
+      mode: toRef(props, 'mode'),
       rowKeyField: tableRowKeyField,
       sortContainer,
+      sourceFieldConfigs: toRef(props, 'sourceFieldConfigs'),
       tableHeaderCellRender,
       tableCellRender,
       handleConditionMenuShow,
@@ -296,54 +306,6 @@ export default defineComponent({
       //   };
       // }
       return config;
-    });
-
-    watch(
-      [
-        () => isSpanVisual.value,
-        () => props.appName,
-        () => props.timeRange,
-        () => props.refreshImmediate,
-        () => sortContainer.sortBy,
-        () => sortContainer.descending,
-        () => props.commonParams.filters,
-        () => props.commonParams.query_string,
-      ],
-      (nVal, oVal) => {
-        tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = true;
-        tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = true;
-        store.updateTableList([]);
-        emit('backTop');
-
-        if (nVal[0] !== oVal[0] || nVal[1] !== oVal[1]) {
-          handleSortChange({
-            sortBy: '',
-            descending: null,
-          });
-          getCustomDisplayColumnFields();
-        }
-        debouncedGetExploreList();
-      }
-    );
-
-    onMounted(() => {
-      getCustomDisplayColumnFields();
-      // debouncedGetExploreList();
-      addScrollListener();
-      setTimeout(() => {
-        initEllipsisListeners();
-        initHeaderDescritionListeners();
-        initConditionMenuListeners();
-      }, 300);
-    });
-
-    onBeforeUnmount(() => {
-      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
-      removeScrollListener();
-      abortController?.abort?.();
-      abortController = null;
-      store.updateTableList([]);
-      store.updateTableSortContainer({ sortBy: '', descending: null });
     });
 
     /**
@@ -591,7 +553,7 @@ export default defineComponent({
         boundary: 'viewport',
         extCls: 'statistics-dimension-popover-cls',
         width: 405,
-        // @ts-ignore
+        // @ts-expect-error
         distance: -5,
         onHide() {
           showStatisticsPopover.value = false;
@@ -690,13 +652,54 @@ export default defineComponent({
         ) as unknown as SlotReturnValue;
     }
 
-    function handleClearRetrievalFilter() {
-      emit('clearRetrievalFilter');
-    }
+    watch(
+      [
+        () => isSpanVisual.value,
+        () => props.appName,
+        () => props.timeRange,
+        () => props.refreshImmediate,
+        () => sortContainer.sortBy,
+        () => sortContainer.descending,
+        () => props.commonParams.filters,
+        () => props.commonParams.query_string,
+      ],
+      (nVal, oVal) => {
+        tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = true;
+        tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = true;
+        store.updateTableList([]);
+        emit('backTop');
+
+        if (nVal[0] !== oVal[0] || nVal[1] !== oVal[1]) {
+          handleSortChange({
+            sortBy: '',
+            descending: null,
+          });
+        }
+        debouncedGetExploreList();
+      }
+    );
+
+    onMounted(() => {
+      // debouncedGetExploreList();
+      addScrollListener();
+      setTimeout(() => {
+        initEllipsisListeners();
+        initHeaderDescritionListeners();
+        initConditionMenuListeners();
+      }, 300);
+    });
+
+    onBeforeUnmount(() => {
+      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
+      removeScrollListener();
+      abortController?.abort?.();
+      abortController = null;
+      store.updateTableList([]);
+      store.updateTableSortContainer({ sortBy: '', descending: null });
+    });
 
     return {
       tableRowKeyField,
-      displayColumnFields,
       tableColumns,
       tableLoading,
       tableHasScrollLoading,
@@ -710,11 +713,8 @@ export default defineComponent({
       activeConditionMenuTarget,
       handleSortChange,
       handleDataSourceConfigClick,
-      handleDisplayColumnFieldsChange,
-      handleDisplayColumnResize,
       statisticsDomRender,
       handleSliderShowChange,
-      handleClearRetrievalFilter,
       handleMenuClick,
       handleConditionChange,
     };
@@ -735,13 +735,13 @@ export default defineComponent({
           v-slots={{
             empty: () => (
               <ExploreTableEmpty
-                onClearFilter={this.handleClearRetrievalFilter}
+                onClearFilter={() => this.$emit('clearRetrievalFilter')}
                 onDataSourceConfigClick={this.handleDataSourceConfigClick}
               />
             ),
           }}
           columns={[
-            // @ts-ignore
+            // @ts-expect-error
             ...this.tableDisplayColumns,
             {
               width: '32px',
@@ -751,7 +751,7 @@ export default defineComponent({
               resizable: false,
               thClassName: '__table-custom-setting-col__',
               colKey: '__col_setting__',
-              // @ts-ignore
+              // @ts-expect-error
               title: () => {
                 return (
                   <ExploreFieldSetting
@@ -759,8 +759,8 @@ export default defineComponent({
                     fixedDisplayList={[this.tableRowKeyField]}
                     sourceList={this.tableColumns.fieldList}
                     sourceMap={this.tableColumns.fieldMap}
-                    targetList={this.displayColumnFields}
-                    onConfirm={this.handleDisplayColumnFieldsChange}
+                    targetList={this.displayFields}
+                    onConfirm={displayFields => this.$emit('displayFieldChange', displayFields)}
                   />
                 );
               },
@@ -773,7 +773,7 @@ export default defineComponent({
           horizontalScrollAffixedBottom={{
             container: SCROLL_ELEMENT_CLASS_NAME,
           }}
-          // @ts-ignore
+          // @ts-expect-error
           lastFullRow={
             this.tableViewData.length
               ? () => (
@@ -805,7 +805,7 @@ export default defineComponent({
           sort={this.sortContainer}
           stripe={false}
           tableLayout='fixed'
-          onColumnResizeChange={this.handleDisplayColumnResize}
+          onColumnResizeChange={context => this.$emit('columnResize', context)}
           onSortChange={this.handleSortChange}
         />
         <TableSkeleton class={`explore-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
