@@ -950,7 +950,6 @@ export default {
   '1天': '1 day',
   '{n}天': '{n} days',
   '任务 ID': 'Task ID',
-  创建方式: 'Creation method',
   待审批: 'Pending approval',
   审批通过: 'Approved',
   审批拒绝: 'Rejected',

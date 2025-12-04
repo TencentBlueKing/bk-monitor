@@ -430,10 +430,6 @@ export default defineComponent({
                 <span>{props.logData.openid?.split('\n').join(';') || '-'}</span>
               </div>
               <div>
-                <span>{t('创建方式')}</span>
-                <span>{props.logData.create_type || '-'}</span>
-              </div>
-              <div>
                 <span>{t('任务状态')}</span>
                 <span>{props.logData.status_name || '-'}</span>
               </div>
