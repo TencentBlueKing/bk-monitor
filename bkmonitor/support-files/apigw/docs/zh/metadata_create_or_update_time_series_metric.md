@@ -4,6 +4,9 @@
 - 如果指标中提供了 field_id，则更新对应的指标
 - 如果未提供 field_id，则创建新指标（此时 group_id 和 field_name 为必填项）
 
+**重要说明：更新操作为全量更新**
+- 更新 `tag_list` 时，传递的列表会完全替换原有的 tag_list（系统会自动确保包含 `target` 维度）
+- 更新 `field_config` 时，传递的字典会完全替换原有的 field_config
 
 ### 请求参数
 
@@ -19,8 +22,8 @@
 | field_id   | int  | 否  | 字段ID，用于定位已存在的指标进行更新。如提供此字段则为更新操作                        |
 | group_id   | int  | 否  | 自定义时序数据源ID，创建指标时必填                                           |
 | field_name | string | 否  | 指标字段名称，创建指标时必填，最大长度255。字段名称不能重复                  |
-| tag_list   | list | 否  | Tag列表，维度字段列表。系统会自动添加 `target` 维度（如果不存在）                   |
-| field_config | dict | 否  | 字段其他配置，详见下方 field_config 字段说明                                              |
+| tag_list   | list | 否  | Tag列表，维度字段列表。系统会自动添加 `target` 维度（如果不存在）。**注意：更新时为全量替换，需传递完整的 tag 列表**                   |
+| field_config | dict | 否  | 字段其他配置，详见下方 field_config 字段说明。**注意：更新时为全量替换，需传递完整的配置字典**                                              |
 | label      | string | 否  | 指标监控对象，用于标识指标所属的监控对象类型，最大长度255，默认为空字符串                  |
 | service_name | string | 否  | 服务名称，最大长度255。如果提供了此字段，则 field_scope 会被设置为 `{service_name}||default`；否则 field_scope 为 `default`                  |
 
