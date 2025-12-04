@@ -36,17 +36,17 @@ TGPA_TASK_ETL_PARAMS = {
     "retain_original_text": False,
     "retain_extra_json": False,
     "enable_retain_content": True,
-    "record_parse_failure": True,
+    "record_parse_failure": False,
 }
 
 TGPA_TASK_ETL_FIELDS = [
     {
-        "field_name": "original_log",
+        "field_name": "log",
         "field_type": "string",
         "is_dimension": False,
         "is_analyzed": True,
         "is_time": False,
-        "description": "original_log",
+        "description": "log",
         "is_delete": False,
     },
     {
@@ -65,6 +65,15 @@ TGPA_TASK_ETL_FIELDS = [
         "is_analyzed": False,
         "is_time": False,
         "description": "task_name",
+        "is_delete": False,
+    },
+    {
+        "field_name": "path",
+        "field_type": "string",
+        "is_dimension": True,
+        "is_analyzed": False,
+        "is_time": False,
+        "description": "path",
         "is_delete": False,
     },
     {
@@ -124,6 +133,7 @@ TGPA_TASK_ETL_FIELDS = [
 ]
 
 CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "path", "lineno"]
+CLIENT_LOG_CUSTOM_BUILT_IN_FIELD_LIST = ["log", "path"]
 LOG_FILE_EXPIRE_DAYS = 3
 
 

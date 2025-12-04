@@ -54,6 +54,7 @@ from apps.log_search.constants import (
     FieldDataTypeEnum,
     FieldDateFormatEnum,
 )
+from apps.tgpa.constants import CLIENT_LOG_CUSTOM_BUILT_IN_FIELD_LIST
 from apps.utils import is_match_variate
 from apps.utils.codecs import unicode_str_decode
 from apps.utils.db import array_group
@@ -642,7 +643,11 @@ class EtlStorage:
                 target_field = field["alias_name"]
 
             if target_field.lower() in built_in_keys:
-                raise ValidationError(_("字段不能与标准字段重复") + f":{target_field}")
+                if not (
+                    built_in_config.get("is_client_log", False)
+                    and target_field.lower() in CLIENT_LOG_CUSTOM_BUILT_IN_FIELD_LIST
+                ):
+                    raise ValidationError(_("字段不能与标准字段重复") + f":{target_field}")
 
             if not is_match_variate(target_field):
                 raise ValidationError(_("字段名不符合变量规则"))

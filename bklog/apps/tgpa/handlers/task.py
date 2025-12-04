@@ -37,7 +37,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_databus.constants import EtlConfig, ContainerCollectorType
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.models import CollectorConfig
-from apps.log_search.constants import CustomTypeEnum
+from apps.log_search.constants import CustomTypeEnum, CollectorScenarioEnum
 from apps.tgpa.constants import (
     TGPA_BASE_DIR,
     TASK_LIST_BATCH_SIZE,
@@ -220,7 +220,7 @@ class TGPATaskHandler:
         ):
             for line_num, line in enumerate(input_file, 1):
                 log_content = line.strip()
-                log_entry = {"original_log": log_content, "path": log_file_path, "lineno": line_num}
+                log_entry = {"log": log_content, "path": log_file_path, "lineno": line_num}
                 log_entry.update(self.meta_fields)
                 output_file.write(f"{ujson.dumps(log_entry, ensure_ascii=False)}\n")
 
@@ -303,6 +303,7 @@ class TGPATaskHandler:
             etl_params=etl_params,
             fields=fields,
             storage_cluster_id=storage_cluster_id,
+            collector_scenario_id=CollectorScenarioEnum.CLIENT.value,
         )
 
         # 采集配置下发
