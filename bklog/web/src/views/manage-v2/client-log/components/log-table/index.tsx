@@ -30,9 +30,11 @@ import { clearTableFilter, getDefaultSettingSelectFiled, setDefaultSettingSelect
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
+import * as authorityMap from '../../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../../constant';
+import { TaskStatus, TaskScene } from './types';
 import http from '@/api';
 
 import './index.scss';
@@ -100,27 +102,27 @@ export default defineComponent({
 
     // 任务状态选项
     const taskStatuses = [
-      { text: t('待审批'), value: -3 },
-      { text: t('审批通过'), value: -2 },
-      { text: t('审批拒绝'), value: -1 },
-      { text: t('已创建'), value: 0 },
-      { text: t('执行中'), value: 1 },
-      { text: t('停止'), value: 2 },
-      { text: t('执行失败'), value: 3 },
-      { text: t('执行完成'), value: 4 },
-      { text: t('创建失败'), value: 5 },
-      { text: t('认领超时'), value: 6 },
-      { text: t('执行超时'), value: 7 },
-      { text: t('认领中'), value: 8 },
-      { text: t('已删除'), value: 9 },
-      { text: t('创建中'), value: 10 },
-      { text: t('启动中'), value: 11 },
+      { text: t('待审批'), value: TaskStatus.PENDING_APPROVAL },
+      { text: t('审批通过'), value: TaskStatus.APPROVED },
+      { text: t('审批拒绝'), value: TaskStatus.REJECTED },
+      { text: t('已创建'), value: TaskStatus.CREATED },
+      { text: t('执行中'), value: TaskStatus.RUNNING },
+      { text: t('停止'), value: TaskStatus.STOPPED },
+      { text: t('执行失败'), value: TaskStatus.FAILED },
+      { text: t('执行完成'), value: TaskStatus.COMPLETED },
+      { text: t('创建失败'), value: TaskStatus.CREATE_FAILED },
+      { text: t('认领超时'), value: TaskStatus.CLAIM_TIMEOUT },
+      { text: t('执行超时'), value: TaskStatus.EXECUTION_TIMEOUT },
+      { text: t('认领中'), value: TaskStatus.CLAIMING },
+      { text: t('已删除'), value: TaskStatus.DELETED },
+      { text: t('创建中'), value: TaskStatus.CREATING },
+      { text: t('启动中'), value: TaskStatus.STARTING },
     ];
 
     // 任务阶段选项
     const taskScenes = [
-      { text: t('登录后'), value: 4 },
-      { text: t('登录前'), value: 1 },
+      { text: t('登录后'), value: TaskScene.AFTER_LOGIN },
+      { text: t('登录前'), value: TaskScene.BEFORE_LOGIN },
     ];
 
     // 当前筛选条件
@@ -335,21 +337,38 @@ export default defineComponent({
     };
 
     // 下载文件
-    const downloadFile = async (id: number) => {
-      try {
-        const params = {
-          query: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-            task_id: id,
-          },
-        };
-        const response = await http.request('collect/getDownloadLink', params);
-        const downloadUrl = response.data.url;
-        if (downloadUrl) {
-          window.open(downloadUrl);
+    const downloadFile = async (id: number, status: number) => {
+      if (status !== TaskStatus.COMPLETED) {
+        return;
+      }
+      if (props.isAllowedDownload) {
+        try {
+          const params = {
+            query: {
+              bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+              task_id: id,
+            },
+          };
+          const response = await http.request('collect/getDownloadLink', params);
+          const downloadUrl = response.data.url;
+          if (downloadUrl) {
+            window.open(downloadUrl);
+          }
+        } catch (error) {
+          console.warn('获取下载链接失败:', error);
         }
-      } catch (error) {
-        console.warn('获取下载链接失败:', error);
+      } else {
+        const paramData = {
+          action_ids: [authorityMap.DOWNLOAD_FILE_AUTH],
+          resources: [
+            {
+              type: 'space',
+              id: store.state.spaceUid,
+            },
+          ],
+        };
+        const res = await store.dispatch('getApplyData', paramData);
+        store.commit('updateState', { authDialogData: res.data });
       }
     };
 
@@ -417,11 +436,15 @@ export default defineComponent({
       default: ({ row }) => (
         <div class='status-row'>
           <div
-            class='status-icon'
+            class={[
+              {
+                'status-icon': row.status === TaskStatus.CLAIMING || row.status === TaskStatus.CLAIM_TIMEOUT,
+              },
+            ]}
             key={row.status}
           >
-            {row.status === 8 && <bk-spin size='mini'></bk-spin>}
-            {row.status === 6 && <div class='claimed-expired'></div>}
+            {row.status === TaskStatus.CLAIMING && <bk-spin size='mini'></bk-spin>}
+            {row.status === TaskStatus.CLAIM_TIMEOUT && <div class='claimed-expired'></div>}
           </div>
           {row.status_name}
         </div>
@@ -464,11 +487,20 @@ export default defineComponent({
             {t('克隆')}
           </bk-button>
           <bk-button
-            class='king-button'
+            class={[
+              'king-button',
+              {
+                'disabled-download': !props.isAllowedDownload || row.status !== TaskStatus.COMPLETED,
+              },
+            ]}
             text
             theme='primary'
-            disabled={!props.isAllowedDownload}
-            on-click={() => downloadFile(row.id)}
+            v-bk-tooltips={{
+              content: t('暂无下载链接，请在任务完成后点击下载'),
+              disabled: row.status === TaskStatus.COMPLETED,
+            }}
+            v-cursor={{ active: row.status === TaskStatus.COMPLETED && !props.isAllowedDownload }}
+            on-click={() => downloadFile(row.id, row.status)}
           >
             {t('下载文件')}
           </bk-button>

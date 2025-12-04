@@ -335,7 +335,7 @@ export default defineComponent({
               <div>
                 <bk-button
                   theme='primary'
-                  v-cursor={{ active: isAllowedCreate.value === false }}
+                  v-cursor={{ active: !isAllowedCreate.value }}
                   onClick={handleCreateTask}
                   disabled={isLoading.value}
                 >
