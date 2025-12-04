@@ -129,7 +129,7 @@ def get_timestamp_range_by_biz_date(date):
     功能: 解析从浏览器传过来的日期格式字符串, 转成时间戳timestamp格式
     @return tuple(timestamp(unit: s), timestamp(unit: s))
     """
-    start_timestamp = arrow.get(date).replace(tzinfo=timezone.get_current_timezone().zone).timestamp
+    start_timestamp = arrow.get(date).replace(tzinfo=timezone.get_current_timezone().zone).int_timestamp
     end_timestamp = start_timestamp + 86400  # 24 * 3600
     return start_timestamp, end_timestamp
 
@@ -236,20 +236,20 @@ def utc2date(_utc, _format="%Y-%m-%d %H:%M"):
 def get_datetime_range(period, distance, now=None, rounding=True):
     now = now or localtime(timezone.now())
     if period == "minute":
-        begin = arrow.get(now).replace(minutes=-distance)
+        begin = arrow.get(now).shift(minutes=-distance)
         end = arrow.get(now)
         if rounding:
             begin = begin.ceil("minute")
             end = end.ceil("minute")
 
     elif period == "day":
-        begin = arrow.get(now).replace(days=-distance)
+        begin = arrow.get(now).shift(days=-distance)
         end = arrow.get(now)
         if rounding:
             begin = begin.ceil("day")
             end = end.ceil("day")
     elif period == "hour":
-        begin = arrow.get(now).replace(hours=-distance)
+        begin = arrow.get(now).shift(hours=-distance)
         end = arrow.get(now)
         if rounding:
             begin = begin.ceil("hour")
@@ -363,24 +363,24 @@ def parse_time_compare_abbreviation(time_offset: Union[int, str]) -> int:
         else:
             current_time = arrow.now()
             if time_offset[-1] == "M":
-                last_time = current_time.replace(months=-int(float(time_offset[:-1])))
+                last_time = current_time.shift(months=-int(float(time_offset[:-1])))
             else:
-                last_time = current_time.replace(years=-int(float(time_offset[:-1])))
+                last_time = current_time.shift(years=-int(float(time_offset[:-1])))
             time_offset = int((last_time - current_time).total_seconds())
 
     return time_offset
 
 
 def datetime_str_to_datetime(datetime_str, format, time_zone=0):
-    return arrow.get(datetime.datetime.strptime(datetime_str, format)).replace(hours=time_zone).datetime
+    return arrow.get(datetime.datetime.strptime(datetime_str, format)).shift(hours=time_zone).datetime
 
 
 def timestamp_to_tz_datetime(timestamp, offset):
-    return arrow.get(timestamp).replace(hours=offset).datetime
+    return arrow.get(timestamp).shift(hours=offset).datetime
 
 
 def datetime_to_tz_timestamp(datetime, offset):
-    return arrow.get(datetime).replace(hours=-offset).timestamp
+    return arrow.get(datetime).shift(hours=-offset).int_timestamp
 
 
 def datetime2str(date_time: datetime.datetime, format="%Y-%m-%d %H:%M:%S"):

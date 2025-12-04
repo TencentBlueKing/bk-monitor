@@ -99,7 +99,7 @@ class BaseDocument(Document):
         current_time = start_time
         while current_time < end_time:
             index.append(cls.get_read_index_name(index_name, current_time.strftime("%Y%m%d")))
-            current_time = current_time.replace(days=1)
+            current_time = current_time.shift(days=1)
         return index
 
     @classmethod
@@ -111,7 +111,7 @@ class BaseDocument(Document):
 
         # 如果没有提供索引，则根据开始和结束时间去生成索引列表
         if not start_time:
-            start_time = arrow.now().replace(days=-days).floor("day")
+            start_time = arrow.now().shift(days=-days).floor("day")
         else:
             start_time = arrow.get(start_time).floor("day")
         if not end_time:
@@ -130,11 +130,11 @@ class BaseDocument(Document):
         index.extend(cls._format_index_by_day(start_time, start_time.ceil("month")))
 
         # 2. 中间的每一个月遍历一遍，每个月对应一个索引
-        current_time = start_time.floor("month").replace(months=1)
-        current_end_time = end_time.ceil("month").replace(months=-1)
+        current_time = start_time.floor("month").shift(months=1)
+        current_end_time = end_time.ceil("month").shift(months=-1)
         while current_time < current_end_time:
             index.append(cls.get_read_index_name(index_name, f"{current_time.strftime('%Y%m')}*"))
-            current_time = current_time.replace(months=1)
+            current_time = current_time.shift(months=1)
 
         # 3. 将结束月遍历一遍
         index.extend(cls._format_index_by_day(end_time.floor("month"), end_time))

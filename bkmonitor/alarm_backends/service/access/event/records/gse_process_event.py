@@ -104,7 +104,9 @@ class GseProcessEventRecord(GSEBaseAlarmEventRecord):
                     "%Y-%m-%d %H:%M:%S"
                 )
                 if not alarm_time:
-                    alarm_time = datetime.fromtimestamp(arrow.utcnow().timestamp, UTC).strftime("%Y-%m-%d %H:%M:%S")
+                    alarm_time = datetime.fromtimestamp(arrow.utcnow().int_timestamp, UTC).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
                 dimension = data.get("dimension", {})
                 dimension["event_name"] = data.get("event_name")
                 new_alarm = {

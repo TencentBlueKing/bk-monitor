@@ -172,7 +172,7 @@ class AllBizStatisticsResource(CacheResource):
 
     def perform_request(self, validated_request_data):
         days = validated_request_data["days"]
-        end_time = arrow.now().timestamp
+        end_time = arrow.now().int_timestamp
         start_time = end_time - days * 24 * 60 * 60
 
         th_list = [
@@ -689,7 +689,7 @@ class BizWithAlertStatisticsResource(Resource):
         request_username = get_request_username()
         if unauthorized_biz_ids:
             if validated_request_data.get("days"):
-                end_time = arrow.now().timestamp
+                end_time = arrow.now().int_timestamp
                 start_time = end_time - validated_request_data["days"] * 24 * 60 * 60
                 search_object = AlertDocument.search(start_time=start_time, end_time=end_time)
             else:

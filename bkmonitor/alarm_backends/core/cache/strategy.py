@@ -547,12 +547,12 @@ class StrategyCacheManager(CacheManager):
         """
         策略预处理
         """
-        strategy["update_time"] = arrow.get(strategy["update_time"]).timestamp
-        strategy["create_time"] = arrow.get(strategy["create_time"]).timestamp
+        strategy["update_time"] = arrow.get(strategy["update_time"]).int_timestamp
+        strategy["create_time"] = arrow.get(strategy["create_time"]).int_timestamp
 
         for item in strategy["items"]:
             # 补充item的更新时间
-            item["update_time"] = arrow.get(strategy["update_time"]).timestamp
+            item["update_time"] = arrow.get(strategy["update_time"]).int_timestamp
 
             query_config = item["query_configs"][0]
             data_source_label = query_config["data_source_label"]
