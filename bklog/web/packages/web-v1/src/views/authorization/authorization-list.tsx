@@ -1021,7 +1021,7 @@ export default class AuthorizationList extends tsc<object> {
                         {this.angleType === 'approval' ? (
                           <bk-button
                             text
-                            onClick={() => window.open(row.approval_url)}
+                            onClick={() => window.iframeParent.open(row.approval_url)}
                           >
                             {this.$t('查看详情')}
                           </bk-button>

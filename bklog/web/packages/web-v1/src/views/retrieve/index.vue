@@ -1053,7 +1053,7 @@ export default {
     /** 条件新开页 */
     additionLinkOpen(newAdditionList = [], routerParams = {}) {
       const openUrl = this.$refs.searchCompRef.setRouteParams(routerParams, false, newAdditionList);
-      window.open(openUrl, '_blank');
+      window.iframeParent.open(openUrl, '_blank');
     },
 
     /** 批量添加条件 */

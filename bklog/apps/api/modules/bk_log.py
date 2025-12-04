@@ -32,7 +32,7 @@ class _BkLogApi:
 
     @property
     def use_apigw(self):
-        return settings.ENABLE_MULTI_TENANT_MODE
+        return settings.USE_APIGW
 
     def _build_url(self, new_path, old_path):
         return (
@@ -94,8 +94,9 @@ class _BkLogApi:
 
         self.tail = DataAPI(
             method="GET",
-            url=self._build_url("databus_collectors/{collector_config_id}/tail/",
-                                "databus_collectors/{collector_config_id}/tail/"),
+            url=self._build_url(
+                "databus_collectors/{collector_config_id}/tail/", "databus_collectors/{collector_config_id}/tail/"
+            ),
             module=self.MODULE,
             url_keys=["collector_config_id"],
             description=_("获取kafka采样"),

@@ -481,7 +481,7 @@ export default class MaskingSetting extends tsc<IProps> {
         spaceUid: this.spaceUid,
       },
     });
-    window.open(href, '_blank');
+    window.iframeParent.open(href, '_blank');
   }
 
   handleCreateRule() {

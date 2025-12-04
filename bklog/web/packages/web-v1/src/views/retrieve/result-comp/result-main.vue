@@ -218,7 +218,7 @@
             urlArr.push(`${key}=${params[key]}`);
           }
         }
-        window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
+        window.iframeParent.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
       },
       reset() {
         this.newScrollHeight = 0;

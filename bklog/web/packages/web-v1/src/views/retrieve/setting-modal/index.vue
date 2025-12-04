@@ -395,7 +395,7 @@
           scenarioID === 'custom'
             ? `/#/manage/custom-report/detail/${collectorID}?spaceUid=${spaceUid}`
             : `/#/manage/log-collection/collection-item/manage/${collectorID}?spaceUid=${spaceUid}`;
-        window.open(jumpUrl, '_blank');
+        window.iframeParent.open(jumpUrl, '_blank');
       },
       setIsShowExtract(state) {
         this.showCurrentList = this.currentList.filter(item => (state ? true : item.id !== 'extract'));

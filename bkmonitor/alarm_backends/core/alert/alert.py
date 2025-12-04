@@ -735,6 +735,10 @@ class Alert:
             alert.add_dimension(
                 key, event.get_field(key), event.get_tag_display_key(key), event.get_tag_display_value(key)
             )
+        # 如果有 additional_dimensions，则添加到维度中
+        if "additional_dimensions" in event.extra_info:
+            for key, value in event.extra_info["additional_dimensions"].items():
+                alert.add_dimension(key, value)
 
         alert.set_next_status(EventStatus.CLOSED, cls.CLOSE_WINDOW_SIZE)
         alert._refresh_db = True

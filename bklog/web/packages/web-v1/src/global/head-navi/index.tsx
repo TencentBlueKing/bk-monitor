@@ -209,13 +209,13 @@ export default defineComponent({
       const navigateHandlers: Record<string, () => void> = {
         monitor: () => {
           const url = `${(window as any).MONITOR_URL}/?bizId=${bkBizId.value}#/strategy-config`;
-          window.open(url, '_blank');
+          window.iframeParent.open(url, '_blank');
         },
         trace: () => {
           router.push({ name: 'trace-list', query: spaceUidQuery });
         },
         dashboard: () => {
-          window.open(`${window.MONITOR_URL}/?bizId=${bkBizId.value}#/grafana`, '_blank');
+          window.iframeParent.open(`${window.MONITOR_URL}/?bizId=${bkBizId.value}#/grafana`, '_blank');
         },
         default: () => {
           router.push({ name: menu.id, query: spaceUidQuery });
@@ -276,7 +276,7 @@ export default defineComponent({
       } else if (type === 'docCenter') {
         handleGotoLink('docCenter');
       } else if (type === 'feedback') {
-        window.open((window as any).BK_FAQ_URL);
+        window.iframeParent.open((window as any).BK_FAQ_URL);
       }
     }
 
@@ -286,7 +286,7 @@ export default defineComponent({
     function handleGotoLink(type: 'docCenter') {
       if (type === 'docCenter') {
         const url = (window as any).BK_DOC_URL;
-        url && window.open(url);
+        url && window.iframeParent.open(url);
       }
     }
 

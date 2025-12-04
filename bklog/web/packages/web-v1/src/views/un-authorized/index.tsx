@@ -41,7 +41,7 @@ export default defineComponent({
     const handleOpenGuide = () => {
       const docPath = 'markdown/ZH/LogSearch/4.7/UserGuide/QuickStart/guideline_log.md';
       const url = (window as any).BK_DOC_URL.replace(/\/$/, '');
-      url && window.open(`${url}/${docPath}`);
+      url && window.iframeParent.open(`${url}/${docPath}`);
     };
 
     /**
@@ -69,7 +69,7 @@ export default defineComponent({
         },
       });
 
-      window.open(resolver.href, '_self');
+      window.iframeParent.open(resolver.href, '_self');
     };
 
     const exceptionMap = {

@@ -96,7 +96,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     return getNewGroup(0, {});
   };
 
-  const getDateTimeFormatValue = value => {
+  const getDateTimeFormatValue = (value) => {
     // 如果是12位长度的格式，是后端返回的一个特殊格式 yyyyMMddHHmm
     if (`${value}`.length === 12 && /^\d+$/.test(value)) {
       return `${value.substring(0, 4)}-${value.substring(4, 6)}-${value.substring(6, 8)} ${value.substring(8, 10)}:${value.substring(10, 12)}`;
@@ -154,8 +154,8 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
       return {
         categories: categories.map(c => c[1]),
         seriesData: Array.from(
-          seriesDataMap.entries().map(([name, mapValue]) => {
-            return Object.keys(mapValue).map(k => {
+          Array.from(seriesDataMap.entries()).map(([name, mapValue]) => {
+            return Object.keys(mapValue).map((k) => {
               return {
                 name: `${name}-${k}`,
                 type: newType,
@@ -231,7 +231,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
 
   const getTooltipFormatter = () => {
     return {
-      formatter: params => {
+      formatter: (params) => {
         const args = Array.isArray(params) ? params : [params];
         const label = new Set(args.map(p => p.name));
         const content = `<div>${label ? `<span>${[...label].join(',')}</span></br>` : ''}${args
@@ -259,7 +259,7 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     return option;
   };
 
-  const setDefaultOption = t => {
+  const setDefaultOption = (t) => {
     const optionMap = {
       line: getLineDefaultOption,
       bar: getLineBarChartOption,
@@ -280,11 +280,11 @@ export default ({ target, type }: { target: Ref<any>; type: string }) => {
     if (formatDateField) {
       return {
         categories: categories.map(value => getDateTimeFormatValue(value)),
-        seriesData: seriesData.map(item => {
+        seriesData: seriesData.map((item) => {
           const data = item.data;
           return {
             ...item,
-            data: data.map(d => {
+            data: data.map((d) => {
               d[0] = getDateTimeFormatValue(d[0]);
               return d;
             }),

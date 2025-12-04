@@ -267,7 +267,7 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                     # 更新集群信息
                     is_updated = False
                     for field, value in update_fields.items():
-                        if getattr(cluster, field) != value:
+                        if value is not None and getattr(cluster, field) != value:
                             setattr(cluster, field, value)
                             is_updated = True
 
@@ -289,8 +289,8 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                         display_name=cluster_name,
                         domain_name=domain_name,
                         port=port,
-                        username=username,
-                        password=password,
+                        username=username or "",
+                        password=password or "",
                         is_default_cluster=False,
                         default_settings=default_settings,
                         registered_system=models.ClusterInfo.BKDATA_REGISTERED_SYSTEM,

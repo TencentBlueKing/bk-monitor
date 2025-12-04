@@ -176,7 +176,7 @@ class _MonitorApi:
 
     @property
     def use_apigw(self):
-        return settings.USE_NEW_MONITOR_APIGATEWAY or settings.ENABLE_MULTI_TENANT_MODE
+        return settings.USE_NEW_MONITOR_APIGATEWAY or settings.USE_APIGW
 
     def _build_url(self, new_path, old_path):
         return (

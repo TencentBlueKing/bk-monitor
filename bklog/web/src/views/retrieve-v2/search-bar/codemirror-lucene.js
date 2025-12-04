@@ -90,12 +90,20 @@ export default ({ target,
           key: 'Enter',
           mac: 'Enter',
           run: (view) => {
+            // 检查是否正在输入法组合过程中
+            if (isComposing || view.dom.getAttribute('data-composing') === 'true') {
+              return false;
+            }
             return onKeyEnter?.(view) ?? false;
           },
         }, {
           key: 'Ctrl-Enter',
           mac: 'Cmd-Enter',
           run: (view) => {
+            // Ctrl+Enter 通常不受输入法影响，但为了安全也检查一下
+            if (isComposing || view.dom.getAttribute('data-composing') === 'true') {
+              return false;
+            }
             return onCtrlEnter?.(view) ?? false;
           },
         },
@@ -124,6 +132,21 @@ export default ({ target,
     state,
     parent: target,
   });
+
+  // 添加输入法组合事件监听
+  let isComposing = false;
+  const handleCompositionStart = () => {
+    isComposing = true;
+    view.dom.setAttribute('data-composing', 'true');
+  };
+  const handleCompositionEnd = () => {
+    isComposing = false;
+    view.dom.removeAttribute('data-composing');
+  };
+
+  // 在编辑器的 DOM 上添加 composition 事件监听
+  view.dom.addEventListener('compositionstart', handleCompositionStart);
+  view.dom.addEventListener('compositionend', handleCompositionEnd);
 
   const appendText = (value) => {
     view.dispatch({
@@ -202,6 +225,14 @@ export default ({ target,
     return view.state.doc.toString() ?? '*';
   };
 
+  const destroy = () => {
+    // 清理 composition 事件监听器
+    view.dom.removeEventListener('compositionstart', handleCompositionStart);
+    view.dom.removeEventListener('compositionend', handleCompositionEnd);
+    // 销毁编辑器视图
+    view.destroy();
+  };
+
   return {
     state,
     view,
@@ -209,5 +240,6 @@ export default ({ target,
     setValue,
     setFocus,
     getValue,
+    destroy,
   };
 };

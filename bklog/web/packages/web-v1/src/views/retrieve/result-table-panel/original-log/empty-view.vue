@@ -228,14 +228,14 @@
                   spaceUid: this.$store.state.spaceUid,
                 },
               });
-              window.open(href, '_blank');
+              window.iframeParent.open(href, '_blank');
             }
             break;
           case 'goToConfig':
             {
               // 前往配置
               const jumpUrl = `${baseUrl}#/manage/log-collection/collection-item?spaceUid=${this.spaceUid}`;
-              window.open(jumpUrl, '_blank');
+              window.iframeParent.open(jumpUrl, '_blank');
             }
             break;
           case 'clickToQuery': // 点击查询

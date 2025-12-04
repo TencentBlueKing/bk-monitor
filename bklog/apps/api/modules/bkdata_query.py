@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
@@ -32,7 +32,7 @@ class _BkDataQueryApi:
 
     @property
     def use_apigw(self):
-        return settings.ENABLE_MULTI_TENANT_MODE
+        return settings.USE_APIGW
 
     def _build_url(self, new_path, old_path):
         return (
@@ -40,7 +40,7 @@ class _BkDataQueryApi:
             if self.use_apigw
             else f"{DATAQUERY_APIGATEWAY_ROOT}{old_path}"
         )
-    
+
     def __init__(self):
         self.query = DataAPI(
             url=self._build_url("query_sync/", "query_sync/"),

@@ -449,7 +449,7 @@ export default class MaskingAddRule extends tsc<IProps> {
         spaceUid: this.$store.state.spaceUid,
       },
     });
-    window.open(href, '_blank');
+    window.iframeParent.open(href, '_blank');
   }
 
   handleChangeCoverNumber() {

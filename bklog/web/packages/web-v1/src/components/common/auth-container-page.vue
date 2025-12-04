@@ -107,7 +107,7 @@
     },
     methods: {
       confirmPageApply() {
-        window.open(this.info.apply_url);
+        window.iframeParent.open(this.info.apply_url);
       },
       getResource(related) {
         if (!Array.isArray(related)) return [];

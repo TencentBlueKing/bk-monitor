@@ -420,13 +420,12 @@ class BaseActionProcessor:
 
         return self.business_rule_validate(outputs, success_rule)
 
-    @staticmethod
-    def business_rule_validate(params, rule):
-        """ "
+    def business_rule_validate(self, params, rule):
+        """
         条件判断
         """
 
-        logger.info("business rule validate params %s, rule %s", params, rule)
+        logger.info("[action(%s)] business rule validate params %s, rule %s", self.action.id, params, rule)
 
         if rule["method"] == "equal":
             return jmespath.search(rule["key"], params) == rule["value"]

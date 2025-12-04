@@ -43,10 +43,7 @@ import { renderHeader, xssFilter } from './common/util';
 import './directives/index';
 import JsonFormatWrapper from './global/json-format-wrapper.vue';
 import methods from './plugins/methods';
-import preload, {
-  getAllSpaceList,
-  getExternalMenuListBySpace,
-} from './preload';
+import preload, { getAllSpaceList, getExternalMenuListBySpace } from './preload';
 import getRouter from './router';
 import store from './store';
 
@@ -105,9 +102,11 @@ const mountedVueInstance = () => {
     const router = getRouter(spaceUid, bkBizId, externalMenu);
     setRouterErrorHandle(router);
 
-    store.dispatch('requestMenuList', spaceUid).catch((e) => {
-      console.error('获取菜单列表失败', e);
-    })
+    store
+      .dispatch('requestMenuList', spaceUid)
+      .catch((e) => {
+        console.error('获取菜单列表失败', e);
+      })
       .finally(() => {
         const menuList = store.state.topMenu ?? [];
         menuList
@@ -145,7 +144,7 @@ const mountedVueInstance = () => {
             App,
           },
           created() {
-            if (!space) {
+            if (!space && this.$route.name !== 'share') {
               this.$router.push({
                 path: '/un-authorized',
                 query: {
@@ -185,9 +184,7 @@ if (process.env.NODE_ENV === 'development') {
       window[key] = data[key];
     });
     window.FEATURE_TOGGLE = JSON.parse(data.FEATURE_TOGGLE);
-    window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(
-      data.FEATURE_TOGGLE_WHITE_LIST,
-    );
+    window.FEATURE_TOGGLE_WHITE_LIST = JSON.parse(data.FEATURE_TOGGLE_WHITE_LIST);
     window.SPACE_UID_WHITE_LIST = JSON.parse(data.SPACE_UID_WHITE_LIST);
     window.FIELD_ANALYSIS_CONFIG = JSON.parse(data.FIELD_ANALYSIS_CONFIG);
     mountedVueInstance();

@@ -347,14 +347,22 @@ class DataSource(models.Model):
         # data list 在consul中的作用被废弃，不再使用
         pass
 
-    def register_to_bkbase(self, bk_biz_id: int, namespace: str = "bkmonitor"):
+    def register_to_bkbase(self, bk_biz_id: int, namespace: str = "bkmonitor", bkbase_data_name: str = ""):
         """
         将当前data_id注册到计算平台
+
+        Args:
+            bk_biz_id: 业务ID
+            namespace: 命名空间
+            bkbase_data_name: 指定计算平台数据源名称，如果为空，则使用数据源名称自动生成
         """
 
         from metadata.models.data_link import DataIdConfig, utils
 
-        bkbase_data_name = utils.compose_bkdata_data_id_name(self.data_name)
+        # 如果未指定计算平台数据源名称，则使用数据源名称自动生成
+        if not bkbase_data_name:
+            bkbase_data_name = utils.compose_bkdata_data_id_name(self.data_name)
+
         logger.info("register_to_bkbase: bkbase_data_name: %s", bkbase_data_name)
         data_id_config_ins, _ = DataIdConfig.objects.get_or_create(
             name=bkbase_data_name, namespace=namespace, bk_biz_id=bk_biz_id, bk_tenant_id=self.bk_tenant_id

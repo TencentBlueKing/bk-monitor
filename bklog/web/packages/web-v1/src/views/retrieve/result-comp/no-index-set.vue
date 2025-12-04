@@ -101,7 +101,7 @@
             },
           });
         } else {
-          window.open(window.BKDATA_URL);
+          window.iframeParent.open(window.BKDATA_URL);
         }
       },
     },

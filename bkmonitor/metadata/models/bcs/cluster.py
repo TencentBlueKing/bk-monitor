@@ -501,6 +501,20 @@ class BCSClusterInfo(models.Model):
             "k8s_event_data_id": self.K8sEventDataID,
         }
 
+    def to_json_for_user(self):
+        """
+        返回必要信息
+        """
+        return {
+            "cluster_id": self.cluster_id,
+            "bk_tenant_id": self.bk_tenant_id,
+            "bk_biz_id": self.bk_biz_id,
+            "status": self.status,
+            "K8sMetricDataID": self.K8sMetricDataID,
+            "CustomMetricDataID": self.CustomMetricDataID,
+            "K8sEventDataID": self.K8sEventDataID,
+        }
+
 
 class BcsFederalClusterInfo(common.BaseModelWithTime):
     fed_cluster_id = models.CharField("代理集群 ID", max_length=32)

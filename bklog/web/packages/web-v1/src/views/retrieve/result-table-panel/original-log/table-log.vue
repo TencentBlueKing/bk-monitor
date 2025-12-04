@@ -192,7 +192,7 @@
             query: queryData,
           })
           .then(res => {
-            window.open(res.data);
+            window.iframeParent.open(res.data);
           })
           .catch(e => {
             console.warn(e);

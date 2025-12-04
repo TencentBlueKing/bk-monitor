@@ -655,8 +655,15 @@ class AlertDetailResource(Resource):
         topo_info = result["extend_info"].get("topo_info", "")
         result["relation_info"] = f"{topo_info} {relation_info}"
         self.add_project_name(result)
-
+        self.add_graph_extra_info(alert, result)
         return result
+
+    @classmethod
+    def add_graph_extra_info(cls, alert, data):
+        """
+        丰富图表额外信息(v2版本接口hook)
+        """
+        return data
 
     @classmethod
     def add_project_name(cls, data):

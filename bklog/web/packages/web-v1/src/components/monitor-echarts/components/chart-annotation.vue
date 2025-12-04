@@ -84,15 +84,15 @@
     handleGotoDetail(item: IAnnotationListItem) {
       switch (item.id) {
         case 'ip':
-          window.open(location.href.replace(location.hash, `#/performance/detail/${item.value}`));
+          window.iframeParent.open(location.href.replace(location.hash, `#/performance/detail/${item.value}`));
           break;
         case 'process':
-          window.open(
+          window.iframeParent.open(
             location.href.replace(location.hash, `#/performance/detail-new/${item.value.id}/${item.value.processId}`),
           );
           break;
         case 'strategy':
-          window.open(location.href.replace(location.hash, `#/strategy-config?metricId=${item.value}`));
+          window.iframeParent.open(location.href.replace(location.hash, `#/strategy-config?metricId=${item.value}`));
           break;
       }
     }

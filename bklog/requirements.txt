@@ -132,5 +132,7 @@ jieba-fast==0.53
 aidev-agent==1.0.3
 langfuse==2.60.5
 
+python-magic==0.4.27
+
 # 各自环境所需的不同依赖, 通过 sites/${env}/deploy/requirements_env.txt得到
 -r requirements_env.txt

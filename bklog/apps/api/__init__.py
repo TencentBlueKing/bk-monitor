@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -31,7 +30,7 @@ from django.utils.module_loading import import_string  # noqa
 
 
 def new_api_module(module_name, api_name, module_dir="modules"):
-    mod = "apps.api.{modules}.{mod}.{api}".format(modules=module_dir, mod=module_name, api=api_name)
+    mod = f"apps.api.{module_dir}.{module_name}.{api_name}"
     return import_string(mod)()
 
 
@@ -93,6 +92,9 @@ BkDataAIOPSApi = SimpleLazyObject(lambda: new_api_module("bkdata_aiops", "_BkDat
 # dataflow
 BkDataDataFlowApi = SimpleLazyObject(lambda: new_api_module("bkdata_dataflow", "_BkDataDataFlowApi"))
 
+# TGPA Task
+TGPATaskApi = SimpleLazyObject(lambda: new_api_module("tgpa_task", "_TGPATaskApi"))
+
 __all__ = [
     "BKLoginApi",
     "BKPAASApi",
@@ -120,7 +122,8 @@ __all__ = [
     "BkDataAIOPSApi",
     "BkDataDataFlowApi",
     "WeWorkApi",
-    "UnifyQueryApi"
+    "UnifyQueryApi",
+    "TGPATaskApi",
 ]
 
 

@@ -129,6 +129,11 @@ class BCSBase(models.Model):
     unique_hash = models.CharField(max_length=32, null=True, unique=True)
 
     @classmethod
+    def get_instance(cls, **params):
+        """获取实例 ."""
+        return cls.objects.filter(**params).first()
+
+    @classmethod
     def get_resource_usage_columns(cls):
         return [
             {

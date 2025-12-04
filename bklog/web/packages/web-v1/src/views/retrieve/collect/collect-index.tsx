@@ -298,7 +298,7 @@ export default class CollectIndex extends tsc<IProps> {
           }
           shareUrl = `${window.location.origin + shareUrl}${this.$router.resolve(routeData).href}`;
           if (type === 'new-link') {
-            window.open(shareUrl, '_blank');
+            window.iframeParent.open(shareUrl, '_blank');
           } else {
             copyMessage(shareUrl, this.$t('复制成功'));
           }
