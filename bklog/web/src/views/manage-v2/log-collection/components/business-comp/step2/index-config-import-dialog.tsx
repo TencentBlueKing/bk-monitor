@@ -572,6 +572,7 @@ export default defineComponent({
             theme='primary'
             class='mr-8'
             on-click={handleSave}
+            loading={submitLoading.value}
             disabled={!currentCheckImportID.value}
           >
             {t('确定')}
