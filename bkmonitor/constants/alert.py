@@ -113,7 +113,7 @@ IGNORED_TAGS = (
     NO_DATA_TAG_DIMENSION,
 )
 
-TARGET_DIMENSIONS = [
+CMDB_TARGET_DIMENSIONS = [
     "bk_target_ip",
     "bk_target_cloud_id",
     "bk_target_service_instance_id",
@@ -205,6 +205,7 @@ class AlertRedirectType(CachedEnum):
     LOG_SEARCH = "log_search"
     APM_RPC = "apm_rpc"
     APM_TRACE = "apm_trace"
+    APM_QUERY = "apm_query"
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
@@ -219,5 +220,7 @@ class AlertRedirectType(CachedEnum):
                 self.LOG_SEARCH: _("日志检索"),
                 self.APM_RPC: _("调用分析"),
                 self.APM_TRACE: _("Tracing 检索"),
+                # APM 自定义指标检索
+                self.APM_QUERY: _("指标检索"),
             }.get(self, self.value)
         )

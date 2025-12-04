@@ -183,6 +183,18 @@ class CreateOrUpdateTimeSeriesMetricViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateTimeSeriesMetricResource)]
 
 
+class CreateOrUpdateTimeSeriesScopeViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CreateOrUpdateTimeSeriesScopeResource)]
+
+
+class DeleteTimeSeriesScopeViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.DeleteTimeSeriesScopeResource)]
+
+
+class QueryTimeSeriesScopeViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.QueryTimeSeriesScopeResource)]
+
+
 class QueryTagValuesViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryTagValuesResource)]
 
@@ -209,6 +221,10 @@ class ListBCSResourceInfoViewSet(MetaViewSet):
 
 class ListBCSClusterInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.ListBCSClusterInfoResource)]
+
+
+class ListBCSClusterInfoByBizViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.ListBCSClusterInfoByBizResource)]
 
 
 class ApplyYamlToBCSClusterViewSet(MetaViewSet):
@@ -484,6 +500,10 @@ class CreateOrUpdateLogRouterViewSet(MetaViewSet):
 
 class BulkCreateOrUpdateLogRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.BulkCreateOrUpdateLogRouter)]
+
+
+class CleanLogRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CleanLogRouter)]
 
 
 class ModifyDataIdSourceViewSet(MetaViewSet):

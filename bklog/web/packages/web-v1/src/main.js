@@ -60,8 +60,6 @@ import { BK_LOG_STORAGE } from './store/store.type.ts';
 import { urlArgs } from './store/default-values.ts';
 import { iframeMessageHandler } from './iframe.message.ts';
 
-// import { localSettings } from './local.po';
-
 Vue.prototype.$renderHeader = renderHeader;
 Vue.prototype.$xss = xssFilter;
 
@@ -211,3 +209,5 @@ window.ResizeObserver = class ResizeObserver extends BaseResizeObserver {
 window.$t = function (key, params) {
   return i18n.t(key, params);
 };
+
+window.iframeParent = window.top;

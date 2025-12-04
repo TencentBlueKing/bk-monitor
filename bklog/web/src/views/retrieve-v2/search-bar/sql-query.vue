@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted, computed, onBeforeUnmount } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import { debounce } from 'lodash-es';
@@ -16,7 +16,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['retrieve', 'input', 'change', 'height-change', 'popup-change']);
+const emit = defineEmits(['retrieve', 'input', 'change', 'height-change', 'popup-change', 'text-to-query']);
 const handleHeightChange = (height) => {
   emit('height-change', height);
 };
@@ -50,8 +50,9 @@ const setEditorContext = (val, from = 0, to = Infinity) => {
    * @param item
    */
 const formatModelValueItem = (item) => {
-  setEditorContext(item, 0, Infinity);
-  return item;
+  const val = item === '*' ? '' : item;
+  setEditorContext(val, 0, Infinity);
+  return val;
 };
 
 /**
@@ -122,7 +123,7 @@ const onEditorContextChange = (doc) => {
 };
 
 const isEmptySqlString = computed(() => {
-  return /^\s*$/.test(modelValue.value) || !modelValue.value.length;
+  return props.value === '*' || (/^\s*$/.test(modelValue.value) || !modelValue.value.length);
 });
 
 const debounceRetrieve = debounce((value) => {
@@ -213,6 +214,13 @@ const createEditorInstance = () => {
       closeAndRetrieve();
       return true;
     },
+    onCtrlEnter: () => {
+      if ((getTippyInstance()?.state?.isShown ?? false) && modelValue.value.length) {
+        return true;
+      }
+
+      return false;
+    },
     onFocusChange: (state, isFocusing) => {
       if (isFocusing) {
         if (!(getTippyInstance()?.state?.isShown ?? false)) {
@@ -230,6 +238,16 @@ const createEditorInstance = () => {
 const handleCustomPlaceholderClick = () => {
 };
 
+/**
+ * @description 处理自然语言转查询语句
+ * @param value {string}
+ * @returns {void}
+ */
+const handleTextToQuery = (value) => {
+  emit('text-to-query', value ?? modelValue.value);
+  hideTippyInstance();
+};
+
 onMounted(() => {
   createEditorInstance();
   document.addEventListener('click', handleDocumentClick);
@@ -237,6 +255,11 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick);
+  // 清理编辑器实例
+  if (editorInstance?.destroy) {
+    editorInstance.destroy();
+    editorInstance = null;
+  }
 });
 </script>
 <template>
@@ -272,6 +295,7 @@ onBeforeUnmount(() => {
         @cancel="handleCancel"
         @change="handleQueryChange"
         @retrieve="closeAndRetrieve"
+        @text-to-query="handleTextToQuery"
       />
     </div>
   </div>

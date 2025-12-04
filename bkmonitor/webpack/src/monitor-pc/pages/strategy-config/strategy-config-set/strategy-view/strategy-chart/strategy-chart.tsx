@@ -447,7 +447,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
                     return '_index'; // 此类情况field固定为_index
                   }
                   if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
-                    return metricField;
+                    return custom_event_name ? CustomEventMetricAll : metricField;
                   }
                   return metricField || bkmonitorStrategyId;
                 };

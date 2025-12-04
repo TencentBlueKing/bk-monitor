@@ -54,10 +54,10 @@ from metadata.models.bcs import (
 )
 from metadata.models.constants import (
     DT_TIME_STAMP_NANO,
-    NANO_FORMAT,
-    DataIdCreatedFromSystem,
-    STRICT_NANO_ES_FORMAT,
     EPOCH_MILLIS_FORMAT,
+    NANO_FORMAT,
+    STRICT_NANO_ES_FORMAT,
+    DataIdCreatedFromSystem,
 )
 from metadata.models.data_link.utils import (
     get_bkbase_raw_data_name_for_v3_datalink,
@@ -116,7 +116,7 @@ class CreateDataIDResource(Resource):
         transfer_cluster_id = serializers.CharField(required=False, label="transfer集群ID")
         space_uid = serializers.CharField(label="空间英文名称", required=False, default="")
         authorized_spaces = serializers.JSONField(required=False, label="授权使用的空间 ID 列表", default=[])
-        is_platform_data_id = serializers.CharField(required=False, label="是否为平台级 ID", default=False)
+        is_platform_data_id = serializers.BooleanField(required=False, label="是否为平台级 ID", default=False)
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=SpaceTypes.ALL.value)
 
     def perform_request(self, validated_request_data):
@@ -680,7 +680,7 @@ class ModifyDataSource(Resource):
         data_description = serializers.CharField(required=False, label="数据源描述", default=None)
         option = serializers.DictField(required=False, label="数据源配置项")
         is_enable = serializers.BooleanField(required=False, label="是否启用数据源", default=None)
-        is_platform_data_id = serializers.CharField(required=False, label="是否为平台级 ID", default=None)
+        is_platform_data_id = serializers.BooleanField(required=False, label="是否为平台级 ID", default=None)
         authorized_spaces = serializers.JSONField(required=False, label="授权使用的空间 ID 列表", default=None)
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=None)
         etl_config = serializers.CharField(required=False, label="清洗模板配置")
@@ -936,186 +936,6 @@ class GetResultTableStorageResult(Resource):
 
         # 返回
         return result
-
-
-class CreateClusterInfoResource(Resource):
-    """创建存储集群资源"""
-
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
-        cluster_name = serializers.CharField(required=True, label="集群名")
-        cluster_type = serializers.CharField(required=True, label="集群类型")
-        domain_name = serializers.CharField(required=True, label="集群域名")
-        port = serializers.IntegerField(required=True, label="集群端口")
-        description = serializers.CharField(required=False, label="集群描述数据", default="", allow_blank=True)
-        auth_info = serializers.JSONField(required=False, label="身份认证信息", default={})
-        version = serializers.CharField(required=False, label="版本信息", default="")
-        custom_option = serializers.CharField(required=False, label="自定义标签", default="")
-        schema = serializers.CharField(required=False, label="链接协议", default="")
-        is_ssl_verify = serializers.BooleanField(required=False, label="是否需要SSL验证", default=False)
-        ssl_verification_mode = serializers.CharField(required=False, label="校验模式", default="")
-        ssl_certificate_authorities = serializers.CharField(required=False, label="CA 证书内容", default="")
-        ssl_certificate = serializers.CharField(required=False, label="SSL/TLS 证书内容", default="")
-        ssl_certificate_key = serializers.CharField(required=False, label="SSL/TLS 私钥内容", default="")
-        ssl_insecure_skip_verify = serializers.BooleanField(required=False, label="是否跳过服务端校验", default=False)
-        extranet_domain_name = serializers.CharField(required=False, label="外网集群域名", default="")
-        extranet_port = serializers.IntegerField(required=False, label="外网集群端口", default=0)
-        operator = serializers.CharField(required=True, label="操作者")
-
-    def perform_request(self, validated_request_data):
-        # 获取请求来源系统
-        request = get_request()
-        bk_app_code = get_app_code_by_request(request)
-        validated_request_data["registered_system"] = bk_app_code
-
-        # 获取配置的用户名和密码
-        auth_info = validated_request_data.pop("auth_info", {})
-        # NOTE: 因为模型中字段没有设置允许为 null，所以不能赋值 None
-        validated_request_data["username"] = auth_info.get("username", "")
-        validated_request_data["password"] = auth_info.get("password", "")
-
-        cluster = models.ClusterInfo.create_cluster(**validated_request_data)
-        return cluster.cluster_id
-
-
-class ModifyClusterInfoResource(Resource):
-    """修改存储集群信息"""
-
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
-        cluster_id = serializers.IntegerField(required=False, label="存储集群ID", default=None)
-        cluster_name = serializers.CharField(required=False, label="存储集群名", default=None)
-        description = serializers.CharField(required=False, label="存储集群描述", default=None, allow_blank=True)
-        auth_info = serializers.JSONField(required=False, label="身份认证信息", default={})
-        custom_option = serializers.CharField(required=False, label="集群自定义标签", default=None)
-        schema = serializers.CharField(required=False, label="集群链接协议", default=None)
-        is_ssl_verify = serializers.BooleanField(required=False, label="是否需要强制SSL/TLS认证", default=None)
-        ssl_verification_mode = serializers.CharField(required=False, label="校验模式", default=None)
-        ssl_certificate_authorities = serializers.CharField(required=False, label="CA 证书内容", default=None)
-        ssl_certificate = serializers.CharField(required=False, label="SSL/TLS 证书内容", default=None)
-        ssl_certificate_key = serializers.CharField(required=False, label="SSL/TLS 私钥内容", default=None)
-        ssl_insecure_skip_verify = serializers.BooleanField(required=False, label="是否跳过服务端校验", default=None)
-        extranet_domain_name = serializers.CharField(required=False, label="外网集群域名", default=None)
-        extranet_port = serializers.IntegerField(required=False, label="外网集群端口", default=None)
-        operator = serializers.CharField(required=True, label="操作者")
-
-    def perform_request(self, validated_request_data):
-        request = get_request()
-        bk_app_code = get_app_code_by_request(request)
-        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
-
-        # 1. 判断是否存在cluster_id或者cluster_name
-        cluster_id = validated_request_data.pop("cluster_id")
-        cluster_name = validated_request_data.pop("cluster_name")
-
-        if cluster_id is None and cluster_name is None:
-            raise ValueError(_("需要至少提供集群ID或集群名"))
-
-        # 2. 判断是否可以拿到一个唯一的cluster_info
-        query_dict = {"cluster_id": cluster_id} if cluster_id is not None else {"cluster_name": cluster_name}
-        try:
-            cluster_info = models.ClusterInfo.objects.get(
-                bk_tenant_id=bk_tenant_id,
-                registered_system__in=[bk_app_code, models.ClusterInfo.DEFAULT_REGISTERED_SYSTEM],
-                **query_dict,
-            )
-        except models.ClusterInfo.DoesNotExist:
-            raise ValueError(_("找不到指定的集群配置，请确认后重试"))
-
-        # 3. 判断获取是否需要修改用户名和密码
-        auth_info = validated_request_data.pop("auth_info", {})
-        # NOTE: 因为模型中字段没有设置允许为 null，所以不能赋值 None
-        validated_request_data["username"] = auth_info.get("username", "")
-        validated_request_data["password"] = auth_info.get("password", "")
-
-        # 4. 触发修改内容
-        cluster_info.modify(**validated_request_data)
-        return cluster_info.consul_config
-
-
-class DeleteClusterInfoResource(Resource):
-    """删除存储集群信息"""
-
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
-        cluster_id = serializers.IntegerField(required=False, label="存储集群ID", default=None)
-        cluster_name = serializers.CharField(required=False, label="存储集群名", default=None)
-
-    def perform_request(self, validated_request_data):
-        request = get_request()
-        bk_app_code = get_app_code_by_request(request)
-
-        #  判断是否存在cluster_id或者cluster_name
-        cluster_id = validated_request_data.pop("cluster_id")
-        cluster_name = validated_request_data.pop("cluster_name")
-
-        if cluster_id is None and cluster_name is None:
-            raise ValueError(_("需要至少提供集群ID或集群名"))
-
-        #  判断是否可以拿到一个唯一的cluster_info
-        query_dict = {"cluster_id": cluster_id} if cluster_id is not None else {"cluster_name": cluster_name}
-        try:
-            cluster_info = models.ClusterInfo.objects.get(
-                bk_tenant_id=validated_request_data["bk_tenant_id"], registered_system=bk_app_code, **query_dict
-            )
-        except models.ClusterInfo.DoesNotExist:
-            raise ValueError(_("找不到指定的集群配置，请确认后重试"))
-
-        cluster_info.delete()
-
-
-class QueryClusterInfoResource(Resource):
-    class RequestSerializer(serializers.Serializer):
-        bk_tenant_id = TenantIdField(label="租户ID")
-        cluster_id = serializers.IntegerField(required=False, label="存储集群ID", default=None)
-        cluster_name = serializers.CharField(required=False, label="存储集群名", default=None)
-        cluster_type = serializers.CharField(required=False, label="存储集群类型", default=None)
-        is_plain_text = serializers.BooleanField(required=False, label="是否需要明文显示登陆信息", default=False)
-
-    def perform_request(self, validated_request_data):
-        query_dict = {}
-        if validated_request_data["cluster_id"] is not None:
-            query_dict = {"cluster_id": validated_request_data["cluster_id"]}
-
-        elif validated_request_data["cluster_name"] is not None:
-            query_dict = {"cluster_name": validated_request_data["cluster_name"]}
-
-        if validated_request_data["cluster_type"] is not None:
-            query_dict["cluster_type"] = validated_request_data["cluster_type"]
-
-        query_result = models.ClusterInfo.objects.filter(
-            bk_tenant_id=validated_request_data["bk_tenant_id"], **query_dict
-        )
-
-        result_list = []
-        is_plain_text = validated_request_data["is_plain_text"]
-
-        for cluster_info in query_result:
-            cluster_consul_config = cluster_info.consul_config
-
-            # 如果不是明文的方式，需要进行base64编码
-            if not is_plain_text:
-                cluster_consul_config["auth_info"] = base64.b64encode(
-                    json.dumps(cluster_consul_config["auth_info"]).encode("utf-8")
-                )
-                cluster_config = cluster_consul_config["cluster_config"]
-                # 添加证书相关处理
-                if cluster_config["raw_ssl_certificate_authorities"]:
-                    cluster_consul_config["cluster_config"]["raw_ssl_certificate_authorities"] = base64.b64encode(
-                        cluster_config["raw_ssl_certificate_authorities"].encode("utf-8")
-                    )
-                if cluster_config["raw_ssl_certificate"]:
-                    cluster_consul_config["cluster_config"]["raw_ssl_certificate"] = base64.b64encode(
-                        cluster_config["raw_ssl_certificate"].encode("utf-8")
-                    )
-                if cluster_config["raw_ssl_certificate_key"]:
-                    cluster_consul_config["cluster_config"]["raw_ssl_certificate_key"] = base64.b64encode(
-                        cluster_config["raw_ssl_certificate_key"].encode("utf-8")
-                    )
-
-            result_list.append(cluster_consul_config)
-
-        return result_list
 
 
 class QueryEventGroupResource(Resource):
@@ -1625,6 +1445,298 @@ class CreateOrUpdateTimeSeriesMetricResource(Resource):
         models.TimeSeriesMetric.batch_create_or_update(metrics, bk_tenant_id)
 
 
+class CreateOrUpdateTimeSeriesScopeResource(Resource):
+    """
+    批量创建或更新自定义时序指标分组
+    如果指标分组已存在则更新，不存在则创建
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+
+        class ScopeSerializer(serializers.Serializer):
+            scope_id = serializers.IntegerField(required=False, label="指标分组ID")
+            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+            service_name = serializers.CharField(
+                required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
+            )
+            scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255)
+            dimension_config = serializers.DictField(required=False, allow_null=True, label="分组下的维度配置")
+            manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
+            auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
+            # 是否删除不再匹配 manual_list 和 auto_rules 的 dimension_config
+            # 对于导入分组场景来说，这个字段应该为 False，否则可能由于无法匹配而导入失败
+            delete_unmatched_dimensions = serializers.BooleanField(
+                required=False, default=False, label="是否删除不再匹配的维度配置（仅更新时生效）"
+            )
+
+        scopes = serializers.ListField(
+            required=True, child=ScopeSerializer(), label="批量创建或更新的分组列表", min_length=1
+        )
+
+    def perform_request(self, validated_request_data):
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        scopes = validated_request_data["scopes"]
+
+        # 使用统一的事务方法批量创建或更新
+        results = models.TimeSeriesScope.bulk_create_or_update_scopes(
+            bk_tenant_id=bk_tenant_id,
+            scopes=scopes,
+        )
+
+        return results
+
+
+class DeleteTimeSeriesScopeResource(Resource):
+    """
+    批量删除自定义时序指标分组
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+
+        class ScopeSerializer(serializers.Serializer):
+            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+            scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+            service_name = serializers.CharField(
+                required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
+            )
+
+        scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量删除的分组列表", min_length=1)
+
+    def perform_request(self, validated_request_data):
+        models.TimeSeriesScope.bulk_delete_scopes(
+            bk_tenant_id=validated_request_data.pop("bk_tenant_id"),
+            scopes=validated_request_data["scopes"],
+        )
+
+
+class QueryTimeSeriesScopeResource(Resource):
+    """
+    查询自定义时序指标分组列表
+
+    支持通过 group_id 和 scope_name 进行模糊匹配查询，返回列表结果
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
+        service_name = serializers.CharField(
+            required=False, label="服务名（APM场景使用，约定必须传递）", max_length=255, allow_blank=True
+        )
+        scope_name = serializers.CharField(required=False, label="指标分组名", allow_blank=True)
+
+    def perform_request(self, validated_request_data):
+        from metadata.models.custom_report.time_series import TimeSeriesMetric
+
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        group_id = validated_request_data.get("group_id")
+        scope_name = validated_request_data.get("scope_name")
+        service_name = validated_request_data.get("service_name")
+
+        # 构建用于查询未分组指标的 scope_name
+        # 如果有 service_name，使用 {service_name}||default；否则使用 default
+        if service_name:
+            ungrouped_scope_name = f"{service_name}||{TimeSeriesMetric.DEFAULT_SCOPE}"
+        else:
+            ungrouped_scope_name = TimeSeriesMetric.DEFAULT_SCOPE
+
+        # 判断查询类型
+        is_query_only_ungrouped = scope_name == ""  # 仅查询未分组
+        is_include_ungrouped = scope_name is None  # 包含未分组
+
+        # 验证 group_id 的有效性（如果提供）
+        if group_id is not None:
+            self._validate_group_id(group_id, bk_tenant_id)
+
+        # 场景1：仅查询未分组指标
+        if is_query_only_ungrouped:
+            group_ids = self._get_target_group_ids(group_id, bk_tenant_id)
+            return self._build_ungrouped_results(group_ids, ungrouped_scope_name)
+
+        # 场景2：查询已分组指标
+        query_set = self._build_scope_queryset(group_id, scope_name, bk_tenant_id, service_name)
+        results = self._build_grouped_results(query_set)
+
+        # 场景3：追加未分组指标（当 scope_name 为 None 时）
+        if is_include_ungrouped:
+            group_ids = self._get_target_group_ids(group_id, bk_tenant_id)
+            results.extend(self._build_ungrouped_results(group_ids, ungrouped_scope_name))
+
+        return results
+
+    @staticmethod
+    def _validate_group_id(group_id, bk_tenant_id):
+        """验证 group_id 是否存在且属于当前租户"""
+        if not models.TimeSeriesGroup.objects.filter(
+            time_series_group_id=group_id, bk_tenant_id=bk_tenant_id, is_delete=False
+        ).exists():
+            raise ValueError(_("自定义时序分组不存在，请确认后重试"))
+
+    @staticmethod
+    def _get_target_group_ids(group_id, bk_tenant_id):
+        """获取目标 group_id 列表"""
+        if group_id is not None:
+            return [group_id]
+        return list(
+            models.TimeSeriesGroup.objects.filter(bk_tenant_id=bk_tenant_id, is_delete=False).values_list(
+                "time_series_group_id", flat=True
+            )
+        )
+
+    @staticmethod
+    def _build_scope_queryset(group_id, scope_name, bk_tenant_id, service_name=None):
+        """构建 TimeSeriesScope 查询集
+
+        当 scope_name 为 None 时（包含未分组场景），会排除空串分组，避免与未分组指标重复
+        """
+        from metadata.models.constants import UNGROUP_SCOPE_NAME
+
+        query_set = models.TimeSeriesScope.objects.all()
+
+        # 按 group_id 过滤
+        if group_id is not None:
+            query_set = query_set.filter(group_id=group_id)
+        else:
+            # 按租户过滤
+            valid_group_ids = models.TimeSeriesGroup.objects.filter(
+                bk_tenant_id=bk_tenant_id, is_delete=False
+            ).values_list("time_series_group_id", flat=True)
+            query_set = query_set.filter(group_id__in=valid_group_ids)
+
+        # 按 service_name 和 scope_name 过滤
+        # 对于 APM 场景，scope_name 的格式为 {service_name}||{scope_name}
+        if service_name and scope_name:
+            # 同时指定了 service_name 和 scope_name，匹配 {service_name}||{scope_name}
+            query_set = query_set.filter(scope_name__istartswith=f"{service_name}||", scope_name__icontains=scope_name)
+        elif service_name:
+            # 仅指定了 service_name，匹配以 {service_name}|| 开头的所有分组
+            query_set = query_set.filter(scope_name__istartswith=f"{service_name}||")
+        elif scope_name:
+            # 仅指定了 scope_name，模糊匹配
+            query_set = query_set.filter(scope_name__icontains=scope_name)
+
+        # 当 scope_name 为 None 时（包含未分组场景），排除空串分组，避免与未分组指标重复
+        if scope_name is None:
+            if service_name:
+                # APM 场景：排除 {service_name}|| 格式的空串分组
+                query_set = query_set.exclude(scope_name=f"{service_name}||")
+            else:
+                # 非 APM 场景：排除空字符串分组
+                query_set = query_set.exclude(scope_name=UNGROUP_SCOPE_NAME)
+
+        return query_set
+
+    def _build_grouped_results(self, query_set):
+        """构建已分组指标的结果列表"""
+        from metadata.models.custom_report.time_series import TimeSeriesScope
+
+        results = []
+        for scope in query_set:
+            manual_list = set(scope.manual_list or [])
+            # 查询 manual_list 中的指标（来自 default 数据分组）
+            manual_metrics = []
+            if manual_list:
+                manual_metrics = list(
+                    models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, field_name__in=manual_list).filter(
+                        models.TimeSeriesMetric.get_default_scope_metric_filter(scope_name=scope.scope_name)
+                    )
+                )
+
+            # 用户分组：只查询 manual_list 中的指标
+            if scope.create_from != TimeSeriesScope.CREATE_FROM_DATA:
+                metric_list = self._convert_metrics_to_list(manual_metrics)
+            else:
+                # 数据分组：查询 manual_list + 数据分组的指标
+                # 查询数据分组的指标
+                data_group_metrics = list(
+                    models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, field_scope=scope.scope_name)
+                )
+
+                # 合并指标
+                all_metrics = data_group_metrics + manual_metrics
+                metric_list = self._convert_metrics_to_list(all_metrics)
+            results.append(
+                {
+                    "scope_id": scope.id,
+                    "group_id": scope.group_id,
+                    "scope_name": scope.scope_name,
+                    "dimension_config": scope.dimension_config,
+                    "manual_list": scope.manual_list,
+                    "auto_rules": scope.auto_rules,
+                    "metric_list": metric_list,
+                    "create_from": scope.create_from,
+                }
+            )
+        return results
+
+    def _build_ungrouped_results(self, group_ids, scope_name):
+        """构建未分组指标的结果列表
+
+        未分组下的指标 = default 数据分组的指标 - 所有 manual_list
+        :param group_ids: 自定义时序数据源ID列表
+        :param scope_name: 指标分组名，用于确定 default 数据分组的 scope
+        """
+        from metadata.models.custom_report.time_series import TimeSeriesScope
+        from metadata.models.constants import UNGROUP_SCOPE_NAME
+
+        results = []
+        for gid in group_ids:
+            # 获取未分组指标的 QuerySet
+            ungrouped_metrics_qs = TimeSeriesScope.get_ungrouped_metrics_qs(gid, scope_name=scope_name)
+            metric_list = self._convert_metrics_to_list(ungrouped_metrics_qs)
+
+            # 查询未分组的维度配置
+            if "||" in scope_name:
+                # APM 场景：提取 service_name，构建未分组的 scope_name
+                db_scope_name = scope_name.rsplit("||", 1)[0] + "||"
+            else:
+                # 非 APM 场景：使用空字符串
+                db_scope_name = UNGROUP_SCOPE_NAME
+
+            ungrouped_scope = models.TimeSeriesScope.objects.filter(group_id=gid, scope_name=db_scope_name).first()
+            dimension_config = ungrouped_scope.dimension_config if ungrouped_scope else {}
+
+            results.append(
+                {
+                    "scope_id": ungrouped_scope.id if ungrouped_scope else None,
+                    "group_id": gid,
+                    "scope_name": "",
+                    "dimension_config": dimension_config,
+                    "manual_list": [],
+                    "auto_rules": [],
+                    "metric_list": metric_list,
+                    "create_from": None,
+                }
+            )
+        return results
+
+    @staticmethod
+    def _convert_metrics_to_list(metrics):
+        """将指标对象列表转换为字典列表"""
+        metric_list = []
+        for metric in metrics:
+            field_config = metric.field_config or {}
+            metric_info = {
+                "metric_name": metric.field_name,
+                "field_id": metric.field_id,
+                "field_scope": metric.field_scope,
+                "tag_list": metric.tag_list,
+                "desc": field_config.get("desc", ""),
+                "unit": field_config.get("unit", ""),
+                "hidden": field_config.get("hidden", False),
+                "aggregate_method": field_config.get("aggregate_method", ""),
+                "function": field_config.get("function", ""),
+                "interval": field_config.get("interval", 0),
+                "disabled": field_config.get("disabled", False),
+                "create_time": metric.create_time.timestamp() if metric.create_time else None,
+                "last_modify_time": metric.last_modify_time.timestamp() if metric.last_modify_time else None,
+            }
+            metric_list.append(metric_info)
+
+        return metric_list
+
+
 class QueryBCSMetricsResource(Resource):
     """查询bcs相关指标"""
 
@@ -1944,6 +2056,22 @@ class ListBCSClusterInfoResource(Resource):
             clusters = clusters.filter(cluster_id__in=validated_request_data["cluster_ids"])
 
         return [cluster.to_json() for cluster in clusters]
+
+
+class ListBCSClusterInfoByBizResource(Resource):
+    """
+    查询指定业务下的bcs集群信息,用于用户查询
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        clusters = BCSClusterInfo.objects.filter(
+            bk_tenant_id=validated_request_data["bk_tenant_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
+        return [cluster.to_json_for_user() for cluster in clusters]
 
 
 class ApplyYamlToBCSClusterResource(Resource):

@@ -124,13 +124,13 @@ class TimeSeriesGroupAdmin(admin.ModelAdmin):
 
 
 class TimeSeriesMetricAdmin(admin.ModelAdmin):
-    list_display = ("group_id", "table_id", "field_name", "field_scope", "last_modify_time")
-    search_fields = ("group_id", "field_name", "field_scope", "last_modify_time")
+    list_display = ("group_id", "table_id", "field_name", "field_scope", "last_modify_time", "create_time")
+    search_fields = ("group_id", "field_name", "field_scope", "last_modify_time", "create_time")
     list_filter = ("group_id", "field_name", "field_scope", "table_id")
 
 
 class TimeSeriesScopeAdmin(admin.ModelAdmin):
-    list_display = ("group_id", "scope_name", "manual_list", "auto_rules", "last_modify_time")
+    list_display = ("id", "group_id", "scope_name", "manual_list", "auto_rules", "last_modify_time")
     search_fields = ("group_id", "scope_name")
     list_filter = ("group_id", "scope_name")
 
@@ -234,12 +234,6 @@ class BkAppSpaceRecordAdmin(admin.ModelAdmin):
     list_filter = ("bk_app_code", "space_uid")
 
 
-class SpaceTypeToResultTableFilterAliasAdmin(admin.ModelAdmin):
-    list_display = ("space_type", "table_id", "filter_alias", "status")
-    search_fields = ("space_type", "table_id")
-    list_filter = ("space_type", "table_id")
-
-
 admin.site.register(models.InfluxDBClusterInfo, InfluxdbClusterAdmin)
 admin.site.register(models.InfluxDBHostInfo, InfluxdbHostAdmin)
 admin.site.register(models.InfluxDBStorage, InfluxDBStorageAdmin)
@@ -271,4 +265,3 @@ admin.site.register(models.DataLink, DataLinkAdmin)
 admin.site.register(models.BkBaseResultTable, BkBaseResultTableAdmin)
 admin.site.register(models.StorageClusterRecord, StorageClusterRecordAdmin)
 admin.site.register(models.BkAppSpaceRecord, BkAppSpaceRecordAdmin)
-admin.site.register(models.SpaceTypeToResultTableFilterAlias, SpaceTypeToResultTableFilterAliasAdmin)

@@ -373,14 +373,16 @@ class DataLink(models.Model):
             # 创建ES存储绑定配置
             if es_storage and datalink_option.es_storage_config:
                 storage_option = datalink_option.es_storage_config
-                binding, _ = ESStorageBindingConfig.objects.get_or_create(
+                binding, _ = ESStorageBindingConfig.objects.update_or_create(
                     bk_tenant_id=self.bk_tenant_id,
                     bk_biz_id=bk_biz_id,
                     namespace=self.namespace,
                     data_link_name=self.data_link_name,
                     name=self.data_link_name,
-                    es_cluster_name=es_storage.storage_cluster.cluster_name,
-                    timezone=es_storage.time_zone,
+                    defaults={
+                        "es_cluster_name": es_storage.storage_cluster.cluster_name,
+                        "timezone": es_storage.time_zone,
+                    },
                 )
 
                 # 生成索引规则
@@ -463,6 +465,7 @@ class DataLink(models.Model):
         table_id: str,
         storage_cluster_name: str,
         bk_biz_id: int,
+        prefix: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成系统进程链路配置
@@ -477,7 +480,15 @@ class DataLink(models.Model):
             storage_cluster_name,
         )
 
-        bkbase_vmrt_name = f"base_{bk_biz_id}_{data_link_strategy}"
+        if prefix is None:
+            bkbase_vmrt_prefix = f"base_{bk_biz_id}"
+        else:
+            bkbase_vmrt_prefix = prefix
+
+        if bkbase_vmrt_prefix:
+            bkbase_vmrt_name = f"{bkbase_vmrt_prefix}_{data_link_strategy}"
+        else:
+            bkbase_vmrt_name = data_link_strategy
 
         transform_format_map = {
             DataLink.SYSTEM_PROC_PERF: SYSTEM_PROC_PERF_DATABUS_FORMAT,
@@ -526,7 +537,12 @@ class DataLink(models.Model):
         ]
 
     def compose_basereport_time_series_configs(
-        self, data_source: "DataSource", storage_cluster_name: str, bk_biz_id: int, source: str
+        self,
+        data_source: "DataSource",
+        storage_cluster_name: str,
+        bk_biz_id: int,
+        source: str,
+        prefix: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成基础采集时序链路配置
@@ -546,7 +562,10 @@ class DataLink(models.Model):
         )
 
         # 需要注意超出计算平台meta长度限制问题
-        bkbase_vmrt_prefix = f"base_{bk_biz_id}_{source}"
+        if prefix is None:
+            bkbase_vmrt_prefix = f"base_{bk_biz_id}_{source}"
+        else:
+            bkbase_vmrt_prefix = prefix
 
         config_list = []
         conditions = []
@@ -554,7 +573,10 @@ class DataLink(models.Model):
         with transaction.atomic():
             # 创建11个ResultTableConfig和VMStorageBindingConfig
             for usage in BASEREPORT_USAGES:
-                usage_vmrt_name = f"{bkbase_vmrt_prefix}_{usage}"
+                if bkbase_vmrt_prefix:
+                    usage_vmrt_name = f"{bkbase_vmrt_prefix}_{usage}"
+                else:
+                    usage_vmrt_name = usage
                 usage_cmdb_level_vmrt_name = f"{usage_vmrt_name}_cmdb"
                 logger.info(
                     "compose_basereport_configs: try to create rt and storage for usage->[%s],name->[%s]",
@@ -875,6 +897,9 @@ class DataLink(models.Model):
 
         config_list, conditions = [], []
         for record in federal_records:
+            if not record.fed_builtin_metric_table_id:
+                continue
+
             # 联邦代理集群的RT名
             proxy_k8s_metric_vmrt_name = utils.compose_bkdata_table_id(record.fed_builtin_metric_table_id)
             relabels = [{"name": "bcs_cluster_id", "value": record.fed_cluster_id}]
@@ -1110,7 +1135,7 @@ class DataLink(models.Model):
         except RetryError as e:
             logger.error("apply_data_link: data_link_name->[%s] retry error->[%s]", self.data_link_name, e.__cause__)
             # 抛出底层错误原因，而非直接RetryError
-            raise e.__cause__
+            raise e.__cause__ if e.__cause__ else e
         except Exception as e:  # pylint: disable=broad-except
             logger.error("apply_data_link: data_link_name->[%s] apply error->[%s]", self.data_link_name, e)
             raise e

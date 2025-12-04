@@ -503,14 +503,29 @@ export function formatDateNanos(val) {
   }
 
   // dayjs不支持纳秒 从符串中提取毫秒之后的纳秒部分
-  const nanoseconds = strVal.slice(23, -1);
+  // 查找小数点位置，提取小数点后的所有数字
+  const dotIndex = strVal.indexOf('.');
+  let nanoseconds = '';
+
+  if (dotIndex !== -1) {
+    // 提取小数点后的部分
+    const afterDot = strVal.slice(dotIndex + 1);
+    // 移除时区标识符Z和非数字字符（如果存在），只保留数字
+    const digitsOnly = afterDot.replace(/[^0-9]/g, '');
+    // 提取毫秒（前3位）之后的部分作为纳秒
+    nanoseconds = digitsOnly.length > 3 ? digitsOnly.slice(3) : '';
+  }
 
   // 使用dayjs解析字符串到毫秒 包含时区处理
   const dateTimeToMilliseconds = dayjs(val).tz(window.timezone)
     .format('YYYY-MM-DD HH:mm:ss.SSS');
   // 获取微秒并且判断是否是000，也就是纳秒部分的最后三位
-  const microseconds = nanoseconds % 1000;
-  const newNanoseconds = microseconds !== 0 ? nanoseconds : nanoseconds.slice(0, 3);
+  const nanosecondsNum = nanoseconds ? parseInt(nanoseconds, 10) : 0;
+  const microseconds = nanosecondsNum % 1000;
+  // 如果纳秒部分的最后三位（微秒部分）是000，只保留前3位；否则保留全部
+  const newNanoseconds = microseconds !== 0
+    ? nanoseconds
+    : (nanoseconds.length > 3 ? nanoseconds.slice(0, 3) : nanoseconds);
 
   // 组合dayjs格式化的日期时间到毫秒和独立处理的纳秒部分
   const formattedDateTimeWithNanoseconds = `${dateTimeToMilliseconds}${newNanoseconds}`;
@@ -569,7 +584,6 @@ export function readBlobRespToJson(resp) {
   return readBlobResponse(resp).then(resText => Promise.resolve(JSONBigNumber.parse(resText)));
 }
 export function bigNumberToString(value) {
-  // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
   return (value || {})._isBigNumber ? (value.toString().length < 16 ? Number(value) : value.toString()) : value;
 }
 
@@ -831,7 +845,7 @@ export const Debounce = (delay = 200) => (target, key, descriptor) => {
   return descriptor;
 };
 
-export const formatDateTimeField = (data, fieldType) => {
+export const formatDateTimeField = (data, fieldType, emptyCharacter = '--') => {
   if (fieldType === 'date') {
     return formatDate(Number(data)) || data || emptyCharacter;
   }
@@ -939,6 +953,26 @@ export const parseTableRowData = (
   }
 
   return data === null || data === undefined || data === '' ? emptyCharacter : data;
+};
+
+/**
+ * 获取行数据中的字段值
+ * @param {Object} row 行数据
+ * @param {Object} field 字段信息
+ * @returns {String} 字段值
+ */
+export const getRowFieldValue = (row, field) => {
+  if (field.is_virtual_alias_field) {
+    const fieldList = [field.field_name, ...field.source_field_names];
+    for (const fieldName of fieldList) {
+      const value = parseTableRowData(row, fieldName, field.field_type, false, null);
+      if (value !== undefined && value !== null && value !== '') {
+        return value ?? '--';
+      }
+    }
+  }
+
+  return parseTableRowData(row, field.field_name, field.field_type, false);
 };
 
 /** 表格内字体样式 */
@@ -1311,11 +1345,11 @@ export const getOsCommandLabel = () => {
 /**
  * 更新最后选择索引ID
  */
-export const updateLastSelectedIndexId = (spaceUid, index_set_id) => {
+export const updateLastSelectedIndexId = (spaceUid, indexSetId) => {
   const storage = {
     [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {
       ...(store.state.storage[BK_LOG_STORAGE.LAST_INDEX_SET_ID] ?? {}),
-      [spaceUid]: [String(index_set_id)],
+      [spaceUid]: [String(indexSetId)],
     },
   };
   store.commit('updateStorage', storage);

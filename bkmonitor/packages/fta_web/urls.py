@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -19,6 +18,7 @@ urlpatterns = [
     re_path(r"^$", home),
     re_path(r"^plugin/", include("fta_web.event_plugin.urls")),
     re_path(r"^alert/", include("fta_web.alert.urls")),
+    re_path(r"^alert/v2/", include("fta_web.alert_v2.urls")),
     re_path(r"^action/", include("fta_web.action.urls")),
     re_path(r"^assign/", include("fta_web.assign.urls")),
     re_path(r"^home/", include("fta_web.home.urls")),

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, ref, watch, nextTick, Ref, ComputedRef } from 'vue';
+import { ComputedRef, Ref, computed, nextTick, ref, watch } from 'vue';
 
 import useFieldNameHook from '@/hooks/use-field-name';
 // @ts-ignore
@@ -11,11 +11,12 @@ import jsCookie from 'js-cookie';
 // @ts-ignore
 import { debounce } from 'lodash-es';
 
+import { getOsCommandLabel } from '@/common/util';
+import useFieldEgges from '@/hooks/use-field-egges';
+import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
+import { FieldInfoItem } from '@/store/store.type';
 import { excludesFields } from './const.common'; // @ts-ignore
 import FavoriteList from './favorite-list';
-import useFieldEgges from '@/hooks/use-field-egges';
-import { FieldInfoItem } from '@/store/store.type';
-
 
 const props = defineProps({
   value: {
@@ -29,11 +30,22 @@ const props = defineProps({
   },
 });
 
-const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change']);
+const emits = defineEmits(['change', 'cancel', 'retrieve', 'active-change', 'text-to-query']);
 
 const store = useStore();
 const { $t } = useLocale();
 const { getQualifiedFieldName, getQualifiedFieldAttrs } = useFieldNameHook({ store });
+
+const shortCutClsName = computed(() => {
+  const iconMap = {
+    cmd: 'bklog-icon bklog-command',
+    ctrl: 'bklog-icon bklog-ctrl',
+  };
+
+  const osName = getOsCommandLabel()?.toLocaleLowerCase() ?? 'ctrl';
+
+  return iconMap[osName] ?? iconMap.ctrl;
+});
 
 // eslint-disable-next-line no-unused-vars
 enum OptionItemType {
@@ -66,9 +78,7 @@ const showOption = computed(() => {
 });
 
 const retrieveDropdownData = computed(() => store.state.retrieveDropdownData);
-const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => []
-  .concat(store.state.indexFieldInfo.fields ?? [])
-  .concat(store.state.indexFieldInfo.alias_field_list ?? []));
+const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => store.state.indexFieldInfo.fields);
 
 const { isRequesting, requestFieldEgges, isValidateEgges } = useFieldEgges();
 
@@ -77,6 +87,22 @@ const getNumTypeFieldList = computed(() => {
   return totalFields.value
     .filter(item => ['long', 'integer', 'float'].includes(item.field_type))
     .map(item => item.field_name);
+});
+
+/**
+ * @description 是否显示 AI 助手
+ * @returns {boolean}
+ */
+const showAiAssistant = computed(() => {
+  return props.value.length > 0;
+});
+
+/**
+ * @description AI 预览文本
+ * @returns {string}
+ */
+const aiPreviewText = computed(() => {
+  return props.value;
 });
 
 /** 所有字段的字段名 */
@@ -335,10 +361,9 @@ const setNextActive = () => {
 };
 
 /**
-   * 选择某个可选字段
-   * @param {string} field
-   */
-
+ * 选择某个可选字段
+ * @param {string} field
+ */
 const handleClickField = (field: string) => {
   const sqlValue = getFocusLeftValue();
   const lastFieldStr = sqlValue.split(/\s+(AND\s+NOT|OR|AND)\s+/i)?.pop() ?? '';
@@ -456,6 +481,11 @@ const handleKeydown = (e: {
   const dropdownList = dropdownEl.querySelectorAll('.list-item');
   const hasHover = dropdownEl.querySelector('.list-item.is-hover');
   if (code === 'NumpadEnter' || code === 'Enter') {
+    if (e.ctrlKey || e.metaKey) {
+      emits('text-to-query', props.value);
+      return;
+    }
+
     if (activeIndex.value !== null) {
       stopEventPreventDefault(e);
       if (hasHover && !activeIndex.value) {
@@ -535,27 +565,27 @@ const isRetractShow = ref(true);
 const matchList = ref([
   {
     name: $t('精确匹配(支持AND、OR):'),
-    value: 'author:"John Smith" AND age:20',
+    value: ['author:"John Smith" AND age:20'],
   },
   {
     name: $t('字段名匹配(*代表通配符):'),
-    value: 'status:active \n title:(quick brown)',
+    value: ['status:active', 'title:(quick brown)'],
   },
   {
     name: $t('字段名模糊匹配:'),
-    value: 'vers\\*on:(quick brown)',
+    value: ['vers\\*on:(quick brown)'],
   },
   {
     name: $t('通配符匹配:'),
-    value: 'qu?ck bro*',
+    value: ['qu?ck bro*'],
   },
   {
     name: $t('正则匹配:'),
-    value: 'name:/joh?n(ath[oa]n)/',
+    value: ['name:/joh?n(ath[oa]n)/'],
   },
   {
     name: $t('范围匹配:'),
-    value: 'count:[1 TO 5] \n  count:[1 TO 5} \n count:[10 TO *]',
+    value: ['count:[1 TO 5]', 'count:[1 TO 5}', 'count:[10 TO *]'],
   },
 ]);
 
@@ -580,6 +610,14 @@ const debounceUpdate = debounce(() => {
 const fieldNameShow = (item) => {
   return getQualifiedFieldName(item, totalFields.value);
 };
+
+/**
+ * @description 点击 AI 助手
+ */
+const handleAiAssistantClick = () => {
+  emits('text-to-query', props.value);
+};
+
 defineExpose({
   beforeShowndFn,
   beforeHideFn,
@@ -606,6 +644,27 @@ watch(activeIndex, () => {
         v-bkloading="{ isLoading: isRequesting, size: 'mini' }"
         :class="['sql-query-options', { 'is-loading': isRequesting }]"
       >
+        <template v-if="showAiAssistant">
+          <li
+            class="ai-assistant-list-item"
+            @click="handleAiAssistantClick"
+          >
+            <span class="item-img-wrapper">
+              <img
+                :src="aiBluekingSvg"
+                width="18"
+                height="18"
+              >
+            </span>
+            <span class="item-text-label">{{ $t('AI搜索') }}:</span>
+            <span class="item-text-value">{{ aiPreviewText }}</span>
+            <span class="short-cut-icon">
+              <i :class="shortCutClsName" />
+              <i class="bklog-icon bklog-plus" />
+              <i class="bklog-icon bklog-enter-3" />
+            </span>
+          </li>
+        </template>
         <!-- 字段列表 -->
         <template v-if="showOption.showFields">
           <div class="control-list">
@@ -804,6 +863,13 @@ watch(activeIndex, () => {
           <span class="label">Enter</span>
           <span class="value">{{ $t('确认结果') }}</span>
         </div>
+        <div class="ui-shortcut-item">
+          <span class="label">
+            <i :class="shortCutClsName" />
+            <i class="bklog-icon bklog-plus" />
+            <i class="bklog-icon bklog-enter-3" /></span>
+          <span class="value">{{ $t('AI搜索') }}</span>
+        </div>
       </div>
     </div>
     <div :class="['sql-syntax-tips', { 'is-show': isRetractShow }]">
@@ -821,14 +887,20 @@ watch(activeIndex, () => {
           </div>
           <div
             v-for="item in matchList"
-            :key="item.value"
+            :key="item.name"
             class="sql-query-list"
           >
             <div class="sql-query-name">
               {{ item.name }}
             </div>
             <div class="sql-query-value">
-              {{ item.value }}
+              <div
+                v-for="childValue in item.value"
+                :key="childValue"
+                class="sql-query-value-item"
+              >
+                {{ childValue }}
+              </div>
             </div>
           </div>
         </div>
@@ -958,30 +1030,22 @@ watch(activeIndex, () => {
         }
 
         .sql-query-list {
-          margin-bottom: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
           overflow-y: auto;
           font-size: 12px;
-          white-space: pre-line;
 
           .sql-query-name {
-            margin-bottom: 2px;
             font-weight: 700;
-            line-height: 16px;
             color: #313238;
+            margin: 12px 0 8px 0;
           }
 
           .sql-query-value {
-            /* stylelint-disable-next-line font-family-no-missing-generic-family-keyword */
             font-family: 'Roboto Mono', monospace;
-            line-height: 18px;
             color: #4d4f56;
             word-break: break-all;
-          }
-
-          &:first-child {
-            .sql-query-value {
-              line-height: 20px;
-            }
           }
         }
       }

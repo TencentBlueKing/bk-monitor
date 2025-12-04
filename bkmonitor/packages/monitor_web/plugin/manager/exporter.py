@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import logging
 import os
 from collections import namedtuple
-from pathlib import Path
 
 from django.utils.translation import gettext as _
 
@@ -234,10 +233,17 @@ class ExporterPluginManager(PluginManager):
             collector_name = f"{self.plugin.plugin_id}.exe" if sys_name == "windows" else self.plugin.plugin_id
             collector_path = os.path.join(sys_dir, self.plugin.plugin_id, collector_name)
             # _path = collector_path.replace('\\', '/')
-            if any([collector_path in str(i) for i in self.filename_list]):
+            # 查找匹配的完整路径
+            matching_path = None
+            for file_path in self.filename_list:
+                if collector_path in str(file_path) or collector_path.replace(os.sep, "/") in str(file_path):
+                    matching_path = file_path
+                    break
+
+            if matching_path:
                 # 读取文件内容
                 collector_file[sys_name] = self.CollectorFile(
-                    data=self._decode_file(self.plugin_configs[Path(collector_path)]),
+                    data=self._decode_file(self.plugin_configs[matching_path]),
                     name=collector_name,
                 )
 

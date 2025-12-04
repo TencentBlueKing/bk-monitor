@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -21,6 +20,8 @@ from django.template import Context, Template
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.common_utils import host_key
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from bkmonitor.utils.user import get_admin_username
 from core.drf_resource import api, resource
 
 logger = logging.getLogger(__name__)
@@ -50,14 +51,15 @@ aix_system_info = SystemInfo(
 )
 
 
-class JobTaskClient(object):
+class JobTaskClient:
     """
     JOB任务执行客户端
     """
 
     def __init__(self, bk_biz_id, operator=None):
         self.bk_biz_id = bk_biz_id
-        self.operator = operator or settings.COMMON_USERNAME
+        self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        self.operator = operator or get_admin_username(bk_tenant_id=self.bk_tenant_id)
 
     @staticmethod
     def _get_system_info_dict():
@@ -88,8 +90,8 @@ class JobTaskClient(object):
 
     def render_script(self, directory, name, cxt):
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        tpl_path = os.path.join(os.path.dirname(os.path.dirname(current_dir)), 'uptime_check', 'collector')
-        with open(os.path.join(tpl_path, directory, name), "r", encoding="utf-8") as fd:
+        tpl_path = os.path.join(os.path.dirname(os.path.dirname(current_dir)), "uptime_check", "collector")
+        with open(os.path.join(tpl_path, directory, name), encoding="utf-8") as fd:
             script_tpl = fd.read()
         template = Template(script_tpl)
 
@@ -174,7 +176,9 @@ class JobTaskClient(object):
                 host_name = host_id
 
             if host_id not in ip_os_dict:
-                error_hosts.append({"errmsg": _("{host_name} 主机不属于该业务").format(host_name=host_name), **host_dict})
+                error_hosts.append(
+                    {"errmsg": _("{host_name} 主机不属于该业务").format(host_name=host_name), **host_dict}
+                )
                 continue
             bk_os_type = ip_os_dict[host_id]
             if bk_os_type in supported_systems:
@@ -184,7 +188,9 @@ class JobTaskClient(object):
                 hosts_by_system_and_path[host_type]["path"] = path
                 hosts_by_system_and_path[host_type]["system"] = bk_os_type
             elif not bk_os_type:
-                error_hosts.append({"errmsg": _("{host_name} 操作系统类型不能为空").format(host_name=host_name), **host_dict})
+                error_hosts.append(
+                    {"errmsg": _("{host_name} 操作系统类型不能为空").format(host_name=host_name), **host_dict}
+                )
             else:
                 error_hosts.append(
                     {

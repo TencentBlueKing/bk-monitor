@@ -29,14 +29,14 @@ from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
 from metadata.models.bkdata.result_table import BkBaseResultTable
-from metadata.models.constants import BULK_CREATE_BATCH_SIZE
+from metadata.models.constants import BULK_CREATE_BATCH_SIZE, DataIdCreatedFromSystem
 from metadata.utils.basic import getitems
 
 from .common import BaseModel, Label, OptionBase
 from .data_source import DataSource, DataSourceOption, DataSourceResultTable
 from .result_table_manage import EnableManager
-from .space import SpaceDataSource, SpaceTypeToResultTableFilterAlias
-from .space.constants import EtlConfigs, SpaceTypes
+from .space import SpaceDataSource
+from .space.constants import EtlConfigs
 from .storage import (
     ArgusStorage,
     BkDataStorage,
@@ -275,9 +275,9 @@ class ResultTable(models.Model):
         )
         return table_id_cutter
 
-    def get_related_datasource(self) -> DataSource:
+    def get_related_datasource(self, refresh: bool = False) -> DataSource:
         """获取结果表相关的数据源"""
-        if getattr(self, "_related_datasource", None) is not None:
+        if getattr(self, "_related_datasource", None) is not None and not refresh:
             return getattr(self, "_related_datasource")
         dsrt = DataSourceResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
         related_datasource = DataSource.objects.get(bk_data_id=dsrt.bk_data_id, bk_tenant_id=self.bk_tenant_id)
@@ -494,16 +494,11 @@ class ResultTable(models.Model):
                     e,
                 )
 
-        # TODO: 短期内需要创建SpaceTypeToResultTableFilterAlias记录对应的bk_biz_id_alias,待空间路由整体优化后统一下沉到ResultTable
         if bk_biz_id_alias:
             logger.info(
                 "create_result_table: table_id->[%s] need to create filter alias record,bk_biz_id_alias->[%s]",
                 table_id,
                 bk_biz_id_alias,
-            )
-
-            SpaceTypeToResultTableFilterAlias.objects.create(
-                table_id=table_id, space_type=SpaceTypes.BKCC.value, filter_alias=bk_biz_id_alias
             )
 
         # 创建结果表的option内容如果option为非空
@@ -595,8 +590,6 @@ class ResultTable(models.Model):
             for option in ResultTableOption.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         }
 
-        # 如果是
-        refresh_consul_config = True
         if self.default_storage == ClusterInfo.TYPE_INFLUXDB:
             # 1. 如果influxdb被禁用，说明只能使用vm存储，此时需要使用bkbase v3链路
             # 2. 如果启用了新版数据链路，且etcl_config在启用的列表中，则使用vm存储，
@@ -604,7 +597,6 @@ class ResultTable(models.Model):
             if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
                 # NOTE: 因为计算平台接口稳定性不可控，暂时放到后台任务执行
                 # NOTE: 事务中嵌套异步存在不稳定情况，后续迁移至BMW中进行
-                refresh_consul_config = False
                 try:
                     access_bkdata_vm.delay(
                         self.bk_tenant_id,
@@ -618,14 +610,9 @@ class ResultTable(models.Model):
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
             # 如果存在日志V4数据链路配置，则创建日志V4数据链路
             if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
-                refresh_consul_config = False
                 apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
             # 如果存在事件组V4数据链路配置或默认启用事件组V4数据链路，则创建事件组V4数据链路
-            elif (
-                datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value
-                or settings.ENABLE_V4_EVENT_GROUP_DATA_LINK
-            ):
-                refresh_consul_config = False
+            elif datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 apply_event_group_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         else:
             # 不支持的存储和选项组合
@@ -633,8 +620,9 @@ class ResultTable(models.Model):
                 f"create_result_table: not support storage and option, storage: {self.default_storage}, options: {options}"
             )
 
-        # 更新数据源依赖的 consul
-        if refresh_consul_config:
+        # 如果最终数据源没有切换到bkdata，则刷新consul配置
+        datasource = self.get_related_datasource(refresh=True)
+        if datasource.created_from == DataIdCreatedFromSystem.BKGSE.value:
             datasource.refresh_consul_config()
 
     def check_and_create_storage(
@@ -1400,9 +1388,6 @@ class ResultTable(models.Model):
                 "modify_result_table: table_id->[%s] got new_bk_biz_id_alias->[%s]", self.table_id, bk_biz_id_alias
             )
             self.bk_biz_id_alias = bk_biz_id_alias
-            SpaceTypeToResultTableFilterAlias.objects.update_or_create(
-                table_id=self.table_id, defaults={"space_type": SpaceTypes.BKCC.value, "filter_alias": bk_biz_id_alias}
-            )
 
         # 是否需要修改数据标签
         if data_label is not None:
@@ -1432,7 +1417,10 @@ class ResultTable(models.Model):
         if self.is_enable:
             self.apply_datalink()
         else:
-            self.delete_datalink()
+            try:
+                self.delete_datalink()
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error("delete datalink error, table_id: %s, %s", self.table_id, e)
 
         logger.info("table_id->[%s] of bk_tenant_id->[%s] updated success.", self.table_id, self.bk_tenant_id)
 
