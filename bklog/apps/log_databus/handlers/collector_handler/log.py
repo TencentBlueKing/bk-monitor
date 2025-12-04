@@ -80,6 +80,8 @@ class LogCollectorHandler:
                     "log_access_type_name": LogAccessTypeEnum.get_choice_label(log_access_type),
                     "container_collector_type": item.get("container_collector_type", ""),
                     "task_id_list": item.get("task_id_list", []),
+                    "etl_config": item.get("etl_config", ""),
+                    "collect_paths": item.get("params", {}).get("paths", []),
                 }
             )
         return result_list
