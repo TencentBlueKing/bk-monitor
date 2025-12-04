@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,11 +18,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import abc
 import copy
 import datetime
 import operator
-import typing
 from collections import defaultdict
 
 from django.conf import settings
@@ -110,7 +109,7 @@ class AggsHandlers(AggsBase):
         return s
 
     @classmethod
-    def _build_level_terms_aggs(cls, s: Search, level_fields: typing.List[str], size: int, order: dict) -> Search:
+    def _build_level_terms_aggs(cls, s: Search, level_fields: list[str], size: int, order: dict) -> Search:
         level_aggs = s.aggs
         for field in level_fields:
             level_aggs = cls._build_terms_bucket(level_aggs, field, size, order)
@@ -256,7 +255,7 @@ class AggsHandlers(AggsBase):
             return "1d"
 
     @classmethod
-    def _build_date_histogram_aggs(cls, s: Search, fields: typing.List[dict], size) -> Search:
+    def _build_date_histogram_aggs(cls, s: Search, fields: list[dict], size) -> Search:
         for _field in fields:
             field_name = _field.get("term_filed")
             if not field_name:
@@ -278,9 +277,7 @@ class AggsHandlers(AggsBase):
         return s
 
     @classmethod
-    def _build_not_level_date_histogram_aggs(
-        cls, s: Search, field, size: int
-    ) -> Search:  # pylint: disable=function-name-too-long
+    def _build_not_level_date_histogram_aggs(cls, s: Search, field, size: int) -> Search:  # pylint: disable=function-name-too-long
         cls._build_date_histogram_aggs_item(
             s, field.get("term_filed"), field.get("metric_type"), field.get("metric_field"), size
         )
@@ -295,7 +292,7 @@ class AggsHandlers(AggsBase):
         return metric_aggs
 
 
-class AggsViewAdapter(object):
+class AggsViewAdapter:
     def __init__(self):
         self._aggs_handlers = AggsHandlers
 
@@ -315,14 +312,9 @@ class AggsViewAdapter(object):
             index_set_id = int(config.get("index_set_id"))
             custom_indices = config.get("custom_indices", "")
 
-            if index_set_id not in union_configs:
+            if index_set_id not in union_config_map:
                 union_config_map[index_set_id] = {}
-            union_config_map[index_set_id].update(
-                {
-                    "index_set_id": index_set_id,
-                    "custom_indices": custom_indices
-                }
-            )
+            union_config_map[index_set_id].update({"index_set_id": index_set_id, "custom_indices": custom_indices})
         return union_config_map
 
     def terms(self, index_set_id, query_data: dict):
