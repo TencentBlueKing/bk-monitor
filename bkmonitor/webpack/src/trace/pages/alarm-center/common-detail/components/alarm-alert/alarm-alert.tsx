@@ -29,7 +29,7 @@ import { computed } from 'vue';
 import { Button, Popover } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import AlertContentDetail from '../../../components/alarm-table/components/alert-content-detail/alert-content-detail';
+import AlertMetricsConfig from '../../../components/alarm-table/components/alert-content-detail/alert-content-detail';
 import { type AlarmDetail, AlarmStatusIconMap } from '../../../typings';
 
 import './alarm-alert.scss';
@@ -149,7 +149,7 @@ export default defineComponent({
                 default: () => <span class='alarm-title'>主调成功率:</span>,
                 content: () => (
                   <div class='alarm-alert-monitor-data-popover-content'>
-                    <AlertContentDetail alertContentDetail={this.monitorDataDetail} />
+                    <AlertMetricsConfig alertContentDetail={this.monitorDataDetail} />
                   </div>
                 ),
               }}

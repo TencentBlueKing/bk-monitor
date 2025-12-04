@@ -33,7 +33,7 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 
-import TemporaryShare from '../../../../components/temporary-share/temporary-share';
+import TemporaryShareNew from '../../../../components/temporary-share/temporary-share-new';
 import { useAlarmCenterDetailStore } from '../../../../store/modules/alarm-center-detail';
 import { fetchListAlertFeedback } from '../../services/alarm-detail';
 import Feedback from './feedback';
@@ -280,7 +280,7 @@ export default defineComponent({
                 onClick={() => this.handleToEventDetail('detail')}
               />
             ) : (
-              <TemporaryShare />
+              <TemporaryShareNew />
             )}
           </span>
           {this.alarmDetail?.alert_name && (

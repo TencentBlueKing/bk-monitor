@@ -165,16 +165,19 @@ export const AlarmLevelIconMap = {
   1: {
     icon: 'rect',
     iconColor: '#E71818',
+    text: window.i18n.t('致命'),
     textColor: '#E71818',
   },
   2: {
     icon: 'rect',
     iconColor: '#E38B02',
+    text: window.i18n.t('预警'),
     textColor: '#E38B02',
   },
   3: {
     icon: 'rect',
     iconColor: '#3A84FF',
+    text: window.i18n.t('提醒'),
     textColor: '#3A84FF',
   },
 };
