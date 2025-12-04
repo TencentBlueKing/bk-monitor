@@ -2043,6 +2043,21 @@ class TimeSeriesMetric(models.Model):
             group_field_names[group_id].append(field_name)
 
         for group_id, field_names in group_field_names.items():
+            # 检查同一批次内是否有重复的字段名
+            unique_field_names = set(field_names)
+            if len(field_names) != len(unique_field_names):
+                # 找出重复的字段名
+                field_name_counts = defaultdict(int)
+                for field_name in field_names:
+                    field_name_counts[field_name] += 1
+                batch_conflicting_names = [field_name for field_name, count in field_name_counts.items() if count > 1]
+                raise ValueError(
+                    "同一批次内指标字段名称[{}]在分组[{}]下重复，请使用其他名称".format(
+                        ", ".join(batch_conflicting_names), group_id
+                    )
+                )
+
+            # 检查与数据库中已存在的字段名是否冲突
             existing_field_names = set(
                 cls.objects.filter(
                     group_id=group_id,
