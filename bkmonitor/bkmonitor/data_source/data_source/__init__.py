@@ -1716,6 +1716,10 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         """
         return field not in self.INNER_DIMENSIONS and not field.startswith("dimensions")
 
+    @classmethod
+    def _get_datasource(cls) -> str:
+        return "bkapm"
+
     def _get_metrics(self):
         """
         metric字段处理
@@ -2070,20 +2074,29 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
         if (self.data_source_label, self.data_type_label) in UnifyQueryDataSources:
             return True
 
-        # 如果 white_list 非空且不包含 0，则使用灰度；否则就是全量（white_list 为 [] 或 [0] 时全量）
         white_list: list[str | int] = self._fetch_black_list()
-        grayscale: bool = bool(white_list) and 0 not in white_list and "0" not in white_list
-        if grayscale:
-            return bk_biz_id in white_list or str(bk_biz_id) in white_list
-        # 不灰度就是全量(灰度列表为空或包含 0 号业务)
-        return True
+        if bk_biz_id in white_list or str(bk_biz_id) in white_list:
+            return True
+        return False
+
+    @classmethod
+    def _get_datasource(cls) -> str:
+        return "bklog"
 
     def _get_unify_query_table(self) -> str:
+        """获取 unify-query 查询表名
+        存在 __dist 聚类字段时，查询表名后缀为 _clustered，参考：
+        https://github.com/TencentBlueKing/bk-monitor/blob/master/bklog/apps/log_esquery/serializers.py#L114-L125
+        """
         suffix: str = ""
         for cond in self._get_conditions().get("field_list", []):
-            if cond.get("field_name") in ["__dist_05", "__dist_09"]:
+            field_name: str = cond.get("field_name", "")
+            if field_name.startswith("__dist"):
                 suffix = "_clustered"
-                break
+                pass
+
+        if "__dist_05" in (self.query_string or ""):
+            suffix = "_clustered"
         return f"bklog_index_set_{self.index_set_id}{suffix}"
 
     @classmethod
