@@ -367,7 +367,7 @@
       downloadExport($row) {
         // 异步导出使用downloadURL下载
         if ($row.download_url) {
-          window.open($row.download_url);
+          window.iframeParent.open($row.download_url);
           return;
         }
         this.openDownloadUrl({...$row.search_dict, log_index_set_id: $row.log_index_set_id });
@@ -490,7 +490,7 @@
         }
         const params = encodeURIComponent(JSON.stringify(queryParamsStr));
         const jumpUrl = `${window.SITE_URL}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&routeParams=${params}`;
-        window.open(jumpUrl, '_blank');
+        window.iframeParent.open(jumpUrl, '_blank');
       },
       /**
        * @desc: 轮询

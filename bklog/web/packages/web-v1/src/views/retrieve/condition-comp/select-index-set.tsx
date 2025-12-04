@@ -482,7 +482,7 @@ export default class QueryStatement extends tsc<object> {
           },
         ],
       });
-      window.open(res.data.apply_url);
+      window.iframeParent.open(res.data.apply_url);
     } catch (err) {
       console.warn(err);
     } finally {

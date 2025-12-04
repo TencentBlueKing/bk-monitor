@@ -316,7 +316,7 @@ class IncidentBaseResource(Resource):
         """
         root_entity_id = None
         now_entities = {}
-        for entity_config in snapshot_content["incident_propagation_graph"]["entities"]:
+        for entity_config in snapshot_content.get("incident_propagation_graph", {}).get("entities", []):
             if entity_config["is_root"]:
                 root_entity_id = entity_config["entity_id"]
             now_entities[entity_config["entity_id"]] = entity_config
@@ -324,7 +324,7 @@ class IncidentBaseResource(Resource):
         new_edges = []
         new_entities = {}
         new_rank_set = set()
-        for edge_config in snapshot_content["incident_propagation_graph"]["edges"]:
+        for edge_config in snapshot_content.get("incident_propagation_graph", {}).get("edges", []):
             if edge_config["source_id"] != root_entity_id and edge_config["target_id"] != root_entity_id:
                 continue
 
@@ -353,6 +353,8 @@ class IncidentBaseResource(Resource):
 
         snapshot_content["product_hierarchy_category"] = new_categories
         snapshot_content["product_hierarchy_rank"] = new_ranks
+        if "incident_propagation_graph" not in snapshot_content:
+            snapshot_content["incident_propagation_graph"] = {}
         snapshot_content["incident_propagation_graph"]["entities"] = list(new_entities.values())
         snapshot_content["incident_propagation_graph"]["edges"] = new_edges
         snapshot_content["incident_alerts"] = new_incident_alerts
@@ -604,6 +606,8 @@ class IncidentTopologyResource(IncidentBaseResource):
     def generate_entities_orders(self, incident_snapshots: list[IncidentSnapshotDocument]) -> dict:
         entities_orders = {}
         for incident_snapshot in incident_snapshots:
+            if "incident_propagation_graph" not in incident_snapshot.content:
+                continue
             for entity in incident_snapshot.content["incident_propagation_graph"]["entities"]:
                 if entity["entity_id"] not in entities_orders:
                     entities_orders[entity["entity_id"]] = incident_snapshot.create_time

@@ -26,24 +26,31 @@
 
 import { computed, defineComponent, ref } from 'vue';
 
-import RetrieveHelper from '../../retrieve-helper';
-import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
-import useLocale from '@/hooks/use-locale';
 import useElementEvent from '@/hooks/use-element-event';
-import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
-import useStore from '@/hooks/use-store';
+import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
+import useStore from '@/hooks/use-store';
+import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
+import { useRoute, useRouter } from 'vue-router/composables';
+import { bkMessage } from 'bk-magic-vue';
 
 import './index.scss';
+import { handleTransformToTimestamp } from '@/components/time-range/utils';
 
 export default defineComponent({
   name: 'V3Searchbar',
   setup() {
     const { t } = useLocale();
     const store = useStore();
+    const router = useRouter();
+    const route = useRoute();
 
     const searchBarHeight = ref(0);
     const searchBarRef = ref<any>(null);
+
+    const isAiLoading = ref(false);
 
     const aiSpanStyle = {
       background: 'linear-gradient(115deg, #235DFA 0%, #E28BED 100%)',
@@ -53,20 +60,6 @@ export default defineComponent({
       color: 'transparent',
       'font-size': '12px',
       cursor: 'pointer',
-    };
-
-    const aiBtnStyle = {
-      'font-size': '12px',
-      color: '#313238',
-      width: 'max-content',
-      'background-image': 'linear-gradient(-79deg, #F1EDFA 0%, #EBF0FF 100%)',
-      'border-radius': '12px',
-      padding: '4px 8px',
-      display: 'flex',
-      'align-items': 'center',
-      gap: '4px',
-      cursor: 'pointer',
-      'margin-right': '8px',
     };
 
     const aiSpanWrapperStyle = {
@@ -99,7 +92,7 @@ export default defineComponent({
      * @TODO 本周发布BKOP开启助手，上云环境关闭助手，此处需要暂时调整为 false
      */
     const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
-
+    const formatValue = computed(() => store.getters.retrieveParams.format);
     /**
      * 更新AI助手位置
      */
@@ -178,6 +171,68 @@ export default defineComponent({
     };
 
     /**
+     * 使用AI编辑
+     * @param value 查询语句
+     * @returns {void}
+     */
+    const handleTextToQuery = (value: string): void => {
+      isAiLoading.value = true;
+      RetrieveHelper.aiAssitantHelper
+        .requestTextToQueryString({
+          index_set_id: store.state.indexItem.ids[0],
+          description: value,
+          domain: window.location.origin,
+          fields: fieldsJsonValue.value,
+          keyword: value,
+        })
+        .then((resp) => {
+          const content = resp.choices[0]?.delta?.content ?? '{}';
+          try {
+            const contentObj = JSON.parse(content);
+            const { end_time: endTime, start_time: startTime, query_string: queryString } = contentObj;
+            const queryParams = {};
+            let needReplace = false;
+            if (startTime && endTime) {
+              const results = handleTransformToTimestamp([startTime, endTime], formatValue.value);
+              Object.assign(queryParams, { start_time: results[0], end_time: results[1] });
+              store.commit('updateIndexItemParams', { datePickerValue: [startTime, endTime] });
+              needReplace = true;
+            }
+            if (queryString) {
+              Object.assign(queryParams, { keyword: queryString });
+              needReplace = true;
+            }
+
+            if (needReplace) {
+              store.commit('updateIndexItemParams', queryParams);
+              router
+                .replace({
+                  name: 'retrieve',
+                  params: route.params,
+                  query: {
+                    ...route.query,
+                    ...queryParams,
+                  },
+                })
+                .then(() => {
+                  RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+                  store.dispatch('requestIndexSetQuery');
+                });
+            }
+          } catch (e) {
+            console.error(e);
+            bkMessage({
+              theme: 'error',
+              message: e.message,
+            });
+          }
+        })
+        .finally(() => {
+          isAiLoading.value = false;
+        });
+    };
+
+    /**
      * 渲染搜索栏
      * @returns
      */
@@ -186,6 +241,8 @@ export default defineComponent({
         class='v3-search-bar-root'
         ref={searchBarRef}
         on-height-change={handleHeightChange}
+        on-text-to-query={handleTextToQuery}
+        is-ai-loading={isAiLoading.value}
         {...{
           scopedSlots: {
             'custom-placeholder'(slotProps) {
@@ -208,8 +265,8 @@ export default defineComponent({
               if (isAiAssistantActive.value) {
                 return (
                   <span
+                    class='bklog-ai-edit-btn'
                     onClick={handleAiSpanClick}
-                    style={aiBtnStyle}
                   >
                     <img
                       src={aiBluekingSvg}

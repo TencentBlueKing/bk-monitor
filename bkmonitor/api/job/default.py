@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -17,7 +16,8 @@ from rest_framework import serializers
 
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
-from bkmonitor.utils.request import get_request
+from bkmonitor.utils.request import get_request, get_request_tenant_id
+from bkmonitor.utils.user import get_admin_username
 from core.drf_resource.contrib.api import APIResource
 from core.errors.alarm_backends import EmptyAssigneeError
 from core.errors.iam import APIPermissionDeniedError
@@ -47,7 +47,7 @@ class JobBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
 
         assignee = params.pop("assignee", None)
         if assignee is None:
-            assignee = [settings.COMMON_USERNAME]
+            assignee = [get_admin_username(get_request_tenant_id())]
 
         if not assignee:
             self.report_api_failure_metric(
@@ -58,10 +58,10 @@ class JobBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
         for index, username in enumerate(assignee):
             self.bk_username = username
             try:
-                return super(JobBaseResource, self).perform_request(params)
+                return super().perform_request(params)
             except APIPermissionDeniedError as error:
                 self.report_api_failure_metric(
-                    error_code=getattr(error, 'code', 0), exception_type=APIPermissionDeniedError.__name__
+                    error_code=getattr(error, "code", 0), exception_type=APIPermissionDeniedError.__name__
                 )
                 # 权限不足的时候，继续运行
                 if index < len(assignee) - 1:
@@ -69,7 +69,7 @@ class JobBaseResource(six.with_metaclass(abc.ABCMeta, APIResource)):
                 raise error
 
     def full_request_data(self, validated_request_data):
-        validated_request_data = super(JobBaseResource, self).full_request_data(validated_request_data)
+        validated_request_data = super().full_request_data(validated_request_data)
         # 业务id判定
         if "bk_biz_id" not in validated_request_data:
             return validated_request_data

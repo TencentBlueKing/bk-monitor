@@ -276,8 +276,14 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
         { signal: 'closed', message_tmpl: '', title_tmpl: '' },
         { signal: 'ack', message_tmpl: '', title_tmpl: '' },
       ],
+      voice_notice: 'serial',
     },
   };
+
+  voiceNoticeText = {
+    serial: this.$t('串行'),
+    parallel: this.$t('并行'),
+  }
 
   localExpress = '';
   // 监控数据模式 converge: 汇聚 realtime: 实时
@@ -1453,6 +1459,12 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                             ))}
                           </span>
                         </div>
+                        {/* 暂时隐藏，等后端开发完成在放开{this.noticeData?.user_group_list?.length > 1 && !!this.noticeData?.config?.voice_notice ? (
+                          <div class='user-notice-item'>
+                            <span class='groups-title-warp'>{this.$t('语音拨打顺序')}：</span>
+                            {this.voiceNoticeText[this.noticeData.config.voice_notice]}
+                          </div>
+                        ) : undefined} */}
                         <div class='user-notice-item'>
                           <span class='groups-title-warp'>{this.$t('通知升级')}：</span>
                           {this.noticeData?.options?.upgrade_config?.is_enabled ? (

@@ -143,7 +143,7 @@
 
         setTimeout(() => {
           this.showConfirmDialog = true;
-          window.open(this.authDialogData.apply_url);
+          window.iframeParent.open(this.authDialogData.apply_url);
         }, 360);
       },
       confirmHasApply() {

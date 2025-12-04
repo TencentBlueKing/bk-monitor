@@ -144,6 +144,9 @@ export default {
   修改优先级: 'Modify priority',
   基于分派规则通知: 'Alarm Routing',
   修改告警内容: 'Modify Alarm',
+  语音拨打顺序: 'Voice Call Order',
+  串行: 'Serial',
+  并行: 'Parallel',
 
   // 专业表单 - 图表相关
   已选图表: 'Selected charts',
@@ -1647,7 +1650,6 @@ export default {
   当告警恢复时: 'When alarm recovers',
   当告警确认时: 'When alarm is acknowledged',
   当告警触发时: 'When alarm is triggered',
-  当告警触发时执行: 'Execute when alarm is triggered',
   告警事件内容: 'Alarm Event Content',
   告警事件屏蔽: 'Alarm Event Mute',
   告警事件链接: 'Alarm Event Link',

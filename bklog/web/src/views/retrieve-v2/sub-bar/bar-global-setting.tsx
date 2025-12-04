@@ -56,6 +56,11 @@ const GLOBAL_SETTING_OPTIONS: Record<string, IOption[]> = {
     { value: 'end', name: 'ab...' },
     { value: 'start', name: '...yz' },
   ],
+  /** 结果展示行数 */
+  resultDisplayLines: [
+    { value: 1, name: window.$t('单行') },
+    { value: 3, name: window.$t('三行') },
+  ],
 };
 
 export default defineComponent({
@@ -78,10 +83,13 @@ export default defineComponent({
     const showFieldAlias = ref(true);
     // 文本省略方向
     const textEllipsisDir = ref('end');
+    // 结果展示行数
+    const resultDisplayLines = ref(3);
 
     const initDefaultSettings = () => {
       showFieldAlias.value = store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
       textEllipsisDir.value = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+      resultDisplayLines.value = store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES] ?? 3;
     };
 
     onMounted(() => {
@@ -102,6 +110,13 @@ export default defineComponent({
      */
     function setTextEllipsisDir(value: string) {
       textEllipsisDir.value = value;
+    }
+    /**
+     * @description 修改结果展示行数
+     * @param {1 | 3} value
+     */
+    function setResultDisplayLines(value: number) {
+      resultDisplayLines.value = value;
     }
 
     /**
@@ -162,6 +177,7 @@ export default defineComponent({
       store.commit('updateStorage', {
         [BK_LOG_STORAGE.SHOW_FIELD_ALIAS]: showFieldAlias.value,
         [BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR]: textEllipsisDir.value,
+        [BK_LOG_STORAGE.RESULT_DISPLAY_LINES]: resultDisplayLines.value,
       });
       handlePopoverHide();
     }
@@ -220,6 +236,16 @@ export default defineComponent({
                 {checkboxRender(textEllipsisDir.value, GLOBAL_SETTING_OPTIONS.textEllipsisDirs, setTextEllipsisDir)}
               </div>
             </div>
+            {/* <div class='setting-item'>
+              <div class='item-label'>{$t('结果展示')}</div>
+              <div class='item-main'>
+                {checkboxRender(
+                  resultDisplayLines.value,
+                  GLOBAL_SETTING_OPTIONS.resultDisplayLines,
+                  setResultDisplayLines,
+                )}
+              </div>
+            </div> */}
           </div>
           <div class='setting-operation'>
             <bk-button
@@ -240,7 +266,12 @@ export default defineComponent({
       );
     }
 
-    return { popoverInstance, settingContainerRender, handleSettingPopoverShow, t: $t };
+    return {
+      popoverInstance,
+      settingContainerRender,
+      handleSettingPopoverShow,
+      t: $t,
+    };
   },
   render() {
     const { popoverInstance, settingContainerRender, handleSettingPopoverShow, t } = this;

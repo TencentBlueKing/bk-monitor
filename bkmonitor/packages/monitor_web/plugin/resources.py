@@ -25,7 +25,6 @@ from distutils.version import StrictVersion
 from uuid import uuid4
 
 import yaml
-from django.db.models.fields.files import FieldFile
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db import IntegrityError
@@ -443,6 +442,16 @@ class PluginImportResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True)
         file_data = serializers.FileField(required=True)
 
+    def un_tar_gz_file(self, tar_obj):
+        # 免解压读取文件内容到内存
+        with tarfile.open(fileobj=tar_obj) as package_file:
+            for member in package_file.getmembers():
+                # 取代 tarfile.extractall 的 filter="data"
+                if not member.isreg():
+                    continue
+                with package_file.extractfile(member) as f:
+                    self.filename_dict[Path(member.name)] = f.read()
+
     def get_plugin(self):
         meta_yaml_path = ""
         # 获取plugin_id,meta.yaml必要信息
@@ -584,65 +593,10 @@ class PluginImportResource(Resource):
             except CollectorPluginMeta.DoesNotExist:
                 self.create_params["duplicate_type"] = "custom"
 
-    # 检查目录结构
-    def check_directory_structure(self, file_path_content_map):
-        """
-        检查目录结构
-        所有路径都必须以相同的目录开头
-        :param file_path_content_map: 文件路径内容映射
-        :return:
-        """
-        if not file_path_content_map:
-            raise PluginParseError({"msg": _("未找到任何文件")})
-
-        # 获取所有文件的顶层目录
-        top_level_directories = {Path(file_path).parts[0] for file_path in file_path_content_map.keys()}
-
-        # 检查是否只有一个顶层目录
-        if len(top_level_directories) == 0:
-            raise PluginParseError({"msg": _("未找到操作系统目录")})
-
-        # 检查目录是否为支持的操作系统类型
-        supported_os_directories = set(OS_TYPE_TO_DIRNAME.values())
-
-        for os_name in top_level_directories:
-            if os_name not in supported_os_directories:
-                raise PluginParseError({"msg": _(f"不支持的操作系统：{os_name}")})
-
-    @classmethod
-    def parse_package_without_decompress(cls, file: FieldFile) -> dict[Path, bytes]:
-        """
-        针对zip 和tar相关的压缩包进行处理
-        """
-        # 解压到内存中，获取文件的路径已经对应的内容
-        file_path_content_map: dict[Path, bytes] = {}
-
-        try:
-            if file.name.endswith((".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tar.xz")):
-                with tarfile.open(fileobj=file.file) as package_file:
-                    for member in package_file.getmembers():
-                        # 取代 tarfile.extractall 的 filter="data"
-                        if not member.isreg():
-                            continue
-                        with package_file.extractfile(member) as f:
-                            file_path_content_map[Path(member.name)] = f.read()
-            else:
-                raise PluginParseError({"msg": _(f"不支持的文件格式: {file.name}")})
-        except tarfile.ReadError as e:
-            logger.error(f"压缩文件解析失败: {file.name}, 错误: {e}")
-            raise PluginParseError({"msg": _(f"压缩文件格式错误: {str(e)}")})
-        except Exception as e:
-            logger.error(f"解析压缩文件时发生未知错误: {file.name}, 错误: {e}")
-            raise PluginParseError({"msg": _(f"解析压缩文件失败: {str(e)}")})
-
-        return file_path_content_map
-
     def perform_request(self, validated_request_data):
         try:
-            file_path_content_map = self.parse_package_without_decompress(validated_request_data["file_data"])
-            self.check_directory_structure(file_path_content_map)
-            self.filename_dict = file_path_content_map
-
+            # 解压插件包
+            self.un_tar_gz_file(validated_request_data["file_data"])
             # 获取插件ID
             self.get_plugin()
             # 创建插件记录
@@ -651,7 +605,7 @@ class PluginImportResource(Resource):
                 plugin=self.plugin_id,
                 plugin_type=self.plugin_type,
                 tmp_path=self.tmp_path,
-                plugin_configs=file_path_content_map,
+                plugin_configs=self.filename_dict,
             )
             self.tmp_version = import_manager.get_tmp_version()
             self.check_duplicate()

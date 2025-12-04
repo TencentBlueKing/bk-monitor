@@ -317,6 +317,10 @@ class EventGroup(CustomGroupBase):
         option_value.append("time")
         additional_options[ResultTableOption.OPTION_ES_DOCUMENT_ID] = option_value
 
+        # 如果启用事件组V4数据链路，则添加V4数据链路配置
+        if settings.ENABLE_V4_EVENT_GROUP_DATA_LINK:
+            additional_options[ResultTableOption.OPTION_ENABLE_V4_EVENT_GROUP_DATA_LINK] = True
+
         group = super().create_custom_group(
             bk_data_id=bk_data_id,
             bk_biz_id=bk_biz_id,
@@ -328,6 +332,7 @@ class EventGroup(CustomGroupBase):
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
             additional_options=additional_options,
+            bk_biz_id_alias="dimensions.bk_biz_id",
         )
 
         return group

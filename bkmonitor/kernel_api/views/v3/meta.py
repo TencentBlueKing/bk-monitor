@@ -207,6 +207,10 @@ class ListBCSClusterInfoViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.ListBCSClusterInfoResource)]
 
 
+class ListBCSClusterInfoByBizViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("GET", resource.ListBCSClusterInfoByBizResource)]
+
+
 class ApplyYamlToBCSClusterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.ApplyYamlToBCSClusterResource)]
 
@@ -480,6 +484,10 @@ class CreateOrUpdateLogRouterViewSet(MetaViewSet):
 
 class BulkCreateOrUpdateLogRouterViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.BulkCreateOrUpdateLogRouter)]
+
+
+class CleanLogRouterViewSet(MetaViewSet):
+    resource_routes = [ResourceRoute("POST", resource.CleanLogRouter)]
 
 
 class ModifyDataIdSourceViewSet(MetaViewSet):

@@ -34,7 +34,7 @@ const notKeywordDecorator = Decoration.mark({
 });
 
 function highlightNotKeywords() {
-  return EditorView.decorations.of(view => {
+  return EditorView.decorations.of((view) => {
     const decorations = [];
     const text = view.state.doc.toString();
     const regex = /\bNOT\b/g;
@@ -59,7 +59,15 @@ function highlightNotKeywords() {
  * @param {String} params.value 初始值
  * @param {Function} params.stopDefaultKeyboard 阻止默认键盘行为回调 'ArrowUp', 'ArrowDown'
  */
-export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter, value, stopDefaultKeyboard }) => {
+export default ({ target,
+  onChange,
+  onFocusChange,
+  onFocusPosChange,
+  onKeyEnter,
+  onCtrlEnter,
+  value,
+  stopDefaultKeyboard,
+}) => {
   // 键盘操作事件处理函数
   // 这里通过回调函数处理，如果 stopDefaultKeyboard 返回true，则会阻止编辑器默认的监盘行为
   const stopKeyboardList = ['ArrowUp', 'ArrowDown'].map(keymap => ({
@@ -69,7 +77,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     },
   }));
 
-  const debouncedTrack = debounce(update => {
+  const debouncedTrack = debounce((update) => {
     onChange?.(update.state.doc);
     onFocusPosChange?.(update.state);
   });
@@ -81,8 +89,22 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
         {
           key: 'Enter',
           mac: 'Enter',
-          run: view => {
+          run: (view) => {
+            // 检查是否正在输入法组合过程中
+            if (isComposing || view.dom.getAttribute('data-composing') === 'true') {
+              return false;
+            }
             return onKeyEnter?.(view) ?? false;
+          },
+        }, {
+          key: 'Ctrl-Enter',
+          mac: 'Cmd-Enter',
+          run: (view) => {
+            // Ctrl+Enter 通常不受输入法影响，但为了安全也检查一下
+            if (isComposing || view.dom.getAttribute('data-composing') === 'true') {
+              return false;
+            }
+            return onCtrlEnter?.(view) ?? false;
           },
         },
         ...stopKeyboardList,
@@ -95,7 +117,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
       EditorView.focusChangeEffect.of((state, focusing) => {
         onFocusChange?.(state, focusing);
       }),
-      EditorView.updateListener.of(update => {
+      EditorView.updateListener.of((update) => {
         if (update.selectionSet) {
           onFocusPosChange?.(update.state);
         }
@@ -111,7 +133,22 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     parent: target,
   });
 
-  const appendText = value => {
+  // 添加输入法组合事件监听
+  let isComposing = false;
+  const handleCompositionStart = () => {
+    isComposing = true;
+    view.dom.setAttribute('data-composing', 'true');
+  };
+  const handleCompositionEnd = () => {
+    isComposing = false;
+    view.dom.removeAttribute('data-composing');
+  };
+
+  // 在编辑器的 DOM 上添加 composition 事件监听
+  view.dom.addEventListener('compositionstart', handleCompositionStart);
+  view.dom.addEventListener('compositionend', handleCompositionEnd);
+
+  const appendText = (value) => {
     view.dispatch({
       changes: { from: view.state.doc.length, insert: value },
     });
@@ -170,7 +207,7 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     }
   };
 
-  const setFocus = focusPosition => {
+  const setFocus = (focusPosition) => {
     if (!view) return;
 
     view.focus();
@@ -188,6 +225,14 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     return view.state.doc.toString() ?? '*';
   };
 
+  const destroy = () => {
+    // 清理 composition 事件监听器
+    view.dom.removeEventListener('compositionstart', handleCompositionStart);
+    view.dom.removeEventListener('compositionend', handleCompositionEnd);
+    // 销毁编辑器视图
+    view.destroy();
+  };
+
   return {
     state,
     view,
@@ -195,5 +240,6 @@ export default ({ target, onChange, onFocusChange, onFocusPosChange, onKeyEnter,
     setValue,
     setFocus,
     getValue,
+    destroy,
   };
 };

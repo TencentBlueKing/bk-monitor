@@ -12,10 +12,12 @@ import json
 import logging
 from typing import Any
 
+from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
+from bkmonitor.utils.request import get_request_username
 from metadata import config
 from metadata.models.common import Label
 from metadata.models.data_source import DataSourceOption, DataSourceResultTable
@@ -94,7 +96,11 @@ class CustomGroupBase(models.Model):
         设置结果表废弃，默认是将相关的公共结果表废弃
         :return: True | False
         """
-        ResultTable.objects.filter(table_id=self.table_id).update(is_deleted=True, is_enable=False)
+        # 如果结果表存在，则先修改结果表的启用状态
+        for table in ResultTable.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id):
+            table.modify(operator=get_request_username(settings.COMMON_USERNAME), is_enable=False)
+            table.is_deleted = True
+            table.save()
         logger.info("group->[%s] table->[%s] is disabled now.", self.custom_group_name, self.table_id)
 
     @classmethod
@@ -197,6 +203,7 @@ class CustomGroupBase(models.Model):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
+        bk_biz_id_alias: str | None = None,
         **kwargs,
     ):
         """
@@ -214,6 +221,7 @@ class CustomGroupBase(models.Model):
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
+        :param bk_biz_id_alias: 业务ID别名
         :return: group object
         """
         # 创建流程：pre_check -> _create -> create_result_table -> 配置更新
@@ -300,6 +308,7 @@ class CustomGroupBase(models.Model):
             option=option,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
+            bk_biz_id_alias=bk_biz_id_alias,
         )
 
         custom_group.update_metrics(metric_info=final_metric_info_list)

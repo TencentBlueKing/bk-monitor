@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
@@ -28,10 +29,10 @@ from config.domains import DATABUS_APIGATEWAY_ROOT
 
 class _BkDataDatabusApi:
     MODULE = _("计算平台总线模块")
-    
+
     @property
     def use_apigw(self):
-        return settings.ENABLE_MULTI_TENANT_MODE
+        return settings.USE_APIGW
 
     def _build_url(self, new_path, old_path):
         return (
@@ -100,6 +101,15 @@ class _BkDataDatabusApi:
             default_return_value=None,
             before_request=add_esb_info_before_request_for_bkdata_user,
             bk_tenant_id=biz_to_tenant_getter(),
+        )
+        self.databus_clean_debug = DataAPI(
+            method="POST",
+            url=f"{settings.PAAS_API_HOST}/api/bk-base/{settings.ENVIRONMENT}/v3/databus/clean/debug/",
+            module=self.MODULE,
+            description="清洗配置调试",
+            default_return_value=None,
+            before_request=add_esb_info_before_request_for_bkdata_user,
+            bk_tenant_id=settings.BK_APP_TENANT_ID,
         )
         self.post_tasks = DataAPI(
             method="POST",
