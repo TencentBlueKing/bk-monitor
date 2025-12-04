@@ -123,8 +123,8 @@ def get_chart_data(item: Item, source_time, title=""):
     interval = max(data_source.interval for data_source in unify_query.data_sources)
     chart_option = {_("今日"): 0, _("昨日"): -1, _("上周"): -7}
 
-    start_time = source_time.replace(hours=-max(interval * 5 // 3600, 1))
-    end_time = source_time.replace(minutes=max(interval // 60, 5))
+    start_time = source_time.shift(hours=-max(interval * 5 // 3600, 1))
+    end_time = source_time.shift(minutes=max(interval // 60, 5))
 
     unit = load_unit(item.unit)
 
@@ -132,8 +132,8 @@ def get_chart_data(item: Item, source_time, title=""):
     for name, offset in list(chart_option.items()):
         data = []
         records = unify_query.query_data(
-            start_time=start_time.replace(days=offset).timestamp * 1000,
-            end_time=(end_time.replace(days=offset) if offset != 0 else source_time.replace(seconds=interval)).timestamp
+            start_time=start_time.shift(days=offset).timestamp * 1000,
+            end_time=(end_time.shift(days=offset) if offset != 0 else source_time.shift(seconds=interval)).timestamp
             * 1000,
         )
         for record in records:
@@ -159,9 +159,9 @@ def get_chart_data(item: Item, source_time, title=""):
             chart_start_time = start_time.timestamp * 1000  # 使用基准时间（offset=0）
             # 结束时间也要使用基准时间，与查询逻辑保持一致
             if offset == 0:
-                chart_end_time = source_time.replace(seconds=interval).timestamp * 1000
+                chart_end_time = source_time.shift(seconds=interval).timestamp * 1000
             else:
-                # 对于昨天和上周，查询时使用的是 end_time.replace(days=offset)
+                # 对于昨天和上周，查询时使用的是 end_time.shift(days=offset)
                 # 数据调整后对应到基准的 end_time
                 chart_end_time = end_time.timestamp * 1000
 

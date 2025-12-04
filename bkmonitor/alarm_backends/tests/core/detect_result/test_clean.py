@@ -87,8 +87,8 @@ class TestCleanResult(TestCase):
 
         self.strategies = STRATEGIES
         self.now_timestamp = arrow.utcnow().timestamp
-        self.three_hours_ago = arrow.utcnow().replace(hours=-3).timestamp
-        self.two_hours_ago = arrow.utcnow().replace(hours=-2).timestamp
+        self.three_hours_ago = arrow.utcnow().shift(hours=-3).timestamp
+        self.two_hours_ago = arrow.utcnow().shift(hours=-2).timestamp
         check_result_data = {
             "{}|{}".format(self.three_hours_ago, "ANOMALY"): self.three_hours_ago,
             "{}|{}".format(self.now_timestamp, "ANOMALY"): self.now_timestamp,

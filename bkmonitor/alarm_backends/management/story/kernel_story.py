@@ -261,7 +261,7 @@ class DurationSpace(CheckStep):
         now_ts = arrow.now()
         try:
             records = query.query_data(
-                start_time=now_ts.replace(minutes=-1).timestamp * 1000, end_time=now_ts.timestamp * 1000
+                start_time=now_ts.shift(minutes=-1).timestamp * 1000, end_time=now_ts.timestamp * 1000
             )
         except Exception as e:
             return APIERROR(f"UnifyQuery.query_data Error: {e}", self.story)

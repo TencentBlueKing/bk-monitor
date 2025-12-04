@@ -2308,7 +2308,7 @@ class ESStorage(models.Model, StorageResultTable):
 
     @property
     def now(self):
-        return arrow.utcnow().replace(hours=self.time_zone).datetime + datetime.timedelta(
+        return arrow.utcnow().shift(hours=self.time_zone).datetime + datetime.timedelta(
             hours=settings.ES_STORAGE_OFFSET_HOURS
         )
 

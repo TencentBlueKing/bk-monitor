@@ -39,7 +39,7 @@ class TestCloseStatusChecker(TestCase):
 
     def setUp(self) -> None:
         LAST_CHECKPOINTS_CACHE_KEY.client.flushall()
-        check_time = arrow.now().replace(seconds=-200).timestamp
+        check_time = arrow.now().shift(seconds=-200).timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -208,7 +208,7 @@ class TestCloseStatusChecker(TestCase):
         checker.check_all()
         self.assertEqual(alert.status, EventStatus.ABNORMAL)
 
-        check_time = arrow.now().replace(seconds=-310 - 30 * 60).timestamp
+        check_time = arrow.now().shift(seconds=-310 - 30 * 60).timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -235,7 +235,7 @@ class TestCloseStatusChecker(TestCase):
         self.assertEqual(alert.status, EventStatus.ABNORMAL)
 
         # 汇聚周期为11分钟，检测无数据时间应该是 5个周期 * 11分钟， 55分钟之内存在数据即表示不关闭
-        check_time = arrow.now().replace(seconds=-40 * 60).timestamp
+        check_time = arrow.now().shift(seconds=-40 * 60).timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
@@ -258,7 +258,7 @@ class TestCloseStatusChecker(TestCase):
         alert.top_event["target_type"] = ""
 
         # 汇聚周期为11分钟，检测无数据时间应该是 5个周期 * 11分钟， 55分钟之内不存在数据即表示关闭
-        check_time = arrow.now().replace(seconds=-56 * 60).timestamp
+        check_time = arrow.now().shift(seconds=-56 * 60).timestamp
         LAST_CHECKPOINTS_CACHE_KEY.client.hset(
             LAST_CHECKPOINTS_CACHE_KEY.get_key(strategy_id=1, item_id=1),
             LAST_CHECKPOINTS_CACHE_KEY.get_field(
