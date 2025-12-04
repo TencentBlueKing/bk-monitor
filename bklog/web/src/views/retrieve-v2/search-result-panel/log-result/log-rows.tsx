@@ -154,6 +154,7 @@ export default defineComponent({
     const tableList = computed<any[]>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
+    const limitRow = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES]);
 
     // 检索第一页数据时，loading状态
     const isFirstPageLoading = computed(() => isLoading.value && !isRequesting.value);
@@ -255,7 +256,7 @@ export default defineComponent({
                 class='bklog-column-wrapper'
                 fields={visibleFields.value}
                 jsonValue={row}
-                limitRow={null}
+                limitRow={limitRow.value}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
               />
             );
@@ -279,6 +280,7 @@ export default defineComponent({
               class='bklog-column-wrapper'
               fields={field}
               jsonValue={getRowFieldValue(row, field)}
+              limitRow={limitRow.value}
               onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, { row, field })}
             />
           );
