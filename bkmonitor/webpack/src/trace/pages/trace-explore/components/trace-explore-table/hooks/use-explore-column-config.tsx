@@ -24,8 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type VNode, computed } from 'vue';
-import type { DeepReadonly, MaybeRef } from 'vue';
+import { type MaybeRef, type VNode, computed } from 'vue';
 
 import { get } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
@@ -62,7 +61,7 @@ interface UseExploreTableColumnConfig {
   /** 表格行数据唯一 key 字段 */
   rowKeyField: MaybeRef<string>;
   /** 表格排序信息 */
-  sortContainer: DeepReadonly<SortInfo>;
+  sortContainer: MaybeRef<SortInfo>;
   /** 表格所有列字段配置数组(接口原始结构) */
   sourceFieldConfigs: MaybeRef<IDimensionField[]>;
   /** 点击显示下拉操作menu */
@@ -157,11 +156,11 @@ export const useExploreColumnConfig = ({
                     !['svg', 'path'].includes(e.target.tagName.toLocaleLowerCase()) &&
                     e.currentTarget?.classList.contains(`t-table__th-${column.colKey}`)
                   ) {
-                    let sortBy = sortContainer.sortBy;
-                    let descending = sortContainer.descending;
+                    let sortBy = get(sortContainer).sortBy;
+                    let descending = get(sortContainer).descending;
                     if (sortBy === column.colKey) {
                       const sortDescValueList = [false, true, null];
-                      const sortIndex = sortDescValueList.findIndex(v => descending === v);
+                      const sortIndex = sortDescValueList.indexOf(descending);
                       descending = sortDescValueList.at((sortIndex + 1) % sortDescValueList.length);
                       if (descending === null) {
                         sortBy = '';

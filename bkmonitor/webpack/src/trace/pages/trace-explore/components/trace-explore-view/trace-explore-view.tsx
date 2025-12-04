@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, nextTick, useTemplateRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, toRef, useTemplateRef, watch } from 'vue';
 
 import { Checkbox } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
@@ -32,8 +32,10 @@ import { useI18n } from 'vue-i18n';
 import BackTop from '../../../../components/back-top/back-top';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ChartWrapper from '../explore-chart/chart-wrapper';
+import { useExploreTableData } from '../trace-explore-table/hooks/use-explore-table-data';
 import { useExploreTableDisplayField } from '../trace-explore-table/hooks/use-explore-table-display-field';
 import TraceExploreTable from '../trace-explore-table/trace-explore-table';
+import { ExploreTableLoadingEnum } from '../trace-explore-table/typing';
 
 import type { ConditionChangeEvent, ExploreFieldList, ICommonParams } from '../../typing';
 
@@ -87,7 +89,7 @@ export default defineComponent({
     const backTopRef = useTemplateRef<InstanceType<typeof BackTop>>('backTopRef');
     const traceExploreTableRef = useTemplateRef<InstanceType<typeof TraceExploreTable>>('traceExploreTable');
 
-    const { mode, appName, timeRange, refreshImmediate } = storeToRefs(store);
+    const { mode, appName } = storeToRefs(store);
     const {
       displayColumnFields,
       fieldsWidthConfig,
@@ -96,11 +98,32 @@ export default defineComponent({
       handleDisplayColumnResize,
     } = useExploreTableDisplayField({ mode, appName });
 
+    /** 当前视角下的字段配置 */
+    const sourceFieldConfigs = computed(() => props.fieldListMap?.[mode.value] ?? []);
+
+    // 使用数据处理 hook
+    const { tableViewData, tableHasScrollLoading, tableLoading, sortContainer, getExploreList, handleSortChange } =
+      useExploreTableData({
+        commonParams: toRef(props, 'commonParams'),
+        sourceFieldConfigs,
+        onBackTop: () => {
+          backTopRef.value?.handleBackTop?.(false);
+        },
+      });
+
     /**
-     * @description 回到顶部按钮触发的回调
+     * @description 触底加载更多
      */
-    const handleScrollToTop = () => {
-      backTopRef.value?.handleBackTop?.(false);
+    const handleScrollToEnd = () => {
+      getExploreList(ExploreTableLoadingEnum.SCROLL);
+    };
+
+    /**
+     * @description 排序变化处理
+     */
+    const handleTableSortChange = sortEvent => {
+      handleSortChange(sortEvent);
+      emit('setUrlParams');
     };
 
     /**
@@ -160,21 +183,23 @@ export default defineComponent({
     return {
       mode,
       appName,
-      timeRange,
-      refreshImmediate,
       displayColumnFields,
       fieldsWidthConfig,
+      sourceFieldConfigs,
+      tableViewData,
+      tableHasScrollLoading,
+      tableLoading,
+      sortContainer,
       getCustomFieldsConfig,
       handleDisplayColumnFieldsChange,
       handleDisplayColumnResize,
+      handleScrollToEnd,
+      handleTableSortChange,
       filtersCheckBoxGroupRender,
-      handleScrollToTop,
       t,
     };
   },
   render() {
-    const sourceFieldConfigs = this.fieldListMap?.[this.mode] ?? [];
-
     return (
       <div class='trace-explore-view'>
         <div class='trace-explore-view-chart'>
@@ -192,15 +217,17 @@ export default defineComponent({
             displayFields={this.displayColumnFields}
             fieldsWidthConfig={this.fieldsWidthConfig}
             mode={this.mode}
-            refreshImmediate={this.refreshImmediate}
-            sourceFieldConfigs={sourceFieldConfigs}
-            timeRange={this.timeRange}
-            onBackTop={this.handleScrollToTop}
+            sortContainer={this.sortContainer}
+            sourceFieldConfigs={this.sourceFieldConfigs}
+            tableData={this.tableViewData}
+            tableHasScrollLoading={this.tableHasScrollLoading}
+            tableLoading={this.tableLoading}
             onClearRetrievalFilter={() => this.$emit('clearRetrievalFilter')}
             onColumnResize={this.handleDisplayColumnResize}
             onConditionChange={conditionEvent => this.$emit('conditionChange', conditionEvent)}
             onDisplayFieldChange={this.handleDisplayColumnFieldsChange}
-            onSetUrlParams={() => this.$emit('setUrlParams')}
+            onScrollToEnd={this.handleScrollToEnd}
+            onSortChange={this.handleTableSortChange}
           />
         </div>
         <BackTop

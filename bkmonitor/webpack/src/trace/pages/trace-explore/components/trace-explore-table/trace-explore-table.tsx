@@ -32,21 +32,16 @@ import {
   onBeforeUnmount,
   onMounted,
   reactive,
-  readonly,
   shallowRef,
   toRef,
-  unref,
   useTemplateRef,
   watch,
 } from 'vue';
 
 import { type SortInfo, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
-import { useDebounceFn } from '@vueuse/core';
 import { $bkPopover, Loading } from 'bkui-vue';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
-import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
-import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
 const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
 const ExploreTraceSlider = defineAsyncComponent(() => import('../explore-trace-slider/explore-trace-slider'));
@@ -65,33 +60,31 @@ import { useExploreDataCache } from './hooks/use-explore-data-cache';
 import { useTableCell } from './hooks/use-table-cell';
 import { useTableEllipsis, useTableHeaderDescription, useTablePopover } from './hooks/use-table-popover';
 import { type ActiveConditionMenuTarget, type ExploreTableColumn, ExploreTableLoadingEnum } from './typing';
-import { getTableList } from './utils/api-utils';
 import { isEllipsisActiveSingleLine } from './utils/dom-helper';
 
+import type { ISpanListItem, ITraceListItem } from '../../../../typings';
 import type { ConditionChangeEvent, ICommonParams, IDimensionField, IDimensionFieldTreeItem } from '../../typing';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 import './trace-explore-table.scss';
 
-const SCROLL_ELEMENT_CLASS_NAME = '.trace-explore-view';
+/** 默认滚动容器选择器 */
+const DEFAULT_SCROLL_CONTAINER_SELECTOR = '.trace-explore-view';
 
 export default defineComponent({
   name: 'TraceExploreTable',
   props: {
+    /** 滚动容器选择器 */
+    scrollContainerSelector: {
+      type: String,
+      default: DEFAULT_SCROLL_CONTAINER_SELECTOR,
+    },
     /** 当前视角是否为 Span 视角 */
     mode: {
       type: String as PropType<'span' | 'trace'>,
     },
     /** 当前选中的应用 Name */
     appName: {
-      type: String,
-    },
-    /** 当前选中的应用 Name */
-    timeRange: {
-      type: Array as PropType<string[]>,
-    },
-    /** 是否立即刷新 */
-    refreshImmediate: {
       type: String,
     },
     /** 接口请求配置参数 */
@@ -114,28 +107,53 @@ export default defineComponent({
       type: Array as PropType<IDimensionField[]>,
       default: () => [],
     },
+    /** 表格数据 */
+    tableData: {
+      type: Array as PropType<ISpanListItem[] | ITraceListItem[]>,
+      default: () => [],
+    },
+    /** 判断当前数据是否需要触底加载更多 */
+    tableHasScrollLoading: {
+      type: Boolean,
+      default: false,
+    },
+    /** table loading 配置 */
+    tableLoading: {
+      type: Object as PropType<{
+        [ExploreTableLoadingEnum.BODY_SKELETON]: boolean;
+        [ExploreTableLoadingEnum.HEADER_SKELETON]: boolean;
+        [ExploreTableLoadingEnum.SCROLL]: boolean;
+      }>,
+      default: () => ({
+        [ExploreTableLoadingEnum.BODY_SKELETON]: false,
+        [ExploreTableLoadingEnum.HEADER_SKELETON]: false,
+        [ExploreTableLoadingEnum.SCROLL]: false,
+      }),
+    },
+    /** 表格列排序配置 */
+    sortContainer: {
+      type: Object as PropType<SortInfo>,
+      default: () => ({
+        sortBy: '',
+        descending: null,
+      }),
+    },
   },
   emits: {
-    /** 返回顶部 */
-    backTop: () => true,
     /** 筛选条件改变后触发的回调 */
     conditionChange: (conditionEvent: ConditionChangeEvent) => conditionEvent,
     /** 清除检索过滤 */
     clearRetrievalFilter: () => true,
-    /** 设置url参数 */
-    setUrlParams: () => true,
     /** 显示列字段变化 */
     displayFieldChange: (displayFields: string[]) => Array.isArray(displayFields),
     /** 列宽变化 */
     columnResize: (context: { columnsWidth: { [colKey: string]: number } }) => !!context,
+    /** 排序变化 */
+    sortChange: (sortEvent: TableSort) => !!sortEvent,
+    /** 触底加载更多 */
+    scrollToEnd: () => true,
   },
   setup(props, { emit }) {
-    const store = useTraceExploreStore();
-
-    /** 表格单页条数 */
-    const limit = 30;
-    /** 表格logs数据请求中止控制器 */
-    let abortController: AbortController = null;
     /** 滚动容器元素 */
     let scrollContainer: HTMLElement = null;
     /** 滚动结束后回调逻辑执行计时器  */
@@ -151,19 +169,6 @@ export default defineComponent({
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
     const activeSliderId = shallowRef('');
-    /** 判断table数据是否还有数据可以获取 */
-    const tableHasMoreData = shallowRef(false);
-    /** table loading 配置 */
-    const tableLoading = reactive({
-      /** table body部分 骨架屏 loading */
-      [ExploreTableLoadingEnum.BODY_SKELETON]: false,
-      /** table header部分 骨架屏 loading */
-      [ExploreTableLoadingEnum.HEADER_SKELETON]: false,
-      /** 表格触底加载更多 loading  */
-      [ExploreTableLoadingEnum.SCROLL]: false,
-    });
-    /** 表格列排序配置 */
-    const sortContainer = readonly<SortInfo>(unref(toRef(store, 'tableSortContainer')));
 
     /** 统计面板的 抽屉页展示状态 */
     let statisticsSliderShow = false;
@@ -180,12 +185,12 @@ export default defineComponent({
       customMenuList: [],
     });
 
-    /** 当前视角是否为 Span 视角 */
-    const isSpanVisual = computed(() => props.mode === 'span');
     /** 表格行可用作 唯一主键值 的字段名 */
-    const tableRowKeyField = computed(() => (isSpanVisual.value ? 'span_id' : 'trace_id'));
+    const tableRowKeyField = computed(() => (props.mode === 'span' ? 'span_id' : 'trace_id'));
 
+    /** 数据缓存 hook，用于表格单元格交互 */
     const { cacheRows, getCellComplexValue, clearCache } = useExploreDataCache(tableRowKeyField);
+
     /** 表格功能单元格内容溢出弹出 popover 功能 */
     const { initListeners: initEllipsisListeners, handlePopoverHide: ellipsisPopoverHide } = useTableEllipsis(
       tableRef,
@@ -253,7 +258,7 @@ export default defineComponent({
       fieldsWidthConfig: toRef(props, 'fieldsWidthConfig'),
       mode: toRef(props, 'mode'),
       rowKeyField: tableRowKeyField,
-      sortContainer,
+      sortContainer: toRef(props, 'sortContainer'),
       sourceFieldConfigs: toRef(props, 'sourceFieldConfigs'),
       tableHeaderCellRender,
       tableCellRender,
@@ -262,49 +267,13 @@ export default defineComponent({
       handleSortChange,
     });
 
-    /** 当前是否进行了本地 "耗时" 的筛选操作 */
-    const isLocalFilterMode = computed(() => store?.filterTableList?.length);
-    /** table 数据（所有请求返回的数据） */
-    const tableData = computed(() => store.tableList);
-    /** 当前表格需要渲染的数据(根据图标耗时统计面板过滤后的数据) */
-    const tableViewData = computed(() => (isLocalFilterMode.value ? store.filterTableList : tableData.value));
-    /** 判断当前数据是否需要触底加载更多 */
-    const tableHasScrollLoading = computed(() => !isLocalFilterMode.value && tableHasMoreData.value);
-
-    /** 请求参数 */
-    const queryParams = computed(() => {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { mode, query_string, ...params } = props.commonParams;
-      const [start_time, end_time] = handleTransformToTimestamp(props.timeRange);
-
-      let sort = [];
-      if (sortContainer.sortBy) {
-        sort = [`${sortContainer.descending ? '-' : ''}${sortContainer.sortBy}`];
-      }
-
-      return {
-        ...params,
-        start_time,
-        end_time,
-        query: query_string,
-        sort,
-      };
-    });
-
     const tableSkeletonConfig = computed(() => {
-      const loading = tableLoading[ExploreTableLoadingEnum.BODY_SKELETON];
+      const loading = props.tableLoading[ExploreTableLoadingEnum.BODY_SKELETON];
       if (!loading) return null;
-      // const headerLoading = tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON];
       const config = {
         tableClass: 'explore-table-hidden-body',
         skeletonClass: 'explore-skeleton-show-body',
       };
-      // if (headerLoading) {
-      //   config = {
-      //     tableClass: 'explore-table-hidden-all',
-      //     skeletonClass: 'explore-skeleton-show-all',
-      //   };
-      // }
       return config;
     });
 
@@ -313,7 +282,7 @@ export default defineComponent({
      */
     function addScrollListener() {
       removeScrollListener();
-      scrollContainer = document.querySelector(SCROLL_ELEMENT_CLASS_NAME);
+      scrollContainer = document.querySelector(props.scrollContainerSelector);
       if (!scrollContainer) return;
       scrollContainer.addEventListener('scroll', handleScroll);
     }
@@ -332,7 +301,7 @@ export default defineComponent({
      *
      */
     function handleScroll(event: Event) {
-      if (!tableData.value?.length) {
+      if (!props.tableData?.length) {
         return;
       }
       updateTablePointEvents('none');
@@ -351,7 +320,7 @@ export default defineComponent({
      *
      */
     function handleScrollToEnd(target: HTMLElement) {
-      if (!tableHasScrollLoading.value) {
+      if (!props.tableHasScrollLoading) {
         return;
       }
       const { scrollHeight, scrollTop, clientHeight } = target;
@@ -361,12 +330,12 @@ export default defineComponent({
       if (!shouldRequest) return;
       if (
         !(
-          tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] ||
-          tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] ||
-          tableLoading[ExploreTableLoadingEnum.SCROLL]
+          props.tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] ||
+          props.tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] ||
+          props.tableLoading[ExploreTableLoadingEnum.SCROLL]
         )
       ) {
-        getExploreList(ExploreTableLoadingEnum.SCROLL);
+        emit('scrollToEnd');
       }
       target.scrollTo({
         top: scrollHeight - 100,
@@ -383,74 +352,6 @@ export default defineComponent({
       if (!tableDom) return;
       tableDom.style.pointerEvents = val;
     }
-
-    /**
-     * @description: 获取 table 表格数据
-     *
-     */
-    async function getExploreList(loadingType = ExploreTableLoadingEnum.BODY_SKELETON) {
-      if (abortController) {
-        abortController.abort();
-        abortController = null;
-      }
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { app_name, start_time, end_time } = queryParams.value;
-      if (!app_name || !start_time || !end_time) {
-        store.updateTableList([]);
-        clearCache();
-        tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
-        tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = false;
-        tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
-        return;
-      }
-      // 检测排序字段是否在字段列表中，不在则忽略该字段的排序规则
-      const shouldIgnoreSortField = sortContainer.sortBy && !tableColumns.value?.fieldMap?.[sortContainer.sortBy];
-      if (shouldIgnoreSortField) {
-        handleSortChange({ sortBy: '', descending: null });
-        return;
-      }
-      if (loadingType === ExploreTableLoadingEnum.BODY_SKELETON) {
-        store.updateTableList([]);
-        clearCache();
-      }
-
-      tableLoading[loadingType] = true;
-      const requestParam = {
-        ...queryParams.value,
-        limit: limit,
-        offset: tableData.value?.length || 0,
-      };
-      abortController = new AbortController();
-      store.updateTableLoading(true);
-      const res = await getTableList(requestParam, isSpanVisual.value, {
-        signal: abortController.signal,
-      });
-      store.updateTableLoading(false);
-      if (res?.isAborted) {
-        tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
-        return;
-      }
-      tableLoading[loadingType] = false;
-      tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
-      // 更新表格数据
-      if (loadingType === ExploreTableLoadingEnum.BODY_SKELETON) {
-        store.updateTableList(res.data);
-      } else {
-        store.updateTableList([...tableData.value, ...res.data]);
-      }
-      cacheRows(res.data);
-      tableHasMoreData.value = res.data?.length >= limit;
-      requestAnimationFrame(() => {
-        // 触底加载逻辑兼容屏幕过大或dpr很小的边际场景处理
-        // 由于这里判断是否还有数据不是根据total而是根据接口返回数据是否为空判断
-        // 所以该场景处理只能通过多次请求的方案来兼容，不能通过首次请求加大页码的方式来兼容
-        // 否则在某些边界场景下会出现首次请求返回的不为空数据已经是全部数据了
-        // 还是但未出现滚动条，导致无法触发触底逻辑再次请求接口判断是否已是全部数据
-        // 从而导致触底loading一直存在但实际已没有更多数据
-        handleScrollToEnd(document.querySelector(SCROLL_ELEMENT_CLASS_NAME));
-      });
-    }
-    const debouncedGetExploreList = useDebounceFn(getExploreList, 200);
 
     /**
      * @description: 修改条件菜单所需数据
@@ -490,8 +391,7 @@ export default defineComponent({
       if (Array.isArray(sortEvent)) {
         return;
       }
-      store.updateTableSortContainer(sortEvent);
-      emit('setUrlParams');
+      emit('sortChange', sortEvent);
     }
 
     /**
@@ -652,35 +552,29 @@ export default defineComponent({
         ) as unknown as SlotReturnValue;
     }
 
+    // 监听 tableData 变化，更新缓存并触发触底加载逻辑兼容
     watch(
-      [
-        () => isSpanVisual.value,
-        () => props.appName,
-        () => props.timeRange,
-        () => props.refreshImmediate,
-        () => sortContainer.sortBy,
-        () => sortContainer.descending,
-        () => props.commonParams.filters,
-        () => props.commonParams.query_string,
-      ],
-      (nVal, oVal) => {
-        tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = true;
-        tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = true;
-        store.updateTableList([]);
-        emit('backTop');
-
-        if (nVal[0] !== oVal[0] || nVal[1] !== oVal[1]) {
-          handleSortChange({
-            sortBy: '',
-            descending: null,
-          });
+      () => props.tableData,
+      (newData, oldData) => {
+        // 更新数据缓存
+        if (newData?.length) {
+          // 如果是新数据（长度变小或完全不同），清空缓存重新缓存
+          if (!oldData?.length || newData.length < oldData.length) {
+            clearCache();
+          }
+          cacheRows(newData as Record<string, unknown>[]);
+        } else {
+          clearCache();
         }
-        debouncedGetExploreList();
-      }
+        requestAnimationFrame(() => {
+          // 触底加载逻辑兼容屏幕过大或dpr很小的边际场景处理
+          handleScrollToEnd(document.querySelector(props.scrollContainerSelector));
+        });
+      },
+      { immediate: true }
     );
 
     onMounted(() => {
-      // debouncedGetExploreList();
       addScrollListener();
       setTimeout(() => {
         initEllipsisListeners();
@@ -692,21 +586,12 @@ export default defineComponent({
     onBeforeUnmount(() => {
       scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
       removeScrollListener();
-      abortController?.abort?.();
-      abortController = null;
-      store.updateTableList([]);
-      store.updateTableSortContainer({ sortBy: '', descending: null });
     });
 
     return {
       tableRowKeyField,
       tableColumns,
-      tableLoading,
-      tableHasScrollLoading,
-      sortContainer,
       tableDisplayColumns,
-      tableData,
-      tableViewData,
       tableSkeletonConfig,
       sliderMode,
       activeSliderId,
@@ -768,14 +653,14 @@ export default defineComponent({
             },
           ]}
           headerAffixedTop={{
-            container: SCROLL_ELEMENT_CLASS_NAME,
+            container: this.scrollContainerSelector,
           }}
           horizontalScrollAffixedBottom={{
-            container: SCROLL_ELEMENT_CLASS_NAME,
+            container: this.scrollContainerSelector,
           }}
           // @ts-expect-error
           lastFullRow={
-            this.tableViewData.length
+            this.tableData.length
               ? () => (
                   <Loading
                     style={{ display: this.tableHasScrollLoading ? 'inline-flex' : 'none' }}
@@ -796,7 +681,7 @@ export default defineComponent({
             };
           }}
           activeRowType='single'
-          data={this.tableViewData}
+          data={this.tableData}
           hover={true}
           resizable={true}
           rowKey={this.tableRowKeyField}
