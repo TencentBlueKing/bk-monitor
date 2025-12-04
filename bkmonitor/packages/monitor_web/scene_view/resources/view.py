@@ -661,7 +661,7 @@ class GetSceneViewDimensionValueResource(ApiAuthResource):
                 query = UnifyQuery(bk_biz_id=params["bk_biz_id"], data_sources=[data_source], expression="")
 
                 if not params.get("start_time") or not params.get("end_time"):
-                    end_time = int(arrow.now().timestamp)
+                    end_time = arrow.now().int_timestamp
                     start_time = end_time - 36000
                 else:
                     start_time = params["start_time"]

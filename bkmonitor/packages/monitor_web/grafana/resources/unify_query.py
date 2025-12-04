@@ -1354,7 +1354,7 @@ class DimensionPromqlQueryResource(Resource):
             promql = match.group(1)
 
         # 只查询最近15分钟维度
-        end_time = arrow.now().timestamp
+        end_time = arrow.now().int_timestamp
         start_time = end_time - 900
 
         graph_data = resource.grafana.graph_promql_query(

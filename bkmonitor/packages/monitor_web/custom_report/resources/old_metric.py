@@ -122,7 +122,7 @@ class GetCustomTimeSeriesLatestDataByFields(Resource):
                         latest_time = time_value
 
         if latest_time:
-            latest_time = arrow.get(latest_time).timestamp
+            latest_time = arrow.get(latest_time).int_timestamp
         else:
             latest_time = None
         return result, latest_time
