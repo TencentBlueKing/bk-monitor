@@ -2002,12 +2002,21 @@ class TimeSeriesMetric(models.Model):
             # 如果存在 service_name，则使用 service_name||default，否则使用 default
             service_name = metric_data.get("service_name")
             if service_name:
-                metric_data["field_scope"] = f"{service_name}||default"
+                field_scope = f"{service_name}||default"
             else:
-                metric_data["field_scope"] = "default"
-            metric_data["group_id"] = group_id
+                field_scope = "default"
 
-            records_to_create.append(cls(**metric_data))
+            records_to_create.append(
+                cls(
+                    table_id=metric_data["table_id"],
+                    field_name=metric_data["field_name"],
+                    field_scope=field_scope,
+                    group_id=group_id,
+                    tag_list=metric_data.get("tag_list", []),
+                    field_config=metric_data.get("field_config", {}),
+                    label=metric_data.get("label", ""),
+                )
+            )
 
         # 批量创建
         cls.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
