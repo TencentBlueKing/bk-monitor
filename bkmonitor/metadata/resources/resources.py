@@ -1733,7 +1733,12 @@ class QueryTimeSeriesScopeResource(Resource):
 
     @staticmethod
     def _build_scope_queryset(group_id, scope_name, bk_tenant_id, service_name=None):
-        """构建 TimeSeriesScope 查询集"""
+        """构建 TimeSeriesScope 查询集
+
+        当 scope_name 为 None 时（包含未分组场景），会排除空串分组，避免与未分组指标重复
+        """
+        from metadata.models.constants import UNGROUP_SCOPE_NAME
+
         query_set = models.TimeSeriesScope.objects.all()
 
         # 按 group_id 过滤
@@ -1757,6 +1762,15 @@ class QueryTimeSeriesScopeResource(Resource):
         elif scope_name:
             # 仅指定了 scope_name，模糊匹配
             query_set = query_set.filter(scope_name__icontains=scope_name)
+
+        # 当 scope_name 为 None 时（包含未分组场景），排除空串分组，避免与未分组指标重复
+        if scope_name is None:
+            if service_name:
+                # APM 场景：排除 {service_name}|| 格式的空串分组
+                query_set = query_set.exclude(scope_name=f"{service_name}||")
+            else:
+                # 非 APM 场景：排除空字符串分组
+                query_set = query_set.exclude(scope_name=UNGROUP_SCOPE_NAME)
 
         return query_set
 
@@ -1832,7 +1846,7 @@ class QueryTimeSeriesScopeResource(Resource):
 
             results.append(
                 {
-                    "scope_id": None,
+                    "scope_id": ungrouped_scope.id if ungrouped_scope else None,
                     "group_id": gid,
                     "scope_name": "",
                     "dimension_config": dimension_config,
