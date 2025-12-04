@@ -64,12 +64,6 @@ export interface ActiveConditionMenuTarget {
   rowId: string;
 }
 
-/** 自定义显示列字段缓存配置 */
-export interface CustomDisplayColumnFieldsConfig {
-  displayFields: string[];
-  fieldsWidth: { [colKey: string]: number };
-}
-
 /** 表格条件菜单项 */
 export interface ExploreConditionMenuItem {
   /** 菜单图标 */

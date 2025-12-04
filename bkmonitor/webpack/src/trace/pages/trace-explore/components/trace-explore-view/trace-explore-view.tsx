@@ -32,6 +32,7 @@ import { useI18n } from 'vue-i18n';
 import BackTop from '../../../../components/back-top/back-top';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ChartWrapper from '../explore-chart/chart-wrapper';
+import { useExploreTableDisplayField } from '../trace-explore-table/hooks/use-explore-table-display-field';
 import TraceExploreTable from '../trace-explore-table/trace-explore-table';
 
 import type { ConditionChangeEvent, ExploreFieldList, ICommonParams } from '../../typing';
@@ -71,58 +72,48 @@ export default defineComponent({
     },
   },
   emits: {
+    /** table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）值改变后触发的回调 */
     checkboxFiltersChange: (checkboxGroupEvent: string[]) => Array.isArray(checkboxGroupEvent),
-
-    conditionChange: (val: ConditionChangeEvent) => true,
+    /** 筛选条件改变后触发的回调 */
+    conditionChange: (conditionEvent: ConditionChangeEvent) => conditionEvent,
+    /** 清除检索过滤 */
     clearRetrievalFilter: () => true,
+    /** 设置url参数 */
     setUrlParams: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
     const store = useTraceExploreStore();
     const backTopRef = useTemplateRef<InstanceType<typeof BackTop>>('backTopRef');
+    const traceExploreTableRef = useTemplateRef<InstanceType<typeof TraceExploreTable>>('traceExploreTable');
 
     const { mode, appName, timeRange, refreshImmediate } = storeToRefs(store);
-
-    const traceExploreTable = useTemplateRef<InstanceType<typeof TraceExploreTable>>('traceExploreTable');
-
-    /** 当前视角是否为 Span 视角 */
-    const isSpanVisual = computed(() => mode.value === 'span');
+    const {
+      displayColumnFields,
+      fieldsWidthConfig,
+      getCustomFieldsConfig,
+      handleDisplayColumnFieldsChange,
+      handleDisplayColumnResize,
+    } = useExploreTableDisplayField({ mode, appName });
 
     /**
      * @description 回到顶部按钮触发的回调
      */
-    function handleScrollToTop() {
+    const handleScrollToTop = () => {
       backTopRef.value?.handleBackTop?.(false);
-    }
-
-    /**
-     * @description 筛选条件改变后触发的回调
-     */
-    function handleConditionChange(val: ConditionChangeEvent) {
-      emit('conditionChange', val);
-    }
-
-    /**
-     * @description table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）值改变后触发的回调
-     * @param checkedGroup
-     *
-     */
-    function handleCheckboxGroupChange(checkedGroup: string[]) {
-      emit('checkboxFiltersChange', checkedGroup);
-    }
+    };
 
     /**
      * @description table上方快捷筛选操作区域（ "包含" 区域中的 复选框组） 渲染方法
      *
      */
-    function filtersCheckBoxGroupRender() {
+    const filtersCheckBoxGroupRender = () => {
       return (
         <Checkbox.Group
           model-value={props.checkboxFilters}
-          onChange={handleCheckboxGroupChange}
+          onChange={checkedGroup => emit('checkboxFiltersChange', checkedGroup)}
         >
-          {isSpanVisual.value
+          {mode.value === 'span'
             ? [
                 <Checkbox
                   key={TableCheckBoxFiltersEnum.RootSpan}
@@ -151,14 +142,14 @@ export default defineComponent({
           <Checkbox label={TableCheckBoxFiltersEnum.Error}>{t('错误')}</Checkbox>
         </Checkbox.Group>
       );
-    }
+    };
 
     watch(
       () => props.showSlideDetail,
       val => {
         if (!val) return;
         nextTick(() => {
-          traceExploreTable.value?.handleSliderShowChange(val.type, val.id);
+          traceExploreTableRef.value?.handleSliderShowChange(val.type, val.id);
         });
       },
       {
@@ -166,31 +157,23 @@ export default defineComponent({
       }
     );
 
-    function handleClearRetrievalFilter() {
-      emit('clearRetrievalFilter');
-    }
-
-    function setUrlParams() {
-      emit('setUrlParams');
-    }
-
     return {
       mode,
       appName,
       timeRange,
       refreshImmediate,
-      traceExploreTable,
-      setUrlParams,
+      displayColumnFields,
+      fieldsWidthConfig,
+      getCustomFieldsConfig,
+      handleDisplayColumnFieldsChange,
+      handleDisplayColumnResize,
       filtersCheckBoxGroupRender,
       handleScrollToTop,
-      handleConditionChange,
-      handleClearRetrievalFilter,
       t,
     };
   },
   render() {
-    const { commonParams, fieldListMap } = this.$props;
-    const { mode, appName, timeRange, refreshImmediate, filtersCheckBoxGroupRender } = this;
+    const sourceFieldConfigs = this.fieldListMap?.[this.mode] ?? [];
 
     return (
       <div class='trace-explore-view'>
@@ -199,21 +182,25 @@ export default defineComponent({
         </div>
         <div class='trace-explore-view-filter'>
           <span class='filter-label'>{this.t('包含')}：</span>
-          {filtersCheckBoxGroupRender()}
+          {this.filtersCheckBoxGroupRender()}
         </div>
         <div class='trace-explore-view-table'>
           <TraceExploreTable
             ref='traceExploreTable'
-            appName={appName}
-            commonParams={commonParams}
-            fieldListMap={fieldListMap}
-            mode={mode}
-            refreshImmediate={refreshImmediate}
-            timeRange={timeRange}
+            appName={this.appName}
+            commonParams={this.commonParams}
+            displayFields={this.displayColumnFields}
+            fieldsWidthConfig={this.fieldsWidthConfig}
+            mode={this.mode}
+            refreshImmediate={this.refreshImmediate}
+            sourceFieldConfigs={sourceFieldConfigs}
+            timeRange={this.timeRange}
             onBackTop={this.handleScrollToTop}
-            onClearRetrievalFilter={this.handleClearRetrievalFilter}
-            onConditionChange={this.handleConditionChange}
-            onSetUrlParams={this.setUrlParams}
+            onClearRetrievalFilter={() => this.$emit('clearRetrievalFilter')}
+            onColumnResize={this.handleDisplayColumnResize}
+            onConditionChange={conditionEvent => this.$emit('conditionChange', conditionEvent)}
+            onDisplayFieldChange={this.handleDisplayColumnFieldsChange}
+            onSetUrlParams={() => this.$emit('setUrlParams')}
           />
         </div>
         <BackTop
