@@ -164,46 +164,163 @@ class EtlStorage:
         # V3到V4时间格式映射表
         time_format_mapping = {
             # 标准日期时间格式
-            "yyyy-MM-dd HH:mm:ss": {"format": "%Y-%m-%d %H:%M:%S", "zone": 0},
-            "yyyy-MM-dd HH:mm:ss,SSS": {"format": "%Y-%m-%d %H:%M:%S,%3f", "zone": 0},
-            "yyyy-MM-dd HH:mm:ss.SSS": {"format": "%Y-%m-%d %H:%M:%S.%3f", "zone": 0},
-            "yyyy-MM-dd HH:mm:ss.SSSSSS": {"format": "%Y-%m-%d %H:%M:%S.%6f", "zone": 0},
-            "yy-MM-dd HH:mm:ss.SSSSSS": {"format": "%y-%m-%d %H:%M:%S.%6f", "zone": 0},
-            "yyyy-MM-ddTHH:mm:ss.SSSSSS": {"format": "%Y-%m-%dT%H:%M:%S.%6f", "zone": 0},
-            "yyyy-MM-dd+HH:mm:ss": {"format": "%Y-%m-%d+%H:%M:%S", "zone": 0},
-            "MM/dd/yyyy HH:mm:ss": {"format": "%m/%d/%Y %H:%M:%S", "zone": 0},
-            "yyyyMMddHHmmss": {"format": "%Y%m%d%H%M%S", "zone": 0},
-            "yyyyMMdd HHmmss": {"format": "%Y%m%d %H%M%S", "zone": 0},
-            "yyyyMMdd HHmmss.SSS": {"format": "%Y%m%d %H%M%S.%3f", "zone": 0},
-            "dd/MMM/yyyy:HH:mm:ss": {"format": "%d/%b/%Y:%H:%M:%S", "zone": 0},
-            "dd/MMM/yyyy:HH:mm:ssZ": {"format": "%d/%b/%Y:%H:%M:%S%:z", "zone": None},
-            "dd/MMM/yyyy:HH:mm:ss Z": {"format": "%d/%b/%Y:%H:%M:%S %:z", "zone": None},
-            "dd/MMM/yyyy:HH:mm:ssZZ": {"format": "%d/%b/%Y:%H:%M:%S%:z", "zone": None},
-            "dd/MMM/yyyy:HH:mm:ss ZZ": {"format": "%d/%b/%Y:%H:%M:%S %:z", "zone": None},
-            "rfc3339": {"format": "%+", "zone": None},
-            "yyyy-MM-ddTHH:mm:ss": {"format": "%Y-%m-%dT%H:%M:%S", "zone": 0},
-            "yyyy-MM-ddTHH:mm:ss.SSS": {"format": "%Y-%m-%dT%H:%M:%S.%3f", "zone": 0},
-            "yyyyMMddTHHmmssZ": {"format": "%Y%m%dT%H%M%S%:z", "zone": None},
-            "yyyyMMddTHHmmss.SSSSSSZ": {"format": "%Y%m%dT%H%M%S.%6f%:z", "zone": None},
-            "yyyy-MM-ddTHH:mm:ss.SSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%3f%:z", "zone": None},
-            "yyyy-MM-ddTHH:mm:ss.SSSSSSZ": {"format": "%Y-%m-%dT%H:%M:%S.%6fZ", "zone": None},
-            "ISO8601": {"format": "%+", "zone": None},
-            "yyyy-MM-ddTHH:mm:ssZ": {"format": "%Y-%m-%dT%H:%M:%S%:z", "zone": None},
-            "yyyy-MM-ddTHH:mm:ss.SSSSSSZZ": {"format": "%Y-%m-%dT%H:%M:%S.%6f%:z", "zone": None},
-            "yyyy.MM.dd-HH.mm.ss:SSS": {"format": "%Y.%m.%d-%H.%M.%S:%3f", "zone": 0},
-            "date_hour_minute_second": {"format": "%Y-%m-%dT%H:%M:%S", "zone": 0},
-            "date_hour_minute_second_millis": {"format": "%Y-%m-%dT%H:%M:%S.%3f", "zone": 0},
-            "basic_date_time": {"format": "%Y%m%dT%H%M%S.%3f%z", "zone": None},
-            "basic_date_time_no_millis": {"format": "%Y%m%dT%H%M%S%z", "zone": None},
-            "basic_date_time_micros": {"format": "%Y%m%dT%H%M%S.%6f%z", "zone": None},
-            "strict_date_time": {"format": "%Y-%m-%dT%H:%M:%S.%3f%:z", "zone": None},
-            "strict_date_time_no_millis": {"format": "%Y-%m-%dT%H:%M:%S%:z", "zone": None},
-            "strict_date_time_micros": {"format": "%Y-%m-%dT%H:%M:%S.%6f%:z", "zone": None},
+            "yyyy-MM-dd HH:mm:ss": {
+                "format": "%Y-%m-%d %H:%M:%S",
+                "zone": 0
+            },
+            "yyyy-MM-dd HH:mm:ss,SSS": {
+                "format": "%Y-%m-%d %H:%M:%S,%3f",
+                "zone": 0
+            },
+            "yyyy-MM-dd HH:mm:ss.SSS": {
+                "format": "%Y-%m-%d %H:%M:%S.%3f",
+                "zone": 0
+            },
+            "yyyy-MM-dd HH:mm:ss.SSSSSS": {
+                "format": "%Y-%m-%d %H:%M:%S.%6f",
+                "zone": 0
+            },
+            "yy-MM-dd HH:mm:ss.SSSSSS": {
+                "format": "%y-%m-%d %H:%M:%S.%6f",
+                "zone": 0
+            },
+            "yyyy-MM-ddTHH:mm:ss.SSSSSS": {
+                "format": "%Y-%m-%dT%H:%M:%S.%6f",
+                "zone": 0
+            },
+            "yyyy-MM-dd+HH:mm:ss": {
+                "format": "%Y-%m-%d+%H:%M:%S",
+                "zone": 0
+            },
+            "MM/dd/yyyy HH:mm:ss": {
+                "format": "%m/%d/%Y %H:%M:%S",
+                "zone": 0
+            },
+            "yyyyMMddHHmmss": {
+                "format": "%Y%m%d%H%M%S",
+                "zone": 0
+            },
+            "yyyyMMdd HHmmss": {
+                "format": "%Y%m%d %H%M%S",
+                "zone": 0
+            },
+            "yyyyMMdd HHmmss.SSS": {
+                "format": "%Y%m%d %H%M%S.%3f",
+                "zone": 0
+            },
+            "dd/MMM/yyyy:HH:mm:ss": {
+                "format": "%d/%b/%Y:%H:%M:%S",
+                "zone": 0
+            },
+            "dd/MMM/yyyy:HH:mm:ssZ": {
+                "format": "%d/%b/%Y:%H:%M:%S%:z",
+                "zone": None
+            },
+            "dd/MMM/yyyy:HH:mm:ss Z": {
+                "format": "%d/%b/%Y:%H:%M:%S %:z",
+                "zone": None
+            },
+            "dd/MMM/yyyy:HH:mm:ssZZ": {
+                "format": "%d/%b/%Y:%H:%M:%S%:z",
+                "zone": None
+            },
+            "dd/MMM/yyyy:HH:mm:ss ZZ": {
+                "format": "%d/%b/%Y:%H:%M:%S %:z",
+                "zone": None
+            },
+            "rfc3339": {
+                "format": "%+",
+                "zone": None
+            },
+            "yyyy-MM-ddTHH:mm:ss": {
+                "format": "%Y-%m-%dT%H:%M:%S",
+                "zone": 0
+            },
+            "yyyy-MM-ddTHH:mm:ss.SSS": {
+                "format": "%Y-%m-%dT%H:%M:%S.%3f",
+                "zone": 0
+            },
+            "yyyyMMddTHHmmssZ": {
+                "format": "%Y%m%dT%H%M%S%:z",
+                "zone": None
+            },
+            "yyyyMMddTHHmmss.SSSSSSZ": {
+                "format": "%Y%m%dT%H%M%S.%6f%:z",
+                "zone": None
+            },
+            "yyyy-MM-ddTHH:mm:ss.SSSZ": {
+                "format": "%Y-%m-%dT%H:%M:%S.%3f%:z",
+                "zone": None
+            },
+            "yyyy-MM-ddTHH:mm:ss.SSSSSSZ": {
+                "format": "%Y-%m-%dT%H:%M:%S.%6fZ",
+                "zone": None
+            },
+            "ISO8601": {
+                "format": "%+",
+                "zone": None
+            },
+            "yyyy-MM-ddTHH:mm:ssZ": {
+                "format": "%Y-%m-%dT%H:%M:%S%:z",
+                "zone": None
+            },
+            "yyyy-MM-ddTHH:mm:ss.SSSSSSZZ": {
+                "format": "%Y-%m-%dT%H:%M:%S.%6f%:z",
+                "zone": None
+            },
+            "yyyy.MM.dd-HH.mm.ss:SSS": {
+                "format": "%Y.%m.%d-%H.%M.%S:%3f",
+                "zone": 0
+            },
+            "date_hour_minute_second": {
+                "format": "%Y-%m-%dT%H:%M:%S",
+                "zone": 0
+            },
+            "date_hour_minute_second_millis": {
+                "format": "%Y-%m-%dT%H:%M:%S.%3f",
+                "zone": 0
+            },
+            "basic_date_time": {
+                "format": "%Y%m%dT%H%M%S.%3f%z",
+                "zone": None
+            },
+            "basic_date_time_no_millis": {
+                "format": "%Y%m%dT%H%M%S%z",
+                "zone": None
+            },
+            "basic_date_time_micros": {
+                "format": "%Y%m%dT%H%M%S.%6f%z",
+                "zone": None
+            },
+            "strict_date_time": {
+                "format": "%Y-%m-%dT%H:%M:%S.%3f%:z",
+                "zone": None
+            },
+            "strict_date_time_no_millis": {
+                "format": "%Y-%m-%dT%H:%M:%S%:z",
+                "zone": None
+            },
+            "strict_date_time_micros": {
+                "format": "%Y-%m-%dT%H:%M:%S.%6f%:z",
+                "zone": None
+            },
             # Unix时间戳格式
-            "epoch_micros": {"format": "Unix Timestamp", "zone": None},
-            "Unix Time Stamp(milliseconds)": {"format": "Unix Timestamp", "zone": None},
-            "epoch_millis": {"format": "Unix Timestamp", "zone": None},
-            "epoch_second": {"format": "Unix Timestamp", "zone": None},
+            "epoch_micros": {
+                "format": "Unix Timestamp",
+                "zone": None
+            },
+            "Unix Time Stamp(milliseconds)": {
+                "format": "Unix Timestamp",
+                "zone": None
+            },
+            "epoch_millis": {
+                "format": "Unix Timestamp",
+                "zone": None
+            },
+            "epoch_second": {
+                "format": "Unix Timestamp",
+                "zone": None
+            }
         }
 
         # 获取映射配置
@@ -211,18 +328,24 @@ class EtlStorage:
         if not format_config:
             # 如果找不到映射，使用默认配置
             return {
-                "from": {"format": "%Y-%m-%d %H:%M:%S", "zone": 0},
+                "from": {
+                    "format": "%Y-%m-%d %H:%M:%S",
+                    "zone": 0
+                },
                 "interval_format": None,
                 "to": "millis",
-                "now_if_parse_failed": True,
+                "now_if_parse_failed": True
             }
 
         # 构建V4 in_place_time_parsing配置
         return {
-            "from": {"format": format_config["format"], "zone": format_config["zone"]},
+            "from": {
+                "format": format_config["format"],
+                "zone": format_config["zone"]
+            },
             "interval_format": None,
             "to": "millis",
-            "now_if_parse_failed": True,
+            "now_if_parse_failed": True
         }
 
     def _build_built_in_fields_v4(self, built_in_config: dict) -> list:
@@ -244,25 +367,23 @@ class EtlStorage:
             if field_name in ["log", "iterationIndex"]:
                 continue
 
-            rules.append(
-                {
-                    "input_id": "json_data",
-                    "output_id": field_name,
-                    "operator": {
-                        "type": "assign",
-                        "key_index": alias_name,
-                        "alias": field_name,
-                        "desc": field.get("description"),
-                        "input_type": None,
-                        "output_type": self._get_output_type(field_type),
-                        "fixed_value": None,
-                        "is_time_field": None,
-                        "time_format": None,
-                        "in_place_time_parsing": None,
-                        "default_value": None,
-                    },
+            rules.append({
+                "input_id": "json_data",
+                "output_id": field_name,
+                "operator": {
+                    "type": "assign",
+                    "key_index": alias_name,
+                    "alias": field_name,
+                    "desc": field.get("description"),
+                    "input_type": None,
+                    "output_type": self._get_output_type(field_type),
+                    "fixed_value": None,
+                    "is_time_field": None,
+                    "time_format": None,
+                    "in_place_time_parsing": None,
+                    "default_value": None
                 }
-            )
+            })
 
         # 处理时间字段
         time_field = built_in_config.get("time_field")
@@ -275,25 +396,23 @@ class EtlStorage:
             v3_time_format = time_field.get("option", {}).get("time_format", "yyyy-MM-dd HH:mm:ss")
             v4_time_parsing = self._convert_v3_to_v4_time_format(v3_time_format)
 
-            rules.append(
-                {
-                    "input_id": "json_data",
-                    "output_id": time_field_name,
-                    "operator": {
-                        "type": "assign",
-                        "key_index": time_alias_name,
-                        "alias": time_field_name,
-                        "desc": time_field.get("description"),
-                        "input_type": None,
-                        "output_type": self._get_output_type(time_field_type),
-                        "fixed_value": None,
-                        "is_time_field": None,
-                        "time_format": None,
-                        "in_place_time_parsing": v4_time_parsing,
-                        "default_value": None,
-                    },
+            rules.append({
+                "input_id": "json_data",
+                "output_id": time_field_name,
+                "operator": {
+                    "type": "assign",
+                    "key_index": time_alias_name,
+                    "alias": time_field_name,
+                    "desc": time_field.get("description"),
+                    "input_type": None,
+                    "output_type": self._get_output_type(time_field_type),
+                    "fixed_value": None,
+                    "is_time_field": None,
+                    "time_format": None,
+                    "in_place_time_parsing": v4_time_parsing,
+                    "default_value": None
                 }
-            )
+            })
 
         return rules
 
