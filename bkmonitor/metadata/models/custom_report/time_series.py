@@ -34,6 +34,7 @@ from metadata.models.constants import (
     BULK_UPDATE_BATCH_SIZE,
     DB_DUPLICATE_ID,
     DataIdCreatedFromSystem,
+    UNGROUP_SCOPE_NAME,
 )
 from metadata.models.data_source import DataSource
 from metadata.models.result_table import (
@@ -1242,22 +1243,25 @@ class TimeSeriesScope(models.Model):
         if not scope_dimensions_map:
             return
 
-        # 过滤掉 default 分组，不允许创建和更新 default 分组（包括 "default" 和以 "||default" 结尾的分组）
-        scope_dimensions_map = {
-            scope_name: dimensions
-            for scope_name, dimensions in scope_dimensions_map.items()
-            if not cls._is_default_scope(scope_name)
-        }
+        # 构建 scope_name 映射：原始名称 -> 数据库存储名称
+        scope_name_mapping = {}
+        for scope_name in scope_dimensions_map.keys():
+            if cls._is_default_scope(scope_name):
+                # 如果是 default 分组，转换为数据库存储格式
+                if "||" in scope_name:
+                    db_scope_name = scope_name.rsplit("||", 1)[0] + "||"
+                else:
+                    db_scope_name = UNGROUP_SCOPE_NAME
+            else:
+                db_scope_name = scope_name
+            scope_name_mapping[scope_name] = db_scope_name
 
-        if not scope_dimensions_map:
-            return
-
-        # 获取所有 scope_name 列表
-        scope_names = list(scope_dimensions_map.keys())
+        # 获取所有数据库中的 scope_name 列表
+        db_scope_names = list(set(scope_name_mapping.values()))
 
         # 一次性查询所有相关的 scope 记录
-        existing_scopes = {
-            scope.scope_name: scope for scope in cls.objects.filter(group_id=group_id, scope_name__in=scope_names)
+        existing_scopes_by_db_name = {
+            scope.scope_name: scope for scope in cls.objects.filter(group_id=group_id, scope_name__in=db_scope_names)
         }
 
         # 准备批量更新和创建的记录
@@ -1265,9 +1269,10 @@ class TimeSeriesScope(models.Model):
         scopes_to_create = []
 
         for scope_name, dimensions in scope_dimensions_map.items():
-            if scope_name in existing_scopes:
+            db_scope_name = scope_name_mapping[scope_name]
+            if db_scope_name in existing_scopes_by_db_name:
                 # 记录已存在，合并维度配置（添加新维度，保留已有配置）
-                scope = existing_scopes[scope_name]
+                scope = existing_scopes_by_db_name[db_scope_name]
                 existing_config = scope.dimension_config or {}
                 for dim in dimensions:
                     existing_config.setdefault(dim, {})
@@ -1278,10 +1283,11 @@ class TimeSeriesScope(models.Model):
             else:
                 # 记录不存在，准备创建新记录
                 dimension_config = {dim: {} for dim in dimensions}
+                # 使用转换后的数据库存储格式
                 scopes_to_create.append(
                     cls(
                         group_id=group_id,
-                        scope_name=scope_name,
+                        scope_name=db_scope_name,
                         dimension_config=dimension_config,
                         manual_list=[],
                         auto_rules=[],
