@@ -870,9 +870,8 @@ class EtlStorage:
             sort_fields=sort_fields,
             target_fields=target_fields,
         )
-        result_table_config = self.get_result_table_config(
-            fields, etl_params, built_in_config, es_version=es_version, enable_v4=instance.enable_v4
-        )
+        result_table_config = self.get_result_table_config(fields, etl_params, built_in_config,
+                                                           es_version=es_version, enable_v4=instance.enable_v4)
         is_nanos = False
         for rt_field in result_table_config["field_list"]:
             if rt_field["field_name"] == "dtEventTimeStampNanos":
