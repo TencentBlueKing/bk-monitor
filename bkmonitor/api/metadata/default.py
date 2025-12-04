@@ -518,6 +518,7 @@ class CreateOrUpdateTimeSeriesMetricResource(MetaDataAPIGWResource):
             )
             field_config = serializers.DictField(required=False, label="字段其他配置", default=dict)
             label = serializers.CharField(required=False, label="指标监控对象", default="", max_length=255)
+            service_name = serializers.CharField(required=False, label="服务名称", max_length=255, allow_null=True)
 
         bk_tenant_id = serializers.CharField(required=True, label="租户ID")
         metrics = serializers.ListField(

@@ -1924,9 +1924,6 @@ class TimeSeriesMetric(models.Model):
 
         return result
 
-    # 默认的字段分组
-    DEFAULT_FIELD_SCOPE = "default"
-
     @classmethod
     @atomic
     def batch_create_or_update(cls, metrics_data: list, bk_tenant_id: str):
@@ -2002,7 +1999,12 @@ class TimeSeriesMetric(models.Model):
             cls._generate_table_id(metric_data, table_id)
 
             # 设置默认字段分组
-            metric_data["field_scope"] = cls.DEFAULT_FIELD_SCOPE
+            # 如果存在 service_name，则使用 service_name||default，否则使用 default
+            service_name = metric_data.get("service_name")
+            if service_name:
+                metric_data["field_scope"] = f"{service_name}||default"
+            else:
+                metric_data["field_scope"] = "default"
             metric_data["group_id"] = group_id
 
             records_to_create.append(cls(**metric_data))
