@@ -220,7 +220,7 @@ class TGPATaskHandler:
         ):
             for line_num, line in enumerate(input_file, 1):
                 log_content = line.strip()
-                log_entry = {"log": log_content, "path": log_file_path, "lineno": line_num}
+                log_entry = {"message": log_content, "file": log_file_path, "lineno": line_num}
                 log_entry.update(self.meta_fields)
                 output_file.write(f"{ujson.dumps(log_entry, ensure_ascii=False)}\n")
 

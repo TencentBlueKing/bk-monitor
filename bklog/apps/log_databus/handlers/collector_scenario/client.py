@@ -61,5 +61,4 @@ class ClientCollectorScenario(CollectorScenario):
                     "time_zone": 0,
                 },
             },
-            "is_client_log": True,  # 标记为客户端日志
         }

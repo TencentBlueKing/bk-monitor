@@ -41,12 +41,12 @@ TGPA_TASK_ETL_PARAMS = {
 
 TGPA_TASK_ETL_FIELDS = [
     {
-        "field_name": "log",
+        "field_name": "message",
         "field_type": "string",
         "is_dimension": False,
         "is_analyzed": True,
         "is_time": False,
-        "description": "log",
+        "description": "message",
         "is_delete": False,
     },
     {
@@ -68,12 +68,12 @@ TGPA_TASK_ETL_FIELDS = [
         "is_delete": False,
     },
     {
-        "field_name": "path",
+        "field_name": "file",
         "field_type": "string",
         "is_dimension": True,
         "is_analyzed": False,
         "is_time": False,
-        "description": "path",
+        "description": "file",
         "is_delete": False,
     },
     {
@@ -132,8 +132,7 @@ TGPA_TASK_ETL_FIELDS = [
     },
 ]
 
-CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "path", "lineno"]
-CLIENT_LOG_CUSTOM_BUILT_IN_FIELD_LIST = ["log", "path"]
+CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "file", "lineno"]
 LOG_FILE_EXPIRE_DAYS = 3
 
 
