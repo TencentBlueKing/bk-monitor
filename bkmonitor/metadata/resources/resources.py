@@ -1608,7 +1608,7 @@ class CreateOrUpdateTimeSeriesScopeResource(Resource):
                 required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
             )
             scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255)
-            dimension_config = serializers.DictField(required=False, label="分组下的维度配置")
+            dimension_config = serializers.DictField(required=False, allow_null=True, label="分组下的维度配置")
             manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
             auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
             # 是否删除不再匹配 manual_list 和 auto_rules 的 dimension_config
