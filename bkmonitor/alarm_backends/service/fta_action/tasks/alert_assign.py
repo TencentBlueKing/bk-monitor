@@ -123,20 +123,9 @@ class AlertAssigneeManager:
             return
 
         # 需要获取所有的通知人员信息，包含chatID
-        # 获取原始通知人员信息（字典格式转换为用户列表）
-        origin_receivers = self.get_origin_notice_all_receivers()
-        notice_users = []
-        if origin_receivers:
-            # 从通知配置中提取所有用户
-            for notice_way, users in origin_receivers.items():
-                if notice_way != "wxbot_mention_users" and isinstance(users, list):
-                    notice_users.extend(users)
-            # 去重
-            notice_users = list(set(notice_users))
-
         manager = BackendAssignMatchManager(
             self.alert,
-            notice_users=notice_users,
+            self.get_origin_notice_all_receivers(),
             assign_mode=self.assign_mode,
             notice_type=self.notice_type,
         )
