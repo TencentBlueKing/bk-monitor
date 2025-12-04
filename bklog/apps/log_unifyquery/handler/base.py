@@ -182,7 +182,9 @@ class UnifyQueryHandler:
         self.highlight = self.search_params.get("can_highlight", True)
 
         # 基础查询参数初始化
-        self.base_dict = self.init_base_dict()
+        self.base_dict = self.init_base_dict(
+            self.search_params.get("fields")[0] if self.search_params.get("fields") else None
+        )
         # 基础查询结果合并参数初始化
         self.result_merge_base_dict = self.init_result_merge_base_dict(self.base_dict)
 
@@ -572,7 +574,7 @@ class UnifyQueryHandler:
             return list(unsupported_fields)
         return []
 
-    def init_base_dict(self):
+    def init_base_dict(self, agg_field: str = None):
         # 自动周期处理
         if self.search_params.get("interval", "auto") == "auto":
             interval = self._init_default_interval()
@@ -598,7 +600,9 @@ class UnifyQueryHandler:
                 clustered_rt = index_info["indices"]
             query_dict["table_id"] = BaseIndexSetHandler.get_data_label(index_info["index_set_id"], clustered_rt)
 
-            if self.agg_field:
+            if agg_field:
+                query_dict["field_name"] = agg_field
+            elif self.agg_field:
                 query_dict["field_name"] = self.agg_field
             else:
                 # 时间字段 & 类型 & 单位

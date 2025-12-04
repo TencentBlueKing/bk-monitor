@@ -18,14 +18,14 @@ class UnifyQueryTermsAggsHandler(UnifyQueryHandler):
         super().__init__(param)
 
         self.agg_fields = agg_fields
-        self.base_dict = self.init_base_dict_list()
+        self.terms_base_dict = self._init_terms_base_dict()
 
     def terms(self):
         aggs = dict()
         aggs_items = dict()
 
         # 获取基础查询条件
-        query_condition = copy.deepcopy(self.base_dict)
+        query_condition = copy.deepcopy(self.terms_base_dict)
 
         # 请求 unify-query
         series_dict = self._terms_unify_query(query_condition, self.search_params.get("size"))
@@ -114,7 +114,7 @@ class UnifyQueryTermsAggsHandler(UnifyQueryHandler):
 
         return series_dict
 
-    def init_base_dict_list(self):
+    def _init_terms_base_dict(self):
         """
         重构 unify-query 接口基础请求参数, 适配 terms 接口查询
         """

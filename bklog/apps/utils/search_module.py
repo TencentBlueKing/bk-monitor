@@ -92,8 +92,7 @@ class BkApi(AbstractBkApi):
 
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data["index_set_ids"] = [index_set_id]
-            data["agg_field"] = data.get("fields")[0]
-            terms_data = UnifyQueryTermsAggsHandler(data.pop("fields", []), data).terms()
+            terms_data = UnifyQueryTermsAggsHandler(data.get("fields", []), data).terms()
         else:
             terms_data = AggsViewAdapter().terms(index_set_id=index_set_id, query_data=data)
 
