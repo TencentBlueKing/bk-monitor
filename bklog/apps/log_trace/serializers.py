@@ -89,6 +89,8 @@ class AggsTermsSerializer(serializers.Serializer):
     size = serializers.IntegerField(required=False, default=AggsHandlers.AGGS_BUCKET_SIZE)
     order = serializers.DictField(required=False, default=AggsHandlers.DEFAULT_ORDER)
 
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False, default=None)
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
 

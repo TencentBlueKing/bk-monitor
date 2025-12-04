@@ -183,7 +183,6 @@ class UnifyQueryHandler:
 
         # 基础查询参数初始化
         self.base_dict = self.init_base_dict()
-
         # 基础查询结果合并参数初始化
         self.result_merge_base_dict = self.init_result_merge_base_dict(self.base_dict)
 
