@@ -1811,18 +1811,31 @@ class QueryTimeSeriesScopeResource(Resource):
         :param scope_name: 指标分组名，用于确定 default 数据分组的 scope
         """
         from metadata.models.custom_report.time_series import TimeSeriesScope
+        from metadata.models.constants import UNGROUP_SCOPE_NAME
 
         results = []
         for gid in group_ids:
             # 获取未分组指标的 QuerySet
             ungrouped_metrics_qs = TimeSeriesScope.get_ungrouped_metrics_qs(gid, scope_name=scope_name)
             metric_list = self._convert_metrics_to_list(ungrouped_metrics_qs)
+
+            # 查询未分组的维度配置
+            if "||" in scope_name:
+                # APM 场景：提取 service_name，构建未分组的 scope_name
+                db_scope_name = scope_name.rsplit("||", 1)[0] + "||"
+            else:
+                # 非 APM 场景：使用空字符串
+                db_scope_name = UNGROUP_SCOPE_NAME
+
+            ungrouped_scope = models.TimeSeriesScope.objects.filter(group_id=gid, scope_name=db_scope_name).first()
+            dimension_config = ungrouped_scope.dimension_config if ungrouped_scope else {}
+
             results.append(
                 {
                     "scope_id": None,
                     "group_id": gid,
                     "scope_name": "",
-                    "dimension_config": {},
+                    "dimension_config": dimension_config,
                     "manual_list": [],
                     "auto_rules": [],
                     "metric_list": metric_list,
