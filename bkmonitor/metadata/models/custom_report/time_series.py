@@ -2740,8 +2740,6 @@ class TimeSeriesMetric(models.Model):
 
             result["tag_list"].append(item)
 
-        return result
-
     @classmethod
     @atomic
     def batch_create_or_update(cls, metrics_data: list, bk_tenant_id: str):
