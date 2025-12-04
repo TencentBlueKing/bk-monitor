@@ -2037,14 +2037,23 @@ class TimeSeriesMetric(models.Model):
     @classmethod
     def _validate_field_name_conflicts(cls, metrics_to_create):
         """检查字段名称冲突"""
-        group_field_names = defaultdict(list)
+        # 按 (group_id, field_scope) 组合分组
+        group_scope_field_names = defaultdict(list)
         for metric_data, group_id in metrics_to_create:
             field_name = metric_data.get("field_name")
             if not field_name:
                 raise ValueError("创建指标时，field_name为必填项")
-            group_field_names[group_id].append(field_name)
 
-        for group_id, field_names in group_field_names.items():
+            # 计算 field_scope
+            service_name = metric_data.get("service_name")
+            if service_name:
+                field_scope = f"{service_name}||default"
+            else:
+                field_scope = "default"
+
+            group_scope_field_names[(group_id, field_scope)].append(field_name)
+
+        for (group_id, field_scope), field_names in group_scope_field_names.items():
             # 检查同一批次内是否有重复的字段名
             unique_field_names = set(field_names)
             if len(field_names) != len(unique_field_names):
@@ -2054,8 +2063,8 @@ class TimeSeriesMetric(models.Model):
                     field_name_counts[field_name] += 1
                 batch_conflicting_names = [field_name for field_name, count in field_name_counts.items() if count > 1]
                 raise ValueError(
-                    "同一批次内指标字段名称[{}]在分组[{}]下重复，请使用其他名称".format(
-                        ", ".join(batch_conflicting_names), group_id
+                    "同一批次内指标字段名称[{}]在分组[{}]的[{}]分组下重复，请使用其他名称".format(
+                        ", ".join(batch_conflicting_names), group_id, field_scope
                     )
                 )
 
@@ -2063,14 +2072,16 @@ class TimeSeriesMetric(models.Model):
             existing_field_names = set(
                 cls.objects.filter(
                     group_id=group_id,
-                    field_scope=cls.DEFAULT_FIELD_SCOPE,
+                    field_scope=field_scope,
                     field_name__in=field_names,
                 ).values_list("field_name", flat=True)
             )
             conflicting_names = set(field_names) & existing_field_names
             if conflicting_names:
                 raise ValueError(
-                    "指标字段名称[{}]在default分组下已存在，请使用其他名称".format(", ".join(conflicting_names))
+                    "指标字段名称[{}]在分组[{}]的[{}]分组下已存在，请使用其他名称".format(
+                        ", ".join(conflicting_names), group_id, field_scope
+                    )
                 )
 
     @classmethod
