@@ -1609,10 +1609,10 @@ class CreateOrUpdateTimeSeriesMetricResource(Resource):
             group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
             field_name = serializers.CharField(required=False, label="指标字段名称", max_length=255)
             tag_list = serializers.ListField(
-                required=False, label="Tag列表", default=list, child=serializers.CharField()
+                required=False, label="Tag列表", child=serializers.CharField(), allow_null=True
             )
-            field_config = serializers.DictField(required=False, label="字段其他配置", default=dict)
-            label = serializers.CharField(required=False, label="指标监控对象", default="", max_length=255)
+            field_config = serializers.DictField(required=False, label="字段其他配置", allow_null=True)
+            label = serializers.CharField(required=False, label="指标监控对象", max_length=255, allow_null=True)
 
         bk_tenant_id = TenantIdField(label="租户ID")
         metrics = serializers.ListField(
