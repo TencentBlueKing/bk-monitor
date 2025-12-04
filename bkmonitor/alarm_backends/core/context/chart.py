@@ -132,8 +132,8 @@ def get_chart_data(item: Item, source_time, title=""):
     for name, offset in list(chart_option.items()):
         data = []
         records = unify_query.query_data(
-            start_time=start_time.shift(days=offset).timestamp * 1000,
-            end_time=(end_time.shift(days=offset) if offset != 0 else source_time.shift(seconds=interval)).timestamp
+            start_time=start_time.shift(days=offset).timestamp() * 1000,
+            end_time=(end_time.shift(days=offset) if offset != 0 else source_time.shift(seconds=interval)).timestamp()
             * 1000,
         )
         for record in records:
@@ -156,14 +156,14 @@ def get_chart_data(item: Item, source_time, title=""):
             # 计算时间范围
             # 注意：由于数据时间戳已经通过 `record["_time_"] - offset * CONST_ONE_DAY * 1000` 调整到同一时间轴
             # 因此时间范围也应该基于 offset=0 的时间（即今天的时间范围），这样所有时间段的数据才能对齐
-            chart_start_time = start_time.timestamp * 1000  # 使用基准时间（offset=0）
+            chart_start_time = start_time.timestamp() * 1000  # 使用基准时间（offset=0）
             # 结束时间也要使用基准时间，与查询逻辑保持一致
             if offset == 0:
-                chart_end_time = source_time.shift(seconds=interval).timestamp * 1000
+                chart_end_time = source_time.shift(seconds=interval).timestamp() * 1000
             else:
                 # 对于昨天和上周，查询时使用的是 end_time.shift(days=offset)
                 # 数据调整后对应到基准的 end_time
-                chart_end_time = end_time.timestamp * 1000
+                chart_end_time = end_time.timestamp() * 1000
 
             # 补齐空点
             # 优化：使用更精确的匹配逻辑，确保数据点时间对齐，避免重复和错位
@@ -232,7 +232,7 @@ def get_chart_data(item: Item, source_time, title=""):
         "chart_type": "spline",
         "title": title or item.name,
         "subtitle": item.query_configs[0].get("metric_field", ""),
-        "source_timestamp": source_time.timestamp * 1000,
+        "source_timestamp": source_time.timestamp() * 1000,
         "locale": i18n.get_locale().replace("_", "-"),
         "timezone": timezone,
         "series": series,
