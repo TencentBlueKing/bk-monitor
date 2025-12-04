@@ -164,7 +164,10 @@ export default defineComponent({
           <Input
             v-model={this.queryString}
             placeholder={this.$t('请输入关键字')}
+            type='search'
+            clearable
             onBlur={this.handleQueryStringChange}
+            onClear={this.handleQueryStringChange}
             onEnter={this.handleQueryStringChange}
           />
         </div>

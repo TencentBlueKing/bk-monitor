@@ -37,17 +37,20 @@ export default defineComponent({
   name: 'ActionDetail',
   setup(props) {
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { actionDetail } = storeToRefs(alarmCenterDetailStore);
+    const { actionDetail, loading } = storeToRefs(alarmCenterDetailStore);
 
     return {
       actionDetail,
+      loading,
     };
   },
   render() {
     return (
       <div class='action-detail-wrapper'>
-        <ActionDetailInfo detail={this.actionDetail} />
-
+        <ActionDetailInfo
+          detail={this.actionDetail}
+          loading={this.loading}
+        />
         <ActionDetailContent detail={this.actionDetail} />
       </div>
     );
