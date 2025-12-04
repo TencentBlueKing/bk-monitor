@@ -50,7 +50,7 @@ export default defineComponent({
     const mainRef = ref<HTMLDivElement>();
     const DEFAULT_STEP = 1;
     const step = ref(DEFAULT_STEP);
-    const typeKey = ref('host_log');
+    const typeKey = ref('linux');
     const firstStep = [{ title: t('索引集分类'), icon: 1, components: StepClassify }];
     const { goListPage } = useCollectList();
     const dataConfig = ref({});
@@ -104,7 +104,7 @@ export default defineComponent({
      * 是否需要采集下发
      */
     const isNeedIssue = computed(() =>
-      ['host_log', 'wineventlog', 'file_log_config', 'std_log_config'].includes(typeKey.value),
+      ['linux', 'winevent', 'container_file', 'container_stdout'].includes(typeKey.value),
     );
     /**
      * 当前步骤流程

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, onMounted, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -200,9 +200,12 @@ export default defineComponent({
         if (res.data) {
           cleanStash.value = res.data;
         }
-      } catch (error) {}
+      } catch (error) {
+        console.log(error);
+      }
     };
     onMounted(async () => {
+      initData(true);
       loading.value = true;
       const isStorageEdit = route.name === 'collectEdit' && route.query.step;
       if (isStorageEdit) {
@@ -477,26 +480,19 @@ export default defineComponent({
      * 初始化回填数据
      * @param val
      */
-    const initData = val => {
-      if (val) {
-        formData.value = { ...formData.value, ...props.configData };
-        clusterSelect.value = props.configData.storage_cluster_id;
-      }
+    const initData = () => {
+      formData.value = { ...formData.value, ...props.configData };
+      clusterSelect.value = props.configData.storage_cluster_id;
     };
-    watch(
-      () => props.isEdit,
-      val => {
-        initData(val);
-      },
-      { immediate: true },
-    );
-    watch(
-      () => props.isClone,
-      val => {
-        initData(val);
-      },
-      { immediate: true },
-    );
+    // watch(
+    //   () => props.isEdit || props.isClone,
+    //   (val: boolean) => {
+    //     if (val) {
+    //       initData(val);
+    //     }
+    //   },
+    //   { immediate: true },
+    // );
 
     return () => (
       <div class='operation-step4-storage'>

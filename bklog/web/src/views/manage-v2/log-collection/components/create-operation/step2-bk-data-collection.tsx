@@ -47,7 +47,7 @@ import './step2-bk-data-collection.scss';
 /**
  * 场景ID类型
  */
-type ScenarioId = 'bkdata' | 'es' | 'host_log';
+type ScenarioId = 'bkdata' | 'es' | 'linux';
 
 /**
  * 索引项接口
@@ -180,7 +180,7 @@ export default defineComponent({
     /** 场景ID，用于区分不同的数据接入方式 */
     scenarioId: {
       type: String as PropType<ScenarioId>,
-      default: 'host_log',
+      default: 'linux',
     },
     /** 是否为编辑模式 */
     isEdit: {
@@ -215,6 +215,7 @@ export default defineComponent({
     const selectCollectionRef = ref();
     /** 索引列表是否为空 */
     const isIndexesEmpty = ref(false);
+    const listLoading = ref(false);
 
     // ==================== 数据状态 ====================
     /** 集群列表 */
@@ -604,14 +605,25 @@ export default defineComponent({
         }
 
         // 根据编辑模式调用不同的接口
-        const res = props.isEdit
-          ? await $http.request('/indexSet/update', {
-              params: {
-                index_set_id: route.params.collectorId,
-              },
-              data: params,
-            })
-          : await $http.request('/indexSet/create', { data: params });
+        const url = `/indexSet/${props.isEdit ? 'update' : 'create'}`;
+        let paramsData = { data: params };
+        if (props.isEdit) {
+          paramsData = {
+            ...paramsData,
+            params: {
+              index_set_id: route.params.collectorId,
+            },
+          };
+        }
+        const res = await $http.request(url, paramsData);
+        // const res = props.isEdit
+        //   ? await $http.request('/indexSet/update', {
+        //       params: {
+        //         index_set_id: route.params.collectorId,
+        //       },
+        //       data: params,
+        //     })
+        //   : await $http.request('/indexSet/create', { data: params });
 
         if (res?.result) {
           showMessage(props.isEdit ? t('设置成功') : t('创建成功'), 'success');
@@ -633,7 +645,7 @@ export default defineComponent({
      * @returns Promise<void>
      */
     const fetchList = async (resultTableId: string): Promise<void> => {
-      tableLoading.value = true;
+      listLoading.value = true;
       try {
         const res = (await $http.request('/resultTables/list', {
           query: {
@@ -645,10 +657,10 @@ export default defineComponent({
         })) as { data: IMatchedTableItem[] };
         currentMatchedTableIds.value = res.data || [];
       } catch (error) {
-        console.error('获取匹配索引列表失败:', error);
+        console.log('获取匹配索引列表失败:', error);
         currentMatchedTableIds.value = [];
       } finally {
-        tableLoading.value = false;
+        listLoading.value = false;
       }
     };
 
@@ -658,7 +670,7 @@ export default defineComponent({
      * @returns Promise<void>
      */
     const collectList = async (): Promise<void> => {
-      tableLoading.value = true;
+      listLoading.value = true;
       try {
         // 提取所有结果表ID
         const resultTableIds = configData.value.indexes.map(item => item.result_table_id);
@@ -694,10 +706,9 @@ export default defineComponent({
 
         collectionTableData.value = Array.from(fieldMap.values());
       } catch (error) {
-        console.error('获取字段列表失败:', error);
         collectionTableData.value = [];
       } finally {
-        tableLoading.value = false;
+        listLoading.value = false;
       }
     };
 
@@ -761,7 +772,7 @@ export default defineComponent({
           name: fieldName,
         }));
       } catch (error) {
-        console.error('初始化字段选择列表失败:', error);
+        console.log('初始化字段选择列表失败:', error);
         targetFieldSelectList.value = [];
       }
     };
@@ -822,7 +833,7 @@ export default defineComponent({
      */
     watch(
       () => props.isEdit,
-      val => {
+      (val: boolean) => {
         if (val) {
           fetchIndexSetData();
         }
@@ -835,7 +846,7 @@ export default defineComponent({
      */
     watch(
       () => props.scenarioId,
-      val => {
+      (val: string) => {
         if (val === 'es') {
           fetchPageData();
         }

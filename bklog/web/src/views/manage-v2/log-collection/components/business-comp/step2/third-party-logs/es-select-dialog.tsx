@@ -159,14 +159,7 @@ export default defineComponent({
     },
   },
 
-  emits: {
-    /** 取消事件 */
-    cancel: (_value: boolean) => true,
-    /** 选中索引事件，返回选中的索引信息 */
-    selected: (_data: ISelectedData) => true,
-    /** 时间索引配置事件，返回时间字段配置信息 */
-    timeIndex: (_data: ITimeIndex) => true,
-  },
+  emits: ['cancel', 'selected', 'timeIndex'],
 
   setup(props, { emit }) {
     const { t } = useLocale();

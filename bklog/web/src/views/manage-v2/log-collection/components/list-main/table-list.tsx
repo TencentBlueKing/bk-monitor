@@ -31,7 +31,6 @@ import tippy, { type Instance } from 'tippy.js';
 import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue';
 import { tenantManager } from '@/views/retrieve-core/tenant-manager';
 import {
-  getScenarioIdType,
   formatBytes,
   getOperatorCanClick,
   showMessage,
@@ -54,7 +53,7 @@ import 'tdesign-vue/es/style/index.css';
 /**
  * 表格行数据类型定义
  */
-interface TableRowData {
+interface ITableRowData {
   index_set_id: number | string;
   collector_config_id?: number | string;
   collector_config_name?: string;
@@ -84,7 +83,7 @@ interface TableRowData {
 /**
  * 菜单项类型
  */
-interface MenuItem {
+interface IMenuItem {
   key: string;
   label: string;
 }
@@ -92,7 +91,7 @@ interface MenuItem {
 /**
  * 过滤条件类型
  */
-interface FilterCondition {
+interface IFilterCondition {
   key: string;
   value: string[];
 }
@@ -100,7 +99,7 @@ interface FilterCondition {
 /**
  * 过滤值类型
  */
-interface FilterValues {
+interface IFilterValues {
   created_by: Array<{ label: string; value: string; key?: string }>;
   updated_by: Array<{ label: string; value: string; key?: string }>;
   storage_cluster_name: Array<{ label: string; value: string; key?: string }>;
@@ -109,7 +108,7 @@ interface FilterValues {
 /**
  * 分页信息类型
  */
-interface PaginationInfo {
+interface IPaginationInfo {
   current: number;
   pageSize: number;
 }
@@ -117,7 +116,7 @@ interface PaginationInfo {
 /**
  * 排序配置类型
  */
-interface SortConfig {
+interface ISortConfig {
   descending?: boolean;
   sortBy?: string;
 }
@@ -125,7 +124,7 @@ interface SortConfig {
 /**
  * 存储用量响应数据类型
  */
-interface StorageUsageItem {
+interface IStorageUsageItem {
   index_set_id: number | string;
   daily_usage?: number;
   total_usage?: number;
@@ -184,7 +183,7 @@ export default defineComponent({
   setup(props) {
     const { t } = useLocale();
     const showCollectIssuedSlider = ref(false);
-    const currentRow = ref<TableRowData>({} as TableRowData);
+    const currentRow = ref<ITableRowData>({} as ITableRowData);
     /**
      * 是否展示一键检测
      */
@@ -199,7 +198,7 @@ export default defineComponent({
 
     // 使用自定义 hook 管理状态
     const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId } = useCollectList();
-    const tableList = ref<TableRowData[]>([]);
+    const tableList = ref<ITableRowData[]>([]);
     const listLoading = ref(false);
     // 保存原始数据顺序的索引映射（用于恢复排序）
     const originalOrderMap = ref<Map<number | string, number>>(new Map());
@@ -217,13 +216,13 @@ export default defineComponent({
     const columnConfigTriggerRef = ref<HTMLElement | null>(null);
     const columnConfigContentRef = ref<HTMLElement | null>(null);
     const searchKey = ref('');
-    const filterValues = ref<FilterValues>({
+    const IFilterValues = ref<IFilterValues>({
       created_by: [],
       updated_by: [],
       storage_cluster_name: [],
     });
     // 过滤条件
-    const conditions = ref<FilterCondition[]>([]);
+    const conditions = ref<IFilterCondition[]>([]);
     // 表格过滤值（用于设置默认选中状态）
     const filterValue = ref<Record<string, string>>({
       log_access_type: '',
@@ -241,7 +240,7 @@ export default defineComponent({
       limitList: [10, 20, 50],
     });
 
-    const sortConfig = ref<SortConfig>({});
+    const sortConfig = ref<ISortConfig>({});
 
     // 列配置相关状态
     const isShowColumnConfig = ref(false);
@@ -361,17 +360,8 @@ export default defineComponent({
      * @param row - 表格行数据
      * @returns JSX 元素
      */
-    const renderStatus = (row: TableRowData) => {
+    const renderStatus = (row: ITableRowData) => {
       return <span class={`table-status ${row.status}`}>{row.status_name}</span>;
-    };
-    /**
-     * 获取采集类型
-     * @para row
-     * @returns
-     */
-    const getTypeConfig = (row: TableRowData) => {
-      const { scenario_id, environment, collector_scenario_id, container_collector_type } = row;
-      return getScenarioIdType(scenario_id, environment, collector_scenario_id, container_collector_type);
     };
 
     /**
@@ -379,18 +369,18 @@ export default defineComponent({
      * @param row - 表格行数据
      * @returns 过滤后的菜单列表
      */
-    const renderMenu = (row: TableRowData): MenuItem[] => {
-      const typeConfig = getTypeConfig(row);
+    const renderMenu = (row: ITableRowData): IMenuItem[] => {
+      const type = row?.log_access_type || 'linux';
 
-      if (!typeConfig) {
+      if (!type) {
         return MENU_LIST.filter(item => item.key !== (status !== 'terminated' ? 'start' : 'stop'));
       }
 
-      if (typeConfig.value === 'custom_report') {
+      if (type === 'custom_report') {
         return MENU_LIST.filter(item => ['desensitization', 'disable', 'delete'].includes(item.key));
       }
 
-      if (['bkdata', 'es'].includes(typeConfig.value)) {
+      if (['bkdata', 'es'].includes(type)) {
         return MENU_LIST.filter(item => ['desensitization', 'delete'].includes(item.key));
       }
 
@@ -437,7 +427,7 @@ export default defineComponent({
         colKey: 'name',
         sorter: true,
         sortType: 'all',
-        cell: (h, { row }: { row: TableRowData }) => (
+        cell: (h, { row }: { row: ITableRowData }) => (
           <span
             class='link'
             on-click={() => {
@@ -459,7 +449,7 @@ export default defineComponent({
         sorter: true,
         sortType: 'all',
         width: 100,
-        cell: (h, { row }: { row: TableRowData }) => <span>{formatBytes(row.daily_usage)}</span>,
+        cell: (h, { row }: { row: ITableRowData }) => <span>{formatBytes(row.daily_usage)}</span>,
       },
       {
         title: t('总用量'),
@@ -467,7 +457,7 @@ export default defineComponent({
         sorter: true,
         sortType: 'all',
         width: 100,
-        cell: (h, { row }: { row: TableRowData }) => <span>{formatBytes(row.total_usage)}</span>,
+        cell: (h, { row }: { row: ITableRowData }) => <span>{formatBytes(row.total_usage)}</span>,
       },
       {
         title: t('存储名'),
@@ -479,7 +469,7 @@ export default defineComponent({
         title: t('所属索引集'),
         colKey: 'index_set_name',
         width: 200,
-        cell: (h, { row }: { row: TableRowData }) => {
+        cell: (h, { row }: { row: ITableRowData }) => {
           const indexSetName = (row.parent_index_sets || []).map(item => ({
             ...item,
             name: item.index_set_name,
@@ -498,14 +488,14 @@ export default defineComponent({
         title: t('接入类型'),
         colKey: 'log_access_type',
         width: 140,
-        cell: (h, { row }: { row: TableRowData }) => <span>{row.log_access_type_name}</span>,
+        cell: (h, { row }: { row: ITableRowData }) => <span>{row.log_access_type_name}</span>,
         filter: getColumnsFilter(GLOBAL_CATEGORIES_ENUM),
       },
       {
         title: t('日志类型'),
         colKey: 'collector_scenario_id',
         width: 100,
-        cell: (h, { row }: { row: TableRowData }) => <span>{row.collector_scenario_name}</span>,
+        cell: (h, { row }: { row: ITableRowData }) => <span>{row.collector_scenario_name}</span>,
         filter: getColumnsFilter(COLLECTOR_SCENARIO_ENUM),
       },
       {
@@ -513,12 +503,12 @@ export default defineComponent({
         colKey: 'storage_cluster_name',
         minWidth: 140,
         ellipsis: true,
-        filter: getColumnsFilter(filterValues.value.storage_cluster_name),
+        filter: getColumnsFilter(IFilterValues.value.storage_cluster_name),
       },
       {
         title: t('过期时间'),
         colKey: 'retention',
-        cell: (h, { row }: { row: TableRowData }) => (
+        cell: (h, { row }: { row: ITableRowData }) => (
           <span class={{ 'text-disabled': row.status === 'stop' }}>
             {row.retention ? `${row.retention} ${t('天')}` : '--'}
           </span>
@@ -529,7 +519,7 @@ export default defineComponent({
         title: t('标签'),
         colKey: 'tags',
         showTips: false,
-        cell: (h, { row }: { row: TableRowData }) =>
+        cell: (h, { row }: { row: ITableRowData }) =>
           (row.tags || []).length > 0 ? (
             <TagMore
               tags={row.tags}
@@ -544,15 +534,15 @@ export default defineComponent({
         title: t('采集状态'),
         colKey: 'status',
         width: 100,
-        cell: (h, { row }: { row: TableRowData }) => renderStatus(row),
+        cell: (h, { row }: { row: ITableRowData }) => renderStatus(row),
         filter: getColumnsFilter(STATUS_ENUM_FILTER),
       },
       {
         title: t('创建人'),
         colKey: 'created_by',
         width: 100,
-        cell: (h, { row }: { row: TableRowData }) => getName(row.created_by),
-        filter: getColumnsFilter(filterValues.value.created_by),
+        cell: (h, { row }: { row: ITableRowData }) => getName(row.created_by),
+        filter: getColumnsFilter(IFilterValues.value.created_by),
       },
       {
         title: t('创建时间'),
@@ -560,13 +550,14 @@ export default defineComponent({
         sorter: true,
         sortType: 'all',
         width: 200,
+        ellipsis: true,
       },
       {
         title: t('更新人'),
         width: 100,
         colKey: 'updated_by',
-        cell: (h, { row }: { row: TableRowData }) => getName(row.updated_by),
-        filter: getColumnsFilter(filterValues.value.updated_by),
+        cell: (h, { row }: { row: ITableRowData }) => getName(row.updated_by),
+        filter: getColumnsFilter(IFilterValues.value.updated_by),
       },
       {
         title: t('更新时间'),
@@ -574,13 +565,14 @@ export default defineComponent({
         sorter: true,
         sortType: 'all',
         width: 200,
+        ellipsis: true,
       },
       {
         title: t('操作'),
         colKey: 'operation',
         width: 110,
         fixed: 'right',
-        cell: (h, { row }: { row: TableRowData }) => (
+        cell: (h, { row }: { row: ITableRowData }) => (
           <div class='table-operation'>
             <span
               class={{
@@ -853,7 +845,7 @@ export default defineComponent({
           },
         })
         .then(res => {
-          const usageMap = new Map<number | string, StorageUsageItem>();
+          const usageMap = new Map<number | string, IStorageUsageItem>();
           // 构建使用量映射表，提高查找效率
           for (const item of res.data || []) {
             if (item.index_set_id != null) {
@@ -966,7 +958,7 @@ export default defineComponent({
           data: params,
         });
 
-        tableList.value = (res.data?.list || []) as TableRowData[];
+        tableList.value = (res.data?.list || []) as ITableRowData[];
         pagination.value.total = res.data?.total || 0;
         // 收集索引集ID并保存原始数据顺序
         const indexSetIds: Array<number | string> = [];
@@ -1070,8 +1062,8 @@ export default defineComponent({
           const processedCreatedBy = processFilterItemsWithUserInfo(created_by || [], userInfoMap);
           const processedUpdatedBy = processFilterItemsWithUserInfo(updated_by || [], userInfoMap);
 
-          filterValues.value = {
-            ...filterValues.value,
+          IFilterValues.value = {
+            ...IFilterValues.value,
             ...res.data,
             created_by: processedCreatedBy,
             updated_by: processedUpdatedBy,
@@ -1112,7 +1104,7 @@ export default defineComponent({
      * 删除采集项
      * @param row - 表格行数据
      */
-    const requestDeleteCollect = (row: TableRowData) => {
+    const requestDeleteCollect = (row: ITableRowData) => {
       $http
         .request('collect/deleteCollect', {
           params: {
@@ -1135,7 +1127,7 @@ export default defineComponent({
      * @param key - 菜单项key
      * @param row - 表格行数据
      */
-    const handleMenuClick = (key: string, row: TableRowData) => {
+    const handleMenuClick = (key: string, row: ITableRowData) => {
       currentRow.value = row;
       // 关闭所有 tippy 实例
       for (const instance of tippyInstances) {
@@ -1209,7 +1201,7 @@ export default defineComponent({
      * 处理表格分页变化
      * @param pageInfo - 分页信息
      */
-    const handlePageChange = (pageInfo: PaginationInfo) => {
+    const handlePageChange = (pageInfo: IPaginationInfo) => {
       pagination.value.current = pageInfo.current;
       pagination.value.pageSize = pageInfo.pageSize;
       getTableList();
@@ -1219,7 +1211,7 @@ export default defineComponent({
      * 新增采集项
      */
     const handleCreateOperation = () => {
-      operateHandler({}, 'add', 'host_log');
+      operateHandler({}, 'add', 'linux');
     };
 
     /**
@@ -1227,9 +1219,8 @@ export default defineComponent({
      * @param row - 表格行数据
      * @param type - 操作类型
      */
-    const handleEditOperation = (row: TableRowData, type: string) => {
-      const typeConfig = getTypeConfig(row);
-      operateHandler(row, type, typeConfig?.value);
+    const handleEditOperation = (row: ITableRowData, type: string) => {
+      operateHandler(row, type, row.log_access_type);
     };
 
     /**
@@ -1241,7 +1232,7 @@ export default defineComponent({
       filterValue.value = { ...filterValue.value, ...filters };
 
       // 创建新的搜索条件数组
-      const newConditions: FilterCondition[] = [];
+      const newConditions: IFilterCondition[] = [];
 
       for (const key of Object.keys(filters || {})) {
         if (filters[key]) {
@@ -1262,7 +1253,7 @@ export default defineComponent({
      * 处理排序变化
      * @param sortInfo - 排序信息
      */
-    const sortChange = (sortInfo: SortConfig): void => {
+    const sortChange = (sortInfo: ISortConfig): void => {
       sortConfig.value = sortInfo;
       handleSort(sortInfo);
     };
@@ -1286,7 +1277,7 @@ export default defineComponent({
      * 处理表格排序
      * @param sort - 排序配置
      */
-    const handleSort = (sort: SortConfig): void => {
+    const handleSort = (sort: ISortConfig): void => {
       if (sort?.sortBy) {
         const { descending, sortBy } = sort;
         tableList.value = [...tableList.value].sort((a, b) => {
@@ -1413,8 +1404,8 @@ export default defineComponent({
      * 判断是否有有效的过滤条件（value 不为空）
      * @returns 是否有有效的过滤条件
      */
-    const hasValidFilterConditions = computed(() => {
-      return conditions.value.some(condition => {
+    const hasValidIFilterConditions = computed(() => {
+      return conditions.value.some((condition: IFilterCondition) => {
         // 检查 value 数组是否有非空值
         return condition.value && condition.value.length > 0 && condition.value.some(v => v !== '' && v != null);
       });
@@ -1590,7 +1581,7 @@ export default defineComponent({
               </div>
             </div>
           </div>
-          {hasValidFilterConditions.value && tableList.value.length === 0 && (
+          {hasValidIFilterConditions.value && tableList.value.length === 0 && (
             <div class='filter-empty'>{renderEmpty('clear-filter')}</div>
           )}
           <TConfigProvider

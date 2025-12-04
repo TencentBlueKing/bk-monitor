@@ -28,7 +28,6 @@ import { computed, defineComponent, ref, watch, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { useRoute } from 'vue-router/composables';
 import { bkMessage } from 'bk-magic-vue';
 import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue';
 import ItemSkeleton from '@/skeleton/item-skeleton';
@@ -47,38 +46,6 @@ interface ISyncTypeOption {
   name: string;
   /** 唯一标识 */
   id: string;
-}
-
-/**
- * ETL配置项类型
- */
-interface IEtlConfigItem {
-  /** 配置ID */
-  id: string | number;
-  /** 配置名称 */
-  name: string;
-  [key: string]: unknown;
-}
-
-/**
- * API返回的采集器原始数据
- */
-interface ICollectorRawData {
-  /** 采集器配置ID */
-  collector_config_id: number | string;
-  /** 采集器配置名称 */
-  collector_config_name?: string;
-  /** 存储集群名称 */
-  storage_cluster_name?: string;
-  /** ETL配置ID */
-  etl_config?: string | number;
-  /** 存储时长（天） */
-  retention?: number;
-  /** 参数字符串（Python字典格式） */
-  params?: string;
-  /** 数据ID */
-  bk_data_id?: number | string;
-  [key: string]: unknown;
 }
 
 /**
@@ -133,12 +100,7 @@ export default defineComponent({
       default: '',
     },
   },
-  emits: {
-    /** 更新事件 */
-    update: (_value: boolean) => true,
-    /** 取消事件 */
-    cancel: (_value: boolean) => true,
-  },
+  emits: ['update', 'cancel'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -149,16 +111,17 @@ export default defineComponent({
 
     /** 同步类型选项列表 */
     const syncTypeList: ISyncTypeOption[] = [
-      { name: t('同步源日志信息'), id: 'source_log_info' },
-      { name: t('同步字段清洗配置'), id: 'field_clear_config' },
-      { name: t('同步存储配置'), id: 'storage_config' },
-      { name: t('同步采集目标'), id: 'acquisition_target' },
+      { name: t('同步源日志信息'), id: 'sourceLogConfig' },
+      { name: t('同步字段清洗配置'), id: 'cleanConfig' },
+      { name: t('同步存储配置'), id: 'storageConfig' },
+      { name: t('同步采集目标'), id: 'targetConfig' },
     ];
 
     // ==================== 响应式状态 ====================
 
     /** 选中的同步类型列表 */
-    const syncType = ref<string[]>(['source_log_info']);
+    const syncType = ref<string[]>(['sourceLogConfig']);
+    const isContainerKeys = ['container_stdout', 'container_file'];
 
     /** 分页配置 */
     const pagination = ref({
@@ -180,7 +143,7 @@ export default defineComponent({
     const emptyType = ref<'empty' | 'search-empty' | '500'>('empty');
 
     /** 搜索输入框的值 */
-    const searchKeyword = ref<string>('1201');
+    const searchKeyword = ref<string>('');
 
     /** 当前选中的导入项ID */
     const currentCheckImportID = ref<number | string | null>(null);
@@ -188,7 +151,7 @@ export default defineComponent({
      * 同步采集目标 只有在主机采集的时候才显示
      */
     const showType = computed(() => {
-      if (['std_log_config', 'file_log_config'].includes(props.scenarioId)) {
+      if (['container_stdout', 'container_file'].includes(props.scenarioId)) {
         return syncTypeList.slice(0, 3);
       }
       return syncTypeList;
@@ -225,7 +188,7 @@ export default defineComponent({
         ellipsis: true,
       },
       {
-        title: t('采集模式'),
+        title: t('清洗模式'),
         colKey: 'etl_config',
         ellipsis: true,
       },
@@ -241,26 +204,7 @@ export default defineComponent({
       },
     ]);
 
-    // ==================== 计算属性 ====================
-
-    /** ETL配置列表 */
-    const etlConfigList = computed<IEtlConfigItem[]>(() => store.getters['globals/globalsData']?.etl_config || []);
-
     // ==================== 工具函数 ====================
-
-    /**
-     * 将Python字典字符串转换为JSON格式
-     * 将Python的字典语法转换为JavaScript可解析的JSON格式
-     * @param pythonString - Python字典格式的字符串
-     * @returns 转换后的JSON字符串
-     */
-    const pythonDictString = (pythonString: string): string => {
-      return pythonString
-        .replace(/'/g, '"') // 将单引号替换为双引号
-        .replace(/None/g, 'null') // 将 None 替换为 null
-        .replace(/True/g, 'true') // 将 True 替换为 true
-        .replace(/False/g, 'false'); // 将 False 替换为 false
-    };
 
     /**
      * 更新分页配置
@@ -300,10 +244,111 @@ export default defineComponent({
     };
 
     /**
+     * 处理采集器数据，根据场景转换paths格式
+     * @param collect - 采集器原始数据
+     * @returns 处理后的采集器数据
+     */
+    const processCollectorData = (collect: Record<string, unknown>): Record<string, unknown> => {
+      const isPhysics = isContainerKeys.includes(props.scenarioId);
+      if (props.scenarioId !== 'winevent' && !isPhysics) {
+        const params = collect?.params as { paths?: string[] } | undefined;
+        if (params?.paths && Array.isArray(params.paths)) {
+          params.paths = params.paths.map((item: string) => ({ value: item })) as unknown as string[];
+        }
+      }
+      return collect;
+    };
+
+    /**
+     * 构建配置对象
+     * @param collect - 采集器数据
+     * @returns 配置对象映射
+     */
+    const buildConfigMap = (collect: Record<string, unknown>) => {
+      const isPhysics = isContainerKeys.includes(props.scenarioId);
+      const {
+        params,
+        configs,
+        target_node_type,
+        target_nodes,
+        data_encoding,
+        bcs_cluster_id,
+        retention,
+        allocation_min_days,
+        storage_replies,
+        etl_params,
+        es_shards,
+        table_id,
+        storage_cluster_id,
+        etl_config: etlConfig,
+        fields,
+        extra_labels,
+        add_pod_label,
+        add_pod_annotation,
+      } = collect;
+
+      // 构建源日志信息配置
+      const sourceLogConfig = isPhysics
+        ? {
+            configs,
+            bcs_cluster_id,
+            extra_labels,
+            add_pod_label,
+            add_pod_annotation,
+          }
+        : {
+            params,
+            data_encoding,
+          };
+
+      // 构建字段清洗配置
+      const cleanConfig = {
+        clean_type: etlConfig,
+        etl_params,
+        etl_fields: fields,
+      };
+
+      // 构建存储配置
+      const storageConfig = {
+        retention,
+        allocation_min_days,
+        storage_replies,
+        etl_params,
+        es_shards,
+        table_id,
+        storage_cluster_id,
+      };
+
+      // 构建采集目标配置
+      const targetConfig = {
+        target_node_type,
+        target_nodes,
+      };
+
+      return {
+        sourceLogConfig,
+        cleanConfig,
+        storageConfig,
+        targetConfig,
+      };
+    };
+
+    /**
+     * 根据选中的同步类型合并配置
+     * @param configMap - 配置对象映射
+     * @returns 合并后的配置对象
+     */
+    const mergeSelectedConfigs = (configMap: Record<string, Record<string, unknown>>) => {
+      return Object.entries(configMap)
+        .filter(([key]) => syncType.value.includes(key))
+        .reduce((acc, [, value]) => ({ ...acc, ...value }), {});
+    };
+
+    /**
      * 处理保存操作
-     * TODO: 实现保存逻辑，将选中的配置导入到当前索引集
      */
     const handleSave = (): void => {
+      // 验证同步类型
       if (!syncType.value.length) {
         setTimeout(() => {
           bkMessage({
@@ -322,22 +367,21 @@ export default defineComponent({
           },
         })
         .then(res => {
-          if (res.data) {
-            const collect = res.data;
-            const isPhysics = collect.environment !== 'container';
-            if (collect.collector_scenario_id !== 'wineventlog' && isPhysics && collect?.params.paths) {
-              collect.params.paths = collect.params.paths.map(item => ({ value: item }));
-            }
-            store.commit('collect/updateExportCollectObj', {
-              collectID: currentCheckImportID.value,
-              syncType: syncType.value,
-              collect,
-            });
-            handleCancel();
-          }
+          if (!res.data) return;
+
+          const processedCollect = processCollectorData(res.data);
+          const configMap = buildConfigMap(processedCollect);
+          const mergedConfig = mergeSelectedConfigs(configMap);
+
+          emit('update', mergedConfig);
+          handleCancel();
         })
         .catch(err => {
-          console.warn(err);
+          console.error('获取采集器详情失败:', err);
+          bkMessage({
+            theme: 'error',
+            message: t('获取配置信息失败，请稍后重试'),
+          });
         })
         .finally(() => {
           submitLoading.value = false;
@@ -351,7 +395,7 @@ export default defineComponent({
      */
     const handleValueChange = (v: boolean): void => {
       if (!v) {
-        syncType.value = ['source_log_info'];
+        syncType.value = ['sourceLogConfig'];
         currentCheckImportID.value = null;
         emptyType.value = 'empty';
         searchKeyword.value = '';
@@ -385,8 +429,6 @@ export default defineComponent({
      */
     const getLinkList = (): void => {
       isTableLoading.value = true;
-      // const ids = route.query.ids as string; // 根据id来检索
-      // const collectorIdList = ids ? decodeURIComponent(ids) : [];
       collectList.value = [];
       const { current, pageSize } = pagination.value;
       $http
@@ -396,6 +438,7 @@ export default defineComponent({
             page: current,
             pagesize: pageSize,
             keyword: searchKeyword.value,
+            conditions: [{ key: 'log_access_type', value: [props.scenarioId] }],
           },
         })
         .then(res => {
@@ -403,19 +446,10 @@ export default defineComponent({
           if (list?.length) {
             pagination.value.total = total;
             collectList.value = list.map(item => {
-              const { etl_config, retention, params } = item;
-              // let paths: string[] = [];
-              // try {
-              //   const value = JSON.parse(pythonDictString(params));
-              //   paths = value?.paths ?? [];
-              // } catch (e) {
-              //   console.error(e);
-              // }
+              const { retention } = item;
               return {
                 ...item,
                 retention: retention ? `${retention}${t('天')}` : '--',
-                // paths: paths?.join('; ') ?? '',
-                // etl_config: etlConfigList.value.find(newItem => newItem.id === etl_config)?.name ?? '--',
               };
             });
           }
@@ -437,6 +471,7 @@ export default defineComponent({
     watch(
       () => props.showDialog,
       (val: boolean) => {
+        handleValueChange(val);
         if (val) {
           getLinkList();
         }
@@ -467,8 +502,6 @@ export default defineComponent({
         title={t('索引配置导入')}
         value={props.showDialog}
         on-cancel={handleCancel}
-        on-confirm={handleSave}
-        on-value-change={handleValueChange}
       >
         <div class='index-config-import-dialog-content'>
           <div class='content-top'>
@@ -533,6 +566,17 @@ export default defineComponent({
               />
             </TConfigProvider>
           </div>
+        </div>
+        <div slot='footer'>
+          <bk-button
+            theme='primary'
+            class='mr-8'
+            on-click={handleSave}
+            disabled={!currentCheckImportID.value}
+          >
+            {t('确定')}
+          </bk-button>
+          <bk-button on-click={handleCancel}>{t('取消')}</bk-button>
         </div>
       </bk-dialog>
     );

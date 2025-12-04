@@ -190,11 +190,11 @@ export default defineComponent({
     /**
      * 不展示日志路径的类型
      */
-    const hideLogFilterKeys = ['wineventlog', 'std_log_config', 'file_log_config'];
+    const hideLogFilterKeys = ['winevent', 'container_stdout', 'container_file'];
     /**
      * 需要展示集群列表的类型
      */
-    const showClusterListKeys = ['std_log_config', 'file_log_config'];
+    const showClusterListKeys = ['container_stdout', 'container_file'];
 
     const eventSettingList = ref([{ type: 'winlog_event_id', list: [], isCorrect: true }]);
     const isClone = computed(() => route.query.type === 'clone');
@@ -204,7 +204,7 @@ export default defineComponent({
       if (showClusterListKeys.includes(props.scenarioId)) {
         return 'container';
       }
-      return props.scenarioId === 'wineventlog' ? 'windows' : 'linux';
+      return props.scenarioId === 'winevent' ? 'windows' : 'linux';
     });
     // 是否是编辑或者克隆
     const isCloneOrUpdate = computed(() => props.isEdit || isClone.value);
@@ -215,7 +215,7 @@ export default defineComponent({
     /**
      * 是否为采集主机日志
      */
-    const isHostLog = computed(() => props.scenarioId === 'host_log');
+    const isHostLog = computed(() => props.scenarioId === 'linux');
     /**
      * 是否为段日志
      */
@@ -258,10 +258,10 @@ export default defineComponent({
       /**
        * windows events log 日志
        */
-      if (props.scenarioId === 'wineventlog') {
+      if (props.scenarioId === 'winevent') {
         formData.value = {
           ...formData.value,
-          collector_scenario_id: 'wineventlog',
+          collector_scenario_id: 'winevent',
           params: {
             ...formData.value.params,
             winlog_name: selectLogSpeciesList.value,
@@ -280,7 +280,7 @@ export default defineComponent({
       /**
        * 文件采集
        */
-      if (props.scenarioId === 'file_log_config') {
+      if (props.scenarioId === 'container_file') {
         formData.value = {
           ...formData.value,
           ...CONTAINER_COLLECTION_CONFIG,
@@ -289,7 +289,7 @@ export default defineComponent({
       /**
        * 标准输出
        */
-      if (props.scenarioId === 'std_log_config') {
+      if (props.scenarioId === 'container_stdout') {
         formData.value = {
           ...formData.value,
           ...CONTAINER_COLLECTION_CONFIG,
@@ -590,6 +590,53 @@ export default defineComponent({
         };
       }
     };
+    /**
+     * 初始化回填采集目标
+     * @param nodes
+     * @param type
+     */
+    const initSelectorNodes = (nodes, type) => {
+      const targetList = toSelectorNode(nodes, type);
+      const result = {};
+      Object.keys(typeMap).forEach((key: string) => {
+        result[typeMap[key]] = type === key ? targetList : [];
+      });
+      selectorNodes.value = result;
+    };
+
+    const initConfig = (data: IFormData) => {
+      const {
+        configs,
+        collector_scenario_id,
+        params,
+        target_node_type: type,
+        target_nodes: nodes,
+        extra_labels,
+      } = data;
+      if (extra_labels?.length === 0) {
+        formData.value.extra_labels = [
+          {
+            key: '',
+            value: '',
+          },
+        ];
+      }
+      /**
+       * 初始化采集目标
+       */
+      if (props.scenarioId === 'winevent' || props.scenarioId === 'linux') {
+        initSelectorNodes(nodes, type);
+      }
+
+      // 根据场景类型处理特定配置
+      if (props.scenarioId === 'winevent') {
+        // Windows 事件日志特殊处理
+        handleWindowsEventLogConfig(params);
+      } else if (showClusterListKeys.includes(props.scenarioId)) {
+        // 容器采集（文件采集和标准输出）特殊处理
+        handleContainerCollectionConfig(configs, collector_scenario_id);
+      }
+    };
 
     /**
      * 编辑时初始化详情数据
@@ -607,31 +654,9 @@ export default defineComponent({
           return;
         }
 
-        const { configs, collector_scenario_id, params, target_node_type: type, target_nodes: nodes } = res.data;
-
         // 初始化基础表单数据
         initializeBaseFormData(res.data);
-        /**
-         * 初始化采集目标
-         */
-        if (props.scenarioId === 'wineventlog' || props.scenarioId === 'host_log') {
-          const targetList = toSelectorNode(nodes, type);
-          const result = {};
-          Object.keys(typeMap).forEach((key: string) => {
-            result[typeMap[key]] = type === key ? targetList : [];
-          });
-          selectorNodes.value = result;
-        }
-
-        // 根据场景类型处理特定配置
-        if (props.scenarioId === 'wineventlog') {
-          // Windows 事件日志特殊处理
-          handleWindowsEventLogConfig(params);
-        } else if (showClusterListKeys.includes(props.scenarioId)) {
-          // 容器采集（文件采集和标准输出）特殊处理
-          handleContainerCollectionConfig(configs, collector_scenario_id);
-        }
-
+        initConfig(res.data);
         // 更新 store 中的当前采集配置
         store.commit('collect/setCurCollect', res.data);
         isConfigChange.value = false;
@@ -762,7 +787,7 @@ export default defineComponent({
      */
     const renderSourceLogInfo = () => (
       <div class='source-log-info'>
-        {props.scenarioId === 'file_log_config' && (
+        {props.scenarioId === 'container_file' && (
           <div class='label-form-box'>
             <span class='label-title'>{t('采集方式')}</span>
             {COLLECT_METHOD_LIST.map(item => (
@@ -812,7 +837,7 @@ export default defineComponent({
             </bk-select>
           </div>
         )}
-        {props.scenarioId !== 'wineventlog' && (
+        {props.scenarioId !== 'winevent' && (
           <div class='label-form-box'>
             <span class='label-title'>{t('日志类型')}</span>
             <div class='form-box'>
@@ -857,7 +882,7 @@ export default defineComponent({
             </div>
           </div>
         )}
-        {props.scenarioId === 'wineventlog' && (
+        {props.scenarioId === 'winevent' && (
           <div class='label-form-box'>
             <span class='label-title'>{t('日志种类')}</span>
             <div class='form-box'>
@@ -896,7 +921,7 @@ export default defineComponent({
             </div>
           </div>
         )}
-        {props.scenarioId === 'wineventlog' && (
+        {props.scenarioId === 'winevent' && (
           <div class='label-form-box'>
             <span
               class='label-title no-require'
@@ -1064,21 +1089,21 @@ export default defineComponent({
         title: t('源日志信息'),
         key: 'sourceLogInfo',
         renderFn: renderSourceLogInfo,
-        // subTitle: () => {
-        //   if (!props.isEdit) {
-        //     return (
-        //       <span
-        //         class='config-import'
-        //         on-click={() => {
-        //           isIndexConfigImport.value = true;
-        //         }}
-        //       >
-        //         {t('索引配置导入')}
-        //         <i class='bklog-icon bklog-import-daoru config-import-icon' />
-        //       </span>
-        //     );
-        //   }
-        // },
+        subTitle: () => {
+          if (!props.isEdit) {
+            return (
+              <span
+                class='config-import'
+                on-click={() => {
+                  isIndexConfigImport.value = true;
+                }}
+              >
+                {t('索引配置导入')}
+                <i class='bklog-icon bklog-import-daoru config-import-icon' />
+              </span>
+            );
+          }
+        },
       },
       {
         title: t('链路配置'),
@@ -1156,7 +1181,7 @@ export default defineComponent({
       return params?.paths ? params.paths.map(item => item.value) : [];
     };
 
-    // 处理wineventlog场景的请求数据
+    // 处理winevent场景的请求数据
     const handleWineventlogRequestData = (baseParam, newParams, dataEncoding) => {
       const { paths, exclude_files, winlog_match_op, ...rect } = newParams;
       return {
@@ -1294,8 +1319,8 @@ export default defineComponent({
 
       let requestData = { ...baseParam, params: newParams };
 
-      // 当为 wineventlog 时，过滤空值和空对象
-      if (props.scenarioId === 'wineventlog') {
+      // 当为 winevent 时，过滤空值和空对象
+      if (props.scenarioId === 'winevent') {
         requestData = handleWineventlogRequestData(baseParam, newParams, data_encoding);
       }
       /**
@@ -1317,23 +1342,26 @@ export default defineComponent({
           bcs_cluster_id,
         );
       }
-
+      console.log(requestData, 'requestData');
       $http
         .request(requestUrl, {
           params: urlParams,
           data: requestData,
         })
         .then(res => {
-          store.commit(`collect/${isUpdate.value ? 'updateCurCollect' : 'setCurCollect'}`, {
+          if (!res?.result) {
+            return;
+          }
+          const newConfig = {
             ...formData.value,
             ...res.data,
-          });
+          };
+          store.commit(`collect/${isUpdate.value ? 'updateCurCollect' : 'setCurCollect'}`, newConfig);
           res.result && showMessage(t('保存成功'));
-          emit('next', res.data);
+          emit('next', newConfig);
         })
         .catch(err => {
           console.log('保存采集配置出错:', err);
-          // 这里可以添加显示错误信息给用户的逻辑，例如通过弹窗或提示组件
         })
         .finally(() => {
           loadingSave.value = false;
@@ -1385,7 +1413,7 @@ export default defineComponent({
             emit('next', formData.value);
             return;
           }
-          if (props.scenarioId === 'wineventlog') {
+          if (props.scenarioId === 'winevent') {
             setCollection();
             return;
           }
@@ -1422,7 +1450,7 @@ export default defineComponent({
             },
           }}
         />
-        {props.scenarioId !== 'wineventlog' && (
+        {props.scenarioId !== 'winevent' && (
           <MultilineRegDialog
             oldPattern={formData.value.params?.multiline_pattern}
             showDialog={showMultilineRegDialog.value}
@@ -1459,11 +1487,19 @@ export default defineComponent({
             {t('取消')}
           </bk-button>
         </div>
+        {/* 索引配置导入对话框组件 */}
         <IndexConfigImportDialog
           showDialog={isIndexConfigImport.value}
           scenarioId={props.scenarioId}
           on-cancel={(val: boolean) => {
             isIndexConfigImport.value = val;
+          }}
+          on-update={(data: IFormData) => {
+            formData.value = {
+              ...formData.value,
+              ...data,
+            };
+            initConfig(formData.value);
           }}
         />
       </div>

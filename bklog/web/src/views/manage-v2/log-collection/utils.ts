@@ -389,63 +389,6 @@ export const operatorMappingObj = {
   nregex: window.mainComponent.$t('正则不匹配'),
 };
 
-// 日志类型数据
-const data = [
-  { name: window.mainComponent.$t('主机日志'), value: 'host_log', icon: 'host_log' },
-  { name: window.mainComponent.$t('windows events 日志'), value: 'wineventlog', icon: 'windows' },
-  { name: window.mainComponent.$t('文件采集'), value: 'file_log_config', icon: 'file' },
-  { name: window.mainComponent.$t('标准输出'), value: 'std_log_config', icon: 'IO' },
-  { name: window.mainComponent.$t('计算平台日志接入'), value: 'bkdata', icon: 'compute_platform' },
-  { name: window.mainComponent.$t('第三方 ES 日志接入'), value: 'es', icon: 'third_party_es' },
-  { name: window.mainComponent.$t('自定义上报日志'), value: 'custom_report', icon: 'custom_report' },
-];
-
-/**
- * 根据场景ID、环境和采集器场景ID来获取对应的索引集分类对象
- * @param {string} scenarioId - 场景ID，可能的值为 'bkdata', 'es', 'log'
- * @param {string} environment - 环境，可能的值为 'container', 'windows', 'linux'
- * @param {string} collectorScenarioId - 采集器场景ID，可能的值为 'custom' 等
- * @param {string} containerCollectorType - "container_log_config"：容器,"node_log_config"：节点,"std_log_config"：标准输出
- * @returns {object|null} - 返回匹配的日志类型对象，如果没有找到则返回 null
- */
-// container_collector_type
-export const getScenarioIdType = (scenarioId, environment, collectorScenarioId, containerCollectorType) => {
-  // 1. 优先处理自定义上报
-  if (collectorScenarioId === 'custom') {
-    return data.find(item => item.value === 'custom_report');
-  }
-
-  // 2. 处理特定平台接入
-  if (scenarioId === 'bkdata') {
-    return data.find(item => item.value === 'bkdata');
-  }
-  if (scenarioId === 'es') {
-    return data.find(item => item.value === 'es');
-  }
-
-  // 3. 处理通用日志采集 'log'，并结合 environment 区分
-  if (scenarioId === 'log') {
-    switch (environment) {
-      case 'windows':
-        return data.find(item => item.value === 'wineventlog');
-      case 'linux':
-        return data.find(item => item.value === 'host_log');
-      case 'container':
-        // 根据你的描述，容器采集对应 '文件采集'
-        if (containerCollectorType === 'std_log_config') {
-          return data.find(item => item.value === 'std_log_config');
-        }
-        return data.find(item => item.value === 'file_log_config');
-      default:
-        // 如果 environment 是其他未定义的值，也返回 null
-        return null;
-    }
-  }
-
-  // 4. 如果以上条件都不满足，返回 null
-  return null;
-};
-
 /**
  * 格式化字节大小为可读字符串。
  *

@@ -245,7 +245,7 @@ export default defineComponent({
           }
         });
     };
-    const getCleanStash = async id => {
+    const getCleanStash = async (id: number) => {
       try {
         const res = await $http.request('clean/getCleanStash', {
           params: {
@@ -267,13 +267,24 @@ export default defineComponent({
           if (cleaningMode.value === 'bk_log_delimiter') {
             delimiter.value = etl_params.separator;
           }
-          // console.log(logReportingTime, res.data, 'res.data----getCleanStash');
         }
-      } catch (error) {}
+      } catch (error) {
+        console.log(error);
+      }
     };
 
     // 新建、编辑采集项时获取更新详情
     const setDetail = () => {
+      /**
+       * 初始化导入的配置
+       */
+      builtInFieldsList.value = (props.configData.etl_fields || []).filter(item => item.is_built_in);
+      const eltField = (props.configData.etl_fields || []).filter(item => !item.is_built_in);
+      formData.value = {
+        ...formData.value,
+        ...props.configData,
+        etl_fields: eltField,
+      };
       const id = isUpdate.value ? route.params.collectorId : route.query.collectorId;
       if (!id) {
         return;
@@ -289,7 +300,6 @@ export default defineComponent({
             builtInFieldsList.value = curCollect.value.fields.filter(item => item.is_built_in);
             if (props.isEdit || props.isClone) {
               getDataLog('init');
-
               await getCleanStash(id);
             }
           }
@@ -438,7 +448,7 @@ export default defineComponent({
                 class='select-box'
                 clearable={false}
                 value={delimiter.value}
-                on-change={val => {
+                on-change={(val: string) => {
                   delimiter.value = val;
                   formData.value.etl_params.separator = val;
                 }}
@@ -486,7 +496,7 @@ export default defineComponent({
               placeholder={'(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]'}
               type='textarea'
               value={formData.value.etl_params.separator_regexp}
-              on-change={val => {
+              on-change={(val: string) => {
                 formData.value.etl_params.separator_regexp = val;
               }}
             />
@@ -506,7 +516,7 @@ export default defineComponent({
      * 获取清洗的相关信息，如日志样例、上报日志（origin字段）
      * @param type
      */
-    const getDataLog = type => {
+    const getDataLog = (type: string) => {
       logOriginalLoading.value = type === 'refresh';
       $http
         .request('source/dataList', {
@@ -621,7 +631,7 @@ export default defineComponent({
     );
 
     /** 选择清洗模式 */
-    const handleChangeCleaningMode = mode => {
+    const handleChangeCleaningMode = (mode: string) => {
       cleaningMode.value = mode.value;
     };
 

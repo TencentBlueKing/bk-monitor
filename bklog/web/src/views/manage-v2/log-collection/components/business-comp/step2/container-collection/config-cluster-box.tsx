@@ -152,10 +152,7 @@ export default defineComponent({
     },
   },
 
-  emits: {
-    /** 配置项变化事件 */
-    change: (config: IConfigItem) => true,
-  },
+  emits: ['change'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
@@ -580,12 +577,12 @@ export default defineComponent({
 
     /**
      * 监听场景 ID 变化
-     * 当场景 ID 不是 'std_log_config' 时，获取 BCS 集群列表
+     * 当场景 ID 不是 'container_stdout' 时，获取 BCS 集群列表
      */
     watch(
       () => props.scenarioId,
       (val: string) => {
-        if (val && val !== 'std_log_config') {
+        if (val && val !== 'container_stdout') {
           getBcsClusterList();
         }
       },

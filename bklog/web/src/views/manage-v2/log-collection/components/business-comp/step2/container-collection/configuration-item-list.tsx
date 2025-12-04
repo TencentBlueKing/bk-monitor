@@ -123,10 +123,7 @@ export default defineComponent({
     },
   },
 
-  emits: {
-    /** 配置项数据变更事件 */
-    change: (data: IContainerConfigItem[]) => true,
-  },
+  emits: ['change'],
 
   setup(props: IConfigurationItemListProps, { emit, expose }) {
     // 使用国际化翻译函数
@@ -224,8 +221,8 @@ export default defineComponent({
           winlog_name: [],
           winlog_level: [],
           winlog_event_id: [],
-        } as IContainerConfigItem['params'],
-      } as IContainerConfigItem;
+        },
+      };
     };
 
     /**
