@@ -11,6 +11,9 @@ specific language governing permissions and limitations under the License.
 import os
 from enum import Enum
 
+# 自定义指标的配置
+UNGROUP_SCOPE_NAME = ""  # 未分组名称
+
 # influxdb 的配置
 INFLUXDB_PROXY_HOST = os.environ.get("BK_INFLUXDB_PROXY_HOST", "")
 INFLUXDB_PROXY_PORT = os.environ.get("BK_INFLUXDB_PROXY_PORT", "")
