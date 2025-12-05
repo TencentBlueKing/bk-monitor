@@ -9,9 +9,8 @@
 |------------|--------|----|----------------------------------------------|
 | group_id   | int    | 否  | 自定义时序数据源 ID，对 APM 场景需要传递 scope_name 来区分不同的服务 |
 | service_name | string | 否  | 服务名（APM场景使用），最大长度 255，允许为空字符串，用于过滤特定服务的分组 |
-| scope_name | string | 否  | 指标分组名，支持模糊匹配                                 |
-
-- 当 scope_name 为空串时，返回的是未分组的指标
+| scope_id   | int    | 否  | 指标分组ID，如果提供了此字段，则优先使用 scope_id 进行精确查询，忽略 scope_name |
+| scope_name | string | 否  | 指标分组名，支持模糊匹配。当 scope_name 为空串时，返回的是未分组的指标                                 |
 
 ### 请求参数示例
 
@@ -45,7 +44,6 @@ data 为列表类型，包含所有匹配的结果
 | group_id         | int    | 自定义时序数据源 ID                              |
 | scope_name       | string | 指标分组名                                    |
 | dimension_config | dict   | 分组下的维度配置（key 为维度名，value 为维度配置对象）         |
-| manual_list      | list   | 手动分组的指标列表                                |
 | auto_rules       | list   | 自动分组的匹配规则列表                              |
 | metric_list      | list   | 包含完整的指标配置信息列表                            |
 | create_from      | string | 创建来源（user: 用户创建，data: 数据自动创建，未分组时为 None） |
@@ -107,10 +105,6 @@ data 为列表类型，包含所有匹配的结果
           "hidden": false
         }
       },
-      "manual_list": [
-        "metric1",
-        "metric2"
-      ],
       "auto_rules": [
         "metric_prefix_*"
       ],
@@ -162,7 +156,6 @@ data 为列表类型，包含所有匹配的结果
       "group_id": 123,
       "scope_name": "指标分组名2",
       "dimension_config": {},
-      "manual_list": [],
       "auto_rules": [],
       "metric_list": [],
       "create_from": "data"

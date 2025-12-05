@@ -18,43 +18,17 @@
 | service_name                | string | 否  | 服务名（APM场景使用），最大长度 255，允许为空字符串                      |
 | scope_name                  | string | 否  | 指标分组名，最大长度 255，对于 default 分组无法编辑                     |
 | dimension_config            | dict   | 否  | 分组下的维度配置，默认为空字典                                      |
-| manual_list                 | list   | 否  | 手动分组的指标列表，默认为空列表                                     |
 | auto_rules                  | list   | 否  | 自动分组的匹配规则列表，默认为空列表                                   |
-| delete_unmatched_dimensions | bool   | 否  | 是否删除不再匹配的维度配置（仅更新时生效），默认为 false。对于导入分组场景，建议设置为 false |
 
 #### 重要说明：全量更新机制
 
-**对于更新操作，所有列表和字典类型的字段（`dimension_config`、`manual_list`、`auto_rules`）均采用全量更新方式，而非增量更新。**
+**对于更新操作，所有列表和字典类型的字段（`dimension_config`、`auto_rules`）均采用全量更新方式，而非增量更新。**
 
 这意味着：
-- 如果传递了 `manual_list`，会完全替换原有的 `manual_list`，而不是追加
 - 如果传递了 `auto_rules`，会完全替换原有的 `auto_rules`，而不是追加
 - 如果传递了 `dimension_config`，会完全替换原有的 `dimension_config`，而不是合并
 
 **因此，在更新时必须传递完整的字段内容，包括需要保留的旧数据和新增的数据。**
-
-#### manual_list 和 auto_rules 说明
-
-1. auto_rules 在后端没有作用，仅用于存储与返回
-2. auto_rules 在上游自行匹配 default 数据分组中的指标
-3. 请求创建和更新时，需要将完整指标都放入 manual_list（后端会进行逻辑校验——新增的指标是否都在 default 数据分组）
-4. **更新时必须传递完整的 manual_list 和 auto_rules，否则未传递的数据将被清空**
-
-#### dimension_config 说明
-> 创建和更新都需要传递完整的 dimension_config
-
-对于创建：
-
-1. dimension_config 视为 X
-2. manual_list 的维度集合视为 Y
-3. 最终维度集合是 X | Y
-
-对于更新：
-
-1. 先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，视为 X
-2. manual_list 的维度集合视为 Y
-3. 当 delete_unmatched_dimensions 为 true 则最终集合为 (X & Y) | Y，反之 X | Y
-4. **注意：传递的 dimension_config 会完全替换旧的 dimension_config，不会进行合并操作**
 
 ### 请求参数示例
 
@@ -70,18 +44,13 @@
           "description": "维度1描述"
         }
       },
-      "manual_list": [
-        "metric1",
-        "metric2"
-      ],
       "auto_rules": [
         "metric_prefix_*"
       ]
     },
     {
       "scope_id": 2,
-      "scope_name": "指标分组名2",
-      "delete_unmatched_dimensions": true
+      "scope_name": "指标分组名2"
     }
   ]
 }
@@ -105,7 +74,6 @@
 | group_id         | int    | 自定义时序数据源 ID  |
 | scope_name       | string | 指标分组名        |
 | dimension_config | dict   | 分组下的维度配置     |
-| manual_list      | list   | 手动分组的指标列表    |
 | auto_rules       | list   | 自动分组的匹配规则列表  |
 | create_from      | string | 创建来源         |
 
@@ -125,10 +93,6 @@
           "description": "维度1描述"
         }
       },
-      "manual_list": [
-        "metric1",
-        "metric2"
-      ],
       "auto_rules": [
         "metric_prefix_*"
       ],
@@ -139,7 +103,6 @@
       "group_id": 123,
       "scope_name": "新的指标分组名2",
       "dimension_config": {},
-      "manual_list": [],
       "auto_rules": [],
       "create_from": "user"
     }

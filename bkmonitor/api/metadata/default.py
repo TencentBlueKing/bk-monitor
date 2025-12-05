@@ -521,6 +521,8 @@ class CreateOrUpdateTimeSeriesMetricResource(MetaDataAPIGWResource):
             field_config = serializers.DictField(required=False, label="字段其他配置", allow_null=True)
             label = serializers.CharField(required=False, label="指标监控对象", max_length=255, allow_null=True)
             service_name = serializers.CharField(required=False, label="服务名称", max_length=255, allow_null=True)
+            scope_id = serializers.IntegerField(required=False, label="指标分组ID", allow_null=True)
+            scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255, allow_null=True)
 
         group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
         metrics = serializers.ListField(
@@ -549,11 +551,7 @@ class CreateOrUpdateTimeSeriesScopeResource(MetaDataAPIGWResource):
             )
             scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255)
             dimension_config = serializers.DictField(required=False, allow_null=True, label="分组下的维度配置")
-            manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
             auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
-            delete_unmatched_dimensions = serializers.BooleanField(
-                required=False, default=False, label="是否删除不再匹配的维度配置（仅更新时生效）"
-            )
 
         scopes = serializers.ListField(
             required=True, child=ScopeSerializer(), label="批量创建或更新的分组列表", min_length=1
@@ -594,6 +592,7 @@ class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
         service_name = serializers.CharField(
             required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
         )
+        scope_id = serializers.IntegerField(required=False, label="指标分组ID")
         scope_name = serializers.CharField(required=False, label="指标分组名", allow_blank=True)
 
 

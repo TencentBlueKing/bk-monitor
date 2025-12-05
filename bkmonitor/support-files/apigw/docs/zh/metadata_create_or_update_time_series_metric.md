@@ -25,6 +25,8 @@
 | field_config | dict | 否  | 字段其他配置，详见下方 field_config 字段说明。**注意：更新时为全量替换，需传递完整的配置字典**                                              |
 | label      | string | 否  | 指标监控对象，用于标识指标所属的监控对象类型，最大长度255，默认为空字符串                  |
 | service_name | string | 否  | 服务名称，最大长度255。如果提供了此字段，则 field_scope 会被设置为 `{service_name}||default`；否则 field_scope 为 `default`                  |
+| scope_id   | int | 否  | 指标分组ID，允许为空                                          |
+| scope_name | string | 否  | 指标分组名，最大长度255，允许为空                                          |
 
 #### field_config 字段说明
 
