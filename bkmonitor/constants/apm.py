@@ -1769,6 +1769,67 @@ class ApmAlertHelper:
                 return url
         return None
 
+    @staticmethod
+    def _is_event_explore_dimension_field(field: str) -> bool:
+        """判断字段是否为可用于事件检索的维度字段
+
+        说明：
+        - 告警维度 = 原始维度（数据源定义） + CMDB 丰富的维度（Enricher 添加）
+        - 事件检索跳转链接使用的维度不能是告警中经 CMDB 丰富的维度
+
+        参考：
+        - alarm_backends/service/alert/enricher/cmdb.py 中的 CMDBEnricher 类
+
+        :param field: 维度字段名
+        :return: 是否为可用于事件检索的维度字段
+        """
+        # 需排除经 CMDB 丰富的维度字段（由 CMDBEnricher 类添加）
+        EXCLUDED_FIELDS: set[str] = {
+            "bk_obj_id",
+            "bk_inst_id",
+            "bk_topo_node",
+            "bk_host_id",
+            "ipv6",
+            "ip",  # 内网IP（注：使用 bk_target_ip 原始维度即可）
+            "bk_cloud_id",  # 云区域ID（注：使用 bk_target_cloud_id 原始维度即可）
+            "bk_service_instance_id",  # 服务实例ID（注：使用bk_target_service_instance_id 原始维度即可）
+        }
+        return field not in EXCLUDED_FIELDS
+
+    @classmethod
+    def get_event_explore_url(
+        cls, bk_biz_id: int, strategy: dict[str, Any], dimensions: dict[str, Any], timestamp: int, duration: int
+    ) -> str | None:
+        """获取事件检索跳转链接"""
+        if not strategy or not strategy.get("items"):
+            return None
+
+        query_configs: list[dict[str, Any]] = strategy["items"][0].get("query_configs", [])
+        if not query_configs:
+            return None
+
+        # 构建检索条件
+        filter_keys: set[str] = {"result_table_id", "data_source_label", "data_type_label", "query_string"}
+        query_filter: dict[str, Any] = {k: v for k, v in query_configs[0].items() if k in filter_keys}
+
+        # 构建 where 条件
+        where: list[dict[str, Any]] = []
+        for key, value in dimensions.items():
+            # 过滤 CMDB 丰富的维度字段
+            if value is not None and cls._is_event_explore_dimension_field(key):
+                where.append({"key": key, "method": "eq", "value": [value or ""], "condition": "and"})
+        query_filter["where"] = where
+
+        offset: int = FIVE_MIN_SECONDS * 1000
+        params: dict[str, Any] = {
+            "targets": json.dumps([{"data": {"query_configs": [query_filter]}}]),
+            "from": timestamp * 1000 - duration * 1000 - offset,
+            "to": timestamp * 1000 + offset,
+        }
+
+        encoded_params: str = urllib.parse.urlencode(params)
+        return urllib.parse.urljoin(settings.BK_MONITOR_HOST, f"?bizId={bk_biz_id}#/event-explore?{encoded_params}")
+
 
 class OtlpProtocol:
     GRPC: str = "grpc"
