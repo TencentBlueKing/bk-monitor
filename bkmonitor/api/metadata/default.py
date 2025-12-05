@@ -514,16 +514,15 @@ class CreateOrUpdateTimeSeriesMetricResource(MetaDataAPIGWResource):
             """单个指标的序列化器"""
 
             field_id = serializers.IntegerField(required=False, label="字段ID")
-            group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
             field_name = serializers.CharField(required=False, label="指标字段名称", max_length=255)
             tag_list = serializers.ListField(
-                required=False, label="Tag列表", default=list, child=serializers.CharField()
+                required=False, label="Tag列表", child=serializers.CharField(), allow_null=True
             )
-            field_config = serializers.DictField(required=False, label="字段其他配置", default=dict)
-            label = serializers.CharField(required=False, label="指标监控对象", default="", max_length=255)
+            field_config = serializers.DictField(required=False, label="字段其他配置", allow_null=True)
+            label = serializers.CharField(required=False, label="指标监控对象", max_length=255, allow_null=True)
             service_name = serializers.CharField(required=False, label="服务名称", max_length=255, allow_null=True)
 
-        bk_tenant_id = serializers.CharField(required=True, label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
         metrics = serializers.ListField(
             required=True,
             label="批量指标列表",
@@ -541,16 +540,14 @@ class CreateOrUpdateTimeSeriesScopeResource(MetaDataAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+
         class ScopeSerializer(serializers.Serializer):
-            scope_id = serializers.IntegerField(required=False, label="自定义时序指标分组ID")
-            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+            scope_id = serializers.IntegerField(required=False, label="指标分组ID")
             service_name = serializers.CharField(
                 required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
             )
             scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255)
-            new_scope_name = serializers.CharField(
-                required=False, label="新的指标分组名（仅更新时生效）", max_length=255
-            )
             dimension_config = serializers.DictField(required=False, allow_null=True, label="分组下的维度配置")
             manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
             auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
@@ -572,8 +569,9 @@ class DeleteTimeSeriesScopeResource(MetaDataAPIGWResource):
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+
         class ScopeSerializer(serializers.Serializer):
-            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
             scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
             service_name = serializers.CharField(
                 required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
