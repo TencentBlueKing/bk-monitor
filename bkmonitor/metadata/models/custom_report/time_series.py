@@ -1170,10 +1170,12 @@ class TimeSeriesScope(models.Model):
         if not moved_metric_field_names:
             return
 
-        # 1. 获取被移动的指标
+        # 1. 获取被移动的指标，并验证它们必须来自 default 数据分组
+        # 使用 field_scope 字段过滤默认分组的指标
+        scope_filter = TimeSeriesMetric.get_default_scope_metric_filter(self.scope_name)
         moved_metrics = TimeSeriesMetric.objects.filter(
             group_id=self.group_id, scope_id=source_scope_id, field_name__in=moved_metric_field_names
-        )
+        ).filter(scope_filter)
 
         # 2. 获取被移动指标的维度集合和维度配置
         moved_metric_dimensions = set()
