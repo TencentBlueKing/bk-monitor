@@ -2779,9 +2779,17 @@ class TimeSeriesMetric(models.Model):
                 )
             )
 
-            # 如果指定了scope_name，收集需要移动到该scope的指标
+            # 如果指定了scope_id或scope_name，收集需要移动到该scope的指标
+            # 优先使用scope_id，如果没有则使用scope_name
+            scope_id = metric_data.get("scope_id")
             scope_name = metric_data.get("scope_name")
-            if scope_name:
+            if scope_id is not None:
+                # 通过scope_id获取scope
+                scope = TimeSeriesScope.objects.filter(id=scope_id, group_id=group_id).first()
+                if scope is None:
+                    raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
+                scope_moves[scope].append(metric_data["field_name"])
+            elif scope_name is not None:
                 scope = cls._get_or_create_scope(group_id, scope_name, service_name)
                 scope_moves[scope].append(metric_data["field_name"])
 
@@ -2817,8 +2825,21 @@ class TimeSeriesMetric(models.Model):
             records_to_update.append(metric)
 
             # 处理scope更新
+            # 优先使用scope_id，如果没有则使用scope_name
+            scope_id = validated_request_data.get("scope_id")
             scope_name = validated_request_data.get("scope_name")
-            if scope_name is not None:
+            if scope_id is not None:
+                # 通过scope_id获取scope
+                new_scope = TimeSeriesScope.objects.filter(id=scope_id, group_id=metric.group_id).first()
+                if new_scope is None:
+                    raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
+
+                # 如果scope发生变化，记录需要移动的指标
+                if metric.scope_id != new_scope.id:
+                    move_key = (new_scope.id, metric.scope_id)
+                    scope_moves[move_key]["new_scope"] = new_scope
+                    scope_moves[move_key]["field_names"].append(metric.field_name)
+            elif scope_name is not None:
                 new_scope = cls._get_or_create_scope(
                     metric.group_id, scope_name, validated_request_data.get("service_name")
                 )

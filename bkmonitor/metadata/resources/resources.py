@@ -1427,6 +1427,7 @@ class CreateOrUpdateTimeSeriesMetricResource(Resource):
             field_config = serializers.DictField(required=False, label="字段其他配置", allow_null=True)
             label = serializers.CharField(required=False, label="指标监控对象", max_length=255, allow_null=True)
             service_name = serializers.CharField(required=False, label="服务名称", max_length=255, allow_null=True)
+            scope_id = serializers.IntegerField(required=False, label="指标分组ID", allow_null=True)
             scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255, allow_null=True)
 
         bk_tenant_id = TenantIdField(label="租户ID")
