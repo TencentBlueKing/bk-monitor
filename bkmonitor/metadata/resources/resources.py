@@ -1533,6 +1533,7 @@ class QueryTimeSeriesScopeResource(Resource):
         service_name = serializers.CharField(
             required=False, label="服务名（APM场景使用，约定必须传递）", max_length=255, allow_blank=True
         )
+        scope_id = serializers.IntegerField(required=False, label="指标分组ID")
         scope_name = serializers.CharField(required=False, label="指标分组名", allow_blank=True)
 
     def perform_request(self, validated_request_data):
@@ -1540,8 +1541,13 @@ class QueryTimeSeriesScopeResource(Resource):
 
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         group_id = validated_request_data.get("group_id")
+        scope_id = validated_request_data.get("scope_id")
         scope_name = validated_request_data.get("scope_name")
         service_name = validated_request_data.get("service_name")
+
+        # 如果存在 scope_id，则优先使用 scope_id，否则使用 scope_name
+        if scope_id is not None:
+            scope_name = None  # 使用 scope_id 时忽略 scope_name
 
         # 构建用于查询未分组指标的 scope_name
         # 如果有 service_name，使用 {service_name}||default；否则使用 default
@@ -1552,7 +1558,7 @@ class QueryTimeSeriesScopeResource(Resource):
 
         # 判断查询类型
         is_query_only_ungrouped = scope_name == ""  # 仅查询未分组
-        is_include_ungrouped = scope_name is None  # 包含未分组
+        is_include_ungrouped = scope_name is None and scope_id is None  # 包含未分组
 
         # 验证 group_id 的有效性（如果提供）
         if group_id is not None:
@@ -1564,10 +1570,10 @@ class QueryTimeSeriesScopeResource(Resource):
             return self._build_ungrouped_results(group_ids, ungrouped_scope_name)
 
         # 场景2：查询已分组指标
-        query_set = self._build_scope_queryset(group_id, scope_name, bk_tenant_id, service_name)
+        query_set = self._build_scope_queryset(group_id, scope_id, scope_name, bk_tenant_id, service_name)
         results = self._build_grouped_results(query_set)
 
-        # 场景3：追加未分组指标（当 scope_name 为 None 时）
+        # 场景3：追加未分组指标（当 scope_name 为 None 且 scope_id 为 None 时）
         if is_include_ungrouped:
             group_ids = self._get_target_group_ids(group_id, bk_tenant_id)
             results.extend(self._build_ungrouped_results(group_ids, ungrouped_scope_name))
@@ -1594,10 +1600,11 @@ class QueryTimeSeriesScopeResource(Resource):
         )
 
     @staticmethod
-    def _build_scope_queryset(group_id, scope_name, bk_tenant_id, service_name=None):
+    def _build_scope_queryset(group_id, scope_id, scope_name, bk_tenant_id, service_name=None):
         """构建 TimeSeriesScope 查询集
 
         当 scope_name 为 None 时（包含未分组场景），会排除空串分组，避免与未分组指标重复
+        如果提供了 scope_id，则优先使用 scope_id 进行精确查询，忽略 scope_name
         """
         from metadata.models.constants import UNGROUP_SCOPE_NAME
 
@@ -1612,6 +1619,11 @@ class QueryTimeSeriesScopeResource(Resource):
                 bk_tenant_id=bk_tenant_id, is_delete=False
             ).values_list("time_series_group_id", flat=True)
             query_set = query_set.filter(group_id__in=valid_group_ids)
+
+        # 如果提供了 scope_id，优先使用 scope_id 进行精确查询
+        if scope_id is not None:
+            query_set = query_set.filter(id=scope_id)
+            return query_set
 
         # 按 service_name 和 scope_name 过滤
         # 对于 APM 场景，scope_name 的格式为 {service_name}||{scope_name}
