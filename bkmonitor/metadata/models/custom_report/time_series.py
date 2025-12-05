@@ -1654,6 +1654,9 @@ class TimeSeriesScope(models.Model):
             else:
                 user_scopes.append(time_series_scope)
 
+        # 收集所有需要更新 scope_id 的指标
+        metrics_to_update = []
+
         # 对于 data 类型的 scope：清空 auto_rules，并清理 dimension_config
         if data_scopes:
             for scope in data_scopes:
@@ -1669,6 +1672,8 @@ class TimeSeriesScope(models.Model):
                 for metric in metrics:
                     if metric.tag_list:
                         all_metric_dimensions.update(metric.tag_list)
+                    # 收集需要更新 scope_id 的指标（因为 auto_rules 被清空，需要重新计算）
+                    metrics_to_update.append(metric)
 
                 # 4. 从 dimension_config 中删除不属于这些维度的配置
                 current_dimension_config = scope.dimension_config or {}
@@ -1684,7 +1689,29 @@ class TimeSeriesScope(models.Model):
 
         # 对于 user 类型的 scope：直接删除
         if user_scopes:
-            cls.objects.filter(pk__in=[scope.pk for scope in user_scopes]).delete()
+            # 在删除前，收集需要更新 scope_id 的指标
+            user_scope_ids = [scope.id for scope in user_scopes]
+
+            # 查询所有使用这些 scope 的指标
+            user_metrics = TimeSeriesMetric.objects.filter(group_id=group_id, scope_id__in=user_scope_ids)
+            metrics_to_update.extend(user_metrics)
+
+            # 删除 user 类型的 scope
+            cls.objects.filter(pk__in=user_scope_ids).delete()
+
+        # 批量更新所有受影响指标的 scope_id
+        if metrics_to_update:
+            for metric in metrics_to_update:
+                # 重新计算 scope_id
+                new_scope_id = TimeSeriesMetric._get_scope_id_for_metric(
+                    group_id=metric.group_id,
+                    field_scope=metric.field_scope,
+                    field_name=metric.field_name,
+                )
+                metric.scope_id = new_scope_id
+
+            # 批量更新指标的 scope_id
+            TimeSeriesMetric.objects.bulk_update(metrics_to_update, ["scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE)
 
 
 class TimeSeriesMetric(models.Model):
