@@ -27,6 +27,10 @@ import { shallowRef } from 'vue';
 
 import { fieldTypeMap } from 'trace/components/retrieval-filter/utils';
 
+import LogCell from '../log-cell';
+import { formatHierarchy } from '../utils/fields';
+
+import type { IFieldInfo } from '../typing';
 import type { TdPrimaryTableProps } from '@blueking/tdesign-ui';
 
 export const useTable = () => {
@@ -37,8 +41,9 @@ export const useTable = () => {
     tableColumns.value = columns;
   };
 
-  const fieldsDataToColumns = (fields: any[]) => {
-    const columns: TdPrimaryTableProps['columns'] = fields.map(item => ({
+  const fieldsDataToColumns = (fields: IFieldInfo[]) => {
+    const allFields = formatHierarchy(fields) as IFieldInfo[];
+    const columns: TdPrimaryTableProps['columns'] = allFields.map(item => ({
       colKey: item.field_name,
       ellipsis: false,
       resizable: true,
@@ -50,8 +55,13 @@ export const useTable = () => {
           return 'col-td';
         }
       },
-      cell: (_h, { _col, _row }) => {
-        return <div>xxxxx</div>;
+      cell: (_h, { _col, row }) => {
+        return (
+          <LogCell
+            field={item}
+            row={row}
+          />
+        );
       },
       title: () => {
         const fieldIcon = fieldTypeMap[item.field_type] || fieldTypeMap.text;
@@ -64,8 +74,18 @@ export const useTable = () => {
                 marginRight: '5px',
               }}
               class={[fieldIcon.icon, 'col-title-field-icon']}
+              v-bk-tooltips={{
+                content: fieldIcon.name,
+              }}
             />
-            <span class='col-title-field-alias'>{item.field_alias}</span>
+            <span
+              class='col-title-field-alias'
+              v-bk-tooltips={{
+                content: item.field_name,
+              }}
+            >
+              {item.field_alias || item.field_name}
+            </span>
           </div>
         );
       },

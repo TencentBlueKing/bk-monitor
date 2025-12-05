@@ -106,8 +106,8 @@ export default defineComponent({
       const data = await getLogIndexSetSearch(selectIndexSet.value, {
         bk_biz_id: props.detail?.bk_biz_id || window.bk_biz_id,
         size: params.size,
-        start_time: 1764813893094,
-        end_time: 1764817493094,
+        start_time: props.detail?.begin_time,
+        end_time: props.detail.latest_time,
         addition: [
           {
             field: 'resource.server',
@@ -129,7 +129,7 @@ export default defineComponent({
         keyword: '*',
       })
         .then(res => {
-          console.log(res);
+          return res;
         })
         .catch(() => null);
       return data;
@@ -137,8 +137,8 @@ export default defineComponent({
     const getFieldsData = async () => {
       const data = await getLogFieldsData(selectIndexSet.value, {
         is_realtime: 'True',
-        start_time: 1764813893094,
-        end_time: 1764817493094,
+        start_time: props.detail?.begin_time,
+        end_time: props.detail.latest_time,
       }).catch(() => null);
       return data;
     };
