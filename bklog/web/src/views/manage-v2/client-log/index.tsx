@@ -32,6 +32,7 @@ import { BK_LOG_STORAGE } from '@/store/store.type';
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '../../../common/authority-map';
 import { tenantManager, UserInfoLoadedEventData } from '@/views/retrieve-core/tenant-manager';
+import { TaskStatus } from './components/log-table/types';
 
 import LogTable from './components/log-table';
 import CollectionSlider from './collection-slider';
@@ -86,6 +87,11 @@ export default defineComponent({
     const isAllowedDownload = ref(false); // 是否允许下载
     const isGrayRelease = ref(false); // 是否为灰度业务
 
+    // 轮询相关状态
+    const timer = ref(null); // 轮询定时器
+    const isShouldPollTask = ref(false); // 是否需要轮询任务
+    const isComponentDestroyed = ref(false); // 组件是否已销毁
+
     // 检查是否为灰度业务
     const checkGrayReleaseAccess = () => {
       const whiteList = window.FEATURE_TOGGLE_WHITE_LIST?.tgpa_task ?? [];
@@ -97,6 +103,49 @@ export default defineComponent({
       const hasAccess = normalizedWhiteList.includes(String(bizId)) || normalizedWhiteList.includes(String(spaceUid));
 
       isGrayRelease.value = !hasAccess;
+    };
+
+    // 启动轮询
+    const startPolling = () => {
+      stopPolling();
+      timer.value = setTimeout(() => {
+        if (isShouldPollTask.value) {
+          requestData(true); // 传入 true 表示是轮询调用
+        }
+      }, 30000); // 30秒轮询一次
+    };
+
+    // 停止轮询
+    const stopPolling = () => {
+      if (timer.value) {
+        clearTimeout(timer.value);
+        timer.value = null;
+      }
+    };
+
+    // 判断是否需要轮询
+    const checkShouldPoll = (taskList: any[]) => {
+      // 如果组件已销毁，不进行轮询判断
+      if (isComponentDestroyed.value) {
+        return;
+      }
+
+      isShouldPollTask.value = false;
+
+      // 检查是否有未完成的任务
+      for (const task of taskList) {
+        if (task.status !== TaskStatus.COMPLETED) {
+          isShouldPollTask.value = true;
+          break;
+        }
+      }
+
+      // 如果需要轮询，启动轮询
+      if (isShouldPollTask.value) {
+        startPolling();
+      } else {
+        stopPolling();
+      }
     };
 
     // tab点击事件
@@ -135,7 +184,7 @@ export default defineComponent({
     };
 
     // 获取列表数据
-    const requestData = async () => {
+    const requestData = async (isPolling = false) => {
       try {
         const params = {
           query: {
@@ -143,18 +192,32 @@ export default defineComponent({
           },
         };
 
-        isLoading.value = true;
+        // 如果不是轮询调用，显示加载状态
+        if (!isPolling) {
+          isLoading.value = true;
+        }
+
         const response = await http.request('collect/getTaskLogList', params);
         if (activeTab.value === TAB_TYPES.COLLECT) {
           const listWithTenantInfo = await processListWithTenantInfo(response.data.list);
           tableData.value = response.data;
           tableData.value.list = listWithTenantInfo;
           tabs.value[0].count = response.data.total;
+
+          // 检查是否需要轮询
+          checkShouldPoll(listWithTenantInfo);
         }
       } catch (error) {
         console.warn('获取采集下发列表失败:', error);
+        // 如果是轮询调用失败，停止轮询
+        if (isPolling) {
+          stopPolling();
+        }
       } finally {
-        isLoading.value = false;
+        // 如果不是轮询调用，隐藏加载状态
+        if (!isPolling) {
+          isLoading.value = false;
+        }
       }
     };
 
@@ -223,8 +286,14 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      // 标记组件已销毁
+      isComponentDestroyed.value = true;
+
       // 清理事件监听
       tenantManager.off('userInfoUpdated', handleUserInfoUpdate);
+
+      // 清理轮询定时器
+      stopPolling();
     });
 
     // 清除搜索关键词
