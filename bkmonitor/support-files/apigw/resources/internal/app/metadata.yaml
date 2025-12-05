@@ -677,7 +677,7 @@ paths:
       - metadata
       x-bk-apigateway-resource:
         isPublic: false
-        allowApplyPermission: true
+        allowApplyPermission: false
         matchSubpath: false
         backend:
           name: default
@@ -697,7 +697,7 @@ paths:
         - metadata
       x-bk-apigateway-resource:
         isPublic: false
-        allowApplyPermission: true
+        allowApplyPermission: false
         matchSubpath: false
         backend:
           name: default
@@ -717,7 +717,7 @@ paths:
       - metadata
       x-bk-apigateway-resource:
         isPublic: false
-        allowApplyPermission: true
+        allowApplyPermission: false
         matchSubpath: false
         backend:
           name: default
@@ -737,7 +737,7 @@ paths:
       - metadata
       x-bk-apigateway-resource:
         isPublic: false
-        allowApplyPermission: true
+        allowApplyPermission: false
         matchSubpath: false
         backend:
           name: default
