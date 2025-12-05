@@ -433,22 +433,59 @@ export default defineComponent({
 
     // 任务状态插槽
     const statusSlot = {
-      default: ({ row }) => (
-        <div class='status-row'>
-          <div
-            class={[
-              {
-                'status-icon': row.status === TaskStatus.CLAIMING || row.status === TaskStatus.CLAIM_TIMEOUT,
-              },
-            ]}
-            key={row.status}
-          >
-            {row.status === TaskStatus.CLAIMING && <bk-spin size='mini'></bk-spin>}
-            {row.status === TaskStatus.CLAIM_TIMEOUT && <div class='claimed-expired'></div>}
+      default: ({ row }) => {
+        // 加载中状态：执行中、创建中、启动中、认领中
+        const loadingStatuses = [TaskStatus.RUNNING, TaskStatus.CREATING, TaskStatus.STARTING, TaskStatus.CLAIMING];
+
+        // 失败状态：创建失败、认领超时、审批拒绝、执行失败、执行超时
+        const failedStatuses = [
+          TaskStatus.CREATE_FAILED,
+          TaskStatus.CLAIM_TIMEOUT,
+          TaskStatus.REJECTED,
+          TaskStatus.FAILED,
+          TaskStatus.EXECUTION_TIMEOUT,
+        ];
+
+        // 成功状态：审批通过、执行完成、已创建
+        const successStatuses = [TaskStatus.APPROVED, TaskStatus.COMPLETED, TaskStatus.CREATED];
+
+        // 停止状态：停止、已删除
+        const stoppedStatuses = [TaskStatus.STOPPED, TaskStatus.DELETED];
+
+        // 待审批状态
+        const pendingStatuses = [TaskStatus.PENDING_APPROVAL];
+
+        const renderStatusIcon = () => {
+          if (loadingStatuses.includes(row.status)) {
+            return <bk-spin size='mini'></bk-spin>;
+          }
+          if (failedStatuses.includes(row.status)) {
+            return <div class='status-dot status-failed'></div>;
+          }
+          if (successStatuses.includes(row.status)) {
+            return <div class='status-dot status-success'></div>;
+          }
+          if (stoppedStatuses.includes(row.status)) {
+            return <div class='status-dot status-stopped'></div>;
+          }
+          if (pendingStatuses.includes(row.status)) {
+            return <div class='status-dot status-pending'></div>;
+          }
+          return null;
+        };
+
+        return (
+          <div class='status-row'>
+            <div
+              class='status-icon'
+              key={row.status}
+            >
+              {renderStatusIcon()}
+            </div>
+            {row.status_name}
           </div>
-          {row.status_name}
-        </div>
-      ),
+        );
+      },
     };
 
     // 创建人插槽
