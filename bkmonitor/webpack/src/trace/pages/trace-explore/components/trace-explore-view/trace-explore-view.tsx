@@ -23,16 +23,30 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, nextTick, useTemplateRef, watch } from 'vue';
+import {
+  type PropType,
+  computed,
+  defineAsyncComponent,
+  defineComponent,
+  KeepAlive,
+  shallowRef,
+  toRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
 
 import { Checkbox } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-
+const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
+const ExploreTraceSlider = defineAsyncComponent(() => import('../explore-trace-slider/explore-trace-slider'));
 import BackTop from '../../../../components/back-top/back-top';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ChartWrapper from '../explore-chart/chart-wrapper';
+import { useExploreTableData } from '../trace-explore-table/hooks/use-explore-table-data';
+import { useExploreTableDisplayField } from '../trace-explore-table/hooks/use-explore-table-display-field';
 import TraceExploreTable from '../trace-explore-table/trace-explore-table';
+import { ExploreTableLoadingEnum } from '../trace-explore-table/typing';
 
 import type { ConditionChangeEvent, ExploreFieldList, ICommonParams } from '../../typing';
 
@@ -71,10 +85,13 @@ export default defineComponent({
     },
   },
   emits: {
+    /** table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）值改变后触发的回调 */
     checkboxFiltersChange: (checkboxGroupEvent: string[]) => Array.isArray(checkboxGroupEvent),
-
-    conditionChange: (val: ConditionChangeEvent) => true,
+    /** 筛选条件改变后触发的回调 */
+    conditionChange: (conditionEvent: ConditionChangeEvent) => conditionEvent,
+    /** 清除检索过滤 */
     clearRetrievalFilter: () => true,
+    /** 设置url参数 */
     setUrlParams: () => true,
   },
   setup(props, { emit }) {
@@ -82,47 +99,67 @@ export default defineComponent({
     const store = useTraceExploreStore();
     const backTopRef = useTemplateRef<InstanceType<typeof BackTop>>('backTopRef');
 
-    const { mode, appName, timeRange, refreshImmediate } = storeToRefs(store);
+    /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
+    const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
+    /** 打开抽屉所需的数据Id(traceId/spanId) */
+    const activeSliderId = shallowRef('');
+    const { mode, appName } = storeToRefs(store);
+    const {
+      displayColumnFields,
+      fieldsWidthConfig,
+      getCustomFieldsConfig,
+      handleDisplayColumnFieldsChange,
+      handleDisplayColumnResize,
+    } = useExploreTableDisplayField({ mode, appName });
 
-    const traceExploreTable = useTemplateRef<InstanceType<typeof TraceExploreTable>>('traceExploreTable');
+    /** 当前视角下的字段配置 */
+    const sourceFieldConfigs = computed(() => props.fieldListMap?.[mode.value] ?? []);
 
-    /** 当前视角是否为 Span 视角 */
-    const isSpanVisual = computed(() => mode.value === 'span');
+    // 使用数据处理 hook
+    const { tableViewData, tableHasScrollLoading, tableLoading, sortContainer, getExploreList, handleSortChange } =
+      useExploreTableData({
+        commonParams: toRef(props, 'commonParams'),
+        sourceFieldConfigs,
+        onBackTop: () => {
+          backTopRef.value?.handleBackTop?.(false);
+        },
+      });
 
     /**
-     * @description 回到顶部按钮触发的回调
+     * @description 触底加载更多
      */
-    function handleScrollToTop() {
-      backTopRef.value?.handleBackTop?.(false);
-    }
+    const handleScrollToEnd = () => {
+      getExploreList(ExploreTableLoadingEnum.SCROLL);
+    };
 
     /**
-     * @description 筛选条件改变后触发的回调
+     * @description 排序变化处理
      */
-    function handleConditionChange(val: ConditionChangeEvent) {
-      emit('conditionChange', val);
-    }
+    const handleTableSortChange = sortEvent => {
+      handleSortChange(sortEvent);
+      emit('setUrlParams');
+    };
 
     /**
-     * @description table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）值改变后触发的回调
-     * @param checkedGroup
+     * @description TraceId/SpanId 点击触发回调
      *
      */
-    function handleCheckboxGroupChange(checkedGroup: string[]) {
-      emit('checkboxFiltersChange', checkedGroup);
-    }
+    const handleSliderShowChange = (openMode: '' | 'span' | 'trace', activeId: string) => {
+      activeSliderId.value = activeId;
+      sliderMode.value = openMode;
+    };
 
     /**
      * @description table上方快捷筛选操作区域（ "包含" 区域中的 复选框组） 渲染方法
      *
      */
-    function filtersCheckBoxGroupRender() {
+    const filtersCheckBoxGroupRender = () => {
       return (
         <Checkbox.Group
           model-value={props.checkboxFilters}
-          onChange={handleCheckboxGroupChange}
+          onChange={checkedGroup => emit('checkboxFiltersChange', checkedGroup)}
         >
-          {isSpanVisual.value
+          {mode.value === 'span'
             ? [
                 <Checkbox
                   key={TableCheckBoxFiltersEnum.RootSpan}
@@ -151,47 +188,42 @@ export default defineComponent({
           <Checkbox label={TableCheckBoxFiltersEnum.Error}>{t('错误')}</Checkbox>
         </Checkbox.Group>
       );
-    }
+    };
 
     watch(
       () => props.showSlideDetail,
       val => {
         if (!val) return;
-        nextTick(() => {
-          traceExploreTable.value?.handleSliderShowChange(val.type, val.id);
-        });
+        handleSliderShowChange(val.type, val.id);
       },
       {
         immediate: true,
       }
     );
 
-    function handleClearRetrievalFilter() {
-      emit('clearRetrievalFilter');
-    }
-
-    function setUrlParams() {
-      emit('setUrlParams');
-    }
-
     return {
       mode,
       appName,
-      timeRange,
-      refreshImmediate,
-      traceExploreTable,
-      setUrlParams,
+      displayColumnFields,
+      fieldsWidthConfig,
+      sourceFieldConfigs,
+      tableViewData,
+      tableHasScrollLoading,
+      tableLoading,
+      sortContainer,
+      sliderMode,
+      activeSliderId,
+      getCustomFieldsConfig,
+      handleDisplayColumnFieldsChange,
+      handleDisplayColumnResize,
+      handleScrollToEnd,
+      handleTableSortChange,
       filtersCheckBoxGroupRender,
-      handleScrollToTop,
-      handleConditionChange,
-      handleClearRetrievalFilter,
+      handleSliderShowChange,
       t,
     };
   },
   render() {
-    const { commonParams, fieldListMap } = this.$props;
-    const { mode, appName, timeRange, refreshImmediate, filtersCheckBoxGroupRender } = this;
-
     return (
       <div class='trace-explore-view'>
         <div class='trace-explore-view-chart'>
@@ -199,23 +231,50 @@ export default defineComponent({
         </div>
         <div class='trace-explore-view-filter'>
           <span class='filter-label'>{this.t('包含')}：</span>
-          {filtersCheckBoxGroupRender()}
+          {this.filtersCheckBoxGroupRender()}
         </div>
         <div class='trace-explore-view-table'>
           <TraceExploreTable
             ref='traceExploreTable'
-            appName={appName}
-            commonParams={commonParams}
-            fieldListMap={fieldListMap}
-            mode={mode}
-            refreshImmediate={refreshImmediate}
-            timeRange={timeRange}
-            onBackTop={this.handleScrollToTop}
-            onClearRetrievalFilter={this.handleClearRetrievalFilter}
-            onConditionChange={this.handleConditionChange}
-            onSetUrlParams={this.setUrlParams}
+            appName={this.appName}
+            commonParams={this.commonParams}
+            displayFields={this.displayColumnFields}
+            fieldsWidthConfig={this.fieldsWidthConfig}
+            mode={this.mode}
+            sortContainer={this.sortContainer}
+            sourceFieldConfigs={this.sourceFieldConfigs}
+            tableData={this.tableViewData}
+            tableHasScrollLoading={this.tableHasScrollLoading}
+            tableLoading={this.tableLoading}
+            onClearRetrievalFilter={() => this.$emit('clearRetrievalFilter')}
+            onColumnResize={this.handleDisplayColumnResize}
+            onConditionChange={conditionEvent => this.$emit('conditionChange', conditionEvent)}
+            onDisplayFieldChange={this.handleDisplayColumnFieldsChange}
+            onScrollToEnd={this.handleScrollToEnd}
+            onSliderShow={this.handleSliderShowChange}
+            onSortChange={this.handleTableSortChange}
           />
         </div>
+        <KeepAlive include={['ExploreTraceSlider', 'ExploreSpanSlider', 'AsyncComponentWrapper']}>
+          <div>
+            {this.sliderMode === 'trace' && (
+              <ExploreTraceSlider
+                appName={this.appName}
+                isShow={this.sliderMode === 'trace'}
+                traceId={this.activeSliderId}
+                onSliderClose={() => this.handleSliderShowChange('', '')}
+              />
+            )}
+            {this.sliderMode === 'span' && (
+              <ExploreSpanSlider
+                appName={this.appName}
+                isShow={this.sliderMode === 'span'}
+                spanId={this.activeSliderId}
+                onSliderClose={() => this.handleSliderShowChange('', '')}
+              />
+            )}
+          </div>
+        </KeepAlive>
         <BackTop
           ref='backTopRef'
           class='back-to-top'
