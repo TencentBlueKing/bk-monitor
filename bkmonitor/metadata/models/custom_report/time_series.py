@@ -1616,18 +1616,38 @@ class TimeSeriesScope(models.Model):
             if has_updates:
                 scopes_to_update.append(scope_obj)
 
-            # 记录需要移动的指标
-            metric_field_names = scope_data.get("metric_field_names", [])
-            if metric_field_names:
-                # 获取未分组的scope_id（source_scope_id）
-                ungroup_scope_name = (
-                    scope_obj.scope_name.rsplit("||", 1)[0] + "||"
-                    if "||" in scope_obj.scope_name
-                    else UNGROUP_SCOPE_NAME
+            # 获取未分组的scope（用于新增和移除指标）
+            ungroup_scope_name = (
+                scope_obj.scope_name.rsplit("||", 1)[0] + "||" if "||" in scope_obj.scope_name else UNGROUP_SCOPE_NAME
+            )
+            ungroup_scope = cls.objects.filter(group_id=scope_obj.group_id, scope_name=ungroup_scope_name).first()
+            ungroup_scope_id = ungroup_scope.id if ungroup_scope else None
+
+            # 计算需要移动的指标（差值）
+            new_metric_field_names = set(scope_data.get("metric_field_names", []))
+            # 获取当前分组下的所有指标名称
+            old_metric_field_names = set(
+                TimeSeriesMetric.objects.filter(group_id=scope_obj.group_id, scope_id=scope_obj.id).values_list(
+                    "field_name", flat=True
                 )
-                source_scope = cls.objects.filter(group_id=scope_obj.group_id, scope_name=ungroup_scope_name).first()
-                source_scope_id = source_scope.id if source_scope else None
-                metric_moves.append((scope_obj, metric_field_names, source_scope_id))
+            )
+
+            # 计算需要新增的指标（在 new 中但不在 old 中）
+            metrics_to_add = new_metric_field_names - old_metric_field_names
+            # 计算需要移除的指标（在 old 中但不在 new 中）
+            metrics_to_remove = old_metric_field_names - new_metric_field_names
+
+            # 处理新增指标：从未分组移动到当前分组
+            if metrics_to_add:
+                metric_moves.append((scope_obj, list(metrics_to_add), ungroup_scope_id))
+
+            # 处理移除指标：从当前分组移回未分组
+            if metrics_to_remove and ungroup_scope:
+                # 使用 update_dimension_config_from_moved_metrics 将指标移回未分组
+                # target_scope 是未分组，source_scope_id 是当前分组
+                ungroup_scope.update_dimension_config_from_moved_metrics(
+                    metric_field_names=list(metrics_to_remove), source_scope_id=scope_obj.id
+                )
 
         # 2.2 一次性批量更新所有字段
         if scopes_to_update:
