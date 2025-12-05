@@ -1088,8 +1088,15 @@ class TimeSeriesScope(models.Model):
         scope_name = scope_data.get("scope_name")
         service_name = scope_data.get("service_name")
 
+        # 处理空串的情况：将空串视为有效的未分组标识
+        # 注意：这里不需要转换为 DEFAULT_SCOPE，因为空串本身就代表未分组
+        # 但为了通过验证，我们需要在验证时特殊处理空串
+
         # todo hhh 去掉这个逻辑
-        cls._validate_scope_name(scope_name)
+        # 只有当 scope_name 不是空串时才进行验证
+        if scope_name != "":
+            cls._validate_scope_name(scope_name)
+
         # APM 场景：如果有 service_name，使用 APM 格式
         if service_name:
             return f"{service_name}||{scope_name}"
@@ -2976,9 +2983,17 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def _get_or_create_scope(cls, group_id: int, scope_name: str, service_name: str = None) -> TimeSeriesScope:
-        """获取或创建指标分组（scope）"""
+        """获取或创建指标分组（scope）
+
+        注意：空串 "" 是有效的未分组标识（UNGROUP_SCOPE_NAME），不应该被转换
+        """
+        # 只有当 scope_name 为 None 时才使用 DEFAULT_SCOPE
+        # 空串 "" 是有效的未分组标识，应该保留
+        if scope_name is None:
+            scope_name = cls.DEFAULT_SCOPE
+
         final_scope_name = TimeSeriesScope._get_final_scope_name(
-            {"scope_name": scope_name or cls.DEFAULT_SCOPE, "service_name": service_name}
+            {"scope_name": scope_name, "service_name": service_name}
         )
 
         scope, created = TimeSeriesScope.objects.get_or_create(
