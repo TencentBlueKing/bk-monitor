@@ -1420,7 +1420,6 @@ class CreateOrUpdateTimeSeriesMetricResource(Resource):
             """单个指标的序列化器"""
 
             field_id = serializers.IntegerField(required=False, label="字段ID")
-            group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
             field_name = serializers.CharField(required=False, label="指标字段名称", max_length=255)
             tag_list = serializers.ListField(
                 required=False, label="Tag列表", child=serializers.CharField(), allow_null=True
@@ -1430,6 +1429,7 @@ class CreateOrUpdateTimeSeriesMetricResource(Resource):
             service_name = serializers.CharField(required=False, label="服务名称", max_length=255, allow_null=True)
 
         bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
         metrics = serializers.ListField(
             required=True,
             label="批量指标列表",
@@ -1440,9 +1440,10 @@ class CreateOrUpdateTimeSeriesMetricResource(Resource):
     def perform_request(self, validated_request_data):
         """执行批量创建或更新时序指标的请求"""
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        group_id = validated_request_data.pop("group_id")
         metrics = validated_request_data.pop("metrics")
 
-        models.TimeSeriesMetric.batch_create_or_update(metrics, bk_tenant_id)
+        models.TimeSeriesMetric.batch_create_or_update(metrics, bk_tenant_id, group_id)
 
 
 class CreateOrUpdateTimeSeriesScopeResource(Resource):

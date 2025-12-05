@@ -2743,11 +2743,12 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     @atomic
-    def batch_create_or_update(cls, metrics_data: list, bk_tenant_id: str):
+    def batch_create_or_update(cls, metrics_data: list, bk_tenant_id: str, group_id: int):
         """批量创建或更新时序指标
 
         :param metrics_data: 指标数据列表，每个元素包含字段信息
         :param bk_tenant_id: 租户ID
+        :param group_id: 自定义时序数据源ID
         """
         # 批量查找已存在的指标
         field_ids = [m.get("field_id") for m in metrics_data if m.get("field_id")]
@@ -2766,49 +2767,40 @@ class TimeSeriesMetric(models.Model):
 
             if metric is None:
                 # 准备创建
-                group_id = metric_data_copy.get("group_id")
-                if not group_id:
-                    raise ValueError(_("创建指标时，group_id为必填项"))
-                metrics_to_create.append((metric_data_copy, group_id))
+                metrics_to_create.append(metric_data_copy)
             else:
                 # 准备更新
                 metrics_to_update.append((metric, metric_data_copy))
 
         # 批量创建新指标
         if metrics_to_create:
-            cls._batch_create_metrics(metrics_to_create, bk_tenant_id)
+            cls._batch_create_metrics(metrics_to_create, bk_tenant_id, group_id)
 
         # 批量更新现有指标
         if metrics_to_update:
             cls._batch_update_metrics(metrics_to_update)
 
     @classmethod
-    def _batch_create_metrics(cls, metrics_to_create, bk_tenant_id):
+    def _batch_create_metrics(cls, metrics_to_create, bk_tenant_id, group_id):
         """批量创建新的时序指标"""
-        # 获取所有需要验证的group_id对应的time_series_group_id:table_id映射
-        group_ids = {group_id for _, group_id in metrics_to_create}
-        time_series_groups = TimeSeriesGroup.objects.filter(
-            time_series_group_id__in=group_ids,
+        # 验证group_id是否存在
+        time_series_group = TimeSeriesGroup.objects.filter(
+            time_series_group_id=group_id,
             bk_tenant_id=bk_tenant_id,
             is_delete=False,
-        ).values("time_series_group_id", "table_id")
-        time_series_groups_map = {g["time_series_group_id"]: g["table_id"] for g in time_series_groups}
+        ).first()
 
-        # 验证所有group_id是否存在
-        missing_group_ids = group_ids - set(time_series_groups_map.keys())
-        if missing_group_ids:
-            raise ValueError(
-                "自定义时序分组不存在，请确认后重试。缺失的分组ID: {}".format(", ".join(map(str, missing_group_ids)))
-            )
+        if not time_series_group:
+            raise ValueError(f"自定义时序分组不存在，请确认后重试。分组ID: {group_id}")
+
+        table_id = time_series_group.table_id
 
         # 检查字段名称冲突
-        cls._validate_field_name_conflicts(metrics_to_create)
+        cls._validate_field_name_conflicts(metrics_to_create, group_id)
 
         # 准备批量创建的数据
         records_to_create = []
-        for metric_data, group_id in metrics_to_create:
-            table_id = time_series_groups_map[group_id]
-
+        for metric_data in metrics_to_create:
             # 确保包含target维度
             cls._ensure_target_dimension_in_tags(metric_data)
 
@@ -2861,11 +2853,11 @@ class TimeSeriesMetric(models.Model):
             cls.objects.bulk_update(records_to_update, updatable_fields, batch_size=BULK_UPDATE_BATCH_SIZE)
 
     @classmethod
-    def _validate_field_name_conflicts(cls, metrics_to_create):
+    def _validate_field_name_conflicts(cls, metrics_to_create, group_id):
         """检查字段名称冲突"""
-        # 按 (group_id, field_scope) 组合分组
-        group_scope_field_names = defaultdict(list)
-        for metric_data, group_id in metrics_to_create:
+        # 按 field_scope 组合分组
+        scope_field_names = defaultdict(list)
+        for metric_data in metrics_to_create:
             field_name = metric_data.get("field_name")
             if not field_name:
                 raise ValueError("创建指标时，field_name为必填项")
@@ -2877,9 +2869,9 @@ class TimeSeriesMetric(models.Model):
             else:
                 field_scope = "default"
 
-            group_scope_field_names[(group_id, field_scope)].append(field_name)
+            scope_field_names[field_scope].append(field_name)
 
-        for (group_id, field_scope), field_names in group_scope_field_names.items():
+        for field_scope, field_names in scope_field_names.items():
             # 检查同一批次内是否有重复的字段名
             unique_field_names = set(field_names)
             if len(field_names) != len(unique_field_names):
@@ -2889,8 +2881,8 @@ class TimeSeriesMetric(models.Model):
                     field_name_counts[field_name] += 1
                 batch_conflicting_names = [field_name for field_name, count in field_name_counts.items() if count > 1]
                 raise ValueError(
-                    "同一批次内指标字段名称[{}]在分组[{}]的[{}]分组下重复，请使用其他名称".format(
-                        ", ".join(batch_conflicting_names), group_id, field_scope
+                    "同一批次内指标字段名称[{}]在[{}]分组下重复，请使用其他名称".format(
+                        ", ".join(batch_conflicting_names), field_scope
                     )
                 )
 
@@ -2905,8 +2897,8 @@ class TimeSeriesMetric(models.Model):
             conflicting_names = set(field_names) & existing_field_names
             if conflicting_names:
                 raise ValueError(
-                    "指标字段名称[{}]在分组[{}]的[{}]分组下已存在，请使用其他名称".format(
-                        ", ".join(conflicting_names), group_id, field_scope
+                    "指标字段名称[{}]在[{}]分组下已存在，请使用其他名称".format(
+                        ", ".join(conflicting_names), field_scope
                     )
                 )
 
