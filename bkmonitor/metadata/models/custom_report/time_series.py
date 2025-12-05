@@ -1150,6 +1150,87 @@ class TimeSeriesScope(models.Model):
         # 更新 dimension_config
         self.dimension_config = updated_dimension_config
 
+    def update_dimension_config_from_moved_metrics(
+        self, moved_metric_field_names: list[str], source_scope_id: int, incremental: bool = True
+    ):
+        """
+        从其他分组移动指标到当前分组时，更新维度配置，以及指标的 scope_id
+
+        处理逻辑：
+        1. 根据 source_scope_id 获取被移除指标的维度配置集合 X
+        2. 将指定指标的 scope_id 更新为当前分组的 scope_id
+        3. 根据 incremental 参数决定如何合并维度配置：
+           - incremental=True: 新分组的维度配置 |= X（增量保存，维度配置会越来越多）
+           - incremental=False: (新分组的维度配置 |= X) & 新分组拥有的指标的 tag_list 并集
+
+        :param moved_metric_field_names: 被移动的指标名称列表
+        :param source_scope_id: 源分组的 scope_id
+        :param incremental: 是否增量保存维度配置，默认为 True
+        """
+        if not moved_metric_field_names:
+            return
+
+        # 1. 获取源分组的维度配置
+        try:
+            source_scope = TimeSeriesScope.objects.get(id=source_scope_id, group_id=self.group_id)
+            source_dimension_config = source_scope.dimension_config or {}
+        except TimeSeriesScope.DoesNotExist:
+            logger.warning("Source scope not found: scope_id=%s, group_id=%s", source_scope_id, self.group_id)
+            source_dimension_config = {}
+
+        # 2. 获取被移动指标的维度集合 X
+        moved_metric_dimensions = set()
+        moved_metrics = TimeSeriesMetric.objects.filter(
+            group_id=self.group_id, scope_id=source_scope_id, field_name__in=moved_metric_field_names
+        )
+
+        for metric in moved_metrics:
+            if metric.tag_list:
+                moved_metric_dimensions.update(metric.tag_list)
+
+        # 从源分组的维度配置中提取被移动指标相关的维度配置（X）
+        moved_dimension_config = {
+            dimension_name: source_dimension_config.get(dimension_name, {})
+            for dimension_name in moved_metric_dimensions
+        }
+
+        # 3. 更新保存指标的 scope_id 为当前分组的 scope_id
+        moved_metrics.update(scope_id=self.id)
+
+        # 4. 合并维度配置
+        current_dimension_config = self.dimension_config or {}
+
+        if incremental:
+            # 增量保存：新分组的维度配置 |= X
+            updated_dimension_config = current_dimension_config.copy()
+            for dimension_name, config in moved_dimension_config.items():
+                # 如果当前分组已有该维度配置，保留现有配置；否则使用移动过来的配置
+                updated_dimension_config.setdefault(dimension_name, config)
+        else:
+            # 非增量保存：(新分组的维度配置 |= X) & 新分组拥有的指标的 tag_list 并集
+            # 先合并维度配置
+            merged_dimension_config = current_dimension_config.copy()
+            for dimension_name, config in moved_dimension_config.items():
+                merged_dimension_config.setdefault(dimension_name, config)
+
+            # 获取新分组下所有指标的维度并集
+            all_metric_dimensions = set()
+            all_metrics = TimeSeriesMetric.objects.filter(group_id=self.group_id, scope_id=self.id)
+            for metric in all_metrics:
+                if metric.tag_list:
+                    all_metric_dimensions.update(metric.tag_list)
+
+            # 只保留新分组指标实际拥有的维度
+            updated_dimension_config = {
+                dimension_name: merged_dimension_config.get(dimension_name, {})
+                for dimension_name in all_metric_dimensions
+            }
+
+        # 更新 dimension_config
+        self.dimension_config = updated_dimension_config
+        # 保存当前分组的维度配置更新
+        self.save(update_fields=["dimension_config"])
+
     def _match_metric(self, field_name: str) -> bool:
         """判断指标名称是否匹配 manual_list 或 auto_rules"""
         import re
