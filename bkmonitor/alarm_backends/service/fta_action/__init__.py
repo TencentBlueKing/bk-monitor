@@ -15,7 +15,6 @@ import logging
 import os
 import time
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 
 import jmespath
@@ -685,35 +684,22 @@ class BaseActionProcessor:
         """
         notice_results = {}
 
-        def send_to_group(user_group):
-            """发送语音通知到单个用户组"""
-            group_receivers = list(user_group)
-            return notify_sender.send(
-                notice_way,
-                notice_receivers=group_receivers,
-            )
-
-        # 使用线程池并行发送，最大并发数为用户组数量（通常不会太多）
-        max_workers = min(len(voice_notice_group), 10)
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # 提交所有任务
-            future_to_group = {
-                executor.submit(send_to_group, user_group): user_group for user_group in voice_notice_group
-            }
-
-            # 收集结果
-            for future in as_completed(future_to_group):
-                try:
-                    group_result = future.result()
-                    notice_results.update(group_result)
-                except Exception as error:
-                    user_group = future_to_group[future]
-                    logger.exception(f"Failed to send voice notice to group {user_group}: {error}")
-                    # 记录失败结果
-                    notice_results[",".join(user_group)] = {
-                        "result": False,
-                        "failure_type": FailureType.EXECUTE_ERROR,
-                        "message": str(error),
-                    }
+        for user_group in voice_notice_group:
+            try:
+                # 每个用户组作为一个整体进行语音通知
+                group_receivers = list(user_group)
+                group_result = notify_sender.send(
+                    notice_way,
+                    notice_receivers=group_receivers,
+                )
+                notice_results.update(group_result)
+            except Exception as error:
+                logger.exception(f"Failed to send voice notice to group {user_group}: {error}")
+                # 记录失败结果
+                notice_results[",".join(user_group)] = {
+                    "result": False,
+                    "failure_type": FailureType.EXECUTE_ERROR,
+                    "message": str(error),
+                }
 
         return notice_results
