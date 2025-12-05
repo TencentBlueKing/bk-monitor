@@ -383,6 +383,7 @@ export default defineComponent({
                     type='datetimerange'
                     value={formData.value.fileModifyTimeRange}
                     on-change={value => (formData.value.fileModifyTimeRange = value)}
+                    transfer
                   />
                 </bk-form-item>
                 <bk-form-item label={t('备注')}>

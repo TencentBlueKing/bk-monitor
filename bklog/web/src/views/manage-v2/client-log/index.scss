@@ -83,3 +83,24 @@
         }
     }
 }
+
+.gray-release-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+
+    .exception-wrap-item {
+        span {
+            font-size: 24px;
+            color: #63656e;
+        }
+
+        .text-subtitle {
+            margin-top: 14px;
+            font-size: 14px;
+            color: #979ba5;
+            text-align: center;
+        }
+    }
+}

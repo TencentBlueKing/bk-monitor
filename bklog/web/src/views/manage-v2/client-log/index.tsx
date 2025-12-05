@@ -84,6 +84,20 @@ export default defineComponent({
     const operateType = ref('create'); // 操作类型： create、clone、view
     const isAllowedCreate = ref(false); // 是否允许创建
     const isAllowedDownload = ref(false); // 是否允许下载
+    const isGrayRelease = ref(false); // 是否为灰度业务
+
+    // 检查是否为灰度业务
+    const checkGrayReleaseAccess = () => {
+      const whiteList = window.FEATURE_TOGGLE_WHITE_LIST?.tgpa_task ?? [];
+      const bizId = store.state.bkBizId;
+      const spaceUid = store.state.spaceUid;
+
+      // 类型安全的白名单检查
+      const normalizedWhiteList = whiteList.map((id: any) => String(id));
+      const hasAccess = normalizedWhiteList.includes(String(bizId)) || normalizedWhiteList.includes(String(spaceUid));
+
+      isGrayRelease.value = !hasAccess;
+    };
 
     // tab点击事件
     const handleTabClick = (title: TabType) => {
@@ -198,6 +212,12 @@ export default defineComponent({
     };
 
     onMounted(async () => {
+      // 检查灰度业务权限
+      checkGrayReleaseAccess();
+
+      // 检查创建权限
+      checkCreateAuth();
+
       // 监听事件
       tenantManager.on('userInfoUpdated', handleUserInfoUpdate);
     });
@@ -219,7 +239,7 @@ export default defineComponent({
       setSidebarOpen(true);
     };
 
-    // // 清洗配置
+    // 清洗配置
     // const handleCleanConfig = () => {
     //   router.push({
     //     name: 'clean-config',
@@ -288,9 +308,6 @@ export default defineComponent({
       }
     };
 
-    // 检查创建权限
-    checkCreateAuth();
-
     // 监听activeTab变化
     watch(
       activeTab,
@@ -311,99 +328,116 @@ export default defineComponent({
       { immediate: true },
     );
 
-    return () => (
-      <div class='client-log-main'>
-        {/* tab部分 */}
-        <div class='tabs'>
-          {tabs.value.map(tab => (
-            <div
-              class={['tab-item', activeTab.value === tab.title && 'active']}
-              onClick={() => {
-                handleTabClick(tab.title as TabType);
-              }}
+    return () => {
+      // 如果是灰度业务，显示提醒
+      if (isGrayRelease.value) {
+        return (
+          <div class='client-log-main gray-release-content'>
+            <bk-exception
+              class='exception-wrap-item'
+              type='403'
+              scene='part'
             >
-              <span class='tab-item-title'>{tab.title}</span>
-              <span class='tab-item-num'>{tab.count}</span>
-            </div>
-          ))}
-        </div>
-        <div class='client-log-container'>
-          {/* 按钮、搜索、alter提示区域 */}
-          {activeTab.value === TAB_TYPES.COLLECT ? (
-            <div class='deploy-header'>
-              {/* 采集下发 */}
-              <div>
-                <bk-button
-                  theme='primary'
-                  v-cursor={{ active: !isAllowedCreate.value }}
-                  onClick={handleCreateTask}
-                  disabled={isLoading.value}
-                >
-                  {t('新建采集')}
-                </bk-button>
-                {/* <bk-button
+              <span>{t('灰度业务')}</span>
+              <div class='text-subtitle'>{t('本功能为灰度业务，请联系管理员开通')}</div>
+            </bk-exception>
+          </div>
+        );
+      }
+      return (
+        <div class='client-log-main'>
+          {/* tab部分 */}
+          <div class='tabs'>
+            {tabs.value.map(tab => (
+              <div
+                class={['tab-item', activeTab.value === tab.title && 'active']}
+                onClick={() => {
+                  handleTabClick(tab.title as TabType);
+                }}
+              >
+                <span class='tab-item-title'>{tab.title}</span>
+                <span class='tab-item-num'>{tab.count}</span>
+              </div>
+            ))}
+          </div>
+          <div class='client-log-container'>
+            {/* 按钮、搜索、alter提示区域 */}
+            {activeTab.value === TAB_TYPES.COLLECT ? (
+              <div class='deploy-header'>
+                {/* 采集下发 */}
+                <div>
+                  <bk-button
+                    theme='primary'
+                    v-cursor={{ active: !isAllowedCreate.value }}
+                    onClick={handleCreateTask}
+                    disabled={isLoading.value}
+                  >
+                    {t('新建采集')}
+                  </bk-button>
+                  {/* <bk-button
                   disabled={isLoading.value}
                   onClick={handleCleanConfig}
                 >
                   {t('清洗配置')}
                 </bk-button> */}
-              </div>
-              <div>
-                <bk-input
-                  placeholder={t('搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人')}
-                  value={searchKeyword.value}
-                  clearable
-                  right-icon={'bk-icon icon-search'}
-                  onEnter={handleSearch}
-                  on-right-icon-click={handleSearch}
-                  onClear={handleClearKeyword}
-                  onChange={handleInputChange}
-                ></bk-input>
-              </div>
-            </div>
-          ) : (
-            <div>
-              {/* 用户上报 */}
-              <bk-alert
-                class='alert-info'
-                type='info'
-                title={t('Alert 文案占位，用于说明如果用 SDK 上报。')}
-              ></bk-alert>
-              <div class='operating-area'>
-                {/* <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button> */}
+                </div>
                 <div>
                   <bk-input
                     placeholder={t('搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人')}
+                    value={searchKeyword.value}
                     clearable
                     right-icon={'bk-icon icon-search'}
+                    onEnter={handleSearch}
+                    on-right-icon-click={handleSearch}
+                    onClear={handleClearKeyword}
+                    onChange={handleInputChange}
                   ></bk-input>
                 </div>
               </div>
-            </div>
-          )}
-          {/* 表格内容区域 */}
-          <section>
-            <LogTable
-              total={tableData.value.total}
-              isAllowedDownload={isAllowedDownload.value}
-              data={tableData.value.list}
-              v-bkloading={{ isLoading: isLoading.value }}
-              keyword={searchKeyword.value}
-              on-clear-keyword={handleClearKeyword}
-              on-clone-task={task => handleOperateTask(task, 'clone')}
-              on-view-task={task => handleOperateTask(task, 'view')}
-            />
-          </section>
+            ) : (
+              <div>
+                {/* 用户上报 */}
+                <bk-alert
+                  class='alert-info'
+                  type='info'
+                  title={t('Alert 文案占位，用于说明如果用 SDK 上报。')}
+                ></bk-alert>
+                <div class='operating-area'>
+                  {/* <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button> */}
+                  <div>
+                    <bk-input
+                      placeholder={t('搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人')}
+                      clearable
+                      right-icon={'bk-icon icon-search'}
+                    ></bk-input>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* 表格内容区域 */}
+            <section>
+              <LogTable
+                total={tableData.value.total}
+                isAllowedDownload={isAllowedDownload.value}
+                data={tableData.value.list}
+                v-bkloading={{ isLoading: isLoading.value }}
+                keyword={searchKeyword.value}
+                on-clear-keyword={handleClearKeyword}
+                on-clone-task={task => handleOperateTask(task, 'clone')}
+                on-view-task={task => handleOperateTask(task, 'view')}
+              />
+            </section>
+          </div>
+          {/* 新建采集侧边栏 */}
+          <CollectionSlider
+            showSlider={showSlider.value}
+            logData={logData.value}
+            operateType={operateType.value}
+            onHandleCancelSlider={handleCancelSlider}
+            onHandleUpdatedTable={handleUpdatedTable}
+          />
         </div>
-        {/* 新建采集侧边栏 */}
-        <CollectionSlider
-          showSlider={showSlider.value}
-          logData={logData.value}
-          operateType={operateType.value}
-          onHandleCancelSlider={handleCancelSlider}
-          onHandleUpdatedTable={handleUpdatedTable}
-        />
-      </div>
-    );
+      );
+    };
   },
 });
