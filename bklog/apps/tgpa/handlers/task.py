@@ -278,7 +278,29 @@ class TGPATaskHandler:
                     logger.exception("Failed to delete directory %s: %s", dir_path, e)
 
     @staticmethod
-    def get_or_create_collector_config(bk_biz_id):
+    def release_collector_config(bk_biz_id: int, bk_data_id: int):
+        """
+        采集配置下发
+        """
+        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+        feature_config = feature_toggle.feature_config
+        bcs_cluster_id = feature_config.get("bcs_cluster_id")
+        container_release_params = feature_config.get("container_release_params")
+
+        container_release_params.update(
+            {
+                "dataId": bk_data_id,
+                "path": [os.path.join(TGPA_BASE_DIR, str(bk_biz_id))],
+                "logConfigType": ContainerCollectorType.CONTAINER,
+            }
+        )
+        Bcs(bcs_cluster_id).save_bklog_config(
+            bklog_config_name=f"bklog-client-log-{bk_biz_id}",
+            bklog_config=container_release_params,
+        )
+
+    @staticmethod
+    def get_or_create_collector_config(bk_biz_id: int):
         """
         获取或创建采集配置
         """
@@ -305,19 +327,47 @@ class TGPATaskHandler:
             storage_cluster_id=storage_cluster_id,
             collector_scenario_id=CollectorScenarioEnum.CLIENT.value,
         )
-
         # 采集配置下发
-        bcs_cluster_id = feature_toggle.feature_config.get("bcs_cluster_id")
-        container_release_params = feature_toggle.feature_config.get("container_release_params")
-        container_release_params.update(
-            {
-                "dataId": collector_create_result["bk_data_id"],
-                "path": [os.path.join(TGPA_BASE_DIR, str(bk_biz_id))],
-                "logConfigType": ContainerCollectorType.CONTAINER,
-            }
-        )
-        Bcs(bcs_cluster_id).save_bklog_config(
-            bklog_config_name=f"bklog-client-log-{bk_biz_id}",
-            bklog_config=container_release_params,
-        )
+        TGPATaskHandler.release_collector_config(bk_biz_id, collector_create_result["bk_data_id"])
+
         return CollectorConfig.objects.get(collector_config_id=collector_create_result["collector_config_id"])
+
+    @staticmethod
+    def update_collector_config(
+        bk_biz_id: int,
+        storage_cluster_id: int = None,
+        etl_params: dict = None,
+        fields: list = None,
+        release_collector_config: bool = False,
+    ):
+        """
+        更新采集配置
+        :param bk_biz_id: 业务ID
+        :param storage_cluster_id: 存储集群ID
+        :param etl_params: 清洗配置参数
+        :param fields: 清洗字段列表
+        :param release_collector_config: 是否下发采集配置（如果采集下发配置有更新，可以设置为 True 重新下发）
+        """
+        collector_config_obj = CollectorConfig.objects.filter(
+            bk_biz_id=bk_biz_id, collector_config_name_en=TGPA_TASK_COLLECTOR_CONFIG_NAME_EN
+        ).first()
+        if not collector_config_obj:
+            return
+
+        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+        if not storage_cluster_id:
+            storage_cluster_id = feature_toggle.feature_config.get("storage_cluster_id")
+        if not etl_params:
+            etl_params = TGPA_TASK_ETL_PARAMS
+        if not fields:
+            fields = TGPA_TASK_ETL_FIELDS
+
+        CollectorHandler().custom_update(
+            collector_config_name=TGPA_TASK_COLLECTOR_CONFIG_NAME,
+            etl_config=EtlConfig.BK_LOG_JSON,
+            etl_params=etl_params,
+            fields=fields,
+            storage_cluster_id=storage_cluster_id,
+        )
+        if release_collector_config:
+            TGPATaskHandler.release_collector_config(bk_biz_id, collector_config_obj.bk_data_id)
