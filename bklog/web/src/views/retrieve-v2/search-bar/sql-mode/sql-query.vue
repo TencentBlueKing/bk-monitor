@@ -6,7 +6,7 @@ import { debounce } from 'lodash-es';
 
 import CreateLuceneEditor from './codemirror-lucene';
 import SqlQueryOptions from './sql-query-options';
-import useFocusInput from './use-focus-input';
+import useFocusInput from '../utils/use-focus-input';
 
 const props = defineProps({
   value: {

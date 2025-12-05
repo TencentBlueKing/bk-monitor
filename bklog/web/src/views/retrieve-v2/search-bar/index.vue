@@ -1,14 +1,14 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue';
 
+import PopInstanceUtil from '@/global/pop-instance-util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
-import PopInstanceUtil from '../../../global/pop-instance-util';
 
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-import BookmarkPop from './bookmark-pop';
+import BookmarkPop from './components/bookmark-pop';
 // #else
 // #code const BookmarkPop = () => null;
 // #endif
@@ -16,22 +16,22 @@ import BookmarkPop from './bookmark-pop';
 import { ConditionOperator } from '@/store/condition-operator';
 import { bkMessage } from 'bk-magic-vue';
 
+import $http from '@/api';
+import { copyMessage } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
-import RequestPool from '@/store/request-pool';
-import $http from '../../../api';
-import { copyMessage } from '../../../common/util';
-import useResizeObserve from '../../../hooks/use-resize-observe';
 import {
   clearStorageCommonFilterAddition,
   getCommonFilterAddition,
-} from '../../../store/helper';
-import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import CommonFilterSelect from './common-filter-select.vue';
-import { withoutValueConditionList } from './const.common';
-import SqlQuery from './sql-query';
-import UiInput from './ui-input';
+} from '@/store/helper';
+import RequestPool from '@/store/request-pool';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import CommonFilterSelect from './components/common-filter-select.vue';
+import SqlQuery from './sql-mode/sql-query';
+import UiInput from './ui-mode/ui-input';
+import { withoutValueConditionList } from './utils/const.common';
 
 const props = defineProps({
   // activeFavorite: {

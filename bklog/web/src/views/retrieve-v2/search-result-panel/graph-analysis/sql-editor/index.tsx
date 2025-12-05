@@ -39,7 +39,7 @@ import { parseBigNumberList, readBlobRespToJson } from '@/common/util';
 import { requestBlob } from '@/request';
 import { getCommonFilterAdditionWithValues } from '../../../../../store/helper';
 import RetrieveHelper, { RetrieveEvent } from '../../../../retrieve-helper';
-import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
+import BookmarkPop from '../../../search-bar/components/bookmark-pop.vue';
 import useEditor from './use-editor';
 
 import './index.scss';

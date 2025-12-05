@@ -73,7 +73,7 @@
 <script>
   import { ConditionOperator } from '@/store/condition-operator';
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-  import BookmarkPop from '../search-bar/bookmark-pop.vue'
+  import BookmarkPop from '../search-bar/components/bookmark-pop.vue'
   // #else
   // #code const BookmarkPop = () => null;
   // #endif
