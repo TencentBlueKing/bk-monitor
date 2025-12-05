@@ -278,8 +278,16 @@ export default defineComponent({
       // 检查灰度业务权限
       checkGrayReleaseAccess();
 
+      // 如果是灰度业务，则不做任何处理
+      if (isGrayRelease.value) {
+        return;
+      }
+
       // 检查创建权限
       checkCreateAuth();
+
+      // 获取数据
+      fetchDataByTabType(activeTab.value);
 
       // 监听事件
       tenantManager.on('userInfoUpdated', handleUserInfoUpdate);
@@ -377,25 +385,24 @@ export default defineComponent({
       }
     };
 
+    // 根据tab类型获取数据
+    const fetchDataByTabType = (tabType: TabType) => {
+      if (tabType === TAB_TYPES.COLLECT) {
+        requestData();
+      }
+      if (tabType === TAB_TYPES.REPORT) {
+        // 暂无用户上报接口
+        isLoading.value = true;
+        tableData.value = {
+          total: 0,
+          list: [],
+        };
+        isLoading.value = false;
+      }
+    };
+
     // 监听activeTab变化
-    watch(
-      activeTab,
-      (newValue) => {
-        if (newValue === TAB_TYPES.COLLECT) {
-          requestData();
-        }
-        if (newValue === TAB_TYPES.REPORT) {
-          // 暂无用户上报接口
-          isLoading.value = true;
-          tableData.value = {
-            total: 0,
-            list: [],
-          };
-          isLoading.value = false;
-        }
-      },
-      { immediate: true },
-    );
+    watch(activeTab, fetchDataByTabType);
 
     return () => {
       // 如果是灰度业务，显示提醒
