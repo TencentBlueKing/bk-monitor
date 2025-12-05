@@ -106,6 +106,12 @@ export default defineComponent({
     const { t } = useLocale();
     const store = useStore();
     // const route = useRoute();
+    const etlConfigEnum = {
+      bk_log_text: t('直接入库'),
+      bk_log_json: 'JSON',
+      bk_log_delimiter: t('分隔符'),
+      bk_log_regexp: t('正则表达式'),
+    };
 
     // ==================== 常量定义 ====================
 
@@ -189,7 +195,7 @@ export default defineComponent({
       },
       {
         title: t('清洗模式'),
-        colKey: 'etl_config',
+        colKey: 'eltString',
         ellipsis: true,
       },
       {
@@ -446,10 +452,12 @@ export default defineComponent({
           if (list?.length) {
             pagination.value.total = total;
             collectList.value = list.map(item => {
-              const { retention } = item;
+              const { retention, collect_paths, etl_config } = item;
               return {
                 ...item,
                 retention: retention ? `${retention}${t('天')}` : '--',
+                paths: collect_paths?.join('; ') ?? '',
+                eltString: etlConfigEnum[etl_config],
               };
             });
           }
