@@ -275,9 +275,49 @@ CUSTOM_TS_METRIC_GROUPS = {
                 {"name": "sdk_name", "alias": "SDK 名称"},
                 {"name": "instance", "alias": "实例"},
                 {"name": "version", "alias": "SDK 版本"},
+            ],
+        },
+        {
+            "name": "未分组",
+            "metrics": [
+                {
+                    "metric_name": "timecost_distribution_count",
+                    "alias": "",
+                    "dimensions": [
+                        {"name": "_group", "alias": "分组"},
+                        {"name": "app_name", "alias": ""},
+                        {"name": "container_name", "alias": "容器名"},
+                        {"name": "env_name", "alias": "用户环境"},
+                        {"name": "instance", "alias": "实例"},
+                        {"name": "monitor_name", "alias": "监控项名称"},
+                        {"name": "namespace", "alias": "物理环境"},
+                        {"name": "result_table_id", "alias": "逻辑结果表"},
+                        {"name": "scope_name", "alias": "监控分组"},
+                        {"name": "sdk_name", "alias": "SDK 名称"},
+                        {"name": "service_name", "alias": "服务名"},
+                        {"name": "target", "alias": "实体"},
+                        {"name": "version", "alias": "SDK 版本"},
+                    ],
+                },
+                {
+                    "metric_name": "apm_service_with_apm_service_instance_relation",
+                    "alias": "",
+                    "dimensions": [
+                        {"name": "apm_application_name", "alias": ""},
+                        {"name": "apm_service_instance_name", "alias": ""},
+                        {"name": "apm_service_name", "alias": ""},
+                        {"name": "result_table_id", "alias": "逻辑结果表"},
+                        {"name": "target", "alias": "实体"},
+                    ],
+                },
+            ],
+            "common_dimensions": [
+                {"name": "sdk_name", "alias": "SDK 名称"},
+                {"name": "instance", "alias": "实例"},
+                {"name": "version", "alias": "SDK 版本"},
                 {"name": "env_name", "alias": "用户环境"},
                 {"name": "container_name", "alias": "容器名"},
             ],
-        }
+        },
     ]
 }
