@@ -362,8 +362,9 @@ class TGPATaskHandler:
         if not fields:
             fields = TGPA_TASK_ETL_FIELDS
 
-        CollectorHandler().custom_update(
+        CollectorHandler(data=collector_config_obj).custom_update(
             collector_config_name=TGPA_TASK_COLLECTOR_CONFIG_NAME,
+            category_id=collector_config_obj.category_id,
             etl_config=EtlConfig.BK_LOG_JSON,
             etl_params=etl_params,
             fields=fields,
