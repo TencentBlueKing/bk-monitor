@@ -1869,8 +1869,9 @@ class TimeSeriesMetric(models.Model):
 
     # group_id 来自于 TimeSeriesGroup.time_series_group_id，关联数据源
     group_id = models.IntegerField(verbose_name="自定义时序数据源ID", db_index=True)
+    # 关联到 TimeSeriesScope 的主键 id，用于标识指标所属的分组
+    scope_id = models.IntegerField(verbose_name="时序分组ID", null=True, blank=True, db_index=True)
     table_id = models.CharField(verbose_name="table名", default="", max_length=255)
-    # todo hhh 添加 scope_id
     # 对于 APM 的场景来说分组的格式为 {service_name}||{scope_name}，其余场景中都是自动赋值为 default
     field_scope = models.CharField(
         verbose_name="指标字段数据分组名", default=DEFAULT_SCOPE, max_length=255, db_collation="utf8_bin"
@@ -2000,6 +2001,45 @@ class TimeSeriesMetric(models.Model):
         return f"{service_name}||{scope_name}"
 
     @classmethod
+    def _get_scope_id_for_metric(cls, group_id: int, field_scope: str, field_name: str) -> int | None:
+        """获取指标对应的 scope_id
+
+        :param group_id: 分组ID
+        :param field_scope: 指标的 field_scope
+        :param field_name: 指标名称
+        :return: scope_id 或 None（如果是未分组）
+        """
+        from metadata.models.constants import UNGROUP_SCOPE_NAME
+
+        # 判断是否是 default 数据分组
+        is_default_scope = TimeSeriesScope._is_default_scope(field_scope)
+
+        if not is_default_scope:
+            # 非 default 数据分组：直接查找对应的 scope_id
+            scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=field_scope).first()
+            if not scope:
+                logger.warning(
+                    f"Scope not found for non-default metric: group_id={group_id}, field_scope={field_scope}"
+                )
+            return scope.id if scope else None
+
+        # default 数据分组：需要匹配用户分组和数据分组的 auto_rules（正则表达式）
+        all_scopes = TimeSeriesScope.objects.filter(group_id=group_id).order_by("id")
+
+        # 遍历所有分组，找到第一个匹配的 scope（复用 _match_metric 方法）
+        for scope in all_scopes:
+            if scope._match_metric(field_name):
+                return scope.id
+
+        # 如果没有匹配的分组，返回未分组的 scope_id
+        ungroup_scope_name = field_scope.rsplit("||", 1)[0] + "||" if "||" in field_scope else UNGROUP_SCOPE_NAME
+        ungroup_scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=ungroup_scope_name).first()
+
+        if not ungroup_scope:
+            logger.warning(f"Ungroup scope not found: group_id={group_id}, ungroup_scope_name={ungroup_scope_name}")
+        return ungroup_scope.id if ungroup_scope else None
+
+    @classmethod
     def _bulk_create_metrics(
         cls,
         metrics_dict: dict,
@@ -2041,6 +2081,13 @@ class TimeSeriesMetric(models.Model):
                 group_id=group_id,
                 scope_dimensions_map=scope_dimensions_list_map,
             )
+
+        # 为每个 metric 记录设置 scope_id
+        for record in records:
+            scope_id = cls._get_scope_id_for_metric(
+                group_id=group_id, field_scope=record.field_scope, field_name=record.field_name
+            )
+            record.scope_id = scope_id
 
         # 开始批量创建指标
         cls.objects.bulk_create(records, batch_size=BULK_CREATE_BATCH_SIZE)
@@ -2195,8 +2242,17 @@ class TimeSeriesMetric(models.Model):
                 scope_dimensions_map=scope_dimensions_list_map,
             )
 
+        # 为每个需要更新的 metric 记录设置 scope_id
+        for record in records:
+            scope_id = cls._get_scope_id_for_metric(
+                group_id=group_id, field_scope=record.field_scope, field_name=record.field_name
+            )
+            record.scope_id = scope_id
+
         # 批量更新指定的字段
-        cls.objects.bulk_update(records, ["last_modify_time", "tag_list"], batch_size=BULK_UPDATE_BATCH_SIZE)
+        cls.objects.bulk_update(
+            records, ["last_modify_time", "tag_list", "scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE
+        )
         return need_push_router
 
     @classmethod
