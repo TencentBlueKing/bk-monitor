@@ -1034,8 +1034,6 @@ class TimeSeriesScope(models.Model):
     # 维度字段配置，可配置的选项，需要在 DimensionConfigFields 中定义
     dimension_config = models.JSONField(verbose_name="分组下的维度配置", default={})
 
-    # todo hhh 不再需要了
-    manual_list = models.JSONField("手动分组的指标列表", default=[])
     auto_rules = models.JSONField("自动分组的匹配规则列表", default=[])
 
     # 创建来源：data-数据自动创建，user-用户手动创建
@@ -1097,58 +1095,6 @@ class TimeSeriesScope(models.Model):
             return f"{service_name}||{scope_name}"
 
         return scope_name
-
-    def update_matched_dimension_config(self, delete_unmatched_dimensions=False):
-        """
-        更新维度配置
-
-        创建维度配置：
-        1. dimension_config 视为 X
-        2. manual_list 视为 Y（从 manual_list 中的指标获取维度）
-        3. 最终维度集合是 X | Y
-
-        更新维度配置：
-        1. 先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，视为 X
-        2. manual_list 视为 Y
-        3. 当 delete_unmatched_dimensions 为 true 则最终集合为 (X & Y) | Y，反之 X | Y
-
-        :param delete_unmatched_dimensions: 是否删除不再匹配的维度配置，默认为 False
-        """
-        # 1. 获取当前分组下已有的维度配置（X）
-        current_dimension_config = self.dimension_config or {}
-
-        # 2. 根据 manual_list 获取匹配的指标列表的 tag_list 做并集（Y）
-        # 注意：只使用 manual_list，不使用 auto_rules
-        matched_metric_dimensions = set()
-
-        if self.manual_list:
-            # 查询该分组下可操作的指标
-            scope_filter = TimeSeriesMetric.get_default_scope_metric_filter(self.scope_name)
-            available_metrics = TimeSeriesMetric.objects.filter(group_id=self.group_id).filter(scope_filter)
-
-            # 遍历所有指标，找出在 manual_list 中的指标的维度
-            for metric in available_metrics:
-                # 判断指标是否在 manual_list 中
-                if metric.field_name in self.manual_list:
-                    # 将该指标的所有维度加入到集合中
-                    if metric.tag_list:
-                        matched_metric_dimensions.update(metric.tag_list)
-
-        # 3. 计算新的维度配置
-        if delete_unmatched_dimensions:
-            # (X & Y) | Y = Y（只保留 Y 中的维度）
-            updated_dimension_config = {
-                dimension_name: current_dimension_config.get(dimension_name, {})
-                for dimension_name in matched_metric_dimensions
-            }
-        else:
-            # X | Y（保留 X 中的所有配置，并添加 Y 中的新维度）
-            updated_dimension_config = current_dimension_config.copy()
-            for dimension_name in matched_metric_dimensions:
-                updated_dimension_config.setdefault(dimension_name, {})
-
-        # 更新 dimension_config
-        self.dimension_config = updated_dimension_config
 
     def update_dimension_config_from_moved_metrics(
         self, moved_metric_field_names: list[str], source_scope_id: int, incremental: bool = True
@@ -1240,62 +1186,6 @@ class TimeSeriesScope(models.Model):
         self.save(update_fields=["dimension_config"])
 
     @classmethod
-    def get_ungrouped_metrics_qs(cls, group_id: int, scope_name: str):
-        """获取未分组下的指标
-
-        未分组指标 = 该 group_id default 数据分组的指标 - 该 group_id 下所有 manual_list 的并集
-
-        :param group_id: 自定义时序数据源ID
-        :param scope_name: 指标分组名，用于确定 default 数据分组的 scope
-        :return: 包含未分组指标的 QuerySet
-        """
-        # 1. 查询所有 manual_list 的并集
-        all_manual_lists = cls.objects.filter(group_id=group_id).values_list("manual_list", flat=True)
-        all_manual_metrics = set()
-        for manual_list in all_manual_lists:
-            if manual_list:
-                all_manual_metrics.update(manual_list)
-
-        # 2. 查询 default 数据分组中不在 manual_list 中的指标（一次查询完成）
-        scope_filter = TimeSeriesMetric.get_default_scope_metric_filter(scope_name=scope_name)
-        queryset = TimeSeriesMetric.objects.filter(group_id=group_id).filter(scope_filter)
-        return queryset.exclude(field_name__in=all_manual_metrics)
-
-    @classmethod
-    def _validate_manual_list_metrics_in_default_scope(
-        cls, group_id: int, manual_list: list | None, old_manual_list: list | None = None, scope_name: str | None = None
-    ):
-        """校验 manual_list 中的指标是否都在 default 数据分组
-
-        对于新增的指标，需要确保它们在未分组下的指标列表中
-
-        :param group_id: 自定义时序数据源ID
-        :param manual_list: 新的 manual_list
-        :param old_manual_list: 旧的 manual_list，用于计算新增的指标。如果为 None，则视为创建场景（旧列表为空）
-        :param scope_name: 指标分组名，用于确定 default 数据分组的 scope
-        """
-        if not manual_list:
-            return
-
-        # 计算新增的指标
-        added_metrics = set(manual_list) - set(old_manual_list or [])
-        if not added_metrics:
-            return
-
-        # 检查新增的指标是否在未分组列表中
-        ungrouped_metric_names = set(
-            cls.get_ungrouped_metrics_qs(group_id=group_id, scope_name=scope_name).values_list("field_name", flat=True)
-        )
-        invalid_added_metrics = added_metrics - ungrouped_metric_names
-
-        if invalid_added_metrics:
-            raise ValueError(
-                _("新增的指标不在未分组列表中，可能已被其他分组使用: invalid_added_metrics={}").format(
-                    list(invalid_added_metrics)
-                )
-            )
-
-    @classmethod
     def bulk_ensure_or_merge_scopes(
         cls,
         group_id: int,
@@ -1357,7 +1247,6 @@ class TimeSeriesScope(models.Model):
                         group_id=group_id,
                         scope_name=db_scope_name,
                         dimension_config=dimension_config,
-                        manual_list=[],
                         auto_rules=[],
                         create_from=cls.CREATE_FROM_DATA,
                     )
@@ -1432,40 +1321,6 @@ class TimeSeriesScope(models.Model):
                     )
                 )
 
-        # todo hhh 去掉这个逻辑
-        # 1.4 校验同一批次内的 manual_list 是否有重复
-        batch_manual_list_metrics = {}  # {(service_name, metric_name): [(scope_name, idx), ...]}
-        for idx, scope_data in enumerate(scopes):
-            manual_list = scope_data.get("manual_list")
-            if manual_list:
-                final_scope_name = cls._get_final_scope_name(scope_data)
-                service_name = scope_data.get("service_name", "")
-                for metric in manual_list:
-                    key = (service_name, metric)
-                    batch_manual_list_metrics.setdefault(key, []).append((final_scope_name, idx))
-
-        # 检查批次内是否有重复的指标（同一 group_id 和 service_name 下）
-        for (service_name, metric), locations in batch_manual_list_metrics.items():
-            if len(locations) > 1:
-                location_strs = [f"scope_name={loc[0]}, 位置索引={loc[1]}" for loc in locations]
-                raise ValueError(
-                    _("批次内存在重复的指标: metric={}, 出现位置=[{}]").format(metric, "; ".join(location_strs))
-                )
-
-        # todo hhh 去掉这个逻辑
-        # 1.5 校验 manual_list 中的指标是否都在 default 数据分组
-        for scope_data in scopes:
-            manual_list = scope_data.get("manual_list")
-            if manual_list is not None:
-                # 创建场景，没有旧的 manual_list
-                final_scope_name = cls._get_final_scope_name(scope_data)
-                cls._validate_manual_list_metrics_in_default_scope(
-                    group_id=group_id,
-                    manual_list=manual_list,
-                    old_manual_list=None,
-                    scope_name=final_scope_name,
-                )
-
     @classmethod
     def _create_scope_data(cls, group_id: int, scopes: list[dict]) -> dict:
         """创建分组数据
@@ -1477,6 +1332,8 @@ class TimeSeriesScope(models.Model):
         # 2.1 批量创建新记录
         scopes_to_create = []
         final_scope_names = []
+        metric_moves = []  # 记录需要移动的指标信息: [(scope_name, metric_field_names)]
+
         for scope_data in scopes:
             final_scope_name = cls._get_final_scope_name(scope_data)
             final_scope_names.append(final_scope_name)
@@ -1485,16 +1342,16 @@ class TimeSeriesScope(models.Model):
                 group_id=group_id,
                 scope_name=final_scope_name,
                 dimension_config=scope_data.get("dimension_config", {}),
-                manual_list=scope_data.get("manual_list", []),
                 auto_rules=scope_data.get("auto_rules", []),
                 create_from=cls.CREATE_FROM_USER,
             )
-            # 创建时：X | Y（dimension_config 视为 X，manual_list 视为 Y）
-            # 如果提供了 manual_list，需要计算维度配置
-            if scope_obj.manual_list:
-                scope_obj.update_matched_dimension_config(delete_unmatched_dimensions=False)
 
             scopes_to_create.append(scope_obj)
+
+            # 记录需要移动的指标
+            metric_field_names = scope_data.get("metric_field_names", [])
+            if metric_field_names:
+                metric_moves.append((final_scope_name, metric_field_names))
 
         if scopes_to_create:
             cls.objects.bulk_create(scopes_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
@@ -1503,6 +1360,22 @@ class TimeSeriesScope(models.Model):
         created_scopes = {
             s.scope_name: s for s in cls.objects.filter(group_id=group_id, scope_name__in=final_scope_names)
         }
+
+        # 2.3 对于每个创建的分组，调用update_dimension_config_from_moved_metrics更新维度配置
+        for scope_name, metric_field_names in metric_moves:
+            scope_obj = created_scopes.get(scope_name)
+            if scope_obj and metric_field_names:
+                # 获取未分组的scope_id（source_scope_id）
+                ungroup_scope_name = scope_name.rsplit("||", 1)[0] + "||" if "||" in scope_name else UNGROUP_SCOPE_NAME
+                source_scope = cls.objects.filter(group_id=group_id, scope_name=ungroup_scope_name).first()
+                source_scope_id = source_scope.id if source_scope else None
+
+                # 调用update_dimension_config_from_moved_metrics更新维度配置和指标的scope_id
+                scope_obj.update_dimension_config_from_moved_metrics(
+                    moved_metric_field_names=metric_field_names,
+                    source_scope_id=source_scope_id,
+                    incremental=True,
+                )
 
         return created_scopes
 
@@ -1533,7 +1406,6 @@ class TimeSeriesScope(models.Model):
                     "group_id": time_series_scope.group_id,
                     "scope_name": time_series_scope.scope_name,
                     "dimension_config": time_series_scope.dimension_config,
-                    "manual_list": time_series_scope.manual_list,
                     "auto_rules": time_series_scope.auto_rules,
                     "create_from": time_series_scope.create_from,
                 }
@@ -1557,12 +1429,16 @@ class TimeSeriesScope(models.Model):
                 "scope_id": 1,  # 可选，如果提供则更新，否则创建
                 "scope_name": "test_scope",
                 "dimension_config": {},
-                "manual_list": [],
+                "manual_list": [],  # 接口传递的参数名称，需要移动到该分组的指标名称列表
                 "auto_rules": [],
-                "delete_unmatched_dimensions": False  # 可选，仅更新时生效
             }]
         :return: 创建或更新结果列表
         """
+        # 参数转换：将 manual_list 转换为 metric_field_names（内部使用）
+        for scope_data in scopes:
+            if "manual_list" in scope_data:
+                scope_data["metric_field_names"] = scope_data.pop("manual_list")
+
         # 分离创建和更新的分组（通过 scope_id 判断）
         scopes_to_create = []
         scopes_to_update = []
@@ -1694,47 +1570,6 @@ class TimeSeriesScope(models.Model):
             ):
                 raise ValueError(_("指标分组名已存在: scope_name={}").format(final_new_scope_name))
 
-        # todo hhh 去掉
-        # 1.5 校验同一批次内的 manual_list 是否有重复
-        batch_manual_list_metrics = {}  # {(service_name, metric_name): [(scope_name, idx), ...]}
-        for idx, scope_data in enumerate(scopes):
-            manual_list = scope_data.get("manual_list")
-            if manual_list:
-                scope_id = scope_data["scope_id"]
-                scope_obj = existing_scopes[scope_id]
-                # 从 scope_obj.scope_name 中提取 service_name（如果是 APM 格式）
-                if "||" in scope_obj.scope_name:
-                    service_name = scope_obj.scope_name.split("||", 1)[0]
-                else:
-                    service_name = ""
-                for metric in manual_list:
-                    key = (service_name, metric)
-                    batch_manual_list_metrics.setdefault(key, []).append((scope_obj.scope_name, idx))
-
-        # 检查批次内是否有重复的指标（同一 service_name 下）
-        for (service_name, metric), locations in batch_manual_list_metrics.items():
-            if len(locations) > 1:
-                location_strs = [f"scope_name={loc[0]}, 位置索引={loc[1]}" for loc in locations]
-                raise ValueError(
-                    _("批次内存在重复的指标: metric={}, 出现位置=[{}]").format(metric, "; ".join(location_strs))
-                )
-
-        # todo hhh 去掉
-        # 1.6 校验 manual_list 中的指标是否都在 default 数据分组
-        for scope_data in scopes:
-            manual_list = scope_data.get("manual_list")
-            if manual_list is not None:
-                scope_id = scope_data["scope_id"]
-                scope_obj = existing_scopes[scope_id]
-                # 更新场景，需要获取旧的 manual_list
-                old_manual_list = scope_obj.manual_list or []
-                cls._validate_manual_list_metrics_in_default_scope(
-                    group_id=group_id,
-                    manual_list=manual_list,
-                    old_manual_list=old_manual_list,
-                    scope_name=scope_obj.scope_name,
-                )
-
         return existing_scopes
 
     @classmethod
@@ -1748,6 +1583,7 @@ class TimeSeriesScope(models.Model):
         # 2.1 准备更新数据
         scopes_to_update = []  # 需要批量更新的 scope 对象列表
         update_fields = set()  # 需要更新的字段集合
+        metric_moves = []  # 记录需要移动的指标信息: [(scope_obj, metric_field_names, source_scope_id)]
 
         for scope_data in scopes:
             scope_id = scope_data["scope_id"]
@@ -1764,22 +1600,11 @@ class TimeSeriesScope(models.Model):
                     update_fields.add("scope_name")
                     has_updates = True
 
-            # 更新 dimension_config（先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，视为 X）
-            dimension_config_updated = False
+            # 更新 dimension_config
             if scope_data.get("dimension_config") is not None:
                 scope_obj.dimension_config = scope_data["dimension_config"]
                 update_fields.add("dimension_config")
                 has_updates = True
-                dimension_config_updated = True
-
-            # 更新 manual_list
-            manual_list = scope_data.get("manual_list")
-            manual_list_updated = False
-            if manual_list is not None:
-                scope_obj.manual_list = manual_list
-                update_fields.add("manual_list")
-                has_updates = True
-                manual_list_updated = True
 
             # 更新 auto_rules
             auto_rules = scope_data.get("auto_rules")
@@ -1788,19 +1613,21 @@ class TimeSeriesScope(models.Model):
                 update_fields.add("auto_rules")
                 has_updates = True
 
-            # 如果更新了 dimension_config 或 manual_list，且 manual_list 存在，需要重新计算维度配置
-            # 更新时：先将旧 dimension_config 用传递进来的 dimension_config 进行覆盖，视为 X
-            # manual_list 视为 Y
-            # 当 delete_unmatched_dimensions 为 true 则最终集合为 (X & Y) | Y，反之 X | Y
-            if (dimension_config_updated or manual_list_updated) and scope_obj.manual_list:
-                delete_unmatched_dimensions = scope_data.get("delete_unmatched_dimensions", False)
-                # 直接在内存对象上更新维度配置
-                scope_obj.update_matched_dimension_config(delete_unmatched_dimensions=delete_unmatched_dimensions)
-                update_fields.add("dimension_config")
-                has_updates = True
-
             if has_updates:
                 scopes_to_update.append(scope_obj)
+
+            # 记录需要移动的指标
+            metric_field_names = scope_data.get("metric_field_names", [])
+            if metric_field_names:
+                # 获取未分组的scope_id（source_scope_id）
+                ungroup_scope_name = (
+                    scope_obj.scope_name.rsplit("||", 1)[0] + "||"
+                    if "||" in scope_obj.scope_name
+                    else UNGROUP_SCOPE_NAME
+                )
+                source_scope = cls.objects.filter(group_id=scope_obj.group_id, scope_name=ungroup_scope_name).first()
+                source_scope_id = source_scope.id if source_scope else None
+                metric_moves.append((scope_obj, metric_field_names, source_scope_id))
 
         # 2.2 一次性批量更新所有字段
         if scopes_to_update:
@@ -1810,7 +1637,15 @@ class TimeSeriesScope(models.Model):
                 batch_size=BULK_UPDATE_BATCH_SIZE,
             )
 
-        # 2.3 最后统一查询一次以获取所有最新数据（通过 scope_id）
+        # 2.3 对于每个需要移动指标的分组，调用update_dimension_config_from_moved_metrics
+        for scope_obj, metric_field_names, source_scope_id in metric_moves:
+            scope_obj.update_dimension_config_from_moved_metrics(
+                moved_metric_field_names=metric_field_names,
+                source_scope_id=source_scope_id,
+                incremental=True,
+            )
+
+        # 2.4 最后统一查询一次以获取所有最新数据（通过 scope_id）
         scope_ids = [scope_data["scope_id"] for scope_data in scopes]
         updated_scopes = {s.id: s for s in cls.objects.filter(id__in=scope_ids)}
 
@@ -1825,6 +1660,9 @@ class TimeSeriesScope(models.Model):
         scopes: list[dict],
     ):
         """批量删除自定义时序指标分组
+
+        对于数据自动创建的分组：清空 auto_rules，并清理 dimension_config
+        对于用户手动创建的分组：直接删除
 
         :param bk_tenant_id: 租户ID
         :param group_id: 自定义时序数据源ID
@@ -1863,12 +1701,10 @@ class TimeSeriesScope(models.Model):
             else:
                 user_scopes.append(time_series_scope)
 
-        # 对于 data 类型的 scope：清空 manual_list 和 auto_rules，并清理 dimension_config
+        # 对于 data 类型的 scope：清空 auto_rules，并清理 dimension_config
         if data_scopes:
             for scope in data_scopes:
-                # todo hhh 去掉
-                # 1. 清空 manual_list 和 auto_rules
-                scope.manual_list = []
+                # 1. 清空 auto_rules
                 scope.auto_rules = []
 
                 # 2. 从 metric 表中获取对应数据分组 scope 的所有 metric 的维度
@@ -1891,9 +1727,7 @@ class TimeSeriesScope(models.Model):
                 }
 
             # 批量更新 data 类型的 scope
-            cls.objects.bulk_update(
-                data_scopes, ["manual_list", "auto_rules", "dimension_config"], batch_size=BULK_UPDATE_BATCH_SIZE
-            )
+            cls.objects.bulk_update(data_scopes, ["auto_rules", "dimension_config"], batch_size=BULK_UPDATE_BATCH_SIZE)
 
         # 对于 user 类型的 scope：直接删除
         if user_scopes:
@@ -2092,9 +1926,7 @@ class TimeSeriesMetric(models.Model):
         # 遍历所有分组，找到第一个匹配的 scope
         for scope in all_scopes:
             matched = False
-            if scope.manual_list and field_name in scope.manual_list:
-                matched = True
-            elif scope.auto_rules:
+            if scope.auto_rules:
                 for rule in scope.auto_rules:
                     try:
                         if re.match(rule, field_name):
