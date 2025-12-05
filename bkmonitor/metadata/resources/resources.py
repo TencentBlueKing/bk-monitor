@@ -1453,10 +1453,10 @@ class CreateOrUpdateTimeSeriesScopeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
 
         class ScopeSerializer(serializers.Serializer):
             scope_id = serializers.IntegerField(required=False, label="指标分组ID")
-            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
             service_name = serializers.CharField(
                 required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
             )
@@ -1476,11 +1476,13 @@ class CreateOrUpdateTimeSeriesScopeResource(Resource):
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        group_id = validated_request_data.pop("group_id")
         scopes = validated_request_data["scopes"]
 
         # 使用统一的事务方法批量创建或更新
         results = models.TimeSeriesScope.bulk_create_or_update_scopes(
             bk_tenant_id=bk_tenant_id,
+            group_id=group_id,
             scopes=scopes,
         )
 

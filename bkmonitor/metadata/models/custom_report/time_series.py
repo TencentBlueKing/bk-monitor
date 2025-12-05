@@ -1223,8 +1223,8 @@ class TimeSeriesScope(models.Model):
 
         if invalid_added_metrics:
             raise ValueError(
-                _("新增的指标不在未分组列表中，可能已被其他分组使用: group_id={}, invalid_added_metrics={}").format(
-                    group_id, list(invalid_added_metrics)
+                _("新增的指标不在未分组列表中，可能已被其他分组使用: invalid_added_metrics={}").format(
+                    list(invalid_added_metrics)
                 )
             )
 
@@ -1320,45 +1320,57 @@ class TimeSeriesScope(models.Model):
             raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
 
     @classmethod
-    def _check_scopes_for_create(cls, bk_tenant_id: str, scopes: list[dict]):
+    def _check_single_group_id(cls, bk_tenant_id, group_id):
+        """检查单个 group_id 是否存在且属于当前租户
+
+        :param bk_tenant_id: 租户ID
+        :param group_id: 自定义时序数据源ID
+        """
+        valid_groups = set(
+            TimeSeriesGroup.objects.filter(
+                time_series_group_id=group_id, bk_tenant_id=bk_tenant_id, is_delete=False
+            ).values_list("time_series_group_id", flat=True)
+        )
+        if group_id not in valid_groups:
+            raise ValueError(_("自定义时序分组不存在，请确认后重试: group_id={}").format(group_id))
+
+    @classmethod
+    def _check_scopes_for_create(cls, bk_tenant_id: str, group_id: int, scopes: list[dict]):
         """检查批量创建的分组数据
 
         :param bk_tenant_id: 租户ID
+        :param group_id: 自定义时序数据源ID
         :param scopes: 批量创建的分组列表
         """
-        cls._common_check_scopes(bk_tenant_id, scopes)
+        cls._check_single_group_id(bk_tenant_id, group_id)
 
         # 1.1 检查是否有重复的 scope_name
         final_scope_names = []
-        scope_keys = []
         for scope_data in scopes:
             try:
                 final_scope_name = cls._get_final_scope_name(scope_data)
             except ValueError as e:
                 raise ValueError(_("指标分组名[{}]格式不合法: {}").format(scope_data["scope_name"], str(e)))
             final_scope_names.append(final_scope_name)
-            scope_keys.append((scope_data["group_id"], final_scope_name))
 
-        group_ids = {scope["group_id"] for scope in scopes}
         existing_scopes = {
-            (s.group_id, s.scope_name): s
-            for s in cls.objects.filter(group_id__in=group_ids, scope_name__in=final_scope_names)
+            s.scope_name: s for s in cls.objects.filter(group_id=group_id, scope_name__in=final_scope_names)
         }
         duplicate_scopes = []
-        for scope_key in scope_keys:
-            if scope_key in existing_scopes:
-                duplicate_scopes.append(f"{scope_key[0]}:{scope_key[1]}")
+        for scope_name in final_scope_names:
+            if scope_name in existing_scopes:
+                duplicate_scopes.append(f"{group_id}:{scope_name}")
         if duplicate_scopes:
             raise ValueError(_("指标分组名已存在，请确认后重试: {}").format(", ".join(duplicate_scopes)))
 
         # 1.3 检查批次内部是否有重复的 scope_name（同一 group_id 下）
-        # 构建批次内的最终 scope_name 映射：{(group_id, final_scope_name): [index1, index2, ...]}
+        # 构建批次内的最终 scope_name 映射：{final_scope_name: [index1, index2, ...]}
         batch_scope_names = {}
-        for idx, scope_key in enumerate(scope_keys):
-            batch_scope_names.setdefault(scope_key, []).append(idx)
+        for idx, scope_name in enumerate(final_scope_names):
+            batch_scope_names.setdefault(scope_name, []).append(idx)
 
         # 检查批次内是否有重复
-        for (group_id, scope_name), indices in batch_scope_names.items():
+        for scope_name, indices in batch_scope_names.items():
             if len(indices) > 1:
                 raise ValueError(
                     _("批次内存在重复的分组名: group_id={}, scope_name={}, 位置索引={}").format(
@@ -1367,25 +1379,22 @@ class TimeSeriesScope(models.Model):
                 )
 
         # 1.4 校验同一批次内的 manual_list 是否有重复
-        batch_manual_list_metrics = {}  # {(group_id, service_name, metric_name): [(scope_name, idx), ...]}
+        batch_manual_list_metrics = {}  # {(service_name, metric_name): [(scope_name, idx), ...]}
         for idx, scope_data in enumerate(scopes):
             manual_list = scope_data.get("manual_list")
             if manual_list:
                 final_scope_name = cls._get_final_scope_name(scope_data)
-                group_id = scope_data["group_id"]
                 service_name = scope_data.get("service_name", "")
                 for metric in manual_list:
-                    key = (group_id, service_name, metric)
+                    key = (service_name, metric)
                     batch_manual_list_metrics.setdefault(key, []).append((final_scope_name, idx))
 
         # 检查批次内是否有重复的指标（同一 group_id 和 service_name 下）
-        for (group_id, service_name, metric), locations in batch_manual_list_metrics.items():
+        for (service_name, metric), locations in batch_manual_list_metrics.items():
             if len(locations) > 1:
                 location_strs = [f"scope_name={loc[0]}, 位置索引={loc[1]}" for loc in locations]
                 raise ValueError(
-                    _("批次内存在重复的指标: group_id={}, metric={}, 出现位置=[{}]").format(
-                        group_id, metric, "; ".join(location_strs)
-                    )
+                    _("批次内存在重复的指标: metric={}, 出现位置=[{}]").format(metric, "; ".join(location_strs))
                 )
 
         # 1.5 校验 manual_list 中的指标是否都在 default 数据分组
@@ -1395,18 +1404,19 @@ class TimeSeriesScope(models.Model):
                 # 创建场景，没有旧的 manual_list
                 final_scope_name = cls._get_final_scope_name(scope_data)
                 cls._validate_manual_list_metrics_in_default_scope(
-                    group_id=scope_data["group_id"],
+                    group_id=group_id,
                     manual_list=manual_list,
                     old_manual_list=None,
                     scope_name=final_scope_name,
                 )
 
     @classmethod
-    def _create_scope_data(cls, scopes: list[dict]) -> dict:
+    def _create_scope_data(cls, group_id: int, scopes: list[dict]) -> dict:
         """创建分组数据
 
+        :param group_id: 自定义时序数据源ID
         :param scopes: 批量创建的分组列表
-        :return: 创建的分组字典 {(group_id, scope_name): scope_obj}
+        :return: 创建的分组字典 {scope_name: scope_obj}
         """
         # 2.1 批量创建新记录
         scopes_to_create = []
@@ -1416,7 +1426,7 @@ class TimeSeriesScope(models.Model):
             final_scope_names.append(final_scope_name)
 
             scope_obj = cls(
-                group_id=scope_data["group_id"],
+                group_id=group_id,
                 scope_name=final_scope_name,
                 dimension_config=scope_data.get("dimension_config", {}),
                 manual_list=scope_data.get("manual_list", []),
@@ -1434,20 +1444,19 @@ class TimeSeriesScope(models.Model):
             cls.objects.bulk_create(scopes_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
         # 2.2 查询已创建的对象并返回
-        group_ids = {scope["group_id"] for scope in scopes}
         created_scopes = {
-            (s.group_id, s.scope_name): s
-            for s in cls.objects.filter(group_id__in=group_ids, scope_name__in=final_scope_names)
+            s.scope_name: s for s in cls.objects.filter(group_id=group_id, scope_name__in=final_scope_names)
         }
 
         return created_scopes
 
     @classmethod
-    def _build_scope_results(cls, scopes: list[dict], scope_objects: dict) -> list[dict]:
+    def _build_scope_results(cls, group_id: int, scopes: list[dict], scope_objects: dict) -> list[dict]:
         """构建分组结果列表
 
+        :param group_id: 自定义时序数据源ID
         :param scopes: 原始分组列表
-        :param scope_objects: 分组对象字典，可能是 {scope_id: scope_obj} 或 {(group_id, scope_name): scope_obj}
+        :param scope_objects: 分组对象字典，可能是 {scope_id: scope_obj} 或 {scope_name: scope_obj}
         :return: 结果列表
         """
         results = []
@@ -1458,11 +1467,9 @@ class TimeSeriesScope(models.Model):
                 scope_id = scope_data["scope_id"]
                 time_series_scope = scope_objects[scope_id]
             else:
-                # 否则是创建场景，使用 (group_id, final_scope_name) 查找
+                # 否则是创建场景，使用 final_scope_name 查找
                 final_scope_name = cls._get_final_scope_name(scope_data)
-                group_id = scope_data["group_id"]
-                scope_key = (group_id, final_scope_name)
-                time_series_scope = scope_objects[scope_key]
+                time_series_scope = scope_objects[final_scope_name]
 
             results.append(
                 {
@@ -1482,15 +1489,16 @@ class TimeSeriesScope(models.Model):
     def bulk_create_or_update_scopes(
         cls,
         bk_tenant_id: str,
+        group_id: int,
         scopes: list[dict],
     ) -> list[dict]:
         """批量创建或更新自定义时序指标分组
 
         :param bk_tenant_id: 租户ID
+        :param group_id: 自定义时序数据源ID
         :param scopes: 批量创建或更新的分组列表，格式:
             [{
                 "scope_id": 1,  # 可选，如果提供则更新，否则创建
-                "group_id": 1,
                 "scope_name": "test_scope",
                 "dimension_config": {},
                 "manual_list": [],
@@ -1517,35 +1525,36 @@ class TimeSeriesScope(models.Model):
         # 批量创建
         if scopes_to_create:
             # 第一步：检查
-            cls._check_scopes_for_create(bk_tenant_id, scopes_to_create)
+            cls._check_scopes_for_create(bk_tenant_id, group_id, scopes_to_create)
             # 第二步：创建
-            created_scopes = cls._create_scope_data(scopes_to_create)
+            created_scopes = cls._create_scope_data(group_id, scopes_to_create)
             # 第三步：构建结果
-            create_results = cls._build_scope_results(scopes_to_create, created_scopes)
+            create_results = cls._build_scope_results(group_id, scopes_to_create, created_scopes)
             results.extend(create_results)
 
         # 批量更新
         if scopes_to_update:
             # 第一步：检查
-            existing_scopes = cls._check_scopes_for_modify(bk_tenant_id, scopes_to_update)
+            existing_scopes = cls._check_scopes_for_modify(bk_tenant_id, group_id, scopes_to_update)
             # 第二步：更新
             updated_scopes = cls._update_scopes_data(scopes_to_update, existing_scopes)
             # 第三步：构建结果
-            update_results = cls._build_scope_results(scopes_to_update, updated_scopes)
+            update_results = cls._build_scope_results(group_id, scopes_to_update, updated_scopes)
             results.extend(update_results)
 
         return results
 
     @classmethod
-    def _check_scopes_for_modify(cls, bk_tenant_id: str, scopes: list[dict]) -> dict:
+    def _check_scopes_for_modify(cls, bk_tenant_id: str, group_id: int, scopes: list[dict]) -> dict:
         """检查批量修改的分组数据
 
         :param bk_tenant_id: 租户ID
+        :param group_id: 自定义时序数据源ID
         :param scopes: 批量修改的分组列表
         :return: existing_scopes 现有分组对象字典 {scope_id: scope_obj}
         """
 
-        cls._common_check_scopes(bk_tenant_id, scopes)
+        cls._check_single_group_id(bk_tenant_id, group_id)
 
         # 1.1 批量查询要更新的记录（通过 scope_id）
         scope_ids = [scope_data["scope_id"] for scope_data in scopes]
@@ -1560,8 +1569,17 @@ class TimeSeriesScope(models.Model):
                 _("指标分组不存在，请确认后重试: scope_id={}").format(", ".join(map(str, missing_scope_ids)))
             )
 
+        # 1.2.1 验证所有 scope 的 group_id 是否与传入的 group_id 一致
+        for scope_id, scope_obj in existing_scopes.items():
+            if scope_obj.group_id != group_id:
+                raise ValueError(
+                    _("指标分组的 group_id 不匹配: scope_id={}, 期望 group_id={}, 实际 group_id={}").format(
+                        scope_id, group_id, scope_obj.group_id
+                    )
+                )
+
         # 1.3 检查批次内部是否有重复的 scope_name（同一 group_id 下）
-        # 构建批次内的最终 scope_name 映射：{(group_id, final_scope_name): [scope_id1, scope_id2, ...]}
+        # 构建批次内的最终 scope_name 映射：{final_scope_name: [scope_id1, scope_id2, ...]}
         batch_scope_names = {}
         for scope_data in scopes:
             scope_id = scope_data["scope_id"]
@@ -1574,15 +1592,14 @@ class TimeSeriesScope(models.Model):
             else:
                 final_scope_name = scope_obj.scope_name
 
-            key = (scope_obj.group_id, final_scope_name)
-            batch_scope_names.setdefault(key, []).append(scope_id)
+            batch_scope_names.setdefault(final_scope_name, []).append(scope_id)
 
         # 检查批次内是否有重复
-        for (group_id, scope_name), scope_ids in batch_scope_names.items():
-            if len(scope_ids) > 1:
+        for scope_name, sids in batch_scope_names.items():
+            if len(sids) > 1:
                 raise ValueError(
-                    _("批次内存在重复的分组名: group_id={}, scope_name={}, scope_ids={}").format(
-                        group_id, scope_name, ", ".join(map(str, scope_ids))
+                    _("批次内存在重复的分组名: scope_name={}, scope_ids={}").format(
+                        scope_name, ", ".join(map(str, sids))
                     )
                 )
 
@@ -1615,16 +1632,14 @@ class TimeSeriesScope(models.Model):
             # 检查新分组名是否已存在于数据库中（同一 group_id 下，排除本批次要更新的记录）
             all_scope_ids_in_batch = [s["scope_id"] for s in scopes]
             if (
-                cls.objects.filter(group_id=scope_obj.group_id, scope_name=final_new_scope_name)
+                cls.objects.filter(group_id=group_id, scope_name=final_new_scope_name)
                 .exclude(id__in=all_scope_ids_in_batch)
                 .exists()
             ):
-                raise ValueError(
-                    _("指标分组名已存在: group_id={}, scope_name={}").format(scope_obj.group_id, final_new_scope_name)
-                )
+                raise ValueError(_("指标分组名已存在: scope_name={}").format(final_new_scope_name))
 
         # 1.5 校验同一批次内的 manual_list 是否有重复
-        batch_manual_list_metrics = {}  # {(group_id, service_name, metric_name): [(scope_name, idx), ...]}
+        batch_manual_list_metrics = {}  # {(service_name, metric_name): [(scope_name, idx), ...]}
         for idx, scope_data in enumerate(scopes):
             manual_list = scope_data.get("manual_list")
             if manual_list:
@@ -1636,17 +1651,15 @@ class TimeSeriesScope(models.Model):
                 else:
                     service_name = ""
                 for metric in manual_list:
-                    key = (scope_obj.group_id, service_name, metric)
+                    key = (service_name, metric)
                     batch_manual_list_metrics.setdefault(key, []).append((scope_obj.scope_name, idx))
 
-        # 检查批次内是否有重复的指标（同一 group_id 和 service_name 下）
-        for (group_id, service_name, metric), locations in batch_manual_list_metrics.items():
+        # 检查批次内是否有重复的指标（同一 service_name 下）
+        for (service_name, metric), locations in batch_manual_list_metrics.items():
             if len(locations) > 1:
                 location_strs = [f"scope_name={loc[0]}, 位置索引={loc[1]}" for loc in locations]
                 raise ValueError(
-                    _("批次内存在重复的指标: group_id={}, metric={}, 出现位置=[{}]").format(
-                        group_id, metric, "; ".join(location_strs)
-                    )
+                    _("批次内存在重复的指标: metric={}, 出现位置=[{}]").format(metric, "; ".join(location_strs))
                 )
 
         # 1.6 校验 manual_list 中的指标是否都在 default 数据分组
@@ -1658,7 +1671,7 @@ class TimeSeriesScope(models.Model):
                 # 更新场景，需要获取旧的 manual_list
                 old_manual_list = scope_obj.manual_list or []
                 cls._validate_manual_list_metrics_in_default_scope(
-                    group_id=scope_obj.group_id,
+                    group_id=group_id,
                     manual_list=manual_list,
                     old_manual_list=old_manual_list,
                     scope_name=scope_obj.scope_name,
