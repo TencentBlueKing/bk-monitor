@@ -1339,7 +1339,6 @@ class TimeSeriesScope(models.Model):
         # 2.1 批量创建新记录
         scopes_to_create = []
         final_scope_names = []
-        metric_moves = []  # 记录需要移动的指标信息: [(scope_name, metric_field_names)]
 
         for scope_data in scopes:
             final_scope_name = cls._get_final_scope_name(scope_data)
@@ -1355,11 +1354,6 @@ class TimeSeriesScope(models.Model):
 
             scopes_to_create.append(scope_obj)
 
-            # 记录需要移动的指标
-            metric_field_names = scope_data.get("metric_field_names", [])
-            if metric_field_names:
-                metric_moves.append((final_scope_name, metric_field_names))
-
         if scopes_to_create:
             cls.objects.bulk_create(scopes_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
@@ -1367,22 +1361,6 @@ class TimeSeriesScope(models.Model):
         created_scopes = {
             s.scope_name: s for s in cls.objects.filter(group_id=group_id, scope_name__in=final_scope_names)
         }
-
-        # 2.3 对于每个创建的分组，调用update_dimension_config_from_moved_metrics更新维度配置
-        for scope_name, metric_field_names in metric_moves:
-            scope_obj = created_scopes.get(scope_name)
-            if scope_obj and metric_field_names:
-                # 获取未分组的scope_id（source_scope_id）
-                ungroup_scope_name = scope_name.rsplit("||", 1)[0] + "||" if "||" in scope_name else UNGROUP_SCOPE_NAME
-                source_scope = cls.objects.filter(group_id=group_id, scope_name=ungroup_scope_name).first()
-                source_scope_id = source_scope.id if source_scope else None
-
-                # 调用update_dimension_config_from_moved_metrics更新维度配置和指标的scope_id
-                scope_obj.update_dimension_config_from_moved_metrics(
-                    moved_metric_field_names=metric_field_names,
-                    source_scope_id=source_scope_id,
-                    incremental=True,
-                )
 
         return created_scopes
 
@@ -1436,16 +1414,10 @@ class TimeSeriesScope(models.Model):
                 "scope_id": 1,  # 可选，如果提供则更新，否则创建
                 "scope_name": "test_scope",
                 "dimension_config": {},
-                "manual_list": [],  # 接口传递的参数名称，需要移动到该分组的指标名称列表
                 "auto_rules": [],
             }]
         :return: 创建或更新结果列表
         """
-        # 参数转换：将 manual_list 转换为 metric_field_names（内部使用）
-        for scope_data in scopes:
-            if "manual_list" in scope_data:
-                scope_data["metric_field_names"] = scope_data.pop("manual_list")
-
         # 分离创建和更新的分组（通过 scope_id 判断）
         scopes_to_create = []
         scopes_to_update = []
@@ -1590,7 +1562,6 @@ class TimeSeriesScope(models.Model):
         # 2.1 准备更新数据
         scopes_to_update = []  # 需要批量更新的 scope 对象列表
         update_fields = set()  # 需要更新的字段集合
-        metric_moves = []  # 记录需要移动的指标信息: [(scope_obj, metric_field_names, source_scope_id)]
 
         for scope_data in scopes:
             scope_id = scope_data["scope_id"]
@@ -1623,39 +1594,6 @@ class TimeSeriesScope(models.Model):
             if has_updates:
                 scopes_to_update.append(scope_obj)
 
-            # 获取未分组的scope（用于新增和移除指标）
-            ungroup_scope_name = (
-                scope_obj.scope_name.rsplit("||", 1)[0] + "||" if "||" in scope_obj.scope_name else UNGROUP_SCOPE_NAME
-            )
-            ungroup_scope = cls.objects.filter(group_id=scope_obj.group_id, scope_name=ungroup_scope_name).first()
-            ungroup_scope_id = ungroup_scope.id if ungroup_scope else None
-
-            # 计算需要移动的指标（差值）
-            new_metric_field_names = set(scope_data.get("metric_field_names", []))
-            # 获取当前分组下的所有指标名称
-            old_metric_field_names = set(
-                TimeSeriesMetric.objects.filter(group_id=scope_obj.group_id, scope_id=scope_obj.id).values_list(
-                    "field_name", flat=True
-                )
-            )
-
-            # 计算需要新增的指标（在 new 中但不在 old 中）
-            metrics_to_add = new_metric_field_names - old_metric_field_names
-            # 计算需要移除的指标（在 old 中但不在 new 中）
-            metrics_to_remove = old_metric_field_names - new_metric_field_names
-
-            # 处理新增指标：从未分组移动到当前分组
-            if metrics_to_add:
-                metric_moves.append((scope_obj, list(metrics_to_add), ungroup_scope_id))
-
-            # 处理移除指标：从当前分组移回未分组
-            if metrics_to_remove and ungroup_scope:
-                # 使用 update_dimension_config_from_moved_metrics 将指标移回未分组
-                # target_scope 是未分组，source_scope_id 是当前分组
-                ungroup_scope.update_dimension_config_from_moved_metrics(
-                    metric_field_names=list(metrics_to_remove), source_scope_id=scope_obj.id
-                )
-
         # 2.2 一次性批量更新所有字段
         if scopes_to_update:
             cls.objects.bulk_update(
@@ -1664,15 +1602,7 @@ class TimeSeriesScope(models.Model):
                 batch_size=BULK_UPDATE_BATCH_SIZE,
             )
 
-        # 2.3 对于每个需要移动指标的分组，调用update_dimension_config_from_moved_metrics
-        for scope_obj, metric_field_names, source_scope_id in metric_moves:
-            scope_obj.update_dimension_config_from_moved_metrics(
-                moved_metric_field_names=metric_field_names,
-                source_scope_id=source_scope_id,
-                incremental=True,
-            )
-
-        # 2.4 最后统一查询一次以获取所有最新数据（通过 scope_id）
+        # 2.3 最后统一查询一次以获取所有最新数据（通过 scope_id）
         scope_ids = [scope_data["scope_id"] for scope_data in scopes]
         updated_scopes = {s.id: s for s in cls.objects.filter(id__in=scope_ids)}
 
