@@ -1023,9 +1023,6 @@ class TimeSeriesScope(models.Model):
         (CREATE_FROM_USER, "用户手动创建"),
     ]
 
-    # scope_name 字段验证规则：只允许中文、英文、数字、下划线
-    SCOPE_NAME_REGEX = re.compile(r"^[\u4e00-\u9fa5a-zA-Z0-9_]+$")
-
     # group_id 来自于 TimeSeriesGroup.time_series_group_id，关联数据源
     group_id = models.IntegerField(verbose_name="自定义时序数据源ID", db_index=True)
 
@@ -1066,20 +1063,7 @@ class TimeSeriesScope(models.Model):
         )
 
     @classmethod
-    def _validate_scope_name(cls, scope_name: str):
-        """验证 scope_name 格式是否合法
-
-        :param scope_name: 指标分组名称
-        :raises ValueError: 如果格式不合法
-        """
-        if not scope_name:
-            raise ValueError(_("指标分组名不能为空"))
-
-        if not cls.SCOPE_NAME_REGEX.match(scope_name):
-            raise ValueError(_("指标分组名只能包含中文、英文、数字和下划线"))
-
-    @classmethod
-    def _get_final_scope_name(cls, scope_data: dict) -> str:
+    def get_final_scope_name(cls, scope_data: dict) -> str:
         """获取最终的 scope_name
 
         对于 APM 场景，scope_name 的格式为 {service_name}||{scope_name}
@@ -1087,11 +1071,6 @@ class TimeSeriesScope(models.Model):
         """
         scope_name = scope_data.get("scope_name")
         service_name = scope_data.get("service_name")
-
-        # todo hhh 去掉这个逻辑
-        # 只有当 scope_name 不是空串时才进行验证
-        if scope_name != UNGROUP_SCOPE_NAME:
-            cls._validate_scope_name(scope_name)
 
         # APM 场景：如果有 service_name，使用 APM 格式
         if service_name:
@@ -1291,13 +1270,7 @@ class TimeSeriesScope(models.Model):
         cls._check_single_group_id(bk_tenant_id, group_id)
 
         # 1.1 检查是否有重复的 scope_name
-        final_scope_names = []
-        for scope_data in scopes:
-            try:
-                final_scope_name = cls._get_final_scope_name(scope_data)
-            except ValueError as e:
-                raise ValueError(_("指标分组名[{}]格式不合法: {}").format(scope_data["scope_name"], str(e)))
-            final_scope_names.append(final_scope_name)
+        final_scope_names = [cls.get_final_scope_name(scope_data) for scope_data in scopes]
 
         existing_scopes = {
             s.scope_name: s for s in cls.objects.filter(group_id=group_id, scope_name__in=final_scope_names)
@@ -1334,26 +1307,21 @@ class TimeSeriesScope(models.Model):
         """
         # 2.1 批量创建新记录
         scopes_to_create = []
-        final_scope_names = []
-
         for scope_data in scopes:
-            final_scope_name = cls._get_final_scope_name(scope_data)
-            final_scope_names.append(final_scope_name)
-
             scope_obj = cls(
                 group_id=group_id,
-                scope_name=final_scope_name,
+                scope_name=cls.get_final_scope_name(scope_data),
                 dimension_config=scope_data.get("dimension_config", {}),
                 auto_rules=scope_data.get("auto_rules", []),
                 create_from=cls.CREATE_FROM_USER,
             )
-
             scopes_to_create.append(scope_obj)
 
         if scopes_to_create:
             cls.objects.bulk_create(scopes_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
         # 2.2 查询已创建的对象并返回
+        final_scope_names = [s.scope_name for s in scopes_to_create]
         created_scopes = {
             s.scope_name: s for s in cls.objects.filter(group_id=group_id, scope_name__in=final_scope_names)
         }
@@ -1378,7 +1346,7 @@ class TimeSeriesScope(models.Model):
                 time_series_scope = scope_objects[scope_id]
             else:
                 # 否则是创建场景，使用 final_scope_name 查找
-                final_scope_name = cls._get_final_scope_name(scope_data)
+                final_scope_name = cls.get_final_scope_name(scope_data)
                 time_series_scope = scope_objects[final_scope_name]
 
             results.append(
@@ -1493,11 +1461,11 @@ class TimeSeriesScope(models.Model):
             scope_obj = existing_scopes[scope_id]
 
             # 确定最终的 scope_name（如果提供了新名称则使用新名称，否则使用原名称）
-            new_scope_name = scope_data.get("scope_name")
-            if new_scope_name is not None:
-                final_scope_name = cls._get_final_scope_name(scope_data)
-            else:
-                final_scope_name = scope_obj.scope_name
+            final_scope_name = (
+                cls.get_final_scope_name(scope_data)
+                if scope_data.get("scope_name") is not None
+                else scope_obj.scope_name
+            )
 
             batch_scope_names.setdefault(final_scope_name, []).append(scope_id)
 
@@ -1513,16 +1481,15 @@ class TimeSeriesScope(models.Model):
         # 1.4 检查分组名（如果要修改 scope_name）
         for scope_data in scopes:
             scope_id = scope_data["scope_id"]
-            new_scope_name = scope_data.get("scope_name")
 
             # 提前跳过：没有提供新分组名
-            if new_scope_name is None:
+            if scope_data.get("scope_name") is None:
                 continue
 
             scope_obj = existing_scopes[scope_id]
 
             # 构建组合后的新 scope_name
-            final_new_scope_name = cls._get_final_scope_name(scope_data)
+            final_new_scope_name = cls.get_final_scope_name(scope_data)
 
             # 提前跳过：新分组名与当前分组名相同
             if final_new_scope_name == scope_obj.scope_name:
@@ -1566,9 +1533,8 @@ class TimeSeriesScope(models.Model):
             has_updates = False
 
             # 更新 scope_name
-            new_scope_name = scope_data.get("scope_name")
-            if new_scope_name is not None:
-                final_new_scope_name = cls._get_final_scope_name(scope_data)
+            if scope_data.get("scope_name") is not None:
+                final_new_scope_name = cls.get_final_scope_name(scope_data)
                 if final_new_scope_name != scope_obj.scope_name:
                     scope_obj.scope_name = final_new_scope_name
                     update_fields.add("scope_name")
@@ -1630,7 +1596,7 @@ class TimeSeriesScope(models.Model):
         scope_conditions = Q()
         requested_scope_names = set()
         for scope_data in scopes:
-            final_scope_name = cls._get_final_scope_name(scope_data)
+            final_scope_name = cls.get_final_scope_name(scope_data)
             scope_conditions |= Q(group_id=group_id, scope_name=final_scope_name)
             requested_scope_names.add(final_scope_name)
 
@@ -2966,7 +2932,7 @@ class TimeSeriesMetric(models.Model):
         if scope_name is None:
             scope_name = cls.DEFAULT_SCOPE
 
-        final_scope_name = TimeSeriesScope._get_final_scope_name(
+        final_scope_name = TimeSeriesScope.get_final_scope_name(
             {"scope_name": scope_name, "service_name": service_name}
         )
 
