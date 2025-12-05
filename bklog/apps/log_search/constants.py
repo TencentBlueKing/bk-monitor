@@ -561,6 +561,7 @@ class CollectorScenarioEnum(ChoicesEnum):
     REDIS_SLOWLOG = "redis_slowlog"
     SYSLOG = "syslog"
     KAFKA = "kafka"
+    CLIENT = "client"
 
     _choices_labels = (
         (ROW, _("行日志文件")),
@@ -570,6 +571,7 @@ class CollectorScenarioEnum(ChoicesEnum):
         (REDIS_SLOWLOG, _("Redis慢日志")),
         (SYSLOG, _("Syslog Server")),
         (KAFKA, _("KAFKA")),
+        (CLIENT, _("客户端日志")),
     )
 
     @classmethod
