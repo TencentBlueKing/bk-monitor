@@ -902,6 +902,11 @@ class Alarm(BaseContextObject):
         data_source: tuple[str, str] = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
         redirect_map: dict[str, list[tuple[str, str]]] = {
             "log_search": [(DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG)],
+            # 事件检索，用于自定义事件和日志关键字场景。
+            "event_explore": [
+                (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+                (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+            ],
             "query": [
                 (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
                 (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
@@ -932,6 +937,7 @@ class Alarm(BaseContextObject):
         url_getters: dict[str, Callable[[], str | None]] = {
             AlertRedirectType.DETAIL.value: lambda: self.detail_url,
             AlertRedirectType.LOG_SEARCH.value: lambda: self.log_search_url,
+            AlertRedirectType.EVENT_EXPLORE.value: lambda: self.event_explore_url,
             AlertRedirectType.QUERY.value: lambda: self.query_url,
             AlertRedirectType.APM_QUERY.value: lambda: self.apm_query_url,
             AlertRedirectType.APM_RPC.value: lambda: self.apm_rpc_url,
@@ -982,6 +988,17 @@ class Alarm(BaseContextObject):
             url = self.detail_url
             return f"{url}&type=log_search"
         return None
+
+    @cached_property
+    def event_explore_url(self) -> str | None:
+        """事件检索跳转链接生成"""
+        alert: AlertDocument = self.parent.alert
+        if not alert.strategy:
+            return None
+
+        return ApmAlertHelper.get_event_explore_url(
+            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, alert.event.time, self.duration
+        )
 
     @cached_property
     def query_url(self):
