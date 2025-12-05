@@ -58,6 +58,14 @@ data 为列表类型，包含所有匹配的结果
 | field_id         | int    | 字段ID      |
 | field_scope      | string | 字段所属分组    |
 | tag_list         | list   | 指标的维度名称列表（字符串列表）     |
+| field_config     | dict   | 字段配置对象（包含指标的详细配置信息） |
+| create_time      | float  | 创建时间（Unix时间戳，秒级浮点数，可能为 None） |
+| last_modify_time | float  | 最后更新时间（Unix时间戳，秒级浮点数，可能为 None） |
+
+#### field_config 配置对象字段说明
+
+| 字段               | 类型     | 描述                   |
+|------------------|--------|----------------------|
 | desc             | string | 指标描述                 |
 | unit             | string | 指标单位                 |
 | hidden           | bool   | 是否隐藏                 |
@@ -65,8 +73,6 @@ data 为列表类型，包含所有匹配的结果
 | function         | string | 常用聚合函数               |
 | interval         | int    | 默认聚合周期（秒）            |
 | disabled         | bool   | 是否禁用                 |
-| create_time      | float  | 创建时间（Unix时间戳，秒级浮点数，可能为 None） |
-| last_modify_time | float  | 最后更新时间（Unix时间戳，秒级浮点数，可能为 None） |
 
 #### dimension_config 配置对象字段说明
 
@@ -117,13 +123,15 @@ data 为列表类型，包含所有匹配的结果
             "dimension1",
             "dimension2"
           ],
-          "desc": "指标1描述",
-          "unit": "ms",
-          "hidden": false,
-          "aggregate_method": "avg",
-          "function": "sum",
-          "interval": 60,
-          "disabled": false,
+          "field_config": {
+            "desc": "指标1描述",
+            "unit": "ms",
+            "hidden": false,
+            "aggregate_method": "avg",
+            "function": "sum",
+            "interval": 60,
+            "disabled": false
+          },
           "create_time": 1732761330.123,
           "last_modify_time": 1733122815.456
         },
@@ -134,13 +142,15 @@ data 为列表类型，包含所有匹配的结果
           "tag_list": [
             "dimension1"
           ],
-          "desc": "指标2描述",
-          "unit": "count",
-          "hidden": false,
-          "aggregate_method": "sum",
-          "function": "max",
-          "interval": 60,
-          "disabled": false,
+          "field_config": {
+            "desc": "指标2描述",
+            "unit": "count",
+            "hidden": false,
+            "aggregate_method": "sum",
+            "function": "max",
+            "interval": 60,
+            "disabled": false
+          },
           "create_time": 1732847400.789,
           "last_modify_time": 1732968320.012
         }

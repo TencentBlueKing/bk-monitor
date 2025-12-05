@@ -1034,6 +1034,7 @@ class TimeSeriesScope(models.Model):
     # 维度字段配置，可配置的选项，需要在 DimensionConfigFields 中定义
     dimension_config = models.JSONField(verbose_name="分组下的维度配置", default={})
 
+    # todo hhh 不再需要了
     manual_list = models.JSONField("手动分组的指标列表", default=[])
     auto_rules = models.JSONField("自动分组的匹配规则列表", default=[])
 
@@ -1089,6 +1090,7 @@ class TimeSeriesScope(models.Model):
         scope_name = scope_data.get("scope_name")
         service_name = scope_data.get("service_name")
 
+        # todo hhh 去掉这个逻辑
         cls._validate_scope_name(scope_name)
         # APM 场景：如果有 service_name，使用 APM 格式
         if service_name:
@@ -1365,6 +1367,7 @@ class TimeSeriesScope(models.Model):
                     )
                 )
 
+        # todo hhh 去掉这个逻辑
         # 1.4 校验同一批次内的 manual_list 是否有重复
         batch_manual_list_metrics = {}  # {(service_name, metric_name): [(scope_name, idx), ...]}
         for idx, scope_data in enumerate(scopes):
@@ -1384,6 +1387,7 @@ class TimeSeriesScope(models.Model):
                     _("批次内存在重复的指标: metric={}, 出现位置=[{}]").format(metric, "; ".join(location_strs))
                 )
 
+        # todo hhh 去掉这个逻辑
         # 1.5 校验 manual_list 中的指标是否都在 default 数据分组
         for scope_data in scopes:
             manual_list = scope_data.get("manual_list")
@@ -1625,6 +1629,7 @@ class TimeSeriesScope(models.Model):
             ):
                 raise ValueError(_("指标分组名已存在: scope_name={}").format(final_new_scope_name))
 
+        # todo hhh 去掉
         # 1.5 校验同一批次内的 manual_list 是否有重复
         batch_manual_list_metrics = {}  # {(service_name, metric_name): [(scope_name, idx), ...]}
         for idx, scope_data in enumerate(scopes):
@@ -1649,6 +1654,7 @@ class TimeSeriesScope(models.Model):
                     _("批次内存在重复的指标: metric={}, 出现位置=[{}]").format(metric, "; ".join(location_strs))
                 )
 
+        # todo hhh 去掉
         # 1.6 校验 manual_list 中的指标是否都在 default 数据分组
         for scope_data in scopes:
             manual_list = scope_data.get("manual_list")
@@ -1795,6 +1801,7 @@ class TimeSeriesScope(models.Model):
         # 对于 data 类型的 scope：清空 manual_list 和 auto_rules，并清理 dimension_config
         if data_scopes:
             for scope in data_scopes:
+                # todo hhh 去掉
                 # 1. 清空 manual_list 和 auto_rules
                 scope.manual_list = []
                 scope.auto_rules = []
@@ -1863,7 +1870,7 @@ class TimeSeriesMetric(models.Model):
     # group_id 来自于 TimeSeriesGroup.time_series_group_id，关联数据源
     group_id = models.IntegerField(verbose_name="自定义时序数据源ID", db_index=True)
     table_id = models.CharField(verbose_name="table名", default="", max_length=255)
-
+    # todo hhh 添加 scope_id
     # 对于 APM 的场景来说分组的格式为 {service_name}||{scope_name}，其余场景中都是自动赋值为 default
     field_scope = models.CharField(
         verbose_name="指标字段数据分组名", default=DEFAULT_SCOPE, max_length=255, db_collation="utf8_bin"
