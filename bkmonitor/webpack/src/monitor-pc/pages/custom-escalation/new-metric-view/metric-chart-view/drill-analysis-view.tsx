@@ -35,11 +35,11 @@ import { getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 import { updateTimezone } from 'monitor-pc/i18n/dayjs';
 import { VariablesService } from 'monitor-ui/chart-plugins/utils/variable';
 
+import customEscalationViewStore from '../../../../store/modules/custom-escalation-view';
 import DrillAnalysisFilter from './drill-analysis-filter';
 import DrillAnalysisTable from './drill-analysis-table';
 import NewMetricChart from './metric-chart';
 import { refreshList } from './utils';
-import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import type { IDimensionItem, IRefreshItem, IResultItem } from '../type';
 import type { IPanelModel, IViewOptions } from 'monitor-ui/chart-plugins/typings';
