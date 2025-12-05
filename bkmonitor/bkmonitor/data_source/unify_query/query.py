@@ -202,6 +202,7 @@ class UnifyQuery:
             (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
             (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
             (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
         ]:
             records = first_ds.process_unify_query_log(records)
         return records
