@@ -46,7 +46,20 @@
         </template>
       </bk-navigation-menu>
     </template>
-    <div class="navigation-content">
+
+    <!-- 灰度控制：如果是灰度业务且不在白名单，显示提醒组件 -->
+    <div v-if="showGrayReleaseReminder" class="navigation-content gray-release-content">
+      <bk-exception
+        class="exception-wrap-item"
+        type="403"
+        scene="part">
+        <span>{{ $t('灰度业务') }}</span>
+        <div class="text-subtitle">{{ $t('本功能为灰度业务，请联系管理员开通') }}</div>
+      </bk-exception>
+    </div>
+
+    <!-- 正常内容 -->
+    <div v-else class="navigation-content">
       <auth-container-page v-if="authPageInfo" :info="authPageInfo"></auth-container-page>
       <div class="manage-container">
         <div class="manage-main">
@@ -95,6 +108,18 @@ import { mapGetters, mapState } from 'vuex';
       activeManageNav() {
         const childList = this.menuList.map(m => m.children).flat(2);
         return childList.find(t => t.id === this.$route.meta.navId) ?? {};
+      },
+      // 判断是否显示灰度提醒页面
+      showGrayReleaseReminder() {
+        // 首先检查是否在 tgpa-task 相关路由
+        const isTgpaTaskRoute = this.checkIfTgpaTaskRoute();
+
+        if (isTgpaTaskRoute) {
+          // 检查是否为灰度业务
+          return this.isGrayReleaseBusiness();
+        }
+
+        return false;
       }
     },
     watch: {
@@ -106,7 +131,6 @@ import { mapGetters, mapState } from 'vuex';
           if (isTgpaTaskRoute) {
             // 检查权限
             const hasPermission = this.checkTgpaTaskFeatureToggle();
-
             if (!hasPermission) {
               // 没有权限，跳转到管理页面第一个菜单项
               this.redirectToFirstMenuItem();
@@ -203,10 +227,15 @@ import { mapGetters, mapState } from 'vuex';
           const bizId = this.$store.state.bkBizId;
           const spaceUid = this.$store.state.spaceUid;
 
-          // 类型安全的白名单检查
+          // 如果是 100269 业务，跳过白名单检查，返回 true（显示菜单项）
+          if (spaceUid === 'bkcc__100269' || String(bizId) === '100269') {
+            return true;
+          }
+
+          // 其他业务进行正常的白名单检查
           const normalizedWhiteList = whiteList.map(id => String(id));
-          return normalizedWhiteList.includes(String(bizId)) ||
-            normalizedWhiteList.includes(String(spaceUid));
+          return normalizedWhiteList.includes(String(bizId))
+            || normalizedWhiteList.includes(String(spaceUid));
         }
 
         // 默认不显示
@@ -239,6 +268,34 @@ import { mapGetters, mapState } from 'vuex';
           });
         }
       },
+      // 检查是否为灰度业务
+      isGrayReleaseBusiness() {
+        // 首先检查功能开关状态
+        const featureToggle = window.FEATURE_TOGGLE?.tgpa_task;
+
+        // 只有在功能开关为 'debug' 时才可能有灰度业务
+        if (featureToggle !== 'debug') {
+          return false;
+        }
+
+        // 检查当前业务是否为灰度发布业务
+        const currentSpaceUid = this.spaceUid;
+        const currentBizId = this.bkBizId;
+
+        // 如果是特定的 spaceUid 或 bizId，检查是否在灰度白名单中
+        if (currentSpaceUid === 'bkcc__100269' || String(currentBizId) === '100269') {
+          const whiteList = window.FEATURE_TOGGLE_WHITE_LIST?.tgpa_task ?? [];
+          const normalizedWhiteList = whiteList.map(id => String(id));
+
+          // 如果不在白名单中，说明是灰度业务
+          return !normalizedWhiteList.includes(String(currentSpaceUid))
+            && !normalizedWhiteList.includes(String(currentBizId));
+        }
+
+        // 其他业务不是灰度业务
+        return false;
+      },
+
     },
     mounted() {
       const bkBizId = this.$store.state.bkBizId;
@@ -289,4 +346,25 @@ import { mapGetters, mapState } from 'vuex';
       }
     }
   }
+
+    .gray-release-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+
+      .exception-wrap-item {
+        span {
+          font-size: 24px;
+          color: #63656e;
+        }
+
+        .text-subtitle {
+          margin-top: 14px;
+          font-size: 14px;
+          color: #979ba5;
+          text-align: center;
+        }
+      }
+    }
 </style>
