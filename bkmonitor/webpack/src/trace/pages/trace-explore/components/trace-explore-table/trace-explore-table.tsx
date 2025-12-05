@@ -26,9 +26,7 @@
 import {
   type PropType,
   computed,
-  defineAsyncComponent,
   defineComponent,
-  KeepAlive,
   onBeforeUnmount,
   onMounted,
   reactive,
@@ -43,9 +41,6 @@ import { $bkPopover, Loading } from 'bkui-vue';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
-const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
-const ExploreTraceSlider = defineAsyncComponent(() => import('../explore-trace-slider/explore-trace-slider'));
-
 import FieldTypeIcon from '../field-type-icon';
 import StatisticsList from '../statistics-list';
 import ExploreConditionMenu from './components/explore-condition-menu';
@@ -162,6 +157,8 @@ export default defineComponent({
     sortChange: (sortEvent: TableSort) => !!sortEvent,
     /** 触底加载更多 */
     scrollToEnd: () => true,
+    /** 打开详情抽屉页展示状态(traceID | spanID 点击后回调) */
+    sliderShow: (openMode: '' | 'span' | 'trace', activeId: string) => openMode && activeId,
   },
   setup(props, { emit }) {
     /** 滚动容器元素 */
@@ -174,11 +171,6 @@ export default defineComponent({
     const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
     const conditionMenuRef = useTemplateRef<InstanceType<typeof ExploreConditionMenu>>('conditionMenuRef');
     const statisticsListRef = useTemplateRef<InstanceType<typeof StatisticsList>>('statisticsListRef');
-
-    /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
-    const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
-    /** 打开抽屉所需的数据Id(traceId/spanId) */
-    const activeSliderId = shallowRef('');
 
     /** 统计面板的 抽屉页展示状态 */
     let statisticsSliderShow = false;
@@ -271,11 +263,11 @@ export default defineComponent({
       sortContainer: toRef(props, 'sortContainer'),
       sourceFieldConfigs: toRef(props, 'sourceFieldConfigs'),
       enabledClickMenu: toRef(props, 'enabledClickMenu'),
-      tableHeaderCellRender,
+      tableHeaderCellRender: (...args) => tableHeaderCellRender(...args),
       tableCellRender,
-      handleConditionMenuShow,
-      handleSliderShowChange,
-      handleSortChange,
+      handleConditionMenuShow: (...args) => handleConditionMenuShow(...args),
+      handleSliderShowChange: (...args) => handleSliderShowChange(...args),
+      handleSortChange: (sortInfo: TableSort) => handleSortChange(sortInfo),
     });
 
     const tableSkeletonConfig = computed(() => {
@@ -289,48 +281,9 @@ export default defineComponent({
     });
 
     /**
-     * @description 添加滚动监听
-     */
-    function addScrollListener() {
-      removeScrollListener();
-      scrollContainer = document.querySelector(props.scrollContainerSelector);
-      if (!scrollContainer) return;
-      scrollContainer.addEventListener('scroll', handleScroll);
-    }
-
-    /**
-     * @description 移除滚动监听
-     */
-    function removeScrollListener() {
-      if (!scrollContainer) return;
-      scrollContainer.removeEventListener('scroll', handleScroll);
-      scrollContainer = null;
-    }
-
-    /**
-     * @description 滚动触发事件
-     *
-     */
-    function handleScroll(event: Event) {
-      if (!props.tableData?.length) {
-        return;
-      }
-      updateTablePointEvents('none');
-      ellipsisPopoverHide();
-      descriptionPopoverHide();
-      conditionMenuPopoverHide();
-      handleScrollToEnd(event.target as HTMLElement);
-      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
-      scrollPointerEventsTimer = setTimeout(() => {
-        updateTablePointEvents('auto');
-      }, 600);
-    }
-
-    /**
      * @description 滚动触底加载更多
-     *
      */
-    function handleScrollToEnd(target: HTMLElement) {
+    const handleScrollToEnd = (target: HTMLElement) => {
       if (!props.tableHasScrollLoading) {
         return;
       }
@@ -352,34 +305,68 @@ export default defineComponent({
         top: scrollHeight - 100,
         behavior: 'smooth',
       });
-    }
+    };
 
     /**
      * @description 配置表格是否能够触发事件target
-     *
      */
-    function updateTablePointEvents(val: 'auto' | 'none') {
+    const updateTablePointEvents = (val: 'auto' | 'none') => {
       const tableDom = tableRef?.value?.$el;
       if (!tableDom) return;
       tableDom.style.pointerEvents = val;
-    }
+    };
+
+    /**
+     * @description 滚动触发事件
+     */
+    const handleScroll = (event: Event) => {
+      if (!props.tableData?.length) {
+        return;
+      }
+      updateTablePointEvents('none');
+      ellipsisPopoverHide();
+      descriptionPopoverHide();
+      conditionMenuPopoverHide();
+      handleScrollToEnd(event.target as HTMLElement);
+      scrollPointerEventsTimer && clearTimeout(scrollPointerEventsTimer);
+      scrollPointerEventsTimer = setTimeout(() => {
+        updateTablePointEvents('auto');
+      }, 600);
+    };
+
+    /**
+     * @description 移除滚动监听
+     */
+    const removeScrollListener = () => {
+      if (!scrollContainer) return;
+      scrollContainer.removeEventListener('scroll', handleScroll);
+      scrollContainer = null;
+    };
+
+    /**
+     * @description 添加滚动监听
+     */
+    const addScrollListener = () => {
+      removeScrollListener();
+      scrollContainer = document.querySelector(props.scrollContainerSelector);
+      if (!scrollContainer) return;
+      scrollContainer.addEventListener('scroll', handleScroll);
+    };
 
     /**
      * @description: 修改条件菜单所需数据
-     *
      */
-    function setActiveConditionMenu(item: Partial<ActiveConditionMenuTarget> = {}) {
+    const setActiveConditionMenu = (item: Partial<ActiveConditionMenuTarget> = {}) => {
       activeConditionMenuTarget.rowId = item.rowId || '';
       activeConditionMenuTarget.colId = item.colId || '';
       activeConditionMenuTarget.conditionValue = item.conditionValue || '';
       activeConditionMenuTarget.customMenuList = item.customMenuList || [];
-    }
+    };
 
     /**
      * @description: 显示条件菜单
-     *
      */
-    function handleConditionMenuShow(triggerDom: HTMLElement, conditionMenuTarget: ActiveConditionMenuTarget) {
+    const handleConditionMenuShow = (triggerDom: HTMLElement, conditionMenuTarget: ActiveConditionMenuTarget) => {
       const oldRowId = activeConditionMenuTarget.rowId;
       const oldColId = activeConditionMenuTarget.colId;
       conditionMenuPopoverHide();
@@ -390,26 +377,24 @@ export default defineComponent({
       setActiveConditionMenu(conditionMenuTarget);
       const { isEllipsisActive } = isEllipsisActiveSingleLine(triggerDom.parentElement);
       conditionMenuPopoverShow(isEllipsisActive ? triggerDom.parentElement : triggerDom, conditionMenuRef.value.$el);
-    }
+    };
 
     /**
      * @description 表格排序回调
      * @param {string} sortEvent.sortBy 排序字段名
      * @param {boolean} sortEvent.descending 排序方式
-     *
      */
-    function handleSortChange(sortEvent: TableSort) {
+    const handleSortChange = (sortEvent: TableSort) => {
       if (Array.isArray(sortEvent)) {
         return;
       }
       emit('sortChange', sortEvent);
-    }
+    };
 
     /**
      * @description 表格空数据显示中的 数据源配置 点击回调
-     *
      */
-    function handleDataSourceConfigClick() {
+    const handleDataSourceConfigClick = () => {
       const { appName } = props;
       if (!appName) {
         return;
@@ -417,39 +402,58 @@ export default defineComponent({
       const hash = `#/apm/application/config/${appName}?active=dataStatus`;
       const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank');
-    }
+    };
 
     /**
      * @description TraceId/SpanId 点击触发回调
-     *
      */
-    function handleSliderShowChange(openMode: '' | 'span' | 'trace', activeId: string) {
-      activeSliderId.value = activeId;
-      sliderMode.value = openMode;
-    }
+    const handleSliderShowChange = (openMode: '' | 'span' | 'trace', activeId: string) => {
+      emit('sliderShow', openMode, activeId);
+    };
 
     /**
      * @description 字段分析统计弹窗改变filter条件回调
-     *
      */
-    function handleConditionChange(value: ConditionChangeEvent) {
+    const handleConditionChange = (value: ConditionChangeEvent) => {
       emit('conditionChange', value);
-    }
+    };
 
     /**
      * @description 字段分析统计菜单项点击后回调
-     *
      */
-    function handleMenuClick() {
+    const handleMenuClick = () => {
       setActiveConditionMenu();
       conditionMenuPopoverHide();
-    }
+    };
+
+    /**
+     * @description 字段分析统计弹窗中 更多抽屉页 展示/消失 状态回调
+     */
+    const handleStatisticsSliderShow = (sliderShow: boolean) => {
+      statisticsSliderShow = sliderShow;
+      if (!sliderShow) {
+        handleStatisticsPopoverHide();
+      }
+    };
+
+    /**
+     * @description 关闭字段分析统计弹窗
+     * @param {boolean} resetActiveStatisticsField 是否重置当前激活字段分析弹窗面板展示的字段
+     */
+    const handleStatisticsPopoverHide = (resetActiveStatisticsField = true) => {
+      showStatisticsPopover.value = false;
+      statisticsPopoverInstance?.hide(0);
+      statisticsPopoverInstance?.close();
+      statisticsPopoverInstance = null;
+      if (resetActiveStatisticsField) {
+        activeStatisticsField.value = '';
+      }
+    };
 
     /**
      * @description 打开字段分析统计弹窗
-     *
      */
-    async function handleStatisticsPopoverShow(e: Event, item: IDimensionFieldTreeItem) {
+    const handleStatisticsPopoverShow = async (e: Event, item: IDimensionFieldTreeItem) => {
       e.stopPropagation();
       handleStatisticsPopoverHide();
       activeStatisticsField.value = item.name;
@@ -477,38 +481,12 @@ export default defineComponent({
         showStatisticsPopover.value = true;
         statisticsPopoverInstance.show();
       }, 100);
-    }
-
-    /**
-     * @description 关闭字段分析统计弹窗
-     * @param {boolean} resetActiveStatisticsField 是否重置当前激活字段分析弹窗面板展示的字段
-     *
-     */
-    function handleStatisticsPopoverHide(resetActiveStatisticsField = true) {
-      showStatisticsPopover.value = false;
-      statisticsPopoverInstance?.hide(0);
-      statisticsPopoverInstance?.close();
-      statisticsPopoverInstance = null;
-      if (resetActiveStatisticsField) {
-        activeStatisticsField.value = '';
-      }
-    }
-
-    /**
-     * @description 字段分析统计弹窗中 更多抽屉页 展示/消失 状态回调
-     */
-    function handleStatisticsSliderShow(sliderShow: boolean) {
-      statisticsSliderShow = sliderShow;
-      if (!sliderShow) {
-        handleStatisticsPopoverHide();
-      }
-    }
+    };
 
     /**
      * @description 字段分析组件渲染方法
-     *
      */
-    function statisticsDomRender() {
+    const statisticsDomRender = () => {
       const fieldOptions = tableColumns.value?.fieldMap?.[activeStatisticsField.value];
       return [
         <StatisticsList
@@ -523,15 +501,14 @@ export default defineComponent({
           onSliderShowChange={handleStatisticsSliderShow}
         />,
       ];
-    }
+    };
 
     /**
      * @description table 带有列描述的表头渲染方法
      * @param title 列名
      * @param tipText 列描述
-     *
      */
-    function tableHeaderCellRender(title: string, tipText: string, column: ExploreTableColumn) {
+    const tableHeaderCellRender = (title: string, tipText: string, column: ExploreTableColumn) => {
       const fieldOptions = tableColumns.value?.fieldMap?.[column.colKey];
       const fieldType = fieldOptions?.type || '';
       const chartIconActive = column.colKey === activeStatisticsField.value ? 'active-statistics-field' : '';
@@ -561,7 +538,7 @@ export default defineComponent({
             ) : null}
           </div>
         ) as unknown as SlotReturnValue;
-    }
+    };
 
     // 监听 tableData 变化，更新缓存并触发触底加载逻辑兼容
     watch(
@@ -604,13 +581,10 @@ export default defineComponent({
       tableColumns,
       tableDisplayColumns,
       tableSkeletonConfig,
-      sliderMode,
-      activeSliderId,
       activeConditionMenuTarget,
       handleSortChange,
       handleDataSourceConfigClick,
       statisticsDomRender,
-      handleSliderShowChange,
       handleMenuClick,
       handleConditionChange,
     };
@@ -708,26 +682,7 @@ export default defineComponent({
           onSortChange={this.handleSortChange}
         />
         <TableSkeleton class={`explore-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
-        <KeepAlive include={['ExploreTraceSlider', 'ExploreSpanSlider', 'AsyncComponentWrapper']}>
-          <div>
-            {this.sliderMode === 'trace' && (
-              <ExploreTraceSlider
-                appName={this.appName}
-                isShow={this.sliderMode === 'trace'}
-                traceId={this.activeSliderId}
-                onSliderClose={() => this.handleSliderShowChange('', '')}
-              />
-            )}
-            {this.sliderMode === 'span' && (
-              <ExploreSpanSlider
-                appName={this.appName}
-                isShow={this.sliderMode === 'span'}
-                spanId={this.activeSliderId}
-                onSliderClose={() => this.handleSliderShowChange('', '')}
-              />
-            )}
-          </div>
-        </KeepAlive>
+
         <div style='display: none'>
           <ExploreConditionMenu
             ref='conditionMenuRef'

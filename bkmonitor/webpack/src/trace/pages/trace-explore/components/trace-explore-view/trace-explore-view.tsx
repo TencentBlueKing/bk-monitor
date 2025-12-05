@@ -23,12 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, nextTick, toRef, useTemplateRef, watch } from 'vue';
+import {
+  type PropType,
+  computed,
+  defineAsyncComponent,
+  defineComponent,
+  KeepAlive,
+  shallowRef,
+  toRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
 
 import { Checkbox } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-
+const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
+const ExploreTraceSlider = defineAsyncComponent(() => import('../explore-trace-slider/explore-trace-slider'));
 import BackTop from '../../../../components/back-top/back-top';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ChartWrapper from '../explore-chart/chart-wrapper';
@@ -87,8 +98,11 @@ export default defineComponent({
     const { t } = useI18n();
     const store = useTraceExploreStore();
     const backTopRef = useTemplateRef<InstanceType<typeof BackTop>>('backTopRef');
-    const traceExploreTableRef = useTemplateRef<InstanceType<typeof TraceExploreTable>>('traceExploreTable');
 
+    /** 当前需要打开的抽屉类型(trace详情抽屉/span详情抽屉) */
+    const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
+    /** 打开抽屉所需的数据Id(traceId/spanId) */
+    const activeSliderId = shallowRef('');
     const { mode, appName } = storeToRefs(store);
     const {
       displayColumnFields,
@@ -124,6 +138,15 @@ export default defineComponent({
     const handleTableSortChange = sortEvent => {
       handleSortChange(sortEvent);
       emit('setUrlParams');
+    };
+
+    /**
+     * @description TraceId/SpanId 点击触发回调
+     *
+     */
+    const handleSliderShowChange = (openMode: '' | 'span' | 'trace', activeId: string) => {
+      activeSliderId.value = activeId;
+      sliderMode.value = openMode;
     };
 
     /**
@@ -171,9 +194,7 @@ export default defineComponent({
       () => props.showSlideDetail,
       val => {
         if (!val) return;
-        nextTick(() => {
-          traceExploreTableRef.value?.handleSliderShowChange(val.type, val.id);
-        });
+        handleSliderShowChange(val.type, val.id);
       },
       {
         immediate: true,
@@ -190,12 +211,15 @@ export default defineComponent({
       tableHasScrollLoading,
       tableLoading,
       sortContainer,
+      sliderMode,
+      activeSliderId,
       getCustomFieldsConfig,
       handleDisplayColumnFieldsChange,
       handleDisplayColumnResize,
       handleScrollToEnd,
       handleTableSortChange,
       filtersCheckBoxGroupRender,
+      handleSliderShowChange,
       t,
     };
   },
@@ -227,9 +251,30 @@ export default defineComponent({
             onConditionChange={conditionEvent => this.$emit('conditionChange', conditionEvent)}
             onDisplayFieldChange={this.handleDisplayColumnFieldsChange}
             onScrollToEnd={this.handleScrollToEnd}
+            onSliderShow={this.handleSliderShowChange}
             onSortChange={this.handleTableSortChange}
           />
         </div>
+        <KeepAlive include={['ExploreTraceSlider', 'ExploreSpanSlider', 'AsyncComponentWrapper']}>
+          <div>
+            {this.sliderMode === 'trace' && (
+              <ExploreTraceSlider
+                appName={this.appName}
+                isShow={this.sliderMode === 'trace'}
+                traceId={this.activeSliderId}
+                onSliderClose={() => this.handleSliderShowChange('', '')}
+              />
+            )}
+            {this.sliderMode === 'span' && (
+              <ExploreSpanSlider
+                appName={this.appName}
+                isShow={this.sliderMode === 'span'}
+                spanId={this.activeSliderId}
+                onSliderClose={() => this.handleSliderShowChange('', '')}
+              />
+            )}
+          </div>
+        </KeepAlive>
         <BackTop
           ref='backTopRef'
           class='back-to-top'
