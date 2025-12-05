@@ -1057,26 +1057,12 @@ class TimeSeriesScope(models.Model):
     def is_default_scope(scope_name: str) -> bool:
         """判断 scope_name 是否为 default 分组
         :return: 如果是 default 分组返回 True，否则返回 False
+
+        注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name||default 格式
         """
         return scope_name == TimeSeriesMetric.DEFAULT_SCOPE or scope_name.endswith(
             f"||{TimeSeriesMetric.DEFAULT_SCOPE}"
         )
-
-    @classmethod
-    def get_final_scope_name(cls, scope_data: dict) -> str:
-        """获取最终的 scope_name
-
-        对于 APM 场景，scope_name 的格式为 {service_name}||{scope_name}
-        如果 scope_data 中有 service_name，则使用 APM 格式
-        """
-        scope_name = scope_data.get("scope_name")
-        service_name = scope_data.get("service_name")
-
-        # APM 场景：如果有 service_name，使用 APM 格式
-        if service_name:
-            return f"{service_name}||{scope_name}"
-
-        return scope_name
 
     def update_dimension_config_from_moved_metrics(
         self, moved_metric_field_names: list[str], source_scope_id: int, incremental: bool = True
@@ -1184,6 +1170,7 @@ class TimeSeriesScope(models.Model):
             return
 
         # 构建 scope_name 映射：原始名称 -> 数据库存储名称
+        # 注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
         scope_name_mapping = {}
         for scope_name in scope_dimensions_map.keys():
             if cls.is_default_scope(scope_name):
@@ -1270,7 +1257,7 @@ class TimeSeriesScope(models.Model):
         cls._check_single_group_id(bk_tenant_id, group_id)
 
         # 1.1 检查是否有重复的 scope_name
-        final_scope_names = [cls.get_final_scope_name(scope_data) for scope_data in scopes]
+        final_scope_names = [scope_data.get("scope_name") for scope_data in scopes]
 
         existing_scopes = {
             s.scope_name: s for s in cls.objects.filter(group_id=group_id, scope_name__in=final_scope_names)
@@ -1310,7 +1297,7 @@ class TimeSeriesScope(models.Model):
         for scope_data in scopes:
             scope_obj = cls(
                 group_id=group_id,
-                scope_name=cls.get_final_scope_name(scope_data),
+                scope_name=scope_data.get("scope_name"),
                 dimension_config=scope_data.get("dimension_config", {}),
                 auto_rules=scope_data.get("auto_rules", []),
                 create_from=cls.CREATE_FROM_USER,
@@ -1346,7 +1333,7 @@ class TimeSeriesScope(models.Model):
                 time_series_scope = scope_objects[scope_id]
             else:
                 # 否则是创建场景，使用 final_scope_name 查找
-                final_scope_name = cls.get_final_scope_name(scope_data)
+                final_scope_name = scope_data.get("scope_name")
                 time_series_scope = scope_objects[final_scope_name]
 
             results.append(
@@ -1462,9 +1449,7 @@ class TimeSeriesScope(models.Model):
 
             # 确定最终的 scope_name（如果提供了新名称则使用新名称，否则使用原名称）
             final_scope_name = (
-                cls.get_final_scope_name(scope_data)
-                if scope_data.get("scope_name") is not None
-                else scope_obj.scope_name
+                scope_data.get("scope_name") if scope_data.get("scope_name") is not None else scope_obj.scope_name
             )
 
             batch_scope_names.setdefault(final_scope_name, []).append(scope_id)
@@ -1489,7 +1474,7 @@ class TimeSeriesScope(models.Model):
             scope_obj = existing_scopes[scope_id]
 
             # 构建组合后的新 scope_name
-            final_new_scope_name = cls.get_final_scope_name(scope_data)
+            final_new_scope_name = scope_data.get("scope_name")
 
             # 提前跳过：新分组名与当前分组名相同
             if final_new_scope_name == scope_obj.scope_name:
@@ -1534,7 +1519,7 @@ class TimeSeriesScope(models.Model):
 
             # 更新 scope_name
             if scope_data.get("scope_name") is not None:
-                final_new_scope_name = cls.get_final_scope_name(scope_data)
+                final_new_scope_name = scope_data.get("scope_name")
                 if final_new_scope_name != scope_obj.scope_name:
                     scope_obj.scope_name = final_new_scope_name
                     update_fields.add("scope_name")
@@ -1596,7 +1581,7 @@ class TimeSeriesScope(models.Model):
         scope_conditions = Q()
         requested_scope_names = set()
         for scope_data in scopes:
-            final_scope_name = cls.get_final_scope_name(scope_data)
+            final_scope_name = scope_data.get("scope_name")
             scope_conditions |= Q(group_id=group_id, scope_name=final_scope_name)
             requested_scope_names.add(final_scope_name)
 
@@ -1744,6 +1729,7 @@ class TimeSeriesMetric(models.Model):
     @staticmethod
     def get_default_scope_metric_filter(scope_name: str):
         # 如果 scope_name 包含 "||"，提取 service_name 部分
+        # 注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
         if "||" in scope_name:
             service_name = scope_name.split("||", 1)[0]
             return Q(field_scope=f"{service_name}||{TimeSeriesMetric.DEFAULT_SCOPE}")
@@ -1822,10 +1808,13 @@ class TimeSeriesMetric(models.Model):
         """从 group_dimensions 的 key 中提取 field_scope
 
         例如: "service_name:api-server||scope_name:production" -> "api-server||production"
+        例如: "scope_name:production" -> "production"
 
         特殊处理：
         - 如果 service_name 不存在或值为空，使用 "unknown_service"
         - 如果 scope_name 不存在或值为空，使用 "default"
+
+        注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
         """
         parts = group_key.split("||")
 
@@ -1886,6 +1875,7 @@ class TimeSeriesMetric(models.Model):
                         continue
 
             if matched:
+                # 注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
                 ungroup_scope_name = (
                     field_scope.rsplit("||", 1)[0] + "||" if "||" in field_scope else UNGROUP_SCOPE_NAME
                 )
@@ -1915,6 +1905,7 @@ class TimeSeriesMetric(models.Model):
                 return scope.id
 
         # 如果没有匹配的分组，返回未分组的 scope_id
+        # 注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
         ungroup_scope_name = field_scope.rsplit("||", 1)[0] + "||" if "||" in field_scope else UNGROUP_SCOPE_NAME
         ungroup_scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=ungroup_scope_name).first()
 
@@ -2752,14 +2743,11 @@ class TimeSeriesMetric(models.Model):
             cls._ensure_target_dimension_in_tags(metric_data)
             cls._generate_table_id(metric_data, table_id)
 
-            service_name = metric_data.get("service_name")
-            field_scope = f"{service_name}||default" if service_name else "default"
-
             records_to_create.append(
                 cls(
                     table_id=metric_data["table_id"],
                     field_name=metric_data["field_name"],
-                    field_scope=field_scope,
+                    field_scope=cls.DEFAULT_SCOPE,
                     group_id=group_id,
                     scope_id=None,  # 先不设置，由update_dimension_config_from_moved_metrics处理
                     tag_list=metric_data.get("tag_list", []),
@@ -2779,7 +2767,7 @@ class TimeSeriesMetric(models.Model):
                     raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
                 scope_moves[scope].append(metric_data["field_name"])
             elif scope_name is not None:
-                scope = cls._get_or_create_scope(group_id, scope_name, service_name)
+                scope = cls._get_or_create_scope(group_id, scope_name)
                 scope_moves[scope].append(metric_data["field_name"])
 
         # 批量创建
@@ -2829,9 +2817,7 @@ class TimeSeriesMetric(models.Model):
                     scope_moves[move_key]["new_scope"] = new_scope
                     scope_moves[move_key]["field_names"].append(metric.field_name)
             elif scope_name is not None:
-                new_scope = cls._get_or_create_scope(
-                    metric.group_id, scope_name, validated_request_data.get("service_name")
-                )
+                new_scope = cls._get_or_create_scope(metric.group_id, scope_name)
 
                 # 如果scope发生变化，记录需要移动的指标
                 if metric.scope_id != new_scope.id:
@@ -2862,11 +2848,7 @@ class TimeSeriesMetric(models.Model):
                 raise ValueError("创建指标时，field_name为必填项")
 
             # 计算 field_scope
-            service_name = metric_data.get("service_name")
-            if service_name:
-                field_scope = f"{service_name}||default"
-            else:
-                field_scope = "default"
+            field_scope = cls.DEFAULT_SCOPE
 
             scope_field_names[field_scope].append(field_name)
 
@@ -2922,7 +2904,7 @@ class TimeSeriesMetric(models.Model):
         validated_request_data["table_id"] = f"{database_name}.{field_name}"
 
     @classmethod
-    def _get_or_create_scope(cls, group_id: int, scope_name: str, service_name: str = None) -> TimeSeriesScope:
+    def _get_or_create_scope(cls, group_id: int, scope_name: str) -> TimeSeriesScope:
         """获取或创建指标分组（scope）
 
         注意：空串 "" 是有效的未分组标识（UNGROUP_SCOPE_NAME），不应该被转换
@@ -2932,9 +2914,7 @@ class TimeSeriesMetric(models.Model):
         if scope_name is None:
             scope_name = cls.DEFAULT_SCOPE
 
-        final_scope_name = TimeSeriesScope.get_final_scope_name(
-            {"scope_name": scope_name, "service_name": service_name}
-        )
+        final_scope_name = scope_name
 
         scope, created = TimeSeriesScope.objects.get_or_create(
             group_id=group_id,

@@ -17,7 +17,6 @@
 | 字段           | 类型   | 必选 | 描述             |
 | -------------- | ------ | ---- |----------------|
 | scope_name | string | 是 | 指标分组名，最大长度 255 |
-| service_name | string | 否 | 服务名（APM场景使用），最大长度 255，允许为空字符串 |
 
 #### data 和 user 创建来源的删除逻辑差异
 - 对于 data 类型的 scope：清空 manual_list 和 auto_rules，并清理 dimension_config，但是会保留数据分组中指标维度的配置信息。

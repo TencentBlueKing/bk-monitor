@@ -7,8 +7,7 @@
 
 | 字段         | 类型     | 必选 | 描述                                           |
 |------------|--------|----|----------------------------------------------|
-| group_id   | int    | 否  | 自定义时序数据源 ID，对 APM 场景需要传递 scope_name 来区分不同的服务 |
-| service_name | string | 否  | 服务名（APM场景使用），最大长度 255，允许为空字符串，用于过滤特定服务的分组 |
+| group_id   | int    | 否  | 自定义时序数据源 ID                                 |
 | scope_id   | int    | 否  | 指标分组ID，如果提供了此字段，则优先使用 scope_id 进行精确查询，忽略 scope_name |
 | scope_name | string | 否  | 指标分组名，支持模糊匹配。当 scope_name 为空串时，返回的是未分组的指标                                 |
 
@@ -17,7 +16,6 @@
 ```json
 {
   "group_id": 123,
-  "service_name": "my_service",
   "scope_name": "指标分组名"
 }
 ```
