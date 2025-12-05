@@ -1307,19 +1307,6 @@ class TimeSeriesScope(models.Model):
             cls.objects.bulk_create(scopes_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
     @classmethod
-    def _common_check_scopes(cls, bk_tenant_id, scopes):
-        # 验证所有 group_id 是否存在且属于当前租户
-        group_ids = {scope["group_id"] for scope in scopes}
-        valid_groups = set(
-            TimeSeriesGroup.objects.filter(
-                time_series_group_id__in=group_ids, bk_tenant_id=bk_tenant_id, is_delete=False
-            ).values_list("time_series_group_id", flat=True)
-        )
-        invalid_group_ids = group_ids - valid_groups
-        if invalid_group_ids:
-            raise ValueError(_("自定义时序分组不存在，请确认后重试: group_ids={}").format(invalid_group_ids))
-
-    @classmethod
     def _check_single_group_id(cls, bk_tenant_id, group_id):
         """检查单个 group_id 是否存在且属于当前租户
 
@@ -1763,35 +1750,36 @@ class TimeSeriesScope(models.Model):
     def bulk_delete_scopes(
         cls,
         bk_tenant_id: str,
+        group_id: int,
         scopes: list[dict],
     ):
         """批量删除自定义时序指标分组
 
         :param bk_tenant_id: 租户ID
+        :param group_id: 自定义时序数据源ID
         :param scopes: 批量删除的分组列表，格式:
             [{
-                "group_id": 1,
                 "scope_name": "test_scope"
             }]
         """
-        cls._common_check_scopes(bk_tenant_id, scopes)
+        cls._check_single_group_id(bk_tenant_id, group_id)
 
         # 批量获取要删除的 TimeSeriesScope
         scope_conditions = Q()
-        requested_scopes = set()
+        requested_scope_names = set()
         for scope_data in scopes:
             final_scope_name = cls._get_final_scope_name(scope_data)
-            scope_conditions |= Q(group_id=scope_data["group_id"], scope_name=final_scope_name)
-            requested_scopes.add((scope_data["group_id"], final_scope_name))
+            scope_conditions |= Q(group_id=group_id, scope_name=final_scope_name)
+            requested_scope_names.add(final_scope_name)
 
         time_series_scopes = cls.objects.filter(scope_conditions)
 
         # 检查是否所有 scope 都存在
-        found_scopes = {(s.group_id, s.scope_name) for s in time_series_scopes}
-        missing_scopes = requested_scopes - found_scopes
+        found_scope_names = {s.scope_name for s in time_series_scopes}
+        missing_scope_names = requested_scope_names - found_scope_names
 
-        if missing_scopes:
-            missing_names = [f"{gid}:{name}" for gid, name in missing_scopes]
+        if missing_scope_names:
+            missing_names = [f"{name}" for name in missing_scope_names]
             raise ValueError(_("指标分组不存在，请确认后重试: {}").format(", ".join(missing_names)))
 
         # 分类处理：区分 data 类型和 user 类型

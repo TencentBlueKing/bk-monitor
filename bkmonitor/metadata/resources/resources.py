@@ -1496,9 +1496,9 @@ class DeleteTimeSeriesScopeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
 
         class ScopeSerializer(serializers.Serializer):
-            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
             scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
             service_name = serializers.CharField(
                 required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
@@ -1507,9 +1507,14 @@ class DeleteTimeSeriesScopeResource(Resource):
         scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量删除的分组列表", min_length=1)
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        group_id = validated_request_data.pop("group_id")
+        scopes = validated_request_data["scopes"]
+
         models.TimeSeriesScope.bulk_delete_scopes(
-            bk_tenant_id=validated_request_data.pop("bk_tenant_id"),
-            scopes=validated_request_data["scopes"],
+            bk_tenant_id=bk_tenant_id,
+            group_id=group_id,
+            scopes=scopes,
         )
 
 
