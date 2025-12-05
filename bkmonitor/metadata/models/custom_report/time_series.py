@@ -1088,13 +1088,9 @@ class TimeSeriesScope(models.Model):
         scope_name = scope_data.get("scope_name")
         service_name = scope_data.get("service_name")
 
-        # 处理空串的情况：将空串视为有效的未分组标识
-        # 注意：这里不需要转换为 DEFAULT_SCOPE，因为空串本身就代表未分组
-        # 但为了通过验证，我们需要在验证时特殊处理空串
-
         # todo hhh 去掉这个逻辑
         # 只有当 scope_name 不是空串时才进行验证
-        if scope_name != "":
+        if scope_name != UNGROUP_SCOPE_NAME:
             cls._validate_scope_name(scope_name)
 
         # APM 场景：如果有 service_name，使用 APM 格式
