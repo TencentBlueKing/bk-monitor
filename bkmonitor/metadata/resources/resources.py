@@ -1649,41 +1649,33 @@ class QueryTimeSeriesScopeResource(Resource):
         return query_set
 
     def _build_grouped_results(self, query_set):
-        """构建已分组指标的结果列表"""
-        from metadata.models.custom_report.time_series import TimeSeriesScope
+        """构建已分组指标的结果列表
+
+        1. 根据 scope_id 从 metric 表获取所有指标，放到 metric_list 中
+        2. 对于 default 数据分组的指标，单独放到 related_metrics 中
+        """
+        from metadata.models.custom_report.time_series import TimeSeriesMetric
 
         results = []
         for scope in query_set:
-            manual_list = set(scope.manual_list or [])
-            # 查询 manual_list 中的指标（来自 default 数据分组）
-            manual_metrics = []
-            if manual_list:
-                manual_metrics = list(
-                    models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, field_name__in=manual_list).filter(
-                        models.TimeSeriesMetric.get_default_scope_metric_filter(scope_name=scope.scope_name)
-                    )
-                )
+            # 1. 根据 scope_id 从 metric 表获取所有指标配置
+            all_metrics = list(models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, scope_id=scope.id))
+            metric_list = self._convert_metrics_to_list(all_metrics)
 
-            # 用户分组：只查询 manual_list 中的指标
-            if scope.create_from != TimeSeriesScope.CREATE_FROM_DATA:
-                metric_list = self._convert_metrics_to_list(manual_metrics)
-            else:
-                # 数据分组：查询 manual_list + 数据分组的指标
-                # 查询数据分组的指标
-                data_group_metrics = list(
-                    models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, field_scope=scope.scope_name)
-                )
+            # 2. 查询 default 数据分组的指标，放到 related_metrics 中
+            default_scope_filter = TimeSeriesMetric.get_default_scope_metric_filter(scope_name=scope.scope_name)
+            default_metrics = list(
+                models.TimeSeriesMetric.objects.filter(group_id=scope.group_id).filter(default_scope_filter)
+            )
+            related_metrics = self._convert_metrics_to_list(default_metrics)
 
-                # 合并指标
-                all_metrics = data_group_metrics + manual_metrics
-                metric_list = self._convert_metrics_to_list(all_metrics)
             results.append(
                 {
                     "scope_id": scope.id,
                     "group_id": scope.group_id,
                     "scope_name": scope.scope_name,
                     "dimension_config": scope.dimension_config,
-                    "manual_list": scope.manual_list,
+                    "related_metrics": related_metrics,
                     "auto_rules": scope.auto_rules,
                     "metric_list": metric_list,
                     "create_from": scope.create_from,
@@ -1724,7 +1716,7 @@ class QueryTimeSeriesScopeResource(Resource):
                     "group_id": gid,
                     "scope_name": "",
                     "dimension_config": dimension_config,
-                    "manual_list": [],
+                    "related_metrics": [],
                     "auto_rules": [],
                     "metric_list": metric_list,
                     "create_from": None,
