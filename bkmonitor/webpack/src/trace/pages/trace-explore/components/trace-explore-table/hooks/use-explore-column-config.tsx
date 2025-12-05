@@ -54,6 +54,8 @@ interface UseExploreTableColumnConfig {
   appName: MaybeRef<string>;
   /** 需要显示渲染的列名数组 */
   displayFields: MaybeRef<string[]>;
+  /** 是否启用点击弹出操作下拉菜单 */
+  enabledClickMenu: MaybeRef<boolean>;
   /** 缓存的列宽配置 */
   fieldsWidthConfig: MaybeRef<Record<string, number>>;
   /** 当前激活的视角(span | trace)  */
@@ -83,6 +85,7 @@ interface UseExploreTableColumnConfig {
 export const useExploreColumnConfig = ({
   appName,
   displayFields,
+  enabledClickMenu,
   sourceFieldConfigs,
   fieldsWidthConfig,
   mode,
@@ -237,6 +240,14 @@ export const useExploreColumnConfig = ({
     e: MouseEvent,
     customMenu: ExploreConditionMenuItem[]
   ) => {
+    if (!get(enabledClickMenu)) {
+      for (const menuItem of customMenu ?? []) {
+        if (['api-link', 'service-link'].includes(menuItem.id)) {
+          menuItem?.onClick?.(e);
+        }
+      }
+      return;
+    }
     const colKey = column.colKey;
     handleConditionMenuShow(e.target as HTMLElement, {
       rowId: row?.[get(rowKeyField)] || '',
