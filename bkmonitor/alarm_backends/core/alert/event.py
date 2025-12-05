@@ -15,7 +15,7 @@ import time
 from alarm_backends.constants import DEFAULT_DEDUPE_FIELDS
 from bkmonitor.documents import EventDocument
 from bkmonitor.utils.common_utils import count_md5
-from constants.alert import EventStatus, EventTargetType
+from constants.alert import EventStatus, EventTargetType, EVENT_EXTRA_TARGET_TYPE
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import LABEL_ORDER_LIST, DataTypeLabel, ResultTableLabelObj
 
@@ -222,6 +222,12 @@ class Event:
             # 取 tag 中的字段作为 key
             return self.get_tags_value(key[5:])
         # 取外层字段作为 key
+        if self.data["target_type"] in EVENT_EXTRA_TARGET_TYPE:
+            # 兼容告警目标扩展前后 告警 MD5 指纹连贯性
+            if key == "target":
+                return None
+            if key == "target_type":
+                return ""
         return self.data.get(key)
 
     def get_tags_value(self, key: str):

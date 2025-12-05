@@ -23,7 +23,7 @@ from bkmonitor.action.alert_assign import (
 )
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.range import load_condition_instance
-from constants.action import ActionNoticeType, AssignMode, UserGroupType
+from constants.action import ActionNoticeType, AssignMode, UserGroupType, NoticeWay
 
 logger = logging.getLogger("fta_action.run")
 
@@ -130,7 +130,16 @@ class AlertAssigneeManager:
             # 从通知配置中提取所有用户
             for notice_way, users in origin_receivers.items():
                 if notice_way != "wxbot_mention_users" and isinstance(users, list):
-                    notice_users.extend(users)
+                    if notice_way == NoticeWay.VOICE:
+                        # 语音通知的人员是列表的列表
+                        for user_list in users:
+                            if isinstance(user_list, list):  # 添加类型检查
+                                notice_users.extend(user_list)
+                            else:
+                                # 处理异常情况：如果不是列表，当作单个用户处理
+                                notice_users.append(user_list)
+                    else:
+                        notice_users.extend(users)
             # 去重
             notice_users = list(set(notice_users))
 
