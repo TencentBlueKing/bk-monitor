@@ -126,7 +126,7 @@ class LogCollectorHandler:
             item["parent_index_sets"] = parent_index_group_map.get(str(item["index_set_id"]), [])
 
     @staticmethod
-    def fill_container_collector_type(data):
+    def fill_container_fields(data):
         """
         补充容器采集类型字段
         """
@@ -135,10 +135,12 @@ class LogCollectorHandler:
 
         collector_type_mappings = {}
         for container_config in container_configs:
-            collector_type_mappings[container_config.collector_config_id] = container_config.collector_type
+            collector_type_mappings[container_config.collector_config_id] = container_config
 
         for item in data:
-            item["container_collector_type"] = collector_type_mappings.get(item["collector_config_id"], "")
+            if container_config := collector_type_mappings.get(item["collector_config_id"]):
+                item["container_collector_type"] = container_config.collector_type
+                item["params"] = container_config.params
 
     @staticmethod
     def filter_data_by_access_types(data, log_access_type_list):
@@ -246,7 +248,7 @@ class LogCollectorHandler:
 
         collector_configs = qs.values()
         collector_configs = CollectorHandler.add_cluster_info(collector_configs)
-        self.fill_container_collector_type(collector_configs)
+        self.fill_container_fields(collector_configs)
 
         if log_access_type_list:
             collector_configs = self.filter_data_by_access_types(collector_configs, log_access_type_list)
