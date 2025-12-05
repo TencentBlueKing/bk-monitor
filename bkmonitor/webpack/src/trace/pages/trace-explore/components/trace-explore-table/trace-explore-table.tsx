@@ -138,6 +138,16 @@ export default defineComponent({
         descending: null,
       }),
     },
+    /** 是否启用点击弹出操作下拉菜单 */
+    enabledClickMenu: {
+      type: Boolean,
+      default: true,
+    },
+    /** 是否启用可配置表格渲染列字段功能 */
+    enabledDisplayFieldSetting: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: {
     /** 筛选条件改变后触发的回调 */
@@ -260,6 +270,7 @@ export default defineComponent({
       rowKeyField: tableRowKeyField,
       sortContainer: toRef(props, 'sortContainer'),
       sourceFieldConfigs: toRef(props, 'sourceFieldConfigs'),
+      enabledClickMenu: toRef(props, 'enabledClickMenu'),
       tableHeaderCellRender,
       tableCellRender,
       handleConditionMenuShow,
@@ -579,7 +590,7 @@ export default defineComponent({
       setTimeout(() => {
         initEllipsisListeners();
         initHeaderDescritionListeners();
-        initConditionMenuListeners();
+        props.enabledClickMenu && initConditionMenuListeners();
       }, 300);
     });
 
@@ -625,32 +636,35 @@ export default defineComponent({
               />
             ),
           }}
+          // @ts-expect-error
           columns={[
-            // @ts-expect-error
             ...this.tableDisplayColumns,
-            {
-              width: '32px',
-              minWidth: '32px',
-              fixed: 'right',
-              align: 'center',
-              resizable: false,
-              thClassName: '__table-custom-setting-col__',
-              colKey: '__col_setting__',
-              // @ts-expect-error
-              title: () => {
-                return (
-                  <ExploreFieldSetting
-                    class='table-field-setting'
-                    fixedDisplayList={[this.tableRowKeyField]}
-                    sourceList={this.tableColumns.fieldList}
-                    sourceMap={this.tableColumns.fieldMap}
-                    targetList={this.displayFields}
-                    onConfirm={displayFields => this.$emit('displayFieldChange', displayFields)}
-                  />
-                );
-              },
-              cell: () => undefined,
-            },
+            ...(this.enabledDisplayFieldSetting
+              ? [
+                  {
+                    width: '32px',
+                    minWidth: '32px',
+                    fixed: 'right',
+                    align: 'center',
+                    resizable: false,
+                    thClassName: '__table-custom-setting-col__',
+                    colKey: '__col_setting__',
+                    title: () => {
+                      return (
+                        <ExploreFieldSetting
+                          class='table-field-setting'
+                          fixedDisplayList={[this.tableRowKeyField]}
+                          sourceList={this.tableColumns.fieldList}
+                          sourceMap={this.tableColumns.fieldMap}
+                          targetList={this.displayFields}
+                          onConfirm={displayFields => this.$emit('displayFieldChange', displayFields)}
+                        />
+                      );
+                    },
+                    cell: () => undefined,
+                  },
+                ]
+              : []),
           ]}
           headerAffixedTop={{
             container: this.scrollContainerSelector,
