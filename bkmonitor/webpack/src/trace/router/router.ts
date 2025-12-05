@@ -25,6 +25,7 @@
  */
 import { createRouter, createWebHashHistory } from 'vue-router';
 
+import alarmCenterRoutes from './modules/alarm-center';
 import alarmShield from './modules/alarm-shield';
 import Report from './modules/email-subscription';
 import failureRoutes from './modules/failure';
@@ -35,12 +36,18 @@ import rotationRoutes from './modules/rotation';
 const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    ...[...homeRoutes, ...alarmShield, ...rotationRoutes, ...profilingRoutes, ...Report, ...failureRoutes].map(
-      item => ({
-        ...item,
-        path: `${window.__BK_WEWEB_DATA__?.parentRoute || '/'}${item.path}`.replace(/\/\//gim, '/'),
-      })
-    ),
+    ...[
+      ...homeRoutes,
+      ...alarmShield,
+      ...rotationRoutes,
+      ...profilingRoutes,
+      ...Report,
+      ...failureRoutes,
+      ...alarmCenterRoutes,
+    ].map(item => ({
+      ...item,
+      path: `${window.__BK_WEWEB_DATA__?.parentRoute || '/'}${item.path}`.replace(/\/\//gim, '/'),
+    })),
     {
       path: '/:pathMatch(.*)',
       redirect: {

@@ -1,0 +1,47 @@
+.time-select {
+  width: 272px;
+
+  &-custom {
+    display: flex;
+    align-items: center;
+
+    .custom-text {
+      display: flex;
+      align-items: center;
+      // margin-top: 6px;
+      padding: 0 16px;
+      height: 32px;
+      cursor: pointer;
+      width: 100%;
+
+      &:hover {
+        cursor: pointer;
+        color: #3a84ff;
+        background-color: #eaf3ff;
+      }
+    }
+
+    .time-input-wrap {
+      display: flex;
+      padding: 0 16px;
+      align-items: center;
+      width: 100%;
+      position: relative;
+      height: 32px;
+
+      .help-icon {
+        font-size: 12px;
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        transform: translateY(-50%);
+
+        &:hover {
+          cursor: pointer;
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+}

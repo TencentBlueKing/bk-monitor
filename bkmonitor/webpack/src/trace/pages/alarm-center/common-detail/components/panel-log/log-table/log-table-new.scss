@@ -1,0 +1,33 @@
+/* stylelint-disable selector-class-pattern */
+.alarm-detail-log-table-new {
+  .panel-log-log-table {
+    .col-th {
+      .t-table__cell--title {
+        & > div {
+          overflow: hidden;
+        }
+      }
+    }
+
+    .col-title {
+      display: flex;
+      align-items: center;
+
+      .col-title-field-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        font-size: 14px;
+        border-radius: 2px;
+      }
+
+      .col-title-field-alias {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  }
+}
