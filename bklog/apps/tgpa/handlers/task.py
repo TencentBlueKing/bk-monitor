@@ -104,9 +104,11 @@ class TGPATaskHandler:
         """
         result_list = []
         for task in task_list:
+            # id 为数据库自增ID，task_id 为后台任务ID
             result_list.append(
                 {
                     "id": task["id"],
+                    "task_id": task["go_svr_task_id"],
                     "bk_biz_id": task["cc_id"],
                     "task_name": task["name"],
                     "log_path": task["log_path"],
