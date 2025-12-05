@@ -206,6 +206,12 @@ class Event:
         self._dedupe_values = []
         for key in self.dedupe_keys:
             value = self.get_field(key)
+            if self.data["target_type"] in EVENT_EXTRA_TARGET_TYPE:
+                # 兼容告警目标扩展前后 告警 MD5 指纹连贯性
+                if key == "target":
+                    value = None
+                if key == "target_type":
+                    value = ""
             self._dedupe_values.append(value)
 
         self.data["dedupe_md5"] = count_md5(self._dedupe_values)
@@ -222,12 +228,6 @@ class Event:
             # 取 tag 中的字段作为 key
             return self.get_tags_value(key[5:])
         # 取外层字段作为 key
-        if self.data["target_type"] in EVENT_EXTRA_TARGET_TYPE:
-            # 兼容告警目标扩展前后 告警 MD5 指纹连贯性
-            if key == "target":
-                return None
-            if key == "target_type":
-                return ""
         return self.data.get(key)
 
     def get_tags_value(self, key: str):
