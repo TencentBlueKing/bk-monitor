@@ -1703,7 +1703,7 @@ class TimeSeriesScope(models.Model):
         if metrics_to_update:
             for metric in metrics_to_update:
                 # 重新计算 scope_id
-                new_scope_id = TimeSeriesMetric._get_scope_id_for_metric(
+                new_scope_id = TimeSeriesMetric.get_scope_id_for_metric(
                     group_id=metric.group_id,
                     field_scope=metric.field_scope,
                     field_name=metric.field_name,
@@ -1880,7 +1880,7 @@ class TimeSeriesMetric(models.Model):
         return f"{service_name}||{scope_name}"
 
     @classmethod
-    def _get_scope_id_for_metric(cls, group_id: int, field_scope: str, field_name: str) -> int | None:
+    def get_scope_id_for_metric(cls, group_id: int, field_scope: str, field_name: str) -> int | None:
         """获取指标对应的 scope_id
 
         :param group_id: 分组ID
@@ -2001,7 +2001,7 @@ class TimeSeriesMetric(models.Model):
 
         # 为每个 metric 记录设置 scope_id
         for record in records:
-            scope_id = cls._get_scope_id_for_metric(
+            scope_id = cls.get_scope_id_for_metric(
                 group_id=group_id, field_scope=record.field_scope, field_name=record.field_name
             )
             record.scope_id = scope_id
@@ -2161,7 +2161,7 @@ class TimeSeriesMetric(models.Model):
 
         # 为每个需要更新的 metric 记录设置 scope_id
         for record in records:
-            scope_id = cls._get_scope_id_for_metric(
+            scope_id = cls.get_scope_id_for_metric(
                 group_id=group_id, field_scope=record.field_scope, field_name=record.field_name
             )
             record.scope_id = scope_id

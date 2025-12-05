@@ -1623,8 +1623,11 @@ class QueryTimeSeriesScopeResource(Resource):
         # 按 service_name 和 scope_name 过滤
         # 对于 APM 场景，scope_name 的格式为 {service_name}||{scope_name}
         if service_name and scope_name:
-            # 同时指定了 service_name 和 scope_name，匹配 {service_name}||{scope_name}
-            query_set = query_set.filter(scope_name__istartswith=f"{service_name}||", scope_name__icontains=scope_name)
+            # 同时指定了 service_name 和 scope_name，匹配 {service_name}||{scope_name} 格式
+            # 使用精确匹配或模糊匹配 scope_name 部分
+            query_set = query_set.filter(scope_name__istartswith=f"{service_name}||").filter(
+                scope_name__icontains=scope_name
+            )
         elif service_name:
             # 仅指定了 service_name，匹配以 {service_name}|| 开头的所有分组
             query_set = query_set.filter(scope_name__istartswith=f"{service_name}||")
@@ -1646,23 +1649,13 @@ class QueryTimeSeriesScopeResource(Resource):
     def _build_grouped_results(self, query_set):
         """构建已分组指标的结果列表
 
-        1. 根据 scope_id 从 metric 表获取所有指标，放到 metric_list 中
-        2. 对于 default 数据分组的指标，单独放到 related_metrics 中
+        根据 scope_id 从 metric 表获取所有指标，放到 metric_list 中
         """
-        from metadata.models.custom_report.time_series import TimeSeriesMetric
-
         results = []
         for scope in query_set:
-            # 1. 根据 scope_id 从 metric 表获取所有指标配置
+            # 根据 scope_id 从 metric 表获取所有指标配置
             all_metrics = list(models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, scope_id=scope.id))
             metric_list = self._convert_metrics_to_list(all_metrics)
-
-            # 2. 查询 default 数据分组的指标，放到 related_metrics 中
-            default_scope_filter = TimeSeriesMetric.get_default_scope_metric_filter(scope_name=scope.scope_name)
-            default_metrics = list(
-                models.TimeSeriesMetric.objects.filter(group_id=scope.group_id).filter(default_scope_filter)
-            )
-            related_metrics = self._convert_metrics_to_list(default_metrics)
 
             results.append(
                 {
@@ -1670,7 +1663,6 @@ class QueryTimeSeriesScopeResource(Resource):
                     "group_id": scope.group_id,
                     "scope_name": scope.scope_name,
                     "dimension_config": scope.dimension_config,
-                    "related_metrics": related_metrics,
                     "auto_rules": scope.auto_rules,
                     "metric_list": metric_list,
                     "create_from": scope.create_from,
@@ -1681,20 +1673,15 @@ class QueryTimeSeriesScopeResource(Resource):
     def _build_ungrouped_results(self, group_ids, scope_name):
         """构建未分组指标的结果列表
 
-        未分组下的指标 = default 数据分组的指标 - 所有 manual_list
+        未分组下的指标：scope_id 指向 scope_name 为空串的 TimeSeriesScope 的指标
         :param group_ids: 自定义时序数据源ID列表
         :param scope_name: 指标分组名，用于确定 default 数据分组的 scope
         """
-        from metadata.models.custom_report.time_series import TimeSeriesScope
         from metadata.models.constants import UNGROUP_SCOPE_NAME
 
         results = []
         for gid in group_ids:
-            # 获取未分组指标的 QuerySet
-            ungrouped_metrics_qs = TimeSeriesScope.get_ungrouped_metrics_qs(gid, scope_name=scope_name)
-            metric_list = self._convert_metrics_to_list(ungrouped_metrics_qs)
-
-            # 查询未分组的维度配置
+            # 查询未分组的 scope（scope_name 为空串或 {service_name}||）
             if "||" in scope_name:
                 # APM 场景：提取 service_name，构建未分组的 scope_name
                 db_scope_name = scope_name.rsplit("||", 1)[0] + "||"
@@ -1703,7 +1690,16 @@ class QueryTimeSeriesScopeResource(Resource):
                 db_scope_name = UNGROUP_SCOPE_NAME
 
             ungrouped_scope = models.TimeSeriesScope.objects.filter(group_id=gid, scope_name=db_scope_name).first()
-            dimension_config = ungrouped_scope.dimension_config if ungrouped_scope else {}
+
+            # 如果未分组 scope 存在，查询其下的指标
+            if ungrouped_scope:
+                ungrouped_metrics_qs = models.TimeSeriesMetric.objects.filter(group_id=gid, scope_id=ungrouped_scope.id)
+                metric_list = self._convert_metrics_to_list(ungrouped_metrics_qs)
+                dimension_config = ungrouped_scope.dimension_config or {}
+            else:
+                # 如果未分组 scope 不存在，返回空列表
+                metric_list = []
+                dimension_config = {}
 
             results.append(
                 {
@@ -1711,7 +1707,6 @@ class QueryTimeSeriesScopeResource(Resource):
                     "group_id": gid,
                     "scope_name": "",
                     "dimension_config": dimension_config,
-                    "related_metrics": [],
                     "auto_rules": [],
                     "metric_list": metric_list,
                     "create_from": None,
