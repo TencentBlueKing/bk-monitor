@@ -635,7 +635,7 @@ class ModifyCustomTsFields(Resource):
             field_id = serializers.IntegerField(label=_("字段 ID"), required=False)
             name = serializers.CharField(required=True, label=_("字段名"))
             type = serializers.CharField(required=True, label=_("字段类型"))
-            description = serializers.CharField(required=False, label=_("字段描述"), allow_blank=True)
+            alias = serializers.CharField(required=False, label=_("字段别名"), allow_blank=True)
             disabled = serializers.BooleanField(required=False, label=_("是否禁用"))
 
             # 维度属性
