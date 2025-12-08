@@ -565,7 +565,7 @@ class SpanNode:
             # so search the index from the end of the list
             # TODO: too many parallels would cause performance issue
             for i in range(len(self.children) - 1, -1, -1):
-                # Q：Why use <= here?
+                # Q: Why use <= here?
                 # A: When the span duration is 0, start_time == end_time.
                 #    Using < would cause the "virtual return node" to be inserted before the original span,
                 #    which breaks the original call-return order.
