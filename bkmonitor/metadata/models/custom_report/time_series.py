@@ -1010,7 +1010,7 @@ class TimeSeriesScope(models.Model):
     """
 
     DimensionConfigFields = [
-        "desc",  # 字段描述
+        "alias",  # 字段别名
         "common",  # 常用维度
         "hidden",  # 显隐
     ]
@@ -1685,7 +1685,7 @@ class TimeSeriesMetric(models.Model):
     )
 
     MetricConfigFields = [
-        "desc",  # 别名
+        "alias",  # 别名
         "unit",  # 单位
         "hidden",  # 显隐
         "aggregate_method",  # 常用聚合方法
@@ -2532,7 +2532,7 @@ class TimeSeriesMetric(models.Model):
         返回格式:
          {
             "field_name": "mem_usage",
-            "description": "mem_usage_2",  # 优先使用 field_config["desc"]
+            "description": "mem_usage_2",  # 优先使用 field_config["alias"]
             "unit": "M",  # 优先使用 field_config["unit"]
             "type": "double",
             "label": "service-k8s",
@@ -2597,7 +2597,7 @@ class TimeSeriesMetric(models.Model):
         返回格式:
          {
             "field_name": "mem_usage",
-            "description": "mem_usage_2",  # 优先使用 field_config["desc"]
+            "description": "mem_usage_2",  # 优先使用 field_config["alias"]
             "unit": "M",  # 优先使用 field_config["unit"]
             "type": "double",
             "is_disabled": false,
@@ -2655,9 +2655,9 @@ class TimeSeriesMetric(models.Model):
 
     def _fill_metric_info_result(self, orm_field_map, result):
         field_config = self.field_config or {}
-        # desc 字段：优先使用 field_config 中的 desc
-        if "desc" in field_config:
-            result["description"] = field_config["desc"]
+        # alias 字段：优先使用 field_config 中的 alias
+        if "alias" in field_config:
+            result["description"] = field_config["alias"]
         # unit 字段：优先使用 field_config 中的 unit
         if "unit" in field_config:
             result["unit"] = field_config["unit"]

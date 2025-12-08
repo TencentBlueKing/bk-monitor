@@ -1678,21 +1678,12 @@ class QueryTimeSeriesScopeResource(Resource):
         """将指标对象列表转换为字典列表"""
         metric_list = []
         for metric in metrics:
-            field_config = metric.field_config or {}
             metric_info = {
                 "metric_name": metric.field_name,
                 "field_id": metric.field_id,
                 "field_scope": metric.field_scope,
                 "tag_list": metric.tag_list,
-                "field_config": {
-                    "desc": field_config.get("desc", ""),
-                    "unit": field_config.get("unit", ""),
-                    "hidden": field_config.get("hidden", False),
-                    "aggregate_method": field_config.get("aggregate_method", ""),
-                    "function": field_config.get("function", ""),
-                    "interval": field_config.get("interval", 0),
-                    "disabled": field_config.get("disabled", False),
-                },
+                "field_config": metric.field_config or {},
                 "create_time": metric.create_time.timestamp() if metric.create_time else None,
                 "last_modify_time": metric.last_modify_time.timestamp() if metric.last_modify_time else None,
             }

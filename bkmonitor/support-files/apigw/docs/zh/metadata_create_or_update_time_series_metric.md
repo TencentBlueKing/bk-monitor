@@ -33,7 +33,7 @@
 
 | 字段         | 类型   | 必选 |
 |------------|------|-----|
-| desc       | string | 否  |
+| alias       | string | 否  |
 | unit       | string | 否  |
 | hidden     | bool | 否  |
 | aggregate_method | string | 否  |
@@ -51,7 +51,7 @@
       "field_id": 123,
       "tag_list": ["hostname", "cluster", "region"],
       "field_config": {
-        "desc": "CPU使用率（更新）",
+        "alias": "CPU使用率（更新）",
         "unit": "percent",
         "aggregate_method": "avg"
       }
@@ -60,7 +60,7 @@
       "field_name": "disk_usage",
       "tag_list": ["hostname", "mount_point"],
       "field_config": {
-        "desc": "磁盘使用率",
+        "alias": "磁盘使用率",
         "unit": "percent",
         "aggregate_method": "avg",
         "interval": 60
@@ -71,7 +71,7 @@
       "field_name": "api_latency",
       "tag_list": ["hostname", "endpoint"],
       "field_config": {
-        "desc": "API延迟",
+        "alias": "API延迟",
         "unit": "ms",
         "aggregate_method": "avg"
       },

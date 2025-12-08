@@ -60,15 +60,15 @@ data 为列表类型，包含所有匹配的结果
 
 #### field_config 配置对象字段说明
 
-| 字段               | 类型     | 描述                   |
-|------------------|--------|----------------------|
-| desc             | string | 指标描述                 |
-| unit             | string | 指标单位                 |
-| hidden           | bool   | 是否隐藏                 |
+| 字段               | 类型     | 描述                    |
+|------------------|--------|-----------------------|
+| alias             | string | 指标别名                  |
+| unit             | string | 指标单位                  |
+| hidden           | bool   | 是否隐藏                  |
 | aggregate_method | string | 聚合方法（如 avg、sum、max 等） |
-| function         | string | 常用聚合函数               |
-| interval         | int    | 默认聚合周期（秒）            |
-| disabled         | bool   | 是否禁用                 |
+| function         | string | 常用聚合函数                |
+| interval         | int    | 默认聚合周期（秒）             |
+| disabled         | bool   | 是否禁用                  |
 
 #### dimension_config 配置对象字段说明
 
@@ -76,7 +76,7 @@ data 为列表类型，包含所有匹配的结果
 
 | 字段     | 类型     | 描述      |
 |--------|--------|---------|
-| desc   | string | 维度描述    |
+| alias   | string | 维度别名    |
 | common | bool   | 是否为常用维度 |
 | hidden | bool   | 是否隐藏该维度 |
 
@@ -93,12 +93,12 @@ data 为列表类型，包含所有匹配的结果
       "scope_name": "指标分组名1",
       "dimension_config": {
         "dimension1": {
-          "desc": "维度1描述",
+          "alias": "维度1别名",
           "common": true,
           "hidden": false
         },
         "dimension2": {
-          "desc": "维度2描述",
+          "alias": "维度2别名",
           "common": false,
           "hidden": false
         }
@@ -116,7 +116,7 @@ data 为列表类型，包含所有匹配的结果
             "dimension2"
           ],
           "field_config": {
-            "desc": "指标1描述",
+            "alias": "指标1别名",
             "unit": "ms",
             "hidden": false,
             "aggregate_method": "avg",
@@ -135,7 +135,7 @@ data 为列表类型，包含所有匹配的结果
             "dimension1"
           ],
           "field_config": {
-            "desc": "指标2描述",
+            "alias": "指标2别名",
             "unit": "count",
             "hidden": false,
             "aggregate_method": "sum",
