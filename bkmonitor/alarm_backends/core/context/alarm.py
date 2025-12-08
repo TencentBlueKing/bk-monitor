@@ -46,8 +46,6 @@ from ...service.converge.shield.shielder import AlertShieldConfigShielder
 from . import BaseContextObject
 from .utils import context_field_timer
 
-FIVE_MIN_SECONDS = 5 * 60
-
 logger = logging.getLogger("fta_action.run")
 
 
@@ -1031,7 +1029,7 @@ class Alarm(BaseContextObject):
                 where.append({"key": key, "method": "eq", "value": [value or ""], "condition": "and"})
         query_filter["where"] = where
 
-        offset: int = FIVE_MIN_SECONDS * 1000
+        offset: int = 5 * 60 * 1000
         create_timestamp: int = alert.event.time
         params: dict[str, Any] = {
             "targets": json.dumps([{"data": {"query_configs": [query_filter]}}]),
