@@ -26,7 +26,7 @@
 
 import { defineComponent, shallowRef, watch } from 'vue';
 
-import { PrimaryTable } from '@blueking/tdesign-ui';
+import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 
@@ -55,8 +55,8 @@ export default defineComponent({
     const loading = shallowRef(false);
     const { tableData, tableColumns, fieldsDataToColumns } = useTable();
     const offset = shallowRef(0);
-
     const fieldsData = shallowRef(null);
+    const expandedRowKeys = shallowRef([]);
 
     watch(
       () => props.refreshKey,
@@ -66,7 +66,8 @@ export default defineComponent({
           fieldsData.value = await getFieldsData();
           console.log(fieldsData.value);
           fieldsDataToColumns(fieldsData.value?.fields || []);
-          await getTableData();
+          const data = await getTableData();
+          tableData.value = data?.list || [];
           loading.value = false;
         }
       },
@@ -85,11 +86,27 @@ export default defineComponent({
       return res;
     };
 
+    const handleExpandChange = (keys: (number | string)[]) => {
+      expandedRowKeys.value = keys;
+    };
+
+    const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row }): any => {
+      return <div class='table-expand-content'>xxxx</div>;
+    });
+
+    const expandIcon = shallowRef<TdPrimaryTableProps['expandIcon']>((_h, { _row }): any => {
+      return <span class='icon-monitor icon-mc-arrow-right table-expand-icon' />;
+    });
+
     return {
       tableData,
       tableColumns,
       loading,
       offset,
+      expandedRowKeys,
+      expandedRow,
+      expandIcon,
+      handleExpandChange,
     };
   },
   render() {
@@ -102,7 +119,16 @@ export default defineComponent({
             class='panel-log-log-table'
             columns={this.tableColumns}
             data={this.tableData}
+            expandedRow={this.expandedRow}
+            expandedRowKeys={this.expandedRowKeys}
+            expandIcon={this.expandIcon}
+            expandOnRowClick={true}
+            horizontalScrollAffixedBottom={true}
+            needCustomScroll={false}
             resizable={true}
+            rowKey={'__id__'}
+            size={'small'}
+            onExpandChange={this.handleExpandChange}
           >
             {{
               empty: () => <EmptyStatus type={'empty'} />,
