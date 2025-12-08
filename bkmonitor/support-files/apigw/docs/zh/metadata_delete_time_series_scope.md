@@ -9,15 +9,14 @@
 
 | 字段           | 类型   | 必选 | 描述        |
 | -------------- | ------ | ---- | ----------- |
+| group_id | int | 是 | 自定义时序数据源 ID |
 | scopes | list | 是 | 批量删除的分组列表，至少包含一个分组 |
 
 #### scopes 列表项字段说明
 
 | 字段           | 类型   | 必选 | 描述             |
 | -------------- | ------ | ---- |----------------|
-| group_id | int | 是 | 自定义时序数据源 ID    |
 | scope_name | string | 是 | 指标分组名，最大长度 255 |
-| service_name | string | 否 | 服务名（APM场景使用），最大长度 255，允许为空字符串 |
 
 #### data 和 user 创建来源的删除逻辑差异
 - 对于 data 类型的 scope：清空 manual_list 和 auto_rules，并清理 dimension_config，但是会保留数据分组中指标维度的配置信息。
@@ -27,13 +26,12 @@
 
 ```json
 {
+	"group_id": 123,
 	"scopes": [
 		{
-			"group_id": 123,
 			"scope_name": "指标分组名1"
 		},
 		{
-			"group_id": 123,
 			"scope_name": "指标分组名2"
 		}
 	]

@@ -1412,6 +1412,41 @@ class QueryTimeSeriesGroupResource(Resource):
         return list(chain.from_iterable(instance.to_json_v2() for instance in query_set))
 
 
+class CreateOrUpdateTimeSeriesMetricResource(Resource):
+    """批量创建或更新自定义时序指标"""
+
+    class RequestSerializer(serializers.Serializer):
+        class MetricSerializer(serializers.Serializer):
+            """单个指标的序列化器"""
+
+            field_id = serializers.IntegerField(required=False, label="字段ID")
+            field_name = serializers.CharField(required=False, label="指标字段名称", max_length=255)
+            tag_list = serializers.ListField(
+                required=False, label="Tag列表", child=serializers.CharField(), allow_null=True
+            )
+            field_config = serializers.DictField(required=False, label="字段其他配置", allow_null=True)
+            label = serializers.CharField(required=False, label="指标监控对象", max_length=255, allow_null=True)
+            scope_id = serializers.IntegerField(required=False, label="指标分组ID", allow_null=True)
+            scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255, allow_blank=True)
+
+        bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+        metrics = serializers.ListField(
+            required=True,
+            label="批量指标列表",
+            child=MetricSerializer(),
+            allow_empty=False,
+        )
+
+    def perform_request(self, validated_request_data):
+        """执行批量创建或更新时序指标的请求"""
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        group_id = validated_request_data.pop("group_id")
+        metrics = validated_request_data.pop("metrics")
+
+        models.TimeSeriesMetric.batch_create_or_update(metrics, bk_tenant_id, group_id)
+
+
 class CreateOrUpdateTimeSeriesScopeResource(Resource):
     """
     批量创建或更新自定义时序指标分组
@@ -1420,22 +1455,13 @@ class CreateOrUpdateTimeSeriesScopeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
 
         class ScopeSerializer(serializers.Serializer):
             scope_id = serializers.IntegerField(required=False, label="指标分组ID")
-            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
-            service_name = serializers.CharField(
-                required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
-            )
             scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255)
             dimension_config = serializers.DictField(required=False, allow_null=True, label="分组下的维度配置")
-            manual_list = serializers.ListField(required=False, label="手动分组的指标列表")
             auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
-            # 是否删除不再匹配 manual_list 和 auto_rules 的 dimension_config
-            # 对于导入分组场景来说，这个字段应该为 False，否则可能由于无法匹配而导入失败
-            delete_unmatched_dimensions = serializers.BooleanField(
-                required=False, default=False, label="是否删除不再匹配的维度配置（仅更新时生效）"
-            )
 
         scopes = serializers.ListField(
             required=True, child=ScopeSerializer(), label="批量创建或更新的分组列表", min_length=1
@@ -1443,11 +1469,13 @@ class CreateOrUpdateTimeSeriesScopeResource(Resource):
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        group_id = validated_request_data.pop("group_id")
         scopes = validated_request_data["scopes"]
 
         # 使用统一的事务方法批量创建或更新
         results = models.TimeSeriesScope.bulk_create_or_update_scopes(
             bk_tenant_id=bk_tenant_id,
+            group_id=group_id,
             scopes=scopes,
         )
 
@@ -1461,20 +1489,22 @@ class DeleteTimeSeriesScopeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
 
         class ScopeSerializer(serializers.Serializer):
-            group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
             scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
-            service_name = serializers.CharField(
-                required=False, label="服务名（APM场景使用）", max_length=255, allow_blank=True
-            )
 
         scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量删除的分组列表", min_length=1)
 
     def perform_request(self, validated_request_data):
+        bk_tenant_id = validated_request_data.pop("bk_tenant_id")
+        group_id = validated_request_data.pop("group_id")
+        scopes = validated_request_data["scopes"]
+
         models.TimeSeriesScope.bulk_delete_scopes(
-            bk_tenant_id=validated_request_data.pop("bk_tenant_id"),
-            scopes=validated_request_data["scopes"],
+            bk_tenant_id=bk_tenant_id,
+            group_id=group_id,
+            scopes=scopes,
         )
 
 
@@ -1487,48 +1517,39 @@ class QueryTimeSeriesScopeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
-        group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
-        service_name = serializers.CharField(
-            required=False, label="服务名（APM场景使用，约定必须传递）", max_length=255, allow_blank=True
-        )
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+        scope_id = serializers.IntegerField(required=False, label="指标分组ID")
         scope_name = serializers.CharField(required=False, label="指标分组名", allow_blank=True)
 
     def perform_request(self, validated_request_data):
-        from metadata.models.custom_report.time_series import TimeSeriesMetric
-
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         group_id = validated_request_data.get("group_id")
+        scope_id = validated_request_data.get("scope_id")
         scope_name = validated_request_data.get("scope_name")
-        service_name = validated_request_data.get("service_name")
 
-        # 构建用于查询未分组指标的 scope_name
-        # 如果有 service_name，使用 {service_name}||default；否则使用 default
-        if service_name:
-            ungrouped_scope_name = f"{service_name}||{TimeSeriesMetric.DEFAULT_SCOPE}"
-        else:
-            ungrouped_scope_name = TimeSeriesMetric.DEFAULT_SCOPE
+        # 如果存在 scope_id，则优先使用 scope_id，否则使用 scope_name
+        if scope_id is not None:
+            scope_name = None  # 使用 scope_id 时忽略 scope_name
 
         # 判断查询类型
         is_query_only_ungrouped = scope_name == ""  # 仅查询未分组
-        is_include_ungrouped = scope_name is None  # 包含未分组
+        is_include_ungrouped = scope_name is None and scope_id is None  # 包含未分组
 
-        # 验证 group_id 的有效性（如果提供）
-        if group_id is not None:
-            self._validate_group_id(group_id, bk_tenant_id)
+        self._validate_group_id(group_id, bk_tenant_id)
 
         # 场景1：仅查询未分组指标
         if is_query_only_ungrouped:
             group_ids = self._get_target_group_ids(group_id, bk_tenant_id)
-            return self._build_ungrouped_results(group_ids, ungrouped_scope_name)
+            return self._build_ungrouped_results(group_ids)
 
         # 场景2：查询已分组指标
-        query_set = self._build_scope_queryset(group_id, scope_name, bk_tenant_id, service_name)
+        query_set = self._build_scope_queryset(group_id, scope_id, scope_name, bk_tenant_id)
         results = self._build_grouped_results(query_set)
 
-        # 场景3：追加未分组指标（当 scope_name 为 None 时）
+        # 场景3：追加未分组指标（当 scope_name 为 None 且 scope_id 为 None 时）
         if is_include_ungrouped:
             group_ids = self._get_target_group_ids(group_id, bk_tenant_id)
-            results.extend(self._build_ungrouped_results(group_ids, ungrouped_scope_name))
+            results.extend(self._build_ungrouped_results(group_ids))
 
         return results
 
@@ -1552,10 +1573,11 @@ class QueryTimeSeriesScopeResource(Resource):
         )
 
     @staticmethod
-    def _build_scope_queryset(group_id, scope_name, bk_tenant_id, service_name=None):
+    def _build_scope_queryset(group_id, scope_id, scope_name, bk_tenant_id):
         """构建 TimeSeriesScope 查询集
 
         当 scope_name 为 None 时（包含未分组场景），会排除空串分组，避免与未分组指标重复
+        如果提供了 scope_id，则优先使用 scope_id 进行精确查询，忽略 scope_name
         """
         from metadata.models.constants import UNGROUP_SCOPE_NAME
 
@@ -1571,65 +1593,39 @@ class QueryTimeSeriesScopeResource(Resource):
             ).values_list("time_series_group_id", flat=True)
             query_set = query_set.filter(group_id__in=valid_group_ids)
 
-        # 按 service_name 和 scope_name 过滤
-        # 对于 APM 场景，scope_name 的格式为 {service_name}||{scope_name}
-        if service_name and scope_name:
-            # 同时指定了 service_name 和 scope_name，匹配 {service_name}||{scope_name}
-            query_set = query_set.filter(scope_name__istartswith=f"{service_name}||", scope_name__icontains=scope_name)
-        elif service_name:
-            # 仅指定了 service_name，匹配以 {service_name}|| 开头的所有分组
-            query_set = query_set.filter(scope_name__istartswith=f"{service_name}||")
-        elif scope_name:
-            # 仅指定了 scope_name，模糊匹配
+        # 如果提供了 scope_id，优先使用 scope_id 进行精确查询
+        if scope_id is not None:
+            query_set = query_set.filter(id=scope_id)
+            return query_set
+
+        # 按 scope_name 过滤
+        if scope_name:
+            # 模糊匹配 scope_name
             query_set = query_set.filter(scope_name__icontains=scope_name)
 
         # 当 scope_name 为 None 时（包含未分组场景），排除空串分组，避免与未分组指标重复
         if scope_name is None:
-            if service_name:
-                # APM 场景：排除 {service_name}|| 格式的空串分组
-                query_set = query_set.exclude(scope_name=f"{service_name}||")
-            else:
-                # 非 APM 场景：排除空字符串分组
-                query_set = query_set.exclude(scope_name=UNGROUP_SCOPE_NAME)
+            query_set = query_set.exclude(scope_name=UNGROUP_SCOPE_NAME)
 
         return query_set
 
     def _build_grouped_results(self, query_set):
-        """构建已分组指标的结果列表"""
-        from metadata.models.custom_report.time_series import TimeSeriesScope
+        """构建已分组指标的结果列表
 
+        根据 scope_id 从 metric 表获取所有指标，放到 metric_list 中
+        """
         results = []
         for scope in query_set:
-            manual_list = set(scope.manual_list or [])
-            # 查询 manual_list 中的指标（来自 default 数据分组）
-            manual_metrics = []
-            if manual_list:
-                manual_metrics = list(
-                    models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, field_name__in=manual_list).filter(
-                        models.TimeSeriesMetric.get_default_scope_metric_filter(scope_name=scope.scope_name)
-                    )
-                )
+            # 根据 scope_id 从 metric 表获取所有指标配置
+            all_metrics = list(models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, scope_id=scope.id))
+            metric_list = self._convert_metrics_to_list(all_metrics)
 
-            # 用户分组：只查询 manual_list 中的指标
-            if scope.create_from != TimeSeriesScope.CREATE_FROM_DATA:
-                metric_list = self._convert_metrics_to_list(manual_metrics)
-            else:
-                # 数据分组：查询 manual_list + 数据分组的指标
-                # 查询数据分组的指标
-                data_group_metrics = list(
-                    models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, field_scope=scope.scope_name)
-                )
-
-                # 合并指标
-                all_metrics = data_group_metrics + manual_metrics
-                metric_list = self._convert_metrics_to_list(all_metrics)
             results.append(
                 {
                     "scope_id": scope.id,
                     "group_id": scope.group_id,
                     "scope_name": scope.scope_name,
                     "dimension_config": scope.dimension_config,
-                    "manual_list": scope.manual_list,
                     "auto_rules": scope.auto_rules,
                     "metric_list": metric_list,
                     "create_from": scope.create_from,
@@ -1637,32 +1633,30 @@ class QueryTimeSeriesScopeResource(Resource):
             )
         return results
 
-    def _build_ungrouped_results(self, group_ids, scope_name):
+    def _build_ungrouped_results(self, group_ids):
         """构建未分组指标的结果列表
 
-        未分组下的指标 = default 数据分组的指标 - 所有 manual_list
+        未分组下的指标：scope_id 指向 scope_name 为空串的 TimeSeriesScope 的指标
         :param group_ids: 自定义时序数据源ID列表
-        :param scope_name: 指标分组名，用于确定 default 数据分组的 scope
         """
-        from metadata.models.custom_report.time_series import TimeSeriesScope
         from metadata.models.constants import UNGROUP_SCOPE_NAME
 
         results = []
         for gid in group_ids:
-            # 获取未分组指标的 QuerySet
-            ungrouped_metrics_qs = TimeSeriesScope.get_ungrouped_metrics_qs(gid, scope_name=scope_name)
-            metric_list = self._convert_metrics_to_list(ungrouped_metrics_qs)
-
-            # 查询未分组的维度配置
-            if "||" in scope_name:
-                # APM 场景：提取 service_name，构建未分组的 scope_name
-                db_scope_name = scope_name.rsplit("||", 1)[0] + "||"
-            else:
-                # 非 APM 场景：使用空字符串
-                db_scope_name = UNGROUP_SCOPE_NAME
+            # 查询未分组的 scope（scope_name 为空串）
+            db_scope_name = UNGROUP_SCOPE_NAME
 
             ungrouped_scope = models.TimeSeriesScope.objects.filter(group_id=gid, scope_name=db_scope_name).first()
-            dimension_config = ungrouped_scope.dimension_config if ungrouped_scope else {}
+
+            # 如果未分组 scope 存在，查询其下的指标
+            if ungrouped_scope:
+                ungrouped_metrics_qs = models.TimeSeriesMetric.objects.filter(group_id=gid, scope_id=ungrouped_scope.id)
+                metric_list = self._convert_metrics_to_list(ungrouped_metrics_qs)
+                dimension_config = ungrouped_scope.dimension_config or {}
+            else:
+                # 如果未分组 scope 不存在，返回空列表
+                metric_list = []
+                dimension_config = {}
 
             results.append(
                 {
@@ -1670,7 +1664,6 @@ class QueryTimeSeriesScopeResource(Resource):
                     "group_id": gid,
                     "scope_name": "",
                     "dimension_config": dimension_config,
-                    "manual_list": [],
                     "auto_rules": [],
                     "metric_list": metric_list,
                     "create_from": None,
@@ -1683,19 +1676,12 @@ class QueryTimeSeriesScopeResource(Resource):
         """将指标对象列表转换为字典列表"""
         metric_list = []
         for metric in metrics:
-            field_config = metric.field_config or {}
             metric_info = {
                 "metric_name": metric.field_name,
                 "field_id": metric.field_id,
                 "field_scope": metric.field_scope,
                 "tag_list": metric.tag_list,
-                "desc": field_config.get("desc", ""),
-                "unit": field_config.get("unit", ""),
-                "hidden": field_config.get("hidden", False),
-                "aggregate_method": field_config.get("aggregate_method", ""),
-                "function": field_config.get("function", ""),
-                "interval": field_config.get("interval", 0),
-                "disabled": field_config.get("disabled", False),
+                "field_config": metric.field_config or {},
                 "create_time": metric.create_time.timestamp() if metric.create_time else None,
                 "last_modify_time": metric.last_modify_time.timestamp() if metric.last_modify_time else None,
             }
