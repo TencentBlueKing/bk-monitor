@@ -61,7 +61,7 @@ export const listApplicationServices = request('GET', 'rest/v2/grafana/get_profi
 export const queryServicesDetail = request('GET', 'rest/v2/grafana/get_profile_type/');
 export const grafanaQueryProfileLabel = request('GET', 'rest/v2/grafana/get_profile_label/');
 export const grafanaQueryProfileLabelValues = request('GET', 'rest/v2/grafana/get_profile_label_values/');
-export const getRelatedStrategy = request('POST', 'rest/v2/grafana/get_related_strategy/');
+export const migrateDashboard = request('POST', '/rest/v2/grafana/migrate_old_panels/');
 
 export default {
   test,
@@ -125,5 +125,4 @@ export default {
   queryServicesDetail,
   grafanaQueryProfileLabel,
   grafanaQueryProfileLabelValues,
-  getRelatedStrategy,
 };
