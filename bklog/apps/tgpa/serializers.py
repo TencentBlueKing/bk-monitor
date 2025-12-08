@@ -43,4 +43,4 @@ class GetTGPATaskListSerializer(serializers.Serializer):
 
 class GetDownloadUrlSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务ID")
-    task_id = serializers.IntegerField(label="任务ID")
+    id = serializers.IntegerField(label="任务ID")

@@ -88,6 +88,11 @@ def migrate_nano_log_table(
     if models.ResultTable.objects.filter(table_id=new_table_id, bk_tenant_id=bk_tenant_id).exists():
         logger.info(f"result table {table_id} has been migrated: {new_table_id}")
         return False, f"result table {table_id} has been migrated: {new_table_id}", None
+    if models.ResultTableField.objects.filter(
+        table_id=table_id, field_name=DT_TIME_STAMP_NANO, bk_tenant_id=bk_tenant_id
+    ).exists():
+        logger.info(f"result table {table_id} has dtEventTimeStampNanos field")
+        return False, f"result table {table_id} has dtEventTimeStampNanos field", None
 
     # 获取空间信息
     bk_biz_id = result_table.bk_biz_id
@@ -245,9 +250,7 @@ def migrate_nano_log_table(
             bk_tenant_id=bk_tenant_id,
         )
 
-    # 停用旧表的索引轮转并删除datasource关联，并更新新表的datasource关联
-    es_storage.need_create_index = False
-    es_storage.save()
+    # 更新新表的datasource关联，旧表的datasource关联会被删除
     old_dsrt = models.DataSourceResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
     bk_data_id = old_dsrt.bk_data_id
     old_dsrt.delete()

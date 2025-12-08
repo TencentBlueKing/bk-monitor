@@ -21,7 +21,7 @@ from alarm_backends.core.control.record_parser import EventIDParser
 from alarm_backends.core.storage.kafka import KafkaQueue
 from bkmonitor.models import NO_DATA_TAG_DIMENSION, BCSPod
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-from constants.alert import EventStatus, EventTargetType
+from constants.alert import EventStatus, EventTargetType, K8STargetType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
@@ -241,10 +241,10 @@ class MonitorEventAdapter:
                 bk_obj_id = data_dimensions.pop("bk_obj_id")
                 bk_inst_id = data_dimensions.pop("bk_inst_id")
                 return EventTargetType.TOPO, f"{bk_obj_id}|{bk_inst_id}", data_dimensions
-            # elif "bcs_cluster_id" in data_dimensions:
-            # 容器场景目标解析
-            # K8S-POD, K8S-NODE, K8S-SERVICE, K8S-WORKLOAD
-            # return cls.get_k8s_target(data_dimensions, strategy["bk_biz_id"])
+            elif "bcs_cluster_id" in data_dimensions:
+                # 容器场景目标解析
+                # K8S-POD, K8S-NODE, K8S-SERVICE, K8S-WORKLOAD
+                return cls.get_k8s_target(data_dimensions, strategy["bk_biz_id"])
 
         except KeyError:
             return EventTargetType.EMPTY, None, data_dimensions
@@ -275,13 +275,13 @@ class MonitorEventAdapter:
                 # 将丰富的维度信息补充到 event 的 extra_info 中，后续 alert 丰富使用
                 if additional_dimensions:
                     dimensions["__additional_dimensions"] = additional_dimensions
-                return "K8S-POD", pod, dimensions
+                return K8STargetType.POD, pod, dimensions
             else:
                 # Pod 存在但查询不到实例，仍然按 Pod 处理，避免错误分类
                 # 检查 namespace 是否存在，Pod 是命名空间级别的资源
                 if namespace is None:
                     return EventTargetType.EMPTY, None, dimensions
-                return "K8S-POD", pod, dimensions
+                return K8STargetType.POD, pod, dimensions
 
         workload_kind = dimensions.get("workload_kind")
         workload_name = dimensions.get("workload_name")
@@ -289,18 +289,18 @@ class MonitorEventAdapter:
             # workload 对象，需要 namespace
             if namespace is None:
                 return EventTargetType.EMPTY, None, dimensions
-            return "K8S-WORKLOAD", f"{workload_kind}:{workload_name}", dimensions
+            return K8STargetType.WORKLOAD, f"{workload_kind}:{workload_name}", dimensions
 
         node = dimensions.get("node") or dimensions.get("node_name")
         if node:
             # node 对象，Node 是集群级别资源，不需要 namespace
-            return "K8S-NODE", node, dimensions
+            return K8STargetType.NODE, node, dimensions
 
         service = dimensions.get("service") or dimensions.get("service_name")
         if service:
             # service 对象，需要 namespace
             if namespace is None:
                 return EventTargetType.EMPTY, None, dimensions
-            return "K8S-SERVICE", service, dimensions
+            return K8STargetType.SERVICE, service, dimensions
 
         return EventTargetType.EMPTY, None, dimensions
