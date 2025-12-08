@@ -1011,9 +1011,7 @@ class Alarm(BaseContextObject):
 
         where: list[dict[str, Any]] = []
         # 需排除的经 CMDB 丰富的维度字段（由 CMDBEnricher 类添加）
-        CMDB_enrich_fields: set[str] = {
-            "bk_obj_id",
-            "bk_inst_id",
+        cmdb_enrich_fields: set[str] = {
             "bk_topo_node",
             "bk_host_id",
             "ipv6",
@@ -1025,7 +1023,7 @@ class Alarm(BaseContextObject):
             "bk_service_instance_id",
         }
         for key, value in self.origin_dimensions.items():
-            if key not in CMDB_enrich_fields and value is not None:
+            if key not in cmdb_enrich_fields and value is not None:
                 where.append({"key": key, "method": "eq", "value": [value or ""], "condition": "and"})
         query_filter["where"] = where
 
