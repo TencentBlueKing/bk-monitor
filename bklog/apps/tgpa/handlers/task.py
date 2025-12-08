@@ -292,7 +292,7 @@ class TGPATaskHandler:
         container_release_params.update(
             {
                 "dataId": bk_data_id,
-                "path": [os.path.join(TGPA_BASE_DIR, str(bk_biz_id))],
+                "path": [os.path.join(TGPA_BASE_DIR, str(bk_biz_id)), "/**/*"],
                 "logConfigType": ContainerCollectorType.CONTAINER,
             }
         )
