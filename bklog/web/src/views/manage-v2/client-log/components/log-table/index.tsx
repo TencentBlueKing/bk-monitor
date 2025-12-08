@@ -82,7 +82,7 @@ export default defineComponent({
     });
 
     const settingFields = ref([
-      { id: 'id', label: t('任务 ID') },
+      { id: 'task_id', label: t('任务 ID') },
       { id: 'task_name', label: t('任务名称'), disabled: true },
       { id: 'openid', label: 'openid', disabled: true },
       { id: 'status_name', label: t('任务状态') },
@@ -205,7 +205,7 @@ export default defineComponent({
       }
 
       // 只允许特定字段进行排序
-      const allowedSortFields = ['id', 'task_name', 'openid', 'created_at'];
+      const allowedSortFields = ['task_id', 'task_name', 'openid', 'created_at'];
       if (!allowedSortFields.includes(id)) {
         return list;
       }
@@ -215,23 +215,13 @@ export default defineComponent({
       return [...list].sort((a, b) => {
         let compareResult = 0;
 
-        // 根据不同字段使用不同的排序逻辑
-        switch (id) {
-          case 'id':
-            compareResult = a[id] - b[id];
-            break;
-
-          case 'task_name':
-          case 'openid':
-            compareResult = (a[id] || '').localeCompare(b[id] || '');
-            break;
-
-          case 'created_at':
-            compareResult = (a[id] || '').localeCompare(b[id] || '');
-            break;
-
-          default:
-            return 0;
+        if (id === 'task_id') {
+          const prevTaskId = Number(a[id]) || 0;
+          const nextTaskId = Number(b[id]) || 0;
+          compareResult = prevTaskId - nextTaskId;
+        } else {
+          // task_name、openid、created_at 使用字符串比较
+          compareResult = (a[id] || '').localeCompare(b[id] || '');
         }
 
         // 根据排序方向返回结果
@@ -252,7 +242,7 @@ export default defineComponent({
         const keywordLower = props.keyword.trim().toLowerCase();
         logList = logList.filter((item: Record<string, any>) => {
           const searchFields = [
-            item.id?.toString() || '',
+            item.task_id?.toString() || '',
             item.task_name || '',
             item.openid || '',
             item.create_type || '',
@@ -354,7 +344,7 @@ export default defineComponent({
           const params = {
             query: {
               bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-              task_id: id,
+              id,
             },
           };
           const response = await http.request('collect/getDownloadLink', params);
@@ -575,14 +565,14 @@ export default defineComponent({
             ),
           }}
         >
-          {checkFields('id') && (
+          {checkFields('task_id') && (
             <bk-table-column
-              key='id'
+              key='task_id'
               class-name='filter-column overflow-hidden-text'
               width='100'
               label={t('任务 ID')}
-              prop='id'
-              sortable
+              prop='task_id'
+              sortable='custom'
             />
           )}
           <bk-table-column
