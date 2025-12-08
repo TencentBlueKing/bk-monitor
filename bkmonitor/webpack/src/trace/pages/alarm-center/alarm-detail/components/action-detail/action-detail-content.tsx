@@ -33,6 +33,7 @@ import { searchAlert } from 'monitor-api/modules/alert';
 import { useI18n } from 'vue-i18n';
 
 import { handleToAlertList, queryString } from '../../../utils';
+import TableSkeleton from '@/components/skeleton/table-skeleton';
 import AlertContentDetail from '@/pages/alarm-center/components/alarm-table/components/alert-content-detail/alert-content-detail';
 import { AlarmLevelIconMap, AlertDataTypeMap } from '@/pages/alarm-center/typings';
 
@@ -165,6 +166,9 @@ export default defineComponent({
         if (val) {
           init();
         }
+      },
+      {
+        immediate: true,
       }
     );
 
@@ -188,7 +192,16 @@ export default defineComponent({
   render() {
     return (
       <div class='action-detail-content'>
-        {this.triggerTableData.length > 0 && (
+        {this.loading && (
+          <div class='skeleton-wrapper'>
+            <div class='alarm-table'>
+              <div class='skeleton-element alarm-table-title' />
+              <TableSkeleton />
+            </div>
+          </div>
+        )}
+
+        {!this.loading && this.triggerTableData.length > 0 && (
           <div class='trigger-alarm alarm-table'>
             <div class='alarm-table-title'>
               <span class='title'>{this.$t('触发的告警')}</span>
@@ -213,7 +226,7 @@ export default defineComponent({
           </div>
         )}
 
-        {this.defenseTableData.length > 0 && (
+        {!this.loading && this.defenseTableData.length > 0 && (
           <div class='defense-alarm alarm-table'>
             <div class='alarm-table-title'>
               <span class='title'>{this.$t('防御的告警')}</span>

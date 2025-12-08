@@ -70,6 +70,9 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   const bizItem = computed(() => {
     return appStore.bizList.find(item => +item.id === +bizId.value);
   });
+  const detail = computed(() => {
+    return alarmType.value === AlarmType.ALERT ? alarmDetail.value : actionDetail.value;
+  });
 
   /**
    * @description 获取告警详情
@@ -116,6 +119,7 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
 
   return {
     alarmDetail,
+    detail,
     alarmId,
     actionId,
     actionDetail,

@@ -226,7 +226,9 @@ export class ActionScenario extends BaseScenario {
         },
       ] satisfies CommonCondition[]),
     });
-    window.open(`${location.origin}${location.pathname}?bizId=${bizId}/#/alarm-center?${searchParams.toString()}`);
+    window.open(
+      `${location.origin}${location.pathname}?bizId=${bizId}/#/trace/alarm-center?${searchParams.toString()}`
+    );
   }
 
   /**

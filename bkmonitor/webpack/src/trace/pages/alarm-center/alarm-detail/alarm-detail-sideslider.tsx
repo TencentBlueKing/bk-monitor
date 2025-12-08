@@ -78,6 +78,16 @@ export default defineComponent({
     provide('authority', authority);
 
     watch(
+      () => props.alarmType,
+      newVal => {
+        if (newVal !== alarmType.value) {
+          alarmType.value = newVal;
+        }
+      },
+      { immediate: true }
+    );
+
+    watch(
       () => props.alarmId,
       newVal => {
         if (alarmType.value === AlarmType.ALERT && newVal && newVal !== alarmId.value) {
@@ -87,16 +97,6 @@ export default defineComponent({
         if (alarmType.value === AlarmType.ACTION && newVal && newVal !== actionId.value) {
           actionId.value = newVal;
           return;
-        }
-      },
-      { immediate: true }
-    );
-
-    watch(
-      () => props.alarmType,
-      newVal => {
-        if (newVal !== alarmType.value) {
-          alarmType.value = newVal;
         }
       },
       { immediate: true }

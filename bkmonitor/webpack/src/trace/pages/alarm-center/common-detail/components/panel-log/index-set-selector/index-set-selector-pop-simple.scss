@@ -9,6 +9,10 @@
     display: flex;
     align-items: center;
     margin: 4px 8px 0;
+
+    .bk-input {
+      align-items: center;
+    }
   }
 
   .list-wrap {
@@ -29,10 +33,14 @@
       user-select: none;
       user-select: none;
 
-      &:hover,
-      &.active {
+      &:hover {
         color: #63656e;
         background-color: #f5f7fa;
+      }
+
+      &.active {
+        background: #e1ecff;
+        color: #3a84ff;
       }
     }
   }
