@@ -127,7 +127,7 @@ enum BK_LOG_STORAGE {
    */
   TREND_CHART_IS_FOLD = '_17',
   /**
-   * 结果展示行数：1 - 单行展示，3 - 三行展示
+   * 结果展示行数 1 - 单行 3 - 三行
    */
   RESULT_DISPLAY_LINES = '_20',
 }
