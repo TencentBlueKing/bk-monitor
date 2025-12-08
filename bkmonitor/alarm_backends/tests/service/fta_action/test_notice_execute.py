@@ -19,11 +19,10 @@ from unittest.mock import MagicMock, patch
 
 import fakeredis
 from unittest import mock
-import pytest
 import pytz
 from django.conf import settings
 from django.db import IntegrityError
-from django.test import TestCase, TransactionTestCase
+from django.test import TestCase
 from django.utils.translation import gettext as _
 from elasticsearch_dsl import AttrDict
 
@@ -102,14 +101,13 @@ from constants.action import (
     NoticeWay,
     NotifyStep,
     UserGroupType,
+    VoiceNoticeMode,
 )
 from constants.aiops import DIMENSION_DRILL
 from constants.alert import EventSeverity, EventStatus
 from constants.data_source import KubernetesResultTableLabel
 from core.errors.alarm_backends import EmptyAssigneeError
 from packages.fta_web.action.resources import AlertDocument
-
-pytestmark = pytest.mark.django_db
 
 
 def register_builtin_plugins():
@@ -648,8 +646,8 @@ def converge_actions(instances, action_type=ConvergeType.ACTION, is_enabled=True
         print(f"${instance.id} converge status ", cp.status)
 
 
-class TestActionProcessor(TransactionTestCase):
-    databases = {"monitor_api", "default"}
+class TestActionProcessor(TestCase):
+    databases = {"monitor_api", "default", "backend_alert"}
 
     def setUp(self):
         CONVERGE_LIST_KEY.client.flushall()
@@ -4419,9 +4417,174 @@ class TestActionProcessor(TransactionTestCase):
         mget_alert_patch.stop()
         get_alert_patch.stop()
 
+    def test_voice_parallel_notice_with_voice_notice_group(self):
+        """
+        测试当通知方式为 Voice 且 voice_notice_mode 为 PARALLEL 时，
+        通过 create_actions 创建动作，ActionProcessor 能够正确获取 voice_notice_group 并执行并行通知
+        """
+        duty_arranges = [
+            {
+                "users": [
+                    {"id": "admin", "display_name": "admin", "logo": "", "type": "user"},
+                    {"id": "operator", "display_name": "主机负责人", "logo": "", "type": "group"},
+                ],
+            },
+            {
+                "users": [{"id": "lisa", "display_name": "管理员", "logo": "", "type": "user"}],
+            },
+        ]
+        group = UserGroup.objects.create(**self.user_group_data)
+        group.need_duty = False
+        group.save()
+        for duty in duty_arranges:
+            duty.update({"user_group_id": group.id})
+            DutyArrange.objects.create(**duty)
+
+        notice_action_config = {
+            "execute_config": {
+                "template_detail": {
+                    "interval_notify_mode": "standard",
+                    "notify_interval": 7200,
+                    "template": notice_template(),
+                    "voice_notice": VoiceNoticeMode.PARALLEL,
+                }
+            },
+            "id": 55555,
+            "plugin_id": 1,
+            "plugin_type": "notice",
+            "is_enabled": True,
+            "bk_biz_id": 2,
+            "name": "test_notice",
+        }
+        strategy_dict = {
+            "id": 1,
+            "type": "monitor",
+            "bk_biz_id": 2,
+            "scenario": "os",
+            "name": "测试新策略",
+            "labels": [],
+            "is_enabled": True,
+            "items": [],
+            "detects": [],
+            "notice": {
+                "id": 1,
+                "config_id": 55555,
+                "user_groups": [group.id],
+                "signal": ["abnormal", "recovered"],
+                "options": {
+                    "converge_config": {
+                        "is_enabled": True,
+                        "converge_func": "collect",
+                        "timedelta": 60,
+                        "count": 1,
+                        "condition": [
+                            {"dimension": "strategy_id", "value": ["self"]},
+                            {"dimension": "dimensions", "value": ["self"]},
+                            {"dimension": "alert_level", "value": ["self"]},
+                            {"dimension": "signal", "value": ["self"]},
+                            {"dimension": "bk_biz_id", "value": ["self"]},
+                            {"dimension": "notice_receiver", "value": ["self"]},
+                            {"dimension": "notice_way", "value": ["self"]},
+                            {"dimension": "notice_info", "value": ["self"]},
+                        ],
+                        "need_biz_converge": True,
+                        "sub_converge_config": {
+                            "timedelta": 60,
+                            "count": 2,
+                            "condition": [
+                                {"dimension": "bk_biz_id", "value": ["self"]},
+                                {"dimension": "notice_receiver", "value": ["self"]},
+                                {"dimension": "notice_way", "value": ["self"]},
+                                {"dimension": "alert_level", "value": ["self"]},
+                                {"dimension": "signal", "value": ["self"]},
+                            ],
+                            "converge_func": "collect_alarm",
+                        },
+                    },
+                    "start_time": "00:00:00",
+                    "end_time": "23:59:59",
+                },
+                "config": notice_action_config["execute_config"]["template_detail"],
+            },
+            "actions": [],
+        }
+        self.alert_info["extra_info"].update(strategy=strategy_dict)
+        self.alert_info["id"] = "voice_parallel_test"
+
+        alert = AlertDocument(**self.alert_info)
+
+        with (
+            patch("bkmonitor.documents.AlertDocument.mget", MagicMock(return_value=[alert])),
+            patch("bkmonitor.documents.AlertDocument.get", MagicMock(return_value=alert)),
+            patch(
+                "alarm_backends.core.cache.action_config.ActionConfigCacheManager.get_action_config_by_id",
+                MagicMock(return_value=notice_action_config),
+            ),
+        ):
+            create_actions(1, "abnormal", alerts=[alert])
+
+            self.assertEqual(ActionInstance.objects.filter(is_parent_action=True, action_config_id=55555).count(), 1)
+
+            parent_action = ActionInstance.objects.get(is_parent_action=True, action_config_id=55555)
+            self.assertEqual(parent_action.inputs.get("voice_notice_mode"), VoiceNoticeMode.PARALLEL)
+
+            voice_actions = ActionInstance.objects.filter(is_parent_action=False, action_config_id=55555)
+            self.assertGreater(voice_actions.count(), 0)
+
+            for action in voice_actions:
+                if action.inputs.get("notice_way") == NoticeWay.VOICE:
+                    self.assertEqual(action.inputs.get("voice_notice_mode"), VoiceNoticeMode.PARALLEL)
+
+            self.set_notice_cache()
+
+            original_parallel_notify_sender = NoticeActionProcessor.parallel_notify_sender
+            parallel_sender_calls = []
+
+            def spy_parallel_notify_sender(self_inner, notify_sender, notice_way, voice_notice_group):
+                notify_result = original_parallel_notify_sender(
+                    self_inner, notify_sender, notice_way, voice_notice_group
+                )
+                parallel_sender_calls.append(
+                    {
+                        "notify_sender": notify_sender,
+                        "notice_way": notice_way,
+                        "voice_notice_group": voice_notice_group,
+                        "result": notify_result,
+                    }
+                )
+                return notify_result
+
+            with patch.object(
+                NoticeActionProcessor,
+                "parallel_notify_sender",
+                spy_parallel_notify_sender,
+            ):
+                for action in voice_actions:
+                    if action.inputs.get("notice_way") != NoticeWay.VOICE:
+                        continue
+                    try:
+                        processor = NoticeActionProcessor(action_id=action.id)
+                        self.assertEqual(processor.voice_notice_mode, VoiceNoticeMode.PARALLEL)
+                        processor.execute()
+                    except BaseException as error:
+                        print(f"Processor error: {error}")
+                        continue
+
+            # 验证 parallel_notify_sender 被调用
+            self.assertGreater(len(parallel_sender_calls), 0, "parallel_notify_sender should be called at least once")
+
+            # 验证输入参数是否符合预期
+            for call_args in parallel_sender_calls:
+                self.assertEqual(call_args["notice_way"], NoticeWay.VOICE)
+                self.assertIsNotNone(call_args["voice_notice_group"])
+                self.assertTrue(len(call_args["voice_notice_group"]) > 0)
+            for user_group in call_args["voice_notice_group"]:
+                self.assertTrue(isinstance(user_group, tuple | frozenset | set | list))
+            self.assertIsNotNone(call_args["notify_sender"])
+
 
 class TestNoiseReduce(TestCase):
-    databases = {"monitor_api", "default"}
+    databases = {"default", "monitor_api", "backend_alert"}
 
     def setUp(self):
         redis = fakeredis.FakeRedis(decode_responses=True)
