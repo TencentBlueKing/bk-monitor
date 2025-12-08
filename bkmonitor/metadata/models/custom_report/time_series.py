@@ -1855,7 +1855,7 @@ class TimeSeriesMetric(models.Model):
                 )
             return scope.id if scope else None
 
-        # default 数据分组：需要匹配用户分组和数据分组的 auto_rules（正则表达式）
+        # default 数据分组：需要匹配用户分组和数据分组的 auto_rules（正则表达式）todo hhh 根据什么顺序进行排序？？
         all_scopes = TimeSeriesScope.objects.filter(group_id=group_id).order_by("id")
 
         # 遍历所有分组，找到第一个匹配的 scope
@@ -1875,7 +1875,8 @@ class TimeSeriesMetric(models.Model):
                         continue
 
             if matched:
-                # 注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
+                # 如果匹配到分组，则更新维度配置，并返回 scope_id
+                # 注意：涉及 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
                 ungroup_scope_name = (
                     field_scope.rsplit("||", 1)[0] + "||" if "||" in field_scope else UNGROUP_SCOPE_NAME
                 )
