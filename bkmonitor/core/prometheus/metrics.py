@@ -1214,6 +1214,12 @@ AI_AGENTS_REQUESTS_TOTAL = Counter(
     labelnames=("agent_code", "resource_name", "status", "username", "command"),
 )
 
+MCP_REQUESTS_TOTAL = Counter(
+    name="bkmonitor_mcp_requests_total",
+    documentation="MCP工具调用统计",
+    labelnames=("tool_name", "bk_biz_id", "username", "status", "permission_action"),
+)
+
 AI_AGENTS_REQUESTS_COST_SECONDS = Gauge(
     name="ai_agents_requests_cost_seconds",
     documentation="AI小鲸服务调用耗时统计",

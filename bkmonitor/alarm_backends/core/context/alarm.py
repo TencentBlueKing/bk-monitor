@@ -916,7 +916,11 @@ class Alarm(BaseContextObject):
                 redirect_types.append(_type)
                 break
 
-        if ApmAlertHelper.is_rpc_system(alert.strategy):
+        # RPC 场景下的自定义指标类型，显示「调用分析」和 APM 自定义「指标检索」
+        if ApmAlertHelper.is_rpc_custom_metric(alert.strategy):
+            redirect_types.extend([AlertRedirectType.APM_RPC.value, AlertRedirectType.APM_QUERY.value])
+        # RPC 场景下的非自定义指标类型，显示「调用分析」和「Tracing 检索」
+        elif ApmAlertHelper.is_rpc_system(alert.strategy):
             # TODO 后续有其他明确场景，可在此处补充识别。
             redirect_types.extend([AlertRedirectType.APM_RPC.value, AlertRedirectType.APM_TRACE.value])
 
@@ -929,13 +933,12 @@ class Alarm(BaseContextObject):
             AlertRedirectType.DETAIL.value: lambda: self.detail_url,
             AlertRedirectType.LOG_SEARCH.value: lambda: self.log_search_url,
             AlertRedirectType.QUERY.value: lambda: self.query_url,
+            AlertRedirectType.APM_QUERY.value: lambda: self.apm_query_url,
             AlertRedirectType.APM_RPC.value: lambda: self.apm_rpc_url,
             AlertRedirectType.APM_TRACE.value: lambda: self.apm_trace_url,
         }
 
         redirect_types: list[str] = self.redirect_types
-        # RPC 场景下，直接跳转到调用分析。
-        # TODO APM 支持自定义指标后，自定义指标类型的告警，需要跳转到自定义指标页面。
         if AlertRedirectType.APM_RPC.value in redirect_types and AlertRedirectType.QUERY.value in redirect_types:
             redirect_types.remove(AlertRedirectType.QUERY.value)
 
@@ -985,5 +988,14 @@ class Alarm(BaseContextObject):
         # 数据检索基于数据点的前1小时+后1小时
         if AlertRedirectType.QUERY.value in self.redirect_types:
             url = self.detail_url
+            return f"{url}&type=query"
+        return None
+
+    @cached_property
+    def apm_query_url(self):
+        """APM 自定义指标检索跳转链接生成"""
+        # TODO 后续 APM 实现自定义指标功能后，再更新为跳转到自定义指标检索页面
+        url: str | None = self.detail_url
+        if url:
             return f"{url}&type=query"
         return None

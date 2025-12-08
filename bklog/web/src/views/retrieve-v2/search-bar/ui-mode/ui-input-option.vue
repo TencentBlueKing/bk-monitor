@@ -9,12 +9,12 @@ import imgEnterKey from '@/images/icons/enter-key.svg';
 import imgUpDownKey from '@/images/icons/up-down-key.svg';
 import { Props } from 'tippy.js';
 
+import PopInstanceUtil from '@/global/pop-instance-util';
 import useFieldEgges from '@/hooks/use-field-egges';
-import PopInstanceUtil from '../../../global/pop-instance-util';
-import { BK_LOG_STORAGE, FieldInfoItem } from '../../../store/store.type';
-import BatchInput from '../components/batch-input';
-import { translateKeys } from './const-values';
-import { FulltextOperator, excludesFields, getFieldConditonItem, getInputQueryDefaultItem, withoutValueConditionList } from './const.common';
+import { BK_LOG_STORAGE, FieldInfoItem } from '@/store/store.type';
+import BatchInput from '../../components/batch-input';
+import { translateKeys } from '../utils/const-values';
+import { FulltextOperator, excludesFields, getFieldConditonItem, getInputQueryDefaultItem, withoutValueConditionList } from '../utils/const.common';
 const INPUT_MIN_WIDTH = 12;
 
 const props = defineProps({
