@@ -27,15 +27,19 @@ import { shallowRef } from 'vue';
 
 import { fieldTypeMap } from 'trace/components/retrieval-filter/utils';
 
+import ExpandContent from '../expand-content';
 import LogCell from '../log-cell';
 import { formatHierarchy } from '../utils/fields';
 
-import type { IFieldInfo } from '../typing';
+import type { EClickMenuType, IFieldInfo } from '../typing';
 import type { TdPrimaryTableProps } from '@blueking/tdesign-ui';
 
-export const useTable = () => {
+export const useTable = (options: { onClickMenu?: (opt: { type: EClickMenuType; value: string }) => void }) => {
   const tableColumns = shallowRef<TdPrimaryTableProps['columns']>([]);
   const tableData = shallowRef([]);
+  const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row }): any => {
+    return <ExpandContent row={row} />;
+  });
 
   const setTableColumns = (columns: TdPrimaryTableProps['columns']) => {
     tableColumns.value = columns;
@@ -58,6 +62,11 @@ export const useTable = () => {
       cell: (_h, { _col, row }) => {
         return (
           <LogCell
+            options={{
+              onClickMenu: (opt: { type: EClickMenuType; value: string }) => {
+                options.onClickMenu?.(opt);
+              },
+            }}
             field={item}
             row={row}
           />
@@ -96,6 +105,7 @@ export const useTable = () => {
   return {
     tableColumns,
     tableData,
+    expandedRow,
     setTableColumns,
     fieldsDataToColumns,
   };

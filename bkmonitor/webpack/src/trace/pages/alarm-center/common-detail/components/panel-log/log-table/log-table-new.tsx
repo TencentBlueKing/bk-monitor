@@ -53,7 +53,11 @@ export default defineComponent({
   setup(props) {
     console.log(props);
     const loading = shallowRef(false);
-    const { tableData, tableColumns, fieldsDataToColumns } = useTable();
+    const { tableData, tableColumns, expandedRow, fieldsDataToColumns } = useTable({
+      onClickMenu: opt => {
+        console.log('onClickMenu', opt);
+      },
+    });
     const offset = shallowRef(0);
     const fieldsData = shallowRef(null);
     const expandedRowKeys = shallowRef([]);
@@ -89,10 +93,6 @@ export default defineComponent({
     const handleExpandChange = (keys: (number | string)[]) => {
       expandedRowKeys.value = keys;
     };
-
-    const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row }): any => {
-      return <div class='table-expand-content'>xxxx</div>;
-    });
 
     const expandIcon = shallowRef<TdPrimaryTableProps['expandIcon']>((_h, { _row }): any => {
       return <span class='icon-monitor icon-mc-arrow-right table-expand-icon' />;
