@@ -55,16 +55,16 @@ from apps.utils.thread import MultiExecuteFunc
 
 
 class TGPATaskHandler:
-    def __init__(self, bk_biz_id, task_id=None, task_info=None):
+    def __init__(self, bk_biz_id, inst_id=None, task_info=None):
         self.bk_biz_id = bk_biz_id
-        self.task_id = task_id
+        self.inst = inst_id
         self.task_info = task_info  # 通过接口获取到的任务信息
-        # task_id 和 task_info 不能同时为空
-        if not task_id:
-            self.task_id = task_info["id"]
+        # inst_id 和 task_info 不能同时为空
+        if not inst_id:
+            self.inst_id = task_info["id"]
         elif not task_info:
-            self.task_info = self.get_task_info(task_id)
-
+            self.task_info = self.get_task_info(inst_id)
+        self.task_id = self.task_info["go_svr_task_id"]
         # 临时目录，用于存放下载的文件、解压后的文件
         self.temp_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), str(self.task_id), "temp")
         # 输出目录，用于存放处理后的文件
@@ -77,7 +77,7 @@ class TGPATaskHandler:
         """
         task_detail = {item["key"]: item["value"] for item in self.task_info["task_info"]}
         return {
-            "task_id": self.task_info["id"],
+            "task_id": self.task_info["go_svr_task_id"],
             "task_name": self.task_info["name"],
             "openid": self.task_info["openid"],
             "manufacturer": task_detail["manufacturer"],
@@ -86,14 +86,14 @@ class TGPATaskHandler:
             "os_version": task_detail["os_version"],
         }
 
-    def get_task_info(self, task_id):
+    def get_task_info(self, inst_id):
         """
         获取任务信息
         """
         request_params = {
             "cc_id": self.bk_biz_id,
             "task_type": TGPATaskTypeEnum.BUSINESS_LOG_V2.value,
-            "task_id": task_id,
+            "task_id": inst_id,
         }
         return TGPATaskApi.query_single_user_log_task_v2(request_params)["results"][0]
 

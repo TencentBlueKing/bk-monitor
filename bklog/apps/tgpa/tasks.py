@@ -42,7 +42,7 @@ def fetch_and_process_tgpa_tasks():
     bk_biz_id_list = feature_toggle.biz_id_white_list or []
 
     for bk_biz_id in bk_biz_id_list:
-        logger.info("Begin to sync client log tasks, business ID: %s", bk_biz_id)
+        logger.info("Begin to sync client log tasks, business id: %s", bk_biz_id)
         try:
             # 确保已经创建采集配置
             TGPATaskHandler.get_or_create_collector_config(bk_biz_id)
@@ -52,8 +52,9 @@ def fetch_and_process_tgpa_tasks():
                 TGPATask.objects.bulk_create(
                     [
                         TGPATask(
+                            id=task["id"],
+                            task_id=task["go_svr_task_id"],
                             bk_biz_id=bk_biz_id,
-                            task_id=task["id"],
                             log_path=task["log_path"],
                             task_status=task["status"],
                             file_status=task["exe_code"],
@@ -64,7 +65,7 @@ def fetch_and_process_tgpa_tasks():
                 )
                 continue
         except Exception:
-            logger.exception("Failed to sync client log tasks, business ID: %s", bk_biz_id)
+            logger.exception("Failed to sync client log tasks, business id: %s", bk_biz_id)
             continue
 
         # 对比任务列表和数据库中的任务
@@ -84,8 +85,9 @@ def fetch_and_process_tgpa_tasks():
                     task_obj.save(update_fields=["task_status", "file_status"])
             else:
                 task_obj, created = TGPATask.objects.get_or_create(
-                    task_id=task["id"],
+                    id=task["id"],
                     defaults={
+                        "task_id": task["go_svr_task_id"],
                         "bk_biz_id": task["cc_id"],
                         "log_path": task["log_path"],
                         "task_status": task["status"],
@@ -104,7 +106,7 @@ def process_single_task(task: dict):
     """
     异步处理单个任务
     """
-    logger.info("Begin to process task, ID: %s", task["id"])
+    logger.info("Begin to process task, task_id: %s", task["go_svr_task_id"])
     task_obj = TGPATask.objects.get(task_id=task["id"])
     if task_obj.process_status != TGPATaskProcessStatusEnum.PENDING.value:
         return
@@ -116,9 +118,9 @@ def process_single_task(task: dict):
         TGPATaskHandler(bk_biz_id=task["cc_id"], task_info=task).download_and_process_file()
         task_obj.process_status = TGPATaskProcessStatusEnum.SUCCESS.value
         task_obj.save(update_fields=["process_status"])
-        logger.info("Successfully processed task, ID: %s", task["id"])
+        logger.info("Successfully processed task, task_id: %s", task["go_svr_task_id"])
     except Exception as e:
-        logger.exception("Failed to process task, ID %s", task["id"])
+        logger.exception("Failed to process task, task_id %s", task["go_svr_task_id"])
         task_obj.process_status = TGPATaskProcessStatusEnum.FAILED.value
         task_obj.error_message = str(e)
         task_obj.save(update_fields=["process_status", "error_message"])
