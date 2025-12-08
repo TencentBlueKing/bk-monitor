@@ -135,7 +135,8 @@ export default (list: any[], matchKeys: string[] = []) => {
         const key = matchKeys[i];
         const value = item[key];
 
-        if (value !== undefined && value !== null) {
+        // 跳过 undefined、null 和空字符串
+        if (value !== undefined && value !== null && value !== '') {
           // 判断是否为拼音字段
           const isPinyinField = key === 'py_text';
           const score = calculateMatchScore(String(value), searchText, isPinyinField);
