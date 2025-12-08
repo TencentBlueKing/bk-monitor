@@ -415,6 +415,26 @@ class UnifyQueryMappingHandler:
         result = UnifyQueryApi.query_field_map(params)
         return result.get("data", [])
 
+    @staticmethod
+    def get_fields_directly(bk_biz_id: int, scenario_id: str, storage_cluster_id: int, result_table_id: str):
+        source_type = scenario_id if scenario_id == Scenario.BKDATA else settings.UNIFY_QUERY_DATA_SOURCE
+        params = {
+            "bk_biz_id": bk_biz_id,
+            "tsdb_map": {
+                "a": [
+                    {
+                        "source_type": source_type,
+                        "storage_type": "elasticsearch",
+                        "storage_id": str(storage_cluster_id),
+                        "db": result_table_id,
+                        "need_add_time": scenario_id == Scenario.BKDATA and not result_table_id.endswith("_*"),
+                    }
+                ]
+            },
+        }
+        result = UnifyQueryApi.query_field_map(params)
+        return result.get("data", [])
+
     def _combine_description_field(self, fields_list=None, scope=None):
         if fields_list is None:
             return []
@@ -798,3 +818,14 @@ class UnifyQueryMappingHandler:
         }
         result["async_export_usable_reason"] = reason_map[scenario_id]
         return result
+
+    @staticmethod
+    def get_date_candidate(field_list):
+        """
+        获取可供选择的时间字段
+        """
+        return [
+            {"field_name": field["field_name"], "field_type": field["field_type"]}
+            for field in field_list
+            if field["field_type"] in settings.FEATURE_TOGGLE.get("es_date_candidate", ["date", "long"])
+        ]

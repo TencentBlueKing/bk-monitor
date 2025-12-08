@@ -110,6 +110,7 @@ class ResultTableTraceMatchSerializer(serializers.Serializer):
 
 
 class ResultTableDetailSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     scenario_id = serializers.CharField(label=_("接入场景"))
     storage_cluster_id = serializers.IntegerField(label=_("数据源ID"), required=False)
 

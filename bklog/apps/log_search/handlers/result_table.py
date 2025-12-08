@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,13 +18,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from typing import List
 
 from apps.api import BkDataAuthApi, BkLogApi
 from apps.api.modules.utils import (
     get_bkcc_biz_id_related_spaces,
     get_non_bkcc_space_related_bkcc_biz_id,
 )
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.log_search.constants import TraceMatchFieldType, TraceMatchResult
 from apps.log_search.exceptions import (
     FieldsTypeConsistencyException,
@@ -40,11 +40,13 @@ from apps.log_trace.handlers.trace_field_handlers import (
     TRACE_DESC_MAPPING,
     TRACE_SUGGEST_FIELD,
 )
+from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.utils import APIModel
 from apps.utils.db import array_group
 from apps.utils.local import get_request_username
 from apps.utils.thread import MultiExecuteFunc
 from bkm_space.utils import space_uid_to_bk_biz_id
+import builtins
 
 
 class ResultTableHandler(APIModel):
@@ -117,7 +119,7 @@ class ResultTableHandler(APIModel):
             result = [index for index in result if index["result_table_id"] in authorized_tables]
         return result
 
-    def retrieve(self, result_table_id):
+    def retrieve(self, result_table_id, bk_biz_id=None):
         """
         查询结果表详情
         """
@@ -128,22 +130,32 @@ class ResultTableHandler(APIModel):
             "bk_username": self.username,
             "bkdata_authentication_method": "user",
         }
-        mapping_list = BkLogApi.mapping(kwargs)
-        if not mapping_list:
-            raise MappingEmptyException(MappingEmptyException.MESSAGE.format(result_table_id=result_table_id))
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
+            field_list = UnifyQueryMappingHandler.get_fields_directly(
+                bk_biz_id=bk_biz_id,
+                scenario_id=self.scenario_id,
+                storage_cluster_id=self.storage_cluster_id,
+                result_table_id=result_table_id,
+            )
+            date_candidate = UnifyQueryMappingHandler.get_date_candidate(field_list)
+        else:
+            mapping_list = BkLogApi.mapping(kwargs)
+            if not mapping_list:
+                raise MappingEmptyException(MappingEmptyException.MESSAGE.format(result_table_id=result_table_id))
 
-        date_candidate = MappingHandlers.get_date_candidate(mapping_list)
-        property_dict: dict = MappingHandlers(
-            result_table_id, -1, self.scenario_id, self.storage_cluster_id
-        ).find_merged_property(mapping_list)
-        field_list: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
+            date_candidate = MappingHandlers.get_date_candidate(mapping_list)
+            property_dict: dict = MappingHandlers(
+                result_table_id, -1, self.scenario_id, self.storage_cluster_id
+            ).find_merged_property(mapping_list)
+            field_list: list = MappingHandlers.get_all_index_fields_by_mapping(property_dict)
+
         index_retrieve = {
             "date_candidate": date_candidate,
             "fields": [
                 {
                     "field_type": field["field_type"],
                     "field_name": field["field_name"],
-                    "field_alias": field.get("field_alias"),
+                    "field_alias": field.get("field_alias", ""),
                 }
                 for field in field_list
             ],
@@ -160,7 +172,7 @@ class ResultTableHandler(APIModel):
         )
         return index_retrieve
 
-    def adapt(self, basic_indices: List[str], append_index):
+    def adapt(self, basic_indices: builtins.list[str], append_index):
         """
         1、检查两索引字段类型是否一致；
         2、检查两索引时间字段和类型是否一致；
