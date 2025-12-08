@@ -19,6 +19,8 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute(
             "POST", KernelGraphUnifyQueryResource(), endpoint="time_series/unify_query", content_encoding="gzip"
         ),
+        # 导入仪表盘（MCP）
+        ResourceRoute("POST", resource.grafana.import_dashboard, endpoint="import_dashboard"),
         ResourceRoute(
             "POST", KernelUnifyQueryRawResource(), endpoint="time_series/unify_query_raw", content_encoding="gzip"
         ),
