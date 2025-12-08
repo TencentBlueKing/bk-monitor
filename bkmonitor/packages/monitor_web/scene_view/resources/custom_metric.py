@@ -62,7 +62,7 @@ class GetCustomTsMetricGroups(Resource):
             pk=params["time_series_group_id"],
             bk_tenant_id=get_request_tenant_id(),
         )
-
+        # todo 暂时保留以作兼容
         fields = table.get_and_sync_fields()
         metrics = [field for field in fields if field.type == CustomTSField.MetricType.METRIC]
 
@@ -114,6 +114,7 @@ class GetCustomTsMetricGroups(Resource):
                     }
                 )
 
+        # todo hhh 切换从 metadata 获取指标，同时数据结构会发生改变
         return {
             "common_dimensions": common_dimensions,
             "metric_groups": [{"name": group, "metrics": metric_groups[group]} for group in metric_groups],
@@ -127,6 +128,7 @@ class GetCustomTsDimensionValues(Resource):
 
     class RequestSerializer(serializers.Serializer):
         class MetricSerializer(serializers.Serializer):
+            # todo hhh 这里补充 scope_name 的有什么作用。这个接口是不是没必要修改
             scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True, default="")
             name = serializers.CharField(label=_("指标名称"))
 
@@ -304,8 +306,10 @@ class GetCustomTsGraphConfig(Resource):
 
             panels = []
             for metric in metric_list:
+                # todo hhh 从 metadata 获取指标的 tag_list 获取维度
                 all_metric_dimensions = set(metric.config.get("dimensions", []))
                 query_config = {
+                    # todo hhh 使用 metadata 的指标配置
                     "metrics": [
                         {"field": metric.name, "method": metric.config.get("aggregate_method") or "AVG", "alias": "a"}
                     ],
@@ -331,8 +335,10 @@ class GetCustomTsGraphConfig(Resource):
                         },
                     },
                 }
+                # todo hhh 根据指标 id 获取指标配置面板，即同名指标可能出现多个
                 panels.append(
                     {
+                        # todo hhh 标题和副标题是否需要添加 scope_name 的信息
                         "title": metric.description or metric.name,
                         "sub_title": f"custom:{table.data_label.split(',')[0]}:{metric.name}",
                         "targets": [
@@ -452,6 +458,7 @@ class GetCustomTsGraphConfig(Resource):
     ) -> dict[tuple[tuple[str, str]], list[CustomTSField]]:
         """
         查询指标系列
+        返回：{((维度key, 维度value),): [指标]}
         """
         # 如果维度为空，则返回所有指标
         if not dimensions:
@@ -461,6 +468,7 @@ class GetCustomTsGraphConfig(Resource):
         metrics_dict = {x.name: x for x in metrics}
 
         # 转换条件格式为 unify_query.query_series 所需的格式
+        # todo hhh 添加 where 时，这里将会补充 conditions
         conditions = {"field_list": [], "condition_list": []}
         for i, condition in enumerate(params.get("where", [])):
             if i > 0:
@@ -481,6 +489,7 @@ class GetCustomTsGraphConfig(Resource):
         # 根据metrics的维度与待查询维度的交集，确定查询的维度
         dimensions_to_metrics = defaultdict(list)
         for metric in metrics:
+            # todo hhh 从 metadata 的指标中获取维度
             metric_dimensions = tuple(d for d in dimensions if d in metric.config.get("dimensions", []))
             dimensions_to_metrics[metric_dimensions].append(metric.name)
 
@@ -519,6 +528,7 @@ class GetCustomTsGraphConfig(Resource):
             pk=params["time_series_group_id"],
             bk_tenant_id=get_request_tenant_id(),
         )
+        # todo hhh 根据 scope_name 从 metadata 获取指标
         metrics = CustomTSField.objects.filter(
             time_series_group_id=params["time_series_group_id"],
             type=CustomTSField.MetricType.METRIC,
