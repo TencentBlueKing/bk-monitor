@@ -2769,6 +2769,10 @@ class TimeSeriesMetric(models.Model):
             elif scope_name is not None:
                 scope = cls._get_or_create_scope(group_id, scope_name)
                 scope_moves[scope].append(metric_data["field_name"])
+            else:
+                # 两者都没有传递，放到未分组
+                scope = cls._get_or_create_scope(group_id, UNGROUP_SCOPE_NAME)
+                scope_moves[scope].append(metric_data["field_name"])
 
         # 批量创建
         cls.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
@@ -2791,6 +2795,7 @@ class TimeSeriesMetric(models.Model):
         )  # {(new_scope_id, old_scope_id): {...}}
 
         for metric, validated_request_data in metrics_to_update:
+            # todo tag_list 实际上没有更新的场景，如果需要支持更新场景，那么还需要补充更新分组下维度配置的逻辑
             if "tag_list" in validated_request_data:
                 cls._ensure_target_dimension_in_tags(validated_request_data)
 
@@ -2805,25 +2810,21 @@ class TimeSeriesMetric(models.Model):
             # 优先使用scope_id，如果没有则使用scope_name
             scope_id = validated_request_data.get("scope_id")
             scope_name = validated_request_data.get("scope_name")
+            new_scope = None
+
             if scope_id is not None:
                 # 通过scope_id获取scope
                 new_scope = TimeSeriesScope.objects.filter(id=scope_id, group_id=metric.group_id).first()
                 if new_scope is None:
                     raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
-
-                # 如果scope发生变化，记录需要移动的指标
-                if metric.scope_id != new_scope.id:
-                    move_key = (new_scope.id, metric.scope_id)
-                    scope_moves[move_key]["new_scope"] = new_scope
-                    scope_moves[move_key]["field_names"].append(metric.field_name)
             elif scope_name is not None:
                 new_scope = cls._get_or_create_scope(metric.group_id, scope_name)
 
-                # 如果scope发生变化，记录需要移动的指标
-                if metric.scope_id != new_scope.id:
-                    move_key = (new_scope.id, metric.scope_id)
-                    scope_moves[move_key]["new_scope"] = new_scope
-                    scope_moves[move_key]["field_names"].append(metric.field_name)
+            # 如果scope发生变化，记录需要移动的指标
+            if new_scope and metric.scope_id != new_scope.id:
+                move_key = (new_scope.id, metric.scope_id)
+                scope_moves[move_key]["new_scope"] = new_scope
+                scope_moves[move_key]["field_names"].append(metric.field_name)
 
         # 批量更新所有指标的字段
         if records_to_update:
@@ -2897,25 +2898,15 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def _get_or_create_scope(cls, group_id: int, scope_name: str) -> TimeSeriesScope:
-        """获取或创建指标分组（scope）
-
-        注意：空串 "" 是有效的未分组标识（UNGROUP_SCOPE_NAME），不应该被转换
-        """
-        # 只有当 scope_name 为 None 时才使用 DEFAULT_SCOPE
-        # 空串 "" 是有效的未分组标识，应该保留
-        if scope_name is None:
-            scope_name = cls.DEFAULT_SCOPE
-
-        final_scope_name = scope_name
-
+        """获取或创建指标分组（scope）"""
         scope, created = TimeSeriesScope.objects.get_or_create(
             group_id=group_id,
-            scope_name=final_scope_name,
+            scope_name=scope_name,
             defaults={"create_from": TimeSeriesScope.CREATE_FROM_USER, "dimension_config": {}},
         )
 
         if created:
-            logger.info(f"Created new scope: group_id={group_id}, scope_name={final_scope_name}")
+            logger.info(f"Created new scope: group_id={group_id}, scope_name={scope_name}")
 
         return scope
 
