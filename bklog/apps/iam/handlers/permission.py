@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import json
+
 from django.conf import settings
 from django.utils.translation import gettext as _
 from iam import (
@@ -61,16 +63,29 @@ class Permission:
 
     def __init__(self, username: str = "", bk_tenant_id: str = "", request=None):
         if username and bk_tenant_id:
+            logger.warning(f"csh-test: enter have username, username -> {username}; bk_tenant_id -> {bk_tenant_id}")
             self.username = username
             self.bk_tenant_id = bk_tenant_id
         else:
+            logger.warning("csh-test: enter no username")
             try:
-                request = request or get_request(peaceful=True)
+                if request:
+                    request = request
+                    logger.warning(f"csh-test: use original request -> {request}")
+                else:
+                    request = get_request(peaceful=True)
+                    logger.warning(f"csh-test: use get request -> {request}")
+
+                bkapi_auth = request.META.get("HTTP_X_BKAPI_AUTHORIZATION")
+                logger.warning(f"csh-test: check X-Bkapi-Authorization -> {json.loads(bkapi_auth)}")
+
                 # web请求
                 if request:
+                    logger.warning(f"csh-test: enter have request, user -> {request.user}")
                     self.username = request.user.username
                     self.bk_tenant_id = get_request_tenant_id()
                 else:
+                    logger.warning(f"csh-test: enter no request, username -> {get_local_username()}")
                     self.bk_tenant_id = settings.BK_APP_TENANT_ID
                     logger.warning(
                         "IAM Permission init with local username, use default bk_tenant_id: %s", self.bk_tenant_id
@@ -82,6 +97,7 @@ class Permission:
             except Exception:  # pylint: disable=broad-except
                 self.bk_tenant_id = settings.BK_APP_TENANT_ID
                 self.username = get_request_username()
+                logger.warning(f"csh-test: enter Exception, username -> {self.username}")
 
         self.iam_client = self.get_iam_client(self.bk_tenant_id)
         # 是否跳过权限中心校验
