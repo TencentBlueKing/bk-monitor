@@ -107,7 +107,7 @@ def process_single_task(task: dict):
     异步处理单个任务
     """
     logger.info("Begin to process task, task_id: %s", task["go_svr_task_id"])
-    task_obj = TGPATask.objects.get(task_id=task["id"])
+    task_obj = TGPATask.objects.get(task_id=task["go_svr_task_id"])
     if task_obj.process_status != TGPATaskProcessStatusEnum.PENDING.value:
         return
 
