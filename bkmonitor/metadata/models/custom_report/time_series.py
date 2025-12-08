@@ -2840,48 +2840,40 @@ class TimeSeriesMetric(models.Model):
     @classmethod
     def _validate_field_name_conflicts(cls, metrics_to_create, group_id):
         """检查字段名称冲突"""
-        # 按 field_scope 组合分组
-        scope_field_names = defaultdict(list)
+        # 收集所有字段名
+        field_names = []
         for metric_data in metrics_to_create:
             field_name = metric_data.get("field_name")
             if not field_name:
                 raise ValueError("创建指标时，field_name为必填项")
+            field_names.append(field_name)
 
-            # 计算 field_scope
-            field_scope = cls.DEFAULT_SCOPE
-
-            scope_field_names[field_scope].append(field_name)
-
-        for field_scope, field_names in scope_field_names.items():
-            # 检查同一批次内是否有重复的字段名
-            unique_field_names = set(field_names)
-            if len(field_names) != len(unique_field_names):
-                # 找出重复的字段名
-                field_name_counts = defaultdict(int)
-                for field_name in field_names:
-                    field_name_counts[field_name] += 1
-                batch_conflicting_names = [field_name for field_name, count in field_name_counts.items() if count > 1]
-                raise ValueError(
-                    "同一批次内指标字段名称[{}]在[{}]分组下重复，请使用其他名称".format(
-                        ", ".join(batch_conflicting_names), field_scope
-                    )
-                )
-
-            # 检查与数据库中已存在的字段名是否冲突
-            existing_field_names = set(
-                cls.objects.filter(
-                    group_id=group_id,
-                    field_scope=field_scope,
-                    field_name__in=field_names,
-                ).values_list("field_name", flat=True)
+        # 检查同一批次内是否有重复的字段名
+        unique_field_names = set(field_names)
+        if len(field_names) != len(unique_field_names):
+            # 找出重复的字段名
+            seen = set()
+            batch_conflicting_names = []
+            for name in field_names:
+                if name in seen and name not in batch_conflicting_names:
+                    batch_conflicting_names.append(name)
+                seen.add(name)
+            raise ValueError(
+                f"同一批次内指标字段名称[{', '.join(batch_conflicting_names)}]在[{cls.DEFAULT_SCOPE}]分组下重复，请使用其他名称"
             )
-            conflicting_names = set(field_names) & existing_field_names
-            if conflicting_names:
-                raise ValueError(
-                    "指标字段名称[{}]在[{}]分组下已存在，请使用其他名称".format(
-                        ", ".join(conflicting_names), field_scope
-                    )
-                )
+
+        # 检查与数据库中已存在的字段名是否冲突
+        existing_field_names = set(
+            cls.objects.filter(
+                group_id=group_id,
+                field_scope=cls.DEFAULT_SCOPE,
+                field_name__in=field_names,
+            ).values_list("field_name", flat=True)
+        )
+        if conflicting_names := unique_field_names & existing_field_names:
+            raise ValueError(
+                f"指标字段名称[{', '.join(conflicting_names)}]在[{cls.DEFAULT_SCOPE}]分组下已存在，请使用其他名称"
+            )
 
     @classmethod
     def _ensure_target_dimension_in_tags(cls, validated_request_data):
