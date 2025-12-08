@@ -26,7 +26,8 @@ from apps.tgpa.constants import TGPATaskProcessStatusEnum
 
 
 class TGPATask(models.Model):
-    task_id = models.IntegerField(_("任务唯一标识"), unique=True, db_index=True)
+    id = models.IntegerField(_("ID"), primary_key=True)
+    task_id = models.CharField(_("后台任务id"), unique=True, db_index=True, max_length=64)
     bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
     log_path = models.TextField(_("日志路径"), null=True, blank=True)
     task_status = models.CharField(_("任务状态"), max_length=64, null=True)
