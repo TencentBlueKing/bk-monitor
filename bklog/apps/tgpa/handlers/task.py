@@ -375,6 +375,8 @@ class TGPATaskHandler:
             etl_params=etl_params,
             fields=fields,
             storage_cluster_id=storage_cluster_id,
+            sort_fields=TGPA_TASK_SORT_FIELDS,
+            target_fields=TGPA_TASK_TARGET_FIELDS,
         )
         if release_collector_config:
             TGPATaskHandler.release_collector_config(bk_biz_id, collector_config_obj.bk_data_id)
