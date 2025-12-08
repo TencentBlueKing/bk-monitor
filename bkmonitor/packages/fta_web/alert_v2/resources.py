@@ -11,7 +11,8 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from bkmonitor.documents import AlertDocument
-from core.drf_resource import Resource
+from constants.alert import K8STargetType
+from core.drf_resource import Resource, resource
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
 from monitor_web.data_explorer.event.resources import EventLogsResource
 
@@ -112,3 +113,41 @@ class AlertEventsResource(Resource):
             pass
         if resource_type == "Workload":
             pass
+
+
+class AlertK8sScenarioListResource(Resource):
+    """
+    根据告警 id 获取告警关联容器场景列表
+    """
+
+    K8sTargetScenarioMap = {
+        K8STargetType.POD: ["performance", "network"],
+        K8STargetType.WORKLOAD: ["performance", "network"],
+        K8STargetType.NODE: ["capacity"],
+        K8STargetType.SERVICE: ["network"],
+    }
+
+    class RequestSerializer(serializers.Serializer):
+        alert_id = serializers.CharField(label="告警 id")
+
+    def perform_request(self, validated_request_data):
+        alert_id = validated_request_data["alert_id"]
+        alert = AlertDocument.get(alert_id)
+        target_type = alert.event.target_type
+        if target_type in [K8STargetType.POD, K8STargetType.WORKLOAD, K8STargetType.NODE, K8STargetType.SERVICE]:
+            return self.K8sTargetScenarioMap[target_type]
+        # todo: support other target type(apm)
+
+        raise []
+
+
+class AlertK8sMetricListResource(Resource):
+    """
+    根据告警 id 获取告警关联容器指标列表
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        scenario = serializers.CharField(label="场景")
+
+    def perform_request(self, validated_request_data):
+        return resource.k8s.scenario_metric_list(scenario=validated_request_data["scenario"])
