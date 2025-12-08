@@ -61,13 +61,6 @@ class CustomCachePublicKeyProvider(CachePublicKeyProvider):
     def provide(self, gateway_name: str, jwt_issuer: str | None = None, request: HttpRequest = None) -> str | None:
         """Return the public key specified by Settings"""
         new_internal_name = getattr(settings, "NEW_INTERNAL_APIGW_NAME", None)
-        logger.warning(
-            f"""
-            csh-test new internal api gateway: 
-            gateway_name -> {gateway_name}; 
-            new_internal_name -> {new_internal_name}; 
-            """
-        )
         if gateway_name and new_internal_name and gateway_name == new_internal_name:
             logger.info(
                 """
@@ -76,12 +69,6 @@ class CustomCachePublicKeyProvider(CachePublicKeyProvider):
                 """
             )
             new_internal_public_key = getattr(settings, "NEW_INTERNAL_APIGW_PUBLIC_KEY", None)
-            logger.warning(
-                f"""
-                csh-test new internal api gateway: 
-                new_internal_public_key -> {new_internal_public_key}; 
-                """
-            )
             if not new_internal_public_key:
                 logger.warning(
                     "No `NEW_INTERNAL_APIGW_PUBLIC_KEY` can be found in settings, you should either configure it "

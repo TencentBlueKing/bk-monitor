@@ -299,6 +299,10 @@
     hasScrollY.value = false;
   };
 
+  watch(() => [props.limitRow], () => {
+    setIsOverflowY();
+  });
+
   watch(
     () => [isRowIntersecting.value],
     () => {
@@ -383,6 +387,8 @@
     .bklog-root-field {
       margin-right: 4px;
       line-height: 20px;
+      display: inline-block; // 修复内联元素基线对齐导致的 1px 差异
+      vertical-align: top; // 确保顶部对齐，避免基线对齐问题
 
       .bklog-json-view-row {
         word-break: break-all;
@@ -507,6 +513,7 @@
     &.is-inline {
       .bklog-root-field {
         display: inline-flex;
+        vertical-align: top; // 确保顶部对齐，避免基线对齐问题
         word-break: break-all;
 
         .segment-content {

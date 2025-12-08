@@ -126,6 +126,10 @@ enum BK_LOG_STORAGE {
    * 趋势图是否折叠
    */
   TREND_CHART_IS_FOLD = '_17',
+  /**
+   * 结果展示行数 1 - 单行 3 - 三行
+   */
+  RESULT_DISPLAY_LINES = '_20',
 }
 
 export { BK_LOG_STORAGE };

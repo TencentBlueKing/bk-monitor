@@ -1,14 +1,14 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue';
 
+import PopInstanceUtil from '@/global/pop-instance-util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { useRoute, useRouter } from 'vue-router/composables';
-import PopInstanceUtil from '../../../global/pop-instance-util';
 
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-import BookmarkPop from './bookmark-pop';
+import BookmarkPop from './components/bookmark-pop';
 // #else
 // #code const BookmarkPop = () => null;
 // #endif
@@ -16,22 +16,22 @@ import BookmarkPop from './bookmark-pop';
 import { ConditionOperator } from '@/store/condition-operator';
 import { bkMessage } from 'bk-magic-vue';
 
+import $http from '@/api';
+import { copyMessage } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
-import RequestPool from '@/store/request-pool';
-import $http from '../../../api';
-import { copyMessage } from '../../../common/util';
-import useResizeObserve from '../../../hooks/use-resize-observe';
 import {
   clearStorageCommonFilterAddition,
   getCommonFilterAddition,
-} from '../../../store/helper';
-import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../store/store.type';
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import CommonFilterSelect from './common-filter-select.vue';
-import { withoutValueConditionList } from './const.common';
-import SqlQuery from './sql-query';
-import UiInput from './ui-input';
+} from '@/store/helper';
+import RequestPool from '@/store/request-pool';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import CommonFilterSelect from './components/common-filter-select.vue';
+import SqlQuery from './sql-mode/sql-query';
+import UiInput from './ui-mode/ui-input';
+import { withoutValueConditionList } from './utils/const.common';
 
 const props = defineProps({
   // activeFavorite: {
@@ -342,12 +342,12 @@ const handleSqlRetrieve = (value) => {
 
 const handleSqlQueryChange = (value) => {
   if (isGloalUsage.value) {
-    store.commit('updateIndexItemParams', {
-      keyword: value,
-    });
+    // store.commit('updateIndexItemParams', {
+    //   keyword: value,
+    // });
 
-    inspectResponse.value.is_legal = true;
-    setRouteParams();
+    // inspectResponse.value.is_legal = true;
+    // setRouteParams();
     return;
   }
 };
@@ -721,6 +721,14 @@ defineExpose({
     :class="['search-bar-wrapper']"
   >
     <div
+      v-bkloading="{
+        isLoading: isAiLoading,
+        opacity: 0.8,
+        theme: 'colorful',
+        size: 'mini',
+        title: $t('正在解析语句'),
+        extCls: 'v3-search-ai-loading',
+      }"
       :class="[
         'search-bar-container',
         {
@@ -728,7 +736,6 @@ defineExpose({
           'inspect-error': !inspectResponse.is_legal,
         },
       ]"
-      v-bkloading="{ isLoading: isAiLoading, opacity: 0.8, theme: 'colorful', size: 'mini', title: $t('正在解析语句'), extCls: 'v3-search-ai-loading' }"
     >
       <div
         class="search-options"
@@ -884,57 +891,57 @@ defineExpose({
   @import "./index.scss";
 </style>
 <style lang="scss">
-  .bklog-sql-input-loading {
-    .bk-loading-wrapper {
-      left: 30px;
+.bklog-sql-input-loading {
+  .bk-loading-wrapper {
+    left: 30px;
+  }
+}
+
+.v3-search-ai-loading {
+  .bk-loading-wrapper {
+    .bk-colorful.bk-size-mini {
+      width: 38px;
+      height: 10px;
+    }
+
+    .bk-loading-title {
+      margin-top: 0;
+      font-size: 12px;
+      color: #313238;
     }
   }
+}
 
-  .v3-search-ai-loading {
-    .bk-loading-wrapper {
-      .bk-colorful.bk-size-mini {
-        height: 10px;
-        width: 38px;
-      }
-
-      .bk-loading-title {
-        font-size: 12px;
-        color: #313238;
-        margin-top: 0;
-      }
-    }
+[data-tippy-root] .tippy-box {
+  &[data-theme*="transparent"] {
+    background-color: transparent;
+    border: none;
   }
+}
 
-  [data-tippy-root] .tippy-box {
-    &[data-theme*="transparent"] {
-      background-color: transparent;
-      border: none;
-    }
-  }
+.bklog-search-input-poptool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
 
-  .bklog-search-input-poptool {
+  .bklog-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
+    width: 28px;
+    height: 28px;
+    margin-right: 4px;
+    color: #4d4f56;
+    cursor: pointer;
+    background: #fafbfd;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+    box-shadow: 0 1px 3px 1px #0000001f;
 
-    .bklog-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
-      margin-right: 4px;
-      color: #4d4f56;
-      cursor: pointer;
-      background: #fafbfd;
-      border: 1px solid #dcdee5;
-      border-radius: 2px;
-      box-shadow: 0 1px 3px 1px #0000001f;
-
-      &:hover {
-        color: #3a84ff;
-      }
+    &:hover {
+      color: #3a84ff;
     }
   }
+}
 </style>

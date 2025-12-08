@@ -214,7 +214,22 @@ class UnifyQuery:
                 meta_field: record.pop(meta_field, "")
                 for meta_field in ["__data_label", "__doc_id", "__index", "__result_table", "__parse_failure"]
             }
-            record["_meta"]["_time_"] = int(record.pop("_time", 0))
+            time_value = record.pop("_time", 0)
+            try:
+                time_value = int(time_value)
+                if len(str(time_value)) > 10:
+                    time_value = time_value // 1000
+            except (TypeError, ValueError):
+                pass
+
+            # 将时间字段序列化
+            try:
+                _time = arrow.get(time_value)
+            except Exception as e:
+                logger.error(f"parse time error: {time_value}")
+                logger.exception(e)
+                _time = arrow.now()
+            record["_meta"]["_time_"] = int(_time.timestamp)
             records.append(record)
         return records
 
@@ -436,6 +451,10 @@ class UnifyQuery:
         params: dict[str, Any] = self.get_unify_query_params(start_time, end_time, time_alignment, order_by)
         if not params["query_list"]:
             return []
+
+        for query in params["query_list"]:
+            # 原始日志查询，无需聚合及函数。
+            query.update({"function": [], "field_name": "", "time_aggregation": {}})
 
         params["limit"] = limit or 1
         params["_from"] = offset or 0

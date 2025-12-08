@@ -24,7 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Mixins, Provide } from 'vue-property-decorator';
+import { Component, Provide } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
 import { deleteApplication, listApplication } from 'monitor-api/modules/apm_meta';
 import { addAccessRecord } from 'monitor-api/modules/overview';
@@ -37,7 +38,6 @@ import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-to
 // import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import OperateOptions from 'monitor-pc/pages/uptime-check/components/operate-options';
 
-import authorityMixinCreate from '../../../apm/mixins/authorityMixin';
 // import ListMenu, { type IMenuItem } from '../../components/list-menu/list-menu';
 import authorityStore from '../../store/modules/authority';
 import * as authorityMap from '../home/authority-map';
@@ -57,7 +57,7 @@ import './apm-home.scss';
 import '@blueking/search-select-v3/vue2/vue2.css';
 
 @Component({})
-export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) {
+export default class AppList extends tsc<undefined> {
   routeList: INavItem[] = [
     {
       id: '',
@@ -465,7 +465,7 @@ export default class AppList extends Mixins(authorityMixinCreate(authorityMap)) 
                     onClick={() =>
                       item?.permission[authorityMap.VIEW_AUTH]
                         ? this.handleAppClick(item)
-                        : this.handleShowAuthorityDetail(this.authorityMap.VIEW_AUTH)
+                        : this.handleShowAuthorityDetail(authorityMap.VIEW_AUTH)
                     }
                   >
                     <div

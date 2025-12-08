@@ -84,6 +84,7 @@
   .panel-intro {
     position: absolute;
     margin-bottom: 16px;
+
     // padding-left: 68px;
     // margin: 4px 0px;
     line-height: 20px;
@@ -167,11 +168,12 @@
 
   .uri-set-label {
     display: inline-block;
-    margin: 0 0 12px 0;
+    margin: 0 0 12px;
   }
 
   .empty-uri-info {
     padding-bottom: 8px;
+
     // margin-left: 60px;
     background: #f0f1f5;
     border-radius: 0 0 2px 2px;
@@ -211,6 +213,20 @@
     }
   }
 
+  .edit-btn {
+    &.edit-btn-no-authority {
+      color: #fff !important;
+      background: #dcdee5 !important;
+      border-color: #dcdee5 !important;
+
+      &:hover {
+        color: #fff !important;
+        background: #dcdee5 !important;
+        border-color: #dcdee5 !important;
+      }
+    }
+  }
+
   .submit-handle {
     padding-bottom: 38px;
   }
@@ -232,6 +248,7 @@
 
   .uri-source-content {
     width: 800px;
+
     // padding-left: 66px;
     // margin-bottom: 24px;
     margin: 0 0 24px 44px;
@@ -242,6 +259,7 @@
 
     .header-tool {
       margin-bottom: 4px;
+
       @include flex-justify(space-between);
 
       label {
@@ -341,7 +359,7 @@
       line-height: 20px;
 
       &:nth-last-of-type(-n + 2) {
-        margin-bottom: 0px;
+        margin-bottom: 0;
       }
     }
 
@@ -357,7 +375,7 @@
           margin-bottom: 8px;
 
           &:last-child {
-            margin-bottom: 0px;
+            margin-bottom: 0;
           }
         }
       }
@@ -366,18 +384,18 @@
 
   .relation-info {
     .config-form-item {
-      margin-bottom: 0px;
+      margin-bottom: 0;
     }
 
     .config-form-item + .config-form-item {
       margin-top: 24px;
-      margin-bottom: 0px;
+      margin-bottom: 0;
     }
   }
 
   .event-link {
     padding-left: 44px;
-    
+
     &.is-editing {
       .event-link-item .tips {
         margin-left: 94px;
@@ -403,6 +421,7 @@
         width: 800px;
         height: 32px;
         padding: 0 10px;
+
         // margin-left: 94px;
         margin-left: 0;
         font-size: 12px;
@@ -413,8 +432,8 @@
         .icon-tishi {
           margin-right: 5px;
           font-size: 14px;
-          color: #4d4f56;
           vertical-align: middle;
+          color: #4d4f56;
         }
 
         .text {
@@ -463,11 +482,10 @@
         margin-right: 34px;
         font-size: 12px;
         line-height: 20px;
-        color: #4D4F56;
+        color: #4d4f56;
         letter-spacing: 0;
         white-space: nowrap;
       }
-      
     }
   }
 
@@ -488,7 +506,7 @@
     }
 
     .storehouse-tips {
-      margin: 4px 0px 0px 0px;
+      margin: 4px 0 0;
       font-size: 12px;
       line-height: 20px;
       color: #979ba5;
@@ -510,7 +528,7 @@
     .item-row {
       &:last-child {
         .editable-form-item {
-          margin-bottom: 0px;
+          margin-bottom: 0;
         }
       }
     }
@@ -564,7 +582,7 @@
 
   .relation-log-form-item {
     .bk-form-item {
-      margin-top: 0px !important;
+      margin-top: 0 !important;
     }
   }
 
@@ -577,12 +595,13 @@
       margin-top: 24px;
     }
   }
+
   // todo 这里后续需要根据平台左侧菜单是否打开调整下宽度和位置
   .submit-handle {
     // padding-bottom: 38px;
     position: absolute;
-    bottom: 0px;
-    left: 0px;
+    bottom: 0;
+    left: 0;
     z-index: 998;
     width: 100vw;
     height: 48px;

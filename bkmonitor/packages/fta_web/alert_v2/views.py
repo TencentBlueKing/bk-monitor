@@ -8,6 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from core.drf_resource import resource
+from core.drf_resource.viewsets import ResourceRoute
+
 # 复用原有alert模块的ViewSet实现
 from fta_web.alert.views import (
     AlertViewSet as BaseAlertViewSet,
@@ -22,7 +25,9 @@ class AlertViewSet(BaseAlertViewSet):
     新版本可以在这里添加特定的业务逻辑或覆盖原有方法
     """
 
-    pass
+    resource_routes = [
+        ResourceRoute("GET", resource.alert_v2.alert_detail, endpoint="alert/detail"),
+    ]
 
 
 class QuickAlertHandleViewSet(BaseQuickAlertHandleViewSet):

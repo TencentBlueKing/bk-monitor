@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 
 """
@@ -36,7 +37,7 @@ class _BkDataAccessApi:
 
     @property
     def use_apigw(self):
-        return settings.ENABLE_MULTI_TENANT_MODE
+        return settings.USE_APIGW
 
     def _build_url(self, new_path, old_path):
         return (
