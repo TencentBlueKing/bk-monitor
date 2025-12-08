@@ -110,7 +110,7 @@ export default defineComponent({
       stopPolling();
       timer.value = setTimeout(() => {
         if (isShouldPollTask.value) {
-          requestData(true); // 传入 true 表示是轮询调用
+          pollTaskStatus();
         }
       }, 30000); // 30秒轮询一次
     };
@@ -132,13 +132,21 @@ export default defineComponent({
 
       isShouldPollTask.value = false;
 
-      // 检查是否有未完成的任务
-      for (const task of taskList) {
-        if (task.status !== TaskStatus.COMPLETED) {
+      // 遍历新任务列表，检查轮询需求并更新现有任务状态
+      taskList.forEach((newTask) => {
+        // 检查是否有未完成的任务
+        if (newTask.status !== TaskStatus.COMPLETED) {
           isShouldPollTask.value = true;
-          break;
         }
-      }
+
+        // 更新现有任务列表中对应任务的状态
+        tableData.value.list.forEach((existingTask) => {
+          if (existingTask.id === newTask.id) {
+            existingTask.status = newTask.status;
+            existingTask.status_name = newTask.status_name;
+          }
+        });
+      });
 
       // 如果需要轮询，启动轮询
       if (isShouldPollTask.value) {
@@ -183,8 +191,8 @@ export default defineComponent({
       }
     };
 
-    // 获取列表数据
-    const requestData = async (isPolling = false) => {
+    // 轮询获取任务状态
+    const pollTaskStatus = async () => {
       try {
         const params = {
           query: {
@@ -192,10 +200,29 @@ export default defineComponent({
           },
         };
 
-        // 如果不是轮询调用，显示加载状态
-        if (!isPolling) {
-          isLoading.value = true;
+        const response = await http.request('collect/getTaskLogList', params);
+        if (activeTab.value === TAB_TYPES.COLLECT) {
+          if (response.data.list.length > 0) {
+            checkShouldPoll(response.data.list);
+          }
         }
+      } catch (error) {
+        console.warn('轮询获取任务状态失败:', error);
+        // 轮询失败时停止轮询
+        stopPolling();
+      }
+    };
+
+    // 获取列表数据
+    const requestData = async () => {
+      try {
+        const params = {
+          query: {
+            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+          },
+        };
+
+        isLoading.value = true;
 
         const response = await http.request('collect/getTaskLogList', params);
         if (activeTab.value === TAB_TYPES.COLLECT) {
@@ -209,15 +236,8 @@ export default defineComponent({
         }
       } catch (error) {
         console.warn('获取采集下发列表失败:', error);
-        // 如果是轮询调用失败，停止轮询
-        if (isPolling) {
-          stopPolling();
-        }
       } finally {
-        // 如果不是轮询调用，隐藏加载状态
-        if (!isPolling) {
-          isLoading.value = false;
-        }
+        isLoading.value = false;
       }
     };
 

@@ -318,6 +318,14 @@ export default defineComponent({
     // 更新分页信息
     const changePagination = (paginationValue = {}) => {
       Object.assign(pagination.value, paginationValue);
+
+      // 检查当前页码是否超出范围
+      const { current, limit, count } = pagination.value;
+      const maxPage = Math.max(1, Math.ceil(count / limit));
+
+      if (current > maxPage) {
+        pagination.value.current = maxPage;
+      }
     };
 
     // 清空过滤条件
