@@ -281,7 +281,12 @@ CUSTOM_TS_GROUPING_RULE_LIST = [
     {
         "scope_id": 1,
         "name": "内置指标",
-        "manual_list": ["SayHello_request_bytes_count"],
+        "metric_list": [
+            {
+                "field_id": 1,
+                "metric_name": "SayHello_request_bytes_count",
+            }
+        ],
         "auto_rules": [],
         "metric_count": 1,
         "create_from": "data",
@@ -289,7 +294,12 @@ CUSTOM_TS_GROUPING_RULE_LIST = [
     {
         "scope_id": 2,
         "name": "测试",
-        "manual_list": ["SayHello_request_count"],
+        "metric_list": [
+            {
+                "field_id": 2,
+                "metric_name": "SayHello_request_count",
+            }
+        ],
         "auto_rules": [],
         "metric_count": 1,
         "create_from": "user",
@@ -297,9 +307,20 @@ CUSTOM_TS_GROUPING_RULE_LIST = [
     {
         "scope_id": 3,
         "name": "",
-        "manual_list": [],
+        "metric_list": [],
         "auto_rules": [],
         "metric_count": 1,
         "create_from": "user",
     },
 ]
+
+CUSTOM_TS_GROUPING_RULE_DETAIL = {
+    "time_series_group_id": 469,
+    "scope_id": 2,
+    "name": "测试",
+    "dimension_config": {"dimension_name": {"desc": "", "common": False, "hidden": False}},
+    "metric_list": [{"field_id": 1, "metric_name": "active_request"}],
+    "auto_rules": [],
+    "metric_count": 1,
+    "create_from": "user",
+}
