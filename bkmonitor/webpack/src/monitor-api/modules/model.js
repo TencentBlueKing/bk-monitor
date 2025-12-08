@@ -161,18 +161,6 @@ export const listSearchFavorite = request('GET', 'fta/alert/search_favorite/');
 export const partialUpdateSearchFavorite = request('PATCH', 'fta/alert/search_favorite/{pk}/');
 export const retrieveSearchFavorite = request('GET', 'fta/alert/search_favorite/{pk}/');
 export const updateSearchFavorite = request('PUT', 'fta/alert/search_favorite/{pk}/');
-export const createSearchFavorite = request('POST', 'fta/alert/search_favorite/');
-export const destroySearchFavorite = request('DELETE', 'fta/alert/search_favorite/{pk}/');
-export const listSearchFavorite = request('GET', 'fta/alert/search_favorite/');
-export const partialUpdateSearchFavorite = request('PATCH', 'fta/alert/search_favorite/{pk}/');
-export const retrieveSearchFavorite = request('GET', 'fta/alert/search_favorite/{pk}/');
-export const updateSearchFavorite = request('PUT', 'fta/alert/search_favorite/{pk}/');
-export const createSearchFavorite = request('POST', 'fta/alert/search_favorite/');
-export const destroySearchFavorite = request('DELETE', 'fta/alert/search_favorite/{pk}/');
-export const listSearchFavorite = request('GET', 'fta/alert/search_favorite/');
-export const partialUpdateSearchFavorite = request('PATCH', 'fta/alert/search_favorite/{pk}/');
-export const retrieveSearchFavorite = request('GET', 'fta/alert/search_favorite/{pk}/');
-export const updateSearchFavorite = request('PUT', 'fta/alert/search_favorite/{pk}/');
 export const createAssignGroup = request('POST', 'fta/assign/rule_groups/');
 export const destroyAssignGroup = request('DELETE', 'fta/assign/rule_groups/{pk}/');
 export const listAssignGroup = request('GET', 'fta/assign/rule_groups/');
@@ -198,6 +186,8 @@ export const retrieveStrategyTemplate = request('GET', 'apm/strategy/strategy_te
 export const searchStrategyTemplate = request('POST', 'apm/strategy/strategy_template/search/');
 export const unapplyStrategyTemplate = request('POST', 'apm/strategy/strategy_template/unapply/');
 export const updateStrategyTemplate = request('PUT', 'apm/strategy/strategy_template/{pk}/');
+export const groupsIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/groups/');
+export const executeIpChooserDynamicGroup = request('POST', 'rest/v2/commons/ip_chooser_dynamic_group/execute/');
 
 export default {
   countBaseAlarm,
@@ -361,18 +351,6 @@ export default {
   partialUpdateSearchFavorite,
   retrieveSearchFavorite,
   updateSearchFavorite,
-  createSearchFavorite,
-  destroySearchFavorite,
-  listSearchFavorite,
-  partialUpdateSearchFavorite,
-  retrieveSearchFavorite,
-  updateSearchFavorite,
-  createSearchFavorite,
-  destroySearchFavorite,
-  listSearchFavorite,
-  partialUpdateSearchFavorite,
-  retrieveSearchFavorite,
-  updateSearchFavorite,
   createAssignGroup,
   destroyAssignGroup,
   listAssignGroup,
@@ -398,4 +376,6 @@ export default {
   searchStrategyTemplate,
   unapplyStrategyTemplate,
   updateStrategyTemplate,
+  groupsIpChooserDynamicGroup,
+  executeIpChooserDynamicGroup,
 };
