@@ -254,7 +254,10 @@ class MetricDataSource(ApmDataSourceConfigBase):
 
         # 检查是否在白名单中，只有白名单中的应用才配置 metric_group_dimensions
         if f"{self.bk_biz_id}-{self.app_name}" in settings.APM_METRIC_GROUP_DIMENSIONS_WHITELIST:
-            params["metric_group_dimensions"] = ["service_name", "scope_name"]
+            params["metric_group_dimensions"] = {
+                "service_name": {"index": 0, "default_value": "unknown_service"},
+                "scope_name": {"index": 1, "default_value": "default"},
+            }
 
         datalink = DataLink.get_data_link(self.bk_biz_id)
         if datalink and datalink.influxdb_cluster_name:

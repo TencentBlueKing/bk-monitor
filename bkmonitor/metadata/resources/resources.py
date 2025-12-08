@@ -1261,7 +1261,7 @@ class CreateTimeSeriesGroupResource(Resource):
         default_storage_config = serializers.DictField(required=False, label="默认存储参数")
         additional_options = serializers.DictField(required=False, label="附带创建的ResultTableOption")
         data_label = serializers.CharField(label="数据标签", required=False, default="")
-        metric_group_dimensions = serializers.ListField(required=False, label="指标分组的维度key配置")
+        metric_group_dimensions = serializers.JSONField(required=False, label="指标分组的维度key配置")
 
     def perform_request(self, validated_request_data):
         # 默认都是返回已经删除的内容
