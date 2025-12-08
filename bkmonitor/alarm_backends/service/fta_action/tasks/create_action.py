@@ -702,6 +702,7 @@ class CreateActionProcessor:
                 action_plugin = action_plugins.get(str(action_config["plugin_id"]))
                 skip_delay = int(action["options"].get("skip_delay", 0))
                 current_time = int(time.time())
+                # 告警分派中向itsm_actions添加的action可能不存在signal字段
                 if (
                     ActionSignal.ABNORMAL in action.get("signal", [])
                     and current_time - alert["begin_time"] > skip_delay > 0
