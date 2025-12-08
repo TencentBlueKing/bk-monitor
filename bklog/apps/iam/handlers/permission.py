@@ -70,18 +70,23 @@ class Permission:
             logger.warning("csh-test: enter no username")
             try:
                 if request:
-                    request = request
                     logger.warning(f"csh-test: use original request -> {request}")
                 else:
                     request = get_request(peaceful=True)
                     logger.warning(f"csh-test: use get request -> {request}")
 
-                bkapi_auth = request.META.get("HTTP_X_BKAPI_AUTHORIZATION")
-                logger.warning(f"csh-test: check X-Bkapi-Authorization -> {json.loads(bkapi_auth)}")
-
                 # web请求
                 if request:
                     logger.warning(f"csh-test: enter have request, user -> {request.user}")
+
+                    bkapi_auth = request.META.get("HTTP_X_BKAPI_AUTHORIZATION")
+                    if bkapi_auth:
+                        try:
+                            auth_info = json.loads(bkapi_auth)
+                            logger.warning(f"csh-test: X-Bkapi-Authorization -> {auth_info}")
+                        except Exception as e:
+                            logger.warning(f"csh-test:  -> {e}, original -> {bkapi_auth}")
+
                     self.username = request.user.username
                     self.bk_tenant_id = get_request_tenant_id()
                 else:
