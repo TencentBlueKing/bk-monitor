@@ -234,6 +234,19 @@ class MappingHandlers:
                     "is_analyzed": False,
                 }
             )
+        if "__ext.bk_bcs_cluster_id" in fields:
+            field_list.append(
+                {
+                    "field_type": "__virtual__",
+                    "field_name": "__bcs_cluster_name__",
+                    "field_alias": _("bcs 集群名称"),
+                    "is_display": False,
+                    "is_editable": True,
+                    "tag": "dimension",
+                    "es_doc_values": False,
+                    "is_analyzed": False,
+                }
+            )
         return field_list
 
     @property

@@ -19,6 +19,7 @@ from apps.api import UnifyQueryApi
 from apps.api.modules.utils import get_non_bkcc_space_related_bkcc_biz_id
 from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
 from apps.log_clustering.models import ClusteringConfig
+from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
 from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
@@ -642,6 +643,8 @@ class UnifyQueryHandler:
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
+            # 增加 "添加集群有关字段" 方法, 方便后续拓展集群字段
+            log = self._add_cluster_fields(log)
             # 联合索引 增加索引集id信息
             log.update({"__index_set_id__": int(self.search_params["index_set_ids"][0])})
             if self.export_fields:
@@ -925,6 +928,19 @@ class UnifyQueryHandler:
             }
             return_data["aggs"]["group_by_histogram"]["buckets"].append(tmp)
         return return_data
+
+    def _add_cluster_fields(self, log):
+        """
+        添加集群有关字段
+        """
+        log["__bcs_cluster_name__"] = ""
+
+        # 获取存储集群名称
+        cluster_info = StorageHandler().get_cluster_info_by_table(None)
+        if cluster_info and cluster_info.get("cluster_config"):
+            log["__bcs_cluster_name__"] = cluster_info.get("cluster_config").get("cluster_name")
+
+        return log
 
     def _add_cmdb_fields(self, log):
         if not self.search_params.get("bk_biz_id"):

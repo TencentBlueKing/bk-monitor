@@ -42,6 +42,7 @@ from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import DIRECT_ESQUERY_SEARCH, LOG_DESENSITIZE
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import EtlConfig
+from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
@@ -2188,6 +2189,19 @@ class SearchHandler:
 
         return highlight
 
+    def _add_cluster_fields(self, log):
+        """
+        添加集群有关字段
+        """
+        log["__bcs_cluster_name__"] = ""
+
+        # 获取存储集群名称
+        cluster_info = StorageHandler().get_cluster_info_by_table(self.search_dict.get("indices"))
+        if cluster_info and cluster_info.get("cluster_config"):
+            log["__bcs_cluster_name__"] = cluster_info.get("cluster_config").get("cluster_name")
+
+        return log
+
     def _add_cmdb_fields(self, log):
         if not self.search_dict.get("bk_biz_id"):
             return log
@@ -2265,6 +2279,8 @@ class SearchHandler:
             # 联合检索补充索引集信息
             log["__index_set_id__"] = self.index_set_id
             log = self._add_cmdb_fields(log)
+            # 增加 "添加集群有关字段" 方法, 方便后续拓展集群字段
+            log = self._add_cluster_fields(log)
             if self.export_fields:
                 new_origin_log = {}
                 for _export_field in self.export_fields:
