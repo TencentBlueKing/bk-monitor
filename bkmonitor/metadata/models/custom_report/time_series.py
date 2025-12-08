@@ -1316,10 +1316,9 @@ class TimeSeriesScope(models.Model):
         return created_scopes
 
     @classmethod
-    def _build_scope_results(cls, group_id: int, scopes: list[dict], scope_objects: dict) -> list[dict]:
+    def _build_scope_results(cls, scopes: list[dict], scope_objects: dict) -> list[dict]:
         """构建分组结果列表
 
-        :param group_id: 自定义时序数据源ID
         :param scopes: 原始分组列表
         :param scope_objects: 分组对象字典，可能是 {scope_id: scope_obj} 或 {scope_name: scope_obj}
         :return: 结果列表
@@ -1391,7 +1390,7 @@ class TimeSeriesScope(models.Model):
             # 第二步：创建
             created_scopes = cls._create_scope_data(group_id, scopes_to_create)
             # 第三步：构建结果
-            create_results = cls._build_scope_results(group_id, scopes_to_create, created_scopes)
+            create_results = cls._build_scope_results(scopes_to_create, created_scopes)
             results.extend(create_results)
 
         # 批量更新
@@ -1401,7 +1400,7 @@ class TimeSeriesScope(models.Model):
             # 第二步：更新
             updated_scopes = cls._update_scopes_data(scopes_to_update, existing_scopes)
             # 第三步：构建结果
-            update_results = cls._build_scope_results(group_id, scopes_to_update, updated_scopes)
+            update_results = cls._build_scope_results(scopes_to_update, updated_scopes)
             results.extend(update_results)
 
         return results
@@ -1616,7 +1615,7 @@ class TimeSeriesScope(models.Model):
 
                 # 2. 从 metric 表中获取对应数据分组 scope 的所有 metric 的维度
                 # 查询该分组下的所有指标
-                metrics = TimeSeriesMetric.objects.filter(group_id=scope.group_id, field_scope=scope.scope_name)
+                metrics = TimeSeriesMetric.objects.filter(group_id=scope.group_id, scope_id=scope.id)
 
                 # 3. 计算所有 metric 的维度并集
                 all_metric_dimensions = set()
