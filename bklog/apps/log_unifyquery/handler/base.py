@@ -933,12 +933,15 @@ class UnifyQueryHandler:
         """
         添加集群有关字段
         """
-        log["__bcs_cluster_name__"] = ""
+        bk_bcs_cluster_id = log.get("__ext", dict()).get("bk_bcs_cluster_id")
 
-        # 获取存储集群名称
-        cluster_info = StorageHandler().get_cluster_info_by_table(None)
-        if cluster_info and cluster_info.get("cluster_config"):
-            log["__bcs_cluster_name__"] = cluster_info.get("cluster_config").get("cluster_name")
+        if bk_bcs_cluster_id:
+            log["__bcs_cluster_name__"] = ""
+
+            # 获取存储集群名称
+            cluster_info = StorageHandler().get_cluster_info_by_table(log.get("__result_table"))
+            if cluster_info and cluster_info.get("cluster_config"):
+                log["__bcs_cluster_name__"] = cluster_info.get("cluster_config").get("cluster_name")
 
         return log
 
