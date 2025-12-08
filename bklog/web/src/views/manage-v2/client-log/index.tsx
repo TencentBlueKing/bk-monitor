@@ -94,13 +94,32 @@ export default defineComponent({
 
     // 检查是否为灰度业务
     const checkGrayReleaseAccess = () => {
-      const whiteList = window.FEATURE_TOGGLE_WHITE_LIST?.tgpa_task ?? [];
       const bizId = store.state.bkBizId;
       const spaceUid = store.state.spaceUid;
 
-      // 类型安全的白名单检查
-      const normalizedWhiteList = whiteList.map((id: any) => String(id));
-      const hasAccess = normalizedWhiteList.includes(String(bizId)) || normalizedWhiteList.includes(String(spaceUid));
+      // 获取总开关状态
+      const { tgpa_task: tgpaTaskToggle } = window.FEATURE_TOGGLE;
+      const whiteList = window.FEATURE_TOGGLE_WHITE_LIST?.tgpa_task ?? [];
+
+      let hasAccess = false;
+
+      switch (tgpaTaskToggle) {
+        case 'on':
+          hasAccess = true;
+          break;
+        case 'off':
+          hasAccess = false;
+          break;
+        case 'debug': { // 检查白名单
+          const normalizedWhiteList = whiteList.map((id: any) => String(id));
+          hasAccess = normalizedWhiteList.includes(String(bizId)) || normalizedWhiteList.includes(String(spaceUid));
+          break;
+        }
+        default:
+          // 没有配置，默认为全开
+          hasAccess = true;
+          break;
+      }
 
       isGrayRelease.value = !hasAccess;
     };
@@ -295,9 +314,6 @@ export default defineComponent({
     };
 
     onMounted(async () => {
-      // 检查灰度业务权限
-      checkGrayReleaseAccess();
-
       // 如果是灰度业务，则不做任何处理
       if (isGrayRelease.value) {
         return;
@@ -312,6 +328,17 @@ export default defineComponent({
       // 监听事件
       tenantManager.on('userInfoUpdated', handleUserInfoUpdate);
     });
+
+    watch(
+      () => store.state.spaceUid,
+      (newSpaceUid, oldSpaceUid) => {
+        if (newSpaceUid && newSpaceUid !== oldSpaceUid) {
+          // 检查灰度业务权限
+          checkGrayReleaseAccess();
+        }
+      },
+      { immediate: true },
+    );
 
     onBeforeUnmount(() => {
       // 标记组件已销毁
