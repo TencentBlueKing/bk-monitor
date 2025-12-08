@@ -12,9 +12,9 @@ import base64
 import copy
 import json
 import logging
+import urllib.parse
 from typing import Any
 from collections.abc import Callable
-from urllib.parse import urljoin
 
 from django.conf import settings
 from django.utils.functional import cached_property
@@ -45,6 +45,8 @@ from core.errors.alert import AIOpsFunctionAccessedError
 from ...service.converge.shield.shielder import AlertShieldConfigShielder
 from . import BaseContextObject
 from .utils import context_field_timer
+
+FIVE_MIN_SECONDS = 5 * 60
 
 logger = logging.getLogger("fta_action.run")
 
@@ -815,7 +817,7 @@ class Alarm(BaseContextObject):
             # 最近一次没有的话，表示没有命中分派
             return None
         route_path = base64.b64encode(f"#/alarm-dispatch?group_id={self.latest_assign_group}".encode()).decode("utf8")
-        return urljoin(
+        return urllib.parse.urljoin(
             settings.BK_MONITOR_HOST,
             f"route/?bizId={self.parent.business.bk_biz_id}&route_path={route_path}",
         )
@@ -993,11 +995,53 @@ class Alarm(BaseContextObject):
     def event_explore_url(self) -> str | None:
         """事件检索跳转链接生成"""
         alert: AlertDocument = self.parent.alert
-        if not alert.strategy:
+        if not alert.strategy or not alert.strategy.get("items"):
             return None
 
-        return ApmAlertHelper.get_event_explore_url(
-            self.parent.business.bk_biz_id, alert.strategy, self.origin_dimensions, alert.event.time, self.duration
+        try:
+            query_config: dict[str, Any] = alert.strategy["items"][0]["query_configs"][0]
+        except (KeyError, IndexError):
+            return None
+
+        # 构建检索条件
+        query_filter: dict[str, Any] = {
+            "result_table_id": query_config["result_table_id"],
+            "data_source_label": query_config["data_source_label"],
+            "data_type_label": query_config["data_type_label"],
+            "query_string": query_config.get("query_string", ""),
+        }
+
+        where: list[dict[str, Any]] = []
+        # 需排除的经 CMDB 丰富的维度字段（由 CMDBEnricher 类添加）
+        CMDB_enrich_fields: set[str] = {
+            "bk_obj_id",
+            "bk_inst_id",
+            "bk_topo_node",
+            "bk_host_id",
+            "ipv6",
+            # 内网IP（注：使用 bk_target_ip 原始维度即可）
+            "ip",
+            # 云区域ID（注：使用 bk_target_cloud_id 原始维度即可）
+            "bk_cloud_id",
+            # 服务实例ID（注：使用bk_target_service_instance_id 原始维度即可）
+            "bk_service_instance_id",
+        }
+        for key, value in self.origin_dimensions.items():
+            if key not in CMDB_enrich_fields and value is not None:
+                where.append({"key": key, "method": "eq", "value": [value or ""], "condition": "and"})
+        query_filter["where"] = where
+
+        offset: int = FIVE_MIN_SECONDS * 1000
+        create_timestamp: int = alert.event.time
+        params: dict[str, Any] = {
+            "targets": json.dumps([{"data": {"query_configs": [query_filter]}}]),
+            "from": create_timestamp * 1000 - self.duration * 1000 - offset,
+            "to": create_timestamp * 1000 + offset,
+        }
+
+        encoded_params: str = urllib.parse.urlencode(params)
+        return urllib.parse.urljoin(
+            settings.BK_MONITOR_HOST, f"?bizId={self.parent.business.bk_biz_id}#/event-explore?{encoded_params}"
         )
 
     @cached_property
