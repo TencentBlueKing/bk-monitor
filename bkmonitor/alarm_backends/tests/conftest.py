@@ -29,7 +29,7 @@ def pytest_configure():
         "elasticsearch_dsl.connections.Connections.create_connection", return_value=FakeElasticsearchBucket()
     ).start()
     settings.PUSH_MONITOR_EVENT_TO_FTA = False
-    TestCase.databases = {"default", "monitor_api"}
+    TestCase.databases = {"default", "monitor_api", "backend_alert"}
 
 
 MOCK_BCS_CLUSTER_MANAGER_FETCH_CLUSTERS = [
