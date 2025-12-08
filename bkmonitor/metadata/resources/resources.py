@@ -1517,7 +1517,7 @@ class QueryTimeSeriesScopeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
-        group_id = serializers.IntegerField(required=False, label="自定义时序数据源ID")
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
         scope_id = serializers.IntegerField(required=False, label="指标分组ID")
         scope_name = serializers.CharField(required=False, label="指标分组名", allow_blank=True)
 
@@ -1535,9 +1535,7 @@ class QueryTimeSeriesScopeResource(Resource):
         is_query_only_ungrouped = scope_name == ""  # 仅查询未分组
         is_include_ungrouped = scope_name is None and scope_id is None  # 包含未分组
 
-        # 验证 group_id 的有效性（如果提供）
-        if group_id is not None:
-            self._validate_group_id(group_id, bk_tenant_id)
+        self._validate_group_id(group_id, bk_tenant_id)
 
         # 场景1：仅查询未分组指标
         if is_query_only_ungrouped:
