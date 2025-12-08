@@ -48,6 +48,8 @@ from apps.tgpa.constants import (
     TGPA_TASK_COLLECTOR_CONFIG_NAME,
     TGPA_TASK_COLLECTOR_CONFIG_NAME_EN,
     LOG_FILE_EXPIRE_DAYS,
+    TGPA_TASK_SORT_FIELDS,
+    TGPA_TASK_TARGET_FIELDS,
 )
 from apps.utils.bcs import Bcs
 from apps.utils.log import logger
@@ -327,6 +329,8 @@ class TGPATaskHandler:
             etl_params=etl_params,
             fields=fields,
             storage_cluster_id=storage_cluster_id,
+            sort_fields=TGPA_TASK_SORT_FIELDS,
+            target_fields=TGPA_TASK_TARGET_FIELDS,
             collector_scenario_id=CollectorScenarioEnum.CLIENT.value,
         )
         # 采集配置下发
