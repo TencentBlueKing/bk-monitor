@@ -702,7 +702,10 @@ class CreateActionProcessor:
                 action_plugin = action_plugins.get(str(action_config["plugin_id"]))
                 skip_delay = int(action["options"].get("skip_delay", 0))
                 current_time = int(time.time())
-                if ActionSignal.ABNORMAL in action["signal"] and current_time - alert["begin_time"] > skip_delay > 0:
+                if (
+                    ActionSignal.ABNORMAL in action.get("signal", [])
+                    and current_time - alert["begin_time"] > skip_delay > 0
+                ):
                     # 如果当前时间距离告警开始时间，大于skip_delay，则不处理改套餐
                     description = {
                         "config_id": action["config_id"],
