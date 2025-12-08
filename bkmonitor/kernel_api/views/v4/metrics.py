@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from kernel_api.resource.metrics import TimeSeriesGroupListResource
+from kernel_api.resource.metrics import TimeSeriesGroupListResource, ExecuteRangeQueryResource
 
 
 class MetricsViewSet(ResourceViewSet):
@@ -21,4 +21,5 @@ class MetricsViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("POST", resource.strategies.get_metric_list_v2, endpoint="get_metric_list"),
         ResourceRoute("POST", TimeSeriesGroupListResource, endpoint="list_time_series_groups"),
+        ResourceRoute("POST", ExecuteRangeQueryResource, endpoint="execute_range_query"),
     ]

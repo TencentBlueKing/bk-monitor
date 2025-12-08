@@ -21,7 +21,7 @@ export function reportRouteLog(params: Record<string, any>, state: any) {
             space_id: space?.space_uid || bkBizId,
             space_name: space?.space_name || bkBizId,
             user_name: username,
-            version: localStorage.getItem('retrieve_version') || 'v2',
+            version: localStorage.getItem('retrieve_version') || 'v3',
             ...params,
           },
         },

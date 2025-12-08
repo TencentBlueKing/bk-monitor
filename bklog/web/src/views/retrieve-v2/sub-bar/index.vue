@@ -9,7 +9,7 @@ import { isEqual } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import IndexSetChoice from '../components/index-set-choice/index';
-import { getInputQueryIpSelectItem } from '../search-bar/const.common';
+import { getInputQueryIpSelectItem } from '../search-bar/utils/const.common';
 // #if MONITOR_APP !== 'trace'
 import QueryHistory from './query-history';
 // #else

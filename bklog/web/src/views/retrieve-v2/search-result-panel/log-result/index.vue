@@ -125,7 +125,7 @@ import BkLogPopover from '../../../../components/bklog-popover/index';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ResultStorage from '../../components/result-storage/index';
 import FieldsSetting from '../../result-comp/update/fields-setting';
-import bklogTagChoice from '../../search-bar/bklog-tag-choice';
+import bklogTagChoice from '../../search-bar/components/bklog-tag-choice';
 import TableLog from './log-result.vue';
 
 let logResultResizeObserver;

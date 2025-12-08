@@ -23,15 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, nextTick, onMounted, onUnmounted, type Ref, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from 'vue';
 
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
-import { getCharLength } from '../../../common/util';
-import PopInstanceUtil from '../../../global/pop-instance-util';
-import useLocale from '../../../hooks/use-locale';
-import useResizeObserve from '../../../hooks/use-resize-observe';
-import { RetrieveEvent } from '../../retrieve-helper';
+import { getCharLength } from '@/common/util';
+import PopInstanceUtil from '@/global/pop-instance-util';
+import useLocale from '@/hooks/use-locale';
+import useResizeObserve from '@/hooks/use-resize-observe';
+import { RetrieveEvent } from '@/views/retrieve-helper';
 
 import './bklog-tag-choice.scss';
 

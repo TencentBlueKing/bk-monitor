@@ -9,6 +9,8 @@ from django.utils import timezone
 
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.log_search.constants import (
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     ExportStatus,
@@ -28,8 +30,10 @@ from apps.log_search.models import (
     IndexSetFieldsConfig,
     LogIndexSet,
     UserIndexSetFieldsConfig,
+    LogIndexSetData,
 )
 from apps.log_search.utils import create_download_response
+from apps.log_unifyquery.handler.terms_aggs import UnifyQueryTermsAggsHandler
 from apps.models import model_to_dict
 from apps.utils.local import get_request_username
 from bkm_search_module.api import AbstractBkApi
@@ -80,7 +84,17 @@ class BkApi(AbstractBkApi):
     @staticmethod
     def search_condition_options(index_set_id: int, fields: list):
         """检索条件选项"""
-        terms_data = AggsViewAdapter().terms(index_set_id=index_set_id, query_data={"fields": fields})
+
+        data = {"fields": fields}
+
+        index_set_data_instance = LogIndexSetData.objects.filter(index_set_id=index_set_id).first()
+        data["bk_biz_id"] = index_set_data_instance.bk_biz_id
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            data["index_set_ids"] = [index_set_id]
+            terms_data = UnifyQueryTermsAggsHandler(data.get("fields", []), data).terms()
+        else:
+            terms_data = AggsViewAdapter().terms(index_set_id=index_set_id, query_data=data)
 
         result = terms_data.get("aggs_items", {})
         res = dict()

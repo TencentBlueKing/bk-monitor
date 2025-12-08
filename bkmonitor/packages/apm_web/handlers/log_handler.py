@@ -69,8 +69,8 @@ class ServiceLogHandler:
         pool = ThreadPool()
         futures = []
         for i in service_mapping.values():
-            for bk_biz_id in i.keys():
-                futures.append(pool.apply_async(get_biz_index_sets_with_cache, kwds={"bk_biz_id": bk_biz_id}))
+            for related_biz_id in i.keys():
+                futures.append(pool.apply_async(get_biz_index_sets_with_cache, kwds={"bk_biz_id": related_biz_id}))
         index_set = list(itertools.chain(*[i.get() for i in futures]))
 
         # Step3: 根据 index_set_id 进行匹配

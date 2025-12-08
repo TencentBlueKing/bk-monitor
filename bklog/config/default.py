@@ -599,6 +599,8 @@ FEATURE_TOGGLE = {
     "trace": os.environ.get("BKAPP_FEATURE_TRACE", "off"),
     # 日志脱敏
     "log_desensitize": os.environ.get("BKAPP_FEATURE_DESENSITIZE", "on"),
+    # 客户端日志
+    "tgpa_task": os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off"),
 }
 
 SAAS_MONITOR = "bk_monitorv3"
@@ -676,7 +678,7 @@ MENUS = [
                     {
                         "id": "tgpa_task",
                         "name": _("客户端日志"),
-                        "feature": "debug",
+                        "feature": FEATURE_TOGGLE["tgpa_task"],
                         "icon": "client-log",
                     },
                     {

@@ -1235,12 +1235,13 @@ class CollectorHandler:
         is_display=True,
         sort_fields=None,
         target_fields=None,
+        collector_scenario_id=CollectorScenarioEnum.CUSTOM.value,
     ):
         collector_config_params = {
             "bk_biz_id": bk_biz_id,
             "collector_config_name": collector_config_name,
             "collector_config_name_en": collector_config_name_en,
-            "collector_scenario_id": CollectorScenarioEnum.CUSTOM.value,
+            "collector_scenario_id": collector_scenario_id,
             "custom_type": custom_type,
             "category_id": category_id,
             "description": description or collector_config_name,

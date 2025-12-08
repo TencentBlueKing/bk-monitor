@@ -1,26 +1,26 @@
 <script setup>
-import { ref, computed, set } from 'vue';
+import { computed, ref, set } from 'vue';
 
 import {
-  getOperatorKey,
   formatDateTimeField,
+  getOperatorKey,
 } from '@/common/util';
 import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import jsCookie from 'js-cookie';
 
+import PopInstanceUtil from '@/global/pop-instance-util';
+import IPSelector from '../components/ip-selector';
+import { operatorMapping, translateKeys } from '../utils/const-values';
 import {
+  FulltextOperator,
+  FulltextOperatorKey,
   getInputQueryDefaultItem,
   getInputQueryIpSelectItem,
-  FulltextOperatorKey,
-  FulltextOperator,
-} from './const.common';
-import { operatorMapping, translateKeys } from './const-values';
-import IPSelector from './ip-selector';
+} from '../utils/const.common';
+import useFocusInput from '../utils/use-focus-input';
 import UiInputOptions from './ui-input-option.vue';
-import useFocusInput from './use-focus-input';
-import PopInstanceUtil from '@/global/pop-instance-util';
 
 const props = defineProps({
   value: {
@@ -782,7 +782,7 @@ const handleBatchInputChange = (isShow) => {
         @input="handleInputValueChange"
         @keydown="handleChoiceListKeydown"
         @keyup.delete="handleDeleteItem"
-        @keyup.enter.stop="handleInputValueEnter"
+        @keydown.enter.stop="handleInputValueEnter"
         @compositionstart="handleCompositionStart"
         @compositionend="handleCompositionEnd"
       >

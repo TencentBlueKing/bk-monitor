@@ -1156,4 +1156,6 @@ export default {
     'Task ID, Name, OpenID, Create Method, Status, Stage, Creator',
   'Alert 文案占位，用于说明如果用 SDK 上报。':
     'The alert text placeholder is used to explain how to report using the SDK.',
+  '暂无下载链接，请在任务完成后点击下载':
+    'No download link available. Please click download after completing the task.',
 };

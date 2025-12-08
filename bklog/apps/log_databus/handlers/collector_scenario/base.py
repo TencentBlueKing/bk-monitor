@@ -63,6 +63,7 @@ class CollectorScenario:
             CollectorScenarioEnum.REDIS_SLOWLOG.value: "RedisSlowLogCollectorScenario",
             CollectorScenarioEnum.SYSLOG.value: "SysLogScenario",
             CollectorScenarioEnum.KAFKA.value: "KafkaScenario",
+            CollectorScenarioEnum.CLIENT.value: "ClientCollectorScenario",
         }
         try:
             collector_scenario = import_string(

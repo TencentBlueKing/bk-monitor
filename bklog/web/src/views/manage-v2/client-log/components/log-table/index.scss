@@ -4,12 +4,12 @@
     text-align: left;
 
     >div {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        overflow-wrap: normal;
-        white-space: nowrap;
-      }
-    
+      overflow: hidden;
+      text-overflow: ellipsis;
+      overflow-wrap: normal;
+      white-space: nowrap;
+    }
+
   }
 
   .status-row {
@@ -40,22 +40,26 @@
     .king-button {
       margin-right: 16px;
     }
+
+    .disabled-download {
+      color: #c4c6cc;
+    }
   }
 
-    .bk-table {
-      .bk-table-header-wrapper {
-        .filter-column {
-          .cell {
-            display: flex;
-          }
+  .bk-table {
+    .bk-table-header-wrapper {
+      .filter-column {
+        .cell {
+          display: flex;
         }
       }
-
-      .bk-table-fixed-right-patch {
-        display: none;
-        width: 0px;
-      }
     }
+
+    .bk-table-fixed-right-patch {
+      display: none;
+      width: 0px;
+    }
+  }
 
   .overflow-hidden-text {
     .cell {
