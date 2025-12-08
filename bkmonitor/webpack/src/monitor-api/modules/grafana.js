@@ -1,28 +1,3 @@
-/*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
- * Copyright (C) 2017-2025 Tencent.  All rights reserved.
- *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
- *
- * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
- *
- * ---------------------------------------------------
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
- * the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
- * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
- * IN THE SOFTWARE.
- */
 import { request } from '../base';
 
 export const test = request('GET', 'rest/v2/grafana/');
@@ -32,10 +7,7 @@ export const bkLogSearchDimension = request('GET', 'query-api/rest/v2/grafana/bk
 export const bkLogSearchTargetTree = request('GET', 'rest/v2/grafana/bk_log_search/grafana/target_tree/');
 export const bkLogSearchQueryLog = request('POST', 'query-api/rest/v2/grafana/bk_log_search/grafana/query_log/');
 export const bkLogSearchGetVariableField = request('GET', 'rest/v2/grafana/bk_log_search/grafana/get_variable_field/');
-export const bkLogSearchGetVariableValue = request(
-  'POST',
-  'query-api/rest/v2/grafana/bk_log_search/grafana/get_variable_value/'
-);
+export const bkLogSearchGetVariableValue = request('POST', 'query-api/rest/v2/grafana/bk_log_search/grafana/get_variable_value/');
 export const getLabel = request('GET', 'rest/v2/grafana/get_label/');
 export const getTopoTree = request('GET', 'rest/v2/grafana/topo_tree/');
 export const getDimensionValues = request('GET', 'rest/v2/grafana/get_dimension_values/');
@@ -60,6 +32,8 @@ export const renameFolder = request('PUT', 'rest/v2/grafana/rename_folder/');
 export const quickImportDashboard = request('POST', 'rest/v2/grafana/quick_import_dashboard/');
 export const copyDashboardToFolder = request('POST', 'rest/v2/grafana/copy_dashboard_to_folder/');
 export const migrateOldPanels = request('POST', 'rest/v2/grafana/migrate_old_panels/');
+export const migrateOldPanelsByBiz = request('POST', 'rest/v2/grafana/migrate_old_panels_by_biz/');
+export const migratePanelsInfo = request('POST', 'rest/v2/grafana/migrate_panels_info/');
 export const saveToDashboard = request('POST', 'rest/v2/grafana/save_to_dashboard/');
 export const getFunctions = request('GET', 'rest/v2/grafana/time_series/functions/');
 export const graphUnifyQuery = request('POST', 'query-api/rest/v2/grafana/time_series/unify_query/');
@@ -87,7 +61,7 @@ export const listApplicationServices = request('GET', 'rest/v2/grafana/get_profi
 export const queryServicesDetail = request('GET', 'rest/v2/grafana/get_profile_type/');
 export const grafanaQueryProfileLabel = request('GET', 'rest/v2/grafana/get_profile_label/');
 export const grafanaQueryProfileLabelValues = request('GET', 'rest/v2/grafana/get_profile_label_values/');
-export const migrateDashboard = request('POST', '/rest/v2/grafana/migrate_old_panels/');
+export const getRelatedStrategy = request('POST', 'rest/v2/grafana/get_related_strategy/');
 
 export default {
   test,
@@ -122,6 +96,8 @@ export default {
   quickImportDashboard,
   copyDashboardToFolder,
   migrateOldPanels,
+  migrateOldPanelsByBiz,
+  migratePanelsInfo,
   saveToDashboard,
   getFunctions,
   graphUnifyQuery,
@@ -149,4 +125,5 @@ export default {
   queryServicesDetail,
   grafanaQueryProfileLabel,
   grafanaQueryProfileLabelValues,
+  getRelatedStrategy,
 };
