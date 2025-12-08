@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, onMounted, onUnmounted, nextTick } from 'vue';
 
 import useElementEvent from '@/hooks/use-element-event';
 import useLocale from '@/hooks/use-locale';
@@ -33,6 +33,7 @@ import useStore from '@/hooks/use-store';
 import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
+import V3AiMode from './ai-mode/index';
 import { useRoute, useRouter } from 'vue-router/composables';
 import { bkMessage } from 'bk-magic-vue';
 
@@ -49,8 +50,10 @@ export default defineComponent({
 
     const searchBarHeight = ref(0);
     const searchBarRef = ref<any>(null);
+    const aiModeRef = ref<any>(null);
 
     const isAiLoading = ref(false);
+    const searchMode = ref<'normal' | 'ai'>('normal');
 
     const aiSpanStyle = {
       background: 'linear-gradient(115deg, #235DFA 0%, #E28BED 100%)',
@@ -68,6 +71,19 @@ export default defineComponent({
       gap: '4px',
       'font-size': '12px',
       color: '#c4c6cc',
+    };
+
+    const shortcutKeyStyle = {
+      width: '20px',
+      height: '20px',
+      background: '#A3B1CC',
+      borderRadius: '10px',
+      color: '#ffffff',
+      fontSize: '14px',
+      textAlign: 'center' as const,
+      display: 'inline-flex' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
     };
 
     /**
@@ -122,9 +138,71 @@ export default defineComponent({
     };
 
     /**
+     * 处理 Tab 键切换模式
+     * @param e 键盘事件
+     */
+    const handleTabKeyPress = (e: KeyboardEvent) => {
+      // 检查是否按下了 Tab 键（排除 Shift+Tab）
+      if ((e.key === 'Tab' || e.keyCode === 9) && !e.shiftKey) {
+        // 如果当前焦点在搜索栏相关的输入框内，才处理切换
+        const activeElement = document.activeElement;
+        const isSearchBarInput = activeElement?.closest('.v3-search-bar-root')
+          || activeElement?.closest('.search-bar-container')
+          || activeElement?.closest('.v3-ai-mode');
+
+        if (!isSearchBarInput) {
+          return;
+        }
+
+        // 阻止默认的 Tab 行为
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        // 切换模式
+        if (searchMode.value === 'normal') {
+          searchMode.value = 'ai';
+          // 切换到 AI 模式后，聚焦到 AI 输入框
+          nextTick(() => {
+            const aiModeEl = aiModeRef.value?.$el || aiModeRef.value;
+            const aiTextarea = aiModeEl?.querySelector?.('textarea');
+            if (aiTextarea) {
+              aiTextarea.focus();
+            }
+          });
+        } else {
+          searchMode.value = 'normal';
+          // 切换到常规模式后，聚焦到搜索框
+          nextTick(() => {
+            const searchBarEl = searchBarRef.value?.$el || searchBarRef.value;
+            const searchInput = searchBarEl?.querySelector?.('input[type="text"]') 
+              || searchBarEl?.querySelector?.('input');
+            if (searchInput) {
+              searchInput.focus();
+            }
+          });
+        }
+      }
+    };
+
+    /**
      * 监听搜索栏Size变化，更新AI助手位置
      */
     useResizeObserve(() => searchBarRef.value, updateAiAssitantPosition);
+
+    /**
+     * 挂载时添加 Tab 键监听
+     */
+    onMounted(() => {
+      document.addEventListener('keydown', handleTabKeyPress, { capture: true });
+    });
+
+    /**
+     * 卸载时移除 Tab 键监听
+     */
+    onUnmounted(() => {
+      document.removeEventListener('keydown', handleTabKeyPress, { capture: true });
+    });
 
     /**
      * 添加事件
@@ -236,52 +314,69 @@ export default defineComponent({
      * 渲染搜索栏
      * @returns
      */
-    return () => (
-      <V2SearchBar
-        class='v3-search-bar-root'
-        ref={searchBarRef}
-        on-height-change={handleHeightChange}
-        on-text-to-query={handleTextToQuery}
-        is-ai-loading={isAiLoading.value}
-        {...{
-          scopedSlots: {
-            'custom-placeholder'(slotProps) {
-              if (isAiAssistantActive.value) {
-                return (
-                  <span style={aiSpanWrapperStyle}>
-                    {slotProps.isEmptyText ? t('或') : ''}
+    return () => {
+      if (searchMode.value === 'ai') {
+        return (
+          <div class='v3-search-bar-root'>
+            <V3AiMode
+              ref={aiModeRef}
+              on-height-change={handleHeightChange}
+            />
+          </div>
+        );
+      }
+
+      return (
+        <V2SearchBar
+          class='v3-search-bar-root'
+          ref={searchBarRef}
+          on-height-change={handleHeightChange}
+          on-text-to-query={handleTextToQuery}
+          is-ai-loading={isAiLoading.value}
+          {...{
+            scopedSlots: {
+              'custom-placeholder'(slotProps) {
+                if (isAiAssistantActive.value) {
+                  return (
+                    <span style={aiSpanWrapperStyle}>
+                      {slotProps.isEmptyText ? t('或') : ''}
+                      <span
+                        style={aiSpanStyle}
+                        onClick={handleAiSpanClick}
+                      >
+                        {t('使用AI编辑')}
+                      </span>
+                    </span>
+                  );
+                }
+                return null;
+              },
+              'search-tool': () => {
+                if (isAiAssistantActive.value) {
+                  return (
                     <span
-                      style={aiSpanStyle}
+                      class='bklog-ai-edit-btn'
                       onClick={handleAiSpanClick}
                     >
-                      {t('使用AI编辑')}
+                      <img
+                        src={aiBluekingSvg}
+                        alt='AI编辑'
+                        style={{ width: '16px', height: '16px' }}
+                      />
+                      {t('AI编辑')}
+                      <span style={shortcutKeyStyle}>
+                        <i class="bklog-icon bklog-key-tab"></i>
+                      </span>
+
                     </span>
-                  </span>
-                );
-              }
-              return null;
+                  );
+                }
+                return null;
+              },
             },
-            'search-tool': () => {
-              if (isAiAssistantActive.value) {
-                return (
-                  <span
-                    class='bklog-ai-edit-btn'
-                    onClick={handleAiSpanClick}
-                  >
-                    <img
-                      src={aiBluekingSvg}
-                      alt='AI编辑'
-                      style={{ width: '16px', height: '16px' }}
-                    />
-                    {t('AI编辑')}
-                  </span>
-                );
-              }
-              return null;
-            },
-          },
-        }}
-      ></V2SearchBar>
-    );
+          }}
+        ></V2SearchBar>
+      );
+    };
   },
 });
