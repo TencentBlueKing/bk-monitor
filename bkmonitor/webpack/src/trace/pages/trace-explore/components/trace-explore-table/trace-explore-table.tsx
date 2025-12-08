@@ -143,6 +143,11 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    /** 是否启用字段分析统计面板功能 */
+    enableStatistics: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: {
     /** 筛选条件改变后触发的回调 */
@@ -487,6 +492,7 @@ export default defineComponent({
      * @description 字段分析组件渲染方法
      */
     const statisticsDomRender = () => {
+      if (!props.enableStatistics) return;
       const fieldOptions = tableColumns.value?.fieldMap?.[activeStatisticsField.value];
       return [
         <StatisticsList
@@ -530,7 +536,7 @@ export default defineComponent({
                 {title}
               </span>
             </div>
-            {fieldOptions?.is_dimensions ? (
+            {props.enableStatistics && fieldOptions?.is_dimensions ? (
               <i
                 class='icon-monitor icon-Chart statistics-icon'
                 onClick={e => handleStatisticsPopoverShow(e, fieldOptions)}

@@ -70,7 +70,7 @@ export interface UseExploreTableDataReturn {
  * 用于管理表格数据的获取、缓存、排序等逻辑
  * @param options 配置选项
  */
-export function useExploreTableData(options: UseExploreTableDataOptions): UseExploreTableDataReturn {
+export const useExploreTableData = (options: UseExploreTableDataOptions): UseExploreTableDataReturn => {
   const { commonParams, sourceFieldConfigs, onBackTop } = options;
 
   const store = useTraceExploreStore();
@@ -139,17 +139,17 @@ export function useExploreTableData(options: UseExploreTableDataOptions): UseExp
    * @param sortEvent.sortBy 排序字段名
    * @param sortEvent.descending 排序方式
    */
-  function handleSortChange(sortEvent: TableSort) {
+  const handleSortChange = (sortEvent: TableSort) => {
     if (Array.isArray(sortEvent)) {
       return;
     }
     store.updateTableSortContainer(sortEvent);
-  }
+  };
 
   /**
    * @description: 获取 table 表格数据
    */
-  async function getExploreList(loadingType = ExploreTableLoadingEnum.BODY_SKELETON) {
+  const getExploreList = async (loadingType = ExploreTableLoadingEnum.BODY_SKELETON) => {
     if (abortController) {
       abortController.abort();
       abortController = null;
@@ -208,7 +208,7 @@ export function useExploreTableData(options: UseExploreTableDataOptions): UseExp
       store.updateTableList([...tableData.value, ...res.data]);
     }
     tableHasMoreData.value = res.data?.length >= limit;
-  }
+  };
 
   const debouncedGetExploreList = useDebounceFn(getExploreList, 200);
 
@@ -255,4 +255,4 @@ export function useExploreTableData(options: UseExploreTableDataOptions): UseExp
     tableLoading,
     tableViewData,
   };
-}
+};
