@@ -35,7 +35,7 @@ import './action-detail.scss';
 
 export default defineComponent({
   name: 'ActionDetail',
-  setup(props) {
+  setup() {
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const { actionDetail, loading } = storeToRefs(alarmCenterDetailStore);
 

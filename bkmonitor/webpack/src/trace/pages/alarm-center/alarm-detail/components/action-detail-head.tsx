@@ -27,7 +27,7 @@ import { defineComponent } from 'vue';
 
 import { storeToRefs } from 'pinia';
 
-import TemporaryShare from '@/components/temporary-share/temporary-share';
+import TemporaryShareNew from '@/components/temporary-share/temporary-share-new';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 import './action-detail-head.scss';
@@ -66,17 +66,18 @@ export default defineComponent({
       <div class='action-detail-head'>
         <div class='detail-head-title'>{this.$t('处理记录详情')}</div>
         <span class='detail-id'>ID: {this.actionId}</span>
-        <TemporaryShare />
-
-        <div
-          class='fullscreen-btn'
-          onClick={this.handleFullscreenChange}
-        >
-          <span
-            class={`icon-monitor btn-item-icon ${this.isFullscreen ? 'icon-mc-unfull-screen' : 'icon-fullscreen'}`}
-          />
-          <span class='btn-text'>{this.isFullscreen ? this.$t('退出全屏') : this.$t('全屏')}</span>
-        </div>
+        <TemporaryShareNew />
+        {this.showFullScreenBtn && (
+          <div
+            class='fullscreen-btn'
+            onClick={this.handleFullscreenChange}
+          >
+            <span
+              class={`icon-monitor btn-item-icon ${this.isFullscreen ? 'icon-mc-unfull-screen' : 'icon-fullscreen'}`}
+            />
+            <span class='btn-text'>{this.isFullscreen ? this.$t('退出全屏') : this.$t('全屏')}</span>
+          </div>
+        )}
       </div>
     );
   },

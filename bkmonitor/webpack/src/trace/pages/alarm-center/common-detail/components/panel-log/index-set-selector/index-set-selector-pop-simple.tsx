@@ -53,6 +53,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const searchValue = shallowRef('');
+
     const filterList = computed(() => {
       const filterValue = searchValue.value.toLocaleLowerCase();
       return props.list.filter(item => item.index_set_name.toLocaleLowerCase().includes(filterValue));
@@ -67,13 +68,18 @@ export default defineComponent({
       }
     );
 
-    function handleSelect(indexSetId: number | string) {
+    const handleSearchValueChange = (val: string) => {
+      searchValue.value = val;
+    };
+
+    const handleSelect = (indexSetId: number | string) => {
       emit('select', indexSetId);
-    }
+    };
 
     return {
       filterList,
       searchValue,
+      handleSearchValueChange,
       handleSelect,
     };
   },
@@ -85,12 +91,12 @@ export default defineComponent({
           <Input
             behavior='simplicity'
             modelValue={this.searchValue}
-            onChange={val => {
-              this.searchValue = val;
+            clearable
+            onChange={this.handleSearchValueChange}
+            onClear={() => {
+              this.handleSearchValueChange('');
             }}
-            onInput={val => {
-              this.searchValue = val;
-            }}
+            onInput={this.handleSearchValueChange}
           >
             {{
               prefix: () => {

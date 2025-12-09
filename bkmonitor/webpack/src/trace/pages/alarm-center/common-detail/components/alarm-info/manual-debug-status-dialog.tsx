@@ -70,7 +70,7 @@ export default defineComponent({
           value: [props.mealInfo.name],
         },
       ];
-      return `${location.origin}${location.pathname}${location.search}#/alarm-center?conditions=${decodeURIComponent(JSON.stringify(conditions))}&filterMode=ui&alarmType=alert&from=now-24h&to=now&bizIds=-1`;
+      return `${location.origin}${location.pathname}${location.search}#/trace/alarm-center?conditions=${decodeURIComponent(JSON.stringify(conditions))}&filterMode=ui&alarmType=alert&from=now-24h&to=now&bizIds=-1`;
     });
 
     const handleShowChange = (value: boolean) => {
