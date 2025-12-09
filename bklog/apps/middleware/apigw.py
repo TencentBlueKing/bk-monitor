@@ -50,11 +50,18 @@ class UserModelBackend(ModelBackend):
         # 未查询 db 中用户，因用户可能在 db 中不存在
         self.user_maker = lambda username: self.user_model(**{self.user_model.USERNAME_FIELD: username})
 
-    def authenticate(self, request, gateway_name, bk_username, verified, **credentials):
+    def authenticate(self, request, gateway_name, bk_username, tenant_id, verified, **credentials):
+        logger.warning("csh-test: enter class UserModelBackend method authenticate")
         try:
-            return self.user_model.objects.get(**{self.user_model.USERNAME_FIELD: bk_username})
+            user = self.user_model.objects.get(**{self.user_model.USERNAME_FIELD: bk_username})
+            logger.warning(f"csh-test: get class UserModelBackend method authenticate user -> {user}")
+            return
         except self.user_model.DoesNotExist:
-            return self.user_maker(bk_username)
+            exception_user = self.user_maker(bk_username)
+            logger.warning(
+                f"csh-test: get class UserModelBackend method authenticate Exception user -> {exception_user}"
+            )
+            return exception_user
 
 
 class CustomCachePublicKeyProvider(CachePublicKeyProvider):
