@@ -341,8 +341,17 @@
       }
     }
   }
-  
 }
+
+// 针对 TTable 组件超出内容显示的 tooltip
+.t-tooltip__content,
+.t-popup__content {
+  font-size: 12px !important;
+  .link {
+    color: #fff !important;
+  }
+}
+
 @keyframes spin {
   from {
       transform: rotate(0deg);

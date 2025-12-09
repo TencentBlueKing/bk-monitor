@@ -30,17 +30,10 @@ import { random } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 
 import TreeComponent from '../../../common-comp/tree-component';
+import type { IClusterItem, IValueItem } from '../../../../type';
 import $http from '@/api';
 
 import './label-choose-dialog.scss';
-
-type ILabelItem = {
-  id: string;
-  key: string;
-  operator: string;
-  value: string;
-  type?: string;
-};
 
 type ITreeItem = {
   id: string;
@@ -48,11 +41,6 @@ type ITreeItem = {
   type: string;
   children?: ITreeItem[];
   isOpen?: boolean;
-};
-
-type IClusterItem = {
-  id: string;
-  name: string;
 };
 
 export default defineComponent({
@@ -64,7 +52,7 @@ export default defineComponent({
       default: false,
     },
     labelParams: {
-      type: Object,
+      type: Object as () => IValueItem,
       default: () => ({}),
     },
     clusterList: {
@@ -80,9 +68,9 @@ export default defineComponent({
     const treeList = ref<ITreeItem[]>([]);
     const filterStr = ref('');
     const matchCheckedList = ref<string[]>([]);
-    const matchCheckedItemList = ref<ILabelItem[]>([]);
+    const matchCheckedItemList = ref<IValueItem[]>([]);
     const matchSelectList = ref<string[]>([]);
-    const matchSelectItemList = ref<ILabelItem[]>([]);
+    const matchSelectItemList = ref<IValueItem[]>([]);
     const treeLoading = ref(false);
     const labelLoading = ref(false);
     /**
@@ -113,7 +101,27 @@ export default defineComponent({
       emit('cancel', false);
     };
 
-    const initTreeList = (list: ITreeItem[] = []) =>
+    /**
+     * 规范化输入数据为数组格式
+     * @param rawData 原始数据，可能是数组或单个对象
+     * @returns 规范化后的数组
+     */
+    const normalizeTreeData = (rawData: ITreeItem[]): ITreeItem[] => {
+      if (Array.isArray(rawData)) {
+        return rawData as ITreeItem[];
+      }
+      if (rawData && typeof rawData === 'object') {
+        return [rawData as ITreeItem];
+      }
+      return [];
+    };
+
+    /**
+     * 初始化树列表，处理集群名称显示
+     * @param list 树节点列表
+     * @returns 处理后的树节点列表
+     */
+    const initTreeList = (list: ITreeItem[] = []): ITreeItem[] =>
       list.map(item => {
         if (item.type === 'cluster' && Object.hasOwn(clusterIdToName.value, item.id)) {
           const clusterName = clusterIdToName.value[item.id];
@@ -123,44 +131,64 @@ export default defineComponent({
       });
 
     /**
-     * 定义处理树数据的函数
-     * @param data
+     * 递归设置树节点的 isOpen 状态为 true
+     * @param nodes 树节点列表
+     * @returns 处理后的树节点列表
      */
-
-    const processTreeData = (rawData: unknown) => {
-      const data = typeof rawData === 'object' && rawData !== null ? [rawData as ITreeItem] : [];
-      const normalizedData: ITreeItem[] = Array.isArray(rawData) ? (rawData as ITreeItem[]) : data;
-      const treeListData = initTreeList(normalizedData);
-      treeList.value = treeListData;
-      if (treeListData.length > 0) {
-        const firstNode = treeListData[0];
-        if (
-          firstNode.children &&
-          firstNode.children.length > 0 &&
-          firstNode.children[0].children &&
-          firstNode.children[0].children.length > 0
-        ) {
-          currentNodeId.value = firstNode.children[0].children[0].id;
-          handleSelectTreeItem(firstNode.children[0].children[0], firstNode.children[0]);
-        }
-      }
-      treeList.value = treeList.value.map(item => ({
-        ...item,
+    const setTreeNodesOpen = (nodes: ITreeItem[]): ITreeItem[] =>
+      nodes.map(node => ({
+        ...node,
         isOpen: true,
-        children: Array.isArray(item.children)
-          ? item.children.map(cItem => ({ ...cItem, isOpen: true }))
-          : item.children,
+        children: Array.isArray(node.children) ? setTreeNodesOpen(node.children) : node.children,
       }));
+
+    /**
+     * 自动选择第一个可用的 pod/node 节点
+     * @param nodes 树节点列表
+     */
+    const autoSelectFirstAvailableNode = (nodes: ITreeItem[]) => {
+      if (!nodes.length) {
+        return;
+      }
+
+      const firstNode = nodes[0];
+      const firstChild = firstNode.children?.[0];
+      const firstGrandChild = firstChild?.children?.[0];
+
+      // 检查是否存在三层嵌套结构，且最深层节点存在
+      if (firstGrandChild) {
+        currentNodeId.value = firstGrandChild.id;
+        handleSelectTreeItem(firstGrandChild, firstChild);
+      }
+    };
+
+    /**
+     * 处理树数据：规范化、初始化、设置展开状态、自动选择节点
+     * @param rawData 原始树数据
+     */
+    const processTreeData = (rawData: ITreeItem[]) => {
+      // 1. 规范化数据格式
+      const normalizedData = normalizeTreeData(rawData);
+
+      // 2. 初始化树列表（处理集群名称等）
+      const initializedData = initTreeList(normalizedData);
+
+      // 3. 设置所有节点为展开状态（合并到一次遍历中）
+      const treeListData = setTreeNodesOpen(initializedData);
+
+      // 4. 更新树列表
+      treeList.value = treeListData;
+
+      // 5. 自动选择第一个可用节点
+      autoSelectFirstAvailableNode(treeListData);
     };
     /**
      * 根据请求类型获取树列表
      */
     const getTreeList = () => {
       const { bk_biz_id, bcs_cluster_id, type, namespaceStr } = props.labelParams;
-      const query =
-        type === 'node'
-          ? { bcs_cluster_id, type, bk_biz_id }
-          : { namespace: namespaceStr, bcs_cluster_id, type, bk_biz_id };
+      const baseQuery = { bcs_cluster_id, type, bk_biz_id };
+      const query = type === 'node' ? baseQuery : { ...baseQuery, namespace: namespaceStr };
 
       treeLoading.value = true;
       $http
@@ -252,7 +280,7 @@ export default defineComponent({
 
       const loop = (list: ITreeItem[]): ITreeItem[] =>
         list
-          .map(node => {
+          .map((node: ITreeItem) => {
             const nameHit = (node.name || '').toLowerCase().includes(k);
             const children = Array.isArray(node.children) ? loop(node.children) : [];
             if (nameHit || children.length) {
@@ -291,7 +319,7 @@ export default defineComponent({
 
     watch(
       () => props.isShowDialog,
-      val => {
+      (val: boolean) => {
         if (val) {
           treeList.value = [];
           getTreeList();
@@ -314,7 +342,7 @@ export default defineComponent({
      * @param b
      *@returns
      */
-    const isSameLabel = (a: ILabelItem, b: ILabelItem) =>
+    const isSameLabel = (a: IValueItem, b: IValueItem) =>
       a.key === b.key && a.value === b.value && a.operator === b.operator;
 
     /**
@@ -358,21 +386,21 @@ export default defineComponent({
           /**
            * 过滤掉与已选择列表重复的项，确保不重复
            */
-          const allCheckedItemList: ILabelItem[] = [...matchCheckedItemList.value];
+          const allCheckedItemList: IValueItem[] = [...matchCheckedItemList.value];
 
           matchSelectItemList.value = res.data
-            .filter((item: ILabelItem) => {
+            .filter((item: IValueItem) => {
               if (!allCheckedItemList.length) {
                 return true;
               }
-              const normalized: ILabelItem = { ...item, operator: 'In' };
+              const normalized: IValueItem = { ...item, operator: 'In' };
               return !allCheckedItemList.some(mItem => {
-                const normalizedMItem: ILabelItem = { ...mItem, operator: 'In' };
+                const normalizedMItem: IValueItem = { ...mItem, operator: 'In' };
                 return isSameLabel(normalized, normalizedMItem);
               });
             })
             // 统一为可选择项补齐 operator 与临时 id
-            .map((item: ILabelItem) => ({ ...item, operator: 'In', id: random(10) }));
+            .map((item: IValueItem) => ({ ...item, operator: 'In', id: random(10) }));
         })
         .catch(err => {
           console.warn(err);
@@ -435,7 +463,7 @@ export default defineComponent({
       }
     };
 
-    const renderMatchSelectItem = (data: ILabelItem[], isSelectedArea = false) => {
+    const renderMatchSelectItem = (data: IValueItem[], isSelectedArea = false) => {
       /**
        * 已选择区域显示所有已选择的项，未选择区域显示当前节点的可选项
        */
@@ -507,7 +535,7 @@ export default defineComponent({
               right-icon='bk-icon icon-search'
               value={filterStr.value}
               clearable
-              on-input={val => {
+              on-input={(val: string) => {
                 filterStr.value = (val || '').toString();
               }}
             />

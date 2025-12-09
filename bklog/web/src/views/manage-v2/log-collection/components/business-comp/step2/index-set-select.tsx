@@ -78,7 +78,6 @@ export default defineComponent({
     const handleSubmit = () => {
       handleCancel();
       getData();
-      // emit('select', selectArr.value);
     };
     const handleSelect = (val: number[]) => {
       selectArr.value = val;

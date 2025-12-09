@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref } from 'vue';
+import { defineComponent } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -37,7 +37,7 @@ export default defineComponent({
   props: {
     scenarioId: {
       type: String,
-      default: 'host_log',
+      default: 'linux',
     },
   },
 
@@ -52,12 +52,12 @@ export default defineComponent({
         children: [
           {
             name: t('主机日志'),
-            value: 'host_log',
+            value: 'linux',
             icon: 'host_log',
           },
           {
             name: t('windows events 日志'),
-            value: 'wineventlog',
+            value: 'winevent',
             icon: 'windows',
           },
         ],
@@ -68,12 +68,12 @@ export default defineComponent({
         children: [
           {
             name: t('文件采集'),
-            value: 'file_log_config',
+            value: 'container_file',
             icon: 'file',
           },
           {
             name: t('标准输出'),
-            value: 'std_log_config',
+            value: 'container_stdout',
             icon: 'IO',
           },
         ],

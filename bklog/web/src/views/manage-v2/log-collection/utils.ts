@@ -64,8 +64,11 @@ export const STATUS_ENUM_FILTER = [
  * 全局日志分类
  */
 export const GLOBAL_CATEGORIES_ENUM = [
-  { label: window.$t('采集接入'), value: 'log' },
-  { label: window.$t('数据平台'), value: 'bkdata' },
+  { label: window.$t('主机日志'), value: 'linux' },
+  { label: window.$t('Windows Event 日志'), value: 'winevent' },
+  { label: window.$t('容器文件采集'), value: 'container_file' },
+  { label: window.$t('容器标准输出'), value: 'container_stdout' },
+  { label: window.$t('计算平台'), value: 'bkdata' },
   { label: window.$t('第三方ES'), value: 'es' },
   { label: window.$t('自定义上报'), value: 'custom_report' },
 ];
@@ -276,8 +279,8 @@ export const LOG_TYPE_LIST = [
  * 采集方式列表
  */
 export const COLLECT_METHOD_LIST = [
-  { id: 'container_log_config', img: ContainerSvg, name: window.$t('按 container 采集'), isDisable: false },
-  { id: 'node_log_config', img: NodeSvg, name: window.$t('按 node 采集'), isDisable: false },
+  { id: 'container_log_config', icon: 'container', name: window.$t('按 container 采集'), isDisable: false },
+  { id: 'node_log_config', icon: 'node', name: window.$t('按 node 采集'), isDisable: false },
 ];
 
 /** 操作符列表 */
@@ -384,63 +387,6 @@ export const operatorMappingObj = {
   exclude: window.mainComponent.$t('不包含'),
   regex: window.mainComponent.$t('正则匹配'),
   nregex: window.mainComponent.$t('正则不匹配'),
-};
-
-// 日志类型数据
-const data = [
-  { name: window.mainComponent.$t('主机日志'), value: 'host_log', icon: 'host_log' },
-  { name: window.mainComponent.$t('windows events 日志'), value: 'wineventlog', icon: 'windows' },
-  { name: window.mainComponent.$t('文件采集'), value: 'file_log_config', icon: 'file' },
-  { name: window.mainComponent.$t('标准输出'), value: 'std_log_config', icon: 'IO' },
-  { name: window.mainComponent.$t('计算平台日志接入'), value: 'bkdata', icon: 'compute_platform' },
-  { name: window.mainComponent.$t('第三方 ES 日志接入'), value: 'es', icon: 'third_party_es' },
-  { name: window.mainComponent.$t('自定义上报日志'), value: 'custom_report', icon: 'custom_report' },
-];
-
-/**
- * 根据场景ID、环境和采集器场景ID来获取对应的索引集分类对象
- * @param {string} scenarioId - 场景ID，可能的值为 'bkdata', 'es', 'log'
- * @param {string} environment - 环境，可能的值为 'container', 'windows', 'linux'
- * @param {string} collectorScenarioId - 采集器场景ID，可能的值为 'custom' 等
- * @param {string} containerCollectorType - "container_log_config"：容器,"node_log_config"：节点,"std_log_config"：标准输出
- * @returns {object|null} - 返回匹配的日志类型对象，如果没有找到则返回 null
- */
-// container_collector_type
-export const getScenarioIdType = (scenarioId, environment, collectorScenarioId, containerCollectorType) => {
-  // 1. 优先处理自定义上报
-  if (collectorScenarioId === 'custom') {
-    return data.find(item => item.value === 'custom_report');
-  }
-
-  // 2. 处理特定平台接入
-  if (scenarioId === 'bkdata') {
-    return data.find(item => item.value === 'bkdata');
-  }
-  if (scenarioId === 'es') {
-    return data.find(item => item.value === 'es');
-  }
-
-  // 3. 处理通用日志采集 'log'，并结合 environment 区分
-  if (scenarioId === 'log') {
-    switch (environment) {
-      case 'windows':
-        return data.find(item => item.value === 'wineventlog');
-      case 'linux':
-        return data.find(item => item.value === 'host_log');
-      case 'container':
-        // 根据你的描述，容器采集对应 '文件采集'
-        if (containerCollectorType === 'std_log_config') {
-          return data.find(item => item.value === 'std_log_config');
-        }
-        return data.find(item => item.value === 'file_log_config');
-      default:
-        // 如果 environment 是其他未定义的值，也返回 null
-        return null;
-    }
-  }
-
-  // 4. 如果以上条件都不满足，返回 null
-  return null;
 };
 
 /**

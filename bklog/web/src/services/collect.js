@@ -273,6 +273,13 @@ const collectorFieldEnums = {
   url: '/databus/log_access/collector_field_enums/',
   method: 'get',
 };
+/**
+ * 获取采集列表状态接口
+ */
+const getCollectorStatus = {
+  url: '/databus/log_access/collector_status/',
+  method: 'post',
+};
 
 export {
   getStorage,
@@ -321,4 +328,5 @@ export {
   updateIndexGroup,
   delIndexGroup,
   collectorFieldEnums,
+  getCollectorStatus,
 };
