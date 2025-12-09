@@ -228,7 +228,7 @@ class ActionProcessor(BaseActionProcessor):
         else:
             # 防御收敛：根据并行/串行模式生成不同的失败结果
             failure_message = _(
-                "语音告警告被通知套餐（{}）防御收敛，防御原因：相同通知人在两分钟内同维度告警只能接收一次电话告警"
+                "语音告警被通知套餐（{}）防御收敛，防御原因：相同通知人在两分钟内同维度告警只能接收一次电话告警"
             ).format(collect_action_id)
 
             if self.voice_notice_mode == VoiceNoticeMode.PARALLEL and self.voice_notice_group is not None:
