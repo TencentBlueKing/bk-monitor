@@ -55,7 +55,7 @@ class GetIndexSetFieldListResource(Resource):
         return result
 
 
-class SearchLogV2Resource(Resource):
+class SearchLogResource(Resource):
     """
     日志查询服务 -- 日志查询 (用于 AI MCP 请求)
     """
