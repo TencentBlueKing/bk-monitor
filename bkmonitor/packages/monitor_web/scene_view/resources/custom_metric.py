@@ -20,7 +20,6 @@ from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.models import CustomTSTable
-from monitor_web.scene_view import mock_data
 
 logger = logging.getLogger("monitor_web")
 
@@ -52,11 +51,8 @@ class GetCustomTsMetricGroups(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
         time_series_group_id = serializers.IntegerField(label=_("自定义指标 ID"))
-        is_mock = serializers.BooleanField(label=_("是否为 mock"), default=False)
 
     def perform_request(self, params: dict) -> dict[str, list]:
-        if params["is_mock"]:
-            return mock_data.CUSTOM_TS_METRIC_GROUPS
         table = CustomTSTable.objects.get(
             models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
             pk=params["time_series_group_id"],
@@ -127,7 +123,6 @@ class GetCustomTsDimensionValues(Resource):
 
     class RequestSerializer(serializers.Serializer):
         class MetricSerializer(serializers.Serializer):
-            # todo hhh 这里补充 scope_name 的有什么作用。这个接口是不是没必要修改
             scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True, default="")
             name = serializers.CharField(label=_("指标名称"))
 
