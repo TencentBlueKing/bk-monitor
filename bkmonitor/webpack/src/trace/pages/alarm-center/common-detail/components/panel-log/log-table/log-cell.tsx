@@ -29,9 +29,10 @@ import { defineComponent, nextTick, onUnmounted, shallowRef, useTemplateRef, wat
 import { useI18n } from 'vue-i18n';
 
 import UseTextSegmentation from './hooks/use-text-segmentation';
+import SegmentPop from './segment-pop';
 import { isNestedField } from './utils/utils';
 
-import type { IFieldInfo } from './typing';
+import type { EClickMenuType, IFieldInfo } from './typing';
 
 import './log-cell.scss';
 
@@ -60,6 +61,10 @@ export default defineComponent({
     row: {
       type: Object as () => Record<string, any>,
       default: () => null,
+    },
+    options: {
+      type: Object as () => Record<string, any>,
+      default: () => ({}),
     },
   },
   setup(props) {
@@ -105,6 +110,10 @@ export default defineComponent({
       isExpand.value = !isExpand.value;
     };
 
+    const handleClickMenu = (opt: { type: EClickMenuType; value: string }) => {
+      props.options.onClickMenu?.(opt);
+    };
+
     onUnmounted(() => {
       intersectionObserver.value?.disconnect();
     });
@@ -115,6 +124,7 @@ export default defineComponent({
       isExpand,
       handleExpand,
       t,
+      handleClickMenu,
     };
   },
   render() {
@@ -128,17 +138,25 @@ export default defineComponent({
       >
         <div class='segment-content'>
           {this.wordList.map((item, index) => (
-            <span
+            <SegmentPop
               key={index}
-              class={[
-                {
-                  'valid-text': item.isCursorText,
-                },
-                'others-text',
-              ]}
+              onClickMenu={this.handleClickMenu}
             >
-              {item.text || '--'}
-            </span>
+              {{
+                default: ({ onClick: handleClick }) => (
+                  <span
+                    class={[item.isCursorText && item.text ? 'valid-text' : 'others-text']}
+                    onClick={(e: MouseEvent) =>
+                      handleClick(e, {
+                        value: item.text,
+                      })
+                    }
+                  >
+                    {item.text || '--'}
+                  </span>
+                ),
+              }}
+            </SegmentPop>
           ))}
         </div>
         {this.hasMore && (

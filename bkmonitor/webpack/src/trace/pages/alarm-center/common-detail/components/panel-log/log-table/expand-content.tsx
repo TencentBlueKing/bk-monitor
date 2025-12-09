@@ -24,28 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-export enum EClickMenuType {
-  Copy = 'copy',
-  Exclude = 'exclude',
-  Include = 'include',
-}
+import { defineComponent } from 'vue';
 
-export type IFieldInfo = {
-  description: string;
-  es_doc_values: boolean;
-  field_alias: string;
-  field_name: string;
-  field_operator: string[]; // 使用 `any[]` 可以存储任意类型的数组，如果有特定类型可以进一步细化
-  field_type: string;
-  filterVisible: boolean;
-  is_analyzed: boolean;
-  is_built_in: boolean;
-  is_case_sensitive: boolean;
-  is_display: boolean;
-  is_editable: boolean;
-  is_virtual_obj_node: boolean;
-  origin_field: string;
-  query_alias: string;
-  tag: string;
-  tokenize_on_chars: string;
-};
+import './expand-content.scss';
+
+export default defineComponent({
+  name: 'ExpandContent',
+  props: {
+    row: {
+      type: Object,
+      default: () => null,
+    },
+  },
+  setup() {
+    return {};
+  },
+  render() {
+    return <div class='log-table-new-expand-content'>sadsfadasdffasd</div>;
+  },
+});
