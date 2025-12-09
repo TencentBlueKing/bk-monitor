@@ -348,6 +348,8 @@ class SearchHandler:
 
         self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
 
+        self.bcs_cluster_info_dict = dict()
+
     def _enhance(self):
         """
         语法增强
@@ -2188,8 +2190,7 @@ class SearchHandler:
 
         return highlight
 
-    @staticmethod
-    def _add_bcs_cluster_fields(log):
+    def _add_bcs_cluster_fields(self, log):
         """
         添加集群有关字段
         """
@@ -2199,7 +2200,11 @@ class SearchHandler:
             log["__bcs_cluster_name__"] = ""
 
             # 获取 bcs 集群信息
-            bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id.upper()})
+            if bcs_cluster_id not in self.bcs_cluster_info_dict:
+                bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id.upper()})
+                self.bcs_cluster_info_dict.update({bcs_cluster_id: bcs_cluster_info})
+            else:
+                bcs_cluster_info = self.bcs_cluster_info_dict.get(bcs_cluster_id)
 
             bcs_cluster_name = bcs_cluster_info.get("clusterName")
             if bcs_cluster_name:

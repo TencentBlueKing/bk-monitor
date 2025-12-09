@@ -192,6 +192,8 @@ class UnifyQueryHandler:
             if time_field_info:
                 self.time_field = time_field_info[0]
 
+        self.bcs_cluster_info_dict = dict()
+
     @staticmethod
     def query_ts(search_dict, raise_exception=True):
         """
@@ -927,8 +929,7 @@ class UnifyQueryHandler:
             return_data["aggs"]["group_by_histogram"]["buckets"].append(tmp)
         return return_data
 
-    @staticmethod
-    def _add_bcs_cluster_fields(log):
+    def _add_bcs_cluster_fields(self, log):
         """
         添加集群有关字段
         """
@@ -938,7 +939,11 @@ class UnifyQueryHandler:
             log["__bcs_cluster_name__"] = ""
 
             # 获取 bcs 集群信息
-            bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id.upper()})
+            if bcs_cluster_id not in self.bcs_cluster_info_dict:
+                bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id.upper()})
+                self.bcs_cluster_info_dict.update({bcs_cluster_id: bcs_cluster_info})
+            else:
+                bcs_cluster_info = self.bcs_cluster_info_dict.get(bcs_cluster_id)
 
             bcs_cluster_name = bcs_cluster_info.get("clusterName")
             if bcs_cluster_name:
