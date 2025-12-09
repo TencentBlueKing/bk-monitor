@@ -218,7 +218,7 @@ class ActionProcessor(BaseActionProcessor):
                 and self.voice_notice_mode == VoiceNoticeMode.PARALLEL
                 and self.voice_notice_group is not None
             ):
-                # 并行语音通知：使用线程池按用户组并行拨打
+                # 语音通知：按用户组依次拨打（当前为串行执行）
                 notice_results = self.parallel_notify_sender(notify_sender, self.notice_way, self.voice_notice_group)
             else:
                 notice_results = notify_sender.send(
