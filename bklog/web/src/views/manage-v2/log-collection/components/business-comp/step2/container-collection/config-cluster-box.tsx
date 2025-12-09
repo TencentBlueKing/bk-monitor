@@ -35,6 +35,7 @@ import ConfigLogSetEditItem from './config-log-set-edit-item';
 import ConfigViewDialog from './config-view-dialog';
 import WorkloadSelection from './workload-selection';
 import $http from '@/api';
+import type { IContainerConfigItem, IClusterItem } from '../../../../type';
 import './config-cluster-box.scss';
 
 /**
@@ -43,15 +44,6 @@ import './config-cluster-box.scss';
 type ISelectItem = {
   id: string;
   name: string;
-};
-
-/**
- * 集群项类型定义
- */
-type IClusterItem = {
-  id: string;
-  name: string;
-  is_shared?: boolean;
 };
 
 /**
@@ -74,41 +66,6 @@ type ScopeType = 'namespace' | 'label' | 'annotation' | 'load' | 'containerName'
 type OperatorType = '=' | '!=';
 
 /**
- * 配置项中的 noQuestParams 结构
- */
-interface INoQuestParams {
-  letterIndex?: number;
-  scopeSelectShow?: {
-    namespace?: boolean;
-    label?: boolean;
-    load?: boolean;
-    containerName?: boolean;
-    annotation?: boolean;
-  };
-  namespaceStr?: string;
-  namespacesExclude?: OperatorType;
-  containerExclude?: OperatorType;
-}
-
-/**
- * 完整的配置项类型（扩展了 IContainerConfigItem）
- */
-interface IConfigItem {
-  namespaces?: string[];
-  container?: IContainerConfig;
-  containerNameList?: string[];
-  label_selector?: {
-    match_labels?: any[];
-    match_expressions?: any[];
-  };
-  annotation_selector?: {
-    match_annotations?: any[];
-  };
-  noQuestParams?: INoQuestParams;
-  [key: string]: any;
-}
-
-/**
  * ConfigClusterBox 组件
  * 用于配置容器/节点的采集范围，支持多种选择方式：
  * - 按命名空间选择
@@ -127,7 +84,7 @@ export default defineComponent({
     },
     /** 配置项数据 */
     config: {
-      type: Object as () => IConfigItem,
+      type: Object as () => IContainerConfigItem,
       default: () => ({}),
     },
     /** BCS 集群 ID */
@@ -205,7 +162,7 @@ export default defineComponent({
      * @returns 确保存在的容器配置对象
      */
     const ensureContainerConfig = (
-      config: IConfigItem,
+      config: IContainerConfigItem,
     ): IContainerConfig & {
       workload_type: string;
       workload_name: string;
@@ -241,7 +198,7 @@ export default defineComponent({
      * @param configItem - 配置项
      * @returns 是否显示提示
      */
-    const isShowContainerTips = (configItem: IConfigItem): boolean => {
+    const isShowContainerTips = (configItem: IContainerConfigItem): boolean => {
       const noQuestParams = configItem.noQuestParams;
       if (!noQuestParams) return false;
       const { containerExclude, namespacesExclude } = noQuestParams;
@@ -253,7 +210,7 @@ export default defineComponent({
      */
     const viewQueryParams = computed(() => {
       const type = props.isNode ? 'node' : 'pod';
-      const config = props.config as IConfigItem;
+      const config = props.config as IContainerConfigItem;
       const { namespaces, annotation_selector, label_selector, container } = config;
 
       /**
@@ -339,7 +296,7 @@ export default defineComponent({
      * @returns 配置范围显示状态对象
      */
     const getScopeSelectShow = (): Partial<Record<ScopeType, boolean>> => {
-      const config = props.config as IConfigItem;
+      const config = props.config as IContainerConfigItem;
       return (
         config.noQuestParams?.scopeSelectShow || {
           namespace: true,
@@ -400,7 +357,7 @@ export default defineComponent({
 
         if (isFirstUpdateSelect) {
           // 首次切换集群时，合并现有命名空间和接口返回的命名空间，用于详情页数据回显
-          const config = props.config as IConfigItem;
+          const config = props.config as IContainerConfigItem;
           const namespaceList: string[] = [...(config.namespaces || [])];
           const resIDList = (res.data || []).map((item: ISelectItem) => item.id);
           const setList = new Set([...namespaceList, ...resIDList]);
@@ -444,7 +401,7 @@ export default defineComponent({
      * @param option - 选中的命名空间数组
      */
     const handleNameSpaceSelect = (option: string[]): void => {
-      const config = { ...props.config } as IConfigItem;
+      const config = { ...props.config } as IContainerConfigItem;
       if (!config.namespaces) {
         config.namespaces = [];
       }
@@ -454,7 +411,7 @@ export default defineComponent({
         config.namespaces = ['*'];
       } else if (option.length > 1 && option.includes('*')) {
         // 如果选择了多个且包含"所有"，则移除"所有"
-        const allIndex = option.findIndex(item => item === '*');
+        const allIndex = option.indexOf('*');
         const newNamespaces = [...option];
         newNamespaces.splice(allIndex, 1);
         config.namespaces = newNamespaces;
@@ -486,7 +443,7 @@ export default defineComponent({
       if (props.isNode) {
         return ['label', 'annotation'].includes(scope);
       }
-      const config = props.config as IConfigItem;
+      const config = props.config as IContainerConfigItem;
       const scopeSelectShow = config.noQuestParams?.scopeSelectShow;
       if (!scopeSelectShow) return false;
       return !scopeSelectShow[scope];
@@ -513,7 +470,7 @@ export default defineComponent({
      * @returns 命名空间选择列表
      */
     const showNameSpacesSelectList = (): ISelectItem[] => {
-      const config = props.config as IConfigItem;
+      const config = props.config as IContainerConfigItem;
       const operate = config.noQuestParams?.namespacesExclude;
 
       if (!nameSpacesSelectList.value.length) {
@@ -525,7 +482,7 @@ export default defineComponent({
         // 如果当前选择的是"所有"，需要重置为空
         const namespaces = config.namespaces || [];
         if (namespaces.length === 1 && namespaces[0] === '*') {
-          const newConfigs = { ...props.config } as IConfigItem;
+          const newConfigs = { ...props.config } as IContainerConfigItem;
           newConfigs.namespaces = [];
           // 注意：这里不触发 emit，因为只是获取列表，不改变配置
         }
@@ -540,7 +497,7 @@ export default defineComponent({
      */
     const handleAddNewScope = (scope: ScopeType): void => {
       tippyInstance?.hide();
-      const newConfigs = { ...props.config } as IConfigItem;
+      const newConfigs = { ...props.config };
       if (!newConfigs.noQuestParams) {
         newConfigs.noQuestParams = {
           scopeSelectShow: {},
@@ -619,7 +576,7 @@ export default defineComponent({
      * @param scope - 范围类型
      */
     const handleDeleteConfigParamsItem = (scope: ScopeType): void => {
-      const config = { ...props.config } as IConfigItem;
+      const config = { ...props.config } as IContainerConfigItem;
 
       // 确保 noQuestParams 存在
       if (!config.noQuestParams) {
@@ -676,7 +633,7 @@ export default defineComponent({
         return;
       }
 
-      const config = { ...props.config } as IConfigItem;
+      const config = { ...props.config } as IContainerConfigItem;
       const currentList = config.containerNameList || [];
 
       // 确保输入值被添加且去重
@@ -722,7 +679,7 @@ export default defineComponent({
      * @returns JSX 元素
      */
     const renderNamespaceItem = () => {
-      const config = props.config as IConfigItem;
+      const config = props.config as IContainerConfigItem;
       return (
         <div class='config-item hover-light'>
           <div class='config-item-title flex-ac'>
@@ -787,7 +744,7 @@ export default defineComponent({
      * @returns JSX 元素
      */
     const renderWorkloadItem = () => {
-      const config = { ...props.config } as IConfigItem;
+      const config = { ...props.config } as IContainerConfigItem;
       // 确保 container 对象存在
       ensureContainerConfig(config);
       return (
@@ -803,7 +760,7 @@ export default defineComponent({
             <WorkloadSelection
               bcsClusterId={props.bcsClusterId}
               conItem={config}
-              container={config.container as any}
+              container={config.container}
               on-update={val => {
                 config.container = val;
                 emit('change', config);
@@ -819,7 +776,7 @@ export default defineComponent({
      * @returns JSX 元素
      */
     const renderContainerNameItem = () => {
-      const config = { ...props.config } as IConfigItem;
+      const config = { ...props.config } as IContainerConfigItem;
       // 确保 container 对象存在
       ensureContainerConfig(config);
       return (
@@ -859,7 +816,7 @@ export default defineComponent({
                 freePaste
                 hasDeleteIcon
                 on-Blur={(inputStr: string, list: string[]) => handleContainerNameBlur(inputStr, list)}
-                on-change={val => {
+                on-change={(val: string[]) => {
                   ensureContainerConfig(config);
                   if (config.container) {
                     config.container.container_name = val.join(',');
@@ -897,7 +854,6 @@ export default defineComponent({
           <span
             class={['preview', !props.bcsClusterId && 'disable'].join(' ')}
             v-bk-tooltips={{ ...chooseClusterTips.value, disabled: !!props.bcsClusterId }}
-            // on-Click={() => handelShowDialog(conIndex, 'view')}
             on-Click={() => {
               isShowConfigView.value = true;
             }}
@@ -930,7 +886,7 @@ export default defineComponent({
           <ConfigLogSetEditItem
             bcsClusterId={props.bcsClusterId}
             clusterList={props.clusterList}
-            config={props.config as any}
+            config={props.config as IContainerConfigItem}
             editType='annotation_selector'
             isNode={props.isNode}
             on-change={config => {

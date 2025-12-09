@@ -304,7 +304,7 @@ export default defineComponent({
      * @param ind - 配置项的索引
      * @returns JSX 元素
      */
-    const renderItem = (item: IContainerConfigItem, ind: number): JSX.Element => {
+    const renderItem = (item: IContainerConfigItem, ind: number) => {
       // 确保 refs 数组有足够的长度，避免索引越界
       if (lineRuleRefs.value.length <= ind) {
         lineRuleRefs.value.length = ind + 1;
@@ -417,10 +417,10 @@ export default defineComponent({
             <div class='item-content-child'>
               <div class='item-content-title'>{t('日志过滤')}</div>
               <LogFilter
-                ref={(el: any) => {
+                ref={(el: HTMLElement) => {
                   logFilterRefs.value[ind] = el;
                 }}
-                conditions={(item.params?.conditions || { type: 'none' }) as IConditions}
+                conditions={item.params?.conditions || { type: 'none' }}
                 on-conditions-change={(val: IConditions) => {
                   const updatedItem = {
                     ...item,

@@ -31,30 +31,9 @@ import useStore from '@/hooks/use-store';
 
 import LabelChooseDialog from './label-choose-dialog';
 import LabelItemChoose from './label-item-choose';
+import type { IContainerConfigItem, IValueItem, IClusterItem } from '../../../../type';
 
 import './config-log-set-edit-item.scss';
-
-type IMatchExpressionsItem = {
-  key: string;
-  operator: string;
-  value?: string;
-  isExternal?: boolean;
-  id?: number;
-  type?: string;
-};
-type IConfigLogSetEditItemProps = {
-  editType: string;
-  config: {
-    label_selector?: {
-      match_labels: IMatchExpressionsItem[];
-      match_expressions: IMatchExpressionsItem[];
-    };
-    annotation_selector?: {
-      match_annotations: IMatchExpressionsItem[];
-    };
-  };
-  isNode: boolean;
-};
 
 /**
  * ConfigLogSetEditItem 组件
@@ -70,7 +49,7 @@ export default defineComponent({
     },
     // 配置对象，必填
     config: {
-      type: Object as () => IConfigLogSetEditItemProps,
+      type: Object as () => IContainerConfigItem,
       required: true,
     },
     // 是否为节点类型，必填
@@ -83,7 +62,7 @@ export default defineComponent({
       default: '',
     },
     clusterList: {
-      type: Array,
+      type: Array as () => IClusterItem[],
       default: () => [],
     },
   },
@@ -105,7 +84,7 @@ export default defineComponent({
      * @param items 需要去重的数组
      * @returns 去重后的数组
      */
-    const deduplicateItems = (items: IMatchExpressionsItem[]): IMatchExpressionsItem[] => {
+    const deduplicateItems = (items: IValueItem[]): IValueItem[] => {
       const seen = new Set<string>();
       return items.filter(item => {
         const key = `${item.key}|${item.operator}|${item.value || ''}`;
@@ -122,25 +101,21 @@ export default defineComponent({
       if (!selector) {
         return {};
       }
-      if (
-        props.editType === 'label_selector' &&
-        Array.isArray((selector as any).match_labels) &&
-        (selector as any).match_labels.length
-      ) {
-        const matchExpressions = ((selector as any).match_expressions as IMatchExpressionsItem[]) || [];
-        const matchLabels = ((selector as any).match_labels as IMatchExpressionsItem[]).map(item => ({
+      if (props.editType === 'label_selector' && Array.isArray(selector.match_labels) && selector.match_labels.length) {
+        const matchExpressions = (selector.match_expressions as IValueItem[]) || [];
+        const matchLabels = (selector.match_labels as IValueItem[]).map(item => ({
           ...item,
           operator: item.operator === '=' ? 'In' : item.operator,
         }));
         const merged = deduplicateItems([...matchExpressions, ...matchLabels]);
-        const { match_labels: _omit, ...rest } = selector as any;
+        const { match_labels: _omit, ...rest } = selector;
         return { ...rest, match_expressions: merged } satisfies Record<string, any>;
       }
       return { ...selector } satisfies Record<string, any>;
     };
 
     // 缓存配置数据（初始化时即进行规范化处理）
-    const cacheConfig = ref(normalizeSelector({ ...(props.config as any)[props.editType] }) || {});
+    const cacheConfig = ref(normalizeSelector({ ...props.config[props.editType] }) || {});
 
     // 计算属性：是否为标签编辑
     const isLabelEdit = computed(() => props.editType === 'label_selector');
@@ -153,10 +128,8 @@ export default defineComponent({
       bk_biz_id: bkBizId.value,
       bcs_cluster_id: props.bcsClusterId,
       type: props.isNode ? 'node' : 'pod',
-      namespaceStr: Array.isArray((props.config as any)?.namespaces)
-        ? ((props.config as any).namespaces as string[]).join(',')
-        : '',
-      labelSelector: (props.config as any)?.label_selector || {},
+      namespaceStr: Array.isArray(props.config?.namespaces) ? (props.config.namespaces as string[]).join(',') : '',
+      labelSelector: props.config?.label_selector || {},
     }));
 
     /**
@@ -179,7 +152,7 @@ export default defineComponent({
      * @param newValue
      * @param isMatchLabels
      */
-    const handleItemChange = (index: number, newValue: IMatchExpressionsItem, isMatchLabels = false) => {
+    const handleItemChange = (index: number, newValue: IValueItem, isMatchLabels = false) => {
       const keys = isMatchLabels ? 'match_labels' : typeKeys.value;
       if (cacheConfig.value[keys]) {
         // 创建新数组以确保响应式更新
@@ -293,7 +266,7 @@ export default defineComponent({
           </div>
           {isLabelEdit.value && (
             <LabelChooseDialog
-              clusterList={props.clusterList as any}
+              clusterList={props.clusterList}
               isShowDialog={isShowDialog.value}
               labelParams={currentSelector.value}
               on-cancel={handleCancel}

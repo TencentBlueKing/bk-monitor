@@ -28,30 +28,19 @@ import { defineComponent, ref, reactive, watch, computed, onMounted } from 'vue'
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-
-import $http from '@/api'; // API请求封装
+import type { IContainerConfigItem } from '../../../../type';
+import $http from '@/api';
 import './workload-selection.scss';
-
-type IContainerTargetItemProps = {
-  conItem: any;
-  container: {
-    workload_type: string;
-    workload_name: string;
-    container_name: string;
-  };
-  typeList: Array<{ id: string; name: string }>;
-  bcsClusterId: string;
-};
 
 export default defineComponent({
   name: 'WorkloadSelection',
   props: {
     conItem: {
-      type: Object,
+      type: Object as () => IContainerConfigItem,
       required: true,
     },
     container: {
-      type: Object as () => IContainerTargetItemProps['container'],
+      type: Object as () => IContainerConfigItem['container'],
       required: true,
     },
     bcsClusterId: {
@@ -69,13 +58,13 @@ export default defineComponent({
       container_name: '',
     });
     const nameListLoading = ref(false);
-    const typeList = ref<IContainerTargetItemProps['typeList']>([]);
+    const typeList = ref<IContainerConfigItem['typeList']>([]);
 
-    const timer = ref<NodeJS.Timeout | null>(null);
+    const timer = ref(null);
     const isOptionOpen = ref(false);
     const nameCannotClick = ref(false);
     const nameList = ref<Array<{ id: string; name: string }>>([]);
-    const placeHolderStr = ref(`${t('请输入应用名称')}, ${t('支持正则匹配')}`);
+    // const placeHolderStr = ref(`${t('请输入应用名称')}, ${t('支持正则匹配')}`);
 
     const bkBizId = computed(() => store.getters.bkBizId);
 
@@ -91,7 +80,7 @@ export default defineComponent({
     // 监听工作负载类型变化
     watch(
       () => formData.workload_type,
-      val => {
+      (val: string) => {
         if (val) {
           getWorkLoadNameList();
         } else {
@@ -103,8 +92,7 @@ export default defineComponent({
     // 监听命名空间变化
     watch(
       () => props.conItem.noQuestParams.namespaceStr,
-      str => {
-        console.log(str, 'conItem');
+      (str: string) => {
         if (str) {
           if (timer.value) {
             clearTimeout(timer.value);
@@ -134,7 +122,7 @@ export default defineComponent({
           typeList.value = res.data.map((item: string) => ({ id: item, name: item }));
         }
       } catch (err) {
-        console.warn(err);
+        console.log(err);
       }
     };
 
@@ -162,7 +150,7 @@ export default defineComponent({
           console.log(res);
         })
         .catch(err => {
-          console.warn(err);
+          console.logs(err);
         })
         .finally(() => {
           nameCannotClick.value = false;
@@ -180,7 +168,7 @@ export default defineComponent({
             value={formData.workload_type}
             clearable
             searchable
-            on-selected={val => {
+            on-selected={(val: string) => {
               formData.workload_type = val;
             }}
           >
@@ -208,10 +196,10 @@ export default defineComponent({
             // placeholder={placeHolderStr.value}
             value={formData.workload_name}
             searchable
-            on-selected={val => {
+            on-selected={(val: string) => {
               formData.workload_name = val;
             }}
-            onToggle={status => {
+            onToggle={(status: boolean) => {
               isOptionOpen.value = status;
             }}
           >
