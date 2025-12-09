@@ -75,7 +75,14 @@ class Permission:
 
                 # web请求
                 if request:
-                    logger.warning(f"csh-test: enter have request, user -> {request.user}")
+                    logger.warning(
+                        f"csh-test: enter have request, request.user -> {getattr(request, 'user', '不存在')}, "
+                        f"user -> {request.user}, "
+                        f"user type: {type(request.user)}"
+                        f"user.bk_username -> {getattr(request.user, 'bk_username', '不存在')}, "
+                        f"user.username -> {getattr(request.user, 'username', '不存在')}, "
+                        f"user is None? {request.user is None}, "
+                    )
                     self.username = request.user.username
                     self.bk_tenant_id = get_request_tenant_id()
                 else:

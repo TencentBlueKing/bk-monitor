@@ -51,7 +51,10 @@ class UserModelBackend(ModelBackend):
         self.user_maker = lambda username: self.user_model(**{self.user_model.USERNAME_FIELD: username})
 
     def authenticate(self, request, gateway_name, bk_username, tenant_id, verified, **credentials):
-        logger.warning("csh-test: enter class UserModelBackend method authenticate")
+        logger.warning(
+            "csh-test: enter class UserModelBackend method authenticate"
+            f"USERNAME_FIELD -> {self.user_model.USERNAME_FIELD}"
+        )
         try:
             user = self.user_model.objects.get(**{self.user_model.USERNAME_FIELD: bk_username})
             logger.warning(f"csh-test: get class UserModelBackend method authenticate user -> {user}")
