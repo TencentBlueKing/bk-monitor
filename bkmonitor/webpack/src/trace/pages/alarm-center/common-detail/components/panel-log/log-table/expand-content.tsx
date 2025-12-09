@@ -23,62 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { defineComponent } from 'vue';
 
-import { storeToRefs } from 'pinia';
-
-import TemporaryShareNew from '@/components/temporary-share/temporary-share-new';
-import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
-
-import './action-detail-head.scss';
+import './expand-content.scss';
 
 export default defineComponent({
-  name: 'ActionDetailHead',
+  name: 'ExpandContent',
   props: {
-    isFullscreen: {
-      type: Boolean,
-      default: false,
-    },
-    showFullScreenBtn: {
-      type: Boolean,
-      default: true,
+    row: {
+      type: Object,
+      default: () => null,
     },
   },
-  emits: {
-    toggleFullscreen: val => typeof val === 'boolean',
-  },
-  setup(props, { emit }) {
-    const alarmCenterDetailStore = useAlarmCenterDetailStore();
-
-    const { actionId } = storeToRefs(alarmCenterDetailStore);
-
-    const handleFullscreenChange = () => {
-      emit('toggleFullscreen', !props.isFullscreen);
-    };
-
-    return {
-      actionId,
-      handleFullscreenChange,
-    };
+  setup() {
+    return {};
   },
   render() {
-    return (
-      <div class='action-detail-head'>
-        <div class='detail-head-title'>{this.$t('处理记录详情')}</div>
-        <span class='detail-id'>ID: {this.actionId}</span>
-        <TemporaryShareNew />
-        {this.showFullScreenBtn && (
-          <div
-            class='fullscreen-btn'
-            onClick={this.handleFullscreenChange}
-          >
-            <span
-              class={`icon-monitor btn-item-icon ${this.isFullscreen ? 'icon-mc-unfull-screen' : 'icon-fullscreen'}`}
-            />
-            <span class='btn-text'>{this.isFullscreen ? this.$t('退出全屏') : this.$t('全屏')}</span>
-          </div>
-        )}
-      </div>
-    );
+    return <div class='log-table-new-expand-content'>sadsfadasdffasd</div>;
   },
 });

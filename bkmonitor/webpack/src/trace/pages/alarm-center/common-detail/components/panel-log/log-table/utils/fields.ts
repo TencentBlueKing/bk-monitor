@@ -23,36 +23,47 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
 
-import { storeToRefs } from 'pinia';
+import type { IFieldInfo } from '../typing';
 
-import ActionDetailContent from './action-detail-content';
-import ActionDetailInfo from './action-detail-info';
-import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
+/**
+ * 格式化层级结构
+ * @param field
+ */
+export const formatHierarchy = (fieldList: Partial<IFieldInfo>[]) => {
+  const result: Partial<IFieldInfo>[] = [];
+  for (const field of fieldList) {
+    const splitList = field.field_name.split('.');
 
-import './action-detail.scss';
+    if (splitList.length === 1) {
+      result.push(field);
+      continue;
+    }
 
-export default defineComponent({
-  name: 'ActionDetail',
-  setup() {
-    const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { actionDetail, loading } = storeToRefs(alarmCenterDetailStore);
+    const leftName: string[] = [];
 
-    return {
-      actionDetail,
-      loading,
-    };
-  },
-  render() {
-    return (
-      <div class='action-detail-wrapper'>
-        <ActionDetailInfo
-          detail={this.actionDetail}
-          loading={this.loading}
-        />
-        <ActionDetailContent detail={this.actionDetail} />
-      </div>
-    );
-  },
-});
+    for (const name of splitList) {
+      leftName.push(name);
+      const fieldName = leftName.join('.');
+      if (result.findIndex(item => item.field_name === fieldName) === -1) {
+        result.push(buildNewField(field, fieldName));
+      }
+    }
+  }
+
+  return result;
+};
+const buildNewField = (field: Partial<IFieldInfo>, fieldName: string) => {
+  const isSameName = fieldName === field.field_name;
+  const fieldAlias = isSameName ? field.field_alias : fieldName;
+  const fieldType = isSameName ? field.field_type : 'object';
+  const queryAlias = isSameName ? field.query_alias : fieldName;
+  return {
+    ...field,
+    field_name: fieldName,
+    field_alias: fieldAlias,
+    is_virtual_obj_node: !isSameName,
+    field_type: fieldType,
+    query_alias: queryAlias,
+  };
+};

@@ -248,12 +248,7 @@ export default defineComponent({
     });
     const expandedRowKeys = shallowRef([]);
     const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row }): any => {
-      return (
-        <EventTableExpandContent
-          data={row}
-          detailData={row?.[tableColumnKey.CONTENT]?.detail || {}}
-        />
-      );
+      return <EventTableExpandContent data={row} />;
     });
     const sort = shallowRef<SortInfo>(null);
     const isAllSourceType = shallowRef(false);

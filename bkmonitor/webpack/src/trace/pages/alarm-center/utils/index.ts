@@ -97,13 +97,13 @@ export const handleToAlertList = (
   const startTime = dayjs.tz(detailInfo.create_time * 1000 - oneDay).format('YYYY-MM-DD HH:mm:ss');
   const endTime = detailInfo.end_time
     ? dayjs
-        .tz(detailInfo.end_time * 1000 + oneDay > curUnix ? curUnix : detailInfo.end_time * 1000 + oneDay)
-        .format('YYYY-MM-DD HH:mm:ss')
+      .tz(detailInfo.end_time * 1000 + oneDay > curUnix ? curUnix : detailInfo.end_time * 1000 + oneDay)
+      .format('YYYY-MM-DD HH:mm:ss')
     : dayjs.tz().format('YYYY-MM-DD HH:mm:ss');
   window.open(
     `${location.origin}${location.pathname}?bizId=${bizId}/#/trace/alarm-center?queryString=${queryString(
       type,
       detailInfo.id
-    )}&form=${startTime}&to=${endTime}`
+    )}&form=${startTime}&to=${endTime}&filterMode=queryString&alarmType=alert`
   );
 };

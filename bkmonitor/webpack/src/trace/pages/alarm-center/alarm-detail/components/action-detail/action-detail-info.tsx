@@ -42,6 +42,10 @@ export default defineComponent({
       type: Object as PropType<ActionDetail>,
       default: null,
     },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -157,7 +161,13 @@ export default defineComponent({
                   class='info-content-col'
                 >
                   <div class='info-content-col-label'>{col.label}</div>
-                  <div class='info-content-col-value'>{typeof col.value === 'function' ? col.value() : col.value}</div>
+                  {this.loading ? (
+                    <div class='info-content-col-value-skeleton skeleton-element' />
+                  ) : (
+                    <div class='info-content-col-value'>
+                      {typeof col.value === 'function' ? col.value() : col.value}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
