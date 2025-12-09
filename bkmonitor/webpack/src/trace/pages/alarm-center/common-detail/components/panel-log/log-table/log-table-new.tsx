@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
+import { type PropType, defineComponent, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
