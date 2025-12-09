@@ -42,6 +42,8 @@ import {
   type ExploreConditionMenuItem,
   type ExploreTableColumn,
   type GetTableCellRenderValue,
+  type TableCellRenderContext,
+  type TableCellRenderer,
   ExploreTableColumnTypeEnum,
 } from '../typing';
 
@@ -60,20 +62,22 @@ interface UseExploreTableColumnConfig {
   fieldsWidthConfig: MaybeRef<Record<string, number>>;
   /** 当前激活的视角(span | trace)  */
   mode: MaybeRef<'span' | 'trace'>;
+  /** 表格渲染上下文 */
+  renderContext: TableCellRenderContext;
   /** 表格行数据唯一 key 字段 */
   rowKeyField: MaybeRef<string>;
   /** 表格排序信息 */
   sortContainer: MaybeRef<SortInfo>;
   /** 表格所有列字段配置数组(接口原始结构) */
   sourceFieldConfigs: MaybeRef<IDimensionField[]>;
+  /** 表格单元格渲染 */
+  tableCellRender: TableCellRenderer;
   /** 点击显示下拉操作menu */
   handleConditionMenuShow: (triggerDom: HTMLElement, conditionMenuTarget: ActiveConditionMenuTarget) => void;
   /** 点击展示 span | trace 详情抽屉页 */
   handleSliderShowChange: (mode: 'span' | 'trace', id: string) => void;
   /** 点击排序回调 */
   handleSortChange: (sortEvent: TableSort) => void;
-  /** 表格单元格渲染 */
-  tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
   /** 表头单元格渲染 */
   tableHeaderCellRender: (title: string, tipText: string, column: ExploreTableColumn) => () => SlotReturnValue;
 }

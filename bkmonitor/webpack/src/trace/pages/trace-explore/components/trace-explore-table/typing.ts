@@ -116,12 +116,6 @@ export interface BaseTableColumn<K extends string = string, U extends Record<str
   getRenderValue?: (row, column: BaseTableColumn<any, any>) => GetTableCellRenderValue<K, U>;
 }
 
-/** 自定义显示列字段缓存配置 */
-export interface CustomDisplayColumnFieldsConfig {
-  displayFields: string[];
-  fieldsWidth: { [colKey: string]: number };
-}
-
 /** 表格条件菜单项 */
 export interface ExploreConditionMenuItem {
   /** 菜单图标 */

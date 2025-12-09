@@ -258,7 +258,16 @@ export default defineComponent({
       },
     });
 
-    const { tableCellRender } = useTableCell(tableRowKeyField);
+    const { tableCellRender, renderContext } = useTableCell({
+      rowKeyField: tableRowKeyField,
+      customDefaultGetRenderValue: (row, column) => {
+        const alias = row?.[column.colKey];
+        if (typeof alias !== 'object' || alias == null) {
+          return alias;
+        }
+        return JSON.stringify(alias);
+      },
+    });
     const { tableColumns, tableDisplayColumns } = useExploreColumnConfig({
       appName: toRef(props, 'appName'),
       displayFields: toRef(props, 'displayFields'),
@@ -268,6 +277,7 @@ export default defineComponent({
       sortContainer: toRef(props, 'sortContainer'),
       sourceFieldConfigs: toRef(props, 'sourceFieldConfigs'),
       enabledClickMenu: toRef(props, 'enabledClickMenu'),
+      renderContext,
       tableHeaderCellRender: (...args) => tableHeaderCellRender(...args),
       tableCellRender,
       handleConditionMenuShow: (...args) => handleConditionMenuShow(...args),
