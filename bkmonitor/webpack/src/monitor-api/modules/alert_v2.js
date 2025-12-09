@@ -1,43 +1,47 @@
 import { request } from '../base';
 
-export const listAllowedBiz = request('GET', 'fta/alert/allowed_biz/');
-export const listSearchHistory = request('GET', 'fta/alert/search_history/');
-export const searchAlert = request('POST', 'fta/alert/alert/search/');
-export const exportAlert = request('POST', 'fta/alert/alert/export/');
-export const alertDateHistogram = request('POST', 'fta/alert/alert/date_histogram/');
-export const listAlertTags = request('POST', 'fta/alert/alert/tags/');
-export const alertDetail = request('GET', 'fta/alert/alert/detail/');
-export const getExperience = request('GET', 'fta/alert/alert/get_experience/');
-export const saveExperience = request('POST', 'fta/alert/alert/save_experience/');
-export const deleteExperience = request('POST', 'fta/alert/alert/delete_experience/');
-export const listAlertLog = request('POST', 'fta/alert/alert/log/');
-export const searchEvent = request('POST', 'fta/alert/event/search/');
-export const alertEventCount = request('POST', 'fta/alert/alert/event_count/');
-export const alertRelatedInfo = request('POST', 'fta/alert/alert/related_info/');
-export const alertExtendFields = request('POST', 'fta/alert/alert/extend_fields/');
-export const ackAlert = request('POST', 'fta/alert/alert/ack/');
-export const alertGraphQuery = request('POST', 'fta/alert/alert/graph_query/');
-export const eventDateHistogram = request('POST', 'fta/alert/event/date_histogram/');
-export const searchAction = request('POST', 'fta/alert/action/search/');
-export const actionDetail = request('GET', 'fta/alert/action/detail/');
-export const subActionDetail = request('GET', 'fta/alert/action/detail/sub_actions/');
-export const exportAction = request('POST', 'fta/alert/action/export/');
-export const actionDateHistogram = request('POST', 'fta/alert/action/date_histogram/');
-export const validateQueryString = request('POST', 'fta/alert/validate_query_string/');
-export const strategySnapshot = request('GET', 'fta/alert/strategy_snapshot/');
-export const alertTopN = request('POST', 'fta/alert/alert/top_n/');
-export const actionTopN = request('POST', 'fta/alert/action/top_n/');
-export const eventTopN = request('POST', 'fta/alert/event/top_n/');
-export const listIndexByHost = request('POST', 'fta/alert/list_index_by_host/');
-export const feedbackAlert = request('POST', 'fta/alert/alert/create_feedback/');
-export const listAlertFeedback = request('GET', 'fta/alert/alert/list_feedback/');
-export const dimensionDrillDown = request('GET', 'fta/alert/alert/dimension_drill_down/');
-export const metricRecommendation = request('GET', 'fta/alert/alert/metric_recommendation/');
-export const metricRecommendationFeedback = request('POST', 'fta/alert/alert/metric_recommendation_feedback/');
-export const multiAnomalyDetectGraph = request('GET', 'fta/alert/alert/multi_anomaly_detect_graph/');
-export const getFourMetricsStrategy = request('GET', 'fta/alert/alert/get_four_metrics_strategy/');
-export const getTmpData = request('GET', 'fta/alert/alert/get_tmp_data/');
-export const getFourMetricsData = request('GET', 'fta/alert/alert/get_four_metrics_data/');
+export const listAllowedBiz = request('GET', 'fta/alert/v2/allowed_biz/');
+export const listSearchHistory = request('GET', 'fta/alert/v2/search_history/');
+export const searchAlert = request('POST', 'fta/alert/v2/alert/search/');
+export const exportAlert = request('POST', 'fta/alert/v2/alert/export/');
+export const alertDateHistogram = request('POST', 'fta/alert/v2/alert/date_histogram/');
+export const listAlertTags = request('POST', 'fta/alert/v2/alert/tags/');
+export const getExperience = request('GET', 'fta/alert/v2/alert/get_experience/');
+export const saveExperience = request('POST', 'fta/alert/v2/alert/save_experience/');
+export const deleteExperience = request('POST', 'fta/alert/v2/alert/delete_experience/');
+export const listAlertLog = request('POST', 'fta/alert/v2/alert/log/');
+export const searchEvent = request('POST', 'fta/alert/v2/event/search/');
+export const alertEventCount = request('POST', 'fta/alert/v2/alert/event_count/');
+export const alertRelatedInfo = request('POST', 'fta/alert/v2/alert/related_info/');
+export const alertExtendFields = request('POST', 'fta/alert/v2/alert/extend_fields/');
+export const ackAlert = request('POST', 'fta/alert/v2/alert/ack/');
+export const alertGraphQuery = request('POST', 'fta/alert/v2/alert/graph_query/');
+export const eventDateHistogram = request('POST', 'fta/alert/v2/event/date_histogram/');
+export const searchAction = request('POST', 'fta/alert/v2/action/search/');
+export const actionDetail = request('GET', 'fta/alert/v2/action/detail/');
+export const subActionDetail = request('GET', 'fta/alert/v2/action/detail/sub_actions/');
+export const exportAction = request('POST', 'fta/alert/v2/action/export/');
+export const actionDateHistogram = request('POST', 'fta/alert/v2/action/date_histogram/');
+export const validateQueryString = request('POST', 'fta/alert/v2/validate_query_string/');
+export const strategySnapshot = request('GET', 'fta/alert/v2/strategy_snapshot/');
+export const alertTopN = request('POST', 'fta/alert/v2/alert/top_n/');
+export const actionTopN = request('POST', 'fta/alert/v2/action/top_n/');
+export const eventTopN = request('POST', 'fta/alert/v2/event/top_n/');
+export const listIndexByHost = request('POST', 'fta/alert/v2/list_index_by_host/');
+export const feedbackAlert = request('POST', 'fta/alert/v2/alert/create_feedback/');
+export const listAlertFeedback = request('GET', 'fta/alert/v2/alert/list_feedback/');
+export const dimensionDrillDown = request('GET', 'fta/alert/v2/alert/dimension_drill_down/');
+export const metricRecommendation = request('GET', 'fta/alert/v2/alert/metric_recommendation/');
+export const metricRecommendationFeedback = request('POST', 'fta/alert/v2/alert/metric_recommendation_feedback/');
+export const multiAnomalyDetectGraph = request('GET', 'fta/alert/v2/alert/multi_anomaly_detect_graph/');
+export const getFourMetricsStrategy = request('GET', 'fta/alert/v2/alert/get_four_metrics_strategy/');
+export const getTmpData = request('GET', 'fta/alert/v2/alert/get_tmp_data/');
+export const getFourMetricsData = request('GET', 'fta/alert/v2/alert/get_four_metrics_data/');
+export const alertDetail = request('GET', 'fta/alert/v2/alert/detail/');
+export const alertEvents = request('GET', 'fta/alert/v2/alert/events/');
+export const alertK8sScenarioList = request('GET', 'fta/alert/v2/alert/k8s_scenario_list/');
+export const alertK8sMetricList = request('GET', 'fta/alert/v2/alert/k8s_metric_list/');
+export const alertK8sTarget = request('GET', 'fta/alert/v2/alert/k8s_target/');
 export const quickAlertShield = request('GET', 'fta/alert/alert/quick_shield/');
 export const quickAlertAck = request('GET', 'fta/alert/alert/quick_ack/');
 
@@ -48,7 +52,6 @@ export default {
   exportAlert,
   alertDateHistogram,
   listAlertTags,
-  alertDetail,
   getExperience,
   saveExperience,
   deleteExperience,
@@ -80,6 +83,11 @@ export default {
   getFourMetricsStrategy,
   getTmpData,
   getFourMetricsData,
+  alertDetail,
+  alertEvents,
+  alertK8sScenarioList,
+  alertK8sMetricList,
+  alertK8sTarget,
   quickAlertShield,
   quickAlertAck,
 };
