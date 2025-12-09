@@ -7,16 +7,24 @@ export interface IListItemData {
   [key: string]: any;
 }
 
+export interface INoQuestParams {
+  letterIndex?: number;
+  scopeSelectShow?: {
+    namespace?: boolean;
+    label?: boolean;
+    load?: boolean;
+    containerName?: boolean;
+    annotation?: boolean;
+  };
+  namespaceStr?: string;
+  namespacesExclude?: string;
+  containerExclude?: string;
+}
+
 export interface ISelectItem {
   id: string;
   name: string;
   value?: string;
-}
-// 用于描述附加标签结构
-export interface IExtraLabel {
-  key?: string;
-  value?: string;
-  operator?: string;
 }
 
 // 用于描述路径项结构（含value字段的对象）
@@ -41,37 +49,36 @@ export interface IConditions {
   separator_filters?: ISeparatorFilter[];
 }
 
-// 主机采集配置参数结构
-export interface IHostCollectionParams {
+// 配置参数结构
+export interface ICollectionParams {
   multiline_pattern?: string;
   multiline_max_lines?: string;
   multiline_timeout?: string;
   paths?: IPathItem[];
   exclude_files?: string[];
-  extra_labels?: IExtraLabel[];
-  conditions?: IConditions;
-}
-
-// 容器采集配置参数结构
-export interface IContainerCollectionParams {
-  paths?: IPathItem[];
-  exclude_files?: string[];
+  extra_labels?: IValueItem[];
   conditions?: IConditions;
   winlog_name?: string[];
   winlog_level?: string[];
   winlog_event_id?: string[];
-  extra_labels?: IExtraLabel[];
 }
 
+export interface IValueItem {
+  id: string;
+  key: string;
+  operator: string;
+  value: string;
+  type?: string;
+}
 // 标签选择器结构
 export interface ILabelSelector {
-  match_labels?: any[];
-  match_expressions?: any[];
+  match_labels?: IValueItem[];
+  match_expressions?: IValueItem[];
 }
 
 // 注解选择器结构
 export interface IAnnotationSelector {
-  match_annotations?: any[];
+  match_annotations?: IValueItem[];
 }
 
 // 容器配置项结构
@@ -81,15 +88,28 @@ export interface IContainerConfigItem {
     workload_name?: string;
     container_name?: string;
   };
+  typeList?: Array<{ id: string; name: string }>;
   label_selector?: ILabelSelector;
-  match_labels?: any[];
-  extra_labels: IExtraLabel[];
-  match_expressions?: any[];
+  labelSelector?: ILabelSelector[];
+  annotationSelector?: IAnnotationSelector[];
+  containerNameList: string[];
+  match_labels?: IValueItem[];
+  extra_labels: IValueItem[];
+  match_expressions?: IValueItem[];
   data_encoding?: string;
-  params?: IHostCollectionParams;
+  params?: ICollectionParams;
   collector_type?: string;
   namespaces?: string[];
   annotation_selector?: IAnnotationSelector;
+  noQuestParams: INoQuestParams;
+}
+/**
+ * 目标节点信息
+ * 描述一个在拓扑结构中的节点
+ */
+export interface ITargetNode {
+  bk_inst_id: number;
+  bk_obj_id: string;
 }
 
 // 完整数据结构接口（所有字段均为可选）
@@ -101,7 +121,7 @@ export interface IFormData {
   collector_config_name_en?: string;
   bk_biz_id?: number;
   description?: string;
-  target_nodes?: { bk_host_id: string }[];
+  target_nodes?: ITargetNode[];
   category_id?: string;
   collector_scenario_id?: string;
   environment?: string;
@@ -113,15 +133,16 @@ export interface IFormData {
   bcs_cluster_id?: string;
   add_pod_label?: boolean;
   add_pod_annotation?: boolean;
-  extra_labels?: IExtraLabel[];
+  extra_labels?: IValueItem[];
   configs?: IContainerConfigItem[];
   yaml_config?: string;
   yaml_config_enabled?: boolean;
-  // 主机采集配置
-  params?: IContainerCollectionParams;
+  // 采集配置
+  params?: ICollectionParams;
 }
 
 export interface IClusterItem {
   id: string;
   name: string;
+  is_shared?: boolean;
 }

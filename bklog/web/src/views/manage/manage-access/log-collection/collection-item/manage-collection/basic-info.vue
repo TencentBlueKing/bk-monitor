@@ -191,7 +191,7 @@
             </div>
           </template>
           <div
-            v-if="!isWinEventLog && conditions.type === 'none'"
+            v-if="!isWinEventLog && conditions?.type === 'none'"
             class="content-style"
           >
             <span>{{ $t('过滤内容') }}</span>
@@ -483,7 +483,8 @@
         }
         const params = {};
         params.collectorId = this.$route.params.collectorId;
-        const routeName = this.isCustomReport ? 'custom-report-edit' : 'collectEdit';
+        // const routeName = this.isCustomReport ? 'custom-report-edit' : 'collectEdit';
+        const routeName = 'collectEdit';
         this.$router.push({
           name: routeName,
           params,
@@ -491,6 +492,7 @@
             spaceUid: this.$store.state.spaceUid,
             backRoute: 'manage-collection',
             type: 'basicInfo',
+            typeKey: this.$route.query.typeKey,
           },
         });
       },

@@ -58,7 +58,7 @@ export default defineComponent({
   emits: ['change', 'validate-error'],
 
   setup(props, { emit }) {
-    const { t } = useLocale(); // 使用国际化翻译函数
+    const { t } = useLocale();
     const isExtraError = ref(false);
     // 创建本地数据副本
     const localData = ref({
@@ -153,7 +153,7 @@ export default defineComponent({
 
     return () => (
       <div class='append-log-tags-main'>
-        {/* 错误提示（可根据需求调整显示样式） */}
+        {/* 错误提示*/}
         {/* {isExtraError.value && <div class='error-message'>{t('当Key存在时，Value不能为空')}</div>} */}
 
         <div class='input-group'>

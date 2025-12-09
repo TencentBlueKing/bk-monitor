@@ -76,7 +76,7 @@ export default defineComponent({
 
     watch(
       () => props.isShowDialog,
-      val => {
+      (val: boolean) => {
         if (val) {
           /**
            * 对话框显示时，获取视图数据
@@ -90,7 +90,7 @@ export default defineComponent({
               /**
                * 处理返回的数据，添加 isShowTarget 属性
                */
-              viewList.value = res.data.map((item: any) => ({
+              viewList.value = res.data.map(item => ({
                 ...item,
                 isShowTarget: true,
               }));
