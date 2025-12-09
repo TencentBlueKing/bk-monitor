@@ -4577,7 +4577,7 @@ class TestActionProcessor(TestCase):
             for call_args in parallel_sender_calls:
                 self.assertEqual(call_args["notice_way"], NoticeWay.VOICE)
                 self.assertIsNotNone(call_args["voice_notice_group"])
-                self.assertTrue(len(call_args["voice_notice_group"]) > 0)
+                self.assertGreater(len(call_args["voice_notice_group"]), 0)
             for user_group in call_args["voice_notice_group"]:
                 self.assertTrue(isinstance(user_group, tuple | frozenset | set | list))
             self.assertIsNotNone(call_args["notify_sender"])
