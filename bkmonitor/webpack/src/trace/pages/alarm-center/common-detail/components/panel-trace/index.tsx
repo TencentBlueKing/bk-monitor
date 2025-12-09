@@ -1,4 +1,3 @@
-export * from './alarm-info';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -24,12 +23,43 @@ export * from './alarm-info';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export * from './constants';
-export * from './detail';
-export * from './dialog';
-export * from './panel-container';
-export * from './panel-host';
-export * from './panel-trace';
-export * from './services';
-export * from './shield';
-export * from './table';
+import { type PropType, defineComponent, toRef } from 'vue';
+
+import TraceExploreTable from '../../../../trace-explore/components/trace-explore-table/trace-explore-table';
+import { useAlertTraces } from '../../../composables/use-alert-traces';
+
+export default defineComponent({
+  name: 'PanelTrace',
+  props: {
+    alarmId: String as PropType<string>,
+  },
+  setup(props) {
+    const { traceList, traceQueryConfig } = useAlertTraces(toRef(props, 'alarmId'));
+
+    const displayFields = [
+      'trace_id',
+      'start_time',
+      'root_span_name',
+      'root_service',
+      'root_service_span_name',
+      'error_msg',
+    ];
+    return { displayFields, traceList, traceQueryConfig };
+  },
+  render() {
+    return (
+      <div class='alarm-center-detail-panel-trace'>
+        <TraceExploreTable
+          appName={'tilapia'}
+          displayFields={this.displayFields}
+          enabledClickMenu={false}
+          enabledDisplayFieldSetting={false}
+          enableStatistics={false}
+          mode='trace'
+          scrollContainerSelector='.alarm-center-detail-box'
+          tableData={this.traceList}
+        />
+      </div>
+    );
+  },
+});
