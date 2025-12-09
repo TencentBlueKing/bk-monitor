@@ -111,7 +111,12 @@ class ApiGatewayJWTProvider(DefaultJWTProvider):
             algorithm = jwt_header.get("alg") or self.algorithm
             decoded = self._decode_jwt(jwt_token, public_key, algorithm)
 
-            return DecodedJWT(gateway_name=gateway_name, payload=decoded)
+            decoded_jwt = DecodedJWT(gateway_name=gateway_name, payload=decoded)
+
+            logger.warning(f"csh-test: decoded jwt, decoded_jwt.gateway_name -> {decoded_jwt.gateway_name}")
+            logger.warning(f"csh-test: decoded jwt, decoded_jwt.payload -> {decoded_jwt.payload}")
+
+            return decoded_jwt
 
         except jwt.PyJWTError as e:
             if not self.allow_invalid_jwt_token:
