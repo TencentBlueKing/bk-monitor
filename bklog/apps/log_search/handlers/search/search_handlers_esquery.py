@@ -141,6 +141,7 @@ from apps.utils.log import logger
 from apps.utils.lucene import EnhanceLuceneAdapter, generate_query_string
 from apps.utils.thread import MultiExecuteFunc
 from bkm_ipchooser.constants import CommonEnum
+from home_application.utils.redis import RedisClient
 
 max_len_dict = dict[str, int]  # pylint: disable=invalid-name
 
@@ -161,6 +162,13 @@ def fields_config(name: str, is_active: bool = False):
         return func_decorator
 
     return decorator
+
+
+redis_client = RedisClient.get_instance()
+
+LOG_BCS_CLUSTER_INFO_PREFIX = "log_bcs_cluster_info:"
+
+LOG_BCS_CLUSTER_INFO_EXPIRE = 3600
 
 
 class SearchHandler:
@@ -347,8 +355,6 @@ class SearchHandler:
         self.desensitize_handler = DesensitizeHandler(self.field_configs)
 
         self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
-
-        self.bcs_cluster_info_dict = dict()
 
     def _enhance(self):
         """
@@ -2192,7 +2198,7 @@ class SearchHandler:
 
     def _add_bcs_cluster_fields(self, log):
         """
-        添加集群有关字段
+        添加集群有关内置字段
         """
         bcs_cluster_id = log.get("__ext", dict()).get("bk_bcs_cluster_id")
 
@@ -2200,18 +2206,38 @@ class SearchHandler:
             bcs_cluster_id = bcs_cluster_id.upper()
             log["__bcs_cluster_name__"] = ""
 
-            # 获取 bcs 集群信息
-            if bcs_cluster_id not in self.bcs_cluster_info_dict:
-                bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id})
-                self.bcs_cluster_info_dict.update({bcs_cluster_id: bcs_cluster_info})
-            else:
-                bcs_cluster_info = self.bcs_cluster_info_dict.get(bcs_cluster_id)
+            bcs_cluster_info = self._get_bcs_cluster_info(bcs_cluster_id)
 
             bcs_cluster_name = bcs_cluster_info.get("clusterName")
             if bcs_cluster_name:
                 log["__bcs_cluster_name__"] = bcs_cluster_name
 
         return log
+
+    @staticmethod
+    def _get_bcs_cluster_info(bcs_cluster_id):
+        """
+        获取 bcs 集群信息
+        """
+        bcs_cluster_info_sting = redis_client.rds.get(f"{LOG_BCS_CLUSTER_INFO_PREFIX}{bcs_cluster_id}")
+
+        if bcs_cluster_info_sting:
+            bcs_cluster_info = json.loads(bcs_cluster_info_sting)
+
+            if bcs_cluster_info:
+                return bcs_cluster_info
+
+        try:
+            bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id})
+            bcs_cluster_info_sting = json.dumps(bcs_cluster_info)
+            redis_client.rds.setex(
+                f"{LOG_BCS_CLUSTER_INFO_PREFIX}{bcs_cluster_id}", LOG_BCS_CLUSTER_INFO_EXPIRE, bcs_cluster_info_sting
+            )
+        except Exception as e:
+            logger.exception(f"get cluster info by cluster id error: {e}, cluster_id: {bcs_cluster_id}")
+            bcs_cluster_info = dict()
+
+        return bcs_cluster_info
 
     def _add_cmdb_fields(self, log):
         if not self.search_dict.get("bk_biz_id"):

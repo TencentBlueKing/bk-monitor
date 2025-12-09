@@ -239,7 +239,7 @@ class MappingHandlers:
                 {
                     "field_type": "__virtual__",
                     "field_name": "__bcs_cluster_name__",
-                    "field_alias": _("bcs 集群名称"),
+                    "field_alias": _("BCS 集群名称"),
                     "is_display": False,
                     "is_editable": True,
                     "tag": "dimension",
