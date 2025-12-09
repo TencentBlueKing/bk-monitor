@@ -192,6 +192,8 @@ class UnifyQueryHandler:
             if time_field_info:
                 self.time_field = time_field_info[0]
 
+        self.log_bcs_cluster_info_dict = dict()
+
     @staticmethod
     def query_ts(search_dict, raise_exception=True):
         """
@@ -937,24 +939,27 @@ class UnifyQueryHandler:
             bcs_cluster_id = bcs_cluster_id.upper()
             log["__bcs_cluster_name__"] = ""
 
-            bcs_cluster_info = self._get_bcs_cluster_info(bcs_cluster_id)
-
-            bcs_cluster_name = bcs_cluster_info.get("clusterName")
+            bcs_cluster_name = self._get_bcs_cluster_info(bcs_cluster_id).get("clusterName")
             if bcs_cluster_name:
                 log["__bcs_cluster_name__"] = bcs_cluster_name
 
         return log
 
-    @staticmethod
-    def _get_bcs_cluster_info(bcs_cluster_id):
+    def _get_bcs_cluster_info(self, bcs_cluster_id):
         """
         获取 bcs 集群信息
         """
+        if self.log_bcs_cluster_info_dict:
+            if bcs_cluster_id in self.log_bcs_cluster_info_dict:
+                return self.log_bcs_cluster_info_dict.get(bcs_cluster_id)
+
         try:
             bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id})
+            self.log_bcs_cluster_info_dict.update({bcs_cluster_id: bcs_cluster_info})
         except Exception as e:
-            logger.exception(f"get cluster info by cluster id error: {e}, cluster_id: {bcs_cluster_id}")
+            logger.exception("get cluster info by cluster id error: %s, cluster_id: %s", e, bcs_cluster_id)
             bcs_cluster_info = dict()
+            self.log_bcs_cluster_info_dict.update({bcs_cluster_id: bcs_cluster_info})
 
         return bcs_cluster_info
 
