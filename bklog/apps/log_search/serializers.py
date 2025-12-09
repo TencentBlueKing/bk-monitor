@@ -93,10 +93,10 @@ class ResultTableListSerializer(serializers.Serializer):
 
 
 class ResultTableTraceMatchSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     indices = serializers.ListField(label=_("索引列表"))
     scenario_id = serializers.CharField(label=_("接入场景"))
     storage_cluster_id = serializers.IntegerField(label=_("数据源ID"), required=False)
-    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
