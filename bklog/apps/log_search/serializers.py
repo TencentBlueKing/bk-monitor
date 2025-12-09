@@ -96,6 +96,7 @@ class ResultTableTraceMatchSerializer(serializers.Serializer):
     indices = serializers.ListField(label=_("索引列表"))
     scenario_id = serializers.CharField(label=_("接入场景"))
     storage_cluster_id = serializers.IntegerField(label=_("数据源ID"), required=False)
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -110,7 +111,7 @@ class ResultTableTraceMatchSerializer(serializers.Serializer):
 
 
 class ResultTableDetailSerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     scenario_id = serializers.CharField(label=_("接入场景"))
     storage_cluster_id = serializers.IntegerField(label=_("数据源ID"), required=False)
 
@@ -132,6 +133,7 @@ class ResultTableAdaptSerializer(serializers.Serializer):
             choices=["date", "long"], required=False, allow_null=True, allow_blank=True
         )
 
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     scenario_id = serializers.CharField(label=_("接入场景"))
     storage_cluster_id = serializers.CharField(label=_("存储集群ID"), required=False, allow_blank=True, allow_null=True)
     basic_index = IndexSerializer(label=_("源索引"), required=False)

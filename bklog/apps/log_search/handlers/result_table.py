@@ -50,11 +50,12 @@ import builtins
 
 
 class ResultTableHandler(APIModel):
-    def __init__(self, scenario_id, storage_cluster_id=None, bk_username=None):
+    def __init__(self, scenario_id, storage_cluster_id=None, bk_username=None, bk_biz_id=None):
         super().__init__()
         self.scenario_id = scenario_id
         self.storage_cluster_id = storage_cluster_id
         self.username = bk_username if bk_username else get_request_username()
+        self.bk_biz_id = bk_biz_id
 
     def list(self, bk_biz_id=None, result_table_id=None):
         """
@@ -119,7 +120,7 @@ class ResultTableHandler(APIModel):
             result = [index for index in result if index["result_table_id"] in authorized_tables]
         return result
 
-    def retrieve(self, result_table_id, bk_biz_id=None):
+    def retrieve(self, result_table_id):
         """
         查询结果表详情
         """
@@ -130,9 +131,9 @@ class ResultTableHandler(APIModel):
             "bk_username": self.username,
             "bkdata_authentication_method": "user",
         }
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
+        if self.bk_biz_id and FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, self.bk_biz_id):
             field_list = UnifyQueryMappingHandler.get_fields_directly(
-                bk_biz_id=bk_biz_id,
+                bk_biz_id=self.bk_biz_id,
                 scenario_id=self.scenario_id,
                 storage_cluster_id=self.storage_cluster_id,
                 result_table_id=result_table_id,
@@ -178,9 +179,8 @@ class ResultTableHandler(APIModel):
         """
         1、检查两索引字段类型是否一致；
         2、检查两索引时间字段和类型是否一致；
-        :param basic_index:
+        :param basic_indices:
         :param append_index:
-        :param raise_exception: 是否抛出异常
         :return:
         """
         basic_detail = self.retrieve(",".join(basic_indices)) if basic_indices else {}
