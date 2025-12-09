@@ -38,6 +38,9 @@ def list_project_after(response):
     return response
 
 
+LOG_BCS_CLUSTER_INFO_EXPIRE = 3600
+
+
 class _BcsApi:
     MODULE = "BCS"
 
@@ -59,6 +62,7 @@ class _BcsApi:
             header_keys=["Authorization"],
             before_request=bcs_before_request,
             url_keys=["cluster_id"],
+            cache_time=LOG_BCS_CLUSTER_INFO_EXPIRE,
         )
         self.list_project = DataAPI(
             method="GET",
