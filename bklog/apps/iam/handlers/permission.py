@@ -19,8 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import json
-
 from django.conf import settings
 from django.utils.translation import gettext as _
 from iam import (
@@ -78,15 +76,6 @@ class Permission:
                 # web请求
                 if request:
                     logger.warning(f"csh-test: enter have request, user -> {request.user}")
-
-                    bkapi_auth = request.META.get("HTTP_X_BKAPI_AUTHORIZATION")
-                    if bkapi_auth:
-                        try:
-                            auth_info = json.loads(bkapi_auth)
-                            logger.warning(f"csh-test: X-Bkapi-Authorization -> {auth_info}")
-                        except Exception as e:
-                            logger.warning(f"csh-test:  -> {e}, original -> {bkapi_auth}")
-
                     self.username = request.user.username
                     self.bk_tenant_id = get_request_tenant_id()
                 else:
