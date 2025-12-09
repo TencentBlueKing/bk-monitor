@@ -100,7 +100,7 @@ The project relies heavily on **Django, Redis, Elasticsearch (ES), MySQL, and Ka
 
 ### 5. Performance & Concurrency
 
-- **Async/Await**: Used for I/O-bound tasks. ensure `await` is not called inside a loop if requests can be concurrent (use `asyncio.gather`).
+- **Async/Await**: Used for I/O-bound tasks. Ensure `await` is not called inside a loop if requests can be concurrent (use `asyncio.gather`).
 - **Celery**:
     - Tasks should be **atomic** and **idempotent**.
     - Avoid passing complex objects (ORM instances) to tasks; pass primary keys (IDs) instead.
