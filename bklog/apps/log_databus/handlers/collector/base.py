@@ -725,21 +725,52 @@ class CollectorHandler:
     @caches_one_hour(key=CACHE_KEY_CLUSTER_INFO, need_deconstruction_name="result_table_list", need_md5=True)
     def bulk_cluster_infos(result_table_list: list):
         """
-        bulk_cluster_infos
+        批量获取集群信息，单个失败不影响其他
         @param result_table_list:
         @return:
         """
+
+        def safe_get_cluster_info(result_table_str):
+            """
+            安全获取集群信息，避免单个失败影响整体返回
+            """
+            try:
+                return TransferApi.get_result_table_storage(
+                    result_table_list=result_table_str,
+                    storage_type="elasticsearch"
+                )
+            except Exception as e:
+                logger.warning(f"获取集群信息失败(result_tables={result_table_str}): {e}")
+                return {}
+
         multi_execute_func = MultiExecuteFunc()
         table_chunk = array_chunk(result_table_list, BULK_CLUSTER_INFOS_LIMIT)
+
+        # 记录每个chunk对应的result_table列表
+        chunk_mapping = {}
+
         for item in table_chunk:
             rt = ",".join(item)
+            chunk_mapping[rt] = item
+            # 使用安全的包装函数
             multi_execute_func.append(
-                rt, TransferApi.get_result_table_storage, {"result_table_list": rt, "storage_type": "elasticsearch"}
+                rt, safe_get_cluster_info, rt
             )
+
         result = multi_execute_func.run()
         cluster_infos = {}
-        for _, cluster_info in result.items():  # noqa
-            cluster_infos.update(cluster_info)
+
+        for rt_key, cluster_info in result.items():
+            if cluster_info:  # 成功获取到集群信息
+                cluster_infos.update(cluster_info)
+            else:
+                # 获取失败，设置默认值
+                for table_id in chunk_mapping.get(rt_key, []):
+                    cluster_infos[table_id] = {
+                        "cluster_config": {"cluster_id": -1, "cluster_name": ""},
+                        "storage_config": {"retention": 0}
+                    }
+
         return cluster_infos
 
     @classmethod
