@@ -1803,37 +1803,6 @@ class TimeSeriesMetric(models.Model):
         return list(tags)
 
     @classmethod
-    def _extract_field_scope_from_group_key(cls, group_key: str) -> str:
-        """从 group_dimensions 的 key 中提取 field_scope
-
-        例如: "service_name:api-server||scope_name:production" -> "api-server||production"
-        例如: "scope_name:production" -> "production"
-
-        特殊处理：
-        - 如果 service_name 不存在或值为空，使用 "unknown_service"
-        - 如果 scope_name 不存在或值为空，使用 "default"
-
-        注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
-        """
-        parts = group_key.split("||")
-
-        # 解析所有的 key:value 对
-        key_value_map = {}
-        for part in parts:
-            if ":" in part:
-                key, value = part.split(":", 1)
-                key_value_map[key.strip()] = value.strip() if value.strip() else None
-
-        # 提取 service_name，如果不存在或为空，使用默认值 "unknown_service"
-        service_name = key_value_map.get("service_name") or cls.DEFAULT_SERVICE
-
-        # 提取 scope_name，如果不存在或为空，使用默认值 "default"
-        scope_name = key_value_map.get("scope_name") or cls.DEFAULT_SCOPE
-
-        # 组合成 field_scope
-        return f"{service_name}||{scope_name}"
-
-    @classmethod
     def get_scope_id_for_metric(cls, group_id: int, field_scope: str, field_name: str) -> int | None:
         """获取指标对应的 scope_id
 
@@ -1997,13 +1966,11 @@ class TimeSeriesMetric(models.Model):
             if not metric_info.get("is_active", True) and not is_auto_discovery:
                 continue
 
-            for group_key, group_info in metric_info["group_dimensions"].items():
-                extracted_scope = cls._extract_field_scope_from_group_key(group_key)
-                # 只创建匹配的 field_scope
-                if extracted_scope != field_scope:
+            for scope_name, scope_info in metric_info["group_dimensions"].items():
+                if scope_name != field_scope:
                     continue
 
-                dimensions = group_info.get("dimensions", [])
+                dimensions = scope_info.get("dimensions", [])
 
                 # 维度 [target] 必须存在; 如果不存在时，则需要添加 [target] 维度
                 if cls.TARGET_DIMENSION_NAME not in dimensions:
@@ -2183,12 +2150,10 @@ class TimeSeriesMetric(models.Model):
 
             # 从 group_dimensions 中根据 field_scope 获取维度
             new_dimensions = []
-            for group_key, group_info in metric_info.get("group_dimensions", {}).items():
-                extracted_scope = cls._extract_field_scope_from_group_key(group_key)
-                # 只处理匹配的 field_scope
-                if extracted_scope != obj.field_scope:
+            for scope_name, scope_info in metric_info.get("group_dimensions", {}).items():
+                if scope_name != obj.field_scope:
                     continue
-                new_dimensions = group_info.get("dimensions", [])
+                new_dimensions = scope_info.get("dimensions", [])
                 break
 
             # 维度 [target] 必须存在; 如果不存在时，则需要添加 [target] 维度
@@ -2350,9 +2315,8 @@ class TimeSeriesMetric(models.Model):
                 if not field_name:
                     continue
                 if "group_dimensions" in metric_info:
-                    for group_key in metric_info["group_dimensions"].keys():
-                        field_scope = cls._extract_field_scope_from_group_key(group_key)
-                        expected_combinations.add((field_name, field_scope))
+                    for scope_name in metric_info["group_dimensions"].keys():
+                        expected_combinations.add((field_name, scope_name))
                 else:
                     # 旧格式，使用默认的 field_scope
                     expected_combinations.add((field_name, "default"))
