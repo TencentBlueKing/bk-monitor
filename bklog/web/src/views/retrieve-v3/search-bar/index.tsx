@@ -39,6 +39,8 @@ import { bkMessage } from 'bk-magic-vue';
 
 import './index.scss';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import { AiQueryResult } from './types';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 
 export default defineComponent({
   name: 'V3Searchbar',
@@ -54,24 +56,25 @@ export default defineComponent({
 
     const isAiLoading = ref(false);
     const searchMode = ref<'normal' | 'ai'>('normal');
+    const aiQueryResult = ref<AiQueryResult>({ startTime: '', endTime: '', queryString: '' });
 
-    const aiSpanStyle = {
-      background: 'linear-gradient(115deg, #235DFA 0%, #E28BED 100%)',
-      '-webkit-background-clip': 'text',
-      'background-clip': 'text',
-      '-webkit-text-fill-color': 'transparent',
-      color: 'transparent',
-      'font-size': '12px',
-      cursor: 'pointer',
-    };
+    // const aiSpanStyle = {
+    //   background: 'linear-gradient(115deg, #235DFA 0%, #E28BED 100%)',
+    //   '-webkit-background-clip': 'text',
+    //   'background-clip': 'text',
+    //   '-webkit-text-fill-color': 'transparent',
+    //   color: 'transparent',
+    //   'font-size': '12px',
+    //   cursor: 'pointer',
+    // };
 
-    const aiSpanWrapperStyle = {
-      display: 'flex',
-      'align-items': 'center',
-      gap: '4px',
-      'font-size': '12px',
-      color: '#c4c6cc',
-    };
+    // const aiSpanWrapperStyle = {
+    //   display: 'flex',
+    //   'align-items': 'center',
+    //   gap: '4px',
+    //   'font-size': '12px',
+    //   color: '#c4c6cc',
+    // };
 
     const shortcutKeyStyle = {
       width: '20px',
@@ -142,6 +145,9 @@ export default defineComponent({
      * @param e 键盘事件
      */
     const handleTabKeyPress = (e: KeyboardEvent) => {
+      if (isAiLoading.value) {
+        return;
+      }
       // 检查是否按下了 Tab 键（排除 Shift+Tab）
       if ((e.key === 'Tab' || e.keyCode === 9) && !e.shiftKey) {
         // 如果当前焦点在搜索栏相关的输入框内，才处理切换
@@ -172,6 +178,8 @@ export default defineComponent({
           });
         } else {
           searchMode.value = 'normal';
+          Object.assign(aiQueryResult.value, { startTime: '', endTime: '', queryString: '' });
+
           // 切换到常规模式后，聚焦到搜索框
           nextTick(() => {
             const searchBarEl = searchBarRef.value?.$el || searchBarRef.value;
@@ -191,26 +199,14 @@ export default defineComponent({
     useResizeObserve(() => searchBarRef.value, updateAiAssitantPosition);
 
     /**
-     * 挂载时添加 Tab 键监听
-     */
-    onMounted(() => {
-      document.addEventListener('keydown', handleTabKeyPress, { capture: true });
-    });
-
-    /**
-     * 卸载时移除 Tab 键监听
-     */
-    onUnmounted(() => {
-      document.removeEventListener('keydown', handleTabKeyPress, { capture: true });
-    });
-
-    /**
      * 添加事件
      */
     const { addElementEvent } = useElementEvent();
     addElementEvent(document.body, 'click', (e: MouseEvent) => {
       RetrieveHelper.aiAssitantHelper.closeAiAssitantWithSearchBar(e);
     });
+
+    addElementEvent(document, 'keydown', handleTabKeyPress, { capture: true });
 
     /**
      * 使用AI编辑
@@ -268,21 +264,27 @@ export default defineComponent({
           try {
             const contentObj = JSON.parse(content);
             const { end_time: endTime, start_time: startTime, query_string: queryString } = contentObj;
-            const queryParams = {};
+            const queryParams = { search_mode: 'sql' };
             let needReplace = false;
             if (startTime && endTime) {
               const results = handleTransformToTimestamp([startTime, endTime], formatValue.value);
               Object.assign(queryParams, { start_time: results[0], end_time: results[1] });
               store.commit('updateIndexItemParams', { datePickerValue: [startTime, endTime] });
+              aiQueryResult.value.startTime = startTime;
+              aiQueryResult.value.endTime = endTime;
               needReplace = true;
             }
+
             if (queryString) {
               Object.assign(queryParams, { keyword: queryString });
               needReplace = true;
+              aiQueryResult.value.queryString = queryString;
             }
 
             if (needReplace) {
               store.commit('updateIndexItemParams', queryParams);
+              store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+
               router
                 .replace({
                   name: 'retrieve',
@@ -310,6 +312,10 @@ export default defineComponent({
         });
     };
 
+    const handleEditSql = () => {
+      searchMode.value = 'normal';
+    };
+
     /**
      * 渲染搜索栏
      * @returns
@@ -320,7 +326,11 @@ export default defineComponent({
           <div class='v3-search-bar-root'>
             <V3AiMode
               ref={aiModeRef}
+              is-ai-loading={isAiLoading.value}
+              ai-query-result={aiQueryResult.value}
               on-height-change={handleHeightChange}
+              on-text-to-query={handleTextToQuery}
+              on-edit-sql={handleEditSql}
             />
           </div>
         );
@@ -335,22 +345,22 @@ export default defineComponent({
           is-ai-loading={isAiLoading.value}
           {...{
             scopedSlots: {
-              'custom-placeholder'(slotProps) {
-                if (isAiAssistantActive.value) {
-                  return (
-                    <span style={aiSpanWrapperStyle}>
-                      {slotProps.isEmptyText ? t('或') : ''}
-                      <span
-                        style={aiSpanStyle}
-                        onClick={handleAiSpanClick}
-                      >
-                        {t('使用AI编辑')}
-                      </span>
-                    </span>
-                  );
-                }
-                return null;
-              },
+              // 'custom-placeholder'(slotProps) {
+              //   if (isAiAssistantActive.value) {
+              //     return (
+              //       <span style={aiSpanWrapperStyle}>
+              //         {slotProps.isEmptyText ? t('或') : ''}
+              //         <span
+              //           style={aiSpanStyle}
+              //           onClick={handleAiSpanClick}
+              //         >
+              //           {t('使用AI编辑')}
+              //         </span>
+              //       </span>
+              //     );
+              //   }
+              //   return null;
+              // },
               'search-tool': () => {
                 if (isAiAssistantActive.value) {
                   return (

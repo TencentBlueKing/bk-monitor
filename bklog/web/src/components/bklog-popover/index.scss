@@ -1,3 +1,68 @@
 .bklog-v3-popoover-wrapper {
   font-size: 12px;
 }
+
+
+[data-tippy-root] {
+  // Mixin: 基础 light 样式
+  @mixin bklog-basic-light-theme {
+    border: 1px solid #DCDEE5;
+    border-radius: 4px;
+    box-shadow: 0 2px 24px 0 #00000029;
+    color: #4d4f56;
+    background-color: #fff;
+
+    .tippy-content {
+      padding: 0;
+    }
+    
+    .tippy-arrow {
+      color: #fff;
+
+      &::after {
+        background-color: #fff;
+        box-shadow: 0 2px 24px 0 #00000029;
+      }
+    }
+  }
+
+  // Mixin: 基础 dark 样式
+  @mixin bklog-basic-dark-theme {
+    border: 1px solid #63656e;
+    border-radius: 4px;
+    box-shadow: 0 2px 24px 0 rgba(255, 255, 255, 0.1);
+    color: #fff;
+    background-color: #4d4f56;
+
+    .tippy-arrow {
+      color: #4d4f56;
+
+      &::after {
+        background-color: #4d4f56;
+        box-shadow: 0 2px 24px 0 rgba(255, 255, 255, 0.1);
+      }
+    }
+  }
+
+  // 基础版本 - light（无 padding）
+  [data-theme='bklog-basic-light'] {
+    @include bklog-basic-light-theme;
+  }
+
+  // 基础版本 - dark（无 padding）
+  [data-theme='bklog-basic-dark'] {
+    @include bklog-basic-dark-theme;
+  }
+
+  // light 版本继承自 basic-light，添加 padding
+  [data-theme='bklog-light'] {
+    @include bklog-basic-light-theme;
+    padding: 8px 12px;
+  }
+
+  // dark 版本继承自 basic-dark，添加 padding
+  [data-theme='bklog-dark'] {
+    @include bklog-basic-dark-theme;
+    padding: 8px 12px;
+  }
+}

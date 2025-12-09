@@ -215,6 +215,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-info-fill--2:before {
 	content: "\e14f";
 }
+.bklog-publish-fill:before {
+	content: "\e241";
+}
 .bklog-equal:before {
 	content: "\e13c";
 }

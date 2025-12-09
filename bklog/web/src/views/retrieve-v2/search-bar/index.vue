@@ -789,7 +789,6 @@ defineExpose({
           v-if="isShowSearchTools"
           class="search-tool items"
         >
-          <slot name="search-tool" />
           <div
             v-show="!inspectResponse.is_legal"
             style="color: #ea3636"
@@ -868,6 +867,7 @@ defineExpose({
             @refresh="handleRefresh"
             @save-current-active-favorite="saveCurrentActiveFavorite"
           />
+          <slot name="search-tool" />
         </div>
         <div
           class="search-tool search-btn"
