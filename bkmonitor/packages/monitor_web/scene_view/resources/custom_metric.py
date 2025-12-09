@@ -263,16 +263,6 @@ class GetCustomTsGraphConfig(Resource):
             )
         return where_conditions
 
-    @staticmethod
-    def build_title_with_scope(metric: dict) -> str:
-        """
-        构建标题，如果有 scope_name 则添加到标题前
-        """
-        title = metric.get("alias") or metric["name"]
-        if metric.get("scope_name"):
-            title = f"{metric['scope_name']}: {title}"
-        return title
-
     @classmethod
     def time_or_no_compare(
         cls, table: CustomTSTable, metrics: list[dict], params: dict, dimension_names: dict[str, str]
@@ -346,7 +336,7 @@ class GetCustomTsGraphConfig(Resource):
                 }
                 panels.append(
                     {
-                        "title": cls.build_title_with_scope(metric),
+                        "title": metric.get("alias") or metric["name"],
                         "sub_title": f"custom:{table.data_label.split(',')[0]}:{metric['name']}",
                         "targets": [
                             {
@@ -442,7 +432,7 @@ class GetCustomTsGraphConfig(Resource):
                     targets.append(
                         {
                             "expression": "a",
-                            "alias": cls.build_title_with_scope(metric),
+                            "alias": "",
                             "query_configs": [query_config],
                             "metric": {"name": metric["name"], "alias": metric.get("alias", "")},
                         }
