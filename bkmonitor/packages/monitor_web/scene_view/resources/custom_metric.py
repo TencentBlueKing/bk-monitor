@@ -63,62 +63,61 @@ class GetCustomTsMetricGroups(Resource):
             bk_tenant_id=get_request_tenant_id(),
         )
         # todo 暂时保留以作兼容
-        fields = table.get_and_sync_fields()
-        metrics = [field for field in fields if field.type == CustomTSField.MetricType.METRIC]
+        table.get_and_sync_fields()
+        # 从 metadata 获取指标分组列表
+        metadata_result = api.metadata.query_time_series_scope(group_id=params["time_series_group_id"])
 
-        # 维度描述
-        hidden_dimensions = set()
-        dimension_descriptions = {}
-        # 公共维度
-        common_dimensions = []
-        for field in fields:
-            # 如果不是维度，则跳过
-            if field.type != CustomTSField.MetricType.DIMENSION:
-                continue
+        # 转换数据结构
+        metric_groups = []
+        for scope_data in metadata_result:
+            scope_name = scope_data.get("scope_name", "")
+            metric_list = scope_data.get("metric_list", [])
+            dimension_config = scope_data.get("dimension_config", {})
 
-            dimension_descriptions[field.name] = field.description
+            # 构建指标列表
+            metrics = []
+            for metric_data in metric_list:
+                field_config = metric_data.get("field_config", {})
+                # 如果指标隐藏或禁用，则不展示
+                if field_config.get("hidden", False) or field_config.get("disabled", False):
+                    continue
 
-            # 如果维度隐藏，则不展示
-            if field.config.get("hidden", False):
-                hidden_dimensions.add(field.name)
-                continue
+                # 构建维度列表
+                dimensions = []
+                for dimension_name in metric_data.get("tag_list", []):
+                    dim_config = dimension_config.get(dimension_name, {})
+                    # 如果维度隐藏，则不展示
+                    if dim_config.get("hidden", False):
+                        continue
+                    dimensions.append({"name": dimension_name, "alias": dim_config.get("alias", dimension_name)})
 
-            # 如果维度公共，则添加到公共维度
-            if field.config.get("common", False):
-                common_dimensions.append({"name": field.name, "alias": field.description})
-
-        # 指标分组
-        metric_groups = defaultdict(list)
-        for metric in metrics:
-            # 如果指标隐藏，则不展示
-            if metric.disabled or metric.config.get("hidden", False):
-                continue
-
-            labels = metric.config.get("label", [])
-
-            # 如果 label 为空，则使用未分组
-            if not labels:
-                labels = [str(_("未分组"))]
-
-            # 分组
-            for group in labels:
-                metric_groups[group].append(
+                metrics.append(
                     {
-                        "metric_name": metric.name,
-                        "alias": metric.description,
-                        "dimensions": [
-                            {"name": dimension, "alias": dimension_descriptions.get(dimension, dimension)}
-                            for dimension in metric.config.get("dimensions", [])
-                            if dimension not in hidden_dimensions
-                        ],
+                        "metric_name": metric_data.get("metric_name", ""),
+                        "alias": field_config.get("alias", ""),
+                        "dimensions": dimensions,
                     }
                 )
 
-        # todo hhh 切换从 metadata 获取指标，同时数据结构会发生改变
-        return {
-            "common_dimensions": common_dimensions,
-            "metric_groups": [{"name": group, "metrics": metric_groups[group]} for group in metric_groups],
-        }
+            # 构建公共维度列表
+            common_dimensions = []
+            for dimension_name, dim_config in dimension_config.items():
+                # 如果维度隐藏，则不展示
+                if dim_config.get("hidden", False):
+                    continue
+                # 如果维度公共，则添加到公共维度
+                if dim_config.get("common", False):
+                    common_dimensions.append({"name": dimension_name, "alias": dim_config.get("alias", dimension_name)})
+
+            metric_groups.append(
+                {
+                    "name": scope_name if scope_name else str(_("未分组")),
+                    "metrics": metrics,
+                    "common_dimensions": common_dimensions,
+                }
+            )
+
+        return {"metric_groups": metric_groups}
 
 
 class GetCustomTsDimensionValues(Resource):
