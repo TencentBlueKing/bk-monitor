@@ -137,6 +137,8 @@ class ResultTableHandler(APIModel):
                 storage_cluster_id=self.storage_cluster_id,
                 result_table_id=result_table_id,
             )
+            if not field_list:
+                raise MappingEmptyException(MappingEmptyException.MESSAGE.format(result_table_id=result_table_id))
             date_candidate = UnifyQueryMappingHandler.get_date_candidate(field_list)
         else:
             mapping_list = BkLogApi.mapping(kwargs)
