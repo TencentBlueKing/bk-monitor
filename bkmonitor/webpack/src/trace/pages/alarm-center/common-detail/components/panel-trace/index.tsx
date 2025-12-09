@@ -26,7 +26,12 @@
 import { type PropType, defineComponent, toRef } from 'vue';
 
 import TraceExploreTable from '../../../../trace-explore/components/trace-explore-table/trace-explore-table';
+import { ExploreTableLoadingEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
+import { type IDimensionField } from '../../../../trace-explore/typing';
 import { useAlertTraces } from '../../../composables/use-alert-traces';
+import { ALERT_TRACE_FIELD_CONFIGS } from './constants';
+
+import './index.scss';
 
 export default defineComponent({
   name: 'PanelTrace',
@@ -34,22 +39,28 @@ export default defineComponent({
     alarmId: String as PropType<string>,
   },
   setup(props) {
-    const { traceList, traceQueryConfig } = useAlertTraces(toRef(props, 'alarmId'));
+    const { traceList, traceQueryConfig, loading } = useAlertTraces(toRef(props, 'alarmId'));
 
     const displayFields = [
       'trace_id',
-      'start_time',
+      'min_start_time',
       'root_span_name',
       'root_service',
       'root_service_span_name',
       'error_msg',
     ];
-    return { displayFields, traceList, traceQueryConfig };
+    return { displayFields, traceList, traceQueryConfig, loading };
   },
   render() {
     return (
       <div class='alarm-center-detail-panel-trace'>
         <TraceExploreTable
+          class='panel-trace-table'
+          tableLoading={{
+            [ExploreTableLoadingEnum.BODY_SKELETON]: this.loading,
+            [ExploreTableLoadingEnum.HEADER_SKELETON]: false,
+            [ExploreTableLoadingEnum.SCROLL]: false,
+          }}
           appName={'tilapia'}
           displayFields={this.displayFields}
           enabledClickMenu={false}
@@ -57,6 +68,7 @@ export default defineComponent({
           enableStatistics={false}
           mode='trace'
           scrollContainerSelector='.alarm-center-detail-box'
+          sourceFieldConfigs={ALERT_TRACE_FIELD_CONFIGS as unknown as IDimensionField[]}
           tableData={this.traceList}
         />
       </div>

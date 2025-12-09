@@ -40,21 +40,27 @@ export const useAlertTraces = (alertId: MaybeRef<string>) => {
   const traceList = shallowRef([]);
   /** 调用链查询配置 */
   const traceQueryConfig = shallowRef({});
+  /** 数据请求加载状态 */
+  const loading = shallowRef(false);
 
   /**
    * @method getTraceList 请求接口
    * @description 获取调用链表格数据
    */
   const getTraceList = async () => {
+    if (!get(alertId)) return;
+    loading.value = true;
     const data = await generationTraceMockData<ALertTracesData>(get(alertId));
     traceList.value = data.list;
     traceQueryConfig.value = data.query_config;
+    loading.value = false;
   };
   watchEffect(getTraceList);
 
   return {
     traceList,
     traceQueryConfig,
+    loading,
   };
 };
 
