@@ -24,13 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, nextTick, onUnmounted, shallowRef, useTemplateRef, watchEffect } from 'vue';
+import { defineComponent, nextTick, onMounted, onUnmounted, shallowRef, useTemplateRef } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
 import UseTextSegmentation from './hooks/use-text-segmentation';
 import SegmentPop from './segment-pop';
-import { isNestedField } from './utils/utils';
+import { isNestedField, parseTableRowData } from './utils/utils';
 
 import type { EClickMenuType, IFieldInfo } from './typing';
 
@@ -74,12 +74,23 @@ export default defineComponent({
     const hasMore = shallowRef<boolean>(false);
     const isExpand = shallowRef<boolean>(false);
     const intersectionObserver = shallowRef<IntersectionObserver>(null);
-    watchEffect(() => {
+
+    const handleExpand = (e: MouseEvent) => {
+      e.stopPropagation();
+      isExpand.value = !isExpand.value;
+    };
+
+    const handleClickMenu = (opt: { type: EClickMenuType; value: string }) => {
+      props.options.onClickMenu?.(opt);
+    };
+
+    onMounted(() => {
+      console.log(props.row, props.field);
       if (props.row && props.field) {
         const textSegmentation = new UseTextSegmentation({
           options: {
             field: props.field,
-            content: props.row[props.field.field_name] ?? '',
+            content: props.row[props.field.field_name] ?? parseTableRowData(props.row, props.field.field_name),
             data: props.row || {},
           },
         });
@@ -105,15 +116,6 @@ export default defineComponent({
       }
     });
 
-    const handleExpand = (e: MouseEvent) => {
-      e.stopPropagation();
-      isExpand.value = !isExpand.value;
-    };
-
-    const handleClickMenu = (opt: { type: EClickMenuType; value: string }) => {
-      props.options.onClickMenu?.(opt);
-    };
-
     onUnmounted(() => {
       intersectionObserver.value?.disconnect();
     });
@@ -132,7 +134,7 @@ export default defineComponent({
       <div
         ref='wrap'
         style={{
-          height: this.isExpand ? 'auto' : '60px',
+          'max-height': this.isExpand ? 'fit-content' : '60px',
         }}
         class={'log-table-new-log-cell'}
       >

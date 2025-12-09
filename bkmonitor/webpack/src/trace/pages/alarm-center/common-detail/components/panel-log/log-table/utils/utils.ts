@@ -23,6 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import dayjs from 'dayjs';
+
 /**
  *
  * @param str
@@ -136,4 +139,187 @@ export const isNestedField = (fieldKeys, obj) => {
   }
 
   return false;
+};
+
+/**
+ * 返回日期格式 2020-04-13 09:15:14.123
+ * @param {Number | String | Date} val
+ * @return {String}
+ */
+export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
+  try {
+    const date = new Date(val);
+    if (Number.isNaN(date.getTime())) {
+      console.warn('无效的时间');
+      return '';
+    }
+
+    // 如果是 2024-04-09T13:02:11.502064896Z 格式，则需要 formatDateNanos 转换
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{9}Z$/.test(val)) {
+      return formatDateNanos(val);
+    }
+
+    if (isTimzone) {
+      let timestamp = val;
+
+      if (/^\d+\.?\d*$/.test(val)) {
+        // 将时间戳转换为毫秒级别，如果是10位时间戳则乘以1000
+        if (val.toString().length === 10) {
+          timestamp = Number(val) * 1000;
+        }
+      }
+
+      // 获取毫秒部分的最后三位
+      const milliseconds = timestamp % 1000;
+      // 创建 dayjs 对象
+      const date = dayjs.tz(timestamp);
+
+      // 如果毫秒部分不为 000，展示毫秒精度的时间
+      const formatStr = formatMilliseconds && milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
+      return date.format(formatStr);
+    }
+
+    const yyyy = date.getFullYear();
+    const mm = `0${date.getMonth() + 1}`.slice(-2);
+    const dd = `0${date.getDate()}`.slice(-2);
+    const time = date.toTimeString().slice(0, 8);
+    return `${yyyy}-${mm}-${dd} ${time}`;
+  } catch (e) {
+    console.warn(e);
+    return val;
+  }
+}
+
+/**
+ * 将ISO 8601格式 2024-04-09T13:02:11.502064896Z 转换成 普通日期格式 2024-04-09 13:02:11.502064896
+ */
+export function formatDateNanos(val) {
+  const strVal = `${val}`;
+  if (/^\d+$/.test(strVal)) {
+    return formatDate(Number(val), true, `${val}`.length > 10);
+  }
+
+  if (/null|undefined/.test(strVal) || strVal === '') {
+    return '--';
+  }
+
+  // dayjs不支持纳秒 从符串中提取毫秒之后的纳秒部分
+  // 查找小数点位置，提取小数点后的所有数字
+  const dotIndex = strVal.indexOf('.');
+  let nanoseconds = '';
+
+  if (dotIndex !== -1) {
+    // 提取小数点后的部分
+    const afterDot = strVal.slice(dotIndex + 1);
+    // 移除时区标识符Z和非数字字符（如果存在），只保留数字
+    const digitsOnly = afterDot.replace(/[^0-9]/g, '');
+    // 提取毫秒（前3位）之后的部分作为纳秒
+    nanoseconds = digitsOnly.length > 3 ? digitsOnly.slice(3) : '';
+  }
+
+  // 使用dayjs解析字符串到毫秒 包含时区处理
+  const dateTimeToMilliseconds = dayjs(val).tz(window.timezone).format('YYYY-MM-DD HH:mm:ss.SSS');
+  // 获取微秒并且判断是否是000，也就是纳秒部分的最后三位
+  const nanosecondsNum = nanoseconds ? parseInt(nanoseconds, 10) : 0;
+  const microseconds = nanosecondsNum % 1000;
+  // 如果纳秒部分的最后三位（微秒部分）是000，只保留前3位；否则保留全部
+  const newNanoseconds =
+    microseconds !== 0 ? nanoseconds : nanoseconds.length > 3 ? nanoseconds.slice(0, 3) : nanoseconds;
+
+  // 组合dayjs格式化的日期时间到毫秒和独立处理的纳秒部分
+  const formattedDateTimeWithNanoseconds = `${dateTimeToMilliseconds}${newNanoseconds}`;
+
+  return formattedDateTimeWithNanoseconds;
+}
+
+/**
+ * 获取 row[key] 内容
+ * @example return row.a.b || row['a.b']
+ * @param {Object} row
+ * @param {String} key
+ * @param {String} fieldType
+ * @param {Boolean} isFormatDate
+ * @param {String} emptyCharacter
+ * @return {String|Number}
+ */
+export const parseTableRowData = (row, key, fieldType = undefined, isFormatDate = false, emptyCharacter = '--') => {
+  const keyArr = key.split('.');
+  let data = null;
+
+  try {
+    if (keyArr.length === 1) {
+      data = row[key];
+    } else {
+      for (let index = 0; index < keyArr.length; index++) {
+        const item = keyArr[index];
+
+        if (index === 0) {
+          data = row[item];
+          continue;
+        }
+
+        if (data === undefined) {
+          break;
+        }
+
+        // 这里用于处理nested field
+        if (Array.isArray(data)) {
+          data = data
+            .map(item =>
+              parseTableRowData(item, keyArr.slice(index).join('.'), fieldType, isFormatDate, emptyCharacter)
+            )
+            .filter(item => item !== emptyCharacter);
+          break;
+        }
+
+        if (data[item]) {
+          data = data[item];
+        } else {
+          // 如果 x.y 不存在 返回 x['y.z'] x['y.z.z.z'] ...
+          const validKey = keyArr.splice(index, keyArr.length - index).join('.');
+          data = data[validKey];
+          break;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('List data analyses error：', e);
+    data = emptyCharacter;
+  }
+
+  if (isFormatDate && ['date', 'date_nanos'].includes(fieldType)) {
+    let formatData = data;
+    let formatValue = data;
+    let isMark = false;
+
+    if (`${data}`.startsWith('<mark>')) {
+      formatData = `${data}`.replace(/^<mark>/i, '').replace(/<\/mark>$/i, '');
+      isMark = true;
+    }
+
+    if (fieldType === 'date' && /^\d+$/.test(formatData)) {
+      formatValue = formatDate(Number(formatData)) || data || emptyCharacter;
+    }
+
+    // 处理纳秒精度的UTC时间格式
+    if (fieldType === 'date_nanos') {
+      formatValue = formatDateNanos(formatData) || emptyCharacter;
+    }
+
+    if (isMark) {
+      return `<mark>${formatValue}</mark>`;
+    }
+
+    return formatValue;
+  }
+
+  if (Array.isArray(data) && !data.length) {
+    return emptyCharacter;
+  }
+
+  if (typeof data === 'object' && data !== null) {
+    return JSON.stringify(data);
+  }
+
+  return data === null || data === undefined || data === '' ? emptyCharacter : data;
 };

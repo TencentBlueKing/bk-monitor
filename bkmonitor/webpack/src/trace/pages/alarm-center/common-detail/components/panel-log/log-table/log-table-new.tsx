@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, shallowRef, watch } from 'vue';
+import { defineComponent, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
@@ -37,6 +37,10 @@ import './log-table-new.scss';
 export default defineComponent({
   name: 'LogTableNew',
   props: {
+    displayFields: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
     getTableData: {
       type: Function,
       default: () => {},
@@ -56,12 +60,15 @@ export default defineComponent({
   },
   setup(props) {
     console.log(props);
+    const wrapRef = useTemplateRef<HTMLDivElement>('wrap');
+    const wrapWidth = shallowRef(800);
     const loading = shallowRef(false);
-    const { tableData, tableColumns, expandedRow, fieldsDataToColumns } = useTable({
-      onClickMenu: opt => {
-        console.log('onClickMenu', opt);
-      },
-    });
+    const { tableData, tableColumns, expandedRow, fieldsDataToColumns, setOriginLogData, setFieldsData, setWrapWidth } =
+      useTable({
+        onClickMenu: opt => {
+          console.log('onClickMenu', opt);
+        },
+      });
     const offset = shallowRef(0);
     const fieldsData = shallowRef(null);
     const expandedRowKeys = shallowRef([]);
@@ -73,9 +80,11 @@ export default defineComponent({
         if (val) {
           fieldsData.value = await getFieldsData();
           console.log(fieldsData.value);
-          fieldsDataToColumns(fieldsData.value?.fields || []);
+          setFieldsData(fieldsData.value);
+          fieldsDataToColumns(fieldsData.value?.fields || [], props.displayFields);
           const data = await getTableData();
           tableData.value = data?.list || [];
+          setOriginLogData(data?.origin_log_list || []);
           loading.value = false;
         }
       },
@@ -102,6 +111,13 @@ export default defineComponent({
       return <span class='icon-monitor icon-mc-arrow-right table-expand-icon' />;
     });
 
+    onMounted(() => {
+      if (wrapRef.value) {
+        wrapWidth.value = wrapRef.value.offsetWidth;
+        setWrapWidth(wrapWidth.value);
+      }
+    });
+
     return {
       tableData,
       fieldsData,
@@ -116,7 +132,10 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='alarm-detail-log-table-new'>
+      <div
+        ref='wrap'
+        class='alarm-detail-log-table-new'
+      >
         {this.loading ? (
           <TableSkeleton />
         ) : (

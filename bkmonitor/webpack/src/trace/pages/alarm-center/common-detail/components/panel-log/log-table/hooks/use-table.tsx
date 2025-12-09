@@ -37,16 +37,34 @@ import type { TdPrimaryTableProps } from '@blueking/tdesign-ui';
 export const useTable = (options: { onClickMenu?: (opt: { type: EClickMenuType; value: string }) => void }) => {
   const tableColumns = shallowRef<TdPrimaryTableProps['columns']>([]);
   const tableData = shallowRef([]);
-  const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row }): any => {
-    return <ExpandContent row={row} />;
+  const originLogData = shallowRef([]);
+  const fieldsData = shallowRef(null);
+  const wrapWidth = shallowRef(800);
+  const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row, index }): any => {
+    return (
+      <div
+        style={{
+          width: `${wrapWidth.value}px`,
+          position: 'sticky',
+          left: 0,
+        }}
+      >
+        <ExpandContent
+          fields={fieldsData.value?.fields || []}
+          originLog={originLogData.value?.[index] || {}}
+          row={row}
+        />
+      </div>
+    );
   });
 
   const setTableColumns = (columns: TdPrimaryTableProps['columns']) => {
     tableColumns.value = columns;
   };
 
-  const fieldsDataToColumns = (fields: IFieldInfo[]) => {
-    const allFields = formatHierarchy(fields) as IFieldInfo[];
+  const fieldsDataToColumns = (fields: IFieldInfo[], displayFields: string[]) => {
+    console.log(formatHierarchy(fields), displayFields);
+    const allFields = formatHierarchy(fields).filter(item => displayFields.includes(item.field_name)) as IFieldInfo[];
     const columns: TdPrimaryTableProps['columns'] = allFields.map(item => ({
       colKey: item.field_name,
       ellipsis: false,
@@ -93,7 +111,7 @@ export const useTable = (options: { onClickMenu?: (opt: { type: EClickMenuType; 
                 content: item.field_name,
               }}
             >
-              {item.field_alias || item.field_name}
+              {item.query_alias || item.field_name}
             </span>
           </div>
         );
@@ -102,11 +120,24 @@ export const useTable = (options: { onClickMenu?: (opt: { type: EClickMenuType; 
     setTableColumns(columns);
   };
 
+  const setOriginLogData = (data: any[]) => {
+    originLogData.value = data;
+  };
+  const setFieldsData = (data: any) => {
+    fieldsData.value = data;
+  };
+  const setWrapWidth = (width: number) => {
+    wrapWidth.value = width;
+  };
+
   return {
     tableColumns,
     tableData,
     expandedRow,
     setTableColumns,
     fieldsDataToColumns,
+    setOriginLogData,
+    setFieldsData,
+    setWrapWidth,
   };
 };
