@@ -99,24 +99,6 @@ class ApiGatewayJWTProvider(DefaultJWTProvider):
             return None
 
         try:
-            jwt_info = getattr(request, "jwt", None)
-            if not jwt_info:
-                logger.warning("csh-test: no jwt_info")
-            else:
-                logger.warning(f"csh-test: have jwt_info -> {jwt_info}")
-                if hasattr(jwt_info, "payload"):
-                    logger.warning(f"csh-test: have jwt_payload -> {jwt_info.payload}")
-                else:
-                    logger.warning("csh-test: no jwt_payload")
-
-            if hasattr(request, "user"):
-                logger.warning("csh-test: have request.user")
-                logger.warning(f"csh-test: request.user.is_authenticated -> {request.user.is_authenticated}")
-                logger.warning(f"csh-test: request.user type -> {type(request.user).__name__}")
-                logger.warning(f"csh-test: have request.user class name {request.user.__class__.__name__}")
-            else:
-                logger.warning("csh-test: no request.user")
-
             jwt_header = self._decode_jwt_header(jwt_token)
             gateway_name = jwt_header.get("kid") or self.default_gateway_name
             public_key = CustomCachePublicKeyProvider(default_gateway_name=self.default_gateway_name).provide(
