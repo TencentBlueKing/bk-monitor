@@ -484,15 +484,15 @@ export default defineComponent({
       formData.value = { ...formData.value, ...props.configData };
       clusterSelect.value = props.configData.storage_cluster_id;
     };
-// watch(
-//   () => props.isEdit || props.isClone,
-//   (val: boolean) => {
-//     if (val) {
-//       initData(val);
-//     }
-//   },
-//   { immediate: true },
-// );
+    // watch(
+    //   () => props.isEdit || props.isClone,
+    //   (val: boolean) => {
+    //     if (val) {
+    //       initData(val);
+    //     }
+    //   },
+    //   { immediate: true },
+    // );
 
     return () => (
       <div class='operation-step4-storage'>
