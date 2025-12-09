@@ -524,7 +524,7 @@
         // 不显示字段提取时跳转计算平台
         if (this.indexSetItem.scenario_id !== 'log' && !this.isHaveAnalyzed) {
           const jumpUrl = `${window.BKDATA_URL}`;
-          window.open(jumpUrl, '_blank');
+          window.iframeParent.open(jumpUrl, '_blank');
           return;
         }
         // 无清洗 去清洗

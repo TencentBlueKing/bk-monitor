@@ -196,8 +196,6 @@ export default {
     'When the alarm rule is configured After alarm processing, you can obtain the results of the execution alarm solution through the following notification methods',
   '当该告警确认需要处理，并且希望该告警不再通知时，可以直接进行告警确认':
     'When the alarm confirmation needs to be processed and you want the alarm to be notified no longer, you can directly confirm the alarm',
-  '告警确认后，该告警在 1 小时内不再发送，请及时处理':
-    'After the alarm is confirmed, the alarm will no longer be sent within 1 hour, please handle it in time',
   '当没有收到任何数据可以进行告警通知。': 'When no data is received, alarm notification can be performed.',
   '当数据连续丢失{0}个周期时，触发告警通知': 'When data is lost for {0} cycles in a row, trigger an alarm notification',
   '当防御的通知汇总也产生了大量的风暴时，会进行本业务的跨策略的汇总通知。':

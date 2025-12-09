@@ -48,20 +48,20 @@
   </div>
 </template>
 <script setup lang="ts">
-  import { computed, ref, watch, onBeforeUnmount, onMounted, inject } from 'vue';
+  import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
   // @ts-ignore
   import { getRowFieldValue } from '@/common/util';
-  import useFieldNameHook from '@/hooks/use-field-name';
+import useFieldNameHook from '@/hooks/use-field-name';
 
-  import useJsonRoot from '../hooks/use-json-root';
-  import useStore from '../hooks/use-store';
-  import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
-  import { BK_LOG_STORAGE } from '../store/store.type';
-  import { debounce, isEmpty } from 'lodash-es';
-  import JSONBig from 'json-bigint';
   import useLocale from '@/hooks/use-locale';
-  import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import JSONBig from 'json-bigint';
+import { debounce, isEmpty } from 'lodash-es';
+import useJsonRoot from '../hooks/use-json-root';
+import useStore from '../hooks/use-store';
+import { BK_LOG_STORAGE } from '../store/store.type';
+import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -299,6 +299,13 @@
     hasScrollY.value = false;
   };
 
+  watch(() => [props.limitRow], () => {
+    showAllText.value = false;
+    nextTick(() => {
+      setIsOverflowY();
+    });
+  });
+
   watch(
     () => [isRowIntersecting.value],
     () => {
@@ -383,6 +390,8 @@
     .bklog-root-field {
       margin-right: 4px;
       line-height: 20px;
+      display: inline-block; // 修复内联元素基线对齐导致的 1px 差异
+      vertical-align: top; // 确保顶部对齐，避免基线对齐问题
 
       .bklog-json-view-row {
         word-break: break-all;
@@ -507,6 +516,7 @@
     &.is-inline {
       .bklog-root-field {
         display: inline-flex;
+        vertical-align: top; // 确保顶部对齐，避免基线对齐问题
         word-break: break-all;
 
         .segment-content {

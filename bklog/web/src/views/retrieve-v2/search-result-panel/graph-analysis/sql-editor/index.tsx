@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, type Ref, ref, onMounted } from 'vue';
+import { computed, defineComponent, onMounted, ref, type Ref } from 'vue';
 
 import $http from '@/api/index.js';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
@@ -31,16 +31,16 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
-import RequestPool from '@/store/request-pool';
 import { debounce } from 'lodash-es';
 import screenfull from 'screenfull';
-import { transactsql, formatDialect } from 'sql-formatter';
+import { formatDialect, transactsql } from 'sql-formatter';
 
+import { parseBigNumberList, readBlobRespToJson } from '@/common/util';
+import { requestBlob } from '@/request';
 import { getCommonFilterAdditionWithValues } from '../../../../../store/helper';
 import RetrieveHelper, { RetrieveEvent } from '../../../../retrieve-helper';
-import BookmarkPop from '../../../search-bar/bookmark-pop.vue';
+import BookmarkPop from '../../../search-bar/components/bookmark-pop.vue';
 import useEditor from './use-editor';
-import { axiosInstance } from '@/api';
 
 import './index.scss';
 
@@ -79,9 +79,10 @@ export default defineComponent({
     const indexSetId = computed(() => store.state.indexId);
     const retrieveParams = computed(() => store.getters.retrieveParams);
     const requestAddition = computed(() => store.getters.requestAddition);
+    // eslint-disable-next-line camelcase
     const filter_addition = computed(() => getCommonFilterAdditionWithValues(store.state));
 
-    const requestId = 'graphAnalysis_searchSQL';
+    let abortController: AbortController | null = null;
 
     const handleQueryBtnClick = () => {
       const sql = editorInstance?.value?.getValue();
@@ -91,65 +92,106 @@ export default defineComponent({
 
       isRequesting.value = true;
       emit('change', undefined, isRequesting.value);
-      RequestPool.execCanceToken(requestId);
-      const requestCancelToken = RequestPool.getCancelToken(requestId);
-      const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : (window as any).AJAX_URL_PREFIX;
+
+      // 取消之前的请求
+      if (abortController) {
+        abortController.abort();
+      }
+
+      // 创建新的 AbortController
+      abortController = new AbortController();
+      const { signal } = abortController;
+
+
       const { start_time, end_time, keyword } = retrieveParams.value;
-      const params = {
-        method: 'post',
-        url: `/search/index_set/${indexSetId.value}/chart/`,
-        cancelToken: requestCancelToken,
-        withCredentials: true,
-        baseURL: baseUrl,
-        originalResponse: true,
-        data: {
-          start_time,
-          end_time,
-          query_mode: 'sql',
-          keyword,
-          addition: requestAddition.value,
-          sql, // 使用获取到的内容
-          alias_settings: alias_settings.value,
-        },
+      const requestParams = {
+        start_time,
+        end_time,
+        query_mode: 'sql',
+        keyword,
+        addition: requestAddition.value,
+        sql,
+        // eslint-disable-next-line camelcase
+        alias_settings: alias_settings.value,
       };
 
       emit('error', { code: 200, message: '请求中', result: true });
 
-      return axiosInstance(params)
-        .then((resp: any) => {
-          if (resp.result) {
-            isRequesting.value = false;
-            emit('change', resp);
-          } else {
-            emit('error', resp);
+      return requestBlob({
+        url: `/search/index_set/${indexSetId.value}/chart/`,
+        params: requestParams,
+        method: 'POST',
+        signal,
+      })
+        .then(async (response: Response) => {
+          // 获取 blob 响应
+          const blob = await response.blob();
+
+          // 使用 readBlobRespToJson 解析，保证长整型精度
+          const resp = await readBlobRespToJson(blob);
+
+          // 检查响应状态和业务结果
+          if (!response.ok) {
+            // HTTP 状态码错误，抛出解析后的错误响应
+            throw resp;
           }
+
+          if (!resp.result) {
+            // 业务逻辑错误
+            emit('error', resp);
+            return;
+          }
+
+          // 处理 BigNumber 数据，将 list 中的 BigNumber 对象转换为字符串或数字
+          if (resp.data?.list && Array.isArray(resp.data.list)) {
+            resp.data.list = parseBigNumberList(resp.data.list);
+          }
+
+          // 成功时 emit 数据
+          emit('change', resp);
+          return resp;
         })
-        .catch(err => {
-          if (err.code === 'ERR_CANCELED') {
+        .catch((err: any) => {
+          if (err.name === 'AbortError' || signal.aborted) {
             console.log('请求被取消');
+            return;
+          }
+
+          // 如果是响应数据，直接使用
+          if (err && typeof err === 'object' && 'result' in err) {
+            emit('error', err);
+          } else {
+            emit('error', { code: 500, message: err?.message || '请求失败', result: false });
           }
         })
         .finally(() => {
+          // 统一在 finally 中更新请求状态
           isRequesting.value = false;
           emit('change', undefined, isRequesting.value);
+          abortController = null;
         });
     };
 
     const handleStopBtnClick = () => {
-      RequestPool.execCanceToken(requestId);
+      if (abortController) {
+        abortController.abort();
+        abortController = null;
+      }
       isRequesting.value = false;
     };
 
     // 创建类型安全的自定义方言
-    const createExtendedTSQL = () =>
-      ({
+    const createExtendedTSQL = () => {
+      const baseIdentTypes = [...transactsql.tokenizerOptions.identTypes];
+      return {
         ...transactsql,
         name: 'extended-transactsql',
         tokenizerOptions: {
           ...transactsql.tokenizerOptions,
           // 添加反引号标识符支持，同时保留原有的双引号和方括号支持
+          // @ts-ignore - identTypes 类型定义较严格，但实际运行时支持字符串类型
           identTypes: [
-            ...transactsql.tokenizerOptions.identTypes,
+            ...baseIdentTypes,
             '``', // 添加反引号支持
           ],
           // 允许标识符以数字开头，这是 MySQL 反引号标识符的特性
@@ -158,13 +200,15 @@ export default defineComponent({
             allowFirstCharNumber: true,
           },
         },
-      }) as const;
+      };
+    };
 
     // 使用示例
     const extendedTsql = createExtendedTSQL();
 
-    const getFormatValue = sql => {
+    const getFormatValue = (sql) => {
       try {
+        // @ts-ignore - extendedTsql 的类型定义与 formatDialect 期望的类型不完全匹配，但运行时正常
         return formatDialect(sql, { dialect: extendedTsql });
       } catch (err) {
         console.error(err);
@@ -181,15 +225,17 @@ export default defineComponent({
             index_set_id: indexSetId.value,
           },
           data: {
+            // eslint-disable-next-line camelcase
             addition: [...requestAddition.value, ...(filter_addition.value ?? []).filter(a => a.value?.length)],
             start_time,
             end_time,
             keyword,
             sql: sqlContent.value,
+            // eslint-disable-next-line camelcase
             alias_settings: alias_settings.value,
           },
         })
-        .then(resp => {
+        .then((resp) => {
           editorInstance.value.setValue(resp.data.sql);
           editorInstance.value.focus();
           onValueChange(resp.data.sql);
@@ -201,7 +247,7 @@ export default defineComponent({
           isPreviewSqlShow.value = true;
           callback?.();
         })
-        .catch(err => {
+        .catch((err) => {
           console.error(err);
         })
         .finally(() => {
@@ -324,7 +370,7 @@ export default defineComponent({
     /**
      * 监听关联数据变化
      */
-    const onRefereceChange = args => {
+    const onRefereceChange = (args) => {
       // 这里表示数据来自图表分析收藏点击回填数据
       if (args?.params?.chart_params?.sql?.length) {
         const old = editorInstance.value?.getValue();

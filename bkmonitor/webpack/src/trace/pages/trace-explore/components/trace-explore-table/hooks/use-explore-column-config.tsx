@@ -24,14 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type VNode, computed, reactive, watch } from 'vue';
-import type { DeepReadonly, MaybeRef } from 'vue';
+import { type MaybeRef, type VNode, computed } from 'vue';
 
 import { get } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 
-import useUserConfig from '../../../../../hooks/useUserConfig';
-import { useTraceExploreStore } from '../../../../../store/modules/explore';
 import {
   CAN_TABLE_SORT_FIELD_TYPES,
   SERVICE_CATEGORY_MAP,
@@ -39,44 +36,59 @@ import {
   SPAN_KIND_MAPS,
   SPAN_STATUS_CODE_MAP,
   TABLE_DEFAULT_CONFIG,
-  TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX,
 } from '../constants';
 import {
   type ActiveConditionMenuTarget,
-  type CustomDisplayColumnFieldsConfig,
+  type ExploreConditionMenuItem,
   type ExploreTableColumn,
   type GetTableCellRenderValue,
-  type TableCellRenderContext,
-  type TableCellRenderer,
   ExploreTableColumnTypeEnum,
 } from '../typing';
-import { useFavoriteFieldsState } from '../utils/favorite-fields';
 
 import type { IDimensionField } from '../../../typing';
 import type { SortInfo, TableSort } from '@blueking/tdesign-ui';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
 interface UseExploreTableColumnConfig {
-  isSpanVisual: MaybeRef<boolean>;
-  props: Record<string, any>;
-  renderContext: TableCellRenderContext;
+  /** 当前选中的应用 Name */
+  appName: MaybeRef<string>;
+  /** 需要显示渲染的列名数组 */
+  displayFields: MaybeRef<string[]>;
+  /** 是否启用点击弹出操作下拉菜单 */
+  enabledClickMenu: MaybeRef<boolean>;
+  /** 缓存的列宽配置 */
+  fieldsWidthConfig: MaybeRef<Record<string, number>>;
+  /** 当前激活的视角(span | trace)  */
+  mode: MaybeRef<'span' | 'trace'>;
+  /** 表格行数据唯一 key 字段 */
   rowKeyField: MaybeRef<string>;
-  sortContainer: DeepReadonly<SortInfo>;
-  tableCellRender: TableCellRenderer;
+  /** 表格排序信息 */
+  sortContainer: MaybeRef<SortInfo>;
+  /** 表格所有列字段配置数组(接口原始结构) */
+  sourceFieldConfigs: MaybeRef<IDimensionField[]>;
+  /** 点击显示下拉操作menu */
   handleConditionMenuShow: (triggerDom: HTMLElement, conditionMenuTarget: ActiveConditionMenuTarget) => void;
+  /** 点击展示 span | trace 详情抽屉页 */
   handleSliderShowChange: (mode: 'span' | 'trace', id: string) => void;
+  /** 点击排序回调 */
   handleSortChange: (sortEvent: TableSort) => void;
-  // tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
+  /** 表格单元格渲染 */
+  tableCellRender: (column: ExploreTableColumn, row: Record<string, any>) => SlotReturnValue;
+  /** 表头单元格渲染 */
   tableHeaderCellRender: (title: string, tipText: string, column: ExploreTableColumn) => () => SlotReturnValue;
 }
 
 /**
- * @description 检索表格列配置相关逻辑 hook
- *
+ * @method useExploreColumnConfig column 组装 hook
+ * @description 检索表格列配置column组装逻辑 hook
  */
-export function useExploreColumnConfig({
-  props,
-  isSpanVisual,
+export const useExploreColumnConfig = ({
+  appName,
+  displayFields,
+  enabledClickMenu,
+  sourceFieldConfigs,
+  fieldsWidthConfig,
+  mode,
   rowKeyField,
   sortContainer,
   renderContext,
@@ -85,89 +97,31 @@ export function useExploreColumnConfig({
   handleConditionMenuShow,
   handleSliderShowChange,
   handleSortChange,
-}: UseExploreTableColumnConfig) {
+}: UseExploreTableColumnConfig) => {
   /** table 默认配置项 */
   const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
   const { t } = useI18n();
-  const store = useTraceExploreStore();
-  const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
-  const {
-    saveKey: favoriteTableConfigKey,
-    config: favoriteTableConfig,
-    refreshKey: favoriteTableConfigRefreshKey,
-    setConfig: setFavoriteConfig,
-  } = useFavoriteFieldsState();
 
-  watch(
-    () => favoriteTableConfigRefreshKey.value,
-    () => {
-      if (favoriteTableConfigKey.value === customDisplayColumnFieldsCacheKey.value) {
-        getCustomDisplayColumnFields();
-      }
-    }
-  );
-
-  /** 用户自定义配置 table 显示列后缓存的显示列配置数据 */
-  const customDisplayColumnFieldsConfig = reactive<CustomDisplayColumnFieldsConfig>({
-    /** 展示的列 */
-    displayFields: [],
-    /** 列宽度集合 */
-    fieldsWidth: {},
-  });
-
-  /** 过滤出 can_displayed 为 true 的 fieldList 及 kv 映射集合 */
-  const canDisplayFieldListMap = computed(() => {
-    const getCanDisplayFieldList = (
-      mode: 'span' | 'trace'
-    ): {
-      fieldList: IDimensionField[];
-      fieldMap: Record<string, IDimensionField>;
-    } => {
-      return props.fieldListMap?.[mode].reduce(
-        (prev, curr) => {
-          if (!curr.can_displayed) {
-            return prev;
-          }
-          prev.fieldList.push(curr);
-          prev.fieldMap[curr.name] = curr;
-          return prev;
-        },
-        { fieldList: [], fieldMap: {} }
-      );
-    };
-    return {
-      trace: getCanDisplayFieldList('trace'),
-      span: getCanDisplayFieldList('span'),
-    };
-  });
   /** table 所有列字段信息(字段设置使用) */
   const tableColumns = computed(() => {
-    return canDisplayFieldListMap.value[props.mode];
+    return (get(sourceFieldConfigs) ?? []).reduce(
+      (prev, curr) => {
+        if (!curr.can_displayed) {
+          return prev;
+        }
+        prev.fieldList.push(curr);
+        prev.fieldMap[curr.name] = curr;
+        return prev;
+      },
+      { fieldList: [], fieldMap: {} }
+    );
   });
-
-  /** table 列配置本地缓存时的 key */
-  const customDisplayColumnFieldsCacheKey = computed(
-    () => `${props.mode}_${props.appName}_${TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX}`
-  );
-
-  /** table 显示列配置 */
-  const displayColumnFields = computed(() => {
-    // 前端写死的兜底默认显示列配置(优先级：userConfig -> appList -> defaultConfig)
-    const defaultColumnsConfig = get(isSpanVisual) ? spanConfig : traceConfig;
-    const applicationColumnConfig = store?.currentApp?.view_config?.[`${props.mode}_config`]?.display_columns || [];
-    // 需要展示的字段列名数组
-    return customDisplayColumnFieldsConfig.displayFields?.length
-      ? customDisplayColumnFieldsConfig.displayFields
-      : applicationColumnConfig?.length
-        ? applicationColumnConfig
-        : ((defaultColumnsConfig?.displayFields || []) as string[]);
-  });
-
-  /** table 显示列配置 */
+  /** table 显示列Column配置 */
   const tableDisplayColumns = computed<ExploreTableColumn[]>(() => {
     const fieldMap = tableColumns.value.fieldMap;
     const columnMap = getTableColumnMapByVisualMode();
-    return displayColumnFields.value
+    const defaultDisplayFields = get(mode) === 'span' ? spanConfig : traceConfig;
+    return (get(displayFields) ?? defaultDisplayFields.displayFields)
       .map(colKey => {
         const fieldItem = fieldMap[colKey];
         let column = columnMap[colKey];
@@ -185,7 +139,7 @@ export function useExploreColumnConfig({
         }
         const tipText = column.headerDescription || column.colKey;
         column.sorter = column.sorter != null ? column.sorter : CAN_TABLE_SORT_FIELD_TYPES.has(fieldItem?.type);
-        column.width = customDisplayColumnFieldsConfig.fieldsWidth?.[colKey] || column.width;
+        column.width = get(fieldsWidthConfig)?.[colKey] || column.width;
         // 表格列表头渲染方法
         const tableHeaderTitle = tableHeaderCellRender(column.title as string, tipText, column);
         // 表格单元格渲染方法
@@ -206,11 +160,11 @@ export function useExploreColumnConfig({
                     !['svg', 'path'].includes(e.target.tagName.toLocaleLowerCase()) &&
                     e.currentTarget?.classList.contains(`t-table__th-${column.colKey}`)
                   ) {
-                    let sortBy = sortContainer.sortBy;
-                    let descending = sortContainer.descending;
+                    let sortBy = get(sortContainer).sortBy;
+                    let descending = get(sortContainer).descending;
                     if (sortBy === column.colKey) {
                       const sortDescValueList = [false, true, null];
-                      const sortIndex = sortDescValueList.findIndex(v => descending === v);
+                      const sortIndex = sortDescValueList.indexOf(descending);
                       descending = sortDescValueList.at((sortIndex + 1) % sortDescValueList.length);
                       if (descending === null) {
                         sortBy = '';
@@ -229,69 +183,18 @@ export function useExploreColumnConfig({
       .filter(Boolean);
   });
 
-  function handleSetFavoriteFields() {
-    setFavoriteConfig(customDisplayColumnFieldsCacheKey.value, {
-      displayFields: customDisplayColumnFieldsConfig.displayFields,
-      fieldsWidth: customDisplayColumnFieldsConfig.fieldsWidth,
-    });
-  }
-
   /**
-   * @description: 获取 table 表格列配置
-   *
-   */
-  async function getCustomDisplayColumnFields() {
-    customDisplayColumnFieldsConfig.displayFields = [];
-    customDisplayColumnFieldsConfig.fieldsWidth = {};
-    if (!props.appName || !props.mode) return;
-    let customCacheConfig: any = {
-      displayFields: [],
-      fieldsWidth: {},
-    };
-    if (favoriteTableConfigKey.value === customDisplayColumnFieldsCacheKey.value) {
-      // 优先取收藏配置
-      customCacheConfig = favoriteTableConfig.value;
-    } else {
-      customCacheConfig = (await handleGetUserConfig<string[]>(customDisplayColumnFieldsCacheKey.value)) || {
-        displayFields: [],
-        fieldsWidth: {},
-      };
-    }
-    // 原来只缓存了展示字段，且是数组结构，目前改为对象结构需向前兼容
-    if (Array.isArray(customCacheConfig)) {
-      customDisplayColumnFieldsConfig.displayFields = customCacheConfig;
-    } else {
-      customDisplayColumnFieldsConfig.displayFields = customCacheConfig.displayFields;
-      customDisplayColumnFieldsConfig.fieldsWidth = customCacheConfig.fieldsWidth;
-    }
-    handleSetFavoriteFields();
-  }
-
-  /**
-   * @description 表格列显示配置项变更回调
-   *
-   */
-  function handleDisplayColumnFieldsChange(displayFields: string[]) {
-    customDisplayColumnFieldsConfig.displayFields = displayFields;
-    // 缓存列配置
-    handleSetUserConfig(JSON.stringify(customDisplayColumnFieldsConfig));
-    handleSetFavoriteFields();
-  }
-
-  function handleDisplayColumnResize(context: { columnsWidth: { [colKey: string]: number } }) {
-    customDisplayColumnFieldsConfig.fieldsWidth = context?.columnsWidth || {};
-    // 缓存列配置
-    handleSetUserConfig(JSON.stringify(customDisplayColumnFieldsConfig));
-    handleSetFavoriteFields();
-  }
-
-  /**
+   * @method getTableColumnMapByVisualMode 拼接 APM-概览 页面地址
    * @description 获取新开页跳转至apm页 概览tab 的 LINK 类型表格列所需数据格式
-   *
+   * @param {any} row 行数据
+   * @param {ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>} column 列配置
    */
-  function getJumpToApmLinkItem(row, column): GetTableCellRenderValue<ExploreTableColumnTypeEnum.LINK> {
+  const getJumpToApmLinkItem = (
+    row,
+    column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>
+  ): GetTableCellRenderValue<ExploreTableColumnTypeEnum.LINK> => {
     const alias = row?.[column.colKey];
-    const hash = `#/apm/service?filter-service_name=${alias}&filter-app_name=${props.appName}`;
+    const hash = `#/apm/service?filter-service_name=${alias}&filter-app_name=${get(appName)}`;
     let url = '';
     if (alias) {
       url = location.href.replace(location.hash, hash);
@@ -300,16 +203,21 @@ export function useExploreColumnConfig({
       alias: alias,
       url: url,
     };
-  }
+  };
 
   /**
+   * @method getTableColumnMapByVisualMode 拼接 APM-接口 页面地址
    * @description 获取新开页跳转至 apm 页 接口tab 的 LINK 类型表格列所需数据格式
-   *
+   * @param {any} row 行数据
+   * @param {ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>} column 列配置
    */
-  function getJumpToApmApplicationLinkItem(row, column): GetTableCellRenderValue<ExploreTableColumnTypeEnum.LINK> {
+  const getJumpToApmApplicationLinkItem = (
+    row,
+    column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>
+  ): GetTableCellRenderValue<ExploreTableColumnTypeEnum.LINK> => {
     const service = row?.root_service;
     const alias = row?.[column.colKey];
-    const hash = `#/apm/application?filter-service_name=${service}&filter-app_name=${props.appName}&sceneId=apm_application&sceneType=detail&dashboardId=endpoint&filter-endpoint_name=${alias}`;
+    const hash = `#/apm/application?filter-service_name=${service}&filter-app_name=${get(appName)}&sceneId=apm_application&sceneType=detail&dashboardId=endpoint&filter-endpoint_name=${alias}`;
     let url = '';
     if (alias && service) {
       url = location.href.replace(location.hash, hash);
@@ -318,39 +226,56 @@ export function useExploreColumnConfig({
       alias: alias,
       url: url,
     };
-  }
+  };
 
   /**
-   * @description 服务 或 接口 列点击后回调
-   *
+   * @method handleServiceOrApiColumnClick 服务 或 接口 列点击后回调
+   * @param row 行数据
+   * @param {ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>} column 列配置
+   * @param {MouseEvent} e 事件对象
+   * @param {ExploreConditionMenuItem[]} customMenu 自定义菜单列表
    */
-  function handleServiceOrApiColumnClick(row, column, e, customMenu) {
+  const handleServiceOrApiColumnClick = (
+    row,
+    column: ExploreTableColumn<ExploreTableColumnTypeEnum.CLICK>,
+    e: MouseEvent,
+    customMenu: ExploreConditionMenuItem[]
+  ) => {
+    if (!get(enabledClickMenu)) {
+      for (const menuItem of customMenu ?? []) {
+        if (['api-link', 'service-link'].includes(menuItem.id)) {
+          menuItem?.onClick?.(e);
+        }
+      }
+      return;
+    }
     const colKey = column.colKey;
-    handleConditionMenuShow(e.target, {
+    handleConditionMenuShow(e.target as HTMLElement, {
       rowId: row?.[get(rowKeyField)] || '',
       colId: colKey,
       conditionValue: row[colKey],
       customMenuList: customMenu,
     });
-  }
+  };
 
   /**
+   * @method handleLink 新开页跳转
    * @description 查看详情 回调
-   *
+   * @param {string} linkUrl 链接地址
    */
-  function handleLink(linkUrl) {
+  const handleLink = linkUrl => {
     if (!linkUrl) {
       return;
     }
     window.open(linkUrl, '_blank');
-  }
+  };
 
   /**
+   * @method getTableColumnMapByVisualMode 获取table表格列配置
    * @description 根据当前激活的视角(trace/span)获取对应的table表格列配置
-   *
    */
-  function getTableColumnMapByVisualMode(): Record<string, ExploreTableColumn> {
-    if (get(isSpanVisual)) {
+  const getTableColumnMapByVisualMode = (): Record<string, ExploreTableColumn> => {
+    if (get(mode) === 'span') {
       return {
         span_id: {
           renderType: ExploreTableColumnTypeEnum.CLICK,
@@ -420,13 +345,13 @@ export function useExploreColumnConfig({
           width: 160,
           clickCallback: (row, column, e) => {
             const item = getJumpToApmLinkItem(row, column);
-            const customMenu = [
+            const customMenu: ExploreConditionMenuItem[] = [
               {
                 id: 'service-link',
                 name: t('查看服务详情'),
                 icon: 'icon-chakan',
                 onClick: () => handleLink(item.url),
-                suffixRender: () => <i class={'icon-monitor icon-mc-goto'} />,
+                suffixRender: () => (<i class={'icon-monitor icon-mc-goto'} />) as unknown as SlotReturnValue,
               },
             ];
             handleServiceOrApiColumnClick(row, column, e, customMenu);
@@ -470,13 +395,13 @@ export function useExploreColumnConfig({
         width: 160,
         clickCallback: (row, column, e) => {
           const item = getJumpToApmApplicationLinkItem(row, column);
-          const customMenu = [
+          const customMenu: ExploreConditionMenuItem[] = [
             {
               id: 'api-link',
               name: t('查看接口详情'),
               icon: 'icon-chakan',
               onClick: () => handleLink(item.url),
-              suffixRender: () => <i class={'icon-monitor icon-mc-goto'} />,
+              suffixRender: () => (<i class={'icon-monitor icon-mc-goto'} />) as unknown as SlotReturnValue,
             },
           ];
           handleServiceOrApiColumnClick(row, column, e, customMenu);
@@ -490,13 +415,13 @@ export function useExploreColumnConfig({
         width: 160,
         clickCallback: (row, column, e) => {
           const item = getJumpToApmLinkItem(row, column);
-          const customMenu = [
+          const customMenu: ExploreConditionMenuItem[] = [
             {
               id: 'api-link',
               name: t('查看服务详情'),
               icon: 'icon-chakan',
               onClick: () => handleLink(item.url),
-              suffixRender: () => <i class={'icon-monitor icon-mc-goto'} />,
+              suffixRender: () => (<i class={'icon-monitor icon-mc-goto'} />) as unknown as SlotReturnValue,
             },
           ];
           handleServiceOrApiColumnClick(row, column, e, customMenu);
@@ -510,13 +435,13 @@ export function useExploreColumnConfig({
         width: 160,
         clickCallback: (row, column, e) => {
           const item = getJumpToApmApplicationLinkItem(row, column);
-          const customMenu = [
+          const customMenu: ExploreConditionMenuItem[] = [
             {
               id: 'api-link',
               name: t('查看接口详情'),
               icon: 'icon-chakan',
               onClick: () => handleLink(item.url),
-              suffixRender: () => <i class={'icon-monitor icon-mc-goto'} />,
+              suffixRender: () => (<i class={'icon-monitor icon-mc-goto'} />) as unknown as SlotReturnValue,
             },
           ];
           handleServiceOrApiColumnClick(row, column, e, customMenu);
@@ -612,14 +537,10 @@ export function useExploreColumnConfig({
         },
       },
     };
-  }
+  };
 
   return {
     tableColumns,
-    displayColumnFields,
     tableDisplayColumns,
-    getCustomDisplayColumnFields,
-    handleDisplayColumnFieldsChange,
-    handleDisplayColumnResize,
   };
-}
+};

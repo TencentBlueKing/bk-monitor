@@ -438,4 +438,6 @@ export default {
     'After enabling the automatic issuance feature, new services will automatically configure this strategy and take effect',
   '关闭「自动下发」功能，新增服务将不会自动配置该策略':
     'After disabling the automatic issuance feature, new services will not automatically configure this strategy',
+  '并行：组间同时拨打，组内顺序依次拨打；<br>串行：多个用户组人员顺序合并后依次拨打，<br>重复人员以前置组优先': 
+    'Parallel: Calls are made simultaneously between groups, and sequentially within each group.<br>Serial: The personnel from multiple user groups are merged in sequence and called one by one, <br>with repeated personnel given priority based on their earlier group.',
 };

@@ -6,7 +6,7 @@ import { debounce } from 'lodash-es';
 
 import CreateLuceneEditor from './codemirror-lucene';
 import SqlQueryOptions from './sql-query-options';
-import useFocusInput from './use-focus-input';
+import useFocusInput from '../utils/use-focus-input';
 
 const props = defineProps({
   value: {
@@ -255,6 +255,11 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick);
+  // 清理编辑器实例
+  if (editorInstance?.destroy) {
+    editorInstance.destroy();
+    editorInstance = null;
+  }
 });
 </script>
 <template>

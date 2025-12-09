@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import logging
 import re
 import threading
@@ -23,6 +24,7 @@ from alarm_backends.core.lock.service_lock import share_lock
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
+from metadata.models.data_link.data_link_configs import ClusterConfig
 from metadata.models.space.constants import SpaceStatus, SpaceTypes
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.tasks import sync_bkbase_v4_metadata
@@ -227,7 +229,20 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
             port = cluster_spec.get(field_mappings["port"])
             username = cluster_spec.get(field_mappings["username"])
             password = cluster_spec.get(field_mappings["password"])
+            namespace = cluster_metadata["namespace"]
 
+            # 同步ClusterConfig
+            cluster_config_data = copy.deepcopy(cluster_data)
+            cluster_config_data.pop("status", None)
+            ClusterConfig.objects.get_or_create(
+                bk_tenant_id=bk_tenant_id,
+                namespace=namespace,
+                name=cluster_name,
+                kind=ClusterConfig.CLUSTER_TYPE_TO_KIND_MAP[cluster_type],
+                defaults={"origin_config": cluster_config_data},
+            )
+
+            # 设置集群配置
             default_settings = {}
             # 如果是VictoriaMetrics集群，需要获取过期时间
             if cluster_type == models.ClusterInfo.TYPE_VM:
@@ -252,9 +267,14 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                     # 更新集群信息
                     is_updated = False
                     for field, value in update_fields.items():
-                        if getattr(cluster, field) != value:
+                        if value is not None and getattr(cluster, field) != value:
                             setattr(cluster, field, value)
                             is_updated = True
+
+                    # 如果集群未被标记为已注册到bkbase平台，则标记为已注册
+                    if not cluster.registered_to_bkbase:
+                        cluster.registered_to_bkbase = True
+                        is_updated = True
 
                     # 如果字段有更新，则保存模型
                     if is_updated:
@@ -266,13 +286,15 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                         bk_tenant_id=bk_tenant_id,
                         cluster_type=cluster_type,
                         cluster_name=cluster_name,
+                        display_name=cluster_name,
                         domain_name=domain_name,
                         port=port,
-                        username=username,
-                        password=password,
+                        username=username or "",
+                        password=password or "",
                         is_default_cluster=False,
                         default_settings=default_settings,
                         registered_system=models.ClusterInfo.BKDATA_REGISTERED_SYSTEM,
+                        registered_to_bkbase=True,
                     )
                     logger.info(f"sync_bkbase_cluster_info: created new {cluster_type} cluster: {cluster_name}")
         except Exception as e:

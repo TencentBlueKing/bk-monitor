@@ -337,7 +337,7 @@
         spaceUid: store.state.spaceUid,
       },
     });
-    window.open(newURL.href, '_blank');
+    window.iframeParent.open(newURL.href, '_blank');
   };
   const maxRetention = ref(0);
 

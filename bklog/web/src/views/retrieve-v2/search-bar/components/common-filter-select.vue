@@ -1,161 +1,161 @@
 <script setup lang="ts">
-  import { ref, computed, watch, nextTick } from 'vue';
+import { computed, ref, watch } from 'vue';
 
-  import { getOperatorKey } from '@/common/util';
-  import useLocale from '@/hooks/use-locale';
-  import useStore from '@/hooks/use-store';
+import { getOperatorKey } from '@/common/util';
+import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 
-  import bklogTagChoice from './bklog-tag-choice';
-  import CommonFilterSetting from './common-filter-setting.vue';
-  import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from './const.common';
-  import { operatorMapping, translateKeys } from './const-values';
-  import useFieldEgges from '@/hooks/use-field-egges';
-  import RetrieveHelper from '../../retrieve-helper';
-  import { useRoute } from 'vue-router/composables';
-  import { getCommonFilterAddition, getCommonFilterFieldsList, setStorageCommonFilterAddition } from '../../../store/helper';
-  import { BK_LOG_STORAGE } from '../../../store/store.type';
+import useFieldEgges from '@/hooks/use-field-egges';
+import { BK_LOG_STORAGE } from '@/store/store.type';
+import RetrieveHelper from '@/views/retrieve-helper';
+import { useRoute } from 'vue-router/composables';
+import { getCommonFilterAddition, getCommonFilterFieldsList, setStorageCommonFilterAddition } from '../../../../store/helper';
+import { operatorMapping, translateKeys } from '../utils/const-values';
+import { FulltextOperator, FulltextOperatorKey, withoutValueConditionList } from '../utils/const.common';
+import bklogTagChoice from './bklog-tag-choice';
+import CommonFilterSetting from './common-filter-setting.vue';
 
-  const { $t } = useLocale();
-  const store = useStore();
-  const route = useRoute();
-  const filterFieldsList = computed(() => getCommonFilterFieldsList(store.state));
+const { $t } = useLocale();
+const store = useStore();
+const route = useRoute();
+const filterFieldsList = computed(() => getCommonFilterFieldsList(store.state));
 
-  // 判定当前选中条件是否需要设置Value
-  const isShowConditonValueSetting = operator => !withoutValueConditionList.includes(operator);
-  const commonFilterAddition = ref([]);
+// 判定当前选中条件是否需要设置Value
+const isShowConditonValueSetting = operator => !withoutValueConditionList.includes(operator);
+const commonFilterAddition = ref([]);
 
-  const setCommonFilterAddition = () => {
-    commonFilterAddition.value.length = 0;
-    commonFilterAddition.value = [];
-    // 合并策略优化
-    commonFilterAddition.value = getCommonFilterAddition(store.state);
+const setCommonFilterAddition = () => {
+  commonFilterAddition.value.length = 0;
+  commonFilterAddition.value = [];
+  // 合并策略优化
+  commonFilterAddition.value = getCommonFilterAddition(store.state);
+};
+
+
+watch(
+  () => [filterFieldsList.value, store.state.indexId], // 同时监听 indexId
+  () => {
+    setCommonFilterAddition();
+  },
+  { immediate: true, deep: true },
+);
+const activeIndex = ref(-1);
+
+const operatorDictionary = computed(() => {
+  const defVal = {
+    [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
   };
+  return {
+    ...defVal,
+    ...store.state.operatorDictionary,
+  };
+});
 
+const textDir = computed(() => {
+  const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
+  return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
+});
 
-  watch(
-    () => [filterFieldsList.value, store.state.indexId], // 同时监听 indexId
-    () => {
-      setCommonFilterAddition();
-    },
-    { immediate: true, deep: true },
-  );
-  const activeIndex = ref(-1);
-
-  const operatorDictionary = computed(() => {
-    const defVal = {
-      [getOperatorKey(FulltextOperatorKey)]: { label: $t('包含'), operator: FulltextOperator },
-    };
-    return {
-      ...defVal,
-      ...store.state.operatorDictionary,
-    };
-  });
-
-  const textDir = computed(() => {
-    const textEllipsisDir = store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR];
-    return textEllipsisDir === 'start' ? 'rtl' : 'ltr';
-  });
-
-  /**
+/**
    * 获取操作符展示文本
    * @param {*} item
    */
-  const getOperatorLabel = item => {
-    if (item.field === '_ip-select_') {
-      return '';
-    }
+const getOperatorLabel = (item) => {
+  if (item.field === '_ip-select_') {
+    return '';
+  }
 
-    const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
-    if (translateKeys.includes(operatorMapping[item.operator])) {
-      return $t(operatorMapping[item.operator] ?? item.operator);
-    }
+  const key = item.field === '*' ? getOperatorKey(`*${item.operator}`) : getOperatorKey(item.operator);
+  if (translateKeys.includes(operatorMapping[item.operator])) {
+    return $t(operatorMapping[item.operator] ?? item.operator);
+  }
 
-    return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
-  };
+  return operatorMapping[item.operator] ?? operatorDictionary.value[key]?.label ?? item.operator;
+};
 
-  const { requestFieldEgges, isRequesting } = useFieldEgges();
-  const handleToggle = (visable, item, index) => {
-    if (visable) {
-      activeIndex.value = index;
-      requestFieldEgges(item, null, resp => {
-        if (typeof resp === 'boolean') {
-          return;
-        }
-        commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
-      });
-    }
-  };
-
-  const handleInputVlaueChange = (value, item, index) => {
+const { requestFieldEgges, isRequesting } = useFieldEgges();
+const handleToggle = (visable, item, index) => {
+  if (visable) {
     activeIndex.value = index;
-    requestFieldEgges(item, value, resp => {
+    requestFieldEgges(item, null, (resp) => {
       if (typeof resp === 'boolean') {
         return;
       }
       commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
     });
-  };
+  }
+};
 
-  const handleChange = () => {
-    commonFilterAddition.value.forEach(item => {
-      if (!isShowConditonValueSetting(item.operator)) {
-        item.value = [];
-      }
-    });
-
-    setStorageCommonFilterAddition(store.state, commonFilterAddition.value);
-
-    store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
-
-    if (route.query.tab !== 'graphAnalysis') {
-      store.dispatch('requestIndexSetQuery');
-    }
-
-    RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
-  };
-
-  const focusIndex = ref(null);
-  const handleRowFocus = (index, e) => {
-    if (document.activeElement === e.target) {
-      focusIndex.value = index;
-    }
-  };
-
-  const isChoiceInputFocus = ref(false);
-
-  const handleChoiceFocus = index => {
-    isChoiceInputFocus.value = true;
-    focusIndex.value = index;
-  };
-
-  const handleChoiceBlur = index => {
-    if (focusIndex.value === index) {
-      focusIndex.value = null;
-      isChoiceInputFocus.value = null;
-    }
-  };
-
-  const handleRowBlur = () => {
-    if (isChoiceInputFocus.value) {
+const handleInputVlaueChange = (value, item, index) => {
+  activeIndex.value = index;
+  requestFieldEgges(item, value, (resp) => {
+    if (typeof resp === 'boolean') {
       return;
     }
+    commonFilterAddition.value[index].list = store.state.indexFieldInfo.aggs_items[item.field_name] ?? [];
+  });
+};
 
-    focusIndex.value = null;
-  };
-
-  const handleDeleAllOptions = () => {
-    commonFilterAddition.value.forEach(item => {
+const handleChange = () => {
+  commonFilterAddition.value.forEach((item) => {
+    if (!isShowConditonValueSetting(item.operator)) {
       item.value = [];
-    });
+    }
+  });
 
-    handleChange();
-  };
+  setStorageCommonFilterAddition(store.state, commonFilterAddition.value);
+
+  store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
+
+  if (route.query.tab !== 'graphAnalysis') {
+    store.dispatch('requestIndexSetQuery');
+  }
+
+  RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
+};
+
+const focusIndex = ref(null);
+const handleRowFocus = (index, e) => {
+  if (document.activeElement === e.target) {
+    focusIndex.value = index;
+  }
+};
+
+const isChoiceInputFocus = ref(false);
+
+const handleChoiceFocus = (index) => {
+  isChoiceInputFocus.value = true;
+  focusIndex.value = index;
+};
+
+const handleChoiceBlur = (index) => {
+  if (focusIndex.value === index) {
+    focusIndex.value = null;
+    isChoiceInputFocus.value = null;
+  }
+};
+
+const handleRowBlur = () => {
+  if (isChoiceInputFocus.value) {
+    return;
+  }
+
+  focusIndex.value = null;
+};
+
+const handleDeleAllOptions = () => {
+  commonFilterAddition.value.forEach((item) => {
+    item.value = [];
+  });
+
+  handleChange();
+};
 </script>
 
 <template>
   <div class="filter-container-wrap">
     <div class="filter-setting-btn">
-      <CommonFilterSetting></CommonFilterSetting>
+      <CommonFilterSetting />
     </div>
     <div
       v-if="commonFilterAddition.length"
@@ -166,16 +166,16 @@
         :class="['filter-select-wrap', { 'is-focus': focusIndex === index }]"
       >
         <div
-          class="title"
           v-bk-overflow-tips
+          class="title"
           @blur.capture="handleRowBlur"
           @focus.capture="e => handleRowFocus(index, e)"
         >
           {{ item?.field_alias || item?.field_name || '' }}
         </div>
         <bk-select
-          class="operator-select"
           v-model="commonFilterAddition[index].operator"
+          class="operator-select"
           :input-search="false"
           :popover-min-width="100"
           filterable
@@ -187,8 +187,7 @@
             <span
               class="operator-label"
               :data-operator="commonFilterAddition[index].operator"
-              >{{ getOperatorLabel(commonFilterAddition[index]) }}</span
-            >
+            >{{ getOperatorLabel(commonFilterAddition[index]) }}</span>
           </template>
           <bk-option
             v-for="(child, childIndex) in item?.field_operator"
@@ -199,13 +198,13 @@
         </bk-select>
         <template v-if="isShowConditonValueSetting(commonFilterAddition[index].operator)">
           <bklogTagChoice
-            :class="['value-select', { 'is-focus': focusIndex === index }]"
             v-model="commonFilterAddition[index].value"
+            :class="['value-select', { 'is-focus': focusIndex === index }]"
             :foucs-fixed="true"
             :list="commonFilterAddition[index].list"
             :loading="activeIndex === index && isRequesting"
             :placeholder="$t('请选择 或 输入')"
-            :bdiDir="textDir"
+            :bdi-dir="textDir"
             max-width="460px"
             @focus="() => handleChoiceFocus(index)"
             @blur="() => handleChoiceBlur(index)"
@@ -213,13 +212,13 @@
             @input="val => handleInputVlaueChange(val, item, index)"
             @toggle="visible => handleToggle(visible, item, index)"
             @custom-tag-enter="() => handleToggle(true, item, index)"
-          ></bklogTagChoice>
+          />
         </template>
       </div>
       <span
-        @click="handleDeleAllOptions"
         class="btn-del-action bklog-icon bklog-qingkong"
-      ></span>
+        @click="handleDeleAllOptions"
+      />
     </div>
     <div
       v-else

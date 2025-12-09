@@ -1,20 +1,20 @@
 <script setup lang="ts">
 import { Ref, computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
-
 // @ts-ignore
 import { formatDateTimeField, getCharLength, getOsCommandLabel, getRegExp } from '@/common/util';
+import { bkIcon } from 'bk-magic-vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import imgEnterKey from '@/images/icons/enter-key.svg';
 import imgUpDownKey from '@/images/icons/up-down-key.svg';
 import { Props } from 'tippy.js';
 
+import PopInstanceUtil from '@/global/pop-instance-util';
 import useFieldEgges from '@/hooks/use-field-egges';
-import PopInstanceUtil from '../../../global/pop-instance-util';
-import { BK_LOG_STORAGE, FieldInfoItem } from '../../../store/store.type';
-import BatchInput from '../components/batch-input';
-import { translateKeys } from './const-values';
-import { FulltextOperator, excludesFields, getFieldConditonItem, getInputQueryDefaultItem, withoutValueConditionList } from './const.common';
+import { BK_LOG_STORAGE, FieldInfoItem } from '@/store/store.type';
+import BatchInput from '../../components/batch-input';
+import { translateKeys } from '../utils/const-values';
+import { FulltextOperator, excludesFields, getFieldConditonItem, getInputQueryDefaultItem, withoutValueConditionList } from '../utils/const.common';
 const INPUT_MIN_WIDTH = 12;
 
 const props = defineProps({
@@ -609,6 +609,8 @@ const refValueTagInput: Ref<HTMLInputElement | null> = ref(null);
 const isConditionValueInputFocus = ref(false);
 const conditionValueActiveIndex: Ref<number | null> = ref(-1);
 const conditionValueInputVal = ref('');
+// 标记是否正在输入法组合过程中
+const isComposing = ref(false);
 
 /**
    * 获取当前选中字段的匹配列表
@@ -690,8 +692,22 @@ const handleTagInputBlur = () => {
   }, 300);
 };
 
-const handleTagInputEnter = () => {
+const handleTagInputEnter = (e) => {
+  // 如果正在输入法组合过程中，不处理Enter事件
+  if (e?.isComposing || isComposing.value) {
+    return;
+  }
   currentEditTagIndex.value = null;
+};
+
+// 输入法组合开始
+const handleCompositionStart = () => {
+  isComposing.value = true;
+};
+
+// 输入法组合结束
+const handleCompositionEnd = () => {
+  isComposing.value = false;
 };
   /**
    * 当前快捷键操作是否命中条件相关弹出
@@ -1015,6 +1031,11 @@ const stopEventPreventDefault = (e) => {
 };
 
 const handleKeydownClick = (e) => {
+  // 如果正在输入法组合过程中，不处理快捷键
+  if (e.isComposing || isComposing.value) {
+    return;
+  }
+
   // key arrow-up
   if (e.keyCode === 38) {
     stopEventPreventDefault(e);
@@ -1106,6 +1127,11 @@ const afterHideFn = () => {
 };
 
 const handleValueInputEnter = (e) => {
+  // 如果正在输入法组合过程中，不处理Enter事件
+  if (e.isComposing || isComposing.value) {
+    return;
+  }
+
   stopEventPreventDefault(e);
   conditionValueInputVal.value = '';
 
@@ -1330,7 +1356,7 @@ defineExpose({
                 <span class="operator-content">
                   {{ getOperatorLable(activeOperator.label) }}
                 </span>
-                <bk-icon :type="isArrowDown ? 'angle-down' : 'angle-up'" />
+                <bkIcon :type="isArrowDown ? 'angle-down' : 'angle-up'" />
               </div>
               <div style="display: none">
                 <div
@@ -1421,6 +1447,8 @@ defineExpose({
                       @blur.stop="handleTagInputBlur"
                       @input="handleInputValueChange"
                       @keyup.enter="handleTagInputEnter"
+                      @compositionstart="handleCompositionStart"
+                      @compositionend="handleCompositionEnd"
                     />
                   </template>
                   <template>
@@ -1445,6 +1473,8 @@ defineExpose({
                     @keyup.enter="handleValueInputEnter"
                     @blur.stop="handleConditionValueInputBlur"
                     @focus.stop="handleConditionValueInputFocus"
+                    @compositionstart="handleCompositionStart"
+                    @compositionend="handleCompositionEnd"
                   >
                 </li>
                 <div style="display: none">

@@ -15,8 +15,8 @@ import { getOsCommandLabel } from '@/common/util';
 import useFieldEgges from '@/hooks/use-field-egges';
 import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
 import { FieldInfoItem } from '@/store/store.type';
-import { excludesFields } from './const.common'; // @ts-ignore
-import FavoriteList from './favorite-list';
+import { excludesFields } from '../utils/const.common'; // @ts-ignore
+import FavoriteList from '../components/favorite-list';
 
 const props = defineProps({
   value: {
@@ -656,7 +656,7 @@ watch(activeIndex, () => {
                 height="18"
               >
             </span>
-            <span class="item-text-label">{{ $t('AI 搜索') }}:</span>
+            <span class="item-text-label">{{ $t('AI搜索') }}:</span>
             <span class="item-text-value">{{ aiPreviewText }}</span>
             <span class="short-cut-icon">
               <i :class="shortCutClsName" />
@@ -868,7 +868,7 @@ watch(activeIndex, () => {
             <i :class="shortCutClsName" />
             <i class="bklog-icon bklog-plus" />
             <i class="bklog-icon bklog-enter-3" /></span>
-          <span class="value">{{ $t('AI 搜索') }}</span>
+          <span class="value">{{ $t('AI搜索') }}</span>
         </div>
       </div>
     </div>
