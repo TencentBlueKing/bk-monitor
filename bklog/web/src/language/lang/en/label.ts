@@ -918,6 +918,7 @@ export default {
   跳转: 'Jump',
   关联: 'Related',
   'tag 名称': 'Tag Name',
+  'tag 颜色': 'Tag Color',
   关联资源: 'Related Resource',
   关联配置: 'Related Config',
   '请输入tag名称，不得超出8个字母、数字、_':

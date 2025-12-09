@@ -11,7 +11,53 @@
     }
 
     .jump-link-placeholder {
-        color: #3A84FF;
-        cursor: default;
+        color: #4D4F56;
     }
+
+    .expand-content {
+        display: flex;
+        flex-wrap: wrap;
+        padding: 16px 198px 16px 37px;
+        background: #FAFBFD;
+
+        .expand-item {
+            display: flex;
+            width: 50%;
+            font-size: 12px;
+            line-height: 32px;
+
+            .expand-label {
+                min-width: 84px;
+                margin-right: 8px;
+                color: #4D4F56;
+                text-align: right;
+            }
+
+            .expand-value {
+                flex: 1;
+                overflow: hidden;
+                color: #313238;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+
+                .color-box {
+                    display: flex;
+                    align-items: center;
+
+                    .color-circle {
+                        width: 18px;
+                        height: 18px;
+                        margin-right: 4px;
+                        border: 1px solid #eaebf0;
+                        border-radius: 50%;
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+.bk-table .bk-table-body td.bk-table-expanded-cell {
+    padding: 0;
 }

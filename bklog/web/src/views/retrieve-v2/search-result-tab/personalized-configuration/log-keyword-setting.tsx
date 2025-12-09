@@ -32,7 +32,7 @@ import { bkColorPicker, bkMessage, bkInfoBox } from 'bk-magic-vue';
 import http from '@/api';
 
 import LogKeywordFormDialog from './log-keyword-form-dialog';
-import { ActionType, FormData } from './types';
+import { ActionType, FormData, MatchType } from './types';
 
 import './log-keyword-setting.scss';
 
@@ -168,19 +168,6 @@ export default defineComponent({
       return store.state.indexFieldInfo.custom_config?.personalization?.settings || [];
     });
 
-    // 任务名称插槽
-    const taskNameSlot = {
-      default: ({ row }) => (
-        <bk-button
-          text
-          theme='primary'
-          class='name-button'
-        >
-          {row.taskName}
-        </bk-button>
-      ),
-    };
-
     // 类型插槽
     const actionTypeSlot = {
       default: ({ row }) => {
@@ -191,6 +178,16 @@ export default defineComponent({
         };
 
         return <div>{typeTextMap[row.actionType] || row.actionType}</div>;
+      },
+    };
+
+    // 正则表达式插槽
+    const regexSlot = {
+      default: ({ row }) => {
+        if (row.regex) {
+          return <span>{row.regex}</span>;
+        }
+        return <span class='jump-link-placeholder'>--</span>;
       },
     };
 
@@ -213,7 +210,7 @@ export default defineComponent({
             </bk-button>
           );
         }
-        return <span class='jump-link-placeholder'>/</span>;
+        return <span class='jump-link-placeholder'>--</span>;
       },
     };
 
@@ -240,6 +237,88 @@ export default defineComponent({
       ),
     };
 
+    // 展开行插槽
+    const expandSlot = {
+      default: ({ row }: { row: FormData }) => {
+        const {
+          taskName,
+          matchType,
+          selectField,
+          regex,
+          actionType,
+          tagName,
+          color,
+          jumpLink,
+          relatedResource,
+          creator,
+        } = row;
+
+        // 基础字段
+        const basicList: Array<{ label: string; value: any; type?: string }> = [
+          {
+            label: t('任务名称'),
+            value: taskName,
+          },
+          {
+            label: t('匹配类型'),
+            value: matchType === MatchType.FIELD ? t('字段匹配') : t('正则匹配'),
+          },
+          {
+            label: matchType === MatchType.FIELD ? t('选择字段') : t('正则表达式'),
+            value: matchType === MatchType.FIELD ? selectField : regex,
+          },
+          {
+            label: t('执行动作'),
+            value: actionType === ActionType.MARK ? t('标记') : actionType === ActionType.JUMP ? t('跳转') : t('关联'),
+          },
+        ];
+
+        if (tagName) {
+          basicList.push({ label: t('tag 名称'), value: tagName });
+        }
+
+        // 根据类型追加不同字段
+        if (actionType === ActionType.MARK) {
+          basicList.push({ label: t('tag 颜色'), value: color, type: 'color' });
+        } else if (actionType === ActionType.JUMP) {
+          basicList.push({ label: t('跳转链接'), value: jumpLink });
+        } else if (actionType === ActionType.RELATED) {
+          basicList.push({ label: t('关联资源'), value: relatedResource });
+        }
+
+        // 添加创建人
+        basicList.push({ label: t('创建人'), value: creator, type: 'creator' });
+
+        return (
+          <div class='expand-content'>
+            {basicList.map((item, index) => (
+              <div
+                class='expand-item'
+                key={index}
+              >
+                {item.label && <span class='expand-label'>{item.label}：</span>}
+                <span class='expand-value'>
+                  {item.type === 'color' ? (
+                    <div class='color-box'>
+                      <span
+                        class='color-circle'
+                        style={{ background: item.value }}
+                      ></span>
+                      <span>{item.value}</span>
+                    </div>
+                  ) : item.type === 'creator' ? (
+                    <bk-user-display-name user-id={item.value}></bk-user-display-name>
+                  ) : (
+                    item.value || '--'
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      },
+    };
+
     return () => (
       <div class='log-keyword-setting'>
         {/* 新建按钮 */}
@@ -254,15 +333,19 @@ export default defineComponent({
         {/* 表格部分 */}
         <bk-table data={tableData.value}>
           <bk-table-column
+            type='expand'
+            scopedSlots={expandSlot}
+          />
+          <bk-table-column
             label={t('任务名称')}
             prop='taskName'
             min-width='120'
-            scopedSlots={taskNameSlot}
           />
           <bk-table-column
             label={t('正则表达式')}
             prop='regex'
             min-width='200'
+            scopedSlots={regexSlot}
           />
           <bk-table-column
             label={t('类型')}

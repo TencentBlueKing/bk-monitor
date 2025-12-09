@@ -134,23 +134,11 @@ export default defineComponent({
       return (store.state.indexFieldInfo.fields ?? []).filter(f => f.es_doc_values && f.field_type === 'keyword');
     });
 
-    // 模拟应用实例数据
-    const mockAppInstanceList = [
-      { id: 'app-001', name: '支付网关服务' },
-      { id: 'app-002', name: '用户认证中心' },
-      { id: 'app-003', name: '订单处理系统' },
-      { id: 'app-004', name: '数据报表服务' },
-      { id: 'app-005', name: '消息通知服务' },
-    ];
+    // 应用实例数据
+    const mockAppInstanceList = [];
 
-    // 模拟服务实例数据
-    const mockServiceInstanceList = [
-      { id: 'srv-mysql-primary', name: '主交易数据库 (MySQL)' },
-      { id: 'srv-redis-session', name: '用户会话缓存 (Redis)' },
-      { id: 'srv-kafka-log', name: '日志消息队列 (Kafka)' },
-      { id: 'srv-es-search', name: '全文检索引擎 (Elasticsearch)' },
-      { id: 'srv-consul-registry', name: '服务注册中心 (Consul)' },
-    ];
+    // 服务实例数据
+    const mockServiceInstanceList = [];
 
     // 处理对话框显示状态变化
     const handleDialogValueChange = (value: boolean) => {
