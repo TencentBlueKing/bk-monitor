@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, watch } from 'vue';
+import { type PropType, defineComponent, watch } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Button } from 'bkui-vue';
@@ -50,6 +50,7 @@ export const updateUserFiledTableConfig = request(
 );
 
 import TableFieldSetting from './log-table/table-field-setting';
+import { formatHierarchy } from './log-table/utils/fields';
 
 import './index.scss';
 
@@ -73,6 +74,8 @@ export default defineComponent({
     const keyword = shallowRef('');
     const filterMode = shallowRef<EMode>(EMode.ui);
     const tableRefreshKey = shallowRef(null);
+
+    const tableColumnsSetting = shallowRef([]);
 
     watch(
       () => props.detail,
@@ -150,23 +153,18 @@ export default defineComponent({
         end_time: props.detail.latest_time,
       }).catch(() => null);
       fieldsData.value = data;
+      tableColumnsSetting.value = formatHierarchy(fieldsData.value?.fields || []).map(item => {
+        return {
+          id: item.field_name,
+          name: item.query_alias || item.field_name,
+          type: item.field_type,
+        };
+      });
       /** 优先使用user_custom_config配置，如果没有再使用display_fields配置 */
       displayColumnFields.value = data?.user_custom_config?.displayFields || data?.display_fields || [];
       return data;
     };
 
-    /** 表格字段配置 */
-    const tableColumnsSetting = computed(() => {
-      return (
-        fieldsData.value?.fields.map(item => {
-          return {
-            id: item.field_name,
-            name: item.field_alias,
-            type: item.field_type,
-          };
-        }) || []
-      );
-    });
     /** 需要展示的表格字段 */
     const displayColumnFields = shallowRef([]);
 
@@ -194,6 +192,13 @@ export default defineComponent({
         fixed: 'right',
         align: 'center',
         resizable: false,
+        className: ({ type }) => {
+          if (type === 'th') {
+            return 'col-th-field-setting';
+          } else {
+            return 'col-td-field-setting';
+          }
+        },
         thClassName: '__table-custom-setting-col__',
         colKey: '__col_setting__',
         // @ts-expect-error
@@ -263,6 +268,7 @@ export default defineComponent({
       keyword,
       filterMode,
       customColumns,
+      displayColumnFields,
       handleChangeIndexSet,
       t,
       handleGoLog,
@@ -308,6 +314,7 @@ export default defineComponent({
         </div>
         <LogTableNew
           customColumns={this.customColumns}
+          displayFields={this.displayColumnFields}
           getFieldsData={this.getFieldsData}
           getTableData={this.getTableData}
           refreshKey={this.tableRefreshKey}

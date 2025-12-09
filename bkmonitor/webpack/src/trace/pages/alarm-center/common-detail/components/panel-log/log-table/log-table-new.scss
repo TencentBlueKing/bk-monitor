@@ -4,6 +4,21 @@
     overflow: hidden;
   }
 
+  .t-table__expanded-row {
+    & > td {
+      padding: 0;
+
+      .t-table__row-full-element {
+        padding: 0;
+      }
+    }
+  }
+
+  .col-td-field-setting {
+    pointer-events: none;
+    opacity: 0;
+  }
+
   .panel-log-log-table {
     .table-expand-icon {
       font-size: 12px;

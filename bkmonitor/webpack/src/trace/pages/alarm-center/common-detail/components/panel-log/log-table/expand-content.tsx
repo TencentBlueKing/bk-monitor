@@ -24,7 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowRef, watchEffect } from 'vue';
+
+import { fieldTypeMap } from 'monitor-pc/components/retrieval-filter/utils';
+
+import LogCell from './log-cell';
+import { parseTableRowData } from './utils/utils';
+
+import type { EClickMenuType, IFieldInfo } from './typing';
 
 import './expand-content.scss';
 
@@ -35,11 +42,123 @@ export default defineComponent({
       type: Object,
       default: () => null,
     },
+    originLog: {
+      type: Object,
+      default: () => null,
+    },
+    fields: {
+      type: Array as PropType<IFieldInfo[]>,
+      default: () => [],
+    },
   },
-  setup() {
-    return {};
+  setup(props) {
+    const activeExpandView = shallowRef('kv');
+
+    const kvList = shallowRef([]);
+    const jsonData = shallowRef({});
+
+    watchEffect(() => {
+      console.log('xxxxx');
+      const tempJsonData = props.fields.reduce((pre, cur) => {
+        const fieldName = cur.query_alias || cur.field_name;
+        pre[fieldName] = parseTableRowData(props.originLog ?? props.row, cur.field_name, cur.field_type) ?? '';
+        return pre;
+      }, {});
+      const tempKvList = props.fields.filter(item => {
+        return !['--', '{}', '[]'].includes(parseTableRowData(props.row, item.field_name));
+      });
+      jsonData.value = tempJsonData;
+      kvList.value = tempKvList;
+    });
+
+    const headerWrapper = () => {
+      return (
+        <div class='view-tab'>
+          <div class='tab-left'>
+            <span
+              class={{ activeKv: activeExpandView.value === 'kv' }}
+              onClick={() => {
+                activeExpandView.value = 'kv';
+              }}
+            >
+              KV
+            </span>
+            <span
+              class={{ activeJson: activeExpandView.value === 'json' }}
+              onClick={() => {
+                activeExpandView.value = 'json';
+              }}
+            >
+              JSON
+            </span>
+          </div>
+          <div class='tab-right'>
+            <span class='bklog-icon bklog-data-copy' />
+          </div>
+        </div>
+      );
+    };
+    const kvListWrapper = () => {
+      return (
+        <div class='kv-list-wrap'>
+          {kvList.value.map((item, index) => {
+            const fieldIcon = fieldTypeMap[item.field_type] || fieldTypeMap.text;
+            return (
+              <div
+                key={index}
+                class='log-item'
+              >
+                <div class='field-label'>
+                  <span
+                    style={{
+                      backgroundColor: fieldIcon.bgColor,
+                      color: fieldIcon.color,
+                      marginRight: '5px',
+                      marginTop: '2px',
+                    }}
+                    class={[fieldIcon.icon, 'col-title-field-icon']}
+                    v-bk-tooltips={{
+                      content: fieldIcon.name,
+                    }}
+                  />
+                  <span class='field-text'>{item.query_alias || item.field_name}</span>
+                </div>
+                <div class='field-value'>
+                  <LogCell
+                    options={{
+                      onClickMenu: (opt: { type: EClickMenuType; value: string }) => {
+                        console.log(opt);
+                      },
+                    }}
+                    field={item}
+                    row={props.originLog ?? props.row}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    };
+
+    const jsonViewWrapper = () => {
+      return <div class='json-view-wrap'>jsonxxx</div>;
+    };
+
+    return {
+      activeExpandView,
+      kvList,
+      kvListWrapper,
+      jsonViewWrapper,
+      headerWrapper,
+    };
   },
   render() {
-    return <div class='log-table-new-expand-content'>sadsfadasdffasd</div>;
+    return (
+      <div class='log-table-new-expand-content'>
+        {this.headerWrapper()}
+        {this.activeExpandView === 'kv' ? this.kvListWrapper() : this.jsonViewWrapper()}
+      </div>
+    );
   },
 });
