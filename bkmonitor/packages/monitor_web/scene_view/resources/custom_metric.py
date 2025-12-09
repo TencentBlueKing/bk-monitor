@@ -53,13 +53,6 @@ class GetCustomTsMetricGroups(Resource):
         time_series_group_id = serializers.IntegerField(label=_("自定义指标 ID"))
 
     def perform_request(self, params: dict) -> dict[str, list]:
-        table = CustomTSTable.objects.get(
-            models.Q(bk_biz_id=params["bk_biz_id"]) | models.Q(is_platform=True),
-            pk=params["time_series_group_id"],
-            bk_tenant_id=get_request_tenant_id(),
-        )
-        # todo 暂时保留以作兼容
-        table.get_and_sync_fields()
         # 从 metadata 获取指标分组列表
         metadata_result = api.metadata.query_time_series_scope(group_id=params["time_series_group_id"])
 
