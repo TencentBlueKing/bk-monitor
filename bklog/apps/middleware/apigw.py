@@ -55,7 +55,7 @@ class UserModelBackend(ModelBackend):
         try:
             user = self.user_model.objects.get(**{self.user_model.USERNAME_FIELD: bk_username})
             logger.warning(f"csh-test: get class UserModelBackend method authenticate user -> {user}")
-            return
+            return user
         except self.user_model.DoesNotExist:
             exception_user = self.user_maker(bk_username)
             logger.warning(
