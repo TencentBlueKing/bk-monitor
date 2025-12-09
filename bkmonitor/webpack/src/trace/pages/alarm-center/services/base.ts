@@ -26,7 +26,7 @@
 
 import { isEn } from '@/i18n/i18n';
 
-import { alertEventCount, alertRelatedInfo, listAlertTags } from 'monitor-api/modules/alert';
+import { alertEventCount, alertRelatedInfo, listAlertTags } from 'monitor-api/modules/alert_v2';
 import { updateFavorite } from 'monitor-api/modules/model';
 
 import { AlarmType } from '../typings';

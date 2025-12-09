@@ -27,7 +27,7 @@ import { type PropType, defineComponent, onActivated, shallowRef } from 'vue';
 import { reactive } from 'vue';
 
 import { Input, Pagination } from 'bkui-vue';
-import { searchEvent } from 'monitor-api/modules/alert';
+import { searchEvent } from 'monitor-api/modules/alert_v2';
 
 import PanelAlarmTable from './panel-alarm-table';
 import EmptyStatus, {

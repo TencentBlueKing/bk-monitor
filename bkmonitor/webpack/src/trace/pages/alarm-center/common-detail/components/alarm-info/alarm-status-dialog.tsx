@@ -29,7 +29,7 @@ import { type PropType, computed, defineComponent, reactive, shallowRef, watch }
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Dialog, Loading, Select } from 'bkui-vue';
 import dayjs from 'dayjs';
-import { subActionDetail } from 'monitor-api/modules/alert';
+import { subActionDetail } from 'monitor-api/modules/alert_v2';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { useI18n } from 'vue-i18n';
 

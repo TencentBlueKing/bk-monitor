@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { actionDetail, alertDetail, listAlertFeedback } from 'monitor-api/modules/alert';
+import { actionDetail, alertDetail, listAlertFeedback } from 'monitor-api/modules/alert_v2';
 import { scenarioMetricList } from 'monitor-api/modules/k8s';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { BookMarkModel } from 'monitor-ui/chart-plugins/typings';

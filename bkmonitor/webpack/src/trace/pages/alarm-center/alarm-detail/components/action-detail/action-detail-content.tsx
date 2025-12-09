@@ -29,7 +29,7 @@ import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 import { PrimaryTable } from '@blueking/tdesign-ui';
 import { Popover } from 'bkui-vue';
 import dayjs from 'dayjs';
-import { searchAlert } from 'monitor-api/modules/alert';
+import { searchAlert } from 'monitor-api/modules/alert_v2';
 import { useI18n } from 'vue-i18n';
 
 import { handleToAlertList, queryString } from '../../../utils';

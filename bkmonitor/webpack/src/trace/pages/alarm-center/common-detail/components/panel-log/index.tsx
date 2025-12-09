@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, watch } from 'vue';
+import { type PropType, computed, defineComponent, watch } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Button } from 'bkui-vue';
@@ -43,6 +43,13 @@ export const getLogIndexSetSearch = request(
   'apm_log_forward/bklog/api/v1/search/index_set/{pk}/search/'
 );
 export const getLogFieldsData = request('GET' as any, 'apm_log_forward/bklog/api/v1/search/index_set/{pk}/fields/');
+
+export const updateUserFiledTableConfig = request(
+  'POST' as any,
+  'apm_log_forward/bklog/api/v1/search/index_set/user_custom_config/'
+);
+
+import TableFieldSetting from './log-table/table-field-setting';
 
 import './index.scss';
 
@@ -134,14 +141,75 @@ export default defineComponent({
         .catch(() => null);
       return data;
     }
+
+    const fieldsData = shallowRef(null);
     const getFieldsData = async () => {
       const data = await getLogFieldsData(selectIndexSet.value, {
         is_realtime: 'True',
         start_time: props.detail?.begin_time,
         end_time: props.detail.latest_time,
       }).catch(() => null);
+      fieldsData.value = data;
+      /** 优先使用user_custom_config配置，如果没有再使用display_fields配置 */
+      displayColumnFields.value = data?.user_custom_config?.displayFields || data?.display_fields || [];
       return data;
     };
+
+    /** 表格字段配置 */
+    const tableColumnsSetting = computed(() => {
+      return (
+        fieldsData.value?.fields.map(item => {
+          return {
+            id: item.field_name,
+            name: item.field_alias,
+            type: item.field_type,
+          };
+        }) || []
+      );
+    });
+    /** 需要展示的表格字段 */
+    const displayColumnFields = shallowRef([]);
+
+    const handleDisplayColumnFieldsChange = (val: string[]) => {
+      updateUserFiledTableConfig({
+        index_set_config: {
+          displayFields: val,
+          fieldsWidth: {},
+          filterAddition: [],
+          filterSetting: [],
+          fixedFilterAddition: false,
+          sortList: [],
+        },
+        index_set_id: String(selectIndexSet.value),
+        index_set_type: 'single',
+      }).then(() => {
+        tableRefreshKey.value = random(6);
+      });
+    };
+
+    const customColumns = shallowRef([
+      {
+        width: '32px',
+        minWidth: '32px',
+        fixed: 'right',
+        align: 'center',
+        resizable: false,
+        thClassName: '__table-custom-setting-col__',
+        colKey: '__col_setting__',
+        // @ts-expect-error
+        title: () => {
+          return (
+            <TableFieldSetting
+              class='table-field-setting'
+              sourceList={tableColumnsSetting.value}
+              targetList={displayColumnFields.value}
+              onConfirm={handleDisplayColumnFieldsChange}
+            />
+          );
+        },
+        cell: () => undefined,
+      },
+    ]);
 
     /**
      * 切换索引集
@@ -194,6 +262,7 @@ export default defineComponent({
       selectLoading,
       keyword,
       filterMode,
+      customColumns,
       handleChangeIndexSet,
       t,
       handleGoLog,
@@ -238,6 +307,7 @@ export default defineComponent({
           />
         </div>
         <LogTableNew
+          customColumns={this.customColumns}
           getFieldsData={this.getFieldsData}
           getTableData={this.getTableData}
           refreshKey={this.tableRefreshKey}

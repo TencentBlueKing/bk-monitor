@@ -25,14 +25,12 @@
  */
 
 import { defineComponent, shallowRef, watch } from 'vue';
-import { computed } from 'vue';
 
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 
 import { useTable } from './hooks/use-table';
-import TableFieldSetting from './table-field-setting';
 
 import './log-table-new.scss';
 
@@ -51,6 +49,10 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    customColumns: {
+      type: Array,
+      default: () => [],
+    },
   },
   setup(props) {
     console.log(props);
@@ -63,32 +65,6 @@ export default defineComponent({
     const offset = shallowRef(0);
     const fieldsData = shallowRef(null);
     const expandedRowKeys = shallowRef([]);
-
-    /** 表格字段配置 */
-    const tableColumnsSetting = computed(() => {
-      return (
-        fieldsData.value?.fields.map(item => {
-          return {
-            id: item.field_name,
-            name: item.field_alias,
-            type: item.field_type,
-          };
-        }) || []
-      );
-    });
-    /** 需要展示的表格字段 */
-    const displayColumnFields = shallowRef([]);
-    /** 表格当前展示columns */
-    const displayTableColumns = computed(() => {
-      return displayColumnFields.value.map(item => {
-        const column = tableColumns.value.find(col => col.colKey === item);
-        return column;
-      });
-    });
-
-    const handleDisplayColumnFieldsChange = (val: string[]) => {
-      displayColumnFields.value = val;
-    };
 
     watch(
       () => props.refreshKey,
@@ -115,7 +91,6 @@ export default defineComponent({
 
     const getFieldsData = async () => {
       const res = await props.getFieldsData();
-      displayColumnFields.value = res?.display_fields || [];
       return res;
     };
 
@@ -129,11 +104,8 @@ export default defineComponent({
 
     return {
       tableData,
-      displayTableColumns,
       fieldsData,
-      tableColumnsSetting,
-      displayColumnFields,
-      handleDisplayColumnFieldsChange,
+      tableColumns,
       loading,
       offset,
       expandedRowKeys,
@@ -150,31 +122,7 @@ export default defineComponent({
         ) : (
           <PrimaryTable
             class='panel-log-log-table'
-            columns={[
-              // @ts-ignore
-              ...this.displayTableColumns,
-              {
-                width: '32px',
-                minWidth: '32px',
-                fixed: 'right',
-                align: 'center',
-                resizable: false,
-                thClassName: '__table-custom-setting-col__',
-                colKey: '__col_setting__',
-                // @ts-ignore
-                title: () => {
-                  return (
-                    <TableFieldSetting
-                      class='table-field-setting'
-                      sourceList={this.tableColumnsSetting}
-                      targetList={this.displayColumnFields}
-                      onConfirm={this.handleDisplayColumnFieldsChange}
-                    />
-                  );
-                },
-                cell: () => undefined,
-              },
-            ]}
+            columns={[...this.tableColumns, ...this.customColumns]}
             data={this.tableData}
             expandedRow={this.expandedRow}
             expandedRowKeys={this.expandedRowKeys}

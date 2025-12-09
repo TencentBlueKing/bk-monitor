@@ -26,7 +26,7 @@
 import { shallowRef, watch } from 'vue';
 import { onScopeDispose } from 'vue';
 
-import { searchAction } from 'monitor-api/modules/alert';
+import { searchAction } from 'monitor-api/modules/alert_v2';
 
 import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-detail';
 
