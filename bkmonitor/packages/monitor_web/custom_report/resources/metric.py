@@ -770,7 +770,7 @@ class ModifyCustomTsFields(Resource):
 
         # 更新维度
         if update_dimensions:
-            api.metadata.create_or_update_time_series_scope(scopes=update_dimensions)
+            api.metadata.create_or_update_time_series_scope(group_id=time_series_group_id, scopes=update_dimensions)
         # 更新指标
         if list(need_delete_metric_dict) or need_update_metrics or need_create_metrics:
             api.metadata.create_or_update_time_series_metric(
