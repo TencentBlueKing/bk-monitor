@@ -417,7 +417,10 @@ class UnifyQueryMappingHandler:
 
     @staticmethod
     def get_fields_directly(bk_biz_id: int, scenario_id: str, storage_cluster_id: int, result_table_id: str):
+        # 需要区分是 bkdata 还是其他
         source_type = scenario_id if scenario_id == Scenario.BKDATA else settings.UNIFY_QUERY_DATA_SOURCE
+        # 结果表拼接日期通配符
+        need_add_time = scenario_id == Scenario.BKDATA and not result_table_id.endswith("_*")
         params = {
             "bk_biz_id": bk_biz_id,
             "tsdb_map": {
@@ -427,7 +430,7 @@ class UnifyQueryMappingHandler:
                         "storage_type": "elasticsearch",
                         "storage_id": str(storage_cluster_id),
                         "db": result_table_id,
-                        "need_add_time": scenario_id == Scenario.BKDATA and not result_table_id.endswith("_*"),
+                        "need_add_time": need_add_time,
                     }
                 ]
             },
