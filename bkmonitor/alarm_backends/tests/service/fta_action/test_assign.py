@@ -1067,7 +1067,7 @@ class TestAssignManager:
 
     def test_assigned_users_consistency_with_matched_rule(self, setup, alert, user_group_setup, biz_mock, init_configs):
         """
-        测试分派规则匹配时，assigned_users 与 get_appointees/get_origin_no tice_receivers 返回值一致
+        测试分派规则匹配时，assigned_users 与 get_appointees/get_origin_notice_receivers 返回值一致
         """
         assignee_manager = AlertAssigneeManager(
             alert=alert,
