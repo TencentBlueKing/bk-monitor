@@ -936,11 +936,12 @@ class UnifyQueryHandler:
         bcs_cluster_id = log.get("__ext", dict()).get("bk_bcs_cluster_id")
 
         if bcs_cluster_id:
+            bcs_cluster_id = bcs_cluster_id.upper()
             log["__bcs_cluster_name__"] = ""
 
             # 获取 bcs 集群信息
             if bcs_cluster_id not in self.bcs_cluster_info_dict:
-                bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id.upper()})
+                bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id})
                 self.bcs_cluster_info_dict.update({bcs_cluster_id: bcs_cluster_info})
             else:
                 bcs_cluster_info = self.bcs_cluster_info_dict.get(bcs_cluster_id)
