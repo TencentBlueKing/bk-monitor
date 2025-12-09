@@ -23,12 +23,30 @@
       height: 16px;
       margin-right: 7px;
 
-      .claimed-expired {
+      .status-dot {
         width: 8px;
         height: 8px;
+        border-radius: 50%;
+      }
+
+      .status-failed {
         background: #FFDDDD;
         border: 1px solid #EA3636;
-        border-radius: 50%;
+      }
+
+      .status-success {
+        background: #CBF0DA;
+        border: 1px solid #2CAF5E;
+      }
+
+      .status-pending {
+        background: #FCE5C0;
+        border: 1px solid #F59500;
+      }
+
+      .status-stopped {
+        background: #F0F1F5;
+        border: 1px solid #C4C6CC;
       }
     }
   }
