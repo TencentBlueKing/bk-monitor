@@ -143,7 +143,7 @@ class AlertK8sScenarioListResource(Resource):
 
 class AlertK8sMetricListResource(Resource):
     """
-    根据告警 id 获取告警关联容器指标列表
+    根据容器观测场景 获取对应场景配置的指标列表
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -151,3 +151,22 @@ class AlertK8sMetricListResource(Resource):
 
     def perform_request(self, validated_request_data):
         return resource.k8s.scenario_metric_list(scenario=validated_request_data["scenario"])
+
+
+class AlertK8sTargetResource(Resource):
+    """
+    根据告警 id 获取告警关联容器对象
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        alert_id = serializers.CharField(label="告警 id")
+
+    def perform_request(self, validated_request_data):
+        alert_id = validated_request_data["alert_id"]
+        alert = AlertDocument.get(alert_id)
+        target_type = alert.event.target_type
+        if target_type in [K8STargetType.POD, K8STargetType.WORKLOAD, K8STargetType.NODE, K8STargetType.SERVICE]:
+            return {"target_type": target_type, "target": alert.event.target}
+        # todo: support other target type(apm)
+
+        raise {"target_type": "", "target": None}
