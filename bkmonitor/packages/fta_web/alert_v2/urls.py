@@ -13,14 +13,14 @@ from django.urls import include, re_path
 from core.drf_resource.routers import ResourceRouter
 from fta_web.alert_v2.views import (
     AlertV2ViewSet,
-    QuickAlertHandleViewSet,
-    SearchFavoriteViewSet,
+    QuickAlertHandleV2ViewSet,
+    SearchFavoriteV2ViewSet,
 )
 
 router = ResourceRouter()
 router.register(r"", AlertV2ViewSet, basename="alert_v2")
-router.register(r"", QuickAlertHandleViewSet, basename="quick_alert_handle_v2")
-router.register(r"search_favorite", SearchFavoriteViewSet, basename="search_favorite_v2")
+router.register(r"", QuickAlertHandleV2ViewSet, basename="quick_alert_handle_v2")
+router.register(r"search_favorite", SearchFavoriteV2ViewSet, basename="search_favorite_v2")
 
 urlpatterns = [
     re_path(r"^", include(router.urls)),
