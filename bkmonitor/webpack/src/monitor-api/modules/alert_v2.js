@@ -40,9 +40,6 @@ export const getTmpData = request('GET', 'fta/alert/alert/get_tmp_data/');
 export const getFourMetricsData = request('GET', 'fta/alert/alert/get_four_metrics_data/');
 export const quickAlertShield = request('GET', 'fta/alert/alert/quick_shield/');
 export const quickAlertAck = request('GET', 'fta/alert/alert/quick_ack/');
-export const alertDetail = request('GET', 'fta/alert/alert/detail/');
-export const quickAlertShield = request('GET', 'fta/alert/alert/quick_shield/');
-export const quickAlertAck = request('GET', 'fta/alert/alert/quick_ack/');
 
 export default {
   listAllowedBiz,
@@ -83,9 +80,6 @@ export default {
   getFourMetricsStrategy,
   getTmpData,
   getFourMetricsData,
-  quickAlertShield,
-  quickAlertAck,
-  alertDetail,
   quickAlertShield,
   quickAlertAck,
 };
