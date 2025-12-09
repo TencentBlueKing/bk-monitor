@@ -43,7 +43,7 @@ class AlertV2ViewSet(_BaseAlertViewSet):
     ]
 
 
-class QuickAlertHandleViewSet(_BaseQuickAlertHandleViewSet):
+class QuickAlertHandleV2ViewSet(_BaseQuickAlertHandleViewSet):
     """
     快捷告警处理V2版本 - 复用原有实现
     """
@@ -51,7 +51,7 @@ class QuickAlertHandleViewSet(_BaseQuickAlertHandleViewSet):
     pass
 
 
-class SearchFavoriteViewSet(_BaseSearchFavoriteViewSet):
+class SearchFavoriteV2ViewSet(_BaseSearchFavoriteViewSet):
     """
     搜索收藏V2版本 - 复用原有实现
     """

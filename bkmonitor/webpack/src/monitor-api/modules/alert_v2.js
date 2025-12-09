@@ -42,8 +42,8 @@ export const alertEvents = request('GET', 'fta/alert/v2/alert/events/');
 export const alertK8sScenarioList = request('GET', 'fta/alert/v2/alert/k8s_scenario_list/');
 export const alertK8sMetricList = request('GET', 'fta/alert/v2/alert/k8s_metric_list/');
 export const alertK8sTarget = request('GET', 'fta/alert/v2/alert/k8s_target/');
-export const quickAlertShield = request('GET', 'fta/alert/alert/quick_shield/');
-export const quickAlertAck = request('GET', 'fta/alert/alert/quick_ack/');
+export const quickAlertShield = request('GET', 'fta/alert/v2/alert/quick_shield/');
+export const quickAlertAck = request('GET', 'fta/alert/v2/alert/quick_ack/');
 
 export default {
   listAllowedBiz,
