@@ -26,7 +26,7 @@
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import { Button, Dialog, Input, Loading, Message } from 'bkui-vue';
-import { feedbackAlert } from 'monitor-api/modules/alert';
+import { feedbackAlert } from 'monitor-api/modules/alert_v2';
 import { useI18n } from 'vue-i18n';
 
 import './feedback.scss';
@@ -203,7 +203,7 @@ export default defineComponent({
         isShow={this.show}
         title={this.t('反馈')}
         onUpdate:isShow={this.handleShowChange}
-      ></Dialog>
+      />
     );
   },
 });

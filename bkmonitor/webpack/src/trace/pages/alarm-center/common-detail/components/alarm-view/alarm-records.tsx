@@ -35,7 +35,7 @@ import {
 } from 'vue';
 
 import { Checkbox } from 'bkui-vue';
-import { listAlertLog } from 'monitor-api/modules/alert';
+import { listAlertLog } from 'monitor-api/modules/alert_v2';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import { useI18n } from 'vue-i18n';
 

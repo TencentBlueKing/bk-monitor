@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { actionTopN, searchAction } from 'monitor-api/modules/alert';
+import { actionTopN, searchAction } from 'monitor-api/modules/alert_v2';
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
 import {

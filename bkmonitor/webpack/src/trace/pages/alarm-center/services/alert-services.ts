@@ -26,11 +26,12 @@
 
 import { isEn } from '@/i18n/i18n';
 
-import { alertTopN, searchAlert } from 'monitor-api/modules/alert';
+import { alertTopN, searchAlert } from 'monitor-api/modules/alert_v2';
 import { getMethodIdForLowerCase } from 'monitor-pc/pages/query-template/components/utils/utils';
 import { MetricDetailV2, QueryConfig } from 'monitor-pc/pages/query-template/typings';
 
 import {
+  type AlertTableItem,
   type AnalysisFieldAggItem,
   type AnalysisTopNDataResponse,
   type CommonFilterParams,

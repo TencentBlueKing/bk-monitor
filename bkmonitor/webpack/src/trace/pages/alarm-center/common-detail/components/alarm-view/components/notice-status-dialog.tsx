@@ -28,7 +28,7 @@ import { defineComponent, shallowRef, watch } from 'vue';
 
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Dialog } from 'bkui-vue';
-import { subActionDetail } from 'monitor-api/modules/alert';
+import { subActionDetail } from 'monitor-api/modules/alert_v2';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';

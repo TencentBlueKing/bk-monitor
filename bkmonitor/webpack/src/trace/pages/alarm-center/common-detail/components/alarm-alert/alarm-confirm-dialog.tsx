@@ -24,11 +24,11 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, shallowRef, watch } from 'vue';
-import { type PropType } from 'vue';
+import type { PropType } from 'vue';
 
 import { Alert, Button, Dialog, Input, Loading, Message } from 'bkui-vue';
 import { getActionConfigByAlerts } from 'monitor-api/modules/action';
-import { ackAlert } from 'monitor-api/modules/alert';
+import { ackAlert } from 'monitor-api/modules/alert_v2';
 import { useI18n } from 'vue-i18n';
 
 import './alarm-confirm-dialog.scss';

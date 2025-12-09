@@ -46,7 +46,7 @@ export const getLogFieldsData = request('GET' as any, 'apm_log_forward/bklog/api
 
 export const updateUserFiledTableConfig = request(
   'POST' as any,
-  'apm_log_forward/bklog/api/v1/search/index_set/{pk}/fields/'
+  'apm_log_forward/bklog/api/v1/search/index_set/user_custom_config/'
 );
 
 import TableFieldSetting from './log-table/table-field-setting';
