@@ -91,6 +91,7 @@ export const useExploreColumnConfig = ({
   mode,
   rowKeyField,
   sortContainer,
+  renderContext,
   tableHeaderCellRender,
   tableCellRender,
   handleConditionMenuShow,
@@ -142,7 +143,7 @@ export const useExploreColumnConfig = ({
         // 表格列表头渲染方法
         const tableHeaderTitle = tableHeaderCellRender(column.title as string, tipText, column);
         // 表格单元格渲染方法
-        const tableCell = (_, { row }) => tableCellRender(column, row);
+        const tableCell = (_, { row }) => tableCellRender(row, column, renderContext);
 
         return {
           ...defaultTableConfig,
@@ -530,8 +531,8 @@ export const useExploreColumnConfig = ({
           return value.map(v => ({
             alias: SPAN_KIND_MAPS[v]?.alias,
             value: v,
-            tagColor: '#63656e',
-            tagBgColor: 'rgba(151,155,165,.1)',
+            tagColor: '#4D4F56',
+            tagBgColor: '#F0F1F5',
           }));
         },
       },

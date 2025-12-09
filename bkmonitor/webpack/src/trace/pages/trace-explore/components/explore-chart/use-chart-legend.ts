@@ -28,7 +28,7 @@ import { type ShallowRef, shallowRef, watch } from 'vue';
 
 import type { ILegendItem, LegendActionType, ValueFormatter } from './types';
 
-export const useChartLegend = (options: ShallowRef<any, any>) => {
+export const useChartLegend = (options: ShallowRef<any, any>, chartId: ShallowRef<string, string>) => {
   const legendData = shallowRef([]);
   const seriesList = shallowRef([]);
 
@@ -84,6 +84,7 @@ export const useChartLegend = (options: ShallowRef<any, any>) => {
     }
     legendData.value = legendDataTemp;
   }
+
   function handleGetMinPrecision(data: number[], formatter: ValueFormatter, unit: string) {
     if (!data || data.length === 0) {
       return 0;
@@ -122,7 +123,6 @@ export const useChartLegend = (options: ShallowRef<any, any>) => {
       return;
     }
     const setSeriesFilter = () => {
-      // const copyOptions = { ...options.value };
       const showNames = [];
       for (const l of legendData.value) {
         l.show && showNames.push(l.name);
@@ -157,12 +157,11 @@ export const useChartLegend = (options: ShallowRef<any, any>) => {
     }
   }
 
-  const { stop } = watch(
-    () => options.value,
-    v => {
-      if (v?.series) {
-        getLegendData(v.series);
-        stop();
+  watch(
+    () => chartId.value,
+    () => {
+      if (options.value?.series) {
+        getLegendData(options.value.series);
       }
     },
     {

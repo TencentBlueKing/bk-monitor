@@ -1,0 +1,50 @@
+.alarm-center-detail-panel-k8s {
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fa;
+
+  .panel-k8s-white-bg-container {
+    flex-shrink: 0;
+    padding: 12px 24px;
+    background: #fff;
+    box-shadow: 0 0 12px 0 #00000014;
+
+    .k8s-condition-wrap {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+
+      .k8s-condition-container {
+        color: #313238;
+      }
+
+      .k8s-link-btn {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        margin-left: 16px;
+        line-height: 20px;
+        color: #3a84ff;
+        cursor: pointer;
+
+        &:hover {
+          color: #699df4;
+        }
+
+        .icon-mc-goto {
+          margin-left: 4px;
+          font-size: 15px;
+        }
+      }
+    }
+
+    .ai-hight-card-wrap {
+      margin-bottom: 12px;
+    }
+  }
+
+  .panel-k8s-chart-wrap {
+    flex: 1;
+    padding: 12px 24px;
+  }
+}
