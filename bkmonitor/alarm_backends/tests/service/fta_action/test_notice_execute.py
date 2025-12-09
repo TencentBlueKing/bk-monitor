@@ -4566,7 +4566,7 @@ class TestActionProcessor(TestCase):
                         processor = NoticeActionProcessor(action_id=action.id)
                         self.assertEqual(processor.voice_notice_mode, VoiceNoticeMode.PARALLEL)
                         processor.execute()
-                    except BaseException as error:
+                    except Exception as error:
                         print(f"Processor error: {error}")
                         continue
 
