@@ -12,8 +12,7 @@ import logging
 import time
 
 import arrow
-from django.db.transaction import atomic
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -41,21 +40,20 @@ class ModifyCustomTimeSeriesDesc(Resource):
             model = CustomTSTable
             fields = "__all__"
 
-    @atomic()
     def perform_request(self, validated_request_data):
-        time_series_obj = CustomTSTable.objects.filter(
+        ts_table = CustomTSTable.objects.filter(
             bk_biz_id=validated_request_data["bk_biz_id"],
             time_series_group_id=validated_request_data["time_series_group_id"],
         ).first()
-        if not time_series_obj:
+        if not ts_table:
             raise ValidationError(
                 "custom time series table not found, "
                 f"time_series_group_id: {validated_request_data['time_series_group_id']}"
             )
 
-        time_series_obj.desc = validated_request_data["desc"]
-        time_series_obj.save()
-        return time_series_obj
+        ts_table.desc = validated_request_data["desc"]
+        ts_table.save()
+        return ts_table
 
 
 class GetCustomTimeSeriesLatestDataByFields(Resource):
@@ -150,11 +148,13 @@ class ModifyCustomTsGroupingRuleList(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        test = serializers.CharField(label="测试字段")
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
         group_list = serializers.ListField(label="分组列表", child=CustomTSGroupingRuleSerializer(), default=[])
 
     def perform_request(self, validated_request_data):
+        print("old_metric")
         # 校验分组名称唯一
         group_names = {}
         for group in validated_request_data["group_list"]:
@@ -205,7 +205,7 @@ class GroupCustomTSItem(Resource):
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
 
     def perform_request(self, validated_request_data):
-        table = CustomTSTable.objects.get(
+        table: CustomTSTable = CustomTSTable.objects.get(
             bk_biz_id=validated_request_data["bk_biz_id"],
             time_series_group_id=validated_request_data["time_series_group_id"],
         )
