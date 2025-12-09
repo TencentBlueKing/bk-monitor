@@ -164,11 +164,33 @@ export default defineComponent({
       return '*';
     };
 
+    const renderAlarm = () => {
+      if (!['alarm_action', 'alarm_alert', 'alarm_incident'].includes(favoriteType.value)) {
+        return null;
+      }
+      const queryParams = (props.data?.config?.queryParams ||
+        {}) as IFavoriteGroup<'alarm_alert'>['favorites'][number]['config']['queryParams'];
+      const filterMode = props.data?.config?.componentData?.filterMode || EMode.ui;
+      if (filterMode === EMode.queryString || queryParams?.query_string) {
+        return <span>{queryParams.query_string}</span>;
+      }
+      if (filterMode === EMode.ui || queryParams?.conditions?.length) {
+        return (
+          <VueJsonPretty
+            data={queryParams}
+            deep={5}
+          />
+        );
+      }
+      return '*';
+    };
+
     return () => (
       <div class='favorite-box-favorite-info-query'>
         {renderEvent()}
         {renderMetric()}
         {renderTrace()}
+        {renderAlarm()}
       </div>
     );
   },
