@@ -369,7 +369,7 @@ class SearchViewSet(APIViewSet):
             search_handler = SearchHandlerEsquery(index_set_id, data)
             return Response(search_handler.scroll_search())
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+        if not FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data["index_set_ids"] = [index_set_id]
             query_handler = UnifyQueryHandler(data)
             return Response(query_handler.search())
@@ -1076,7 +1076,7 @@ class SearchViewSet(APIViewSet):
         if scope == SearchScopeEnum.DEFAULT.value and not is_realtime and not start_time and not end_time:
             # 使用缓存
             fields = self.get_object().get_fields(use_snapshot=True)
-        elif FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
+        elif not FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
             if not start_time and not end_time:
                 start_time = arrow.now().shift(days=-1).int_timestamp * 1000
                 end_time = arrow.now().int_timestamp * 1000
@@ -1581,7 +1581,7 @@ class SearchViewSet(APIViewSet):
         for info in data.get("union_configs", []):
             if not info.get("is_desensitize") and not is_verify:
                 info["is_desensitize"] = True
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+        if not FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             return Response(UnionSearchHandler(data).unifyquery_union_search())
         return Response(UnionSearchHandler(data).union_search())
 
@@ -1643,7 +1643,7 @@ class SearchViewSet(APIViewSet):
         if index_set_obj:
             data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+        if not FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             fields = UnionSearchHandler().unifyquery_union_search_fields(data)
         else:
             fields = UnionSearchHandler().union_search_fields(data)

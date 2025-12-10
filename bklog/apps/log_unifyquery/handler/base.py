@@ -936,11 +936,8 @@ class UnifyQueryHandler:
         bcs_cluster_id = log.get("__ext", dict()).get("bk_bcs_cluster_id")
 
         if bcs_cluster_id:
-            log["__bcs_cluster_name__"] = ""
-
             bcs_cluster_name = self._get_bcs_cluster_name(bcs_cluster_id)
-            if bcs_cluster_name:
-                log["__bcs_cluster_name__"] = bcs_cluster_name
+            log["__bcs_cluster_name__"] = bcs_cluster_name
 
         return log
 
@@ -951,17 +948,19 @@ class UnifyQueryHandler:
         bcs_cluster_id = bcs_cluster_id.upper()
 
         if bcs_cluster_id in self.log_bcs_cluster_info_dict:
-            return self.log_bcs_cluster_info_dict.get(bcs_cluster_id).get("clusterName")
+            return self.log_bcs_cluster_info_dict.get(bcs_cluster_id)
+
+        bcs_cluster_name = ""
 
         try:
             bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id})
-            self.log_bcs_cluster_info_dict.update({bcs_cluster_id: bcs_cluster_info})
+            bcs_cluster_name = bcs_cluster_info.get("clusterName", "")
         except Exception as e:
             logger.exception("get cluster info by cluster id error: %s, cluster_id: %s", e, bcs_cluster_id)
-            bcs_cluster_info = dict()
-            self.log_bcs_cluster_info_dict.update({bcs_cluster_id: bcs_cluster_info})
 
-        return bcs_cluster_info.get("clusterName")
+        self.log_bcs_cluster_info_dict.update({bcs_cluster_id: bcs_cluster_name})
+
+        return bcs_cluster_name
 
     def _add_cmdb_fields(self, log):
         if not self.search_params.get("bk_biz_id"):
