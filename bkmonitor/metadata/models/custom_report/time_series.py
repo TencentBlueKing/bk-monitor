@@ -2027,32 +2027,19 @@ class TimeSeriesMetric(models.Model):
     def _bulk_create_metrics(
         cls,
         metrics_dict: dict,
+        need_create_metrics: list | set,
         group_id: int,
         table_id: str,
         is_auto_discovery: bool,
-        need_create_metrics: set | None = None,
-        need_create_metrics_with_scope: set | None = None,
     ) -> bool:
-        """批量创建指标
-
-        :param metrics_dict: 指标信息字典
-        :param group_id: 分组ID
-        :param table_id: 结果表ID
-        :param is_auto_discovery: 是否自动发现
-        :param need_create_metrics: 需要创建的字段名集合，格式: set[field_name, ...]
-        :param need_create_metrics_with_scope: 需要创建的 (field_name, field_scope) 组合集合，格式: set[(field_name, field_scope), ...]
-        """
+        """批量创建指标"""
         # 根据传入的参数选择不同的处理函数
-        if need_create_metrics_with_scope:
+        if need_create_metrics:
             records, scope_dimensions_map = cls._create_metrics_with_combinations(
-                metrics_dict, need_create_metrics_with_scope, group_id, table_id, is_auto_discovery
-            )
-        elif need_create_metrics:
-            records, scope_dimensions_map = cls._create_metrics_with_field_names(
                 metrics_dict, need_create_metrics, group_id, table_id, is_auto_discovery
             )
         else:
-            # 如果两个参数都为空，直接返回
+            # 如果参数为空，直接返回
             return False
 
         # 批量创建 TimeSeriesScope 记录，并传入对应的维度列表
@@ -2206,32 +2193,18 @@ class TimeSeriesMetric(models.Model):
     def _bulk_update_metrics(
         cls,
         metrics_dict: dict,
+        need_update_metrics: list | set,
         group_id: int,
         is_auto_discovery: bool,
-        need_update_metrics: set | None = None,
-        need_update_metrics_with_scope: set | None = None,
     ) -> bool:
-        """批量更新指标，针对记录仅更新最后更新时间和 tag 字段
-
-        :param metrics_dict: 指标信息字典
-        :param group_id: 分组ID
-        :param is_auto_discovery: 是否自动发现
-        :param need_update_metrics: 需要更新的字段名集合，格式: set[field_name, ...]
-        :param need_update_metrics_with_scope: 需要更新的 (field_name, field_scope) 组合集合，格式: set[(field_name, field_scope), ...]
-        """
+        """批量更新指标，针对记录仅更新最后更新时间和 tag 字段"""
         # 根据传入的参数选择不同的处理函数
-        if need_update_metrics_with_scope:
+        if need_update_metrics:
             records, white_list_disabled_metric, scope_dimensions_map, need_push_router = (
-                cls._update_metrics_with_combinations(
-                    metrics_dict, need_update_metrics_with_scope, group_id, is_auto_discovery
-                )
-            )
-        elif need_update_metrics:
-            records, white_list_disabled_metric, scope_dimensions_map, need_push_router = (
-                cls._update_metrics_with_field_names(metrics_dict, need_update_metrics, group_id, is_auto_discovery)
+                cls._update_metrics_with_combinations(metrics_dict, need_update_metrics, group_id, is_auto_discovery)
             )
         else:
-            # 如果两个参数都为空，直接返回
+            # 如果参数为空，直接返回
             return False
 
         # 白名单模式，如果存在需要禁用的指标，则需要删除；应该不会太多，直接删除
@@ -2467,29 +2440,24 @@ class TimeSeriesMetric(models.Model):
             expected_combinations.add((field_name, field_scope))
 
         # 计算需要创建和更新的记录
-        need_create_combinations = expected_combinations - existing_combinations
-        need_update_combinations = expected_combinations & existing_combinations
-        logger.info(
-            f"need_create_combinations: {need_create_combinations}, need_update_combinations: {need_update_combinations}"
-        )
+        need_create_metrics = expected_combinations - existing_combinations
+        need_update_metrics = expected_combinations & existing_combinations
 
         # NOTE: 针对创建或者时间变动时，推送路由数据
         need_push_router = False
         # 如果存在，则批量创建
-        if need_create_combinations:
-            # 统一使用新格式：传递完整的 combinations
+        if need_create_metrics:
             need_push_router = cls._bulk_create_metrics(
                 _metrics_dict,
+                need_create_metrics,
                 group_id,
                 table_id,
                 is_auto_discovery,
-                need_create_metrics_with_scope=need_create_combinations,
             )
         # 批量更新
-        if need_update_combinations:
-            # 统一使用新格式：传递完整的 combinations
+        if need_update_metrics:
             need_push_router |= cls._bulk_update_metrics(
-                _metrics_dict, group_id, is_auto_discovery, need_update_metrics_with_scope=need_update_combinations
+                _metrics_dict, need_update_metrics, group_id, is_auto_discovery
             )
 
         return need_push_router
