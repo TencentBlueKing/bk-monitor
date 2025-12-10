@@ -182,7 +182,7 @@ class ModifyClusterInfoResource(Resource):
         bk_tenant_id = TenantIdField(label="租户ID")
         cluster_id = serializers.IntegerField(required=False, label="存储集群ID", default=None)
         cluster_name = serializers.RegexField(
-            required=False, label="存储集群名", default=None, regex=models.ClusterInfo.CLUSTER_NAME_REGEX
+            required=False, label="存储集群名", regex=models.ClusterInfo.CLUSTER_NAME_REGEX
         )
         cluster_type = serializers.CharField(required=False, label="存储集群类型", default=None)
         display_name = serializers.CharField(required=False, max_length=128, label="集群显示名称", default=None)
@@ -207,7 +207,7 @@ class ModifyClusterInfoResource(Resource):
 
         # 1. 判断是否存在cluster_id或者cluster_name
         cluster_id: int = validated_request_data.pop("cluster_id")
-        cluster_name: str = validated_request_data.pop("cluster_name")
+        cluster_name: str = validated_request_data.pop("cluster_name", None)
 
         if cluster_id is None and cluster_name is None:
             raise ValueError(_("需要至少提供集群ID或集群名"))
