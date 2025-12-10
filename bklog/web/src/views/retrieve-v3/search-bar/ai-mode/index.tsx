@@ -1,10 +1,35 @@
-import { defineComponent, ref, nextTick, PropType, computed } from 'vue';
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { defineComponent, ref, nextTick, PropType } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
 import { AiQueryResult } from '../types';
 import BklogPopover from '@/components/bklog-popover';
-import useStore from '@/hooks/use-store';
+import EditInput from '@/global/edit-input';
 
 import './index.scss';
 
@@ -12,7 +37,7 @@ type AiModeStatus = 'default' | 'inputting' | 'searching';
 
 export default defineComponent({
   name: 'V3AiMode',
-  emits: ['height-change', 'text-to-query', 'edit-sql'],
+  emits: ['height-change', 'text-to-query', 'edit-sql', 'filter-change'],
   props: {
     isAiLoading: {
       type: Boolean,
@@ -21,6 +46,10 @@ export default defineComponent({
     aiQueryResult: {
       type: Object as PropType<AiQueryResult>,
       default: () => ({ startTime: '', endTime: '', queryString: '' }),
+    },
+    filterList: {
+      type: Array as PropType<string[]>,
+      default: () => [],
     },
   },
   setup(props, { emit }) {
@@ -34,10 +63,6 @@ export default defineComponent({
     const aiModeRootRef = ref<HTMLDivElement | null>(null);
     const containerWidth = ref<number>(600);
     const parsedTextRef = ref<InstanceType<typeof BklogPopover> | null>(null);
-
-    const store = useStore();
-
-    const aiFilterList = computed<string[]>(() => store.state.aiMode.filterList ?? []);
 
     const handleHeightChange = (height: number) => {
       emit('height-change', height);
@@ -56,7 +81,7 @@ export default defineComponent({
       const target = e.target as HTMLTextAreaElement;
       currentInput.value = target.value;
       inputValue.value = parsedText.value + currentInput.value;
-      
+
       if (inputValue.value.length > 0) {
         status.value = 'inputting';
       } else {
@@ -90,14 +115,14 @@ export default defineComponent({
       if (textareaRef.value) {
         const selectionStart = textareaRef.value.selectionStart;
         const selectionEnd = textareaRef.value.selectionEnd;
-        
+
         if (e.key === 'Backspace' || e.key === 'Delete') {
           if (selectionStart < parsedText.value.length || selectionEnd < parsedText.value.length) {
             e.preventDefault();
             return;
           }
         }
-        
+
         // 防止光标移动到已解析部分
         if (e.key === 'ArrowLeft' && selectionStart <= parsedText.value.length) {
           e.preventDefault();
@@ -147,16 +172,33 @@ export default defineComponent({
     };
 
     const handleRemoveFilter = (item: string) => {
-      const index = store.state.aiMode.filterList.indexOf(item);
+      const newFilterList = [...props.filterList];
+      const index = newFilterList.indexOf(item);
       if (index > -1) {
-        store.state.aiMode.filterList.splice(index, 1);
-        store.dispatch('requestIndexSetQuery');
+        newFilterList.splice(index, 1);
+        emit('filter-change', newFilterList);
+      }
+    };
+
+    const handleFilterChange = (oldValue: string, newValue: string) => {
+      const newFilterList = [...props.filterList];
+      const index = newFilterList.indexOf(oldValue);
+
+      if (index > -1) {
+        const trimmedValue = newValue.trim();
+        if (trimmedValue) {
+          // 更新值
+          newFilterList[index] = trimmedValue;
+        } else {
+          // 如果新值为空，删除该项
+          newFilterList.splice(index, 1);
+        }
+        emit('filter-change', newFilterList);
       }
     };
 
     const handleClearAllFilters = () => {
-      store.state.aiMode.filterList = [];
-      store.dispatch('requestIndexSetQuery');
+      emit('filter-change', []);
     };
 
     const getHoverContent = () => {
@@ -178,7 +220,7 @@ export default defineComponent({
                     ref={parsedTextRef}
                     class="ai-parsed-text"
                     trigger="hover"
-                    content={ getHoverContent }
+                    content={getHoverContent}
                     options={{
                       appendTo: document.body,
                       theme: 'bklog-basic-light',
@@ -236,7 +278,7 @@ export default defineComponent({
               </div>
 
             </div>
-            { props.isAiLoading && [
+            {props.isAiLoading && [
               <div class="ai-loading-info" key="loading-info">
                 <span class="ai-loading-text">{t('AI 解析中...')}</span>
               </div>,
@@ -248,18 +290,23 @@ export default defineComponent({
           </button>
         </div>
         <div class="query-list">
-          { aiFilterList.value.map(item => (
-            <div class="query-list-item" key={item}>
-              <span class="query-list-item-text">{item}</span>
-              <i 
-                class="bklog-icon bklog-close" 
-                onClick={() => handleRemoveFilter(item)}
-              ></i>
-            </div>
+          {props.filterList.map(item => (
+            <EditInput
+              key={item}
+              value={item}
+              showDelete={true}
+              maxWidth={320}
+              on-change={(newValue: string) => {
+                handleFilterChange(item, newValue);
+              }}
+              on-delete={() => {
+                handleRemoveFilter(item);
+              }}
+            />
           ))}
-          { aiFilterList.value.length > 0 && (
-            <i 
-              class="bklog-icon bklog-qingkong query-list-clear-all" 
+          {props.filterList.length > 0 && (
+            <i
+              class="bklog-icon bklog-qingkong query-list-clear-all"
               onClick={handleClearAllFilters}
             ></i>
           )}

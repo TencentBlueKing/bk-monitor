@@ -30,6 +30,7 @@ import useElementEvent from '@/hooks/use-element-event';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useStore from '@/hooks/use-store';
+import useRetrieveParams from '@/hooks/use-retrieve-params';
 import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
@@ -59,6 +60,10 @@ export default defineComponent({
     const isAiLoading = ref(false);
     const searchMode = ref<'normal' | 'ai'>('normal');
     const aiQueryResult = ref<AiQueryResult>({ startTime: '', endTime: '', queryString: '' });
+    const aiFilterList = computed<string[]>(() => (store.state.aiMode.filterList ?? [])
+      .filter(f => !/^\s*\*?\s*$/.test(f)));
+
+    const { setRouteParamsByKeywordAndAddition } = useRetrieveParams();
 
     // const aiSpanStyle = {
     //   background: 'linear-gradient(115deg, #235DFA 0%, #E28BED 100%)',
@@ -114,6 +119,13 @@ export default defineComponent({
      */
     const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
     const formatValue = computed(() => store.getters.retrieveParams.format);
+
+    /**
+     * 当前搜索模式：'ui' | 'sql'
+     */
+    const currentSearchMode = computed<'ui' | 'sql'>(() =>
+      store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui'
+    );
     /**
      * 更新AI助手位置
      */
@@ -170,8 +182,17 @@ export default defineComponent({
         // 切换模式
         if (searchMode.value === 'normal') {
           searchMode.value = 'ai';
-          store.commit(SET_APP_STATE, { aiMode: { active: true, filterList: [] } });
-          
+          const keyword = store.getters.retrieveParams.keyword;
+          store.state.aiMode.filterList = [keyword].filter(f => !/^\s*\*?\s*$/.test(f));
+          store.state.aiMode.active = true;
+          store.state.indexItem.keyword = '';
+
+          // 打点：通过Tab键切换到AI模式
+          RetrieveHelper.reportLog({
+            ai_scenario: 'tab_switch',
+            trigger_source: 'tab_key',
+          }, store.state);
+
           // 切换到 AI 模式后，聚焦到 AI 输入框
           nextTick(() => {
             const aiModeEl = aiModeRef.value?.$el || aiModeRef.value;
@@ -181,17 +202,26 @@ export default defineComponent({
             }
           });
         } else {
+          // 先更新 storage 和 indexItem，确保 V2SearchBar 能读取到正确的模式
+          store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+          store.commit('updateIndexItemParams', { keyword: aiFilterList.value.join(' AND '), search_mode: 'sql' });
+
+          // 更新路由参数以同步状态（需要在 nextTick 之前更新，确保路由参数正确）
+          setRouteParamsByKeywordAndAddition();
+
           searchMode.value = 'normal';
-          store.commit(SET_APP_STATE, { aiMode: { active: false, filterList: [] } });
+          store.state.aiMode.active = false;
+          store.state.aiMode.filterList = [];
           Object.assign(aiQueryResult.value, { startTime: '', endTime: '', queryString: '' });
 
-          // 切换到常规模式后，聚焦到搜索框
+          // 切换到常规模式后，点击搜索框容器以触发自动 focus
           nextTick(() => {
             const searchBarEl = searchBarRef.value?.$el || searchBarRef.value;
-            const searchInput = searchBarEl?.querySelector?.('input[type="text"]') 
-              || searchBarEl?.querySelector?.('input');
-            if (searchInput) {
-              searchInput.focus();
+            // 找到搜索框容器，点击后会自动触发 focus
+            const searchInputContainer = searchBarEl?.querySelector?.('.search-bar-container')
+              || searchBarEl?.querySelector?.('.search-input');
+            if (searchInputContainer) {
+              searchInputContainer.click();
             }
           });
         }
@@ -221,6 +251,13 @@ export default defineComponent({
       e.stopPropagation();
       e.preventDefault();
       e.stopImmediatePropagation();
+
+      // 打点：点击AI编辑按钮打开对话框
+      RetrieveHelper.reportLog({
+        ai_scenario: 'ai_edit_dialog',
+        trigger_source: `${currentSearchMode.value}_mode`,
+      }, store.state);
+
       const rect = searchBarRef.value?.getRect();
       const left = rect?.left;
       const top = rect?.top + rect?.height + 4;
@@ -252,10 +289,18 @@ export default defineComponent({
     /**
      * 使用AI编辑
      * @param value 查询语句
+     * @param triggerSource 触发来源：'ui_mode' | 'sql_mode' | 'ai_mode'
      * @returns {void}
      */
-    const handleTextToQuery = (value: string): void => {
+    const handleTextToQuery = (value: string, triggerSource: 'ui_mode' | 'sql_mode' | 'ai_mode' = 'ai_mode'): void => {
       isAiLoading.value = true;
+
+      // 打点：AI 自动补全（统计所有来源：UI/SQL/AI 模式）
+      RetrieveHelper.reportLog({
+        ai_scenario: 'auto_complete',
+        trigger_source: triggerSource,
+      }, store.state);
+
       RetrieveHelper.aiAssitantHelper
         .requestTextToQueryString({
           index_set_id: store.state.indexItem.ids[0],
@@ -322,6 +367,19 @@ export default defineComponent({
     };
 
     /**
+     * 处理 filterList 变化
+     * @param newFilterList 新的 filterList
+     */
+    const handleFilterChange = (newFilterList: string[]) => {
+      // 更新 store 中的 filterList
+      store.state.aiMode.filterList = newFilterList;
+      // 触发查询
+      store.dispatch('requestIndexSetQuery');
+      // 更新 URL 参数
+      setRouteParamsByKeywordAndAddition();
+    };
+
+    /**
      * 渲染搜索栏
      * @returns
      */
@@ -333,9 +391,13 @@ export default defineComponent({
               ref={aiModeRef}
               is-ai-loading={isAiLoading.value}
               ai-query-result={aiQueryResult.value}
+              filter-list={aiFilterList.value}
               on-height-change={handleHeightChange}
-              on-text-to-query={handleTextToQuery}
+              on-text-to-query={(value: string) => {
+                handleTextToQuery(value, 'ai_mode');
+              }}
               on-edit-sql={handleEditSql}
+              on-filter-change={handleFilterChange}
             />
           </div>
         );
@@ -346,7 +408,11 @@ export default defineComponent({
           class='v3-search-bar-root'
           ref={searchBarRef}
           on-height-change={handleHeightChange}
-          on-text-to-query={handleTextToQuery}
+          on-text-to-query={(value: string) => {
+            // 根据当前模式确定触发来源
+            const triggerSource = `${currentSearchMode.value}_mode` as 'ui_mode' | 'sql_mode';
+            handleTextToQuery(value, triggerSource);
+          }}
           is-ai-loading={isAiLoading.value}
           {...{
             scopedSlots: {
