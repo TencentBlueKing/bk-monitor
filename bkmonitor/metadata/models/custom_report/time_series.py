@@ -35,7 +35,6 @@ from metadata.models.constants import (
     BULK_UPDATE_BATCH_SIZE,
     DB_DUPLICATE_ID,
     DataIdCreatedFromSystem,
-    UNGROUP_SCOPE_NAME,
 )
 from metadata.models.data_source import DataSource
 from metadata.models.result_table import (
@@ -53,6 +52,157 @@ from .base import CustomGroupBase
 logger = logging.getLogger("metadata")
 
 
+class ScopeName:
+    """
+    多级分组代理对象
+
+    支持多级分组，例如：
+    - 一级分组: "default"
+    - 二级分组: "service_name||scope_name" -> "api-server||production"
+    - 未分组: "" (空串)
+    - 多级分组中最后一级为空串表示未分组: "api-server||"
+    """
+
+    SEPARATOR = "||"
+    UNGROUPED = ""
+
+    @classmethod
+    def levels(cls, scope_name: str) -> list[str]:
+        """
+        获取所有层级的值列表
+
+        :param scope_name: 完整的 scope_name，例如 "service_name||endpoint_name"
+        :return: 层级值列表，例如 ["service_name", "endpoint_name"]
+        """
+        if not scope_name:
+            return []
+        return [level for level in scope_name.split(cls.SEPARATOR) if level]
+
+    @classmethod
+    def get_ungrouped_name(cls, prefix_levels: list[str] | None = None) -> str:
+        """
+        获取未分组的 scope_name
+
+        不同层级的未分组名称是不同的：
+        - 一级未分组: "" (空字符串)
+        - 多级未分组: "service_name||" (保留前缀和分隔符)
+
+        :param prefix_levels: 前缀层级列表，例如 ["service_name"] 表示二级分组的未分组
+        :return: 未分组的 scope_name
+
+        示例：
+        - get_ungrouped_name() -> ""  # 一级未分组
+        - get_ungrouped_name(["api-server"]) -> "api-server||"  # 二级未分组
+        - get_ungrouped_name(["api-server", "production"]) -> "api-server||production||"  # 三级未分组
+        """
+        if not prefix_levels:
+            return cls.UNGROUPED
+        return cls.SEPARATOR.join(prefix_levels) + cls.SEPARATOR
+
+    @classmethod
+    def from_group_key(cls, group_key: str, metric_group_dimensions: dict | None = None) -> str:
+        """
+        从 group_key 转换为 field_scope 字符串（仅用于 get_metric_from_bkdata）
+
+        :param group_key: 例如 "service_name:api-server||scope_name:production"
+        :param metric_group_dimensions: 分组维度配置，例如 {
+            "service_name": {"index": 0, "default_value": "unknown_service"},
+            "scope_name": {"index": 1, "default_value": "default"}
+        }
+        :return: field_scope 字符串
+        """
+        if not group_key or not metric_group_dimensions:
+            return TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
+
+        # 解析 group_key 为键值对
+        key_value_map = {}
+        for part in group_key.split(cls.SEPARATOR):
+            if ":" in part:
+                key, value = part.split(":", 1)
+                if value.strip():
+                    key_value_map[key.strip()] = value.strip()
+
+        # 按 index 排序，提取值并拼接
+        sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
+        levels = []
+        for dim_name, dim_config in sorted_dims:
+            value = key_value_map.get(dim_name) or dim_config.get("default_value", "")
+            if not value:
+                # 如果有空值，返回默认值
+                return TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
+            levels.append(value)
+
+        # 拼接并返回
+        result = cls.SEPARATOR.join(levels)
+        return result if result else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
+
+    @classmethod
+    def from_field_scope(cls, field_scope: str) -> str:
+        """
+        metric field_scope 转换为 scope scope_name
+
+        规则：
+        - 如果是 default 分组（一级或多级），转换为未分组格式
+          - 一级 default: "default" -> ""
+          - 多级 default: "service_name||default" -> "service_name||"
+        - 其他分组保持原样
+
+        :param field_scope: 指标的 field_scope 值
+        :return: 数据库存储格式的分组名
+        """
+        if cls.is_default_data_field_scope(field_scope):
+            # 如果是 default 分组，转换为数据库存储格式
+            if cls.SEPARATOR in field_scope:
+                # 多级分组：将最后一级的 default 替换为空串
+                return field_scope.rsplit(cls.SEPARATOR, 1)[0] + cls.SEPARATOR
+            else:
+                # 一级分组：直接返回空串（未分组）
+                return cls.UNGROUPED
+        else:
+            # 非 default 分组，保持原样
+            return field_scope
+
+    @classmethod
+    def is_default_data_field_scope(cls, field_scope: str) -> bool:
+        """
+        判断指定的 field_scope 是否为 default 分组（一级或多级）
+
+        示例：
+        - 一级分组: "default"
+        - 多级分组: "service_name||default"
+
+        :param field_scope: 指标的 field_scope 值
+        :return: 如果是 default 分组返回 True，否则返回 False
+        """
+        return field_scope == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME or field_scope.endswith(
+            f"{cls.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
+        )
+
+    @classmethod
+    def is_ungrouped(cls, scope_name: str | None) -> bool:
+        """
+        判断是否属于未分组：一级未分组（空字符串）或多级未分组（以分隔符结尾）
+        :param scope_name: 分组名称
+        :return: 如果是未分组返回 True，否则返回 False
+        """
+        if not scope_name:
+            return False
+        return scope_name == cls.UNGROUPED or scope_name.endswith(cls.SEPARATOR)
+
+    @classmethod
+    def exclude_ungrouped_filter(cls) -> Q:
+        """
+        获取排除所有未分组 scope 的查询过滤器
+
+        用于排除：
+        - 一级未分组（空字符串）
+        - 多级未分组（以分隔符结尾的 scope_name）
+
+        :return: Q 对象，用于排除未分组的 scope
+        """
+        return ~Q(Q(scope_name=cls.get_ungrouped_name()) | Q(scope_name__endswith=cls.SEPARATOR))
+
+
 class TimeSeriesGroup(CustomGroupBase):
     """
     自定义时序数据源
@@ -67,8 +217,8 @@ class TimeSeriesGroup(CustomGroupBase):
 
     time_series_group_id = models.AutoField(verbose_name="分组ID", primary_key=True)
     time_series_group_name = models.CharField(verbose_name="自定义时序分组名", max_length=255)
-    # 指标分组的维度key配置，例如 ["service_name", "scope_name"]
-    metric_group_dimensions = models.JSONField(verbose_name="指标分组的维度key配置", default=[])
+    # 指标分组的维度key配置，{"service_name": {"index": 0, "default_value": "unknown_service"}, ...}
+    metric_group_dimensions = models.JSONField(verbose_name="指标分组的维度key配置", default=dict)
 
     # 默认表名
     DEFAULT_MEASUREMENT = "__default__"
@@ -93,6 +243,15 @@ class TimeSeriesGroup(CustomGroupBase):
 
     # dimension字段配置
     STORAGE_EVENT_NAME_OPTION = {}
+
+    @property
+    def metric_group_dimensions_list(self) -> list[str]:
+        """获取 metric_group_dimensions 列表格式（按 index 排序）"""
+        if not self.metric_group_dimensions:
+            return []
+        # 按照 index 排序，然后提取维度名称
+        sorted_dims = sorted(self.metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
+        return [dim_name for dim_name, _ in sorted_dims]
 
     STORAGE_FIELD_LIST = [
         {
@@ -369,6 +528,39 @@ class TimeSeriesGroup(CustomGroupBase):
 
     def bulk_refresh_rt_fields(self, table_id: str, metric_info: list):
         """批量刷新结果表打平的指标和维度"""
+        # 根据field_name聚合metric_info，合并tag_value_list
+        aggregated_metrics = defaultdict(lambda: {"tag_value_list": {}, "tag_list": []})
+
+        for item in metric_info:
+            field_name = item.get("field_name")
+            if not field_name:
+                continue
+
+            # 初始化聚合数据
+            aggregated_metrics[field_name].setdefault("field_name", field_name)
+
+            # 合并 tag_value_list
+            tag_value_list = item.get("tag_value_list", {})
+            if tag_value_list:
+                for tag_name, tag_info in tag_value_list.items():
+                    existing_tag = aggregated_metrics[field_name]["tag_value_list"].get(tag_name)
+                    new_values = set(tag_info.get("values", []))
+                    new_update_time = tag_info.get("last_update_time", 0)
+
+                    if existing_tag:
+                        # 合并 values（去重）并取最新的 last_update_time
+                        existing_tag["values"] = list(set(existing_tag["values"]) | new_values)
+                        existing_tag["last_update_time"] = max(existing_tag["last_update_time"], new_update_time)
+                    else:
+                        # 新建 tag 信息
+                        aggregated_metrics[field_name]["tag_value_list"][tag_name] = {
+                            "last_update_time": new_update_time,
+                            "values": list(new_values),
+                        }
+
+        # 将聚合后的数据转换为列表
+        metric_info = list(aggregated_metrics.values())
+
         # 创建或更新
         metric_tag_info = self._refine_metric_tags(metric_info)
         # 通过结果表过滤到到指标和维度
@@ -413,6 +605,11 @@ class TimeSeriesGroup(CustomGroupBase):
         is_updated = TimeSeriesMetric.bulk_refresh_ts_metrics(
             group_id, group.table_id, metric_info, group.is_auto_discovery()
         )
+        # 刷新 tsScope 中的维度
+        TimeSeriesScope.refresh_scopes_for_metrics(group_id, metric_info)
+        # 为所有 metric 记录设置 scope_id
+        TimeSeriesMetric.bulk_update_scope_ids(group_id, metric_info)
+        # 刷新 rt 表中的指标和维度
         self.bulk_refresh_rt_fields(group.table_id, metric_info)
         return is_updated
 
@@ -471,8 +668,29 @@ class TimeSeriesGroup(CustomGroupBase):
                 logger.warning("invalid metric name: %s", md["name"])
                 continue
 
-            # 兼容旧的 dimensions 格式
-            if "dimensions" in md:
+            if self.metric_group_dimensions:
+                latest_update_time = 0
+                for group_key, group_info in md["group_dimensions"].items():
+                    # 获取最新的更新时间
+                    update_time = group_info.get("update_time", 0)
+                    if update_time > latest_update_time:
+                        latest_update_time = update_time
+
+                    tag_value_list = {}
+                    for dim_name in group_info.get("dimensions", []):
+                        tag_value_list[dim_name] = {
+                            "last_update_time": update_time,
+                            "values": [],
+                        }
+
+                    item = {
+                        "field_name": md["name"],
+                        "field_scope": ScopeName.from_group_key(group_key, self.metric_group_dimensions),
+                        "last_modify_time": latest_update_time // 1000,
+                        "tag_value_list": tag_value_list,
+                    }
+                    ret_data.append(item)
+            else:
                 tag_value_list = {}
                 for d in md["dimensions"]:
                     tag_value_list[d["name"]] = {
@@ -481,62 +699,17 @@ class TimeSeriesGroup(CustomGroupBase):
                     }
                 item = {
                     "field_name": md["name"],
+                    "field_scope": TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME,
                     "last_modify_time": md["update_time"] // 1000,
                     "tag_value_list": tag_value_list,
                 }
-            # 处理新的 group_dimensions 格式
-            elif "group_dimensions" in md:
-                # 收集所有维度组合中的维度名称
-                all_dimensions = set()
-                latest_update_time = 0
-                # 保存分组信息
-                group_dimensions_info = {}
-                # 构造 tag_value_list，用于存储每个维度的更新时间和值列表
-                tag_value_list = {}
-
-                for group_key, group_info in md["group_dimensions"].items():
-                    dimensions = group_info.get("dimensions", [])
-                    all_dimensions.update(dimensions)
-                    # 获取最新的更新时间
-                    update_time = group_info.get("update_time", 0)
-                    if update_time > latest_update_time:
-                        latest_update_time = update_time
-                    # 保存分组信息
-                    group_dimensions_info[group_key] = {
-                        "dimensions": dimensions,
-                        "update_time": update_time,
-                    }
-
-                    for dim_name in dimensions:
-                        if dim_name not in tag_value_list:
-                            # 使用默认值：空列表表示该维度存在但暂无具体值
-                            tag_value_list[dim_name] = {
-                                "last_update_time": update_time,
-                                "values": [],
-                            }
-                        else:
-                            # 如果维度已存在，更新为最新的时间和值
-                            if update_time > tag_value_list[dim_name]["last_update_time"]:
-                                tag_value_list[dim_name]["last_update_time"] = update_time
-
-                item = {
-                    "field_name": md["name"],
-                    "last_modify_time": latest_update_time // 1000,
-                    "tag_value_list": tag_value_list,
-                    "group_dimensions": group_dimensions_info,  # 添加分组信息
-                }
-            else:
-                logger.warning("metric %s has no dimensions or group_dimensions", md["name"])
-                continue
-
-            ret_data.append(item)
+                ret_data.append(item)
         return ret_data
 
     def get_metrics_from_redis(self, expired_time: int | None = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):
         """从 redis 中获取数据
 
         其中，redis 中数据有 transfer 上报
-        而从 bkdata 获取指标数据有两个版本，对于 v2 版本，仅有 update_time_series_metrics() 方法对其兼容
         """
         # 从 bkdata 获取指标数据
         data = RedisTools.get_list(config.METADATA_RESULT_TABLE_WHITE_LIST)
@@ -600,6 +773,7 @@ class TimeSeriesGroup(CustomGroupBase):
                 metrics_info.append(
                     {
                         "field_name": field_name,
+                        "field_scope": TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME,
                         "tag_value_list": dimensions,
                         "last_modify_time": metric_with_score[1],
                     }
@@ -648,7 +822,7 @@ class TimeSeriesGroup(CustomGroupBase):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
-        metric_group_dimensions: list[str] | None = None,
+        metric_group_dimensions: dict | None = None,
     ):
         """
         创建一个新的自定义分组记录
@@ -695,9 +869,10 @@ class TimeSeriesGroup(CustomGroupBase):
 
     @classmethod
     def _post_process_create(cls, custom_group, kwargs):
-        # None 和 [] 都不保存
-        if kwargs.get("metric_group_dimensions"):
-            custom_group.metric_group_dimensions = kwargs["metric_group_dimensions"]
+        """后处理创建"""
+        metric_group_dimensions = kwargs.get("metric_group_dimensions")
+        if metric_group_dimensions:
+            custom_group.metric_group_dimensions = metric_group_dimensions
             custom_group.save()
 
     @atomic(config.DATABASE_CONNECTION_NAME)
@@ -1053,137 +1228,198 @@ class TimeSeriesScope(models.Model):
         """检查是否允许编辑"""
         return self.create_from == TimeSeriesScope.CREATE_FROM_DATA
 
-    @staticmethod
-    def is_default_scope(scope_name: str) -> bool:
-        """判断 scope_name 是否为 default 分组
-        :return: 如果是 default 分组返回 True，否则返回 False
+    @classmethod
+    def _match_scope_by_auto_rules(cls, scope, field_name: str) -> bool:
+        """检查指标名称是否匹配 scope 的 auto_rules
 
-        注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name||default 格式
+        :param scope: TimeSeriesScope 对象
+        :param field_name: 指标名称
+        :return: 是否匹配
         """
-        return scope_name == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME or scope_name.endswith(
-            f"||{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
+        if not scope.auto_rules:
+            return False
+
+        for rule in scope.auto_rules:
+            try:
+                if re.match(rule, field_name):
+                    return True
+            except re.error:
+                logger.warning(
+                    f"Invalid regex pattern in auto_rules: {rule} for group_id: {scope.group_id}, "
+                    f"scope_name: {scope.scope_name}"
+                )
+        return False
+
+    @classmethod
+    def _merge_dimensions_from_ungroup(cls, scope, ungroup_scope, group_id: int, field_name: str) -> None:
+        """从未分组的指标合并维度配置到匹配的 scope
+
+        :param scope: 匹配到的 scope 对象
+        :param ungroup_scope: 未分组的 scope 对象
+        :param group_id: 分组ID
+        :param field_name: 指标名称
+        """
+        ungroup_metric = TimeSeriesMetric.objects.filter(
+            group_id=group_id, scope_id=ungroup_scope.id, field_name=field_name
+        ).first()
+
+        # 如果未分组指标不存在或没有标签，直接返回
+        if not ungroup_metric or not ungroup_metric.tag_list:
+            return
+
+        matched_dimension_config = scope.dimension_config or {}
+        ungroup_dimension_config = ungroup_scope.dimension_config or {}
+
+        # 找出需要新增的维度
+        new_dimensions = [dim for dim in ungroup_metric.tag_list if dim not in matched_dimension_config]
+        if not new_dimensions:
+            return
+
+        # 合并维度配置
+        for dim in new_dimensions:
+            matched_dimension_config[dim] = ungroup_dimension_config.get(dim, {})
+
+        scope.dimension_config = matched_dimension_config
+        scope.save(update_fields=["dimension_config"])
+        logger.info(
+            f"Merged dimensions from ungroup: group_id={group_id}, field_name={field_name}, "
+            f"scope_id={scope.id}, new_dimensions={new_dimensions}"
         )
 
-    def update_dimension_config_from_moved_metrics(
-        self, moved_metric_field_names: list[str], source_scope_id: int, incremental: bool = True
-    ):
+    @classmethod
+    def get_scope_id_for_metric(cls, group_id: int, field_scope: str, field_name: str) -> int | None:
+        """获取指标对应的 scope_id
+
+        :param group_id: 分组ID
+        :param field_scope: 指标的 field_scope
+        :param field_name: 指标名称
+        :return: scope_id 或 None（如果是未分组）
         """
+        scope_name = ScopeName.from_field_scope(field_scope)
+
+        # 非 default 数据分组：直接查找对应的 scope_id
+        if not ScopeName.is_default_data_field_scope(field_scope):
+            scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=scope_name).first()
+            return scope.id if scope else None
+
+        # 未分组
+        ungroup_scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=scope_name).first()
+        # default 数据分组：需要匹配用户分组和数据分组的 auto_rules（正则表达式）
+        all_scopes = (
+            TimeSeriesScope.objects.filter(group_id=group_id)
+            .exclude(scope_name=scope_name)
+            .order_by("-last_modify_time")
+        )
+        # 遍历所有分组，找到第一个匹配的 scope
+        for scope in all_scopes:
+            if not cls._match_scope_by_auto_rules(scope, field_name):
+                continue
+
+            # 匹配成功，尝试合并未分组的维度配置
+            cls._merge_dimensions_from_ungroup(scope, ungroup_scope, group_id, field_name)
+
+            return scope.id
+
+        return ungroup_scope.id if ungroup_scope else None
+
+    @classmethod
+    def update_dimension_config_from_moved_metrics(
+        cls,
+        moved_metrics: list,
+        source_scope: "TimeSeriesScope",
+        sink_scope: "TimeSeriesScope",
+    ):
+        """todo hhh 批量更新
         从其他分组移动指标到当前分组时，更新维度配置，以及指标的 scope_id
 
         处理逻辑：
-        1. 根据 source_scope_id 获取被移除指标的维度配置集合 X
-        2. 将指定指标的 scope_id 更新为当前分组的 scope_id
-        3. 根据 incremental 参数决定如何合并维度配置：
-           - incremental=True: 新分组的维度配置 |= X（增量保存，维度配置会越来越多）
-           - incremental=False: (新分组的维度配置 |= X) & 新分组拥有的指标的 tag_list 并集
+        1. 根据 source_scope 获取被移除指标的维度配置集合 X
+        2. 将指定指标的 scope_id 更新为目标分组的 scope_id
+        3. 增量合并维度配置：新分组的维度配置 |= X（增量保存，维度配置会越来越多）
 
-        :param moved_metric_field_names: 被移动的指标名称列表
-        :param source_scope_id: 源分组的 scope_id
-        :param incremental: 是否增量保存维度配置，默认为 True
+        :param moved_metrics: 被移动的指标对象列表（必填）
+        :param source_scope: 源分组对象，如果为 None 表示新创建的指标
+        :param sink_scope: 目标分组对象（必填）
         """
-        if not moved_metric_field_names:
+        if not moved_metrics:
             return
 
-        # 1. 获取被移动的指标，并验证它们必须来自 default 数据分组
-        # 使用 field_scope 字段过滤默认分组的指标
-        scope_filter = TimeSeriesMetric.get_default_scope_metric_filter(self.scope_name)
-        moved_metrics = TimeSeriesMetric.objects.filter(
-            group_id=self.group_id, scope_id=source_scope_id, field_name__in=moved_metric_field_names
-        ).filter(scope_filter)
-
-        # 2. 获取被移动指标的维度集合和维度配置
+        # 1. 获取被移动指标的维度集合
         moved_metric_dimensions = set()
         for metric in moved_metrics:
             if metric.tag_list:
                 moved_metric_dimensions.update(metric.tag_list)
 
-        # 3. 构建被移动指标的维度配置（X）
-        if source_scope_id is None:
+        # 2. 构建被移动指标的维度配置（X）
+        if source_scope is None:
             # 新创建的指标，直接使用 tag_list 作为维度配置（空配置）
             moved_dimension_config = {dimension_name: {} for dimension_name in moved_metric_dimensions}
         else:
             # 从源分组获取维度配置
-            source_scope = TimeSeriesScope.objects.filter(id=source_scope_id, group_id=self.group_id).first()
-            if source_scope:
-                source_dimension_config = source_scope.dimension_config or {}
-                # 从源分组的维度配置中提取被移动指标相关的维度配置
-                moved_dimension_config = {
-                    dimension_name: source_dimension_config.get(dimension_name, {})
-                    for dimension_name in moved_metric_dimensions
-                }
-            else:
-                logger.warning("Source scope not found: scope_id=%s, group_id=%s", source_scope_id, self.group_id)
-                # 源分组不存在，使用空配置
-                moved_dimension_config = {dimension_name: {} for dimension_name in moved_metric_dimensions}
-
-        # 4. 更新保存指标的 scope_id 为当前分组的 scope_id
-        moved_metrics.update(scope_id=self.id)
-
-        # 5. 合并维度配置
-        current_dimension_config = self.dimension_config or {}
-
-        if incremental:
-            # 增量保存：新分组的维度配置 |= X
-            updated_dimension_config = current_dimension_config.copy()
-            for dimension_name, config in moved_dimension_config.items():
-                # 如果当前分组已有该维度配置，保留现有配置；否则使用移动过来的配置
-                updated_dimension_config.setdefault(dimension_name, config)
-        else:
-            # 非增量保存：(新分组的维度配置 |= X) & 新分组拥有的指标的 tag_list 并集
-            # 先合并维度配置
-            merged_dimension_config = current_dimension_config.copy()
-            for dimension_name, config in moved_dimension_config.items():
-                merged_dimension_config.setdefault(dimension_name, config)
-
-            # 获取新分组下所有指标的维度并集
-            all_metric_dimensions = set()
-            all_metrics = TimeSeriesMetric.objects.filter(group_id=self.group_id, scope_id=self.id)
-            for metric in all_metrics:
-                if metric.tag_list:
-                    all_metric_dimensions.update(metric.tag_list)
-
-            # 只保留新分组指标实际拥有的维度
-            updated_dimension_config = {
-                dimension_name: merged_dimension_config.get(dimension_name, {})
-                for dimension_name in all_metric_dimensions
+            source_dimension_config = source_scope.dimension_config or {}
+            # 从源分组的维度配置中提取被移动指标相关的维度配置
+            moved_dimension_config = {
+                dimension_name: source_dimension_config.get(dimension_name, {})
+                for dimension_name in moved_metric_dimensions
             }
 
+        # 3. 更新保存指标的 scope_id 为目标分组的 scope_id
+        for metric in moved_metrics:
+            metric.scope_id = sink_scope.id
+        if moved_metrics:
+            TimeSeriesMetric.objects.bulk_update(moved_metrics, ["scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE)
+
+        # 4. 合并维度配置到目标分组（增量保存：新分组的维度配置 |= X）
+        current_dimension_config = sink_scope.dimension_config or {}
+        updated_dimension_config = current_dimension_config.copy()
+        for dimension_name, moved_dimension_config_value in moved_dimension_config.items():
+            # 如果当前分组已有该维度配置，保留现有配置；否则使用移动过来的配置
+            updated_dimension_config.setdefault(dimension_name, moved_dimension_config_value)
+
         # 更新 dimension_config
-        self.dimension_config = updated_dimension_config
+        sink_scope.dimension_config = updated_dimension_config
         # 保存当前分组的维度配置更新
-        self.save(update_fields=["dimension_config"])
+        sink_scope.save(update_fields=["dimension_config"])
 
     @classmethod
-    def bulk_ensure_or_merge_scopes(
-        cls,
-        group_id: int,
-        scope_dimensions_map: dict,
-    ):
-        """批量确保 TimeSeriesScope 记录存在，如果存在则合并维度配置
-
-        此方法用于 metric 批量创建/更新场景，批量确保 scope 存在并合并
+    def refresh_scopes_for_metrics(cls, group_id: int, metric_info_list: list):
+        """
+        刷新 TimeSeriesScope 表中的维度信息
 
         :param group_id: 自定义分组ID
-        :param scope_dimensions_map: scope 名称到维度列表的映射字典，格式: {scope_name: [dimension1, dimension2, ...]}
+        :param metric_info_list: 具体自定义时序内容信息
         """
+        # 收集 scope 维度信息
+        scope_dimensions_map = {}
+
+        for metric_info in metric_info_list:
+            field_name = metric_info.get("field_name")
+            if not field_name:
+                continue
+
+            # 获取 field_scope
+            field_scope = metric_info.get("field_scope", "default")
+
+            # 获取维度列表
+            tag_list = []
+            if "tag_list" in metric_info:
+                tag_list = list(metric_info["tag_list"].keys())
+            elif "tag_value_list" in metric_info:
+                tag_list = list(metric_info["tag_value_list"].keys())
+
+            # 收集该 scope 的所有维度（使用 set 去重）
+            scope_dimensions_map.setdefault(field_scope, set()).update(tag_list)
+
+        # 批量刷新 TimeSeriesScope 记录
         if not scope_dimensions_map:
             return
 
-        # 构建 scope_name 映射：原始名称 -> 数据库存储名称
-        # 注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
-        scope_name_mapping = {}
-        for scope_name in scope_dimensions_map.keys():
-            if cls.is_default_scope(scope_name):
-                # 如果是 default 分组，转换为数据库存储格式
-                if "||" in scope_name:
-                    db_scope_name = scope_name.rsplit("||", 1)[0] + "||"
-                else:
-                    db_scope_name = UNGROUP_SCOPE_NAME
-            else:
-                db_scope_name = scope_name
-            scope_name_mapping[scope_name] = db_scope_name
+        # 构建 field_scope 映射：原始名称 -> 数据库存储名称
+        scope_name_mapping = {
+            field_scope: ScopeName.from_field_scope(field_scope) for field_scope in scope_dimensions_map.keys()
+        }
 
-        # 获取所有数据库中的 scope_name 列表
+        # 获取所有数据库中的 field_scope 列表
         db_scope_names = list(set(scope_name_mapping.values()))
 
         # 一次性查询所有相关的 scope 记录
@@ -1195,11 +1431,11 @@ class TimeSeriesScope(models.Model):
         scopes_to_update = []
         scopes_to_create = []
 
-        for scope_name, dimensions in scope_dimensions_map.items():
-            db_scope_name = scope_name_mapping[scope_name]
-            if db_scope_name in existing_scopes_by_db_name:
+        for field_scope, dimensions in scope_dimensions_map.items():
+            scope_name = scope_name_mapping[field_scope]
+            if scope_name in existing_scopes_by_db_name:
                 # 记录已存在，合并维度配置（添加新维度，保留已有配置）
-                scope = existing_scopes_by_db_name[db_scope_name]
+                scope = existing_scopes_by_db_name[scope_name]
                 existing_config = scope.dimension_config or {}
                 for dim in dimensions:
                     existing_config.setdefault(dim, {})
@@ -1214,7 +1450,7 @@ class TimeSeriesScope(models.Model):
                 scopes_to_create.append(
                     cls(
                         group_id=group_id,
-                        scope_name=db_scope_name,
+                        scope_name=scope_name,
                         dimension_config=dimension_config,
                         auto_rules=[],
                         create_from=cls.CREATE_FROM_DATA,
@@ -1331,9 +1567,7 @@ class TimeSeriesScope(models.Model):
                 scope_id = scope_data["scope_id"]
                 time_series_scope = scope_objects[scope_id]
             else:
-                # 否则是创建场景，使用 final_scope_name 查找
-                final_scope_name = scope_data.get("scope_name")
-                time_series_scope = scope_objects[final_scope_name]
+                time_series_scope = scope_objects[scope_data.get("scope_name")]
 
             results.append(
                 {
@@ -1486,7 +1720,7 @@ class TimeSeriesScope(models.Model):
                         scope_obj.id, scope_obj.scope_name
                     )
                 )
-
+            # todo hhh 批量？
             # 检查新分组名是否已存在于数据库中（同一 group_id 下，排除本批次要更新的记录）
             all_scope_ids_in_batch = [s["scope_id"] for s in scopes]
             if (
@@ -1653,7 +1887,8 @@ class TimeSeriesScope(models.Model):
         if metrics_to_update:
             for metric in metrics_to_update:
                 # 重新计算 scope_id
-                new_scope_id = TimeSeriesMetric.get_scope_id_for_metric(
+                # todo hhh 批量更新？
+                new_scope_id = TimeSeriesScope.get_scope_id_for_metric(
                     group_id=metric.group_id,
                     field_scope=metric.field_scope,
                     field_name=metric.field_name,
@@ -1671,7 +1906,7 @@ class TimeSeriesMetric(models.Model):
 
     TARGET_DIMENSION_NAME = "target"
 
-    DEFAULT_DATA_SCOPE_NAME = "default"  # 默认指标数据分组
+    DEFAULT_DATA_SCOPE_NAME = "default"  # 默认分组
 
     ORM_FIELD_NAMES = (
         "table_id",
@@ -1700,7 +1935,6 @@ class TimeSeriesMetric(models.Model):
     # 关联到 TimeSeriesScope 的主键 id，用于标识指标所属的分组
     scope_id = models.IntegerField(verbose_name="时序分组ID", null=True, blank=True, db_index=True)
     table_id = models.CharField(verbose_name="table名", default="", max_length=255)
-    # 对于 APM 的场景来说分组的格式为 {service_name}||{scope_name}，其余场景中都是自动赋值为 default
     field_scope = models.CharField(
         verbose_name="指标字段数据分组名", default=DEFAULT_DATA_SCOPE_NAME, max_length=255, db_collation="utf8_bin"
     )
@@ -1723,17 +1957,6 @@ class TimeSeriesMetric(models.Model):
         unique_together = ("group_id", "field_scope", "field_name")
         verbose_name = "自定义时序描述记录"
         verbose_name_plural = "自定义时序描述记录表"
-
-    @staticmethod
-    def get_default_scope_metric_filter(scope_name: str):
-        # 如果 scope_name 包含 "||"，提取 service_name 部分
-        # 注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
-        if "||" in scope_name:
-            service_name = scope_name.split("||", 1)[0]
-            return Q(field_scope=f"{service_name}||{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}")
-        # 如果 scope_name 不包含 "||"，直接使用 DEFAULT_DATA_SCOPE_NAME
-        else:
-            return Q(field_scope=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
 
     def make_table_id(self, bk_biz_id, bk_data_id, table_name=None):
         if str(bk_biz_id) != "0":
@@ -1802,159 +2025,16 @@ class TimeSeriesMetric(models.Model):
         return list(tags)
 
     @classmethod
-    def get_scope_id_for_metric(cls, group_id: int, field_scope: str, field_name: str) -> int | None:
-        """获取指标对应的 scope_id
-
-        :param group_id: 分组ID
-        :param field_scope: 指标的 field_scope
-        :param field_name: 指标名称
-        :return: scope_id 或 None（如果是未分组）
-        """
-        # 判断是否是 default 数据分组
-        is_default_scope = TimeSeriesScope.is_default_scope(field_scope)
-
-        if not is_default_scope:
-            # 非 default 数据分组：直接查找对应的 scope_id
-            scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=field_scope).first()
-            if not scope:
-                logger.warning(
-                    f"Scope not found for non-default metric: group_id={group_id}, field_scope={field_scope}"
-                )
-            return scope.id if scope else None
-
-        # default 数据分组：需要匹配用户分组和数据分组的 auto_rules（正则表达式）todo hhh 根据什么顺序进行排序？？
-        all_scopes = TimeSeriesScope.objects.filter(group_id=group_id).order_by("id")
-
-        # 遍历所有分组，找到第一个匹配的 scope
-        for scope in all_scopes:
-            matched = False
-            if scope.auto_rules:
-                for rule in scope.auto_rules:
-                    try:
-                        if re.match(rule, field_name):
-                            matched = True
-                            break
-                    except re.error:
-                        logger.warning(
-                            f"Invalid regex pattern in auto_rules: {rule} for group_id: {scope.group_id}, "
-                            f"scope_name: {scope.scope_name}"
-                        )
-                        continue
-
-            if matched:
-                # 如果匹配到分组，则更新维度配置，并返回 scope_id
-                # 注意：涉及 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
-                ungroup_scope_name = (
-                    field_scope.rsplit("||", 1)[0] + "||" if "||" in field_scope else UNGROUP_SCOPE_NAME
-                )
-                ungroup_scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=ungroup_scope_name).first()
-
-                if ungroup_scope:
-                    ungroup_metric = TimeSeriesMetric.objects.filter(
-                        group_id=group_id, scope_id=ungroup_scope.id, field_name=field_name
-                    ).first()
-
-                    if ungroup_metric and ungroup_metric.tag_list:
-                        matched_dimension_config = scope.dimension_config or {}
-                        ungroup_dimension_config = ungroup_scope.dimension_config or {}
-                        new_dimensions = [dim for dim in ungroup_metric.tag_list if dim not in matched_dimension_config]
-
-                        if new_dimensions:
-                            for dim in new_dimensions:
-                                matched_dimension_config[dim] = ungroup_dimension_config.get(dim, {})
-
-                            scope.dimension_config = matched_dimension_config
-                            scope.save(update_fields=["dimension_config"])
-                            logger.info(
-                                f"Merged dimensions from ungroup: group_id={group_id}, field_name={field_name}, "
-                                f"scope_id={scope.id}, new_dimensions={new_dimensions}"
-                            )
-
-                return scope.id
-
-        # 如果没有匹配的分组，返回未分组的 scope_id
-        # 注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
-        ungroup_scope_name = field_scope.rsplit("||", 1)[0] + "||" if "||" in field_scope else UNGROUP_SCOPE_NAME
-        ungroup_scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=ungroup_scope_name).first()
-
-        if not ungroup_scope:
-            logger.warning(f"Ungroup scope not found: group_id={group_id}, ungroup_scope_name={ungroup_scope_name}")
-        return ungroup_scope.id if ungroup_scope else None
-
-    @classmethod
     def _bulk_create_metrics(
         cls,
         metrics_dict: dict,
+        need_create_metrics: list | set,
         group_id: int,
         table_id: str,
         is_auto_discovery: bool,
-        need_create_metrics: set | None = None,
-        need_create_metrics_with_scope: set | None = None,
     ) -> bool:
-        """批量创建指标
-
-        :param metrics_dict: 指标信息字典
-        :param group_id: 分组ID
-        :param table_id: 结果表ID
-        :param is_auto_discovery: 是否自动发现
-        :param need_create_metrics: 需要创建的字段名集合，格式: set[field_name, ...]
-        :param need_create_metrics_with_scope: 需要创建的 (field_name, field_scope) 组合集合，格式: set[(field_name, field_scope), ...]
-        """
-        # 根据传入的参数选择不同的处理函数
-        if need_create_metrics_with_scope:
-            records, scope_dimensions_map = cls._create_metrics_with_combinations(
-                metrics_dict, need_create_metrics_with_scope, group_id, table_id, is_auto_discovery
-            )
-        elif need_create_metrics:
-            records, scope_dimensions_map = cls._create_metrics_with_field_names(
-                metrics_dict, need_create_metrics, group_id, table_id, is_auto_discovery
-            )
-        else:
-            # 如果两个参数都为空，直接返回
-            return False
-
-        # 批量创建 TimeSeriesScope 记录，并传入对应的维度列表
-        if scope_dimensions_map:
-            # 将 set 转换为 list
-            scope_dimensions_list_map = {
-                scope_name: list(dimensions_set) for scope_name, dimensions_set in scope_dimensions_map.items()
-            }
-            TimeSeriesScope.bulk_ensure_or_merge_scopes(
-                group_id=group_id,
-                scope_dimensions_map=scope_dimensions_list_map,
-            )
-
-        # 为每个 metric 记录设置 scope_id
-        for record in records:
-            scope_id = cls.get_scope_id_for_metric(
-                group_id=group_id, field_scope=record.field_scope, field_name=record.field_name
-            )
-            record.scope_id = scope_id
-
-        # 开始批量创建指标
-        cls.objects.bulk_create(records, batch_size=BULK_CREATE_BATCH_SIZE)
-        return True
-
-    @classmethod
-    def _create_metrics_with_combinations(
-        cls,
-        metrics_dict: dict,
-        need_create_metrics: set,
-        group_id: int,
-        table_id: str,
-        is_auto_discovery: bool,
-    ) -> tuple[list, dict]:
-        """使用组合模式创建指标记录
-
-        :param metrics_dict: 指标信息字典
-        :param need_create_metrics: 需要创建的 (field_name, field_scope) 组合集合
-        :param group_id: 分组ID
-        :param table_id: 结果表ID
-        :param is_auto_discovery: 是否自动发现
-        :return: (记录列表, scope维度映射字典)
-        """
+        """批量创建指标"""
         records = []
-        scope_dimensions_map = {}
 
         for field_name, field_scope in need_create_metrics:
             metric_info = metrics_dict.get(field_name)
@@ -1964,156 +2044,32 @@ class TimeSeriesMetric(models.Model):
             # 当指标是禁用的, 如果开启自动发现 则需要时间设置为 1970; 否则，跳过记录
             if not metric_info.get("is_active", True) and not is_auto_discovery:
                 continue
-
-            for scope_name, scope_info in metric_info["group_dimensions"].items():
-                if scope_name != field_scope:
-                    continue
-
-                dimensions = scope_info.get("dimensions", [])
-
-                # 维度 [target] 必须存在; 如果不存在时，则需要添加 [target] 维度
-                if cls.TARGET_DIMENSION_NAME not in dimensions:
-                    dimensions.append(cls.TARGET_DIMENSION_NAME)
-
-                params = {
-                    "field_name": field_name,
-                    "group_id": group_id,
-                    "table_id": f"{table_id.split('.')[0]}.{field_name}",
-                    "tag_list": dimensions,
-                    "field_scope": field_scope,
-                }
-                logger.info("create ts metric data with group_dimensions: %s", json.dumps(params))
-                records.append(cls(**params))
-
-                # 收集该 scope 的所有维度（使用 set 去重）
-                scope_dimensions_map.setdefault(field_scope, set()).update(dimensions)
-
-        return records, scope_dimensions_map
-
-    @classmethod
-    def _create_metrics_with_field_names(
-        cls,
-        metrics_dict: dict,
-        need_create_metrics: set,
-        group_id: int,
-        table_id: str,
-        is_auto_discovery: bool,
-    ) -> tuple[list, dict]:
-        """使用字段名模式创建指标记录
-
-        :param metrics_dict: 指标信息字典
-        :param need_create_metrics: 需要创建的字段名集合
-        :param group_id: 分组ID
-        :param table_id: 结果表ID
-        :param is_auto_discovery: 是否自动发现
-        :return: (记录列表, scope维度映射字典)
-        """
-        records = []
-        scope_dimensions_map = {}
-
-        for metric in need_create_metrics:
-            metric_info = metrics_dict.get(metric)
-            # 如果获取不到指标数据，则跳过
-            if not metric_info:
-                continue
-            # 当指标是禁用的, 如果开启自动发现 则需要时间设置为 1970; 否则，跳过记录
-            if not metric_info.get("is_active", True) and not is_auto_discovery:
-                continue
             tag_list = cls.get_metric_tag_from_metric_info(metric_info)
             params = {
-                "field_name": metric,
+                "field_name": field_name,
                 "group_id": group_id,
-                "table_id": f"{table_id.split('.')[0]}.{metric}",
+                "table_id": f"{table_id.split('.')[0]}.{field_name}",
                 "tag_list": tag_list,
+                "field_scope": field_scope,
             }
             logger.info("create ts metric data: %s", json.dumps(params))
             records.append(cls(**params))
 
-            # 旧格式使用默认的 scope_name，收集维度
-            scope_dimensions_map.setdefault("default", set()).update(tag_list)
-
-        return records, scope_dimensions_map
+        # 开始批量创建指标
+        cls.objects.bulk_create(records, batch_size=BULK_CREATE_BATCH_SIZE)
+        return True
 
     @classmethod
     def _bulk_update_metrics(
         cls,
         metrics_dict: dict,
+        need_update_metrics: list | set,
         group_id: int,
         is_auto_discovery: bool,
-        need_update_metrics: set | None = None,
-        need_update_metrics_with_scope: set | None = None,
     ) -> bool:
-        """批量更新指标，针对记录仅更新最后更新时间和 tag 字段
-
-        :param metrics_dict: 指标信息字典
-        :param group_id: 分组ID
-        :param is_auto_discovery: 是否自动发现
-        :param need_update_metrics: 需要更新的字段名集合，格式: set[field_name, ...]
-        :param need_update_metrics_with_scope: 需要更新的 (field_name, field_scope) 组合集合，格式: set[(field_name, field_scope), ...]
-        """
-        # 根据传入的参数选择不同的处理函数
-        if need_update_metrics_with_scope:
-            records, white_list_disabled_metric, scope_dimensions_map, need_push_router = (
-                cls._update_metrics_with_combinations(
-                    metrics_dict, need_update_metrics_with_scope, group_id, is_auto_discovery
-                )
-            )
-        elif need_update_metrics:
-            records, white_list_disabled_metric, scope_dimensions_map, need_push_router = (
-                cls._update_metrics_with_field_names(metrics_dict, need_update_metrics, group_id, is_auto_discovery)
-            )
-        else:
-            # 如果两个参数都为空，直接返回
-            return False
-
-        # 白名单模式，如果存在需要禁用的指标，则需要删除；应该不会太多，直接删除
-        if white_list_disabled_metric:
-            cls.objects.filter(group_id=group_id, field_name__in=white_list_disabled_metric).delete()
-        logger.info("white list disabled metric: %s, group_id: %s", json.dumps(white_list_disabled_metric), group_id)
-
-        # 批量更新或创建 TimeSeriesScope 记录，并传入对应的维度列表
-        if scope_dimensions_map:
-            # 将 set 转换为 list
-            scope_dimensions_list_map = {
-                scope_name: list(dimensions_set) for scope_name, dimensions_set in scope_dimensions_map.items()
-            }
-            TimeSeriesScope.bulk_ensure_or_merge_scopes(
-                group_id=group_id,
-                scope_dimensions_map=scope_dimensions_list_map,
-            )
-
-        # 为每个需要更新的 metric 记录设置 scope_id
-        for record in records:
-            scope_id = cls.get_scope_id_for_metric(
-                group_id=group_id, field_scope=record.field_scope, field_name=record.field_name
-            )
-            record.scope_id = scope_id
-
-        # 批量更新指定的字段
-        cls.objects.bulk_update(
-            records, ["last_modify_time", "tag_list", "scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE
-        )
-        return need_push_router
-
-    @classmethod
-    def _update_metrics_with_combinations(
-        cls,
-        metrics_dict: dict,
-        need_update_metrics: set,
-        group_id: int,
-        is_auto_discovery: bool,
-    ) -> tuple[list, set, dict, bool]:
-        """使用组合模式更新指标记录
-
-        :param metrics_dict: 指标信息字典
-        :param need_update_metrics: 需要更新的 (field_name, field_scope) 组合集合
-        :param group_id: 分组ID
-        :param is_auto_discovery: 是否自动发现
-        :return: (更新记录列表, 禁用指标集合, scope维度映射字典, 是否需要推送路由)
-        """
+        """批量更新指标，针对记录仅更新最后更新时间和 tag 字段"""
         records = []
         white_list_disabled_metric = set()
-        scope_dimensions_map = {}
         need_push_router = False
 
         # 构建查询条件：需要同时匹配 field_name 和 field_scope
@@ -2124,78 +2080,12 @@ class TimeSeriesMetric(models.Model):
 
         # 将组合转换为集合，方便快速查找
         combinations_set = set(need_update_metrics)
-
         for obj in qs_objs:
             # 只处理匹配的 (field_name, field_scope) 组合
             if (obj.field_name, obj.field_scope) not in combinations_set:
                 continue
 
             metric_info = metrics_dict.get(obj.field_name)
-            # 如果找不到指标数据，则忽略
-            if not metric_info:
-                continue
-
-            # 当指标是禁用的, 如果开启自动发现 则需要时间设置为 1970; 否则，跳过记录
-            if not metric_info.get("is_active", True):
-                if is_auto_discovery:
-                    last_modify_time = make_aware(datetime.datetime(1970, 1, 1))
-                else:
-                    white_list_disabled_metric.add(obj.field_name)
-                    continue
-            else:
-                last_modify_time = make_aware(
-                    datetime.datetime.fromtimestamp(metric_info.get("last_modify_time", time.time()))
-                )
-
-            # 从 group_dimensions 中根据 field_scope 获取维度
-            new_dimensions = []
-            for scope_name, scope_info in metric_info.get("group_dimensions", {}).items():
-                if scope_name != obj.field_scope:
-                    continue
-                new_dimensions = scope_info.get("dimensions", [])
-                break
-
-            # 维度 [target] 必须存在; 如果不存在时，则需要添加 [target] 维度
-            if cls.TARGET_DIMENSION_NAME not in new_dimensions:
-                new_dimensions.append(cls.TARGET_DIMENSION_NAME)
-
-            need_push_router = cls._collect_update_records(
-                last_modify_time, need_push_router, new_dimensions, obj, records
-            )
-
-            # 收集该 scope 的所有维度（使用 set 去重）
-            scope_dimensions_map.setdefault(obj.field_scope, set()).update(new_dimensions)
-
-        return records, white_list_disabled_metric, scope_dimensions_map, need_push_router
-
-    @classmethod
-    def _update_metrics_with_field_names(
-        cls,
-        metrics_dict: dict,
-        need_update_metrics: set,
-        group_id: int,
-        is_auto_discovery: bool,
-    ) -> tuple[list, set, dict, bool]:
-        """使用字段名模式更新指标记录
-
-        :param metrics_dict: 指标信息字典
-        :param need_update_metrics: 需要更新的字段名集合
-        :param group_id: 分组ID
-        :param is_auto_discovery: 是否自动发现
-        :return: (更新记录列表, 禁用指标集合, scope维度映射字典, 是否需要推送路由)
-        """
-        records = []
-        white_list_disabled_metric = set()
-        scope_dimensions_map = {}
-        need_push_router = False
-
-        qs_objs = filter_model_by_in_page(
-            TimeSeriesMetric, "field_name__in", need_update_metrics, other_filter={"group_id": group_id}
-        )
-
-        for obj in qs_objs:
-            metric = obj.field_name
-            metric_info = metrics_dict.get(metric)
             # 如果找不到指标数据，则忽略
             if not metric_info:
                 continue
@@ -2208,40 +2098,35 @@ class TimeSeriesMetric(models.Model):
                 if is_auto_discovery:
                     last_modify_time = make_aware(datetime.datetime(1970, 1, 1))
                 else:
-                    white_list_disabled_metric.add(metric)
-                    continue
+                    white_list_disabled_metric.add(obj.id)
 
-            # 旧格式：通过方法获取
-            new_dimensions = cls.get_metric_tag_from_metric_info(metric_info)
+            # 标识是否需要更新
+            is_need_update = False
+            # 先设置最后更新时间 1 天更新一次，减少对 db 的操作
+            if (last_modify_time - obj.last_modify_time).days >= 1:
+                is_need_update = True
+                obj.last_modify_time = last_modify_time
 
-            need_push_router = cls._collect_update_records(
-                last_modify_time, need_push_router, new_dimensions, obj, records
-            )
+            # NOTE：当时间变更超过有效期阈值时，更新路由；适用`指标重新启用`场景
+            if (last_modify_time - obj.last_modify_time).seconds >= settings.TIME_SERIES_METRIC_EXPIRED_SECONDS:
+                need_push_router = True
 
-            # 收集该 scope 的所有维度（使用 set 去重）
-            scope_dimensions_map.setdefault(obj.field_scope, set()).update(new_dimensions)
+            # 如果 tag 不一致，则进行更新
+            tag_list = cls.get_metric_tag_from_metric_info(metric_info)
+            if set(obj.tag_list or []) != set(tag_list):
+                is_need_update = True
+                obj.tag_list = tag_list
 
-        return records, white_list_disabled_metric, scope_dimensions_map, need_push_router
+            if is_need_update:
+                records.append(obj)
 
-    @classmethod
-    def _collect_update_records(cls, last_modify_time, need_push_router, new_dimensions, obj, records):
-        # 标识是否需要更新
-        is_need_update = False
-        # 先设置最后更新时间 1 天更新一次，减少对 db 的操作
-        if (last_modify_time - obj.last_modify_time).days >= 1:
-            is_need_update = True
-            obj.last_modify_time = last_modify_time
-        # NOTE：当时间变更超过有效期阈值时，更新路由；适用`指标重新启用`场景
-        if (last_modify_time - obj.last_modify_time).seconds >= settings.TIME_SERIES_METRIC_EXPIRED_SECONDS:
-            need_push_router = True
-        # 如果 tag 不一致，则进行更新
-        if set(obj.tag_list or []) != set(new_dimensions):
-            is_need_update = True
-            # 合并维度：保留旧维度，添加新维度
-            obj.tag_list = list(set(obj.tag_list or []) | set(new_dimensions))
-        if is_need_update:
-            logger.info(f"update ts metric {obj.field_name} {obj.field_scope} {obj.tag_list}")
-            records.append(obj)
+        # 白名单模式，如果存在需要禁用的指标，则需要删除；应该不会太多，直接删除
+        if white_list_disabled_metric:
+            cls.objects.filter(group_id=group_id, field_id__in=white_list_disabled_metric).delete()
+        logger.info("white list disabled metric: %s, group_id: %s", json.dumps(white_list_disabled_metric), group_id)
+
+        # 批量更新指定的字段
+        cls.objects.bulk_update(records, ["last_modify_time", "tag_list"], batch_size=BULK_UPDATE_BATCH_SIZE)
         return need_push_router
 
     @classmethod
@@ -2266,25 +2151,7 @@ class TimeSeriesMetric(models.Model):
                 "last_modify_time": 1464567890123,
             }]
 
-            格式2 - 带 group_dimensions（新格式）：
-            [{
-                "field_name": "cpu_usage",
-                "tag_value_list": {
-                    "endpoint": {
-                        'last_update_time': 1701438084,
-                        'values': ["value1", "value2"]
-                    }
-                },
-                "group_dimensions": {
-                    "service_name:api-server||scope_name:production": {
-                        "dimensions": ["service_name", "disk", "pod", "region"],
-                        "update_time": 1678901234
-                    }
-                },
-                "last_modify_time": 1678901234,
-            }]
-
-            格式3 - 带 tag_list（兼容格式）：
+            格式2 - 带 tag_list（兼容格式）：
             [{
                 "field_name": "disk_full",
                 "tag_list": [
@@ -2296,76 +2163,90 @@ class TimeSeriesMetric(models.Model):
         :param is_auto_discovery: 指标是否自动发现
         :return: True or raise
         """
-        is_version_v2 = False
-        _metrics_dict = {}
-        for m in metric_info_list:
-            if m.get("field_name"):
-                _metrics_dict[m["field_name"]] = m
-            if "group_dimensions" in m:
-                is_version_v2 = True
+        _metrics_dict = {m["field_name"]: m for m in metric_info_list if m.get("field_name")}
 
-        if is_version_v2:
-            # 新逻辑：基于 (field_name, field_scope) 组合判断
-            # 获取现有的 (field_name, field_scope) 组合
-            existing_combinations = set(cls.objects.filter(group_id=group_id).values_list("field_name", "field_scope"))
+        # 统一逻辑：基于 (field_name, field_scope) 组合判断
+        # 获取现有的 (field_name, field_scope) 组合
+        existing_records = cls.objects.filter(group_id=group_id).values_list("field_name", "field_scope")
+        existing_combinations = {(field_name, field_scope) for field_name, field_scope in existing_records}
 
-            # 构建期望的 (field_name, field_scope) 组合
-            expected_combinations = set()
-            for metric_info in metric_info_list:
-                field_name = metric_info.get("field_name")
-                if not field_name:
-                    continue
-                if "group_dimensions" in metric_info:
-                    for scope_name in metric_info["group_dimensions"].keys():
-                        expected_combinations.add((field_name, scope_name))
-                else:
-                    # 旧格式，使用默认的 field_scope
-                    expected_combinations.add((field_name, cls.DEFAULT_DATA_SCOPE_NAME))
+        # 构建期望的 (field_name, field_scope) 组合
+        expected_combinations = set()
+        for metric_info in metric_info_list:
+            field_name = metric_info.get("field_name")
+            if not field_name:
+                continue
+            # 统一使用 field_scope 格式
+            field_scope = metric_info.get("field_scope", "default")
+            expected_combinations.add((field_name, field_scope))
 
-            # 计算需要创建和更新的记录
-            need_create_combinations = expected_combinations - existing_combinations
-            need_update_combinations = expected_combinations & existing_combinations
-            logger.info(
-                f"need_create_combinations: {need_create_combinations}, need_update_combinations: {need_update_combinations}"
+        # 计算需要创建和更新的记录
+        need_create_metrics = expected_combinations - existing_combinations
+        need_update_metrics = expected_combinations & existing_combinations
+
+        # NOTE: 针对创建或者时间变动时，推送路由数据
+        need_push_router = False
+        # 如果存在，则批量创建
+        if need_create_metrics:
+            need_push_router = cls._bulk_create_metrics(
+                _metrics_dict,
+                need_create_metrics,
+                group_id,
+                table_id,
+                is_auto_discovery,
+            )
+        # 批量更新
+        if need_update_metrics:
+            need_push_router |= cls._bulk_update_metrics(
+                _metrics_dict, need_update_metrics, group_id, is_auto_discovery
             )
 
-            # NOTE: 针对创建或者时间变动时，推送路由数据
-            need_push_router = False
-            # 如果存在，则批量创建（传递完整的 combinations）
-            if need_create_combinations:
-                need_push_router = cls._bulk_create_metrics(
-                    _metrics_dict,
-                    group_id,
-                    table_id,
-                    is_auto_discovery,
-                    need_create_metrics_with_scope=need_create_combinations,
-                )
-            # 批量更新（传递完整的 combinations）
-            if need_update_combinations:
-                need_push_router |= cls._bulk_update_metrics(
-                    _metrics_dict, group_id, is_auto_discovery, need_update_metrics_with_scope=need_update_combinations
-                )
-        else:
-            # 旧逻辑：仅基于 field_name 判断
-            metrics_by_group_id = cls.objects.filter(group_id=group_id).values_list("field_name", flat=True)
-            _metrics = set(_metrics_dict.keys())
-            need_create_metrics = _metrics - set(metrics_by_group_id)
-            need_update_metrics = _metrics - need_create_metrics
-
-            # NOTE: 针对创建或者时间变动时，推送路由数据
-            need_push_router = False
-            # 如果存在，则批量创建
-            if need_create_metrics:
-                need_push_router = cls._bulk_create_metrics(
-                    _metrics_dict, group_id, table_id, is_auto_discovery, need_create_metrics=need_create_metrics
-                )
-            # 批量更新
-            if need_update_metrics:
-                need_push_router |= cls._bulk_update_metrics(
-                    _metrics_dict, group_id, is_auto_discovery, need_update_metrics=need_update_metrics
-                )
-
         return need_push_router
+
+    @classmethod
+    def bulk_update_scope_ids(cls, group_id: int, metric_info_list: list):
+        """
+        批量更新 metric 记录的 scope_id
+        """
+        # 构建期望的 (field_name, field_scope) 组合
+        expected_combinations = set()
+        for metric_info in metric_info_list:
+            field_name = metric_info.get("field_name")
+            if not field_name:
+                continue
+            # 统一使用 field_scope 格式
+            field_scope = metric_info.get("field_scope", "default")
+            expected_combinations.add((field_name, field_scope))
+
+        if not expected_combinations:
+            return
+
+        # 查询所有需要更新的 metric 记录
+        field_name_list = [field_name for field_name, _ in expected_combinations]
+        qs_objs = filter_model_by_in_page(cls, "field_name__in", field_name_list, other_filter={"group_id": group_id})
+
+        # 将组合转换为集合，方便快速查找
+        combinations_set = set(expected_combinations)
+        records_to_update = []
+
+        for obj in qs_objs:
+            # 只处理匹配的 (field_name, field_scope) 组合
+            if (obj.field_name, obj.field_scope) not in combinations_set:
+                continue
+
+            # 获取 scope_id
+            # todo hhh 批量更新？
+            scope_id = TimeSeriesScope.get_scope_id_for_metric(
+                group_id=group_id, field_scope=obj.field_scope, field_name=obj.field_name
+            )
+            if scope_id and obj.scope_id != scope_id:
+                obj.scope_id = scope_id
+                records_to_update.append(obj)
+
+        # 批量更新 scope_id
+        if records_to_update:
+            cls.objects.bulk_update(records_to_update, ["scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE)
+            logger.info(f"Updated scope_id for {len(records_to_update)} metrics in group {group_id}")
 
     @classmethod
     def update_metrics(cls, group_id, metric_info_list):
@@ -2702,52 +2583,54 @@ class TimeSeriesMetric(models.Model):
 
         # 准备批量创建的数据
         records_to_create = []
-        scope_moves = defaultdict(list)  # {scope: [field_names]}  收集需要移动到scope的指标
+        scope_moves = defaultdict(list)  # {scope: [metric_objects]}  收集需要移动到scope的指标对象
 
         for metric_data in metrics_to_create:
             cls._ensure_target_dimension_in_tags(metric_data)
             cls._generate_table_id(metric_data, table_id)
 
-            records_to_create.append(
-                cls(
-                    table_id=metric_data["table_id"],
-                    field_name=metric_data["field_name"],
-                    field_scope=cls.DEFAULT_DATA_SCOPE_NAME,
-                    group_id=group_id,
-                    scope_id=None,  # 先不设置，由update_dimension_config_from_moved_metrics处理
-                    tag_list=metric_data.get("tag_list", []),
-                    field_config=metric_data.get("field_config", {}),
-                    label=metric_data.get("label", ""),
-                )
+            metric_obj = cls(
+                table_id=metric_data["table_id"],
+                field_name=metric_data["field_name"],
+                field_scope=cls.DEFAULT_DATA_SCOPE_NAME,
+                group_id=group_id,
+                scope_id=None,  # 先不设置，由update_dimension_config_from_moved_metrics处理
+                tag_list=metric_data.get("tag_list", []),
+                field_config=metric_data.get("field_config", {}),
+                label=metric_data.get("label", ""),
             )
+            records_to_create.append(metric_obj)
 
             # 如果指定了scope_id或scope_name，收集需要移动到该scope的指标
             # 优先使用scope_id，如果没有则使用scope_name
             scope_id = metric_data.get("scope_id")
             scope_name = metric_data.get("scope_name")
+            # todo hhh 批量_get_or_create_scope
             if scope_id is not None:
                 # 通过scope_id获取scope
                 scope = TimeSeriesScope.objects.filter(id=scope_id, group_id=group_id).first()
                 if scope is None:
                     raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
-                scope_moves[scope].append(metric_data["field_name"])
+                scope_moves[scope].append(metric_obj)
             elif scope_name is not None:
                 scope = cls._get_or_create_scope(group_id, scope_name)
-                scope_moves[scope].append(metric_data["field_name"])
+                scope_moves[scope].append(metric_obj)
             else:
                 # 两者都没有传递，放到未分组
-                scope = cls._get_or_create_scope(group_id, UNGROUP_SCOPE_NAME)
-                scope_moves[scope].append(metric_data["field_name"])
+                # todo hhh 感觉要求 saas 必须传递 scope_name 比较好，否则这里是能适配一级分组
+                # todo hhh 如果按照上面的修改，那么这里的 else 就 raise 异常
+                scope = cls._get_or_create_scope(group_id, ScopeName.get_ungrouped_name())
+                scope_moves[scope].append(metric_obj)
 
         # 批量创建
         cls.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
         # 使用update_dimension_config_from_moved_metrics更新维度配置和scope_id
-        for scope, field_names in scope_moves.items():
-            scope.update_dimension_config_from_moved_metrics(
-                moved_metric_field_names=field_names,
-                source_scope_id=None,  # 新创建的指标，没有源scope
-                incremental=True,
+        for scope, moved_metrics in scope_moves.items():
+            TimeSeriesScope.update_dimension_config_from_moved_metrics(
+                moved_metrics=moved_metrics,
+                source_scope=None,  # 新创建的指标，没有源scope
+                sink_scope=scope,
             )
 
     @classmethod
@@ -2756,7 +2639,7 @@ class TimeSeriesMetric(models.Model):
         updatable_fields = ["tag_list", "field_config", "label"]
         records_to_update = []
         scope_moves = defaultdict(
-            lambda: {"new_scope": None, "field_names": []}
+            lambda: {"new_scope": None, "source_scope": None, "metrics": []}
         )  # {(new_scope_id, old_scope_id): {...}}
 
         for metric, validated_request_data in metrics_to_update:
@@ -2783,24 +2666,30 @@ class TimeSeriesMetric(models.Model):
                 if new_scope is None:
                     raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
             elif scope_name is not None:
+                # todo hhh 批量_get_or_create_scope
                 new_scope = cls._get_or_create_scope(metric.group_id, scope_name)
 
             # 如果scope发生变化，记录需要移动的指标
             if new_scope and metric.scope_id != new_scope.id:
                 move_key = (new_scope.id, metric.scope_id)
                 scope_moves[move_key]["new_scope"] = new_scope
-                scope_moves[move_key]["field_names"].append(metric.field_name)
+                scope_moves[move_key]["metrics"].append(metric)
+                # 获取源分组对象
+                if metric.scope_id and not scope_moves[move_key]["source_scope"]:
+                    source_scope = TimeSeriesScope.objects.filter(id=metric.scope_id, group_id=metric.group_id).first()
+                    scope_moves[move_key]["source_scope"] = source_scope
 
         # 批量更新所有指标的字段
         if records_to_update:
             cls.objects.bulk_update(records_to_update, updatable_fields, batch_size=BULK_UPDATE_BATCH_SIZE)
 
         # 处理scope的维度配置迁移（该方法会更新指标的scope_id）
-        for (new_scope_id, old_scope_id), move_info in scope_moves.items():
-            if old_scope_id:
-                new_scope_obj: TimeSeriesScope = move_info["new_scope"]
-                new_scope_obj.update_dimension_config_from_moved_metrics(
-                    moved_metric_field_names=move_info["field_names"], source_scope_id=old_scope_id, incremental=True
+        for move_info in scope_moves.values():
+            if move_info["metrics"] and move_info["new_scope"]:
+                TimeSeriesScope.update_dimension_config_from_moved_metrics(
+                    moved_metrics=move_info["metrics"],
+                    source_scope=move_info["source_scope"],
+                    sink_scope=move_info["new_scope"],
                 )
 
     @classmethod

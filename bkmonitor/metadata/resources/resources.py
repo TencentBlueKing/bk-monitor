@@ -59,6 +59,7 @@ from metadata.models.constants import (
     STRICT_NANO_ES_FORMAT,
     DataIdCreatedFromSystem,
 )
+from metadata.models.custom_report.time_series import ScopeName
 from metadata.models.data_link.utils import (
     get_bkbase_raw_data_name_for_v3_datalink,
     get_data_source_related_info,
@@ -1261,7 +1262,7 @@ class CreateTimeSeriesGroupResource(Resource):
         default_storage_config = serializers.DictField(required=False, label="默认存储参数")
         additional_options = serializers.DictField(required=False, label="附带创建的ResultTableOption")
         data_label = serializers.CharField(label="数据标签", required=False, default="")
-        metric_group_dimensions = serializers.ListField(required=False, label="指标分组的维度key配置")
+        metric_group_dimensions = serializers.JSONField(required=False, label="指标分组的维度key配置")
 
     def perform_request(self, validated_request_data):
         # 默认都是返回已经删除的内容
@@ -1532,24 +1533,23 @@ class QueryTimeSeriesScopeResource(Resource):
             scope_name = None  # 使用 scope_id 时忽略 scope_name
 
         # 判断查询类型
-        is_query_only_ungrouped = scope_name == ""  # 仅查询未分组
+        is_query_only_ungrouped = ScopeName.is_ungrouped(scope_name)  # 仅查询未分组
         is_include_ungrouped = scope_name is None and scope_id is None  # 包含未分组
 
         self._validate_group_id(group_id, bk_tenant_id)
 
         # 场景1：仅查询未分组指标
         if is_query_only_ungrouped:
-            group_ids = self._get_target_group_ids(group_id, bk_tenant_id)
-            return self._build_ungrouped_results(group_ids)
+            return self._build_ungrouped_results(group_id, scope_name=scope_name)
 
         # 场景2：查询已分组指标
         query_set = self._build_scope_queryset(group_id, scope_id, scope_name, bk_tenant_id)
         results = self._build_grouped_results(query_set)
 
-        # 场景3：追加未分组指标（当 scope_name 为 None 且 scope_id 为 None 时）
+        # 如果需要包含未分组指标，追加未分组结果
         if is_include_ungrouped:
-            group_ids = self._get_target_group_ids(group_id, bk_tenant_id)
-            results.extend(self._build_ungrouped_results(group_ids))
+            # todo hhh scope_name 思考
+            results.extend(self._build_ungrouped_results(group_id, scope_name=""))
 
         return results
 
@@ -1562,24 +1562,12 @@ class QueryTimeSeriesScopeResource(Resource):
             raise ValueError(_("自定义时序分组不存在，请确认后重试"))
 
     @staticmethod
-    def _get_target_group_ids(group_id, bk_tenant_id):
-        """获取目标 group_id 列表"""
-        if group_id is not None:
-            return [group_id]
-        return list(
-            models.TimeSeriesGroup.objects.filter(bk_tenant_id=bk_tenant_id, is_delete=False).values_list(
-                "time_series_group_id", flat=True
-            )
-        )
-
-    @staticmethod
     def _build_scope_queryset(group_id, scope_id, scope_name, bk_tenant_id):
         """构建 TimeSeriesScope 查询集
 
         当 scope_name 为 None 时（包含未分组场景），会排除空串分组，避免与未分组指标重复
         如果提供了 scope_id，则优先使用 scope_id 进行精确查询，忽略 scope_name
         """
-        from metadata.models.constants import UNGROUP_SCOPE_NAME
 
         query_set = models.TimeSeriesScope.objects.all()
 
@@ -1603,9 +1591,9 @@ class QueryTimeSeriesScopeResource(Resource):
             # 模糊匹配 scope_name
             query_set = query_set.filter(scope_name__icontains=scope_name)
 
-        # 当 scope_name 为 None 时（包含未分组场景），排除空串分组，避免与未分组指标重复
+        # 当 scope_name 为 None 时（包含未分组场景），排除所有层级的未分组，避免与未分组指标重复
         if scope_name is None:
-            query_set = query_set.exclude(scope_name=UNGROUP_SCOPE_NAME)
+            query_set = query_set.filter(ScopeName.exclude_ungrouped_filter())
 
         return query_set
 
@@ -1633,43 +1621,41 @@ class QueryTimeSeriesScopeResource(Resource):
             )
         return results
 
-    def _build_ungrouped_results(self, group_ids):
+    def _build_ungrouped_results(self, group_id, scope_name):
         """构建未分组指标的结果列表
 
         未分组下的指标：scope_id 指向 scope_name 为空串的 TimeSeriesScope 的指标
-        :param group_ids: 自定义时序数据源ID列表
+        :param group_id: 自定义时序数据源ID
+        :param scope_name: 完整的 scope_name，用于提取层级前缀（支持多级分组）
         """
-        from metadata.models.constants import UNGROUP_SCOPE_NAME
+        # 查询未分组的 scope
+        db_scope_name = ScopeName.get_ungrouped_name(ScopeName.levels(scope_name))
 
-        results = []
-        for gid in group_ids:
-            # 查询未分组的 scope（scope_name 为空串）
-            db_scope_name = UNGROUP_SCOPE_NAME
+        ungrouped_scope = models.TimeSeriesScope.objects.filter(group_id=group_id, scope_name=db_scope_name).first()
 
-            ungrouped_scope = models.TimeSeriesScope.objects.filter(group_id=gid, scope_name=db_scope_name).first()
-
-            # 如果未分组 scope 存在，查询其下的指标
-            if ungrouped_scope:
-                ungrouped_metrics_qs = models.TimeSeriesMetric.objects.filter(group_id=gid, scope_id=ungrouped_scope.id)
-                metric_list = self._convert_metrics_to_list(ungrouped_metrics_qs)
-                dimension_config = ungrouped_scope.dimension_config or {}
-            else:
-                # 如果未分组 scope 不存在，返回空列表
-                metric_list = []
-                dimension_config = {}
-
-            results.append(
-                {
-                    "scope_id": ungrouped_scope.id if ungrouped_scope else None,
-                    "group_id": gid,
-                    "scope_name": "",
-                    "dimension_config": dimension_config,
-                    "auto_rules": [],
-                    "metric_list": metric_list,
-                    "create_from": None,
-                }
+        # 如果未分组 scope 存在，查询其下的指标
+        if ungrouped_scope:
+            ungrouped_metrics_qs = models.TimeSeriesMetric.objects.filter(
+                group_id=group_id, scope_id=ungrouped_scope.id
             )
-        return results
+            metric_list = self._convert_metrics_to_list(ungrouped_metrics_qs)
+            dimension_config = ungrouped_scope.dimension_config or {}
+        else:
+            # 如果未分组 scope 不存在，返回空列表
+            metric_list = []
+            dimension_config = {}
+
+        return [
+            {
+                "scope_id": ungrouped_scope.id if ungrouped_scope else None,
+                "group_id": group_id,
+                "scope_name": db_scope_name,  # 返回实际的未分组名称（支持多级）
+                "dimension_config": dimension_config,
+                "auto_rules": [],
+                "metric_list": metric_list,
+                "create_from": ungrouped_scope.create_from if ungrouped_scope else None,
+            }
+        ]
 
     @staticmethod
     def _convert_metrics_to_list(metrics):
