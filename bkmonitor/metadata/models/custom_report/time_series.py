@@ -2081,22 +2081,23 @@ class TimeSeriesMetric(models.Model):
     def _build_field_scope_dimensions_index(
         cls,
         metric_info: dict,
-        metric_group_dimensions: dict | None,
     ) -> dict[str, list]:
         """预构建 field_scope 到 dimensions 的索引映射
 
-        :param metric_info: 指标信息字典
-        :param metric_group_dimensions: 指标分组维度配置
+        :param metric_info: 指标信息字典，包含 field_scope 和 tag_value_list
         :return: field_scope -> dimensions 的映射字典
         """
         scope_dimensions_index = {}
-        for group_key, group_info in metric_info.get("group_dimensions", {}).items():
-            extracted_scope = cls.extract_field_scope_from_group_key(group_key, metric_group_dimensions)
-            dimensions = group_info.get("dimensions", [])
-            # 维度 [target] 必须存在; 如果不存在时，则需要添加 [target] 维度
-            if cls.TARGET_DIMENSION_NAME not in dimensions:
-                dimensions.append(cls.TARGET_DIMENSION_NAME)
-            scope_dimensions_index[extracted_scope] = dimensions
+        # 直接从 metric_info 中获取 field_scope 和维度信息
+        field_scope = metric_info.get("field_scope", "default")
+        tag_value_list = metric_info.get("tag_value_list", {})
+        dimensions = list(tag_value_list.keys())
+
+        # 维度 [target] 必须存在; 如果不存在时，则需要添加 [target] 维度
+        if cls.TARGET_DIMENSION_NAME not in dimensions:
+            dimensions.append(cls.TARGET_DIMENSION_NAME)
+
+        scope_dimensions_index[field_scope] = dimensions
         return scope_dimensions_index
 
     @classmethod
@@ -2120,10 +2121,6 @@ class TimeSeriesMetric(models.Model):
         records = []
         scope_dimensions_map = {}
 
-        # 获取 metric_group_dimensions 配置
-        ts_group = TimeSeriesGroup.objects.filter(time_series_group_id=group_id).first()
-        metric_group_dimensions = ts_group.metric_group_dimensions if ts_group else None
-
         # 预构建所有指标的 field_scope -> dimensions 索引，避免重复遍历
         # 时间复杂度优化：从 O(n×m) 降低到 O(n+m)
         field_scope_index_cache = {}
@@ -2139,9 +2136,7 @@ class TimeSeriesMetric(models.Model):
 
             # 使用缓存的索引，避免重复构建
             if field_name not in field_scope_index_cache:
-                field_scope_index_cache[field_name] = cls._build_field_scope_dimensions_index(
-                    metric_info, metric_group_dimensions
-                )
+                field_scope_index_cache[field_name] = cls._build_field_scope_dimensions_index(metric_info)
 
             # 直接从索引中获取维度列表，O(1) 时间复杂度
             dimensions = field_scope_index_cache[field_name].get(field_scope)
@@ -2298,10 +2293,6 @@ class TimeSeriesMetric(models.Model):
         # 将组合转换为集合，方便快速查找
         combinations_set = set(need_update_metrics)
 
-        # 获取 metric_group_dimensions 配置
-        ts_group = TimeSeriesGroup.objects.filter(time_series_group_id=group_id).first()
-        metric_group_dimensions = ts_group.metric_group_dimensions if ts_group else None
-
         # 预构建所有指标的 field_scope -> dimensions 索引，避免重复遍历
         # 时间复杂度优化：从 O(n×m) 降低到 O(n+m)
         field_scope_index_cache = {}
@@ -2330,9 +2321,7 @@ class TimeSeriesMetric(models.Model):
 
             # 使用缓存的索引，避免重复构建
             if obj.field_name not in field_scope_index_cache:
-                field_scope_index_cache[obj.field_name] = cls._build_field_scope_dimensions_index(
-                    metric_info, metric_group_dimensions
-                )
+                field_scope_index_cache[obj.field_name] = cls._build_field_scope_dimensions_index(metric_info)
 
             # 直接从索引中获取维度列表，O(1) 时间复杂度
             new_dimensions = field_scope_index_cache[obj.field_name].get(obj.field_scope)
@@ -2455,22 +2444,6 @@ class TimeSeriesMetric(models.Model):
                         'values': ["value1", "value2"]
                     }
                 },
-                "group_dimensions": {
-                    "service_name:api-server||scope_name:production": {
-                        "dimensions": ["service_name", "disk", "pod", "region"],
-                        "update_time": 1678901234
-                    }
-                },
-                "last_modify_time": 1678901234,
-            }]
-
-            格式3 - 带 tag_list（兼容格式）：
-            [{
-                "field_name": "disk_full",
-                "tag_list": [
-                    {"field_name": "module", "description": "模块"},
-                    {"field_name": "set", "description": "集群"}
-                ],
                 "last_modify_time": 1464567890123,
             }]
         :param is_auto_discovery: 指标是否自动发现
@@ -2483,25 +2456,15 @@ class TimeSeriesMetric(models.Model):
         existing_records = cls.objects.filter(group_id=group_id).values_list("field_name", "field_scope")
         existing_combinations = {(field_name, field_scope) for field_name, field_scope in existing_records}
 
-        # 获取 metric_group_dimensions 配置
-        ts_group = TimeSeriesGroup.objects.filter(time_series_group_id=group_id).first()
-        metric_group_dimensions = ts_group.metric_group_dimensions if ts_group else None
-
         # 构建期望的 (field_name, field_scope) 组合
         expected_combinations = set()
-        has_group_dimensions = False
         for metric_info in metric_info_list:
             field_name = metric_info.get("field_name")
             if not field_name:
                 continue
-            if "group_dimensions" in metric_info:
-                has_group_dimensions = True
-                for group_key in metric_info["group_dimensions"].keys():
-                    field_scope = cls.extract_field_scope_from_group_key(group_key, metric_group_dimensions)
-                    expected_combinations.add((field_name, field_scope))
-            else:
-                # 旧格式，使用默认的 field_scope
-                expected_combinations.add((field_name, "default"))
+            # 统一使用 field_scope 格式
+            field_scope = metric_info.get("field_scope", "default")
+            expected_combinations.add((field_name, field_scope))
 
         # 计算需要创建和更新的记录
         need_create_combinations = expected_combinations - existing_combinations
@@ -2514,34 +2477,20 @@ class TimeSeriesMetric(models.Model):
         need_push_router = False
         # 如果存在，则批量创建
         if need_create_combinations:
-            if has_group_dimensions:
-                # 新格式：传递完整的 combinations
-                need_push_router = cls._bulk_create_metrics(
-                    _metrics_dict,
-                    group_id,
-                    table_id,
-                    is_auto_discovery,
-                    need_create_metrics_with_scope=need_create_combinations,
-                )
-            else:
-                # 旧格式：只传递 field_name
-                need_create_metrics = {field_name for field_name, _ in need_create_combinations}
-                need_push_router = cls._bulk_create_metrics(
-                    _metrics_dict, group_id, table_id, is_auto_discovery, need_create_metrics=need_create_metrics
-                )
+            # 统一使用新格式：传递完整的 combinations
+            need_push_router = cls._bulk_create_metrics(
+                _metrics_dict,
+                group_id,
+                table_id,
+                is_auto_discovery,
+                need_create_metrics_with_scope=need_create_combinations,
+            )
         # 批量更新
         if need_update_combinations:
-            if has_group_dimensions:
-                # 新格式：传递完整的 combinations
-                need_push_router |= cls._bulk_update_metrics(
-                    _metrics_dict, group_id, is_auto_discovery, need_update_metrics_with_scope=need_update_combinations
-                )
-            else:
-                # 旧格式：只传递 field_name
-                need_update_metrics = {field_name for field_name, _ in need_update_combinations}
-                need_push_router |= cls._bulk_update_metrics(
-                    _metrics_dict, group_id, is_auto_discovery, need_update_metrics=need_update_metrics
-                )
+            # 统一使用新格式：传递完整的 combinations
+            need_push_router |= cls._bulk_update_metrics(
+                _metrics_dict, group_id, is_auto_discovery, need_update_metrics_with_scope=need_update_combinations
+            )
 
         return need_push_router
 
