@@ -1675,6 +1675,7 @@ class QueryTimeSeriesScopeResource(Resource):
                     "dimension_config": dimension_config,
                     "auto_rules": [],
                     "metric_list": metric_list,
+                    # todo hhh ungrouped_scope.create_from if ungrouped_scope else None,
                     "create_from": None,
                 }
             )
