@@ -91,43 +91,38 @@ class ScopeName:
         """获取原始值"""
         return self._value
 
-    @property
-    def levels(self) -> list[str]:
-        """获取所有层级的值列表"""
-        if not self._value:
+    @classmethod
+    def levels(cls, scope_name: str) -> list[str]:
+        """
+        获取所有层级的值列表
+
+        :param scope_name: 完整的 scope_name，例如 "service_name||endpoint_name"
+        :return: 层级值列表，例如 ["service_name", "endpoint_name"]
+        """
+        if not scope_name:
             return []
-        return [level for level in self._value.split(self.SEPARATOR) if level]
-
-    @property
-    def last_level(self) -> str:
-        """获取最后一级的值，如果为空则返回空串"""
-        levels = self.levels
-        if not levels:
-            return self.UNGROUPED
-        # 如果原始值以 SEPARATOR 结尾，说明最后一级是空的
-        if self._value.endswith(self.SEPARATOR):
-            return self.UNGROUPED
-        return levels[-1]
-
-    def get_level(self, index: int, default: str = "") -> str:
-        """获取指定层级的值"""
-        levels = self.levels
-        if 0 <= index < len(levels):
-            return levels[index]
-        return default
+        return [level for level in scope_name.split(cls.SEPARATOR) if level]
 
     @classmethod
-    def from_levels(cls, levels: list[str]) -> "ScopeName":
-        """从层级列表创建 ScopeName"""
-        if not levels:
-            return cls(cls.UNGROUPED)
-        # 过滤空值，不允许任何一级为空
-        filtered_levels = []
-        for i, level in enumerate(levels):
-            if not level:
-                raise ValueError(_("分组层级不能为空，请确认后重试"))
-            filtered_levels.append(level)
-        return cls(cls.SEPARATOR.join(filtered_levels))
+    def get_ungrouped_name(cls, prefix_levels: list[str] | None = None) -> str:
+        """
+        获取未分组的 scope_name
+
+        不同层级的未分组名称是不同的：
+        - 一级未分组: "" (空字符串)
+        - 多级未分组: "service_name||" (保留前缀和分隔符)
+
+        :param prefix_levels: 前缀层级列表，例如 ["service_name"] 表示二级分组的未分组
+        :return: 未分组的 scope_name
+
+        示例：
+        - get_ungrouped_name() -> ""  # 一级未分组
+        - get_ungrouped_name(["api-server"]) -> "api-server||"  # 二级未分组
+        - get_ungrouped_name(["api-server", "production"]) -> "api-server||production||"  # 三级未分组
+        """
+        if not prefix_levels:
+            return cls.UNGROUPED
+        return cls.SEPARATOR.join(prefix_levels) + cls.SEPARATOR
 
     @classmethod
     def from_group_key(cls, group_key: str, metric_group_dimensions: dict | None = None) -> str:
@@ -1208,10 +1203,10 @@ class TimeSeriesScope(models.Model):
 
         注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
         """
-        scope_name_obj = ScopeName(scope_name)
-        if scope_name_obj.levels:
+        levels = ScopeName.levels(scope_name)
+        if levels:
             # 多级分组：保留第一级，其余设为默认值
-            first_level = scope_name_obj.levels[0]
+            first_level = levels[0]
             return Q(field_scope=f"{first_level}{ScopeName.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}")
         # 一级分组：直接使用 DEFAULT_SCOPE
         return Q(field_scope=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
@@ -2637,7 +2632,8 @@ class TimeSeriesMetric(models.Model):
                 scope_moves[scope].append(metric_data["field_name"])
             else:
                 # 两者都没有传递，放到未分组
-                scope = cls._get_or_create_scope(group_id, ScopeName.UNGROUPED)
+                # todo hhh 思考？
+                scope = cls._get_or_create_scope(group_id, ScopeName.get_ungrouped_name())
                 scope_moves[scope].append(metric_data["field_name"])
 
         # 批量创建
