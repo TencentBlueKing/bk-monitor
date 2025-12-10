@@ -547,6 +547,8 @@ class TimeSeriesGroup(CustomGroupBase):
         is_updated = TimeSeriesMetric.bulk_refresh_ts_metrics(
             group_id, group.table_id, metric_info, group.is_auto_discovery()
         )
+        # 刷新 tsScope 中的维度
+        TimeSeriesScope.refresh_scopes_for_metrics(group_id, metric_info)
         # 刷新 rt 表中的指标和维度
         self.bulk_refresh_rt_fields(group.table_id, metric_info)
         return is_updated
@@ -1269,18 +1271,35 @@ class TimeSeriesScope(models.Model):
         self.save(update_fields=["dimension_config"])
 
     @classmethod
-    def bulk_ensure_or_merge_scopes(
-        cls,
-        group_id: int,
-        scope_dimensions_map: dict,
-    ):
-        """批量确保 TimeSeriesScope 记录存在，如果存在则合并维度配置
-
-        此方法用于 metric 批量创建/更新场景，批量确保 scope 存在并合并
+    def refresh_scopes_for_metrics(cls, group_id: int, metric_info_list: list):
+        """
+        刷新 TimeSeriesScope 表中的维度信息
 
         :param group_id: 自定义分组ID
-        :param scope_dimensions_map: scope 名称到维度列表的映射字典，格式: {scope_name: [dimension1, dimension2, ...]}
+        :param metric_info_list: 具体自定义时序内容信息
         """
+        # 收集 scope 维度信息
+        scope_dimensions_map = {}
+
+        for metric_info in metric_info_list:
+            field_name = metric_info.get("field_name")
+            if not field_name:
+                continue
+
+            # 获取 field_scope
+            field_scope = metric_info.get("field_scope", "default")
+
+            # 获取维度列表
+            tag_list = []
+            if "tag_list" in metric_info:
+                tag_list = list(metric_info["tag_list"].keys())
+            elif "tag_value_list" in metric_info:
+                tag_list = list(metric_info["tag_value_list"].keys())
+
+            # 收集该 scope 的所有维度（使用 set 去重）
+            scope_dimensions_map.setdefault(field_scope, set()).update(tag_list)
+
+        # 批量刷新 TimeSeriesScope 记录
         if not scope_dimensions_map:
             return
 
@@ -2059,17 +2078,6 @@ class TimeSeriesMetric(models.Model):
             # 收集该 scope 的所有维度（使用 set 去重）
             scope_dimensions_map.setdefault(field_scope, set()).update(tag_list)
 
-        # 批量创建 TimeSeriesScope 记录，并传入对应的维度列表
-        if scope_dimensions_map:
-            # 将 set 转换为 list
-            scope_dimensions_list_map = {
-                scope_name: list(dimensions_set) for scope_name, dimensions_set in scope_dimensions_map.items()
-            }
-            TimeSeriesScope.bulk_ensure_or_merge_scopes(
-                group_id=group_id,
-                scope_dimensions_map=scope_dimensions_list_map,
-            )
-
         # 为每个 metric 记录设置 scope_id
         for record in records:
             scope_id = cls.get_scope_id_for_metric(
@@ -2150,17 +2158,6 @@ class TimeSeriesMetric(models.Model):
         if white_list_disabled_metric:
             cls.objects.filter(group_id=group_id, field_id__in=white_list_disabled_metric).delete()
         logger.info("white list disabled metric: %s, group_id: %s", json.dumps(white_list_disabled_metric), group_id)
-
-        # 批量更新或创建 TimeSeriesScope 记录，并传入对应的维度列表
-        if scope_dimensions_map:
-            # 将 set 转换为 list
-            scope_dimensions_list_map = {
-                scope_name: list(dimensions_set) for scope_name, dimensions_set in scope_dimensions_map.items()
-            }
-            TimeSeriesScope.bulk_ensure_or_merge_scopes(
-                group_id=group_id,
-                scope_dimensions_map=scope_dimensions_list_map,
-            )
 
         # 为每个需要更新的 metric 记录设置 scope_id
         for record in records:
