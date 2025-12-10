@@ -996,7 +996,7 @@ class CreateOrUpdateGroupingRule(Resource):
     更新自定义指标分组规则
     """
 
-    class RequestSerializer(CustomTSGroupingRuleSerializer):
+    class RequestSerializer(CustomTSScopeSerializer):
         class MetricSerializer(serializers.Serializer):
             field_id = serializers.IntegerField(label=_("指标 ID"))
             metric_name = serializers.CharField(label=_("指标名称"))
@@ -1042,7 +1042,8 @@ class CreateOrUpdateGroupingRule(Resource):
             )
         for field_id in update_field_ids:
             metrics.append({"field_id": field_id, "scope_name": scope_dict["scope_name"]})
-        api.metadata.create_or_update_time_series_metric(group_id=time_series_group_id, metrics=metrics)
+        if metrics:
+            api.metadata.create_or_update_time_series_metric(group_id=time_series_group_id, metrics=metrics)
         scope_dict = api.metadata.query_time_series_scope(group_id=time_series_group_id, scope_id=scope_id)[0]
 
         return {
