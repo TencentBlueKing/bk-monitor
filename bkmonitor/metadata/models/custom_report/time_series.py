@@ -627,9 +627,9 @@ class TimeSeriesGroup(CustomGroupBase):
 
                     item = {
                         "field_name": md["name"],
-                        "field_scope": TimeSeriesMetric.extract_field_scope_from_group_key(
+                        "field_scope": ScopeName.from_group_key(
                             group_key, self.metric_group_dimensions
-                        ),
+                        ).to_field_scope(),
                         "last_modify_time": latest_update_time // 1000,
                         "tag_value_list": tag_value_list,
                     }
@@ -1204,7 +1204,7 @@ class TimeSeriesScope(models.Model):
             return
 
         # 1. 获取被移动的指标，并验证它们必须来自 default 数据分组
-        # 使用 field_scope 字段过滤默认分组的指标
+        # 使用 field_scope 字段过滤默认分组的指标 todo hhh 补充 sink_scope_id，使得可以获取正确的指标
         scope_filter = TimeSeriesMetric.get_default_scope_metric_filter(self.scope_name)
         moved_metrics = TimeSeriesMetric.objects.filter(
             group_id=self.group_id, scope_id=source_scope_id, field_name__in=moved_metric_field_names
@@ -1941,20 +1941,6 @@ class TimeSeriesMetric(models.Model):
         return list(tags)
 
     @staticmethod
-    def extract_field_scope_from_group_key(group_key: str, metric_group_dimensions) -> str:
-        """从 group_dimensions 的 key 中提取 field_scope
-
-        例如: "service_name:api-server||scope_name:production" -> "api-server||production"
-        例如: "scope_name:production" -> "production"
-
-        特殊处理：
-        - 如果 service_name 不存在或值为空，使用 "unknown_service"
-        - 如果 scope_name 不存在或值为空，使用 "default"
-        """
-        scope_name_obj = ScopeName.from_group_key(group_key, metric_group_dimensions)
-        return scope_name_obj.to_field_scope()
-
-    @staticmethod
     def get_ungroup_scope(group_id: int, field_scope: str) -> "TimeSeriesScope | None":
         """获取未分组的 scope 对象
 
@@ -1973,7 +1959,7 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def get_scope_id_for_metric(cls, group_id: int, field_scope: str, field_name: str) -> int | None:
-        """获取指标对应的 scope_id
+        """获取指标对应的 scope_id todo hhh 优化精简代码
 
         :param group_id: 分组ID
         :param field_scope: 指标的 field_scope
