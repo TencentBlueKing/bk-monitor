@@ -304,7 +304,7 @@ class TGPATaskHandler:
         )
 
     @staticmethod
-    def get_or_create_collector_config(bk_biz_id: int):
+    def get_or_create_collector_config(bk_biz_id: int) -> CollectorConfig:
         """
         获取或创建采集配置
         """
