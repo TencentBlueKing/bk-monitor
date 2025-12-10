@@ -66,5 +66,5 @@ class TGPATaskViewSet(APIViewSet):
         获取文件下载链接
         """
         params = self.params_valid(GetDownloadUrlSerializer)
-        url = TGPATaskHandler(bk_biz_id=params["bk_biz_id"], task_id=params["task_id"]).task_info["download_url"]
+        url = TGPATaskHandler(bk_biz_id=params["bk_biz_id"], inst_id=params["id"]).task_info["download_url"]
         return Response({"url": url})

@@ -132,6 +132,9 @@ TGPA_TASK_ETL_FIELDS = [
     },
 ]
 
+TGPA_TASK_SORT_FIELDS = ["task_id", "file"]
+TGPA_TASK_TARGET_FIELDS = ["lineno"]
+
 CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "file", "lineno"]
 LOG_FILE_EXPIRE_DAYS = 3
 

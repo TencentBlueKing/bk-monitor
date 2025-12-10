@@ -29,6 +29,7 @@ export const getMainlineObjectTopo = request('GET', 'rest/v2/commons/get_mainlin
 export const getTemplate = request('POST', 'rest/v2/commons/get_template/');
 export const getNodesByTemplate = request('POST', 'rest/v2/commons/get_nodes_by_template/');
 export const getBusinessTargetDetail = request('POST', 'rest/v2/commons/get_business_target_detail/');
+export const getTopoList = request('POST', 'rest/v2/commons/get_topo_list/');
 export const getContext = request('GET', 'rest/v2/commons/get_context/');
 export const getLabel = request('GET', 'rest/v2/commons/get_label/');
 export const getFooter = request('GET', 'rest/v2/commons/get_footer/');
@@ -69,6 +70,7 @@ export default {
   getTemplate,
   getNodesByTemplate,
   getBusinessTargetDetail,
+  getTopoList,
   getContext,
   getLabel,
   getFooter,

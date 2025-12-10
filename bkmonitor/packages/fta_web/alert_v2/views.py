@@ -13,24 +13,37 @@ from core.drf_resource.viewsets import ResourceRoute
 
 # 复用原有alert模块的ViewSet实现
 from fta_web.alert.views import (
-    AlertViewSet as BaseAlertViewSet,
-    QuickAlertHandleViewSet as BaseQuickAlertHandleViewSet,
-    SearchFavoriteViewSet as BaseSearchFavoriteViewSet,
+    AlertViewSet as _BaseAlertViewSet,
+    QuickAlertHandleViewSet as _BaseQuickAlertHandleViewSet,
+    SearchFavoriteViewSet as _BaseSearchFavoriteViewSet,
 )
 
 
-class AlertViewSet(BaseAlertViewSet):
+class AlertV2ViewSet(_BaseAlertViewSet):
     """
     告警模块V2版本 - 复用原有实现
     新版本可以在这里添加特定的业务逻辑或覆盖原有方法
     """
 
     resource_routes = [
+        r
+        for r in _BaseAlertViewSet.resource_routes
+        if r.endpoint
+        not in [
+            "alert/detail",
+        ]
+    ] + [
+        # 重写接口( 继承 V1 版本的接口时，需要排除 )
         ResourceRoute("GET", resource.alert_v2.alert_detail, endpoint="alert/detail"),
+        # 新增接口
+        ResourceRoute("GET", resource.alert_v2.alert_events, endpoint="alert/events"),
+        ResourceRoute("GET", resource.alert_v2.alert_k8s_scenario_list, endpoint="alert/k8s_scenario_list"),
+        ResourceRoute("GET", resource.alert_v2.alert_k8s_metric_list, endpoint="alert/k8s_metric_list"),
+        ResourceRoute("GET", resource.alert_v2.alert_k8s_target, endpoint="alert/k8s_target"),
     ]
 
 
-class QuickAlertHandleViewSet(BaseQuickAlertHandleViewSet):
+class QuickAlertHandleV2ViewSet(_BaseQuickAlertHandleViewSet):
     """
     快捷告警处理V2版本 - 复用原有实现
     """
@@ -38,7 +51,7 @@ class QuickAlertHandleViewSet(BaseQuickAlertHandleViewSet):
     pass
 
 
-class SearchFavoriteViewSet(BaseSearchFavoriteViewSet):
+class SearchFavoriteV2ViewSet(_BaseSearchFavoriteViewSet):
     """
     搜索收藏V2版本 - 复用原有实现
     """
