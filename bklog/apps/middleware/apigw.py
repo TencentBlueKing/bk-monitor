@@ -108,6 +108,19 @@ class ApiGatewayJWTProvider(DefaultJWTProvider):
         if not jwt_token:
             return None
 
+        x_bkapi_authorization1 = request.META.get("X-Bkapi-Authorization", "--")
+        x_bkapi_authorization2 = request.META.get("X_Bkapi_Authorization", "--")
+        x_bkapi_authorization3 = request.META.get("X_BKAPI_AUTHORIZATION", "--")
+        x_bkapi_authorization4 = request.META.get("HTTP_X_BKAPI_AUTHORIZATION", "--")
+
+        logger.warning(f"csh-test: begin provide jwt, X-Bkapi-JWT -> {jwt_token}")
+        logger.warning(
+            f"csh-test: X-Bkapi-Authorization1 -> {x_bkapi_authorization1}, "
+            f"csh-test: X-Bkapi-Authorization2 -> {x_bkapi_authorization2}, "
+            f"csh-test: X-Bkapi-Authorization3 -> {x_bkapi_authorization3}, "
+            f"csh-test: X-Bkapi-Authorization4 -> {x_bkapi_authorization4}, "
+        )
+
         try:
             jwt_info = getattr(request, "jwt", None)
             if not jwt_info:
@@ -129,6 +142,10 @@ class ApiGatewayJWTProvider(DefaultJWTProvider):
 
             jwt_header = self._decode_jwt_header(jwt_token)
             gateway_name = jwt_header.get("kid") or self.default_gateway_name
+
+            logger.warning(f"csh-test: decoded jwt, gateway_name -> {gateway_name}")
+            logger.warning(f"csh-test: decoded jwt, jwt_header -> {jwt_header}")
+
             public_key = CustomCachePublicKeyProvider(default_gateway_name=self.default_gateway_name).provide(
                 gateway_name=gateway_name, jwt_issuer=jwt_header.get("iss"), request=request
             )
@@ -139,12 +156,9 @@ class ApiGatewayJWTProvider(DefaultJWTProvider):
             algorithm = jwt_header.get("alg") or self.algorithm
             decoded = self._decode_jwt(jwt_token, public_key, algorithm)
 
-            decoded_jwt = DecodedJWT(gateway_name=gateway_name, payload=decoded)
+            logger.warning(f"csh-test: decoded jwt, jwt_payload -> {decoded}")
 
-            logger.warning(f"csh-test: decoded jwt, decoded_jwt.gateway_name -> {decoded_jwt.gateway_name}")
-            logger.warning(f"csh-test: decoded jwt, decoded_jwt.payload -> {decoded_jwt.payload}")
-
-            return decoded_jwt
+            return DecodedJWT(gateway_name=gateway_name, payload=decoded)
 
         except jwt.PyJWTError as e:
             if not self.allow_invalid_jwt_token:
