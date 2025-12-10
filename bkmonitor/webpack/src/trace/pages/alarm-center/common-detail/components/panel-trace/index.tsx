@@ -27,9 +27,10 @@ import { type PropType, defineComponent, toRef } from 'vue';
 
 import TraceExploreTable from '../../../../trace-explore/components/trace-explore-table/trace-explore-table';
 import { ExploreTableLoadingEnum } from '../../../../trace-explore/components/trace-explore-table/typing';
-import { type IDimensionField } from '../../../../trace-explore/typing';
 import { useAlertTraces } from '../../../composables/use-alert-traces';
 import { ALERT_TRACE_FIELD_CONFIGS } from './constants';
+
+import type { IDimensionField } from '../../../../trace-explore/typing';
 
 import './index.scss';
 
@@ -62,6 +63,7 @@ export default defineComponent({
             [ExploreTableLoadingEnum.SCROLL]: false,
           }}
           appName={'tilapia'}
+          canSortFieldTypes={[]}
           displayFields={this.displayFields}
           enabledClickMenu={false}
           enabledDisplayFieldSetting={false}

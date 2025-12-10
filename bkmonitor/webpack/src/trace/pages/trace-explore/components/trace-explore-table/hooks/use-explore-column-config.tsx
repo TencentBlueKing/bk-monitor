@@ -54,6 +54,8 @@ import type { SlotReturnValue } from 'tdesign-vue-next';
 interface UseExploreTableColumnConfig {
   /** 当前选中的应用 Name */
   appName: MaybeRef<string>;
+  /** 支持排序的字段类型 */
+  canSortFieldTypes: MaybeRef<Set<string> | string[]>;
   /** 需要显示渲染的列名数组 */
   displayFields: MaybeRef<string[]>;
   /** 是否启用点击弹出操作下拉菜单 */
@@ -88,6 +90,7 @@ interface UseExploreTableColumnConfig {
  */
 export const useExploreColumnConfig = ({
   appName,
+  canSortFieldTypes,
   displayFields,
   enabledClickMenu,
   sourceFieldConfigs,
@@ -106,6 +109,10 @@ export const useExploreColumnConfig = ({
   const { tableConfig: defaultTableConfig, traceConfig, spanConfig } = TABLE_DEFAULT_CONFIG;
   const { t } = useI18n();
 
+  /** 支持排序的字段类型(Set 结构) */
+  const canSortFieldTypesSet = computed(() => {
+    return new Set(get(canSortFieldTypes) ?? CAN_TABLE_SORT_FIELD_TYPES);
+  });
   /** table 所有列字段信息(字段设置使用) */
   const tableColumns = computed(() => {
     return (get(sourceFieldConfigs) ?? []).reduce(
@@ -142,7 +149,7 @@ export const useExploreColumnConfig = ({
           column.title = fieldItem?.alias || column.title;
         }
         const tipText = column.headerDescription || column.colKey;
-        column.sorter = column.sorter != null ? column.sorter : CAN_TABLE_SORT_FIELD_TYPES.has(fieldItem?.type);
+        column.sorter = column.sorter != null ? column.sorter : get(canSortFieldTypesSet).has(fieldItem?.type);
         column.width = get(fieldsWidthConfig)?.[colKey] || column.width;
         // 表格列表头渲染方法
         const tableHeaderTitle = tableHeaderCellRender(column.title as string, tipText, column);
