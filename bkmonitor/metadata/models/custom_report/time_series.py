@@ -549,6 +549,8 @@ class TimeSeriesGroup(CustomGroupBase):
         )
         # 刷新 tsScope 中的维度
         TimeSeriesScope.refresh_scopes_for_metrics(group_id, metric_info)
+        # 为所有 metric 记录设置 scope_id
+        TimeSeriesMetric.bulk_update_scope_ids(group_id, metric_info)
         # 刷新 rt 表中的指标和维度
         self.bulk_refresh_rt_fields(group.table_id, metric_info)
         return is_updated
@@ -2054,7 +2056,6 @@ class TimeSeriesMetric(models.Model):
     ) -> bool:
         """批量创建指标"""
         records = []
-        scope_dimensions_map = {}
 
         for field_name, field_scope in need_create_metrics:
             metric_info = metrics_dict.get(field_name)
@@ -2075,16 +2076,6 @@ class TimeSeriesMetric(models.Model):
             logger.info("create ts metric data: %s", json.dumps(params))
             records.append(cls(**params))
 
-            # 收集该 scope 的所有维度（使用 set 去重）
-            scope_dimensions_map.setdefault(field_scope, set()).update(tag_list)
-
-        # 为每个 metric 记录设置 scope_id
-        for record in records:
-            scope_id = cls.get_scope_id_for_metric(
-                group_id=group_id, field_scope=record.field_scope, field_name=record.field_name
-            )
-            record.scope_id = scope_id
-
         # 开始批量创建指标
         cls.objects.bulk_create(records, batch_size=BULK_CREATE_BATCH_SIZE)
         return True
@@ -2100,7 +2091,6 @@ class TimeSeriesMetric(models.Model):
         """批量更新指标，针对记录仅更新最后更新时间和 tag 字段"""
         records = []
         white_list_disabled_metric = set()
-        scope_dimensions_map = {}
         need_push_router = False
 
         # 构建查询条件：需要同时匹配 field_name 和 field_scope
@@ -2151,25 +2141,13 @@ class TimeSeriesMetric(models.Model):
             if is_need_update:
                 records.append(obj)
 
-            # 增量更新维度
-            scope_dimensions_map.setdefault(obj.field_scope, set()).update(set(obj.tag_list) | set(tag_list))
-
         # 白名单模式，如果存在需要禁用的指标，则需要删除；应该不会太多，直接删除
         if white_list_disabled_metric:
             cls.objects.filter(group_id=group_id, field_id__in=white_list_disabled_metric).delete()
         logger.info("white list disabled metric: %s, group_id: %s", json.dumps(white_list_disabled_metric), group_id)
 
-        # 为每个需要更新的 metric 记录设置 scope_id
-        for record in records:
-            scope_id = cls.get_scope_id_for_metric(
-                group_id=group_id, field_scope=record.field_scope, field_name=record.field_name
-            )
-            record.scope_id = scope_id
-
         # 批量更新指定的字段
-        cls.objects.bulk_update(
-            records, ["last_modify_time", "tag_list", "scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE
-        )
+        cls.objects.bulk_update(records, ["last_modify_time", "tag_list"], batch_size=BULK_UPDATE_BATCH_SIZE)
         return need_push_router
 
     @classmethod
@@ -2247,6 +2225,50 @@ class TimeSeriesMetric(models.Model):
             )
 
         return need_push_router
+
+    @classmethod
+    def bulk_update_scope_ids(cls, group_id: int, metric_info_list: list):
+        """
+        批量更新 metric 记录的 scope_id
+        """
+        # 构建期望的 (field_name, field_scope) 组合
+        expected_combinations = set()
+        for metric_info in metric_info_list:
+            field_name = metric_info.get("field_name")
+            if not field_name:
+                continue
+            # 统一使用 field_scope 格式
+            field_scope = metric_info.get("field_scope", "default")
+            expected_combinations.add((field_name, field_scope))
+
+        if not expected_combinations:
+            return
+
+        # 查询所有需要更新的 metric 记录
+        field_name_list = [field_name for field_name, _ in expected_combinations]
+        qs_objs = filter_model_by_in_page(cls, "field_name__in", field_name_list, other_filter={"group_id": group_id})
+
+        # 将组合转换为集合，方便快速查找
+        combinations_set = set(expected_combinations)
+        records_to_update = []
+
+        for obj in qs_objs:
+            # 只处理匹配的 (field_name, field_scope) 组合
+            if (obj.field_name, obj.field_scope) not in combinations_set:
+                continue
+
+            # 获取 scope_id
+            scope_id = cls.get_scope_id_for_metric(
+                group_id=group_id, field_scope=obj.field_scope, field_name=obj.field_name
+            )
+            if scope_id and obj.scope_id != scope_id:
+                obj.scope_id = scope_id
+                records_to_update.append(obj)
+
+        # 批量更新 scope_id
+        if records_to_update:
+            cls.objects.bulk_update(records_to_update, ["scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE)
+            logger.info(f"Updated scope_id for {len(records_to_update)} metrics in group {group_id}")
 
     @classmethod
     def update_metrics(cls, group_id, metric_info_list):
