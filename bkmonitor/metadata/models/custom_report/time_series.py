@@ -1283,19 +1283,19 @@ class TimeSeriesScope(models.Model):
         :param field_name: 指标名称
         :return: scope_id 或 None（如果是未分组）
         """
-        db_scope_name = ScopeName.from_field_scope(field_scope)
+        scope_name = ScopeName.from_field_scope(field_scope)
 
         # 非 default 数据分组：直接查找对应的 scope_id
         if not ScopeName.is_default(field_scope):
-            scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=db_scope_name).first()
+            scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=scope_name).first()
             return scope.id if scope else None
 
         # 未分组
-        ungroup_scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=db_scope_name).first()
+        ungroup_scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=scope_name).first()
         # default 数据分组：需要匹配用户分组和数据分组的 auto_rules（正则表达式）
         all_scopes = (
             TimeSeriesScope.objects.filter(group_id=group_id)
-            .exclude(scope_name=db_scope_name)
+            .exclude(scope_name=scope_name)
             .order_by("-last_modify_time")
         )
         # 遍历所有分组，找到第一个匹配的 scope
