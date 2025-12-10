@@ -180,7 +180,7 @@ class ScopeName:
         :param field_scope: 指标的 field_scope 值
         :return: 数据库存储格式的分组名
         """
-        if cls.is_default(field_scope):
+        if cls.is_default_data_field_scope(field_scope):
             # 如果是 default 分组，转换为数据库存储格式
             if cls.SEPARATOR in field_scope:
                 # 多级分组：将最后一级的 default 替换为空串
@@ -193,7 +193,7 @@ class ScopeName:
             return field_scope
 
     @classmethod
-    def is_default(cls, field_scope: str) -> bool:
+    def is_default_data_field_scope(cls, field_scope: str) -> bool:
         """
         判断指定的 field_scope 是否为 default 分组（一级或多级）
 
@@ -1286,7 +1286,7 @@ class TimeSeriesScope(models.Model):
         scope_name = ScopeName.from_field_scope(field_scope)
 
         # 非 default 数据分组：直接查找对应的 scope_id
-        if not ScopeName.is_default(field_scope):
+        if not ScopeName.is_default_data_field_scope(field_scope):
             scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=scope_name).first()
             return scope.id if scope else None
 
