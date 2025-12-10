@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, reactive } from 'vue';
+import { defineComponent, ref, reactive, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import type { ICollectionParams } from '../../../type';
 
 import MultilineRegDialog from '../../business-comp/step2/multiline-reg-dialog';
 import InfoTips from '../../common-comp/info-tips'; // 多行正则对话框组件
@@ -40,7 +41,7 @@ export default defineComponent({
   name: 'LineRuleConfig', // 组件名称
   props: {
     data: {
-      type: Object, // 数据类型为对象
+      type: Object as PropType<ICollectionParams>,
       required: true, // 必需属性
       default: () => ({
         // 默认值
@@ -67,18 +68,14 @@ export default defineComponent({
      * @param val - 新的值
      */
     const handleInputChange = (field: string, val: string) => {
+      const MULTILINE_FIELDS = ['multiline_pattern', 'multiline_max_lines', 'multiline_timeout'];
       emit('update', {
         // 触发更新事件
         ...props.data, // 保留原有数据
         [field]: val, // 更新指定字段
       });
       // 输入时清除对应字段的错误状态
-      if (
-        (field === 'multiline_pattern' || field === 'multiline_max_lines' || field === 'multiline_timeout') &&
-        errorState[field] &&
-        val &&
-        String(val).trim()
-      ) {
+      if (MULTILINE_FIELDS.includes(field) && errorState[field] && val && String(val).trim()) {
         errorState[field] = false;
       }
     };
@@ -93,31 +90,31 @@ export default defineComponent({
      * 关闭行首正则调试弹窗
      * @param val - 控制弹窗显示状态的布尔值
      */
-    const handleCancelMultilineReg = val => {
+    const handleCancelMultilineReg = (val: boolean) => {
       showMultilineRegDialog.value = val;
     };
-
+    /**
+     * 检查值是否为空
+     * @param field
+     * @returns
+     */
+    const checkField = (field: string) => {
+      const value = props.data[field as keyof typeof props.data];
+      return !value || !String(value).trim();
+    };
     /**
      * 校验方法：检查 multiline_pattern、multiline_max_lines、multiline_timeout 是否为空值
      * @returns {boolean} 校验是否通过，true表示通过，false表示失败
      */
     const validate = (): boolean => {
-      const { multiline_pattern, multiline_max_lines, multiline_timeout } = props.data;
-      
-      // 检查 multiline_pattern 是否为空
-      const isPatternEmpty = !multiline_pattern || !String(multiline_pattern).trim();
-      errorState.multiline_pattern = isPatternEmpty;
-      
-      // 检查 multiline_max_lines 是否为空
-      const isMaxLinesEmpty = !multiline_max_lines || !String(multiline_max_lines).trim();
-      errorState.multiline_max_lines = isMaxLinesEmpty;
-      
-      // 检查 multiline_timeout 是否为空
-      const isTimeoutEmpty = !multiline_timeout || !String(multiline_timeout).trim();
-      errorState.multiline_timeout = isTimeoutEmpty;
-      
-      // 返回校验结果：所有字段都不为空才返回 true
-      return !isPatternEmpty && !isMaxLinesEmpty && !isTimeoutEmpty;
+      const fields = ['multiline_pattern', 'multiline_max_lines', 'multiline_timeout'];
+      fields.forEach((field: string) => {
+        errorState[field] = checkField(field);
+      });
+      /**
+       * 返回校验结果：所有字段都不为空才返回 true
+       */
+      return fields.every(field => !errorState[field]);
     };
 
     // 暴露校验方法给父组件

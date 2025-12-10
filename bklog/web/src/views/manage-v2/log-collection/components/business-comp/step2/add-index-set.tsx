@@ -111,23 +111,17 @@ export default defineComponent({
       try {
         await editFormRef.value?.validate();
         const { index_set_id, index_set_name } = editData.value;
+        const method = props.isAdd ? 'collect/addIndexGroup' : 'collect/updateIndexGroup';
         const message = props.isAdd ? t('新增成功') : t('更新成功');
-        const config = props.isAdd
-          ? {
-              method: 'collect/addIndexGroup',
-              data: { space_uid: spaceUid.value, index_set_name },
-              message,
-            }
-          : {
-              method: 'collect/updateIndexGroup',
-              params: { index_set_id },
-              data: { index_set_name },
-              message,
-            };
+        const baseConfig = { message, method };
+        const dataConfig = props.isAdd
+          ? { data: { space_uid: spaceUid.value, index_set_name } }
+          : { params: { index_set_id }, data: { index_set_name } };
+        const config = { ...baseConfig, ...dataConfig };
 
         await handleRequest(config);
       } catch (error) {
-        console.error('操作失败:', error);
+        console.log('操作失败:', error);
       }
     };
 

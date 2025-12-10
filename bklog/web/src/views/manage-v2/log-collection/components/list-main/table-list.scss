@@ -165,29 +165,26 @@
       font-family: "PingFang SC","Microsoft Yahei",monospace;
       .table-status {
         display: inline-block;
-        padding-left: 16px;
+        padding-left: 18px;
         position: relative;
-        &::after {
+        &::after, &::before {
           content: '';
-          width: 6px;
-          height: 6px;
           border-radius: 50%;
-          background: #979ba5;
           position: absolute;
-          left: 3px;
           top: 50%;
           transform: translateY(-50%);
         }
+        &::after {
+          width: 6px;
+          height: 6px;
+          background: #979ba5;
+          left: 3px; 
+        }
         &::before {
-          content: '';
           width: 12px;
           height: 12px;
-          border-radius: 50%;
           background: #979ba529;
-          position: absolute;
           left: 0;
-          top: 50%;
-          transform: translateY(-50%);
         }
         &.success {
           &::after {

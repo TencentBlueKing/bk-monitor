@@ -24,18 +24,41 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed } from 'vue';
+import { defineComponent, computed, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
 import './event-filter.scss';
 
+/**
+ * 事件类型
+ */
+export type EventType = 'winlog_event_id' | 'winlog_level' | 'winlog_source' | 'winlog_content';
+
+/**
+ * 事件过滤项接口
+ */
+export interface IEventFilterItem {
+  type: EventType;
+  list: string[];
+  isCorrect: boolean;
+}
+
+/**
+ * 事件选项接口
+ */
+interface IEventOption {
+  id: EventType;
+  name: string;
+  isSelect: boolean;
+}
+
 export default defineComponent({
   name: 'EventFilter',
   props: {
     data: {
-      type: Array,
-      default: () => [],
+      type: Array as PropType<IEventFilterItem[]>,
+      default: () => [] as IEventFilterItem[],
     },
   },
 
@@ -43,7 +66,7 @@ export default defineComponent({
 
   setup(props, { emit }) {
     const { t } = useLocale();
-    const selectEventList = [
+    const selectEventList: IEventOption[] = [
       {
         id: 'winlog_event_id',
         name: t('事件ID'),
@@ -70,16 +93,17 @@ export default defineComponent({
     /**
      * 已经选中的类型
      */
-    const chooseList = computed(() => props.data.map(val => val.type));
-    const isDisabled = (id: string) => {
+    const chooseList = computed(() => props.data.map(item => item.type));
+    const isDisabled = (id: EventType): boolean => {
       return chooseList.value.includes(id);
     };
     /**
      * 新增
      */
-    const handleAdd = () => {
+    const handleAdd = (): void => {
       const noChooseList = selectEventList.filter(val => !chooseList.value.includes(val.id));
-      const data = [
+      if (noChooseList.length === 0) return;
+      const data: IEventFilterItem[] = [
         {
           type: noChooseList[0].id,
           list: [],
@@ -91,19 +115,19 @@ export default defineComponent({
     };
     /**
      * 删除
-     * @param item
+     * @param item - 要删除的事件过滤项
      */
-    const handleDel = item => {
+    const handleDel = (item: IEventFilterItem): void => {
       const data = props.data.filter(val => val.type !== item.type);
       emit('change', data);
     };
-    const renderItem = item => (
+    const renderItem = (item: IEventFilterItem) => (
       <div class='event-filter-item'>
         <bk-select
           class='event-filter-select'
           clearable={false}
           value={item.type}
-          on-selected={val => {
+          on-selected={(val: EventType) => {
             item.type = val;
             emit('change', props.data);
           }}
@@ -124,7 +148,7 @@ export default defineComponent({
           has-delete-icon={true}
           value={item.list}
           free-paste
-          on-change={val => {
+          on-change={(val: string[]) => {
             item.list = val;
             emit('change', props.data);
           }}

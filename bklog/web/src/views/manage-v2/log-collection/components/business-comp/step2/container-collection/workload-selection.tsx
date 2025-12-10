@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, reactive, watch, computed, onMounted } from 'vue';
+import { defineComponent, ref, reactive, watch, computed, onMounted, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -36,11 +36,11 @@ export default defineComponent({
   name: 'WorkloadSelection',
   props: {
     conItem: {
-      type: Object as () => IContainerConfigItem,
+      type: Object as PropType<IContainerConfigItem>,
       required: true,
     },
     container: {
-      type: Object as () => IContainerConfigItem['container'],
+      type: Object as PropType<IContainerConfigItem['container']>,
       required: true,
     },
     bcsClusterId: {
@@ -147,10 +147,9 @@ export default defineComponent({
           if (res.code === 0) {
             nameList.value = res.data.map(item => ({ id: item, name: item }));
           }
-          console.log(res);
         })
         .catch(err => {
-          console.logs(err);
+          console.log(err);
         })
         .finally(() => {
           nameCannotClick.value = false;
