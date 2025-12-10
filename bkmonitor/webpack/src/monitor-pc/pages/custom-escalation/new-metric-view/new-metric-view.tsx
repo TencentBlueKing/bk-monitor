@@ -167,8 +167,8 @@ export default class NewMetricView extends tsc<object> {
       if (!needParseUrl) {
         const metricGroup = result.metric_groups;
         const defaultSelectedData = {
-          groupName: metricGroup[0].name,
-          metricsName: [metricGroup[0].metrics[0].metric_name],
+          groupName: metricGroup[0].name || '',
+          metricsName: [metricGroup[0]?.metrics[0]?.metric_name || ''],
         }
         customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(
           metricGroup.length > 0 && metricGroup[0].metrics.length > 0 ? [defaultSelectedData] : []
