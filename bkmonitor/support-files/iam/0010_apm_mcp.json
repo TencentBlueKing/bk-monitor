@@ -1,0 +1,300 @@
+{
+    "system_id": "bk_monitorv3",
+    "operations": [
+        {
+            "operation": "upsert_action",
+            "data": {
+                "id": "using_apm_mcp",
+                "name": "使用APM MCP",
+                "name_en": "Using Apm MCP",
+                "type": "view",
+                "version": 1,
+                "related_resource_types": [
+                    {
+                        "system_id": "bk_monitorv3",
+                        "id": "space",
+                        "selection_mode": "instance",
+                        "related_instance_selections": [
+                            {
+                                "system_id": "bk_monitorv3",
+                                "id": "space_list"
+                            }
+                        ],
+                        "ignore_iam_path": true
+                    }
+                ],
+                "related_actions": [
+                    "view_business_v2"
+                ],
+                "description": "使用APM MCP,查询APM数据",
+                "description_en": "Using Apm MCP, query apm data"
+            }
+        },
+        {
+            "operation": "upsert_action_groups",
+            "data": [
+                {
+                    "name": "业务",
+                    "name_en": "Business",
+                    "actions": [
+                        {
+                            "id": "view_business_v2"
+                        }
+                    ]
+                },
+                {
+                    "name": "数据集成",
+                    "name_en": "Metric",
+                    "sub_groups": [
+                        {
+                            "name": "指标插件",
+                            "name_en": "Metric Plugin",
+                            "actions": [
+                                {
+                                    "id": "view_plugin_v2"
+                                },
+                                {
+                                    "id": "manage_plugin_v2"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "采集",
+                            "name_en": "Collection",
+                            "actions": [
+                                {
+                                    "id": "view_collection_v2"
+                                },
+                                {
+                                    "id": "manage_collection_v2"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "自定义上报",
+                            "name_en": "Custom Report",
+                            "actions": [
+                                {
+                                    "id": "view_custom_metric_v2"
+                                },
+                                {
+                                    "id": "manage_custom_metric_v2"
+                                },
+                                {
+                                    "id": "view_custom_event_v2"
+                                },
+                                {
+                                    "id": "manage_custom_event_v2"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "监控场景",
+                    "name_en": "Monitor Scenario",
+                    "sub_groups": [
+                        {
+                            "name": "主机",
+                            "name_en": "Host",
+                            "actions": [
+                                {
+                                    "id": "view_host_v2"
+                                },
+                                {
+                                    "id": "manage_host_v2"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "拨测",
+                            "name_en": "Synthetic",
+                            "actions": [
+                                {
+                                    "id": "view_synthetic_v2"
+                                },
+                                {
+                                    "id": "manage_synthetic_v2"
+                                },
+                                {
+                                    "id": "use_public_synthetic_location"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "监控管理",
+                    "name_en": "Monitor Management",
+                    "sub_groups": [
+                        {
+                            "name": "策略",
+                            "name_en": "Rule",
+                            "actions": [
+                                {
+                                    "id": "view_rule_v2"
+                                },
+                                {
+                                    "id": "manage_rule_v2"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "告警组",
+                            "name_en": "Notify Team",
+                            "actions": [
+                                {
+                                    "id": "view_notify_team_v2"
+                                },
+                                {
+                                    "id": "manage_notify_team_v2"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "屏蔽",
+                            "name_en": "Downtime",
+                            "actions": [
+                                {
+                                    "id": "view_downtime_v2"
+                                },
+                                {
+                                    "id": "manage_downtime_v2"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "导入导出",
+                            "name_en": "Import And Export",
+                            "actions": [
+                                {
+                                    "id": "export_config_v2"
+                                },
+                                {
+                                    "id": "import_config_v2"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "分析定位",
+                    "name_en": "Analysis",
+                    "sub_groups": [
+                        {
+                            "name": "数据检索",
+                            "name_en": "Data Explorer",
+                            "actions": [
+                                {
+                                    "id": "explore_metric_v2"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "事件",
+                            "name_en": "Event",
+                            "actions": [
+                                {
+                                    "id": "view_event_v2"
+                                },
+                                {
+                                    "id": "manage_event_v2"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "仪表盘",
+                            "name_en": "Dashboard",
+                            "actions": [
+                                {
+                                    "id": "view_single_dashboard"
+                                },
+                                {
+                                    "id": "edit_single_dashboard"
+                                },
+                                {
+                                    "id": "manage_datasource_v2"
+                                },
+                                {
+                                    "id": "new_dashboard"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "视图订阅",
+                            "name_en": "Report",
+                            "actions": [
+                                {
+                                    "id": "manage_report"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "应用监控",
+                    "name_en": "Apm",
+                    "actions": [
+                        {
+                            "id": "view_apm_application_v2"
+                        },
+                        {
+                            "id": "manage_apm_application_v2"
+                        }
+                    ]
+                },
+                {
+                    "name": "全局",
+                    "name_en": "Global",
+                    "actions": [
+                        {
+                            "id": "manage_public_synthetic_location"
+                        },
+                        {
+                            "id": "manage_public_plugin"
+                        },
+                        {
+                            "id": "view_global_setting"
+                        },
+                        {
+                            "id": "manage_global_setting"
+                        },
+                        {
+                            "id": "view_self_state"
+                        },
+                        {
+                            "id": "manage_public_action_config"
+                        },
+                        {
+                            "id": "manage_calendar"
+                        }
+                    ]
+                },
+                {
+                    "name": "监控平台MCP",
+                    "name_en": "Monitor MCP",
+                    "actions": [
+                        {
+                            "id": "using_dashboard_mcp"
+                        },
+                        {
+                            "id": "using_metrics_mcp"
+                        },
+                        {
+                            "id": "using_log_mcp"
+                        },
+                        {
+                            "id": "using_alarm_mcp"
+                        },
+                        {
+                            "id": "using_metadata_mcp"
+                        },
+                        {
+                            "id": "using_apm_mcp"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
