@@ -181,7 +181,9 @@ class ModifyClusterInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         cluster_id = serializers.IntegerField(required=False, label="存储集群ID", default=None)
-        cluster_name = serializers.CharField(required=False, label="存储集群名", default=None)
+        cluster_name = serializers.RegexField(
+            required=False, label="存储集群名", default=None, regex=models.ClusterInfo.CLUSTER_NAME_REGEX
+        )
         cluster_type = serializers.CharField(required=False, label="存储集群类型", default=None)
         display_name = serializers.CharField(required=False, max_length=128, label="集群显示名称", default=None)
         description = serializers.CharField(required=False, label="存储集群描述", default=None, allow_blank=True)
