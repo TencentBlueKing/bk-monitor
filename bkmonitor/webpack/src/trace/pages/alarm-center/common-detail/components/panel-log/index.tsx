@@ -23,13 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, watch } from 'vue';
+import { type PropType, computed, defineComponent, watch } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Button } from 'bkui-vue';
 import { request } from 'monitor-api/base';
 import { random } from 'monitor-common/utils';
-import { EMode } from 'trace/components/retrieval-filter/typing';
+import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 import { useI18n } from 'vue-i18n';
 
 import RetrievalFilter from '../../../../../components/retrieval-filter/retrieval-filter';
@@ -52,6 +52,8 @@ export const updateUserFiledTableConfig = request(
 import TableFieldSetting from './log-table/table-field-setting';
 import { formatHierarchy } from './log-table/utils/fields';
 
+import type { TdPrimaryTableProps } from '@blueking/tdesign-ui';
+
 import './index.scss';
 
 export default defineComponent({
@@ -59,6 +61,10 @@ export default defineComponent({
   props: {
     detail: {
       type: Object as PropType<AlarmDetail>,
+      default: () => null,
+    },
+    headerAffixedTop: {
+      type: Object as PropType<TdPrimaryTableProps['headerAffixedTop']>,
       default: () => null,
     },
   },
@@ -73,6 +79,7 @@ export default defineComponent({
     const selectIndexSet = shallowRef<number | string>('');
     const keyword = shallowRef('');
     const filterMode = shallowRef<EMode>(EMode.ui);
+    const where = shallowRef<IWhereItem[]>([]);
     const tableRefreshKey = shallowRef(null);
 
     const tableColumnsSetting = shallowRef([]);
@@ -118,13 +125,11 @@ export default defineComponent({
         size: params.size,
         start_time: props.detail?.begin_time,
         end_time: props.detail.latest_time,
-        addition: [
-          {
-            field: 'resource.server',
-            operator: '=',
-            value: ['example.greeter'],
-          },
-        ],
+        addition: where.value.map(item => ({
+          field: item.key,
+          operator: item.method,
+          value: item.value,
+        })),
         begin: params.offset,
         ip_chooser: {},
         host_scopes: {
@@ -136,7 +141,7 @@ export default defineComponent({
         interval: 'auto',
         search_mode: 'ui',
         sort_list: [['dtEventTimeStamp', 'desc']],
-        keyword: '*',
+        keyword: keyword.value,
       })
         .then(res => {
           return res;
@@ -167,6 +172,23 @@ export default defineComponent({
 
     /** 需要展示的表格字段 */
     const displayColumnFields = shallowRef([]);
+
+    const retrievalFields = computed(() => {
+      const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__'];
+      const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
+      const tempFields = fieldsData.value?.fields?.filter(filterFn) || [];
+      return tempFields.map(item => ({
+        alias: item.query_alias || item.field_name,
+        name: item.field_name,
+        isEnableOptions: true,
+        type: item.field_type,
+        methods: item?.field_operator?.map(o => ({
+          alias: o.label,
+          value: o.operator,
+          placeholder: o.placeholder,
+        })),
+      }));
+    });
 
     const handleDisplayColumnFieldsChange = (val: string[]) => {
       updateUserFiledTableConfig({
@@ -260,6 +282,11 @@ export default defineComponent({
       handleSearch();
     }
 
+    const handleWhereChange = (val: IWhereItem[]) => {
+      where.value = val;
+      handleSearch();
+    };
+
     return {
       indexSetList,
       tableRefreshKey,
@@ -269,6 +296,9 @@ export default defineComponent({
       filterMode,
       customColumns,
       displayColumnFields,
+      retrievalFields,
+      fieldsData,
+      where,
       handleChangeIndexSet,
       t,
       handleGoLog,
@@ -277,6 +307,7 @@ export default defineComponent({
       handleModeChange,
       getTableData,
       getFieldsData,
+      handleWhereChange,
     };
   },
   render() {
@@ -304,12 +335,15 @@ export default defineComponent({
         </div>
         <div class='panel-log-filter'>
           <RetrievalFilter
+            fields={this.retrievalFields}
             filterMode={this.filterMode}
             queryString={this.keyword}
+            where={this.where}
             zIndex={4000}
             onModeChange={this.handleModeChange}
             onQueryStringChange={this.handleQueryStringChange}
             onSearch={this.handleSearch}
+            onWhereChange={this.handleWhereChange}
           />
         </div>
         <LogTableNew
@@ -317,6 +351,7 @@ export default defineComponent({
           displayFields={this.displayColumnFields}
           getFieldsData={this.getFieldsData}
           getTableData={this.getTableData}
+          headerAffixedTop={this.headerAffixedTop}
           refreshKey={this.tableRefreshKey}
         />
       </div>

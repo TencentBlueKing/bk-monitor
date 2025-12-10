@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, KeepAlive, shallowRef } from 'vue';
+import { computed, defineComponent, inject, KeepAlive, shallowRef, useTemplateRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
@@ -58,6 +58,7 @@ export default defineComponent({
   name: 'AlarmDetail',
   setup() {
     const { t } = useI18n();
+    const boxWrapRef = useTemplateRef<HTMLDivElement>('boxWrap');
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const currentPanel = shallowRef(alarmCenterDetailStore.alarmDetail?.alarmTabList?.[0]?.label);
     const { alarmDetail, loading, bizId, alarmId } = storeToRefs(alarmCenterDetailStore);
@@ -157,7 +158,15 @@ export default defineComponent({
         case ALARM_CENTER_PANEL_TAB_MAP.VIEW:
           return <AlarmView detail={alarmCenterDetailStore.alarmDetail} />;
         case ALARM_CENTER_PANEL_TAB_MAP.LOG:
-          return <PanelLog detail={alarmCenterDetailStore.alarmDetail} />;
+          return (
+            <PanelLog
+              headerAffixedTop={{
+                offsetTop: 51,
+                container: () => boxWrapRef.value,
+              }}
+              detail={alarmCenterDetailStore.alarmDetail}
+            />
+          );
         case ALARM_CENTER_PANEL_TAB_MAP.TRACE:
           return <PanelLink />;
         case 'host':
@@ -203,7 +212,10 @@ export default defineComponent({
     };
 
     return () => (
-      <div class='alarm-center-detail-box'>
+      <div
+        ref={'boxWrap'}
+        class='alarm-center-detail-box'
+      >
         {loading.value
           ? renderBasicInfoSkeleton()
           : [

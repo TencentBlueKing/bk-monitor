@@ -120,9 +120,6 @@ export const useTable = (options: { onClickMenu?: (opt: { type: EClickMenuType; 
     setTableColumns(columns);
   };
 
-  const setOriginLogData = (data: any[]) => {
-    originLogData.value = data;
-  };
   const setFieldsData = (data: any) => {
     fieldsData.value = data;
   };
@@ -134,9 +131,9 @@ export const useTable = (options: { onClickMenu?: (opt: { type: EClickMenuType; 
     tableColumns,
     tableData,
     expandedRow,
+    originLogData,
     setTableColumns,
     fieldsDataToColumns,
-    setOriginLogData,
     setFieldsData,
     setWrapWidth,
   };

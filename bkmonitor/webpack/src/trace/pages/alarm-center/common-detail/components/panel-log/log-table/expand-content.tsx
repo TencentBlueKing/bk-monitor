@@ -26,7 +26,11 @@
 
 import { type PropType, defineComponent, shallowRef, watchEffect } from 'vue';
 
+import { Message } from 'bkui-vue';
+import { copyText } from 'monitor-common/utils/utils';
 import { fieldTypeMap } from 'monitor-pc/components/retrieval-filter/utils';
+import { useI18n } from 'vue-i18n';
+import JsonPretty from 'vue-json-pretty';
 
 import LogCell from './log-cell';
 import { parseTableRowData } from './utils/utils';
@@ -34,6 +38,7 @@ import { parseTableRowData } from './utils/utils';
 import type { EClickMenuType, IFieldInfo } from './typing';
 
 import './expand-content.scss';
+import 'vue-json-pretty/lib/styles.css';
 
 export default defineComponent({
   name: 'ExpandContent',
@@ -52,6 +57,7 @@ export default defineComponent({
     },
   },
   setup(props) {
+    const { t } = useI18n();
     const activeExpandView = shallowRef('kv');
 
     const kvList = shallowRef([]);
@@ -70,6 +76,20 @@ export default defineComponent({
       jsonData.value = tempJsonData;
       kvList.value = tempKvList;
     });
+
+    const handleCopy = (value: Record<string, any>) => {
+      copyText(JSON.stringify(value), msg => {
+        Message({
+          message: msg,
+          theme: 'error',
+        });
+        return;
+      });
+      Message({
+        message: t('复制成功'),
+        theme: 'success',
+      });
+    };
 
     const headerWrapper = () => {
       return (
@@ -93,7 +113,10 @@ export default defineComponent({
             </span>
           </div>
           <div class='tab-right'>
-            <span class='bklog-icon bklog-data-copy' />
+            <span
+              class='icon-monitor icon-mc-copy'
+              onClick={() => handleCopy(jsonData.value)}
+            />
           </div>
         </div>
       );
@@ -142,7 +165,11 @@ export default defineComponent({
     };
 
     const jsonViewWrapper = () => {
-      return <div class='json-view-wrap'>jsonxxx</div>;
+      return (
+        <div class='json-view-wrap'>
+          <JsonPretty data={jsonData.value} />
+        </div>
+      );
     };
 
     return {
