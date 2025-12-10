@@ -1190,6 +1190,20 @@ class TimeSeriesScope(models.Model):
         return self.create_from == TimeSeriesScope.CREATE_FROM_DATA
 
     @staticmethod
+    def get_default_scope_metric_filter(scope_name: str):
+        """获取默认 scope 的指标过滤器 todo hhh 需要支持最后一级的默认值进行过滤
+
+        注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
+        """
+        scope_name_obj = ScopeName(scope_name)
+        if scope_name_obj.levels:
+            # 多级分组：保留第一级，其余设为默认值
+            first_level = scope_name_obj.levels[0]
+            return Q(field_scope=f"{first_level}{ScopeName.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}")
+        # 一级分组：直接使用 DEFAULT_SCOPE
+        return Q(field_scope=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
+
+    @staticmethod
     def _get_ungroup_scope(group_id: int, field_scope: str) -> "TimeSeriesScope | None":
         """获取未分组的 scope 对象
 
@@ -1328,7 +1342,7 @@ class TimeSeriesScope(models.Model):
 
         # 1. 获取被移动的指标，并验证它们必须来自 default 数据分组
         # 使用 field_scope 字段过滤默认分组的指标 todo hhh 补充 sink_scope_id，使得可以获取正确的指标
-        scope_filter = TimeSeriesMetric.get_default_scope_metric_filter(self.scope_name)
+        scope_filter = TimeSeriesScope.get_default_scope_metric_filter(self.scope_name)
         moved_metrics = TimeSeriesMetric.objects.filter(
             group_id=self.group_id, scope_id=source_scope_id, field_name__in=moved_metric_field_names
         ).filter(scope_filter)
@@ -1983,20 +1997,6 @@ class TimeSeriesMetric(models.Model):
         unique_together = ("group_id", "field_scope", "field_name")
         verbose_name = "自定义时序描述记录"
         verbose_name_plural = "自定义时序描述记录表"
-
-    @staticmethod
-    def get_default_scope_metric_filter(scope_name: str):
-        """获取默认 scope 的指标过滤器 todo hhh 需要支持最后一级的默认值进行过滤
-
-        注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
-        """
-        scope_name_obj = ScopeName(scope_name)
-        if scope_name_obj.levels:
-            # 多级分组：保留第一级，其余设为默认值
-            first_level = scope_name_obj.levels[0]
-            return Q(field_scope=f"{first_level}{ScopeName.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}")
-        # 一级分组：直接使用 DEFAULT_SCOPE
-        return Q(field_scope=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
 
     def make_table_id(self, bk_biz_id, bk_data_id, table_name=None):
         if str(bk_biz_id) != "0":
