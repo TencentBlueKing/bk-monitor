@@ -174,7 +174,7 @@ class ScopeName:
 
     def to_field_scope(self) -> str:
         """转换为 field_scope 格式（兼容旧格式）"""
-        return self._value if self._value else TimeSeriesMetric.DEFAULT_SCOPE
+        return self._value if self._value else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
 
 
 class TimeSeriesGroup(CustomGroupBase):
@@ -1195,8 +1195,8 @@ class TimeSeriesScope(models.Model):
         todo hhh 修改
         注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name||default 格式
         """
-        return scope_name == TimeSeriesMetric.DEFAULT_SCOPE or scope_name.endswith(
-            f"||{TimeSeriesMetric.DEFAULT_SCOPE}"
+        return scope_name == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME or scope_name.endswith(
+            f"||{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
         )
 
     def update_dimension_config_from_moved_metrics(
@@ -1807,8 +1807,7 @@ class TimeSeriesMetric(models.Model):
 
     TARGET_DIMENSION_NAME = "target"
 
-    DEFAULT_SERVICE = "unknown_service"  # 默认服务
-    DEFAULT_SCOPE = "default"  # 默认分组
+    DEFAULT_DATA_SCOPE_NAME = "default"  # 默认分组
 
     ORM_FIELD_NAMES = (
         "table_id",
@@ -1838,7 +1837,7 @@ class TimeSeriesMetric(models.Model):
     scope_id = models.IntegerField(verbose_name="时序分组ID", null=True, blank=True, db_index=True)
     table_id = models.CharField(verbose_name="table名", default="", max_length=255)
     field_scope = models.CharField(
-        verbose_name="指标字段数据分组名", default=DEFAULT_SCOPE, max_length=255, db_collation="utf8_bin"
+        verbose_name="指标字段数据分组名", default=DEFAULT_DATA_SCOPE_NAME, max_length=255, db_collation="utf8_bin"
     )
     field_name = models.CharField(verbose_name="指标字段名称", max_length=255, db_collation="utf8_bin")
     tag_list = JsonField(verbose_name="Tag列表", default=[])
@@ -1870,9 +1869,9 @@ class TimeSeriesMetric(models.Model):
         if scope_name_obj.levels:
             # 多级分组：保留第一级，其余设为默认值
             first_level = scope_name_obj.levels[0]
-            return Q(field_scope=f"{first_level}{ScopeName.SEPARATOR}{TimeSeriesMetric.DEFAULT_SCOPE}")
+            return Q(field_scope=f"{first_level}{ScopeName.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}")
         # 一级分组：直接使用 DEFAULT_SCOPE
-        return Q(field_scope=TimeSeriesMetric.DEFAULT_SCOPE)
+        return Q(field_scope=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
 
     def make_table_id(self, bk_biz_id, bk_data_id, table_name=None):
         if str(bk_biz_id) != "0":
@@ -2912,7 +2911,7 @@ class TimeSeriesMetric(models.Model):
                 cls(
                     table_id=metric_data["table_id"],
                     field_name=metric_data["field_name"],
-                    field_scope=cls.DEFAULT_SCOPE,
+                    field_scope=cls.DEFAULT_DATA_SCOPE_NAME,
                     group_id=group_id,
                     scope_id=None,  # 先不设置，由update_dimension_config_from_moved_metrics处理
                     tag_list=metric_data.get("tag_list", []),
@@ -3025,20 +3024,20 @@ class TimeSeriesMetric(models.Model):
                     batch_conflicting_names.append(name)
                 seen.add(name)
             raise ValueError(
-                f"同一批次内指标字段名称[{', '.join(batch_conflicting_names)}]在[{cls.DEFAULT_SCOPE}]分组下重复，请使用其他名称"
+                f"同一批次内指标字段名称[{', '.join(batch_conflicting_names)}]在[{cls.DEFAULT_DATA_SCOPE_NAME}]分组下重复，请使用其他名称"
             )
 
         # 检查与数据库中已存在的字段名是否冲突
         existing_field_names = set(
             cls.objects.filter(
                 group_id=group_id,
-                field_scope=cls.DEFAULT_SCOPE,
+                field_scope=cls.DEFAULT_DATA_SCOPE_NAME,
                 field_name__in=field_names,
             ).values_list("field_name", flat=True)
         )
         if conflicting_names := unique_field_names & existing_field_names:
             raise ValueError(
-                f"指标字段名称[{', '.join(conflicting_names)}]在[{cls.DEFAULT_SCOPE}]分组下已存在，请使用其他名称"
+                f"指标字段名称[{', '.join(conflicting_names)}]在[{cls.DEFAULT_DATA_SCOPE_NAME}]分组下已存在，请使用其他名称"
             )
 
     @classmethod
