@@ -91,22 +91,6 @@ class ScopeName:
         """获取原始值"""
         return self._value
 
-    @classmethod
-    def is_default(cls, field_scope: str) -> bool:
-        """
-        判断指定的 field_scope 是否为 default 分组（一级或多级）
-
-        示例：
-        - 一级分组: "default"
-        - 多级分组: "service_name||default"
-
-        :param field_scope: 指标的 field_scope 值
-        :return: 如果是 default 分组返回 True，否则返回 False
-        """
-        return field_scope == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME or field_scope.endswith(
-            f"{cls.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
-        )
-
     @property
     def levels(self) -> list[str]:
         """获取所有层级的值列表"""
@@ -207,6 +191,22 @@ class ScopeName:
         else:
             # 非 default 分组，保持原样
             return field_scope
+
+    @classmethod
+    def is_default(cls, field_scope: str) -> bool:
+        """
+        判断指定的 field_scope 是否为 default 分组（一级或多级）
+
+        示例：
+        - 一级分组: "default"
+        - 多级分组: "service_name||default"
+
+        :param field_scope: 指标的 field_scope 值
+        :return: 如果是 default 分组返回 True，否则返回 False
+        """
+        return field_scope == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME or field_scope.endswith(
+            f"{cls.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
+        )
 
 
 class TimeSeriesGroup(CustomGroupBase):
