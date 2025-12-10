@@ -28,7 +28,7 @@ import { defineComponent, ref, onMounted, watch, computed, nextTick } from 'vue'
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { debounce } from 'throttle-debounce';
+// import { debounce } from 'throttle-debounce';
 
 import {
   type btnType,
@@ -126,17 +126,16 @@ export default defineComponent({
     const isMatchType = computed<boolean>(() => {
       return activeFilterType.value === 'match';
     });
-
     /** 需要监听的响应式数据集合（用于触发条件变更） */
-    const watchTarget = computed<{
-      filterData: ITableRowItem[][];
-      switcher: boolean;
-      separator: string;
-    }>(() => ({
-      filterData: filterData.value,
-      switcher: filterSwitcher.value,
-      separator: separator.value,
-    }));
+    //  const watchTarget = computed<{
+    //   filterData: ITableRowItem[][];
+    //   switcher: boolean;
+    //   separator: string;
+    // }>(() => ({
+    //   filterData: filterData.value,
+    //   switcher: filterSwitcher.value,
+    //   separator: separator.value,
+    // }));
 
     /** 操作符选择列表（根据当前过滤类型动态调整） */
     const operatorOptions = computed<ISelectItem[]>(() => {
@@ -336,6 +335,7 @@ export default defineComponent({
         isFirstSwitchToSeparator.value = false;
         fetchLogOriginal(false);
       }
+      emitConditionsChange();
     };
 
     /**
@@ -400,13 +400,7 @@ export default defineComponent({
      */
     const getSubmitConditions = (): IConditions => {
       // 过滤空规则（word为空的行）
-      const validGroups = filterData.value
-        .map(group => group.filter(row => !!row.word))
-        .filter(group => group.length > 0);
-
-      if (!filterSwitcher.value || validGroups.length === 0) {
-        return { type: 'none' };
-      }
+      const validGroups = filterData.value;
 
       // 扁平化规则并添加逻辑运算符（组间OR，组内AND）
       let flatConditions: Array<ITableRowItem & { logic_op: string }> = validGroups.flatMap((group, groupIndex) => {
@@ -454,7 +448,7 @@ export default defineComponent({
         if (res.data?.length) {
           logOriginal.value = res.data[0].etl.data || '';
           if (logOriginal.value && isDebug) {
-            debugLogOrigin();
+            debugLogOrigin(false);
           }
         }
       } catch (error) {
@@ -465,9 +459,9 @@ export default defineComponent({
     /**
      * 调试原始日志，解析字段列表
      */
-    const debugLogOrigin = async () => {
+    const debugLogOrigin = async (needLoading = true) => {
       try {
-        logOriginalLoading.value = true;
+        logOriginalLoading.value = needLoading;
         const res = await $http.request('clean/getEtlPreview', {
           data: {
             etl_config: 'bk_log_delimiter',
@@ -521,7 +515,7 @@ export default defineComponent({
 
     // -------------------------- 监听逻辑 --------------------------
     // 监听目标数据变化，防抖触发条件变更事件
-    watch(() => watchTarget.value, debounce(100, emitConditionsChange), { deep: true, immediate: true });
+    // watch(() => watchTarget.value, debounce(100, emitConditionsChange), { deep: true, immediate: true });
 
     watch(
       () => props.conditions,

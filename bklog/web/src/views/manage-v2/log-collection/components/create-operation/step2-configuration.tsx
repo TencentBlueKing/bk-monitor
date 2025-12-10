@@ -300,7 +300,7 @@ export default defineComponent({
       /**
        * 在新增的时候，如果列表选中了某个索引集，则进入页面默认选中该索引集
        */
-      if (!isCloneOrUpdate.value) {
+      if (!isCloneOrUpdate.value && Number(currentIndexSetId.value)) {
         formData.value = {
           ...formData.value,
           parent_index_set_ids: [Number(currentIndexSetId.value)],
@@ -617,15 +617,13 @@ export default defineComponent({
     };
 
     const initConfig = (data: IFormData) => {
-      const { configs, collector_scenario_id, params, target_node_type: type, et_nodes: nodes, tra_labels } = data;
-      if (extra_labels?.length === 0) {
-        formData.value.extra_labels = [
-          {
-            key: '',
-            value: '',
-          },
-        ];
-      }
+      const {
+        configs,
+        collector_scenario_id,
+        params,
+        target_node_type: type,
+        target_nodes: nodes,
+      } = data;
       /**
        * 初始化采集目标
        */
@@ -1220,7 +1218,7 @@ export default defineComponent({
      * @returns
      */
     const handleHostLogRequestData = (requestData, extraLabels, dataEncoding) => {
-      requestData.params.extra_labels = extraLabels;
+      requestData.params.extra_labels = isEmptyExtraLabels(extraLabels) ? [] : extraLabels;
       requestData.data_encoding = dataEncoding;
       return requestData;
     };
@@ -1376,7 +1374,8 @@ export default defineComponent({
      * 保存配置
      */
     const handleSubmitSave = () => {
-      loadingSave.value = true;
+      console.log(formData.value.params.conditions, 'baocun-----');
+      // return;
       if (!showClusterListKeys.includes(props.scenarioId)) {
         isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
       }
@@ -1405,6 +1404,7 @@ export default defineComponent({
       if (showClusterListKeys.includes(props.scenarioId)) {
         isConfigError = configurationItemListRef.value.validate();
       }
+      loadingSave.value = true;
       /**
        * 是否为容器采集并且配置项校验通过
        */

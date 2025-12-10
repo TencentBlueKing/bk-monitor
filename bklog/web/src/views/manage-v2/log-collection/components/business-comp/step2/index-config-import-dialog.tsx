@@ -304,6 +304,7 @@ export default defineComponent({
           }
         : {
             params,
+            extra_labels,
             data_encoding,
           };
 
