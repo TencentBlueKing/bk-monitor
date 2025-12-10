@@ -2032,15 +2032,39 @@ class TimeSeriesMetric(models.Model):
         table_id: str,
         is_auto_discovery: bool,
     ) -> bool:
-        """批量创建指标"""
-        # 根据传入的参数选择不同的处理函数
-        if need_create_metrics:
-            records, scope_dimensions_map = cls._create_metrics_with_combinations(
-                metrics_dict, need_create_metrics, group_id, table_id, is_auto_discovery
-            )
-        else:
-            # 如果参数为空，直接返回
-            return False
+        """批量创建指标
+
+        :param metrics_dict: 指标信息字典
+        :param need_create_metrics: 需要创建的 (field_name, field_scope) 组合集合
+        :param group_id: 分组ID
+        :param table_id: 结果表ID
+        :param is_auto_discovery: 是否自动发现
+        :return: (记录列表, scope维度映射字典)
+        """
+        records = []
+        scope_dimensions_map = {}
+
+        for field_name, field_scope in need_create_metrics:
+            metric_info = metrics_dict.get(field_name)
+            # 如果获取不到指标数据，则跳过
+            if not metric_info:
+                continue
+            # 当指标是禁用的, 如果开启自动发现 则需要时间设置为 1970; 否则，跳过记录
+            if not metric_info.get("is_active", True) and not is_auto_discovery:
+                continue
+            tag_list = cls.get_metric_tag_from_metric_info(metric_info)
+            params = {
+                "field_name": field_name,
+                "group_id": group_id,
+                "table_id": f"{table_id.split('.')[0]}.{field_name}",
+                "tag_list": tag_list,
+                "field_scope": field_scope,
+            }
+            logger.info("create ts metric data: %s", json.dumps(params))
+            records.append(cls(**params))
+
+            # 收集该 scope 的所有维度（使用 set 去重）
+            scope_dimensions_map.setdefault(field_scope, set()).update(tag_list)
 
         # 批量创建 TimeSeriesScope 记录，并传入对应的维度列表
         if scope_dimensions_map:
@@ -2086,108 +2110,6 @@ class TimeSeriesMetric(models.Model):
 
         scope_dimensions_index[field_scope] = dimensions
         return scope_dimensions_index
-
-    @classmethod
-    def _create_metrics_with_combinations(
-        cls,
-        metrics_dict: dict,
-        need_create_metrics: set,
-        group_id: int,
-        table_id: str,
-        is_auto_discovery: bool,
-    ) -> tuple[list, dict]:
-        """使用组合模式创建指标记录
-
-        :param metrics_dict: 指标信息字典
-        :param need_create_metrics: 需要创建的 (field_name, field_scope) 组合集合
-        :param group_id: 分组ID
-        :param table_id: 结果表ID
-        :param is_auto_discovery: 是否自动发现
-        :return: (记录列表, scope维度映射字典)
-        """
-        records = []
-        scope_dimensions_map = {}
-
-        # 预构建所有指标的 field_scope -> dimensions 索引，避免重复遍历
-        # 时间复杂度优化：从 O(n×m) 降低到 O(n+m)
-        field_scope_index_cache = {}
-
-        for field_name, field_scope in need_create_metrics:
-            metric_info = metrics_dict.get(field_name)
-            # 如果获取不到指标数据，则跳过
-            if not metric_info:
-                continue
-            # 当指标是禁用的, 如果开启自动发现 则需要时间设置为 1970; 否则，跳过记录
-            if not metric_info.get("is_active", True) and not is_auto_discovery:
-                continue
-
-            # 使用缓存的索引，避免重复构建
-            if field_name not in field_scope_index_cache:
-                field_scope_index_cache[field_name] = cls._build_field_scope_dimensions_index(metric_info)
-
-            # 直接从索引中获取维度列表，O(1) 时间复杂度
-            dimensions = field_scope_index_cache[field_name].get(field_scope)
-            if dimensions is None:
-                continue
-
-            params = {
-                "field_name": field_name,
-                "group_id": group_id,
-                "table_id": f"{table_id.split('.')[0]}.{field_name}",
-                "tag_list": dimensions,
-                "field_scope": field_scope,
-            }
-            logger.info("create ts metric data with group_dimensions: %s", json.dumps(params))
-            records.append(cls(**params))
-
-            # 收集该 scope 的所有维度（使用 set 去重）
-            scope_dimensions_map.setdefault(field_scope, set()).update(dimensions)
-
-        return records, scope_dimensions_map
-
-    @classmethod
-    def _create_metrics_with_field_names(
-        cls,
-        metrics_dict: dict,
-        need_create_metrics: set,
-        group_id: int,
-        table_id: str,
-        is_auto_discovery: bool,
-    ) -> tuple[list, dict]:
-        """使用字段名模式创建指标记录
-
-        :param metrics_dict: 指标信息字典
-        :param need_create_metrics: 需要创建的字段名集合
-        :param group_id: 分组ID
-        :param table_id: 结果表ID
-        :param is_auto_discovery: 是否自动发现
-        :return: (记录列表, scope维度映射字典)
-        """
-        records = []
-        scope_dimensions_map = {}
-
-        for metric in need_create_metrics:
-            metric_info = metrics_dict.get(metric)
-            # 如果获取不到指标数据，则跳过
-            if not metric_info:
-                continue
-            # 当指标是禁用的, 如果开启自动发现 则需要时间设置为 1970; 否则，跳过记录
-            if not metric_info.get("is_active", True) and not is_auto_discovery:
-                continue
-            tag_list = cls.get_metric_tag_from_metric_info(metric_info)
-            params = {
-                "field_name": metric,
-                "group_id": group_id,
-                "table_id": f"{table_id.split('.')[0]}.{metric}",
-                "tag_list": tag_list,
-            }
-            logger.info("create ts metric data: %s", json.dumps(params))
-            records.append(cls(**params))
-
-            # 旧格式使用默认的 scope_name，收集维度
-            scope_dimensions_map.setdefault("default", set()).update(tag_list)
-
-        return records, scope_dimensions_map
 
     @classmethod
     def _bulk_update_metrics(
