@@ -834,12 +834,14 @@ class ClusterConfig(models.Model):
         DataLinkKind.ELASTICSEARCH.value: BKBASE_NAMESPACE_BK_LOG,
         DataLinkKind.VMSTORAGE.value: BKBASE_NAMESPACE_BK_MONITOR,
         DataLinkKind.DORIS.value: BKBASE_NAMESPACE_BK_LOG,
+        DataLinkKind.KAFKACHANNEL.value: BKBASE_NAMESPACE_BK_LOG,
     }
 
     CLUSTER_TYPE_TO_KIND_MAP = {
         "elasticsearch": DataLinkKind.ELASTICSEARCH.value,
         "victoria_metrics": DataLinkKind.VMSTORAGE.value,
         "doris": DataLinkKind.DORIS.value,
+        "kafka": DataLinkKind.KAFKACHANNEL.value,
     }
 
     bk_tenant_id = models.CharField(max_length=255, verbose_name="租户ID")

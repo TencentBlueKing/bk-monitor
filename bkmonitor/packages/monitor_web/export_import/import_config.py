@@ -303,6 +303,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                         existed_rule_names.add(rule_info["name"])
 
                     # 创建或更新轮值规则（如果rule不为None则更新，否则创建）
+                    rule_info["bk_biz_id"] = bk_biz_id
                     rule_serializer = DutyRuleDetailSlz(instance=rule, data=rule_info)
                     rule_serializer.is_valid(raise_exception=True)
                     new_rule = rule_serializer.save()

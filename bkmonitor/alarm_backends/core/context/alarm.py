@@ -1009,7 +1009,11 @@ class Alarm(BaseContextObject):
             "query_string": query_config.get("query_string", ""),
         }
 
-        where: list[dict[str, Any]] = []
+        # 使用告警策略配置的汇聚条件作为初始 where 条件，当配置告警的维度字段与汇聚条件中的字段一样时，再去更新 where 条件
+        where: list[dict[str, Any]] = query_config.get("agg_condition") or []
+        # 构建一个 key → 索引位置 的映射字典，方便后续更新替换
+        agg_condition_index: dict[str, int] = {condition["key"]: idx for idx, condition in enumerate(where)}
+
         # 需排除的经 CMDB 丰富的维度字段（由 CMDBEnricher 类添加）
         cmdb_enrich_fields: set[str] = {
             "bk_topo_node",
@@ -1023,8 +1027,21 @@ class Alarm(BaseContextObject):
             "bk_service_instance_id",
         }
         for key, value in self.origin_dimensions.items():
-            if key not in cmdb_enrich_fields and value is not None:
-                where.append({"key": key, "method": "eq", "value": [value or ""], "condition": "and"})
+            if key in cmdb_enrich_fields or value is None:
+                continue
+
+            condition: dict[str, Any] = {
+                "key": key,
+                "method": "eq",
+                "value": value if isinstance(value, list) else [value or ""],
+                "condition": "and",
+            }
+            # 如果该维度已存在于汇聚条件中，则更新替换；否则添加为新过滤条件
+            if key in agg_condition_index:
+                where[agg_condition_index[key]] = condition
+            else:
+                where.append(condition)
+
         query_filter["where"] = where
 
         offset: int = 5 * 60 * 1000
