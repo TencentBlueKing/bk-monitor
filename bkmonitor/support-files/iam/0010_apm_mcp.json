@@ -6,7 +6,7 @@
             "data": {
                 "id": "using_apm_mcp",
                 "name": "使用APM MCP",
-                "name_en": "Using Apm MCP",
+                "name_en": "Using APM MCP",
                 "type": "view",
                 "version": 1,
                 "related_resource_types": [
@@ -27,7 +27,7 @@
                     "view_business_v2"
                 ],
                 "description": "使用APM MCP,查询APM数据",
-                "description_en": "Using Apm MCP, query apm data"
+                "description_en": "Using APM MCP, query APM data"
             }
         },
         {

@@ -149,7 +149,7 @@ class ActionEnum:
     USING_APM_MCP = ActionMeta(
         id="using_apm_mcp",
         name=_("使用APM MCP"),
-        name_en="Using Apm MCP",
+        name_en="Using APM MCP",
         type="view",
         related_resource_types=[SPACE_RESOURCE],
         related_actions=[VIEW_BUSINESS.id],
