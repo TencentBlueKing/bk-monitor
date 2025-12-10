@@ -568,6 +568,39 @@ class TimeSeriesGroup(CustomGroupBase):
 
     def bulk_refresh_rt_fields(self, table_id: str, metric_info: list):
         """批量刷新结果表打平的指标和维度"""
+        # 根据field_name聚合metric_info，合并tag_value_list
+        aggregated_metrics = defaultdict(lambda: {"tag_value_list": {}, "tag_list": []})
+
+        for item in metric_info:
+            field_name = item.get("field_name")
+            if not field_name:
+                continue
+
+            # 初始化聚合数据
+            aggregated_metrics[field_name].setdefault("field_name", field_name)
+
+            # 合并 tag_value_list
+            tag_value_list = item.get("tag_value_list", {})
+            if tag_value_list:
+                for tag_name, tag_info in tag_value_list.items():
+                    existing_tag = aggregated_metrics[field_name]["tag_value_list"].get(tag_name)
+                    new_values = set(tag_info.get("values", []))
+                    new_update_time = tag_info.get("last_update_time", 0)
+
+                    if existing_tag:
+                        # 合并 values（去重）并取最新的 last_update_time
+                        existing_tag["values"] = list(set(existing_tag["values"]) | new_values)
+                        existing_tag["last_update_time"] = max(existing_tag["last_update_time"], new_update_time)
+                    else:
+                        # 新建 tag 信息
+                        aggregated_metrics[field_name]["tag_value_list"][tag_name] = {
+                            "last_update_time": new_update_time,
+                            "values": list(new_values),
+                        }
+
+        # 将聚合后的数据转换为列表
+        metric_info = list(aggregated_metrics.values())
+
         # 创建或更新
         metric_tag_info = self._refine_metric_tags(metric_info)
         # 通过结果表过滤到到指标和维度
@@ -2157,15 +2190,13 @@ class TimeSeriesMetric(models.Model):
                 "last_modify_time": 1464567890123,
             }]
 
-            格式2 - 带 group_dimensions（新格式）：
+            格式2 - 带 tag_list（兼容格式）：
             [{
-                "field_name": "cpu_usage",
-                "tag_value_list": {
-                    "endpoint": {
-                        'last_update_time': 1701438084,
-                        'values': ["value1", "value2"]
-                    }
-                },
+                "field_name": "disk_full",
+                "tag_list": [
+                    {"field_name": "module", "description": "模块"},
+                    {"field_name": "set", "description": "集群"}
+                ],
                 "last_modify_time": 1464567890123,
             }]
         :param is_auto_discovery: 指标是否自动发现
