@@ -1010,7 +1010,7 @@ class Alarm(BaseContextObject):
         }
 
         # 使用告警策略配置的汇聚条件作为初始 where 条件，当配置告警的维度字段与汇聚条件中的字段一样时，再去更新 where 条件
-        where: list[dict[str, Any]] = query_config["agg_condition"]
+        where: list[dict[str, Any]] = query_config.get("agg_condition") or []
         # 构建一个 key → 索引位置 的映射字典，方便后续更新替换
         agg_condition_index: dict[str, int] = {condition["key"]: idx for idx, condition in enumerate(where)}
 
@@ -1033,7 +1033,7 @@ class Alarm(BaseContextObject):
             condition: dict[str, Any] = {
                 "key": key,
                 "method": "eq",
-                "value": value if type(value) is list else [value or ""],
+                "value": value if isinstance(value, list) else [value or ""],
                 "condition": "and",
             }
             # 如果该维度已存在于汇聚条件中，则更新替换；否则添加为新过滤条件
