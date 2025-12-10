@@ -257,8 +257,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
     time_series_group_id = models.AutoField(verbose_name="分组ID", primary_key=True)
     time_series_group_name = models.CharField(verbose_name="自定义时序分组名", max_length=255)
-    # 指标分组的维度key配置，新格式：{"service_name": {"index": 0, "default_value": "unknown_service"}, ...}
-    # 旧格式兼容：["service_name", "scope_name"] 会自动转换为新格式
+    # 指标分组的维度key配置，{"service_name": {"index": 0, "default_value": "unknown_service"}, ...}
     metric_group_dimensions = models.JSONField(verbose_name="指标分组的维度key配置", default=dict)
 
     # 默认表名
