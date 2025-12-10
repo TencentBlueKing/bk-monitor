@@ -249,6 +249,13 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
         duty_rule.hash: duty_rule for duty_rule in DutyRule.objects.filter(bk_biz_id=bk_biz_id, hash__isnull=False)
     }
 
+    # 已经存在的轮值规则名
+    existed_rule_names = (
+        set(DutyRule.objects.filter(bk_biz_id=bk_biz_id).values_list("name", flat=True))
+        if not is_overwrite_mode
+        else set()
+    )
+
     # 已经创建了轮值规则的hash
     created_hash_of_rule = set()
 
@@ -273,11 +280,6 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
             for action_detail in action_list:
                 for group_detail in action_detail.get("user_group_list", []):
                     imported_user_groups_dict[group_detail["name"]] = group_detail
-
-            # 在非覆盖模式下，获取已存在的轮值规则名称
-            existed_rule_names = set()
-            if not is_overwrite_mode:
-                existed_rule_names = set(DutyRule.objects.filter(bk_biz_id=bk_biz_id).values_list("name", flat=True))
 
             # 创建用户组关联的 duty_rules 及规则关联的 duty_arranges
             for name, group_detail in imported_user_groups_dict.items():
