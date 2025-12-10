@@ -284,7 +284,7 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
                     if rule_info["hash"] in created_hash_of_rule:
                         rule_id_mapping[rule_info["id"]] = rule.id
                         continue
-
+                    rule_info["bk_biz_id"] = bk_biz_id
                     rule_serializer = DutyRuleDetailSlz(instance=rule, data=rule_info)
                     rule_serializer.is_valid(raise_exception=True)
                     new_rule = rule_serializer.save()
