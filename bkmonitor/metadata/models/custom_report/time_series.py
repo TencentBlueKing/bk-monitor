@@ -179,6 +179,30 @@ class ScopeName:
         )
 
     @classmethod
+    def is_ungrouped(cls, scope_name: str | None) -> bool:
+        """
+        判断是否属于未分组：一级未分组（空字符串）或多级未分组（以分隔符结尾）
+        :param scope_name: 分组名称
+        :return: 如果是未分组返回 True，否则返回 False
+        """
+        if not scope_name:
+            return False
+        return scope_name == cls.UNGROUPED or scope_name.endswith(cls.SEPARATOR)
+
+    @classmethod
+    def exclude_ungrouped_filter(cls) -> Q:
+        """
+        获取排除所有未分组 scope 的查询过滤器
+
+        用于排除：
+        - 一级未分组（空字符串）
+        - 多级未分组（以分隔符结尾的 scope_name）
+
+        :return: Q 对象，用于排除未分组的 scope
+        """
+        return ~Q(Q(scope_name=cls.get_ungrouped_name()) | Q(scope_name__endswith=cls.SEPARATOR))
+
+    @classmethod
     def get_default_scope_metric_filter(cls, scope_name: str, metric_group_dimensions: dict | None = None):
         """
         获取默认 scope 的指标过滤器
@@ -1551,9 +1575,7 @@ class TimeSeriesScope(models.Model):
                 scope_id = scope_data["scope_id"]
                 time_series_scope = scope_objects[scope_id]
             else:
-                # 否则是创建场景，使用 final_scope_name 查找
-                final_scope_name = scope_data.get("scope_name")
-                time_series_scope = scope_objects[final_scope_name]
+                time_series_scope = scope_objects[scope_data.get("scope_name")]
 
             results.append(
                 {
@@ -2602,7 +2624,8 @@ class TimeSeriesMetric(models.Model):
                 scope_moves[scope].append(metric_obj)
             else:
                 # 两者都没有传递，放到未分组
-                # todo hhh 思考？
+                # todo hhh 感觉要求 saas 必须传递 scope_name 比较好，否则这里是能适配一级分组
+                # todo hhh 如果按照上面的修改，那么这里的 else 就 raise 异常
                 scope = cls._get_or_create_scope(group_id, ScopeName.get_ungrouped_name())
                 scope_moves[scope].append(metric_obj)
 
