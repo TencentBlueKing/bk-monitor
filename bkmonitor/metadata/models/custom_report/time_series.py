@@ -35,7 +35,6 @@ from metadata.models.constants import (
     BULK_UPDATE_BATCH_SIZE,
     DB_DUPLICATE_ID,
     DataIdCreatedFromSystem,
-    UNGROUP_SCOPE_NAME,
 )
 from metadata.models.data_source import DataSource
 from metadata.models.result_table import (
@@ -65,7 +64,7 @@ class ScopeName:
     """
 
     SEPARATOR = "||"
-    UNGROUPED = UNGROUP_SCOPE_NAME
+    UNGROUPED = ""
 
     def __init__(self, value: str = ""):
         """

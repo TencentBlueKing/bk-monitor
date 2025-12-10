@@ -59,6 +59,7 @@ from metadata.models.constants import (
     STRICT_NANO_ES_FORMAT,
     DataIdCreatedFromSystem,
 )
+from metadata.models.custom_report.time_series import ScopeName
 from metadata.models.data_link.utils import (
     get_bkbase_raw_data_name_for_v3_datalink,
     get_data_source_related_info,
@@ -1579,7 +1580,6 @@ class QueryTimeSeriesScopeResource(Resource):
         当 scope_name 为 None 时（包含未分组场景），会排除空串分组，避免与未分组指标重复
         如果提供了 scope_id，则优先使用 scope_id 进行精确查询，忽略 scope_name
         """
-        from metadata.models.constants import UNGROUP_SCOPE_NAME
 
         query_set = models.TimeSeriesScope.objects.all()
 
@@ -1605,7 +1605,7 @@ class QueryTimeSeriesScopeResource(Resource):
 
         # 当 scope_name 为 None 时（包含未分组场景），排除空串分组，避免与未分组指标重复
         if scope_name is None:
-            query_set = query_set.exclude(scope_name=UNGROUP_SCOPE_NAME)
+            query_set = query_set.exclude(scope_name=ScopeName.UNGROUPED)
 
         return query_set
 
@@ -1639,12 +1639,10 @@ class QueryTimeSeriesScopeResource(Resource):
         未分组下的指标：scope_id 指向 scope_name 为空串的 TimeSeriesScope 的指标
         :param group_ids: 自定义时序数据源ID列表
         """
-        from metadata.models.constants import UNGROUP_SCOPE_NAME
-
         results = []
         for gid in group_ids:
-            # 查询未分组的 scope（scope_name 为空串）
-            db_scope_name = UNGROUP_SCOPE_NAME
+            # 查询未分组的 scope
+            db_scope_name = ScopeName.UNGROUPED
 
             ungrouped_scope = models.TimeSeriesScope.objects.filter(group_id=gid, scope_name=db_scope_name).first()
 
