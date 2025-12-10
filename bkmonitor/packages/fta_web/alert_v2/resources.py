@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from bkmonitor.documents import AlertDocument
-from constants.alert import K8STargetType, K8S_RESOURCE_TYPE
+from constants.alert import K8STargetType, K8S_RESOURCE_TYPE, EventTargetType
 from core.drf_resource import Resource, resource
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
 from monitor_web.data_explorer.event.resources import EventLogsResource
@@ -107,7 +107,7 @@ class AlertEventsResource(Resource):
             "end_time": alert.end_time if alert.end_time else alert.first_anomaly_time + 24 * 60 * 60,
         }
 
-        if target_type == "host":
+        if target_type == EventTargetType.HOST:
             # 主机对象告警，查询主机相关事件
             return self.query_events_by_host(validated_request_data, alert, target_type)
         elif target_type.startswith("K8S"):
@@ -147,15 +147,15 @@ class AlertEventsResource(Resource):
                             "condition": "and",
                             "key": "target",
                             "method": "eq",
-                            # 目标主机格式: bk_target_ip:ip
-                            "value": [f"{alert.event.bk_tareget_ip}:{alert.event.ip}"],
+                            # 目标主机格式: bk_cloud_id:ip
+                            "value": [f"{alert.event.bk_cloud_id}:{alert.event.ip}"],
                         }
                     ],
                     "group_by": ["type"],  # 按事件类型分组
                     "filter_dict": {},  # 额外过滤条件
                 }
             ],
-            "bk_biz_id": alert.bk_biz_id,  # 业务ID
+            "bk_biz_id": alert.event.bk_biz_id,  # 业务ID
             "limit": validated_request_data["limit"],  # 限制返回数量
             "offset": validated_request_data["offset"],  # 分页偏移
             "sort": [],  # 排序规则
@@ -200,21 +200,21 @@ class AlertEventsResource(Resource):
         # 获取BCS事件表ID
         table_id = self._get_bcs_event_table_id(bcs_cluster_id)
 
-        # 根据K8S资源类型获取对应的资源字段名
-        resource_type = K8S_RESOURCE_TYPE[target_type]
-
         # 根据不同的目标类型构建查询条件
-        if target_type == K8STargetType.WORKLOAD:
-            # 工作负载类型，需要按kind和name查询
-            workload = target.get("workload", ":")
+        # 工作负载类型，需要按kind和name查询
+        where = []
+        workload = target.pop("workload", "")
+        if workload and target_type == K8STargetType.WORKLOAD:
             kind, name = workload.split(":")
-            where = [
+            where += [
                 {"condition": "and", "key": "kind", "method": "eq", "value": [kind]},
                 {"condition": "and", "key": "name", "method": "eq", "value": [name]},
             ]
         else:
             # 其他类型（Pod、Node、Service等），按资源类型字段查询
-            where = [{"condition": "and", "key": resource_type, "method": "eq", "value": [target[resource_type]]}]
+            where += [
+                {"condition": "and", "key": key, "method": "eq", "value": [value]} for key, value in target.items()
+            ]
 
         # 构建K8S事件查询参数
         query_params = {
@@ -229,7 +229,7 @@ class AlertEventsResource(Resource):
                     "filter_dict": {},  # 额外过滤条件
                 }
             ],
-            "bk_biz_id": alert.bk_biz_id,  # 业务ID
+            "bk_biz_id": alert.event.bk_biz_id,  # 业务ID
             "limit": validated_request_data["limit"],  # 限制返回数量
             "offset": validated_request_data["offset"],  # 分页偏移
             "sort": [],  # 排序规则
@@ -333,6 +333,7 @@ class AlertK8sMetricListResource(Resource):
     class RequestSerializer(serializers.Serializer):
         """请求参数序列化器"""
 
+        bk_biz_id = serializers.IntegerField(label="业务ID", help_text="业务ID")
         scenario = serializers.CharField(
             label="场景", help_text="观测场景名称，如：performance（性能）、network（网络）、capacity（容量）"
         )
@@ -350,7 +351,9 @@ class AlertK8sMetricListResource(Resource):
             list: 指定场景下的指标列表
         """
         # 调用K8S资源模块的场景指标列表接口
-        return resource.k8s.scenario_metric_list(scenario=validated_request_data["scenario"])
+        return resource.k8s.scenario_metric_list(
+            bk_biz_id=validated_request_data["bk_biz_id"], scenario=validated_request_data["scenario"]
+        )
 
 
 class AlertK8sTargetResource(Resource):
