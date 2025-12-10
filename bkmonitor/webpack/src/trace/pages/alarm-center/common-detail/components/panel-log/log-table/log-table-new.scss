@@ -28,6 +28,7 @@
     .col-th {
       .t-table__cell--title {
         & > div {
+          min-width: 10px;
           overflow: hidden;
         }
       }
