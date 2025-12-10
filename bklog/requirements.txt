@@ -131,6 +131,9 @@ jieba-fast==0.53
 # bkaidev
 aidev-agent==1.0.3
 langfuse==2.60.5
+langchain==0.3.27
+langchain-community==0.3.28
+langchain-core==0.3.75
 
 python-magic==0.4.27
 
