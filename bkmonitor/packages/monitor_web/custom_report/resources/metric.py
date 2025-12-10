@@ -650,6 +650,7 @@ class ModifyCustomTsFields(Resource):
         class BaseFieldSerializer(serializers.Serializer):
             type = serializers.ChoiceField(label=_("字段类型"), choices=CustomTSMetricType.choices())
             name = serializers.CharField(label=_("字段名"))
+            scope_id = serializers.IntegerField(label=_("分组 ID"))
             scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True)
             field_id = serializers.IntegerField(label=_("字段 ID"), required=False, allow_null=True)
 
@@ -686,16 +687,16 @@ class ModifyCustomTsFields(Resource):
 
         # 构建原始数据
         metric_dict_by_field_id: dict[int, dict[str, Any]] = {}
-        dimension_config_by_scope_name: dict[str, dict[str, Any]] = {}
+        dimension_config_by_scope_id: dict[int, dict[str, Any]] = {}
         scope_list: list[dict[str, Any]] = copy.deepcopy(ts_table.query_time_series_scope)
         for scope_dict in scope_list:
             for metric_dict in scope_dict.get("metric_list", []):
                 metric_dict_by_field_id[metric_dict["field_id"]] = metric_dict
-            dimension_config_by_scope_name[scope_dict["scope_name"]] = scope_dict.get("dimension_config", {})
+            dimension_config_by_scope_id[scope_dict["scope_id"]] = scope_dict.get("dimension_config", {})
 
         # 删除字段
         need_delete_metric_dict: dict[int, dict[str, Any]] = {}
-        delete_dimensions_by_scope: dict[str, list[dict[str, Any]]] = {}
+        delete_dimensions_by_scope_id: dict[int, list[dict[str, Any]]] = {}
         delete_fields: list[dict[str, Any]] = params["delete_fields"]
         for field_dict in delete_fields:
             if field_dict["type"] == CustomTSMetricType.METRIC:
@@ -710,13 +711,12 @@ class ModifyCustomTsFields(Resource):
                     "field_config": origin_field_config,
                 }
             else:
-                scope_name: str = "" if field_dict["scope_name"] == UNGROUP_SCOPE_NAME else field_dict["scope_name"]
-                delete_dimensions_by_scope.setdefault(scope_name, []).append(field_dict)
+                delete_dimensions_by_scope_id.setdefault(field_dict["scope_id"], []).append(field_dict)
 
         # 更新字段
         need_create_metrics: list[dict[str, Any]] = []
         need_update_metrics: list[dict[str, Any]] = []
-        update_dimensions_by_scope: dict[str, list[dict[str, Any]]] = {}
+        update_dimensions_by_scope_id: dict[str, list[dict[str, Any]]] = {}
         update_fields: list[dict[str, Any]] = params["update_fields"]
         for field_dict in update_fields:
             scope_name: str = field_dict["scope_name"]
@@ -745,28 +745,27 @@ class ModifyCustomTsFields(Resource):
                     }
                 )
             else:
-                scope_name: str = "" if field_dict["scope_name"] == UNGROUP_SCOPE_NAME else field_dict["scope_name"]
-                update_dimensions_by_scope.setdefault(scope_name, []).append(field_dict)
+                update_dimensions_by_scope_id.setdefault(field_dict["scope_id"], []).append(field_dict)
 
         update_dimensions: list[dict[str, Any]] = []
-        for scope_name in set(delete_dimensions_by_scope.keys()) | set(update_dimensions_by_scope.keys()):
+        for scope_id in set(delete_dimensions_by_scope_id.keys()) | set(update_dimensions_by_scope_id.keys()):
             delete_dimension_names: set[str] = {
-                field_dict["name"] for field_dict in delete_dimensions_by_scope.get(scope_name, [])
+                field_dict["name"] for field_dict in delete_dimensions_by_scope_id.get(scope_id, [])
             }
 
             origin_dimension_config = {
                 k: v
-                for k, v in dimension_config_by_scope_name.get(scope_name, {}).items()
+                for k, v in dimension_config_by_scope_id.get(scope_id, {}).items()
                 if k not in delete_dimension_names
             }
-            for update_field_dict in update_dimensions_by_scope.get(scope_name, []):
+            for update_field_dict in update_dimensions_by_scope_id.get(scope_id, []):
                 field_name = update_field_dict["name"]
                 field_config = update_field_dict["config"]
                 if field_name in origin_dimension_config:
                     origin_dimension_config[field_name].update(field_config)
                 else:
                     origin_dimension_config[field_name] = field_config
-            update_dimensions.append({"scope_name": scope_name, "dimension_config": origin_dimension_config})
+            update_dimensions.append({"scope_id": scope_id, "dimension_config": origin_dimension_config})
 
         # 更新维度
         if update_dimensions:
