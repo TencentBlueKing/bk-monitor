@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch, type PropType } from 'vue';
+import { computed, defineComponent, ref, watch, type PropType, onBeforeUnmount } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -32,12 +32,13 @@ import { bkMessage } from 'bk-magic-vue';
 import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue';
 import ItemSkeleton from '@/skeleton/item-skeleton';
 import EmptyStatus from '@/components/empty-status/index.vue';
-
+import axios from 'axios';
 import $http from '@/api';
 
 import './index-config-import-dialog.scss';
 import 'tdesign-vue/es/style/index.css';
 
+const CancelToken = axios.CancelToken;
 /**
  * 同步类型选项
  */
@@ -153,6 +154,15 @@ export default defineComponent({
 
     /** 当前选中的导入项ID */
     const currentCheckImportID = ref<number | string | null>(null);
+
+    /**
+     * 获取列表接口取消
+     */
+    const listInterfaceCancel = ref(null);
+    /**
+     * 是否取消接口请求
+     */
+    const isCancelToken = ref(false);
     /**
      * 同步采集目标 只有在主机采集的时候才显示
      */
@@ -435,20 +445,31 @@ export default defineComponent({
      * 从路由参数中获取索引集ID列表，调用接口获取对应的采集器数据
      */
     const getLinkList = (): void => {
+      listInterfaceCancel.value?.();
       isTableLoading.value = true;
       collectList.value = [];
       const { current, pageSize } = pagination.value;
       $http
-        .request('collect/newCollectList', {
-          data: {
-            space_uid: store.getters.spaceUid,
-            page: current,
-            pagesize: pageSize,
-            keyword: searchKeyword.value,
-            conditions: [{ key: 'log_access_type', value: [props.scenarioId] }],
+        .request(
+          'collect/newCollectList',
+          {
+            data: {
+              space_uid: store.getters.spaceUid,
+              page: current,
+              pagesize: pageSize,
+              keyword: searchKeyword.value,
+              conditions: [{ key: 'log_access_type', value: [props.scenarioId] }],
+            },
           },
-        })
+          {
+            cancelToken: new CancelToken(c => {
+              listInterfaceCancel.value = c;
+              isCancelToken.value = true;
+            }),
+          },
+        )
         .then(res => {
+          isTableLoading.value = false;
           const { list, total } = res?.data || { list: [], total: 0 };
           if (list?.length) {
             pagination.value.total = total;
@@ -465,9 +486,6 @@ export default defineComponent({
         })
         .catch(() => {
           emptyType.value = '500';
-        })
-        .finally(() => {
-          isTableLoading.value = false;
         });
     };
 
@@ -500,6 +518,10 @@ export default defineComponent({
         />
       </div>
     );
+
+    onBeforeUnmount(() => {
+      listInterfaceCancel.value?.();
+    });
 
     return () => (
       <bk-dialog
