@@ -1326,7 +1326,7 @@ class TimeSeriesScope(models.Model):
     def update_dimension_config_from_moved_metrics(
         cls,
         moved_metrics: list,
-        source_scope: "TimeSeriesScope" | None,
+        source_scope: "TimeSeriesScope",
         sink_scope: "TimeSeriesScope",
     ):
         """todo hhh 批量更新
