@@ -1214,9 +1214,9 @@ class TimeSeriesScope(models.Model):
         scope_name_obj = ScopeName(field_scope)
         # 构建未分组的 scope_name：保留前面的层级，最后一级设为空
         if scope_name_obj.levels:
-            ungroup_scope_name = ScopeName.SEPARATOR.join(scope_name_obj.levels[:-1] + [UNGROUP_SCOPE_NAME])
+            ungroup_scope_name = ScopeName.SEPARATOR.join(scope_name_obj.levels[:-1] + [ScopeName.UNGROUPED])
         else:
-            ungroup_scope_name = UNGROUP_SCOPE_NAME
+            ungroup_scope_name = ScopeName.UNGROUPED
         ungroup_scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=ungroup_scope_name).first()
         return ungroup_scope
 
@@ -2658,7 +2658,7 @@ class TimeSeriesMetric(models.Model):
                 scope_moves[scope].append(metric_data["field_name"])
             else:
                 # 两者都没有传递，放到未分组
-                scope = cls._get_or_create_scope(group_id, UNGROUP_SCOPE_NAME)
+                scope = cls._get_or_create_scope(group_id, ScopeName.UNGROUPED)
                 scope_moves[scope].append(metric_data["field_name"])
 
         # 批量创建
