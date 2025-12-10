@@ -199,30 +199,20 @@ class ScopeName:
             # 一级分组：直接使用 DEFAULT_SCOPE
             return Q(field_scope=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
 
-        # 多级分组：需要考虑 metric_group_dimensions 配置
-        if not metric_group_dimensions:
-            # 没有配置时，保留第一级，其余设为默认值
-            first_level = levels[0]
-            return Q(field_scope=f"{first_level}{cls.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}")
-
-        # 有配置时，根据配置构建完整的默认值路径
+        # 多级分组：只需要考虑最后一级的默认值，其他级别保持原样
         # 按 index 排序获取维度列表
         sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
 
-        # 构建默认值路径：保留第一级实际值，其余使用配置的默认值
+        # 构建默认值路径：保留除最后一级外的所有实际值，最后一级使用配置的默认值
         default_levels = []
         for i, (dim_name, dim_config) in enumerate(sorted_dims):
-            if i == 0:
-                # 第一级使用实际值
-                default_levels.append(levels[0] if levels else dim_config.get("default_value", ""))
+            if i < len(levels) - 1:
+                # 非最后一级：使用实际值
+                default_levels.append(levels[i])
             else:
-                # 其余级别使用配置的默认值
+                # 最后一级：使用配置的默认值
                 default_value = dim_config.get("default_value", "")
-                if default_value:
-                    default_levels.append(default_value)
-                else:
-                    # 如果没有配置默认值，使用 "default"
-                    default_levels.append(TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
+                default_levels.append(default_value if default_value else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
 
         # 拼接成完整的 field_scope
         field_scope = cls.SEPARATOR.join(default_levels)
