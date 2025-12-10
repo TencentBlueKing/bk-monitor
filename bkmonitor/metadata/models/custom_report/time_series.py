@@ -92,11 +92,6 @@ class ScopeName:
         return self._value
 
     @property
-    def is_ungrouped(self) -> bool:
-        """判断是否为未分组"""
-        return self._value == self.UNGROUPED or self._value.endswith(f"{self.SEPARATOR}{self.UNGROUPED}")
-
-    @property
     def is_default(self) -> bool:
         """判断是否为 default 分组
 
@@ -152,45 +147,44 @@ class ScopeName:
         return cls(cls.SEPARATOR.join(filtered_levels))
 
     @classmethod
-    def from_group_key(cls, group_key: str, metric_group_dimensions: dict | None = None) -> "ScopeName":
+    def from_group_key(cls, group_key: str, metric_group_dimensions: dict | None = None) -> str:
         """
-        从 group_key 创建 ScopeName
+        从 group_key 转换为 field_scope 字符串（仅用于 get_metric_from_bkdata）
 
         :param group_key: 例如 "service_name:api-server||scope_name:production"
         :param metric_group_dimensions: 分组维度配置，例如 {
             "service_name": {"index": 0, "default_value": "unknown_service"},
             "scope_name": {"index": 1, "default_value": "default"}
         }
-        :return: ScopeName 对象
+        :return: field_scope 字符串
         """
-        if not group_key:
-            raise ValueError(_("group_key 不能为空，请确认后重试"))
+        # 延迟导入避免循环依赖
+        from metadata.models.custom_report.time_series import TimeSeriesMetric
 
-        # 解析 group_key
-        parts = group_key.split(cls.SEPARATOR)
+        if not group_key or not metric_group_dimensions:
+            return TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
+
+        # 解析 group_key 为键值对
         key_value_map = {}
-        for part in parts:
+        for part in group_key.split(cls.SEPARATOR):
             if ":" in part:
                 key, value = part.split(":", 1)
-                key_value_map[key.strip()] = value.strip() if value.strip() else None
+                if value.strip():
+                    key_value_map[key.strip()] = value.strip()
 
-        # 如果没有配置 metric_group_dimensions，抛出异常
-        if not metric_group_dimensions:
-            raise ValueError(_("metric_group_dimensions 不能为空，请确认后重试"))
-
-        # 按照 index 排序获取值
+        # 按 index 排序，提取值并拼接
         sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
         levels = []
         for dim_name, dim_config in sorted_dims:
-            default_value = dim_config.get("default_value", "")
-            value = key_value_map.get(dim_name) or default_value
+            value = key_value_map.get(dim_name) or dim_config.get("default_value", "")
+            if not value:
+                # 如果有空值，返回默认值
+                return TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
             levels.append(value)
 
-        return cls.from_levels(levels)
-
-    def to_field_scope(self) -> str:
-        """转换为 field_scope 格式（兼容旧格式）"""
-        return self._value if self._value else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
+        # 拼接并返回
+        result = cls.SEPARATOR.join(levels)
+        return result if result else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
 
     def to_db_scope_name(self) -> str:
         """
@@ -667,9 +661,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
                     item = {
                         "field_name": md["name"],
-                        "field_scope": ScopeName.from_group_key(
-                            group_key, self.metric_group_dimensions
-                        ).to_field_scope(),
+                        "field_scope": ScopeName.from_group_key(group_key, self.metric_group_dimensions),
                         "last_modify_time": latest_update_time // 1000,
                         "tag_value_list": tag_value_list,
                     }
