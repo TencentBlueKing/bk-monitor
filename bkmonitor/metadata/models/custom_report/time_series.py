@@ -2119,19 +2119,73 @@ class TimeSeriesMetric(models.Model):
         group_id: int,
         is_auto_discovery: bool,
     ) -> bool:
-        """批量更新指标，针对记录仅更新最后更新时间和 tag 字段"""
-        # 根据传入的参数选择不同的处理函数
-        if need_update_metrics:
-            records, white_list_disabled_metric, scope_dimensions_map, need_push_router = (
-                cls._update_metrics_with_combinations(metrics_dict, need_update_metrics, group_id, is_auto_discovery)
+        """批量更新指标，针对记录仅更新最后更新时间和 tag 字段
+
+        :param metrics_dict: 指标信息字典
+        :param need_update_metrics: 需要更新的 (field_name, field_scope) 组合集合
+        :param group_id: 分组ID
+        :param is_auto_discovery: 是否自动发现
+        :return: (更新记录列表, 禁用指标集合, scope维度映射字典, 是否需要推送路由)
+        """
+        records = []
+        white_list_disabled_metric = set()
+        scope_dimensions_map = {}
+        need_push_router = False
+
+        # 构建查询条件：需要同时匹配 field_name 和 field_scope
+        field_name_list = [field_name for field_name, _ in need_update_metrics]
+        qs_objs = filter_model_by_in_page(
+            TimeSeriesMetric, "field_name__in", field_name_list, other_filter={"group_id": group_id}
+        )
+
+        # 将组合转换为集合，方便快速查找
+        combinations_set = set(need_update_metrics)
+        for obj in qs_objs:
+            # 只处理匹配的 (field_name, field_scope) 组合
+            if (obj.field_name, obj.field_scope) not in combinations_set:
+                continue
+
+            metric_info = metrics_dict.get(obj.field_name)
+            # 如果找不到指标数据，则忽略
+            if not metric_info:
+                continue
+
+            last_modify_time = make_aware(
+                datetime.datetime.fromtimestamp(metric_info.get("last_modify_time", time.time()))
             )
-        else:
-            # 如果参数为空，直接返回
-            return False
+            # 当指标是禁用的, 如果开启自动发现 则需要时间设置为 1970; 否则，跳过记录
+            if not metric_info.get("is_active", True):
+                if is_auto_discovery:
+                    last_modify_time = make_aware(datetime.datetime(1970, 1, 1))
+                else:
+                    white_list_disabled_metric.add(obj.id)
+
+            # 标识是否需要更新
+            is_need_update = False
+            # 先设置最后更新时间 1 天更新一次，减少对 db 的操作
+            if (last_modify_time - obj.last_modify_time).days >= 1:
+                is_need_update = True
+                obj.last_modify_time = last_modify_time
+
+            # NOTE：当时间变更超过有效期阈值时，更新路由；适用`指标重新启用`场景
+            if (last_modify_time - obj.last_modify_time).seconds >= settings.TIME_SERIES_METRIC_EXPIRED_SECONDS:
+                need_push_router = True
+
+            # 如果 tag 不一致，则进行更新
+            tag_list = cls.get_metric_tag_from_metric_info(metric_info)
+            if set(obj.tag_list or []) != set(tag_list):
+                is_need_update = True
+                obj.tag_list = tag_list
+
+            if is_need_update:
+                records.append(obj)
+
+            # 增量更新维度
+            scope_dimensions_map.setdefault(obj.field_scope, set()).update(set(obj.tag_list) | set(tag_list))
 
         # 白名单模式，如果存在需要禁用的指标，则需要删除；应该不会太多，直接删除
         if white_list_disabled_metric:
-            cls.objects.filter(group_id=group_id, field_name__in=white_list_disabled_metric).delete()
+            cls.objects.filter(group_id=group_id, field_id__in=white_list_disabled_metric).delete()
         logger.info("white list disabled metric: %s, group_id: %s", json.dumps(white_list_disabled_metric), group_id)
 
         # 批量更新或创建 TimeSeriesScope 记录，并传入对应的维度列表
@@ -2156,156 +2210,6 @@ class TimeSeriesMetric(models.Model):
         cls.objects.bulk_update(
             records, ["last_modify_time", "tag_list", "scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE
         )
-        return need_push_router
-
-    @classmethod
-    def _update_metrics_with_combinations(
-        cls,
-        metrics_dict: dict,
-        need_update_metrics: set,
-        group_id: int,
-        is_auto_discovery: bool,
-    ) -> tuple[list, set, dict, bool]:
-        """使用组合模式更新指标记录
-
-        :param metrics_dict: 指标信息字典
-        :param need_update_metrics: 需要更新的 (field_name, field_scope) 组合集合
-        :param group_id: 分组ID
-        :param is_auto_discovery: 是否自动发现
-        :return: (更新记录列表, 禁用指标集合, scope维度映射字典, 是否需要推送路由)
-        """
-        records = []
-        white_list_disabled_metric = set()
-        scope_dimensions_map = {}
-        need_push_router = False
-
-        # 构建查询条件：需要同时匹配 field_name 和 field_scope
-        field_name_list = [field_name for field_name, _ in need_update_metrics]
-        qs_objs = filter_model_by_in_page(
-            TimeSeriesMetric, "field_name__in", field_name_list, other_filter={"group_id": group_id}
-        )
-
-        # 将组合转换为集合，方便快速查找
-        combinations_set = set(need_update_metrics)
-
-        # 预构建所有指标的 field_scope -> dimensions 索引，避免重复遍历
-        # 时间复杂度优化：从 O(n×m) 降低到 O(n+m)
-        field_scope_index_cache = {}
-
-        for obj in qs_objs:
-            # 只处理匹配的 (field_name, field_scope) 组合
-            if (obj.field_name, obj.field_scope) not in combinations_set:
-                continue
-
-            metric_info = metrics_dict.get(obj.field_name)
-            # 如果找不到指标数据，则忽略
-            if not metric_info:
-                continue
-
-            # 当指标是禁用的, 如果开启自动发现 则需要时间设置为 1970; 否则，跳过记录
-            if not metric_info.get("is_active", True):
-                if is_auto_discovery:
-                    last_modify_time = make_aware(datetime.datetime(1970, 1, 1))
-                else:
-                    white_list_disabled_metric.add(obj.field_name)
-                    continue
-            else:
-                last_modify_time = make_aware(
-                    datetime.datetime.fromtimestamp(metric_info.get("last_modify_time", time.time()))
-                )
-
-            # 使用缓存的索引，避免重复构建
-            if obj.field_name not in field_scope_index_cache:
-                field_scope_index_cache[obj.field_name] = cls._build_field_scope_dimensions_index(metric_info)
-
-            # 直接从索引中获取维度列表，O(1) 时间复杂度
-            new_dimensions = field_scope_index_cache[obj.field_name].get(obj.field_scope)
-            if new_dimensions is None:
-                continue
-
-            need_push_router = cls._collect_update_records(
-                last_modify_time, need_push_router, new_dimensions, obj, records
-            )
-
-            # 收集该 scope 的所有维度（使用 set 去重）
-            scope_dimensions_map.setdefault(obj.field_scope, set()).update(new_dimensions)
-
-        return records, white_list_disabled_metric, scope_dimensions_map, need_push_router
-
-    @classmethod
-    def _update_metrics_with_field_names(
-        cls,
-        metrics_dict: dict,
-        need_update_metrics: set,
-        group_id: int,
-        is_auto_discovery: bool,
-    ) -> tuple[list, set, dict, bool]:
-        """使用字段名模式更新指标记录
-
-        :param metrics_dict: 指标信息字典
-        :param need_update_metrics: 需要更新的字段名集合
-        :param group_id: 分组ID
-        :param is_auto_discovery: 是否自动发现
-        :return: (更新记录列表, 禁用指标集合, scope维度映射字典, 是否需要推送路由)
-        """
-        records = []
-        white_list_disabled_metric = set()
-        scope_dimensions_map = {}
-        need_push_router = False
-
-        qs_objs = filter_model_by_in_page(
-            TimeSeriesMetric, "field_name__in", need_update_metrics, other_filter={"group_id": group_id}
-        )
-
-        for obj in qs_objs:
-            metric = obj.field_name
-            metric_info = metrics_dict.get(metric)
-            # 如果找不到指标数据，则忽略
-            if not metric_info:
-                continue
-
-            last_modify_time = make_aware(
-                datetime.datetime.fromtimestamp(metric_info.get("last_modify_time", time.time()))
-            )
-            # 当指标是禁用的, 如果开启自动发现 则需要时间设置为 1970; 否则，跳过记录
-            if not metric_info.get("is_active", True):
-                if is_auto_discovery:
-                    last_modify_time = make_aware(datetime.datetime(1970, 1, 1))
-                else:
-                    white_list_disabled_metric.add(metric)
-                    continue
-
-            # 旧格式：通过方法获取
-            new_dimensions = cls.get_metric_tag_from_metric_info(metric_info)
-
-            need_push_router = cls._collect_update_records(
-                last_modify_time, need_push_router, new_dimensions, obj, records
-            )
-
-            # 收集该 scope 的所有维度（使用 set 去重）
-            scope_dimensions_map.setdefault(obj.field_scope, set()).update(new_dimensions)
-
-        return records, white_list_disabled_metric, scope_dimensions_map, need_push_router
-
-    @classmethod
-    def _collect_update_records(cls, last_modify_time, need_push_router, new_dimensions, obj, records):
-        # 标识是否需要更新
-        is_need_update = False
-        # 先设置最后更新时间 1 天更新一次，减少对 db 的操作
-        if (last_modify_time - obj.last_modify_time).days >= 1:
-            is_need_update = True
-            obj.last_modify_time = last_modify_time
-        # NOTE：当时间变更超过有效期阈值时，更新路由；适用`指标重新启用`场景
-        if (last_modify_time - obj.last_modify_time).seconds >= settings.TIME_SERIES_METRIC_EXPIRED_SECONDS:
-            need_push_router = True
-        # 如果 tag 不一致，则进行更新
-        if set(obj.tag_list or []) != set(new_dimensions):
-            is_need_update = True
-            # 合并维度：保留旧维度，添加新维度
-            obj.tag_list = list(set(obj.tag_list or []) | set(new_dimensions))
-        if is_need_update:
-            logger.info(f"update ts metric {obj.field_name} {obj.field_scope} {obj.tag_list}")
-            records.append(obj)
         return need_push_router
 
     @classmethod
