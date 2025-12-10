@@ -202,46 +202,6 @@ class ScopeName:
         """
         return ~Q(Q(scope_name=cls.get_ungrouped_name()) | Q(scope_name__endswith=cls.SEPARATOR))
 
-    @classmethod
-    def get_default_scope_metric_filter(cls, scope_name: str, metric_group_dimensions: dict | None = None):
-        """
-        获取默认 scope 的指标过滤器
-
-        注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
-
-        :param scope_name: 分组名称，例如 "service_name||endpoint_name" 或 "default"
-        :param metric_group_dimensions: 分组维度配置，例如 {
-            "service_name": {"index": 0, "default_value": "unknown_service"},
-            "endpoint_name": {"index": 1, "default_value": "default"}
-        }
-        :return: Q 对象，用于过滤指标
-        """
-        from django.db.models import Q
-
-        levels = cls.levels(scope_name)
-        if not levels:
-            # 一级分组：直接使用 DEFAULT_SCOPE
-            return Q(field_scope=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
-
-        # 多级分组：只需要考虑最后一级的默认值，其他级别保持原样
-        # 按 index 排序获取维度列表
-        sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
-
-        # 构建默认值路径：保留除最后一级外的所有实际值，最后一级使用配置的默认值
-        default_levels = []
-        for i, (dim_name, dim_config) in enumerate(sorted_dims):
-            if i < len(levels) - 1:
-                # 非最后一级：使用实际值
-                default_levels.append(levels[i])
-            else:
-                # 最后一级：使用配置的默认值
-                default_value = dim_config.get("default_value", "")
-                default_levels.append(default_value if default_value else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
-
-        # 拼接成完整的 field_scope
-        field_scope = cls.SEPARATOR.join(default_levels)
-        return Q(field_scope=field_scope)
-
 
 class TimeSeriesGroup(CustomGroupBase):
     """
