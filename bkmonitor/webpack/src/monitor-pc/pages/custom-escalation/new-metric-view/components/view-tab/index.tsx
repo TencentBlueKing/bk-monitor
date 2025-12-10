@@ -163,8 +163,8 @@ export default class ViewTab extends tsc<IProps, IEmit> {
         //   metrics: this.metricGroupList.length > 0 ? [this.metricGroupList[0].metrics[0].metric_name] : [],
         // });
         const defaultSelectedData = {
-          groupName: this.metricGroupList[0].name,
-          metricsName: [this.metricGroupList[0].metrics[0].metric_name],
+          groupName: this.metricGroupList[0].name || '',
+          metricsName: [this.metricGroupList[0]?.metrics[0]?.metric_name || ''],
         };
         updateCurrentSelectedGroupAndMetricNameList(this.metricGroupList.length > 0 ? [defaultSelectedData] : []);
         this.$emit('payloadChange', {
