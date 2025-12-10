@@ -547,6 +547,7 @@ class TimeSeriesGroup(CustomGroupBase):
         is_updated = TimeSeriesMetric.bulk_refresh_ts_metrics(
             group_id, group.table_id, metric_info, group.is_auto_discovery()
         )
+        # 刷新 rt 表中的指标和维度
         self.bulk_refresh_rt_fields(group.table_id, metric_info)
         return is_updated
 
@@ -2032,15 +2033,7 @@ class TimeSeriesMetric(models.Model):
         table_id: str,
         is_auto_discovery: bool,
     ) -> bool:
-        """批量创建指标
-
-        :param metrics_dict: 指标信息字典
-        :param need_create_metrics: 需要创建的 (field_name, field_scope) 组合集合
-        :param group_id: 分组ID
-        :param table_id: 结果表ID
-        :param is_auto_discovery: 是否自动发现
-        :return: (记录列表, scope维度映射字典)
-        """
+        """批量创建指标"""
         records = []
         scope_dimensions_map = {}
 
@@ -2089,29 +2082,6 @@ class TimeSeriesMetric(models.Model):
         return True
 
     @classmethod
-    def _build_field_scope_dimensions_index(
-        cls,
-        metric_info: dict,
-    ) -> dict[str, list]:
-        """预构建 field_scope 到 dimensions 的索引映射
-
-        :param metric_info: 指标信息字典，包含 field_scope 和 tag_value_list
-        :return: field_scope -> dimensions 的映射字典
-        """
-        scope_dimensions_index = {}
-        # 直接从 metric_info 中获取 field_scope 和维度信息
-        field_scope = metric_info.get("field_scope", "default")
-        tag_value_list = metric_info.get("tag_value_list", {})
-        dimensions = list(tag_value_list.keys())
-
-        # 维度 [target] 必须存在; 如果不存在时，则需要添加 [target] 维度
-        if cls.TARGET_DIMENSION_NAME not in dimensions:
-            dimensions.append(cls.TARGET_DIMENSION_NAME)
-
-        scope_dimensions_index[field_scope] = dimensions
-        return scope_dimensions_index
-
-    @classmethod
     def _bulk_update_metrics(
         cls,
         metrics_dict: dict,
@@ -2119,14 +2089,7 @@ class TimeSeriesMetric(models.Model):
         group_id: int,
         is_auto_discovery: bool,
     ) -> bool:
-        """批量更新指标，针对记录仅更新最后更新时间和 tag 字段
-
-        :param metrics_dict: 指标信息字典
-        :param need_update_metrics: 需要更新的 (field_name, field_scope) 组合集合
-        :param group_id: 分组ID
-        :param is_auto_discovery: 是否自动发现
-        :return: (更新记录列表, 禁用指标集合, scope维度映射字典, 是否需要推送路由)
-        """
+        """批量更新指标，针对记录仅更新最后更新时间和 tag 字段"""
         records = []
         white_list_disabled_metric = set()
         scope_dimensions_map = {}
