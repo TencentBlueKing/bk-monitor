@@ -41,7 +41,7 @@ from core.errors.custom_report import (
 )
 from monitor_web.constants import ETL_CONFIG
 from monitor_web.custom_report.constants import UNGROUP_SCOPE_NAME, CustomTSMetricType
-from monitor_web.custom_report.serializers import (
+from monitor_web.custom_report.serializers.metric import (
     CustomTSGroupingRuleSerializer,
     CustomTSScopeSerializer,
     CustomTSTableSerializer,
@@ -57,6 +57,11 @@ from monitor_web.models.custom_report import (
 from monitor_web.strategies.resources import GetMetricListV2Resource
 
 logger = logging.getLogger(__name__)
+
+
+def get_metric_list(metric_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    filter_metric_list = [m for m in metric_list if not m.get("field_config", {}).get("disabled")]
+    return MetricSerializer(filter_metric_list, many=True).data
 
 
 def get_label_display_dict():
@@ -894,12 +899,12 @@ class CustomTsGroupingRuleList(Resource):
         result: list[dict[str, Any]] = []
         scope_list: list[dict[str, Any]] = ts_table.query_time_series_scope
         for scope_dict in scope_list:
-            metric_list: list[dict[str, Any]] = scope_dict.get("metric_list", [])
+            metric_list: list[dict[str, Any]] = get_metric_list(scope_dict.get("metric_list", []))
             result.append(
                 {
                     "scope_id": scope_dict["scope_id"],
                     "name": scope_dict["scope_name"],
-                    "metric_list": [{"field_id": m["field_id"], "metric_name": m["metric_name"]} for m in metric_list],
+                    "metric_list": metric_list,
                     "auto_rules": scope_dict.get("auto_rules", []),
                     "metric_count": len(metric_list),
                     "create_from": scope_dict["create_from"],
@@ -1046,7 +1051,7 @@ class CreateOrUpdateGroupingRule(Resource):
             "name": scope_dict["scope_name"],
             "dimension_config": scope_dict["dimension_config"],
             "auto_rules": scope_dict["auto_rules"],
-            "metric_list": MetricSerializer(scope_dict["metric_list"], many=True).data,
+            "metric_list": get_metric_list(scope_dict["metric_list"]),
             "create_from": scope_dict["create_from"],
         }
 
