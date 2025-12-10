@@ -1309,64 +1309,33 @@ class TimeSeriesScope(models.Model):
     @classmethod
     def update_dimension_config_from_moved_metrics(
         cls,
-        group_id: int,
-        moved_metric_field_names: list[str],
-        source_scope_id: int | None,
-        sink_scope_id: int,
+        moved_metrics: list,
+        source_scope: "TimeSeriesScope" | None,
+        sink_scope: "TimeSeriesScope",
     ):
         """
         从其他分组移动指标到当前分组时，更新维度配置，以及指标的 scope_id
 
         处理逻辑：
-        1. 根据 source_scope_id 获取被移除指标的维度配置集合 X
+        1. 根据 source_scope 获取被移除指标的维度配置集合 X
         2. 将指定指标的 scope_id 更新为目标分组的 scope_id
         3. 增量合并维度配置：新分组的维度配置 |= X（增量保存，维度配置会越来越多）
 
-        :param group_id: 自定义分组ID
-        :param moved_metric_field_names: 被移动的指标名称列表
-        :param source_scope_id: 源分组的 scope_id
-        :param sink_scope_id: 目标分组的 scope_id（必填）
+        :param moved_metrics: 被移动的指标对象列表（必填）
+        :param source_scope: 源分组对象，如果为 None 表示新创建的指标
+        :param sink_scope: 目标分组对象（必填）
         """
-        if not moved_metric_field_names:
+        if not moved_metrics:
             return
 
-        # 获取分组维度配置
-        metric_group_dimensions = (
-            TimeSeriesGroup.objects.filter(time_series_group_id=group_id)
-            .values_list("metric_group_dimensions", flat=True)
-            .first()
-        )
-
-        # 获取源分组信息，用于获取正确的 scope_filter
-        source_scope = None
-        if source_scope_id is not None:
-            source_scope = cls.objects.filter(id=source_scope_id, group_id=group_id).first()
-            if not source_scope:
-                logger.warning("Source scope not found: scope_id=%s, group_id=%s", source_scope_id, group_id)
-
-        # 1. 获取被移动的指标，使用源分组的 scope_name 来过滤（在更新和创建时都应该获取旧 scope）
-        if source_scope:
-            # 使用源分组的 scope_name 来获取正确的指标过滤器
-            scope_filter = ScopeName.get_default_scope_metric_filter(source_scope.scope_name, metric_group_dimensions)
-        else:
-            # 如果源分组不存在（新创建的指标），使用默认的 scope_filter
-            # 对于新创建的指标，它们应该属于 default 数据分组
-            scope_filter = ScopeName.get_default_scope_metric_filter(
-                ScopeName.get_ungrouped_name(), metric_group_dimensions
-            )
-
-        moved_metrics = TimeSeriesMetric.objects.filter(
-            group_id=group_id, scope_id=source_scope_id, field_name__in=moved_metric_field_names
-        ).filter(scope_filter)
-
-        # 2. 获取被移动指标的维度集合和维度配置
+        # 1. 获取被移动指标的维度集合
         moved_metric_dimensions = set()
         for metric in moved_metrics:
             if metric.tag_list:
                 moved_metric_dimensions.update(metric.tag_list)
 
-        # 3. 构建被移动指标的维度配置（X）
-        if source_scope_id is None or not source_scope:
+        # 2. 构建被移动指标的维度配置（X）
+        if source_scope is None:
             # 新创建的指标，直接使用 tag_list 作为维度配置（空配置）
             moved_dimension_config = {dimension_name: {} for dimension_name in moved_metric_dimensions}
         else:
@@ -1378,20 +1347,18 @@ class TimeSeriesScope(models.Model):
                 for dimension_name in moved_metric_dimensions
             }
 
-        # 4. 更新保存指标的 scope_id 为目标分组的 scope_id
-        moved_metrics.update(scope_id=sink_scope_id)
+        # 3. 更新保存指标的 scope_id 为目标分组的 scope_id
+        for metric in moved_metrics:
+            metric.scope_id = sink_scope.id
+        if moved_metrics:
+            TimeSeriesMetric.objects.bulk_update(moved_metrics, ["scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE)
 
-        # 5. 获取目标分组并合并维度配置（增量保存：新分组的维度配置 |= X）
-        sink_scope = cls.objects.filter(id=sink_scope_id, group_id=group_id).first()
-        if not sink_scope:
-            logger.warning("Sink scope not found: scope_id=%s, group_id=%s", sink_scope_id, group_id)
-            return
-
+        # 4. 合并维度配置到目标分组（增量保存：新分组的维度配置 |= X）
         current_dimension_config = sink_scope.dimension_config or {}
         updated_dimension_config = current_dimension_config.copy()
-        for dimension_name, moved_dimension_config in moved_dimension_config.items():
+        for dimension_name, moved_dimension_config_value in moved_dimension_config.items():
             # 如果当前分组已有该维度配置，保留现有配置；否则使用移动过来的配置
-            updated_dimension_config.setdefault(dimension_name, moved_dimension_config)
+            updated_dimension_config.setdefault(dimension_name, moved_dimension_config_value)
 
         # 更新 dimension_config
         sink_scope.dimension_config = updated_dimension_config
@@ -2602,24 +2569,23 @@ class TimeSeriesMetric(models.Model):
 
         # 准备批量创建的数据
         records_to_create = []
-        scope_moves = defaultdict(list)  # {scope: [field_names]}  收集需要移动到scope的指标
+        scope_moves = defaultdict(list)  # {scope: [metric_objects]}  收集需要移动到scope的指标对象
 
         for metric_data in metrics_to_create:
             cls._ensure_target_dimension_in_tags(metric_data)
             cls._generate_table_id(metric_data, table_id)
 
-            records_to_create.append(
-                cls(
-                    table_id=metric_data["table_id"],
-                    field_name=metric_data["field_name"],
-                    field_scope=cls.DEFAULT_DATA_SCOPE_NAME,
-                    group_id=group_id,
-                    scope_id=None,  # 先不设置，由update_dimension_config_from_moved_metrics处理
-                    tag_list=metric_data.get("tag_list", []),
-                    field_config=metric_data.get("field_config", {}),
-                    label=metric_data.get("label", ""),
-                )
+            metric_obj = cls(
+                table_id=metric_data["table_id"],
+                field_name=metric_data["field_name"],
+                field_scope=cls.DEFAULT_DATA_SCOPE_NAME,
+                group_id=group_id,
+                scope_id=None,  # 先不设置，由update_dimension_config_from_moved_metrics处理
+                tag_list=metric_data.get("tag_list", []),
+                field_config=metric_data.get("field_config", {}),
+                label=metric_data.get("label", ""),
             )
+            records_to_create.append(metric_obj)
 
             # 如果指定了scope_id或scope_name，收集需要移动到该scope的指标
             # 优先使用scope_id，如果没有则使用scope_name
@@ -2630,26 +2596,25 @@ class TimeSeriesMetric(models.Model):
                 scope = TimeSeriesScope.objects.filter(id=scope_id, group_id=group_id).first()
                 if scope is None:
                     raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
-                scope_moves[scope].append(metric_data["field_name"])
+                scope_moves[scope].append(metric_obj)
             elif scope_name is not None:
                 scope = cls._get_or_create_scope(group_id, scope_name)
-                scope_moves[scope].append(metric_data["field_name"])
+                scope_moves[scope].append(metric_obj)
             else:
                 # 两者都没有传递，放到未分组
                 # todo hhh 思考？
                 scope = cls._get_or_create_scope(group_id, ScopeName.get_ungrouped_name())
-                scope_moves[scope].append(metric_data["field_name"])
+                scope_moves[scope].append(metric_obj)
 
         # 批量创建
         cls.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
         # 使用update_dimension_config_from_moved_metrics更新维度配置和scope_id
-        for scope, field_names in scope_moves.items():
+        for scope, moved_metrics in scope_moves.items():
             TimeSeriesScope.update_dimension_config_from_moved_metrics(
-                group_id=group_id,
-                moved_metric_field_names=field_names,
-                source_scope_id=None,  # 新创建的指标，没有源scope
-                sink_scope_id=scope.id,  # 目标分组的 scope_id
+                moved_metrics=moved_metrics,
+                source_scope=None,  # 新创建的指标，没有源scope
+                sink_scope=scope,
             )
 
     @classmethod
@@ -2658,7 +2623,7 @@ class TimeSeriesMetric(models.Model):
         updatable_fields = ["tag_list", "field_config", "label"]
         records_to_update = []
         scope_moves = defaultdict(
-            lambda: {"new_scope": None, "field_names": []}
+            lambda: {"new_scope": None, "source_scope": None, "metrics": []}
         )  # {(new_scope_id, old_scope_id): {...}}
 
         for metric, validated_request_data in metrics_to_update:
@@ -2691,21 +2656,23 @@ class TimeSeriesMetric(models.Model):
             if new_scope and metric.scope_id != new_scope.id:
                 move_key = (new_scope.id, metric.scope_id)
                 scope_moves[move_key]["new_scope"] = new_scope
-                scope_moves[move_key]["field_names"].append(metric.field_name)
+                scope_moves[move_key]["metrics"].append(metric)
+                # 获取源分组对象
+                if metric.scope_id and not scope_moves[move_key]["source_scope"]:
+                    source_scope = TimeSeriesScope.objects.filter(id=metric.scope_id, group_id=metric.group_id).first()
+                    scope_moves[move_key]["source_scope"] = source_scope
 
         # 批量更新所有指标的字段
         if records_to_update:
             cls.objects.bulk_update(records_to_update, updatable_fields, batch_size=BULK_UPDATE_BATCH_SIZE)
 
         # 处理scope的维度配置迁移（该方法会更新指标的scope_id）
-        for (new_scope_id, old_scope_id), move_info in scope_moves.items():
-            if old_scope_id:
-                new_scope_obj: TimeSeriesScope = move_info["new_scope"]
+        for move_info in scope_moves.values():
+            if move_info["metrics"] and move_info["new_scope"]:
                 TimeSeriesScope.update_dimension_config_from_moved_metrics(
-                    group_id=new_scope_obj.group_id,
-                    moved_metric_field_names=move_info["field_names"],
-                    source_scope_id=old_scope_id,
-                    sink_scope_id=new_scope_id,  # 目标分组的 scope_id
+                    moved_metrics=move_info["metrics"],
+                    source_scope=move_info["source_scope"],
+                    sink_scope=move_info["new_scope"],
                 )
 
     @classmethod
