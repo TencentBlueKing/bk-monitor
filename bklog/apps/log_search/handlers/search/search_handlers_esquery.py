@@ -2192,27 +2192,27 @@ class SearchHandler:
 
     def _add_bcs_cluster_fields(self, log):
         """
-        添加集群有关内置字段
+        添加 BCS 集群有关内置字段内容
         """
         bcs_cluster_id = log.get("__ext", dict()).get("bk_bcs_cluster_id")
 
         if bcs_cluster_id:
-            bcs_cluster_id = bcs_cluster_id.upper()
             log["__bcs_cluster_name__"] = ""
 
-            bcs_cluster_name = self._get_bcs_cluster_info(bcs_cluster_id).get("clusterName")
+            bcs_cluster_name = self._get_bcs_cluster_name(bcs_cluster_id)
             if bcs_cluster_name:
                 log["__bcs_cluster_name__"] = bcs_cluster_name
 
         return log
 
-    def _get_bcs_cluster_info(self, bcs_cluster_id):
+    def _get_bcs_cluster_name(self, bcs_cluster_id):
         """
-        获取 bcs 集群信息
+        获取 BCS 集群名称
         """
-        if self.log_bcs_cluster_info_dict:
-            if bcs_cluster_id in self.log_bcs_cluster_info_dict:
-                return self.log_bcs_cluster_info_dict.get(bcs_cluster_id)
+        bcs_cluster_id = bcs_cluster_id.upper()
+
+        if bcs_cluster_id in self.log_bcs_cluster_info_dict:
+            return self.log_bcs_cluster_info_dict.get(bcs_cluster_id).get("clusterName")
 
         try:
             bcs_cluster_info = BcsApi.get_cluster_by_cluster_id({"cluster_id": bcs_cluster_id})
@@ -2222,7 +2222,7 @@ class SearchHandler:
             bcs_cluster_info = dict()
             self.log_bcs_cluster_info_dict.update({bcs_cluster_id: bcs_cluster_info})
 
-        return bcs_cluster_info
+        return bcs_cluster_info.get("clusterName")
 
     def _add_cmdb_fields(self, log):
         if not self.search_dict.get("bk_biz_id"):
