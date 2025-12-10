@@ -98,6 +98,23 @@ class ScopeName:
         return self._value == self.UNGROUPED or self._value.endswith(f"{self.SEPARATOR}{self.UNGROUPED}")
 
     @property
+    def is_default(self) -> bool:
+        """判断是否为 default 分组
+
+        支持以下格式：
+        - 一级分组: "default"
+        - 多级分组: "service_name||default"
+
+        :return: 如果是 default 分组返回 True，否则返回 False
+        """
+        # 延迟导入避免循环依赖
+        from metadata.models.custom_report.time_series import TimeSeriesMetric
+
+        return self._value == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME or self._value.endswith(
+            f"{self.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
+        )
+
+    @property
     def levels(self) -> list[str]:
         """获取所有层级的值列表"""
         if not self._value:
@@ -1173,17 +1190,6 @@ class TimeSeriesScope(models.Model):
         return self.create_from == TimeSeriesScope.CREATE_FROM_DATA
 
     @staticmethod
-    def is_default_scope(scope_name: str) -> bool:
-        """判断 scope_name 是否为 default 分组
-        :return: 如果是 default 分组返回 True，否则返回 False
-        todo hhh 修改
-        注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name||default 格式
-        """
-        return scope_name == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME or scope_name.endswith(
-            f"||{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
-        )
-
-    @staticmethod
     def _get_ungroup_scope(group_id: int, field_scope: str) -> "TimeSeriesScope | None":
         """获取未分组的 scope 对象
 
@@ -1268,7 +1274,7 @@ class TimeSeriesScope(models.Model):
         :return: scope_id 或 None（如果是未分组）
         """
         # 判断是否是 default 数据分组
-        is_default_scope = TimeSeriesScope.is_default_scope(field_scope)
+        is_default_scope = ScopeName(field_scope).is_default
 
         if not is_default_scope:
             # 非 default 数据分组：直接查找对应的 scope_id
@@ -1427,12 +1433,13 @@ class TimeSeriesScope(models.Model):
         # 注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
         scope_name_mapping = {}
         for scope_name in scope_dimensions_map.keys():
-            if cls.is_default_scope(scope_name):
+            scope_name_obj = ScopeName(scope_name)
+            if scope_name_obj.is_default:
                 # 如果是 default 分组，转换为数据库存储格式
-                if "||" in scope_name:
-                    db_scope_name = scope_name.rsplit("||", 1)[0] + "||"
+                if ScopeName.SEPARATOR in scope_name:
+                    db_scope_name = scope_name.rsplit(ScopeName.SEPARATOR, 1)[0] + ScopeName.SEPARATOR
                 else:
-                    db_scope_name = UNGROUP_SCOPE_NAME
+                    db_scope_name = ScopeName.UNGROUPED
             else:
                 db_scope_name = scope_name
             scope_name_mapping[scope_name] = db_scope_name
