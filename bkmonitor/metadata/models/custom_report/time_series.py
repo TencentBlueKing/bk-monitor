@@ -605,8 +605,31 @@ class TimeSeriesGroup(CustomGroupBase):
                 logger.warning("invalid metric name: %s", md["name"])
                 continue
 
-            # 兼容旧的 dimensions 格式
-            if "dimensions" in md:
+            if self.metric_group_dimensions:
+                latest_update_time = 0
+                for group_key, group_info in md["group_dimensions"].items():
+                    # 获取最新的更新时间
+                    update_time = group_info.get("update_time", 0)
+                    if update_time > latest_update_time:
+                        latest_update_time = update_time
+
+                    tag_value_list = {}
+                    for dim_name in group_info.get("dimensions", []):
+                        tag_value_list[dim_name] = {
+                            "last_update_time": update_time,
+                            "values": [],
+                        }
+
+                    item = {
+                        "field_name": md["name"],
+                        "field_scope": TimeSeriesMetric.extract_field_scope_from_group_key(
+                            group_key, self.metric_group_dimensions
+                        ),
+                        "last_modify_time": latest_update_time // 1000,
+                        "tag_value_list": tag_value_list,
+                    }
+                    ret_data.append(item)
+            else:
                 tag_value_list = {}
                 for d in md["dimensions"]:
                     tag_value_list[d["name"]] = {
@@ -615,62 +638,17 @@ class TimeSeriesGroup(CustomGroupBase):
                     }
                 item = {
                     "field_name": md["name"],
+                    "field_scope": TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME,
                     "last_modify_time": md["update_time"] // 1000,
                     "tag_value_list": tag_value_list,
                 }
-            # 处理新的 group_dimensions 格式
-            elif "group_dimensions" in md:
-                # 收集所有维度组合中的维度名称
-                all_dimensions = set()
-                latest_update_time = 0
-                # 保存分组信息
-                group_dimensions_info = {}
-                # 构造 tag_value_list，用于存储每个维度的更新时间和值列表
-                tag_value_list = {}
-
-                for group_key, group_info in md["group_dimensions"].items():
-                    dimensions = group_info.get("dimensions", [])
-                    all_dimensions.update(dimensions)
-                    # 获取最新的更新时间
-                    update_time = group_info.get("update_time", 0)
-                    if update_time > latest_update_time:
-                        latest_update_time = update_time
-                    # 保存分组信息
-                    group_dimensions_info[group_key] = {
-                        "dimensions": dimensions,
-                        "update_time": update_time,
-                    }
-
-                    for dim_name in dimensions:
-                        if dim_name not in tag_value_list:
-                            # 使用默认值：空列表表示该维度存在但暂无具体值
-                            tag_value_list[dim_name] = {
-                                "last_update_time": update_time,
-                                "values": [],
-                            }
-                        else:
-                            # 如果维度已存在，更新为最新的时间和值
-                            if update_time > tag_value_list[dim_name]["last_update_time"]:
-                                tag_value_list[dim_name]["last_update_time"] = update_time
-
-                item = {
-                    "field_name": md["name"],
-                    "last_modify_time": latest_update_time // 1000,
-                    "tag_value_list": tag_value_list,
-                    "group_dimensions": group_dimensions_info,  # 添加分组信息
-                }
-            else:
-                logger.warning("metric %s has no dimensions or group_dimensions", md["name"])
-                continue
-
-            ret_data.append(item)
+                ret_data.append(item)
         return ret_data
 
     def get_metrics_from_redis(self, expired_time: int | None = settings.TIME_SERIES_METRIC_EXPIRED_SECONDS):
         """从 redis 中获取数据
 
         其中，redis 中数据有 transfer 上报
-        而从 bkdata 获取指标数据有两个版本，对于 v2 版本，仅有 update_time_series_metrics() 方法对其兼容
         """
         # 从 bkdata 获取指标数据
         data = RedisTools.get_list(config.METADATA_RESULT_TABLE_WHITE_LIST)
@@ -734,6 +712,7 @@ class TimeSeriesGroup(CustomGroupBase):
                 metrics_info.append(
                     {
                         "field_name": field_name,
+                        "field_scope": TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME,
                         "tag_value_list": dimensions,
                         "last_modify_time": metric_with_score[1],
                     }
@@ -1940,7 +1919,7 @@ class TimeSeriesMetric(models.Model):
         return list(tags)
 
     @staticmethod
-    def _extract_field_scope_from_group_key(group_key: str, metric_group_dimensions: dict | None = None) -> str:
+    def extract_field_scope_from_group_key(group_key: str, metric_group_dimensions) -> str:
         """从 group_dimensions 的 key 中提取 field_scope
 
         例如: "service_name:api-server||scope_name:production" -> "api-server||production"
@@ -2112,7 +2091,7 @@ class TimeSeriesMetric(models.Model):
         """
         scope_dimensions_index = {}
         for group_key, group_info in metric_info.get("group_dimensions", {}).items():
-            extracted_scope = cls._extract_field_scope_from_group_key(group_key, metric_group_dimensions)
+            extracted_scope = cls.extract_field_scope_from_group_key(group_key, metric_group_dimensions)
             dimensions = group_info.get("dimensions", [])
             # 维度 [target] 必须存在; 如果不存在时，则需要添加 [target] 维度
             if cls.TARGET_DIMENSION_NAME not in dimensions:
@@ -2518,7 +2497,7 @@ class TimeSeriesMetric(models.Model):
             if "group_dimensions" in metric_info:
                 has_group_dimensions = True
                 for group_key in metric_info["group_dimensions"].keys():
-                    field_scope = cls._extract_field_scope_from_group_key(group_key, metric_group_dimensions)
+                    field_scope = cls.extract_field_scope_from_group_key(group_key, metric_group_dimensions)
                     expected_combinations.add((field_name, field_scope))
             else:
                 # 旧格式，使用默认的 field_scope
