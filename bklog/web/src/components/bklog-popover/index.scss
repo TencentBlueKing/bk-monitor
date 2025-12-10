@@ -4,6 +4,7 @@
 
 
 [data-tippy-root] {
+
   // Mixin: 基础 light 样式
   @mixin bklog-basic-light-theme {
     border: 1px solid #DCDEE5;
@@ -15,7 +16,7 @@
     .tippy-content {
       padding: 0;
     }
-    
+
     .tippy-arrow {
       color: #fff;
 

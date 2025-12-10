@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, nextTick, PropType } from 'vue';
+import { defineComponent, ref, nextTick, PropType, onBeforeUnmount } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
@@ -208,6 +208,19 @@ export default defineComponent({
       </div>;
     }
 
+    onBeforeUnmount(() => {
+      // 在组件卸载时强制关闭 popover
+      // 先禁用交互，确保即使鼠标悬停也能关闭
+      if (parsedTextRef.value) {
+        const popoverRef = parsedTextRef.value as any;
+        popoverRef.setProps?.({
+          duration: 0,
+          animation: 'none'
+        });
+        // 立即隐藏，不延迟
+        popoverRef.hide?.(0);
+      }
+    });
 
     return () => (
       <div class="v3-ai-mode-root" ref={aiModeRootRef}>

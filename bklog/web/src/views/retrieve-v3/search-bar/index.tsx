@@ -181,11 +181,20 @@ export default defineComponent({
 
         // 切换模式
         if (searchMode.value === 'normal') {
-          searchMode.value = 'ai';
+          // 从非 AI 模式切换到 AI 模式
           const keyword = store.getters.retrieveParams.keyword;
+
+          // 将 keyword 添加为 filterList 的一个选项（过滤空值和通配符）
           store.state.aiMode.filterList = [keyword].filter(f => !/^\s*\*?\s*$/.test(f));
           store.state.aiMode.active = true;
+
+          // 清空 keyword
           store.state.indexItem.keyword = '';
+
+          // 更新路由参数以同步状态
+          setRouteParamsByKeywordAndAddition();
+
+          searchMode.value = 'ai';
 
           // 打点：通过Tab键切换到AI模式
           RetrieveHelper.reportLog({
@@ -202,9 +211,26 @@ export default defineComponent({
             }
           });
         } else {
+          // 从 AI 模式切换回非 AI 模式
+          // 收集 filterList 和 AI 查询结果，合并为 keyword
+          const keywordParts: string[] = [];
+
+          // 添加 filterList 中的所有项
+          if (aiFilterList.value.length > 0) {
+            keywordParts.push(...aiFilterList.value);
+          }
+
+          // 添加 AI 查询结果（如果存在）
+          if (aiQueryResult.value.queryString && aiQueryResult.value.queryString.trim()) {
+            keywordParts.push(aiQueryResult.value.queryString.trim());
+          }
+
+          // 用 ' AND ' 连接所有部分
+          const keyword = keywordParts.join(' AND ');
+
           // 先更新 storage 和 indexItem，确保 V2SearchBar 能读取到正确的模式
           store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
-          store.commit('updateIndexItemParams', { keyword: aiFilterList.value.join(' AND '), search_mode: 'sql' });
+          store.commit('updateIndexItemParams', { keyword, search_mode: 'sql' });
 
           // 更新路由参数以同步状态（需要在 nextTick 之前更新，确保路由参数正确）
           setRouteParamsByKeywordAndAddition();
@@ -335,15 +361,8 @@ export default defineComponent({
               store.commit('updateIndexItemParams', queryParams);
               store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
 
-              router
-                .replace({
-                  name: 'retrieve',
-                  params: route.params,
-                  query: {
-                    ...route.query,
-                    ...queryParams,
-                  },
-                })
+              const { start_time, end_time } = queryParams as any;
+              setRouteParamsByKeywordAndAddition({ start_time, end_time })
                 .then(() => {
                   RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
                   store.dispatch('requestIndexSetQuery');

@@ -33,7 +33,7 @@ export default () => {
   const router = useRouter();
 
   // 设置路由参数
-  const setRouteParamsByKeywordAndAddition = () => {
+  const setRouteParamsByKeywordAndAddition = (appendToQuery: Record<string, any> = {}) => {
     const query = { ...route.query };
 
     const resolver = new RetrieveUrlResolver({
@@ -43,8 +43,11 @@ export default () => {
 
     Object.assign(query, resolver.resolveParamsToUrl());
 
-    router.replace({
-      query,
+    return router.replace({
+      query: {
+        ...query,
+        ...(appendToQuery ?? {}),
+      },
     });
   };
 
