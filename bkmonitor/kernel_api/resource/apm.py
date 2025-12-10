@@ -13,7 +13,7 @@ from core.drf_resource import Resource
 from rest_framework import serializers
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
 from apm.resources import ListApplicationResources, QueryTraceDetailResource, QuerySpanDetailResource
-from apm_web.trace.resources import ListTraceViewConfigResource, ListFlattenTraceResource, ListFlattenSpanResource
+from apm_web.trace.resources import ListTraceViewConfigResource, ListFlattenSpanResource
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 工作流:
 1. 获取业务下的APM应用列表  - ListApmApplicationResource
 2. 获取某个APM应用的搜索过滤条件 - GetApmSearchFiltersResource
-3. 组装过滤条件,查询Trace / Span 列表 - ListApmTraceResource / ListApmSpanResource
+3. 组装过滤条件,查询Trace / Span 列表 - ListApmSpanResource
 4. 查询单个的Trace / Span 详情 - QueryApmTraceDetailResource / QueryApmSpanDetailResource
 """
 
@@ -59,21 +59,6 @@ class GetApmSearchFiltersResource(Resource):
         return ListTraceViewConfigResource().request(**validated_request_data)
 
 
-class ListApmTraceResource(Resource):
-    """
-    查询APM应用的Trace列表
-    """
-
-    # 不对参数作进一步约束,仅进行查询时间跨度防御
-    RequestSerializer = TimeSpanValidationPassThroughSerializer
-
-    def perform_request(self, validated_request_data):
-        """
-        查询APM应用的Trace列表
-        """
-        return ListFlattenTraceResource().request(**validated_request_data)
-
-
 class ListApmSpanResource(Resource):
     """
     查询APM应用的Span列表
@@ -93,8 +78,7 @@ class QueryApmTraceDetailResource(Resource):
     查询APM应用的Trace详情
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
+    RequestSerializer = TimeSpanValidationPassThroughSerializer
 
     def perform_request(self, validated_request_data):
         return QueryTraceDetailResource().request(**validated_request_data)
@@ -105,8 +89,7 @@ class QueryApmSpanDetailResource(Resource):
     查询APM应用的Span详情
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label="业务ID")
+    RequestSerializer = TimeSpanValidationPassThroughSerializer
 
     def perform_request(self, validated_request_data):
         return QuerySpanDetailResource().request(**validated_request_data)
