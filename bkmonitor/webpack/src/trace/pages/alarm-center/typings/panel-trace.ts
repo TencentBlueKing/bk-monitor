@@ -1,9 +1,8 @@
-export * from './alarm-info';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -24,12 +23,25 @@ export * from './alarm-info';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export * from './constants';
-export * from './detail';
-export * from './dialog';
-export * from './panel-container';
-export * from './panel-host';
-export * from './panel-trace';
-export * from './services';
-export * from './shield';
-export * from './table';
+
+import { type IWhereItem } from '../../../components/retrieval-filter/typing';
+
+export interface ALertTracesData {
+  list: ALertTracesListItem[];
+  query_config: ALertTracesQueryConfig;
+}
+
+export interface ALertTracesListItem {
+  app_name: string;
+  error_msg: string;
+  root_service: string;
+  root_service_span_name: string;
+  root_span_name: string;
+  trace_id: string;
+}
+
+export interface ALertTracesQueryConfig {
+  app_name: string;
+  sceneMode: string;
+  where: IWhereItem[];
+}

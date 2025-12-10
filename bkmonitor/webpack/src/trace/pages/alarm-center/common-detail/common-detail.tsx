@@ -46,9 +46,9 @@ import PanelAlarm from './components/panel-alarm/panel-alarm';
 import PanelContainer from './components/panel-container';
 import PanelEvent from './components/panel-event';
 import PanelHost from './components/panel-host';
-import PanelLink from './components/panel-link';
 import PanelLog from './components/panel-log';
 import PanelMetric from './components/panel-metric';
+import PanelTrace from './components/panel-trace';
 
 import type { IAuthority } from '@/typings/authority';
 
@@ -168,7 +168,7 @@ export default defineComponent({
             />
           );
         case ALARM_CENTER_PANEL_TAB_MAP.TRACE:
-          return <PanelLink />;
+          return <PanelTrace alarmId={alarmCenterDetailStore.alarmId} />;
         case 'host':
           return <PanelHost detail={alarmCenterDetailStore.alarmDetail} />;
         case 'container':

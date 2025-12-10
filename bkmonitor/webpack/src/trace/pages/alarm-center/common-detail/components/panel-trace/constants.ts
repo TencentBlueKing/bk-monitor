@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,24 +23,43 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent } from 'vue';
 
-import LinkTable from './components/link-table';
-
-export default defineComponent({
-  name: 'PanelLink',
-  props: {
-    id: String as PropType<string>,
+/** 调用链表格展示字段配置信息 */
+export const ALERT_TRACE_FIELD_CONFIGS = [
+  {
+    name: 'trace_id',
+    alias: 'Trace ID',
+    type: 'keyword',
+    can_displayed: true,
   },
-  setup(props) {
-    console.log(props.id);
-    return {};
+  {
+    name: 'min_start_time',
+    alias: '开始时间',
+    type: 'long',
+    can_displayed: true,
   },
-  render() {
-    return (
-      <div class='alarm-center-detail-panel-alarm'>
-        <LinkTable />
-      </div>
-    );
+  {
+    name: 'root_span_name',
+    alias: '根 Span',
+    type: 'keyword',
+    can_displayed: true,
   },
-});
+  {
+    name: 'root_service',
+    alias: '入口服务',
+    type: 'keyword',
+    can_displayed: true,
+  },
+  {
+    name: 'root_service_span_name',
+    alias: '入口服务接口',
+    type: 'keyword',
+    can_displayed: true,
+  },
+  {
+    name: 'error_msg',
+    alias: '错误信息',
+    type: 'keyword',
+    can_displayed: true,
+  },
+];
