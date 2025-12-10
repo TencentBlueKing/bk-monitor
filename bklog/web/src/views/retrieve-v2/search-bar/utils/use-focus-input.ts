@@ -30,7 +30,7 @@ import { getCharLength } from '@/common/util';
 import RetrieveHelper from '@/views/retrieve-helper';
 import { isElement } from 'lodash-es';
 
-import PopInstanceUtil from '../../../global/pop-instance-util';
+import PopInstanceUtil from '../../../../global/pop-instance-util';
 
 export default (
   props,

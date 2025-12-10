@@ -4,12 +4,12 @@
     text-align: left;
 
     >div {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        overflow-wrap: normal;
-        white-space: nowrap;
-      }
-    
+      overflow: hidden;
+      text-overflow: ellipsis;
+      overflow-wrap: normal;
+      white-space: nowrap;
+    }
+
   }
 
   .status-row {
@@ -23,12 +23,30 @@
       height: 16px;
       margin-right: 7px;
 
-      .claimed-expired {
+      .status-dot {
         width: 8px;
         height: 8px;
+        border-radius: 50%;
+      }
+
+      .status-failed {
         background: #FFDDDD;
         border: 1px solid #EA3636;
-        border-radius: 50%;
+      }
+
+      .status-success {
+        background: #CBF0DA;
+        border: 1px solid #2CAF5E;
+      }
+
+      .status-pending {
+        background: #FCE5C0;
+        border: 1px solid #F59500;
+      }
+
+      .status-stopped {
+        background: #F0F1F5;
+        border: 1px solid #C4C6CC;
       }
     }
   }
@@ -40,22 +58,26 @@
     .king-button {
       margin-right: 16px;
     }
+
+    .disabled-download {
+      color: #c4c6cc;
+    }
   }
 
-    .bk-table {
-      .bk-table-header-wrapper {
-        .filter-column {
-          .cell {
-            display: flex;
-          }
+  .bk-table {
+    .bk-table-header-wrapper {
+      .filter-column {
+        .cell {
+          display: flex;
         }
       }
-
-      .bk-table-fixed-right-patch {
-        display: none;
-        width: 0px;
-      }
     }
+
+    .bk-table-fixed-right-patch {
+      display: none;
+      width: 0px;
+    }
+  }
 
   .overflow-hidden-text {
     .cell {

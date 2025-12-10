@@ -5,7 +5,7 @@
   import useStore from '@/hooks/use-store';
   import { ConditionOperator } from '@/store/condition-operator';
 
-  import $http from '../../../api';
+  import $http from '../../../../api';
 
   const props = defineProps({
     sql: {

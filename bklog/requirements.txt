@@ -131,6 +131,12 @@ jieba-fast==0.53
 # bkaidev
 aidev-agent==1.0.3
 langfuse==2.60.5
+langchain==0.3.27
+langchain-community==0.3.28
+langchain-core==0.3.75
+langchain-mcp-adapters==0.1.9
+
+python-magic==0.4.27
 
 # 各自环境所需的不同依赖, 通过 sites/${env}/deploy/requirements_env.txt得到
 -r requirements_env.txt

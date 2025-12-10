@@ -84,28 +84,6 @@ export default defineComponent({
     const store = useStore();
     const { $t } = useLocale();
 
-    // 结果展示行数配置
-    const resultDisplayLines = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES] ?? 3);
-    // 读取其他配置（优先级更高）
-    const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
-    const isLimitExpandView = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
-    const isJsonFormat = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
-
-    // 根据配置优先级决定 limitRow 的值
-    // 如果换行、展开长字段、JSON解析都没有选中，则按照 resultDisplayLines 设置
-    // 如果这些配置有选中，则 limitRow 为 null（让 JsonFormatter 内部逻辑处理）
-    const limitRow = computed(() => {
-      if (isWrap.value || isLimitExpandView.value || isJsonFormat.value) {
-        return null;
-      }
-      return resultDisplayLines.value;
-    });
-
-    // 判断是否是单行模式
-    const isSingleLineMode = computed(() => {
-      return limitRow.value === 1 && !isWrap.value && !isLimitExpandView.value && !isJsonFormat.value;
-    });
-
     const refRootElement: Ref<HTMLElement> = ref();
     const refTableHead: Ref<HTMLElement> = ref();
     const refLoadMoreElement: Ref<HTMLElement> = ref();
@@ -176,6 +154,7 @@ export default defineComponent({
     const tableList = computed<any[]>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
+    const limitRow = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES]);
 
     // 检索第一页数据时，loading状态
     const isFirstPageLoading = computed(() => isLoading.value && !isRequesting.value);
@@ -986,7 +965,7 @@ export default defineComponent({
       return [
         <div
           key={`${rowIndex}-row`}
-          class={['bklog-list-row', { 'is-single-line-mode': isSingleLineMode.value }]}
+          class='bklog-list-row'
           data-row-index={rowIndex}
           data-row-click
         >
@@ -1001,12 +980,7 @@ export default defineComponent({
               <div
                 key={`${rowIndex}-${column.key}`}
                 style={cellStyle}
-                class={[
-                  (column as any).class ?? '',
-                  'bklog-row-cell',
-                  (column as any).fixed,
-                  { 'is-single-line-cell': isSingleLineMode.value },
-                ]}
+                class={[(column as any).class ?? '', 'bklog-row-cell', (column as any).fixed]}
               >
                 {column.renderBodyCell?.({ row, column, rowIndex }, h) ?? column.title}
               </div>
@@ -1066,7 +1040,7 @@ export default defineComponent({
         return [
           <RowRender
             key={row[ROW_KEY]}
-            class={['bklog-row-container', logLevel ?? 'normal', { 'is-single-line-mode': isSingleLineMode.value }]}
+            class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
             on-row-mousedown={handleRowMousedown}
             on-row-mouseup={e => handleRowMouseup(e, row.item)}

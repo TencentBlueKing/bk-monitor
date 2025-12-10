@@ -15,8 +15,8 @@ import { getOsCommandLabel } from '@/common/util';
 import useFieldEgges from '@/hooks/use-field-egges';
 import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
 import { FieldInfoItem } from '@/store/store.type';
-import { excludesFields } from './const.common'; // @ts-ignore
-import FavoriteList from './favorite-list';
+import { excludesFields } from '../utils/const.common'; // @ts-ignore
+import FavoriteList from '../components/favorite-list';
 
 const props = defineProps({
   value: {

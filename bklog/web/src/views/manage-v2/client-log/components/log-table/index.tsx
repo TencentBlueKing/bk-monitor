@@ -30,9 +30,11 @@ import { clearTableFilter, getDefaultSettingSelectFiled, setDefaultSettingSelect
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
+import * as authorityMap from '../../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../../constant';
+import { TaskStatus, TaskScene } from './types';
 import http from '@/api';
 
 import './index.scss';
@@ -71,7 +73,6 @@ export default defineComponent({
       limitList: [10, 20, 50, 100],
     });
 
-    const createTypes = ref([]); // 创建方式
     const createdBys = ref([]); // 创建人
     const logTableRef = ref(null); // 表格引用
     const settingCacheKey = 'clientLog'; // 设置缓存键
@@ -81,10 +82,9 @@ export default defineComponent({
     });
 
     const settingFields = ref([
-      { id: 'id', label: t('任务 ID') },
+      { id: 'task_id', label: t('任务 ID') },
       { id: 'task_name', label: t('任务名称'), disabled: true },
       { id: 'openid', label: 'openid', disabled: true },
-      { id: 'create_type', label: t('创建方式') },
       { id: 'status_name', label: t('任务状态') },
       { id: 'scene_name', label: t('任务阶段') },
       { id: 'created_by', label: t('创建人') },
@@ -102,27 +102,27 @@ export default defineComponent({
 
     // 任务状态选项
     const taskStatuses = [
-      { text: t('待审批'), value: -3 },
-      { text: t('审批通过'), value: -2 },
-      { text: t('审批拒绝'), value: -1 },
-      { text: t('已创建'), value: 0 },
-      { text: t('执行中'), value: 1 },
-      { text: t('停止'), value: 2 },
-      { text: t('执行失败'), value: 3 },
-      { text: t('执行完成'), value: 4 },
-      { text: t('创建失败'), value: 5 },
-      { text: t('认领超时'), value: 6 },
-      { text: t('执行超时'), value: 7 },
-      { text: t('认领中'), value: 8 },
-      { text: t('已删除'), value: 9 },
-      { text: t('创建中'), value: 10 },
-      { text: t('启动中'), value: 11 },
+      { text: t('待审批'), value: TaskStatus.PENDING_APPROVAL },
+      { text: t('审批通过'), value: TaskStatus.APPROVED },
+      { text: t('审批拒绝'), value: TaskStatus.REJECTED },
+      { text: t('已创建'), value: TaskStatus.CREATED },
+      { text: t('执行中'), value: TaskStatus.RUNNING },
+      { text: t('停止'), value: TaskStatus.STOPPED },
+      { text: t('执行失败'), value: TaskStatus.FAILED },
+      { text: t('执行完成'), value: TaskStatus.COMPLETED },
+      { text: t('创建失败'), value: TaskStatus.CREATE_FAILED },
+      { text: t('认领超时'), value: TaskStatus.CLAIM_TIMEOUT },
+      { text: t('执行超时'), value: TaskStatus.EXECUTION_TIMEOUT },
+      { text: t('认领中'), value: TaskStatus.CLAIMING },
+      { text: t('已删除'), value: TaskStatus.DELETED },
+      { text: t('创建中'), value: TaskStatus.CREATING },
+      { text: t('启动中'), value: TaskStatus.STARTING },
     ];
 
     // 任务阶段选项
     const taskScenes = [
-      { text: t('登录后'), value: 4 },
-      { text: t('登录前'), value: 1 },
+      { text: t('登录后'), value: TaskScene.AFTER_LOGIN },
+      { text: t('登录前'), value: TaskScene.BEFORE_LOGIN },
     ];
 
     // 当前筛选条件
@@ -138,10 +138,6 @@ export default defineComponent({
       if (!props.data || props.data.length === 0) {
         return;
       }
-
-      // 提取创建方式
-      const types = [...new Set(props.data.map((item: Record<string, any>) => item.create_type))].filter(Boolean);
-      createTypes.value = types.map(type => ({ text: type, value: type }));
 
       // 提取创建人
       const tenantInfos = [...new Set(props.data.map((item: Record<string, any>) => item.tenant_info))].filter(Boolean);
@@ -209,7 +205,7 @@ export default defineComponent({
       }
 
       // 只允许特定字段进行排序
-      const allowedSortFields = ['id', 'task_name', 'openid', 'created_at'];
+      const allowedSortFields = ['task_id', 'task_name', 'openid', 'created_at'];
       if (!allowedSortFields.includes(id)) {
         return list;
       }
@@ -219,23 +215,13 @@ export default defineComponent({
       return [...list].sort((a, b) => {
         let compareResult = 0;
 
-        // 根据不同字段使用不同的排序逻辑
-        switch (id) {
-          case 'id':
-            compareResult = a[id] - b[id];
-            break;
-
-          case 'task_name':
-          case 'openid':
-            compareResult = (a[id] || '').localeCompare(b[id] || '');
-            break;
-
-          case 'created_at':
-            compareResult = (a[id] || '').localeCompare(b[id] || '');
-            break;
-
-          default:
-            return 0;
+        if (id === 'task_id') {
+          const prevTaskId = Number(a[id]) || 0;
+          const nextTaskId = Number(b[id]) || 0;
+          compareResult = prevTaskId - nextTaskId;
+        } else {
+          // task_name、openid、created_at 使用字符串比较
+          compareResult = (a[id] || '').localeCompare(b[id] || '');
         }
 
         // 根据排序方向返回结果
@@ -256,7 +242,7 @@ export default defineComponent({
         const keywordLower = props.keyword.trim().toLowerCase();
         logList = logList.filter((item: Record<string, any>) => {
           const searchFields = [
-            item.id?.toString() || '',
+            item.task_id?.toString() || '',
             item.task_name || '',
             item.openid || '',
             item.create_type || '',
@@ -322,6 +308,14 @@ export default defineComponent({
     // 更新分页信息
     const changePagination = (paginationValue = {}) => {
       Object.assign(pagination.value, paginationValue);
+
+      // 检查当前页码是否超出范围
+      const { current, limit, count } = pagination.value;
+      const maxPage = Math.max(1, Math.ceil(count / limit));
+
+      if (current > maxPage) {
+        pagination.value.current = maxPage;
+      }
     };
 
     // 清空过滤条件
@@ -341,21 +335,38 @@ export default defineComponent({
     };
 
     // 下载文件
-    const downloadFile = async (id: number) => {
-      try {
-        const params = {
-          query: {
-            bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-            task_id: id,
-          },
-        };
-        const response = await http.request('collect/getDownloadLink', params);
-        const downloadUrl = response.data.url;
-        if (downloadUrl) {
-          window.open(downloadUrl);
+    const downloadFile = async (id: number, status: number) => {
+      if (status !== TaskStatus.COMPLETED) {
+        return;
+      }
+      if (props.isAllowedDownload) {
+        try {
+          const params = {
+            query: {
+              bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
+              id,
+            },
+          };
+          const response = await http.request('collect/getDownloadLink', params);
+          const downloadUrl = response.data.url;
+          if (downloadUrl) {
+            window.open(downloadUrl);
+          }
+        } catch (error) {
+          console.warn('获取下载链接失败:', error);
         }
-      } catch (error) {
-        console.warn('获取下载链接失败:', error);
+      } else {
+        const paramData = {
+          action_ids: [authorityMap.DOWNLOAD_FILE_AUTH],
+          resources: [
+            {
+              type: 'space',
+              id: store.state.spaceUid,
+            },
+          ],
+        };
+        const res = await store.dispatch('getApplyData', paramData);
+        store.commit('updateState', { authDialogData: res.data });
       }
     };
 
@@ -420,18 +431,59 @@ export default defineComponent({
 
     // 任务状态插槽
     const statusSlot = {
-      default: ({ row }) => (
-        <div class='status-row'>
-          <div
-            class='status-icon'
-            key={row.status}
-          >
-            {row.status === 8 && <bk-spin size='mini'></bk-spin>}
-            {row.status === 6 && <div class='claimed-expired'></div>}
+      default: ({ row }) => {
+        // 加载中状态：执行中、创建中、启动中、认领中
+        const loadingStatuses = [TaskStatus.RUNNING, TaskStatus.CREATING, TaskStatus.STARTING, TaskStatus.CLAIMING];
+
+        // 失败状态：创建失败、认领超时、审批拒绝、执行失败、执行超时
+        const failedStatuses = [
+          TaskStatus.CREATE_FAILED,
+          TaskStatus.CLAIM_TIMEOUT,
+          TaskStatus.REJECTED,
+          TaskStatus.FAILED,
+          TaskStatus.EXECUTION_TIMEOUT,
+        ];
+
+        // 成功状态：审批通过、执行完成、已创建
+        const successStatuses = [TaskStatus.APPROVED, TaskStatus.COMPLETED, TaskStatus.CREATED];
+
+        // 停止状态：停止、已删除
+        const stoppedStatuses = [TaskStatus.STOPPED, TaskStatus.DELETED];
+
+        // 待审批状态
+        const pendingStatuses = [TaskStatus.PENDING_APPROVAL];
+
+        const renderStatusIcon = () => {
+          if (loadingStatuses.includes(row.status)) {
+            return <bk-spin size='mini'></bk-spin>;
+          }
+          if (failedStatuses.includes(row.status)) {
+            return <div class='status-dot status-failed'></div>;
+          }
+          if (successStatuses.includes(row.status)) {
+            return <div class='status-dot status-success'></div>;
+          }
+          if (stoppedStatuses.includes(row.status)) {
+            return <div class='status-dot status-stopped'></div>;
+          }
+          if (pendingStatuses.includes(row.status)) {
+            return <div class='status-dot status-pending'></div>;
+          }
+          return null;
+        };
+
+        return (
+          <div class='status-row'>
+            <div
+              class='status-icon'
+              key={row.status}
+            >
+              {renderStatusIcon()}
+            </div>
+            {row.status_name}
           </div>
-          {row.status_name}
-        </div>
-      ),
+        );
+      },
     };
 
     // 创建人插槽
@@ -470,11 +522,20 @@ export default defineComponent({
             {t('克隆')}
           </bk-button>
           <bk-button
-            class='king-button'
+            class={[
+              'king-button',
+              {
+                'disabled-download': !props.isAllowedDownload || row.status !== TaskStatus.COMPLETED,
+              },
+            ]}
             text
             theme='primary'
-            disabled={!props.isAllowedDownload}
-            on-click={() => downloadFile(row.id)}
+            v-bk-tooltips={{
+              content: t('暂无下载链接，请在任务完成后点击下载'),
+              disabled: row.status === TaskStatus.COMPLETED,
+            }}
+            v-cursor={{ active: row.status === TaskStatus.COMPLETED && !props.isAllowedDownload }}
+            on-click={() => downloadFile(row.id, row.status)}
           >
             {t('下载文件')}
           </bk-button>
@@ -504,14 +565,14 @@ export default defineComponent({
             ),
           }}
         >
-          {checkFields('id') && (
+          {checkFields('task_id') && (
             <bk-table-column
-              key='id'
+              key='task_id'
               class-name='filter-column overflow-hidden-text'
               width='100'
               label={t('任务 ID')}
-              prop='id'
-              sortable
+              prop='task_id'
+              sortable='custom'
             />
           )}
           <bk-table-column
@@ -532,18 +593,6 @@ export default defineComponent({
             scopedSlots={openidSlot}
             sortable
           />
-          {checkFields('create_type') && (
-            <bk-table-column
-              key='create_type'
-              class-name='filter-column overflow-hidden-text'
-              min-width='100'
-              label={t('创建方式')}
-              prop='create_type'
-              column-key='create_type'
-              filters={createTypes}
-              filter-multiple={false}
-            />
-          )}
           {checkFields('status_name') && (
             <bk-table-column
               key='status_name'
