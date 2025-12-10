@@ -1,9 +1,10 @@
-import { defineComponent, ref, computed, nextTick, PropType } from 'vue';
+import { defineComponent, ref, nextTick, PropType, computed } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
 import { AiQueryResult } from '../types';
 import BklogPopover from '@/components/bklog-popover';
+import useStore from '@/hooks/use-store';
 
 import './index.scss';
 
@@ -30,8 +31,13 @@ export default defineComponent({
     const status = ref<AiModeStatus>('default');
     const textareaRef = ref<HTMLTextAreaElement | null>(null);
     const containerRef = ref<HTMLDivElement | null>(null);
+    const aiModeRootRef = ref<HTMLDivElement | null>(null);
     const containerWidth = ref<number>(600);
     const parsedTextRef = ref<InstanceType<typeof BklogPopover> | null>(null);
+
+    const store = useStore();
+
+    const aiFilterList = computed<string[]>(() => store.state.aiMode.filterList ?? []);
 
     const handleHeightChange = (height: number) => {
       emit('height-change', height);
@@ -106,10 +112,10 @@ export default defineComponent({
       }
     };
 
-    useResizeObserve(containerRef, () => {
-      if (containerRef.value) {
-        handleHeightChange(containerRef.value.offsetHeight);
-        containerWidth.value = containerRef.value.offsetWidth;
+    useResizeObserve(aiModeRootRef, () => {
+      if (aiModeRootRef.value) {
+        handleHeightChange(aiModeRootRef.value.offsetHeight);
+        containerWidth.value = aiModeRootRef.value.offsetWidth;
       }
     });
 
@@ -140,6 +146,19 @@ export default defineComponent({
       emit('edit-sql');
     };
 
+    const handleRemoveFilter = (item: string) => {
+      const index = store.state.aiMode.filterList.indexOf(item);
+      if (index > -1) {
+        store.state.aiMode.filterList.splice(index, 1);
+        store.dispatch('requestIndexSetQuery');
+      }
+    };
+
+    const handleClearAllFilters = () => {
+      store.state.aiMode.filterList = [];
+      store.dispatch('requestIndexSetQuery');
+    };
+
     const getHoverContent = () => {
       return <div class="ai-parsed-text-content">
         <span>{props.aiQueryResult.queryString}</span>
@@ -149,83 +168,102 @@ export default defineComponent({
 
 
     return () => (
-      <div ref={containerRef} class="v3-ai-mode">
-        <div class="ai-mode-inner">
-          <div class="ai-input-wrapper">
-            <div class="ai-input-container">
-              {parsedText.value && (
-                <BklogPopover
-                  ref={parsedTextRef}
-                  class="ai-parsed-text"
-                  trigger="hover"
-                  content={ getHoverContent }
-                  options={{
-                    appendTo: document.body,
-                    theme: 'bklog-basic-light',
-                    arrow: false,
-                    placement: 'bottom-start',
-                    maxWidth: containerWidth.value,
-                    offset: [0, 4],
+      <div class="v3-ai-mode-root" ref={aiModeRootRef}>
+        <div ref={containerRef} class="v3-ai-mode-container">
+          <div class="ai-mode-inner">
+            <div class="ai-input-wrapper">
+              <div class="ai-input-container">
+                {parsedText.value && (
+                  <BklogPopover
+                    ref={parsedTextRef}
+                    class="ai-parsed-text"
+                    trigger="hover"
+                    content={ getHoverContent }
+                    options={{
+                      appendTo: document.body,
+                      theme: 'bklog-basic-light',
+                      arrow: false,
+                      placement: 'bottom-start',
+                      maxWidth: containerWidth.value,
+                      offset: [0, 4],
 
-                    popperOptions: {
-                      modifiers: [
-                        {
-                          name: 'offset',
-                          options: {
-                            offset: ({ reference }) => {
-                              // 获取 containerRef 的位置
-                              const containerRect = containerRef.value.getBoundingClientRect();
-                              const offsetX = containerRect.left - reference.x;
-                              const offsetY = containerRect.bottom - reference.y + 4 - reference.height;
-                              return [offsetX, offsetY];
+                      popperOptions: {
+                        modifiers: [
+                          {
+                            name: 'offset',
+                            options: {
+                              offset: ({ reference }) => {
+                                // 获取 containerRef 的位置
+                                const containerRect = containerRef.value.getBoundingClientRect();
+                                const offsetX = containerRect.left - reference.x;
+                                const offsetY = containerRect.bottom - reference.y + 4 - reference.height;
+                                return [offsetX, offsetY];
+                              },
                             },
                           },
-                        },
-                      ],
-                    },
-                  } as any}
-                >
-                  {parsedText.value}
-                </BklogPopover>
-              )}
-              <textarea
-                ref={textareaRef}
-                class="ai-input"
-                value={currentInput.value}
-                placeholder={parsedText.value ? '' : t('/唤起,使用自然语言描述你的检索需求...')}
-                onInput={handleInput}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-                onKeydown={handleKeyDown}
-                rows={1}
-                style={{
-                  height: '24px',
-                }}
-              />
-            </div>
-            <div class="ai-mode-toggle-btn">
-              <img
-                src={aiBluekingSvg}
-                alt="AI模式"
-                style={{ width: '16px', height: '16px' }}
-              />
-              <span class="ai-mode-text">{t('AI 模式')}</span>
-              <span style={shortcutKeyStyle}>
-                <i class="bklog-icon bklog-key-tab"></i>
-              </span>
-            </div>
+                        ],
+                      },
+                    } as any}
+                  >
+                    {parsedText.value}
+                  </BklogPopover>
+                )}
+                <textarea
+                  ref={textareaRef}
+                  class="ai-input"
+                  value={currentInput.value}
+                  placeholder={parsedText.value ? '' : t('/唤起,使用自然语言描述你的检索需求...')}
+                  onInput={handleInput}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
+                  onKeydown={handleKeyDown}
+                  rows={1}
+                  style={{
+                    height: '24px',
+                  }}
+                />
+              </div>
+              <div class="ai-mode-toggle-btn">
+                <img
+                  src={aiBluekingSvg}
+                  alt="AI模式"
+                  style={{ width: '16px', height: '16px' }}
+                />
+                <span class="ai-mode-text">{t('AI 模式')}</span>
+                <span style={shortcutKeyStyle}>
+                  <i class="bklog-icon bklog-key-tab"></i>
+                </span>
+              </div>
 
+            </div>
+            { props.isAiLoading && [
+              <div class="ai-loading-info" key="loading-info">
+                <span class="ai-loading-text">{t('AI 解析中...')}</span>
+              </div>,
+              <div class="ai-progress-bar" key="progress-bar"></div>
+            ]}
           </div>
-          { props.isAiLoading && [
-            <div class="ai-loading-info" key="loading-info">
-              <span class="ai-loading-text">{t('AI 解析中...')}</span>
-            </div>,
-            <div class="ai-progress-bar" key="progress-bar"></div>
-          ]}
+          <button class="ai-execute-btn" onClick={handleAiExecute}>
+            <i class="bklog-icon bklog-publish-fill"></i>
+          </button>
         </div>
-        <button class="ai-execute-btn" onClick={handleAiExecute}>
-          <i class="bklog-icon bklog-publish-fill"></i>
-        </button>
+        <div class="query-list">
+          { aiFilterList.value.map(item => (
+            <div class="query-list-item" key={item}>
+              <span class="query-list-item-text">{item}</span>
+              <i 
+                class="bklog-icon bklog-close" 
+                onClick={() => handleRemoveFilter(item)}
+              ></i>
+            </div>
+          ))}
+          { aiFilterList.value.length > 0 && (
+            <i 
+              class="bklog-icon bklog-qingkong query-list-clear-all" 
+              onClick={handleClearAllFilters}
+            ></i>
+          )}
+        </div>
       </div>
     );
   },

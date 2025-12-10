@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { computed, defineComponent, ref, nextTick } from 'vue';
 
 import useElementEvent from '@/hooks/use-element-event';
 import useLocale from '@/hooks/use-locale';
@@ -37,10 +37,12 @@ import V3AiMode from './ai-mode/index';
 import { useRoute, useRouter } from 'vue-router/composables';
 import { bkMessage } from 'bk-magic-vue';
 
-import './index.scss';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { AiQueryResult } from './types';
 import { BK_LOG_STORAGE } from '@/store/store.type';
+import { SET_APP_STATE } from '@/store';
+
+import './index.scss';
 
 export default defineComponent({
   name: 'V3Searchbar',
@@ -168,6 +170,8 @@ export default defineComponent({
         // 切换模式
         if (searchMode.value === 'normal') {
           searchMode.value = 'ai';
+          store.commit(SET_APP_STATE, { aiMode: { active: true, filterList: [] } });
+          
           // 切换到 AI 模式后，聚焦到 AI 输入框
           nextTick(() => {
             const aiModeEl = aiModeRef.value?.$el || aiModeRef.value;
@@ -178,6 +182,7 @@ export default defineComponent({
           });
         } else {
           searchMode.value = 'normal';
+          store.commit(SET_APP_STATE, { aiMode: { active: false, filterList: [] } });
           Object.assign(aiQueryResult.value, { startTime: '', endTime: '', queryString: '' });
 
           // 切换到常规模式后，聚焦到搜索框
