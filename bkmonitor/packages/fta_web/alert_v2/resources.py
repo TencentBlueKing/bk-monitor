@@ -12,7 +12,7 @@ from rest_framework import serializers
 
 from bkmonitor.documents import AlertDocument
 from constants.alert import K8STargetType, K8S_RESOURCE_TYPE, EventTargetType
-from core.drf_resource import Resource, resource
+from core.drf_resource import Resource, resource, api
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
 from monitor_web.data_explorer.event.resources import EventLogsResource
 
@@ -452,3 +452,106 @@ class AlertK8sTargetResource(Resource):
         # TODO: 支持其他目标类型（如APM应用性能监控）
         # 不支持的类型返回空列表
         return []
+
+
+class AlertHostTargetResource(Resource):
+    """
+    主机目标对象资源类
+
+    根据告警ID获取告警关联的主机对象信息
+    包括主机IP、云区域ID等
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        """请求参数序列化器"""
+
+        alert_id = serializers.CharField(label="告警 id", help_text="要查询的告警ID")
+
+    def perform_request(self, validated_request_data):
+        """
+        执行主机目标对象查询请求
+
+        根据告警ID获取对应的主机目标信息
+
+        Args:
+            validated_request_data: 验证后的请求参数
+
+        Returns:
+            dict: 主机目标对象信息，如果不支持则返回空列表
+        """
+        alert_id = validated_request_data["alert_id"]
+        # 根据告警ID获取告警文档对象
+        alert = AlertDocument.get(alert_id)
+
+        # 检查是否为主机目标类型
+        if alert.event.target_type == EventTargetType.HOST:
+            try:
+                target_list = self.host_target_list(alert)
+            except AttributeError:
+                target_list = []
+            return target_list
+
+        # 不支持的类型返回空列表
+        return []
+
+    @classmethod
+    def host_target_list(cls, alert):
+        """
+        从告警对象中提取主机目标信息
+
+        解析告警的标签信息，构建主机目标对象
+
+        Args:
+            alert: 告警文档对象
+
+        Returns:
+            dict: 包含主机IP和云区域ID的字典
+        """
+        target_info = {
+            "bk_host_id": alert.event.bk_host_id,
+            "bk_target_ip": alert.event.ip,
+            "bk_cloud_id": alert.event.bk_cloud_id,
+            "display_name": alert.event.ip,
+            "bk_host_name": "",
+        }
+        hosts = api.cmdb.get_host_by_id(bk_biz_id=alert.event.bk_biz_id, bk_host_ids=[alert.event.bk_host_id])
+        if not hosts:
+            return [target_info]
+
+        return cls.flat_host_info(hosts, alert)
+
+    @classmethod
+    def flat_host_info(cls, hosts, alert):
+        """
+        扁平化主机信息
+
+        将主机信息转换为前端可展示的格式
+
+        Returns:
+            list: 扁平化后的主机信息列表
+        """
+        target_list = []
+        topo_links = api.cmdb.get_topo_tree(bk_biz_id=alert.event.bk_biz_id).convert_to_topo_link()
+        for host in hosts:
+            target = {
+                "bk_host_id": host.bk_host_id,
+                "bk_target_ip": host.bk_host_innerip,
+                "bk_cloud_id": host.bk_cloud_id,
+                "display_name": host.bk_host_innerip,
+                "bk_host_name": host.bk_host_name,
+            }
+
+            topo_links = {
+                key: value for key, value in topo_links.items() if int(key.split("|")[1]) in host.bk_module_ids
+            }
+            topo_display = [
+                " / ".join(topo.bk_inst_name for topo in reversed(topo_link) if topo.bk_obj_id != "biz")
+                for topo_link in topo_links.values()
+            ]
+            for topo in topo_display:
+                # 如果主机归属多个 topo，则分成多条（虽然主机是同一台）
+                flat_target = {}
+                flat_target.update(target)
+                flat_target["display_name"] = f"{topo} / {target['bk_target_ip']}"
+                target_list.append(flat_target)
+        return target_list
