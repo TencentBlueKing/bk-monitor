@@ -1432,12 +1432,12 @@ class TimeSeriesScope(models.Model):
         if not scope_dimensions_map:
             return
 
-        # 构建 scope_name 映射：原始名称 -> 数据库存储名称
+        # 构建 field_scope 映射：原始名称 -> 数据库存储名称
         scope_name_mapping = {
-            scope_name: ScopeName.from_field_scope(scope_name) for scope_name in scope_dimensions_map.keys()
+            field_scope: ScopeName.from_field_scope(field_scope) for field_scope in scope_dimensions_map.keys()
         }
 
-        # 获取所有数据库中的 scope_name 列表
+        # 获取所有数据库中的 field_scope 列表
         db_scope_names = list(set(scope_name_mapping.values()))
 
         # 一次性查询所有相关的 scope 记录
@@ -1449,11 +1449,11 @@ class TimeSeriesScope(models.Model):
         scopes_to_update = []
         scopes_to_create = []
 
-        for scope_name, dimensions in scope_dimensions_map.items():
-            db_scope_name = scope_name_mapping[scope_name]
-            if db_scope_name in existing_scopes_by_db_name:
+        for field_scope, dimensions in scope_dimensions_map.items():
+            scope_name = scope_name_mapping[field_scope]
+            if scope_name in existing_scopes_by_db_name:
                 # 记录已存在，合并维度配置（添加新维度，保留已有配置）
-                scope = existing_scopes_by_db_name[db_scope_name]
+                scope = existing_scopes_by_db_name[scope_name]
                 existing_config = scope.dimension_config or {}
                 for dim in dimensions:
                     existing_config.setdefault(dim, {})
@@ -1468,7 +1468,7 @@ class TimeSeriesScope(models.Model):
                 scopes_to_create.append(
                     cls(
                         group_id=group_id,
-                        scope_name=db_scope_name,
+                        scope_name=scope_name,
                         dimension_config=dimension_config,
                         auto_rules=[],
                         create_from=cls.CREATE_FROM_DATA,
