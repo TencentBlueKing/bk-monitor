@@ -1183,6 +1183,123 @@ class TimeSeriesScope(models.Model):
             f"||{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
         )
 
+    @staticmethod
+    def _get_ungroup_scope(group_id: int, field_scope: str) -> "TimeSeriesScope | None":
+        """获取未分组的 scope 对象
+
+        :param group_id: 分组ID
+        :param field_scope: 指标的 field_scope
+        :return: (未分组的 TimeSeriesScope 对象或 None, ungroup_scope_name)
+        """
+        scope_name_obj = ScopeName(field_scope)
+        # 构建未分组的 scope_name：保留前面的层级，最后一级设为空
+        if scope_name_obj.levels:
+            ungroup_scope_name = ScopeName.SEPARATOR.join(scope_name_obj.levels[:-1] + [UNGROUP_SCOPE_NAME])
+        else:
+            ungroup_scope_name = UNGROUP_SCOPE_NAME
+        ungroup_scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=ungroup_scope_name).first()
+        return ungroup_scope
+
+    @classmethod
+    def _match_scope_by_auto_rules(cls, scope, field_name: str) -> bool:
+        """检查指标名称是否匹配 scope 的 auto_rules
+
+        :param scope: TimeSeriesScope 对象
+        :param field_name: 指标名称
+        :return: 是否匹配
+        """
+        if not scope.auto_rules:
+            return False
+
+        for rule in scope.auto_rules:
+            try:
+                if re.match(rule, field_name):
+                    return True
+            except re.error:
+                logger.warning(
+                    f"Invalid regex pattern in auto_rules: {rule} for group_id: {scope.group_id}, "
+                    f"scope_name: {scope.scope_name}"
+                )
+        return False
+
+    @classmethod
+    def _merge_dimensions_from_ungroup(cls, scope, ungroup_scope, group_id: int, field_name: str) -> None:
+        """从未分组的指标合并维度配置到匹配的 scope
+
+        :param scope: 匹配到的 scope 对象
+        :param ungroup_scope: 未分组的 scope 对象
+        :param group_id: 分组ID
+        :param field_name: 指标名称
+        """
+        ungroup_metric = TimeSeriesMetric.objects.filter(
+            group_id=group_id, scope_id=ungroup_scope.id, field_name=field_name
+        ).first()
+
+        # 如果未分组指标不存在或没有标签，直接返回
+        if not ungroup_metric or not ungroup_metric.tag_list:
+            return
+
+        matched_dimension_config = scope.dimension_config or {}
+        ungroup_dimension_config = ungroup_scope.dimension_config or {}
+
+        # 找出需要新增的维度
+        new_dimensions = [dim for dim in ungroup_metric.tag_list if dim not in matched_dimension_config]
+        if not new_dimensions:
+            return
+
+        # 合并维度配置
+        for dim in new_dimensions:
+            matched_dimension_config[dim] = ungroup_dimension_config.get(dim, {})
+
+        scope.dimension_config = matched_dimension_config
+        scope.save(update_fields=["dimension_config"])
+        logger.info(
+            f"Merged dimensions from ungroup: group_id={group_id}, field_name={field_name}, "
+            f"scope_id={scope.id}, new_dimensions={new_dimensions}"
+        )
+
+    @classmethod
+    def get_scope_id_for_metric(cls, group_id: int, field_scope: str, field_name: str) -> int | None:
+        """获取指标对应的 scope_id
+
+        :param group_id: 分组ID
+        :param field_scope: 指标的 field_scope
+        :param field_name: 指标名称
+        :return: scope_id 或 None（如果是未分组）
+        """
+        # 判断是否是 default 数据分组
+        is_default_scope = TimeSeriesScope.is_default_scope(field_scope)
+
+        if not is_default_scope:
+            # 非 default 数据分组：直接查找对应的 scope_id
+            scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=field_scope).first()
+            if not scope:
+                logger.warning(
+                    f"Scope not found for non-default metric: group_id={group_id}, field_scope={field_scope}"
+                )
+            return scope.id if scope else None
+
+        # default 数据分组：需要匹配用户分组和数据分组的 auto_rules（正则表达式）
+        all_scopes = TimeSeriesScope.objects.filter(group_id=group_id).order_by("-last_modify_time")
+
+        # 遍历所有分组，找到第一个匹配的 scope
+        for scope in all_scopes:
+            if not cls._match_scope_by_auto_rules(scope, field_name):
+                continue
+
+            # 匹配成功，尝试合并未分组的维度配置
+            ungroup_scope = TimeSeriesScope._get_ungroup_scope(group_id, field_scope)
+            if ungroup_scope:
+                cls._merge_dimensions_from_ungroup(scope, ungroup_scope, group_id, field_name)
+
+            return scope.id
+
+        # 如果没有匹配的分组，返回未分组的 scope_id
+        ungroup_scope = TimeSeriesScope._get_ungroup_scope(group_id, field_scope)
+        if not ungroup_scope:
+            logger.warning(f"Ungroup scope not found: group_id={group_id}")
+        return ungroup_scope.id if ungroup_scope else None
+
     def update_dimension_config_from_moved_metrics(
         self, moved_metric_field_names: list[str], source_scope_id: int, incremental: bool = True
     ):
@@ -1790,7 +1907,7 @@ class TimeSeriesScope(models.Model):
         if metrics_to_update:
             for metric in metrics_to_update:
                 # 重新计算 scope_id
-                new_scope_id = TimeSeriesMetric.get_scope_id_for_metric(
+                new_scope_id = TimeSeriesScope.get_scope_id_for_metric(
                     group_id=metric.group_id,
                     field_scope=metric.field_scope,
                     field_name=metric.field_name,
@@ -1939,97 +2056,6 @@ class TimeSeriesMetric(models.Model):
         # 添加特殊字段，兼容先前逻辑
         tags.add("target")
         return list(tags)
-
-    @staticmethod
-    def get_ungroup_scope(group_id: int, field_scope: str) -> "TimeSeriesScope | None":
-        """获取未分组的 scope 对象
-
-        :param group_id: 分组ID
-        :param field_scope: 指标的 field_scope
-        :return: (未分组的 TimeSeriesScope 对象或 None, ungroup_scope_name)
-        """
-        scope_name_obj = ScopeName(field_scope)
-        # 构建未分组的 scope_name：保留前面的层级，最后一级设为空
-        if scope_name_obj.levels:
-            ungroup_scope_name = ScopeName.SEPARATOR.join(scope_name_obj.levels[:-1] + [UNGROUP_SCOPE_NAME])
-        else:
-            ungroup_scope_name = UNGROUP_SCOPE_NAME
-        ungroup_scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=ungroup_scope_name).first()
-        return ungroup_scope
-
-    @classmethod
-    def get_scope_id_for_metric(cls, group_id: int, field_scope: str, field_name: str) -> int | None:
-        """获取指标对应的 scope_id todo hhh 优化精简代码
-
-        :param group_id: 分组ID
-        :param field_scope: 指标的 field_scope
-        :param field_name: 指标名称
-        :return: scope_id 或 None（如果是未分组）
-        """
-        # 判断是否是 default 数据分组
-        is_default_scope = TimeSeriesScope.is_default_scope(field_scope)
-
-        if not is_default_scope:
-            # 非 default 数据分组：直接查找对应的 scope_id
-            scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=field_scope).first()
-            if not scope:
-                logger.warning(
-                    f"Scope not found for non-default metric: group_id={group_id}, field_scope={field_scope}"
-                )
-            return scope.id if scope else None
-
-        # default 数据分组：需要匹配用户分组和数据分组的 auto_rules（正则表达式）todo hhh 根据什么顺序进行排序？？
-        all_scopes = TimeSeriesScope.objects.filter(group_id=group_id).order_by("id")
-
-        # 遍历所有分组，找到第一个匹配的 scope
-        for scope in all_scopes:
-            matched = False
-            if scope.auto_rules:
-                for rule in scope.auto_rules:
-                    try:
-                        if re.match(rule, field_name):
-                            matched = True
-                            break
-                    except re.error:
-                        logger.warning(
-                            f"Invalid regex pattern in auto_rules: {rule} for group_id: {scope.group_id}, "
-                            f"scope_name: {scope.scope_name}"
-                        )
-                        continue
-
-            if matched:
-                # 如果匹配到分组，则更新维度配置，并返回 scope_id
-                ungroup_scope = cls.get_ungroup_scope(group_id, field_scope)
-
-                if ungroup_scope:
-                    ungroup_metric = TimeSeriesMetric.objects.filter(
-                        group_id=group_id, scope_id=ungroup_scope.id, field_name=field_name
-                    ).first()
-
-                    if ungroup_metric and ungroup_metric.tag_list:
-                        matched_dimension_config = scope.dimension_config or {}
-                        ungroup_dimension_config = ungroup_scope.dimension_config or {}
-                        new_dimensions = [dim for dim in ungroup_metric.tag_list if dim not in matched_dimension_config]
-
-                        if new_dimensions:
-                            for dim in new_dimensions:
-                                matched_dimension_config[dim] = ungroup_dimension_config.get(dim, {})
-
-                            scope.dimension_config = matched_dimension_config
-                            scope.save(update_fields=["dimension_config"])
-                            logger.info(
-                                f"Merged dimensions from ungroup: group_id={group_id}, field_name={field_name}, "
-                                f"scope_id={scope.id}, new_dimensions={new_dimensions}"
-                            )
-
-                return scope.id
-
-        # 如果没有匹配的分组，返回未分组的 scope_id
-        ungroup_scope = cls.get_ungroup_scope(group_id, field_scope)
-
-        if not ungroup_scope:
-            logger.warning(f"Ungroup scope not found: group_id={group_id}")
-        return ungroup_scope.id if ungroup_scope else None
 
     @classmethod
     def _bulk_create_metrics(
@@ -2244,7 +2270,7 @@ class TimeSeriesMetric(models.Model):
                 continue
 
             # 获取 scope_id
-            scope_id = cls.get_scope_id_for_metric(
+            scope_id = TimeSeriesScope.get_scope_id_for_metric(
                 group_id=group_id, field_scope=obj.field_scope, field_name=obj.field_name
             )
             if scope_id and obj.scope_id != scope_id:
