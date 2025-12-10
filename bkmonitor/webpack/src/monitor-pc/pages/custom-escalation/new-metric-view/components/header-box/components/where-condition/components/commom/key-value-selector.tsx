@@ -51,6 +51,13 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
 
   valueListMemo: Readonly<{ id: string; name: string }[]> = [];
 
+  get currentSelectedMetricNameList() {
+    return customEscalationViewStore.currentSelectedMetricList.map(metricItem => ({
+      name: metricItem.metric_name, // 指标名称
+      scope_name: metricItem.scope_name === '未分组' ? '' : metricItem.scope_name, // 分组名称
+    }));
+  }
+
   @Watch('data', { immediate: true })
   dataChange() {
     this.valueListMemo = [];
@@ -64,7 +71,7 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
         dimension: this.data.key,
         start_time: startTime || 0,
         end_time: endTime || 0,
-        metrics: customEscalationViewStore.currentSelectedMetricList.map(item => item.metric_name),
+        metrics: this.currentSelectedMetricNameList,
       });
       this.valueListMemo = result.map(item => ({
         id: item.name,

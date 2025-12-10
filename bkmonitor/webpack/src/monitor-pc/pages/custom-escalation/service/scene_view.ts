@@ -1,11 +1,11 @@
 import * as SceneViewApi from 'monitor-api/modules/scene_view';
 
 interface ICustomTsMetricGroups {
-  common_dimensions: {
-    alias: string;
-    name: string;
-  }[];
   metric_groups: {
+    common_dimensions: {
+      alias: string;
+      name: string;
+    }[];
     metrics: {
       alias: string;
       dimensions: {
@@ -75,7 +75,7 @@ export const getCustomTsDimensionValues = SceneViewApi.getCustomTsDimensionValue
     bk_biz_id: number;
     dimension: string;
     end_time: number;
-    metrics: string[];
+    metrics: { name: string; scope_name: string }[];
     start_time: number;
     time_series_group_id: number;
   },
@@ -93,7 +93,7 @@ export const getCustomTsGraphConfig = SceneViewApi.getCustomTsGraphConfig<
       function: string;
       limit: number;
     };
-    metrics: string[];
+    metrics: { name: string; scope_name: string }[];
     start_time: number;
     time_series_group_id: number;
     view_column?: number;

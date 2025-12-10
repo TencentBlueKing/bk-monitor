@@ -33,11 +33,15 @@ import {
  * 查询指标分组信息
  */
 export const getCustomTsMetricGroups: (params: { bk_biz_id?: number; time_series_group_id?: number }) => Promise<{
-  common_dimensions: {
-    alias: string;
-    name: string;
-  }[];
+  // common_dimensions: {
+  //   alias: string;
+  //   name: string;
+  // }[];
   metric_groups: {
+    common_dimensions: {
+      alias: string;
+      name: string;
+    }[];
     metrics: {
       alias: string;
       dimensions: {
@@ -57,7 +61,7 @@ export const getCustomTsDimensionValues: (params: {
   bk_biz_id?: number;
   dimension: string;
   end_time: number;
-  metrics: string[];
+  metrics: { name: string; scope_name: string }[];
   start_time: number;
   time_series_group_id: number;
 }) => Promise<{ alias: string; name: string }[]> = getCustomTsDimensionValuesApi;

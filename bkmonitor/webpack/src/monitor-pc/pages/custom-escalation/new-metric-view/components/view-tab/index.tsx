@@ -38,6 +38,16 @@ import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
 import './index.scss';
 
+interface GroupItem {
+  groupName: string;
+  metricsName: string[];
+}
+
+interface Metric {
+  name: string;
+  scope_name: string;
+}
+
 interface IEmit {
   onPayloadChange: (params: Record<string, any>) => void;
 }
@@ -114,37 +124,51 @@ export default class ViewTab extends tsc<IProps, IEmit> {
     this.tabRef.updateActiveBarPosition(this.viewTab);
     this.tabRef.checkActiveName();
 
-    const updateCurrentSelectedMetricNameList = (metricNameList: string[]) => {
-      // 视图保存的 metric 可能被隐藏，需要过滤掉不存在 metric
-      const allMetricNameMap = this.metricGroupList.reduce<Record<string, boolean>>((result, groupItem) => {
-        for (const metricItem of groupItem.metrics) {
-          Object.assign(result, {
-            [metricItem.metric_name]: true,
-          });
-        }
-        return result;
-      }, {});
-      const realMetricNameList = _.filter(metricNameList, item => allMetricNameMap[item]);
-      // 更新 Store 上的 currentSelectedMetricNameList
-      customEscalationViewStore.updateCurrentSelectedMetricNameList(realMetricNameList);
+    const updateCurrentSelectedGroupAndMetricNameList = (selectedList: GroupItem[]) => {
+      // 视图保存的 metric 可能被隐藏，需要过滤掉不存在的 metric
+      const allMetricNameMap = this.metricGroupList.map(group => {
+        return {
+          groupName: group.name,
+          metricsName: group.metrics.map(metric => metric.metric_name),
+        };
+      });
+      // 过滤掉不存在的分组数据
+      const realMetricNameList = _.filter(selectedList, item => {
+        // 是否有对应的分组名称
+        const group = allMetricNameMap.find(group => group.groupName === item.groupName);
+        if (!group) return false;
+        // 检查该 groupName 下的 metricsName 是否包含 item.metricsName 数组中的每个值
+        return item.metricsName.every(metric => group.metricsName.includes(metric));
+      });
+      // 更新 Store 上的 已选中分组和指标信息(currentSelectedGroupAndMetricNameList)
+      customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(realMetricNameList);
     };
 
     try {
       // url 上面附带的参数优先级高
       const urlPayload = this.parseUrlPayload();
       if (urlPayload) {
-        updateCurrentSelectedMetricNameList(urlPayload.metrics);
+        const convertData = this.convertMetricsData(urlPayload.metrics)
+        updateCurrentSelectedGroupAndMetricNameList(convertData);
         this.$emit('payloadChange', urlPayload);
         return;
       }
 
       // 默认视图选择第一个 metric
       if (this.viewTab === DEFAULT_VALUE) {
-        updateCurrentSelectedMetricNameList(
-          this.metricGroupList.length > 0 ? [this.metricGroupList[0].metrics[0].metric_name] : []
-        );
+        // updateCurrentSelectedMetricNameList(
+        //   this.metricGroupList.length > 0 ? [this.metricGroupList[0].metrics[0].metric_name] : []
+        // );
+        // this.$emit('payloadChange', {
+        //   metrics: this.metricGroupList.length > 0 ? [this.metricGroupList[0].metrics[0].metric_name] : [],
+        // });
+        const defaultSelectedData = {
+          groupName: this.metricGroupList[0].name,
+          metricsName: [this.metricGroupList[0].metrics[0].metric_name],
+        };
+        updateCurrentSelectedGroupAndMetricNameList(this.metricGroupList.length > 0 ? [defaultSelectedData] : []);
         this.$emit('payloadChange', {
-          metrics: this.metricGroupList.length > 0 ? [this.metricGroupList[0].metrics[0].metric_name] : [],
+          metrics: this.metricGroupList.length > 0 ? [defaultSelectedData] : [],
         });
 
         this.isViewDetailLoading = false;
@@ -157,13 +181,32 @@ export default class ViewTab extends tsc<IProps, IEmit> {
         id: this.viewTab,
         type: 'detail',
       });
-
-      updateCurrentSelectedMetricNameList(payload.options.metrics);
+      // 保存视图传的指标是什么格式，这里后端返回的就是什么格式
+      const convertData = this.convertMetricsData(payload.options.metrics);
+      updateCurrentSelectedGroupAndMetricNameList(convertData);
       this.$emit('payloadChange', payload.options);
     } finally {
       this.$emit('change', this.viewTab);
       this.isViewDetailLoading = false;
     }
+  }
+
+  convertMetricsData(data: Metric[]) {
+    return data.reduce((result, item) => {
+      // 如果 scope_name 为空，表示 "未分组"
+      const groupName = item.scope_name || '未分组';
+      // 查找是否已有此分组
+      const existingGroup = result.find(group => group.groupName === groupName);
+      if (existingGroup) {
+        existingGroup.metricsName.push(item.name);
+      } else {
+        result.push({
+          groupName,
+          metricsName: [item.name],
+        });
+      }
+      return result;
+    }, []);
   }
 
   parseUrlPayload() {

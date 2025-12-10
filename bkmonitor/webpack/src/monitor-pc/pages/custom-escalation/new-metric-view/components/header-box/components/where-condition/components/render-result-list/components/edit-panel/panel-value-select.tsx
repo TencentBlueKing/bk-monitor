@@ -63,7 +63,10 @@ export default class PanelValueSelect extends tsc<IProps, IEmit> {
   valueListMemo: Readonly<{ id: string; name: string }[]> = [];
 
   get currentSelectedMetricNameList() {
-    return customEscalationViewStore.currentSelectedMetricNameList;
+    return customEscalationViewStore.currentSelectedMetricList.map(metricItem => ({
+      name: metricItem.metric_name, // 指标名称
+      scope_name: metricItem.scope_name === '未分组' ? '' : metricItem.scope_name, // 分组名称
+    }));
   }
 
   @Watch('keyName', { immediate: true })

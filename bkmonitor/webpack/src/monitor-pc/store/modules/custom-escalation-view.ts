@@ -33,33 +33,88 @@ import type { getCustomTsMetricGroups } from '../../pages/custom-escalation/new-
 
 type TCustomTsMetricGroups = ServiceReturnType<typeof getCustomTsMetricGroups>;
 
+interface GroupItem {
+  groupName: string;
+  metricsName: string[];
+}
+
 @Module({ name: 'customEscalationView', dynamic: true, namespaced: true, store })
 class CustomEscalationViewStore extends VuexModule {
-  public commonDimensionList: Readonly<TCustomTsMetricGroups['common_dimensions']> = [];
-  public currentSelectedMetricNameList: string[] = [];
+  // public commonDimensionList: Readonly<TCustomTsMetricGroups['common_dimensions']> = [];
+  public currentSelectedGroupAndMetricNameList: GroupItem[] = [];
+  // public currentSelectedMetricNameList: string[] = [];
   public endTime = 'now';
   public metricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
   public startTime = 'now-1h';
   public timeSeriesGroupId = -1;
 
-  get currentSelectedMetricList() {
-    const metricKeyMap = makeMap(this.currentSelectedMetricNameList);
-    const result: TCustomTsMetricGroups['metric_groups'][number]['metrics'] = [];
-    const repeatMap: Record<string, boolean> = {};
+  // 过滤条件(并集)：通过currentSelectedGroupNameList在metricGroupList中找到对应的common_dimensions
+  get commonDimensionList() {
+    const selectedGroupNames = new Set(this.currentSelectedMetricList.map(i => i.scope_name));
+    const currentSelectedCommonDimensionList: TCustomTsMetricGroups['metric_groups'][number]['common_dimensions'] = [];
+    const seen = new Set();
+    // 获取已选择的指标分组的过滤条件数据(common_dimensions)
+    for (const group of this.metricGroupList) {
+      if (selectedGroupNames.has(group.name)) {
+        for (const dimension of group.common_dimensions) {
+          const identifier = `${dimension.alias}-${dimension.name}`; // 去重标识符，相同name和别名没必要多次显示，接口根据归属分组名称区分(比如过滤条件的val)
+          if (!seen.has(identifier)) {
+            seen.add(identifier);
+            currentSelectedCommonDimensionList.push(dimension);
+          }
+        }
+      }
+    }
+    return currentSelectedCommonDimensionList;
+  }
 
+  get currentSelectedMetricList() {
+    const result: (TCustomTsMetricGroups['metric_groups'][number]['metrics'][0] & { scope_name: string })[] = [];
     for (const groupItem of this.metricGroupList) {
       for (const metricsItem of groupItem.metrics) {
-        if (repeatMap[metricsItem.metric_name]) {
-          break;
-        }
-        if (metricKeyMap[metricsItem.metric_name]) {
-          repeatMap[metricsItem.metric_name] = true;
-          result.push(metricsItem);
+        const metricName = metricsItem.metric_name;
+        // 检查该 metric_name 是否在当前分组的 metricKeyMap 中
+        const groupNames = this.currentSelectedGroupAndMetricNameList
+          .filter(item => item.metricsName.includes(metricName))
+          .map(item => item.groupName);
+        // 如果 metricName 对应的 groupName 存在，添加到结果中
+        if (groupNames.includes(groupItem.name)) {
+          result.push({
+            ...metricsItem,
+            scope_name: groupItem.name, // 每个 metric 都附带其分组名称
+          });
         }
       }
     }
     return result;
   }
+
+  // get currentSelectedMetricList() {
+  //   // const metricKeyMap = makeMap(this.currentSelectedMetricNameList);
+  //   const metricKeyMap = {};
+  //   for (const item of this.currentSelectedGroupAndMetricNameList) {
+  //     for (const metric of item.metricsName) {
+  //       metricKeyMap[metric] = true;
+  //     }
+  //   }
+  //   const result: (TCustomTsMetricGroups['metric_groups'][number]['metrics'][0] & { scope_name: string })[] = [];
+  //   const repeatMap: Record<string, boolean> = {};
+  //   for (const groupItem of this.metricGroupList) {
+  //     for (const metricsItem of groupItem.metrics) {
+  //       if (repeatMap[metricsItem.metric_name]) {
+  //         break;
+  //       }
+  //       if (metricKeyMap[metricsItem.metric_name]) {
+  //         repeatMap[metricsItem.metric_name] = true;
+  //         result.push({
+  //           ...metricsItem,
+  //           scope_name: groupItem.name,
+  //         });
+  //       }
+  //     }
+  //   }
+  //   return result;
+  // }
 
   get dimensionAliasNameMap() {
     return this.metricGroupList.reduce<Record<string, string>>((result, groupItem) => {
@@ -78,15 +133,20 @@ class CustomEscalationViewStore extends VuexModule {
     return handleTransformToTimestamp([this.startTime, this.endTime]);
   }
 
-  @Mutation
-  public updateCommonDimensionList(payload: TCustomTsMetricGroups['common_dimensions']) {
-    this.commonDimensionList = Object.freeze(payload);
-  }
+  // @Mutation
+  // public updateCommonDimensionList(payload: TCustomTsMetricGroups['common_dimensions']) {
+  //   this.commonDimensionList = Object.freeze(payload);
+  // }
 
   @Mutation
-  public updateCurrentSelectedMetricNameList(payload: string[]) {
-    this.currentSelectedMetricNameList = payload;
+  public updateCurrentSelectedGroupAndMetricNameList(payload: GroupItem[]) {
+    this.currentSelectedGroupAndMetricNameList = payload;
   }
+
+  // @Mutation
+  // public updateCurrentSelectedMetricNameList(payload: string[]) {
+  //   this.currentSelectedMetricNameList = payload;
+  // }
 
   @Mutation
   public updateMetricGroupList(payload: TCustomTsMetricGroups['metric_groups']) {

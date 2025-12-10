@@ -167,11 +167,17 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       this.activeName = [];
       return;
     }
-
     this.loading = true;
     const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
-    const params = {
+    const config = {
       ...this.config,
+      metrics: this.config.metrics.map(item => ({
+        ...item,
+        scope_name: item.scope_name === '未分组' ? '' : item.scope_name, // 未分组传空
+      }))
+    }
+    const params = {
+      ...config,
       time_series_group_id: Number(this.$route.params.id),
       start_time: startTime,
       end_time: endTime,

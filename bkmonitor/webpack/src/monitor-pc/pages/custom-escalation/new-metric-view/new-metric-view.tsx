@@ -116,6 +116,15 @@ export default class NewMetricView extends tsc<object> {
     return customEscalationViewStore.endTime;
   }
 
+  get metricsData() {
+    return customEscalationViewStore.currentSelectedMetricList.map(item => {
+      return {
+        name: item.metric_name,
+        scope_name: item.scope_name,
+      };
+    })
+  }
+
   get graphConfigParams() {
     return {
       limit: {
@@ -126,7 +135,8 @@ export default class NewMetricView extends tsc<object> {
       ...this.dimenstionParams,
       // start_time: this.startTime,
       // end_time: this.endTime,
-      metrics: customEscalationViewStore.currentSelectedMetricNameList,
+      // metrics: customEscalationViewStore.currentSelectedMetricNameList,
+      metrics: this.metricsData,
     };
   }
 
@@ -153,14 +163,15 @@ export default class NewMetricView extends tsc<object> {
       const result = await getCustomTsMetricGroups({
         time_series_group_id: this.timeSeriesGroupId,
       });
-
-      customEscalationViewStore.updateCommonDimensionList(result.common_dimensions);
       customEscalationViewStore.updateMetricGroupList(result.metric_groups);
-
       if (!needParseUrl) {
         const metricGroup = result.metric_groups;
-        customEscalationViewStore.updateCurrentSelectedMetricNameList(
-          metricGroup.length > 0 && metricGroup[0].metrics.length > 0 ? [metricGroup[0].metrics[0].metric_name] : []
+        const defaultSelectedData = {
+          groupName: metricGroup[0].name,
+          metricsName: [metricGroup[0].metrics[0].metric_name],
+        }
+        customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(
+          metricGroup.length > 0 && metricGroup[0].metrics.length > 0 ? [defaultSelectedData] : []
         );
       }
     } finally {

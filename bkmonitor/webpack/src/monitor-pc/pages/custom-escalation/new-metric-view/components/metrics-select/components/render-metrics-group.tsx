@@ -44,6 +44,11 @@ export interface IMetric {
   }[];
 }
 
+interface GroupItem {
+  groupName: string;
+  metricsCheckMap: Record<string, boolean>;
+}
+
 interface IEmit {
   onChange: (value: string[]) => void;
 }
@@ -75,15 +80,21 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   renderMetricGroupList: Readonly<TCustomTsMetricGroups['metric_groups']> = [];
   localCheckedMetricNameList: string[] = [];
   groupExpandMap: Readonly<Record<string, boolean>> = {};
-  groupCheeckMap: Readonly<Record<string, boolean>> = {};
+  // groupCheeckMap: Readonly<Record<string, boolean>> = {};
+  cheeckedMap: GroupItem[] = [];
   handleSearch = () => {};
 
   get metricGroupList() {
     return customEscalationViewStore.metricGroupList;
   }
 
-  get currentSelectedMetricNameList() {
-    return customEscalationViewStore.currentSelectedMetricNameList;
+  // get currentSelectedMetricNameList() {
+  //   return customEscalationViewStore.currentSelectedMetricNameList;
+  // }
+
+  // 选中的指标和归属分组名称列表
+  get currentSelectedGroupAndMetricNameList() {
+    return customEscalationViewStore.currentSelectedGroupAndMetricNameList;
   }
 
   @Watch('searchKey', { immediate: true })
@@ -91,9 +102,19 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
     this.handleSearch();
   }
 
-  @Watch('currentSelectedMetricNameList', { immediate: true })
+  // @Watch('currentSelectedMetricNameList', { immediate: true })
+  // currentSelectedMetricListChange() {
+  //   this.groupCheeckMap = Object.freeze(makeMap(this.currentSelectedMetricNameList));
+  // }
+
+  @Watch('currentSelectedGroupAndMetricNameList', { immediate: true })
   currentSelectedMetricListChange() {
-    this.groupCheeckMap = Object.freeze(makeMap(this.currentSelectedMetricNameList));
+    this.cheeckedMap = this.currentSelectedGroupAndMetricNameList.map(group => {
+      return {
+        groupName: group.groupName,
+        metricsCheckMap: Object.freeze(makeMap(group.metricsName)),
+      };
+    });
   }
 
   @Watch('metricGroupList', { immediate: true })
@@ -112,7 +133,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
       const result = await getCustomTsMetricGroups({
         time_series_group_id: Number(this.$route.params.id),
       });
-      customEscalationViewStore.updateCommonDimensionList(result.common_dimensions);
+      // customEscalationViewStore.updateCommonDimensionList(result.common_dimensions);
       customEscalationViewStore.updateMetricGroupList(result.metric_groups);
     } finally {
       this.isLoading = false;
@@ -121,7 +142,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
 
   // 实例方法
   resetMetricChecked() {
-    this.groupCheeckMap = {};
+    this.cheeckedMap = [];
     this.triggerChange();
   }
   // 实例方法
@@ -144,10 +165,19 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
     }
   }
 
+  // triggerChange() {
+  //   const currentSelectedMetricNameList = Object.keys(this.groupCheeckMap);
+  //   customEscalationViewStore.updateCurrentSelectedMetricNameList(currentSelectedMetricNameList);
+  //   this.$emit('change', currentSelectedMetricNameList);
+  // }
   triggerChange() {
-    const currentSelectedMetricNameList = Object.keys(this.groupCheeckMap);
-    customEscalationViewStore.updateCurrentSelectedMetricNameList(currentSelectedMetricNameList);
-    this.$emit('change', currentSelectedMetricNameList);
+    const currentSelectedGroupAndMetricNameList = this.cheeckedMap.map(item => {
+      return {
+        groupName: item.groupName,
+        metricsName: Object.keys(item.metricsCheckMap),
+      };
+    });
+    customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(currentSelectedGroupAndMetricNameList);
   }
 
   handleGroupToggleExpand(metricGroupName: string) {
@@ -156,8 +186,20 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
     this.groupExpandMap = Object.freeze(latestGroupFlodMap);
   }
 
+  // 全选
   handleGroupChecked(checked: boolean, group: TCustomTsMetricGroups['metric_groups'][number]) {
-    const latestGroupCheeckMap = { ...this.groupCheeckMap };
+    // 获取操作选中/取消的分组数据
+    let handleTargetData = this.cheeckedMap.find(item => item.groupName === group.name);
+    // 首次选中目标分组
+    if (!handleTargetData) {
+      this.cheeckedMap.push({
+        groupName: group.name,
+        metricsCheckMap: {},
+      });
+      handleTargetData = this.cheeckedMap[this.cheeckedMap.length - 1];
+    }
+    // 获取全选/反选分组数据下的选中映射数据
+    const latestGroupCheeckMap = { ...handleTargetData.metricsCheckMap };
     for (const metricItem of group.metrics) {
       if (checked) {
         latestGroupCheeckMap[metricItem.metric_name] = true;
@@ -165,23 +207,66 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
         delete latestGroupCheeckMap[metricItem.metric_name];
       }
     }
-    this.groupCheeckMap = Object.freeze(latestGroupCheeckMap);
+    // 更新选中的数据
+    handleTargetData.metricsCheckMap = Object.freeze(latestGroupCheeckMap);
     this.triggerChange();
   }
 
+  // 单选
   handleMetricSelectChange(
     checked: boolean,
+    groupName: string,
     metricData: TCustomTsMetricGroups['metric_groups'][number]['metrics'][number]
   ) {
-    const latestGroupCheeckMap = { ...this.groupCheeckMap };
+    // 获取操作选中/取消的分组数据
+    let handleTargetData = this.cheeckedMap.find(item => item.groupName === groupName);
+    // 首次选中目标分组下的复选框
+    if (!handleTargetData) {
+      this.cheeckedMap.push({
+        groupName,
+        metricsCheckMap: {
+          [metricData.metric_name]: checked,
+        },
+      });
+      handleTargetData = this.cheeckedMap[this.cheeckedMap.length - 1];
+    }
+    // 获取全选/反选分组数据下的选中映射数据
+    const latestGroupCheeckMap = { ...handleTargetData.metricsCheckMap };
     if (checked) {
       latestGroupCheeckMap[metricData.metric_name] = true;
     } else {
       delete latestGroupCheeckMap[metricData.metric_name];
     }
-    this.groupCheeckMap = Object.freeze(latestGroupCheeckMap);
+    handleTargetData.metricsCheckMap = Object.freeze(latestGroupCheeckMap);
     this.triggerChange();
   }
+
+  // handleGroupChecked(checked: boolean, group: TCustomTsMetricGroups['metric_groups'][number]) {
+  //   const latestGroupCheeckMap = { ...this.groupCheeckMap };
+  //   for (const metricItem of group.metrics) {
+  //     if (checked) {
+  //       latestGroupCheeckMap[metricItem.metric_name] = true;
+  //     } else {
+  //       delete latestGroupCheeckMap[metricItem.metric_name];
+  //     }
+  //   }
+  //   this.groupCheeckMap = Object.freeze(latestGroupCheeckMap);
+  //   this.triggerChange();
+  // }
+
+  // handleMetricSelectChange(
+  //   checked: boolean,
+  //   metricData: TCustomTsMetricGroups['metric_groups'][number]['metrics'][number]
+  // ) {
+  //   const latestGroupCheeckMap = { ...this.groupCheeckMap };
+  //   if (checked) {
+  //     latestGroupCheeckMap[metricData.metric_name] = true;
+  //   } else {
+  //     delete latestGroupCheeckMap[metricData.metric_name];
+  //   }
+  //   this.groupCheeckMap = Object.freeze(latestGroupCheeckMap);
+  //   this.triggerChange();
+  // }
 
   created() {
     this.handleSearch = _.throttle(() => {
@@ -212,10 +297,20 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
 
   render() {
     const renderGroup = (groupItem: TCustomTsMetricGroups['metric_groups'][number]) => {
-      const isChecked = _.every(groupItem.metrics, item => this.groupCheeckMap[item.metric_name]);
-      const isIndeterminateChecked = isChecked
-        ? false
-        : _.some(groupItem.metrics, item => this.groupCheeckMap[item.metric_name]);
+      // const isChecked = _.every(groupItem.metrics, item => this.groupCheeckMap[item.metric_name]);
+      // const isIndeterminateChecked = isChecked
+      //   ? false
+      //   : _.some(groupItem.metrics, item => this.groupCheeckMap[item.metric_name]);
+
+      let isChecked = false; // 是否全选
+      let isIndeterminateChecked = false; // 是否半选
+      const targetData = this.cheeckedMap.find(item => item.groupName === groupItem.name);
+      if (targetData) {
+        isChecked = _.every(groupItem.metrics, item => targetData.metricsCheckMap[item.metric_name]);
+        isIndeterminateChecked = isChecked
+          ? false
+          : _.some(groupItem.metrics, item => targetData.metricsCheckMap[item.metric_name]);
+      }
 
       return (
         <div
@@ -260,9 +355,9 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
             {groupItem.metrics.map(metricsItem => (
               <RenderMetric
                 key={metricsItem.metric_name}
-                checked={this.groupCheeckMap[metricsItem.metric_name]}
+                checked={targetData?.metricsCheckMap[metricsItem.metric_name] || false}
                 data={metricsItem}
-                onCheckChange={(value: boolean) => this.handleMetricSelectChange(value, metricsItem)}
+                onCheckChange={(value: boolean) => this.handleMetricSelectChange(value, groupItem.name, metricsItem)}
                 onEditSuccess={this.fetchData}
               />
             ))}

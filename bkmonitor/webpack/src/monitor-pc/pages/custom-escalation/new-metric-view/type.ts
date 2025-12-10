@@ -91,7 +91,7 @@ export interface IMetricAnalysisConfig {
   group_by: IGroupBy[];
   highlight_peak_value?: boolean;
   limit: ILimit;
-  metrics: string[];
+  metrics: { name: string; scope_name: string }[];
   show_statistical_value: boolean;
   start_time: number;
   time_series_group_id: number;

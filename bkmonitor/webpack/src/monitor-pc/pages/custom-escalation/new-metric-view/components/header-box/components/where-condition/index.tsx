@@ -151,6 +151,7 @@ export default class WhereConditions extends tsc<IProps, IEmit> {
           alias: item.alias,
           method: 'eq',
           value: [],
+          groupName: item.scope_name,
         };
       })
     );
