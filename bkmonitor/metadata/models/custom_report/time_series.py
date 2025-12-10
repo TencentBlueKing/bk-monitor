@@ -54,7 +54,7 @@ logger = logging.getLogger("metadata")
 
 class ScopeName:
     """
-    多级分组代理对象，用于优雅管理 scope_name
+    多级分组代理对象
 
     支持多级分组，例如：
     - 一级分组: "default"
