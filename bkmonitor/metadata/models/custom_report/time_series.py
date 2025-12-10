@@ -66,31 +66,6 @@ class ScopeName:
     SEPARATOR = "||"
     UNGROUPED = ""
 
-    def __init__(self, value: str = ""):
-        """
-        :param value: scope_name 值，例如 "default", "api-server||production", "api-server||"
-        """
-        self._value = value or self.UNGROUPED
-
-    def __str__(self) -> str:
-        return self._value
-
-    def __repr__(self) -> str:
-        return f"ScopeName('{self._value}')"
-
-    def __eq__(self, other) -> bool:
-        if isinstance(other, ScopeName):
-            return self._value == other._value
-        return self._value == str(other)
-
-    def __hash__(self) -> int:
-        return hash(self._value)
-
-    @property
-    def value(self) -> str:
-        """获取原始值"""
-        return self._value
-
     @classmethod
     def levels(cls, scope_name: str) -> list[str]:
         """
