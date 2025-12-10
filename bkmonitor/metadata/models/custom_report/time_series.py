@@ -192,6 +192,30 @@ class ScopeName:
         """转换为 field_scope 格式（兼容旧格式）"""
         return self._value if self._value else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
 
+    def to_db_scope_name(self) -> str:
+        """
+        metric field_scope 转换为 scope scope_name
+
+        规则：
+        - 如果是 default 分组（一级或多级），转换为未分组格式
+          - 一级 default: "default" -> ""
+          - 多级 default: "service_name||default" -> "service_name||"
+        - 其他分组保持原样
+
+        :return: 数据库存储格式的分组名
+        """
+        if self.is_default:
+            # 如果是 default 分组，转换为数据库存储格式
+            if self.SEPARATOR in self._value:
+                # 多级分组：将最后一级的 default 替换为空串
+                return self._value.rsplit(self.SEPARATOR, 1)[0] + self.SEPARATOR
+            else:
+                # 一级分组：直接返回空串（未分组）
+                return self.UNGROUPED
+        else:
+            # 非 default 分组，保持原样
+            return self._value
+
 
 class TimeSeriesGroup(CustomGroupBase):
     """
@@ -1189,7 +1213,7 @@ class TimeSeriesScope(models.Model):
         return self.create_from == TimeSeriesScope.CREATE_FROM_DATA
 
     @staticmethod
-    def get_default_scope_metric_filter(scope_name: str):
+    def _get_default_scope_metric_filter(scope_name: str):
         """获取默认 scope 的指标过滤器 todo hhh 需要支持最后一级的默认值进行过滤
 
         注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
@@ -1341,7 +1365,7 @@ class TimeSeriesScope(models.Model):
 
         # 1. 获取被移动的指标，并验证它们必须来自 default 数据分组
         # 使用 field_scope 字段过滤默认分组的指标 todo hhh 补充 sink_scope_id，使得可以获取正确的指标
-        scope_filter = TimeSeriesScope.get_default_scope_metric_filter(self.scope_name)
+        scope_filter = TimeSeriesScope._get_default_scope_metric_filter(self.scope_name)
         moved_metrics = TimeSeriesMetric.objects.filter(
             group_id=self.group_id, scope_id=source_scope_id, field_name__in=moved_metric_field_names
         ).filter(scope_filter)
@@ -1442,20 +1466,9 @@ class TimeSeriesScope(models.Model):
             return
 
         # 构建 scope_name 映射：原始名称 -> 数据库存储名称
-        # todo hhh 修改
-        # 注意：此方法用于 bulk_refresh_ts_metrics 相关流程，需要支持 service_name 格式
         scope_name_mapping = {}
         for scope_name in scope_dimensions_map.keys():
-            scope_name_obj = ScopeName(scope_name)
-            if scope_name_obj.is_default:
-                # 如果是 default 分组，转换为数据库存储格式
-                if ScopeName.SEPARATOR in scope_name:
-                    db_scope_name = scope_name.rsplit(ScopeName.SEPARATOR, 1)[0] + ScopeName.SEPARATOR
-                else:
-                    db_scope_name = ScopeName.UNGROUPED
-            else:
-                db_scope_name = scope_name
-            scope_name_mapping[scope_name] = db_scope_name
+            scope_name_mapping[scope_name] = ScopeName(scope_name).to_db_scope_name()
 
         # 获取所有数据库中的 scope_name 列表
         db_scope_names = list(set(scope_name_mapping.values()))
