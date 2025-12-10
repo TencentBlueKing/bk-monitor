@@ -283,7 +283,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
         bk_biz_ids = {
             str(-space.id) if space.space_type_id != SpaceTypeEnum.BKCC.value else space.space_id for space in spaces
         }
-        return {org.id for org in Org.objects.all() if org.name in bk_biz_ids}
+        return set(Org.objects.filter(name__in=bk_biz_ids).values_list("id", flat=True))
 
     def filter_by_options(self, items: QuerySet[Dashboard], options: dict):
         """支持按租户ID过滤"""
