@@ -268,110 +268,293 @@ class SpaceProvider(BaseResourceProvider):
 
 
 class GrafanaDashboardProvider(BaseResourceProvider):
-    def filter_dashboard_by_options(self, dashboards: QuerySet[Dashboard], options: dict):
-        """
-        支持按租户ID 过滤仪表盘
-        """
+    """Grafana仪表盘 - 同时展示目录和仪表盘"""
+
+    # General 目录常量
+    GENERAL_FOLDER_ID = 0
+    GENERAL_FOLDER_NAME = "General"
+    # Folder 前缀，用于区分目录和仪表盘
+    FOLDER_PREFIX = "folder:"
+
+    def _get_org_ids_by_options(self, options: dict) -> set:
+        """根据选项获取有权限的 org_id 集合"""
         bk_tenant_id = options["bk_tenant_id"]
         spaces = Space.objects.filter(bk_tenant_id=bk_tenant_id)
         bk_biz_ids = {
             str(-space.id) if space.space_type_id != SpaceTypeEnum.BKCC.value else space.space_id for space in spaces
         }
-        org_ids = {org.id for org in Org.objects.all() if org.name in bk_biz_ids}
-        return [d for d in dashboards if d.org_id in org_ids]
+        return {org.id for org in Org.objects.all() if org.name in bk_biz_ids}
+
+    def filter_by_options(self, items: QuerySet[Dashboard], options: dict):
+        """支持按租户ID过滤"""
+        org_ids = self._get_org_ids_by_options(options)
+        return [item for item in items if item.org_id in org_ids]
 
     def list_instance(self, filter, page, **options):
-        queryset = Dashboard.objects.filter(is_folder=False)
-        folder_queryset = Dashboard.objects.filter(is_folder=True)
-
-        # 业务过滤
-        if filter.parent and filter.parent["id"]:
-            org = get_org_by_name(org_name=filter.parent["id"])
-            if not org:
-                return ListResult(results=[], count=0)
-            queryset = queryset.filter(org_id=org["id"])
-            folder_queryset = folder_queryset.filter(org_id=org["id"])
-
-        # 关键字搜索
-        if filter.search:
-            keywords = filter.search.get("grafana_dashboard", [])
-            if keywords:
-                queryset = queryset.filter(reduce(operator.or_, [Q(title__icontains=keyword) for keyword in keywords]))
-
-        folders = {folder.id: folder.title for folder in folder_queryset}
+        """
+        列出实例：同时展示目录和仪表盘
+        目录: [目录] {folder_name}
+        仪表盘: [仪表盘] {folder_name}/{dashboard_name}
+        """
         results = []
         org_map = {}
 
-        dashboards = self.filter_dashboard_by_options(queryset, options)
-        for dashboard in dashboards[page.slice_from : page.slice_to]:
+        # 确定目标 org
+        target_org_id = None
+        if filter.parent and filter.parent.get("id"):
+            org = get_org_by_name(org_name=filter.parent["id"])
+            if not org:
+                return ListResult(results=[], count=0)
+            target_org_id = org["id"]
+
+        # 获取有权限的 org_ids
+        valid_org_ids = self._get_org_ids_by_options(options)
+        if target_org_id:
+            if target_org_id not in valid_org_ids:
+                return ListResult(results=[], count=0)
+
+        # 获取 Folders
+        folder_results = []
+
+        # 查询真实文件夹
+        folder_queryset = Dashboard.objects.filter(is_folder=True)
+        if target_org_id:
+            folder_queryset = folder_queryset.filter(org_id=target_org_id)
+
+        real_folders = self.filter_by_options(folder_queryset, options)
+        # 为返回值补充字段
+        for folder in real_folders:
+            folder_results.append(
+                {
+                    "id": f"{self.FOLDER_PREFIX}{folder.org_id}|{folder.id}",
+                    "display_name": f"[目录] {folder.title}",
+                    "org_id": folder.org_id,
+                    "is_folder": True,
+                    "folder_name": folder.title,
+                }
+            )
+
+        # 构建 folder_id -> folder_name 映射， 用于dashboard信息填充
+        folders_map = {}
+        for folder in real_folders:
+            folders_map[folder.id] = folder.title
+
+        # 获取当前org下的Dashboards
+        dashboard_queryset = Dashboard.objects.filter(is_folder=False)
+        if target_org_id:
+            dashboard_queryset = dashboard_queryset.filter(org_id=target_org_id)
+
+        dashboards = self.filter_by_options(dashboard_queryset, options)
+        dashboard_results = []
+        # 为返回值中的dashboard补充字段
+        for dashboard in dashboards:
+            folder_id = dashboard.folder_id if dashboard.folder_id else self.GENERAL_FOLDER_ID
+            # 跳过 General 目录下的仪表盘（不再展示在 IAM 界面）
+            if folder_id == self.GENERAL_FOLDER_ID:
+                continue
+            folder_name = folders_map.get(folder_id)
+            if not folder_name:
+                continue
+            dashboard_results.append(
+                {
+                    "id": f"{dashboard.org_id}|{dashboard.uid}",
+                    "display_name": f"[仪表盘] {folder_name}/{dashboard.title}",
+                    "org_id": dashboard.org_id,
+                    "is_folder": False,
+                    "folder_id": folder_id,
+                    "folder_name": folder_name,
+                }
+            )
+
+        # 关键字搜索过滤
+        if filter.search:
+            keywords = filter.search.get("grafana_dashboard", [])
+            if keywords:
+                # 过滤 folder
+                folder_results = [
+                    f for f in folder_results if any(kw.lower() in f["display_name"].lower() for kw in keywords)
+                ]
+                # 过滤 dashboard
+                dashboard_results = [
+                    d for d in dashboard_results if any(kw.lower() in d["display_name"].lower() for kw in keywords)
+                ]
+
+        # 合并结果
+        all_results = folder_results + dashboard_results
+        paged_results = all_results[page.slice_from : page.slice_to]
+
+        # 构造返回结果
+        for item in paged_results:
             result = {
-                "id": f"{dashboard.org_id}|{dashboard.uid}",
-                "display_name": f"{folders.get(dashboard.folder_id, 'General')}/{dashboard.title}",
+                "id": item["id"],
+                "display_name": item["display_name"],
             }
 
-            # 返回结果需要带上资源拓扑路径信息
+            # 添加拓扑路径
             if filter.resource_type_chain:
-                # 仪表盘业务查询
-                if dashboard.org_id not in org_map:
-                    org_map[dashboard.org_id] = get_org_by_id(dashboard.org_id)
-                org = org_map[dashboard.org_id]
-                if not org:
-                    continue
-
-                result["_bk_iam_path_"] = [
-                    [
-                        {
-                            "type": ResourceEnum.BUSINESS.id,
-                            "id": str(org["name"]),
-                            "display_name": str(org["name"]),
-                        }
+                org_id = item["org_id"]
+                if org_id not in org_map:
+                    org_map[org_id] = item.get("org") or get_org_by_id(org_id)
+                org = org_map[org_id]
+                if org:
+                    result["_bk_iam_path_"] = [
+                        [
+                            {
+                                "type": ResourceEnum.BUSINESS.id,
+                                "id": str(org["name"]),
+                                "display_name": str(org["name"]),
+                            }
+                        ]
                     ]
-                ]
             results.append(result)
 
-        return ListResult(results=results, count=len(dashboards))
+        return ListResult(results=results, count=len(all_results))
 
     def fetch_instance_info(self, filter, **options):
-        ids = []
-        if filter.ids:
-            ids = [str(i) for i in filter.ids]
+        """获取实例信息 - 支持目录和仪表盘"""
+        results = []
+        dashboard_uids = []
+        folder_queries = []  # (instance_id, org_id, folder_id)
 
-        queryset = Dashboard.objects.filter(uid__in=ids)
-        dashboards = self.filter_dashboard_by_options(queryset, options)
+        for instance_id in filter.ids:
+            instance_id = str(instance_id)
 
-        results = [{"id": item.uid, "display_name": item.title} for item in dashboards]
-        return ListResult(results=results, count=len(dashboards))
+            # 判断是目录还是仪表盘
+            if instance_id.startswith(self.FOLDER_PREFIX):
+                # Folder: "folder:{org_id}|{folder_id}"
+                folder_part = instance_id[len(self.FOLDER_PREFIX) :]
+                if "|" in folder_part:
+                    org_id_str, folder_id_str = folder_part.split("|", 1)
+                    try:
+                        folder_id = int(folder_id_str)
+                        # 跳过 General 目录（不再展示在 IAM 界面）
+                        if folder_id != self.GENERAL_FOLDER_ID:
+                            folder_queries.append((instance_id, folder_id))
+                    except ValueError:
+                        continue
+            else:
+                # Dashboard: "{org_id}|{uid}" 或 "{uid}"
+                if "|" in instance_id:
+                    _, uid = instance_id.split("|", 1)
+                else:
+                    uid = instance_id
+                dashboard_uids.append((instance_id, uid))
+
+        # 查询真实 folder
+        if folder_queries:
+            folder_id_list = [fid for _, fid in folder_queries]
+            folders = Dashboard.objects.filter(id__in=folder_id_list, is_folder=True)
+            folder_map = {f.id: f for f in folders}
+            for instance_id, folder_id in folder_queries:
+                if folder_id in folder_map:
+                    results.append(
+                        {
+                            "id": instance_id,
+                            "display_name": f"[目录] {folder_map[folder_id].title}",
+                        }
+                    )
+
+        # 查询 dashboard
+        if dashboard_uids:
+            uid_list = [uid for _, uid in dashboard_uids]
+            queryset = Dashboard.objects.filter(uid__in=uid_list, is_folder=False)
+            dashboards = self.filter_by_options(queryset, options)
+
+            # 获取 folder 名称映射
+            folder_ids = {d.folder_id for d in dashboards if d.folder_id}
+            folder_names = {}
+            if folder_ids:
+                for f in Dashboard.objects.filter(id__in=folder_ids, is_folder=True):
+                    folder_names[f.id] = f.title
+
+            dashboard_map = {d.uid: d for d in dashboards}
+            for instance_id, uid in dashboard_uids:
+                if uid in dashboard_map:
+                    d = dashboard_map[uid]
+                    folder_id = d.folder_id if d.folder_id else self.GENERAL_FOLDER_ID
+                    # 跳过 General 目录下的仪表盘
+                    if folder_id == self.GENERAL_FOLDER_ID:
+                        continue
+                    folder_name = folder_names.get(folder_id)
+                    if not folder_name:
+                        continue
+                    results.append(
+                        {
+                            "id": instance_id,
+                            "display_name": f"[仪表盘] {folder_name}/{d.title}",
+                        }
+                    )
+
+        return ListResult(results=results, count=len(results))
 
     def list_instance_by_policy(self, filter, page, **options):
-        if not filter.parent or "id" not in filter.parent:
-            queryset = Dashboard.objects.all()
-        else:
+        """根据策略列出实例"""
+        target_org_id = None
+
+        if filter.parent and "id" in filter.parent:
             parent_id = filter.parent.get("id")
             org = get_org_by_name(parent_id)
             if not org:
                 return ListResult(results=[], count=0)
-            queryset = Dashboard.objects.filter(org_id=org["id"])
+            target_org_id = org["id"]
 
+        # 获取有权限的 org_ids
+        valid_org_ids = self._get_org_ids_by_options(options)
+        if target_org_id:
+            if target_org_id not in valid_org_ids:
+                return ListResult(results=[], count=0)
+
+        # Folders（不再展示 General 目录）
+        folder_results = []
+
+        folder_queryset = Dashboard.objects.filter(is_folder=True)
+        if target_org_id:
+            folder_queryset = folder_queryset.filter(org_id=target_org_id)
+
+        real_folders = self.filter_by_options(folder_queryset, options)
+        folders_map = {}
+
+        for folder in real_folders:
+            folders_map[folder.id] = folder.title
+            folder_results.append(
+                {
+                    "id": f"{self.FOLDER_PREFIX}{folder.org_id}|{folder.id}",
+                    "display_name": f"[目录] {folder.title}",
+                }
+            )
+
+        # Dashboards（不再展示 General 目录下的仪表盘）
+        dashboard_queryset = Dashboard.objects.filter(is_folder=False)
+        if target_org_id:
+            dashboard_queryset = dashboard_queryset.filter(org_id=target_org_id)
+
+        dashboards = self.filter_by_options(dashboard_queryset, options)
+        dashboard_results = []
+        for d in dashboards:
+            folder_id = d.folder_id if d.folder_id else self.GENERAL_FOLDER_ID
+            # 跳过 General 目录下的仪表盘
+            if folder_id == self.GENERAL_FOLDER_ID:
+                continue
+            folder_name = folders_map.get(folder_id)
+            if not folder_name:
+                continue
+            dashboard_results.append(
+                {
+                    "id": f"{d.org_id}|{d.uid}",
+                    "display_name": f"[仪表盘] {folder_name}/{d.title}",
+                }
+            )
+
+        # 关键字过滤
         if filter.keyword:
-            queryset = queryset.filter(title__icontains=filter.keyword)
+            keyword_lower = filter.keyword.lower()
+            folder_results = [f for f in folder_results if keyword_lower in f["display_name"].lower()]
+            dashboard_results = [d for d in dashboard_results if keyword_lower in d["display_name"].lower()]
 
-        dashboards = self.filter_dashboard_by_options(queryset, options)
-        results = [{"id": item.uid, "display_name": item.title} for item in dashboards[page.slice_from : page.slice_to]]
-        return ListResult(results=results, count=len(dashboards))
+        all_results = folder_results + dashboard_results
+        paged = all_results[page.slice_from : page.slice_to]
+        return ListResult(results=paged, count=len(all_results))
 
     def search_instance(self, filter, page, **options):
-        if not filter.parent or "id" not in filter.parent:
-            queryset = Dashboard.objects.all()
-        else:
-            parent_id = filter.parent.get("id")
-            org = get_org_by_name(parent_id)
-            if not org:
-                return ListResult(results=[], count=0)
-            queryset = Dashboard.objects.filter(org_id=org["id"])
-
-        if filter.keyword:
-            queryset = queryset.filter(title__icontains=filter.keyword)
-
-        dashboards = self.filter_dashboard_by_options(queryset, options)
-        results = [{"id": item.uid, "display_name": item.title} for item in dashboards[page.slice_from : page.slice_to]]
-        return ListResult(results=results, count=len(dashboards))
+        """搜索实例"""
+        return self.list_instance_by_policy(filter, page, **options)
