@@ -134,6 +134,7 @@ langfuse==2.60.5
 langchain==0.3.27
 langchain-community==0.3.28
 langchain-core==0.3.75
+langchain-mcp-adapters==0.1.9
 
 python-magic==0.4.27
 
