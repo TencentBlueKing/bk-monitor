@@ -1329,7 +1329,7 @@ class TimeSeriesScope(models.Model):
         source_scope: "TimeSeriesScope" | None,
         sink_scope: "TimeSeriesScope",
     ):
-        """
+        """todo hhh 批量更新
         从其他分组移动指标到当前分组时，更新维度配置，以及指标的 scope_id
 
         处理逻辑：
@@ -1720,7 +1720,7 @@ class TimeSeriesScope(models.Model):
                         scope_obj.id, scope_obj.scope_name
                     )
                 )
-
+            # todo hhh 批量？
             # 检查新分组名是否已存在于数据库中（同一 group_id 下，排除本批次要更新的记录）
             all_scope_ids_in_batch = [s["scope_id"] for s in scopes]
             if (
@@ -1887,6 +1887,7 @@ class TimeSeriesScope(models.Model):
         if metrics_to_update:
             for metric in metrics_to_update:
                 # 重新计算 scope_id
+                # todo hhh 批量更新？
                 new_scope_id = TimeSeriesScope.get_scope_id_for_metric(
                     group_id=metric.group_id,
                     field_scope=metric.field_scope,
@@ -2234,6 +2235,7 @@ class TimeSeriesMetric(models.Model):
                 continue
 
             # 获取 scope_id
+            # todo hhh 批量更新？
             scope_id = TimeSeriesScope.get_scope_id_for_metric(
                 group_id=group_id, field_scope=obj.field_scope, field_name=obj.field_name
             )
@@ -2603,6 +2605,7 @@ class TimeSeriesMetric(models.Model):
             # 优先使用scope_id，如果没有则使用scope_name
             scope_id = metric_data.get("scope_id")
             scope_name = metric_data.get("scope_name")
+            # todo hhh 批量_get_or_create_scope
             if scope_id is not None:
                 # 通过scope_id获取scope
                 scope = TimeSeriesScope.objects.filter(id=scope_id, group_id=group_id).first()
@@ -2663,6 +2666,7 @@ class TimeSeriesMetric(models.Model):
                 if new_scope is None:
                     raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
             elif scope_name is not None:
+                # todo hhh 批量_get_or_create_scope
                 new_scope = cls._get_or_create_scope(metric.group_id, scope_name)
 
             # 如果scope发生变化，记录需要移动的指标
