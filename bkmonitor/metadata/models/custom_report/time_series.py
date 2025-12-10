@@ -91,21 +91,20 @@ class ScopeName:
         """获取原始值"""
         return self._value
 
-    @property
-    def is_default(self) -> bool:
-        """判断是否为 default 分组
+    @classmethod
+    def is_default(cls, field_scope: str) -> bool:
+        """
+        判断指定的 field_scope 是否为 default 分组（一级或多级）
 
-        支持以下格式：
+        示例：
         - 一级分组: "default"
         - 多级分组: "service_name||default"
 
+        :param field_scope: 指标的 field_scope 值
         :return: 如果是 default 分组返回 True，否则返回 False
         """
-        # 延迟导入避免循环依赖
-        from metadata.models.custom_report.time_series import TimeSeriesMetric
-
-        return self._value == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME or self._value.endswith(
-            f"{self.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
+        return field_scope == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME or field_scope.endswith(
+            f"{cls.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
         )
 
     @property
@@ -158,9 +157,6 @@ class ScopeName:
         }
         :return: field_scope 字符串
         """
-        # 延迟导入避免循环依赖
-        from metadata.models.custom_report.time_series import TimeSeriesMetric
-
         if not group_key or not metric_group_dimensions:
             return TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
 
@@ -186,7 +182,8 @@ class ScopeName:
         result = cls.SEPARATOR.join(levels)
         return result if result else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
 
-    def to_db_scope_name(self) -> str:
+    @classmethod
+    def from_field_scope(cls, field_scope: str) -> str:
         """
         metric field_scope 转换为 scope scope_name
 
@@ -196,19 +193,20 @@ class ScopeName:
           - 多级 default: "service_name||default" -> "service_name||"
         - 其他分组保持原样
 
+        :param field_scope: 指标的 field_scope 值
         :return: 数据库存储格式的分组名
         """
-        if self.is_default:
+        if cls.is_default(field_scope):
             # 如果是 default 分组，转换为数据库存储格式
-            if self.SEPARATOR in self._value:
+            if cls.SEPARATOR in field_scope:
                 # 多级分组：将最后一级的 default 替换为空串
-                return self._value.rsplit(self.SEPARATOR, 1)[0] + self.SEPARATOR
+                return field_scope.rsplit(cls.SEPARATOR, 1)[0] + cls.SEPARATOR
             else:
                 # 一级分组：直接返回空串（未分组）
-                return self.UNGROUPED
+                return cls.UNGROUPED
         else:
             # 非 default 分组，保持原样
-            return self._value
+            return field_scope
 
 
 class TimeSeriesGroup(CustomGroupBase):
@@ -1285,11 +1283,10 @@ class TimeSeriesScope(models.Model):
         :param field_name: 指标名称
         :return: scope_id 或 None（如果是未分组）
         """
-        scope_name_obj = ScopeName(field_scope)
-        db_scope_name = scope_name_obj.to_db_scope_name()
+        db_scope_name = ScopeName.from_field_scope(field_scope)
 
         # 非 default 数据分组：直接查找对应的 scope_id
-        if not scope_name_obj.is_default:
+        if not ScopeName.is_default(field_scope):
             scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=db_scope_name).first()
             return scope.id if scope else None
 
@@ -1436,9 +1433,9 @@ class TimeSeriesScope(models.Model):
             return
 
         # 构建 scope_name 映射：原始名称 -> 数据库存储名称
-        scope_name_mapping = {}
-        for scope_name in scope_dimensions_map.keys():
-            scope_name_mapping[scope_name] = ScopeName(scope_name).to_db_scope_name()
+        scope_name_mapping = {
+            scope_name: ScopeName.from_field_scope(scope_name) for scope_name in scope_dimensions_map.keys()
+        }
 
         # 获取所有数据库中的 scope_name 列表
         db_scope_names = list(set(scope_name_mapping.values()))
