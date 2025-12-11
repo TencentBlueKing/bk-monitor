@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import os
 import sys
 
@@ -71,6 +72,7 @@ INSTALLED_APPS += (
     "apps.bk_log_admin",
     "apps.grafana",
     "apps.ai_assistant",
+    "apps.tgpa",
     "bk_monitor",
     "home_application",
     "console",
@@ -225,6 +227,7 @@ CELERY_IMPORTS = (
     "apps.log_clustering.tasks.sync_pattern",
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
+    "apps.tgpa.tasks",
 )
 
 # bk crypto sdk配置
@@ -385,7 +388,7 @@ BK_BKLOG_HOST = os.environ.get("BK_BKLOG_HOST", f"{BK_PAAS_HOST}/o/bk_log_search
 BK_BKLOG_API_HOST = os.getenv("BKAPP_BKLOG_API_HOST", "http://bk-log-search-api")
 
 # 网关管理员
-APIGW_MANAGERS = f'[{",".join(os.getenv("BKAPP_APIGW_MANAGERS", "admin").split(","))}]'
+APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split(','))}]"
 # 网关名称
 BK_APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
 # APIGW 接口地址模板
@@ -596,6 +599,8 @@ FEATURE_TOGGLE = {
     "trace": os.environ.get("BKAPP_FEATURE_TRACE", "off"),
     # 日志脱敏
     "log_desensitize": os.environ.get("BKAPP_FEATURE_DESENSITIZE", "on"),
+    # 客户端日志
+    "tgpa_task": os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off"),
 }
 
 SAAS_MONITOR = "bk_monitorv3"
@@ -638,7 +643,12 @@ MENUS = [
                 "keyword": _("仪表盘"),
                 "children": [
                     {"id": "default_dashboard", "name": _("默认仪表盘"), "feature": "on", "icon": "block-shape"},
-                    {"id": "create_dashboard", "name": _("新建仪表盘"), "feature": "on", "icon": "log-plus-circle-shape"},
+                    {
+                        "id": "create_dashboard",
+                        "name": _("新建仪表盘"),
+                        "feature": "on",
+                        "icon": "log-plus-circle-shape",
+                    },
                     {"id": "create_folder", "name": _("新建目录"), "feature": "on", "icon": "folder-fill"},
                     {"id": "import_dashboard", "name": _("导入仪表盘"), "feature": "on", "icon": "topping-fill"},
                 ],
@@ -663,7 +673,13 @@ MENUS = [
                         "name": _("日志采集"),
                         "feature": "on",
                         "scenes": "scenario_log",
-                        "icon": "rizhicaiji",
+                        "icon": "document",
+                    },
+                    {
+                        "id": "tgpa_task",
+                        "name": _("客户端日志"),
+                        "feature": FEATURE_TOGGLE["tgpa_task"],
+                        "icon": "client-log",
                     },
                     {
                         "id": "bk_data_collection",
@@ -700,13 +716,13 @@ MENUS = [
                         "id": "clean_templates",
                         "name": _("清洗模板"),
                         "feature": "on",
-                        "icon": "qingximoban",
+                        "icon": "moban",
                     },
                     {
                         "id": "log_desensitize",
                         "name": _("日志脱敏"),
                         "feature": FEATURE_TOGGLE["log_desensitize"],
-                        "icon": "rizhituomin",
+                        "icon": "moban",
                     },
                 ],
             },
@@ -727,13 +743,13 @@ MENUS = [
                         "id": "archive_list",
                         "name": _("归档列表"),
                         "feature": "on",
-                        "icon": "guidangliebiao",
+                        "icon": "audit-fill",
                     },
                     {
                         "id": "archive_restore",
                         "name": _("归档回溯"),
                         "feature": "on",
-                        "icon": "guidanghuisu",
+                        "icon": "withdraw-fill",
                     },
                 ],
             },
@@ -746,7 +762,12 @@ MENUS = [
                 "children": [
                     {"id": "manage_log_extract", "name": _("日志提取配置"), "feature": "on", "icon": "cc-log"},
                     {"id": "log_extract_task", "name": _("日志提取任务"), "feature": "on", "icon": "rizhitiqurenwu"},
-                    {"id": "extract_link_manage", "name": _("提取链路管理"), "feature": "on", "icon": "assembly-line-fill"},
+                    {
+                        "id": "extract_link_manage",
+                        "name": _("提取链路管理"),
+                        "feature": "on",
+                        "icon": "assembly-line-fill",
+                    },
                 ],
             },
             {
@@ -793,7 +814,9 @@ MENUS = [
                 "feature": "on",
                 "icon": "",
                 "keyword": _("集群"),
-                "children": [{"id": "es_cluster_manage", "name": _("集群管理"), "feature": "on", "icon": "cc-influxdb"}],
+                "children": [
+                    {"id": "es_cluster_manage", "name": _("集群管理"), "feature": "on", "icon": "cc-influxdb"}
+                ],
             },
             {
                 "id": "report",
@@ -1277,6 +1300,14 @@ try:
     PRE_SEARCH_SECONDS = int(os.getenv("BKAPP_PRE_SEARCH_SECONDS", 6 * 60 * 60))
 except ValueError:
     PRE_SEARCH_SECONDS = 6 * 60 * 60
+
+# TGPA
+TGPA_TASK_APIGW_ROOT = os.getenv("BKAPP_TGPA_TASK_APIGATEWAY_ROOT", "")
+TGPA_TASK_QCLOUD_SECRET_ID = os.getenv("BKAPP_TGPA_TASK_QCLOUD_SECRET_ID", "")
+TGPA_TASK_QCLOUD_SECRET_KEY = os.getenv("BKAPP_TGPA_TASK_QCLOUD_SECRET_KEY", "")
+TGPA_TASK_QCLOUD_COS_REGION = os.getenv("BKAPP_TGPA_TASK_QCLOUD_COS_REGION", "")
+TGPA_TASK_QCLOUD_COS_BUCKET = os.getenv("BKAPP_TGPA_TASK_QCLOUD_COS_BUCKET", "")
+TGPA_TASK_QCLOUD_COS_DOMAIN = os.getenv("BKAPP_TGPA_TASK_QCLOUD_DOMAIN", "")
 
 """
 以下为框架代码 请勿修改
