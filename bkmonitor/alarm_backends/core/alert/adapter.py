@@ -335,8 +335,8 @@ class MonitorEventAdapter:
         dimensions["__additional_dimensions"] = dict()
         # 补充后续可用被丰富的 app_name 和 service_name 维度字段
         if app_name_tag not in dimensions:
-            dimensions["__additional_dimensions"].update({app_name_tag: app_name})
+            dimensions["__additional_dimensions"][app_name_tag] = app_name
         if service_name_tag not in dimensions:
-            dimensions["__additional_dimensions"].update({service_name_tag: service_name})
+            dimensions["__additional_dimensions"][service_name_tag] = service_name
 
         return APMTargetType.SERVICE, f"{app_name}:{service_name}", dimensions
