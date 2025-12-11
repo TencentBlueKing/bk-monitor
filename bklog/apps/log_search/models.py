@@ -553,6 +553,7 @@ class LogIndexSet(SoftDeleteModel):
             "sort_fields",
             "support_doris",
             "doris_table_id",
+            "is_group",
         )
 
         # 获取接入场景
