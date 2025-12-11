@@ -1308,6 +1308,7 @@ class IncidentAlertListResource(IncidentBaseResource):
                 if alert_entity
                 else False
             )
+            alert["is_current_primary"] = alert_entity.entity.component_type
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     category["alerts"].append(alert)
@@ -1351,6 +1352,7 @@ class IncidentAlertViewResource(IncidentBaseResource):
                 if alert_entity
                 else False
             )
+            alert["is_current_primary"] = alert_entity.entity.component_type
             alert_doc = AlertDocument(**alert)
             # 检索得到的alert详情不包含event信息，只有event_id，这里默认当前告警时间的extra_info跟event相同
             alert_doc.event.extra_info = alert_doc.extra_info
@@ -1413,7 +1415,7 @@ class AlertIncidentDetailResource(IncidentDetailResource):
 
 INCIDENT_ANALYSIS_MAPPING_CONFIG = {
     "anomaly_analysis": {"content_key": "dimension_drill_result", "display_panel_name": "anomaly_analysis"},
-    "alerts_analysis": {"content_key": "dimension_drill", "display_panel_name": "anomaly_analysis"},
+    "alerts_analysis": {"content_key": "dimension_drill", "display_panel_name": "alerts_analysis"},
 }
 
 
