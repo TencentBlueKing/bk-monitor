@@ -2386,7 +2386,7 @@ class TimeSeriesMetric(models.Model):
     @classmethod
     def _batch_create_metrics(cls, metrics_to_create, group_id, table_id, scopes_dict):
         # 检查字段名称冲突
-        cls._validate_field_name_conflicts(metrics_to_create, group_id)
+        cls._validate_field_name_conflicts(metrics_to_create)
 
         # 准备批量创建的数据
         records_to_create = []
@@ -2471,7 +2471,7 @@ class TimeSeriesMetric(models.Model):
         TimeSeriesScope.update_dimension_config_and_metrics_scope_id(scope_moves=scope_moves_dict)
 
     @classmethod
-    def _validate_field_name_conflicts(cls, metrics_to_create, group_id):
+    def _validate_field_name_conflicts(cls, metrics_to_create):
         """检查字段名称冲突"""
         # 收集所有字段名
         field_names = []
@@ -2491,22 +2491,9 @@ class TimeSeriesMetric(models.Model):
                 if name in seen and name not in batch_conflicting_names:
                     batch_conflicting_names.append(name)
                 seen.add(name)
-            raise ValueError(
-                f"同一批次内指标字段名称[{', '.join(batch_conflicting_names)}]在[{cls.DEFAULT_DATA_SCOPE_NAME}]分组下重复，请使用其他名称"
-            )
+            raise ValueError(f"同一批次内指标字段名称[{', '.join(batch_conflicting_names)}]重复，请使用其他名称")
 
-        # 检查与数据库中已存在的字段名是否冲突
-        existing_field_names = set(
-            cls.objects.filter(
-                group_id=group_id,
-                field_scope=cls.DEFAULT_DATA_SCOPE_NAME,
-                field_name__in=field_names,
-            ).values_list("field_name", flat=True)
-        )
-        if conflicting_names := unique_field_names & existing_field_names:
-            raise ValueError(
-                f"指标字段名称[{', '.join(conflicting_names)}]在[{cls.DEFAULT_DATA_SCOPE_NAME}]分组下已存在，请使用其他名称"
-            )
+        # todo 检查跨批次的字段名冲突, 现在直接依赖数据库的唯一索引来保证
 
     @classmethod
     def _get_or_create_scope(cls, group_id: int, scope_name: str) -> TimeSeriesScope:
