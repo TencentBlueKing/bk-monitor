@@ -194,7 +194,7 @@ export default defineComponent({
     /**
      * 表单引用
      */
-    const formRef = ref<{ validate: () => Promise<boolean> } | null>(null);
+    const formRef = ref(null);
 
     /**
      * 时间精度单位选项列表
@@ -274,7 +274,7 @@ export default defineComponent({
         });
         return res.data || [];
       } catch (e) {
-        console.error('获取索引列表失败:', e);
+        console.log('获取索引列表失败:', e);
         return [];
       }
     };
@@ -329,7 +329,7 @@ export default defineComponent({
 
         return result || [];
       } catch (e) {
-        console.error('获取字段列表失败:', e);
+        console.log('获取字段列表失败:', e);
         return [];
       } finally {
         basicLoading.value = false;
@@ -361,14 +361,14 @@ export default defineComponent({
             tableData.value = idRes;
             timeFields.value = fieldRes;
           } catch (e) {
-            console.error('搜索失败:', e);
+            console.log('搜索失败:', e);
           } finally {
             searchLoading.value = false;
             tableLoading.value = false;
           }
         })
         .catch(err => {
-          console.warn('表单验证失败:', err);
+          console.log('表单验证失败:', err);
         });
     };
 
@@ -414,8 +414,7 @@ export default defineComponent({
          */
         await formRef.value.validate();
       } catch (e) {
-        console.warn('表单验证失败:', e);
-        return;
+        console.log('表单验证失败:', e);
       }
 
       try {

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch } from 'vue';
+import { defineComponent, ref, watch, type PropType } from 'vue';
 
 import EmptyStatus from '@/components/empty-status/index.vue';
 import useLocale from '@/hooks/use-locale';
@@ -58,7 +58,7 @@ export default defineComponent({
      * 视图查询参数
      */
     viewQueryParams: {
-      type: Object,
+      type: Object as PropType<IViewItem>,
       required: true,
     },
   },

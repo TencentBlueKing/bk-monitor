@@ -675,7 +675,7 @@ export default defineComponent({
           <div class='form-box'>
             <bk-radio-group
               value={formData.value.etl_params.retain_original_text}
-              on-change={val => {
+              on-change={(val: boolean) => {
                 formData.value.etl_params.retain_original_text = val;
               }}
             >
@@ -851,7 +851,7 @@ export default defineComponent({
                   <bk-select
                     class='select-box'
                     value={formData.value.field_name}
-                    on-selected={val => {
+                    on-selected={(val: string) => {
                       formData.value.field_name = val;
                     }}
                   >

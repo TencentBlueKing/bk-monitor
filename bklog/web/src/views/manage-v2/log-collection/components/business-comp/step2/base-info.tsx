@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, watch, nextTick } from 'vue';
+import { defineComponent, ref, computed, watch, nextTick, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -52,7 +52,7 @@ export default defineComponent({
       default: 'default',
     },
     data: {
-      type: Object,
+      type: Object as PropType<IBaseInfo>,
       default: () => ({}),
     },
     isEdit: {
@@ -125,9 +125,9 @@ export default defineComponent({
      * @param val - 校验值
      * @returns
      */
-    const checkEnNameRepeat = async (val: string) => {
+    const checkEnNameRepeat = async () => {
       if (disabled.value) return true;
-      const result = await getEnNameIsRepeat(val);
+      const result = await getEnNameIsRepeat();
       return result;
     };
     /**
@@ -206,7 +206,7 @@ export default defineComponent({
      */
     watch(
       () => props.typeKey,
-      val => {
+      (val: string) => {
         if (val === 'custom') {
           formData.value = {
             ...formData.value,
@@ -218,7 +218,7 @@ export default defineComponent({
     );
     watch(
       () => props.data,
-      val => {
+      (val: IBaseInfo) => {
         formData.value = { ...formData.value, ...val };
       },
       { deep: true },
@@ -247,7 +247,6 @@ export default defineComponent({
      * @returns Promise - 校验结果
      */
     const validate = () => {
-      // formRef.value.clearError();
       return formRef.value.validate();
     };
 

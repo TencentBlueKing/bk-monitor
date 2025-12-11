@@ -4,6 +4,7 @@
   .base-info-form,
   .link-config {
     width: 45%;
+    min-width: 680px;
   }
   .config-import {
     color: #3a84ff;
@@ -17,6 +18,7 @@
   .source-log-info {
     width: 100%;
     .label-form-box {
+      min-width: 680px;
       width: 45%;
     }
     .large-width {

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onUnmounted, watch, computed } from 'vue';
+import { defineComponent, ref, onUnmounted, watch, computed, type PropType } from 'vue';
 
 import { random } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -52,11 +52,11 @@ export default defineComponent({
       default: false,
     },
     labelParams: {
-      type: Object as () => IValueItem,
+      type: Object as PropType<IValueItem>,
       default: () => ({}),
     },
     clusterList: {
-      type: Array as () => IClusterItem[],
+      type: Array as PropType<IClusterItem[]>,
       required: true,
     },
   },

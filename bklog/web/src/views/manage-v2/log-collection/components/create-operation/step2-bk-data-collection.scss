@@ -6,11 +6,14 @@
   }
   .base-info-form {
     width: 45%;
+    min-width: 680px;
   }
   .data-source-box {
     width: 100%;
     .data-source-table {
       width: 45%;
+      min-width: 680px;
+      border: 1px solid #DCDEE5;
     }
     .time-field {
       line-height: 32px;

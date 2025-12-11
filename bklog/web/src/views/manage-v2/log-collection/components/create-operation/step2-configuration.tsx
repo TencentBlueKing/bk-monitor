@@ -46,7 +46,7 @@ import {
 
 import BaseInfo from '../business-comp/step2/base-info';
 
-import type { IFormData, IExtraLabel, IContainerConfigItem } from '../../type'; // 基础信息组件
+import type { IFormData, IValueItem, IContainerConfigItem } from '../../type'; // 基础信息组件
 import DeviceMetadata from '../business-comp/step2/device-metadata'; // 设备元数据组件
 import EventFilter from '../business-comp/step2/event-filter'; // 事件过滤器组件
 import LogFilter from '../business-comp/step2/log-filter'; // 日志过滤器组件
@@ -221,6 +221,8 @@ export default defineComponent({
      */
     const isSectionLog = computed(() => logType.value === 'section' && isHostLog.value);
 
+    const currentIndexSetId = computed(() => route.query.indexSetId);
+
     /**
      * 通用配置
      */
@@ -293,6 +295,15 @@ export default defineComponent({
         formData.value = {
           ...formData.value,
           ...CONTAINER_COLLECTION_CONFIG,
+        };
+      }
+      /**
+       * 在新增的时候，如果列表选中了某个索引集，则进入页面默认选中该索引集
+       */
+      if (!isCloneOrUpdate.value && Number(currentIndexSetId.value)) {
+        formData.value = {
+          ...formData.value,
+          parent_index_set_ids: [Number(currentIndexSetId.value)],
         };
       }
     };
@@ -376,7 +387,7 @@ export default defineComponent({
      * 修改设备元数据
      * @param data
      */
-    const handleMetadataList = (data: IExtraLabel[]) => {
+    const handleMetadataList = (data: IValueItem[]) => {
       isConfigChange.value = true;
       formData.value.extra_labels = data;
     };
@@ -419,8 +430,9 @@ export default defineComponent({
 
     onMounted(() => {
       getLinkData();
+
       /**
-       * 文件采集和标准输出的情况下，获取集群列表
+     采集和标准输出的情况下，获取集群列表
        */
       if (showClusterListKeys.includes(props.scenarioId)) {
         getBcsClusterList();
@@ -605,22 +617,7 @@ export default defineComponent({
     };
 
     const initConfig = (data: IFormData) => {
-      const {
-        configs,
-        collector_scenario_id,
-        params,
-        target_node_type: type,
-        target_nodes: nodes,
-        extra_labels,
-      } = data;
-      if (extra_labels?.length === 0) {
-        formData.value.extra_labels = [
-          {
-            key: '',
-            value: '',
-          },
-        ];
-      }
+      const { configs, collector_scenario_id, params, target_node_type: type, target_nodes: nodes } = data;
       /**
        * 初始化采集目标
        */
@@ -1215,7 +1212,7 @@ export default defineComponent({
      * @returns
      */
     const handleHostLogRequestData = (requestData, extraLabels, dataEncoding) => {
-      requestData.params.extra_labels = extraLabels;
+      requestData.params.extra_labels = isEmptyExtraLabels(extraLabels) ? [] : extraLabels;
       requestData.data_encoding = dataEncoding;
       return requestData;
     };
@@ -1371,7 +1368,8 @@ export default defineComponent({
      * 保存配置
      */
     const handleSubmitSave = () => {
-      loadingSave.value = true;
+      console.log(formData.value.params.conditions, 'baocun-----');
+      // return;
       if (!showClusterListKeys.includes(props.scenarioId)) {
         isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
       }
@@ -1400,6 +1398,7 @@ export default defineComponent({
       if (showClusterListKeys.includes(props.scenarioId)) {
         isConfigError = configurationItemListRef.value.validate();
       }
+      loadingSave.value = true;
       /**
        * 是否为容器采集并且配置项校验通过
        */

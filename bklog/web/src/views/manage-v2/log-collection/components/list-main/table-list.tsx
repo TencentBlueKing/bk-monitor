@@ -30,6 +30,7 @@ import ItemSkeleton from '@/skeleton/item-skeleton';
 import tippy, { type Instance } from 'tippy.js';
 import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue';
 import { tenantManager } from '@/views/retrieve-core/tenant-manager';
+import axios from 'axios';
 import {
   formatBytes,
   getOperatorCanClick,
@@ -49,6 +50,8 @@ import type { IListItemData } from '../../type';
 import EmptyStatus from '@/components/empty-status/index.vue';
 import './table-list.scss';
 import 'tdesign-vue/es/style/index.css';
+
+const CancelToken = axios.CancelToken;
 
 /**
  * 表格行数据类型定义
@@ -184,6 +187,14 @@ export default defineComponent({
     const { t } = useLocale();
     const showCollectIssuedSlider = ref(false);
     const currentRow = ref<ITableRowData>({} as ITableRowData);
+    /**
+     * 获取列表接口取消
+     */
+    const listInterfaceCancel = ref(null);
+    /**
+     * 是否取消接口请求
+     */
+    const isCancelToken = ref(false);
     /**
      * 是否展示一键检测
      */
@@ -361,7 +372,7 @@ export default defineComponent({
      * @returns JSX 元素
      */
     const renderStatus = (row: ITableRowData) => {
-      return <span class={`table-status ${row.status}`}>{row.status_name}</span>;
+      return row.status ? <span class={`table-status ${row.status}`}>{row.status_name}</span> : <span>--</span>;
     };
 
     /**
@@ -488,14 +499,14 @@ export default defineComponent({
         title: t('接入类型'),
         colKey: 'log_access_type',
         width: 140,
-        cell: (h, { row }: { row: ITableRowData }) => <span>{row.log_access_type_name}</span>,
+        cell: (h, { row }: { row: ITableRowData }) => <span>{row.log_access_type_name || '--'}</span>,
         filter: getColumnsFilter(GLOBAL_CATEGORIES_ENUM),
       },
       {
         title: t('日志类型'),
         colKey: 'collector_scenario_id',
         width: 100,
-        cell: (h, { row }: { row: ITableRowData }) => <span>{row.collector_scenario_name}</span>,
+        cell: (h, { row }: { row: ITableRowData }) => <span>{row.collector_scenario_name || '--'}</span>,
         filter: getColumnsFilter(COLLECTOR_SCENARIO_ENUM),
       },
       {
@@ -826,6 +837,7 @@ export default defineComponent({
       stopCollectStatusTimer();
       // 移除窗口大小变化监听
       window.removeEventListener('resize', handleWindowResize);
+      listInterfaceCancel.value?.();
     });
 
     /**
@@ -932,6 +944,7 @@ export default defineComponent({
      */
     const getTableList = async () => {
       try {
+        listInterfaceCancel.value?.();
         listLoading.value = true;
         tableList.value = [];
         const { current, pageSize } = pagination.value;
@@ -954,10 +967,19 @@ export default defineComponent({
           params.parent_index_set_id = indexSetId;
         }
 
-        const res = await $http.request('collect/newCollectList', {
-          data: params,
-        });
-
+        const res = await $http.request(
+          'collect/newCollectList',
+          {
+            data: params,
+          },
+          {
+            cancelToken: new CancelToken(c => {
+              listInterfaceCancel.value = c;
+              isCancelToken.value = true;
+            }),
+          },
+        );
+        listLoading.value = false;
         tableList.value = (res.data?.list || []) as ITableRowData[];
         pagination.value.total = res.data?.total || 0;
         // 收集索引集ID并保存原始数据顺序
@@ -967,7 +989,7 @@ export default defineComponent({
 
         for (let index = 0; index < tableList.value.length; index++) {
           const item = tableList.value[index];
-          collectorConfigIds.push(item.collector_config_id);
+          item.collector_config_id && collectorConfigIds.push(item.collector_config_id);
           if (item.index_set_id !== null) {
             indexSetIds.push(item.index_set_id);
             originalOrderMap.value.set(item.index_set_id, index);
@@ -1005,9 +1027,7 @@ export default defineComponent({
             });
         }
       } catch (error) {
-        console.log('获取列表数据失败:', error);
-      } finally {
-        listLoading.value = false;
+        !isCancelToken.value && console.log('获取列表数据失败:', error, isCancelToken.value);
       }
     };
 
@@ -1211,7 +1231,8 @@ export default defineComponent({
      * 新增采集项
      */
     const handleCreateOperation = () => {
-      operateHandler({}, 'add', 'linux');
+      const { index_set_id: indexSetId } = props.indexSet;
+      operateHandler({}, 'add', 'linux', indexSetId);
     };
 
     /**
