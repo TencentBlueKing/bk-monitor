@@ -1165,10 +1165,11 @@ class TimeSeriesScope(models.Model):
         return scope_name.rsplit("||", 1)[0]
 
     @classmethod
-    def update_dimension_config_and_metrics_scope_id(cls, scope_moves: dict):
+    def update_dimension_config_and_metrics_scope_id(cls, scope_moves: dict, need_update_metrics: bool = True):
         """批量更新指标分组和维度配置
 
         :param scope_moves: {sink_scope: {"moved_metrics": [...], "source_scope": ...}}
+        :param need_update_metrics: 是否需要更新指标的 scope_id
         """
         if not scope_moves:
             return
@@ -1200,7 +1201,7 @@ class TimeSeriesScope(models.Model):
             scopes_to_update.append(sink_scope)
 
         # 5. 批量更新数据库
-        if all_metrics_to_update:
+        if all_metrics_to_update and need_update_metrics:
             TimeSeriesMetric.objects.bulk_update(all_metrics_to_update, ["scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE)
         if scopes_to_update:
             TimeSeriesScope.objects.bulk_update(
@@ -2365,7 +2366,7 @@ class TimeSeriesMetric(models.Model):
 
         # 准备批量创建的数据
         records_to_create = []
-        scope_to_indices = defaultdict(list)  # 记录每个 scope 对应的对象索引
+        scope_moves = defaultdict(list)
 
         for metric_data in metrics_to_create:
             tag_list = metric_data.get("tag_list") or []
@@ -2392,18 +2393,19 @@ class TimeSeriesMetric(models.Model):
                 field_config=metric_data.get("field_config", {}),
                 label=metric_data.get("label", ""),
             )
-            scope_to_indices[scope].append(len(records_to_create))
             records_to_create.append(metric_obj)
+            scope_moves[scope].append(metric_obj)
 
-        # 批量创建，返回的对象列表保证包含主键
-        created_metrics = cls.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
+        # 批量创建
+        cls.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
-        # 使用返回的带主键的对象构建 scope_moves_dict
         scope_moves_dict = {
-            scope: {"moved_metrics": [created_metrics[idx] for idx in indices], "source_scope": None}
-            for scope, indices in scope_to_indices.items()
+            scope: {"moved_metrics": moved_metrics, "source_scope": None}
+            for scope, moved_metrics in scope_moves.items()
         }
-        TimeSeriesScope.update_dimension_config_and_metrics_scope_id(scope_moves=scope_moves_dict)
+        TimeSeriesScope.update_dimension_config_and_metrics_scope_id(
+            scope_moves=scope_moves_dict, need_update_metrics=False
+        )
 
     @classmethod
     def _batch_update_metrics(cls, metrics_to_update, scopes_dict):
