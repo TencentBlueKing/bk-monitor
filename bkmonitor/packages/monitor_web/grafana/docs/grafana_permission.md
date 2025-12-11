@@ -19,13 +19,11 @@ role_id 去判断当前权限分配给了哪一个角色
 # 同步权限
 self.sync_permissions(request)
 inital会调用sync_permissions方法去同步grafana与iam的权限
-
 ```
 
 > sync_permissions方法的调用链如下
 
 ```
-
 sync_permissions()
     │
     ▼
@@ -78,4 +76,62 @@ sync_dashboard_permission(permissions)     ◄─── 接收的已经是展开
     }
   ]
 }
+```
+
+## Grafana的外部用户权限(ExternalPermission)
+
+### 关键类
+
+1. packages/monitor_web/iam/resources.py
+   > 该类中提供了多个对外接口， 可用于 新增/删除/查询 外部用户对grafana的权限
+   >
+2. bkmonitor/models/external_iam.py/Externalpermission
+   > 该类用于记录外部用户的grafana的权限表
+   >
+
+```
+action_id: 指定操作类型
+resources: 存储dashboard_id或者folder_id
+    # 1. dashboard: "{org_id}|{uid}" 格式（推荐，与 IAM 一致）或纯 "{uid}" 格式
+    #    例如: "1|abc123" 或 "abc123"
+    # 2. folder: "folder:{org_id}|{folder_id}" 格式
+    #    例如: "folder:1|123"
+```
+
+### 关键数据流
+
+```mermaid
+
+graph TD
+    A[授权人发起授权] --> B{操作类型}
+    B -->|新增权限| C[CreateOrUpdateExternalPermission]
+    B -->|删除权限| D[DeleteExternalPermission]
+    B -->|查看权限| E[GetExternalPermissionList]
+  
+    C --> F[权限验证]
+    D --> G[删除权限记录]
+    E --> H[返回权限列表]
+  
+    F --> I{授权人是否有权限?}
+    I -->|否| J[抛出异常]
+    I -->|是| K[创建ITSM审批单]
+  
+    K --> L[ExternalPermissionApplyRecord<br>审批记录表]
+    L --> M[ITSM审批流程]
+    M --> N{审批结果}
+  
+    N -->|拒绝| O[更新状态为failed]
+    N -->|通过| P[CallbackResource 回调]
+  
+    P --> Q[create_permission 函数]
+    Q --> R[ExternalPermission<br>权限表]
+    R --> S[外部用户访问Grafana]
+    S --> T[DashBoardPermission.has_permission]
+  
+    T --> U{检查权限}
+    U --> V[expand_resources_to_dashboard_uids<br>展开folder为dashboards]
+    V --> W{权限匹配?}
+  
+    W -->|匹配| X[允许访问]
+    W -->|不匹配| Y[拒绝访问]
 ```
