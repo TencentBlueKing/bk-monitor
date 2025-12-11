@@ -1278,78 +1278,6 @@ class TimeSeriesScope(models.Model):
         return False
 
     @classmethod
-    def _merge_dimensions_from_ungroup(cls, scope, ungroup_scope, group_id: int, field_name: str) -> None:
-        """从未分组的指标合并维度配置到匹配的 scope
-
-        :param scope: 匹配到的 scope 对象
-        :param ungroup_scope: 未分组的 scope 对象
-        :param group_id: 分组ID
-        :param field_name: 指标名称
-        """
-        ungroup_metric = TimeSeriesMetric.objects.filter(
-            group_id=group_id, scope_id=ungroup_scope.id, field_name=field_name
-        ).first()
-
-        # 如果未分组指标不存在或没有标签，直接返回
-        if not ungroup_metric or not ungroup_metric.tag_list:
-            return
-
-        matched_dimension_config = scope.dimension_config or {}
-        ungroup_dimension_config = ungroup_scope.dimension_config or {}
-
-        # 找出需要新增的维度
-        new_dimensions = [dim for dim in ungroup_metric.tag_list if dim not in matched_dimension_config]
-        if not new_dimensions:
-            return
-
-        # 合并维度配置
-        for dim in new_dimensions:
-            matched_dimension_config[dim] = ungroup_dimension_config.get(dim, {})
-
-        scope.dimension_config = matched_dimension_config
-        scope.save(update_fields=["dimension_config"])
-        logger.info(
-            f"Merged dimensions from ungroup: group_id={group_id}, field_name={field_name}, "
-            f"scope_id={scope.id}, new_dimensions={new_dimensions}"
-        )
-
-    @classmethod
-    def get_scope_id_for_metric(cls, group_id: int, field_scope: str, field_name: str) -> int | None:
-        """获取指标对应的 scope_id
-
-        :param group_id: 分组ID
-        :param field_scope: 指标的 field_scope
-        :param field_name: 指标名称
-        :return: scope_id 或 None（如果是未分组）
-        """
-        scope_name = ScopeName.from_field_scope(field_scope)
-
-        # 非 default 数据分组：直接查找对应的 scope_id
-        if not ScopeName.is_default_data_field_scope(field_scope):
-            scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=scope_name).first()
-            return scope.id if scope else None
-
-        # 未分组
-        ungroup_scope = TimeSeriesScope.objects.filter(group_id=group_id, scope_name=scope_name).first()
-        # default 数据分组：需要匹配用户分组和数据分组的 auto_rules（正则表达式）
-        all_scopes = (
-            TimeSeriesScope.objects.filter(group_id=group_id)
-            .exclude(scope_name=scope_name)
-            .order_by("-last_modify_time")
-        )
-        # 遍历所有分组，找到第一个匹配的 scope
-        for scope in all_scopes:
-            if not cls._match_scope_by_auto_rules(scope, field_name):
-                continue
-
-            # 匹配成功，尝试合并未分组的维度配置
-            cls._merge_dimensions_from_ungroup(scope, ungroup_scope, group_id, field_name)
-
-            return scope.id
-
-        return ungroup_scope.id if ungroup_scope else None
-
-    @classmethod
     def update_dimension_config_from_moved_metrics(
         cls,
         moved_metrics: list,
@@ -1928,113 +1856,51 @@ class TimeSeriesScope(models.Model):
 
     @classmethod
     @atomic(config.DATABASE_CONNECTION_NAME)
-    def bulk_delete_scopes(
-        cls,
-        bk_tenant_id: str,
-        group_id: int,
-        scopes: list[dict],
-    ):
-        """批量删除自定义时序指标分组
-
-        对于数据自动创建的分组：清空 auto_rules，并清理 dimension_config
-        对于用户手动创建的分组：直接删除
-
-        :param bk_tenant_id: 租户ID
-        :param group_id: 自定义时序数据源ID
-        :param scopes: 批量删除的分组列表，格式:
-            [{
-                "scope_name": "test_scope"
-            }]
-        """
+    def bulk_delete_scopes(cls, bk_tenant_id: str, group_id: int, scopes: list[dict]):
         cls._check_single_group_id(bk_tenant_id, group_id)
 
         # 批量获取要删除的 TimeSeriesScope
-        scope_conditions = Q()
-        requested_scope_names = set()
-        for scope_data in scopes:
-            final_scope_name = scope_data.get("scope_name")
-            scope_conditions |= Q(group_id=group_id, scope_name=final_scope_name)
-            requested_scope_names.add(final_scope_name)
-
-        time_series_scopes = cls.objects.filter(scope_conditions)
+        requested_scope_names = {scope_data.get("scope_name") for scope_data in scopes}
+        time_series_scopes = list(cls.objects.filter(group_id=group_id, scope_name__in=requested_scope_names))
 
         # 检查是否所有 scope 都存在
-        found_scope_names = {s.scope_name for s in time_series_scopes}
-        missing_scope_names = requested_scope_names - found_scope_names
+        if missing := requested_scope_names - {s.scope_name for s in time_series_scopes}:
+            raise ValueError(_("指标分组不存在，请确认后重试: {}").format(", ".join(missing)))
 
-        if missing_scope_names:
-            missing_names = [f"{name}" for name in missing_scope_names]
-            raise ValueError(_("指标分组不存在，请确认后重试: {}").format(", ".join(missing_names)))
+        # 检查是否有数据自动创建的分组，不允许删除
+        data_created_scopes = [s.scope_name for s in time_series_scopes if s.is_create_from_data()]
+        if data_created_scopes:
+            raise ValueError(_("不允许删除数据自动创建的分组: {}").format(", ".join(data_created_scopes)))
 
-        # 分类处理：区分 data 类型和 user 类型
-        data_scopes = []  # 数据自动创建的 scope
-        user_scopes = []  # 用户手动创建的 scope
+        # 构建 scope_id 映射
+        scope_id_map = {s.id: s for s in time_series_scopes}
 
-        for time_series_scope in time_series_scopes:
-            if time_series_scope.is_create_from_data():
-                data_scopes.append(time_series_scope)
-            else:
-                user_scopes.append(time_series_scope)
-
-        # 收集所有需要更新 scope_id 的指标
-        metrics_to_update = []
-
-        # 对于 data 类型的 scope：清空 auto_rules，并清理 dimension_config
-        if data_scopes:
-            for scope in data_scopes:
-                # 1. 清空 auto_rules
-                scope.auto_rules = []
-
-                # 2. 从 metric 表中获取对应数据分组 scope 的所有 metric 的维度
-                # 查询该分组下的所有指标
-                metrics = TimeSeriesMetric.objects.filter(group_id=scope.group_id, scope_id=scope.id)
-
-                # 3. 计算所有 metric 的维度并集
-                all_metric_dimensions = set()
-                for metric in metrics:
-                    if metric.tag_list:
-                        all_metric_dimensions.update(metric.tag_list)
-                    # 收集需要更新 scope_id 的指标（因为 auto_rules 被清空，需要重新计算）
-                    metrics_to_update.append(metric)
-
-                # 4. 从 dimension_config 中删除不属于这些维度的配置
-                current_dimension_config = scope.dimension_config or {}
-                # 只保留属于 metric 维度的配置
-                scope.dimension_config = {
-                    dim_name: dim_config
-                    for dim_name, dim_config in current_dimension_config.items()
-                    if dim_name in all_metric_dimensions
-                }
-
-            # 批量更新 data 类型的 scope
-            cls.objects.bulk_update(data_scopes, ["auto_rules", "dimension_config"], batch_size=BULK_UPDATE_BATCH_SIZE)
-
-        # 对于 user 类型的 scope：直接删除
-        if user_scopes:
-            # 在删除前，收集需要更新 scope_id 的指标
-            user_scope_ids = [scope.id for scope in user_scopes]
-
-            # 查询所有使用这些 scope 的指标
-            user_metrics = TimeSeriesMetric.objects.filter(group_id=group_id, scope_id__in=user_scope_ids)
-            metrics_to_update.extend(user_metrics)
-
-            # 删除 user 类型的 scope
-            cls.objects.filter(pk__in=user_scope_ids).delete()
-
-        # 批量更新所有受影响指标的 scope_id
-        if metrics_to_update:
-            for metric in metrics_to_update:
-                # 重新计算 scope_id
-                # todo hhh 批量更新？
-                new_scope_id = TimeSeriesScope.get_scope_id_for_metric(
-                    group_id=metric.group_id,
-                    field_scope=metric.field_scope,
-                    field_name=metric.field_name,
+        # 收集并更新需要移动到未分组的指标
+        if metrics_to_update := list(TimeSeriesMetric.objects.filter(group_id=group_id, scope_id__in=scope_id_map)):
+            # 批量查询未分组的 scope 对象并按未分组 scope 分组指标
+            ungroup_scopes = {
+                s.scope_name: s
+                for s in cls.objects.filter(
+                    group_id=group_id,
+                    scope_name__in={ScopeName.from_field_scope(m.field_scope) for m in metrics_to_update},
                 )
-                metric.scope_id = new_scope_id
+            }
 
-            # 批量更新指标的 scope_id
-            TimeSeriesMetric.objects.bulk_update(metrics_to_update, ["scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE)
+            metrics_by_ungroup = defaultdict(list)
+            for metric in metrics_to_update:
+                if ungroup_scope := ungroup_scopes.get(ScopeName.from_field_scope(metric.field_scope)):
+                    metrics_by_ungroup[ungroup_scope].append(metric)
+
+            # 批量更新每个未分组的维度配置
+            for ungroup_scope, moved_metrics in metrics_by_ungroup.items():
+                cls.update_dimension_config_from_moved_metrics(
+                    moved_metrics=moved_metrics,
+                    source_scope=scope_id_map.get(moved_metrics[0].scope_id),
+                    sink_scope=ungroup_scope,
+                )
+
+        # 删除分组（在维度配置更新之后）
+        cls.objects.filter(pk__in=[s.id for s in time_series_scopes]).delete()
 
 
 class TimeSeriesMetric(models.Model):
