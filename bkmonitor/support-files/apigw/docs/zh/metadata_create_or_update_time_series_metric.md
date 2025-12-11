@@ -21,11 +21,11 @@
 |------------|------|----|----------------------------------------------------------------------|
 | field_id   | int  | 否  | 字段ID，用于定位已存在的指标进行更新。如提供此字段则为更新操作                        |
 | field_name | string | 否  | 指标字段名称，创建指标时必填，最大长度255。字段名称不能重复                  |
+| field_scope | string | 否  | 指标数据分组，最大长度255                  |
 | tag_list   | list | 否  | Tag列表，维度字段列表。系统会自动添加 `target` 维度（如果不存在）。**注意：更新时为全量替换，需传递完整的 tag 列表**                   |
 | field_config | dict | 否  | 字段其他配置，详见下方 field_config 字段说明。**注意：更新时为全量替换，需传递完整的配置字典**                                              |
 | label      | string | 否  | 指标监控对象，用于标识指标所属的监控对象类型，最大长度255，默认为空字符串                  |
-| scope_id   | int | 否  | 指标分组ID，允许为空                                          |
-| scope_name | string | 否  | 指标分组名，最大长度255，允许为空                                          |
+| scope_id   | int | 是  | 指标分组ID，允许为空                                          |
 
 #### field_config 字段说明
 
@@ -69,6 +69,7 @@
     },
     {
       "field_name": "api_latency",
+      "field_scope": "api_metrics",
       "tag_list": ["hostname", "endpoint"],
       "field_config": {
         "alias": "API延迟",
@@ -76,7 +77,7 @@
         "aggregate_method": "avg"
       },
       "label": "application",
-      "scope_name": "api_metrics"
+      "scope_id": 1
     }
   ]
 }
