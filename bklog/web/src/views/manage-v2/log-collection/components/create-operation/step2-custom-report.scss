@@ -3,10 +3,12 @@
   height: 100%;
   .w-45 {
     width: 45%;
+    min-width: 680px;
   }
   .base-info-box {
     .bk-form-item {
       width: 45%;
+      min-width: 680px;
     }
   }
   .bk-button-group {
