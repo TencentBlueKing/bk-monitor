@@ -32,6 +32,14 @@ def get_supplier_account_before(params):
     params = adapt_non_bkcc(params)
     if settings.BK_SUPPLIER_ACCOUNT != "":
         params["bk_supplier_account"] = settings.BK_SUPPLIER_ACCOUNT
+    return params
+
+
+def add_supplier_account_and_set_id_before(params):
+    """
+    用于需要 bk_set_id 路径参数的接口
+    """
+    params = get_supplier_account_before(params)
     if "bk_set_id" not in params:
         params["bk_set_id"] = 0
     return params
@@ -102,7 +110,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询模块",
             url_keys=["bk_supplier_account", "bk_biz_id", "bk_set_id"],
-            before_request=get_supplier_account_before,
+            before_request=add_supplier_account_and_set_id_before,
             no_query_params=True,
             use_superuser=True,
             bk_tenant_id=biz_to_tenant_getter(),
@@ -113,7 +121,7 @@ class _CCApi:
             module=self.MODULE,
             description="查询模块",
             url_keys=["bk_supplier_account", "bk_biz_id", "bk_set_id"],
-            before_request=get_supplier_account_before,
+            before_request=add_supplier_account_and_set_id_before,
             use_superuser=True,
         )
         self.get_biz_internal_module = DataAPI(
