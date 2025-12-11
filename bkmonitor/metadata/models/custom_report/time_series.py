@@ -1253,9 +1253,11 @@ class TimeSeriesScope(models.Model):
         verbose_name = "自定义时序数据分组记录"
         verbose_name_plural = "自定义时序数据分组记录表"
 
-    def is_create_from_data(self):
-        """检查是否允许编辑"""
-        return self.create_from == TimeSeriesScope.CREATE_FROM_DATA
+    def is_create_from_data_or_default(self):
+        return (
+            self.create_from == TimeSeriesScope.CREATE_FROM_DATA
+            or self.create_from == TimeSeriesScope.CREATE_FROM_DEFAULT
+        )
 
     @classmethod
     def update_dimension_config_from_moved_metrics(
@@ -1354,7 +1356,7 @@ class TimeSeriesScope(models.Model):
             for scope in auto_scopes_by_prefix.get(prefix, []):
                 if cls._match_scope_by_auto_rules(scope, field_name):
                     return scope.id
-            # 未匹配则使用未分组 scope
+            # 未匹配则使用默认分组 scope
             return scope_name_to_obj.get(field_scope).id
         else:
             # 非默认分组：直接使用对应 scope
@@ -1715,7 +1717,7 @@ class TimeSeriesScope(models.Model):
                 continue
 
             # 检查：data 类型的 scope 不允许修改 scope_name
-            if scope_obj.is_create_from_data():
+            if scope_obj.is_create_from_data_or_default():
                 raise ValueError(
                     _("数据自动创建的分组不允许修改分组名: scope_id={}, scope_name={}").format(
                         scope_obj.id, scope_obj.scope_name
@@ -1803,37 +1805,11 @@ class TimeSeriesScope(models.Model):
             raise ValueError(_("指标分组不存在，请确认后重试: {}").format(", ".join(missing)))
 
         # 检查是否有数据自动创建的分组，不允许删除
-        data_created_scopes = [s.scope_name for s in time_series_scopes if s.is_create_from_data()]
+        data_created_scopes = [s.scope_name for s in time_series_scopes if s.is_create_from_data_or_default()]
         if data_created_scopes:
             raise ValueError(_("不允许删除数据自动创建的分组: {}").format(", ".join(data_created_scopes)))
 
-        # 构建 scope_id 映射
-        scope_id_map = {s.id: s for s in time_series_scopes}
-
-        # 收集并更新需要移动到未分组的指标
-        if metrics_to_update := list(TimeSeriesMetric.objects.filter(group_id=group_id, scope_id__in=scope_id_map)):
-            # 批量查询未分组的 scope 对象并按未分组 scope 分组指标
-            ungroup_scopes = {
-                s.scope_name: s
-                for s in cls.objects.filter(
-                    group_id=group_id,
-                    scope_name__in={ScopeName.from_field_scope(m.field_scope) for m in metrics_to_update},
-                )
-            }
-
-            metrics_by_ungroup = defaultdict(list)
-            for metric in metrics_to_update:
-                if ungroup_scope := ungroup_scopes.get(ScopeName.from_field_scope(metric.field_scope)):
-                    metrics_by_ungroup[ungroup_scope].append(metric)
-
-            # 批量更新每个未分组的维度配置
-            for ungroup_scope, moved_metrics in metrics_by_ungroup.items():
-                cls.update_dimension_config_from_moved_metrics(
-                    moved_metrics=moved_metrics,
-                    source_scope=scope_id_map.get(moved_metrics[0].scope_id),
-                    sink_scope=ungroup_scope,
-                )
-
+        # todo hhh metric 的 scope_id 和维度配置迁移
         # 删除分组（在维度配置更新之后）
         cls.objects.filter(pk__in=[s.id for s in time_series_scopes]).delete()
 
