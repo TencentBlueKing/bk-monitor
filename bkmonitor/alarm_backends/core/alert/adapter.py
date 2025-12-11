@@ -247,11 +247,9 @@ class MonitorEventAdapter:
                 # 容器场景目标解析
                 # K8S-POD, K8S-NODE, K8S-SERVICE, K8S-WORKLOAD
                 return cls.get_k8s_target(data_dimensions, strategy["bk_biz_id"])
-            # 从告警维度或告警策略标签中获取 service_name 即为 APM 场景 (注：使用海象运算符，为后续其他场景留出扩展点)
-            elif (apm_target := ApmAlertHelper.get_target(strategy, data_dimensions)) and apm_target.get(
-                CommonMetricTag.SERVICE_NAME.value
-            ) is not None:
-                return cls.get_apm_target(data_dimensions, apm_target)
+            # 从告警维度或告警策略标签中获取到 service_name 即为 APM 场景 (注：使用海象运算符，为后续其他场景留出扩展点)
+            elif (target := ApmAlertHelper.get_target(strategy, data_dimensions)) and target.get("service_name"):
+                return cls.get_apm_target(data_dimensions, target)
 
         except KeyError:
             return EventTargetType.EMPTY, None, data_dimensions
@@ -322,18 +320,23 @@ class MonitorEventAdapter:
         :param dimensions: 维度字典
         :param apm_target: APM 目标信息字典，包含 app_name 和 service_name
         :return: 返回元组 (target_type, target, dimensions)
-                 - target_type: APM-SERVICE 或 空字符串
-                 - target: service_name 的值 或 None
+                 - target_type: "APM-SERVICE" 或 空字符串
+                 - target: {app_name}:{service_name}格式化后的值 或 None
                  - dimensions: 处理后的维度字典
         """
         app_name_tag: str = CommonMetricTag.APP_NAME.value
+        service_name_tag: str = CommonMetricTag.SERVICE_NAME.value
         app_name: str | None = apm_target.get(app_name_tag)
-        if app_name and app_name_tag not in dimensions:
-            # 补充后续用于丰富的 app_name 维度字段
-            dimensions["__additional_dimensions"] = {app_name_tag: app_name}
+        service_name: str | None = apm_target.get(service_name_tag)
 
-        service_name: str | None = apm_target.get(CommonMetricTag.SERVICE_NAME.value)
-        if service_name:
-            return APMTargetType.SERVICE, service_name, dimensions
+        if not app_name or not service_name:
+            return EventTargetType.EMPTY, None, dimensions
 
-        return EventTargetType.EMPTY, None, dimensions
+        dimensions["__additional_dimensions"] = dict()
+        # 补充后续可用被丰富的 app_name 和 service_name 维度字段
+        if app_name_tag not in dimensions:
+            dimensions["__additional_dimensions"].update({app_name_tag: app_name})
+        if service_name_tag not in dimensions:
+            dimensions["__additional_dimensions"].update({service_name_tag: service_name})
+
+        return APMTargetType.SERVICE, f"{app_name}:{service_name}", dimensions
