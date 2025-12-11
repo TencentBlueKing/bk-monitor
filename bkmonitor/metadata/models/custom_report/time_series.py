@@ -173,6 +173,7 @@ class ScopeName:
 
         :param field_scope: 指标的 field_scope 值
         :return: 如果是 default 分组返回 True，否则返回 False
+        todo hhh 根据用户配置的默认值来确定
         """
         return field_scope == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME or field_scope.endswith(
             f"{cls.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
@@ -1219,9 +1220,11 @@ class TimeSeriesScope(models.Model):
     # 创建来源选项
     CREATE_FROM_DATA = "data"  # 数据自动创建
     CREATE_FROM_USER = "user"  # 用户手动创建
+    CREATE_FROM_DEFAULT = "default"  # 默认分组
     CREATE_FROM_CHOICES = [
         (CREATE_FROM_DATA, "数据自动创建"),
         (CREATE_FROM_USER, "用户手动创建"),
+        (CREATE_FROM_DEFAULT, "默认分组"),
     ]
 
     # group_id 来自于 TimeSeriesGroup.time_series_group_id，关联数据源
@@ -1338,8 +1341,6 @@ class TimeSeriesScope(models.Model):
         scope_name_to_obj: dict,
         auto_scopes_by_prefix: dict,
     ) -> int:
-        scope_name = ScopeName.from_field_scope(field_scope)
-
         # 先检查是否是已有指标（更新场景）
         existing_scope_id = existing_metric_scope_map.get((field_name, field_scope))
         if existing_scope_id:
@@ -1349,15 +1350,15 @@ class TimeSeriesScope(models.Model):
         # 新建场景
         if ScopeName.is_default_data_field_scope(field_scope):
             # 默认分组：尝试匹配 auto_rules
-            prefix = ScopeName.get_prefix(scope_name)
+            prefix = ScopeName.get_prefix(field_scope)
             for scope in auto_scopes_by_prefix.get(prefix, []):
                 if cls._match_scope_by_auto_rules(scope, field_name):
                     return scope.id
             # 未匹配则使用未分组 scope
-            return scope_name_to_obj.get(scope_name).id
+            return scope_name_to_obj.get(field_scope).id
         else:
             # 非默认分组：直接使用对应 scope
-            return scope_name_to_obj.get(scope_name).id
+            return scope_name_to_obj.get(field_scope).id
 
     @classmethod
     def _collect_metrics_and_dimensions(
@@ -1442,7 +1443,9 @@ class TimeSeriesScope(models.Model):
                 scope_name=name,
                 dimension_config={},
                 auto_rules=[],
-                create_from=cls.CREATE_FROM_DATA,
+                create_from=cls.CREATE_FROM_DEFAULT
+                if ScopeName.is_default_data_field_scope(name)
+                else cls.CREATE_FROM_DATA,
             )
             for name in scope_names - existing_scope_names
         ]
@@ -1452,11 +1455,7 @@ class TimeSeriesScope(models.Model):
     @classmethod
     def bulk_refresh_ts_scopes(cls, group_id: int, metric_info_list: list) -> dict:
         # 收集所有涉及的 scope_name
-        scope_names = {
-            ScopeName.from_field_scope(metric_info.get("field_scope", TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME))
-            for metric_info in metric_info_list
-            if metric_info.get("field_name")
-        }
+        scope_names = {metric_info["field_scope"] for metric_info in metric_info_list if metric_info["field_scope"]}
         if not scope_names:
             return {}
         cls._bulk_create_ts_scopes(group_id, scope_names)
