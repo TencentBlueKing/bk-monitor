@@ -348,7 +348,7 @@ class SearchHandler:
 
         self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
 
-        self.log_bcs_cluster_info_dict = dict()
+        self.log_bcs_cluster_name_dict = dict()
 
     def _enhance(self):
         """
@@ -2208,8 +2208,8 @@ class SearchHandler:
         """
         bcs_cluster_id = bcs_cluster_id.upper()
 
-        if bcs_cluster_id in self.log_bcs_cluster_info_dict:
-            return self.log_bcs_cluster_info_dict.get(bcs_cluster_id)
+        if bcs_cluster_id in self.log_bcs_cluster_name_dict:
+            return self.log_bcs_cluster_name_dict.get(bcs_cluster_id)
 
         bcs_cluster_name = ""
 
@@ -2219,7 +2219,7 @@ class SearchHandler:
         except Exception as e:
             logger.exception("get cluster info by cluster id error: %s, cluster_id: %s", e, bcs_cluster_id)
 
-        self.log_bcs_cluster_info_dict.update({bcs_cluster_id: bcs_cluster_name})
+        self.log_bcs_cluster_name_dict.update({bcs_cluster_id: bcs_cluster_name})
 
         return bcs_cluster_name
 
