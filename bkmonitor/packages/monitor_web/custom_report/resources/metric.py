@@ -40,7 +40,7 @@ from core.errors.custom_report import (
     CustomValidationNameError,
 )
 from monitor_web.constants import ETL_CONFIG
-from monitor_web.custom_report.constants import UNGROUP_SCOPE_NAME, CustomTSMetricType
+from monitor_web.custom_report.constants import UNGROUP_SCOPE_NAME, CustomTSMetricType, ScopeCreateFrom
 from monitor_web.custom_report.serializers.metric import (
     CustomTSGroupingRuleSerializer,
     CustomTSScopeSerializer,
@@ -602,17 +602,20 @@ class GetCustomTsFields(Resource):
         for scope_dict in ts_table.query_time_series_scope:
             scope_id: int | None = scope_dict.get("scope_id")
             scope_name: str = scope_dict.get("scope_name", "")
+            create_from: str = scope_dict["create_from"]
             for metric_dict in scope_dict.get("metric_list", []):
                 field_config: dict[str, Any] = metric_dict.get("field_config", {})
                 if field_config.get("disabled"):
                     continue
+                field_scope: str = metric_dict["field_scope"]
                 metrics.append(
                     {
-                        "scope": {"id": scope_id, "scope_name": scope_name},
+                        "scope": {"id": scope_id, "name": scope_name},
                         "id": metric_dict.get("field_id"),
                         "name": metric_dict.get("metric_name", ""),
-                        "field_scope": metric_dict["field_scope"],
+                        "field_scope": field_scope,
                         "type": CustomTSMetricType.METRIC,
+                        "removable": not (create_from == ScopeCreateFrom.DATA and field_scope == scope_name),
                         "config": {
                             "alias": field_config.get("alias", ""),
                             "disabled": field_config.get("disabled", False),
@@ -630,7 +633,7 @@ class GetCustomTsFields(Resource):
             for dimension_name, dimension_dict in scope_dict.get("dimension_config", {}).items():
                 dimensions.append(
                     {
-                        "scope": {"id": scope_id, "scope_name": scope_name},
+                        "scope": {"id": scope_id, "name": scope_name},
                         "name": dimension_name,
                         "type": CustomTSMetricType.DIMENSION,
                         "config": {

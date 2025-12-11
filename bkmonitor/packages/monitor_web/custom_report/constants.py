@@ -21,3 +21,14 @@ class CustomTSMetricType:
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
         return [(cls.METRIC, _("指标")), (cls.DIMENSION, _("维度"))]
+
+
+class ScopeCreateFrom:
+    """指标组创建来源."""
+
+    DATA = "data"
+    USER = "user"
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(cls.DATA, _("自动创建")), (cls.USER, _("手动创建"))]
