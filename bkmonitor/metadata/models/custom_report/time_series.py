@@ -1972,10 +1972,18 @@ class TimeSeriesMetric(models.Model):
         group_id: int,
         table_id: str,
         is_auto_discovery: bool,
-        metric_to_scope_id: dict,
+        scope_id_to_metrics: dict,
     ) -> bool:
         """批量创建指标"""
         records = []
+
+        # 构建 metric 到 scope_id 的反向映射
+        metric_to_scope_id = {
+            (m.get("field_name"), m.get("field_scope", TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)): scope_id
+            for scope_id, metrics in scope_id_to_metrics.items()
+            for m in metrics
+            if m.get("field_name")
+        }
 
         for field_name, field_scope in need_create_metrics:
             metric_info = metrics_dict.get((field_name, field_scope))
@@ -2107,14 +2115,6 @@ class TimeSeriesMetric(models.Model):
             if m.get("field_name")
         }
 
-        # 构建 metric 到 scope_id 的反向映射
-        metric_to_scope_id = {
-            (m.get("field_name"), m.get("field_scope", TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)): scope_id
-            for scope_id, metrics in scope_id_to_metrics.items()
-            for m in metrics
-            if m.get("field_name")
-        }
-
         old_records = set(cls.objects.filter(group_id=group_id).values_list("field_name", "field_scope"))
 
         new_records = set()
@@ -2134,7 +2134,7 @@ class TimeSeriesMetric(models.Model):
         # 如果存在，则批量创建
         if need_create_metrics:
             need_push_router = cls._bulk_create_metrics(
-                _metrics_dict, need_create_metrics, group_id, table_id, is_auto_discovery, metric_to_scope_id
+                _metrics_dict, need_create_metrics, group_id, table_id, is_auto_discovery, scope_id_to_metrics
             )
         # 批量更新
         if need_update_metrics:
