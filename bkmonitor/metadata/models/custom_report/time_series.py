@@ -2453,7 +2453,6 @@ class TimeSeriesMetric(models.Model):
             metric_obj = cls(
                 table_id=metric_data["table_id"],
                 field_name=metric_data["field_name"],
-                # todo hhh 是否需要校验？
                 field_scope=metric_data["field_scope"] if metric_data["field_scope"] else cls.DEFAULT_DATA_SCOPE_NAME,
                 group_id=group_id,
                 scope_id=None,  # 先不设置，由update_dimension_config_from_moved_metrics处理
@@ -2463,26 +2462,12 @@ class TimeSeriesMetric(models.Model):
             )
             records_to_create.append(metric_obj)
 
-            # 如果指定了scope_id或scope_name，收集需要移动到该scope的指标
-            # 优先使用scope_id，如果没有则使用scope_name
-            scope_id = metric_data.get("scope_id")
-            scope_name = metric_data.get("scope_name")
             # todo hhh 批量_get_or_create_scope
-            if scope_id is not None:
-                # 通过scope_id获取scope
-                scope = TimeSeriesScope.objects.filter(id=scope_id, group_id=group_id).first()
-                if scope is None:
-                    raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
-                scope_moves[scope].append(metric_obj)
-            elif scope_name is not None:
-                scope = cls._get_or_create_scope(group_id, scope_name)
-                scope_moves[scope].append(metric_obj)
-            else:
-                # 两者都没有传递，放到未分组
-                # todo hhh 感觉要求 saas 必须传递 scope_name 比较好，否则这里是能适配一级分组
-                # todo hhh 如果按照上面的修改，那么这里的 else 就 raise 异常
-                scope = cls._get_or_create_scope(group_id, ScopeName.get_ungrouped_name())
-                scope_moves[scope].append(metric_obj)
+            scope_id = metric_data.get("scope_id")
+            scope = TimeSeriesScope.objects.filter(id=scope_id, group_id=group_id).first()
+            if scope is None:
+                raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
+            scope_moves[scope].append(metric_obj)
 
         # 批量创建
         cls.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
@@ -2495,18 +2480,14 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def _batch_update_metrics(cls, metrics_to_update):
-        """批量更新现有的时序指标"""
-        updatable_fields = ["tag_list", "field_config", "label"]
+        """批量更新现有的时序指标，不支持 tag_list 的更新"""
+        updatable_fields = ["field_config", "label"]
         records_to_update = []
         scope_moves = defaultdict(
             lambda: {"new_scope": None, "source_scope": None, "metrics": []}
         )  # {(new_scope_id, old_scope_id): {...}}
 
         for metric, validated_request_data in metrics_to_update:
-            # todo tag_list 实际上没有更新的场景，如果需要支持更新场景，那么还需要补充更新分组下维度配置的逻辑
-            if "tag_list" in validated_request_data:
-                cls._ensure_target_dimension_in_tags(validated_request_data)
-
             # 统一更新字段值（无论scope是否变化）
             for field in updatable_fields:
                 if field in validated_request_data:
@@ -2514,20 +2495,13 @@ class TimeSeriesMetric(models.Model):
 
             records_to_update.append(metric)
 
-            # 处理scope更新
-            # 优先使用scope_id，如果没有则使用scope_name
             scope_id = validated_request_data.get("scope_id")
-            scope_name = validated_request_data.get("scope_name")
             new_scope = None
-
             if scope_id is not None:
                 # 通过scope_id获取scope
                 new_scope = TimeSeriesScope.objects.filter(id=scope_id, group_id=metric.group_id).first()
                 if new_scope is None:
                     raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
-            elif scope_name is not None:
-                # todo hhh 批量_get_or_create_scope
-                new_scope = cls._get_or_create_scope(metric.group_id, scope_name)
 
             # 如果scope发生变化，记录需要移动的指标
             if new_scope and metric.scope_id != new_scope.id:
