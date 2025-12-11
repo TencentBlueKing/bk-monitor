@@ -414,7 +414,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
         """获取实例信息 - 支持目录和仪表盘"""
         results = []
         dashboard_uids = []
-        folder_queries = []  # (instance_id, org_id, folder_id)
+        folder_queries = []  # (instance_id, folder_id)
 
         for instance_id in filter.ids:
             instance_id = str(instance_id)

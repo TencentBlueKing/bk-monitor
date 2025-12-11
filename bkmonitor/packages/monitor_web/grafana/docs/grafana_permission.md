@@ -1,4 +1,4 @@
-# garafana的权限
+# grafana的权限
 
 ## 原生grafana权限构成
 
@@ -44,7 +44,7 @@ sync_dashboard_permission(permissions)     ◄─── 接收的已经是展开
 然后合并到grafana
 ```
 
-> 从调用链可知，sync的操作依赖与DashBoardPermussion类， 他会从iam中获取权限策略， 并解析为程序可读的形式， 最后通过比较现有grafana权限， 和iam的权限， 去补充/删除新的权限到permission表中
+> 从调用链可知，sync的操作依赖与DashBoardPermission类， 他会从iam中获取权限策略， 并解析为程序可读的形式， 最后通过比较现有grafana权限， 和iam的权限， 去补充/删除新的权限到permission表中
 
 ## 添加对目录的权限校验
 
