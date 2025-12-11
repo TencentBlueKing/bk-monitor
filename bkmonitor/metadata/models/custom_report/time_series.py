@@ -140,10 +140,9 @@ class TimeSeriesGroup(CustomGroupBase):
         sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
         levels = []
         for dim_name, dim_config in sorted_dims:
-            value = key_value_map.get(dim_name) or dim_config.get("default_value", "")
-            if not value:
-                # 如果有空值，返回默认值
-                return TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
+            value = key_value_map.get(dim_name) or dim_config.get(
+                "default_value", TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
+            )
             levels.append(value)
 
         # 拼接并返回
@@ -173,12 +172,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
                 return is_default, default_scope_name
 
-        # 基于 scope_name 推断（向后兼容）
-        prefix = TimeSeriesScope.get_scope_name_prefix(scope_name)
-        default_scope_name = f"{prefix}||{default_name}" if prefix else default_name
-        is_default = scope_name.endswith(f"||{default_name}") if prefix else False
-
-        return is_default, default_scope_name
+        raise ValueError(f"Invalid scope_name: {scope_name}")
 
     # 组合一个默认的table_id
     @staticmethod
