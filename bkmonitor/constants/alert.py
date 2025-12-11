@@ -32,6 +32,14 @@ class K8STargetType:
     WORKLOAD = "K8S-WORKLOAD"
 
 
+K8S_RESOURCE_TYPE = {
+    K8STargetType.POD: "pod",
+    K8STargetType.NODE: "node",
+    K8STargetType.SERVICE: "service",
+    K8STargetType.WORKLOAD: "workload",
+}
+
+
 EVENT_EXTRA_TARGET_TYPE = (
     K8STargetType.POD,
     K8STargetType.NODE,
