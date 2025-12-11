@@ -151,32 +151,34 @@ class TimeSeriesGroup(CustomGroupBase):
         return result if result else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
 
     @classmethod
-    def is_default_data_field_scope(cls, field_scope: str, metric_group_dimensions: dict | None = None) -> bool:
-        # 如果 field_scope 就是 "default"，直接返回 True
-        if field_scope == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME:
-            return True
+    def get_default_scope_info(cls, scope_name: str, metric_group_dimensions: dict | None = None) -> tuple[bool, str]:
+        default_name = TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
 
-        # 如果没有配置 metric_group_dimensions，使用原有逻辑
-        if not metric_group_dimensions:
-            return field_scope.endswith(f"{'||'}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}")
+        # 快速判断：scope_name 就是 "default"
+        if scope_name == default_name:
+            return True, default_name
 
-        # 对于多级分组，获取最后一级的默认值
-        sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
-        if not sorted_dims:
-            return field_scope == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
+        # 基于维度配置计算
+        if metric_group_dimensions:
+            sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
+            if sorted_dims:
+                # 生成默认分组名称
+                default_values = [dim_config.get("default_value", default_name) for _, dim_config in sorted_dims]
+                default_scope_name = "||".join(default_values)
 
-        # 获取最后一级维度的默认值
-        last_dim_name, last_dim_config = sorted_dims[-1]
-        last_default_value = last_dim_config.get("default_value", TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
+                # 判断是否为默认分组：检查最后一级是否为默认值
+                last_default_value = default_values[-1]
+                scope_levels = scope_name.split("||")
+                is_default = scope_levels[-1] == last_default_value
 
-        # 判断 field_scope 是否以最后一级的默认值结尾
-        if "||" in field_scope:
-            # 多级分组：检查最后一级是否为默认值
-            levels = field_scope.split("||")
-            return levels[-1] == last_default_value
-        else:
-            # 单级分组：直接比较
-            return field_scope == last_default_value
+                return is_default, default_scope_name
+
+        # 基于 scope_name 推断（向后兼容）
+        prefix = TimeSeriesScope.get_prefix(scope_name)
+        default_scope_name = f"{prefix}||{default_name}" if prefix else default_name
+        is_default = scope_name.endswith(f"||{default_name}") if prefix else False
+
+        return is_default, default_scope_name
 
     # 组合一个默认的table_id
     @staticmethod
@@ -1236,7 +1238,8 @@ class TimeSeriesScope(models.Model):
             return existing_scope_id
 
         # 新建场景
-        if TimeSeriesGroup.is_default_data_field_scope(field_scope, metric_group_dimensions):
+        is_default, _ = TimeSeriesGroup.get_default_scope_info(field_scope, metric_group_dimensions)
+        if is_default:
             # 默认分组：尝试匹配 auto_rules
             prefix = cls.get_prefix(field_scope)
             for scope in auto_scopes_by_prefix.get(prefix, []):
@@ -1338,7 +1341,7 @@ class TimeSeriesScope(models.Model):
                 dimension_config={},
                 auto_rules=[],
                 create_from=cls.CREATE_FROM_DEFAULT
-                if TimeSeriesGroup.is_default_data_field_scope(name, metric_group_dimensions)
+                if TimeSeriesGroup.get_default_scope_info(name, metric_group_dimensions)[0]
                 else cls.CREATE_FROM_DATA,
             )
             for name in scope_names - existing_scope_names
@@ -1696,6 +1699,13 @@ class TimeSeriesScope(models.Model):
     def bulk_delete_scopes(cls, bk_tenant_id: str, group_id: int, scopes: list[dict]):
         cls._check_single_group_id(bk_tenant_id, group_id)
 
+        # 获取 TimeSeriesGroup 以获取 metric_group_dimensions
+        try:
+            time_series_group = TimeSeriesGroup.objects.get(time_series_group_id=group_id)
+            metric_group_dimensions = time_series_group.metric_group_dimensions
+        except TimeSeriesGroup.DoesNotExist:
+            raise ValueError(_("指标分组不存在: {}").format(group_id))
+
         # 批量获取要删除的 TimeSeriesScope
         requested_scope_names = {scope_data.get("scope_name") for scope_data in scopes}
         time_series_scopes = list(cls.objects.filter(group_id=group_id, scope_name__in=requested_scope_names))
@@ -1709,7 +1719,32 @@ class TimeSeriesScope(models.Model):
         if data_created_scopes:
             raise ValueError(_("不允许删除数据自动创建的分组: {}").format(", ".join(data_created_scopes)))
 
-        # todo hhh metric 的 scope_id 和维度配置迁移
+        # 迁移指标和维度配置到默认分组
+        scope_moves = {}
+        for source_scope in time_series_scopes:
+            # 1. 使用 get_default_scope_info 方法获取默认分组信息（基于 metric_group_dimensions）
+            default_scope_name = TimeSeriesGroup.get_default_scope_info(
+                source_scope.scope_name, metric_group_dimensions
+            )[1]
+
+            # 2. 获取或创建默认分组
+            default_scope = cls.objects.get(group_id=group_id, scope_name=default_scope_name)
+
+            # 3. 查询该分组下的所有指标
+            moved_metrics = list(
+                TimeSeriesMetric.objects.filter(group_id=group_id, scope_id=source_scope.id).select_for_update()
+            )
+
+            # 4. 收集需要迁移的信息
+            if moved_metrics:
+                scope_moves[default_scope] = {
+                    "moved_metrics": moved_metrics,
+                    "source_scope": source_scope,
+                }
+
+        # 5. 批量更新指标的 scope_id 和维度配置
+        cls.update_dimension_config_from_moved_metrics(scope_moves)
+
         # 删除分组（在维度配置更新之后）
         cls.objects.filter(pk__in=[s.id for s in time_series_scopes]).delete()
 
