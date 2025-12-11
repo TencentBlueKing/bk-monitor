@@ -33,6 +33,13 @@ def transform_advanced_addition(addition: dict):
         value = [""]
     else:
         value = value if isinstance(value, list) else value.split(",")
+        if op == ADVANCED_OP_MAP.get(origin_operator, {}).get("operator", "contains") and origin_operator == "=~":
+            for index, item in enumerate(value):
+                if item.startswith("*"):
+                    item = item[1:]
+                if item.endswith("*"):
+                    item = item[:-1]
+                value[index] = item
 
     if condition == "or":
         field_list = [{"field_name": field, "op": op, "value": value, "is_wildcard": is_wildcard}]
