@@ -2300,23 +2300,24 @@ class TimeSeriesMetric(models.Model):
                 # 准备更新
                 metrics_to_update.append((metric, metric_data_copy))
 
+        scopes_dict = {scope.id: scope for scope in TimeSeriesScope.objects.filter(group_id=group_id)}
+
         # 批量创建新指标
         if metrics_to_create:
-            cls._batch_create_metrics(metrics_to_create, group_id, table_id)
+            cls._batch_create_metrics(metrics_to_create, group_id, table_id, scopes_dict)
 
         # 批量更新现有指标
         if metrics_to_update:
-            cls._batch_update_metrics(metrics_to_update)
+            cls._batch_update_metrics(metrics_to_update, scopes_dict)
 
     @classmethod
-    def _batch_create_metrics(cls, metrics_to_create, group_id, table_id):
-        """批量创建新的时序指标"""
+    def _batch_create_metrics(cls, metrics_to_create, group_id, table_id, scopes_dict):
         # 检查字段名称冲突
         cls._validate_field_name_conflicts(metrics_to_create, group_id)
 
         # 准备批量创建的数据
         records_to_create = []
-        scope_moves = defaultdict(list)  # {scope: [metric_objects]}  收集需要移动到scope的指标对象
+        scope_moves = defaultdict(list)
 
         for metric_data in metrics_to_create:
             tag_list = metric_data.get("tag_list") or []
@@ -2340,11 +2341,11 @@ class TimeSeriesMetric(models.Model):
             )
             records_to_create.append(metric_obj)
 
-            # todo hhh 批量_get_or_create_scope
             scope_id = metric_data.get("scope_id")
-            scope = TimeSeriesScope.objects.filter(id=scope_id, group_id=group_id).first()
+            scope = scopes_dict.get(scope_id)
             if scope is None:
                 raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
+            scope_moves[scope].append(metric_obj)
             scope_moves[scope].append(metric_obj)
 
         # 批量创建
@@ -2357,8 +2358,7 @@ class TimeSeriesMetric(models.Model):
         TimeSeriesScope.update_dimension_config_from_moved_metrics(scope_moves=scope_moves_dict)
 
     @classmethod
-    def _batch_update_metrics(cls, metrics_to_update):
-        """批量更新现有的时序指标，不支持 tag_list 的更新"""
+    def _batch_update_metrics(cls, metrics_to_update, scopes_dict):
         updatable_fields = ["field_config", "label"]
         records_to_update = []
         scope_moves = defaultdict(
@@ -2376,8 +2376,7 @@ class TimeSeriesMetric(models.Model):
             scope_id = validated_request_data.get("scope_id")
             new_scope = None
             if scope_id is not None:
-                # 通过scope_id获取scope
-                new_scope = TimeSeriesScope.objects.filter(id=scope_id, group_id=metric.group_id).first()
+                new_scope = scopes_dict.get(scope_id)
                 if new_scope is None:
                     raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
 
@@ -2386,9 +2385,8 @@ class TimeSeriesMetric(models.Model):
                 move_key = (new_scope.id, metric.scope_id)
                 scope_moves[move_key]["new_scope"] = new_scope
                 scope_moves[move_key]["metrics"].append(metric)
-                # 获取源分组对象
                 if metric.scope_id and not scope_moves[move_key]["source_scope"]:
-                    source_scope = TimeSeriesScope.objects.filter(id=metric.scope_id, group_id=metric.group_id).first()
+                    source_scope = scopes_dict.get(metric.scope_id)
                     scope_moves[move_key]["source_scope"] = source_scope
 
         # 批量更新所有指标的字段
