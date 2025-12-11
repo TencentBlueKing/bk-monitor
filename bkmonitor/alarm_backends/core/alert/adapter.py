@@ -241,10 +241,10 @@ class MonitorEventAdapter:
                 bk_obj_id = data_dimensions.pop("bk_obj_id")
                 bk_inst_id = data_dimensions.pop("bk_inst_id")
                 return EventTargetType.TOPO, f"{bk_obj_id}|{bk_inst_id}", data_dimensions
-            # elif "bcs_cluster_id" in data_dimensions:
-            # 容器场景目标解析
-            # K8S-POD, K8S-NODE, K8S-SERVICE, K8S-WORKLOAD
-            # return cls.get_k8s_target(data_dimensions, strategy["bk_biz_id"])
+            elif "bcs_cluster_id" in data_dimensions:
+                # 容器场景目标解析
+                # K8S-POD, K8S-NODE, K8S-SERVICE, K8S-WORKLOAD
+                return cls.get_k8s_target(data_dimensions, strategy["bk_biz_id"])
 
         except KeyError:
             return EventTargetType.EMPTY, None, data_dimensions
