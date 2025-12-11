@@ -114,7 +114,7 @@ class TimeSeriesGroup(CustomGroupBase):
     FIELD_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_]+$")
 
     @classmethod
-    def from_group_key(cls, group_key: str, metric_group_dimensions: dict | None = None) -> str:
+    def get_scope_name_from_group_key(cls, group_key: str, metric_group_dimensions: dict | None = None) -> str:
         """
         从 group_key 转换为 field_scope 字符串（仅用于 get_metric_from_bkdata）
 
@@ -174,7 +174,7 @@ class TimeSeriesGroup(CustomGroupBase):
                 return is_default, default_scope_name
 
         # 基于 scope_name 推断（向后兼容）
-        prefix = TimeSeriesScope.get_prefix(scope_name)
+        prefix = TimeSeriesScope.get_scope_name_prefix(scope_name)
         default_scope_name = f"{prefix}||{default_name}" if prefix else default_name
         is_default = scope_name.endswith(f"||{default_name}") if prefix else False
 
@@ -599,7 +599,9 @@ class TimeSeriesGroup(CustomGroupBase):
 
                     item = {
                         "field_name": md["name"],
-                        "field_scope": TimeSeriesGroup.from_group_key(group_key, self.metric_group_dimensions),
+                        "field_scope": TimeSeriesGroup.get_scope_name_from_group_key(
+                            group_key, self.metric_group_dimensions
+                        ),
                         "last_modify_time": latest_update_time // 1000,
                         "tag_value_list": tag_value_list,
                     }
@@ -1147,7 +1149,7 @@ class TimeSeriesScope(models.Model):
         )
 
     @classmethod
-    def get_prefix(cls, scope_name: str) -> str:
+    def get_scope_name_prefix(cls, scope_name: str) -> str:
         if not scope_name:
             return ""
 
@@ -1228,7 +1230,7 @@ class TimeSeriesScope(models.Model):
         field_scope: str,
         existing_metric_scope_map: dict,
         scope_name_to_obj: dict,
-        auto_scopes_by_prefix: dict,
+        prefix_to_obj: dict,
         metric_group_dimensions: dict | None = None,
     ) -> int:
         # 先检查是否是已有指标（更新场景）
@@ -1241,8 +1243,8 @@ class TimeSeriesScope(models.Model):
         is_default, _ = TimeSeriesGroup.get_default_scope_info(field_scope, metric_group_dimensions)
         if is_default:
             # 默认分组：尝试匹配 auto_rules
-            prefix = cls.get_prefix(field_scope)
-            for scope in auto_scopes_by_prefix.get(prefix, []):
+            prefix = cls.get_scope_name_prefix(field_scope)
+            for scope in prefix_to_obj.get(prefix, []):
                 if cls._match_scope_by_auto_rules(scope, field_name):
                     return scope.id
             # 未匹配则使用默认分组 scope
@@ -1263,11 +1265,11 @@ class TimeSeriesScope(models.Model):
         scope_name_to_obj = {scope.scope_name: scope for scope in all_scopes}
 
         # 按前缀分组并排序（用于 auto_rules 匹配）
-        auto_scopes_by_prefix = defaultdict(list)
+        prefix_to_obj = defaultdict(list)
         for scope in all_scopes:
-            prefix = cls.get_prefix(scope.scope_name)
-            auto_scopes_by_prefix[prefix].append(scope)
-        for scopes in auto_scopes_by_prefix.values():
+            prefix = cls.get_scope_name_prefix(scope.scope_name)
+            prefix_to_obj[prefix].append(scope)
+        for scopes in prefix_to_obj.values():
             scopes.sort(key=lambda x: x.last_modify_time, reverse=True)
 
         # 查询已有指标的 scope_id（用于更新场景）
@@ -1305,7 +1307,7 @@ class TimeSeriesScope(models.Model):
                 field_scope,
                 existing_metric_scope_map,
                 scope_name_to_obj,
-                auto_scopes_by_prefix,
+                prefix_to_obj,
                 metric_group_dimensions,
             )
             scope_id_to_metrics[scope_id].append(metric_info)
@@ -1910,10 +1912,8 @@ class TimeSeriesMetric(models.Model):
                 "table_id": f"{table_id.split('.')[0]}.{field_name}",
                 "tag_list": tag_list,
                 "field_scope": field_scope,
+                "scope_id": metric_to_scope_id.get((field_name, field_scope)),
             }
-            # 设置 scope_id（如果存在）
-            if scope_id := metric_to_scope_id.get((field_name, field_scope)):
-                params["scope_id"] = scope_id
             logger.info("create ts metric data: %s", json.dumps(params))
             records.append(cls(**params))
 
