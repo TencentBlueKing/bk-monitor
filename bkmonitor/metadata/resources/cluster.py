@@ -238,10 +238,11 @@ class ModifyClusterInfoResource(Resource):
             raise ValueError(_("找到多个符合条件的集群配置，可能是不同类型的集群名相同，请提供集群类型后重试"))
 
         # 如果集群名不符合规范，则抛出异常
+        if not cluster_info.display_name:
+            cluster_info.display_name = cluster_info.cluster_name
+
         if not re.match(models.ClusterInfo.CLUSTER_NAME_REGEX, cluster_info.cluster_name):
             cluster_name = f"auto_cluster_name_{cluster_info.cluster_id}"
-            if not cluster_info.display_name:
-                cluster_info.display_name = cluster_name
             cluster_info.cluster_name = cluster_name
             logger.warning(
                 f"cluster({cluster_info.cluster_id}) cluster_name: {cluster_info.cluster_name} is not valid, set to: {cluster_name}"
