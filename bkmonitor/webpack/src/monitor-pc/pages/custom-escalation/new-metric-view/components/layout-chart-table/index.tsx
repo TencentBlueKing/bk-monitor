@@ -34,15 +34,15 @@ import CollectionDialog from 'monitor-pc/pages/data-retrieval/components/collect
 // import ViewDetail from 'monitor-pc/pages/view-detail/view-detail-new';
 import { downFile } from 'monitor-ui/chart-plugins/utils';
 
-import CheckViewDetail from '../components/check-view';
-import DrillAnalysisView from './drill-analysis-view';
-import NewMetricChart from './metric-chart';
+import CheckViewDetail from '../check-view';
+import DrillAnalysisView from '../drill-analysis';
+import NewMetricChart from '../metric-chart';
 
-import type { IMetricAnalysisConfig } from '../type';
+import type { IMetricAnalysisConfig } from '../../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { ILegendItem, IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import './layout-chart-table.scss';
+import './index.scss';
 interface IDragInfo {
   height: number;
   maxHeight: number;
@@ -246,7 +246,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
    * @description: 查看大图
    * @param {boolean} loading
    */
-  handleFullScreen(config: IPanelModel, compareValue?: any) {
+  handleFullScreen(config: IPanelModel, compareValue?) {
     this.showViewDetail = true;
     let newFilterOption = deepClone(this.filterOption);
     if (this.filterOption.compare) {
@@ -299,7 +299,7 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
       .catch(() => {});
   }
 
-  isNullOrUndefined(value: any) {
+  isNullOrUndefined(value: null | string) {
     return value === undefined || value === null ? '--' : value;
   }
   /** 点击表格的图例，与图表联动 */

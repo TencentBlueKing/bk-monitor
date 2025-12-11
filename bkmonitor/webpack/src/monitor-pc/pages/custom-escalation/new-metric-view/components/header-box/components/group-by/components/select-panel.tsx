@@ -50,7 +50,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   @Prop({ type: Array, required: true }) readonly data: IProps['data'];
   @Prop({ type: Boolean, default: false }) readonly splitable: IProps['splitable'];
 
-  @Ref('popoverRef') popoverRef: any;
+  @Ref('popoverRef') popoverRef: HTMLDivElement;
 
   checkedMap: Readonly<Record<string, boolean>> = {};
   renderData: Readonly<IProps['data']> = [];
@@ -72,7 +72,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
     if (this.isSelectDisabled) {
       return;
     }
-    this.popoverRef.showHandler();
+    this.popoverRef?.showHandler();
     this.renderData = Object.freeze(this.data);
     this.checkedMap = Object.freeze(
       this.value.reduce((result, item) => Object.assign(result, { [item.field]: item.split }), {})

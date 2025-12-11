@@ -55,7 +55,7 @@ const renderFunction = (str: string) =>
 export default class LimitFunction extends tsc<IProps, IEmit> {
   @Prop({ type: Object, default: genDefaultValue }) readonly value: IProps['value'];
 
-  @Ref('popoverRef') popoverRef: any;
+  @Ref('popoverRef') popoverRef: HTMLDivElement;
 
   localFunction = '';
 
@@ -72,7 +72,7 @@ export default class LimitFunction extends tsc<IProps, IEmit> {
       function: this.localFunction,
       limit: Number(this.value.limit),
     });
-    this.popoverRef.hideHandler();
+    this.popoverRef?.hideHandler();
   }
 
   handleLimitChange(value: number) {

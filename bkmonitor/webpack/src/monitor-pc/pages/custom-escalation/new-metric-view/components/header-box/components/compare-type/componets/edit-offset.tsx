@@ -49,7 +49,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
   @Prop({ type: Boolean, required: true }) readonly offsetSingle: IProps['offsetSingle'];
 
   @Ref('rooRef') rootRef: HTMLElement;
-  @Ref('popoverRef') popoverRef: any;
+  @Ref('popoverRef') popoverRef: HTMLElement;
   @Ref('popoverMenuRef') popoverMenuRef: HTMLElement;
 
   offsetList = Object.freeze([
@@ -100,7 +100,7 @@ export default class CompareWay extends tsc<IProps, IEmit> {
     }
   }
 
-  disabledDateMethod(value: any) {
+  disabledDateMethod(value) {
     const [, endTime] = this.timeRangTimestamp;
     if (Dayjs(value).isAfter(Dayjs.unix(endTime))) {
       return true;

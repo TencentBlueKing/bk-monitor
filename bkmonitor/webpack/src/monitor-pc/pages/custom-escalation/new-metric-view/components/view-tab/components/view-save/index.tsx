@@ -52,9 +52,9 @@ export default class ViewSave extends tsc<IProps, IEmit> {
   @Prop({ type: String, required: true }) readonly viewId: IProps['viewId'];
   @Prop({ type: Array, required: true }) readonly viewList: IProps['viewList'];
 
-  @Ref('popoverRef') readonly popoverRef: any;
-  @Ref('createFormRef') readonly createFormRef: any;
-  @Ref('inputRef') readonly inputRef: any;
+  @Ref('popoverRef') readonly popoverRef;
+  @Ref('createFormRef') readonly createFormRef;
+  @Ref('inputRef') readonly inputRef;
 
   isCreateSubmiting = false;
   isActive = false;

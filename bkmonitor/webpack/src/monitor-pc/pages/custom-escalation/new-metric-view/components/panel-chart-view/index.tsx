@@ -27,21 +27,21 @@ import { Component, InjectReactive, Prop, ProvideReactive, Watch } from 'vue-pro
 import { Component as tsc } from 'vue-tsx-support';
 
 import { connect, disconnect } from 'echarts/core';
-import { getCustomTsGraphConfig } from '../../service';
 import { Debounce, random } from 'monitor-common/utils';
 import { deepClone } from 'monitor-common/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
-import LayoutChartTable from './layout-chart-table';
-import { chunkArray } from './utils';
+import { getCustomTsGraphConfig } from '../../../service';
+import { chunkArray } from '../../metric-chart-view/utils';
+import LayoutChartTable from '../layout-chart-table';
 
-import type { IMetricAnalysisConfig } from '../type';
+import type { IMetricAnalysisConfig } from '../../type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import './panel-chart-view.scss';
+import './index.scss';
 
 /** 图表 + 表格列表，支持拉伸 */
 const DEFAULT_HEIGHT = 600;
@@ -174,8 +174,8 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       metrics: this.config.metrics.map(item => ({
         ...item,
         scope_name: item.scope_name === '未分组' ? '' : item.scope_name, // 未分组传空
-      }))
-    }
+      })),
+    };
     const params = {
       ...config,
       time_series_group_id: Number(this.$route.params.id),

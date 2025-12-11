@@ -52,8 +52,8 @@ export default class CompareType extends tsc<IProps, IEmit> {
   @Prop({ type: Array, default: () => [] }) readonly exclude: IProps['exclude'];
   @Prop({ type: Boolean, default: false }) readonly offsetSingle: IProps['offsetSingle'];
 
-  @Ref('popoverRef') popoverRef: any;
-  @Ref('offsetRef') offsetRef: any;
+  @Ref('popoverRef') popoverRef: HTMLDivElement;
+  @Ref('offsetRef') offsetRef: HTMLDivElement;
 
   typeList = Object.freeze([
     {

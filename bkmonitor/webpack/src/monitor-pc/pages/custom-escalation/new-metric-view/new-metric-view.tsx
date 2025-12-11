@@ -28,15 +28,16 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import DashboardTools from 'monitor-pc/pages/monitor-k8s/components/dashboard-tools';
 
+import { getCustomTsMetricGroups } from '../service';
 import HeaderBox from './components/header-box/index';
 import MetricsSelect from './components/metrics-select/index';
 import PageHeadr from './components/page-header/index';
+import PanelChartView from './components/panel-chart-view';
 import ViewColumn from './components/view-column/index';
 import ViewTab from './components/view-tab/index';
-import PanelChartView from './metric-chart-view/panel-chart-view';
-import { getCustomTsMetricGroups } from '../service';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
+import type { IDimensionParams, IMetrics } from './type';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
 
 import './new-metric-view.scss';
@@ -44,7 +45,7 @@ import './new-metric-view.scss';
 @Component
 export default class NewMetricView extends tsc<object> {
   currentView = 'default';
-  dimenstionParams: Record<string, any> = {};
+  dimenstionParams: IDimensionParams | null = null;
   showStatisticalValue = false;
   isCustomTsMetricGroupsLoading = true;
   viewColumn = 2;
@@ -122,7 +123,7 @@ export default class NewMetricView extends tsc<object> {
         name: item.metric_name,
         scope_name: item.scope_name,
       };
-    })
+    });
   }
 
   get graphConfigParams() {
@@ -162,6 +163,7 @@ export default class NewMetricView extends tsc<object> {
     try {
       const result = await getCustomTsMetricGroups({
         time_series_group_id: this.timeSeriesGroupId,
+        // is_mock: true,
       });
       customEscalationViewStore.updateMetricGroupList(result.metric_groups);
       if (!needParseUrl) {
@@ -169,7 +171,7 @@ export default class NewMetricView extends tsc<object> {
         const defaultSelectedData = {
           groupName: metricGroup[0].name || '',
           metricsName: [metricGroup[0]?.metrics[0]?.metric_name || ''],
-        }
+        };
         customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(
           metricGroup.length > 0 && metricGroup[0].metrics.length > 0 ? [defaultSelectedData] : []
         );
@@ -188,12 +190,12 @@ export default class NewMetricView extends tsc<object> {
     this.dimenstionParams = Object.freeze({ ...this.dimenstionParams });
   }
 
-  handleDimensionParamsChange(payload: any) {
+  handleDimensionParamsChange(payload: IDimensionParams) {
     this.dimenstionParams = Object.freeze(payload);
   }
 
   handleMetricsSelectReset() {
-    this.dimenstionParams = {};
+    this.dimenstionParams = null;
   }
   handleRefreshChange(value: number) {
     this.refreshInterval = value;

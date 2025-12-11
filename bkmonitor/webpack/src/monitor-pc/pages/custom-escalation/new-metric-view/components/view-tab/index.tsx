@@ -64,7 +64,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
 
   @Model('change', { type: String, default: DEFAULT_VALUE }) readonly value: string;
 
-  @Ref('tabRef') readonly tabRef: any;
+  @Ref('tabRef') readonly tabRef;
 
   isNeedParseUrl = true;
   isTabListInit = false; // bk-tab 组件默认传入active时，并且bk-tab-panel异步加载因为组件内部有正确性校验会改变 active 的值

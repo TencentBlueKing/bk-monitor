@@ -48,9 +48,9 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
   @Prop({ type: Object, required: true }) readonly data: IProps['data'];
   @Prop({ type: Boolean, default: false }) readonly checked: IProps['checked'];
 
-  @Ref('fromRef') fromRef: any;
-  @Ref('popoverRef') popoverRef: any;
-  @Ref('inputRef') inputRef: any;
+  @Ref('fromRef') fromRef;
+  @Ref('popoverRef') popoverRef;
+  @Ref('inputRef') inputRef;
 
   isActive = false;
   isSubmiting = false;

@@ -40,7 +40,7 @@ interface IProps {
 export default class RemoveConfirm extends tsc<IProps, IEmit> {
   @Prop({ type: Object, required: true }) readonly data: IProps['data'];
 
-  @Ref('popoverRef') readonly popoverRef: any;
+  @Ref('popoverRef') readonly popoverRef;
 
   isActive = false;
 

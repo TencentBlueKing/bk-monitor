@@ -41,6 +41,7 @@ import './index.scss';
 interface IEmit {
   onChange: (value: {
     common_conditions: {
+      alias: string;
       key: string;
       method: string;
       value: string[];

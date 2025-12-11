@@ -81,12 +81,12 @@ export function getNumberAndUnit(str) {
 }
 
 // 设置x轴label formatter方法
-export function handleSetFormatterFunc(seriesData: any, onlyBeginEnd = false) {
+export function handleSetFormatterFunc(seriesData, onlyBeginEnd = false) {
   let formatterFunc = null;
   const [firstItem] = seriesData;
   const lastItem = seriesData[seriesData.length - 1];
   const val = new Date('2010-01-01').getTime();
-  const getXVal = (timeVal: any) => {
+  const getXVal = timeVal => {
     if (!timeVal) return timeVal;
     return timeVal[0] > val ? timeVal[0] : timeVal[1];
   };
@@ -95,7 +95,7 @@ export function handleSetFormatterFunc(seriesData: any, onlyBeginEnd = false) {
   minX &&
     maxX &&
     // biome-ignore lint/suspicious/noAssignInExpressions: <explanation>
-    (formatterFunc = (v: any) => {
+    (formatterFunc = v => {
       const duration = Math.abs(dayjs.tz(maxX).diff(dayjs.tz(minX), 'second'));
       if (onlyBeginEnd && v > minX && v < maxX) {
         return '';

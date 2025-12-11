@@ -35,12 +35,12 @@ import { timeOffsetDateFormat } from 'monitor-pc/pages/monitor-k8s/components/gr
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue';
 
-import { typeEnums } from '../../metric-chart-view/utils';
+import { typeEnums } from '../../../../metric-chart-view/utils';
 
 import type { IColumnItem, IDataItem } from 'monitor-pc/pages/custom-escalation/new-metric-view/type';
 import type { ILegendItem } from 'monitor-ui/chart-plugins/typings';
 
-import './check-view-table.scss';
+import './index.scss';
 import 'tdesign-vue/es/style/index.css';
 
 interface IFooterData {
@@ -248,7 +248,7 @@ export default class CheckViewTable extends tsc<object, object> {
   generateSimpleCompareColumns(columns: IColumnItem[]): IColumnItem[] {
     const firstColumn = columns[0] || { items: [] };
     this.handleAddCol(firstColumn);
-    return firstColumn.items.map((ele: any) => ({
+    return firstColumn.items.map(ele => ({
       ...ele,
       ...this.baseColumnConfig,
       label: this.formatTimeOffset(ele.timeOffset),
@@ -257,7 +257,7 @@ export default class CheckViewTable extends tsc<object, object> {
   }
 
   generateDimensionCompareColumns(columns: IColumnItem[]): IColumnItem[] {
-    return columns.map((item: any, index: number) => {
+    return columns.map((item: IColumnItem, index: number) => {
       const title = this.handleProp(item) || '';
       const baseConfig = {
         ...item,
@@ -281,7 +281,7 @@ export default class CheckViewTable extends tsc<object, object> {
 
   generateMergeTableChildren(item: IColumnItem, parentIndex: number, parentKey: string): IColumnItem[] {
     this.handleAddCol(item);
-    const children = item.items.map((ele: any, ind: number) => ({
+    const children = item.items.map((ele: IDataItem, ind: number) => ({
       ...ele,
       ...this.baseColumnConfig,
       label: this.formatTimeOffset(ele.timeOffset),
@@ -304,7 +304,7 @@ export default class CheckViewTable extends tsc<object, object> {
       return '--';
     }
     const unitFormatter = getValueFormat(unit);
-    const set: any = unitFormatter(row[prop], 2);
+    const set = unitFormatter(row[prop], 2);
     return (
       <span>
         {set.text} {set.suffix}
@@ -312,18 +312,18 @@ export default class CheckViewTable extends tsc<object, object> {
     );
   }
 
-  renderCol(h: CreateElement, { row, col }: { col: IColumnItem; row: IDataItem }): JSX.Element {
+  renderCol(_h: CreateElement, { row, col }: { col: IColumnItem; row: IDataItem }): JSX.Element {
     return <span>{this.renderValue(row, col.colKey, row.unit)}</span>;
   }
 
-  renderFluctuationCol(h: CreateElement, { row, col }: { col: IColumnItem; row: IDataItem }): JSX.Element {
+  renderFluctuationCol(_h: CreateElement, { row, col }: { col: IColumnItem; row: IDataItem }): JSX.Element {
     const data = row[col.colKey];
     const isFix = data !== '--' && data !== 0 && data !== undefined;
     const color = data >= 0 ? '#3AB669' : '#E91414';
     return <span style={{ color: isFix ? color : '#313238' }}>{isFix ? `${data.toFixed(2)}%` : '--'}</span>;
   }
 
-  renderColorHead(h: CreateElement, { col }: { col: IColumnItem }): JSX.Element {
+  renderColorHead(_h: CreateElement, { col }: { col: IColumnItem }): JSX.Element {
     return (
       <span
         class={[
@@ -366,7 +366,7 @@ export default class CheckViewTable extends tsc<object, object> {
     return dimensions.length > 0 ? dimensions.join(' | ') : item.target;
   }
 
-  classifyData(data: ILegendItem[]): any[] {
+  classifyData(data: ILegendItem[]) {
     const byDimensions = new Map<string, any[]>();
     // biome-ignore lint/complexity/noForEach: <explanation>
     data.forEach(item => {
@@ -392,7 +392,7 @@ export default class CheckViewTable extends tsc<object, object> {
       this.worker.terminate();
     }
 
-    this.worker = new Worker(new URL('./tableDataWorker.ts', import.meta.url));
+    this.worker = new Worker(new URL('../tableDataWorker/index.ts', import.meta.url));
 
     this.worker.onmessage = e => {
       const { tableData, footerDataList, origin } = e.data;
@@ -415,7 +415,7 @@ export default class CheckViewTable extends tsc<object, object> {
     });
   }
 
-  renderFooter(h: CreateElement, { col, row }: { col: IColumnItem; row: IDataItem }): JSX.Element {
+  renderFooter(_h: CreateElement, { col, row }: { col: IColumnItem; row: IDataItem }): JSX.Element {
     return (
       <span class='num-cell'>
         {row[col.colKey]}
@@ -424,7 +424,7 @@ export default class CheckViewTable extends tsc<object, object> {
     );
   }
 
-  renderTipsContent(item: IColumnItem): any {
+  renderTipsContent(item: IColumnItem) {
     let name = item.name;
     if (this.isMergeTable && item.items) {
       name = item.items[0]?.name || '';

@@ -57,10 +57,10 @@ import {
   handleSetFormatterFunc,
   handleYAxisLabelFormatter,
   timeToDayNum,
-} from './utils';
+} from '../utils';
 import customEscalationViewStore from '@store/modules/custom-escalation-view';
 
-import type { IMetricAnalysisConfig } from '../type';
+import type { IMetricAnalysisConfig } from '../../type';
 import type { IChartTitleMenuEvents } from 'monitor-ui/chart-plugins/components/chart-title/chart-title-menu';
 import type {
   DataQuery,
@@ -108,7 +108,7 @@ class NewMetricChart extends CommonSimpleChart {
   @InjectReactive('filterOption') readonly filterOption!: IMetricAnalysisConfig;
   // 框选事件范围后需应用到所有图表(包含三个数据 框选方法 是否展示复位  复位方法)
   @Inject({ from: 'enableSelectionRestoreAll', default: false }) readonly enableSelectionRestoreAll: boolean;
-  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: any) => void;
+  @Inject({ from: 'handleChartDataZoom', default: () => null }) readonly handleChartDataZoom: (value: string[]) => void;
   @Inject({ from: 'handleRestoreEvent', default: () => null }) readonly handleRestoreEvent: () => void;
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   @InjectReactive({ from: 'containerScrollTop', default: 0 }) readonly containerScrollTop: number;
@@ -276,11 +276,11 @@ class NewMetricChart extends CommonSimpleChart {
       // 动态单位转换
       const unitFormatter = !['', 'none', undefined, null].includes(item.unit)
         ? getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : '')
-        : (v: any) => ({ text: v });
+        : v => ({ text: v });
       let hasValueLength = 0;
       let latestVal = 0;
       let latestInd = 0;
-      const data = (item.data || []).map((seriesItem: any, seriesIndex: number) => {
+      const data = (item.data || []).map((seriesItem: number[], seriesIndex: number) => {
         if (seriesItem?.length && typeof seriesItem[1] === 'number') {
           // 当前点数据
           const pre = item.data[seriesIndex - 1] as [number, number];
@@ -333,7 +333,7 @@ class NewMetricChart extends CommonSimpleChart {
 
       // 获取y轴上可设置的最小的精确度
       const precision = handleGetMinPrecision(
-        item.data.filter((set: any) => typeof set[1] === 'number').map((set: any[]) => set[1]),
+        item.data.filter(set => typeof set[1] === 'number').map(set => set[1]),
         getValueFormat(this.yAxisNeedUnitGetter ? item.unit || '' : ''),
         item.unit
       );
@@ -342,7 +342,7 @@ class NewMetricChart extends CommonSimpleChart {
           if (['min', 'max', 'avg', 'total', 'latest'].includes(key)) {
             const val = legendItem[key];
             legendItem[`${key}Source`] = val;
-            const set: any = unitFormatter(val, item.unit !== 'none' && precision < 1 ? 2 : 2);
+            const set = unitFormatter(val, item.unit !== 'none' && precision < 1 ? 2 : 2);
             legendItem[key] = set.text + (set.suffix || '');
           }
         }
@@ -557,7 +557,7 @@ class NewMetricChart extends CommonSimpleChart {
             name: item.name,
             cursor: 'auto',
             // biome-ignore lint/style/noCommaOperator: <explanation>
-            data: item.datapoints.reduce((pre: any, cur: any) => (pre.push(cur.reverse()), pre), []),
+            data: item.datapoints.reduce((pre, cur) => (pre.push(cur.reverse()), pre), []),
             stack: item.stack || random(10),
             unit: this.panel.options?.unit || item.unit,
             z: 1,
@@ -566,10 +566,10 @@ class NewMetricChart extends CommonSimpleChart {
             timeOffset: item.time_offset ?? '',
           })) as any
         );
-        seriesList = seriesList.map((item: any) => ({
+        seriesList = seriesList.map(item => ({
           ...item,
           minBase: this.minBase,
-          data: item.data.map((set: any) => {
+          data: item.data.map(set => {
             if (set?.length) {
               return [set[0], set[1] !== null ? set[1] + this.minBase : null];
             }
@@ -621,8 +621,8 @@ class NewMetricChart extends CommonSimpleChart {
             animationThreshold: 1,
             yAxis: {
               axisLabel: {
-                formatter: seriesList.every((item: any) => item.unit === seriesList[0].unit)
-                  ? (v: any) => {
+                formatter: seriesList.every(item => item.unit === seriesList[0].unit)
+                  ? v => {
                       if (seriesList[0].unit !== 'none') {
                         const obj = getValueFormat(seriesList[0].unit)(v, seriesList[0].precision);
                         return this.removeTrailingZeros(obj.text) + (this.yAxisNeedUnitGetter ? obj.suffix : '');

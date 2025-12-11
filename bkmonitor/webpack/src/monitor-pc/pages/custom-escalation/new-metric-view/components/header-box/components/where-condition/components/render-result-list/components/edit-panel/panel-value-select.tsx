@@ -52,7 +52,7 @@ export default class PanelValueSelect extends tsc<IProps, IEmit> {
   @Prop({ type: String }) readonly method: IProps['method'];
   @Prop({ type: Array }) readonly value: IProps['value'];
 
-  @Ref('valueTagInputRef') readonly valueTagInputRef: any;
+  @Ref('valueTagInputRef') readonly valueTagInputRef: HTMLDivElement;
 
   methodList = Object.freeze(
     Object.keys(methodMap).map(key => ({

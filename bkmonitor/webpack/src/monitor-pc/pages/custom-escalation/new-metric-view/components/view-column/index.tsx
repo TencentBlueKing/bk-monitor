@@ -36,7 +36,7 @@ interface IEmit {
 export default class ViewColumn extends tsc<object, IEmit> {
   @Model('change', { type: Number, default: 1 }) readonly value: number;
 
-  @Ref('popoverRef') readonly popoverRef: any;
+  @Ref('popoverRef') readonly popoverRef: HTMLDivElement;
 
   localValue = 1;
 

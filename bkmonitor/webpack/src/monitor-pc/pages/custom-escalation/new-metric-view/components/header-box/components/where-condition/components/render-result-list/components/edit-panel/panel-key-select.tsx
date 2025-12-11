@@ -50,7 +50,7 @@ export default class PanelKeySelect extends tsc<IProps, IEmit> {
 
   @Ref('rootRef') rootRef: HTMLDivElement;
   @Ref('wrapperRef') wrapperRef: HTMLDivElement;
-  @Ref('inputRef') inputRef: any;
+  @Ref('inputRef') inputRef: HTMLInputElement;
 
   isFocused = false;
   activeIndex = -1;

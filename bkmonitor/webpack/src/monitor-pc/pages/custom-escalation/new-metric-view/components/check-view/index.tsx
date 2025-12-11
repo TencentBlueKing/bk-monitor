@@ -32,10 +32,10 @@ import TimeRange, { type TimeRangeType } from 'monitor-pc/components/time-range/
 import { getTimeDisplay } from 'monitor-pc/components/time-range/utils';
 import { updateTimezone } from 'monitor-pc/i18n/dayjs';
 
-import NewMetricChart from '../../metric-chart-view/metric-chart';
 import { refreshList } from '../../metric-chart-view/utils';
 import HeaderBox from '../header-box/index';
-import CheckViewTable from './check-view-table';
+import NewMetricChart from '../metric-chart';
+import CheckViewTable from './components/check-view-table';
 
 import type { IDimensionItem, IRefreshItem } from '../../type';
 import type { IMetricAnalysisConfig } from 'monitor-pc/pages/custom-escalation/new-metric-view/type';
@@ -205,7 +205,7 @@ export default class CheckViewDetail extends tsc<IDrillAnalysisViewProps, IDrill
     this.panelData = deepClone(this.panelData);
   }
   /** 修改过滤值的时候重置panel的数据 */
-  handleDimensionParamsChange(payload: any) {
+  handleDimensionParamsChange(payload: IDimensionItem) {
     const { group_by, common_conditions, limit, where, compare } = payload;
     const commonConditions = {};
     common_conditions.map(item => {

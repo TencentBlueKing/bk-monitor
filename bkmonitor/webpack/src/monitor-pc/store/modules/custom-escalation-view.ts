@@ -31,12 +31,12 @@ import store from '../store';
 
 import type { getCustomTsMetricGroups } from '../../pages/custom-escalation/new-metric-view/services/scene_view_new';
 
-type TCustomTsMetricGroups = ServiceReturnType<typeof getCustomTsMetricGroups>;
-
 interface GroupItem {
   groupName: string;
   metricsName: string[];
 }
+
+type TCustomTsMetricGroups = ServiceReturnType<typeof getCustomTsMetricGroups>;
 
 @Module({ name: 'customEscalationView', dynamic: true, namespaced: true, store })
 class CustomEscalationViewStore extends VuexModule {

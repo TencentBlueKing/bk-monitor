@@ -34,10 +34,12 @@ import LimitFunction from './components/limit-function';
 import IntervalCreator from './components/interval/index';
 import WhereCondition from './components/where-condition';
 
+import type { IDimensionParams } from '../../type';
+
 import './index.scss';
 
 interface IEmit {
-  onChange: (value: IResult) => void;
+  onChange: (value: IDimensionParams) => void;
 }
 
 interface IProps {
@@ -48,35 +50,7 @@ interface IProps {
   splitable?: boolean;
 }
 
-interface IResult {
-  metrics: string[];
-  common_conditions: {
-    key: string;
-    method: string;
-    value: string[];
-  }[];
-  compare: {
-    offset: string[];
-    type: string;
-  };
-  group_by: {
-    field: string;
-    split: boolean;
-  }[];
-  limit: {
-    function: 'bottom' | 'top';
-    limit: number;
-  };
-  where: {
-    condition: string;
-    key: string;
-    method: string;
-    value: string[];
-  }[];
-  interval: number | string;
-}
-
-export const createDefaultParams = (): IResult => ({
+export const createDefaultParams = (): IDimensionParams => ({
   metrics: [],
   where: [],
   common_conditions: [],
@@ -129,23 +103,26 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
     });
   }
 
-  handleConditionChange(payload: { common_conditions: IResult['common_conditions']; where: IResult['where'] }) {
+  handleConditionChange(payload: {
+    common_conditions: IDimensionParams['common_conditions'];
+    where: IDimensionParams['where'];
+  }) {
     this.params.where = payload.where;
     this.params.common_conditions = payload.common_conditions;
     this.triggerChange();
   }
 
-  handleGroupByChange(payload: IResult['group_by']) {
+  handleGroupByChange(payload: IDimensionParams['group_by']) {
     this.params.group_by = payload;
     this.triggerChange();
   }
 
-  handleLimitChange(payload: IResult['limit']) {
+  handleLimitChange(payload: IDimensionParams['limit']) {
     this.params.limit = payload;
     this.triggerChange();
   }
 
-  handleComparTypeChange(payload: IResult['compare']) {
+  handleComparTypeChange(payload: IDimensionParams['compare']) {
     this.params.compare = payload;
     this.triggerChange();
   }
@@ -155,7 +132,7 @@ export default class HeaderBox extends tsc<IProps, IEmit> {
   }
 
   // 改变配置周期时间
-  handleChangeInterval(payload: IResult['interval']) {
+  handleChangeInterval(payload: IDimensionParams['interval']) {
     this.params.interval = payload;
     this.triggerChange();
   }

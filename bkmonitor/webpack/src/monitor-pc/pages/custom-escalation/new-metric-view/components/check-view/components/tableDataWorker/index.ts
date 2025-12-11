@@ -91,7 +91,7 @@ const generateFooterDataList = (columns: IColumnItem[], isCompareNotDimensions: 
 // 表格主体数据处理
 const processTimeData = (
   data: IDataItem[],
-  timeData: any[],
+  timeData: IDataItem[],
   compare: string[],
   isCompareNotDimensions: boolean,
   isMergeTable: boolean

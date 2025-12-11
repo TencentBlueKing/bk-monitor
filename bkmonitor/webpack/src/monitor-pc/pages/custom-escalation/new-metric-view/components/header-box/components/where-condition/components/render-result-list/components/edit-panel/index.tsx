@@ -77,7 +77,7 @@ const genDefaultVallue = (payload: Partial<IProps['value']> = {}) => ({
 const isMacOs = /Mac OS X ([\d_]+)/.test(navigator.userAgent);
 
 let triggerHandler: HTMLElement;
-let instance: any;
+let instance: HTMLElement;
 
 @Component
 export default class ValueEditPanel extends tsc<IProps, IEmit> {

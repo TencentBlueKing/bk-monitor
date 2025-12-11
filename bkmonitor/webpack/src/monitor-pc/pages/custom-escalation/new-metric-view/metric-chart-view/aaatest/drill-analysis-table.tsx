@@ -51,7 +51,7 @@ interface IDrillAnalysisTableProps {
   dimensionsList?: IDimensionItem[];
   filterConfig?: IFilterConfig;
   loading?: boolean;
-  tableList?: any[];
+  tableList?: IDataItem[];
   tableLoading?: boolean;
 }
 
@@ -327,12 +327,12 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
       return '--';
     }
     const precision = handleGetMinPrecision(
-      this.tableList.map(item => item[prop]).filter((set: any) => typeof set === 'number'),
+      this.tableList.map(item => item[prop]).filter(set => typeof set === 'number'),
       getValueFormat(row.unit),
-      row.unit
+      row.unit,
     );
     const unitFormatter = getValueFormat(row.unit);
-    const set: any = unitFormatter(row[prop], row.unit !== 'none' && precision < 1 ? 2 : precision);
+    const set = unitFormatter(row[prop], row.unit !== 'none' && precision < 1 ? 2 : precision);
     return (
       <span>
         {set.text} {set.suffix}
@@ -340,7 +340,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
     );
   }
   /** 自定义表格头部渲染 */
-  renderHeader(h, { column }: any, item: any) {
+  renderHeader(h, { column }, item) {
     const tipsKey = ['1h', '1d', '7d', '30d'];
     const timeUnit = item.prop.split('_')[0];
     const hasEndFix = (fieldName: string) => {
@@ -429,7 +429,7 @@ export default class DrillAnalysisTable extends tsc<IDrillAnalysisTableProps, ID
           }}
           label={this.$t(item.label)}
           prop={item.prop}
-          renderHeader={(h, { column, $index }: any) => this.renderHeader(h, { column, $index }, item)}
+          renderHeader={(h, { column, $index }) => this.renderHeader(h, { column, $index }, item)}
           sortable={item.sortable}
         />
       );
