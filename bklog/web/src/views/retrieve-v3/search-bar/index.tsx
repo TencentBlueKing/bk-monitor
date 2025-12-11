@@ -327,7 +327,7 @@ export default defineComponent({
       RetrieveHelper.reportLog({
         ai_scenario: 'auto_complete',
         trigger_source: triggerSource,
-        action: 'enter',
+        action: 'request',
       }, store.state);
 
       RetrieveHelper.aiAssitantHelper
