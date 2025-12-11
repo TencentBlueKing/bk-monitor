@@ -41,7 +41,7 @@ class SiteCollector(BaseCollector):
         """PC端访问用户数"""
         for le_en, seconds in TIME_RANGE:
             extra_infos = self._get_extra_infos_by_visit_source(
-                VisitSource.PC, self.now.replace(seconds=-seconds).datetime
+                VisitSource.PC, self.now.shift(seconds=-seconds).datetime
             )
 
             for info in extra_infos:
@@ -59,7 +59,7 @@ class SiteCollector(BaseCollector):
         """移动端访问用户数"""
         for le_en, seconds in TIME_RANGE:
             extra_infos = self._get_extra_infos_by_visit_source(
-                VisitSource.MOBILE, self.now.replace(seconds=-seconds).datetime
+                VisitSource.MOBILE, self.now.shift(seconds=-seconds).datetime
             )
 
             for info in extra_infos:

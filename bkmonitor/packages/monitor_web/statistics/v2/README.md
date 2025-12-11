@@ -84,7 +84,7 @@ class AlertActionCollector(BaseCollector):
         告警通知数
         """
         for le_en, seconds in TIME_RANGE:
-            start_time = int(self.now.replace(seconds=-seconds).timestamp)
+            start_time = int(self.now.shift(seconds=-seconds).timestamp)
             search_object = (
                 ActionInstanceDocument.search(start_time=start_time, end_time=int(self.now.timestamp))
                 .filter("range", create_time={"gte": start_time, "lte": int(self.now.timestamp)})

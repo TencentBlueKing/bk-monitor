@@ -56,7 +56,7 @@ class AlertActionCollector(BaseCollector):
         告警通知数
         """
         for le_en, seconds in TIME_RANGE:
-            start_time = int(self.now.replace(seconds=-seconds).timestamp)
+            start_time = int(self.now.shift(seconds=-seconds).timestamp)
             search_object = (
                 ActionInstanceDocument.search(start_time=start_time, end_time=int(self.now.timestamp))
                 .filter("range", create_time={"gte": start_time, "lte": int(self.now.timestamp)})
@@ -90,7 +90,7 @@ class AlertActionCollector(BaseCollector):
         处理记录数
         """
         for le_en, seconds in TIME_RANGE:
-            start_time = int(self.now.replace(seconds=-seconds).timestamp)
+            start_time = int(self.now.shift(seconds=-seconds).timestamp)
             search_object = (
                 ActionInstanceDocument.search(start_time=start_time, end_time=int(self.now.timestamp))
                 .filter("range", create_time={"gte": start_time, "lte": int(self.now.timestamp)})
@@ -136,7 +136,7 @@ class AlertActionCollector(BaseCollector):
             strategy_mapping[strategy["id"]] = strategy
 
         for le_en, seconds in TIME_RANGE:
-            start_time = int(self.now.replace(seconds=-seconds).timestamp)
+            start_time = int(self.now.shift(seconds=-seconds).timestamp)
             end_time = int(self.now.timestamp)
             search_object = AlertDocument.search(all_indices=True).filter(
                 (Q("range", end_time={"gte": start_time}) | ~Q("exists", field="end_time"))

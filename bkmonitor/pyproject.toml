@@ -7,7 +7,7 @@ requires-python = "==3.11.*"
 dependencies = [
     "aidev-agent==1.0.3",
     "apigw-manager==4.0.4",
-    "arrow==0.6.0",
+    "arrow==1.2.3",
     "babel==2.14.0",
     "betterproto==2.0.0b7",
     "bk-audit==1.0.7",

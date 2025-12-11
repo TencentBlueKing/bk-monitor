@@ -239,7 +239,7 @@ class ShieldObj:
 
         # 判断依据：x 分钟后在屏蔽范围
         begin_time = self.get_now_datetime()
-        end_time = begin_time.replace(minutes=notice_time)
+        end_time = begin_time.shift(minutes=notice_time)
         is_time_match = self.time_check.is_match(end_time)
 
         if not is_time_match:
@@ -265,7 +265,7 @@ class ShieldObj:
 
         # 判断依据：x 分钟后不在屏蔽范围
         begin_time = self.get_now_datetime()
-        end_time = begin_time.replace(minutes=notice_time + 1)
+        end_time = begin_time.shift(minutes=notice_time + 1)
         is_time_match = not self.time_check.is_match(end_time)
 
         if not is_time_match:

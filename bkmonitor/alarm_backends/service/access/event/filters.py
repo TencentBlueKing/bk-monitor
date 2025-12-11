@@ -58,7 +58,7 @@ class ExpireFilter(Filter):
     def filter(self, event_record):
         utctime = event_record.event_time
         # 丢弃超过半个小时的告警
-        if arrow.utcnow().timestamp - arrow.get(utctime).timestamp > 30 * constants.CONST_MINUTES:
+        if arrow.utcnow().int_timestamp - arrow.get(utctime).int_timestamp > 30 * constants.CONST_MINUTES:
             logger.info("Discard the alarm (%s) because " "it takes more than 30 minutes" % event_record.raw_data)
             return True
         else:
