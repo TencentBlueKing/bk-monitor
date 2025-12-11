@@ -133,8 +133,7 @@ class TimeSeriesGroup(CustomGroupBase):
         for part in group_key.split("||"):
             if ":" in part:
                 key, value = part.split(":", 1)
-                if value.strip():
-                    key_value_map[key.strip()] = value.strip()
+                key_value_map[key.strip()] = value.strip()
 
         # 按 index 排序，提取值并拼接
         sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
