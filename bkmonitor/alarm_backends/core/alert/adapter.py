@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import time as time_mod
+from typing import Any
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -21,7 +22,8 @@ from alarm_backends.core.control.record_parser import EventIDParser
 from alarm_backends.core.storage.kafka import KafkaQueue
 from bkmonitor.models import NO_DATA_TAG_DIMENSION, BCSPod
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-from constants.alert import EventStatus, EventTargetType, K8STargetType
+from constants.alert import APMTargetType, EventStatus, EventTargetType, K8STargetType
+from constants.apm import ApmAlertHelper, CommonMetricTag
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
@@ -245,6 +247,11 @@ class MonitorEventAdapter:
                 # 容器场景目标解析
                 # K8S-POD, K8S-NODE, K8S-SERVICE, K8S-WORKLOAD
                 return cls.get_k8s_target(data_dimensions, strategy["bk_biz_id"])
+            # 从告警维度或告警策略标签中获取 service_name 即为 APM 场景 (注：使用海象运算符，为后续其他场景留出扩展点)
+            elif (apm_target := ApmAlertHelper.get_target(strategy, data_dimensions)) and apm_target.get(
+                CommonMetricTag.SERVICE_NAME.value
+            ) is not None:
+                return cls.get_apm_target(data_dimensions, apm_target)
 
         except KeyError:
             return EventTargetType.EMPTY, None, data_dimensions
@@ -302,5 +309,31 @@ class MonitorEventAdapter:
             if namespace is None:
                 return EventTargetType.EMPTY, None, dimensions
             return K8STargetType.SERVICE, service, dimensions
+
+        return EventTargetType.EMPTY, None, dimensions
+
+    @classmethod
+    def get_apm_target(
+        cls, dimensions: dict[str, Any], apm_target: dict[str, str | None]
+    ) -> tuple[str, str | None, dict]:
+        """
+        获取 APM 场景的目标信息
+
+        :param dimensions: 维度字典
+        :param apm_target: APM 目标信息字典，包含 app_name 和 service_name
+        :return: 返回元组 (target_type, target, dimensions)
+                 - target_type: APM-SERVICE 或 空字符串
+                 - target: service_name 的值 或 None
+                 - dimensions: 处理后的维度字典
+        """
+        app_name_tag: str = CommonMetricTag.APP_NAME.value
+        app_name: str | None = apm_target.get(app_name_tag)
+        if app_name and app_name_tag not in dimensions:
+            # 补充后续用于丰富的 app_name 维度字段
+            dimensions["__additional_dimensions"] = {app_name_tag: app_name}
+
+        service_name: str | None = apm_target.get(CommonMetricTag.SERVICE_NAME.value)
+        if service_name:
+            return APMTargetType.SERVICE, service_name, dimensions
 
         return EventTargetType.EMPTY, None, dimensions
