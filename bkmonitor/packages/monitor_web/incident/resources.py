@@ -552,6 +552,9 @@ class IncidentTopologyResource(IncidentBaseResource):
             )
             incident_snapshots = sorted(incident_snapshots, key=lambda x: x["create_time"])
 
+        # 过滤不需要的snapshots
+        incident_snapshots = [snapshot for snapshot in incident_snapshots if snapshot.fpp_snapshot_id != "fpp:None"]
+
         # 根据实体加入的时间生成实体ID到时间的映射
         entities_orders = self.generate_entities_orders(incident_snapshots)
 
