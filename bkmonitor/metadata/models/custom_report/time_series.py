@@ -2365,7 +2365,7 @@ class TimeSeriesMetric(models.Model):
 
         # 准备批量创建的数据
         records_to_create = []
-        scope_moves = defaultdict(list)
+        scope_to_indices = defaultdict(list)  # 记录每个 scope 对应的对象索引
 
         for metric_data in metrics_to_create:
             tag_list = metric_data.get("tag_list") or []
@@ -2392,15 +2392,16 @@ class TimeSeriesMetric(models.Model):
                 field_config=metric_data.get("field_config", {}),
                 label=metric_data.get("label", ""),
             )
+            scope_to_indices[scope].append(len(records_to_create))
             records_to_create.append(metric_obj)
-            scope_moves[scope].append(metric_obj)
 
-        # 批量创建
-        cls.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
+        # 批量创建，返回的对象列表保证包含主键
+        created_metrics = cls.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
+        # 使用返回的带主键的对象构建 scope_moves_dict
         scope_moves_dict = {
-            scope: {"moved_metrics": moved_metrics, "source_scope": None}
-            for scope, moved_metrics in scope_moves.items()
+            scope: {"moved_metrics": [created_metrics[idx] for idx in indices], "source_scope": None}
+            for scope, indices in scope_to_indices.items()
         }
         TimeSeriesScope.update_dimension_config_and_metrics_scope_id(scope_moves=scope_moves_dict)
 
