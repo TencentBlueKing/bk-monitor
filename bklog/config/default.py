@@ -673,7 +673,7 @@ MENUS = [
                         "name": _("日志采集"),
                         "feature": "on",
                         "scenes": "scenario_log",
-                        "icon": "document",
+                        "icon": "rizhicaiji",
                     },
                     {
                         "id": "tgpa_task",
