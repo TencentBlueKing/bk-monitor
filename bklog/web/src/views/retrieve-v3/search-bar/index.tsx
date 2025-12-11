@@ -200,6 +200,7 @@ export default defineComponent({
           RetrieveHelper.reportLog({
             ai_scenario: 'tab_switch',
             trigger_source: 'tab_key',
+            action: 'tab',
           }, store.state);
 
           // 切换到 AI 模式后，聚焦到 AI 输入框
@@ -282,6 +283,7 @@ export default defineComponent({
       RetrieveHelper.reportLog({
         ai_scenario: 'ai_edit_dialog',
         trigger_source: `${currentSearchMode.value}_mode`,
+        action: 'click',
       }, store.state);
 
       const rect = searchBarRef.value?.getRect();
@@ -325,6 +327,7 @@ export default defineComponent({
       RetrieveHelper.reportLog({
         ai_scenario: 'auto_complete',
         trigger_source: triggerSource,
+        action: 'enter',
       }, store.state);
 
       RetrieveHelper.aiAssitantHelper

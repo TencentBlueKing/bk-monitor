@@ -5,6 +5,7 @@ import useStore from '@/hooks/use-store';
 import { computed, defineEmits, defineProps, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router/composables';
 import DashboardDialog from './components/dashboard-dialog.vue';
+import retrieveHelper from '@/views/retrieve-helper';
 const props = defineProps({
   value: {
     type: String,
@@ -129,6 +130,12 @@ const handleAddAlertDashboard = async () => {
 };
 const handleActive = (panel) => {
   if (props.value === panel) return;
+
+
+  retrieveHelper.reportLog({
+    trigger_source: panel,
+    action: 'click',
+  });
 
   emit('input', panel, panel === 'origin');
 };
