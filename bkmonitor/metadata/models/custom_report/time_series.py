@@ -2394,7 +2394,6 @@ class TimeSeriesMetric(models.Model):
             if scope is None:
                 raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
             scope_moves[scope].append(metric_obj)
-            scope_moves[scope].append(metric_obj)
 
         # 批量创建
         cls.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
@@ -2469,20 +2468,6 @@ class TimeSeriesMetric(models.Model):
             raise ValueError(f"同一批次内指标字段名称[{', '.join(batch_conflicting_names)}]重复，请使用其他名称")
 
         # todo 检查跨批次的字段名冲突, 现在直接依赖数据库的唯一索引来保证
-
-    @classmethod
-    def _get_or_create_scope(cls, group_id: int, scope_name: str) -> TimeSeriesScope:
-        """获取或创建指标分组（scope）"""
-        scope, created = TimeSeriesScope.objects.get_or_create(
-            group_id=group_id,
-            scope_name=scope_name,
-            defaults={"create_from": TimeSeriesScope.CREATE_FROM_USER, "dimension_config": {}},
-        )
-
-        if created:
-            logger.info(f"Created new scope: group_id={group_id}, scope_name={scope_name}")
-
-        return scope
 
 
 class TimeSeriesTagManager(models.Manager):
