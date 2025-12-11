@@ -656,15 +656,14 @@ class ModifyCustomTsFields(Resource):
         time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"))
 
         class BaseFieldSerializer(serializers.Serializer):
-            type = serializers.ChoiceField(label=_("字段类型"), choices=CustomTSMetricType.choices())
+            id = serializers.IntegerField(label=_("指标 ID"), required=False, allow_null=True)
             name = serializers.CharField(label=_("字段名"))
+            type = serializers.ChoiceField(label=_("字段类型"), choices=CustomTSMetricType.choices())
             scope_id = serializers.IntegerField(label=_("分组 ID"))
-            scope_name = serializers.CharField(label=_("分组名称"), allow_blank=True)
-            field_id = serializers.IntegerField(label=_("字段 ID"), required=False, allow_null=True)
 
             def validate(self, attrs):
-                if attrs["type"] == CustomTSMetricType.METRIC and "field_id" not in attrs:
-                    raise serializers.ValidationError({"field_id": _("metric 类型必须提供有效的 field_id")})
+                if attrs["type"] == CustomTSMetricType.METRIC and "id" not in attrs:
+                    raise serializers.ValidationError({"id": _("metric 类型必须提供有效的 id")})
                 return super().validate(attrs)
 
         class FieldSerializer(BaseFieldSerializer):
@@ -694,12 +693,12 @@ class ModifyCustomTsFields(Resource):
             )
 
         # 构建原始数据
-        metric_dict_by_field_id: dict[int, dict[str, Any]] = {}
+        metric_dict_by_id: dict[int, dict[str, Any]] = {}
         dimension_config_by_scope_id: dict[int, dict[str, Any]] = {}
         scope_list: list[dict[str, Any]] = copy.deepcopy(ts_table.query_time_series_scope)
         for scope_dict in scope_list:
             for metric_dict in scope_dict.get("metric_list", []):
-                metric_dict_by_field_id[metric_dict["field_id"]] = metric_dict
+                metric_dict_by_id[metric_dict["id"]] = metric_dict
             dimension_config_by_scope_id[scope_dict["scope_id"]] = scope_dict.get("dimension_config", {})
 
         # 删除字段
@@ -708,14 +707,14 @@ class ModifyCustomTsFields(Resource):
         delete_fields: list[dict[str, Any]] = params["delete_fields"]
         for field_dict in delete_fields:
             if field_dict["type"] == CustomTSMetricType.METRIC:
-                field_id: int = field_dict["field_id"]
-                if field_id not in metric_dict_by_field_id:
+                metric_id: int = field_dict["id"]
+                if metric_id not in metric_dict_by_id:
                     continue
-                origin_metric_dict: dict[str, Any] = metric_dict_by_field_id[field_id]
+                origin_metric_dict: dict[str, Any] = metric_dict_by_id[metric_id]
                 origin_field_config: dict[str, Any] = origin_metric_dict.get("field_config", {})
                 origin_field_config["disabled"] = True
-                need_delete_metric_dict[field_id] = {
-                    "field_id": field_id,
+                need_delete_metric_dict[metric_id] = {
+                    "field_id": metric_id,
                     "field_config": origin_field_config,
                 }
             else:
@@ -727,33 +726,33 @@ class ModifyCustomTsFields(Resource):
         update_dimensions_by_scope_id: dict[str, list[dict[str, Any]]] = {}
         update_fields: list[dict[str, Any]] = params["update_fields"]
         for field_dict in update_fields:
-            scope_name: str = field_dict["scope_name"]
+            scope_id: str = field_dict["scope_id"]
             if field_dict["type"] == CustomTSMetricType.METRIC:
-                field_id: int | None = field_dict["field_id"]
-                if field_id is None:
+                metric_id: int | None = field_dict["id"]
+                if metric_id is None:
                     # 创建场景
                     need_create_metrics.append(
                         {
-                            "scope_name": field_dict["scope_name"],
+                            "scope_id": scope_id,
                             "field_name": field_dict["name"],
                             "field_config": field_dict["config"],
                         }
                     )
                     continue
-                elif field_id not in metric_dict_by_field_id or field_id in need_delete_metric_dict:
+                elif metric_id not in metric_dict_by_id or metric_id in need_delete_metric_dict:
                     continue
                 # 更新场景
-                origin_field_config: dict[str, Any] = metric_dict_by_field_id[field_id].get("field_config", {})
+                origin_field_config: dict[str, Any] = metric_dict_by_id[metric_id].get("field_config", {})
                 origin_field_config.update(field_dict["config"])
                 need_update_metrics.append(
                     {
-                        "field_id": field_id,
-                        "scope_name": scope_name,
+                        "field_id": metric_id,
+                        "scope_id": scope_id,
                         "field_config": origin_field_config,
                     }
                 )
             else:
-                update_dimensions_by_scope_id.setdefault(field_dict["scope_id"], []).append(field_dict)
+                update_dimensions_by_scope_id.setdefault(scope_id, []).append(field_dict)
 
         update_dimensions: list[dict[str, Any]] = []
         for scope_id in set(delete_dimensions_by_scope_id.keys()) | set(update_dimensions_by_scope_id.keys()):
