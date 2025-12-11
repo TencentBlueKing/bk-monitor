@@ -2385,9 +2385,7 @@ class TimeSeriesMetric(models.Model):
             metric_obj = cls(
                 table_id=metric_data["table_id"],
                 field_name=metric_data["field_name"],
-                field_scope=metric_data.get("field_scope")
-                if metric_data.get("field_scope")
-                else cls.DEFAULT_DATA_SCOPE_NAME,
+                field_scope=metric_data.get("field_scope", cls.DEFAULT_DATA_SCOPE_NAME),
                 group_id=group_id,
                 scope_id=scope_id,
                 tag_list=metric_data.get("tag_list", []),
