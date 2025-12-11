@@ -76,7 +76,7 @@ const selectedChoiceIndex = ref(0);
 // 动态设置placeHolder
 const inputPlaceholder = computed(() => {
   if (inputValueLength.value === 0) {
-    return `${t('快捷键')} /，${t('请输入')}...`;
+    return `${t('请输入检索内容')}, / ${t('唤起')}，${t('Tab 切换为 AI 模式')}`;
   }
 
   return '';
@@ -575,10 +575,10 @@ const moreOption = (index) => {
  */
 const getItemActionShowText = (item, child) => {
   if (item.hidden_values?.includes(child)) {
-    return '恢复这个选项';
+    return t('恢复这个选项');
   }
 
-  return '隐藏这个选项';
+  return t('隐藏这个选项');
 };
 
 /**
@@ -681,7 +681,7 @@ const handleBatchInputChange = (isShow) => {
                     class="match-value-select"
                     @click="onlyOptionShow(item, child, index, childIndex)"
                   >
-                    只看这个选项
+                    {{ t('只看这个选项') }}
                   </div>
                 </div>
               </bk-popover>
@@ -740,7 +740,7 @@ const handleBatchInputChange = (isShow) => {
                       class="match-value-select"
                       @click="onlyOptionShow(item, child, index, childIndex)"
                     >
-                      只看这个选项
+                      {{ t('只看这个选项') }}
                     </div>
                   </div>
                 </bk-popover>

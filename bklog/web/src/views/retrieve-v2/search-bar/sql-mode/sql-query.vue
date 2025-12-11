@@ -22,7 +22,7 @@ const handleHeightChange = (height) => {
 };
 
 const { t } = useLocale();
-const placeholderText = ` / ${t('快速定位到搜索')}，log:error AND"name=bklog"`;
+const placeholderText = `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}， ${t('Tab 切换为 AI 模式')}`;
 const refSqlQueryOption = ref(null);
 const refEditorParent = ref(null);
 const editorFocusPosition = ref(null);

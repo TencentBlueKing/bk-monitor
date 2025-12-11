@@ -265,9 +265,11 @@ export default defineComponent({
                 )}
                 <textarea
                   ref={textareaRef}
+                  autofocus={true}
+                  tabindex={1}
                   class="ai-input"
                   value={currentInput.value}
-                  placeholder={parsedText.value ? '' : t('/唤起,使用自然语言描述你的检索需求...')}
+                  placeholder={parsedText.value ? '' : t('输入查询内容，“帮我查询近3天的错误日志”，Tab 切换为普通模式')}
                   onInput={handleInput}
                   onFocus={handleFocus}
                   onBlur={handleBlur}
