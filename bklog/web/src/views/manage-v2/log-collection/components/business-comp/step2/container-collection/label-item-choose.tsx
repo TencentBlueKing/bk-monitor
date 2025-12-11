@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, watch } from 'vue';
+import { defineComponent, ref, computed, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import type { IValueItem } from '../../../../type';
 
 import './label-item-choose.scss';
 
@@ -36,7 +37,7 @@ export default defineComponent({
   name: 'LabelItemChoose',
   props: {
     matchItem: {
-      type: Object,
+      type: Object as PropType<IValueItem>,
       default: () => ({
         key: '',
         operator: 'In',
@@ -93,7 +94,7 @@ export default defineComponent({
       return ['In', 'NotIn'].includes(formData.value.operator);
     });
 
-    const handleOperateChange = val => {
+    const handleOperateChange = (val: string) => {
       formData.value.operator = val;
       emit('change', formData.value);
     };
@@ -132,7 +133,7 @@ export default defineComponent({
                 ext-cls='fill-key'
                 value={formData.value.key}
                 clearable
-                on-input={val => {
+                on-input={(val: string) => {
                   formData.value.key = val;
                   emit('change', formData.value);
                 }}
@@ -165,7 +166,7 @@ export default defineComponent({
               free-paste
               has-delete-icon
               on-blur={handleValueBlur}
-              on-change={val => {
+              on-change={(val: string[]) => {
                 formData.value.value = val.join(',');
                 emit('change', formData.value);
               }}

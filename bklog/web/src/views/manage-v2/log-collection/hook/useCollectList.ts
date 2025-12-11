@@ -103,27 +103,25 @@ export const useCollectList = () => {
       return !row.status || row.table_id;
     }
     if (['stop', 'start'].includes(operateType)) {
-      return (
-        !(!row.status || row.status === 'running' || row.status === 'prepare' || !collectProject.value) ||
-        row.is_active !== undefined
-      );
+      return !(!row.status || row.status === 'running' || !collectProject.value) || row.is_active !== undefined;
     }
     if (operateType === 'delete') {
       return !(!row.status || row.status === 'running' || row.is_active || !collectProject.value);
     }
     return true;
   };
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: <explanation>
-  const leaveCurrentPage = (row, operateType, typeKey) => {
+
+  const leaveCurrentPage = (row, operateType, typeKey, indexSetId) => {
+    const indexId = indexSetId !== 'all' ? indexSetId : undefined;
     if (operateType === 'status' && (!loadingStatus.value || row.status === 'terminated')) {
       return; // 已停用禁止操作
     }
-    if (operateType === 'status' && (!row.status || row.status === 'prepare')) {
+    if (operateType === 'status' && !row.status) {
       return operateHandler(row, 'edit', typeKey);
     }
     // running、prepare 状态不能启用、停用
     if (operateType === 'start' || operateType === 'stop') {
-      if (!loadingStatus.value || row.status === 'running' || row.status === 'prepare' || !collectProject.value) {
+      if (!loadingStatus.value || row.status === 'running' || !collectProject.value) {
         return;
       }
       if (operateType === 'start') {
@@ -160,6 +158,9 @@ export const useCollectList = () => {
       clone: 'collectAdd',
       masking: 'collectMasking',
     };
+    if (indexId) {
+      query.indexSetId = indexId;
+    }
     query.typeKey = typeKey;
     const targetRoute = routeMap[operateType];
     // 查看详情 - 如果处于未完成状态，应该跳转到编辑页面
@@ -220,7 +221,7 @@ export const useCollectList = () => {
     });
   };
 
-  const operateHandler = (row, operateType, typeKey) => {
+  const operateHandler = (row, operateType, typeKey, indexSetId = 'all') => {
     // type: [view, status , search, edit, field, start, stop, delete]
     const isCanClick = getOperatorCanClick(row, operateType);
     if (!isCanClick) {
@@ -277,7 +278,7 @@ export const useCollectList = () => {
         ],
       });
     }
-    leaveCurrentPage(row, operateType, typeKey);
+    leaveCurrentPage(row, operateType, typeKey, indexSetId);
   };
 
   return {

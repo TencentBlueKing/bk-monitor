@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, computed, ref } from 'vue';
+import { defineComponent, computed, ref, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -49,7 +49,7 @@ export default defineComponent({
     },
     // 配置对象，必填
     config: {
-      type: Object as () => IContainerConfigItem,
+      type: Object as PropType<IContainerConfigItem>,
       required: true,
     },
     // 是否为节点类型，必填
@@ -62,7 +62,7 @@ export default defineComponent({
       default: '',
     },
     clusterList: {
-      type: Array as () => IClusterItem[],
+      type: Array as PropType<IClusterItem[]>,
       default: () => [],
     },
   },

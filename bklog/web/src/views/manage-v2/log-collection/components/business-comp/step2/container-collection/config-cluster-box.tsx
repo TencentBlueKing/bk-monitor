@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch, computed, onBeforeUnmount, onMounted, nextTick } from 'vue';
+import { defineComponent, ref, watch, computed, onBeforeUnmount, onMounted, nextTick, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -84,7 +84,7 @@ export default defineComponent({
     },
     /** 配置项数据 */
     config: {
-      type: Object as () => IContainerConfigItem,
+      type: Object as PropType<IContainerConfigItem>,
       default: () => ({}),
     },
     /** BCS 集群 ID */
@@ -104,7 +104,7 @@ export default defineComponent({
     },
     /** 集群列表 */
     clusterList: {
-      type: Array as () => IClusterItem[],
+      type: Array as PropType<IClusterItem[]>,
       default: () => [],
     },
   },

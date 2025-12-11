@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onMounted, ref } from 'vue';
+import { defineComponent, onMounted, ref, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -39,11 +39,11 @@ export default defineComponent({
   name: 'IndexSetSelect',
   props: {
     list: {
-      type: Array,
+      type: Array as PropType<IListItemData[]>,
       default: () => [],
     },
     value: {
-      type: Array,
+      type: Array as PropType<number[]>,
       default: () => [],
     },
   },

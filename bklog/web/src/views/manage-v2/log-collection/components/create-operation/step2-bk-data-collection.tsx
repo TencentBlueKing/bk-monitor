@@ -705,8 +705,7 @@ export default defineComponent({
         }
 
         collectionTableData.value = Array.from(fieldMap.values());
-      } catch (err) {
-        console.log(err);
+      } catch (error) {
         collectionTableData.value = [];
       } finally {
         listLoading.value = false;

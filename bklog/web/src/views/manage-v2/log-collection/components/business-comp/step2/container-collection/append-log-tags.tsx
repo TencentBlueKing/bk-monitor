@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, nextTick, watch } from 'vue';
+import { defineComponent, ref, nextTick, watch, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 
@@ -46,7 +46,7 @@ export default defineComponent({
 
   props: {
     config: {
-      type: Object as () => IData,
+      type: Object as PropType<IData>,
       default: () => ({
         extra_labels: [],
         add_pod_label: false,

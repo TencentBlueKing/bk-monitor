@@ -88,9 +88,6 @@ export const COLLECTOR_SCENARIO_ENUM = [
   { value: 'section', label: window.$t('段日志文件') },
   { value: 'win_event', label: window.$t('win event日志') },
   { value: 'custom', label: window.$t('自定义') },
-  // { value: 'redis_slowlog', label: window.$t('Redis慢日志') },
-  // { value: 'syslog', label: window.$t('Syslog Server') },
-  // { value: 'kafka', label: window.$t('KAFKA') },
 ];
 
 /** 表格需要展示的字段 */

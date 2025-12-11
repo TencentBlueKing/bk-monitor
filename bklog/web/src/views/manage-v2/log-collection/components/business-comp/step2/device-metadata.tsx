@@ -110,7 +110,7 @@ export default defineComponent({
       // 回填选中的元数据字段（去掉 'host.' 前缀）
       const selectedFields: string[] = [];
       props.metadata.forEach((item: IMetaItem) => {
-        if (item.key && item.key.startsWith('host.')) {
+        if (item.key?.startsWith('host.')) {
           const field = item.key.slice(5); // 去掉 'host.' 前缀
           // 检查该字段是否在 groupList 中
           if (groupList.value.some(groupItem => groupItem.field === field)) {
@@ -258,7 +258,7 @@ export default defineComponent({
      * 下拉框选择的时候
      * @param value
      */
-    const handleSelect = value => {
+    const handleSelect = (value: string[]) => {
       selectValue.value = value;
       emitExtraLabels();
     };
@@ -276,19 +276,17 @@ export default defineComponent({
 
       // 检查自定义标签
       if (extraLabelList.value.length) {
-        // biome-ignore lint/complexity/noForEach: <explanation>
-        extraLabelList.value.forEach(item => {
+        for (const item of extraLabelList.value) {
           // 检查必填项
           if (item.key === '' || item.value === '') {
             isExtraError.value = true;
           }
-
           // 检查key是否重复
           if (groupList.value.find(group => group.field === item.key)) {
             item.duplicateKey = true;
             isExtraError.value = true;
           }
-        });
+        }
       }
 
       if (isExtraError.value) {
@@ -307,7 +305,6 @@ export default defineComponent({
         if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
           // 更新开关状态
           switcherValue.value = newVal && newVal.length > 0;
-          
           // 只在第一次进入页面且 groupList 已加载时回填
           // 后续编辑时不再回填，避免覆盖用户的操作
           if (!hasInitialized.value && groupList.value.length > 0 && newVal && newVal.length > 0) {

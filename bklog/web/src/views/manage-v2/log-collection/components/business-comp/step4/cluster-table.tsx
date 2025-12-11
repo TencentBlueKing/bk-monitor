@@ -284,7 +284,7 @@ export default defineComponent({
               ),
             }}
             label={t('集群名')}
-            min-width='240'
+            min-width='200'
           />
           {/* 总量列 */}
           <bk-table-column
@@ -306,12 +306,12 @@ export default defineComponent({
                       theme='success'
                     />
                   </div>
-                  <span>{`${100 - row.storage_usage}%`}</span>
+                  <span class='percent-count'>{`${100 - row.storage_usage}%`}</span>
                 </div>
               ),
             }}
             label={t('空闲率')}
-            min-width='120'
+            width='140'
           />
           {/* 索引数列 */}
           <bk-table-column

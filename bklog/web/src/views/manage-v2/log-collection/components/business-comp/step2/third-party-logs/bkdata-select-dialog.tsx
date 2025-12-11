@@ -69,7 +69,7 @@ export default defineComponent({
 
     watch(
       () => props.isShowDialog,
-      val => {
+      (val: boolean) => {
         if (val) {
           indexName.value = '';
           tableData.value = [];
@@ -95,7 +95,7 @@ export default defineComponent({
           return item;
         });
       } catch (e) {
-        console.warn(e);
+        console.log(e);
       } finally {
         basicLoading.value = false;
       }
@@ -106,7 +106,7 @@ export default defineComponent({
     const isSetDisabled = id => props.configData.indexes.some(item => item.result_table_id === id);
 
     // 选择采集项获取字段列表
-    const handleSelected = async id => {
+    const handleSelected = async (id: number) => {
       const param = {
         params: {
           result_table_id: id,
@@ -152,7 +152,7 @@ export default defineComponent({
         emit('selected', currentIndex);
         handleCancel();
       } catch (e) {
-        console.warn(e);
+        console.log(e);
       } finally {
         confirmLoading.value = false;
       }

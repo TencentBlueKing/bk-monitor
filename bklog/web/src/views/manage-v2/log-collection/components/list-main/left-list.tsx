@@ -121,7 +121,7 @@ export default defineComponent({
 
     const initActionPop = () => {
       tippyInstance = tippy(rootRef.value as SingleTarget, {
-        content: addPanelRef.value as any,
+        content: addPanelRef.value,
         trigger: 'click',
         placement: 'bottom-end',
         theme: 'light add-index-set-popover',
