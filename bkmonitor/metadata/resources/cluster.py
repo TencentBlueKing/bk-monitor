@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 import base64
 import json
+import logging
+import re
 from collections import OrderedDict
 from typing import Any
 
@@ -23,6 +25,8 @@ from core.drf_resource import Resource
 from metadata import models
 from metadata.models.storage import ClusterInfo
 from metadata.service.storage_details import StorageClusterDetail
+
+logger = logging.getLogger(__name__)
 
 
 class ListClusters(Resource):
@@ -232,6 +236,16 @@ class ModifyClusterInfoResource(Resource):
             raise ValueError(_("找不到指定的集群配置，请确认后重试"))
         except models.ClusterInfo.MultipleObjectsReturned:
             raise ValueError(_("找到多个符合条件的集群配置，可能是不同类型的集群名相同，请提供集群类型后重试"))
+
+        # 如果集群名不符合规范，则抛出异常
+        if not re.match(models.ClusterInfo.CLUSTER_NAME_REGEX, cluster_info.cluster_name):
+            cluster_name = f"auto_cluster_name_{cluster_info.cluster_id}"
+            if not cluster_info.display_name:
+                cluster_info.display_name = cluster_name
+            cluster_info.cluster_name = cluster_name
+            logger.warning(
+                f"cluster({cluster_info.cluster_id}) cluster_name: {cluster_info.cluster_name} is not valid, set to: {cluster_name}"
+            )
 
         # 3. 判断获取是否需要修改用户名和密码
         auth_info = validated_request_data.pop("auth_info", {})
