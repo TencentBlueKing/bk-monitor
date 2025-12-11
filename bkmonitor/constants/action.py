@@ -861,3 +861,14 @@ class ActionNoticeType:
     NORMAL = "normal"
     UNSHILEDED = "unshielded"
     UPGRADE = "upgrade"
+
+
+# 告警组语音通知模式
+class VoiceNoticeMode:
+    SERIAL = "serial"
+    PARALLEL = "parallel"
+
+    CHOICES = [
+        (SERIAL, _lazy("串行")),
+        (PARALLEL, _lazy("并行")),
+    ]

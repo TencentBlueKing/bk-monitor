@@ -52,6 +52,7 @@ from constants.action import (
     NoticeType,
     NoticeWay,
     NotifyStep,
+    VoiceNoticeMode,
 )
 
 from .utils import (
@@ -129,6 +130,8 @@ class BaseActionProcessor:
             self.notice_receivers if isinstance(self.notice_receivers, list) else [self.notice_receivers]
         )
         self.notice_way_display = get_notice_display_mapping(self.context.get("notice_way", ""))
+        self.voice_notice_mode = self.action.inputs.get("voice_notice_mode", VoiceNoticeMode.SERIAL)
+        self.voice_notice_group = self.action.inputs.get("voice_notice_group", None)
         self.is_finished = self.action.status in ActionStatus.END_STATUS
 
         logger.info("load BaseActionProcessor for action(%s) finished", action_id)
@@ -601,6 +604,13 @@ class BaseActionProcessor:
                     )
                 )
                 continue
+
+            if self.voice_notice_mode == VoiceNoticeMode.PARALLEL and self.voice_notice_group:
+                parallel_results = self.parallel_notify_sender(notify_sender, notice_way, self.voice_notice_group)
+                # 将并行结果拆分为多个单独的字典，与串行模式保持一致的数据结构
+                notice_result[notice_way].extend([{k: v} for k, v in parallel_results.items()])
+                continue
+
             for notice_receiver in notice_receivers:
                 # 当为电话通知的时候，直接打电话
                 notice_result[notice_way].append(
@@ -667,3 +677,29 @@ class BaseActionProcessor:
                 ActionStatus.FAILURE,
                 message=_("异常防御审批执行时间套餐配置30分钟, 撤回单据失败，错误信息：{}").format(str(error)),
             )
+
+    def parallel_notify_sender(self, notify_sender, notice_way, voice_notice_group) -> dict:
+        """
+        并行发送通知
+        """
+        notice_results = {}
+
+        for user_group in voice_notice_group:
+            try:
+                # 每个用户组作为一个整体进行语音通知
+                group_receivers = list(user_group)
+                group_result = notify_sender.send(
+                    notice_way,
+                    notice_receivers=group_receivers,
+                )
+                notice_results.update(group_result)
+            except Exception as error:
+                logger.exception(f"Failed to send voice notice to group {user_group}: {error}")
+                # 记录失败结果
+                notice_results[",".join(user_group)] = {
+                    "result": False,
+                    "failure_type": FailureType.EXECUTE_ERROR,
+                    "message": str(error),
+                }
+
+        return notice_results

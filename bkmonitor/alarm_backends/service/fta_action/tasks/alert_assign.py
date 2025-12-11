@@ -337,17 +337,17 @@ class AlertAssigneeManager:
             return self.match_manager.matched_rule_info["itsm_actions"]
         return {}
 
-    def get_appointees(self, action_id=None, user_type=UserGroupType.MAIN):
+    def get_appointees(self, action_id=None, user_type=UserGroupType.MAIN, by_group=False):
         """
         # 获取分派的负责人
         """
         if action_id and action_id in self.itsm_actions:
             # 根据对应的动作配置找到负责人
             return AlertAssignee(self.alert, self.itsm_actions[action_id]).get_assignee_by_user_groups(
-                user_type=user_type
+                by_group=by_group, user_type=user_type
             )
 
-        return self.get_assignees(user_type=user_type)
+        return self.get_assignees(by_group=by_group, user_type=user_type)
 
     def get_supervisors(self, by_group=False, user_type=UserGroupType.MAIN):
         """
