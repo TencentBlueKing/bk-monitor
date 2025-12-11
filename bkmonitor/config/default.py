@@ -334,6 +334,7 @@ ACTIVE_VIEWS = {
         "action": "fta_web.action.views",
         "event_plugin": "fta_web.event_plugin.views",
         "alert": "fta_web.alert.views",
+        "alert_v2": "fta_web.alert_v2.views",
         "assign": "fta_web.assign.views",
         "home": "fta_web.home.views",
     },

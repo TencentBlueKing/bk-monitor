@@ -252,7 +252,6 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                 default_settings["bk_biz_id"] = cluster_spec.get("bkBizId")
 
             update_fields = {
-                "domain_name": domain_name,
                 "port": port,
                 "username": username,
                 "password": password,
@@ -264,6 +263,13 @@ def sync_bkbase_cluster_info(bk_tenant_id: str, cluster_list: list, field_mappin
                     bk_tenant_id=bk_tenant_id, cluster_type=cluster_type, cluster_name=cluster_name
                 ).first()
                 if cluster:
+                    # 如果域名发生变化，为了防止出现问题，不进行更新并记录日志
+                    if cluster.domain_name != domain_name:
+                        logger.warning(
+                            f"sync_bkbase_cluster_info: domain_name changed for {cluster_type} cluster: {cluster_name}, from {cluster.domain_name} to {domain_name}"
+                        )
+                        continue
+
                     # 更新集群信息
                     is_updated = False
                     for field, value in update_fields.items():

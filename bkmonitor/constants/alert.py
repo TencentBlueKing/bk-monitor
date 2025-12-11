@@ -32,6 +32,14 @@ class K8STargetType:
     WORKLOAD = "K8S-WORKLOAD"
 
 
+K8S_RESOURCE_TYPE = {
+    K8STargetType.POD: "pod",
+    K8STargetType.NODE: "node",
+    K8STargetType.SERVICE: "service",
+    K8STargetType.WORKLOAD: "workload",
+}
+
+
 EVENT_EXTRA_TARGET_TYPE = (
     K8STargetType.POD,
     K8STargetType.NODE,
@@ -218,6 +226,7 @@ class AlertRedirectType(CachedEnum):
     DETAIL = "detail"
     QUERY = "query"
     LOG_SEARCH = "log_search"
+    EVENT_EXPLORE = "event_explore"
     APM_RPC = "apm_rpc"
     APM_TRACE = "apm_trace"
     APM_QUERY = "apm_query"
@@ -233,6 +242,7 @@ class AlertRedirectType(CachedEnum):
                 self.DETAIL: _("告警详情"),
                 self.QUERY: _("指标检索"),
                 self.LOG_SEARCH: _("日志检索"),
+                self.EVENT_EXPLORE: _("事件检索"),
                 self.APM_RPC: _("调用分析"),
                 self.APM_TRACE: _("Tracing 检索"),
                 # APM 自定义指标检索

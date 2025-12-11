@@ -383,6 +383,7 @@ export default defineComponent({
                     type='datetimerange'
                     value={formData.value.fileModifyTimeRange}
                     on-change={value => (formData.value.fileModifyTimeRange = value)}
+                    transfer
                   />
                 </bk-form-item>
                 <bk-form-item label={t('备注')}>
@@ -419,7 +420,7 @@ export default defineComponent({
             <div class='view-collection-container'>
               <div>
                 <span>{t('任务 ID')}</span>
-                <span>{props.logData.id || '-'}</span>
+                <span>{props.logData.task_id || '-'}</span>
               </div>
               <div>
                 <span>{t('任务名称')}</span>

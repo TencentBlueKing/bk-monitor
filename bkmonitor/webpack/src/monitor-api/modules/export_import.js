@@ -7,6 +7,7 @@ export const historyDetail = request('GET', 'rest/v2/export_import/history_detai
 export const uploadPackage = request('POST', 'rest/v2/export_import/upload_package/');
 export const importConfig = request('POST', 'rest/v2/export_import/import_config/');
 export const addMonitorTarget = request('POST', 'rest/v2/export_import/add_monitor_target/');
+export const exportConfigToBusiness = request('POST', 'rest/v2/export_import/export_config_to_business/');
 
 export default {
   getAllConfigList,
@@ -16,4 +17,5 @@ export default {
   uploadPackage,
   importConfig,
   addMonitorTarget,
+  exportConfigToBusiness,
 };

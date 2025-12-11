@@ -82,7 +82,7 @@ export default defineComponent({
     });
 
     const settingFields = ref([
-      { id: 'id', label: t('任务 ID') },
+      { id: 'task_id', label: t('任务 ID') },
       { id: 'task_name', label: t('任务名称'), disabled: true },
       { id: 'openid', label: 'openid', disabled: true },
       { id: 'status_name', label: t('任务状态') },
@@ -205,7 +205,7 @@ export default defineComponent({
       }
 
       // 只允许特定字段进行排序
-      const allowedSortFields = ['id', 'task_name', 'openid', 'created_at'];
+      const allowedSortFields = ['task_id', 'task_name', 'openid', 'created_at'];
       if (!allowedSortFields.includes(id)) {
         return list;
       }
@@ -215,23 +215,13 @@ export default defineComponent({
       return [...list].sort((a, b) => {
         let compareResult = 0;
 
-        // 根据不同字段使用不同的排序逻辑
-        switch (id) {
-          case 'id':
-            compareResult = a[id] - b[id];
-            break;
-
-          case 'task_name':
-          case 'openid':
-            compareResult = (a[id] || '').localeCompare(b[id] || '');
-            break;
-
-          case 'created_at':
-            compareResult = (a[id] || '').localeCompare(b[id] || '');
-            break;
-
-          default:
-            return 0;
+        if (id === 'task_id') {
+          const prevTaskId = Number(a[id]) || 0;
+          const nextTaskId = Number(b[id]) || 0;
+          compareResult = prevTaskId - nextTaskId;
+        } else {
+          // task_name、openid、created_at 使用字符串比较
+          compareResult = (a[id] || '').localeCompare(b[id] || '');
         }
 
         // 根据排序方向返回结果
@@ -252,7 +242,7 @@ export default defineComponent({
         const keywordLower = props.keyword.trim().toLowerCase();
         logList = logList.filter((item: Record<string, any>) => {
           const searchFields = [
-            item.id?.toString() || '',
+            item.task_id?.toString() || '',
             item.task_name || '',
             item.openid || '',
             item.create_type || '',
@@ -318,6 +308,14 @@ export default defineComponent({
     // 更新分页信息
     const changePagination = (paginationValue = {}) => {
       Object.assign(pagination.value, paginationValue);
+
+      // 检查当前页码是否超出范围
+      const { current, limit, count } = pagination.value;
+      const maxPage = Math.max(1, Math.ceil(count / limit));
+
+      if (current > maxPage) {
+        pagination.value.current = maxPage;
+      }
     };
 
     // 清空过滤条件
@@ -346,7 +344,7 @@ export default defineComponent({
           const params = {
             query: {
               bk_biz_id: store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID],
-              task_id: id,
+              id,
             },
           };
           const response = await http.request('collect/getDownloadLink', params);
@@ -433,22 +431,59 @@ export default defineComponent({
 
     // 任务状态插槽
     const statusSlot = {
-      default: ({ row }) => (
-        <div class='status-row'>
-          <div
-            class={[
-              {
-                'status-icon': row.status === TaskStatus.CLAIMING || row.status === TaskStatus.CLAIM_TIMEOUT,
-              },
-            ]}
-            key={row.status}
-          >
-            {row.status === TaskStatus.CLAIMING && <bk-spin size='mini'></bk-spin>}
-            {row.status === TaskStatus.CLAIM_TIMEOUT && <div class='claimed-expired'></div>}
+      default: ({ row }) => {
+        // 加载中状态：执行中、创建中、启动中、认领中
+        const loadingStatuses = [TaskStatus.RUNNING, TaskStatus.CREATING, TaskStatus.STARTING, TaskStatus.CLAIMING];
+
+        // 失败状态：创建失败、认领超时、审批拒绝、执行失败、执行超时
+        const failedStatuses = [
+          TaskStatus.CREATE_FAILED,
+          TaskStatus.CLAIM_TIMEOUT,
+          TaskStatus.REJECTED,
+          TaskStatus.FAILED,
+          TaskStatus.EXECUTION_TIMEOUT,
+        ];
+
+        // 成功状态：审批通过、执行完成、已创建
+        const successStatuses = [TaskStatus.APPROVED, TaskStatus.COMPLETED, TaskStatus.CREATED];
+
+        // 停止状态：停止、已删除
+        const stoppedStatuses = [TaskStatus.STOPPED, TaskStatus.DELETED];
+
+        // 待审批状态
+        const pendingStatuses = [TaskStatus.PENDING_APPROVAL];
+
+        const renderStatusIcon = () => {
+          if (loadingStatuses.includes(row.status)) {
+            return <bk-spin size='mini'></bk-spin>;
+          }
+          if (failedStatuses.includes(row.status)) {
+            return <div class='status-dot status-failed'></div>;
+          }
+          if (successStatuses.includes(row.status)) {
+            return <div class='status-dot status-success'></div>;
+          }
+          if (stoppedStatuses.includes(row.status)) {
+            return <div class='status-dot status-stopped'></div>;
+          }
+          if (pendingStatuses.includes(row.status)) {
+            return <div class='status-dot status-pending'></div>;
+          }
+          return null;
+        };
+
+        return (
+          <div class='status-row'>
+            <div
+              class='status-icon'
+              key={row.status}
+            >
+              {renderStatusIcon()}
+            </div>
+            {row.status_name}
           </div>
-          {row.status_name}
-        </div>
-      ),
+        );
+      },
     };
 
     // 创建人插槽
@@ -530,14 +565,14 @@ export default defineComponent({
             ),
           }}
         >
-          {checkFields('id') && (
+          {checkFields('task_id') && (
             <bk-table-column
-              key='id'
+              key='task_id'
               class-name='filter-column overflow-hidden-text'
               width='100'
               label={t('任务 ID')}
-              prop='id'
-              sortable
+              prop='task_id'
+              sortable='custom'
             />
           )}
           <bk-table-column

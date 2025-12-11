@@ -1,6 +1,11 @@
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from kernel_api.resource.grafana import KernelUnifyQueryRawResource, KernelGraphUnifyQueryResource
+from kernel_api.resource.grafana import (
+    KernelUnifyQueryRawResource,
+    KernelGraphUnifyQueryResource,
+    CreateDashboardResource,
+    UpdateDashboardResource,
+)
 
 
 class GrafanaViewSet(ResourceViewSet):
@@ -19,6 +24,10 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute(
             "POST", KernelGraphUnifyQueryResource(), endpoint="time_series/unify_query", content_encoding="gzip"
         ),
+        # 创建仪表盘（MCP）- 不覆盖同名配置
+        ResourceRoute("POST", CreateDashboardResource, endpoint="create_dashboard"),
+        # 更新仪表盘（MCP）- 覆盖同名配置
+        ResourceRoute("POST", UpdateDashboardResource, endpoint="update_dashboard"),
         ResourceRoute(
             "POST", KernelUnifyQueryRawResource(), endpoint="time_series/unify_query_raw", content_encoding="gzip"
         ),
