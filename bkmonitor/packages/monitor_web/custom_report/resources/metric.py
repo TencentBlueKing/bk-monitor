@@ -698,7 +698,7 @@ class ModifyCustomTsFields(Resource):
         scope_list: list[dict[str, Any]] = copy.deepcopy(ts_table.query_time_series_scope)
         for scope_dict in scope_list:
             for metric_dict in scope_dict.get("metric_list", []):
-                metric_dict_by_id[metric_dict["id"]] = metric_dict
+                metric_dict_by_id[metric_dict["field_id"]] = metric_dict
             dimension_config_by_scope_id[scope_dict["scope_id"]] = scope_dict.get("dimension_config", {})
 
         # 删除字段
