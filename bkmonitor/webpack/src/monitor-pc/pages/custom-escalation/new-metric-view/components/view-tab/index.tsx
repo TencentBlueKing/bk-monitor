@@ -193,8 +193,7 @@ export default class ViewTab extends tsc<IProps, IEmit> {
 
   convertMetricsData(data: Metric[]) {
     return data.reduce((result, item) => {
-      // 如果 scope_name 为空，表示 "未分组"
-      const groupName = item.scope_name || '未分组';
+      const groupName = item.scope_name;
       // 查找是否已有此分组
       const existingGroup = result.find(group => group.groupName === groupName);
       if (existingGroup) {

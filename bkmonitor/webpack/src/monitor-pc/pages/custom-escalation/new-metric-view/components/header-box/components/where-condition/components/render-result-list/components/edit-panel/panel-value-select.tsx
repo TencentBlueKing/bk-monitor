@@ -65,7 +65,7 @@ export default class PanelValueSelect extends tsc<IProps, IEmit> {
   get currentSelectedMetricNameList() {
     return customEscalationViewStore.currentSelectedMetricList.map(metricItem => ({
       name: metricItem.metric_name, // 指标名称
-      scope_name: metricItem.scope_name === '未分组' ? '' : metricItem.scope_name, // 分组名称
+      scope_name: metricItem.scope_name, // 分组名称
     }));
   }
 

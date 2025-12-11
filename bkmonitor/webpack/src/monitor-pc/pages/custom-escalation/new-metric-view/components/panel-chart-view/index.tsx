@@ -173,7 +173,7 @@ export default class PanelChartView extends tsc<IPanelChartViewProps> {
       ...this.config,
       metrics: this.config.metrics.map(item => ({
         ...item,
-        scope_name: item.scope_name === '未分组' ? '' : item.scope_name, // 未分组传空
+        scope_name: item.scope_name, // 分组名称
       })),
     };
     const params = {

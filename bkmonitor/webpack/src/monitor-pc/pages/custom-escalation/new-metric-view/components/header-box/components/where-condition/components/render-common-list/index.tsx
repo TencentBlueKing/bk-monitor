@@ -39,7 +39,6 @@ interface IEmit {
 interface IProps {
   data: {
     alias: string;
-    groupName: string;
     key: string;
     method: string;
     value: string[];
@@ -59,11 +58,13 @@ export default class FilterConditions extends tsc<IProps, IEmit> {
   }
 
   render() {
+    console.log(this.data, 'this.data');
+
     return (
       <div class='filter-conditions-common-list'>
         {this.data.map(dimensionItem => (
           <KeyValueSelector
-            key={`${dimensionItem.groupName}-${dimensionItem.key}}`}
+            key={dimensionItem.key}
             class='selector-item'
             data={dimensionItem}
             onChange={this.handleChange}
