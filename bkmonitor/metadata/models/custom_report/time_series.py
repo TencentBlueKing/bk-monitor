@@ -2377,22 +2377,24 @@ class TimeSeriesMetric(models.Model):
             database_name = table_id.split(".")[0]
             metric_data["table_id"] = f"{database_name}.{metric_data['field_name']}"
 
+            scope_id = metric_data.get("scope_id")
+            scope = scopes_dict.get(scope_id)
+            if scope is None:
+                raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
+
             metric_obj = cls(
                 table_id=metric_data["table_id"],
                 field_name=metric_data["field_name"],
-                field_scope=metric_data["field_scope"] if metric_data["field_scope"] else cls.DEFAULT_DATA_SCOPE_NAME,
+                field_scope=metric_data.get("field_scope")
+                if metric_data.get("field_scope")
+                else cls.DEFAULT_DATA_SCOPE_NAME,
                 group_id=group_id,
-                scope_id=None,  # 先不设置，由update_dimension_config_from_moved_metrics处理
+                scope_id=scope_id,
                 tag_list=metric_data.get("tag_list", []),
                 field_config=metric_data.get("field_config", {}),
                 label=metric_data.get("label", ""),
             )
             records_to_create.append(metric_obj)
-
-            scope_id = metric_data.get("scope_id")
-            scope = scopes_dict.get(scope_id)
-            if scope is None:
-                raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
             scope_moves[scope].append(metric_obj)
 
         # 批量创建
