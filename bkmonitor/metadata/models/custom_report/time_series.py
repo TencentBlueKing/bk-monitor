@@ -2429,6 +2429,18 @@ class TimeSeriesMetric(models.Model):
         :param bk_tenant_id: 租户ID
         :param group_id: 自定义时序数据源ID
         """
+        # 验证group_id是否存在
+        time_series_group = TimeSeriesGroup.objects.filter(
+            time_series_group_id=group_id,
+            bk_tenant_id=bk_tenant_id,
+            is_delete=False,
+        ).first()
+
+        if not time_series_group:
+            raise ValueError(f"自定义时序分组不存在，请确认后重试。分组ID: {group_id}")
+
+        table_id = time_series_group.table_id
+
         # 批量查找已存在的指标
         field_ids = [m.get("field_id") for m in metrics_data if m.get("field_id")]
         existing_metrics_map = (
@@ -2453,27 +2465,15 @@ class TimeSeriesMetric(models.Model):
 
         # 批量创建新指标
         if metrics_to_create:
-            cls._batch_create_metrics(metrics_to_create, bk_tenant_id, group_id)
+            cls._batch_create_metrics(metrics_to_create, group_id, table_id)
 
         # 批量更新现有指标
         if metrics_to_update:
             cls._batch_update_metrics(metrics_to_update)
 
     @classmethod
-    def _batch_create_metrics(cls, metrics_to_create, bk_tenant_id, group_id):
+    def _batch_create_metrics(cls, metrics_to_create, group_id, table_id):
         """批量创建新的时序指标"""
-        # 验证group_id是否存在
-        time_series_group = TimeSeriesGroup.objects.filter(
-            time_series_group_id=group_id,
-            bk_tenant_id=bk_tenant_id,
-            is_delete=False,
-        ).first()
-
-        if not time_series_group:
-            raise ValueError(f"自定义时序分组不存在，请确认后重试。分组ID: {group_id}")
-
-        table_id = time_series_group.table_id
-
         # 检查字段名称冲突
         cls._validate_field_name_conflicts(metrics_to_create, group_id)
 
@@ -2482,8 +2482,14 @@ class TimeSeriesMetric(models.Model):
         scope_moves = defaultdict(list)  # {scope: [metric_objects]}  收集需要移动到scope的指标对象
 
         for metric_data in metrics_to_create:
-            cls._ensure_target_dimension_in_tags(metric_data)
-            cls._generate_table_id(metric_data, table_id)
+            tag_list = metric_data.get("tag_list") or []
+            target_dimension = cls.TARGET_DIMENSION_NAME
+
+            if target_dimension not in tag_list:
+                metric_data["tag_list"] = tag_list + [target_dimension]
+
+            database_name = table_id.split(".")[0]
+            metric_data["table_id"] = f"{database_name}.{metric_data['field_name']}"
 
             metric_obj = cls(
                 table_id=metric_data["table_id"],
@@ -2625,26 +2631,6 @@ class TimeSeriesMetric(models.Model):
             raise ValueError(
                 f"指标字段名称[{', '.join(conflicting_names)}]在[{cls.DEFAULT_DATA_SCOPE_NAME}]分组下已存在，请使用其他名称"
             )
-
-    @classmethod
-    def _ensure_target_dimension_in_tags(cls, validated_request_data):
-        """确保tag_list中包含target维度"""
-        tag_list = validated_request_data.get("tag_list") or []
-        target_dimension = cls.TARGET_DIMENSION_NAME
-
-        if target_dimension not in tag_list:
-            validated_request_data["tag_list"] = tag_list + [target_dimension]
-
-    @classmethod
-    def _generate_table_id(cls, validated_request_data, table_id):
-        """生成table_id"""
-        field_name = validated_request_data.get("field_name")
-        if not field_name:
-            raise ValueError(_("生成table_id时，field_name为必填项"))
-
-        # 从time_series_group的table_id中提取数据库名
-        database_name = table_id.split(".")[0]
-        validated_request_data["table_id"] = f"{database_name}.{field_name}"
 
     @classmethod
     def _get_or_create_scope(cls, group_id: int, scope_name: str) -> TimeSeriesScope:
