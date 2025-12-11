@@ -117,6 +117,11 @@ export default defineComponent({
 
       emit('error', { code: 200, message: '请求中', result: true });
 
+      RetrieveHelper.reportLog({
+        trigger_source: 'graphAnalysis',
+        action: 'request',
+      }, store.state);
+
       return requestBlob({
         url: `/search/index_set/${indexSetId.value}/chart/`,
         params: requestParams,

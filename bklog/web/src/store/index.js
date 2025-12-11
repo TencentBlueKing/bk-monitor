@@ -1393,6 +1393,8 @@ const store = new Vuex.Store({
               is_error: state.indexSetQueryResult.is_error,
               exception_msg: state.indexSetQueryResult.exception_msg,
               first_page: queryData.begin === 0 ? 1 : 0,
+              action: 'request',
+              trigger_source: 'retrieve_query',
             };
 
             reportRouteLog(
