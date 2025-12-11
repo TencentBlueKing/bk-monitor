@@ -1552,6 +1552,7 @@ class QueryTimeSeriesScopeResource(Resource):
                 {
                     "scope_id": scope.id,
                     "group_id": scope.group_id,
+                    "scope_name": scope.scope_name,
                     "dimension_config": scope.dimension_config or {},
                     "auto_rules": scope.auto_rules,
                     "metric_list": metric_list,
