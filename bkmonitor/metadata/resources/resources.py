@@ -1422,6 +1422,7 @@ class CreateOrUpdateTimeSeriesMetricResource(Resource):
 
             field_id = serializers.IntegerField(required=False, label="字段ID")
             field_name = serializers.CharField(required=False, label="指标字段名称", max_length=255)
+            field_scope = serializers.CharField(required=False, label="指标数据分组", max_length=255)
             tag_list = serializers.ListField(
                 required=False, label="Tag列表", child=serializers.CharField(), allow_null=True
             )

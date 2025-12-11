@@ -1260,63 +1260,47 @@ class TimeSeriesScope(models.Model):
         )
 
     @classmethod
-    def update_dimension_config_from_moved_metrics(
-        cls,
-        moved_metrics: list,
-        source_scope: "TimeSeriesScope",
-        sink_scope: "TimeSeriesScope",
-    ):
-        """todo hhh 批量更新
-        从其他分组移动指标到当前分组时，更新维度配置，以及指标的 scope_id
+    def update_dimension_config_from_moved_metrics(cls, scope_moves: dict):
+        """批量更新指标分组和维度配置
 
-        处理逻辑：
-        1. 根据 source_scope 获取被移除指标的维度配置集合 X
-        2. 将指定指标的 scope_id 更新为目标分组的 scope_id
-        3. 增量合并维度配置：新分组的维度配置 |= X（增量保存，维度配置会越来越多）
-
-        :param moved_metrics: 被移动的指标对象列表（必填）
-        :param source_scope: 源分组对象，如果为 None 表示新创建的指标
-        :param sink_scope: 目标分组对象（必填）
+        :param scope_moves: {sink_scope: {"moved_metrics": [...], "source_scope": ...}}
         """
-        if not moved_metrics:
+        if not scope_moves:
             return
 
-        # 1. 获取被移动指标的维度集合
-        moved_metric_dimensions = set()
-        for metric in moved_metrics:
-            if metric.tag_list:
-                moved_metric_dimensions.update(metric.tag_list)
+        all_metrics_to_update = []
+        scopes_to_update = []
 
-        # 2. 构建被移动指标的维度配置（X）
-        if source_scope is None:
-            # 新创建的指标，直接使用 tag_list 作为维度配置（空配置）
-            moved_dimension_config = {dimension_name: {} for dimension_name in moved_metric_dimensions}
-        else:
-            # 从源分组获取维度配置
-            source_dimension_config = source_scope.dimension_config or {}
-            # 从源分组的维度配置中提取被移动指标相关的维度配置
-            moved_dimension_config = {
-                dimension_name: source_dimension_config.get(dimension_name, {})
-                for dimension_name in moved_metric_dimensions
-            }
+        for sink_scope, move_info in scope_moves.items():
+            moved_metrics = move_info.get("moved_metrics") or []
+            if not moved_metrics:
+                continue
 
-        # 3. 更新保存指标的 scope_id 为目标分组的 scope_id
-        for metric in moved_metrics:
-            metric.scope_id = sink_scope.id
-        if moved_metrics:
-            TimeSeriesMetric.objects.bulk_update(moved_metrics, ["scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE)
+            source_scope = move_info.get("source_scope")
 
-        # 4. 合并维度配置到目标分组（增量保存：新分组的维度配置 |= X）
-        current_dimension_config = sink_scope.dimension_config or {}
-        updated_dimension_config = current_dimension_config.copy()
-        for dimension_name, moved_dimension_config_value in moved_dimension_config.items():
-            # 如果当前分组已有该维度配置，保留现有配置；否则使用移动过来的配置
-            updated_dimension_config.setdefault(dimension_name, moved_dimension_config_value)
+            # 1. 收集被移动指标的所有维度
+            moved_dimensions = {dim for metric in moved_metrics if metric.tag_list for dim in metric.tag_list}
 
-        # 更新 dimension_config
-        sink_scope.dimension_config = updated_dimension_config
-        # 保存当前分组的维度配置更新
-        sink_scope.save(update_fields=["dimension_config"])
+            # 2. 构建维度配置：从源分组提取或创建空配置
+            source_config = source_scope.dimension_config if source_scope else {}
+            moved_config = {dim: source_config.get(dim, {}) for dim in moved_dimensions}
+
+            # 3. 更新指标的 scope_id
+            for metric in moved_metrics:
+                metric.scope_id = sink_scope.id
+            all_metrics_to_update.extend(moved_metrics)
+
+            # 4. 合并维度配置到目标分组（增量保存）
+            sink_scope.dimension_config = {**(sink_scope.dimension_config or {}), **moved_config}
+            scopes_to_update.append(sink_scope)
+
+        # 5. 批量更新数据库
+        if all_metrics_to_update:
+            TimeSeriesMetric.objects.bulk_update(all_metrics_to_update, ["scope_id"], batch_size=BULK_UPDATE_BATCH_SIZE)
+        if scopes_to_update:
+            TimeSeriesScope.objects.bulk_update(
+                scopes_to_update, ["dimension_config"], batch_size=BULK_UPDATE_BATCH_SIZE
+            )
 
     @classmethod
     def _match_scope_by_auto_rules(cls, scope, field_name: str) -> bool:
@@ -2469,7 +2453,8 @@ class TimeSeriesMetric(models.Model):
             metric_obj = cls(
                 table_id=metric_data["table_id"],
                 field_name=metric_data["field_name"],
-                field_scope=cls.DEFAULT_DATA_SCOPE_NAME,
+                # todo hhh 是否需要校验？
+                field_scope=metric_data["field_scope"] if metric_data["field_scope"] else cls.DEFAULT_DATA_SCOPE_NAME,
                 group_id=group_id,
                 scope_id=None,  # 先不设置，由update_dimension_config_from_moved_metrics处理
                 tag_list=metric_data.get("tag_list", []),
@@ -2502,13 +2487,11 @@ class TimeSeriesMetric(models.Model):
         # 批量创建
         cls.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
-        # 使用update_dimension_config_from_moved_metrics更新维度配置和scope_id
-        for scope, moved_metrics in scope_moves.items():
-            TimeSeriesScope.update_dimension_config_from_moved_metrics(
-                moved_metrics=moved_metrics,
-                source_scope=None,  # 新创建的指标，没有源scope
-                sink_scope=scope,
-            )
+        scope_moves_dict = {
+            scope: {"moved_metrics": moved_metrics, "source_scope": None}
+            for scope, moved_metrics in scope_moves.items()
+        }
+        TimeSeriesScope.update_dimension_config_from_moved_metrics(scope_moves=scope_moves_dict)
 
     @classmethod
     def _batch_update_metrics(cls, metrics_to_update):
@@ -2560,14 +2543,12 @@ class TimeSeriesMetric(models.Model):
         if records_to_update:
             cls.objects.bulk_update(records_to_update, updatable_fields, batch_size=BULK_UPDATE_BATCH_SIZE)
 
-        # 处理scope的维度配置迁移（该方法会更新指标的scope_id）
-        for move_info in scope_moves.values():
-            if move_info["metrics"] and move_info["new_scope"]:
-                TimeSeriesScope.update_dimension_config_from_moved_metrics(
-                    moved_metrics=move_info["metrics"],
-                    source_scope=move_info["source_scope"],
-                    sink_scope=move_info["new_scope"],
-                )
+        scope_moves_dict = {
+            move_info["new_scope"]: {"moved_metrics": move_info["metrics"], "source_scope": move_info["source_scope"]}
+            for move_info in scope_moves.values()
+            if move_info["new_scope"]
+        }
+        TimeSeriesScope.update_dimension_config_from_moved_metrics(scope_moves=scope_moves_dict)
 
     @classmethod
     def _validate_field_name_conflicts(cls, metrics_to_create, group_id):
