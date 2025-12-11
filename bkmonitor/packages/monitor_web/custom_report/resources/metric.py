@@ -659,11 +659,17 @@ class ModifyCustomTsFields(Resource):
             id = serializers.IntegerField(label=_("指标 ID"), required=False, allow_null=True)
             name = serializers.CharField(label=_("字段名"))
             type = serializers.ChoiceField(label=_("字段类型"), choices=CustomTSMetricType.choices())
-            scope_id = serializers.IntegerField(label=_("分组 ID"))
+
+            class BaseScopeSerializer(serializers.Serializer):
+                id = serializers.IntegerField(label=_("分组 ID"))
+                name = serializers.CharField(label=_("分组名称"))
+
+            scope = BaseScopeSerializer(label=_("分组"))
 
             def validate(self, attrs):
                 if attrs["type"] == CustomTSMetricType.METRIC and "id" not in attrs:
                     raise serializers.ValidationError({"id": _("metric 类型必须提供有效的 id")})
+                attrs["scope_id"] = attrs["scope"]["id"]
                 return super().validate(attrs)
 
         class FieldSerializer(BaseFieldSerializer):
