@@ -553,7 +553,11 @@ class IncidentTopologyResource(IncidentBaseResource):
             incident_snapshots = sorted(incident_snapshots, key=lambda x: x["create_time"])
 
         # 过滤不需要的snapshots
-        incident_snapshots = [snapshot for snapshot in incident_snapshots if snapshot.fpp_snapshot_id != "fpp:None"]
+        incident_snapshots = [
+            snapshot
+            for snapshot in incident_snapshots
+            if all([snapshot.fpp_snapshot_id != "fpp:None", not snapshot.fpp_snapshot_id.endswith(":llm_summary")])
+        ]
 
         # 根据实体加入的时间生成实体ID到时间的映射
         entities_orders = self.generate_entities_orders(incident_snapshots)
@@ -1298,6 +1302,9 @@ class IncidentAlertListResource(IncidentBaseResource):
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
         alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
 
+        # 获取故障的当前版本ID
+        incident_version_id = incident.extra_info.get("version_id") if incident.extra_info else None
+
         incident_alerts = resource.commons.get_label()
         for category in incident_alerts:
             category["alerts"] = []
@@ -1311,7 +1318,11 @@ class IncidentAlertListResource(IncidentBaseResource):
                 if alert_entity
                 else False
             )
-            alert["is_current_primary"] = alert_entity.entity.component_type
+            # 使用 extra_info 中的 version_id 判断告警是否与当前故障更新是同一批次
+            alert_version_id = (
+                alert.get("extra_info", {}).get("incident_version_id") if alert.get("extra_info") else None
+            )
+            alert["is_current_primary"] = incident_version_id is not None and alert_version_id == incident_version_id
             for category in incident_alerts:
                 if alert["category"] in category["sub_categories"]:
                     category["alerts"].append(alert)
@@ -1342,6 +1353,9 @@ class IncidentAlertViewResource(IncidentBaseResource):
         snapshot = IncidentSnapshot(incident.snapshot.content.to_dict())
         alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
 
+        # 获取故障的当前版本ID
+        incident_version_id = incident.extra_info.get("version_id") if incident.extra_info else None
+
         incident_alerts = resource.commons.get_label()
         for category in incident_alerts:
             category["alerts"] = []
@@ -1355,7 +1369,11 @@ class IncidentAlertViewResource(IncidentBaseResource):
                 if alert_entity
                 else False
             )
-            alert["is_current_primary"] = alert_entity.entity.component_type
+            # 使用 extra_info 中的 version_id 判断告警是否与当前故障更新是同一批次
+            alert_version_id = (
+                alert.get("extra_info", {}).get("incident_version_id") if alert.get("extra_info") else None
+            )
+            alert["is_current_primary"] = incident_version_id is not None and alert_version_id == incident_version_id
             alert_doc = AlertDocument(**alert)
             # 检索得到的alert详情不包含event信息，只有event_id，这里默认当前告警时间的extra_info跟event相同
             alert_doc.event.extra_info = alert_doc.extra_info
