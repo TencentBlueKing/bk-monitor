@@ -24,7 +24,6 @@ from django.utils.functional import cached_property
 from django.utils.timezone import make_aware
 from django.utils.timezone import now as tz_now
 from django.utils.translation import gettext as _
-from django.db.models import Q
 
 from bkmonitor.utils.db.fields import JsonField
 from constants.common import DEFAULT_TENANT_ID
@@ -50,187 +49,6 @@ from utils.redis_client import RedisClient
 from .base import CustomGroupBase
 
 logger = logging.getLogger("metadata")
-
-
-class ScopeName:
-    """
-    多级分组代理对象
-
-    支持多级分组，例如：
-    - 一级分组: "default"
-    - 二级分组: "service_name||scope_name" -> "api-server||production"
-    - 未分组: "" (空串)
-    - 多级分组中最后一级为空串表示未分组: "api-server||"
-    """
-
-    SEPARATOR = "||"
-    UNGROUPED = ""
-
-    @classmethod
-    def levels(cls, scope_name: str) -> list[str]:
-        """
-        获取所有层级的值列表
-
-        :param scope_name: 完整的 scope_name，例如 "service_name||endpoint_name"
-        :return: 层级值列表，例如 ["service_name", "endpoint_name"]
-        """
-        if not scope_name:
-            return []
-        return [level for level in scope_name.split(cls.SEPARATOR) if level]
-
-    @classmethod
-    def get_ungrouped_name(cls, prefix_levels: list[str] | None = None) -> str:
-        """
-        获取未分组的 scope_name
-
-        不同层级的未分组名称是不同的：
-        - 一级未分组: "" (空字符串)
-        - 多级未分组: "service_name||" (保留前缀和分隔符)
-
-        :param prefix_levels: 前缀层级列表，例如 ["service_name"] 表示二级分组的未分组
-        :return: 未分组的 scope_name
-
-        示例：
-        - get_ungrouped_name() -> ""  # 一级未分组
-        - get_ungrouped_name(["api-server"]) -> "api-server||"  # 二级未分组
-        - get_ungrouped_name(["api-server", "production"]) -> "api-server||production||"  # 三级未分组
-        """
-        if not prefix_levels:
-            return cls.UNGROUPED
-        return cls.SEPARATOR.join(prefix_levels) + cls.SEPARATOR
-
-    @classmethod
-    def from_group_key(cls, group_key: str, metric_group_dimensions: dict | None = None) -> str:
-        """
-        从 group_key 转换为 field_scope 字符串（仅用于 get_metric_from_bkdata）
-
-        :param group_key: 例如 "service_name:api-server||scope_name:production"
-        :param metric_group_dimensions: 分组维度配置，例如 {
-            "service_name": {"index": 0, "default_value": "unknown_service"},
-            "scope_name": {"index": 1, "default_value": "default"}
-        }
-        :return: field_scope 字符串
-        """
-        if not group_key or not metric_group_dimensions:
-            return TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
-
-        # 解析 group_key 为键值对
-        key_value_map = {}
-        for part in group_key.split(cls.SEPARATOR):
-            if ":" in part:
-                key, value = part.split(":", 1)
-                if value.strip():
-                    key_value_map[key.strip()] = value.strip()
-
-        # 按 index 排序，提取值并拼接
-        sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
-        levels = []
-        for dim_name, dim_config in sorted_dims:
-            value = key_value_map.get(dim_name) or dim_config.get("default_value", "")
-            if not value:
-                # 如果有空值，返回默认值
-                return TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
-            levels.append(value)
-
-        # 拼接并返回
-        result = cls.SEPARATOR.join(levels)
-        return result if result else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
-
-    @classmethod
-    def from_field_scope(cls, field_scope: str) -> str:
-        """
-        metric field_scope 转换为 scope scope_name
-
-        规则：
-        - 如果是 default 分组（一级或多级），转换为未分组格式
-          - 一级 default: "default" -> ""
-          - 多级 default: "service_name||default" -> "service_name||"
-        - 其他分组保持原样
-
-        :param field_scope: 指标的 field_scope 值
-        :return: 数据库存储格式的分组名
-        """
-        if cls.is_default_data_field_scope(field_scope):
-            # 如果是 default 分组，转换为数据库存储格式
-            if cls.SEPARATOR in field_scope:
-                # 多级分组：将最后一级的 default 替换为空串
-                return field_scope.rsplit(cls.SEPARATOR, 1)[0] + cls.SEPARATOR
-            else:
-                # 一级分组：直接返回空串（未分组）
-                return cls.UNGROUPED
-        else:
-            # 非 default 分组，保持原样
-            return field_scope
-
-    @classmethod
-    def is_default_data_field_scope(cls, field_scope: str) -> bool:
-        """
-        判断指定的 field_scope 是否为 default 分组（一级或多级）
-
-        示例：
-        - 一级分组: "default"
-        - 多级分组: "service_name||default"
-
-        :param field_scope: 指标的 field_scope 值
-        :return: 如果是 default 分组返回 True，否则返回 False
-        todo hhh 根据用户配置的默认值来确定
-        """
-        return field_scope == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME or field_scope.endswith(
-            f"{cls.SEPARATOR}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
-        )
-
-    @classmethod
-    def is_ungrouped(cls, scope_name: str | None) -> bool:
-        """
-        判断是否属于未分组：一级未分组（空字符串）或多级未分组（以分隔符结尾）
-        :param scope_name: 分组名称
-        :return: 如果是未分组返回 True，否则返回 False
-        """
-        if not scope_name:
-            return False
-        return scope_name == cls.UNGROUPED or scope_name.endswith(cls.SEPARATOR)
-
-    @classmethod
-    def exclude_ungrouped_filter(cls) -> Q:
-        """
-        获取排除所有未分组 scope 的查询过滤器
-
-        用于排除：
-        - 一级未分组（空字符串）
-        - 多级未分组（以分隔符结尾的 scope_name）
-
-        :return: Q 对象，用于排除未分组的 scope
-        """
-        return ~Q(Q(scope_name=cls.get_ungrouped_name()) | Q(scope_name__endswith=cls.SEPARATOR))
-
-    @classmethod
-    def get_prefix(cls, scope_name: str) -> str:
-        """
-        获取 scope_name 的前缀（除了最后一级）
-
-        示例：
-        - "" -> ""  # 一级未分组，前缀为空
-        - "default" -> ""  # 一级分组，前缀为空
-        - "api-server||" -> "api-server"  # 二级未分组，前缀为 api-server
-        - "api-server||production" -> "api-server"  # 二级分组，前缀为 api-server
-        - "api-server||production||endpoint1" -> "api-server||production"  # 三级分组
-
-        :param scope_name: 完整的 scope_name
-        :return: 前缀部分（除了最后一级）
-        """
-        if not scope_name:
-            return ""
-
-        # 如果以分隔符结尾（未分组），先去掉末尾的分隔符
-        if scope_name.endswith(cls.SEPARATOR):
-            scope_name = scope_name[: -len(cls.SEPARATOR)]
-
-        # 如果没有分隔符，说明是一级分组，前缀为空
-        if cls.SEPARATOR not in scope_name:
-            return ""
-
-        # 返回除了最后一级之外的部分
-        return scope_name.rsplit(cls.SEPARATOR, 1)[0]
 
 
 class TimeSeriesGroup(CustomGroupBase):
@@ -294,6 +112,50 @@ class TimeSeriesGroup(CustomGroupBase):
     ]
 
     FIELD_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_]+$")
+
+    @classmethod
+    def from_group_key(cls, group_key: str, metric_group_dimensions: dict | None = None) -> str:
+        """
+        从 group_key 转换为 field_scope 字符串（仅用于 get_metric_from_bkdata）
+
+        :param group_key: 例如 "service_name:api-server||scope_name:production"
+        :param metric_group_dimensions: 分组维度配置，例如 {
+            "service_name": {"index": 0, "default_value": "unknown_service"},
+            "scope_name": {"index": 1, "default_value": "default"}
+        }
+        :return: field_scope 字符串
+        """
+        if not group_key or not metric_group_dimensions:
+            return TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
+
+        # 解析 group_key 为键值对
+        key_value_map = {}
+        for part in group_key.split("||"):
+            if ":" in part:
+                key, value = part.split(":", 1)
+                if value.strip():
+                    key_value_map[key.strip()] = value.strip()
+
+        # 按 index 排序，提取值并拼接
+        sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
+        levels = []
+        for dim_name, dim_config in sorted_dims:
+            value = key_value_map.get(dim_name) or dim_config.get("default_value", "")
+            if not value:
+                # 如果有空值，返回默认值
+                return TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
+            levels.append(value)
+
+        # 拼接并返回
+        result = "||".join(levels)
+        return result if result else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
+
+    @classmethod
+    def is_default_data_field_scope(cls, field_scope: str) -> bool:
+        # todo hhh 根据用户配置的默认值来确定
+        return field_scope == TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME or field_scope.endswith(
+            f"{'||'}{TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME}"
+        )
 
     # 组合一个默认的table_id
     @staticmethod
@@ -712,7 +574,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
                     item = {
                         "field_name": md["name"],
-                        "field_scope": ScopeName.from_group_key(group_key, self.metric_group_dimensions),
+                        "field_scope": TimeSeriesGroup.from_group_key(group_key, self.metric_group_dimensions),
                         "last_modify_time": latest_update_time // 1000,
                         "tag_value_list": tag_value_list,
                     }
@@ -1260,6 +1122,22 @@ class TimeSeriesScope(models.Model):
         )
 
     @classmethod
+    def get_prefix(cls, scope_name: str) -> str:
+        if not scope_name:
+            return ""
+
+        # 如果以分隔符结尾（未分组），先去掉末尾的分隔符
+        if scope_name.endswith("||"):
+            scope_name = scope_name[: -len("||")]
+
+        # 如果没有分隔符，说明是一级分组，前缀为空
+        if "||" not in scope_name:
+            return ""
+
+        # 返回除了最后一级之外的部分
+        return scope_name.rsplit("||", 1)[0]
+
+    @classmethod
     def update_dimension_config_from_moved_metrics(cls, scope_moves: dict):
         """批量更新指标分组和维度配置
 
@@ -1334,9 +1212,9 @@ class TimeSeriesScope(models.Model):
             return existing_scope_id
 
         # 新建场景
-        if ScopeName.is_default_data_field_scope(field_scope):
+        if TimeSeriesGroup.is_default_data_field_scope(field_scope):
             # 默认分组：尝试匹配 auto_rules
-            prefix = ScopeName.get_prefix(field_scope)
+            prefix = cls.get_prefix(field_scope)
             for scope in auto_scopes_by_prefix.get(prefix, []):
                 if cls._match_scope_by_auto_rules(scope, field_name):
                     return scope.id
@@ -1359,7 +1237,7 @@ class TimeSeriesScope(models.Model):
         # 按前缀分组并排序（用于 auto_rules 匹配）
         auto_scopes_by_prefix = defaultdict(list)
         for scope in all_scopes:
-            prefix = ScopeName.get_prefix(scope.scope_name)
+            prefix = cls.get_prefix(scope.scope_name)
             auto_scopes_by_prefix[prefix].append(scope)
         for scopes in auto_scopes_by_prefix.values():
             scopes.sort(key=lambda x: x.last_modify_time, reverse=True)
@@ -1430,7 +1308,7 @@ class TimeSeriesScope(models.Model):
                 dimension_config={},
                 auto_rules=[],
                 create_from=cls.CREATE_FROM_DEFAULT
-                if ScopeName.is_default_data_field_scope(name)
+                if TimeSeriesGroup.is_default_data_field_scope(name)
                 else cls.CREATE_FROM_DATA,
             )
             for name in scope_names - existing_scope_names
