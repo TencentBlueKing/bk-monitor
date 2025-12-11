@@ -570,22 +570,21 @@ class TimeSeriesGroup(CustomGroupBase):
 
             # 合并 tag_value_list
             tag_value_list = item.get("tag_value_list", {})
-            if tag_value_list:
-                for tag_name, tag_info in tag_value_list.items():
-                    existing_tag = aggregated_metrics[field_name]["tag_value_list"].get(tag_name)
-                    new_values = set(tag_info.get("values", []))
-                    new_update_time = tag_info.get("last_update_time", 0)
+            for tag_name, tag_info in tag_value_list.items():
+                existing_tag = aggregated_metrics[field_name]["tag_value_list"].get(tag_name)
+                new_values = set(tag_info.get("values", []))
+                new_update_time = tag_info.get("last_update_time", 0)
 
-                    if existing_tag:
-                        # 合并 values（去重）并取最新的 last_update_time
-                        existing_tag["values"] = list(set(existing_tag["values"]) | new_values)
-                        existing_tag["last_update_time"] = max(existing_tag["last_update_time"], new_update_time)
-                    else:
-                        # 新建 tag 信息
-                        aggregated_metrics[field_name]["tag_value_list"][tag_name] = {
-                            "last_update_time": new_update_time,
-                            "values": list(new_values),
-                        }
+                if existing_tag:
+                    # 合并 values（去重）并取最新的 last_update_time
+                    existing_tag["values"] = list(set(existing_tag["values"]) | new_values)
+                    existing_tag["last_update_time"] = max(existing_tag["last_update_time"], new_update_time)
+                else:
+                    # 新建 tag 信息
+                    aggregated_metrics[field_name]["tag_value_list"][tag_name] = {
+                        "last_update_time": new_update_time,
+                        "values": list(new_values),
+                    }
 
         # 将聚合后的数据转换为列表
         metric_info = list(aggregated_metrics.values())
