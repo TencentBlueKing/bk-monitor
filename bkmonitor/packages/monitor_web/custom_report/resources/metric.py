@@ -608,18 +608,20 @@ class GetCustomTsFields(Resource):
                     continue
                 metrics.append(
                     {
-                        "scope_id": scope_id,
-                        "scope_name": scope_name,
-                        "field_id": metric_dict.get("field_id"),
+                        "scope": {"id": scope_id, "scope_name": scope_name},
+                        "id": metric_dict.get("field_id"),
                         "name": metric_dict.get("metric_name", ""),
+                        "field_scope": metric_dict["field_scope"],
                         "type": CustomTSMetricType.METRIC,
-                        "alias": field_config.get("alias", ""),
-                        "disabled": field_config.get("disabled", False),
-                        "unit": field_config.get("unit", ""),
-                        "hidden": field_config.get("hidden", False),
-                        "aggregate_method": field_config.get("aggregate_method", ""),
-                        "function": field_config.get("function", {}),
-                        "interval": field_config.get("interval", 0),
+                        "config": {
+                            "alias": field_config.get("alias", ""),
+                            "disabled": field_config.get("disabled", False),
+                            "unit": field_config.get("unit", ""),
+                            "hidden": field_config.get("hidden", False),
+                            "aggregate_method": field_config.get("aggregate_method", ""),
+                            "function": field_config.get("function", {}),
+                            "interval": field_config.get("interval", 0),
+                        },
                         "dimensions": metric_dict.get("tag_list", []),
                         "create_time": metric_dict.get("create_time", None),
                         "update_time": metric_dict.get("last_modify_time", None),
@@ -628,16 +630,14 @@ class GetCustomTsFields(Resource):
             for dimension_name, dimension_dict in scope_dict.get("dimension_config", {}).items():
                 dimensions.append(
                     {
-                        "scope_id": scope_id,
-                        "scope_name": scope_name,
+                        "scope": {"id": scope_id, "scope_name": scope_name},
                         "name": dimension_name,
                         "type": CustomTSMetricType.DIMENSION,
-                        "alias": dimension_dict.get("alias", ""),
-                        "disabled": False,
-                        "hidden": dimension_dict.get("hidden", False),
-                        "common": dimension_dict.get("common", False),
-                        "create_time": None,
-                        "update_time": None,
+                        "config": {
+                            "alias": dimension_dict.get("alias", ""),
+                            "hidden": dimension_dict.get("hidden", False),
+                            "common": dimension_dict.get("common", False),
+                        },
                     }
                 )
         return {"dimensions": dimensions, "metrics": metrics}
