@@ -108,8 +108,8 @@ export default defineComponent({
       },
     });
 
-    const handleRootElementClick = (e: MouseEvent) => {
-      e.stopPropagation();
+    const handleRootElementClick = () => {
+      // e.stopPropagation();
       // e.preventDefault();
       // e.stopImmediatePropagation();
 
