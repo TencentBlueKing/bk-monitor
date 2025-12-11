@@ -45,6 +45,17 @@ BKBASE_V4_KIND_STORAGE_CONFIGS = [
         },
         "cluster_type": models.ClusterInfo.TYPE_DORIS,
     },
+    {
+        "kind": DataLinkKind.get_choice_value(DataLinkKind.KAFKACHANNEL.value),
+        "namespace": BKBASE_NAMESPACE_BK_LOG,
+        "field_mappings": {
+            "domain_name": "host",
+            "port": "port",
+            "username": "",
+            "password": "",
+        },
+        "cluster_type": models.ClusterInfo.TYPE_KAFKA,
+    },
 ]
 
 BKBASE_RT_STORAGE_TYPES_OPTION_NAME = "bkbase_rt_storage_types"

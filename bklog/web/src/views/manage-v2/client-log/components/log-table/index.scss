@@ -1,0 +1,90 @@
+.log-table {
+  .name-button {
+    width: 100%;
+    text-align: left;
+
+    >div {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      overflow-wrap: normal;
+      white-space: nowrap;
+    }
+
+  }
+
+  .status-row {
+    display: flex;
+
+    .status-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      margin-right: 7px;
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+
+      .status-failed {
+        background: #FFDDDD;
+        border: 1px solid #EA3636;
+      }
+
+      .status-success {
+        background: #CBF0DA;
+        border: 1px solid #2CAF5E;
+      }
+
+      .status-pending {
+        background: #FCE5C0;
+        border: 1px solid #F59500;
+      }
+
+      .status-stopped {
+        background: #F0F1F5;
+        border: 1px solid #C4C6CC;
+      }
+    }
+  }
+
+  .log-table-operate {
+    display: flex;
+    align-items: center;
+
+    .king-button {
+      margin-right: 16px;
+    }
+
+    .disabled-download {
+      color: #c4c6cc;
+    }
+  }
+
+  .bk-table {
+    .bk-table-header-wrapper {
+      .filter-column {
+        .cell {
+          display: flex;
+        }
+      }
+    }
+
+    .bk-table-fixed-right-patch {
+      display: none;
+      width: 0px;
+    }
+  }
+
+  .overflow-hidden-text {
+    .cell {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      overflow-wrap: normal;
+      white-space: nowrap;
+    }
+  }
+}

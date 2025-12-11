@@ -1225,4 +1225,13 @@ export default {
   集群说明: 'Cluster Description',
   副本数量: 'Replica Count',
   集群备注: 'Cluster Remarks',
+  '搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人':
+    'Task ID, Name, OpenID, Create Method, Status, Stage, Creator',
+  'Alert 文案占位，用于说明如果用 SDK 上报。':
+    'The alert text placeholder is used to explain how to report using the SDK.',
+  '暂无下载链接，请在任务完成后点击下载':
+    'No download link available. Please click download after completing the task.',
+  灰度业务: 'Gray scale business',
+  '本功能为灰度业务，请联系管理员开通':
+    'This feature is currently in a phased rollout phase. Please contact the administrator to activate it.',
 };

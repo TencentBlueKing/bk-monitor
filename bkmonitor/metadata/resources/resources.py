@@ -1732,6 +1732,22 @@ class ListBCSClusterInfoResource(Resource):
         return [cluster.to_json() for cluster in clusters]
 
 
+class ListBCSClusterInfoByBizResource(Resource):
+    """
+    查询指定业务下的bcs集群信息,用于用户查询
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(label="租户ID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        clusters = BCSClusterInfo.objects.filter(
+            bk_tenant_id=validated_request_data["bk_tenant_id"], bk_biz_id=validated_request_data["bk_biz_id"]
+        )
+        return [cluster.to_json_for_user() for cluster in clusters]
+
+
 class ApplyYamlToBCSClusterResource(Resource):
     """
     应用yaml配置到指定集群
