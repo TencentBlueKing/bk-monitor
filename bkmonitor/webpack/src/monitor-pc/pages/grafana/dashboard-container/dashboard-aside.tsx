@@ -214,7 +214,10 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
   get isCopyDashboard() {
     return this.curFormType === MoreType.copy;
   }
-
+  /** 是否开启AI智能助手 */
+  get isEnableAiAssistant() {
+    return aiWhaleStore.enableAiAssistant;
+  }
   /** 目录列表 */
   get dirList() {
     return this.grafanaList.reduce((total, item) => {
@@ -945,7 +948,7 @@ export default class DashboardAside extends tsc<IProps, IEvents> {
             class='dashboard-add-dialog-footer'
             slot='footer'
           >
-            {this.isDashboard && (
+            {this.isDashboard && this.isEnableAiAssistant && (
               <div
                 class='ai-add-dashboard'
                 onClick={this.handleAddDashboardWithAI}

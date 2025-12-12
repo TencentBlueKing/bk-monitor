@@ -342,12 +342,12 @@ const handleSqlRetrieve = (value) => {
 
 const handleSqlQueryChange = (value) => {
   if (isGloalUsage.value) {
-    store.commit('updateIndexItemParams', {
-      keyword: value,
-    });
+    // store.commit('updateIndexItemParams', {
+    //   keyword: value,
+    // });
 
-    inspectResponse.value.is_legal = true;
-    setRouteParams();
+    // inspectResponse.value.is_legal = true;
+    // setRouteParams();
     return;
   }
 };
