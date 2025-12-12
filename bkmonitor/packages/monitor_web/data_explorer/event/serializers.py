@@ -34,15 +34,12 @@ def filter_tables_by_source(
         data_labels_map = utils.get_data_labels_map(bk_biz_id, tables)
 
     for table in tables:
-        if table in filtered_tables:
-            continue
-
         __, source = constants.EVENT_ORIGIN_MAPPING.get(data_labels_map.get(table), constants.DEFAULT_EVENT_ORIGIN)
         if source_cond["method"] == constants.Operation.EQ["value"]:
-            if source in source_cond.get("value") or []:
+            if source in (source_cond.get("value") or []):
                 filtered_tables.add(table)
         elif source_cond["method"] == constants.Operation.NE["value"]:
-            if source not in source_cond.get("value") or []:
+            if source not in (source_cond.get("value") or []):
                 filtered_tables.add(table)
 
     return filtered_tables
@@ -121,7 +118,11 @@ class EventWithQueryConfigsSerializer(BaseEventRequestSerializer):
 
             where: list[dict[str, Any]] = []
             for cond in query_config.get("where") or []:
-                if cond.get("key") == "source":
+                if (
+                    # 为和上报字段进行区分，命中 key 的同时，过滤值也需要在事件源枚举中。
+                    cond.get("key") == "source"
+                    and set(cond.get("value") or []) & set(constants.EventSource.label_mapping().keys())
+                ):
                     # 单独处理事件源（source）过滤条件。
                     source_cond = cond
                     continue
