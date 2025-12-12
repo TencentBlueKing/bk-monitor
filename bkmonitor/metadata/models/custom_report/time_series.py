@@ -1310,7 +1310,7 @@ class TimeSeriesScope(models.Model):
         return scope_id_to_metrics, scope_id_to_dimensions
 
     @classmethod
-    def _bulk_update_ts_scope(cls, scope_id_to_dimensions: dict):
+    def _bulk_update_ts_scope_dimensions(cls, scope_id_to_dimensions: dict):
         scope_id_to_obj = {scope.id: scope for scope in cls.objects.filter(id__in=scope_id_to_dimensions.keys())}
         scopes_to_update = []
         for scope_id, dimensions in scope_id_to_dimensions.items():
@@ -1326,24 +1326,45 @@ class TimeSeriesScope(models.Model):
             cls.objects.bulk_update(scopes_to_update, ["dimension_config"], batch_size=BULK_UPDATE_BATCH_SIZE)
 
     @classmethod
-    def _bulk_create_ts_scopes(cls, group_id: int, scope_names: set, metric_group_dimensions: dict | None = None):
-        existing_scope_names = set(
-            cls.objects.filter(group_id=group_id, scope_name__in=scope_names).values_list("scope_name", flat=True)
-        )
+    def _bulk_create_or_update_ts_scopes(
+        cls, group_id: int, scope_names: set, metric_group_dimensions: dict | None = None
+    ):
+        def _get_create_from(scope_name: str) -> str:
+            """根据 scope_name 判断 create_from 类型"""
+            return (
+                cls.CREATE_FROM_DEFAULT
+                if TimeSeriesGroup.get_default_scope_info(scope_name, metric_group_dimensions)[0]
+                else cls.CREATE_FROM_DATA
+            )
+
+        # 直接获取已存在的 scope 对象
+        existing_scopes = cls.objects.filter(group_id=group_id, scope_name__in=scope_names)
+        existing_scope_names = {scope.scope_name for scope in existing_scopes}
+
+        # 创建新的 scope
         new_scopes = [
             cls(
                 group_id=group_id,
                 scope_name=name,
                 dimension_config={},
                 auto_rules=[],
-                create_from=cls.CREATE_FROM_DEFAULT
-                if TimeSeriesGroup.get_default_scope_info(name, metric_group_dimensions)[0]
-                else cls.CREATE_FROM_DATA,
+                create_from=_get_create_from(name),
             )
             for name in scope_names - existing_scope_names
         ]
         if new_scopes:
             cls.objects.bulk_create(new_scopes, batch_size=BULK_CREATE_BATCH_SIZE)
+
+        # 更新已存在的 scope 的 create_from 字段
+        scopes_to_update = []
+        for scope in existing_scopes:
+            new_create_from = _get_create_from(scope.scope_name)
+            if scope.create_from != new_create_from:
+                scope.create_from = new_create_from
+                scopes_to_update.append(scope)
+
+        if scopes_to_update:
+            cls.objects.bulk_update(scopes_to_update, ["create_from"], batch_size=BULK_UPDATE_BATCH_SIZE)
 
     @classmethod
     def bulk_refresh_ts_scopes(
@@ -1353,7 +1374,7 @@ class TimeSeriesScope(models.Model):
         scope_names = {metric_info["field_scope"] for metric_info in metric_info_list if metric_info["field_scope"]}
         if not scope_names:
             return {}
-        cls._bulk_create_ts_scopes(group_id, scope_names, metric_group_dimensions)
+        cls._bulk_create_or_update_ts_scopes(group_id, scope_names, metric_group_dimensions)
 
         # 为每个指标分配 scope_id 并收集维度
         scope_id_to_metrics, scope_id_to_dimensions = cls._collect_metrics_and_dimensions(
@@ -1361,7 +1382,7 @@ class TimeSeriesScope(models.Model):
         )
 
         # 更新维度配置（增量合并）
-        cls._bulk_update_ts_scope(scope_id_to_dimensions)
+        cls._bulk_update_ts_scope_dimensions(scope_id_to_dimensions)
 
         return dict(scope_id_to_metrics)
 
