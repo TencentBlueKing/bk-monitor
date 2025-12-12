@@ -663,6 +663,7 @@ class ModifyCustomTsFields(Resource):
                     s = self.DeleteMetricSerializer(data=data)
                 s.is_valid(raise_exception=True)
                 validated_data.update(s.validated_data)
+                validated_data["scope_id"] = validated_data["scope"]["id"]
                 return validated_data
 
         class CUFieldSerializer(serializers.Serializer):
@@ -670,8 +671,9 @@ class ModifyCustomTsFields(Resource):
             scope = BasicScopeSerializer(label=_("分组信息"))
 
             class CMetricSerializer(serializers.Serializer):
-                config = MetricConfigSerializer(label=_("指标配置"), default={})
+                id = serializers.IntegerField(label=_("指标 ID"), allow_null=True, default=None)
                 name = serializers.CharField(label=_("指标名称"))
+                config = MetricConfigSerializer(label=_("指标配置"), default={})
 
             class UMetricSerializer(serializers.Serializer):
                 config = MetricConfigSerializer(label=_("指标配置"), default={})
@@ -733,6 +735,7 @@ class ModifyCustomTsFields(Resource):
                 origin_field_config["disabled"] = True
                 need_delete_metric_dict[metric_id] = {
                     "field_id": metric_id,
+                    "scope_id": field_dict["scope_id"],
                     "field_config": origin_field_config,
                 }
             else:
