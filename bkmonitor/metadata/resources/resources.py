@@ -1512,19 +1512,22 @@ class QueryTimeSeriesScopeResource(Resource):
     """
     查询自定义时序指标分组列表
 
-    支持通过 group_id 和 scope_id 进行查询，返回列表结果
+    支持通过 group_id 和 scope_ids 进行查询，返回列表结果
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
-        scope_id = serializers.IntegerField(required=False, label="指标分组ID")
-        # todo hhh 支持前缀多级分组
+        scope_ids = serializers.ListField(
+            child=serializers.IntegerField(), required=False, label="指标分组ID列表", allow_empty=True
+        )
+        scope_name = serializers.CharField(required=False, label="指标分组名称")
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         group_id = validated_request_data.get("group_id")
-        scope_id = validated_request_data.get("scope_id")
+        scope_ids = validated_request_data.get("scope_ids")
+        scope_name = validated_request_data.get("scope_name")
 
         if not models.TimeSeriesGroup.objects.filter(
             time_series_group_id=group_id, bk_tenant_id=bk_tenant_id, is_delete=False
@@ -1535,8 +1538,10 @@ class QueryTimeSeriesScopeResource(Resource):
         query_set = models.TimeSeriesScope.objects.all()
         if group_id is not None:
             query_set = query_set.filter(group_id=group_id)
-        if scope_id is not None:
-            query_set = query_set.filter(id=scope_id)
+        if scope_ids:
+            query_set = query_set.filter(id__in=scope_ids)
+        if scope_name:
+            query_set = query_set.filter(scope_name__icontains=scope_name)
         results = self._build_grouped_results(query_set)
 
         return results
