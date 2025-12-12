@@ -515,13 +515,13 @@ class CreateOrUpdateTimeSeriesMetricResource(MetaDataAPIGWResource):
 
             field_id = serializers.IntegerField(required=False, label="字段ID")
             field_name = serializers.CharField(required=False, label="指标字段名称", max_length=255)
+            field_scope = serializers.CharField(required=False, label="指标数据分组", max_length=255)
             tag_list = serializers.ListField(
                 required=False, label="Tag列表", child=serializers.CharField(), allow_null=True
             )
             field_config = serializers.DictField(required=False, label="字段其他配置", allow_null=True)
             label = serializers.CharField(required=False, label="指标监控对象", max_length=255, allow_null=True)
-            scope_id = serializers.IntegerField(required=False, label="指标分组ID", allow_null=True)
-            scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255, allow_blank=True)
+            scope_id = serializers.IntegerField(required=True, label="指标分组ID", allow_null=True)
 
         group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
         metrics = serializers.ListField(
@@ -583,7 +583,6 @@ class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
     class RequestSerializer(serializers.Serializer):
         group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
         scope_id = serializers.IntegerField(required=False, label="指标分组ID")
-        scope_name = serializers.CharField(required=False, label="指标分组名", allow_blank=True)
 
 
 class QueryTagValuesResource(MetaDataAPIGWResource):

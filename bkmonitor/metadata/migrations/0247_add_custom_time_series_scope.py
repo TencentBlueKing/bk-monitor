@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="timeseriesgroup",
             name="metric_group_dimensions",
-            field=models.JSONField(default=[], verbose_name="指标分组的维度key配置"),
+            field=models.JSONField(default=dict, verbose_name="指标分组的维度key配置"),
         ),
         migrations.AddField(
             model_name="timeseriesmetric",
