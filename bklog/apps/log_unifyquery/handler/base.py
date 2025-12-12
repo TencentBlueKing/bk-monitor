@@ -969,7 +969,7 @@ class UnifyQueryHandler:
 
         return bcs_cluster_name
 
-      def _date_histogram_unify_query(self, interval, group_field, params):
+    def _date_histogram_unify_query(self, interval, group_field, params):
         """
         unify_query 查询 date_histogram
         """
