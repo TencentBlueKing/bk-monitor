@@ -8,10 +8,21 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from monitor_web.models.custom_report import CustomTSTable
+
+
+class BasicScopeSerializer(serializers.Serializer):
+    id = serializers.IntegerField(label=_("分组 ID"))
+    name = serializers.CharField(label=_("分组名称"))
+
+
+class BasicMetricSerializer(serializers.Serializer):
+    field_id = serializers.IntegerField(label=_("指标 ID"))
+    metric_name = serializers.CharField(label=_("指标名称"))
 
 
 class CustomTSTableSerializer(serializers.ModelSerializer):
@@ -44,15 +55,24 @@ class CustomTSGroupingRuleSerializer(serializers.Serializer):
         return attrs
 
 
-class MetricSerializer(serializers.Serializer):
-    field_id = serializers.IntegerField(label=_("指标 ID"))
-    metric_name = serializers.CharField(label=_("指标名称"))
+class BaseCustomTSSerializer(serializers.Serializer):
+    bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
+    time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"))
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        bk_biz_id: int = attrs["bk_biz_id"]
+        time_series_group_id: int = attrs["time_series_group_id"]
+        if not CustomTSTable.objects.filter(bk_biz_id=bk_biz_id, time_series_group_id=time_series_group_id).first():
+            raise serializers.ValidationError(
+                _("自定义时序表不存在, bk_biz_id: {bk_biz_id}, time_series_group_id: {time_series_group_id}")
+            )
+        return super().validate(attrs)
 
 
 class CustomTSScopeSerializer(serializers.Serializer):
     scope_id = serializers.IntegerField(label=_("分组 ID"), allow_null=True, required=False)
     name = serializers.CharField(label=_("分组名称"))
-    metric_list = serializers.ListField(label=_("关联指标"), child=MetricSerializer(), default=list)
+    metric_list = serializers.ListField(label=_("关联指标"), child=BasicMetricSerializer(), default=list)
     auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), default=list)
 
     def validate(self, attrs: dict) -> dict:
@@ -74,3 +94,19 @@ class MetricConfigSerializer(serializers.Serializer):
     function = serializers.JSONField(label=_("指标函数"), required=False)
     interval = serializers.IntegerField(label=_("指标周期"), required=False)
     disabled = serializers.BooleanField(label=_("是否禁用"), required=False)
+
+
+class MetricSerializer(serializers.Serializer):
+    id = serializers.IntegerField(label=_("指标 ID"))
+    name = serializers.CharField(label=_("指标名称"))
+    dimensions = serializers.ListField(label=_("维度列表"), child=serializers.CharField(), default=list)
+    config = MetricConfigSerializer(label=_("指标配置"))
+    create_time = serializers.FloatField(label=_("创建时间"))
+    update_time = serializers.FloatField(label=_("更新时间"))
+
+
+class ImportExportScopeSerializer(serializers.Serializer):
+    name = serializers.CharField(label=_("分组名称"), allow_blank=True)
+    dimension_config = serializers.DictField(label=_("维度配置"), child=DimensionConfigSerializer(), default=dict)
+    auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), child=serializers.CharField(), default=list)
+    metric_list = serializers.ListField(label=_("关联指标"), child=MetricSerializer(), default=list)
