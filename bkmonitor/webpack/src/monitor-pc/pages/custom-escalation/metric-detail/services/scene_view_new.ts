@@ -23,53 +23,21 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import * as SceneViewApi from 'monitor-api/modules/scene_view';
+import {
+  getCustomTsDimensionValues as getCustomTsDimensionValuesApi,
+  getCustomTsGraphConfig as getCustomTsGraphConfigApi,
+  getCustomTsMetricGroups as getCustomTsMetricGroupsApi,
+  getSceneView as getSceneViewApi,
+} from 'monitor-api/modules/scene_view';
 
-interface ICustomTsGraphConfig {
-  groups: {
-    name: string;
-    panels: {
-      sub_title: string;
-      targets: {
-        alias: string;
-        expression: string;
-        function: Record<string, any>;
-        metric: {
-          alias: string;
-          name: string;
-        };
-        query_configs: {
-          data_label: string;
-          data_source_label: string;
-          data_type_label: string;
-          filter_dict: {
-            common_filter: Record<string, any>;
-            group_filter: Record<string, any>;
-          };
-          functions: {
-            id: string;
-            params: {
-              id: string;
-              value: number;
-            }[];
-          }[];
-          group_by: any[];
-          interval: string;
-          metrics: {
-            alias: string;
-            field: string;
-            method: string;
-          }[];
-          table: string;
-        }[];
-        unit: string;
-      }[];
-      title: string;
-    }[];
-  }[];
-}
-
-interface ICustomTsMetricGroups {
+/*
+ * 查询指标分组信息
+ */
+export const getCustomTsMetricGroups: (params: { bk_biz_id?: number; time_series_group_id?: number }) => Promise<{
+  // common_dimensions: {
+  //   alias: string;
+  //   name: string;
+  // }[];
   metric_groups: {
     common_dimensions: {
       alias: string;
@@ -85,48 +53,57 @@ interface ICustomTsMetricGroups {
     }[];
     name: string;
   }[];
-}
+}> = getCustomTsMetricGroupsApi;
 
-export const getCustomTsMetricGroups = SceneViewApi.getCustomTsMetricGroups<
-  {
-    bk_biz_id?: number;
-    time_series_group_id: number;
-  },
-  ICustomTsMetricGroups
->;
+/*
+ * 查询维度的候选值
+ */
+export const getCustomTsDimensionValues: (params: {
+  bk_biz_id?: number;
+  dimension: string;
+  end_time: number;
+  metrics: { name: string; scope_name: string }[];
+  start_time: number;
+  time_series_group_id: number;
+}) => Promise<{ alias: string; name: string }[]> = getCustomTsDimensionValuesApi;
 
-export const getCustomTsDimensionValues = SceneViewApi.getCustomTsDimensionValues<
-  {
-    bk_biz_id: number;
-    dimension: string;
-    end_time: number;
-    metrics: { name: string; scope_name: string }[];
-    start_time: number;
-    time_series_group_id: number;
-  },
-  {
-    alias: string;
-    name: string;
-  }[]
->;
+/*
+ * 获取图表配置
+ */
+export const getCustomTsGraphConfig: (params?: {
+  bk_biz_id: number;
+  common_conditions?: {
+    key: string;
+    method: string;
+    value: string[];
+  }[];
+  compare?: {
+    /** ​ 时间偏移量 (如 1d=1天，2h=2小时) */
+    offset: string[];
+    /** ​ 对比类型：时间对比 | 指标对比 */
+    type: 'metric' | 'time';
+  };
+  conditions: {
+    condition: 'and' | 'or';
+    key: string;
+    method: string;
+    value: string[];
+  }[];
+  end_time: number;
+  group_by: {
+    field: string;
+    split: boolean;
+  }[];
+  limit: {
+    function: 'bottom' | 'top';
+    limit: number;
+  };
+  metrics: string[];
+  start_time: number;
+  time_series_group_id: number;
+}) => Promise<any> = getCustomTsGraphConfigApi;
 
-export const getCustomTsGraphConfig = SceneViewApi.getCustomTsGraphConfig<
-  {
-    bk_biz_id: number;
-    end_time: number;
-    limit: {
-      function: string;
-      limit: number;
-    };
-    metrics: { name: string; scope_name: string }[];
-    start_time: number;
-    time_series_group_id: number;
-    view_column?: number;
-  },
-  ICustomTsGraphConfig
->;
-
-export const getSceneView = SceneViewApi.getSceneView<{
+export const getSceneView: (params?: {
   common_conditions: {
     alias: string;
     key: string;
@@ -153,7 +130,7 @@ export const getSceneView = SceneViewApi.getSceneView<{
     method: string;
     value: string[];
   }[];
-}>;
+}) => Promise<any> = getSceneViewApi;
 
 export default {
   getCustomTsMetricGroups,
