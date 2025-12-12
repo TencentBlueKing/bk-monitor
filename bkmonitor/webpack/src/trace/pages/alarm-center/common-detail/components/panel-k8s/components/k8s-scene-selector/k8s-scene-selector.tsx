@@ -27,7 +27,8 @@
 import { type PropType, defineComponent } from 'vue';
 
 import { Radio } from 'bkui-vue';
-import { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
+
+import { SceneEnum } from '../../../../../typings';
 
 import './k8s-scene-selector.scss';
 
@@ -52,6 +53,11 @@ export const SceneAliasMap = {
 export default defineComponent({
   name: 'K8sSceneSelector',
   props: {
+    /** 可选择的场景列表 */
+    sceneList: {
+      type: Array as PropType<SceneEnum[]>,
+      default: () => SCENE_DIMENSIONS,
+    },
     /** 场景选择器选中值 */
     scene: {
       type: String as PropType<SceneEnum>,
@@ -78,7 +84,7 @@ export default defineComponent({
         type='capsule'
         onChange={this.handleSelectChange}
       >
-        {SCENE_DIMENSIONS.map(scene => (
+        {(this.sceneList ?? [])?.map?.(scene => (
           <Radio.Button
             key={scene}
             class='k8s-scene-selector-item'

@@ -23,54 +23,79 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent, toRef } from 'vue';
 
-import { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 import { storeToRefs } from 'pinia';
 
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
+import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
+import { useAlertK8s } from '../../../composables/use-alert-k8s';
+import { useK8sChartPanel } from '../../../composables/use-k8s-chart-panel';
+import K8SCustomChart from './components/k8s-custom-chart/k8s-custom-chart';
 import K8sSceneSelector from './components/k8s-scene-selector/k8s-scene-selector';
-import PanelContainerDashboard from './components/panel-container-dashboard/panel-container-dashboard';
+import K8sTargetSelector from './components/k8s-target-selector/k8s-target-selector';
 
 import './index.scss';
 
 export default defineComponent({
-  name: 'PanelContainer',
+  name: 'PanelK8s',
   props: {
-    id: String as PropType<string>,
+    /** 告警ID */
+    alertId: String as PropType<string>,
   },
-  setup(_props) {
-    /** 场景 */
-    const scene = shallowRef<SceneEnum>(SceneEnum.Performance);
-    const {
-      /** 数据时间范围 */
-      timeRange,
-    } = storeToRefs(useAlarmCenterDetailStore());
-
-    /**
-     * @description 切换场景回调
-     */
-    function handleSceneChange(val: SceneEnum) {
-      scene.value = val;
-    }
+  setup(props) {
+    const { timeRange, bizId } = storeToRefs(useAlarmCenterDetailStore());
+    const { scene, currentTarget, sceneList, targetList, groupBy, loading } = useAlertK8s(toRef(props, 'alertId'));
+    /** 需要渲染的仪表盘面板配置数组 */
+    const { dashboards } = useK8sChartPanel({
+      scene,
+      groupBy,
+      currentTarget,
+      bizId,
+    });
 
     /**
      * @description 跳转容器监控页面
      */
-    function handleToK8s(v) {
+    const handleToK8s = v => {
       console.log('================ v ================', v);
+    };
+    /**
+     * @description 创建骨架屏 dom 元素
+     */
+    function createSkeletonDom() {
+      return <div class='alarm-detail-panel-k8s-skeleton-dom skeleton-element' />;
     }
 
-    return { scene, timeRange, handleToK8s, handleSceneChange };
+    return {
+      scene,
+      currentTarget,
+      sceneList,
+      targetList,
+      groupBy,
+      loading,
+      dashboards,
+      timeRange,
+      handleToK8s,
+      createSkeletonDom,
+    };
   },
   render() {
     return (
-      <div class='alarm-center-detail-panel-k8s'>
+      <div class={['alarm-center-detail-panel-k8s', this.loading ? 'is-loading' : '']}>
         <div class='panel-k8s-white-bg-container'>
-          <div class='k8s-condition-wrap'>
-            <div class='k8s-condition-container'>
-              <span>pod = authmanager-debug-5586485485-848qx</span>
+          <div class='k8s-selector-wrap'>
+            <div class='k8s-selector-container'>
+              <K8sTargetSelector
+                currentTarget={this.currentTarget}
+                groupBy={this.groupBy}
+                targetList={this.targetList}
+                onChange={target => {
+                  this.currentTarget = target;
+                }}
+              />
+              {this.createSkeletonDom()}
             </div>
             <div
               class='k8s-link-btn'
@@ -85,19 +110,34 @@ export default defineComponent({
               content={`tE monitor_web，incident，resources, fronted_resources. IncidentHandlersResource 这个 span 中，发生了一个类型为 TypeError 的异常。异常信息为'<' not supported between instances of 'str' and 'int'. 这表明在代表中存在一个比较操作。试图将字符串和整数进行比较，导致了类型错误。`}
               title={`${window.i18n.t('AI 分析结论')}：`}
             />
+            {this.createSkeletonDom()}
           </div>
           <div class='k8s-scene-selector-wrap'>
             <K8sSceneSelector
               scene={this.scene}
-              onSceneChange={this.handleSceneChange}
+              sceneList={this.sceneList}
+              onSceneChange={v => {
+                this.scene = v;
+              }}
             />
+            {this.createSkeletonDom()}
           </div>
         </div>
         <div class='panel-k8s-chart-wrap'>
-          <PanelContainerDashboard
-            scene={this.scene}
+          <AlarmDashboardGroup
+            viewOptions={{
+              interval: 'auto',
+              method: 'sum',
+              unit: undefined,
+              time_shift: ' ',
+            }}
+            dashboards={this.dashboards}
             timeRange={this.timeRange}
-          />
+          >
+            {{
+              customBaseChart: renderContext => <K8SCustomChart {...renderContext} />,
+            }}
+          </AlarmDashboardGroup>
         </div>
       </div>
     );

@@ -37,10 +37,11 @@ import './index.scss';
 export default defineComponent({
   name: 'PanelTrace',
   props: {
-    alarmId: String as PropType<string>,
+    /** 告警ID */
+    alertId: String as PropType<string>,
   },
   setup(props) {
-    const { traceList, traceQueryConfig, loading } = useAlertTraces(toRef(props, 'alarmId'));
+    const { traceList, traceQueryConfig, loading } = useAlertTraces(toRef(props, 'alertId'));
 
     const displayFields = [
       'trace_id',

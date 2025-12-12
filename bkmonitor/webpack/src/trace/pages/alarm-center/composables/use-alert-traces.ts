@@ -31,8 +31,8 @@ import { get } from '@vueuse/core';
 import { type ALertTracesData } from '../typings';
 
 /**
- * @method useAlertTraces 调用链数据 hook
- * @description 告警详情 - 调用链 - 表格数据 获取及相关的处理逻辑
+ * @function useAlertTraces 调用链数据 hook
+ * @description 告警详情 - 调用链 - 表格数据获取及相关的处理逻辑
  * @param {MaybeRef<string>} alertId 告警ID
  */
 export const useAlertTraces = (alertId: MaybeRef<string>) => {

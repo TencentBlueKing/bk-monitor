@@ -24,6 +24,12 @@
  * IN THE SOFTWARE.
  */
 
+import {
+  K8SPerformanceMetricUnitMap,
+  K8sTableColumnKeysEnum,
+  SceneEnum,
+} from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
+
 import type { EchartSeriesItem, SeriesItem } from '@/pages/trace-explore/components/explore-chart/types';
 
 export interface AlertK8sEchartSeriesItem extends Omit<EchartSeriesItem, 'data' | 'raw_data'> {
@@ -51,16 +57,25 @@ export interface AlertK8SMetricItem {
   count?: number;
   id: string;
   name: string;
+  show_chart?: boolean;
   unit?: string;
+  unsupported_resource?: string[];
 }
 
 export interface AlertK8SSeriesItem extends SeriesItem {
   name?: string;
 }
 
+export type AlertK8sTargetItem = Partial<Record<K8sTableColumnKeysEnum, string>>;
+
+export interface AlertK8sTargetResult {
+  resource_type: K8sTableColumnKeysEnum;
+  target_list: AlertK8sTargetItem[];
+}
 export interface EchartSeriesData {
   value?: number;
 }
+
 export interface EchartSeriesLineStyle {
   color?: string;
   type?: 'dashed' | 'dotted' | 'solid';
@@ -74,3 +89,5 @@ export interface EchartSeriesMarkPoint {
     value?: number;
   }[];
 }
+
+export { K8SPerformanceMetricUnitMap, K8sTableColumnKeysEnum, SceneEnum };
