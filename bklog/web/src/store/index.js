@@ -1237,7 +1237,7 @@ const store = new Vuex.Store({
           : [state.indexItem.start_time, state.indexItem.end_time];
 
         if (needTransform) {
-          commit('updateIndexItem', { startTime, endTime });
+          commit('updateIndexItem', { start_time: startTime, end_time: endTime });
         }
       }
 
