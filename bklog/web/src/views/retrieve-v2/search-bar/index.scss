@@ -1,7 +1,7 @@
 .search-bar-wrapper {
-  position: sticky;
-  top: 0px;
-  z-index: 4;
+  // position: sticky;
+  // top: 0px;
+  // z-index: 4;
 
   .search-bar-container {
     display: flex;
@@ -73,6 +73,7 @@
         0% {
           width: 0%;
         }
+
         100% {
           width: 100%;
         }
@@ -154,7 +155,7 @@
             }
           }
 
-          > div {
+          >div {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -263,7 +264,7 @@
         }
       }
 
-      &:hover > span {
+      &:hover>span {
         color: #3a84ff;
       }
 

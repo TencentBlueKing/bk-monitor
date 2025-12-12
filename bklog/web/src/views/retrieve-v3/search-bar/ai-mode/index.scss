@@ -1,4 +1,6 @@
 .v3-ai-mode-root {
+  background: #fff;
+
   .v3-ai-mode-container {
     position: relative;
     padding: 2px; // 边框宽度，形成渐变边框效果
@@ -183,8 +185,6 @@
       }
     }
   }
-
-
 
   .query-list {
     display: flex;
