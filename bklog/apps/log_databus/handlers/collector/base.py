@@ -764,7 +764,8 @@ class CollectorHandler:
                 {"cluster_config": {"cluster_id": -1, "cluster_name": ""}, "storage_config": {"retention": 0}},
             )
             _data["storage_cluster_id"] = cluster_info["cluster_config"]["cluster_id"]
-            _data["storage_cluster_name"] = cluster_info["cluster_config"]["cluster_name"]
+            _data["storage_cluster_name"] = cluster_info["cluster_config"].get("display_name") or\
+                                            cluster_info["cluster_config"]["cluster_name"]
             _data["retention"] = cluster_info["storage_config"]["retention"]
             # table_id
             if _data.get("table_id"):
@@ -1235,12 +1236,13 @@ class CollectorHandler:
         is_display=True,
         sort_fields=None,
         target_fields=None,
+        collector_scenario_id=CollectorScenarioEnum.CUSTOM.value,
     ):
         collector_config_params = {
             "bk_biz_id": bk_biz_id,
             "collector_config_name": collector_config_name,
             "collector_config_name_en": collector_config_name_en,
-            "collector_scenario_id": CollectorScenarioEnum.CUSTOM.value,
+            "collector_scenario_id": collector_scenario_id,
             "custom_type": custom_type,
             "category_id": category_id,
             "description": description or collector_config_name,

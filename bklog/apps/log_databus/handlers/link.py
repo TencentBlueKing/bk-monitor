@@ -180,7 +180,7 @@ class DataLinkHandler(object):
         res = [
             {
                 "cluster_id": c["cluster_config"]["cluster_id"],
-                "cluster_name": c["cluster_config"]["cluster_name"],
+                "cluster_name": c["cluster_config"].get("display_name") or c["cluster_config"]["cluster_name"],
                 "domain_name": c["cluster_config"]["domain_name"],
                 "port": c["cluster_config"]["port"],
             }

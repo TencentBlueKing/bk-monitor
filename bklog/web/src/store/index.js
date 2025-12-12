@@ -55,11 +55,11 @@ import {
   IndexFieldInfo,
   IndexItem,
   IndexSetQueryResult,
-  urlArgs,
   createFieldItem,
   getDefaultRetrieveParams,
   getStorageOptions,
   indexSetClusteringData,
+  urlArgs,
 } from './default-values.ts';
 import globals from './globals.js';
 import { getCommonFilterAdditionWithValues, isAiAssistantActive } from './helper.ts';
@@ -589,7 +589,7 @@ const store = new Vuex.Store({
         return {
           ...item,
           name: item.space_name.replace(/\[.*?\]/, ''),
-          py_text: pinyin.convertToPinyin(item.space_name, true),
+          py_text: pinyin.convertToPinyin(item.space_name, true).replace(/true/g, ''),
           tags:
             item.space_type_id === 'bkci' && item.space_code
               ? [

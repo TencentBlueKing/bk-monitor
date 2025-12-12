@@ -167,8 +167,8 @@
   import useStore from '@/hooks/use-store';
   import VueDraggable from 'vuedraggable';
 
-  import { excludesFields } from './const.common';
-  import { getCommonFilterAddition } from '../../../store/helper';
+  import { excludesFields } from '../utils/const.common';
+  import { getCommonFilterAddition } from '../../../../store/helper';
   import { BK_LOG_STORAGE } from '@/store/store.type';
   // 获取 store
   const store = useStore();
@@ -300,7 +300,7 @@
 </script>
 
 <style lang="scss">
-  @import '../../../scss/mixins/scroller';
+  @import '../../../../scss/mixins/scroller';
 
   .bklog-common-field-filter {
     .fields-list-container {

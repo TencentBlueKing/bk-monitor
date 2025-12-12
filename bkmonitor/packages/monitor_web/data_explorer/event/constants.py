@@ -431,7 +431,7 @@ K8S_EVENT_TRANSLATIONS = {
         "FailedCreate": _("Pod 创建失败"),
         "FailedDelete": _("Pod 销毁失败"),
         "SuccessfulCreate": _("Pod 创建成功"),
-        "SuccessfulDelete": _("Pod 创建成功"),
+        "SuccessfulDelete": _("Pod 销毁成功"),
     },
     "HorizontalPodAutoscaler": {
         "FailedGetResourceMetric": _("指标获取失败"),
