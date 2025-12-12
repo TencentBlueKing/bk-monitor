@@ -48,7 +48,6 @@ import LogVersion from './log-version';
 
 import './index.scss';
 import { requestJson } from '@/request';
-import { join } from '../utils/path';
 
 export default defineComponent({
   name: 'HeaderNavTsx',
@@ -255,10 +254,8 @@ export default defineComponent({
       });
 
       if (state.bk_tenant_id) {
-        const url = join(
-          (window as any).BK_PASS_API_HOST,
-          '/api/bk-user-web/prod/api/v3/open-web/tenant/current-user/language/',
-        );
+        const baseHost = (window as any).BK_PAAS_API_HOST;
+        const url = `${baseHost}/api/bk-user-web/prod/api/v3/open-web/tenant/current-user/language/`;
         requestJson({ url, params: { language: value }, headers: { 'X-Bk-Tenant-Id': state.bk_tenant_id } }).catch(
           (err) => {
             bkMessage({
