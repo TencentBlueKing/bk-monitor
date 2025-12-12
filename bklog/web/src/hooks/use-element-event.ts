@@ -1,5 +1,3 @@
-import { onBeforeUnmount, onMounted } from 'vue';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,15 +23,21 @@ import { onBeforeUnmount, onMounted } from 'vue';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import { onBeforeUnmount, onMounted } from 'vue';
+
 export default () => {
   const events = [];
-  const addElementEvent = (element: HTMLElement, eventName: string, callback: (e: MouseEvent) => void) => {
-    events.push({ element, eventName, callback });
+  const addElementEvent = (element: HTMLElement | Document, 
+    eventName: string, 
+    callback: ((e: MouseEvent | KeyboardEvent) => void), 
+    options?: AddEventListenerOptions) => {
+    events.push({ element, eventName, callback, options: options || false });
   };
 
   onMounted(() => {
-    events.forEach(({ element, eventName, callback }) => {
-      element.addEventListener(eventName, callback);
+    events.forEach(({ element, eventName, callback, options }) => {
+      element.addEventListener(eventName, callback, options);
     });
   });
 
