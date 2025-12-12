@@ -140,7 +140,7 @@ const handleActive = (panel) => {
   if (normalizedValue.value === panel) return;
 
   RetrieveHelper.reportLog({
-    trigger_source: panel,
+    trigger_source: `tab_change_${panel}`,
     action: 'click',
   }, store.state);
 
