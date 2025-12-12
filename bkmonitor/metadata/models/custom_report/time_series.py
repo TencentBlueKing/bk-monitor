@@ -2028,14 +2028,7 @@ class TimeSeriesMetric(models.Model):
         }
 
         old_records = set(cls.objects.filter(group_id=group_id).values_list("field_name", "field_scope"))
-
-        new_records = set()
-        for metric_info in metric_info_list:
-            field_name = metric_info.get("field_name")
-            if not field_name:
-                continue
-            field_scope = metric_info.get("field_scope", TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME)
-            new_records.add((field_name, field_scope))
+        new_records = set(_metrics_dict.keys())
 
         # 计算需要创建和更新的记录
         need_create_metrics = new_records - old_records
