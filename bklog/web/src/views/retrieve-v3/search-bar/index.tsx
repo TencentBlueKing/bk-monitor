@@ -35,7 +35,6 @@ import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import V2SearchBar from '../../retrieve-v2/search-bar/index.vue';
 import V3AiMode from './ai-mode/index';
-import { useRoute, useRouter } from 'vue-router/composables';
 import { bkMessage } from 'bk-magic-vue';
 
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
@@ -167,8 +166,13 @@ export default defineComponent({
           store.state.aiMode.filterList = [keyword].filter(f => !/^\s*\*?\s*$/.test(f));
           store.state.aiMode.active = true;
 
-          // 清空 keyword
-          store.state.indexItem.keyword = '';
+          store.commit('updateAiMode', {
+            active: true,
+            filterList: [keyword].filter(f => !/^\s*\*?\s*$/.test(f)),
+          });
+
+          store.commit('updateIndexItemParams', { keyword: '' });
+          aiQueryResult.value.queryString = '';
 
           // 更新路由参数以同步状态
           setRouteParamsByKeywordAndAddition();

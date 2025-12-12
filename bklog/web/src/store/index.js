@@ -385,6 +385,12 @@ const store = new Vuex.Store({
       }
     },
 
+    updateAiMode(state, payload) {
+      Object.keys(payload).forEach((key) => {
+        set(state.aiMode, key, payload[key]);
+      });
+    },
+
     updateStorage(state, payload) {
       Object.keys(payload).forEach((key) => {
         set(state.storage, key, payload[key]);

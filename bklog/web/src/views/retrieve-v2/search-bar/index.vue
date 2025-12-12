@@ -340,18 +340,6 @@ const handleSqlRetrieve = (value) => {
   }
 };
 
-const handleSqlQueryChange = (value) => {
-  if (isGloalUsage.value) {
-    // store.commit('updateIndexItemParams', {
-    //   keyword: value,
-    // });
-
-    // inspectResponse.value.is_legal = true;
-    // setRouteParams();
-    return;
-  }
-};
-
 const handleClearBtnClick = () => {
   if (!isCopyBtnActive.value || isInputLoading.value) {
     return;
@@ -771,7 +759,6 @@ defineExpose({
           v-model="sqlQueryValue"
           class="search-input-section"
           @retrieve="handleSqlRetrieve"
-          @change="handleSqlQueryChange"
           @text-to-query="handleTextToQuery"
         >
           <template #custom-placeholder="{ isEmptyText }">
