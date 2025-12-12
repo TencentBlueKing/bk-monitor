@@ -41,7 +41,6 @@ import { bkMessage } from 'bk-magic-vue';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { AiQueryResult } from './types';
 import { BK_LOG_STORAGE } from '@/store/store.type';
-import { SET_APP_STATE } from '@/store';
 
 import './index.scss';
 
@@ -50,8 +49,6 @@ export default defineComponent({
   setup() {
     const { t } = useLocale();
     const store = useStore();
-    const router = useRouter();
-    const route = useRoute();
 
     const searchBarHeight = ref(0);
     const searchBarRef = ref<any>(null);
@@ -64,24 +61,6 @@ export default defineComponent({
       .filter(f => !/^\s*\*?\s*$/.test(f)));
 
     const { setRouteParamsByKeywordAndAddition } = useRetrieveParams();
-
-    // const aiSpanStyle = {
-    //   background: 'linear-gradient(115deg, #235DFA 0%, #E28BED 100%)',
-    //   '-webkit-background-clip': 'text',
-    //   'background-clip': 'text',
-    //   '-webkit-text-fill-color': 'transparent',
-    //   color: 'transparent',
-    //   'font-size': '12px',
-    //   cursor: 'pointer',
-    // };
-
-    // const aiSpanWrapperStyle = {
-    //   display: 'flex',
-    //   'align-items': 'center',
-    //   gap: '4px',
-    //   'font-size': '12px',
-    //   color: '#c4c6cc',
-    // };
 
     const shortcutKeyStyle = {
       width: '20px',
@@ -438,22 +417,6 @@ export default defineComponent({
           is-ai-loading={isAiLoading.value}
           {...{
             scopedSlots: {
-              // 'custom-placeholder'(slotProps) {
-              //   if (isAiAssistantActive.value) {
-              //     return (
-              //       <span style={aiSpanWrapperStyle}>
-              //         {slotProps.isEmptyText ? t('或') : ''}
-              //         <span
-              //           style={aiSpanStyle}
-              //           onClick={handleAiSpanClick}
-              //         >
-              //           {t('使用AI编辑')}
-              //         </span>
-              //       </span>
-              //     );
-              //   }
-              //   return null;
-              // },
               'search-tool': () => {
                 if (isAiAssistantActive.value) {
                   return (
