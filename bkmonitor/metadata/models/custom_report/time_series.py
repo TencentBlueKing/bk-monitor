@@ -65,8 +65,8 @@ class TimeSeriesGroup(CustomGroupBase):
 
     time_series_group_id = models.AutoField(verbose_name="分组ID", primary_key=True)
     time_series_group_name = models.CharField(verbose_name="自定义时序分组名", max_length=255)
-    # 指标分组的维度key配置，{"service_name": {"index": 0, "default_value": "unknown_service"}, ...}
-    metric_group_dimensions = models.JSONField(verbose_name="指标分组的维度key配置", default=dict)
+    # 指标分组的维度key配置，[{"key": "service_name", "default_value": "unknown_service"}, ...]
+    metric_group_dimensions = models.JSONField(verbose_name="指标分组的维度key配置", default=list)
 
     # 默认表名
     DEFAULT_MEASUREMENT = "__default__"
@@ -94,12 +94,9 @@ class TimeSeriesGroup(CustomGroupBase):
 
     @property
     def metric_group_dimensions_list(self) -> list[str]:
-        """获取 metric_group_dimensions 列表格式（按 index 排序）"""
         if not self.metric_group_dimensions:
             return []
-        # 按照 index 排序，然后提取维度名称
-        sorted_dims = sorted(self.metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
-        return [dim_name for dim_name, _ in sorted_dims]
+        return [dim.get("key") for dim in self.metric_group_dimensions if dim.get("key")]
 
     STORAGE_FIELD_LIST = [
         {
@@ -114,15 +111,15 @@ class TimeSeriesGroup(CustomGroupBase):
     FIELD_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_]+$")
 
     @classmethod
-    def get_scope_name_from_group_key(cls, group_key: str, metric_group_dimensions: dict | None = None) -> str:
+    def get_scope_name_from_group_key(cls, group_key: str, metric_group_dimensions: list | None = None) -> str:
         """
         从 group_key 转换为 field_scope 字符串（仅用于 get_metric_from_bkdata）
 
         :param group_key: 例如 "service_name:api-server||scope_name:production"
-        :param metric_group_dimensions: 分组维度配置，例如 {
-            "service_name": {"index": 0, "default_value": "unknown_service"},
-            "scope_name": {"index": 1, "default_value": "default"}
-        }
+        :param metric_group_dimensions: 分组维度配置，例如 [
+            {"key": "service_name", "default_value": "unknown_service"},
+            {"key": "scope_name", "default_value": "default"}
+        ]
         :return: field_scope 字符串
         """
         if not group_key or not metric_group_dimensions:
@@ -135,10 +132,10 @@ class TimeSeriesGroup(CustomGroupBase):
                 key, value = part.split(":", 1)
                 key_value_map[key.strip()] = value.strip()
 
-        # 按 index 排序，提取值并拼接
-        sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
+        # 按列表顺序，提取值并拼接
         levels = []
-        for dim_name, dim_config in sorted_dims:
+        for dim_config in metric_group_dimensions:
+            dim_name = dim_config.get("key", "")
             value = key_value_map.get(dim_name) or dim_config.get("default_value", "")
             levels.append(value)
 
@@ -151,7 +148,7 @@ class TimeSeriesGroup(CustomGroupBase):
         return result if result else TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
 
     @classmethod
-    def get_default_scope_info(cls, scope_name: str, metric_group_dimensions: dict | None = None) -> tuple[bool, str]:
+    def get_default_scope_info(cls, scope_name: str, metric_group_dimensions: list | None = None) -> tuple[bool, str]:
         default_name = TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
 
         # 快速判断：scope_name 就是 "default"
@@ -160,10 +157,9 @@ class TimeSeriesGroup(CustomGroupBase):
 
         # 基于维度配置计算
         if metric_group_dimensions:
-            sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
-            if sorted_dims:
+            if metric_group_dimensions:
                 # 获取最后一级的默认值
-                last_default_value = sorted_dims[-1][1].get("default_value", default_name)
+                last_default_value = metric_group_dimensions[-1].get("default_value", default_name)
 
                 # 判断是否为默认分组：检查最后一级是否为默认值
                 scope_levels = scope_name.split("||")
@@ -736,7 +732,7 @@ class TimeSeriesGroup(CustomGroupBase):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
-        metric_group_dimensions: dict | None = None,
+        metric_group_dimensions: list | None = None,
     ):
         """
         创建一个新的自定义分组记录
@@ -1228,7 +1224,7 @@ class TimeSeriesScope(models.Model):
         field_name: str,
         field_scope: str,
         prefix_to_obj: dict,
-        metric_group_dimensions: dict | None = None,
+        metric_group_dimensions: list | None = None,
     ) -> tuple[str, bool]:
         # 新建场景
         is_default, default_name = TimeSeriesGroup.get_default_scope_info(field_scope, metric_group_dimensions)
@@ -1249,7 +1245,7 @@ class TimeSeriesScope(models.Model):
         cls,
         group_id: int,
         metric_info_list: list,
-        metric_group_dimensions: dict | None = None,
+        metric_group_dimensions: list | None = None,
     ) -> tuple:
         # 获取所有 scope 记录并构建索引
         all_scopes = list(cls.objects.filter(group_id=group_id))
@@ -1358,7 +1354,7 @@ class TimeSeriesScope(models.Model):
 
     @classmethod
     def _bulk_create_or_update_ts_scopes(
-        cls, group_id: int, scope_names: set, metric_group_dimensions: dict | None = None
+        cls, group_id: int, scope_names: set, metric_group_dimensions: list | None = None
     ):
         def _get_create_from(name: str) -> str:
             """根据 scope_name 判断 create_from 类型"""
