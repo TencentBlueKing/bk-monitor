@@ -7,11 +7,12 @@
 
   &.is-sticky-top {
     padding: 0;
-  }
 
-  &.is-ai-mode {
-    padding: 8px 8px 0 8px;
-    background-color: #fff;
+    .v3-ai-mode-root {
+      background-color: #fff;
+      margin: 0 8px 8px 8px;
+    }
+
   }
 
   .bklog-ai-edit-btn {

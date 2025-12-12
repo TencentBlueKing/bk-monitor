@@ -1,5 +1,4 @@
 .v3-ai-mode-root {
-  background: #fff;
 
   .v3-ai-mode-container {
     position: relative;
@@ -41,19 +40,7 @@
     }
 
     .ai-parsed-text {
-      font-size: 14px;
-      line-height: 24px;
-      color: #313238;
-      text-decoration: underline;
-      text-decoration-style: dashed;
-      text-decoration-color: #979ba5;
-      text-underline-offset: 2px;
-      cursor: pointer;
-      flex-shrink: 0;
-      white-space: pre-wrap;
-      word-break: break-word;
-      pointer-events: auto;
-      display: inline-block;
+      width: 100%;
     }
 
     .ai-input {
@@ -74,11 +61,14 @@
       word-break: break-word;
       display: inline-block;
       vertical-align: top;
+      width: 100%;
 
       &::placeholder {
         color: #c4c6cc;
       }
     }
+
+
 
     .ai-mode-toggle-btn {
       display: flex;

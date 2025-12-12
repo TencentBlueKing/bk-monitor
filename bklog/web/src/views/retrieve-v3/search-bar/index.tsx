@@ -142,16 +142,6 @@ export default defineComponent({
       }
       // 检查是否按下了 Tab 键（排除 Shift+Tab）
       if ((e.key === 'Tab' || e.keyCode === 9) && !e.shiftKey) {
-        // 如果当前焦点在搜索栏相关的输入框内，才处理切换
-        const activeElement = document.activeElement;
-        const isSearchBarInput = activeElement?.closest('.v3-search-bar-root')
-          || activeElement?.closest('.search-bar-container')
-          || activeElement?.closest('.v3-ai-mode');
-
-        if (!isSearchBarInput) {
-          return;
-        }
-
         // 阻止默认的 Tab 行为
         e.preventDefault();
         e.stopPropagation();

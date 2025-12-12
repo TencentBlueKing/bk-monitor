@@ -55,7 +55,6 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const inputValue = ref('');
-    const parsedText = ref(''); // 已解析的文本
     const currentInput = ref(''); // 当前输入的文本
     const status = ref<AiModeStatus>('default');
     const textareaRef = ref<HTMLTextAreaElement | null>(null);
@@ -80,7 +79,6 @@ export default defineComponent({
     const handleInput = (e: Event) => {
       const target = e.target as HTMLTextAreaElement;
       currentInput.value = target.value;
-      inputValue.value = parsedText.value + currentInput.value;
 
       if (inputValue.value.length > 0) {
         status.value = 'inputting';
@@ -95,13 +93,6 @@ export default defineComponent({
       if (inputValue.value.length > 0) {
         status.value = 'inputting';
       }
-      // 确保光标定位到当前输入部分
-      nextTick(() => {
-        if (textareaRef.value) {
-          const startPos = parsedText.value.length;
-          textareaRef.value.setSelectionRange(startPos, startPos);
-        }
-      });
     };
 
     const handleBlur = () => {
@@ -111,29 +102,9 @@ export default defineComponent({
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 防止删除已解析的部分
-      if (textareaRef.value) {
-        const selectionStart = textareaRef.value.selectionStart;
-        const selectionEnd = textareaRef.value.selectionEnd;
-
-        if (e.key === 'Backspace' || e.key === 'Delete') {
-          if (selectionStart < parsedText.value.length || selectionEnd < parsedText.value.length) {
-            e.preventDefault();
-            return;
-          }
-        }
-
-        // 防止光标移动到已解析部分
-        if (e.key === 'ArrowLeft' && selectionStart <= parsedText.value.length) {
-          e.preventDefault();
-          textareaRef.value.setSelectionRange(parsedText.value.length, parsedText.value.length);
-          return;
-        }
-
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          handleAiExecute();
-        }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleAiExecute();
       }
     };
 
@@ -160,9 +131,7 @@ export default defineComponent({
     const handleAiExecute = () => {
       // AI执行逻辑
       if (currentInput.value.trim()) {
-        parsedText.value = currentInput.value;
-        emit('text-to-query', `${props.aiQueryResult.queryString} AND ${parsedText.value}`);
-        currentInput.value = '';
+        emit('text-to-query', currentInput.value);
       }
     };
 
@@ -228,7 +197,7 @@ export default defineComponent({
           <div class="ai-mode-inner">
             <div class="ai-input-wrapper">
               <div class="ai-input-container">
-                {parsedText.value && (
+                {props.aiQueryResult.queryString ? (
                   <BklogPopover
                     ref={parsedTextRef}
                     class="ai-parsed-text"
@@ -260,25 +229,41 @@ export default defineComponent({
                       },
                     } as any}
                   >
-                    {parsedText.value}
+                    <textarea
+                      ref={textareaRef}
+                      autofocus={true}
+                      tabindex={1}
+                      class="ai-input"
+                      value={currentInput.value}
+                      placeholder={t('输入查询内容，“帮我查询近3天的错误日志”，Tab 切换为普通模式')}
+                      onInput={handleInput}
+                      onFocus={handleFocus}
+                      onBlur={handleBlur}
+                      onKeydown={handleKeyDown}
+                      rows={1}
+                      style={{
+                        height: '24px',
+                      }}
+                    />
                   </BklogPopover>
+                ) : (
+                  <textarea
+                    ref={textareaRef}
+                    autofocus={true}
+                    tabindex={1}
+                    class="ai-input"
+                    value={currentInput.value}
+                    placeholder={t('输入查询内容，"帮我查询近3天的错误日志"，Tab 切换为普通模式')}
+                    onInput={handleInput}
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
+                    onKeydown={handleKeyDown}
+                    rows={1}
+                    style={{
+                      height: '24px',
+                    }}
+                  />
                 )}
-                <textarea
-                  ref={textareaRef}
-                  autofocus={true}
-                  tabindex={1}
-                  class="ai-input"
-                  value={currentInput.value}
-                  placeholder={parsedText.value ? '' : t('输入查询内容，“帮我查询近3天的错误日志”，Tab 切换为普通模式')}
-                  onInput={handleInput}
-                  onFocus={handleFocus}
-                  onBlur={handleBlur}
-                  onKeydown={handleKeyDown}
-                  rows={1}
-                  style={{
-                    height: '24px',
-                  }}
-                />
               </div>
               <div class="ai-mode-toggle-btn">
                 <img
@@ -304,28 +289,31 @@ export default defineComponent({
             <i class="bklog-icon bklog-publish-fill"></i>
           </button>
         </div>
-        <div class="query-list">
-          {props.filterList.map(item => (
-            <EditInput
-              key={item}
-              value={item}
-              showDelete={true}
-              maxWidth={320}
-              on-change={(newValue: string) => {
-                handleFilterChange(item, newValue);
-              }}
-              on-delete={() => {
-                handleRemoveFilter(item);
-              }}
-            />
-          ))}
-          {props.filterList.length > 0 && (
-            <i
-              class="bklog-icon bklog-qingkong query-list-clear-all"
-              onClick={handleClearAllFilters}
-            ></i>
-          )}
-        </div>
+        {
+          props.filterList.length > 0 && <div class="query-list">
+            {props.filterList.map(item => (
+              <EditInput
+                key={item}
+                value={item}
+                showDelete={true}
+                maxWidth={320}
+                on-change={(newValue: string) => {
+                  handleFilterChange(item, newValue);
+                }}
+                on-delete={() => {
+                  handleRemoveFilter(item);
+                }}
+              />
+            ))}
+            {props.filterList.length > 0 && (
+              <i
+                class="bklog-icon bklog-qingkong query-list-clear-all"
+                onClick={handleClearAllFilters}
+              ></i>
+            )}
+          </div>
+        }
+
       </div>
     );
   },
