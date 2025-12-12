@@ -23,15 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  computed,
-  defineComponent,
-  ref,
-  watch,
-  onMounted,
-  shallowRef,
-  set,
-} from 'vue';
+import { computed, defineComponent, ref, watch, onMounted, shallowRef, set } from 'vue';
 import useStore from '@/hooks/use-store';
 import useLocale from '@/hooks/use-locale';
 import MainHeader from './main-header';
@@ -137,21 +129,17 @@ export default defineComponent({
 
     const tableList = shallowRef<ITableItem[]>([]);
     const groupListState = ref<GroupListState>({});
+    const rawDataList = ref([]); // 存储原始接口数据
     const { addEvent } = useRetrieveEvent();
 
     const retrieveParams = computed(() => store.getters.retrieveParams);
-    const showGroupBy = computed(
-      () => props.requestData?.group_by.length > 0 && displayType.value === 'group',
-    );
+    const showGroupBy = computed(() => props.requestData?.group_by.length > 0 && displayType.value === 'group');
 
     const smallLoaderWidthList = computed(() => {
-      return props.requestData?.year_on_year_hour > 0
-        ? loadingWidthList.compared
-        : loadingWidthList.notCompared;
+      return props.requestData?.year_on_year_hour > 0 ? loadingWidthList.compared : loadingWidthList.notCompared;
     });
 
-    const tableColumnWidth = computed(() => (store.getters.isEnLanguage ? enTableWidth : cnTableWidth),
-    );
+    const tableColumnWidth = computed(() => (store.getters.isEnLanguage ? enTableWidth : cnTableWidth));
 
     const loadingWidthList = {
       // loading表头宽度列表
@@ -187,10 +175,7 @@ export default defineComponent({
      * 加载更多触发元素隐藏操作
      */
     const debounceHiddenPaginationLoading = debounce(() => {
-      (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty(
-        'visibility',
-        'hidden',
-      );
+      (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty('visibility', 'hidden');
     }, 180);
 
     /**
@@ -198,14 +183,8 @@ export default defineComponent({
      */
     useIntersectionObserver(paginationRef, (entry) => {
       if (entry.isIntersecting) {
-        (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty(
-          'visibility',
-          'visible',
-        );
-        if (
-          pagination.value.current * pagination.value.limit
-          < pagination.value.count
-        ) {
+        (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty('visibility', 'visible');
+        if (pagination.value.current * pagination.value.limit < pagination.value.count) {
           pagination.value.current += 1;
         }
       }
@@ -250,14 +229,9 @@ export default defineComponent({
     /**
      * 分组模式排序
      */
-    const sortGroupList = (
-      targetList: ITableItem[],
-      filterFn: (_arg: ITableItem) => boolean,
-    ) => {
+    const sortGroupList = (targetList: ITableItem[], filterFn: (_arg: ITableItem) => boolean) => {
       const groupList: ITableItem[] = [];
-      const sortObj = Object.entries(filterSortMap.value.sort).find(
-        item => !!item[1],
-      );
+      const sortObj = Object.entries(filterSortMap.value.sort).find(item => !!item[1]);
       const groupMap = new Map<string, ITableItem[]>();
       pagination.value.visibleCount = 0;
 
@@ -306,17 +280,12 @@ export default defineComponent({
      * @param targetList
      * @param filterFn
      */
-    const sortFlattenList = (
-      targetList: ITableItem[],
-      filterFn: (_arg: ITableItem) => boolean,
-    ) => {
+    const sortFlattenList = (targetList: ITableItem[], filterFn: (_arg: ITableItem) => boolean) => {
       const copyList = [];
       let childList = [];
       pagination.value.visibleCount = 0;
 
-      const sortObj = Object.entries(filterSortMap.value.sort).find(
-        item => !!item[1],
-      );
+      const sortObj = Object.entries(filterSortMap.value.sort).find(item => !!item[1]);
 
       for (let i = 0; i < targetList.length; i++) {
         const item = targetList[i];
@@ -356,10 +325,7 @@ export default defineComponent({
       const owners = filterSortMap.value.filter.owners;
       const remark = filterSortMap.value.filter.remark;
       const isRemarked = remark[0] === 'remarked';
-      const ownersMap = owners.reduce<Record<string, boolean>>(
-        (map, item) => Object.assign(map, { [item]: true }),
-        {},
-      );
+      const ownersMap = owners.reduce<Record<string, boolean>>((map, item) => Object.assign(map, { [item]: true }), {});
 
       const filterOwners = owners.length > 0;
       const filterRemark = remark.length > 0;
@@ -379,18 +345,13 @@ export default defineComponent({
         }
 
         if (filterRemark && result) {
-          result = isRemarked
-            ? (item.data?.remark ?? []).length > 0
-            : !item.data?.remark.length;
+          result = isRemarked ? (item.data?.remark ?? []).length > 0 : !item.data?.remark.length;
         }
 
         return result;
       };
 
-      if (
-        displayType.value === 'group'
-        && props.requestData.group_by?.length > 0
-      ) {
+      if (displayType.value === 'group' && props.requestData.group_by?.length > 0) {
         tableList.value = sortGroupList(targetList, filterFn);
         return;
       }
@@ -413,11 +374,7 @@ export default defineComponent({
 
     const refreshTable = () => {
       // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
-      if (
-        tableLoading.value
-        || !props.clusterSwitch
-        || !props.isClusterActive
-      ) {
+      if (tableLoading.value || !props.clusterSwitch || !props.isClusterActive) {
         return;
       }
       const {
@@ -437,9 +394,7 @@ export default defineComponent({
             operator: item.operator,
             value:
               item.hidden_values && item.hidden_values.length > 0
-                ? item.value.filter(
-                  value => !item.hidden_values.includes(value),
-                )
+                ? item.value.filter(value => !item.hidden_values.includes(value))
                 : item.value,
           });
         }
@@ -473,13 +428,13 @@ export default defineComponent({
         ) as Promise<IResponseData<LogPattern[]>>
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
         .then((res) => {
+          // 保存接口数据
+          rawDataList.value = res.data;
           let listMap = new Map<string, LogPattern[]>();
           let groupKeys = [];
 
           res.data.forEach((item) => {
-            const groupList = item.group?.map(
-              (g, i) => `${props.requestData?.group_by[i] ?? '#'}=${g}`,
-            ) ?? ['#'];
+            const groupList = item.group?.map((g, i) => `${props.requestData?.group_by[i] ?? '#'}=${g}`) ?? ['#'];
 
             const groupKey = groupList.length ? groupList.join(' | ') : '#';
             if (!listMap.has(groupKey)) {
@@ -593,9 +548,7 @@ export default defineComponent({
 
     const handleScrollXChange = (event) => {
       const scrollLeft = (event.target as HTMLElement)?.scrollLeft || 0;
-      for (const element of rootElement.value.querySelectorAll(
-        '.bklog-fill-offset-x',
-      )) {
+      for (const element of rootElement.value.querySelectorAll('.bklog-fill-offset-x')) {
         element.scrollLeft = scrollLeft;
       }
     };
@@ -618,10 +571,7 @@ export default defineComponent({
             // 使用系统默认的滚动行为，通过 refScrollXBar 执行横向滚动
             const currentScrollLeft = refScrollXBar.value.getScrollLeft?.() || 0;
             const scrollStep = event.deltaY || event.deltaX;
-            const newScrollLeft = Math.max(
-              0,
-              Math.min(maxOffset, currentScrollLeft + scrollStep),
-            );
+            const newScrollLeft = Math.max(0, Math.min(maxOffset, currentScrollLeft + scrollStep));
 
             refScrollXBar.value.scrollLeft(newScrollLeft);
             scrollLeft = newScrollLeft;
@@ -681,6 +631,12 @@ export default defineComponent({
 
     expose({
       refreshTable,
+      isLoading: () => tableLoading.value,
+      getRawData: () => {
+        // 返回原始接口数据
+        return rawDataList.value;
+      },
+      getDisplayMode: () => displayType.value,
     });
 
     /**
@@ -695,24 +651,27 @@ export default defineComponent({
         text: t('暂无数据'),
       };
 
-      if (
-        retrieveParams.value.addition.length > 0
-        || owners.length > 0
-        || remark.length > 0
-      ) {
+      if (retrieveParams.value.addition.length > 0 || owners.length > 0 || remark.length > 0) {
         option.type = 'search-empty';
         option.text = t('搜索结果为空');
       }
 
       return (
-        <bk-exception type={option.type} scene='part' style='margin-top: 80px'>
+        <bk-exception
+          type={option.type}
+          scene='part'
+          style='margin-top: 80px'
+        >
           <span>{option.text}</span>
         </bk-exception>
       );
     };
 
     return () => (
-      <div class='log-table-main' ref={rootElement}>
+      <div
+        class='log-table-main'
+        ref={rootElement}
+      >
         {props.requestData?.group_by.length > 0 && (
           <bk-radio-group
             class='display-type-main'
@@ -766,7 +725,10 @@ export default defineComponent({
             getExceptionOption()
           )}
         </div>
-        <div ref={paginationRef} style='width: 100%;'>
+        <div
+          ref={paginationRef}
+          style='width: 100%;'
+        >
           <div style='display: flex; justify-content: center;width: 100%; padding: 4px; visibility: hidden;'>
             <span>loading ...</span>
           </div>
