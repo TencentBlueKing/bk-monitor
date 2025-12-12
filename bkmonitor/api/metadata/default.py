@@ -577,7 +577,7 @@ class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
     """
 
     action = "/app/metadata/query_time_series_scope/"
-    method = "GET"
+    method = "POST"
     backend_cache_type = CacheType.METADATA
 
     class RequestSerializer(serializers.Serializer):
