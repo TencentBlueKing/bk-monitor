@@ -5,7 +5,7 @@ import useStore from '@/hooks/use-store';
 import { computed, defineEmits, defineProps, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router/composables';
 import DashboardDialog from './components/dashboard-dialog.vue';
-import RetrieveHelper from '@/views/retrieve-helper';
+// import RetrieveHelper from '@/views/retrieve-helper';
 const props = defineProps({
   value: {
     type: String,
@@ -139,10 +139,10 @@ const handleActive = (panel) => {
   // 标准化比较，确保旧值也能正确判断是否为当前激活的 tab
   if (normalizedValue.value === panel) return;
 
-  RetrieveHelper.reportLog({
-    trigger_source: `tab_change_${panel}`,
-    action: 'click',
-  }, store.state);
+  // RetrieveHelper.reportLog({
+  //   trigger_source: `tab_change_${panel}`,
+  //   action: 'click',
+  // }, store.state);
 
   emit('input', panel, panel === 'origin');
 };
