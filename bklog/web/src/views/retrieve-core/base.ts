@@ -31,6 +31,7 @@ import StaticUtil from './static.util';
 import type OptimizedHighlighter from './optimized-highlighter';
 import type RetrieveEvent from './retrieve-events';
 import { EventEmitter } from './event';
+import { reportRouteLog } from '@/store/modules/report-helper.ts';
 
 import { reportRouteLog } from '@/store/modules/report-helper.ts';
 

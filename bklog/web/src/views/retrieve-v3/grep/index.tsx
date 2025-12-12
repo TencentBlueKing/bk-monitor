@@ -156,7 +156,7 @@ export default defineComponent({
 
       RetrieveHelper.reportLog({
         trigger_source: 'grep',
-        action: 'click',
+        action: 'request',
       }, store.state);
 
       return axiosInstance(params)
