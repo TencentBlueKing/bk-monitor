@@ -58,7 +58,15 @@ from monitor_web.models.custom_report import (
     CustomTSGroupingRule,
     CustomTSTable,
 )
-from monitor_web.custom_report.handlers.metric.query import ScopeQueryConverter, ScopeCURequestDTO, DimensionConfigDTO
+from monitor_web.custom_report.handlers.metric.query import (
+    ScopeQueryConverter,
+    ScopeQueryResponseDTO,
+    MetricQueryConverter,
+    ScopeCURequestDTO,
+    DimensionConfigDTO,
+    MetricCURequestDTO,
+    BasicScopeDTO,
+)
 from monitor_web.strategies.resources import GetMetricListV2Resource
 
 
@@ -600,7 +608,7 @@ class GetCustomTsFields(Resource):
 
         class MetricSerializer(BaseFieldSerializer):
             id = serializers.IntegerField(label=_("指标 ID"))
-            removable = serializers.BooleanField(label=_("是否可移除"))
+            movable = serializers.BooleanField(label=_("是否可移动"))
             field_scope = serializers.CharField(label=_("数据分组"))
             config = MetricConfigSerializer(label=_("指标配置"))
             dimensions = serializers.ListField(label=_("维度列表"), child=serializers.CharField())
@@ -623,7 +631,7 @@ class GetCustomTsFields(Resource):
                 metric_dict: dict[str, Any] = {
                     "scope": {"id": scope_obj.id, "name": scope_obj.name},
                     "type": CustomTSMetricType.METRIC,
-                    "removable": metric_obj.field_scope == DEFAULT_FIELD_SCOPE,
+                    "movable": metric_obj.field_scope == DEFAULT_FIELD_SCOPE,
                 }
                 metric_dict.update(asdict(metric_obj))
                 metrics.append(metric_dict)
@@ -933,6 +941,7 @@ class CustomTsGroupingRuleList(Resource):
                     "create_from": scope_dict["create_from"],
                 }
             )
+        result.sort(key=lambda x: x["scope_id"])
         return result
 
 
@@ -1019,60 +1028,63 @@ class CreateOrUpdateGroupingRule(Resource):
     更新自定义指标分组规则
     """
 
-    class RequestSerializer(CustomTSScopeSerializer):
-        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
-        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
+    class RequestSerializer(BaseCustomTSSerializer, CustomTSScopeSerializer):
+        pass
+
+    class ResponseSerializer(serializers.Serializer):
+        class MetricSerializer(serializers.Serializer):
+            id = serializers.IntegerField(label=_("指标 ID"), source="field_id")
+            name = serializers.CharField(label=_("指标名称"), source="metric_name")
+
+        id = serializers.IntegerField(label=_("分组 ID"), source="scope_id")
+        name = serializers.CharField(label=_("分组名称"))
+        dimension_config = serializers.DictField(label=_("维度配置"))
+        metric_list = serializers.ListField(label=_("指标列表"), child=MetricSerializer())
+        auto_rules = serializers.ListField(label=_("自动规则"))
+        metric_count = serializers.IntegerField(label=_("指标数量"))
+        create_from = serializers.CharField(label=_("创建来源"))
 
     def perform_request(self, params: dict):
-        bk_biz_id = params["bk_biz_id"]
-        time_series_group_id = params["time_series_group_id"]
-        # 获取自定义时序表
-        ts_table: CustomTSTable = CustomTSTable.objects.get(
-            bk_biz_id=bk_biz_id, time_series_group_id=time_series_group_id
+        scope_request_obj = ScopeCURequestDTO(
+            id=params.get("scope_id"),
+            name=params["name"],
+            auto_rules=params["auto_rules"],
         )
-        if not ts_table:
-            raise ValidationError(f"custom time series table not found, time_series_group_id: {time_series_group_id}")
-        request_scope_id: int | None = params.get("scope_id")
-        request_scope_dict: dict[str, Any] = {}
-        if request_scope_id is not None:
-            request_scope_dict["scope_id"] = request_scope_id
+        time_series_group_id = params["time_series_group_id"]
+        scope_converter = ScopeQueryConverter(time_series_group_id)
+        scope_cu_obj = scope_converter.create_or_update_time_series_scope([scope_request_obj])[0]
 
-        request_scope_dict["scope_name"] = params["name"]
-        request_scope_dict["auto_rules"] = params["auto_rules"]
+        # 找出默认分组
+        default_scope_id = None
+        for _scope_obj in scope_converter.query_time_series_scope(scope_name=UNGROUP_SCOPE_NAME):
+            if _scope_obj.name == UNGROUP_SCOPE_NAME:
+                default_scope_id = _scope_obj.id
 
-        scope_id = api.metadata.create_or_update_time_series_scope(
-            group_id=time_series_group_id, scopes=[request_scope_dict]
-        )[0]["scope_id"]
+        if not default_scope_id:
+            raise ValidationError(_("默认分组不存在"))
 
-        scope_dict = api.metadata.query_time_series_scope(group_id=time_series_group_id, scope_id=scope_id)[0]
+        scope_obj = scope_converter.query_time_series_scope(scope_ids=[scope_cu_obj.id])[0]
 
-        origin_field_ids: set[int] = {metric_dict["field_id"] for metric_dict in scope_dict["metric_list"]}
+        origin_field_ids: set[int] = {metric_obj.id for metric_obj in scope_obj.metric_list}
         update_field_ids: set[int] = {metric_dict["field_id"] for metric_dict in params["metric_list"]}
         remove_field_ids: set[int] = origin_field_ids - update_field_ids
         update_field_ids: set[int] = update_field_ids - origin_field_ids
-        metrics: list[dict[str, Any]] = []
+        metric_objs: list[MetricCURequestDTO] = []
         for field_id in remove_field_ids:
-            metrics.append(
-                {
-                    "field_id": field_id,
-                    "scope_name": UNGROUP_SCOPE_NAME,
-                }
-            )
-        for field_id in update_field_ids:
-            metrics.append({"field_id": field_id, "scope_name": scope_dict["scope_name"]})
-        if metrics:
-            api.metadata.create_or_update_time_series_metric(group_id=time_series_group_id, metrics=metrics)
-        scope_dict = api.metadata.query_time_series_scope(group_id=time_series_group_id, scope_id=scope_id)[0]
+            metric_objs.append(MetricCURequestDTO(id=field_id, scope=BasicScopeDTO(id=default_scope_id)))
 
-        return {
-            "time_series_group_id": scope_dict["group_id"],
-            "scope_id": scope_dict["scope_id"],
-            "name": scope_dict["scope_name"],
-            "dimension_config": scope_dict["dimension_config"],
-            "auto_rules": scope_dict["auto_rules"],
-            "metric_list": get_metric_list(scope_dict["metric_list"]),
-            "create_from": scope_dict["create_from"],
-        }
+        for field_id in update_field_ids:
+            metric_objs.append(MetricCURequestDTO(id=field_id, scope=BasicScopeDTO(id=scope_obj.id)))
+
+        metric_converter = MetricQueryConverter(time_series_group_id)
+        metric_converter.create_or_update_time_series_metric(metric_objs)
+
+        updated_scope_obj: ScopeQueryResponseDTO = scope_converter.filter_disabled_metric(
+            scope_converter.query_time_series_scope(scope_obj.id)
+        )[0]
+        scope_dict = asdict(updated_scope_obj)
+        scope_dict["metric_count"] = len(updated_scope_obj.metric_list)
+        return scope_dict
 
 
 class PreviewGroupingRule(Resource):
@@ -1208,6 +1220,7 @@ class ImportCustomTimeSeriesFields(Resource):
         scopes = serializers.ListField(label=_("分组列表"), child=ImportExportScopeSerializer())
 
     def perform_request(self, params: dict[str, Any]):
+        return
         bk_biz_id: int = params["bk_biz_id"]
         time_series_group_id: int = params["time_series_group_id"]
         # 获取自定义时序表

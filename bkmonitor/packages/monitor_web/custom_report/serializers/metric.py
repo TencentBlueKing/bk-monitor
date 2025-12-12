@@ -77,7 +77,7 @@ class CustomTSScopeSerializer(serializers.Serializer):
 
     def validate(self, attrs: dict) -> dict:
         attrs["name"] = attrs["name"].strip()
-        return attrs
+        return super().validate(attrs)
 
 
 class DimensionConfigSerializer(serializers.Serializer):
