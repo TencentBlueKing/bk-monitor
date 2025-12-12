@@ -29,7 +29,7 @@ import { getModule, Module, Mutation, VuexModule } from 'vuex-module-decorators'
 
 import store from '../store';
 
-import type { getCustomTsMetricGroups } from '../../pages/custom-escalation/new-metric-view/services/scene_view_new';
+import type { getCustomTsMetricGroups } from '../../pages/custom-escalation/metric-detail/services/scene_view_new';
 
 interface GroupItem {
   groupName: string;
