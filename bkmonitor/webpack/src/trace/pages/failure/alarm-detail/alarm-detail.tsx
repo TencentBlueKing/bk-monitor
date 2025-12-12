@@ -357,21 +357,30 @@ export default defineComponent({
         disabled: true,
         cell: (_, { row: data }) => {
           return (
-            <div
-              class='name-column'
-              v-bk-tooltips={{
-                content: data.id,
-                delay: 200,
-                boundary: 'window',
-                extCls: 'alarm-detail-table-tooltip',
-              }}
-            >
+            <div class='id-column-wrapper'>
               <span
                 class={`event-status status-${data.severity} id-column`}
+                v-bk-tooltips={{
+                  content: data.id,
+                  delay: 200,
+                  boundary: 'window',
+                  extCls: 'alarm-detail-table-tooltip',
+                }}
                 onClick={() => handleShowDetail(data)}
               >
                 {data.id}
               </span>
+              {data.is_current_primary && (
+                <span
+                  class='new-badge'
+                  v-bk-tooltips={{
+                    content: t('最新一次分析中使用的告警'),
+                    delay: 200,
+                    boundary: 'window',
+                    extCls: 'alarm-detail-table-tooltip',
+                  }}
+                ></span>
+              )}
             </div>
           );
         },
@@ -985,8 +994,7 @@ export default defineComponent({
                         .filter(item => !this.disableKey.includes(item.colKey))
                         .map(item => item.colKey),
                     }}
-                    // autoResize={true}
-                    // bordered={true}
+                    scroll={{ type: 'virtual' }}
                     columns={this.columns}
                     data={item.alerts}
                     maxHeight={alertData.length > 1 ? 616 : this.alarmDetailHeight - 100}
