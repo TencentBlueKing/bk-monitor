@@ -28,6 +28,7 @@ export enum EClickMenuType {
   Copy = 'copy',
   Exclude = 'exclude',
   Include = 'include',
+  Link = 'link',
 }
 
 export type IFieldInfo = {
@@ -48,4 +49,10 @@ export type IFieldInfo = {
   query_alias: string;
   tag: string;
   tokenize_on_chars: string;
+};
+
+export type TClickMenuOpt = {
+  field: IFieldInfo;
+  type: EClickMenuType;
+  value: string;
 };

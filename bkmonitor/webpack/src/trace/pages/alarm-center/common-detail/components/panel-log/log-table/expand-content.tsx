@@ -28,7 +28,7 @@ import { type PropType, defineComponent, shallowRef, watchEffect } from 'vue';
 
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
-import { fieldTypeMap } from 'monitor-pc/components/retrieval-filter/utils';
+import { fieldTypeMap } from 'trace/components/retrieval-filter/utils';
 import { useI18n } from 'vue-i18n';
 import JsonPretty from 'vue-json-pretty';
 
@@ -56,7 +56,10 @@ export default defineComponent({
       default: () => [],
     },
   },
-  setup(props) {
+  emits: {
+    clickMenu: (_opt: { field: IFieldInfo; type: EClickMenuType; value: string }) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
     const activeExpandView = shallowRef('kv');
 
@@ -64,7 +67,6 @@ export default defineComponent({
     const jsonData = shallowRef({});
 
     watchEffect(() => {
-      console.log('xxxxx');
       const tempJsonData = props.fields.reduce((pre, cur) => {
         const fieldName = cur.query_alias || cur.field_name;
         pre[fieldName] = parseTableRowData(props.originLog ?? props.row, cur.field_name, cur.field_type) ?? '';
@@ -150,7 +152,10 @@ export default defineComponent({
                   <LogCell
                     options={{
                       onClickMenu: (opt: { type: EClickMenuType; value: string }) => {
-                        console.log(opt);
+                        emit('clickMenu', {
+                          ...opt,
+                          field: item,
+                        });
                       },
                     }}
                     field={item}

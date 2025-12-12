@@ -35,12 +35,14 @@ import {
   watch,
 } from 'vue';
 
-import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
+import { type TableSort, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
 
 import { useTable } from './hooks/use-table';
+
+import type { TClickMenuOpt } from './typing';
 
 import './log-table-new.scss';
 
@@ -72,8 +74,10 @@ export default defineComponent({
       default: () => null,
     },
   },
-  setup(props) {
-    console.log(props);
+  emits: {
+    clickMenu: (_opt: TClickMenuOpt) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
     const wrapRef = useTemplateRef<HTMLDivElement>('wrap');
     const wrapWidth = shallowRef(800);
@@ -81,7 +85,7 @@ export default defineComponent({
     const { tableData, tableColumns, expandedRow, originLogData, fieldsDataToColumns, setFieldsData, setWrapWidth } =
       useTable({
         onClickMenu: opt => {
-          console.log('onClickMenu', opt);
+          emit('clickMenu', opt);
         },
       });
     const offset = shallowRef(0);
@@ -89,8 +93,8 @@ export default defineComponent({
     const fieldsData = shallowRef(null);
     const expandedRowKeys = shallowRef([]);
     const isEnd = shallowRef(false);
+    const sortInfo = shallowRef(null);
     const scrollLoading = shallowRef(false);
-
     const observer = shallowRef<IntersectionObserver>();
 
     watch(
@@ -108,6 +112,7 @@ export default defineComponent({
       const res = await props.getTableData({
         offset: offset.value,
         size: limit.value,
+        sortList: sortInfo.value ? [[sortInfo.value.sortBy, sortInfo.value.descending ? 'desc' : 'asc']] : [],
       });
       return res;
     };
@@ -121,7 +126,7 @@ export default defineComponent({
       expandedRowKeys.value = keys;
     };
 
-    const expandIcon = shallowRef<TdPrimaryTableProps['expandIcon']>((_h, { _row }): any => {
+    const expandIcon = shallowRef<TdPrimaryTableProps['expandIcon']>((_h): any => {
       return <span class='icon-monitor icon-mc-arrow-right table-expand-icon' />;
     });
 
@@ -163,6 +168,11 @@ export default defineComponent({
       });
     };
 
+    const handleSortChange = (sort: TableSort) => {
+      sortInfo.value = sort;
+      handleScroll(true);
+    };
+
     onMounted(() => {
       if (wrapRef.value) {
         wrapWidth.value = wrapRef.value.offsetWidth;
@@ -192,8 +202,10 @@ export default defineComponent({
       expandIcon,
       wrapWidth,
       isEnd,
+      sortInfo,
       t,
       handleExpandChange,
+      handleSortChange,
     };
   },
   render() {
@@ -222,7 +234,7 @@ export default defineComponent({
         ) : (
           <PrimaryTable
             class='panel-log-log-table'
-            asyncLoading={customAsyncLoadingFn as any}
+            asyncLoading={(this.tableData.length ? customAsyncLoadingFn : false) as any}
             columns={[...this.tableColumns, ...this.customColumns]}
             data={this.tableData}
             expandedRow={this.expandedRow}
@@ -235,7 +247,9 @@ export default defineComponent({
             resizable={true}
             rowKey={'__id__'}
             size={'small'}
+            sort={this.sortInfo}
             onExpandChange={this.handleExpandChange}
+            onSortChange={this.handleSortChange}
           >
             {{
               empty: () => <EmptyStatus type={'empty'} />,
