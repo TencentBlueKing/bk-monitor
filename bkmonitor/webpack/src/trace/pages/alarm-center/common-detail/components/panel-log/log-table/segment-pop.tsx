@@ -48,6 +48,7 @@ export default defineComponent({
         type,
         value: curValue.value,
       });
+      instance.value?.hide();
     };
 
     const instance = shallowRef(null);
@@ -76,6 +77,13 @@ export default defineComponent({
             >
               <span class='menu-item-icon icon-monitor icon-jian' />
               <span>{t('从本次检索中排除')}</span>
+            </div>
+            <div
+              class='log-cell-segment-pop-content-menu-item'
+              onClick={(_e: MouseEvent) => handleClickMenu(_e, EClickMenuType.Link)}
+            >
+              <span class='menu-item-icon icon-monitor icon-jia' />
+              <span>{t('新建检索')}</span>
             </div>
           </div>
         );

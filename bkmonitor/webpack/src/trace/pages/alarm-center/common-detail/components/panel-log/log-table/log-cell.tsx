@@ -81,11 +81,13 @@ export default defineComponent({
     };
 
     const handleClickMenu = (opt: { type: EClickMenuType; value: string }) => {
-      props.options.onClickMenu?.(opt);
+      props.options.onClickMenu?.({
+        ...opt,
+        field: props.field,
+      });
     };
 
     onMounted(() => {
-      console.log(props.row, props.field);
       if (props.row && props.field) {
         const textSegmentation = new UseTextSegmentation({
           options: {
