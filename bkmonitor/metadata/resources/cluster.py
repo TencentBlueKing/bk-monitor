@@ -242,10 +242,11 @@ class ModifyClusterInfoResource(Resource):
             cluster_info.display_name = cluster_info.cluster_name
 
         if not re.match(models.ClusterInfo.CLUSTER_NAME_REGEX, cluster_info.cluster_name):
+            original_cluster_name = cluster_info.cluster_name
             cluster_name = f"auto_cluster_name_{cluster_info.cluster_id}"
             cluster_info.cluster_name = cluster_name
             logger.warning(
-                f"cluster({cluster_info.cluster_id}) cluster_name: {cluster_info.cluster_name} is not valid, set to: {cluster_name}"
+                f"cluster({cluster_info.cluster_id}) cluster_name: {original_cluster_name} is not valid, set to: {cluster_name}"
             )
 
         # 3. 判断获取是否需要修改用户名和密码
