@@ -154,7 +154,8 @@ watch(
     if (['clustering', 'graphAnalysis', 'grep', 'graph_analysis'].includes(route.query.tab)) {
       if (
         (!grepEnable && route.query.tab === 'grep')
-        || (!graphEnable && route.query.tab === 'graphAnalysis' || route.query.tab === 'graph_analysis')
+        || (!graphEnable && route.query.tab === 'graphAnalysis'
+        || route.query.tab === 'graph_analysis')
         || (!aiopsEnable && route.query.tab === 'clustering')
       ) {
         handleActive('origin');
