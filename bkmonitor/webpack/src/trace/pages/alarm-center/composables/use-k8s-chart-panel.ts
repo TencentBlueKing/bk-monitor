@@ -23,17 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type MaybeRef, shallowRef, watch } from 'vue';
+import { type MaybeRef, computed, shallowRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 import { K8sChartTargetsCreateTool } from 'monitor-pc/pages/monitor-k8s/components/k8s-charts/tools/targets-create/k8s-chart-targets-create-tool';
+
+import { getAlertK8sScenarioMetricList } from '../services/alarm-detail';
 import {
+  type AlertK8SMetricItem,
+  type AlertK8sTargetItem,
   type SceneEnum,
   K8SPerformanceMetricUnitMap,
   K8sTableColumnKeysEnum,
-} from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
+} from '../typings';
 
-import type { AlertK8SMetricItem } from '../typings';
 import type { K8sBasePromqlGeneratorContext } from 'monitor-pc/pages/monitor-k8s/components/k8s-charts/typing';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -109,30 +112,29 @@ const _mockMetricListData = [
 ];
 
 export interface UseK8sChartPanelOptions {
-  /** 容器监控-集群ID */
-  clusterId?: MaybeRef<string>;
-  /** 容器监控-过滤数据 */
-  filterBy?: Partial<Record<K8sTableColumnKeysEnum, string[]>>;
+  /** 业务ID */
+  bizId?: MaybeRef<number>;
+  /** 容器监控-当前选择的关联容器对象 */
+  currentTarget?: MaybeRef<AlertK8sTargetItem>;
   /** 容器监控-下钻维度 */
-  groupByField?: MaybeRef<K8sTableColumnKeysEnum>;
-  /** 容器监控-资源列表数据 */
-  resourceListData?: MaybeRef<Partial<Record<K8sTableColumnKeysEnum, string>>[]>;
+  groupBy?: MaybeRef<K8sTableColumnKeysEnum>;
   /** 容器监控-场景 */
   scene?: MaybeRef<SceneEnum>;
 }
 
 /**
- * @description 容器监控图表面板 panel hook
+ * @function useK8sChartPanel 容器监控图表面板 panel hook
+ * @description 组装 k8s 监控图表面板绘制所需配置数据
  * @param options 容器监控图表面板 panel hook选项
  */
 export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
-  const { scene, clusterId, filterBy, groupByField, resourceListData } = options;
+  const { scene, groupBy, currentTarget, bizId } = options;
   /** 容器监控图表面板创建工具 */
   const k8sChartTargetsCreateTool = new K8sChartTargetsCreateTool();
   /** 容器监控-显示数量 */
   const limit = 10;
   /** 容器监控-场景需要展示的指标项数组 */
-  let metricList: AlertK8SMetricItem[] = [];
+  const metricList = shallowRef<AlertK8SMetricItem[]>([]);
   /** 容器监控-资源映射 */
   let resourceMap: Map<K8sTableColumnKeysEnum, string> = new Map();
   /** 容器监控-资源列表 */
@@ -142,6 +144,27 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
   const dashboards = shallowRef<IPanelModel[]>([]);
   /** 是否处于请求加载状态 */
   const loading = shallowRef(false);
+  /** 容器监控-集群ID */
+  // @ts-expect-error
+  const clusterId = computed(() => get(currentTarget)?.bcs_cluster_id ?? '');
+  /** 容器监控-过滤数据 */
+  const filterBy = computed(() =>
+    Object.fromEntries(
+      Object.entries(get(currentTarget))
+        .filter(([k, v]) => v && k !== 'bcs_cluster_id')
+        .map(([k, v]) => [k, [v]])
+    )
+  );
+  /** 容器监控-资源列表数据 */
+  const resourceListData = computed(() => {
+    const obj = {};
+    for (const key in get(currentTarget)) {
+      if (key !== 'bcs_cluster_id' && get(currentTarget)[key]) {
+        obj[key] = get(currentTarget)[key];
+      }
+    }
+    return [obj] as Record<K8sTableColumnKeysEnum, string>[];
+  });
 
   /**
    * @description 获取资源列表并转化为Map结构
@@ -159,7 +182,7 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
       [K8sTableColumnKeysEnum.WORKLOAD_KIND, ''],
     ]);
     let data: Array<Partial<Record<K8sTableColumnKeysEnum, string>>> = [];
-    if (get(groupByField) === K8sTableColumnKeysEnum.CLUSTER) {
+    if (get(groupBy) === K8sTableColumnKeysEnum.CLUSTER) {
       data = [
         {
           [K8sTableColumnKeysEnum.CLUSTER]: get(clusterId),
@@ -208,17 +231,18 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
    * @description 创建面板列表
    */
   const createPanelList = async () => {
+    if (!get(metricList)?.length) return;
     await getResourceList();
     const panelList = [];
     const needAuxiliaryLine = resourceList.size === 1;
     const targetCreateContext: K8sBasePromqlGeneratorContext = {
       resourceMap: get(resourceMap),
       bcs_cluster_id: get(clusterId),
-      groupByField: get(groupByField),
+      groupByField: get(groupBy),
       // @ts-expect-error
       filter_dict: get(filterBy),
     };
-    for (const dashboard of metricList) {
+    for (const dashboard of get(metricList)) {
       panelList.push({
         id: dashboard.id,
         title: dashboard.name,
@@ -248,21 +272,23 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
    * @description 获取场景指标列表
    */
   const getScenarioMetricList = async () => {
-    if (!get(scene)) {
+    if (!get(scene) || get(bizId) == null) {
       return;
     }
-    loading.value = true;
-    // _metricList = await getK8sScenarioMetricList(get(scene));
-    metricList = _mockMetricListData;
-    await createPanelList();
-    loading.value = false;
+    metricList.value = await getAlertK8sScenarioMetricList({ bizId: get(bizId), scene: get(scene) });
+    metricList.value = _mockMetricListData;
   };
   watch(
-    () => get(scene),
-    () => {
-      getScenarioMetricList();
+    [() => get(scene), () => get(currentTarget)],
+    async (newVal, oldVal) => {
+      loading.value = true;
+      if (newVal[0] !== oldVal[0]) {
+        await getScenarioMetricList();
+      }
+      await createPanelList();
+      loading.value = false;
     },
     { immediate: true }
   );
-  return { dashboards };
+  return { dashboards, loading };
 };

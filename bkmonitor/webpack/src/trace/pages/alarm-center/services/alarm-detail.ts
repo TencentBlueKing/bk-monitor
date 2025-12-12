@@ -25,15 +25,15 @@
  */
 
 import { actionDetail, alertDetail, listAlertFeedback } from 'monitor-api/modules/alert_v2';
-import { scenarioMetricList } from 'monitor-api/modules/k8s';
 import { getSceneView } from 'monitor-api/modules/scene_view';
+import { type SceneEnum, K8sTableColumnKeysEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 import { BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
 import { type IActionDetail, ActionDetail } from '../typings/action-detail';
 import { AlarmDetail } from '../typings/detail';
 
+import type { AlertK8SMetricItem, AlertK8sTargetResult } from '../typings';
 import type { IAlarmDetail } from '../typings/detail';
-import type { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 
 export const fetchAlarmDetail = (id: string): Promise<AlarmDetail | null> => {
   if (!id) return Promise.resolve(null);
@@ -93,12 +93,33 @@ export const getHostSceneView = async (bizId: number) => {
   return transformData;
 };
 
+// ==============================start 详情-容器-相关接口 start==============================
 /**
- * @description 容器监控场景指标列表
- * @param scene 场景
+ * @method getAlertK8sScenarioList 获取可选场景列表
+ * @description 告警详情-容器-可选场景列表
+ * @param {string} alertId 告警ID
+ * @returns {Promise<SceneEnum[]>} 可选场景列表
  */
-export const getK8sScenarioMetricList = async (scene: SceneEnum) => {
-  const data = await scenarioMetricList({ scenario: scene }).catch(() => []);
+export const getAlertK8sScenarioList = async (alertId: string) => {
+  const alertK8sScenarioList = <T>(..._args): Promise<T> => {
+    return Promise.resolve(['performance', 'network'] as T);
+  }; // 占位
+  const data = await alertK8sScenarioList<SceneEnum[]>({ alert_id: alertId }).catch(() => []);
+  return data;
+};
+
+/**
+ * @method getAlertK8sScenarioMetricList 获取场景下的指标列表
+ * @description 告警详情-容器-当前选中场景下的指标列表
+ * @param {number} params.bizId 业务ID
+ * @param {SceneEnum} params.scene 场景
+ * @returns {Promise<AlertK8SMetricItem[]>} 指标列表
+ */
+export const getAlertK8sScenarioMetricList = async (params: { bizId: number; scene: SceneEnum }) => {
+  const alertK8sMetricList = <T>(..._args): Promise<T> => {
+    return Promise.resolve([] as T);
+  }; // 占位
+  const data = await alertK8sMetricList<AlertK8SMetricItem[]>(params).catch(() => []);
   return data.reduce((prev, curr) => {
     // show_chart 为 true 的指标才展示
     const children = curr?.children?.filter?.(e => e.show_chart) ?? [];
@@ -107,3 +128,34 @@ export const getK8sScenarioMetricList = async (scene: SceneEnum) => {
     return prev;
   }, []);
 };
+
+/**
+ * @method getAlertK8sTarget 获取关联容器对象列表
+ * @description 告警详情-容器-根据告警 id 获取关联容器对象列表
+ * @param {string} alertId 告警ID
+ * @returns {Promise<AlertK8sTargetResult>} 关联容器对象列表
+ */
+export const getAlertK8sTarget = async (alertId: string) => {
+  const alertK8sTarget = <T extends AlertK8sTargetResult>(..._args): Promise<T> => {
+    return Promise.resolve({
+      resource_type: K8sTableColumnKeysEnum.POD,
+      target_list: [
+        {
+          pod: 'bk-log-search-web-695db7f7f5-7jxxq',
+          bcs_cluster_id: 'BCS-K8S-00000',
+          namespace: 'blueking',
+          workload: 'Deployment:bk-log-search-web',
+        },
+      ],
+    } as unknown as T);
+  }; // 占位
+  const data = await alertK8sTarget<AlertK8sTargetResult>({ alert_id: alertId }).catch(
+    () =>
+      ({
+        resource_type: '',
+        target_list: [],
+      }) as unknown as AlertK8sTargetResult
+  );
+  return data;
+};
+// ==============================end 详情-容器-相关接口 end==============================
