@@ -237,7 +237,7 @@ class ModifyClusterInfoResource(Resource):
         except models.ClusterInfo.MultipleObjectsReturned:
             raise ValueError(_("找到多个符合条件的集群配置，可能是不同类型的集群名相同，请提供集群类型后重试"))
 
-        # 如果集群名不符合规范，则抛出异常
+        # 如果集群名不符合规范，则自动修正为合法名称并记录警告日志
         if not cluster_info.display_name:
             cluster_info.display_name = cluster_info.cluster_name
 
