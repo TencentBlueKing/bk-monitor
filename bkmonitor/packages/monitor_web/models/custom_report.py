@@ -10,8 +10,10 @@ specific language governing permissions and limitations under the License.
 
 import re
 import time
+from typing import Any
 
 from django.db import models
+from django.utils.functional import cached_property
 
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.utils.cipher import transform_data_id_to_token
@@ -22,6 +24,7 @@ from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from monitor_web.constants import EVENT_TYPE
+from monitor_web.custom_report.constants import CustomTSMetricType
 from monitor_web.models import OperateRecordModelBase
 
 
@@ -73,7 +76,7 @@ class CustomEventItem(models.Model):
 
 class CustomTSField(models.Model):
     """
-    自定义时序字段
+    [deprecated]自定义时序字段
     """
 
     METRIC_TYPE_CHOICES = (
@@ -364,10 +367,13 @@ class CustomTSTable(OperateRecordModelBase):
         """
         查询 target 维度字段
         """
-        metric = CustomTSField.objects.filter(
-            time_series_group_id=self.time_series_group_id, type=CustomTSField.MetricType.METRIC
-        ).first()
-        if not metric:
+        metric_name: str = ""
+        for scope_dict in self.query_time_series_scope:
+            metric_list: list[dict[str, Any]] = scope_dict.get("metric_list", [])
+            if metric_list:
+                metric_name = metric_list[0]["metric_name"]
+                break
+        if not metric_name:
             return []
 
         data_source_class = load_data_source(DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES)
@@ -377,7 +383,7 @@ class CustomTSTable(OperateRecordModelBase):
                 "table": self.table_id,
                 "data_label": self.data_label,
                 "group_by": ["target"],
-                "metrics": [{"field": metric.name}],
+                "metrics": [{"field": metric_name}],
             },
         )
         query = UnifyQuery(bk_biz_id=bk_biz_id, data_sources=[data_source], expression="")
@@ -394,6 +400,53 @@ class CustomTSTable(OperateRecordModelBase):
         if not values or "values" not in values:
             return []
         return values["values"]["target"]
+
+    @cached_property
+    def query_time_series_scope(self) -> list[dict[str, Any]]:
+        return api.metadata.query_time_series_scope(group_id=self.time_series_group_id)
+
+    def get_metric_fields(self) -> list[dict[str, Any]]:
+        fields: list[dict[str, Any]] = []
+        for scope_dict in self.query_time_series_scope:
+            scope_id: int | None = scope_dict.get("scope_id")
+            scope_name: str = scope_dict.get("scope_name", "")
+            dimension_name_alias_map: dict[str, str] = {}
+            for dimension_name, dimensions_dict in scope_dict.get("dimension_config", {}).items():
+                alias: str = dimensions_dict.get("alias", "")
+                dimension_name_alias_map[dimension_name] = alias
+                fields.append(
+                    {
+                        "scope_id": scope_id,
+                        "scope_name": scope_name,
+                        "name": dimension_name,
+                        "monitor_type": CustomTSMetricType.DIMENSION,
+                        "unit": "",
+                        "description": alias,
+                        "type": CustomTSMetricType.DIMENSION,
+                        "aggregate_method": "",
+                    }
+                )
+            for metric_dict in scope_dict.get("metric_list", []):
+                field_config: dict[str, Any] = metric_dict.get("field_config", {})
+                fields.append(
+                    {
+                        "scope_id": scope_id,
+                        "scope_name": scope_name,
+                        "field_id": metric_dict.get("field_id"),
+                        "name": metric_dict.get("metric_name", ""),
+                        "monitor_type": CustomTSMetricType.METRIC,
+                        "unit": field_config.get("unit", ""),
+                        "alias": field_config.get("alias", ""),
+                        "type": CustomTSMetricType.METRIC,
+                        "aggregate_method": field_config.get("aggregate_method", ""),
+                        "dimension_list": [
+                            {"id": tag_name, "name": dimension_name_alias_map.get(tag_name, "")}
+                            for tag_name in metric_dict.get("tag_list", [])
+                        ],
+                        "label": [scope_name],
+                    }
+                )
+        return fields
 
 
 class CustomTSItem(models.Model):
@@ -421,7 +474,7 @@ class CustomTSItem(models.Model):
 
 class CustomTSGroupingRule(models.Model):
     """
-    自定义时序指标分组规则
+    [deprecated]自定义时序指标分组规则
     """
 
     index = models.IntegerField("排序", default=0)

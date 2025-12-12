@@ -60,33 +60,3 @@ class CustomEventGroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomEventGroup
         fields = "__all__"
-
-
-class CustomTSTableSerializer(serializers.ModelSerializer):
-    is_readonly = serializers.SerializerMethodField()
-
-    def get_is_readonly(self, obj: CustomTSTable) -> bool:
-        """判断当前自定义上报表是否只读"""
-        if "request_bk_biz_id" not in self.context:
-            return False
-
-        # 当且仅当【获取到其他业务的全平台内容时】为只读
-        if obj.is_platform and obj.bk_biz_id != self.context["request_bk_biz_id"]:
-            return True
-
-        return False
-
-    class Meta:
-        model = CustomTSTable
-        fields = "__all__"
-
-
-class CustomTSGroupingRuleSerializer(serializers.Serializer):
-    scope_id = serializers.IntegerField(label=_("分组 ID"), default=0)  # TODO: 去除 default
-    name = serializers.CharField(label=_("分组名称"), required=True)
-    manual_list = serializers.ListField(label=_("手动分组的指标列表"), default=list)
-    auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), default=list)
-
-    def validate(self, attrs: dict) -> dict:
-        attrs["name"] = attrs["name"].strip()
-        return attrs
