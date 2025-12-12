@@ -1522,7 +1522,6 @@ class QueryTimeSeriesScopeResource(Resource):
             child=serializers.IntegerField(), required=False, label="指标分组ID列表", allow_empty=True
         )
         scope_name = serializers.CharField(required=False, label="指标分组名称")
-        # todo hhh 支持前缀多级分组
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
