@@ -429,7 +429,7 @@ export default defineComponent({
       ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
         .then((res) => {
           // 保存接口数据
-          rawDataList.value = res.data;
+          rawDataList.value = structuredClone(res.data);
           let listMap = new Map<string, LogPattern[]>();
           let groupKeys = [];
 
