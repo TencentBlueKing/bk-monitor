@@ -139,10 +139,12 @@ class TimeSeriesGroup(CustomGroupBase):
         sorted_dims = sorted(metric_group_dimensions.items(), key=lambda x: x[1].get("index", 0))
         levels = []
         for dim_name, dim_config in sorted_dims:
-            value = key_value_map.get(dim_name) or dim_config.get(
-                "default_value", TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
-            )
+            value = key_value_map.get(dim_name) or dim_config.get("default_value", "")
             levels.append(value)
+
+        # 如果 levels 里面全为空，直接返回默认值
+        if all(not level for level in levels):
+            return TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME
 
         # 拼接并返回
         result = "||".join(levels)
