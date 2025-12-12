@@ -157,21 +157,20 @@ class TimeSeriesGroup(CustomGroupBase):
 
         # 基于维度配置计算
         if metric_group_dimensions:
-            if metric_group_dimensions:
-                # 获取最后一级的默认值
-                last_default_value = metric_group_dimensions[-1].get("default_value", default_name)
+            # 获取最后一级的默认值
+            last_default_value = metric_group_dimensions[-1].get("default_value", default_name)
 
-                # 判断是否为默认分组：检查最后一级是否为默认值
-                scope_levels = scope_name.split("||")
-                is_default = scope_levels[-1] == last_default_value
+            # 判断是否为默认分组：检查最后一级是否为默认值
+            scope_levels = scope_name.split("||")
+            is_default = scope_levels[-1] == last_default_value
 
-                # 生成默认分组名称：前面的层级使用 scope_name 的实际值，最后一级使用默认值
-                if len(scope_levels) > 1:
-                    default_scope_name = "||".join(scope_levels[:-1] + [last_default_value])
-                else:
-                    default_scope_name = last_default_value
+            # 生成默认分组名称：前面的层级使用 scope_name 的实际值，最后一级使用默认值
+            if len(scope_levels) > 1:
+                default_scope_name = "||".join(scope_levels[:-1] + [last_default_value])
+            else:
+                default_scope_name = last_default_value
 
-                return is_default, default_scope_name
+            return is_default, default_scope_name
 
         # 如果没有维度配置，返回默认值
         return False, default_name
