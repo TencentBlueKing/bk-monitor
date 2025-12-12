@@ -44,4 +44,5 @@ export const builtInInitHiddenList = [
   '__ipv6__',
   '__shard_key__',
   '__unique_key__',
+  '__bcs_cluster_name__',
 ];
