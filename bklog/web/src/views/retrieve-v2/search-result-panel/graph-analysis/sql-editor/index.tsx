@@ -118,7 +118,7 @@ export default defineComponent({
       emit('error', { code: 200, message: '请求中', result: true });
 
       RetrieveHelper.reportLog({
-        trigger_source: 'graphAnalysis',
+        trigger_source: 'graph_analysis',
         action: 'request',
       }, store.state);
 
