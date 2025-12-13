@@ -7,28 +7,33 @@
   cursor: pointer;
   user-select: none;
 }
+
 .tippy-tooltip.new-metric-view-view-column-theme {
   padding: 0;
+
   .wrapper {
+    min-width: 80px;
     padding: 8px 0;
     background: #fff;
-    min-width: 80px;
   }
+
   .item {
-    height: 32px;
-    line-height: 32px;
-    padding: 0 12px;
-    font-size: 12px;
-    color: #4d4f56;
-    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    line-height: 32px;
+    color: #4d4f56;
+    cursor: pointer;
     transition: all 0.15s;
+
     &:hover,
     &.is-active {
       background: #f5f7fa;
     }
+
     &.is-active {
       color: #3a84ff;
     }
