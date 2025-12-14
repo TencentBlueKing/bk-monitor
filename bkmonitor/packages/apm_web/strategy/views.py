@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import itertools
+import json
 from collections import defaultdict
 from typing import Any
 from collections.abc import Iterable
@@ -32,6 +33,7 @@ from bkmonitor.query_template.constants import VariableType
 from core.drf_resource import resource
 from constants.alert import EventStatus
 from utils import count_md5
+from core.prometheus import metrics
 
 from apm_web.models import StrategyTemplate, StrategyInstance, Application
 from apm_web.decorators import user_visit_record
@@ -590,3 +592,27 @@ class StrategyTemplateViewSet(GenericViewSet):
             )
 
         return Response(option_values)
+
+    @action(methods=["POST"], detail=False, serializer_class=serializers.StrategyTemplateSearchRequestSerializer)
+    def search_v2(self, *args, **kwargs) -> Response:
+        # 执行过滤。
+        queryset: QuerySet[StrategyTemplate] = self._filter_by_conditions(
+            self.get_queryset(), self.query_data["conditions"]
+        ).order_by(*self.query_data["order_by"])
+
+        labels: dict[str, int] = {"bk_biz_id": self.query_data["bk_biz_id"], "app_name": self.query_data["app_name"]}
+        with metrics.APM_STRATEGY_SEARCH_DB_REQUEST_DURATION_SECOND.labels(
+            **labels, query_body=json.dumps(self.query_data)
+        ).time():
+            data_list: dict[str, Any] = serializers.StrategyTemplateV2SearchModelSerializer(queryset, many=True).data
+
+        for data in data_list:
+            metrics.APM_STRATEGY_SEARCH_NUM.labels(**labels, strategy_template_id=data["id"]).inc()
+
+        return Response(
+            {
+                # 获取总数用于列表分分页。
+                "total": self.get_queryset().count(),
+                "list": data_list,
+            }
+        )

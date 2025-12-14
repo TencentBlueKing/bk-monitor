@@ -1238,4 +1238,17 @@ LOG_INDEX_ROTATE_REASON_TOTAL = Counter(
     labelnames=("table_id", "storage_cluster_id", "reason"),
 )
 
+APM_STRATEGY_SEARCH_NUM = Counter(
+    name="bkmonitor_apm_strategy_search_num",
+    documentation="策略模板查询数量",
+    labelnames=("bk_biz_id", "app_name", "strategy_template_id"),
+)
+
+APM_STRATEGY_SEARCH_DB_REQUEST_DURATION_SECOND = Histogram(
+    name="bkmonitor_apm_strategy_search_duration_second",
+    documentation="策略模板查询耗时",
+    labelnames=("bk_biz_id", "app_name", "query_body"),
+    buckets=(1, 2, 3, 5, 10, 30, 60, INF),
+)
+
 TOTAL_TAG = "__total__"

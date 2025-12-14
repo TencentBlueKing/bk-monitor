@@ -19,6 +19,7 @@ from django.db.models import QuerySet
 from rest_framework import serializers
 from django.utils.functional import cached_property
 
+from bkmonitor.models import UserGroup
 from bkmonitor.strategy.serializers import allowed_threshold_method
 from apm_web.models import StrategyTemplate, StrategyInstance
 from apm_web.strategy.helper import get_user_groups, simplify_conditions
@@ -533,3 +534,23 @@ class StrategyTemplateSimpleSearchModelSerializer(StrategyTemplateBaseModelSeria
     class Meta:
         model = StrategyTemplate
         fields = ["id", "name", "system", "category", "monitor_type", "code", "type"]
+
+
+class StrategyTemplateV2SearchModelSerializer(serializers.ModelSerializer):
+    user_group_list = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StrategyTemplate
+        fields = ["id", "name", "system", "category", "monitor_type", "code", "type", "user_group_list"]
+
+    @classmethod
+    def _get_user_groups(cls, user_group_ids: Iterable[int]) -> dict[int, dict[str, int | str]]:
+        """获取用户组 ID 到 用户组简要信息的映射关系"""
+        return {
+            user_group["id"]: user_group
+            for user_group in UserGroup.objects.filter(id__in=user_group_ids).values("id", "name")
+        }
+
+    @classmethod
+    def get_user_group_list(cls, obj: StrategyTemplate) -> list[dict[str, int | str]]:
+        return list(cls._get_user_groups([user_group_id for user_group_id in obj.user_group_ids]).values())

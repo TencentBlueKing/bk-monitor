@@ -114,6 +114,7 @@ This project (`bk-monitor`) operates in the observability domain. Reviews must c
 ### 1. Data Model & Standards
 - **OpenTelemetry**: Align with OTel semantic conventions (Resource, Scope, Attributes).
 - **Prometheus**:
+    - **Metric Naming**: Must follow [Metric and label naming](https://prometheus.io/docs/practices/naming/) conventions.
     - **High Cardinality**: CRITICAL check. Do not allow unbounded values (user inputs, full URLs, error messages) in metric labels.
     - Correct usage of Counter (monotonically increasing) vs Gauge (fluctuating).
 
@@ -153,4 +154,4 @@ For deep dives and context, refer to these authoritative sources:
 
 ---
 
-**Last Updated**: 2025-12-09
+**Last Updated**: 2025-12-14
