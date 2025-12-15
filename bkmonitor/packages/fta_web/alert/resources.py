@@ -53,6 +53,7 @@ from bkmonitor.models import (
     ActionInstance,
     AlertAssignGroup,
     AlgorithmModel,
+    ItemModel,
     MetricListCache,
     StrategyModel,
 )
@@ -3151,26 +3152,46 @@ class EditDataMeaningResource(Resource):
         alert_id = request_data["alert_id"]
         data_meaning = request_data["data_meaning"]
 
-        # 获取告警文档并验证存在性
+        # 获取告警文档(如果不存在会抛出AlertNotFoundError)
         alert = AlertDocument.get(alert_id)
-        if not alert:
-            raise ValueError(f"告警 {alert_id} 不存在")
 
         # 安全获取extra_info结构
-        extra_info = alert.to_dict().setdefault("extra_info", {})
+        alert_dict = alert.to_dict()
+        extra_info = alert_dict.setdefault("extra_info", {})
         strategy = extra_info.setdefault("strategy", {})
         items = strategy.setdefault("items", [])
+
+        item_id = None
         if not items:
+            # items为空,创建新的item
             strategy["items"] = [{"name": data_meaning}]
         else:
-            # 更新第一个item的name字段
+            name = items[0].get("name")
+            item_id = items[0].get("id")
+
+            if name == data_meaning:
+                return {"alert_id": alert_id, "data_meaning": data_meaning}
+
             items[0]["name"] = data_meaning
 
-        # 执行文档更新
+        # 执行ES文档更新
         AlertDocument.bulk_create(
             [AlertDocument(id=alert_id, extra_info=extra_info)],
             action=BulkActionType.UPDATE,
         )
+
+        # 同步更新ItemModel(如果存在)
+        if item_id:
+            try:
+                item = ItemModel.objects.get(id=item_id)
+                if item.name != data_meaning:
+                    item.name = data_meaning
+                    item.save()
+            except ItemModel.DoesNotExist:
+                logger.error(f"ItemModel with id {item_id} does not exist for alert {alert_id}")
+        else:
+            # ES中的strategy.items[0]缺少id字段
+            logger.warning(f"alert {alert_id}: extra_info.strategy.items[0].id does not exist")
 
         return {
             "alert_id": alert_id,
