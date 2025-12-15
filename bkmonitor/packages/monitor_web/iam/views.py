@@ -270,9 +270,6 @@ class SpaceProvider(BaseResourceProvider):
 class GrafanaDashboardProvider(BaseResourceProvider):
     """Grafana仪表盘 - 同时展示目录和仪表盘"""
 
-    # General 目录常量
-    GENERAL_FOLDER_ID = 0
-    GENERAL_FOLDER_NAME = "General"
     # Folder 前缀，用于区分目录和仪表盘
     FOLDER_PREFIX = "folder:"
 
@@ -288,7 +285,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
     def filter_by_options(self, items: QuerySet[Dashboard], options: dict):
         """支持按租户ID过滤"""
         org_ids = self._get_org_ids_by_options(options)
-        return [item for item in items if item.org_id in org_ids]
+        return items.filter(org_ids__in=org_ids)
 
     def list_instance(self, filter, page, **options):
         """
@@ -348,13 +345,9 @@ class GrafanaDashboardProvider(BaseResourceProvider):
         dashboard_results = []
         # 为返回值中的dashboard补充字段
         for dashboard in dashboards:
-            folder_id = dashboard.folder_id if dashboard.folder_id else self.GENERAL_FOLDER_ID
-            # 跳过 General 目录下的仪表盘（不再展示在 IAM 界面）
-            if folder_id == self.GENERAL_FOLDER_ID:
-                continue
-            folder_name = folders_map.get(folder_id)
-            if not folder_name:
-                continue
+            folder_id = dashboard.folder_id if dashboard.folder_id else 0
+            # 如果 folder_id 为 0 或不在映射中，使用 "General" 作为默认文件夹名称
+            folder_name = folders_map.get(folder_id, "General")
             dashboard_results.append(
                 {
                     "id": f"{dashboard.org_id}|{dashboard.uid}",
@@ -422,14 +415,12 @@ class GrafanaDashboardProvider(BaseResourceProvider):
             # 判断是目录还是仪表盘
             if instance_id.startswith(self.FOLDER_PREFIX):
                 # Folder: "folder:{org_id}|{folder_id}"
+                # 处理目录
                 folder_part = instance_id[len(self.FOLDER_PREFIX) :]
                 if "|" in folder_part:
                     org_id_str, folder_id_str = folder_part.split("|", 1)
                     try:
-                        folder_id = int(folder_id_str)
-                        # 跳过 General 目录（不再展示在 IAM 界面）
-                        if folder_id != self.GENERAL_FOLDER_ID:
-                            folder_queries.append((instance_id, folder_id))
+                        folder_queries.append((instance_id, int(folder_id_str)))
                     except ValueError:
                         continue
             else:
@@ -471,13 +462,9 @@ class GrafanaDashboardProvider(BaseResourceProvider):
             for instance_id, uid in dashboard_uids:
                 if uid in dashboard_map:
                     d = dashboard_map[uid]
-                    folder_id = d.folder_id if d.folder_id else self.GENERAL_FOLDER_ID
-                    # 跳过 General 目录下的仪表盘
-                    if folder_id == self.GENERAL_FOLDER_ID:
-                        continue
-                    folder_name = folder_names.get(folder_id)
-                    if not folder_name:
-                        continue
+                    folder_id = d.folder_id if d.folder_id else 0
+                    # 如果 folder_id 为 0 或不在映射中，使用 "General" 作为默认文件夹名称
+                    folder_name = folder_names.get(folder_id, "General")
                     results.append(
                         {
                             "id": instance_id,
@@ -504,7 +491,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
             if target_org_id not in valid_org_ids:
                 return ListResult(results=[], count=0)
 
-        # Folders（不再展示 General 目录）
+        # Folders（只查询真实存在的文件夹，不展示虚拟的 General 目录）
         folder_results = []
 
         folder_queryset = Dashboard.objects.filter(is_folder=True)
@@ -523,7 +510,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
                 }
             )
 
-        # Dashboards（不再展示 General 目录下的仪表盘）
+        # Dashboards（展示所有仪表盘，包括 General 目录下的）
         dashboard_queryset = Dashboard.objects.filter(is_folder=False)
         if target_org_id:
             dashboard_queryset = dashboard_queryset.filter(org_id=target_org_id)
@@ -531,13 +518,9 @@ class GrafanaDashboardProvider(BaseResourceProvider):
         dashboards = self.filter_by_options(dashboard_queryset, options)
         dashboard_results = []
         for d in dashboards:
-            folder_id = d.folder_id if d.folder_id else self.GENERAL_FOLDER_ID
-            # 跳过 General 目录下的仪表盘
-            if folder_id == self.GENERAL_FOLDER_ID:
-                continue
-            folder_name = folders_map.get(folder_id)
-            if not folder_name:
-                continue
+            folder_id = d.folder_id if d.folder_id else 0
+            # 如果 folder_id 为 0 或不在映射中，使用 "General" 作为默认文件夹名称
+            folder_name = folders_map.get(folder_id, "General")
             dashboard_results.append(
                 {
                     "id": f"{d.org_id}|{d.uid}",
