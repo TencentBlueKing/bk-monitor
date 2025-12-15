@@ -31,6 +31,7 @@ import useStore from '@/hooks/use-store';
 
 import { useOperation } from '../../../../hook/useOperation';
 import InfoTips from '../../../common-comp/info-tips';
+import TableComponent from '../../../common-comp/table-component';
 import $http from '@/api';
 
 import './es-select-dialog.scss';
@@ -529,17 +530,24 @@ export default defineComponent({
                 {t('成功匹配 {x} 条索引', { x: tableData.value.length })}
               </div>
             )}
-            <bk-table
+            <TableComponent
               key={props.isShowDialog}
               height={320}
-              v-bkloading={{ isLoading: tableLoading.value }}
+              loading={tableLoading.value}
               data={tableData.value}
-            >
-              <bk-table-column
-                label={t('索引')}
-                prop='result_table_id'
-              />
-            </bk-table>
+              skeletonConfig={{
+                columns: 2,
+                rows: 4,
+                widths: ['50%', '50%'],
+              }}
+              columns={[
+                {
+                  title: t('索引'),
+                  colKey: 'result_table_id',
+                  ellipsis: true,
+                },
+              ]}
+            />
           </bk-form-item>
           <bk-form-item
             label={t('时间字段')}

@@ -31,6 +31,7 @@ import * as authorityMap from '@/common/authority-map';
 import { projectManages } from '@/common/util';
 import useStore from '@/hooks/use-store';
 import { useRouter, useRoute } from 'vue-router/composables';
+import { getOperatorCanClick } from '../utils';
 
 /**
  * 采集列表的自定义 Hook
@@ -94,22 +95,6 @@ export const useCollectList = () => {
     } finally {
       isTableLoading.value = false;
     }
-  };
-
-  const getOperatorCanClick = (row, operateType) => {
-    if (operateType === 'search') {
-      return !!(row.is_active && (row.index_set_id || row.bkdata_index_set_ids.length));
-    }
-    if (['clean', 'storage', 'clone'].includes(operateType)) {
-      return !row.status || row.table_id;
-    }
-    if (['stop', 'start'].includes(operateType)) {
-      return !(!row.status || row.status === 'running' || !collectProject.value) || row.is_active !== undefined;
-    }
-    if (operateType === 'delete') {
-      return !(!row.status || row.status === 'running' || row.is_active || !collectProject.value);
-    }
-    return true;
   };
 
   const leaveCurrentPage = (row, operateType, typeKey, indexSetId) => {
@@ -181,6 +166,7 @@ export const useCollectList = () => {
         return;
       }
       params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
+      query.pid = indexId ? JSON.stringify([indexId]) : undefined;
     }
     if (operateType === 'clean') {
       query.step = 2;

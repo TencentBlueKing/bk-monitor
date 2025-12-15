@@ -30,6 +30,7 @@ import { formatFileSize } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { useRouter } from 'vue-router/composables';
+import TableComponent from '../../common-comp/table-component';
 
 import './cluster-table.scss';
 
@@ -138,6 +139,63 @@ export default defineComponent({
     const currentRow = ref<IClusterItem | null>(null);
     /** 当前选中集群的配置信息 */
     const setupConfig = ref<ISetupConfig | null>(null);
+    // showBizCount
+    const columns = computed(() => {
+      const baseColumns = [
+        {
+          title: t('采集名'),
+          colKey: 'storage_cluster_name',
+          cell: (h, { row }: { row: IClusterItem }) => (
+            <bk-radio checked={isSelected(row)}>
+              <div
+                class='overflow-tips'
+                v-bk-overflow-tips
+              >
+                <span class='cluster-name'>{row.storage_cluster_name}</span>
+              </div>
+            </bk-radio>
+          ),
+          width: 200,
+          ellipsis: true,
+        },
+        {
+          title: t('总量'),
+          colKey: 'storage_total',
+          width: 90,
+          cell: (h, { row }: { row: IClusterItem }) => <span>{formatFileSize(row.storage_total)}</span>,
+        },
+        {
+          title: t('空闲率'),
+          colKey: 'storage_usage',
+          width: 150,
+          cell: (h, { row }: { row: IClusterItem }) => (
+            <div class='percent'>
+              <div class='percent-progress'>
+                <bk-progress
+                  percent={getPercent(row)}
+                  show-text={false}
+                  theme='success'
+                />
+              </div>
+              <span class='percent-count'>{`${100 - row.storage_usage}%`}</span>
+            </div>
+          ),
+        },
+        {
+          title: t('索引数'),
+          colKey: 'index_count',
+          width: 80,
+        },
+      ];
+      const bizCountColumns = [
+        {
+          title: t('业务数'),
+          colKey: 'biz_count',
+          width: 80,
+        },
+      ];
+      return props.showBizCount ? [...baseColumns, ...bizCountColumns] : baseColumns;
+    });
 
     // ==================== 计算属性 ====================
 
@@ -240,7 +298,7 @@ export default defineComponent({
      */
     watch(
       () => props.clusterList,
-      val => {
+      (val: IClusterItem[]) => {
         if (!props.clusterSelect) {
           return;
         }
@@ -251,6 +309,7 @@ export default defineComponent({
       },
       { deep: true },
     );
+
     // ==================== 渲染函数 ====================
 
     /**
@@ -263,69 +322,13 @@ export default defineComponent({
         style={{ width: isShowDesc.value ? '58%' : '100%' }}
         class='cluster-content-table'
       >
-        <bk-table
+        <TableComponent
           class='cluster-table'
-          v-bkloading={{ isLoading: props.loading }}
+          loading={props.loading}
           data={props.clusterList}
-          on-row-click={handleSelectCluster}
-        >
-          {/* 集群名列 */}
-          <bk-table-column
-            scopedSlots={{
-              default: ({ row }: { row: IClusterItem }) => (
-                <bk-radio checked={isSelected(row)}>
-                  <div
-                    class='overflow-tips'
-                    v-bk-overflow-tips
-                  >
-                    <span class='cluster-name'>{row.storage_cluster_name}</span>
-                  </div>
-                </bk-radio>
-              ),
-            }}
-            label={t('集群名')}
-            min-width='200'
-          />
-          {/* 总量列 */}
-          <bk-table-column
-            scopedSlots={{
-              default: ({ row }: { row: IClusterItem }) => <span>{formatFileSize(row.storage_total)}</span>,
-            }}
-            label={t('总量')}
-            min-width='90'
-          />
-          {/* 空闲率列 */}
-          <bk-table-column
-            scopedSlots={{
-              default: ({ row }: { row: IClusterItem }) => (
-                <div class='percent'>
-                  <div class='percent-progress'>
-                    <bk-progress
-                      percent={getPercent(row)}
-                      show-text={false}
-                      theme='success'
-                    />
-                  </div>
-                  <span class='percent-count'>{`${100 - row.storage_usage}%`}</span>
-                </div>
-              ),
-            }}
-            label={t('空闲率')}
-            width='140'
-          />
-          {/* 索引数列 */}
-          <bk-table-column
-            label={t('索引数')}
-            prop='index_count'
-          />
-          {/* 业务数列（可选） */}
-          {props.showBizCount && (
-            <bk-table-column
-              label={t('业务数')}
-              prop='biz_count'
-            />
-          )}
-        </bk-table>
+          columns={columns.value}
+          on-cell-click={handleSelectCluster}
+        />
       </div>
     );
 

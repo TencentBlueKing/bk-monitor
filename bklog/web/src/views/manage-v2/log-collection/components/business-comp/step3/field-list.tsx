@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, onBeforeUnmount, onMounted, nextTick, type PropType } from 'vue';
+import { defineComponent, ref, computed, onBeforeUnmount, onMounted, nextTick, type PropType, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import tippy, { type Instance } from 'tippy.js';
+import TableComponent from '../../common-comp/table-component';
 
 import './field-list.scss';
 export type FieldItem = {
@@ -197,7 +198,7 @@ export default defineComponent({
      * @param row
      * @returns
      */
-    const renderSource = (row: any) => {
+    const renderSource = (h, { row }) => {
       const info = row.is_add_in
         ? { label: t('添加'), class: 'source-add' }
         : { label: t('调试'), class: 'source-debug' };
@@ -241,12 +242,12 @@ export default defineComponent({
      * @param row
      * @returns
      */
-    const renderWordBreaker = (row: any) => {
+    const renderWordBreaker = (h, { row }) => {
       if (row.field_type === 'string' && !row.is_built_in) {
         return (
-          <span>
+          <div class='word-breaker'>
             <span
-              class='word-breaker word-breaker-edit'
+              class='word-breaker-edit'
               data-field-index={row.field_index}
               data-field-name={row.field_name}
             >
@@ -348,29 +349,29 @@ export default defineComponent({
                 </div>
               </div>
             </div>
-          </span>
+          </div>
         );
       }
-      return <span class='disabled-work'>{t('无需设置')}</span>;
+      return <div class='disabled-work'>{t('无需设置')}</div>;
     };
     /**
      * 值 render
      * @param row
      * @returns
      */
-    const renderValue = (row: any) => {
+    const renderValue = (h, { row }) => {
       if (!row.is_built_in) {
         return (
-          <span
+          <div
             class='word-breaker bg-gray'
             title={row.value}
             v-bkloading={{ isLoading: props.refresh, size: 'mini' }}
           >
             {row.value}
-          </span>
+          </div>
         );
       }
-      return <span class='disabled-work'>{t('暂无预览')}</span>;
+      return <div class='disabled-work'>{t('暂无预览')}</div>;
     };
     /**
      * 渲染分词符的popover
@@ -380,7 +381,8 @@ export default defineComponent({
       // 销毁旧实例，避免重复绑定
       destroyTippyInstances();
 
-      const targets = document.querySelectorAll('.fields-table-box .bk-table-body-wrapper .word-breaker-edit');
+      const targets = document.querySelectorAll('.fields-table-box .t-table__body .word-breaker-edit');
+      console.log('targets', targets);
       if (!targets.length) {
         return;
       }
@@ -449,11 +451,20 @@ export default defineComponent({
     onBeforeUnmount(() => {
       destroyTippyInstances();
     });
+    watch(
+      () => props.loading,
+      (val: boolean) => {
+        console.log('loading changed:', val);
+        if (!val) {
+          setTimeout(() => {
+            initMenuPop();
+          }, 1000);
+        }
+      },
+    );
     /**
      * 刷新值
-     */
-    const handleFreshValue = () => {
-      // TODO: 实现刷新值的逻辑
+     */ const handleFreshValue = () => {
       emit('refresh');
     };
 
@@ -890,7 +901,7 @@ export default defineComponent({
      * @param row
      * @returns
      */
-    const renderFieldName = row => {
+    const renderFieldName = (h, { row }) => {
       if (isPreviewMode.value || row.is_objectKey) {
         return (
           <div
@@ -1034,49 +1045,26 @@ export default defineComponent({
       //   />
       // );
     };
-
-    /**
-     * 绘制表头
-     * @param h
-     * @param param1
-     * @param item
-     * @returns
-     */
-    const renderHeader = (h, { column }, item) => {
-      if (item.key === 'value') {
-        return (
-          <span class='header-text'>
-            {item.label}
-            <span
-              class='header-text-link'
-              on-click={handleFreshValue}
-            >
-              <i class='bklog-icon bklog-refresh2 link-icon' />
-              {t('刷新')}
-            </span>
-          </span>
-        );
-      }
-      return <span class='header-text'>{column.label}</span>;
-    };
-
     const columns = ref([
       {
-        label: t('来源'),
-        prop: 'collector_config_name',
+        title: t('来源'),
+        colKey: 'is_built_in',
         align: 'center',
         width: 62,
-        renderFn: renderSource,
+        cell: renderSource,
+        className: () => 'fields-tag-column',
       },
       {
-        label: t('字段名'),
-        prop: 'field_name',
-        renderFn: renderFieldName,
+        title: t('字段名'),
+        colKey: 'field_name',
+        cell: renderFieldName,
+        className: () => 'fields-table-column',
       },
       {
-        label: t('类型'),
-        prop: 'field_type',
-        renderFn: (row: any) => (
+        title: t('类型'),
+        colKey: 'field_type',
+        className: () => 'fields-table-column',
+        cell: (h, { row }) => (
           <div class='type-select-wrapper'>
             <bk-select
               class={{ 'type-error': row.typeErr }}
@@ -1084,6 +1072,12 @@ export default defineComponent({
               disabled={row.is_built_in}
               value={row.field_type}
               on-change={value => {
+                console.log(value, 'value===');
+                if (value === 'string') {
+                  setTimeout(() => {
+                    initMenuPop();
+                  }, 1000);
+                }
                 const newList = updateList(props.data, row, item => ({
                   ...item,
                   field_type: value,
@@ -1111,15 +1105,39 @@ export default defineComponent({
         ),
       },
       {
-        label: t('分词符'),
-        prop: 'collector_config_name',
-        renderFn: renderWordBreaker,
+        title: t('分词符'),
+        colKey: 'is_analyzed',
+        cell: renderWordBreaker,
+        className: () => 'fields-analyzed-column',
       },
       {
-        label: t('值'),
-        key: 'value',
-        prop: 'is_built_in',
-        renderFn: renderValue,
+        title: 'title-slot-name',
+        colKey: 'value',
+        cell: renderValue,
+        className: () => 'fields-value-column',
+      },
+      {
+        title: t('操作'),
+        colKey: 'operation',
+        width: 70,
+        cell: (h, { row }) => (
+          <div class='table-operation'>
+            {!row.is_built_in && (
+              <i
+                class={`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`}
+                v-bk-tooltips={row.is_delete ? t('复原') : t('隐藏')}
+                on-click={() => isDisableOperate(row)}
+              />
+            )}
+            {row.is_add_in && (
+              <i
+                class='bklog-icon bklog-log-delete icons del-icon'
+                v-bk-tooltips={t('删除')}
+                on-click={() => deleteField(row)}
+              />
+            )}
+          </div>
+        ),
       },
     ]);
     const handleType = (type: string) => {
@@ -1202,60 +1220,34 @@ export default defineComponent({
     const renderTable = () => (
       <div
         class='fields-table'
-        v-bkloading={{ isLoading: props.loading, zIndex: 10 }}
+        // v-bkloading={{ isLoading: props.loading, zIndex: 10 }}
       >
-        <bk-table
-          ext-cls='fields-table-box'
+        <TableComponent
+          class='fields-table-box'
+          loading={props.loading}
           data={showTableList.value}
-          col-border
-        >
-          {columns.value.map((item, ind) => (
-            <bk-table-column
-              key={`${item.prop}_${ind}`}
-              width={item.width}
-              scopedSlots={{
-                default: ({ row }) => {
-                  /** 自定义 */
-                  if (item?.renderFn) {
-                    return (item as any)?.renderFn(row);
-                  }
-                  return row[item.prop] ?? '--';
-                },
-              }}
-              align={item.align || 'left'}
-              class-name={item?.renderFn ? 'fields-table-column' : ''}
-              label={item.label}
-              prop={item.prop}
-              renderHeader={(h, { column }: any) => renderHeader(h, { column }, item)}
-            />
-          ))}
-          <bk-table-column
-            width={70}
-            scopedSlots={{
-              default: ({ row }) => {
-                return (
-                  <div class='table-operation'>
-                    {!row.is_built_in && (
-                      <i
-                        class={`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`}
-                        v-bk-tooltips={row.is_delete ? t('复原') : t('隐藏')}
-                        on-click={() => isDisableOperate(row)}
-                      />
-                    )}
-                    {row.is_add_in && (
-                      <i
-                        class='bklog-icon bklog-log-delete icons del-icon'
-                        v-bk-tooltips={t('删除')}
-                        on-click={() => deleteField(row)}
-                      />
-                    )}
-                  </div>
-                );
-              },
-            }}
-            label={t('操作')}
-          />
-        </bk-table>
+          bordered={true}
+          skeletonConfig={{
+            columns: 6,
+            rows: 4,
+            widths: ['2%', '24%', '24%', ' 24%', '22%', '4%'],
+          }}
+          columns={columns.value}
+          slots={{
+            'title-slot-name': () => (
+              <span class='header-text'>
+                {t('值')}
+                <span
+                  class='header-text-link'
+                  on-click={handleFreshValue}
+                >
+                  <i class='bklog-icon bklog-refresh2 link-icon' />
+                  {t('刷新')}
+                </span>
+              </span>
+            ),
+          }}
+        />
       </div>
     );
     /**

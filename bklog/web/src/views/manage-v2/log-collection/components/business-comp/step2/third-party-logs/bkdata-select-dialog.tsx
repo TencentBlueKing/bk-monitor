@@ -31,7 +31,7 @@ import useStore from '@/hooks/use-store';
 
 import { useOperation } from '../../../../hook/useOperation';
 import $http from '@/api';
-
+import TableComponent from '../../../common-comp/table-component';
 import './bkdata-select-dialog.scss';
 
 export default defineComponent({
@@ -192,21 +192,29 @@ export default defineComponent({
             </bk-select>
           </bk-form-item>
           <bk-form-item>
-            <bk-table
+            <TableComponent
               key={props.isShowDialog}
               height={320}
-              v-bkloading={{ isLoading: tableLoading.value }}
+              loading={tableLoading.value}
               data={tableData.value}
-            >
-              <bk-table-column
-                label={t('字段')}
-                prop='field_name'
-              />
-              <bk-table-column
-                label={t('类型')}
-                prop='field_type'
-              />
-            </bk-table>
+              skeletonConfig={{
+                columns: 2,
+                rows: 4,
+                widths: ['50%', '50%'],
+              }}
+              columns={[
+                {
+                  title: t('字段'),
+                  colKey: 'field_name',
+                  ellipsis: true,
+                },
+                {
+                  title: t('类型'),
+                  colKey: 'field_type',
+                  ellipsis: true,
+                },
+              ]}
+            />
           </bk-form-item>
         </bk-form>
         <div slot='footer'>
