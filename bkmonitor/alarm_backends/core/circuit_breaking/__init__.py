@@ -63,12 +63,12 @@ access.data:
 	[{
 		"key": "strategy_id",
 		"method": "eq",
-		"value": ["1"，"2"],
+		"value": ["1", "2"],
 	},
 	{
 		"key": "bk_biz_id",
 		"method": "eq",
-		"value": ["1"，"2"],
+		"value": ["1", "2"],
 		"condition": "or",
 	},
 	{
