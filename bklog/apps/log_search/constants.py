@@ -373,6 +373,7 @@ class GlobalTypeEnum(ChoicesEnum):
     PAAS_API_HOST = "paas_api_host"
     BK_DOMAIN = "bk_domain"
     RETAIN_EXTRA_JSON = "retain_extra_json"
+    LOG_BUILT_IN_FIELD = "log_built_in_field"
 
     _choices_labels = (
         (CATEGORY, _("数据分类")),
@@ -395,6 +396,7 @@ class GlobalTypeEnum(ChoicesEnum):
         (PAAS_API_HOST, _("网关地址")),
         (BK_DOMAIN, _("蓝鲸域名")),
         (RETAIN_EXTRA_JSON, _("是否开启保留额外JSON字段开关")),
+        (LOG_BUILT_IN_FIELD, _("日志内置字段")),
     )
 
 
@@ -1362,6 +1364,28 @@ RT_RESERVED_WORD_EXAC = [
     ETL_DELIMITER_END,
 ]
 
+LOG_BUILT_IN_FIELD_LIST = [
+    "gseIndex",
+    "gseindex",
+    "iterationIndex",
+    "iterationindex",
+    "_iteration_idx",
+    "__dist_01",
+    "__dist_03",
+    "__dist_05",
+    "__dist_07",
+    "__dist_09",
+    "__ipv6__",
+    "__parse_failure",
+    "time",
+    "__module__",
+    "__set__",
+    "__ipv6__",
+    "__shard_key__",
+    "__unique_key__",
+    "__bcs_cluster_name__",
+]
+
 
 class FieldBuiltInEnum:
     """
@@ -1375,6 +1399,10 @@ class FieldBuiltInEnum:
     @classmethod
     def get_choices_list_dict(cls):
         return [{"id": key.lower(), "name": key.lower()} for key in RT_RESERVED_WORD_EXAC if key]
+
+    @classmethod
+    def get_log_built_in_field_list(cls):
+        return LOG_BUILT_IN_FIELD_LIST
 
 
 class TimeZoneEnum(ChoicesEnum):

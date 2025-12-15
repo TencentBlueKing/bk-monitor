@@ -172,6 +172,8 @@ class GlobalConfig(models.Model):
         # Cookie域名
         configs[GlobalTypeEnum.BK_DOMAIN.value] = settings.BK_DOMAIN
         configs[GlobalTypeEnum.RETAIN_EXTRA_JSON.value] = settings.RETAIN_EXTRA_JSON
+        # 日志内置字段列表
+        configs[GlobalTypeEnum.LOG_BUILT_IN_FIELD.value] = FieldBuiltInEnum.get_log_built_in_field_list()
         return configs
 
     class Meta:
