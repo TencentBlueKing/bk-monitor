@@ -116,7 +116,8 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
 
             for cb_strategy in circuit_breaking_strategies:
                 logger.warning(
-                    f"[circuit breaking] strategy({cb_strategy['strategy_id']}) item( {cb_strategy['item_id']}) "
+                    f"[circuit breaking] strategy({cb_strategy['strategy_id']}),"
+                    f"item({cb_strategy['item_id']}) "
                     f"circuit breaking triggered before data pull, "
                     f"strategy_group_key: {strategy_group_key}"
                 )
