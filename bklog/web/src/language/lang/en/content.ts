@@ -103,7 +103,7 @@ export default {
   批量使用告警: 'Batch use alerts',
   批量停用告警: 'Batch disable alerts',
   查询显示字段: 'Query display fields',
-  '输入查询内容，"帮我查询近3天的错误日志"，Tab 切换为普通模式':
+  '输入查询内容，"帮我查询近 3 天的错误日志"，Tab 切换为普通模式':
     'Enter query content, e.g., "Help me query error logs from the past 3 days", Tab to switch to normal mode',
   'AI 模式': 'AI Mode',
   'AI 解析中...': 'AI Parsing...',
@@ -114,8 +114,8 @@ export default {
   请输入检索内容: 'Please enter search content',
   '可直接输入,进行全文检索;': 'You can enter directly for full-text search;',
   '或描述检索需求,使用': 'Or describe your search needs using',
-  'AI搜索': 'AI Search',
-  '查询近30分钟的错误日志': 'Query error logs from the last 30 minutes',
+  'AI 搜索': 'AI Search',
+  '查询近 30 分钟的错误日志': 'Query error logs from the last 30 minutes',
   查询今天的错误日志: "Query today's error logs",
   全文检索: 'Full-text search',
   恢复这个选项: 'Restore this option',

@@ -231,7 +231,25 @@ export default defineComponent({
           <div class="ai-mode-inner">
             <div class="ai-input-wrapper">
               <div class="ai-input-container">
-                {props.aiQueryResult.queryString ? (
+                  <textarea
+                    ref={textareaRef}
+                    tabindex={1}
+                    class="ai-input"
+                    value={currentInput.value}
+                    placeholder={t('输入查询内容，"帮我查询近 3 天的错误日志"，Tab 切换为普通模式')}
+                    onInput={handleInput}
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
+                    onKeydown={handleKeyDown}
+                    onCompositionstart={handleCompositionStart}
+                    onCompositionend={handleCompositionEnd}
+                    rows={1}
+                    style={{
+                      height: '24px',
+                    }}
+                  />
+              </div>
+              {props.aiQueryResult.queryString ? (
                   <BklogPopover
                     ref={parsedTextRef}
                     class="ai-parsed-text"
@@ -253,9 +271,8 @@ export default defineComponent({
                               offset: ({ reference }) => {
                                 // 获取 containerRef 的位置
                                 const containerRect = containerRef.value.getBoundingClientRect();
-                                const offsetX = containerRect.left - reference.x;
                                 const offsetY = containerRect.bottom - reference.y + 4 - reference.height;
-                                return [offsetX, offsetY];
+                                return [reference.x, offsetY];
                               },
                             },
                           },
@@ -263,49 +280,14 @@ export default defineComponent({
                       },
                     } as any}
                   >
-                    <textarea
-                      ref={textareaRef}
-                      tabindex={1}
-                      class="ai-input has-parsed-text"
-                      value={currentInput.value}
-                      placeholder={t('输入查询内容，"帮我查询近3天的错误日志"，Tab 切换为普通模式')}
-                      onInput={handleInput}
-                      onFocus={handleFocus}
-                      onBlur={handleBlur}
-                      onKeydown={handleKeyDown}
-                      onCompositionstart={handleCompositionStart}
-                      onCompositionend={handleCompositionEnd}
-                      rows={1}
-                      style={{
-                        height: '24px',
-                      }}
-                    />
+                    <span class="ai-parsed-text-icon bklog-icon bklog-eye"></span>
                   </BklogPopover>
-                ) : (
-                  <textarea
-                    ref={textareaRef}
-                    tabindex={1}
-                    class="ai-input"
-                    value={currentInput.value}
-                    placeholder={t('输入查询内容，"帮我查询近3天的错误日志"，Tab 切换为普通模式')}
-                    onInput={handleInput}
-                    onFocus={handleFocus}
-                    onBlur={handleBlur}
-                    onKeydown={handleKeyDown}
-                    onCompositionstart={handleCompositionStart}
-                    onCompositionend={handleCompositionEnd}
-                    rows={1}
-                    style={{
-                      height: '24px',
-                    }}
-                  />
-                )}
-              </div>
+                ) : null}
               <div class="ai-mode-toggle-btn">
                 <img
                   src={aiBluekingSvg}
                   alt="AI模式"
-                  style={{ width: '16px', height: '16px' }}
+                  style={{ width: '18px', height: '18px' }}
                 />
                 <span class="ai-mode-text">{t('AI 模式')}</span>
                 <span style={shortcutKeyStyle}>

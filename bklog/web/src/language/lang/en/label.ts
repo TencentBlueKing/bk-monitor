@@ -927,7 +927,6 @@ export default {
   创建中: 'Creating',
   启动中: 'Starting',
   正在解析语句: 'Parsing statement...',
-  AI搜索: 'AI Search',
   自动刷新设置: 'Auto refresh settings',
   克隆采集: 'Cloning collection',
   查看采集: 'View collection',
@@ -936,6 +935,5 @@ export default {
   扁平化对象: 'Flatten object',
   自然语言转查询语句: 'Natural language to search statement',
   聚类下载: 'Clustering Download',
-  'AI 搜索': 'AI Search',
-  '输入查询内容，“帮我查询近3天的错误日志”，Tab 切换为普通模式': 'Enter search content, "help me query the error log in the past 3 days", Tab to switch to normal mode',
+  '输入查询内容，“帮我查询近 3 天的错误日志”，Tab 切换为普通模式': 'Enter search content, "help me query the error log in the past 3 days", Tab to switch to normal mode',
 };

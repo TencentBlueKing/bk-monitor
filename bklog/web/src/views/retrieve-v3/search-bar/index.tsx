@@ -433,7 +433,7 @@ export default defineComponent({
                       <img
                         src={aiBluekingSvg}
                         alt='AI编辑'
-                        style={{ width: '16px', height: '16px' }}
+                        style={{ width: '18px', height: '18px' }}
                       />
                       {t('AI编辑')}
                       <span style={shortcutKeyStyle}>

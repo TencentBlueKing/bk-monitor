@@ -71,7 +71,7 @@ const setMorePopoverRef = (el, index) => {
   }
 };
 const inputValueLength = ref(0);
-// 当前选中的选择项索引：0=全文检索，1=AI搜索
+// 当前选中的选择项索引：0=全文检索，1=AI 搜索
 const selectedChoiceIndex = ref(0);
 // 动态设置placeHolder
 const inputPlaceholder = computed(() => {
@@ -449,7 +449,7 @@ const handleInputValueChange = (e) => {
 };
 
 /**
- * 点击全文检索或 AI搜索
+ * 点击全文检索或 AI 搜索
  * @param type fulltext or ai
  */
 const handleChoiceItemClick = (type) => {
@@ -813,16 +813,16 @@ const handleBatchInputChange = (isShow) => {
               {{ t('可直接输入,进行全文检索;') }}
             </div>
             <div class="guide-text">
-              {{ t('或描述检索需求,使用') }}<span class="ai-search-text">{{ t('AI搜索') }}</span>:
+              {{ t('或描述检索需求,使用') }}<span class="ai-search-text">{{ t('AI 搜索') }}</span>:
             </div>
           </div>
           <div class="guide-prompts">
             <div
               class="prompt-item"
-              @click="handlePromptClick('查询近30分钟的错误日志')"
+              @click="handlePromptClick('查询近 30 分钟的错误日志')"
             >
               <i class="bklog-icon bklog-prompt"></i>
-              <span class="prompt-text">{{ t('查询近30分钟的错误日志') }}</span>
+              <span class="prompt-text">{{ t('查询近 30 分钟的错误日志') }}</span>
               <i class="bklog-icon bklog-goto-bold"></i>
             </div>
             <div
@@ -853,7 +853,7 @@ const handleBatchInputChange = (isShow) => {
           ]"
           @click="handleChoiceItemClick('ai')"
         >
-          {{ t('AI搜索') }}
+          {{ t('AI 搜索') }}
         </div>
         </template>
       </div>
