@@ -309,7 +309,7 @@ const store = new Vuex.Store({
       const searchParams = searchMode === 'sql' ? { keyword, addition: [] } : { addition: getters.originAddition, keyword: '*' };
 
       if (state.aiMode.active) {
-        searchParams.keyword = [searchParams.keyword, ...state.aiMode.filterList].filter(f => !/^\s*\*?\s*$/.test(f)).join(' AND ');
+        searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword].filter(f => !/^\s*\*?\s*$/.test(f)).join(' AND ');
       }
 
       if (searchParams.keyword.replace(/\s*/, '') === '') {

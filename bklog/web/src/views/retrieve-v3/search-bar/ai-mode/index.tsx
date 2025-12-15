@@ -62,6 +62,8 @@ export default defineComponent({
     const aiModeRootRef = ref<HTMLDivElement | null>(null);
     const containerWidth = ref<number>(600);
     const parsedTextRef = ref<InstanceType<typeof BklogPopover> | null>(null);
+    // 标记是否正在输入法组合过程中
+    const isComposing = ref(false);
 
     const handleHeightChange = (height: number) => {
       emit('height-change', height);
@@ -103,9 +105,23 @@ export default defineComponent({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Enter') {
+        // 如果正在输入法组合过程中，不处理Enter事件
+        if (e.isComposing || isComposing.value) {
+          return;
+        }
         e.preventDefault();
         handleAiExecute();
       }
+    };
+
+    // 输入法组合开始
+    const handleCompositionStart = () => {
+      isComposing.value = true;
+    };
+
+    // 输入法组合结束
+    const handleCompositionEnd = () => {
+      isComposing.value = false;
     };
 
     useResizeObserve(aiModeRootRef, () => {
@@ -237,6 +253,8 @@ export default defineComponent({
                       onFocus={handleFocus}
                       onBlur={handleBlur}
                       onKeydown={handleKeyDown}
+                      onCompositionstart={handleCompositionStart}
+                      onCompositionend={handleCompositionEnd}
                       rows={1}
                       style={{
                         height: '24px',
@@ -255,6 +273,8 @@ export default defineComponent({
                     onFocus={handleFocus}
                     onBlur={handleBlur}
                     onKeydown={handleKeyDown}
+                    onCompositionstart={handleCompositionStart}
+                    onCompositionend={handleCompositionEnd}
                     rows={1}
                     style={{
                       height: '24px',

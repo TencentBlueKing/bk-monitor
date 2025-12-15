@@ -53,6 +53,8 @@ export default defineComponent({
     const editContainerRef = ref<HTMLDivElement | null>(null);
     const isFinishingEdit = ref(false); // 防止重复调用 finishEdit
     const isEnterKeyPressed = ref(false); // 标记是否通过 Enter 键完成编辑
+    // 标记是否正在输入法组合过程中
+    const isComposing = ref(false);
 
     /**
      * 进入编辑模式
@@ -128,6 +130,10 @@ export default defineComponent({
      */
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey) {
+        // 如果正在输入法组合过程中，不处理Enter事件
+        if (e.isComposing || isComposing.value) {
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
 
@@ -146,6 +152,16 @@ export default defineComponent({
         e.stopPropagation();
         cancelEdit();
       }
+    };
+
+    // 输入法组合开始
+    const handleCompositionStart = () => {
+      isComposing.value = true;
+    };
+
+    // 输入法组合结束
+    const handleCompositionEnd = () => {
+      isComposing.value = false;
     };
 
     /**
@@ -215,6 +231,8 @@ export default defineComponent({
                 }
               }}
               onKeydown={handleKeyDown}
+              onCompositionstart={handleCompositionStart}
+              onCompositionend={handleCompositionEnd}
               onBlur={() => {
                 // 确保 editValue 是最新的（从 textarea 读取）
                 if (textareaRef.value) {
