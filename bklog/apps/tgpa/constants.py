@@ -132,7 +132,7 @@ TGPA_TASK_ETL_FIELDS = [
     },
 ]
 
-TGPA_TASK_SORT_FIELDS = ["lineno"]
+TGPA_TASK_SORT_FIELDS = ["dtEventTimeStamp", "lineno"]
 TGPA_TASK_TARGET_FIELDS = ["task_id", "file"]
 
 CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "file", "lineno"]
