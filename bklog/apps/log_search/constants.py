@@ -1364,28 +1364,6 @@ RT_RESERVED_WORD_EXAC = [
     ETL_DELIMITER_END,
 ]
 
-LOG_BUILT_IN_FIELD_LIST = [
-    "gseIndex",
-    "gseindex",
-    "iterationIndex",
-    "iterationindex",
-    "_iteration_idx",
-    "__dist_01",
-    "__dist_03",
-    "__dist_05",
-    "__dist_07",
-    "__dist_09",
-    "__ipv6__",
-    "__parse_failure",
-    "time",
-    "__module__",
-    "__set__",
-    "__ipv6__",
-    "__shard_key__",
-    "__unique_key__",
-    "__bcs_cluster_name__",
-]
-
 
 class FieldBuiltInEnum:
     """
@@ -1399,10 +1377,6 @@ class FieldBuiltInEnum:
     @classmethod
     def get_choices_list_dict(cls):
         return [{"id": key.lower(), "name": key.lower()} for key in RT_RESERVED_WORD_EXAC if key]
-
-    @classmethod
-    def get_log_built_in_field_list(cls):
-        return LOG_BUILT_IN_FIELD_LIST
 
 
 class TimeZoneEnum(ChoicesEnum):
@@ -1901,3 +1875,40 @@ class DorisFieldTypeEnum(Enum):
         # 去除字段长度信息 例如：varchar(32)、decimal(10,2)
         cleaned_type = re.sub(r"\(.*?\)", "", field_type)
         return field_type_mapping.get(cleaned_type, field_type)
+
+
+LOG_BUILT_IN_FIELD_LIST = [
+    "gseIndex",
+    "gseindex",
+    "iterationIndex",
+    "iterationindex",
+    "_iteration_idx",
+    "__dist_01",
+    "__dist_03",
+    "__dist_05",
+    "__dist_07",
+    "__dist_09",
+    "__ipv6__",
+    "__parse_failure",
+    "time",
+    "__module__",
+    "__set__",
+    "__ipv6__",
+    "__shard_key__",
+    "__unique_key__",
+    "__bcs_cluster_name__",
+]
+
+
+class LogBuiltInFieldTypeEnum:
+    """
+    日志内置字段枚举类
+    """
+
+    @classmethod
+    def get_choices(cls):
+        return [key.lower() for key in LOG_BUILT_IN_FIELD_LIST]
+
+    @classmethod
+    def get_choices_list_dict(cls):
+        return [{"id": key.lower(), "name": key.lower()} for key in LOG_BUILT_IN_FIELD_LIST if key]

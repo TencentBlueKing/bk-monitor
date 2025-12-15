@@ -71,6 +71,7 @@ from apps.log_search.constants import (
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
     TimeZoneEnum,
+    LogBuiltInFieldTypeEnum,
 )
 from apps.log_search.exceptions import (
     CouldNotFindTemplateException,
@@ -173,7 +174,7 @@ class GlobalConfig(models.Model):
         configs[GlobalTypeEnum.BK_DOMAIN.value] = settings.BK_DOMAIN
         configs[GlobalTypeEnum.RETAIN_EXTRA_JSON.value] = settings.RETAIN_EXTRA_JSON
         # 日志内置字段列表
-        configs[GlobalTypeEnum.LOG_BUILT_IN_FIELD.value] = FieldBuiltInEnum.get_log_built_in_field_list()
+        configs[GlobalTypeEnum.LOG_BUILT_IN_FIELD.value] = LogBuiltInFieldTypeEnum.get_choices()
         return configs
 
     class Meta:
