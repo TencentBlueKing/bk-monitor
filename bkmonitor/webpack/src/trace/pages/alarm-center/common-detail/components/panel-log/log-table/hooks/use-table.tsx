@@ -30,6 +30,7 @@ import { fieldTypeMap } from 'trace/components/retrieval-filter/utils';
 import ExpandContent from '../expand-content';
 import LogCell from '../log-cell';
 import { formatHierarchy } from '../utils/fields';
+import { calculateTableColsWidth } from '../utils/utils';
 
 import type { IFieldInfo, TClickMenuOpt } from '../typing';
 import type { TdPrimaryTableProps } from '@blueking/tdesign-ui';
@@ -44,6 +45,55 @@ export const useTable = (options: TUseTableOptions) => {
   const originLogData = shallowRef([]);
   const fieldsData = shallowRef(null);
   const wrapWidth = shallowRef(800);
+  const allFields = shallowRef<IFieldInfo[]>([]);
+
+  const getDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, staticWidth = 50) => {
+    const fieldWidthObj = {};
+    try {
+      if (tableData.length && visibleFields.length) {
+        for (const field of visibleFields) {
+          const targetList = [field];
+          if (field.alias_mapping_field && !targetList.includes(field.alias_mapping_field)) {
+            targetList.push(field.alias_mapping_field);
+          }
+          for (const item of targetList) {
+            const [fieldWidth, minWidth] = calculateTableColsWidth(item, tableData);
+            let width = fieldWidth < minWidth ? minWidth : fieldWidth;
+            if (catchFieldsWidthObj) {
+              const catchWidth = catchFieldsWidthObj[item.field_name];
+              width = catchWidth ?? fieldWidth;
+            }
+            fieldWidthObj[item.field_name] = { width, minWidth };
+          }
+        }
+
+        const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
+
+        // 如果当前表格所有列总和小于表格实际宽度 则对小于800（最大宽度）的列赋值 defalut 使其自适应
+        const availableWidth = wrapWidth.value - staticWidth;
+        if (columnsWidth && columnsWidth < availableWidth) {
+          const longFiels = visibleFields.filter(item => fieldWidthObj[item.field_name].width >= 800);
+          if (longFiels.length) {
+            const addWidth = (availableWidth - columnsWidth) / longFiels.length;
+            for (const item of longFiels) {
+              fieldWidthObj[item.field_name].width = fieldWidthObj[item.field_name].width + Math.ceil(addWidth);
+            }
+          } else {
+            const addWidth = (availableWidth - columnsWidth) / visibleFields.length;
+            for (const field of visibleFields) {
+              fieldWidthObj[field.field_name].width = fieldWidthObj[field.field_name].width + Math.ceil(addWidth);
+            }
+          }
+        }
+      }
+
+      return fieldWidthObj;
+    } catch (error) {
+      console.error(error);
+      return false;
+    }
+  };
+
   const expandedRow = shallowRef<TdPrimaryTableProps['expandedRow']>((_h, { row, index }): any => {
     return (
       <div
@@ -70,11 +120,14 @@ export const useTable = (options: TUseTableOptions) => {
   };
 
   const fieldsDataToColumns = (fields: IFieldInfo[], displayFields: string[]) => {
-    const allFields = formatHierarchy(fields).filter(item => displayFields.includes(item.field_name)) as IFieldInfo[];
-    const columns: TdPrimaryTableProps['columns'] = allFields.map(item => ({
+    allFields.value = formatHierarchy(fields).filter(item => displayFields.includes(item.field_name)) as IFieldInfo[];
+
+    const columns: TdPrimaryTableProps['columns'] = allFields.value.map(item => ({
       colKey: item.field_name,
       ellipsis: false,
       resizable: true,
+      width: 200,
+      minWidth: 200,
       sorter: item.es_doc_values && item.tag !== 'union-source' && item.field_type !== 'flattened',
       className: ({ type }) => {
         if (type === 'th') {
@@ -122,8 +175,17 @@ export const useTable = (options: TUseTableOptions) => {
           </div>
         );
       },
-    }));
+    })) as any;
     setTableColumns(columns);
+  };
+
+  const setDefaultFieldWidth = () => {
+    const defaultWidthObj = getDefaultTableWidth(allFields.value, tableData.value);
+    for (const item of tableColumns.value) {
+      item.width = defaultWidthObj?.[item.colKey]?.width || 200;
+      item.minWidth = defaultWidthObj?.[item.colKey]?.minWidth || 200;
+    }
+    setTableColumns(tableColumns.value.slice());
   };
 
   const setFieldsData = (data: any) => {
@@ -142,5 +204,6 @@ export const useTable = (options: TUseTableOptions) => {
     fieldsDataToColumns,
     setFieldsData,
     setWrapWidth,
+    setDefaultFieldWidth,
   };
 };

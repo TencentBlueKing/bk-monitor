@@ -82,12 +82,20 @@ export default defineComponent({
     const wrapRef = useTemplateRef<HTMLDivElement>('wrap');
     const wrapWidth = shallowRef(800);
     const loading = shallowRef(false);
-    const { tableData, tableColumns, expandedRow, originLogData, fieldsDataToColumns, setFieldsData, setWrapWidth } =
-      useTable({
-        onClickMenu: opt => {
-          emit('clickMenu', opt);
-        },
-      });
+    const {
+      tableData,
+      tableColumns,
+      expandedRow,
+      originLogData,
+      fieldsDataToColumns,
+      setFieldsData,
+      setWrapWidth,
+      setDefaultFieldWidth,
+    } = useTable({
+      onClickMenu: opt => {
+        emit('clickMenu', opt);
+      },
+    });
     const offset = shallowRef(0);
     const limit = shallowRef(30);
     const fieldsData = shallowRef(null);
@@ -160,6 +168,9 @@ export default defineComponent({
       loading.value = false;
       offset.value = tableData.value.length;
       nextTick(() => {
+        if (isInit) {
+          setDefaultFieldWidth();
+        }
         const loadingEl = wrapRef.value.querySelector('.scroll-loading___observer');
         if (loadingEl) {
           observer.value?.unobserve?.(loadingEl);
