@@ -1080,7 +1080,7 @@ class CreateOrUpdateGroupingRule(Resource):
         metric_converter.create_or_update_time_series_metric(metric_objs)
 
         updated_scope_obj: ScopeQueryResponseDTO = scope_converter.filter_disabled_metric(
-            scope_converter.query_time_series_scope(scope_obj.id)
+            scope_converter.query_time_series_scope(scope_ids=[scope_obj.id])
         )[0]
         scope_dict = asdict(updated_scope_obj)
         scope_dict["metric_count"] = len(updated_scope_obj.metric_list)
