@@ -85,9 +85,9 @@ def fetch_and_process_tgpa_tasks():
                     task_obj.save(update_fields=["task_status", "file_status"])
             else:
                 task_obj, created = TGPATask.objects.get_or_create(
-                    id=task["id"],
+                    task_id=task["go_svr_task_id"],
                     defaults={
-                        "task_id": task["go_svr_task_id"],
+                        "id": task["id"],
                         "bk_biz_id": task["cc_id"],
                         "log_path": task["log_path"],
                         "task_status": task["status"],
