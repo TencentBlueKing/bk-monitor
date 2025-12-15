@@ -129,10 +129,7 @@ export default defineComponent({
     };
 
     const handleAiExecute = () => {
-      // AI执行逻辑
-      if (currentInput.value.trim()) {
-        emit('text-to-query', currentInput.value);
-      }
+      emit('text-to-query', currentInput.value);
     };
 
     const handleEdit = () => {
@@ -233,7 +230,7 @@ export default defineComponent({
                       ref={textareaRef}
                       autofocus={true}
                       tabindex={1}
-                      class="ai-input"
+                      class="ai-input has-parsed-text"
                       value={currentInput.value}
                       placeholder={t('输入查询内容，“帮我查询近3天的错误日志”，Tab 切换为普通模式')}
                       onInput={handleInput}

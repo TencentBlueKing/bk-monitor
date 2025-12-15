@@ -63,6 +63,11 @@
       vertical-align: top;
       width: 100%;
 
+      &.has-parsed-text {
+        text-decoration: dashed;
+        text-decoration-line: underline;
+      }
+
       &::placeholder {
         color: #c4c6cc;
       }
@@ -248,6 +253,7 @@
     &:last-child {
       color: #3A84FF;
       cursor: pointer;
+      padding-left: 24px;
     }
   }
 }

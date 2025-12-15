@@ -288,6 +288,52 @@ export default defineComponent({
     };
 
     /**
+     * 处理请求响应
+     * @param resp {FetchResponse<T>}
+     */
+    const handleRequestResponse = (resp?: any) => {
+      const content = resp?.choices[0]?.delta?.content ?? '{}';
+      try {
+        const contentObj = JSON.parse(content);
+        const { end_time: endTime, start_time: startTime, query_string: queryString = '' } = contentObj;
+        const queryParams = { search_mode: 'sql' };
+        let needReplace = false;
+        if (startTime && endTime) {
+          const results = handleTransformToTimestamp([startTime, endTime], formatValue.value);
+          Object.assign(queryParams, { start_time: results[0], end_time: results[1] });
+          store.commit('updateIndexItemParams', { datePickerValue: [startTime, endTime] });
+          aiQueryResult.value.startTime = startTime;
+          aiQueryResult.value.endTime = endTime;
+          needReplace = true;
+        }
+
+        if (queryString !== undefined && queryString !== null) {
+          Object.assign(queryParams, { keyword: queryString });
+          needReplace = true;
+          aiQueryResult.value.queryString = queryString;
+        }
+
+        if (needReplace) {
+          store.commit('updateIndexItemParams', queryParams);
+          store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
+
+          const { start_time, end_time } = queryParams as any;
+          setRouteParamsByKeywordAndAddition({ start_time, end_time })
+            .then(() => {
+              RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+              store.dispatch('requestIndexSetQuery');
+            });
+        }
+      } catch (e) {
+        console.error(e);
+        bkMessage({
+          theme: 'error',
+          message: e.message,
+        });
+      }
+    }
+
+    /**
      * 使用AI编辑
      * @param value 查询语句
      * @param triggerSource 触发来源：'ui_mode' | 'sql_mode' | 'ai_mode'
@@ -303,6 +349,12 @@ export default defineComponent({
         action: 'request',
       }, store.state);
 
+      if (value.length === 0) {
+        handleRequestResponse(null);
+        isAiLoading.value = false;
+        return;
+      }
+
       RetrieveHelper.aiAssitantHelper
         .requestTextToQueryString({
           index_set_id: store.state.indexItem.ids[0],
@@ -311,47 +363,7 @@ export default defineComponent({
           fields: fieldsJsonValue.value,
           keyword: value,
         })
-        .then((resp) => {
-          const content = resp.choices[0]?.delta?.content ?? '{}';
-          try {
-            const contentObj = JSON.parse(content);
-            const { end_time: endTime, start_time: startTime, query_string: queryString } = contentObj;
-            const queryParams = { search_mode: 'sql' };
-            let needReplace = false;
-            if (startTime && endTime) {
-              const results = handleTransformToTimestamp([startTime, endTime], formatValue.value);
-              Object.assign(queryParams, { start_time: results[0], end_time: results[1] });
-              store.commit('updateIndexItemParams', { datePickerValue: [startTime, endTime] });
-              aiQueryResult.value.startTime = startTime;
-              aiQueryResult.value.endTime = endTime;
-              needReplace = true;
-            }
-
-            if (queryString) {
-              Object.assign(queryParams, { keyword: queryString });
-              needReplace = true;
-              aiQueryResult.value.queryString = queryString;
-            }
-
-            if (needReplace) {
-              store.commit('updateIndexItemParams', queryParams);
-              store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
-
-              const { start_time, end_time } = queryParams as any;
-              setRouteParamsByKeywordAndAddition({ start_time, end_time })
-                .then(() => {
-                  RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
-                  store.dispatch('requestIndexSetQuery');
-                });
-            }
-          } catch (e) {
-            console.error(e);
-            bkMessage({
-              theme: 'error',
-              message: e.message,
-            });
-          }
-        })
+        .then(handleRequestResponse)
         .finally(() => {
           isAiLoading.value = false;
         });
