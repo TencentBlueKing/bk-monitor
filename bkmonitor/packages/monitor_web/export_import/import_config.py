@@ -532,7 +532,7 @@ def get_strategy_config(bk_biz_id: int, strategy_ids: list[int]) -> list[dict]:
                     query_config["result_table_id"] = data_label
 
         # 去掉不必要的排班计划信息
-        for item_action in result_data["actions"]:
+        for item_action in result_data.get("actions", []):
             for user_group in item_action.get("user_group_list", []):
                 user_group.pop("duty_plans", None)
 
