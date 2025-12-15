@@ -122,7 +122,7 @@ class AccessDataCircuitBreakingTest:
 
         # 2. 设置基于bk_biz_id的熔断
         set_bk_biz_id_circuit_breaking(
-            module=self.module, bk_biz_ids=["100", "200"], description="测试用例2: bk_biz_id熔断"
+            module=self.module, bk_biz_ids=["100", "-200"], description="测试用例2: bk_biz_id熔断"
         )
 
         # 重新初始化manager以加载新配置
@@ -133,11 +133,12 @@ class AccessDataCircuitBreakingTest:
         logger.info(f"当前熔断配置: {config}")
         # 应该触发熔断的情况
         self.run_test_case("bk_biz_id熔断 - 业务100", {"bk_biz_id": 100}, True)
+        self.run_test_case("bk_biz_id熔断 - 业务100", {"bk_biz_id": -200}, True)
 
         self.run_test_case(
             "bk_biz_id熔断 - 业务200",
             {"bk_biz_id": "200"},  # 测试字符串类型
-            True,
+            False,
         )
 
         # 不应该触发熔断的情况
