@@ -18,7 +18,7 @@ role_id 去判断当前权限分配给了哪一个角色
 
 # 同步权限
 self.sync_permissions(request)
-inital会调用sync_permissions方法去同步grafana与iam的权限
+initial会调用sync_permissions方法去同步grafana与iam的权限
 
 ```
 
