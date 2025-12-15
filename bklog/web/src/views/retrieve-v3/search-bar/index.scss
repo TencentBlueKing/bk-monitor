@@ -1,9 +1,18 @@
 .v3-search-bar-root {
-  width: 100%;
-  padding: 0 8px;
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  margin: 0 8px;
+  box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.0784313725);
 
   &.is-sticky-top {
-    padding: 0;
+    margin: 0;
+
+    .v3-ai-mode-root {
+      background-color: #fff;
+      margin: 0 8px 8px 8px;
+    }
+
   }
 
   .bklog-ai-edit-btn {
@@ -11,8 +20,8 @@
     color: #313238;
     width: max-content;
     background-image: linear-gradient(-79deg, #F1EDFA 0%, #EBF0FF 100%);
-    border-radius: 12px;
-    padding: 4px 8px;
+    border-radius: 16px;
+    padding: 6px 8px;
     display: flex;
     align-items: center;
     gap: 4px;
