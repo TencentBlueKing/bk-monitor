@@ -372,14 +372,12 @@ class GrafanaDashboardProvider(BaseResourceProvider):
             # 判断是目录还是仪表盘
             if instance_id.startswith(self.FOLDER_PREFIX):
                 # Folder: "folder:{org_id}|{folder_id}"
+                # 处理目录
                 folder_part = instance_id[len(self.FOLDER_PREFIX) :]
                 if "|" in folder_part:
                     org_id_str, folder_id_str = folder_part.split("|", 1)
                     try:
-                        folder_id = int(folder_id_str)
-                        # 跳过 General 目录（不再展示在 IAM 界面）
-                        if folder_id != self.GENERAL_FOLDER_ID:
-                            folder_queries.append((instance_id, folder_id))
+                        folder_queries.append((instance_id, int(folder_id_str)))
                     except ValueError:
                         continue
             else:
@@ -422,12 +420,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
                 if uid in dashboard_map:
                     d = dashboard_map[uid]
                     folder_id = d.folder_id if d.folder_id else self.GENERAL_FOLDER_ID
-                    # 跳过 General 目录下的仪表盘
-                    if folder_id == self.GENERAL_FOLDER_ID:
-                        continue
-                    folder_name = folder_names.get(folder_id)
-                    if not folder_name:
-                        continue
+                    folder_name = folder_names.get(folder_id, self.GENERAL_FOLDER_NAME)
                     results.append(
                         {
                             "id": instance_id,
@@ -514,12 +507,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
         # 构建仪表盘结果
         for dashboard in dashboards:
             folder_id = dashboard.folder_id if dashboard.folder_id else self.GENERAL_FOLDER_ID
-            # 跳过 General 目录下的仪表盘
-            if folder_id == self.GENERAL_FOLDER_ID:
-                continue
-            folder_name = folders_map.get(folder_id)
-            if not folder_name:
-                continue
+            folder_name = folders_map.get(folder_id, self.GENERAL_FOLDER_NAME)
             dashboard_results.append(
                 {
                     "id": f"{dashboard.org_id}|{dashboard.uid}",
