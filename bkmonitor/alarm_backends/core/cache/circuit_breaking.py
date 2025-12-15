@@ -587,7 +587,7 @@ def example_usage():
         strategy_sources=["bk_monitor:time_series"],
     )
 
-    # 示例6: 清空
+    # 示例5: 清空
     clear(
         module=module,
     )
