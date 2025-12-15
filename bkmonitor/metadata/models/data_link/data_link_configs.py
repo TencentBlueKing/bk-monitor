@@ -176,7 +176,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
             err_msg_prefix="compose predefined data_id config",
         )
 
-    def compose_config(self, event_type="metric") -> dict:
+    def compose_config(self, event_type: str = "metric", prefer_kafka_cluster_name: str | None = None) -> dict:
         """
         数据源下发计算平台的资源配置
         """
@@ -196,6 +196,16 @@ class DataIdConfig(DataLinkResourceConfigBase):
                     "bizId": {{monitor_biz_id}},
                     "description": "{{name}}",
                     "maintainers": {{maintainers}},
+                    {% if prefer_kafka_cluster_name %}
+                    "preferCluster": {
+                        "kind": "KafkaChannel",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
+                        "namespace": "{{namespace}}",
+                        "name": "{{prefer_kafka_cluster_name}}"
+                    },
+                    {% endif %}
                     "event_type": "{{event_type}}"
                 }
             }
@@ -208,15 +218,11 @@ class DataIdConfig(DataLinkResourceConfigBase):
             "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
             "maintainers": json.dumps(maintainer),
             "event_type": event_type,
+            "prefer_kafka_cluster_name": prefer_kafka_cluster_name,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
             render_params["tenant"] = self.bk_tenant_id
 
         return utils.compose_config(

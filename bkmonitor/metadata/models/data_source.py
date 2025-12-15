@@ -377,7 +377,12 @@ class DataSource(models.Model):
     # TODO：多租户,需要等待BkBase接口协议,理论上需要补充租户ID,不再有默认接入者概念
     @classmethod
     def apply_for_data_id_from_bkdata(
-        cls, data_name: str, bk_biz_id: int, is_base: bool = False, event_type="metric"
+        cls,
+        data_name: str,
+        bk_biz_id: int,
+        is_base: bool = False,
+        event_type: str = "metric",
+        prefer_kafka_cluster_name: str | None = None,
     ) -> int:
         """
         从计算平台申请data_id
@@ -385,6 +390,7 @@ class DataSource(models.Model):
         :param bk_biz_id: 业务ID
         :param is_base: 是否是基础数据源
         :param event_type: 数据类型
+        :param prefer_kafka_cluster_name: KafkaChannel 资源名称（bkbase侧），用于 DataId.spec.preferCluster
         :return: data_id
         """
         # 下发配置
@@ -396,7 +402,12 @@ class DataSource(models.Model):
 
         try:
             apply_data_id_v2(
-                data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base, event_type=event_type, namespace=namespace
+                data_name=data_name,
+                bk_biz_id=bk_biz_id,
+                is_base=is_base,
+                event_type=event_type,
+                namespace=namespace,
+                prefer_kafka_cluster_name=prefer_kafka_cluster_name,
             )
             # 写入记录
         except BKAPIError as e:
@@ -614,7 +625,11 @@ class DataSource(models.Model):
                 # 如果没有指定业务ID，则使用默认业务ID
                 bk_biz_id = get_tenant_datalink_biz_id(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id).label_biz_id
                 bk_data_id = cls.apply_for_data_id_from_bkdata(
-                    data_name=data_name, bk_biz_id=bk_biz_id, is_base=is_base, event_type=event_type
+                    data_name=data_name,
+                    bk_biz_id=bk_biz_id,
+                    is_base=is_base,
+                    event_type=event_type,
+                    prefer_kafka_cluster_name=mq_cluster.cluster_name,
                 )
                 created_from = DataIdCreatedFromSystem.BKDATA.value
             else:
