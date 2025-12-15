@@ -813,7 +813,7 @@ const handleBatchInputChange = (isShow) => {
               {{ t('可直接输入,进行全文检索;') }}
             </div>
             <div class="guide-text">
-              {{ t('或描述检索需求,使用') }}<span class="ai-search-text">{{ t('AI搜索') }}</span>{{ t(':') }}
+              {{ t('或描述检索需求,使用') }}<span class="ai-search-text">{{ t('AI搜索') }}</span>:
             </div>
           </div>
           <div class="guide-prompts">

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, nextTick, PropType, onBeforeUnmount } from 'vue';
+import { defineComponent, ref, nextTick, PropType, onBeforeUnmount, onMounted } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import aiBluekingSvg from '@/images/ai/ai-bluking-2.svg';
@@ -190,6 +190,27 @@ export default defineComponent({
       </div>;
     }
 
+    // 手动设置焦点，避免 autofocus 警告
+    onMounted(() => {
+      nextTick(() => {
+        // 只有在没有其他元素聚焦时才设置焦点
+        if (textareaRef.value && document.activeElement !== textareaRef.value) {
+          // 检查是否有其他输入元素已经聚焦
+          const activeElement = document.activeElement;
+          const isInputFocused = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            (activeElement instanceof HTMLElement && activeElement.isContentEditable)
+          );
+          
+          // 如果没有其他输入元素聚焦，则聚焦到 textarea
+          if (!isInputFocused) {
+            textareaRef.value.focus();
+          }
+        }
+      });
+    });
+
     onBeforeUnmount(() => {
       // 在组件卸载时强制关闭 popover
       // 先禁用交互，确保即使鼠标悬停也能关闭
@@ -244,11 +265,10 @@ export default defineComponent({
                   >
                     <textarea
                       ref={textareaRef}
-                      autofocus={true}
                       tabindex={1}
                       class="ai-input has-parsed-text"
                       value={currentInput.value}
-                      placeholder={t('输入查询内容，“帮我查询近3天的错误日志”，Tab 切换为普通模式')}
+                      placeholder={t('输入查询内容，"帮我查询近3天的错误日志"，Tab 切换为普通模式')}
                       onInput={handleInput}
                       onFocus={handleFocus}
                       onBlur={handleBlur}
@@ -264,7 +284,6 @@ export default defineComponent({
                 ) : (
                   <textarea
                     ref={textareaRef}
-                    autofocus={true}
                     tabindex={1}
                     class="ai-input"
                     value={currentInput.value}
