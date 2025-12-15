@@ -550,6 +550,9 @@ class StrategyCacheManager(CacheManager):
         strategy["update_time"] = arrow.get(strategy["update_time"]).timestamp
         strategy["create_time"] = arrow.get(strategy["create_time"]).timestamp
 
+        if not strategy["items"]:
+            return False
+
         for item in strategy["items"]:
             # 补充item的更新时间
             item["update_time"] = arrow.get(strategy["update_time"]).timestamp
@@ -559,11 +562,11 @@ class StrategyCacheManager(CacheManager):
             data_type_label = query_config["data_type_label"]
 
             # 判断策略是否被禁用
-            try:
-                if cls.is_disabled_strategy(strategy):
-                    return False
-            except Exception as e:
-                logger.warning(e)
+            # try:
+            #     if cls.is_disabled_strategy(strategy):
+            #         return False
+            # except Exception as e:
+            #     logger.warning(e)
 
             # 修改监控目标字段为ip的情况
             cls.transform_targets(item)
@@ -610,6 +613,8 @@ class StrategyCacheManager(CacheManager):
                 item["query_md5"] = cls.get_query_md5(strategy["bk_biz_id"], item)
 
             return True
+
+        return True
 
     @classmethod
     def get_strategy_ids(cls):
