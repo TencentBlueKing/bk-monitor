@@ -41,7 +41,6 @@ from monitor.models import GlobalConfig
 from monitor_web.grafana.permissions import DashboardPermission
 from monitor_web.grafana.utils import patch_home_panels
 
-
 __all__ = ["ProxyView", "StaticView", "SwitchOrgView", "RedirectDashboardView"]
 
 logger = logging.getLogger(__name__)
