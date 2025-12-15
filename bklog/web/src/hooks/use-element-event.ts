@@ -28,9 +28,9 @@ import { onBeforeUnmount, onMounted } from 'vue';
 
 export default () => {
   const events = [];
-  const addElementEvent = (element: HTMLElement | Document, 
-    eventName: string, 
-    callback: ((e: MouseEvent | KeyboardEvent) => void), 
+  const addElementEvent = (element: HTMLElement | Document,
+    eventName: string,
+    callback: ((e: MouseEvent | KeyboardEvent) => void),
     options?: AddEventListenerOptions) => {
     events.push({ element, eventName, callback, options: options || false });
   };
@@ -42,8 +42,8 @@ export default () => {
   });
 
   onBeforeUnmount(() => {
-    events.forEach(({ element, eventName, callback }) => {
-      element.removeEventListener(eventName, callback);
+    events.forEach(({ element, eventName, callback, options }) => {
+      element.removeEventListener(eventName, callback, options);
     });
   });
 
