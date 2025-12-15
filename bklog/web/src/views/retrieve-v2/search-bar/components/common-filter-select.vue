@@ -107,7 +107,8 @@ const handleChange = () => {
 
   store.commit('retrieve/updateCatchFilterAddition', { addition: commonFilterAddition.value });
 
-  if (route.query.tab !== 'graphAnalysis') {
+  // 兼容旧版本 graphAnalysis
+  if (route.query.tab !== 'graphAnalysis' && route.query.tab !== 'graph_analysis') {
     store.dispatch('requestIndexSetQuery');
   }
 

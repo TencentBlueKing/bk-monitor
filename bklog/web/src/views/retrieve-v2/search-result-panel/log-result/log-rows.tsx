@@ -147,7 +147,7 @@ export default defineComponent({
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
     const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
-    const kvShowFieldsList = computed(() => indexFieldInfo.value?.fields.map(f => f.field_name));
+    const kvShowFieldsList = computed(() => filteredFieldList.value?.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);

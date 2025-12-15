@@ -1237,7 +1237,7 @@ const store = new Vuex.Store({
           : [state.indexItem.start_time, state.indexItem.end_time];
 
         if (needTransform) {
-          commit('updateIndexItem', { startTime, endTime });
+          commit('updateIndexItem', { start_time: startTime, end_time: endTime });
         }
       }
 
@@ -1393,6 +1393,8 @@ const store = new Vuex.Store({
               is_error: state.indexSetQueryResult.is_error,
               exception_msg: state.indexSetQueryResult.exception_msg,
               first_page: queryData.begin === 0 ? 1 : 0,
+              action: 'request',
+              trigger_source: 'retrieve_query',
             };
 
             reportRouteLog(

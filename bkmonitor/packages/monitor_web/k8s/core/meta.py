@@ -242,7 +242,9 @@ class K8sResourceMeta:
             {"bk_biz_id": self.bk_biz_id, "space_uid": space_uid, "shard_only": True}
         )
 
-        if self.bcs_cluster_id in cluster_info and not isinstance(self, K8sNodeMeta, K8sClusterMeta, K8sNamespaceMeta):
+        if self.bcs_cluster_id in cluster_info and not isinstance(
+            self, K8sNodeMeta | K8sClusterMeta | K8sNamespaceMeta
+        ):
             namespaces = cluster_info[self.bcs_cluster_id].get("namespace_list")
             self.filter.add(load_resource_filter("namespace", namespaces))
         # 不再添加业务id 过滤，有集群过滤即可。

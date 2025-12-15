@@ -23,7 +23,7 @@ import BarGlobalSetting from './bar-global-setting.tsx';
 import MoreSetting from './more-setting.vue';
 import TimeSetting from './time-setting';
 import WarningSetting from './warning-setting.vue';
-import AutoRefresh from './auto-refresh.vue';
+import AutoRefresh from './auto-refresh-new.tsx';
 // #else
 // #code const TimeSetting = () => null;
 // #code const FieldSetting = () => null;

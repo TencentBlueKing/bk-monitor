@@ -12,8 +12,8 @@ As a Copilot agent reviewing this project, prioritize the following principles:
 2.  **Correctness and Reliability**: Ensure algorithms are implemented correctly. Pay close attention to concurrency (`asyncio`, `threading`, `gevent`), thread safety, and data integrity.
 3.  **Performance**: Monitoring systems deal with high-throughput data. Suggest efficient data structures, batch processing, and async I/O. Use the project's established tooling (`ruff`, `pyright`) to enforce quality.
 4.  **Test Coverage**: All new logic must be accompanied by comprehensive `pytest` tests. Aim for high test coverage, especially for data processing pipelines and alerting logic.
-5.  **MANDATORY Review Acknowledgment**: This is a **REQUIRED** and **NON-NEGOTIABLE** rule. When GitHub Copilot generates any PR review summary, it **MUST** begin with the following exact acknowledgment statement:
-    > ✓ Review conducted following guidelines defined in `.github/copilot-instructions.md`
+5.  **MANDATORY Review Acknowledgment**: This is a **REQUIRED** and **NON-NEGOTIABLE** rule. **All code reviews must be provided in Chinese.** When GitHub Copilot generates any PR review summary, it **MUST** begin with the following exact acknowledgment statement:
+    > ✓ 代码评审按照 `.github/copilot-instructions.md 中定义的指南进行。`
 
     **Important Notes:**
     - This statement confirms that ALL guidelines in this document have been actively applied.

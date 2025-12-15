@@ -31,6 +31,7 @@ import StaticUtil from './static.util';
 import type OptimizedHighlighter from './optimized-highlighter';
 import type RetrieveEvent from './retrieve-events';
 import { EventEmitter } from './event';
+import { reportRouteLog } from '@/store/modules/report-helper.ts';
 
 export default class extends EventEmitter<RetrieveEvent> {
   // 滚动条查询条件
@@ -88,12 +89,16 @@ export default class extends EventEmitter<RetrieveEvent> {
 
   isSearching = false;
 
+  // 上报日志
+  reportLog: typeof reportRouteLog;
+
   constructor() {
     super();
     this.randomTrendGraphClassName = `random-${random(12)}`;
     this.logRowsContainerId = `result_container_key_${random(12)}`;
     this.RGBA_LIST = getRGBAColors(0.3);
     this.jsonFormatter = new JsonFormatter();
+    this.reportLog = reportRouteLog;
   }
 
   /**

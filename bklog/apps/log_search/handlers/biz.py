@@ -1259,6 +1259,8 @@ class BizHandler(APIModel):
                 biz_property_value = biz.get(bk_property_id)
                 if not biz_property_value:
                     continue
+                if isinstance(biz_property_value, list):
+                    continue
                 biz_property_value = biz_properties_enum_dict.get(bk_property_id, {}).get(
                     biz_property_value, biz_property_value
                 )

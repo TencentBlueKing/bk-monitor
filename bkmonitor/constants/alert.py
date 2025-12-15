@@ -40,11 +40,16 @@ K8S_RESOURCE_TYPE = {
 }
 
 
+class APMTargetType:
+    SERVICE = "APM-SERVICE"
+
+
 EVENT_EXTRA_TARGET_TYPE = (
     K8STargetType.POD,
     K8STargetType.NODE,
     K8STargetType.SERVICE,
     K8STargetType.WORKLOAD,
+    APMTargetType.SERVICE,
 )
 
 

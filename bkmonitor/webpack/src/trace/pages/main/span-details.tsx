@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -539,28 +540,25 @@ export default defineComponent({
     }
 
     /** 递归检测符合json格式的字符串并转化 */
-    function handleFormatJson(obj: Record<string, any>) {
+    function handleFormatJson(obj: unknown) {
       try {
-        const newData: Record<string, any> = {};
-        Object.keys(obj).forEach(item => {
-          if (Object.prototype.toString.call(obj[item]) === '[object Object]') {
-            // 对象 遍历属性
-            newData[item] = handleFormatJson(obj[item]);
-          } else if (Object.prototype.toString.call(obj[item]) === '[object Array]') {
-            // 数组对象
-            newData[item] = obj[item].map((arrItme: Record<string, any>) => {
-              if (typeof arrItme === 'string') {
-                return arrItme;
+        const newData: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(JSON.parse(JSON.stringify(obj)))) {
+          if (Object.prototype.toString.call(value) === '[object Object]') {
+            newData[key] = handleFormatJson(value);
+          } else if (Object.prototype.toString.call(value) === '[object Array]') {
+            newData[key] = (value as unknown[]).map(item => {
+              if (!item || typeof item !== 'object') {
+                return item;
               }
-              return handleFormatJson(arrItme);
+              return handleFormatJson(item);
             });
-          } else if (typeof obj[item] === 'string' && isJson(obj[item])) {
-            // 符合json格式的字符串
-            newData[item] = handleFormatJson(JSON.parse(obj[item]));
+          } else if (typeof value === 'string' && isJson(value)) {
+            newData[key] = handleFormatJson(JSON.parse(value));
           } else {
-            newData[item] = obj[item];
+            newData[key] = value;
           }
-        });
+        }
         return newData;
       } catch {
         return obj;

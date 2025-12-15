@@ -161,6 +161,19 @@ class UnifyQueryMappingHandler:
                     "is_analyzed": False,
                 }
             )
+        if "__ext.bk_bcs_cluster_id" in fields:
+            field_list.append(
+                {
+                    "field_type": "__virtual__",
+                    "field_name": "__bcs_cluster_name__",
+                    "field_alias": _("BCS 集群名称"),
+                    "is_display": False,
+                    "is_editable": True,
+                    "tag": "dimension",
+                    "es_doc_values": False,
+                    "is_analyzed": False,
+                }
+            )
         return field_list
 
     @property
@@ -411,6 +424,29 @@ class UnifyQueryMappingHandler:
             "end_time": str(self.end_time),
             "table_id": BaseIndexSetHandler.get_data_label(self.index_set_id),
             "bk_biz_id": self.bk_biz_id,  # 发送请求时，需要使用bk_biz_id获取bk_tenant_id
+        }
+        result = UnifyQueryApi.query_field_map(params)
+        return result.get("data", [])
+
+    @staticmethod
+    def get_fields_directly(bk_biz_id: int, scenario_id: str, storage_cluster_id: int, result_table_id: str):
+        # 需要区分是 bkdata 还是其他
+        source_type = scenario_id if scenario_id == Scenario.BKDATA else settings.UNIFY_QUERY_DATA_SOURCE
+        # 结果表拼接日期通配符
+        need_add_time = scenario_id == Scenario.BKDATA and not result_table_id.endswith("_*")
+        params = {
+            "bk_biz_id": bk_biz_id,
+            "tsdb_map": {
+                "a": [
+                    {
+                        "source_type": source_type,
+                        "storage_type": "elasticsearch",
+                        "storage_id": str(storage_cluster_id),
+                        "db": result_table_id,
+                        "need_add_time": need_add_time,
+                    }
+                ]
+            },
         }
         result = UnifyQueryApi.query_field_map(params)
         return result.get("data", [])
@@ -798,3 +834,14 @@ class UnifyQueryMappingHandler:
         }
         result["async_export_usable_reason"] = reason_map[scenario_id]
         return result
+
+    @staticmethod
+    def get_date_candidate(field_list):
+        """
+        获取可供选择的时间字段
+        """
+        return [
+            {"field_name": field["field_name"], "field_type": field["field_type"]}
+            for field in field_list
+            if field["field_type"] in settings.FEATURE_TOGGLE.get("es_date_candidate", ["date", "long"])
+        ]

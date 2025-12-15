@@ -377,6 +377,7 @@
           this.confirmLoading = true;
           const data = {
             scenario_id: this.scenarioId,
+            bk_biz_id: this.bkBizId,
             storage_cluster_id: this.parentData.storage_cluster_id,
             basic_indices: this.parentData.indexes.map(item => ({
               index: item.result_table_id,

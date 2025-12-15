@@ -108,10 +108,10 @@ export default defineComponent({
       },
     });
 
-    const handleRootElementClick = (e: MouseEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      e.stopImmediatePropagation();
+    const handleRootElementClick = () => {
+      // e.stopPropagation();
+      // e.preventDefault();
+      // e.stopImmediatePropagation();
 
       if (instance.isShown()) {
         instance.hide();

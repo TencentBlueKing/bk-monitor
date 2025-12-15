@@ -43,7 +43,7 @@ import SearchResultTab from "../../retrieve-v2/search-result-tab/index.vue";
 // #endif
 import RetrieveHelper, { RetrieveEvent } from "../../retrieve-helper";
 import Grep from "../grep";
-import { MSearchResultTab } from "../type";
+import { RouteQueryTab } from "../index.type";
 import useStore from "@/hooks/use-store";
 import LogClustering from "./log-clustering";
 import useRetrieveEvent from "@/hooks/use-retrieve-event";
@@ -85,7 +85,7 @@ export default defineComponent({
 
     const handleFavoriteChange = (item) => {
       debounceUpdateTabValue(
-        item.favorite_type === "chart" ? "graphAnalysis" : "origin"
+        item.favorite_type === "chart" ? "graph_analysis" : "origin"
       );
     };
 
@@ -93,15 +93,16 @@ export default defineComponent({
     addEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
 
     const renderTabContent = () => {
-      if (activeTab.value === MSearchResultTab.GRAPH_ANALYSIS) {
+      if (activeTab.value === RouteQueryTab.GRAPH_ANALYSIS
+          || activeTab.value === RouteQueryTab.GRAPH_ANALYSIS_LEGACY) {
         return <GraphAnalysis></GraphAnalysis>;
       }
 
-      if (activeTab.value === MSearchResultTab.GREP) {
+      if (activeTab.value === RouteQueryTab.GREP) {
         return <Grep></Grep>;
       }
 
-      if (activeTab.value === MSearchResultTab.CLUSTERING) {
+      if (activeTab.value === RouteQueryTab.CLUSTERING) {
         return <LogClustering />;
       }
 

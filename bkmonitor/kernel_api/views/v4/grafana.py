@@ -56,4 +56,5 @@ class GrafanaViewSet(ResourceViewSet):
         ResourceRoute("DELETE", resource.grafana.delete_folder, endpoint="delete_folder"),
         ResourceRoute("PUT", resource.grafana.rename_folder, endpoint="rename_folder"),
         ResourceRoute("POST", resource.data_explorer.save_to_dashboard, endpoint="save_to_dashboard"),
+        ResourceRoute("GET", resource.grafana.get_data_source_config, endpoint="get_data_source_config"),
     ]
