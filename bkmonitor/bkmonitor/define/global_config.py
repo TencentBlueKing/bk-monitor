@@ -279,13 +279,6 @@ ADVANCED_OPTIONS = OrderedDict(
             ),
         ),
         ("WECOM_ROBOT_CONTENT_LENGTH", slz.IntegerField(label="分级机器人内容最大长度（0表示不限制）", default=0)),
-        (
-            "ALARM_DISABLE_STRATEGY_RULES",
-            slz.JSONField(
-                label='告警后台禁用策略规则{"strategy_ids":[],"bk_biz_ids":[],"data_source_label":"","data_type_label":""}',
-                default=[],
-            ),
-        ),
         ("OPTZ_FAKE_EVENT_BIZ_IDS", slz.ListField(label="启用进程端口，ping不可达优化的业务ID列表", default=[])),
         ("ACCESS_DATA_TIME_DELAY", slz.IntegerField(label="access数据拉取延迟时间(s)", default=10)),
         ("ACCESS_LATENCY_INTERVAL_FACTOR", slz.IntegerField(label="access数据源延迟上报周期因子", default=1)),
