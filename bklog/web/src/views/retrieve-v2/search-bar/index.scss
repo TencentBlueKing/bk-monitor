@@ -1,13 +1,11 @@
 .search-bar-wrapper {
-  // position: sticky;
-  // top: 0px;
-  // z-index: 4;
+  box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.0784313725);
 
   .search-bar-container {
     display: flex;
     background-color: #fff;
     border-radius: 2px;
-    box-shadow: 0 2px 4px 0 #19192914;
+    // box-shadow: 0 2px 4px 0 #19192914;
 
     .search-options {
       display: flex;
