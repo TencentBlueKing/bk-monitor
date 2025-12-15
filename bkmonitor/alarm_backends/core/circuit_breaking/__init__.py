@@ -12,11 +12,11 @@ specific language governing permissions and limitations under the License.
 ### 熔断模块埋点
 1. access.data(doing)
 
-	(ALARM_DISABLE_STRATEGY_RULES)
+	(可以替代原 ALARM_DISABLE_STRATEGY_RULES 功能)
 	- 数据分发熔断: 基于策略属性（业务，数据来源）进行熔断。
 	- 命中熔断后，不会再分发任务到 service-worker 队列，记录日志
 
-	- 基于 策略 id的熔断
+	- 基于 策略 id/ 策略标签 的熔断
 	- 在AccessDataProcess任务执行过程中进行
 
 2. alert.builder(todo)
