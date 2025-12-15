@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 from rest_framework import serializers
-from typing import Any
 
 from apm_web.strategy.dispatch.entity import EntitySet
 from bkmonitor.documents import AlertDocument
@@ -459,28 +458,26 @@ class AlertK8sTargetResource(Resource):
         # 解析 APM 场景的 target 目标格式，格式为 "{app_name}:{service_name}"
         app_name, service_name = alert.event.target.split(":", 1)
 
-        # 获取 APM 服务关联的容器负载列表
+        # 获取 APM 服务关联的容器负载，构建目标对象资源列表
         entity_set: EntitySet = EntitySet(
             bk_biz_id=alert.event.bk_biz_id,
             app_name=app_name,
             service_names=[service_name],
         )
-        workloads: list[dict[str, Any]] = entity_set.get_workloads(service_name)
-
-        # 构建目标对象列表，字段映射：kind -> workload_kind, name -> workload_name
-        for workload in workloads:
+        for workload in entity_set.get_workloads(service_name):
+            bcs_cluster_id: str = workload.get("bcs_cluster_id", "")
             namespace: str = workload.get("namespace", "")
             workload_kind: str = workload.get("kind", "")
             workload_name: str = workload.get("name", "")
 
-            if not all([namespace, workload_kind, workload_name]):
+            if not all([bcs_cluster_id, namespace, workload_kind, workload_name]):
                 continue
 
             target_info["target_list"].append(
                 {
                     "workload": f"{workload_kind}:{workload_name}",
-                    "bcs_cluster_id": workload.get("bcs_cluster_id", ""),
-                    "namespace": workload.get("namespace", ""),
+                    "bcs_cluster_id": bcs_cluster_id,
+                    "namespace": namespace,
                 }
             )
 
