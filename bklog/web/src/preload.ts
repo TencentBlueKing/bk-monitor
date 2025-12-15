@@ -30,6 +30,7 @@ import { urlArgs } from './store/default-values';
 import { BK_LOG_STORAGE } from './store/store.type';
 import BkUserDisplayName from '@blueking/bk-user-display-name';
 import { tenantManager } from './views/retrieve-core/tenant-manager';
+import { builtInInitHiddenList } from './const';
 window.__VUE_PROD_HYDRATION_MISMATCH_DETAILS__ = false;
 
 /** 外部版根据空间授权权限显示菜单 */
@@ -268,6 +269,15 @@ export default ({
    * 获取全局配置
    */
   const globalsRequest = http.request('collect/globals').then((res) => {
+    if ((res.data.log_built_in_field ?? []).length > 0) {
+      builtInInitHiddenList.splice(0, builtInInitHiddenList.length);
+      (res.data.log_built_in_field ?? []).forEach(item => {
+        if (!builtInInitHiddenList.includes(item)) {
+          builtInInitHiddenList.push(item);
+        }
+      });
+    }
+
     store.commit('globals/setGlobalsData', res.data);
     return res.data;
   });
