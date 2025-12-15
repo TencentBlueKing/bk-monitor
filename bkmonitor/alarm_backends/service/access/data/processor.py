@@ -80,9 +80,10 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
         clear_mem_cache("host_cache")
 
     def _check_circuit_breaking_before_pull(self) -> bool:
-        """
-        在数据查询前检查策略级别熔断并剔除触发熔断的策略
-        返回True表示所有策略都被熔断，需要跳过数据查询
+        """在数据查询前检查策略级别熔断并剔除触发熔断的策略。
+
+        :return: True 表示所有策略都被熔断，需要跳过数据查询；False 表示仍有策略需要处理
+        :raises: 不会抛出异常，内部已处理所有异常情况
         """
         if not hasattr(self, "items"):
             return False
