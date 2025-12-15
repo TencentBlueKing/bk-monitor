@@ -26,9 +26,9 @@
 import { type PropType, computed, defineComponent, watch } from 'vue';
 import { shallowRef } from 'vue';
 
-import { Button } from 'bkui-vue';
+import { Button, Message } from 'bkui-vue';
 import { request } from 'monitor-api/base';
-import { random } from 'monitor-common/utils';
+import { copyText, random } from 'monitor-common/utils';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 import { useI18n } from 'vue-i18n';
 
@@ -50,6 +50,7 @@ export const updateUserFiledTableConfig = request(
 );
 
 import TableFieldSetting from './log-table/table-field-setting';
+import { type TClickMenuOpt, EClickMenuType } from './log-table/typing';
 import { formatHierarchy } from './log-table/utils/fields';
 
 import type { TdPrimaryTableProps } from '@blueking/tdesign-ui';
@@ -112,6 +113,7 @@ export default defineComponent({
       params = {
         size: 50,
         offset: 0,
+        sortList: [],
       }
     ) {
       // const data = await updateTableData({
@@ -140,7 +142,7 @@ export default defineComponent({
         },
         interval: 'auto',
         search_mode: 'ui',
-        sort_list: [['dtEventTimeStamp', 'desc']],
+        sort_list: params?.sortList || [],
         keyword: keyword.value,
       })
         .then(res => {
@@ -152,6 +154,9 @@ export default defineComponent({
 
     const fieldsData = shallowRef(null);
     const getFieldsData = async () => {
+      if (fieldsData.value) {
+        return fieldsData.value;
+      }
       const data = await getLogFieldsData(selectIndexSet.value, {
         is_realtime: 'True',
         start_time: props.detail?.begin_time,
@@ -177,17 +182,32 @@ export default defineComponent({
       const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__'];
       const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
       const tempFields = fieldsData.value?.fields?.filter(filterFn) || [];
-      return tempFields.map(item => ({
-        alias: item.query_alias || item.field_name,
-        name: item.field_name,
-        isEnableOptions: true,
-        type: item.field_type,
-        methods: item?.field_operator?.map(o => ({
-          alias: o.label,
-          value: o.operator,
-          placeholder: o.placeholder,
+      return [
+        {
+          alias: t('全文'),
+          name: '*',
+          isEnableOptions: false,
+          type: 'all',
+          methods: [
+            {
+              alias: t('包含'),
+              value: 'contains match phrase',
+              placeholder: t('请输入搜索内容'),
+            },
+          ],
+        },
+        ...tempFields.map(item => ({
+          alias: item.query_alias || item.field_name,
+          name: item.field_name,
+          isEnableOptions: true,
+          type: item.field_type,
+          methods: item?.field_operator?.map(o => ({
+            alias: o.label,
+            value: o.operator,
+            placeholder: o.placeholder,
+          })),
         })),
-      }));
+      ];
     });
 
     const handleDisplayColumnFieldsChange = (val: string[]) => {
@@ -203,6 +223,7 @@ export default defineComponent({
         index_set_id: String(selectIndexSet.value),
         index_set_type: 'single',
       }).then(() => {
+        fieldsData.value = null;
         tableRefreshKey.value = random(6);
       });
     };
@@ -223,7 +244,6 @@ export default defineComponent({
         },
         thClassName: '__table-custom-setting-col__',
         colKey: '__col_setting__',
-        // @ts-expect-error
         title: () => {
           return (
             <TableFieldSetting
@@ -287,6 +307,60 @@ export default defineComponent({
       handleSearch();
     };
 
+    const handleClickMenu = (opt: TClickMenuOpt) => {
+      console.log(opt);
+      if (opt.type === EClickMenuType.Link) {
+        return;
+      }
+      if (opt.type === EClickMenuType.Copy) {
+        copyText(opt.value, msg => {
+          Message({
+            message: msg,
+            theme: 'error',
+          });
+          return;
+        });
+        Message({
+          message: t('复制成功'),
+          theme: 'success',
+        });
+        return;
+      }
+      let whereItem = null;
+      const methodMap = {
+        default: {
+          [EClickMenuType.Exclude]: '!=',
+          [EClickMenuType.Include]: '=',
+        },
+        boolean: {
+          [EClickMenuType.Exclude]: 'is false',
+          [EClickMenuType.Include]: 'is true',
+        },
+      };
+      for (const item of retrievalFields.value) {
+        if (item.name === opt.field.field_name) {
+          const method = methodMap[item.type]?.[opt.type] || methodMap.default[opt.type];
+          whereItem = {
+            key: item.name,
+            method,
+            value: [opt.value],
+            condition: 'and',
+          };
+          break;
+        }
+      }
+      if (!whereItem) {
+        whereItem = {
+          key: '*',
+          method: 'contains match phrase',
+          value: [opt.value],
+          condition: 'and',
+        };
+      }
+      where.value = [...where.value, whereItem];
+      tableRefreshKey.value = random(8);
+    };
+
     return {
       indexSetList,
       tableRefreshKey,
@@ -308,6 +382,7 @@ export default defineComponent({
       getTableData,
       getFieldsData,
       handleWhereChange,
+      handleClickMenu,
     };
   },
   render() {
@@ -353,6 +428,7 @@ export default defineComponent({
           getTableData={this.getTableData}
           headerAffixedTop={this.headerAffixedTop}
           refreshKey={this.tableRefreshKey}
+          onClickMenu={this.handleClickMenu}
         />
       </div>
     );

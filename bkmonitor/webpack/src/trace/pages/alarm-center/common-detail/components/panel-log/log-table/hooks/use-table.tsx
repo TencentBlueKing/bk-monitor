@@ -31,10 +31,14 @@ import ExpandContent from '../expand-content';
 import LogCell from '../log-cell';
 import { formatHierarchy } from '../utils/fields';
 
-import type { EClickMenuType, IFieldInfo } from '../typing';
+import type { IFieldInfo, TClickMenuOpt } from '../typing';
 import type { TdPrimaryTableProps } from '@blueking/tdesign-ui';
 
-export const useTable = (options: { onClickMenu?: (opt: { type: EClickMenuType; value: string }) => void }) => {
+type TUseTableOptions = {
+  onClickMenu?: (opt: TClickMenuOpt) => void;
+};
+
+export const useTable = (options: TUseTableOptions) => {
   const tableColumns = shallowRef<TdPrimaryTableProps['columns']>([]);
   const tableData = shallowRef([]);
   const originLogData = shallowRef([]);
@@ -53,6 +57,9 @@ export const useTable = (options: { onClickMenu?: (opt: { type: EClickMenuType; 
           fields={fieldsData.value?.fields || []}
           originLog={originLogData.value?.[index] || {}}
           row={row}
+          onClickMenu={(opt: TClickMenuOpt) => {
+            options.onClickMenu?.(opt);
+          }}
         />
       </div>
     );
@@ -63,13 +70,12 @@ export const useTable = (options: { onClickMenu?: (opt: { type: EClickMenuType; 
   };
 
   const fieldsDataToColumns = (fields: IFieldInfo[], displayFields: string[]) => {
-    console.log(formatHierarchy(fields), displayFields);
     const allFields = formatHierarchy(fields).filter(item => displayFields.includes(item.field_name)) as IFieldInfo[];
     const columns: TdPrimaryTableProps['columns'] = allFields.map(item => ({
       colKey: item.field_name,
       ellipsis: false,
       resizable: true,
-      sorter: true,
+      sorter: item.es_doc_values && item.tag !== 'union-source' && item.field_type !== 'flattened',
       className: ({ type }) => {
         if (type === 'th') {
           return 'col-th';
@@ -81,7 +87,7 @@ export const useTable = (options: { onClickMenu?: (opt: { type: EClickMenuType; 
         return (
           <LogCell
             options={{
-              onClickMenu: (opt: { type: EClickMenuType; value: string }) => {
+              onClickMenu: (opt: TClickMenuOpt) => {
                 options.onClickMenu?.(opt);
               },
             }}
