@@ -3152,10 +3152,8 @@ class EditDataMeaningResource(Resource):
         alert_id = request_data["alert_id"]
         data_meaning = request_data["data_meaning"]
 
-        # 获取告警文档(如果不存在会抛出AlertNotFoundError)
         alert = AlertDocument.get(alert_id)
 
-        # 安全获取extra_info结构
         alert_dict = alert.to_dict()
         extra_info = alert_dict.setdefault("extra_info", {})
         strategy = extra_info.setdefault("strategy", {})
