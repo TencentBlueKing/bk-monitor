@@ -322,8 +322,8 @@ class AlertK8sScenarioListResource(Resource):
         if target_type == APMTargetType.SERVICE:
             return self.K8sTargetScenarioMap[K8STargetType.WORKLOAD]
 
-        # 目前不支持的类型返回空列表（应该考虑抛出更明确的异常）
-        raise []
+        # 目前不支持的类型返回空列表
+        return []
 
 
 class AlertK8sMetricListResource(Resource):
