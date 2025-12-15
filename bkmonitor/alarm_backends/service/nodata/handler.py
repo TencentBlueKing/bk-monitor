@@ -47,6 +47,17 @@ class NodataHandler(base.BaseHandler):
         logger.info("[nodata] get leader now")
         now_timestamp = arrow.utcnow().timestamp - constants.CONST_MINUTES
         strategy_ids = StrategyCacheManager.get_nodata_strategy_ids()
+        
+        # 初始化熔断管理器 - 复用access.data的熔断规则
+        circuit_breaking_manager = None
+        circuit_breaking_count = 0
+        try:
+            from alarm_backends.core.circuit_breaking.manager import AccessDataCircuitBreakingManager
+
+            circuit_breaking_manager = AccessDataCircuitBreakingManager()
+        except Exception as e:
+            logger.warning(f"[circuit breaking] Failed to initialize access.data circuit breaking manager: {e}")
+
         published = []
         for strategy_id in strategy_ids:
             strategy = Strategy(strategy_id)
@@ -54,6 +65,48 @@ class NodataHandler(base.BaseHandler):
             # 只处理当前集群的策略
             if not get_cluster().match(TargetType.biz, strategy.bk_biz_id):
                 continue
+
+            # 熔断检查
+            if circuit_breaking_manager:
+                try:
+                    # 获取策略的数据源信息
+                    data_source_label = None
+                    data_type_label = None
+                    
+                    # 从策略的第一个item中获取数据源信息
+                    if strategy.items and strategy.items[0].query_configs:
+                        query_config = strategy.items[0].query_configs[0]
+                        data_source_label = query_config.get("data_source_label")
+                        data_type_label = query_config.get("data_type_label")
+                    
+                    # 检查策略级别的熔断
+                    if circuit_breaking_manager.is_strategy_only_circuit_breaking(strategy_id=strategy_id):
+                        circuit_breaking_count += 1
+                        logger.warning(
+                            f"[circuit breaking] Strategy {strategy_id} circuit breaking triggered in nodata check "
+                            f"(access.data rule), bk_biz_id: {strategy.bk_biz_id}, "
+                            f"strategy_source: {data_source_label}:{data_type_label}"
+                        )
+                        continue
+                    
+                    # 检查业务和数据源级别的熔断
+                    if circuit_breaking_manager.is_circuit_breaking(
+                        bk_biz_id=strategy.bk_biz_id,
+                        data_source_label=data_source_label,
+                        data_type_label=data_type_label,
+                        strategy_source=f"{data_source_label}:{data_type_label}" if data_source_label and data_type_label else None,
+                    ):
+                        circuit_breaking_count += 1
+                        logger.warning(
+                            f"[circuit breaking] Strategy {strategy_id} circuit breaking triggered in nodata check "
+                            f"(access.data rule), bk_biz_id: {strategy.bk_biz_id}, "
+                            f"strategy_source: {data_source_label}:{data_type_label}"
+                        )
+                        continue
+
+                except Exception as cb_e:
+                    logger.warning(f"[circuit breaking] Circuit breaking check failed for strategy {strategy_id}: {cb_e}")
+                    # 熔断检查失败时，继续处理该策略
 
             interval = strategy.get_interval()
 
@@ -71,6 +124,13 @@ class NodataHandler(base.BaseHandler):
 
             self.no_data_check(strategy_id, now_timestamp)
             published.append(strategy_id)
+
+        # 记录熔断统计信息
+        if circuit_breaking_count > 0:
+            logger.info(
+                f"[circuit breaking] Circuit breaking applied in nodata check (using access.data rules): "
+                f"{circuit_breaking_count}/{len(strategy_ids)} strategies filtered"
+            )
 
         logger.info(
             "[nodata] no_data_check published {}/{} strategy_ids: {}".format(

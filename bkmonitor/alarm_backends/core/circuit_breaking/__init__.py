@@ -17,6 +17,9 @@ specific language governing permissions and limitations under the License.
 
 	- 基于 策略 id/ 策略标签 的熔断
 	- 在AccessDataProcess任务执行过程中进行
+	
+	# todo
+	1. 熔断后续对应 nodata 检测需要同样阻断，同时 nodata 在熔断配置清理后，需要延迟启用检测
 
 2. alert.builder(todo)
 	方案 1：
