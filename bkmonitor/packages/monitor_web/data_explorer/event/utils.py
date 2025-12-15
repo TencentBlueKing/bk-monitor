@@ -102,7 +102,7 @@ def get_data_labels_map(bk_biz_id: int, tables: Iterable[str]) -> dict[str, str]
     获取结果表到数据标签的映射关系
     :param bk_biz_id: 业务 ID
     :param tables: 结果表
-    :return:
+    :return: 结果表到数据标签的映射关系
     """
     if not tables:
         # 为空时提前返回，减少无效 IO。
