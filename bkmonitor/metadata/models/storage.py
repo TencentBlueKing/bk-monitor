@@ -2072,6 +2072,8 @@ class ESStorage(models.Model, StorageResultTable):
         :param kwargs: 其他配置参数
         :return:
         """
+        from metadata.models import DataSource, DataSourceResultTable
+
         # 0. 判断是否需要使用默认集群信息
         if cluster_id is None:
             try:
@@ -2167,6 +2169,14 @@ class ESStorage(models.Model, StorageResultTable):
             )
             try:
                 new_record.create_index_and_aliases()
+
+                # 创建完 ES 相关配置后，需要刷新consul,和原逻辑保持一致
+                bk_data_id = DataSourceResultTable.objects.get(
+                    table_id=new_record.table_id, bk_tenant_id=new_record.bk_tenant_id
+                ).bk_data_id
+
+                data_source = DataSource.objects.get(bk_data_id=bk_data_id)
+                data_source.refresh_consul_config()
             except Exception as e:  # pylint: disable=broad-except
                 logger.error(
                     "create_table: table_id->[%s] under bk_tenant_id->[%s] create_index_and_aliases failed,error->[%s]",
