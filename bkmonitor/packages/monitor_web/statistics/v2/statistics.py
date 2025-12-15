@@ -23,9 +23,9 @@ class StatisticCollector(BaseCollector):
     def outdated_statistic_metrics_count(self, metric: Metric):
         """超过一天未更新的运营指标"""
         now_ts = arrow.now()
-        last_day = now_ts.replace(days=-1)
+        last_day = now_ts.shift(days=-1)
 
-        for statistic in StatisticsMetric.objects.filter(update_time__lte=last_day.timestamp):
+        for statistic in StatisticsMetric.objects.filter(update_time__lte=last_day.int_timestamp):
             metric.labels(metric_name=statistic.name, updated_time=arrow.get(statistic.update_time).humanize()).inc()
 
     @register(labelnames=("domain_name", "bk_biz_id", "bk_biz_name"))
@@ -34,4 +34,4 @@ class StatisticCollector(BaseCollector):
         for bk_biz_id in self.biz_info:
             metric.labels(
                 domain_name=settings.BK_MONITOR_HOST, bk_biz_id=bk_biz_id, bk_biz_name=self.get_biz_name(bk_biz_id)
-            ).set(arrow.now().timestamp)
+            ).set(arrow.now().int_timestamp)

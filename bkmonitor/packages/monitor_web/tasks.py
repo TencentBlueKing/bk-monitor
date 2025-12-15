@@ -193,7 +193,7 @@ def update_metric_list():
     """
     from monitor.models import GlobalConfig
 
-    now_timestamp = arrow.get(datetime.datetime.now()).timestamp
+    now_timestamp = arrow.get(datetime.datetime.now()).int_timestamp
     # 遍历所有租户id
     for tenant in api.bk_login.list_tenant():
         bk_tenant_id = tenant["id"]

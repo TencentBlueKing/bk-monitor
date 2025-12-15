@@ -89,7 +89,7 @@ class Report(AbstractRecordModel):
 
     @staticmethod
     def is_invalid(end_time, frequency):
-        now_timestamp = arrow.now().timestamp
+        now_timestamp = arrow.now().int_timestamp
         if end_time and now_timestamp > end_time:
             return True
         if frequency["type"] == 1:

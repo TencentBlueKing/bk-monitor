@@ -3558,7 +3558,10 @@ class UpdateMetricListByBizResource(Resource):
                 cc_biz_id=validated_request_data["bk_biz_id"],
                 key=f"{validated_request_data['bk_biz_id']}_update_metric_cache",
             )
-            if arrow.get(time.time()).timestamp - arrow.get(config.data_updated).timestamp > 20 * 60:
+            if (
+                arrow.get(time.time()).int_timestamp - arrow.get(config.data_updated).int_timestamp
+                > 20 * 60
+            ):
                 task_result = update_metric_list_by_biz.apply_async(
                     args=(validated_request_data["bk_biz_id"],), expires=20 * 60
                 )

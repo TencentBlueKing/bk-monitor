@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = "==3.11.*"
 
 [[package]]
@@ -143,12 +143,15 @@ wheels = [
 
 [[package]]
 name = "arrow"
-version = "0.6.0"
+version = "1.2.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "python-dateutil" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cf/cb/f935b978dbd768bf14ba8cb84add7e86a1fda079f18746f1dc7e36f6e04f/arrow-0.6.0.tar.gz", hash = "sha256:d7bd102f8d4b45fea74aad000079c73257c2a15c1886263084d2df0faaf923ea", size = 87306, upload-time = "2015-07-10T18:44:04.943Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7f/c0/c601ea7811f422700ef809f167683899cdfddec5aa3f83597edf97349962/arrow-1.2.3.tar.gz", hash = "sha256:3934b30ca1b9f292376d9db15b19446088d12ec58629bc3f0da28fd55fb633a1", size = 127552, upload-time = "2022-09-03T19:35:32.65Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/67/67/4bca5a595e2f89bff271724ddb1098e6c9e16f7f3d018d120255e3c30313/arrow-1.2.3-py3-none-any.whl", hash = "sha256:5a49ab92e3b7b71d96cd6bfcc4df14efefc9dfa96ea19045815914a6ab6b1fe2", size = 66391, upload-time = "2022-09-03T19:35:29.66Z" },
+]
 
 [[package]]
 name = "asgiref"
@@ -441,7 +444,7 @@ test = [
 requires-dist = [
     { name = "aidev-agent", specifier = "==1.0.3" },
     { name = "apigw-manager", specifier = "==4.0.4" },
-    { name = "arrow", specifier = "==0.6.0" },
+    { name = "arrow", specifier = "==1.2.3" },
     { name = "babel", specifier = "==2.14.0" },
     { name = "betterproto", specifier = "==2.0.0b7" },
     { name = "bk-audit", specifier = "==1.0.7" },

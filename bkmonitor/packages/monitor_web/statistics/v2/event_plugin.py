@@ -54,7 +54,7 @@ class EventPluginCollector(BaseCollector):
 
         now_time = arrow.now()
         for le_en, seconds in TIME_RANGE:
-            start_time = int(now_time.replace(seconds=-seconds).timestamp)
+            start_time = int(now_time.shift(seconds=-seconds).timestamp)
             end_time = int(now_time.timestamp)
             search_obj = (
                 EventDocument.search()
