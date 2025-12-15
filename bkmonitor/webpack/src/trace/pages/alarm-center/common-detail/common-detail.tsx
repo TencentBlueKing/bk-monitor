@@ -43,9 +43,9 @@ import ManualDebugStatusDialog from './components/alarm-info/manual-debug-status
 import ManualProcessDialog from './components/alarm-info/manual-process-dialog';
 import AlarmView from './components/alarm-view/alarm-view';
 import PanelAlarm from './components/panel-alarm/panel-alarm';
-import PanelContainer from './components/panel-container';
 import PanelEvent from './components/panel-event';
 import PanelHost from './components/panel-host';
+import PanelK8s from './components/panel-k8s';
 import PanelLog from './components/panel-log';
 import PanelMetric from './components/panel-metric';
 import PanelTrace from './components/panel-trace';
@@ -168,12 +168,12 @@ export default defineComponent({
             />
           );
         case ALARM_CENTER_PANEL_TAB_MAP.TRACE:
-          return <PanelTrace alarmId={alarmCenterDetailStore.alarmId} />;
-        case 'host':
+          return <PanelTrace alertId={alarmCenterDetailStore.alarmId} />;
+        case ALARM_CENTER_PANEL_TAB_MAP.HOST:
           return <PanelHost detail={alarmCenterDetailStore.alarmDetail} />;
-        case 'container':
-          return <PanelContainer />;
-        case 'event':
+        case ALARM_CENTER_PANEL_TAB_MAP.CONTAINER:
+          return <PanelK8s alertId={alarmCenterDetailStore.alarmId} />;
+        case ALARM_CENTER_PANEL_TAB_MAP.EVENT:
           return <PanelEvent detail={alarmCenterDetailStore.alarmDetail} />;
         case 'metric':
           return <PanelMetric />;
