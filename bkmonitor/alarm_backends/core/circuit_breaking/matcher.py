@@ -90,15 +90,16 @@ class CircuitBreakingMatcher:
             # 构建条件对象
             condition_obj = {"field": cond["key"], "method": cond["method"], "value": cond["value"]}
 
-            # 获取连接符，默认为 AND
+            # 获取连接符，默认为 AND，确保为字符串后再大写比较
             connector = cond.get("condition", AND)
-            if connector.upper() == AND:
+            connector_upper = str(connector).upper()
+            if connector_upper == AND:
                 and_cond.append(condition_obj)
-            elif connector.upper() == OR:
+            elif connector_upper == OR:
                 # 遇到 OR 时，将当前的 and_cond 加入 or_cond，开始新的 and_cond
-                if and_cond:
-                    or_cond.append(and_cond)
-                and_cond = [condition_obj]
+                    if and_cond:
+                        or_cond.append(and_cond)
+                    and_cond = [condition_obj]
             else:
                 logger.warning(f"[circuit breaking] Unsupported connector: {connector}, using AND instead")
                 and_cond.append(condition_obj)
