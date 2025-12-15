@@ -1303,7 +1303,7 @@ class IncidentAlertListResource(IncidentBaseResource):
         alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
 
         # 获取故障的当前版本ID
-        incident_version_id = incident.extra_info.get("version_id") if incident.extra_info else None
+        incident_version_id = incident.extra_info.to_dict().get("version_id") if incident.extra_info else None
 
         incident_alerts = resource.commons.get_label()
         for category in incident_alerts:
@@ -1354,7 +1354,7 @@ class IncidentAlertViewResource(IncidentBaseResource):
         alerts = self.get_snapshot_alerts(snapshot, **validated_request_data)
 
         # 获取故障的当前版本ID
-        incident_version_id = incident.extra_info.get("version_id") if incident.extra_info else None
+        incident_version_id = incident.extra_info.to_dict().get("version_id") if incident.extra_info else None
 
         incident_alerts = resource.commons.get_label()
         for category in incident_alerts:
