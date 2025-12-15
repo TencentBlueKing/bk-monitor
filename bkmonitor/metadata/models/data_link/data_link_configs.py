@@ -836,11 +836,13 @@ class ClusterConfig(models.Model):
     """
 
     # 由于配置原因，namespace实际上与存储类型是绑定的，与实际的使用方无关
-    KIND_TO_NAMESPACE_MAP = {
+    KIND_TO_NAMESPACES_MAP = {
         DataLinkKind.ELASTICSEARCH.value: BKBASE_NAMESPACE_BK_LOG,
         DataLinkKind.VMSTORAGE.value: BKBASE_NAMESPACE_BK_MONITOR,
         DataLinkKind.DORIS.value: BKBASE_NAMESPACE_BK_LOG,
-        DataLinkKind.KAFKACHANNEL.value: BKBASE_NAMESPACE_BK_LOG,
+
+        # Kafka集群需要同时注册到bkmonitor和bklog命名空间
+        DataLinkKind.KAFKACHANNEL.value: [BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR],
     }
 
     CLUSTER_TYPE_TO_KIND_MAP = {
@@ -950,26 +952,28 @@ class ClusterConfig(models.Model):
 
         # 根据集群类型获取kind和namespace
         kind = cls.CLUSTER_TYPE_TO_KIND_MAP[cluster.cluster_type]
-        namespace = cls.KIND_TO_NAMESPACE_MAP[kind]
+        namespaces = cls.KIND_TO_NAMESPACES_MAP[kind]
 
         # 获取或创建bkbase集群配置记录
-        cluster_config, _ = ClusterConfig.objects.get_or_create(
-            bk_tenant_id=cluster.bk_tenant_id, namespace=namespace, name=cluster.cluster_name, kind=kind
-        )
+        for namespace in namespaces:
+            cluster_config, _ = ClusterConfig.objects.get_or_create(
+                bk_tenant_id=cluster.bk_tenant_id, namespace=namespace, name=cluster.cluster_name, kind=kind
+            )
 
-        # 组装配置
-        config = cluster_config.compose_config()
+            # 组装配置
+            config = cluster_config.compose_config()
 
-        # 注册到bkbase平台
-        try:
-            api.bkdata.apply_data_link(config=[config], bk_tenant_id=cluster.bk_tenant_id)
-        except Exception as e:
-            logger.error(f"sync_cluster_config: apply data link error: {e}")
-            raise e
+            # 注册到bkbase平台
+            try:
+                api.bkdata.apply_data_link(config=[config], bk_tenant_id=cluster.bk_tenant_id)
+            except Exception as e:
+                logger.error(f"sync_cluster_config: apply data link error: {e}")
+                raise e
 
-        # 更新集群注册状态
-        cluster_config.origin_config = config
-        cluster_config.save()
+            # 更新集群注册状态
+            cluster_config.origin_config = config
+            cluster_config.save()
+
         cluster.registered_to_bkbase = True
         cluster.save()
 

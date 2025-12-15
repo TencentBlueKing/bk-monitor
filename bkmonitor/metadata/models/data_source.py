@@ -613,6 +613,10 @@ class DataSource(models.Model):
                 logger.info(f"apply for data id from bkdata,type_label->{type_label},etl_config->{etl_config}")
                 is_base = False
 
+                # 如果需要走V4链路，则需要确保Kafka集群已经注册到bkbase平台
+                if not mq_cluster.registered_to_bkbase:
+                    raise ValueError(f"kafka cluster {mq_cluster.cluster_name} is not registered to bkbase, please contact administrator to register")
+
                 # 根据清洗类型判断是否是系统基础数据
                 if etl_config in SYSTEM_BASE_DATA_ETL_CONFIGS:
                     is_base = True
