@@ -2369,7 +2369,9 @@ class TimeSeriesMetric(models.Model):
         # 批量查找已存在的指标
         field_ids = [m.get("field_id") for m in metrics_data if m.get("field_id")]
         existing_metrics_map = (
-            {metric.field_id: metric for metric in cls.objects.filter(field_id__in=field_ids)} if field_ids else {}
+            {metric.field_id: metric for metric in cls.objects.filter(field_id__in=field_ids, group_id=group_id)}
+            if field_ids
+            else {}
         )
 
         # 分离需要创建和更新的指标
