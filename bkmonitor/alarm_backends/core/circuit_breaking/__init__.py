@@ -21,17 +21,10 @@ specific language governing permissions and limitations under the License.
 	-  熔断后续对应 nodata 检测需要同样阻断，同时 nodata 在熔断配置清理后，需要延迟启用检测
 
 2. alert.builder(doing)
-	方案 1：
-		alert.builder 拉取 kafka 的 event，分发 run_alert_builder之前,基于 event 的（业务，数据来源， 策略 id）进行熔断
-		熔断解决: celery_alert_builder,celery_composite, celery_composite 队列堵塞， action 模块
-		优点: 性能强
-		缺点: 仅记录日志
-
-	方案 2：
-		run_alert_builder 执行过程中，正常创建告警，在创建告警后进行熔断判定，命中后告警状态设置为被流控，并不再后续处理。
-		熔断解决： celery_composite， celery_composite 队列堵塞， action 模块
-		优点: 所有熔断日志均能记录到 es 中，支持回溯
-		缺点: alert.builder正常处理流程，可能引起celery_alert_builder队列堵塞
+    - run_alert_builder 执行过程中，正常创建告警，在创建告警后进行熔断判定，命中后告警状态设置为被流控，并不再后续处理。
+    - 熔断解决： celery_composite， celery_composite 队列堵塞， action 模块
+    - 优点: 所有熔断日志均能记录到 es 中，支持回溯
+    - 缺点: alert.builder正常处理流程，可能引起celery_alert_builder队列堵塞
 
 3. action(todo)
 	create_actions: action创建时熔断
