@@ -22,11 +22,18 @@ the project delivered to anyone in the future.
 from rest_framework.response import Response
 
 from apps.api import TGPATaskApi
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum
 from apps.iam.handlers.drf import ViewBusinessPermission, BusinessActionPermission
+from apps.tgpa.constants import FEATURE_TOGGLE_TGPA_TASK
 from apps.tgpa.handlers.task import TGPATaskHandler
-from apps.tgpa.serializers import CreateTGPATaskSerializer, GetTGPATaskListSerializer, GetDownloadUrlSerializer
+from apps.tgpa.serializers import (
+    CreateTGPATaskSerializer,
+    GetTGPATaskListSerializer,
+    GetDownloadUrlSerializer,
+    GetIndexSetIdSerializer,
+)
 from bkm_search_module.constants import list_route
 
 
@@ -68,3 +75,19 @@ class TGPATaskViewSet(APIViewSet):
         params = self.params_valid(GetDownloadUrlSerializer)
         url = TGPATaskHandler(bk_biz_id=params["bk_biz_id"], inst_id=params["id"]).task_info["download_url"]
         return Response({"url": url})
+
+    @list_route(methods=["GET"], url_path="index_set_id")
+    def get_index_set_id(self, request, *args, **kwargs):
+        """
+        获取客户端日志索引集ID
+        """
+        params = self.params_valid(GetIndexSetIdSerializer)
+        res = {
+            "index_set_id": None,
+            "collector_config_id": None,
+        }
+        if FeatureToggleObject.switch(FEATURE_TOGGLE_TGPA_TASK, params["bk_biz_id"]):
+            collector_config = TGPATaskHandler.get_or_create_collector_config(bk_biz_id=params["bk_biz_id"])
+            res["index_set_id"] = collector_config.index_set_id
+            res["collector_config_id"] = collector_config.collector_config_id
+        return Response(res)

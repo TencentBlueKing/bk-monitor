@@ -28,6 +28,7 @@ from alarm_backends.service.access.tasks import (
     run_access_incident_handler,
     run_access_data_with_qos_queue,
 )
+
 from bkmonitor.utils.beater import MonitorBeater
 from bkmonitor.utils.common_utils import safe_int
 
@@ -101,6 +102,17 @@ class AccessBeater(MonitorBeater):
         qos_interval_expand = getattr(settings, "QOS_INTERVAL_EXPAND", 3)
         strategy_groups = StrategyCacheManager.get_all_groups()
         targets = set(map(str, self.targets))
+        circuit_breaking_manager = None
+        circuit_breaking_count = 0
+
+        # 导入熔断管理器
+        try:
+            from alarm_backends.core.circuit_breaking.manager import AccessDataCircuitBreakingManager
+
+            circuit_breaking_manager = AccessDataCircuitBreakingManager()
+        except Exception as e:
+            logger.warning(f"[circuit breaking] Failed to initialize circuit breaking manager: {e}")
+
         for strategy_group_key, strategy_group in strategy_groups.items():
             is_qos = False
             strategy_group = json.loads(strategy_group)
@@ -124,6 +136,33 @@ class AccessBeater(MonitorBeater):
                 # 业务字段未取到，则使用instance_targets 匹配
                 continue
 
+            # 熔断检查
+            if circuit_breaking_manager:
+                try:
+                    # 获取数据源信息
+                    # strategy_source 原始格式: [("data_source_label", "data_type_label")] 或 [["data_source_label", "data_type_label"]]
+                    # 经过上面的处理后格式: ("data_source_label", "data_type_label") 或 ["data_source_label", "data_type_label"]
+                    data_source_label, data_type_label = strategy_source
+
+                    # 检查业务和数据源级别的熔断
+                    if bk_biz_id and circuit_breaking_manager.is_circuit_breaking(
+                        bk_biz_id=bk_biz_id,
+                        data_source_label=data_source_label,
+                        data_type_label=data_type_label,
+                        strategy_source=f"{data_source_label}:{data_type_label}",
+                    ):
+                        circuit_breaking_count += 1
+                        logger.warning(
+                            f"[circuit breaking] Strategy group {strategy_group_key} circuit breaking triggered in refresh stage, "
+                            f"bk_biz_id: {bk_biz_id}, strategy_source: {data_source_label}:{data_type_label}"
+                        )
+                        # 跳过被熔断的策略组
+                        continue
+
+                except Exception as cb_e:
+                    logger.warning(f"[circuit breaking] Circuit breaking check failed for {strategy_group_key}: {cb_e}")
+                    # 熔断检查失败时，继续处理该策略组
+
             if not interval_list:
                 # 兼容方案，当策略缓存未存储interval_list时，去redis中获取策略中的interval
                 interval_list, is_qos = get_interval(strategy_ids)
@@ -145,6 +184,14 @@ class AccessBeater(MonitorBeater):
             interval_map[min_interval].add(strategy_group_key)
 
         self.interval_map = interval_map
+
+        # 记录熔断统计信息
+        if circuit_breaking_count > 0:
+            logger.info(
+                f"[circuit breaking] Circuit breaking applied in refresh stage: {circuit_breaking_count}/{len(strategy_groups)} "
+                f"strategy groups filtered"
+            )
+
         for interval, group_keys in interval_map.items():
             schedule_dict = {
                 "task": self.batch_access_data,
@@ -167,11 +214,13 @@ class AccessBeater(MonitorBeater):
         :param interval_key: 策略分组key(按周期)
         """
         strategy_group_keys = self.interval_map.get(interval_key) or []
+
         for _idx, strategy_group_key in enumerate(strategy_group_keys):
             run_task = run_access_data_with_qos_queue if strategy_group_key in self.qos_keys else run_access_data
             run_task.delay(strategy_group_key, interval=interval_key)
             if _idx % (len(strategy_group_keys) // interval_key + 1) == 0:
                 time.sleep(0.05)
+
         logger.info(
             f"[{self.display_name}](batch_access_data) publish group key with interval[{interval_key}] "
             f"total: {len(strategy_group_keys)}"

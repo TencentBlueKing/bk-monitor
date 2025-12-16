@@ -12,6 +12,7 @@ import logging
 
 from rest_framework import serializers
 
+from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import Resource, api
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
 
@@ -59,13 +60,45 @@ class SearchLogResource(Resource):
     日志查询服务 -- 日志查询 (用于 AI MCP 请求)
     """
 
-    RequestSerializer = TimeSpanValidationPassThroughSerializer
+    class RequestSerializer(TimeSpanValidationPassThroughSerializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        index_set_id = serializers.IntegerField(required=True, label="索引集ID")
+        query_string = serializers.CharField(required=False, default="*", label="查询字符串")
+        start_time = serializers.CharField(required=True, label="开始时间")
+        end_time = serializers.CharField(required=True, label="结束时间")
+        limit = serializers.IntegerField(required=False, default=10, label="返回条数")
 
     def perform_request(self, validated_request_data):
         index_set_id = validated_request_data.get("index_set_id")
-        bk_biz_id = validated_request_data.pop("bk_biz_id", None)
+        bk_biz_id = validated_request_data.get("bk_biz_id")
+        query_string = validated_request_data.get("query_string", "*")
+        start_time = validated_request_data.get("start_time")
+        end_time = validated_request_data.get("end_time")
+        limit = validated_request_data.get("limit")
+
         logger.info(
             "SearchLogResource: try to search log, index_set_id->[%s], bk_biz_id->[%s]", index_set_id, bk_biz_id
         )
-        result = api.log_search.es_query_search(**validated_request_data)
+
+        # 构造 unify_query.query_raw 请求参数
+        table_id = f"bklog_index_set_{index_set_id}"  # 日志索引集规则
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)  # 业务ID转SPACE_UID，用于构建Headers
+
+        query_params = {
+            "query_list": [
+                {
+                    "data_source": "bklog",
+                    "table_id": table_id,
+                    "query_string": query_string,
+                }
+            ],
+            "metric_merge": "a",  # 返回引用名为 "a" 的查询结果，便于后续使用,日志侧无需关心
+            "start_time": start_time,
+            "end_time": end_time,
+            "step": "auto",
+            "limit": limit,
+            "space_uid": space_uid,
+        }
+
+        result = api.unify_query.query_raw(**query_params)
         return result

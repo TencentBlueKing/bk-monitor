@@ -294,7 +294,7 @@ class TGPATaskHandler:
         container_release_params.update(
             {
                 "dataId": bk_data_id,
-                "path": [os.path.join(TGPA_BASE_DIR, str(bk_biz_id)), "/**/*"],
+                "path": [os.path.join(TGPA_BASE_DIR, str(bk_biz_id), "**/*")],
                 "logConfigType": ContainerCollectorType.CONTAINER,
             }
         )
@@ -304,7 +304,7 @@ class TGPATaskHandler:
         )
 
     @staticmethod
-    def get_or_create_collector_config(bk_biz_id: int):
+    def get_or_create_collector_config(bk_biz_id: int) -> CollectorConfig:
         """
         获取或创建采集配置
         """
