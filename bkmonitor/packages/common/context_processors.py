@@ -23,7 +23,7 @@ from bkmonitor.utils.common_utils import fetch_biz_id_from_request, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
 from common.log import logger
 from constants.common import DEFAULT_TENANT_ID
-from core.drf_resource import resource
+from core.drf_resource import resource, api
 from core.errors.api import BKAPIError
 
 
@@ -102,6 +102,13 @@ def json_formatter(context: dict[str, Any]):
 
 
 def get_core_context(request):
+    user_name = request.user.username
+    try:
+        user_time_zone = api.bk_login.get_user_info(id=user_name, fields="time_zone").get("time_zone", "")
+    except Exception as e:
+        logger.error(f"Get user {user_name} time zone failed: {e}")
+        user_time_zone = ""
+
     return {
         # healthz 自监控引用
         "PLATFORM": Platform,
@@ -137,6 +144,7 @@ def get_core_context(request):
         # 国际化
         "gettext": _,
         "_": _,
+        "USER_TIME_ZONE": user_time_zone,
         "LANGUAGE_CODE": request.LANGUAGE_CODE,
         "LANGUAGES": settings.LANGUAGES,
         # 页面title

@@ -257,6 +257,34 @@ class GetUserSensitiveInfo(UnityUserBaseResource):
         fields = serializers.CharField(required=True)
 
 
+class GetUserInfo(BkUserApiResource):
+    """
+    获取用户信息
+    """
+
+    @property
+    def action(self):
+        if self.use_apigw():
+            return "/api/v3/open/tenant/users/{bk_username}/"
+        return "/retrieve_user/"
+
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        id = serializers.CharField(required=True, label="用户名")
+        lookup_field = serializers.CharField(required=False, label="查询字段")
+        fields = serializers.CharField(required=False, label="返回字段")
+
+    def perform_request(self, validated_request_data):
+        if self.use_apigw():
+            # API Gateway 模式：转换参数格式
+            params = {"bk_username": validated_request_data["id"]}
+            return super().perform_request(params)
+
+        # 组件 API 模式：直接使用原参数
+        return super().perform_request(validated_request_data)
+
+
 class BatchLookupVirtualUserResource(BkUserApiResource):
     """
     批量查询虚拟用户
