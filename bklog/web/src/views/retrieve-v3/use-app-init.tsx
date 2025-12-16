@@ -277,18 +277,6 @@ export default () => {
           [[], []],
         );
 
-      // 根据计算出的 pid 更新 items 的 unique_id
-      if (items.length > 0 && pid.length > 0) {
-        const updatedItems = items.map((item, index) => {
-          const newUniqueId = `${pid[index] ?? '#'}_${item.index_set_id}`;
-          return {
-            ...item,
-            unique_id: newUniqueId,
-          };
-        });
-        others.items = updatedItems;
-      }
-
       store.commit('updateIndexItem', { ids, pid, ...(others ?? {}) });
     };
 
@@ -381,10 +369,6 @@ export default () => {
           if (emptyIndexSetList.length) {
             store.commit('updateIndexItem', { ids: [], items: [] });
             store.commit('updateState', { indexId: '' });
-            // store.commit('updateIndexSetQueryResult', {
-            //   is_error: true,
-            //   exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
-            // });
           }
 
           if (indexSetItems.length) {
