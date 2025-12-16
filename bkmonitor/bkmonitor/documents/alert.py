@@ -22,7 +22,7 @@ from bkmonitor.models import NO_DATA_TAG_DIMENSION
 from constants.alert import (
     EVENT_SEVERITY,
     HANDLE_STAGE_DICT,
-    TARGET_DIMENSIONS,
+    CMDB_TARGET_DIMENSIONS,
     EventStatus,
 )
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -261,12 +261,12 @@ class AlertDocument(BaseDocument):
     @property
     def target_dimensions(self):
         # 目标维度
-        return [d.to_dict() for d in self.dimensions if d.key in TARGET_DIMENSIONS]
+        return [d.to_dict() for d in self.dimensions if d.key in CMDB_TARGET_DIMENSIONS]
 
     @property
     def common_dimensions(self):
         # 非目标维度
-        return [d.to_dict() for d in self.dimensions if d.key not in TARGET_DIMENSIONS]
+        return [d.to_dict() for d in self.dimensions if d.key not in CMDB_TARGET_DIMENSIONS]
 
     @property
     def common_dimension_tuple(self) -> tuple:

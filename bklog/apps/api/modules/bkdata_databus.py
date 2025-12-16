@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
@@ -28,10 +29,10 @@ from config.domains import DATABUS_APIGATEWAY_ROOT
 
 class _BkDataDatabusApi:
     MODULE = _("计算平台总线模块")
-    
+
     @property
     def use_apigw(self):
-        return settings.ENABLE_MULTI_TENANT_MODE
+        return settings.USE_APIGW
 
     def _build_url(self, new_path, old_path):
         return (

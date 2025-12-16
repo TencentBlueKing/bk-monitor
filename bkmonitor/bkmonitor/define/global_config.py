@@ -279,13 +279,6 @@ ADVANCED_OPTIONS = OrderedDict(
             ),
         ),
         ("WECOM_ROBOT_CONTENT_LENGTH", slz.IntegerField(label="分级机器人内容最大长度（0表示不限制）", default=0)),
-        (
-            "ALARM_DISABLE_STRATEGY_RULES",
-            slz.JSONField(
-                label='告警后台禁用策略规则{"strategy_ids":[],"bk_biz_ids":[],"data_source_label":"","data_type_label":""}',
-                default=[],
-            ),
-        ),
         ("OPTZ_FAKE_EVENT_BIZ_IDS", slz.ListField(label="启用进程端口，ping不可达优化的业务ID列表", default=[])),
         ("ACCESS_DATA_TIME_DELAY", slz.IntegerField(label="access数据拉取延迟时间(s)", default=10)),
         ("ACCESS_LATENCY_INTERVAL_FACTOR", slz.IntegerField(label="access数据源延迟上报周期因子", default=1)),
@@ -434,6 +427,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
+        (
+            "ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME",
+            slz.BooleanField(label="是否开启dataid注册时能够指定集群名称", default=False),
+        ),
     ]
 )
 
@@ -656,6 +653,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_UNIFY_QUERY_BLACK_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询业务黑名单"), default=[])),
         # 事件 UnifyQuery 查询业务黑名单，在此列表内的业务，检索能力不切换到 UnifyQuery。
         ("EVENT_UNIFY_QUERY_BLACK_BIZ_LIST", slz.ListField(label=_("事件 UnifyQuery 查询业务黑名单"), default=[])),
+        # 日志 UnifyQuery 查询业务白名单，在此列表内的业务，检索能力切换到 UnifyQuery。
+        ("LOG_UNIFY_QUERY_WHITE_BIZ_LIST", slz.ListField(label=_("日志 UnifyQuery 查询业务白名单"), default=[])),
         # APM 调用分析启用全局指标的应用列表，在此列表内的应用，调用分析将使用带 data_label（APM）的全局指标进行出图。
         # 背景：APM 策略模板基于「查询模板」能力进行开发，查询模板定义指标查询、计算方式来固化部分通用计算场景，
         # 为避免模板管理复杂度及保障导入导出、仪表盘配置、asCode 等的易用性，使用 data_label 屏蔽原有指标表名带「应用名」所带来的差异性。

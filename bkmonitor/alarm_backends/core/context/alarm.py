@@ -12,9 +12,9 @@ import base64
 import copy
 import json
 import logging
+import urllib.parse
 from typing import Any
 from collections.abc import Callable
-from urllib.parse import urljoin
 
 from django.conf import settings
 from django.utils.functional import cached_property
@@ -37,7 +37,7 @@ from bkmonitor.utils.time_tools import (
     utc2localtime,
 )
 from constants.action import ActionPluginType, ActionSignal, ConvergeType
-from constants.alert import EVENT_STATUS_DICT, TARGET_DIMENSIONS, EventStatus, EventTargetType, AlertRedirectType
+from constants.alert import EVENT_STATUS_DICT, CMDB_TARGET_DIMENSIONS, EventStatus, EventTargetType, AlertRedirectType
 from constants.data_source import DATA_CATEGORY, DataSourceLabel, DataTypeLabel
 from constants.apm import ApmAlertHelper
 from core.errors.alert import AIOpsFunctionAccessedError
@@ -122,7 +122,7 @@ class Alarm(BaseContextObject):
 
             dimensions = {d["key"]: d for d in alert.target_dimensions}
             display_dimensions = []
-            for key in TARGET_DIMENSIONS:
+            for key in CMDB_TARGET_DIMENSIONS:
                 if key not in dimensions or key == "bk_cloud_id":
                     # 云区域ID暂时去掉
                     continue
@@ -815,7 +815,7 @@ class Alarm(BaseContextObject):
             # 最近一次没有的话，表示没有命中分派
             return None
         route_path = base64.b64encode(f"#/alarm-dispatch?group_id={self.latest_assign_group}".encode()).decode("utf8")
-        return urljoin(
+        return urllib.parse.urljoin(
             settings.BK_MONITOR_HOST,
             f"route/?bizId={self.parent.business.bk_biz_id}&route_path={route_path}",
         )
@@ -902,6 +902,11 @@ class Alarm(BaseContextObject):
         data_source: tuple[str, str] = (query_configs[0]["data_source_label"], query_configs[0]["data_type_label"])
         redirect_map: dict[str, list[tuple[str, str]]] = {
             "log_search": [(DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG)],
+            # 事件检索，用于自定义事件和日志关键字场景。
+            "event_explore": [
+                (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+                (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+            ],
             "query": [
                 (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
                 (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
@@ -916,7 +921,11 @@ class Alarm(BaseContextObject):
                 redirect_types.append(_type)
                 break
 
-        if ApmAlertHelper.is_rpc_system(alert.strategy):
+        # RPC 场景下的自定义指标类型，显示「调用分析」和 APM 自定义「指标检索」
+        if ApmAlertHelper.is_rpc_custom_metric(alert.strategy):
+            redirect_types.extend([AlertRedirectType.APM_RPC.value, AlertRedirectType.APM_QUERY.value])
+        # RPC 场景下的非自定义指标类型，显示「调用分析」和「Tracing 检索」
+        elif ApmAlertHelper.is_rpc_system(alert.strategy):
             # TODO 后续有其他明确场景，可在此处补充识别。
             redirect_types.extend([AlertRedirectType.APM_RPC.value, AlertRedirectType.APM_TRACE.value])
 
@@ -928,14 +937,14 @@ class Alarm(BaseContextObject):
         url_getters: dict[str, Callable[[], str | None]] = {
             AlertRedirectType.DETAIL.value: lambda: self.detail_url,
             AlertRedirectType.LOG_SEARCH.value: lambda: self.log_search_url,
+            AlertRedirectType.EVENT_EXPLORE.value: lambda: self.event_explore_url,
             AlertRedirectType.QUERY.value: lambda: self.query_url,
+            AlertRedirectType.APM_QUERY.value: lambda: self.apm_query_url,
             AlertRedirectType.APM_RPC.value: lambda: self.apm_rpc_url,
             AlertRedirectType.APM_TRACE.value: lambda: self.apm_trace_url,
         }
 
         redirect_types: list[str] = self.redirect_types
-        # RPC 场景下，直接跳转到调用分析。
-        # TODO APM 支持自定义指标后，自定义指标类型的告警，需要跳转到自定义指标页面。
         if AlertRedirectType.APM_RPC.value in redirect_types and AlertRedirectType.QUERY.value in redirect_types:
             redirect_types.remove(AlertRedirectType.QUERY.value)
 
@@ -981,9 +990,86 @@ class Alarm(BaseContextObject):
         return None
 
     @cached_property
+    def event_explore_url(self) -> str | None:
+        """事件检索跳转链接生成"""
+        alert: AlertDocument = self.parent.alert
+        if not alert.strategy or not alert.strategy.get("items"):
+            return None
+
+        try:
+            query_config: dict[str, Any] = alert.strategy["items"][0]["query_configs"][0]
+        except (KeyError, IndexError):
+            return None
+
+        # 构建检索条件
+        query_filter: dict[str, Any] = {
+            "result_table_id": query_config["result_table_id"],
+            "data_source_label": query_config["data_source_label"],
+            "data_type_label": query_config["data_type_label"],
+            "query_string": query_config.get("query_string", ""),
+        }
+
+        # 使用告警策略配置的汇聚条件作为初始 where 条件，当配置告警的维度字段与汇聚条件中的字段一样时，再去更新 where 条件
+        where: list[dict[str, Any]] = query_config.get("agg_condition") or []
+        # 构建一个 key → 索引位置 的映射字典，方便后续更新替换
+        agg_condition_index: dict[str, int] = {condition["key"]: idx for idx, condition in enumerate(where)}
+
+        # 需排除的经 CMDB 丰富的维度字段（由 CMDBEnricher 类添加）
+        cmdb_enrich_fields: set[str] = {
+            "bk_topo_node",
+            "bk_host_id",
+            "ipv6",
+            # 内网IP（注：使用 bk_target_ip 原始维度即可）
+            "ip",
+            # 云区域ID（注：使用 bk_target_cloud_id 原始维度即可）
+            "bk_cloud_id",
+            # 服务实例ID（注：使用bk_target_service_instance_id 原始维度即可）
+            "bk_service_instance_id",
+        }
+        for key, value in self.origin_dimensions.items():
+            if key in cmdb_enrich_fields or value is None:
+                continue
+
+            condition: dict[str, Any] = {
+                "key": key,
+                "method": "eq",
+                "value": value if isinstance(value, list) else [value or ""],
+                "condition": "and",
+            }
+            # 如果该维度已存在于汇聚条件中，则更新替换；否则添加为新过滤条件
+            if key in agg_condition_index:
+                where[agg_condition_index[key]] = condition
+            else:
+                where.append(condition)
+
+        query_filter["where"] = where
+
+        offset: int = 5 * 60 * 1000
+        create_timestamp: int = alert.event.time
+        params: dict[str, Any] = {
+            "targets": json.dumps([{"data": {"query_configs": [query_filter]}}]),
+            "from": create_timestamp * 1000 - self.duration * 1000 - offset,
+            "to": create_timestamp * 1000 + offset,
+        }
+
+        encoded_params: str = urllib.parse.urlencode(params)
+        return urllib.parse.urljoin(
+            settings.BK_MONITOR_HOST, f"?bizId={self.parent.business.bk_biz_id}#/event-explore?{encoded_params}"
+        )
+
+    @cached_property
     def query_url(self):
         # 数据检索基于数据点的前1小时+后1小时
         if AlertRedirectType.QUERY.value in self.redirect_types:
             url = self.detail_url
+            return f"{url}&type=query"
+        return None
+
+    @cached_property
+    def apm_query_url(self):
+        """APM 自定义指标检索跳转链接生成"""
+        # TODO 后续 APM 实现自定义指标功能后，再更新为跳转到自定义指标检索页面
+        url: str | None = self.detail_url
+        if url:
             return f"{url}&type=query"
         return None

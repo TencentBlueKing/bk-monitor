@@ -103,6 +103,24 @@ export default {
   批量使用告警: 'Batch use alerts',
   批量停用告警: 'Batch disable alerts',
   查询显示字段: 'Query display fields',
+  '输入查询内容，"帮我查询近 3 天的错误日志"，Tab 切换为普通模式':
+    'Enter query content, e.g., "Help me query error logs from the past 3 days", Tab to switch to normal mode',
+  'AI 模式': 'AI Mode',
+  'AI 解析中...': 'AI Parsing...',
+  前往编辑: 'Go to Edit',
+  'Tab 切换为 AI 模式': 'Tab to switch to AI mode',
+  或直接输入自然语言: 'or enter natural language directly',
+  唤起: 'Trigger',
+  请输入检索内容: 'Please enter search content',
+  '可直接输入,进行全文检索;': 'You can enter directly for full-text search;',
+  '或描述检索需求,使用': 'Or describe your search needs using',
+  'AI 搜索': 'AI Search',
+  '查询近 30 分钟的错误日志': 'Query error logs from the last 30 minutes',
+  查询今天的错误日志: "Query today's error logs",
+  全文检索: 'Full-text search',
+  恢复这个选项: 'Restore this option',
+  隐藏这个选项: 'Hide this option',
+  只看这个选项: 'Only show this option',
   上次检测时间: 'Last time',
   蓝鲸智云: 'BlueKing',
   业务DEMO: 'Demo',
@@ -1225,4 +1243,14 @@ export default {
   集群说明: 'Cluster Description',
   副本数量: 'Replica Count',
   集群备注: 'Cluster Remarks',
+  '搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人':
+    'Task ID, Name, OpenID, Create Method, Status, Stage, Creator',
+  'Alert 文案占位，用于说明如果用 SDK 上报。':
+    'The alert text placeholder is used to explain how to report using the SDK.',
+  '暂无下载链接，请在任务完成后点击下载':
+    'No download link available. Please click download after completing the task.',
+  灰度业务: 'Gray scale business',
+  '本功能为灰度业务，请联系管理员开通':
+    'This feature is currently in a phased rollout phase. Please contact the administrator to activate it.',
+  任务未完成: 'Task not completed',
 };

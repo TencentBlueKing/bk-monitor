@@ -48,6 +48,7 @@ const ManageCollection = () =>
     /* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection'
   );
 const oldAccessSteps = () => import(/* webpackChunkName: 'access-steps' */ '@/components/collection-access');
+const ClientLog = () => import(/* webpackChunkName: 'client-log' */ '@/views/manage-v2/client-log/index.tsx');
 const IndexList = () =>
   import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');
 const ManageIndex = () =>
@@ -95,6 +96,7 @@ const MaskingEdit = () =>
   import(/* webpackChunkName: 'field-masking-separate' */ '@/views/manage/field-masking-separate');
 const MaskingList = () =>
   import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/log-clean/clean-masking/list');
+const ClientLogView = { name: 'ClientLogView', template: '<router-view></router-view>' };
 
 // 管理模块路由配置生成函数
 const getManageRoutes = () => [
@@ -323,6 +325,36 @@ const getManageRoutes = () => [
                 component: MaskingEdit,
               },
             ],
+          },
+        ],
+      },
+      {
+        path: 'tgpa-task',
+        name: 'tgpa-task',
+        component: ClientLogView,
+        redirect: '/manage/tgpa-task/list',
+        children: [
+          // 客户端日志列表
+          {
+            path: 'list',
+            name: 'tgpa-task-list',
+            meta: {
+              title: '客户端日志',
+              navId: 'tgpa-task',
+            },
+            component: ClientLog,
+          },
+          // 清洗配置
+          {
+            path: 'clean-config',
+            name: 'clean-config',
+            meta: {
+              title: '清洗配置',
+              needBack: true,
+              backName: 'tgpa-task-list',
+              navId: 'tgpa-task',
+            },
+            component: cleanCreate,
           },
         ],
       },

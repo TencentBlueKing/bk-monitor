@@ -13,7 +13,9 @@ import base64
 import datetime
 import json
 import logging
+import random
 import re
+import string
 import time
 import traceback
 from typing import TYPE_CHECKING, Any
@@ -360,12 +362,12 @@ class ClusterInfo(models.Model):
     def create_cluster(
         cls,
         bk_tenant_id: str,
-        cluster_name,
         cluster_type,
         domain_name,
         port,
         registered_system,
         operator,
+        cluster_name="",
         display_name="",
         description="",
         username="",
@@ -411,6 +413,12 @@ class ClusterInfo(models.Model):
         :return: clusterInfo object
         """
         from metadata.models.data_link.data_link_configs import ClusterConfig
+
+        # 如果cluster_name为空，则先生成一个cluster_name占位
+        if not cluster_name:
+            # 随机生成一个字符串，长度为10，包含字母和数字
+            cluster_name = "".join(random.choices(string.ascii_letters + string.digits, k=16))
+            cluster_name = f"auto_cluster_name_{cluster_name}"
 
         # 如果未提供显示名称，则使用集群名作为显示名称
         if not display_name:
@@ -502,6 +510,7 @@ class ClusterInfo(models.Model):
         ssl_insecure_skip_verify: bool | None = None,
         extranet_domain_name: str | None = None,
         extranet_port: int | None = None,
+        **kwargs,
     ):
         """
         修改存储集群信息
@@ -2071,6 +2080,7 @@ class ESStorage(models.Model, StorageResultTable):
         :param kwargs: 其他配置参数
         :return:
         """
+
         # 0. 判断是否需要使用默认集群信息
         if cluster_id is None:
             try:
@@ -2160,10 +2170,19 @@ class ESStorage(models.Model, StorageResultTable):
             table_id,
             storage_record.cluster_id,
         )
-
-        # 判断是否启用创建索引，默认是启用
-        if enable_create_index:
-            new_record.create_es_index(is_sync_db)
+        if new_record.need_create_index:  # 如果需要,则创建索引
+            logger.info(
+                "create_table: table_id->[%s] under bk_tenant_id->[%s] need_create_index", table_id, bk_tenant_id
+            )
+            try:
+                new_record.create_index_and_aliases()
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "create_table: table_id->[%s] under bk_tenant_id->[%s] create_index_and_aliases failed,error->[%s]",
+                    table_id,
+                    bk_tenant_id,
+                    e,
+                )
 
         # 针对单个结果表推送数据很快，不用异步处理
         try:

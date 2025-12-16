@@ -321,7 +321,7 @@ def get_data_source_log(
         return ""
 
     record = records[0]
-    if data_source_key in (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG):
+    if data_source_key in ((DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),):
         index_set_id = query_config["index_set_id"]
         start_time_str = time_tools.utc2biz_str(start_time)
         end_time_str = time_tools.utc2biz_str(end_time)

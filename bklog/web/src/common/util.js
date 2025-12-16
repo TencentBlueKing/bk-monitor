@@ -1026,6 +1026,8 @@ export const calculateTableColsWidth = (field, list) => {
     if (['ip', 'serverIp'].includes(field.field_name)) return [124, minWidth];
     if (field.field_name === 'dtEventTimeStamp') return [256, minWidth];
     if (/time/i.test(field.field_name)) return [256, minWidth];
+    if ('date' === field.field_type) return [256, minWidth];
+
     // 去掉高亮标签 保证不影响实际展示长度计算
     const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
       .replace(/<mark>/g, '')
@@ -1127,16 +1129,25 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
   try {
     if (tableData.length && visibleFields.length) {
       visibleFields.forEach((field) => {
-        const [fieldWidth, minWidth] = calculateTableColsWidth(field, tableData);
-        let width = fieldWidth < minWidth ? minWidth : fieldWidth;
-        if (catchFieldsWidthObj) {
-          const catchWidth = catchFieldsWidthObj[field.field_name];
-          width = catchWidth ?? fieldWidth;
+        const targetList = [field];
+        if (field.alias_mapping_field && !targetList.includes(field.alias_mapping_field)) {
+          targetList.push(field.alias_mapping_field);
         }
 
-        set(field, 'width', width);
-        set(field, 'minWidth', minWidth);
+        targetList.forEach((item) => {
+          const [fieldWidth, minWidth] = calculateTableColsWidth(item, tableData);
+          let width = fieldWidth < minWidth ? minWidth : fieldWidth;
+          if (catchFieldsWidthObj) {
+            const catchWidth = catchFieldsWidthObj[item.field_name];
+            width = catchWidth ?? fieldWidth;
+          }
+  
+          set(item, 'width', width);
+          set(item, 'minWidth', minWidth);
+        });
       });
+
+
       const columnsWidth = visibleFields.reduce((prev, next) => prev + next.width, 0);
       const tableElem = document.querySelector('.original-log-panel');
 

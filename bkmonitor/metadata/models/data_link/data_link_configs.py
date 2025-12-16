@@ -176,7 +176,7 @@ class DataIdConfig(DataLinkResourceConfigBase):
             err_msg_prefix="compose predefined data_id config",
         )
 
-    def compose_config(self, event_type="metric") -> dict:
+    def compose_config(self, event_type: str = "metric", prefer_kafka_cluster_name: str | None = None) -> dict:
         """
         数据源下发计算平台的资源配置
         """
@@ -196,6 +196,16 @@ class DataIdConfig(DataLinkResourceConfigBase):
                     "bizId": {{monitor_biz_id}},
                     "description": "{{name}}",
                     "maintainers": {{maintainers}},
+                    {% if prefer_kafka_cluster_name %}
+                    "preferCluster": {
+                        "kind": "KafkaChannel",
+                        {% if tenant %}
+                        "tenant": "{{ tenant }}",
+                        {% endif %}
+                        "namespace": "{{namespace}}",
+                        "name": "{{prefer_kafka_cluster_name}}"
+                    },
+                    {% endif %}
                     "event_type": "{{event_type}}"
                 }
             }
@@ -210,13 +220,12 @@ class DataIdConfig(DataLinkResourceConfigBase):
             "event_type": event_type,
         }
 
+        # 如果开启dataid注册时能够指定集群名称，则添加prefer_kafka_cluster_name字段
+        if settings.ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME:
+            render_params["prefer_kafka_cluster_name"] = prefer_kafka_cluster_name
+
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
-            logger.info(
-                "compose_v4_datalink_config: enable multi tenant mode,add bk_tenant_id->[%s],kind->[%s]",
-                self.bk_tenant_id,
-                self.kind,
-            )
             render_params["tenant"] = self.bk_tenant_id
 
         return utils.compose_config(
@@ -830,16 +839,19 @@ class ClusterConfig(models.Model):
     """
 
     # 由于配置原因，namespace实际上与存储类型是绑定的，与实际的使用方无关
-    KIND_TO_NAMESPACE_MAP = {
+    KIND_TO_NAMESPACES_MAP = {
         DataLinkKind.ELASTICSEARCH.value: BKBASE_NAMESPACE_BK_LOG,
         DataLinkKind.VMSTORAGE.value: BKBASE_NAMESPACE_BK_MONITOR,
         DataLinkKind.DORIS.value: BKBASE_NAMESPACE_BK_LOG,
+        # Kafka集群需要同时注册到bkmonitor和bklog命名空间
+        DataLinkKind.KAFKACHANNEL.value: [BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR],
     }
 
     CLUSTER_TYPE_TO_KIND_MAP = {
         "elasticsearch": DataLinkKind.ELASTICSEARCH.value,
         "victoria_metrics": DataLinkKind.VMSTORAGE.value,
         "doris": DataLinkKind.DORIS.value,
+        "kafka": DataLinkKind.KAFKACHANNEL.value,
     }
 
     bk_tenant_id = models.CharField(max_length=255, verbose_name="租户ID")
@@ -942,26 +954,28 @@ class ClusterConfig(models.Model):
 
         # 根据集群类型获取kind和namespace
         kind = cls.CLUSTER_TYPE_TO_KIND_MAP[cluster.cluster_type]
-        namespace = cls.KIND_TO_NAMESPACE_MAP[kind]
+        namespaces = cls.KIND_TO_NAMESPACES_MAP[kind]
 
         # 获取或创建bkbase集群配置记录
-        cluster_config, _ = ClusterConfig.objects.get_or_create(
-            bk_tenant_id=cluster.bk_tenant_id, namespace=namespace, name=cluster.cluster_name, kind=kind
-        )
+        for namespace in namespaces:
+            cluster_config, _ = ClusterConfig.objects.get_or_create(
+                bk_tenant_id=cluster.bk_tenant_id, namespace=namespace, name=cluster.cluster_name, kind=kind
+            )
 
-        # 组装配置
-        config = cluster_config.compose_config()
+            # 组装配置
+            config = cluster_config.compose_config()
 
-        # 注册到bkbase平台
-        try:
-            api.bkdata.apply_data_link(config=[config], bk_tenant_id=cluster.bk_tenant_id)
-        except Exception as e:
-            logger.error(f"sync_cluster_config: apply data link error: {e}")
-            raise e
+            # 注册到bkbase平台
+            try:
+                api.bkdata.apply_data_link(config=[config], bk_tenant_id=cluster.bk_tenant_id)
+            except Exception as e:
+                logger.error(f"sync_cluster_config: apply data link error: {e}")
+                raise e
 
-        # 更新集群注册状态
-        cluster_config.origin_config = config
-        cluster_config.save()
+            # 更新集群注册状态
+            cluster_config.origin_config = config
+            cluster_config.save()
+
         cluster.registered_to_bkbase = True
         cluster.save()
 

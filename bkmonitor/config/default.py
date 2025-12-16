@@ -334,6 +334,7 @@ ACTIVE_VIEWS = {
         "action": "fta_web.action.views",
         "event_plugin": "fta_web.event_plugin.views",
         "alert": "fta_web.alert.views",
+        "alert_v2": "fta_web.alert_v2.views",
         "assign": "fta_web.assign.views",
         "home": "fta_web.home.views",
     },
@@ -723,7 +724,6 @@ DOUBLE_CHECK_SUM_STRATEGY_IDS = os.environ.get("DOUBLE_CHECK_SUM_STRATEGY_IDS", 
 # BCS 集群配置来源标签
 BCS_CLUSTER_BK_ENV_LABEL = os.environ.get("BCS_CLUSTER_BK_ENV_LABEL", "")
 
-ALARM_DISABLE_STRATEGY_RULES = []
 OPTZ_FAKE_EVENT_BIZ_IDS = []
 
 # access模块数据拉取延迟时间
@@ -1422,6 +1422,8 @@ AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE = os.getenv("BK_AIDEV_AGENT_MCP_REQUEST_HEA
 AIDEV_AGENT_AI_GENERATING_KEYWORD = "生成中"
 # 是否开启AI RENAME
 ENABLE_AI_RENAME = False
+# MCP权限校验豁免的工具名称白名单
+MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
 
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
@@ -1509,6 +1511,10 @@ ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化
 ENABLE_SPACE_BUILTIN_DATA_LINK = os.getenv("ENABLE_SPACE_BUILTIN_DATA_LINK", "false").lower() == "true"
+# 是否开启dataid注册时能够指定集群名称，默认关闭
+ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME = (
+    os.getenv("ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME", "false").lower() == "true"
+)
 
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
@@ -1648,6 +1654,9 @@ APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
 # 事件 UnifyQuery 查询业务黑名单
 EVENT_UNIFY_QUERY_BLACK_BIZ_LIST = []
+
+# 日志 UnifyQuery 查询业务白名单
+LOG_UNIFY_QUERY_WHITE_BIZ_LIST = []
 
 # APM 调用分析启用全局指标的应用列表
 APM_RPC_GLOBAL_METRIC_ENABLE_APP_LIST = []
