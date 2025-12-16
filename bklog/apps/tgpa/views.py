@@ -82,8 +82,12 @@ class TGPATaskViewSet(APIViewSet):
         获取客户端日志索引集ID
         """
         params = self.params_valid(GetIndexSetIdSerializer)
-        res = {"index_set_id": None}
+        res = {
+            "index_set_id": None,
+            "collector_config_id": None,
+        }
         if FeatureToggleObject.switch(FEATURE_TOGGLE_TGPA_TASK, params["bk_biz_id"]):
             collector_config = TGPATaskHandler.get_or_create_collector_config(bk_biz_id=params["bk_biz_id"])
             res["index_set_id"] = collector_config.index_set_id
+            res["collector_config_id"] = collector_config.collector_config_id
         return Response(res)

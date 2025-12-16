@@ -1371,6 +1371,18 @@ class DimensionPromqlQueryResource(Resource):
         return result
 
     @classmethod
+    def _escape_label(cls, label: str | None) -> str:
+        """转义 label 名称。
+
+        背景：Prometheus 的 label 不支持点号（.），但在非时序场景下 label 里会包含点号。
+        解决：在查询 unify-query 之前，将 __bk_46__ 还原回点号。
+
+        :param label: 待转义的 label 名称，可能包含 __bk_46__ 编码。
+        :return: 转义后的 label 名称。
+        """
+        return label.replace("__bk_46__", ".") if label else ""
+
+    @classmethod
     def get_label_values(cls, bk_biz_id: int, promql: str, start_time: str, end_time: str) -> list[str]:
         """
         查询label_values函数
@@ -1379,17 +1391,13 @@ class DimensionPromqlQueryResource(Resource):
 
         match = cls.re_label_value.match(promql)
         promql = match.group(2)
-        label = match.group(4)
+        label = cls._escape_label(match.group(4))
         try:
             match_promql = [promql]
             if cookies_filter:
                 match_promql.append(cookies_filter)
 
-            params = {
-                "bk_biz_ids": [bk_biz_id],
-                "match": match_promql,
-                "label": label,
-            }
+            params = {"bk_biz_ids": [bk_biz_id], "match": match_promql, "label": label}
 
             if start_time and end_time:
                 params["start"] = start_time

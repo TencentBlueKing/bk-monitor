@@ -190,6 +190,10 @@ const stateTpl = {
   localSort: false,
   spaceUidMap: new Map(),
   bizIdMap: new Map(),
+  aiMode: {
+    active: false,
+    filterList: []
+  }
 };
 
 const store = new Vuex.Store({
@@ -304,6 +308,10 @@ const store = new Vuex.Store({
       const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
       const searchParams = searchMode === 'sql' ? { keyword, addition: [] } : { addition: getters.originAddition, keyword: '*' };
 
+      if (state.aiMode.active) {
+        searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword].filter(f => !/^\s*\*?\s*$/.test(f)).join(' AND ');
+      }
+
       if (searchParams.keyword.replace(/\s*/, '') === '') {
         searchParams.keyword = '*';
       }
@@ -375,6 +383,12 @@ const store = new Vuex.Store({
       for (const [key, value] of Object.entries(data)) {
         state[key] = value;
       }
+    },
+
+    updateAiMode(state, payload) {
+      Object.keys(payload).forEach((key) => {
+        set(state.aiMode, key, payload[key]);
+      });
     },
 
     updateStorage(state, payload) {
@@ -1237,7 +1251,7 @@ const store = new Vuex.Store({
           : [state.indexItem.start_time, state.indexItem.end_time];
 
         if (needTransform) {
-          commit('updateIndexItem', { startTime, endTime });
+          commit('updateIndexItem', { start_time: startTime, end_time: endTime });
         }
       }
 
@@ -1393,6 +1407,8 @@ const store = new Vuex.Store({
               is_error: state.indexSetQueryResult.is_error,
               exception_msg: state.indexSetQueryResult.exception_msg,
               first_page: queryData.begin === 0 ? 1 : 0,
+              action: 'request',
+              trigger_source: 'retrieve_query',
             };
 
             reportRouteLog(
@@ -1539,7 +1555,12 @@ const store = new Vuex.Store({
     setQueryCondition({ state, dispatch }, payload) {
       const newQueryList = Array.isArray(payload) ? payload : [payload];
       const isLink = newQueryList[0]?.isLink;
-      const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+      let searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
+
+      if (state.aiMode.active) {
+        searchMode = 'sql';
+      }
+
       const depth = Number(payload.depth ?? '0');
       const isNestedField = payload?.isNestedField ?? 'false';
       const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
@@ -1691,6 +1712,19 @@ const store = new Vuex.Store({
           return !isExist || isNewSearchPage ? newSearchValue : null;
         })
         .filter(Boolean);
+
+      if (state.aiMode.active) {
+        const newSearchKeywords = filterQueryList.filter(item => !state.aiMode.filterList.includes(item));
+        if (newSearchKeywords.length) {
+          state.aiMode.filterList.push(...newSearchKeywords);
+        }
+
+        if (from === 'origin') {
+          dispatch('requestIndexSetQuery');
+        }
+
+        return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);
+      }
 
       // list内的所有条件均相同时不进行添加条件处理
       if (!filterQueryList.length) return Promise.resolve([filterQueryList, searchMode, isNewSearchPage]);

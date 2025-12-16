@@ -84,6 +84,11 @@ class GetAllUserResource(BkUserApiResource):
     method = "GET"
     cache_type = CacheType.USER
 
+    class RequestSerializer(serializers.Serializer):
+        lookup_field = serializers.CharField(label="查询字段", required=False)
+        exact_lookups = serializers.CharField(label="精确查找", required=False)
+        fields = serializers.CharField(label="返回字段", required=False)  # pyright: ignore[reportAssignmentType]
+
     def perform_request(self, params):
         # 如果使用apigw，则直接返回空列表，这种情况下要求前端直接请求bk-user的接口获取用户展示信息
         if self.use_apigw():
@@ -255,6 +260,38 @@ class GetUserSensitiveInfo(UnityUserBaseResource):
     class RequestSerializer(serializers.Serializer):
         usernames = serializers.CharField(required=True)
         fields = serializers.CharField(required=True)
+
+
+class GetUserInfo(BkUserApiResource):
+    """
+    获取用户信息
+    """
+
+    @property
+    def action(self):
+        if self.use_apigw():
+            return "/api/v3/open/tenant/users/{bk_username}/"
+        return "/retrieve_user/"
+
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        id = serializers.CharField(required=True, label="用户名")
+        lookup_field = serializers.CharField(required=False, label="查询字段")
+        fields = serializers.CharField(required=False, label="返回字段")
+
+    def perform_request(self, validated_request_data):
+        if self.use_apigw():
+            # API Gateway 模式：转换参数格式
+            params = {"bk_username": validated_request_data["id"]}
+            return super().perform_request(params)
+
+        result = GetAllUserResource().perform_request(
+            {"lookup_field": "username", "exact_lookups": validated_request_data["id"]}
+        )
+        if not result["results"]:
+            raise ValueError(f"用户 {validated_request_data['id']} 不存在")
+        return result["results"][0]
 
 
 class BatchLookupVirtualUserResource(BkUserApiResource):
