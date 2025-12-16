@@ -90,7 +90,7 @@ class NodataHandler(base.BaseHandler):
                     ):
                         circuit_breaking_count += 1
                         logger.warning(
-                            f"[circuit breaking] Strategy {strategy_id} circuit breaking triggered in nodata check "
+                            f"[circuit breaking] strategy({strategy_id}) circuit breaking triggered in nodata check "
                             f"(access.data rule), bk_biz_id: {strategy.bk_biz_id}, "
                             f"strategy_source: {data_source_label}:{data_type_label}"
                         )
@@ -98,7 +98,7 @@ class NodataHandler(base.BaseHandler):
 
                 except Exception as cb_e:
                     logger.exception(
-                        f"[circuit breaking] Circuit breaking check failed for strategy {strategy_id}: {cb_e}"
+                        f"[circuit breaking] Circuit breaking check failed for strategy({strategy_id}): {cb_e}"
                     )
                     # 熔断检查失败时，继续处理该策略，不影响正常业务逻辑
 
