@@ -19,6 +19,7 @@ from alarm_backends.core.alert import Alert, Event
 from alarm_backends.core.alert.alert import AlertUIDManager
 from alarm_backends.core.cache.assign import AssignCacheManager
 from alarm_backends.core.cache.key import ALERT_UPDATE_LOCK
+from alarm_backends.core.circuit_breaking.manager import AlertBuilderCircuitBreakingManager
 from alarm_backends.core.lock.service_lock import multi_service_lock
 from alarm_backends.service.alert.enricher import AlertEnrichFactory, EventEnrichFactory
 from alarm_backends.service.alert.manager.tasks import send_check_task
@@ -34,6 +35,8 @@ class AlertBuilder(BaseAlertProcessor):
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger("alert.builder")
+        circuit_breaking_manager = AlertBuilderCircuitBreakingManager()
+        self.circuit_breaking_manager = circuit_breaking_manager
 
     def get_unexpired_events(self, events: list[Event]):
         """
@@ -290,11 +293,50 @@ class AlertBuilder(BaseAlertProcessor):
 
     def alert_qos_handle(self, alert: Alert):
         if not alert.is_blocked:
+            # 对于未被流控的告警，只检查熔断规则
+            circuit_breaking_blocked = False
+            if self.circuit_breaking_manager:
+                circuit_breaking_blocked = alert.check_circuit_breaking(self.circuit_breaking_manager)
+
+            if circuit_breaking_blocked:
+                # 告警触发熔断规则，需要流控, 结束当前告警。
+                alert.update_qos_status(True)
+                now_time = int(time.time())
+                alert.set_end_status(
+                    status=EventStatus.CLOSED,
+                    op_type=AlertLog.OpType.ALERT_QOS,
+                    description="告警命中熔断规则，被流控关闭",
+                    end_time=now_time,
+                    event_id=now_time,
+                )
+                self.logger.info(
+                    f"[circuit breaking] [alert.builder] exists alert({alert.id}) strategy({alert.strategy_id}) "
+                    f"is blocked by circuit breaking rules"
+                )
+
             return alert
-        # 旧的告警数据需要判断当前是否熔断已经结束所以不计入熔断
+
+        # 对于已被流控的告警，先检查熔断规则状态
+        circuit_breaking_blocked = False
+        if self.circuit_breaking_manager:
+            circuit_breaking_blocked = alert.check_circuit_breaking(self.circuit_breaking_manager)
+
+        if circuit_breaking_blocked:
+            # 仍命中熔断规则，记录日志并直接返回，不需要检查QoS
+            alert.add_log(
+                op_type=AlertLog.OpType.ALERT_QOS,
+                event_id=int(time.time()),
+                description="告警仍触发熔断规则，继续流控",
+                time=int(time.time()),
+            )
+
+            self.logger.debug(f"[circuit breaking] [alert.builder] alert({alert.id}) still blocked by circuit breaking")
+            return alert
+
+        # 熔断规则未命中，继续检查QoS状态
         qos_result = alert.qos_check()
         if qos_result["is_blocked"]:
-            # 还是在熔断中
+            # 仍被QoS流控
             return alert
         else:
             # 不满足熔断条件了，关闭当前告警，接下来直接产生一条新的告警
@@ -321,13 +363,14 @@ class AlertBuilder(BaseAlertProcessor):
         for event in events:
             alert: Alert = current_alerts.get(event.dedupe_md5)
             if alert and alert.is_abnormal():
+                # 存量告警处理
                 # 当前事件已经关联了告警， 且告警处于未恢复状态
                 # qos判定，如果判定qos解除， 则alert的状态变更为CLOSED
                 alert = self.alert_qos_handle(alert)
                 if alert.status == EventStatus.CLOSED:
                     # qos状态解除，创建新告警
                     new_alerts[alert.id] = alert
-                    alert = Alert.from_event(event)
+                    alert = Alert.from_event(event, circuit_breaking_manager=self.circuit_breaking_manager)
                 else:
                     if alert.severity > event.severity and alert.severity_source != AssignMode.BY_RULE:
                         # 如果告警级别小于当前事件的级别，并且级别不是告警分派改变的，先将当前告警关闭，再创建一个新的告警
@@ -339,7 +382,7 @@ class AlertBuilder(BaseAlertProcessor):
                             event_id=event.id,
                         )
                         new_alerts[alert.id] = alert
-                        alert = Alert.from_event(event)
+                        alert = Alert.from_event(event, circuit_breaking_manager=self.circuit_breaking_manager)
                     elif alert.event_severity < event.severity:
                         # 如果当前告警关联的事件级别高于新的事件级别， 接丢弃当前的event, 并记录日志
                         alert.add_log(
@@ -354,11 +397,12 @@ class AlertBuilder(BaseAlertProcessor):
                         alert.update(event)
 
             else:
+                # 新告警
                 # 如果当前无告警缓存，或者当前告警存在关闭时间，则创建一个新告警
                 if not event.is_abnormal():
                     # 如果当前没有正在产生的告警，且当前事件状态不是异常，则跳过处理
                     continue
-                alert = Alert.from_event(event=event)
+                alert = Alert.from_event(event=event, circuit_breaking_manager=self.circuit_breaking_manager)
                 self.logger.info(
                     "[alert.builder] event(%s) -> new alert(%s)",
                     event.event_id,
@@ -377,10 +421,13 @@ class AlertBuilder(BaseAlertProcessor):
         for alert in alerts_to_init:
             alert.init_uid()
 
+        # 统计新创建的告警中被熔断流控的数量（用于日志记录）
+        circuit_breaking_count = len([alert for alert in alerts_to_init if alert.is_blocked])
         self.logger.info(
-            "[alert.builder build alerts] finished, new/total(%d/%d)",
+            "[alert.builder build alerts] finished, new/total(%d/%d), circuit_breaking(%d)",
             len(alerts_to_init),
             len(alerts),
+            circuit_breaking_count,
         )
 
         return alerts

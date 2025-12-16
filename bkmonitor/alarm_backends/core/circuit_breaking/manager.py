@@ -19,9 +19,8 @@ logger = logging.getLogger("circuit_breaking")
 class BaseCircuitBreakingManager:
     module = ""
 
-    def __init__(self, module: str):
-        self.module = module
-        self.config = CircuitBreakingCacheManager.get_config(module)
+    def __init__(self):
+        self.config = CircuitBreakingCacheManager.get_config(self.module)
         self.matcher = gen_circuit_breaking_matcher(self.config)
 
     def __bool__(self) -> bool:
@@ -51,25 +50,6 @@ class BaseCircuitBreakingManager:
             )
 
         return is_match
-
-    @classmethod
-    def clean_cb_dimension(cls, *args, **kwargs) -> dict:
-        """
-        清理熔断维度数据
-        :return: 清理后的维度数据
-        """
-        return {}
-
-
-class AccessDataCircuitBreakingManager(BaseCircuitBreakingManager):
-    """
-    Access Data 模块熔断管理器
-    """
-
-    module = "access.data"
-
-    def __init__(self, module: str = "access.data"):
-        super().__init__(module)
 
     @classmethod
     def clean_cb_dimension(
@@ -141,3 +121,19 @@ class AccessDataCircuitBreakingManager(BaseCircuitBreakingManager):
                 f"[circuit breaking] [access.data] strategy circuit breaking check failed for strategy_id {strategy_id}: {e}"
             )
             return False
+
+
+class AccessDataCircuitBreakingManager(BaseCircuitBreakingManager):
+    """
+    Access Data 模块熔断管理器
+    """
+
+    module = "access.data"
+
+
+class AlertBuilderCircuitBreakingManager(BaseCircuitBreakingManager):
+    """
+    Alert Builder 模块熔断管理器
+    """
+
+    module = "alert.builder"

@@ -65,6 +65,9 @@ class CircuitBreakingCacheManager(CacheManager):
         :param module: 模块名称
         :return: 熔断配置列表
         """
+        if not module:
+            return []
+
         cache_key = cls.get_cache_key(module)
         try:
             config_data = cls.cache.get(cache_key)
