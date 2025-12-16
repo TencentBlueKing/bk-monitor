@@ -179,16 +179,19 @@ export default defineComponent({
             )}
           </div>
           <div class='btn-wrap'>
-            <div
-              class='hide-btn'
-              onClick={this.handleHide}
-            >
-              {this.isHide ? (
-                <span class='icon-monitor icon-mc-invisible' />
-              ) : (
-                <span class='icon-monitor icon-guanchazhong' />
-              )}
-            </div>
+            {this.hasTagHidden && (
+              <div
+                class='hide-btn'
+                onClick={this.handleHide}
+              >
+                {this.isHide ? (
+                  <span class='icon-monitor icon-mc-invisible' />
+                ) : (
+                  <span class='icon-monitor icon-guanchazhong' />
+                )}
+              </div>
+            )}
+
             <div
               class='delete-btn'
               onClick={this.handleDelete}

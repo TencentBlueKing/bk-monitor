@@ -48,6 +48,7 @@ import StatisticsList from '../statistics-list';
 import ExploreConditionMenu from './components/explore-condition-menu';
 import ExploreTableEmpty from './components/explore-table-empty';
 import {
+  CAN_TABLE_SORT_FIELD_TYPES,
   ENABLED_TABLE_CONDITION_MENU_CLASS_NAME,
   ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME,
   ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME,
@@ -134,6 +135,11 @@ export default defineComponent({
         sortBy: '',
         descending: null,
       }),
+    },
+    /** 支持排序的字段类型 */
+    canSortFieldTypes: {
+      type: [Set, Array] as PropType<Set<string> | string[]>,
+      default: () => CAN_TABLE_SORT_FIELD_TYPES,
     },
     /** 是否启用点击弹出操作下拉菜单 */
     enabledClickMenu: {
@@ -263,7 +269,16 @@ export default defineComponent({
       },
     });
 
-    const { tableCellRender } = useTableCell(tableRowKeyField);
+    const { tableCellRender, renderContext } = useTableCell({
+      rowKeyField: tableRowKeyField,
+      customDefaultGetRenderValue: (row, column) => {
+        const alias = row?.[column.colKey];
+        if (typeof alias !== 'object' || alias == null) {
+          return alias;
+        }
+        return JSON.stringify(alias);
+      },
+    });
     const { tableColumns, tableDisplayColumns } = useExploreColumnConfig({
       appName: toRef(props, 'appName'),
       displayFields: toRef(props, 'displayFields'),
@@ -273,6 +288,8 @@ export default defineComponent({
       sortContainer: toRef(props, 'sortContainer'),
       sourceFieldConfigs: toRef(props, 'sourceFieldConfigs'),
       enabledClickMenu: toRef(props, 'enabledClickMenu'),
+      canSortFieldTypes: toRef(props, 'canSortFieldTypes'),
+      renderContext,
       tableHeaderCellRender: (...args) => tableHeaderCellRender(...args),
       tableCellRender,
       handleConditionMenuShow: (...args) => handleConditionMenuShow(...args),
@@ -642,7 +659,7 @@ export default defineComponent({
       >
         <PrimaryTable
           ref='tableRef'
-          class={this.tableSkeletonConfig?.tableClass}
+          class={`explore-table ${this.tableSkeletonConfig?.tableClass}`}
           v-slots={{
             empty: () => (
               <ExploreTableEmpty
@@ -703,15 +720,20 @@ export default defineComponent({
                 )
               : undefined
           }
-          rowspanAndColspan={({ colIndex }) => {
-            return {
-              rowspan: 1,
-              colspan: colIndex === this.tableDisplayColumns.length - 1 ? 2 : 1,
-            };
-          }}
+          rowspanAndColspan={
+            this.enabledDisplayFieldSetting
+              ? ({ colIndex }) => {
+                  return {
+                    rowspan: 1,
+                    colspan: colIndex === this.tableDisplayColumns.length - 1 ? 2 : 1,
+                  };
+                }
+              : undefined
+          }
           activeRowType='single'
           data={this.tableData}
           hover={true}
+          needCustomScroll={false}
           resizable={true}
           rowKey={this.tableRowKeyField}
           showSortColumnBgColor={true}

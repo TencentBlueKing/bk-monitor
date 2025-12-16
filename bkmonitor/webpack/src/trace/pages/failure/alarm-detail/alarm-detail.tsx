@@ -990,6 +990,7 @@ export default defineComponent({
                     columns={this.columns}
                     data={item.alerts}
                     maxHeight={alertData.length > 1 ? 616 : this.alarmDetailHeight - 100}
+                    needCustomScroll={false}
                     tooltip-config={{ showAll: false }}
                     onRowMouseenter={this.handleEnter}
                     onRowMouseleave={() => {

@@ -1281,8 +1281,11 @@ export default defineComponent({
           {headerTmpl()}
           <Loading loading={this.isTableLoading}>
             <PrimaryTable
-              style='margin-top: 16px;background-color: white;'
-              v-show={this.isManagerOrUser}
+              style={{
+                marginTop: '16px',
+                backgroundColor: 'white',
+                display: this.isManagerOrUser ? 'block' : 'none !important',
+              }}
               v-slots={{
                 empty: () => (
                   <EmptyStatus
@@ -1324,6 +1327,7 @@ export default defineComponent({
               }}
               bkUiSettings={this.table.settings}
               data={this.table.data}
+              needCustomScroll={false}
               showSortColumnBgColor={true}
               onFilterChange={(filters: TableProps['filterValue']) => {
                 const conditions = [];
@@ -1357,8 +1361,11 @@ export default defineComponent({
               }}
             />
             <PrimaryTable
-              style='margin-top: 16px;background-color: white;'
-              v-show={this.createType === 'self'}
+              style={{
+                marginTop: '16px',
+                backgroundColor: 'white',
+                display: this.createType === 'self' ? 'block' : 'none !important',
+              }}
               v-slots={{
                 empty: () => (
                   <EmptyStatus
@@ -1388,6 +1395,7 @@ export default defineComponent({
               bkUiSettings={this.tableForSelf.settings}
               data={this.computedTableDataForSelf}
               filterValue={this.filterConfig}
+              needCustomScroll={false}
               onFilterChange={(filters: TableProps['filterValue']) => {
                 this.filterConfig = filters;
               }}
@@ -1459,6 +1467,7 @@ export default defineComponent({
                   height={400}
                   columns={this.sendRecordTable.columns}
                   data={this.sendRecordTable.data}
+                  needCustomScroll={false}
                   rowKey='id'
                 />
               </Loading>

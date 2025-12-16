@@ -1,0 +1,79 @@
+.panel-log-log-table {
+  position: relative;
+
+  .panel-log-log-table-scroll-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 160px;
+    height: 32px;
+    margin: 16px auto;
+    color: #979ba5;
+    background-color: #ebedf0;
+    border-radius: 2px;
+  }
+
+  .table-expand-content {
+    position: relative;
+
+    .icon-mc-copy {
+      position: absolute;
+      top: 0;
+      right: 0;
+      right: -16px;
+      font-size: 16px;
+      color: #63656e;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+
+    .vjs-tree-node {
+      font-size: 12px;
+      line-height: 22px;
+
+      &:not(:has(.vjs-carets-open)) {
+        padding-left: 9px;
+      }
+
+      &:has(.vjs-carets-open) {
+        padding-left: 20px;
+      }
+
+      .vjs-carets-open {
+        right: 5px;
+        display: flex;
+        align-items: center;
+        height: 100%;
+        color: #1f6d89;
+      }
+
+      .vjs-indent-unit.has-line {
+        width: 2em;
+        border-left-style: solid;
+      }
+
+      .vjs-key {
+        color: #9d694c;
+      }
+
+      .vjs-value {
+        &.vjs-value-string {
+          color: #1f6d89;
+          white-space: pre-wrap;
+        }
+
+        &.vjs-value-number {
+          color: #2caf5e;
+        }
+      }
+    }
+  }
+
+  .table-expand-icon {
+    font-size: 12px;
+    color: #4d4f56;
+  }
+}

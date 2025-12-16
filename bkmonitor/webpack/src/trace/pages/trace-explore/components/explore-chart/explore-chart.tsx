@@ -37,7 +37,6 @@ import CommonLegend from '../../../../plugins/components/common-legend';
 import { useChartLegend } from './use-chart-legend';
 import { useChartTitleEvent } from './use-chart-title-event';
 import { useEcharts } from './use-echarts';
-import { useTraceExploreStore } from '@/store/modules/explore';
 
 import type { DataZoomEvent } from './types';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
@@ -50,22 +49,35 @@ export default defineComponent({
       type: Object as PropType<PanelModel>,
       required: true,
     },
+    showTitle: {
+      type: Boolean,
+      default: true,
+    },
+    formatterData: {
+      type: Function as PropType<(val) => any>,
+      default: res => res,
+    },
+    params: {
+      type: Object as PropType<Record<string, any>>,
+      default: () => ({}),
+    },
   },
-  setup(props) {
-    const store = useTraceExploreStore();
+  emits: ['dataZoomChange', 'durationChange'],
+  setup(props, { emit }) {
     const { t } = useI18n();
-    // const panelModels = shallowRef<PanelModel[]>([]);
-    // const dashboardId = random(10);
-    // const traceStore = useTraceExploreStore();
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
     const instance = getCurrentInstance();
     const chartRef = useTemplateRef<HTMLElement>('chart');
     const mouseIn = shallowRef(false);
     const panel = computed(() => props.panel);
-    const { options, loading, metricList, targets, series } = useEcharts(
+    const params = computed(() => props.params);
+
+    const { options, loading, metricList, targets, series, duration, chartId } = useEcharts(
       panel,
       chartRef,
-      instance.appContext.config.globalProperties.$api
+      instance.appContext.config.globalProperties.$api,
+      params,
+      props.formatterData
     );
     const { handleAlarmClick, handleMenuClick, handleMetricClick } = useChartTitleEvent(
       metricList,
@@ -74,7 +86,7 @@ export default defineComponent({
       series,
       chartRef
     );
-    const { legendData, handleSelectLegend } = useChartLegend(options);
+    const { legendData, handleSelectLegend } = useChartLegend(options, chartId);
     const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
       if (!mouseIn.value) return;
       const xAxisData = echartOptions.xAxis[0]?.data;
@@ -96,11 +108,19 @@ export default defineComponent({
       if (!startTime) {
         startTime = xAxisData[0];
       }
-      store.updateTimeRange([startTime, endTime]);
+      emit('dataZoomChange', [startTime, endTime]);
     };
     const handleMouseInChange = (v: boolean) => {
       mouseIn.value = v;
     };
+
+    watch(
+      () => duration.value,
+      val => {
+        emit('durationChange', val);
+      }
+    );
+
     watch(
       [loading, options],
       async () => {
@@ -139,7 +159,7 @@ export default defineComponent({
         ref='chart'
         class='explore-chart'
       >
-        {this.panel && (
+        {this.panel && this.showTitle && (
           <ChartTitle
             class='draggable-handle'
             dragging={this.panel.dragging}
