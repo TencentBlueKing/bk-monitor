@@ -400,7 +400,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_config(self, bk_data_id) -> dict:
+    def compose_config(self, bk_data_id=None) -> dict:
         """
         组装VM存储配置，与结果表相关联
         @param metric_group_dimensions: 指标分组维度列表，可选
@@ -455,13 +455,15 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             "maintainers": json.dumps(maintainer),
         }
 
-        # TimeSeriesGroup 中存在metric_group_dimensions才使用 v2 的 vmstoragebinding 配置
-        from metadata.models.custom_report.time_series import TimeSeriesGroup
+        if bk_data_id:
+            # TimeSeriesGroup 中存在metric_group_dimensions才使用 v2 的 vmstoragebinding 配置
+            from metadata.models.custom_report.time_series import TimeSeriesGroup
 
-        ts_group = TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, is_delete=False).first()
-        if ts_group and ts_group.metric_group_dimensions:
-            render_params["metric_group_dimensions"] = json.dumps(ts_group.metric_group_dimensions_list)
-            render_params["dd_version"] = "v2"
+            ts_group = TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, is_delete=False).first()
+            if ts_group and ts_group.metric_group_dimensions:
+                metric_group_dimensions = [dim.get("key") for dim in ts_group.metric_group_dimensions if dim.get("key")]
+                render_params["metric_group_dimensions"] = json.dumps(metric_group_dimensions)
+                render_params["dd_version"] = "v2"
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:

@@ -92,12 +92,6 @@ class TimeSeriesGroup(CustomGroupBase):
     # dimension字段配置
     STORAGE_EVENT_NAME_OPTION = {}
 
-    @property
-    def metric_group_dimensions_list(self) -> list[str]:
-        if not self.metric_group_dimensions:
-            return []
-        return [dim.get("key") for dim in self.metric_group_dimensions if dim.get("key")]
-
     STORAGE_FIELD_LIST = [
         {
             "field_name": "target",
@@ -1161,7 +1155,7 @@ class TimeSeriesScope(models.Model):
     def update_dimension_config_and_metrics_scope_id(cls, scope_moves: dict, need_update_metrics: bool = True):
         """批量更新指标分组和维度配置
 
-        :param scope_moves: {sink_scope: {"moved_metrics": [...], "source_scope": ...}}
+        :param scope_moves: {(source_scope, sink_scope): [moved_metrics]}
         :param need_update_metrics: 是否需要更新指标的 scope_id
         """
         if not scope_moves:
@@ -1170,12 +1164,9 @@ class TimeSeriesScope(models.Model):
         all_metrics_to_update = []
         scopes_to_update = []
 
-        for sink_scope, move_info in scope_moves.items():
-            moved_metrics = move_info.get("moved_metrics") or []
+        for (source_scope, sink_scope), moved_metrics in scope_moves.items():
             if not moved_metrics:
                 continue
-
-            source_scope = move_info.get("source_scope")
 
             # 1. 收集被移动指标的所有维度
             moved_dimensions = {dim for metric in moved_metrics if metric.tag_list for dim in metric.tag_list}
@@ -1778,10 +1769,7 @@ class TimeSeriesScope(models.Model):
 
             # 4. 收集需要迁移的信息
             if moved_metrics:
-                scope_moves[default_scope] = {
-                    "moved_metrics": moved_metrics,
-                    "source_scope": source_scope,
-                }
+                scope_moves[(source_scope, default_scope)] = moved_metrics
 
         # 5. 批量更新指标的 scope_id 和维度配置
         cls.update_dimension_config_and_metrics_scope_id(scope_moves)
@@ -2375,7 +2363,9 @@ class TimeSeriesMetric(models.Model):
         # 批量查找已存在的指标
         field_ids = [m.get("field_id") for m in metrics_data if m.get("field_id")]
         existing_metrics_map = (
-            {metric.field_id: metric for metric in cls.objects.filter(field_id__in=field_ids)} if field_ids else {}
+            {metric.field_id: metric for metric in cls.objects.filter(field_id__in=field_ids, group_id=group_id)}
+            if field_ids
+            else {}
         )
 
         # 分离需要创建和更新的指标
@@ -2420,7 +2410,7 @@ class TimeSeriesMetric(models.Model):
             if target_dimension not in tag_list:
                 metric_data["tag_list"] = tag_list + [target_dimension]
 
-            database_name = table_id.split(".")[0]
+            database_name = table_id.rsplit(".", 1)[0]
             metric_data["table_id"] = f"{database_name}.{metric_data['field_name']}"
 
             scope_id = metric_data.get("scope_id")
@@ -2439,28 +2429,24 @@ class TimeSeriesMetric(models.Model):
                 label=metric_data.get("label", ""),
             )
             records_to_create.append(metric_obj)
-            scope_moves[scope].append(metric_obj)
+            scope_moves[(None, scope)].append(metric_obj)
 
         # 批量创建
         cls.objects.bulk_create(records_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
 
-        scope_moves_dict = {
-            scope: {"moved_metrics": moved_metrics, "source_scope": None}
-            for scope, moved_metrics in scope_moves.items()
-        }
-        TimeSeriesScope.update_dimension_config_and_metrics_scope_id(
-            scope_moves=scope_moves_dict, need_update_metrics=False
-        )
+        TimeSeriesScope.update_dimension_config_and_metrics_scope_id(scope_moves=scope_moves, need_update_metrics=False)
 
     @classmethod
     def _batch_update_metrics(cls, metrics_to_update, scopes_dict):
-        updatable_fields = ["field_config", "label"]
+        updatable_fields = ["field_config", "label", "tag_list"]
         records_to_update = []
-        scope_moves = defaultdict(
-            lambda: {"new_scope": None, "source_scope": None, "metrics": []}
-        )  # {(new_scope_id, old_scope_id): {...}}
+        scope_moves = defaultdict(list)
 
         for metric, validated_request_data in metrics_to_update:
+            # 保存原始的 tag_list 和 scope_id，用于检测变化
+            original_tag_list = metric.tag_list or []
+            original_scope_id = metric.scope_id
+
             # 统一更新字段值（无论scope是否变化）
             for field in updatable_fields:
                 if field in validated_request_data:
@@ -2469,28 +2455,24 @@ class TimeSeriesMetric(models.Model):
             records_to_update.append(metric)
 
             scope_id = validated_request_data.get("scope_id")
-            new_scope = None
-            if scope_id is not None:
-                new_scope = scopes_dict.get(scope_id)
-                if new_scope is None:
-                    raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
+            new_scope = scopes_dict.get(scope_id)
+            if new_scope is None:
+                raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
 
-            # 如果scope发生变化，记录需要移动的指标
-            if new_scope and metric.scope_id != new_scope.id:
-                move_key = (new_scope.id, metric.scope_id)
-                scope_moves[move_key]["new_scope"] = new_scope
-                scope_moves[move_key]["metrics"].append(metric)
-                scope_moves[move_key]["source_scope"] = scopes_dict.get(metric.scope_id)
+            # 检测是否需要记录移动的指标
+            scope_changed = new_scope and original_scope_id != new_scope.id
+            tag_list_changed = set(original_tag_list) != set(metric.tag_list or [])
+
+            # 如果 scope 发生变化或者 tag_list 发生变化，记录需要移动的指标
+            if scope_changed or tag_list_changed:
+                source_scope = scopes_dict.get(original_scope_id)
+                scope_moves[(source_scope, new_scope)].append(metric)
 
         # 批量更新所有指标的字段
         if records_to_update:
             cls.objects.bulk_update(records_to_update, updatable_fields, batch_size=BULK_UPDATE_BATCH_SIZE)
 
-        scope_moves_dict = {
-            move_info["new_scope"]: {"moved_metrics": move_info["metrics"], "source_scope": move_info["source_scope"]}
-            for move_info in scope_moves.values()
-        }
-        TimeSeriesScope.update_dimension_config_and_metrics_scope_id(scope_moves=scope_moves_dict)
+        TimeSeriesScope.update_dimension_config_and_metrics_scope_id(scope_moves=scope_moves)
 
     @classmethod
     def _validate_field_name_conflicts(cls, metrics_to_create):
