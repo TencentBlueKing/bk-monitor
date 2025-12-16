@@ -2443,6 +2443,10 @@ class TimeSeriesMetric(models.Model):
         scope_moves = defaultdict(list)
 
         for metric, validated_request_data in metrics_to_update:
+            # 保存原始的 tag_list 和 scope_id，用于检测变化
+            original_tag_list = metric.tag_list or []
+            original_scope_id = metric.scope_id
+
             # 统一更新字段值（无论scope是否变化）
             for field in updatable_fields:
                 if field in validated_request_data:
@@ -2455,9 +2459,13 @@ class TimeSeriesMetric(models.Model):
             if new_scope is None:
                 raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
 
-            # 如果scope发生变化，记录需要移动的指标
-            if new_scope and metric.scope_id != new_scope.id:
-                source_scope = scopes_dict.get(metric.scope_id)
+            # 检测是否需要记录移动的指标
+            scope_changed = new_scope and original_scope_id != new_scope.id
+            tag_list_changed = set(original_tag_list) != set(metric.tag_list or [])
+
+            # 如果 scope 发生变化或者 tag_list 发生变化，记录需要移动的指标
+            if scope_changed or tag_list_changed:
+                source_scope = scopes_dict.get(original_scope_id)
                 scope_moves[(source_scope, new_scope)].append(metric)
 
         # 批量更新所有指标的字段
