@@ -426,6 +426,7 @@ export default defineComponent({
          */
         const data = {
           scenario_id: props.scenarioId,
+          bk_biz_id: bkBizId.value,
           storage_cluster_id: props.configData.storage_cluster_id,
           /**
            * 已有索引列表，使用新的时间字段配置

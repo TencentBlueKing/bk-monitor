@@ -139,6 +139,7 @@ export default defineComponent({
         confirmLoading.value = true;
         const data = {
           scenario_id: props.scenarioId,
+          bk_biz_id: bkBizId.value,
           basic_indices: props.configData.indexes.map(item => ({
             index: item.result_table_id,
           })),
