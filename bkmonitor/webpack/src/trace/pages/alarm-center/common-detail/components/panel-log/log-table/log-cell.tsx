@@ -74,6 +74,7 @@ export default defineComponent({
     const hasMore = shallowRef<boolean>(false);
     const isExpand = shallowRef<boolean>(false);
     const intersectionObserver = shallowRef<IntersectionObserver>(null);
+    const resizeObserver = shallowRef<ResizeObserver>(null);
 
     const handleExpand = (e: MouseEvent) => {
       e.stopPropagation();
@@ -100,14 +101,21 @@ export default defineComponent({
         const fieldKeys = props.field.field_name.split('.');
         const isNestedValue = isNestedField(fieldKeys, props.row);
         wordList.value = textSegmentation.getChildNodes(isNestedValue);
+        const checkHeight = () => {
+          const segmentContentEl = wrapRef.value?.querySelector('.segment-content');
+          hasMore.value = segmentContentEl.getBoundingClientRect().height > 60;
+        };
         nextTick(() => {
           if (!intersectionObserver.value) {
             intersectionObserver.value = new IntersectionObserver(entries => {
               for (const entry of entries) {
                 if (entry.intersectionRatio > 0) {
-                  const segmentContentEl = wrapRef.value?.querySelector('.segment-content');
-                  if (segmentContentEl.getBoundingClientRect().height > 60) {
-                    hasMore.value = true;
+                  checkHeight();
+                  if (!resizeObserver.value) {
+                    resizeObserver.value = new ResizeObserver(() => {
+                      checkHeight();
+                    });
+                    resizeObserver.value.observe(wrapRef.value);
                   }
                 }
               }
@@ -120,6 +128,7 @@ export default defineComponent({
 
     onUnmounted(() => {
       intersectionObserver.value?.disconnect();
+      resizeObserver.value?.disconnect();
     });
 
     return {
@@ -141,27 +150,32 @@ export default defineComponent({
         class={'log-table-new-log-cell'}
       >
         <div class='segment-content'>
-          {this.wordList.map((item, index) => (
-            <SegmentPop
-              key={index}
-              onClickMenu={this.handleClickMenu}
-            >
-              {{
-                default: ({ onClick: handleClick }) => (
-                  <span
-                    class={[item.isCursorText && item.text ? 'valid-text' : 'others-text']}
-                    onClick={(e: MouseEvent) =>
-                      handleClick(e, {
-                        value: item.text,
-                      })
-                    }
-                  >
-                    {item.text || '--'}
-                  </span>
-                ),
-              }}
-            </SegmentPop>
-          ))}
+          {this.wordList.map((item, index) => {
+            const canClick = item.isCursorText && item.text;
+            return (
+              <SegmentPop
+                key={index}
+                onClickMenu={this.handleClickMenu}
+              >
+                {{
+                  default: ({ onClick: handleClick }) => (
+                    <span
+                      class={[canClick ? 'valid-text' : 'others-text']}
+                      onClick={(e: MouseEvent) => {
+                        if (canClick) {
+                          handleClick(e, {
+                            value: item.text,
+                          });
+                        }
+                      }}
+                    >
+                      {item.text || '--'}
+                    </span>
+                  ),
+                }}
+              </SegmentPop>
+            );
+          })}
         </div>
         {this.hasMore && (
           <span

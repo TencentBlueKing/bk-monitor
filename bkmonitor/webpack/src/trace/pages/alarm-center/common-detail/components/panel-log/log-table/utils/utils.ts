@@ -323,3 +323,80 @@ export const parseTableRowData = (row, key, fieldType = undefined, isFormatDate 
 
   return data === null || data === undefined || data === '' ? emptyCharacter : data;
 };
+
+/**
+ * @desc: 计算字符串像素长度
+ * @param {String} str 字符串
+ * @param {String} fontSize 像素大小 默认12px
+ * @param {String} fontFamily 字体样式
+ * @returns {Number} 两个对象是否相同
+ */
+export const getTextPxWidth = (str, fontSize = '12px', fontFamily = null) => {
+  let result = 10;
+  const ele = document.createElement('span');
+  // 字符串中带有换行符时，会被自动转换成<br/>标签，若需要考虑这种情况，可以替换成空格，以获取正确的宽度
+  // str = str.replace(/\\n/g,' ').replace(/\\r/g,' ');
+  ele.innerText = str;
+  if (fontFamily) ele.style.fontFamily = fontFamily;
+  // 不同的大小和不同的字体都会导致渲染出来的字符串宽度变化，可以传入尽可能完备的样式信息
+  ele.style.fontSize = fontSize;
+  // 由于父节点的样式会影响子节点，这里可按需添加到指定节点上
+  document.body.append(ele);
+  result = ele.offsetWidth;
+  document.body.removeChild(ele);
+
+  return result;
+};
+
+/** 表格内字体样式 */
+export const TABLE_FOUNT_FAMILY = 'Menlo, Monaco, Consolas, Courier, PingFang SC, Microsoft Yahei, monospace';
+/**
+ * @desc: 计算
+ * @param {String} str 字符串
+ * @param {String} fontSize 像素大小 默认12px
+ * @returns {Number} 长度
+ */
+export const calculateTableColsWidth = (field, list) => {
+  // 取首屏前10条日志数据未计算模板
+  const firstLoadList = list.slice(0, 10);
+  // 通过排序获取最大的字段值
+  firstLoadList.sort((a, b) => {
+    return (
+      (parseTableRowData(b, field.field_name, field.field_type)?.length ?? 0) -
+      (parseTableRowData(a, field.field_name, field.field_type)?.length ?? 0)
+    );
+  });
+
+  // 字段名长度 需保证字段名完全显示
+  const fieldNameLen = getTextPxWidth(field.field_name, '12px', TABLE_FOUNT_FAMILY);
+  const minWidth = fieldNameLen + 80;
+  if (firstLoadList[0]) {
+    if (['ip', 'serverIp'].includes(field.field_name)) return [124, minWidth];
+    if (field.field_name === 'dtEventTimeStamp') return [256, minWidth];
+    if (/time/i.test(field.field_name)) return [256, minWidth];
+    if ('date' === field.field_type) return [256, minWidth];
+
+    // 去掉高亮标签 保证不影响实际展示长度计算
+    const fieldValue = String(parseTableRowData(firstLoadList[0], field.field_name, field.field_type))
+      .replace(/<mark>/g, '')
+      .replace(/<\/mark>/g, '');
+    // 表格内字体如果用12px在windows系统下表格字体会显得很细，所以用13px来加粗
+    // 实际字段值长度
+    const fieldValueLen = getTextPxWidth(fieldValue, '12px', TABLE_FOUNT_FAMILY);
+
+    if (field.field_type === 'text') {
+      // 800为默认自适应最大宽度
+      if (fieldValueLen > 800) return [800, minWidth];
+    }
+
+    if (fieldValueLen > 480) return [480, minWidth];
+
+    // 当内容长度小于字段名长度 要保证表头字段名显示完整 80为 padding、排序icon、隐藏列icon
+    if (fieldValueLen < minWidth) return [minWidth, minWidth];
+
+    // 默认计算长度 40为padding
+    return [fieldValueLen + 40, minWidth];
+  }
+
+  return [field.width, minWidth];
+};
