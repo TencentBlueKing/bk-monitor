@@ -297,14 +297,14 @@ class ExplorerHandler:
         origin_tree = resource.ResourceQueryHelper.get_topo_tree(bk_biz_id, return_all=True)
 
         # 获取策略
-        # auth_info = self.get_auth_info(bk_biz_id)
-        #
-        # # 过滤用户有权限的节点
-        # filtered_nodes = self.filter_nodes([origin_tree], auth_info)
+        auth_info = self.get_auth_info(bk_biz_id)
+
+        # 过滤用户有权限的节点
+        filtered_nodes = self.filter_nodes([origin_tree], auth_info)
 
         # 对拓扑树进行格式化
         formatted_tree = topo_handler.TopoHandler.format_tree(
-            topo_tool.TopoTool.get_topo_tree_with_count(bk_biz_id, return_all=True, topo_tree=origin_tree)
+            topo_tool.TopoTool.get_topo_tree_with_count(bk_biz_id, return_all=True, topo_tree=filtered_nodes[0])
         )
         return [formatted_tree]
 
