@@ -850,7 +850,7 @@ class CustomTsGroupingRuleList(Resource):
         scope_objs = converter.filter_disabled_metric(scope_objs)
         result: list[dict[str, Any]] = [asdict(scope_obj) for scope_obj in scope_objs]
         result.sort(key=lambda x: x["id"])
-        return result[0:1]
+        return result
 
 
 class CreateOrUpdateGroupingRule(Resource):
