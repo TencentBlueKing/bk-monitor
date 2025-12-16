@@ -65,7 +65,7 @@ class NodataHandler(base.BaseHandler):
             if not get_cluster().match(TargetType.biz, strategy.bk_biz_id):
                 continue
 
-            # 熔断检查
+            # 熔断检查 - 复用access.data的熔断规则（支持多维度配置）
             if circuit_breaking_manager:
                 try:
                     # 获取策略的数据源信息
@@ -78,7 +78,7 @@ class NodataHandler(base.BaseHandler):
                         data_source_label = query_config.get("data_source_label")
                         data_type_label = query_config.get("data_type_label")
 
-                    # 检查熔断
+                    # 使用通用熔断检查方法，支持多维度熔断规则配置
                     if circuit_breaking_manager.is_circuit_breaking(
                         strategy_id=strategy_id,
                         bk_biz_id=strategy.bk_biz_id,
@@ -100,7 +100,7 @@ class NodataHandler(base.BaseHandler):
                     logger.exception(
                         f"[circuit breaking] Circuit breaking check failed for strategy {strategy_id}: {cb_e}"
                     )
-                    # 熔断检查失败时，继续处理该策略
+                    # 熔断检查失败时，继续处理该策略，不影响正常业务逻辑
 
             interval = strategy.get_interval()
 
