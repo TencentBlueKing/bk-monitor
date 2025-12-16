@@ -229,6 +229,14 @@ export default {
   '当出现了 HTTP 类型的 span 并且调用的 Url(attributes.http.url) 为 `https://example.com/path/to/docs`，将会匹配出 `example.com` 自定义服务，以及此 span 的 span_name 将会覆盖为`path/to/docs':
     'When a span of HTTP type appears and the calling Url (attributes.http.url) is `https://example.com/path/to/docs`, the `example.com` custom service will be matched, and the span_name of this span will be overwritten with `path/to/docs',
   '如需使用该功能，请联系管理员': 'To use this feature, please contact the administrator',
+  '{0} 个表达式': '{0} expressions',
+  '输入表达式后，必须点击预览，方可生效':
+    'After entering the expression, you must click the preview button to take effect',
+  '支持 JS 正则匹配方式，如子串前匹配go_, 模糊匹配(.*?)_total':
+    'Supports JS regular expression matching, such as substring prefix matching go_, fuzzy matching (.*?)_total',
+  '根据分组规则自动发现并分组指标。': 'Automatically discover and group metrics according to grouping rules.',
+  '删除后该分组下的指标将自动挪入<未分组>':
+    'After deletion, the metrics in the group will be automatically moved to <Unclassified>',
 
   // 故障
   影响空间: 'Affected space',
@@ -391,4 +399,7 @@ export default {
   '请输入结果表名称, 非必需': 'Please enter the result table name, optional',
   '请输入相关指标, 非必需': 'Please enter the related metrics, optional',
   手动创建: 'Manual create',
+  选择指标: 'Select metrics',
+  模糊搜索: 'Fuzzy search',
+  正则表达式: 'Regular expression',
 };

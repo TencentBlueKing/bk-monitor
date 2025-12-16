@@ -214,6 +214,7 @@ export default {
   新建自定义服务: 'New Custom Service',
   指标设置: 'Metric Settings',
   新建研发项目: 'New R&D Project',
+  清空选择: 'Clear Selection',
 
   // 标签类
   'button-执行中': 'Running',

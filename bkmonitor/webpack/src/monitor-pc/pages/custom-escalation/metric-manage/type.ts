@@ -24,55 +24,60 @@
  * IN THE SOFTWARE.
  */
 
-export interface IDetailData {
-  access_token: string;
-  auto_discover?: boolean;
-  bk_biz_id?: number;
-  bk_data_id: number;
-  bk_event_group_id?: string;
-  data_label?: string;
-  desc?: string;
-  event_info_list?: any[];
-  is_platform?: boolean;
-  is_readonly?: boolean;
-  last_time?: number | string;
-  // metric_json?: any[];
-  name: string;
-  protocol?: string;
-  scenario: string;
-  scenario_display: string[];
-  table_id?: string;
-  time_series_group_id?: number;
+/** 全量 */
+export const ALL_OPTION = 'allOption';
+/** 勾选项 */
+export const CHECKED_OPTION = 'checkedOption';
+/** 编辑范围 */
+export const RADIO_OPTIONS = [
+  { id: ALL_OPTION, label: window.i18n.tc('全量') },
+  { id: CHECKED_OPTION, label: window.i18n.tc('勾选项') },
+];
+/** 全选框状态 */
+export enum CheckboxStatus {
+  ALL_CHECKED = 2, // 全选
+  INDETERMINATE = 1, // 半选
+  UNCHECKED = 0, // 未选
+}
+/** 全部 */
+export const ALL_LABEL = '__all_label__';
+/** 未分组 */
+export const NULL_LABEL = 'default';
+
+/** 默认高度偏移量 */
+export const DEFAULT_HEIGHT_OFFSET = 8;
+
+/** 表格列配置 */
+export interface IColumnConfig {
+  label: string;
+  type?: string;
+  width: number;
+  fixed?: 'left' | 'right';
+  renderFn: (props: any, key?: any) => any;
+  renderHeaderFn?: (config: any) => any;
 }
 
-export interface IEditParams {
-  bk_event_group_id?: string;
-  data_label?: string;
-  is_enable: boolean;
-  is_platform?: boolean;
-  name: string;
-  scenario: string;
-  time_series_group_id?: string;
+/** 分组列表 */
+export interface IGroupListItem {
+  scopeId: number;
+  metricList: {
+    field_id: number;
+    metric_name: string;
+  }[];
+  matchRules: string[]; // 匹配规则
+  matchRulesOfMetrics?: string[]; // 匹配规则匹配的指标列表
+  name: string; // 分组名称
+  createFrom: 'data' | 'user';
 }
 
-export interface IParams {
-  bk_event_group_id?: string;
-  time_range: string;
-  time_series_group_id?: string;
-}
+export type PopoverChildRef = Vue & {
+  $refs: {
+    refDropdownContent?: PopoverInstance;
+    selectDropdown?: any;
+  };
+};
 
-export interface IRefreshList {
-  list: { name: string; value: number }[];
-  value: number;
-}
-
-export interface IShortcuts {
-  list: { name: string; value: number }[];
-  value: number;
-}
-
-export interface ISideslider {
-  data: Record<string, any>;
-  isShow: boolean;
-  title: string;
+export interface PopoverInstance extends Vue {
+  $el: HTMLDivElement;
+  hideHandler: () => void;
 }
