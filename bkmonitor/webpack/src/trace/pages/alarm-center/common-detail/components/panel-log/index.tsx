@@ -134,14 +134,9 @@ export default defineComponent({
         })),
         begin: params.offset,
         ip_chooser: {},
-        host_scopes: {
-          modules: [],
-          ips: '',
-          target_nodes: [],
-          target_node_type: '',
-        },
+        host_scopes: {},
         interval: 'auto',
-        search_mode: 'ui',
+        search_mode: filterMode.value === EMode.ui ? 'ui' : 'sql',
         sort_list: params?.sortList || [],
         keyword: keyword.value,
       })
@@ -161,7 +156,9 @@ export default defineComponent({
         is_realtime: 'True',
         start_time: props.detail?.begin_time,
         end_time: props.detail.latest_time,
-      }).catch(() => null);
+      })
+        .then(res => res)
+        .catch(() => null);
       fieldsData.value = data;
       tableColumnsSetting.value = formatHierarchy(fieldsData.value?.fields || []).map(item => {
         return {
@@ -192,6 +189,11 @@ export default defineComponent({
             {
               alias: t('包含'),
               value: 'contains match phrase',
+              placeholder: t('请输入搜索内容'),
+            },
+            {
+              alias: t('不包含'),
+              value: 'not contains match phrase',
               placeholder: t('请输入搜索内容'),
             },
           ],
@@ -308,7 +310,6 @@ export default defineComponent({
     };
 
     const handleClickMenu = (opt: TClickMenuOpt) => {
-      console.log(opt);
       if (opt.type === EClickMenuType.Link) {
         return;
       }
@@ -336,6 +337,10 @@ export default defineComponent({
           [EClickMenuType.Exclude]: 'is false',
           [EClickMenuType.Include]: 'is true',
         },
+        all: {
+          [EClickMenuType.Exclude]: 'not contains match phrase',
+          [EClickMenuType.Include]: 'contains match phrase',
+        },
       };
       for (const item of retrievalFields.value) {
         if (item.name === opt.field.field_name) {
@@ -352,13 +357,24 @@ export default defineComponent({
       if (!whereItem) {
         whereItem = {
           key: '*',
-          method: 'contains match phrase',
+          method: methodMap.all[opt.type],
           value: [opt.value],
           condition: 'and',
         };
       }
       where.value = [...where.value, whereItem];
       tableRefreshKey.value = random(8);
+    };
+
+    const handleRemoveField = (fieldName: string) => {
+      displayColumnFields.value = displayColumnFields.value.filter(item => item !== fieldName);
+    };
+
+    const handleAddField = (fieldName: string) => {
+      if (displayColumnFields.value.includes(fieldName)) {
+        return;
+      }
+      displayColumnFields.value = [...displayColumnFields.value, fieldName];
     };
 
     return {
@@ -383,6 +399,8 @@ export default defineComponent({
       getFieldsData,
       handleWhereChange,
       handleClickMenu,
+      handleRemoveField,
+      handleAddField,
     };
   },
   render() {
@@ -428,7 +446,9 @@ export default defineComponent({
           getTableData={this.getTableData}
           headerAffixedTop={this.headerAffixedTop}
           refreshKey={this.tableRefreshKey}
+          onAddField={this.handleAddField}
           onClickMenu={this.handleClickMenu}
+          onRemoveField={this.handleRemoveField}
         />
       </div>
     );

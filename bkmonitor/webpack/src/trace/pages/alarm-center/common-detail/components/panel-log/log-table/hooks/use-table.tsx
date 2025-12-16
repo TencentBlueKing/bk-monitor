@@ -26,6 +26,7 @@
 import { shallowRef } from 'vue';
 
 import { fieldTypeMap } from 'trace/components/retrieval-filter/utils';
+import { useI18n } from 'vue-i18n';
 
 import ExpandContent from '../expand-content';
 import LogCell from '../log-cell';
@@ -36,10 +37,13 @@ import type { IFieldInfo, TClickMenuOpt } from '../typing';
 import type { TdPrimaryTableProps } from '@blueking/tdesign-ui';
 
 type TUseTableOptions = {
+  onAddField?: (fieldName: string) => void;
   onClickMenu?: (opt: TClickMenuOpt) => void;
+  onRemoveField?: (fieldName: string) => void;
 };
 
 export const useTable = (options: TUseTableOptions) => {
+  const { t } = useI18n();
   const tableColumns = shallowRef<TdPrimaryTableProps['columns']>([]);
   const tableData = shallowRef([]);
   const originLogData = shallowRef([]);
@@ -104,11 +108,18 @@ export const useTable = (options: TUseTableOptions) => {
         }}
       >
         <ExpandContent
+          displayFields={tableColumns.value.map(item => item.colKey)}
           fields={fieldsData.value?.fields || []}
           originLog={originLogData.value?.[index] || {}}
           row={row}
+          onAddField={(fieldName: string) => {
+            options.onAddField?.(fieldName);
+          }}
           onClickMenu={(opt: TClickMenuOpt) => {
             options.onClickMenu?.(opt);
+          }}
+          onRemoveField={(fieldName: string) => {
+            options.onRemoveField?.(fieldName);
           }}
         />
       </div>
@@ -171,6 +182,19 @@ export const useTable = (options: TUseTableOptions) => {
               }}
             >
               {item.query_alias || item.field_name}
+            </span>
+            <span
+              class='remove-btn'
+              v-bk-tooltips={{
+                content: t('将字段从列表中移除'),
+              }}
+            >
+              <span
+                class='icon-monitor icon-mc-minus-plus'
+                onClick={() => {
+                  options.onRemoveField?.(item.field_name);
+                }}
+              />
             </span>
           </div>
         );

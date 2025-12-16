@@ -76,6 +76,8 @@ export default defineComponent({
   },
   emits: {
     clickMenu: (_opt: TClickMenuOpt) => true,
+    removeField: (_fieldName: string) => true,
+    addField: (_fieldName: string) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -94,6 +96,12 @@ export default defineComponent({
     } = useTable({
       onClickMenu: opt => {
         emit('clickMenu', opt);
+      },
+      onRemoveField: fieldName => {
+        emit('removeField', fieldName);
+      },
+      onAddField: fieldName => {
+        emit('addField', fieldName);
       },
     });
     const offset = shallowRef(0);
@@ -115,6 +123,21 @@ export default defineComponent({
       },
       { immediate: true }
     );
+
+    watch(
+      () => props.displayFields,
+      val => {
+        if (val.length) {
+          setTableColumns();
+        }
+      }
+    );
+
+    const setTableColumns = async () => {
+      fieldsData.value = await getFieldsData();
+      setFieldsData(fieldsData.value);
+      fieldsDataToColumns(fieldsData.value?.fields || [], props.displayFields);
+    };
 
     const getTableData = async () => {
       const res = await props.getTableData({
@@ -156,9 +179,7 @@ export default defineComponent({
         loading.value = true;
       }
       if (isInit) {
-        fieldsData.value = await getFieldsData();
-        setFieldsData(fieldsData.value);
-        fieldsDataToColumns(fieldsData.value?.fields || [], props.displayFields);
+        await setTableColumns();
       }
       const data = await getTableData();
       tableData.value = [...tableData.value, ...(data?.list || [])];
@@ -253,7 +274,7 @@ export default defineComponent({
             expandIcon={this.expandIcon}
             expandOnRowClick={true}
             headerAffixedTop={this.headerAffixedTop}
-            horizontalScrollAffixedBottom={true}
+            horizontalScrollAffixedBottom={this.headerAffixedTop}
             needCustomScroll={false}
             resizable={true}
             rowKey={'__id__'}

@@ -42,12 +42,14 @@ export enum EFieldType {
   text = 'text',
 }
 export enum EMethod {
+  containsMatchPhrase = 'contains match phrase',
   eq = 'equal',
   exclude = 'exclude',
   exists = 'exists',
   include = 'include',
   like = 'link',
   ne = 'not_equal',
+  notContainsMatchPhrase = 'not contains match phrase',
   notExists = 'not exists',
   notLike = 'not_like',
 }
@@ -150,11 +152,11 @@ export interface IFilterItem {
   method: { id: EMethod | string; name: string };
   value: { id: number | string; name: number | string }[];
   options?:
-  | Record<string, any>
-  | {
-    group_relation?: string;
-    is_wildcard?: boolean;
-  };
+    | Record<string, any>
+    | {
+        group_relation?: string;
+        is_wildcard?: boolean;
+      };
 }
 
 export interface IGetValueFnParams {
@@ -178,11 +180,11 @@ export interface INormalWhere {
   method: EMethod | string;
   value: Array<number | string>;
   options:
-  | Record<string, any>
-  | {
-    group_relation?: boolean;
-    is_wildcard?: boolean;
-  };
+    | Record<string, any>
+    | {
+        group_relation?: boolean;
+        is_wildcard?: boolean;
+      };
 }
 export interface IOptionsInfo {
   count: 0;
@@ -227,7 +229,13 @@ export type TGetValueFn = (params: IGetValueFnParams) => Promise<IOptionsInfo>;
 //   update_time: string;
 //   update_user: string;
 // }
-export const NOT_TYPE_METHODS = [EMethod.ne, EMethod.exclude, EMethod.notExists, EMethod.notLike];
+export const NOT_TYPE_METHODS = [
+  EMethod.ne,
+  EMethod.exclude,
+  EMethod.notExists,
+  EMethod.notLike,
+  EMethod.notContainsMatchPhrase,
+];
 
 export const qsSelectorOptionsDescMap = {
   ':': [

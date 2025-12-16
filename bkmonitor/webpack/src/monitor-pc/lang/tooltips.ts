@@ -337,4 +337,6 @@ export default {
     'Multiple return codes are separated by ",". The numerical interval is connected by "~". If there is a prefix, the prefix needs to be included, such as: error_4003,200,3001~3005',
   固定在界面上: 'Fixed on the interface',
   取消固定: 'Cancel fixed',
+  将字段从列表中移除: 'Remove field from list',
+  更多日志: 'More logs',
 };
