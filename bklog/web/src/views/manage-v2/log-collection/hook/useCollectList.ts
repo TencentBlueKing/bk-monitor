@@ -166,7 +166,7 @@ export const useCollectList = () => {
         return;
       }
       params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
-      query.pid = indexId ? JSON.stringify([indexId]) : undefined;
+      query.pid = indexId ? JSON.stringify([String(indexId)]) : undefined;
     }
     if (operateType === 'clean') {
       query.step = 2;
