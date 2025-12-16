@@ -2416,7 +2416,7 @@ class TimeSeriesMetric(models.Model):
             if target_dimension not in tag_list:
                 metric_data["tag_list"] = tag_list + [target_dimension]
 
-            database_name = table_id.split(".")[0]
+            database_name = table_id.rsplit(".", 1)[0]
             metric_data["table_id"] = f"{database_name}.{metric_data['field_name']}"
 
             scope_id = metric_data.get("scope_id")
