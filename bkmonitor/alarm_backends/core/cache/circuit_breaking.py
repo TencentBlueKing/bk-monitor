@@ -496,39 +496,39 @@ COMMON_DATA_SOURCE_COMBINATIONS = [
 # ==================== 使用示例 ====================
 
 
-def example_usage():
-    """
-    预设快捷设置函数的使用示例
-    """
-    module = "access.data"
+example_usage = """预设快捷设置函数的使用示例:
+module = "access.data"
+module = "alert.builder"
 
-    # 示例1: 设置基于strategy_source的熔断
-    set_strategy_source_circuit_breaking(
-        module=module,
-        strategy_sources=["bk_monitor:time_series", "bk_log_search:log"],
-    )
+# 示例1: 设置基于strategy_source的熔断
+set_strategy_source_circuit_breaking(
+    module=module,
+    strategy_sources=["bk_monitor:time_series", "bk_log_search:log"],
+)
 
-    # 示例2: 设置基于bk_biz_id的熔断
-    set_bk_biz_id_circuit_breaking(
-        module=module,
-        bk_biz_ids=["100", "200"],
-    )
+# 示例2: 设置基于bk_biz_id的熔断
+set_bk_biz_id_circuit_breaking(
+    module=module,
+    bk_biz_ids=["100", "200"],
+)
 
-    # 示例3: 设置基于数据源标签的熔断
-    set_data_source_circuit_breaking(
-        module=module,
-        data_source_labels=["bk_log_search"],
-        data_type_labels=["time_series"],
-    )
+# 示例3: 设置基于数据源标签的熔断
+set_data_source_circuit_breaking(
+    module=module,
+    data_source_labels=["bk_log_search"],
+    data_type_labels=["time_series"],
+)
 
-    # 示例4: 设置策略熔断规则
-    set_strategy_circuit_breaking(
-        module=module,
-        strategy_ids=[12345, 67890],
-        description="测试策略熔断",
-    )
+# 示例4: 设置策略熔断规则
+set_strategy_circuit_breaking(
+    module=module,
+    strategy_ids=[12345, 67890],
+    description="测试策略熔断",
+)
 
-    # 示例5: 清空
-    clear(
-        module=module,
-    )
+# 示例5: 清空
+clear(
+    module=module,
+)"""
+
+print(example_usage)
