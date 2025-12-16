@@ -876,7 +876,7 @@ class ClusterConfig(models.Model):
 
         return get_data_link_component_config(
             bk_tenant_id=self.bk_tenant_id,
-            kind=self.kind,
+            kind=DataLinkKind.get_choice_value(self.kind),
             namespace=self.namespace,
             component_name=self.name,
         )
@@ -978,6 +978,16 @@ class ClusterConfig(models.Model):
 
         cluster.registered_to_bkbase = True
         cluster.save()
+
+    def delete_config(self):
+        """删除数据链路配置"""
+        api.bkdata.delete_data_link(
+            bk_tenant_id=self.bk_tenant_id,
+            kind=DataLinkKind.get_choice_value(self.kind),
+            namespace=self.namespace,
+            name=self.name,
+        )
+        self.delete()
 
 
 @deprecated("已废弃，统一使用DataBusConfig替代")
