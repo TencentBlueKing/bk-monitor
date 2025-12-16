@@ -23,7 +23,7 @@ from bkmonitor.utils.common_utils import fetch_biz_id_from_request, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
 from common.log import logger
 from constants.common import DEFAULT_TENANT_ID
-from core.drf_resource import resource, api
+from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
 
 
@@ -102,11 +102,11 @@ def json_formatter(context: dict[str, Any]):
 
 
 def get_core_context(request):
-    user_name = request.user.username
+    username = request.user.username
     try:
-        user_time_zone = api.bk_login.get_user_info(id=user_name, fields="time_zone").get("time_zone", "")
+        user_time_zone = api.bk_login.get_user_info(id=username).get("time_zone", "")
     except Exception as e:
-        logger.error(f"Get user {user_name} time zone failed: {e}")
+        logger.error(f"Get user {username} time zone failed: {e}")
         user_time_zone = ""
 
     return {
