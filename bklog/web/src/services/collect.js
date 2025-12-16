@@ -253,6 +253,12 @@ const getTaskIndexSetId = {
   method: 'get',
 };
 
+// 客户端日志-用户上报列表
+const getUserReportList = {
+  url: '/tgpa/report/',
+  method: 'get',
+};
+
 export {
   getStorage,
   globals,
@@ -297,4 +303,5 @@ export {
   createCollectionTask,
   getDownloadLink,
   getTaskIndexSetId,
+  getUserReportList,
 };

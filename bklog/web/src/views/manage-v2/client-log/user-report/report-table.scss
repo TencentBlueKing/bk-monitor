@@ -1,0 +1,10 @@
+.report-table {
+  .overflow-hidden-text {
+    .cell {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      overflow-wrap: normal;
+      white-space: nowrap;
+    }
+  }
+}

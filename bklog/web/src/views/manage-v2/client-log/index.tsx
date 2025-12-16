@@ -35,6 +35,7 @@ import { tenantManager, UserInfoLoadedEventData } from '@/views/retrieve-core/te
 import { TaskStatus } from './components/log-table/types';
 
 import LogTable from './components/log-table';
+import UserReport from './user-report';
 import CollectionSlider from './collection-slider';
 
 import http from '@/api';
@@ -53,6 +54,7 @@ export default defineComponent({
   name: 'ClientLog',
   components: {
     LogTable,
+    UserReport,
     CollectionSlider,
   },
   setup() {
@@ -67,11 +69,10 @@ export default defineComponent({
         title: TAB_TYPES.COLLECT,
         count: 0,
       },
-      // 暂时隐藏 用户上报
-      // {
-      //   title: TAB_TYPES.REPORT,
-      //   count: 0,
-      // },
+      {
+        title: TAB_TYPES.REPORT,
+        count: 0,
+      },
     ]);
     const activeTab = ref<TabType>(TAB_TYPES.COLLECT); // 激活的tab
     const showSlider = ref(false); // 新建采集侧边栏打开状态
@@ -455,6 +456,11 @@ export default defineComponent({
       }
     };
 
+    // 处理用户上报 total 更新
+    const handleUserReportTotalUpdate = (total: number) => {
+      tabs.value[1].count = total;
+    };
+
     // 根据tab类型获取数据
     const fetchDataByTabType = (tabType: TabType) => {
       if (tabType === TAB_TYPES.COLLECT) {
@@ -540,40 +546,28 @@ export default defineComponent({
                   ></bk-input>
                 </div>
               </div>
-            ) : (
-              <div>
-                {/* 用户上报 */}
-                <bk-alert
-                  class='alert-info'
-                  type='info'
-                  title={t('Alert 文案占位，用于说明如果用 SDK 上报。')}
-                ></bk-alert>
-                <div class='operating-area'>
-                  {/* <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button> */}
-                  <div>
-                    <bk-input
-                      placeholder={t('搜索 任务 ID、任务名称、openID、创建方式、任务状态、任务阶段、创建人')}
-                      clearable
-                      right-icon={'bk-icon icon-search'}
-                    ></bk-input>
-                  </div>
-                </div>
-              </div>
-            )}
+            ) : null}
             {/* 表格内容区域 */}
-            <section>
-              <LogTable
-                total={tableData.value.total}
-                isAllowedDownload={isAllowedDownload.value}
-                data={tableData.value.list}
-                indexSetId={indexSetId.value}
-                v-bkloading={{ isLoading: isLoading.value }}
-                keyword={searchKeyword.value}
-                on-clear-keyword={handleClearKeyword}
-                on-clone-task={task => handleOperateTask(task, 'clone')}
-                on-view-task={task => handleOperateTask(task, 'view')}
-              />
-            </section>
+            {activeTab.value === TAB_TYPES.COLLECT && (
+              <section>
+                <LogTable
+                  total={tableData.value.total}
+                  isAllowedDownload={isAllowedDownload.value}
+                  data={tableData.value.list}
+                  indexSetId={indexSetId.value}
+                  v-bkloading={{ isLoading: isLoading.value }}
+                  keyword={searchKeyword.value}
+                  on-clear-keyword={handleClearKeyword}
+                  on-clone-task={task => handleOperateTask(task, 'clone')}
+                  on-view-task={task => handleOperateTask(task, 'view')}
+                />
+              </section>
+            )}
+            {activeTab.value === TAB_TYPES.REPORT && (
+              <section>
+                <UserReport onUpdate-total={handleUserReportTotalUpdate} />
+              </section>
+            )}
           </div>
           {/* 新建采集侧边栏 */}
           <CollectionSlider
