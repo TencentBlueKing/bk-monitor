@@ -50,7 +50,7 @@ export default () => {
   /**
    * 自动补全提示接口请求任务
    */
-  const requestFieldEgges = (field: any, value?: string, callback?: (resp: any) => void, finallyFn?: () => void) => {
+  const requestFieldEgges = (field: any, value?: string, callback?: (_resp: any) => void, finallyFn?: () => void) => {
     /**
      * 检测字段是否为 flattened 字段
      */
@@ -70,7 +70,7 @@ export default () => {
 
     const getConditionValue = () => {
       if (['keyword'].includes(field.field_type)) {
-        return [`*${value}*`];
+        return [`${value}`];
       }
       setIsRequesting(false);
       return [];
@@ -90,7 +90,7 @@ export default () => {
         ? [
             {
               field: field.field_name,
-              operator: '=~',
+              operator: 'contains',
               value: getConditionValue(),
             },
           ].map(val => {
