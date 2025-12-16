@@ -46,7 +46,7 @@ class BaseCircuitBreakingManager:
             # 获取匹配的具体规则用于日志记录
             matched_rules = self.matcher.config_rules
             logger.debug(
-                f"[circuit breaking] Circuit breaking triggered for module {self.module}, "
+                f"[circuit breaking] [{self.module}] circuit breaking triggered for module {self.module}, "
                 f"matched_rules: {matched_rules}, instance: {clean_instance}"
             )
 
@@ -117,7 +117,9 @@ class AccessDataCircuitBreakingManager(BaseCircuitBreakingManager):
             target_instance.update(kwargs)
             return self.is_cb(target_instance)
         except Exception as e:
-            logger.exception(f"[circuit breaking] Data source circuit breaking check failed for kwargs {kwargs}: {e}")
+            logger.exception(
+                f"[circuit breaking] [access.data] data source circuit breaking check failed for kwargs {kwargs}: {e}"
+            )
             return False
 
     def is_strategy_only_circuit_breaking(self, strategy_id: int, labels: list = None) -> bool:
@@ -136,6 +138,6 @@ class AccessDataCircuitBreakingManager(BaseCircuitBreakingManager):
             return self.is_cb(dimensions)
         except Exception as e:
             logger.exception(
-                f"[circuit breaking] Strategy circuit breaking check failed for strategy_id {strategy_id}: {e}"
+                f"[circuit breaking] [access.data] strategy circuit breaking check failed for strategy_id {strategy_id}: {e}"
             )
             return False

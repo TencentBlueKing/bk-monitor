@@ -111,7 +111,7 @@ class AccessBeater(MonitorBeater):
 
             circuit_breaking_manager = AccessDataCircuitBreakingManager()
         except Exception as e:
-            logger.warning(f"[circuit breaking] Failed to initialize circuit breaking manager: {e}")
+            logger.warning(f"[circuit breaking] [access.data] failed to initialize circuit breaking manager: {e}")
 
         for strategy_group_key, strategy_group in strategy_groups.items():
             is_qos = False
@@ -153,14 +153,16 @@ class AccessBeater(MonitorBeater):
                     ):
                         circuit_breaking_count += 1
                         logger.warning(
-                            f"[circuit breaking] Strategy group {strategy_group_key} circuit breaking triggered in refresh stage, "
+                            f"[circuit breaking] [access.data] strategy group {strategy_group_key} circuit breaking triggered in refresh stage, "
                             f"bk_biz_id: {bk_biz_id}, strategy_source: {data_source_label}:{data_type_label}"
                         )
                         # 跳过被熔断的策略组
                         continue
 
                 except Exception as cb_e:
-                    logger.warning(f"[circuit breaking] Circuit breaking check failed for {strategy_group_key}: {cb_e}")
+                    logger.warning(
+                        f"[circuit breaking] [access.data] circuit breaking check failed for {strategy_group_key}: {cb_e}"
+                    )
                     # 熔断检查失败时，继续处理该策略组
 
             if not interval_list:
@@ -188,7 +190,7 @@ class AccessBeater(MonitorBeater):
         # 记录熔断统计信息
         if circuit_breaking_count > 0:
             logger.info(
-                f"[circuit breaking] Circuit breaking applied in refresh stage: {circuit_breaking_count}/{len(strategy_groups)} "
+                f"[circuit breaking] [access.data] circuit breaking applied in refresh stage: {circuit_breaking_count}/{len(strategy_groups)} "
                 f"strategy groups filtered"
             )
 

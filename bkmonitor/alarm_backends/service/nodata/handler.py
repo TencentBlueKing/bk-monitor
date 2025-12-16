@@ -55,7 +55,9 @@ class NodataHandler(base.BaseHandler):
 
             circuit_breaking_manager = AccessDataCircuitBreakingManager()
         except Exception as e:
-            logger.exception(f"[circuit breaking] Failed to initialize access.data circuit breaking manager: {e}")
+            logger.exception(
+                f"[circuit breaking] [nodata] failed to initialize access.data circuit breaking manager: {e}"
+            )
 
         published = []
         for strategy_id in strategy_ids:
@@ -90,7 +92,7 @@ class NodataHandler(base.BaseHandler):
                     ):
                         circuit_breaking_count += 1
                         logger.warning(
-                            f"[circuit breaking] strategy({strategy_id}) circuit breaking triggered in nodata check "
+                            f"[circuit breaking] [nodata] strategy({strategy_id}) circuit breaking triggered in nodata check "
                             f"(access.data rule), bk_biz_id: {strategy.bk_biz_id}, "
                             f"strategy_source: {data_source_label}:{data_type_label}"
                         )
@@ -98,7 +100,7 @@ class NodataHandler(base.BaseHandler):
 
                 except Exception as cb_e:
                     logger.exception(
-                        f"[circuit breaking] Circuit breaking check failed for strategy({strategy_id}): {cb_e}"
+                        f"[circuit breaking] [nodata] circuit breaking check failed for strategy({strategy_id}): {cb_e}"
                     )
                     # 熔断检查失败时，继续处理该策略，不影响正常业务逻辑
 
@@ -122,7 +124,7 @@ class NodataHandler(base.BaseHandler):
         # 记录熔断统计信息
         if circuit_breaking_count > 0:
             logger.info(
-                f"[circuit breaking] Circuit breaking applied in nodata check (using access.data rules): "
+                f"[circuit breaking] [nodata] circuit breaking applied in nodata check (using access.data rules): "
                 f"{circuit_breaking_count}/{len(strategy_ids)} strategies filtered"
             )
 
