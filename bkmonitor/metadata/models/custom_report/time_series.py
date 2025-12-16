@@ -2438,7 +2438,7 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def _batch_update_metrics(cls, metrics_to_update, scopes_dict):
-        updatable_fields = ["field_config", "label"]
+        updatable_fields = ["field_config", "label", "tag_list"]
         records_to_update = []
         scope_moves = defaultdict(list)
 
