@@ -28,32 +28,54 @@ import { type MaybeRef, shallowRef, watchEffect } from 'vue';
 
 import { get } from '@vueuse/core';
 
-import { getHostSceneView } from '../services/alarm-detail';
-
-import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
+import { getHostTargetList } from '../services/alarm-detail';
+import { type AlertHostTargetItem } from '../typings';
 
 /**
- * @description 主机场景仪表盘视图配置 hook
+ * @function useAlertHost 获取告警关联的主机基础信息 hook
+ * @description 告警详情 - 主机 获取告警关联主机对象列表
+ * @param {MaybeRef<string>} alertId 告警ID
  */
-export const useHostSceneView = (bizId: MaybeRef<number>) => {
-  /** 主机监控 需要渲染的仪表盘面板配置数组 */
-  const hostDashboards = shallowRef<IPanelModel[]>(null);
-  /** 是否处于请求加载状态 */
+export const useAlertHost = (alertId: MaybeRef<string>) => {
+  /** 当前选中的主机对象 */
+  const currentTarget = shallowRef<AlertHostTargetItem | null>({
+    bk_target_ip: '0.0.0.0',
+    bk_cloud_id: 0,
+  });
+  /** 告警关联主机对象列表 */
+  const targetList = shallowRef<AlertHostTargetItem[]>([]);
+  /** 数据请求加载状态 */
   const loading = shallowRef(false);
 
   /**
-   * @description 获取仪表盘数据数组
+   * @method hasTarget 判断是否已经存在目标
+   * @param target 目标
+   * @returns {boolean} 是否已经存在目标
    */
-  const getDashboardPanels = async () => {
+  const hasTarget = (target: AlertHostTargetItem) => {
+    if (!target) {
+      return false;
+    }
+    return targetList.value.some(item => item?.bk_host_id === target?.bk_host_id);
+  };
+
+  /**
+   * @method getHostList 获取可选择的关联主机对象列表
+   * @returns {Promise<void>}
+   */
+  const getHostList = async () => {
     loading.value = true;
-    const model = await getHostSceneView(get(bizId));
-    hostDashboards.value = model?.panels ?? [];
+    targetList.value = await getHostTargetList(get(alertId));
+    if (targetList.value?.length && !hasTarget(currentTarget.value)) {
+      currentTarget.value = targetList.value[0];
+    }
     loading.value = false;
   };
 
-  watchEffect(getDashboardPanels);
+  watchEffect(getHostList);
   return {
-    hostDashboards,
+    targetList,
     loading,
+    currentTarget,
   };
 };

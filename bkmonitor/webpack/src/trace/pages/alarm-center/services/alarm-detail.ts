@@ -24,15 +24,22 @@
  * IN THE SOFTWARE.
  */
 
-import { actionDetail, alertDetail, listAlertFeedback } from 'monitor-api/modules/alert_v2';
+import {
+  actionDetail,
+  alertDetail,
+  alertK8sMetricList,
+  alertK8sScenarioList,
+  alertK8sTarget,
+  listAlertFeedback,
+} from 'monitor-api/modules/alert_v2';
 import { getSceneView } from 'monitor-api/modules/scene_view';
-import { type SceneEnum, K8sTableColumnKeysEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
+import { type SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 import { BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
 import { type IActionDetail, ActionDetail } from '../typings/action-detail';
 import { AlarmDetail } from '../typings/detail';
 
-import type { AlertK8SMetricItem, AlertK8sTargetResult } from '../typings';
+import type { AlertHostTargetItem, AlertK8SMetricItem, AlertK8sTargetResult } from '../typings';
 import type { IAlarmDetail } from '../typings/detail';
 
 export const fetchAlarmDetail = (id: string): Promise<AlarmDetail | null> => {
@@ -57,9 +64,32 @@ export const fetchListAlertFeedback = (id: string, bizId: number) => {
   return listAlertFeedback({ alert_id: id, bk_biz_id: bizId }).catch(() => []);
 };
 
+// ==============================start 详情-主机-相关接口 start==============================
+/**
+ * @description host 场景目标列表
+ * @param {string} alertId 告警ID
+ * @returns {Promise<AlertHostTargetItem[]>} 告警 id 获取关联主机对象列表
+ */
+export const getHostTargetList = async (alertId: string) => {
+  const hostTarget = <T>(..._args): Promise<T> => {
+    return Promise.resolve([
+      {
+        bk_host_id: 110494,
+        bk_target_ip: '9.134.11.186',
+        bk_cloud_id: 0,
+        display_name: '公共集群40933 / node / 9.134.11.186',
+        bk_host_name: 'VM-11-186-centos',
+      },
+    ] as T);
+  }; // 占位
+  const data = await hostTarget<AlertHostTargetItem[]>({ alert_id: alertId }).catch(() => [] as AlertHostTargetItem[]);
+  return data;
+};
+
 /**
  * @description host 场景指标视图配置信息
- * @param bizId 业务ID
+ * @param {number} bizId 业务ID
+ * @returns {Promise<BookMarkModel>} 场景视图配置信息
  */
 export const getHostSceneView = async (bizId: number) => {
   const sceneData = await getSceneView({
@@ -92,6 +122,7 @@ export const getHostSceneView = async (bizId: number) => {
   transformData.panels = resultPanels;
   return transformData;
 };
+// ==============================end 详情-主机-相关接口 end==============================
 
 // ==============================start 详情-容器-相关接口 start==============================
 /**
@@ -101,10 +132,7 @@ export const getHostSceneView = async (bizId: number) => {
  * @returns {Promise<SceneEnum[]>} 可选场景列表
  */
 export const getAlertK8sScenarioList = async (alertId: string) => {
-  const alertK8sScenarioList = <T>(..._args): Promise<T> => {
-    return Promise.resolve(['performance', 'network'] as T);
-  }; // 占位
-  const data = await alertK8sScenarioList<SceneEnum[]>({ alert_id: alertId }).catch(() => []);
+  const data = await alertK8sScenarioList<SceneEnum[]>({ alert_id: alertId }).catch(() => [] as SceneEnum[]);
   return data;
 };
 
@@ -116,10 +144,7 @@ export const getAlertK8sScenarioList = async (alertId: string) => {
  * @returns {Promise<AlertK8SMetricItem[]>} 指标列表
  */
 export const getAlertK8sScenarioMetricList = async (params: { bizId: number; scene: SceneEnum }) => {
-  const alertK8sMetricList = <T>(..._args): Promise<T> => {
-    return Promise.resolve([] as T);
-  }; // 占位
-  const data = await alertK8sMetricList<AlertK8SMetricItem[]>(params).catch(() => []);
+  const data = await alertK8sMetricList<AlertK8SMetricItem[]>(params).catch(() => [] as AlertK8SMetricItem[]);
   return data.reduce((prev, curr) => {
     // show_chart 为 true 的指标才展示
     const children = curr?.children?.filter?.(e => e.show_chart) ?? [];
@@ -136,19 +161,6 @@ export const getAlertK8sScenarioMetricList = async (params: { bizId: number; sce
  * @returns {Promise<AlertK8sTargetResult>} 关联容器对象列表
  */
 export const getAlertK8sTarget = async (alertId: string) => {
-  const alertK8sTarget = <T extends AlertK8sTargetResult>(..._args): Promise<T> => {
-    return Promise.resolve({
-      resource_type: K8sTableColumnKeysEnum.POD,
-      target_list: [
-        {
-          pod: 'bk-log-search-web-695db7f7f5-7jxxq',
-          bcs_cluster_id: 'BCS-K8S-00000',
-          namespace: 'blueking',
-          workload: 'Deployment:bk-log-search-web',
-        },
-      ],
-    } as unknown as T);
-  }; // 占位
   const data = await alertK8sTarget<AlertK8sTargetResult>({ alert_id: alertId }).catch(
     () =>
       ({

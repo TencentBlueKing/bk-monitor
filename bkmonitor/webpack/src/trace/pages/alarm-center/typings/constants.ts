@@ -47,14 +47,6 @@ export enum AlertAllActionEnum {
   SHIELD = 'shield',
 }
 
-/** 告警详情 主机选择器类型 */
-export enum AlertDetailHostSelectorTypeEnum {
-  /** 主机级别 */
-  HOST = 'host',
-  /** 模块级别 */
-  MODULE = 'module',
-}
-
 /** 进入页面后需要能自动打开展示dialog的事件 */
 export const CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS = [AlertAllActionEnum.CONFIRM, AlertAllActionEnum.SHIELD];
 

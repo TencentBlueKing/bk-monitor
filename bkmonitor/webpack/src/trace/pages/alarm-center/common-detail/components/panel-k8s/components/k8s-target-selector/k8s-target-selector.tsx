@@ -94,7 +94,7 @@ export default defineComponent({
             trigger: () => (
               <div class='k8s-target-selector-trigger-container'>
                 <div class='trigger-prefix'>
-                  <span>{this.groupBy}：</span>
+                  <span>{this.groupBy || '--'}：</span>
                 </div>
                 <div class='trigger-main'>
                   <span class='selected-text'>{this.currentTarget?.[this.groupBy] ?? '--'}</span>
