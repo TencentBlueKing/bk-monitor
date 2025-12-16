@@ -30,8 +30,8 @@ import dropdown from '../lang/dropdown';
 import formContent from '../lang/form-content';
 import formLabel from '../lang/form-label';
 import message from '../lang/message';
+import metricDetail from '../lang/metric-detail';
 import newHome from '../lang/new-home';
-import newMetricView from '../lang/new-metric-view';
 import placeholder from '../lang/placeholder';
 import route from '../lang/route';
 import strategy from '../lang/strategy';
@@ -62,7 +62,7 @@ const MonitorLangData = {
   title,
   strategy,
   newHome,
-  newMetricView,
+  metricDetail,
   trace,
 };
 
