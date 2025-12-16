@@ -211,3 +211,21 @@ class TGPATaskProcessStatusEnum(ChoicesEnum):
         (SUCCESS, _("成功")),
         (FAILED, _("失败")),
     )
+
+
+TGPA_REPORT_SELECT_FIELDS = [
+    "openid",
+    "file_name",
+    "real_name as file_path",
+    "file_size",
+    "md5",
+    "report_time",
+    "xid",
+    "extend_info",
+    "manufacturer",
+    "model",
+    "os_version",
+    "os_sdk",
+    "os_type",
+]
+TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name", "file_path", "extend_info", "manufacturer", "model"]

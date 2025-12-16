@@ -27,12 +27,15 @@ from apps.generic import APIViewSet
 from apps.iam import ActionEnum
 from apps.iam.handlers.drf import ViewBusinessPermission, BusinessActionPermission
 from apps.tgpa.constants import FEATURE_TOGGLE_TGPA_TASK
+from apps.tgpa.handlers.base import TGPACollectorHandler
+from apps.tgpa.handlers.report import TGPAReportHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
 from apps.tgpa.serializers import (
     CreateTGPATaskSerializer,
     GetTGPATaskListSerializer,
     GetDownloadUrlSerializer,
     GetIndexSetIdSerializer,
+    GetReportListSerializer,
 )
 from bkm_search_module.constants import list_route
 
@@ -87,7 +90,21 @@ class TGPATaskViewSet(APIViewSet):
             "collector_config_id": None,
         }
         if FeatureToggleObject.switch(FEATURE_TOGGLE_TGPA_TASK, params["bk_biz_id"]):
-            collector_config = TGPATaskHandler.get_or_create_collector_config(bk_biz_id=params["bk_biz_id"])
+            collector_config = TGPACollectorHandler.get_or_create_collector_config(bk_biz_id=params["bk_biz_id"])
             res["index_set_id"] = collector_config.index_set_id
             res["collector_config_id"] = collector_config.collector_config_id
         return Response(res)
+
+
+class TGPAReportViewSet(APIViewSet):
+    """客户端日志上报"""
+
+    def get_permissions(self):
+        return [ViewBusinessPermission()]
+
+    def list(self, request, *args, **kwargs):
+        """
+        获取客户端日志上报列表
+        """
+        params = self.params_valid(GetReportListSerializer)
+        return Response(TGPAReportHandler.get_file_list(params))

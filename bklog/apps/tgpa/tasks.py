@@ -26,6 +26,7 @@ from django.utils import timezone
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.tgpa.constants import TGPA_TASK_EXE_CODE_SUCCESS, TGPATaskProcessStatusEnum, FEATURE_TOGGLE_TGPA_TASK
+from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
 from apps.tgpa.models import TGPATask
 from apps.utils.log import logger
@@ -45,7 +46,7 @@ def fetch_and_process_tgpa_tasks():
         logger.info("Begin to sync client log tasks, business id: %s", bk_biz_id)
         try:
             # 确保已经创建采集配置
-            TGPATaskHandler.get_or_create_collector_config(bk_biz_id)
+            TGPACollectorHandler.get_or_create_collector_config(bk_biz_id)
             # 获取任务列表，存量的任务只同步数据，不处理任务
             task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
             if not TGPATask.objects.filter(bk_biz_id=bk_biz_id).exists():
@@ -132,5 +133,5 @@ def clear_expired_files():
     清理过期文件
     """
     logger.info("Begin to clear expired client log files")
-    TGPATaskHandler.clear_expired_files()
+    TGPAFileHandler.clear_expired_files()
     logger.info("Successfully cleared expired client log files")
