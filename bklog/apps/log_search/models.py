@@ -71,6 +71,7 @@ from apps.log_search.constants import (
     TimeFieldTypeEnum,
     TimeFieldUnitEnum,
     TimeZoneEnum,
+    LogBuiltInFieldTypeEnum,
     IndexSetDataType,
 )
 from apps.log_search.exceptions import (
@@ -173,6 +174,8 @@ class GlobalConfig(models.Model):
         # Cookie域名
         configs[GlobalTypeEnum.BK_DOMAIN.value] = settings.BK_DOMAIN
         configs[GlobalTypeEnum.RETAIN_EXTRA_JSON.value] = settings.RETAIN_EXTRA_JSON
+        # 日志内置字段列表
+        configs[GlobalTypeEnum.LOG_BUILT_IN_FIELD.value] = LogBuiltInFieldTypeEnum.get_choices()
         return configs
 
     class Meta:
@@ -496,7 +499,7 @@ class LogIndexSet(SoftDeleteModel):
             result = datetime_to_timestamp(temp)
         return timestamp_to_timeformat(result)
 
-    def get_indexes(self, has_applied=None):
+    def get_indexes(self, has_applied=None, project_info=True):
         """
         返回当前索引集下的索引列表
         :return:
@@ -504,6 +507,13 @@ class LogIndexSet(SoftDeleteModel):
         index_set_data = LogIndexSetData.objects.filter(index_set_id=self.index_set_id)
         if has_applied:
             index_set_data = index_set_data.filter(apply_status=LogIndexSetData.Status.NORMAL)
+        bizs = {}
+        if self.scenario_id == Scenario.BKDATA:
+            if project_info is True:
+                bizs = {
+                    space.bk_biz_id: space.space_name
+                    for space in Space.objects.filter(bk_biz_id__in=list({data.bk_biz_id for data in index_set_data}))
+                }
         source_name = self.source_name
 
         return [
@@ -511,6 +521,7 @@ class LogIndexSet(SoftDeleteModel):
                 "index_id": data.index_id,
                 "index_set_id": self.index_set_id,
                 "bk_biz_id": data.bk_biz_id,
+                "bk_biz_name": bizs.get(data.bk_biz_id, "") if project_info is False else None,
                 "source_id": self.source_id,
                 "source_name": source_name,
                 "result_table_id": data.result_table_id,
@@ -716,7 +727,7 @@ class LogIndexSetData(SoftDeleteModel):
     bk_biz_id = models.IntegerField(_("业务ID"), null=True, default=None)
     result_table_id = models.CharField(_("结果表"), max_length=255)
     result_table_name = models.CharField(_("结果表名称"), max_length=255, null=True, default=None, blank=True)
-    time_field = models.CharField(_("时间字段"), max_length=64, null=True, default=None, blank=True)
+    time_field = models.CharField(_("时间字段"), max_length=64, null=True, default=True, blank=True)
     apply_status = models.CharField(_("审核状态"), max_length=64, choices=Status.StatusChoices, default=Status.PENDING)
     scenario_id = models.CharField(_("接入场景"), max_length=64, null=True, blank=True)
     storage_cluster_id = models.IntegerField(_("存储集群ID"), default=None, null=True, blank=True)
