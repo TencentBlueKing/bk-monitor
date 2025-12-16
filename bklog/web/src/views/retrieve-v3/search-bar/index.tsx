@@ -241,7 +241,7 @@ export default defineComponent({
       RetrieveHelper.aiAssitantHelper.closeAiAssitantWithSearchBar(e);
     });
 
-    addElementEvent(document, 'keydown', handleTabKeyPress, { capture: true });
+    // addElementEvent(document, 'keydown', handleTabKeyPress, { capture: true });
 
     /**
      * 使用AI编辑
