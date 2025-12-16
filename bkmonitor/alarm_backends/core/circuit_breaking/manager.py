@@ -45,7 +45,7 @@ class BaseCircuitBreakingManager:
         if is_match:
             # 获取匹配的具体规则用于日志记录
             matched_rules = self.matcher.config_rules
-            logger.info(
+            logger.debug(
                 f"[circuit breaking] Circuit breaking triggered for module {self.module}, "
                 f"matched_rules: {matched_rules}, instance: {clean_instance}"
             )
@@ -107,6 +107,7 @@ class AccessDataCircuitBreakingManager(BaseCircuitBreakingManager):
         :param bk_biz_id: 业务ID
         :param data_source_label: 数据源标签
         :param data_type_label: 数据类型标签
+        :param strategy_id: 策略ID
         :return: 是否需要熔断
         """
         if not kwargs:
