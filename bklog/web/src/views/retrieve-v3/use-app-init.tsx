@@ -378,7 +378,7 @@ export default () => {
 
         // 如果经过上述逻辑，缓存中没有索引信息，则默认取第一个有数据的索引
         if (!indexSetIdList.value.length) {
-          const defIndexItem =            flatIndexSetList.value.find(
+          const defIndexItem = flatIndexSetList.value.find(
             item => item.permission?.[VIEW_BUSINESS] && item.tags.every(tag => tag.tag_id !== 4),
           ) ?? flatIndexSetList.value[0];
           const defaultId = [defIndexItem?.index_set_id];
@@ -390,10 +390,10 @@ export default () => {
           }
         }
 
-        const indexId =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
+        const indexId = store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'single'
           ? store.state.indexItem.ids[0]
           : undefined;
-        const unionList =          store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
+        const unionList = store.state.storage[BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB] === 'union' ? store.state.indexItem.ids : undefined;
 
         if (emptyIndexSetList.length === 0) {
           RetrieveHelper.setSearchingValue(true);
