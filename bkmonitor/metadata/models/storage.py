@@ -13,7 +13,9 @@ import base64
 import datetime
 import json
 import logging
+import random
 import re
+import string
 import time
 import traceback
 from typing import TYPE_CHECKING, Any
@@ -360,12 +362,12 @@ class ClusterInfo(models.Model):
     def create_cluster(
         cls,
         bk_tenant_id: str,
-        cluster_name,
         cluster_type,
         domain_name,
         port,
         registered_system,
         operator,
+        cluster_name="",
         display_name="",
         description="",
         username="",
@@ -411,6 +413,12 @@ class ClusterInfo(models.Model):
         :return: clusterInfo object
         """
         from metadata.models.data_link.data_link_configs import ClusterConfig
+
+        # 如果cluster_name为空，则先生成一个cluster_name占位
+        if not cluster_name:
+            # 随机生成一个字符串，长度为10，包含字母和数字
+            cluster_name = "".join(random.choices(string.ascii_letters + string.digits, k=16))
+            cluster_name = f"auto_cluster_name_{cluster_name}"
 
         # 如果未提供显示名称，则使用集群名作为显示名称
         if not display_name:

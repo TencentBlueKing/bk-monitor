@@ -1179,4 +1179,5 @@ export default {
   灰度业务: 'Gray scale business',
   '本功能为灰度业务，请联系管理员开通':
     'This feature is currently in a phased rollout phase. Please contact the administrator to activate it.',
+  任务未完成: 'Task not completed',
 };
