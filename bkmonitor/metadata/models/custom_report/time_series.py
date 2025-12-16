@@ -92,12 +92,6 @@ class TimeSeriesGroup(CustomGroupBase):
     # dimension字段配置
     STORAGE_EVENT_NAME_OPTION = {}
 
-    @property
-    def metric_group_dimensions_list(self) -> list[str]:
-        if not self.metric_group_dimensions:
-            return []
-        return [dim.get("key") for dim in self.metric_group_dimensions if dim.get("key")]
-
     STORAGE_FIELD_LIST = [
         {
             "field_name": "target",
