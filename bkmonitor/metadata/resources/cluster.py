@@ -77,7 +77,7 @@ class RegisterCluster(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
-        cluster_name = serializers.CharField(label="集群名称")
+        cluster_name = serializers.RegexField(label="集群名称", regex=models.ClusterInfo.CLUSTER_NAME_REGEX, default="")
         cluster_type = serializers.CharField(label="集群类型")
         display_name = serializers.CharField(label="集群显示名称", required=False)
         domain = serializers.CharField(label="集群域名")
@@ -132,7 +132,7 @@ class CreateClusterInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         cluster_name = serializers.RegexField(
-            required=True, label="集群名", regex=models.ClusterInfo.CLUSTER_NAME_REGEX
+            label="集群名", regex=models.ClusterInfo.CLUSTER_NAME_REGEX, default=""
         )
         display_name = serializers.CharField(required=False, max_length=128, label="集群显示名称")
         cluster_type = serializers.CharField(required=True, label="集群类型")
