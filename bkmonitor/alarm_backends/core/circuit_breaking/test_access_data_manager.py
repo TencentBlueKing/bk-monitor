@@ -190,16 +190,7 @@ class AccessDataCircuitBreakingTest:
         clear(self.module)
 
         # 先添加策略级别的熔断规则
-        CircuitBreakingCacheManager.add_rule(
-            self.module,
-            {
-                "key": "strategy_id",
-                "method": "eq",
-                "value": ["1001", "1002"],
-                "condition": "or",
-                "description": "策略级别熔断测试",
-            },
-        )
+        CircuitBreakingCacheManager.set_strategy_circuit_breaking(self.module, ["1001", "1002"])
 
         # 重新初始化manager以加载新配置
         self.manager = AccessDataCircuitBreakingManager(self.module)
