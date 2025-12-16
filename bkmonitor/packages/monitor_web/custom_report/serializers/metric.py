@@ -80,33 +80,51 @@ class CustomTSScopeSerializer(serializers.Serializer):
         return super().validate(attrs)
 
 
-class DimensionConfigSerializer(serializers.Serializer):
+class DimensionConfigRequestSerializer(serializers.Serializer):
     alias = serializers.CharField(label=_("字段别名"), allow_blank=True, required=False)
     common = serializers.BooleanField(label=_("是否常用字段"), required=False)
     hidden = serializers.BooleanField(label=_("是否隐藏"), required=False)
 
 
-class MetricConfigSerializer(serializers.Serializer):
+class DimensionConfigResponseSerializer(serializers.Serializer):
+    alias = serializers.CharField(label=_("字段别名"), allow_blank=True, default="")
+    common = serializers.BooleanField(label=_("是否常用字段"), default=False)
+    hidden = serializers.BooleanField(label=_("是否隐藏"), default=False)
+
+
+class MetricConfigRequestSerializer(serializers.Serializer):
     alias = serializers.CharField(label=_("字段别名"), allow_blank=True, required=False)
     unit = serializers.CharField(label=_("字段单位"), allow_blank=True, required=False)
     hidden = serializers.BooleanField(label=_("是否隐藏"), required=False)
     aggregate_method = serializers.CharField(label=_("聚合方法"), allow_blank=True, required=False)
-    function = serializers.JSONField(label=_("指标函数"), required=False)
+    function = serializers.ListSerializer(label=_("指标函数"), child=serializers.DictField(), required=False)
     interval = serializers.IntegerField(label=_("指标周期"), required=False)
     disabled = serializers.BooleanField(label=_("是否禁用"), required=False)
 
 
-class MetricSerializer(serializers.Serializer):
+class MetricConfigResponseSerializer(serializers.Serializer):
+    alias = serializers.CharField(label=_("字段别名"), allow_blank=True, default="")
+    unit = serializers.CharField(label=_("字段单位"), allow_blank=True, default="")
+    hidden = serializers.BooleanField(label=_("是否隐藏"), default=False)
+    aggregate_method = serializers.CharField(label=_("聚合方法"), allow_blank=True, default="")
+    function = serializers.ListSerializer(label=_("指标函数"), child=serializers.DictField(), default=[])
+    interval = serializers.IntegerField(label=_("指标周期"), default=0)
+    disabled = serializers.BooleanField(label=_("是否禁用"), default=False)
+
+
+class MetricResponseSerializer(serializers.Serializer):
     id = serializers.IntegerField(label=_("指标 ID"))
     name = serializers.CharField(label=_("指标名称"))
     dimensions = serializers.ListField(label=_("维度列表"), child=serializers.CharField(), default=list)
-    config = MetricConfigSerializer(label=_("指标配置"))
+    config = MetricConfigResponseSerializer(label=_("指标配置"))
     create_time = serializers.FloatField(label=_("创建时间"))
     update_time = serializers.FloatField(label=_("更新时间"))
 
 
 class ImportExportScopeSerializer(serializers.Serializer):
     name = serializers.CharField(label=_("分组名称"), allow_blank=True)
-    dimension_config = serializers.DictField(label=_("维度配置"), child=DimensionConfigSerializer(), default=dict)
+    dimension_config = serializers.DictField(
+        label=_("维度配置"), child=DimensionConfigResponseSerializer(), default=dict
+    )
     auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), child=serializers.CharField(), default=list)
-    metric_list = serializers.ListField(label=_("关联指标"), child=MetricSerializer(), default=list)
+    metric_list = serializers.ListField(label=_("关联指标"), child=MetricResponseSerializer(), default=list)

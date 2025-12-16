@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 import re
-import copy
 from collections import defaultdict
 from typing import Any
 from functools import reduce
@@ -49,9 +48,11 @@ from monitor_web.custom_report.serializers.metric import (
     CustomTSTableSerializer,
     BasicMetricSerializer,
     BasicScopeSerializer,
-    DimensionConfigSerializer,
-    MetricConfigSerializer,
+    DimensionConfigRequestSerializer,
+    MetricConfigRequestSerializer,
     ImportExportScopeSerializer,
+    DimensionConfigResponseSerializer,
+    MetricConfigResponseSerializer,
 )
 from monitor_web.models.custom_report import (
     CustomTSField,
@@ -63,9 +64,16 @@ from monitor_web.custom_report.handlers.metric.query import (
     ScopeQueryResponseDTO,
     MetricQueryConverter,
     ScopeCURequestDTO,
-    DimensionConfigDTO,
     MetricCURequestDTO,
-    BasicScopeDTO,
+    BasicScopeRequestDTO,
+    DimensionConfigRequestDTO,
+)
+from monitor_web.custom_report.handlers.metric.service import (
+    FieldsModifyService,
+    ModifyMetric,
+    ModifyDimension,
+    ModifyDimensionConfig,
+    ModifyMetricConfig,
 )
 from monitor_web.strategies.resources import GetMetricListV2Resource
 
@@ -197,6 +205,34 @@ class ValidateCustomTsGroupName(Resource):
             is_exist = queryset.exists()
         if is_exist:
             raise CustomValidationNameError(msg=_("自定义指标名称已存在"))
+        return True
+
+
+class ValidateCustomTsGroupLabel(Resource):
+    """
+    校验自定义指标数据名称是否合法
+    1. 创建场景：调用metadata接口校验是否与存量ResultTable的data_label重复
+    2. 编辑场景：除了time_series_group_id参数对应CustomTSTable的data_label外，是否与存量ResultTable的data_label重复
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True)
+        time_series_group_id = serializers.IntegerField(required=False)
+        data_label = serializers.CharField(required=True)
+
+    METRIC_DATA_LABEL_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_\.]*$")
+
+    def perform_request(self, params: dict):
+        if params["data_label"].strip() == "":
+            raise CustomValidationLabelError(msg=_("自定义指标英文名不允许为空"))
+
+        data_labels = params["data_label"].strip().split(",")
+        for dl in data_labels:
+            if not self.METRIC_DATA_LABEL_PATTERN.match(dl):
+                raise CustomValidationLabelError(
+                    msg=_("自定义指标英文名仅允许包含字母、数字、下划线、点号，且必须以字母开头")
+                )
+        params["data_label"] = ",".join(data_labels)
         return True
 
 
@@ -337,6 +373,7 @@ class CreateCustomTimeSeries(Resource):
         return {"time_series_group_id": group_info["time_series_group_id"], "bk_data_id": group_info["bk_data_id"]}
 
 
+# TODO: 兼容性修改
 class ModifyCustomTimeSeries(Resource):
     """
     修改自定义时序
@@ -448,6 +485,7 @@ class ModifyCustomTimeSeries(Resource):
         )
 
 
+# TODO: 兼容性修改
 class DeleteCustomTimeSeries(Resource):
     """
     删除自定义时序
@@ -535,6 +573,7 @@ class CustomTimeSeriesList(Resource):
         }
 
 
+# TODO: 兼容性修改
 class CustomTimeSeriesDetail(Resource):
     """
     自定义时序详情
@@ -604,13 +643,13 @@ class GetCustomTsFields(Resource):
             name = serializers.CharField(label=_("字段名称"))
 
         class DimensionSerializer(BaseFieldSerializer):
-            config = DimensionConfigSerializer(label=_("维度配置"))
+            config = DimensionConfigResponseSerializer(label=_("维度配置"))
 
         class MetricSerializer(BaseFieldSerializer):
             id = serializers.IntegerField(label=_("指标 ID"))
             movable = serializers.BooleanField(label=_("是否可移动"))
             field_scope = serializers.CharField(label=_("数据分组"))
-            config = MetricConfigSerializer(label=_("指标配置"))
+            config = MetricConfigResponseSerializer(label=_("指标配置"))
             dimensions = serializers.ListField(label=_("维度列表"), child=serializers.CharField())
             create_time = serializers.FloatField(label=_("创建时间"), allow_null=True)
             update_time = serializers.FloatField(label=_("更新时间"), allow_null=True)
@@ -621,8 +660,8 @@ class GetCustomTsFields(Resource):
     def perform_request(self, params: dict):
         time_series_group_id: int = params["time_series_group_id"]
         converter = ScopeQueryConverter(time_series_group_id)
-        scope_objs = converter.query_time_series_scope()
-        converter.filter_disabled_metric(scope_objs)
+        scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope()
+        scope_objs = converter.filter_disabled_metric(scope_objs)
 
         dimensions: list[dict[str, Any]] = []
         metrics: list[dict[str, Any]] = []
@@ -681,14 +720,16 @@ class ModifyCustomTsFields(Resource):
             class CMetricSerializer(serializers.Serializer):
                 id = serializers.IntegerField(label=_("指标 ID"), allow_null=True, default=None)
                 name = serializers.CharField(label=_("指标名称"))
-                config = MetricConfigSerializer(label=_("指标配置"), default={})
+                config = MetricConfigRequestSerializer(label=_("指标配置"), default={})
+                dimensions = serializers.ListField(label=_("维度列表"), child=serializers.CharField(), required=False)
 
             class UMetricSerializer(serializers.Serializer):
-                config = MetricConfigSerializer(label=_("指标配置"), default={})
                 id = serializers.IntegerField(label=_("指标 ID"))
+                config = MetricConfigRequestSerializer(label=_("指标配置"), default={})
+                dimensions = serializers.ListField(label=_("维度列表"), child=serializers.CharField(), required=False)
 
             class CUDimensionSerializer(serializers.Serializer):
-                config = DimensionConfigSerializer(label=_("维度配置"), default={})
+                config = DimensionConfigRequestSerializer(label=_("维度配置"), default={})
                 name = serializers.CharField(label=_("维度名称"))
 
             def to_internal_value(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -702,144 +743,49 @@ class ModifyCustomTsFields(Resource):
                         s = self.CMetricSerializer(data=data)
                 s.is_valid(raise_exception=True)
                 validated_data.update(s.validated_data)
-                validated_data["scope_id"] = validated_data["scope"]["id"]
                 return validated_data
 
         update_fields = serializers.ListField(label=_("更新字段列表"), child=CUFieldSerializer(), default=list)
         delete_fields = serializers.ListField(label=_("删除字段列表"), child=DeleteFieldSerializer(), default=list)
 
     def perform_request(self, params: dict[str, Any]):
-        bk_biz_id: int = params["bk_biz_id"]
-        # TODO: 新增指标时，如果有同名指标，可以复用 disabled 打开指标
-        time_series_group_id: int = params["time_series_group_id"]
-        ts_table = CustomTSTable.objects.filter(bk_biz_id=bk_biz_id, time_series_group_id=time_series_group_id).first()
-        if not ts_table:
-            raise ValidationError(
-                f"custom time series table not found, bk_biz_id: {bk_biz_id}, "
-                f"time_series_group_id: {time_series_group_id}"
-            )
-
-        # 构建原始数据
-        metric_dict_by_id: dict[int, dict[str, Any]] = {}
-        dimension_config_by_scope_id: dict[int, dict[str, Any]] = {}
-        scope_list: list[dict[str, Any]] = copy.deepcopy(ts_table.query_time_series_scope)
-        for scope_dict in scope_list:
-            # TODO: 改代码
-            for metric_dict in scope_dict.get("metric_list", []):
-                metric_dict_by_id[metric_dict["field_id"]] = metric_dict
-            dimension_config_by_scope_id[scope_dict["scope_id"]] = scope_dict.get("dimension_config", {})
-
-        # 删除字段
-        need_delete_metric_dict: dict[int, dict[str, Any]] = {}
-        delete_dimensions_by_scope_id: dict[int, list[dict[str, Any]]] = {}
-        delete_fields: list[dict[str, Any]] = params["delete_fields"]
-        for field_dict in delete_fields:
+        field_modify_service = FieldsModifyService(time_series_group_id=params["time_series_group_id"])
+        for field_dict in params["update_fields"]:
+            modify_dict: dict[str, Any] = {
+                "scope_id": field_dict["scope"]["id"],
+            }
             if field_dict["type"] == CustomTSMetricType.METRIC:
-                metric_id: int = field_dict["id"]
-                if metric_id not in metric_dict_by_id:
-                    continue
-                origin_metric_dict: dict[str, Any] = metric_dict_by_id[metric_id]
-                origin_field_config: dict[str, Any] = origin_metric_dict.get("field_config", {})
-                origin_field_config["disabled"] = True
-                need_delete_metric_dict[metric_id] = {
-                    "field_id": metric_id,
-                    "scope_id": field_dict["scope_id"],
-                    "field_config": origin_field_config,
-                }
-            else:
-                delete_dimensions_by_scope_id.setdefault(field_dict["scope_id"], []).append(field_dict)
-
-        # 更新字段
-        need_create_metrics: list[dict[str, Any]] = []
-        need_update_metrics: list[dict[str, Any]] = []
-        update_dimensions_by_scope_id: dict[str, list[dict[str, Any]]] = {}
-        update_fields: list[dict[str, Any]] = params["update_fields"]
-        for field_dict in update_fields:
-            scope_id: str = field_dict["scope_id"]
-            if field_dict["type"] == CustomTSMetricType.METRIC:
-                metric_id: int | None = field_dict["id"]
-                if metric_id is None:
-                    # 创建场景
-                    need_create_metrics.append(
-                        {
-                            "scope_id": scope_id,
-                            "field_name": field_dict["name"],
-                            "field_config": field_dict["config"],
-                        }
-                    )
-                    continue
-                elif metric_id not in metric_dict_by_id or metric_id in need_delete_metric_dict:
-                    continue
-                # 更新场景
-                origin_field_config: dict[str, Any] = metric_dict_by_id[metric_id].get("field_config", {})
-                origin_field_config.update(field_dict["config"])
-                need_update_metrics.append(
+                modify_dict.update(
                     {
-                        "field_id": metric_id,
-                        "scope_id": scope_id,
-                        "field_config": origin_field_config,
+                        "config": ModifyMetricConfig(**field_dict["config"]),
+                        "id": field_dict["id"],
                     }
                 )
+                if field_dict.get("name"):
+                    modify_dict["name"] = field_dict["name"]
+                if "dimensions" in field_dict:
+                    modify_dict["dimensions"] = field_dict["dimensions"]
+                field_modify_service.add_metric(ModifyMetric(**modify_dict))
             else:
-                update_dimensions_by_scope_id.setdefault(scope_id, []).append(field_dict)
-
-        update_dimensions: list[dict[str, Any]] = []
-        for scope_id in set(delete_dimensions_by_scope_id.keys()) | set(update_dimensions_by_scope_id.keys()):
-            delete_dimension_names: set[str] = {
-                field_dict["name"] for field_dict in delete_dimensions_by_scope_id.get(scope_id, [])
-            }
-
-            origin_dimension_config = {
-                k: v
-                for k, v in dimension_config_by_scope_id.get(scope_id, {}).items()
-                if k not in delete_dimension_names
-            }
-            for update_field_dict in update_dimensions_by_scope_id.get(scope_id, []):
-                field_name = update_field_dict["name"]
-                field_config = update_field_dict["config"]
-                if field_name in origin_dimension_config:
-                    origin_dimension_config[field_name].update(field_config)
-                else:
-                    origin_dimension_config[field_name] = field_config
-            update_dimensions.append({"scope_id": scope_id, "dimension_config": origin_dimension_config})
-
-        # 更新维度
-        if update_dimensions:
-            api.metadata.create_or_update_time_series_scope(group_id=time_series_group_id, scopes=update_dimensions)
-        # 更新指标
-        if list(need_delete_metric_dict) or need_update_metrics or need_create_metrics:
-            api.metadata.create_or_update_time_series_metric(
-                group_id=time_series_group_id,
-                metrics=list(need_delete_metric_dict.values()) + need_update_metrics + need_create_metrics,
-            )
-
-
-class ValidateCustomTsGroupLabel(Resource):
-    """
-    校验自定义指标数据名称是否合法
-    1. 创建场景：调用metadata接口校验是否与存量ResultTable的data_label重复
-    2. 编辑场景：除了time_series_group_id参数对应CustomTSTable的data_label外，是否与存量ResultTable的data_label重复
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True)
-        time_series_group_id = serializers.IntegerField(required=False)
-        data_label = serializers.CharField(required=True)
-
-    METRIC_DATA_LABEL_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_\.]*$")
-
-    def perform_request(self, params: dict):
-        if params["data_label"].strip() == "":
-            raise CustomValidationLabelError(msg=_("自定义指标英文名不允许为空"))
-
-        data_labels = params["data_label"].strip().split(",")
-        for dl in data_labels:
-            if not self.METRIC_DATA_LABEL_PATTERN.match(dl):
-                raise CustomValidationLabelError(
-                    msg=_("自定义指标英文名仅允许包含字母、数字、下划线、点号，且必须以字母开头")
+                modify_dict.update(
+                    {
+                        "config": ModifyDimensionConfig(**field_dict["config"]),
+                        "name": field_dict["name"],
+                    }
                 )
-        params["data_label"] = ",".join(data_labels)
-        return True
+                field_modify_service.add_dimension(ModifyDimension(**modify_dict))
+
+        for field_dict in params["delete_fields"]:
+            modify_dict: dict[str, Any] = {
+                "scope_id": field_dict["scope"]["id"],
+            }
+            if field_dict["type"] == CustomTSMetricType.METRIC:
+                modify_dict["id"] = field_dict["id"]
+                field_modify_service.delete_metric(ModifyMetric(**modify_dict))
+            else:
+                modify_dict["name"] = field_dict["name"]
+                field_modify_service.delete_dimension(ModifyDimension(**modify_dict))
+        field_modify_service.apply_change()
 
 
 class AddCustomMetricResource(Resource):
@@ -1071,10 +1017,10 @@ class CreateOrUpdateGroupingRule(Resource):
         update_field_ids: set[int] = update_field_ids - origin_field_ids
         metric_objs: list[MetricCURequestDTO] = []
         for field_id in remove_field_ids:
-            metric_objs.append(MetricCURequestDTO(id=field_id, scope=BasicScopeDTO(id=default_scope_id)))
+            metric_objs.append(MetricCURequestDTO(id=field_id, scope=BasicScopeRequestDTO(id=default_scope_id)))
 
         for field_id in update_field_ids:
-            metric_objs.append(MetricCURequestDTO(id=field_id, scope=BasicScopeDTO(id=scope_obj.id)))
+            metric_objs.append(MetricCURequestDTO(id=field_id, scope=BasicScopeRequestDTO(id=scope_obj.id)))
 
         metric_converter = MetricQueryConverter(time_series_group_id)
         metric_converter.create_or_update_time_series_metric(metric_objs)
@@ -1240,8 +1186,8 @@ class ImportCustomTimeSeriesFields(Resource):
         for scope_dict in params["scopes"]:
             scope_name = scope_dict["name"]
             scope_obj = scope_obj_by_name.get(scope_name)
-            dimension_config: dict[str, DimensionConfigDTO] = {
-                dimension_name: DimensionConfigDTO.from_dict(dimension_config)
+            dimension_config: dict[str, DimensionConfigRequestDTO] = {
+                dimension_name: DimensionConfigRequestDTO(**dimension_config)
                 for dimension_name, dimension_config in scope_dict["dimension_config"]
             }
             scope_cu_obj = ScopeCURequestDTO(
