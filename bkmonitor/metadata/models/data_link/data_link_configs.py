@@ -218,8 +218,11 @@ class DataIdConfig(DataLinkResourceConfigBase):
             "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
             "maintainers": json.dumps(maintainer),
             "event_type": event_type,
-            "prefer_kafka_cluster_name": prefer_kafka_cluster_name,
         }
+
+        # 如果开启dataid注册时能够指定集群名称，则添加prefer_kafka_cluster_name字段
+        if settings.ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME:
+            render_params["prefer_kafka_cluster_name"] = prefer_kafka_cluster_name
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
@@ -840,7 +843,6 @@ class ClusterConfig(models.Model):
         DataLinkKind.ELASTICSEARCH.value: BKBASE_NAMESPACE_BK_LOG,
         DataLinkKind.VMSTORAGE.value: BKBASE_NAMESPACE_BK_MONITOR,
         DataLinkKind.DORIS.value: BKBASE_NAMESPACE_BK_LOG,
-
         # Kafka集群需要同时注册到bkmonitor和bklog命名空间
         DataLinkKind.KAFKACHANNEL.value: [BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR],
     }
