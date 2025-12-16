@@ -43,16 +43,16 @@ from monitor_web.constants import ETL_CONFIG
 from monitor_web.custom_report.constants import UNGROUP_SCOPE_NAME, CustomTSMetricType, DEFAULT_FIELD_SCOPE
 from monitor_web.custom_report.serializers.metric import (
     BaseCustomTSSerializer,
-    CustomTSGroupingRuleSerializer,
-    CustomTSScopeSerializer,
+    CustomTSScopeRequestSerializer,
     CustomTSTableSerializer,
-    BasicMetricSerializer,
+    BasicMetricRequestSerializer,
     BasicScopeSerializer,
     DimensionConfigRequestSerializer,
     MetricConfigRequestSerializer,
     ImportExportScopeSerializer,
     DimensionConfigResponseSerializer,
     MetricConfigResponseSerializer,
+    CustomTSScopeResponseSerializer,
 )
 from monitor_web.models.custom_report import (
     CustomTSField,
@@ -62,10 +62,7 @@ from monitor_web.models.custom_report import (
 from monitor_web.custom_report.handlers.metric.query import (
     ScopeQueryConverter,
     ScopeQueryResponseDTO,
-    MetricQueryConverter,
     ScopeCURequestDTO,
-    MetricCURequestDTO,
-    BasicScopeRequestDTO,
     DimensionConfigRequestDTO,
 )
 from monitor_web.custom_report.handlers.metric.service import (
@@ -79,11 +76,6 @@ from monitor_web.strategies.resources import GetMetricListV2Resource
 
 
 logger = logging.getLogger(__name__)
-
-
-def get_metric_list(metric_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    filter_metric_list = [m for m in metric_list if not m.get("field_config", {}).get("disabled")]
-    return BasicMetricSerializer(filter_metric_list, many=True).data
 
 
 def get_label_display_dict():
@@ -373,17 +365,14 @@ class CreateCustomTimeSeries(Resource):
         return {"time_series_group_id": group_info["time_series_group_id"], "bk_data_id": group_info["bk_data_id"]}
 
 
-# TODO: 兼容性修改
+# TODO: 破坏性变更(需要讨论)
 class ModifyCustomTimeSeries(Resource):
     """
     修改自定义时序
     注: esb 开放接口，需要维持入参出参一致性
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label=_("业务 ID"), required=True)
-        time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"), required=True)
-
+    class RequestSerializer(BaseCustomTSSerializer):
         name = serializers.CharField(label=_("名称"), required=False, max_length=128)
         is_platform = serializers.BooleanField(required=False, label=_("平台级"))
         data_label = serializers.CharField(label=_("数据标签"), required=False)
@@ -455,63 +444,50 @@ class ModifyCustomTimeSeries(Resource):
                 reduce(lambda x, y: x | y, (Q(name=name, type=type) for name, type in need_delete_fields))
             ).delete()
 
-    @atomic()
     def perform_request(self, params: dict):
-        table = CustomTSTable.objects.filter(
-            bk_biz_id=params["bk_biz_id"],
-            time_series_group_id=params["time_series_group_id"],
-        ).first()
-        if not table:
-            raise ValidationError(
-                f"custom time series table not found, bk_biz_id: {params['bk_biz_id']},"
-                f" time_series_group_id: {params['time_series_group_id']}"
-            )
+        bk_biz_id: int = params["bk_biz_id"]
+        time_series_group_id: int = params["time_series_group_id"]
+        ts_table = CustomTSTable.objects.get(
+            bk_biz_id=bk_biz_id,
+            time_series_group_id=time_series_group_id,
+        )
 
         # 更新自定义时序表信息
         update_fields = ["name", "is_platform", "data_label", "desc", "auto_discover"]
         for field in update_fields:
             if field in params:
-                setattr(table, field, params[field])
-        table.save()
+                setattr(ts_table, field, params[field])
+        ts_table.save()
 
         # 更新自定义时序字段信息
-        self.update_fields(table, params)
+        self.update_fields(ts_table, params)
 
         # 更新metadata指标信息
-        table.save_to_metadata(with_fields="metric_json" in params)
+        ts_table.save_to_metadata()
 
         return resource.custom_report.custom_time_series_detail(
-            bk_biz_id=params["bk_biz_id"], time_series_group_id=table.time_series_group_id
+            bk_biz_id=bk_biz_id, time_series_group_id=time_series_group_id
         )
 
 
-# TODO: 兼容性修改
 class DeleteCustomTimeSeries(Resource):
     """
     删除自定义时序
     注: esb 开放接口，需要维持入参出参一致性
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label=_("业务 ID"), required=True)
-        time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"), required=True)
+    class RequestSerializer(BaseCustomTSSerializer):
+        pass
 
-    @atomic()
     def perform_request(self, params: dict):
-        table = CustomTSTable.objects.filter(
+        ts_table = CustomTSTable.objects.get(
             bk_biz_id=params["bk_biz_id"], time_series_group_id=params["time_series_group_id"]
-        ).first()
-        if not table:
-            raise ValidationError(
-                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
-            )
+        )
         operator = get_request_username()
         api.metadata.delete_time_series_group(
-            {"operator": operator, "time_series_group_id": table.time_series_group_id}
+            {"operator": operator, "time_series_group_id": ts_table.time_series_group_id}
         )
-
-        CustomTSField.objects.filter(time_series_group_id=table.time_series_group_id).delete()
-        table.delete()
+        ts_table.delete()
         return {"time_series_group_id": params["time_series_group_id"]}
 
 
@@ -573,7 +549,7 @@ class CustomTimeSeriesList(Resource):
         }
 
 
-# TODO: 兼容性修改
+# TODO: 破坏性变更(需要讨论)
 class CustomTimeSeriesDetail(Resource):
     """
     自定义时序详情
@@ -621,7 +597,7 @@ class CustomTimeSeriesDetail(Resource):
         data["access_token"] = config.token
 
         # 如果需要查询指标信息，则将指标信息写入到metric_json中
-        data["metric_json"] = [{"fields": config.get_metric_fields()}] if params.get("with_metrics") else []
+        data["metric_json"] = [{"fields": config.get_metrics()}] if params.get("with_metrics") else []
         # 新增查询target参数，自定义指标详情页面不需要target，默认不查询
         data["target"] = config.query_target(bk_biz_id=bk_biz_id) if params.get("with_target") else []
 
@@ -860,113 +836,21 @@ class CustomTsGroupingRuleList(Resource):
     获取自定义指标分组规则列表
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
-        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
+    class RequestSerializer(BaseCustomTSSerializer):
+        pass
+
+    many_response_data = True
+
+    class ResponseSerializer(CustomTSScopeResponseSerializer):
+        dimension_config = None
 
     def perform_request(self, params: dict):
-        bk_biz_id: int = params["bk_biz_id"]
-        time_series_group_id: int = params["time_series_group_id"]
-        # 获取自定义时序表
-        ts_table: CustomTSTable | None = CustomTSTable.objects.filter(
-            bk_biz_id=bk_biz_id, time_series_group_id=time_series_group_id
-        ).first()
-        if not ts_table:
-            raise ValidationError(f"custom time series table not found, time_series_group_id: {time_series_group_id}")
-        result: list[dict[str, Any]] = []
-        scope_list: list[dict[str, Any]] = ts_table.query_time_series_scope
-        for scope_dict in scope_list:
-            metric_list: list[dict[str, Any]] = get_metric_list(scope_dict.get("metric_list", []))
-            result.append(
-                {
-                    "scope_id": scope_dict["scope_id"],
-                    "name": scope_dict["scope_name"],
-                    "metric_list": metric_list,
-                    "auto_rules": scope_dict.get("auto_rules", []),
-                    "metric_count": len(metric_list),
-                    "create_from": scope_dict["create_from"],
-                }
-            )
-        result.sort(key=lambda x: x["scope_id"])
-        return result
-
-
-class ModifyCustomTsGroupingRuleList(Resource):
-    """
-    修改全量自定义指标分组规则列表
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
-        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
-        group_list = serializers.ListField(label=_("分组列表"), child=CustomTSGroupingRuleSerializer(), default=list)
-
-    def perform_request(self, params: dict):
-        # 获取自定义时序表
-        table = CustomTSTable.objects.get(
-            bk_biz_id=params["bk_biz_id"], time_series_group_id=params["time_series_group_id"]
-        )
-        if not table:
-            raise ValidationError(
-                f"custom time series table not found, time_series_group_id: {params['time_series_group_id']}"
-            )
-
-        group_rules = {}
-        for index, group in enumerate(params["group_list"]):
-            # 校验分组名称唯一
-            if group_rules.get(group["name"]):
-                raise CustomValidationLabelError(msg=_("自定义指标分组名{}不可重复").format(group["name"]))
-
-            group["index"] = index
-            group_rules[group["name"]] = group
-
-        # 获取存量分组规则
-        exist_group_rules = CustomTSGroupingRule.objects.filter(time_series_group_id=params["time_series_group_id"])
-
-        need_update_rules: list[CustomTSGroupingRule] = []
-        need_delete_rules: list[CustomTSGroupingRule] = []
-        need_create_rules: list[CustomTSGroupingRule] = []
-        # 遍历分组规则，判断是否需要更新或删除
-        exists_group_rule_names = set()
-        for exist_group_rule in exist_group_rules:
-            # 记录分组规则名称
-            exists_group_rule_names.add(exist_group_rule.name)
-
-            current_group_rule: dict | None = group_rules.get(exist_group_rule.name)
-            # 如果分组规则不存在，则删除
-            if not current_group_rule:
-                need_delete_rules.append(exist_group_rule)
-                continue
-
-            # 如果分组规则存在，则判断是否需要更新
-            change = False
-            if exist_group_rule.manual_list != current_group_rule.get("manual_list", []):
-                change = True
-            if exist_group_rule.auto_rules != current_group_rule.get("auto_rules", []):
-                change = True
-            if exist_group_rule.index != current_group_rule["index"]:
-                change = True
-            if change:
-                need_update_rules.append(exist_group_rule)
-
-        # 生成需要创建的分组规则
-        for group_rule in group_rules.values():
-            if group_rule["name"] not in exists_group_rule_names:
-                need_create_rules.append(CustomTSGroupingRule(**group_rule))
-
-        # 执行批量操作
-        CustomTSGroupingRule.objects.bulk_create(need_create_rules, batch_size=200)
-        CustomTSGroupingRule.objects.filter(id__in=need_delete_rules).delete()
-        CustomTSGroupingRule.objects.bulk_update(
-            need_update_rules,
-            fields=["manual_list", "auto_rules"],
-            batch_size=200,
-        )
-
-        # 分组匹配现存指标
-        table.renew_metric_labels(need_update_rules + need_create_rules, delete=False, clean=True)
-
-        return resource.custom_report.custom_ts_grouping_rule_list(time_series_group_id=params["time_series_group_id"])
+        converter = ScopeQueryConverter(params["time_series_group_id"])
+        scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope()
+        scope_objs = converter.filter_disabled_metric(scope_objs)
+        result: list[dict[str, Any]] = [asdict(scope_obj) for scope_obj in scope_objs]
+        result.sort(key=lambda x: x["id"])
+        return result[0:1]
 
 
 class CreateOrUpdateGroupingRule(Resource):
@@ -974,21 +858,11 @@ class CreateOrUpdateGroupingRule(Resource):
     更新自定义指标分组规则
     """
 
-    class RequestSerializer(BaseCustomTSSerializer, CustomTSScopeSerializer):
+    class RequestSerializer(BaseCustomTSSerializer, CustomTSScopeRequestSerializer):
         pass
 
-    class ResponseSerializer(serializers.Serializer):
-        class MetricSerializer(serializers.Serializer):
-            id = serializers.IntegerField(label=_("指标 ID"), source="field_id")
-            name = serializers.CharField(label=_("指标名称"), source="metric_name")
-
-        id = serializers.IntegerField(label=_("分组 ID"), source="scope_id")
-        name = serializers.CharField(label=_("分组名称"))
-        dimension_config = serializers.DictField(label=_("维度配置"))
-        metric_list = serializers.ListField(label=_("指标列表"), child=MetricSerializer())
-        auto_rules = serializers.ListField(label=_("自动规则"))
-        metric_count = serializers.IntegerField(label=_("指标数量"))
-        create_from = serializers.CharField(label=_("创建来源"))
+    class ResponseSerializer(CustomTSScopeResponseSerializer):
+        pass
 
     def perform_request(self, params: dict):
         scope_request_obj = ScopeCURequestDTO(
@@ -1007,30 +881,26 @@ class CreateOrUpdateGroupingRule(Resource):
                 default_scope_id = _scope_obj.id
 
         if not default_scope_id:
-            raise ValidationError(_("默认分组不存在"))
+            raise ValidationError(_("数据异常，默认分组不存在，请联系管理员处理"))
 
         scope_obj = scope_converter.query_time_series_scope(scope_ids=[scope_cu_obj.id])[0]
 
-        origin_field_ids: set[int] = {metric_obj.id for metric_obj in scope_obj.metric_list}
-        update_field_ids: set[int] = {metric_dict["field_id"] for metric_dict in params["metric_list"]}
-        remove_field_ids: set[int] = origin_field_ids - update_field_ids
-        update_field_ids: set[int] = update_field_ids - origin_field_ids
-        metric_objs: list[MetricCURequestDTO] = []
-        for field_id in remove_field_ids:
-            metric_objs.append(MetricCURequestDTO(id=field_id, scope=BasicScopeRequestDTO(id=default_scope_id)))
+        origin_metric_ids: set[int] = {metric_obj.id for metric_obj in scope_obj.metric_list}
+        update_metric_ids: set[int] = {metric_dict["id"] for metric_dict in params["metric_list"]}
+        remove_metric_ids: set[int] = origin_metric_ids - update_metric_ids
+        update_metric_ids: set[int] = update_metric_ids - origin_metric_ids
 
-        for field_id in update_field_ids:
-            metric_objs.append(MetricCURequestDTO(id=field_id, scope=BasicScopeRequestDTO(id=scope_obj.id)))
-
-        metric_converter = MetricQueryConverter(time_series_group_id)
-        metric_converter.create_or_update_time_series_metric(metric_objs)
+        field_modify_service = FieldsModifyService(time_series_group_id=params["time_series_group_id"])
+        for metric_id in remove_metric_ids:
+            field_modify_service.add_metric(ModifyMetric(id=metric_id, scope_id=default_scope_id))
+        for metric_id in update_metric_ids:
+            field_modify_service.add_metric(ModifyMetric(id=metric_id, scope_id=scope_obj.id))
+        field_modify_service.apply_change()
 
         updated_scope_obj: ScopeQueryResponseDTO = scope_converter.filter_disabled_metric(
             scope_converter.query_time_series_scope(scope_ids=[scope_obj.id])
         )[0]
-        scope_dict = asdict(updated_scope_obj)
-        scope_dict["metric_count"] = len(updated_scope_obj.metric_list)
-        return scope_dict
+        return asdict(updated_scope_obj)
 
 
 class PreviewGroupingRule(Resource):
@@ -1038,32 +908,19 @@ class PreviewGroupingRule(Resource):
     预览自定义指标分组
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(required=True, label=_("业务 ID"))
-        time_series_group_id = serializers.IntegerField(required=True, label=_("自定义时序 ID"))
-        auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), default=list)
+    class RequestSerializer(BaseCustomTSSerializer):
+        auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), child=serializers.CharField(), default=[])
 
     def perform_request(self, params: dict):
-        bk_biz_id: int = params["bk_biz_id"]
-        time_series_group_id: int = params["time_series_group_id"]
-        # 获取自定义时序表信息
-        ts_table: CustomTSTable = CustomTSTable.objects.filter(
-            time_series_group_id=time_series_group_id,
-            bk_biz_id=bk_biz_id,
-        ).first()
-        if not ts_table:
-            raise ValidationError(f"custom time series table not found, time_series_group_id: {time_series_group_id}")
-
         # 预编译正则表达式
         rule_compile_map: dict[str, re.Pattern] = {rule: re.compile(rule) for rule in params["auto_rules"]}
-
-        scope_list: list[dict[str, Any]] = ts_table.query_time_series_scope
+        converter = ScopeQueryConverter(params["time_series_group_id"])
+        scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope()
+        scope_objs = converter.filter_disabled_metric(scope_objs)
         auto_metrics: dict[str, list[str]] = defaultdict(list)
-        for scope_dict in scope_list:
-            for metric_dict in scope_dict["metric_list"]:
-                if metric_dict.get("field_config", {}).get("disabled"):
-                    continue
-                metric_name: str = metric_dict["metric_name"]
+        for scope_obj in scope_objs:
+            for metric_obj in scope_obj.metric_list:
+                metric_name: str = metric_obj.name
                 for rule, pattern in rule_compile_map.items():
                     if pattern.match(metric_name):
                         auto_metrics[rule].append(metric_name)
@@ -1084,23 +941,16 @@ class DeleteGroupingRule(Resource):
     删除自定义指标分组规则
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
-        time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"))
+    class RequestSerializer(BaseCustomTSSerializer):
         name = serializers.CharField(label=_("分组规则名称"))
 
     def perform_request(self, params: dict):
-        time_series_group_id: int = params["time_series_group_id"]
-        # 获取自定义时序表
-        table = CustomTSTable.objects.filter(
-            time_series_group_id=time_series_group_id,
-            bk_biz_id=params["bk_biz_id"],
-        ).first()
-        if not table:
-            raise ValidationError(f"custom time series table not found, time_series_group_id: {time_series_group_id}")
-        api.metadata.delete_time_series_scope(group_id=time_series_group_id, scopes=[{"scope_name": params["name"]}])
+        api.metadata.delete_time_series_scope(
+            group_id=params["time_series_group_id"], scopes=[{"scope_name": params["name"]}]
+        )
 
 
+# 破坏性变更
 class UpdateGroupingRuleOrder(Resource):
     """
     更新自定义指标分组规则排序
@@ -1234,6 +1084,7 @@ class ExportCustomTimeSeriesFields(Resource):
         }
 
 
+# 最后实现
 class GetCustomTimeSeriesLatestDataByFields(Resource):
     """
     查询自定义时序数据最新的一条数据
@@ -1241,7 +1092,7 @@ class GetCustomTimeSeriesLatestDataByFields(Resource):
 
     class RequestSerializer(serializers.Serializer):
         result_table_id = serializers.CharField(required=True, label="结果表ID")
-        metric_list = serializers.ListField(label=_("指标列表"), child=BasicMetricSerializer(), default=[])
+        metric_list = serializers.ListField(label=_("指标列表"), child=BasicMetricRequestSerializer(), default=[])
 
     def perform_request(self, validated_request_data):
         # TODO: 修改响应格式
@@ -1303,6 +1154,7 @@ class GetCustomTimeSeriesLatestDataByFields(Resource):
         return result, latest_time
 
 
+# 计划移除
 class ModifyCustomTimeSeriesDesc(Resource):
     """
     修改自定义时序描述信息
@@ -1332,3 +1184,64 @@ class ModifyCustomTimeSeriesDesc(Resource):
         ts_table.desc = validated_request_data["desc"]
         ts_table.save()
         return ts_table
+
+
+# 等前端自定义指标适配 APM 时处理
+class ModifyCustomTsGroupingRuleList(Resource):
+    """
+    修改全量自定义指标分组规则列表
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        # 计划移除
+        class CustomTSGroupingRuleSerializer(serializers.Serializer):
+            name = serializers.CharField(label=_("分组名称"), required=True)
+            manual_list = serializers.ListField(label=_("手动分组的指标列表"), default=list)
+            auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), default=list)
+
+            def validate(self, attrs: dict) -> dict:
+                attrs["name"] = attrs["name"].strip()
+                return attrs
+
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
+        group_list = serializers.ListField(label="分组列表", child=CustomTSGroupingRuleSerializer(), default=[])
+
+    def perform_request(self, validated_request_data):
+        # 校验分组名称唯一
+        group_names = {}
+        for group in validated_request_data["group_list"]:
+            if group_names.get(group["name"]):
+                raise CustomValidationLabelError(msg=_("自定义指标分组名{}不可重复").format(group["name"]))
+            group_names[group["name"]] = group
+
+        # 清除残余分组记录
+        grouping_rules = CustomTSGroupingRule.objects.filter(
+            time_series_group_id=validated_request_data["time_series_group_id"]
+        )
+        grouping_rules.exclude(name__in=list(group_names.keys())).delete()
+
+        # 更新已存在的分组
+        for grouping_rule in grouping_rules:
+            should_save = False
+            new_grouping_rule = group_names.pop(grouping_rule.name, {})
+            if grouping_rule.manual_list != new_grouping_rule.get("manual_list", []):
+                grouping_rule.manual_list = new_grouping_rule.get("manual_list", [])
+                should_save = True
+            if grouping_rule.auto_rules != new_grouping_rule.get("auto_rules", []):
+                grouping_rule.auto_rules = new_grouping_rule.get("auto_rules", [])
+                should_save = True
+
+            if should_save:
+                grouping_rule.save()
+        # 创建不存在的分组
+        CustomTSGroupingRule.objects.bulk_create(
+            [
+                CustomTSGroupingRule(time_series_group_id=validated_request_data["time_series_group_id"], **grouping)
+                for _, grouping in group_names.items()
+            ],
+            batch_size=200,
+        )
+        return resource.custom_report.custom_ts_grouping_rule_list(
+            time_series_group_id=validated_request_data["time_series_group_id"]
+        )

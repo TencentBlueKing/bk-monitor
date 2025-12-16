@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import ClassVar, Any
 from dataclasses import dataclass
 
 
@@ -16,10 +17,14 @@ VALUE_UNSET = object()  # 用于表示未设置的参数
 
 @dataclass
 class BaseUnsetDTO:
+    LOCAL_TO_REMOTE_MAP: ClassVar[dict[str, str]] = {}
+
     def __post_init__(self):
         pass
 
-
-@dataclass
-class BaseRequestDTO:
-    pass
+    def _get_remote_dict(self) -> dict[str, Any]:
+        remote_dict: dict[str, Any] = {}
+        for local_field_name, remote_field_name in self.LOCAL_TO_REMOTE_MAP.items():
+            if getattr(self, local_field_name, None) is not VALUE_UNSET:
+                remote_dict[remote_field_name] = getattr(self, local_field_name, None)
+        return remote_dict

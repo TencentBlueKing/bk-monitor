@@ -8,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
-from dataclasses import dataclass, field, fields, asdict
+from typing import Any, ClassVar, TypeAlias
+from dataclasses import dataclass, field, asdict
 from itertools import chain
 
 from django.utils.functional import cached_property
@@ -39,8 +39,18 @@ class ModifyMetricConfig(BaseUnsetDTO):
     interval: int = field(default=VALUE_UNSET)
     disabled: bool = field(default=VALUE_UNSET)
 
+    LOCAL_TO_REMOTE_MAP: ClassVar[dict[str, str]] = {
+        "alias": "alias",
+        "unit": "unit",
+        "hidden": "hidden",
+        "aggregate_method": "aggregate_method",
+        "function": "function",
+        "interval": "interval",
+        "disabled": "disabled",
+    }
+
     def to_dict(self) -> dict[str, Any]:
-        return {_field.name: v for _field in fields(self) if (v := getattr(self, _field.name, None)) is not VALUE_UNSET}
+        return super()._get_remote_dict()
 
 
 @dataclass
@@ -51,21 +61,23 @@ class ModifyMetric(BaseUnsetDTO):
     name: str = field(default=VALUE_UNSET)
     dimensions: list[str] = field(default=VALUE_UNSET)
 
+    LOCAL_TO_REMOTE_MAP: ClassVar[dict[str, str]] = {
+        "id": "id",
+        "name": "name",
+        "dimensions": "dimensions",
+    }
+
     def __post_init__(self):
         super().__post_init__()
         if self.id is None and not getattr(self, "name", None):
             raise ValueError("新建分组时，必须指定 name")
 
     def to_metric_cu_request_dto(self) -> MetricCURequestDTO:
+        dto_dict = super()._get_remote_dict()
         scope = BasicScopeRequestDTO(id=self.scope_id)
-        dto_dict: dict[str, Any] = {"id": self.id, "scope": scope}
-
-        if self.name is not VALUE_UNSET:
-            dto_dict["name"] = self.name
-        if self.config is not VALUE_UNSET or self.config:
+        dto_dict["scope"] = scope
+        if self.config is not VALUE_UNSET:
             dto_dict["config"] = MetricConfigRequestDTO(**self.config.to_dict())
-        if self.dimensions is not VALUE_UNSET:
-            dto_dict["dimensions"] = self.dimensions
         return MetricCURequestDTO(**dto_dict)
 
 
@@ -75,8 +87,14 @@ class ModifyDimensionConfig(BaseUnsetDTO):
     common: bool = field(default=VALUE_UNSET)
     hidden: bool = field(default=VALUE_UNSET)
 
+    LOCAL_TO_REMOTE_MAP: ClassVar[dict[str, str]] = {
+        "alias": "alias",
+        "common": "common",
+        "hidden": "hidden",
+    }
+
     def to_dict(self) -> dict[str, Any]:
-        return {_field.name: v for _field in fields(self) if (v := getattr(self, _field.name, None)) is not VALUE_UNSET}
+        return super()._get_remote_dict()
 
 
 @dataclass
@@ -84,6 +102,9 @@ class ModifyDimension(BaseUnsetDTO):
     scope_id: int
     name: str
     config: ModifyDimensionConfig = field(default=VALUE_UNSET)
+
+
+ScopeID: TypeAlias = int
 
 
 class FieldsModifyService:
@@ -113,7 +134,7 @@ class FieldsModifyService:
         self._delete_dimensions.append(dimension_obj)
 
     @cached_property
-    def _scope_objs_map(self) -> dict[int, ScopeQueryResponseDTO]:
+    def _scope_obj_by_id(self) -> dict[ScopeID, ScopeQueryResponseDTO]:
         if self._create_metrics:
             # 创建的指标 -> 查出所有的指标 -> 校验和复用
             scopes = self.scope_converter.query_time_series_scope()
@@ -132,7 +153,7 @@ class FieldsModifyService:
         key: (field_scope, metric_name)
         """
         metric_map: dict[tuple[str, str], ScopeQueryMetricResponseDTO] = {}
-        for scope_obj in self._scope_objs_map.values():
+        for scope_obj in self._scope_obj_by_id.values():
             for metric_obj in scope_obj.metric_list:
                 metric_map[(metric_obj.field_scope, metric_obj.name)] = metric_obj
         return metric_map
@@ -163,37 +184,36 @@ class FieldsModifyService:
 
     def _validate_dimensions(self):
         for dimension_obj in chain(self._update_dimensions, self._delete_dimensions):
-            if dimension_obj.scope_id not in self._scope_objs_map:
+            if dimension_obj.scope_id not in self._scope_obj_by_id:
                 raise ValueError(f"维度 {dimension_obj.name} 所属的 scope_id {dimension_obj.scope_id} 不存在")
 
     def _sync_dimensions(self):
-        scope_request_by_id: dict[int, ScopeCURequestDTO] = {}
+        scope_cu_request_by_id: dict[ScopeID, ScopeCURequestDTO] = {}
 
-        def _get_or_create_scope_request_obj(_scope_id: int) -> ScopeCURequestDTO:
-            _scope_request_obj: ScopeCURequestDTO | None = scope_request_by_id.get(_scope_id)
-            if not _scope_request_obj:
-                _scope_obj = self._scope_objs_map[_scope_id]
-                # TODO: 改代码，类型错误
+        def _get_or_create_scope_cu_request_obj(_scope_id: ScopeID) -> ScopeCURequestDTO:
+            _scope_cu_request_obj: ScopeCURequestDTO | None = scope_cu_request_by_id.get(_scope_id)
+            if not _scope_cu_request_obj:
+                _scope_obj: ScopeQueryResponseDTO = self._scope_obj_by_id[_scope_id]
                 dimension_config: dict[str, DimensionConfigRequestDTO] = {}
                 for _dimension_name, _dimension_config_obj in _scope_obj.dimension_config.items():
                     dimension_config[_dimension_name] = DimensionConfigRequestDTO(**asdict(_dimension_config_obj))
-                _scope_request_obj = ScopeCURequestDTO(id=_scope_id, dimension_config=dimension_config)
-                scope_request_by_id[_scope_id] = _scope_request_obj
-            return _scope_request_obj
+                _scope_cu_request_obj = ScopeCURequestDTO(id=_scope_id, dimension_config=dimension_config)
+                scope_cu_request_by_id[_scope_id] = _scope_cu_request_obj
+            return _scope_cu_request_obj
 
         for modify_obj in self._update_dimensions:
-            scope_request_obj = _get_or_create_scope_request_obj(modify_obj.scope_id)
+            scope_cu_request_obj = _get_or_create_scope_cu_request_obj(modify_obj.scope_id)
             update_config_dict: dict[str, Any] = modify_obj.config.to_dict()
-            dimension_config_obj = scope_request_obj.dimension_config.get(modify_obj.name)
+            dimension_config_obj = scope_cu_request_obj.dimension_config.get(modify_obj.name)
             if dimension_config_obj:
                 dimension_config_obj.update_from_dict(update_config_dict)
             else:
-                scope_request_obj.dimension_config[modify_obj.name] = DimensionConfigRequestDTO(**update_config_dict)
+                scope_cu_request_obj.dimension_config[modify_obj.name] = DimensionConfigRequestDTO(**update_config_dict)
         for modify_obj in self._delete_dimensions:
-            scope_request_obj = _get_or_create_scope_request_obj(modify_obj.scope_id)
+            scope_request_obj = _get_or_create_scope_cu_request_obj(modify_obj.scope_id)
             scope_request_obj.dimension_config.pop(modify_obj.name, None)
 
-        self.scope_converter.create_or_update_time_series_scope(list(scope_request_by_id.values()))
+        self.scope_converter.create_or_update_time_series_scope(list(scope_cu_request_by_id.values()))
 
     def apply_change(self):
         self._merge_create_metrics()

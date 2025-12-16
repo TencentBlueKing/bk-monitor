@@ -16,6 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from core.drf_resource import api
 
 from monitor_web.custom_report.handlers.metric.base import VALUE_UNSET, BaseUnsetDTO
+from monitor_web.custom_report.constants import ScopeCreateFrom
 
 
 class BaseQueryConverter:
@@ -24,7 +25,7 @@ class BaseQueryConverter:
 
 
 @dataclass
-class BaseConfigRequestDTO:
+class BaseConfigRequestDTO(BaseUnsetDTO):
     def to_request_dict(self) -> dict[str, Any]:
         config_dict: dict[str, Any] = {}
         for _field in fields(self):
@@ -98,7 +99,7 @@ class ScopeQueryMetricResponseDTO:
     update_time: float | None
 
     @classmethod
-    def from_dict(cls, metric_dict: dict[str, Any]) -> "ScopeQueryMetricResponseDTO":
+    def from_response_dict(cls, metric_dict: dict[str, Any]) -> "ScopeQueryMetricResponseDTO":
         return cls(
             id=metric_dict["field_id"],
             name=metric_dict["metric_name"],
@@ -120,10 +121,10 @@ class ScopeQueryResponseDTO:
     dimension_config: dict[DimensionName, DimensionConfigResponseDTO]
     auto_rules: list[str]
     metric_list: list[ScopeQueryMetricResponseDTO]
-    create_from: str | None
+    create_from: str
 
     @classmethod
-    def from_dict(cls, scope_dict: dict[str, Any]) -> Self:
+    def from_response_dict(cls, scope_dict: dict[str, Any]) -> Self:
         return cls(
             id=scope_dict["scope_id"],
             name=scope_dict["scope_name"],
@@ -133,9 +134,10 @@ class ScopeQueryResponseDTO:
             },
             auto_rules=scope_dict.get("auto_rules", []),
             metric_list=[
-                ScopeQueryMetricResponseDTO.from_dict(metric_dict) for metric_dict in scope_dict.get("metric_list", [])
+                ScopeQueryMetricResponseDTO.from_response_dict(metric_dict)
+                for metric_dict in scope_dict.get("metric_list", [])
             ],
-            create_from=scope_dict["create_from"],
+            create_from=scope_dict["create_from"] or ScopeCreateFrom.USER,
         )
 
 
@@ -145,6 +147,11 @@ class ScopeCURequestDTO(BaseUnsetDTO):
     name: str = field(default=VALUE_UNSET)
     dimension_config: dict[DimensionName, DimensionConfigRequestDTO] = field(default=VALUE_UNSET)
     auto_rules: list[str] = field(default=VALUE_UNSET)
+
+    LOCAL_TO_REMOTE_MAP: ClassVar[dict[str, str]] = {
+        "name": "scope_name",
+        "auto_rules": "auto_rules",
+    }
 
     def __post_init__(self):
         super().__post_init__()
@@ -158,18 +165,14 @@ class ScopeCURequestDTO(BaseUnsetDTO):
             raise ValueError(_("新建或编辑分组时，必须指定除 id 之外的至少一个参数"))
 
     def to_request_dict(self) -> dict[str, Any]:
-        scope_dict: dict[str, Any] = {}
+        scope_dict = super()._get_remote_dict()
         if self.id is not None:
             scope_dict["scope_id"] = self.id
-        if self.name is not VALUE_UNSET:
-            scope_dict["scope_name"] = self.name
         if self.dimension_config is not VALUE_UNSET:
             scope_dict["dimension_config"] = {
                 dimension_name: dimension_config.to_request_dict()
                 for dimension_name, dimension_config in self.dimension_config.items()
             }
-        if self.auto_rules is not VALUE_UNSET:
-            scope_dict["auto_rules"] = self.auto_rules
         return scope_dict
 
 
@@ -217,7 +220,7 @@ class ScopeQueryConverter(BaseQueryConverter):
         if scope_name:
             request_param["scope_name"] = scope_name
         scope_list = api.metadata.query_time_series_scope(**request_param)
-        return [ScopeQueryResponseDTO.from_dict(scope_dict) for scope_dict in scope_list]
+        return [ScopeQueryResponseDTO.from_response_dict(scope_dict) for scope_dict in scope_list]
 
     def create_or_update_time_series_scope(self, scopes: list[ScopeCURequestDTO]) -> list[ScopeCUResponseDTO]:
         if not scopes:
@@ -246,7 +249,7 @@ class MetricCURequestDTO(BaseUnsetDTO):
     config: MetricConfigRequestDTO = field(default=VALUE_UNSET)
     label: str = field(default=VALUE_UNSET)
 
-    LOCAL_REMOTE_FIELD_MAP: ClassVar[dict[str, str]] = {
+    LOCAL_TO_REMOTE_MAP: ClassVar[dict[str, str]] = {
         "name": "field_name",
         "dimensions": "tag_list",
         "label": "label",
@@ -259,14 +262,10 @@ class MetricCURequestDTO(BaseUnsetDTO):
                 raise ValueError(_("新建指标时，必须指定非空的指标名称"))
 
     def to_request_dict(self) -> dict[str, Any]:
-        metric_dict: dict[str, Any] = {
-            "scope_id": self.scope.id,
-        }
+        metric_dict = super()._get_remote_dict()
+        metric_dict["scope_id"] = self.scope.id
         if self.id is not None:
             metric_dict["field_id"] = self.id
-        for local_field_name, remote_field_name in self.LOCAL_REMOTE_FIELD_MAP.items():
-            if getattr(self, local_field_name, None) is not VALUE_UNSET:
-                metric_dict[remote_field_name] = getattr(self, local_field_name, None)
         if getattr(self, "config", None) is not VALUE_UNSET:
             metric_dict["field_config"] = self.config.to_request_dict()
         return metric_dict
@@ -276,6 +275,5 @@ class MetricQueryConverter(BaseQueryConverter):
     def create_or_update_time_series_metric(self, metrics: list[MetricCURequestDTO]):
         if not metrics:
             return
-        api.metadata.create_or_update_time_series_metric(
-            group_id=self.time_series_group_id, metrics=[metric_obj.to_request_dict() for metric_obj in metrics]
-        )
+        metric_list = [metric_obj.to_request_dict() for metric_obj in metrics]
+        api.metadata.create_or_update_time_series_metric(group_id=self.time_series_group_id, metrics=metric_list)
