@@ -2451,11 +2451,9 @@ class TimeSeriesMetric(models.Model):
             records_to_update.append(metric)
 
             scope_id = validated_request_data.get("scope_id")
-            new_scope = None
-            if scope_id is not None:
-                new_scope = scopes_dict.get(scope_id)
-                if new_scope is None:
-                    raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
+            new_scope = scopes_dict.get(scope_id)
+            if new_scope is None:
+                raise ValueError(f"指标分组不存在，请确认后重试。分组ID: {scope_id}")
 
             # 如果scope发生变化，记录需要移动的指标
             if new_scope and metric.scope_id != new_scope.id:
