@@ -77,16 +77,28 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
     if (this.customDemensionList) {
       return this.customDemensionList;
     }
-    const demenesionNameMap = {};
-    return this.currentSelectedMetricList.reduce<{ alias: string; name: string }[]>((result, item) => {
-      for (const demesionItem of item.dimensions) {
-        if (!demenesionNameMap[demesionItem.name]) {
-          result.push(demesionItem);
-          demenesionNameMap[demesionItem.name] = true;
-        }
-      }
-      return result;
-    }, []);
+    if (this.currentSelectedMetricList.length === 1) {
+      return this.currentSelectedMetricList[0].dimensions;
+    }
+    if (!this.currentSelectedMetricList.length) {
+      return [];
+    }
+    // 聚合维度取交集
+    // 获取已选择指标的 dimensions 的数据集合
+    const dimensionNames = this.currentSelectedMetricList.map(item => new Set(item.dimensions.map(dim => dim.name)));
+    // 取交集
+    const intersection = dimensionNames.reduce((prev, curr) => {
+      return new Set([...prev].filter(x => curr.has(x)));
+    });
+    // 结果转换组件所需格式
+    const result = [...intersection].map(name => {
+      const alias = this.currentSelectedMetricList.reduce((acc, item) => {
+        const dim = item.dimensions.find(d => d.name === name);
+        return dim ? dim.alias : acc;
+      }, '');
+      return { name, alias };
+    });
+    return result;
   }
 
   get renderValueList() {
@@ -125,9 +137,9 @@ export default class AggregateDimensions extends tsc<IProps, IEmit> {
         const selectBtnWidth = 60;
         const clearBtnWidth = 30;
 
-        const allTagEleList = Array.from(this.calcTagListRef!.querySelectorAll('.value-item'));
+        const allTagEleList = Array.from(this.calcTagListRef?.querySelectorAll('.value-item'));
         if (
-          this.calcTagListRef!.getBoundingClientRect().width + selectBtnWidth + labelWidth + clearBtnWidth <=
+          this.calcTagListRef?.getBoundingClientRect().width + selectBtnWidth + labelWidth + clearBtnWidth <=
             maxWidth ||
           this.localValueList.length === 1
         ) {

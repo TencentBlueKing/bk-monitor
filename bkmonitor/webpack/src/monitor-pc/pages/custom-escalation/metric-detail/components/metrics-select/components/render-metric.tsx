@@ -37,8 +37,11 @@ interface IEmit {
 
 interface IProps {
   checked?: boolean;
+  scopeId: number; // 分组id
+  scopeName: string; // 分组名称
   data: {
     alias: string;
+    field_id: number;
     metric_name: string;
   };
 }
@@ -46,6 +49,8 @@ interface IProps {
 @Component
 export default class RenderMetric extends tsc<IProps, IEmit> {
   @Prop({ type: Object, required: true }) readonly data: IProps['data'];
+  @Prop({ type: Number, default: -1 }) readonly scopeId: IProps['scopeId'];
+  @Prop({ type: String, default: '' }) readonly scopeName: IProps['scopeName'];
   @Prop({ type: Boolean, default: false }) readonly checked: IProps['checked'];
 
   @Ref('fromRef') fromRef;
@@ -92,9 +97,16 @@ export default class RenderMetric extends tsc<IProps, IEmit> {
         time_series_group_id: this.$route.params.id,
         update_fields: [
           {
+            id: this.data.field_id,
             type: 'metric',
             name: this.data.metric_name,
-            ...this.formData,
+            config: {
+              alias: this.formData.description,
+            },
+            scope: {
+              id: this.scopeId,
+              name: this.scopeName,
+            },
           },
         ],
       });

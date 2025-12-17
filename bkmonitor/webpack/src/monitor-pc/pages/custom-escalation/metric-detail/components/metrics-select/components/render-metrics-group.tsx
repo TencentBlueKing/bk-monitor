@@ -357,6 +357,8 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
                 key={metricsItem.metric_name}
                 checked={targetData?.metricsCheckMap[metricsItem.metric_name] || false}
                 data={metricsItem}
+                scopeId={groupItem.scope_id}
+                scopeName={groupItem.name}
                 onCheckChange={(value: boolean) => this.handleMetricSelectChange(value, groupItem.name, metricsItem)}
                 onEditSuccess={this.fetchData}
               />

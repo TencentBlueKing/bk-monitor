@@ -49,9 +49,11 @@ export const getCustomTsMetricGroups: (params: { bk_biz_id?: number; time_series
         alias: string;
         name: string;
       }[];
+      field_id: number; // 指标id
       metric_name: string;
     }[];
-    name: string;
+    name: string; // 分组名称
+    scope_id: number; // 分组id
   }[];
 }> = getCustomTsMetricGroupsApi;
 

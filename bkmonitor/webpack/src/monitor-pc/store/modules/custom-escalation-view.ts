@@ -57,7 +57,7 @@ class CustomEscalationViewStore extends VuexModule {
     for (const group of this.metricGroupList) {
       if (selectedGroupNames.has(group.name)) {
         for (const dimension of group.common_dimensions) {
-          const identifier = `${dimension.alias}-${dimension.name}`; // 去重标识符，相同name和别名没必要多次显示，接口根据归属分组名称区分(比如过滤条件的val)
+          const identifier = dimension.name; // 去重标识符，相同name没必要多次显示
           if (!seen.has(identifier)) {
             seen.add(identifier);
             currentSelectedCommonDimensionList.push(dimension);
