@@ -38,6 +38,7 @@ import BkdataSelectDialog from '../business-comp/step2/third-party-logs/bkdata-s
 import EsSelectDialog from '../business-comp/step2/third-party-logs/es-select-dialog';
 import DragTag from '../common-comp/drag-tag';
 import InfoTips from '../common-comp/info-tips';
+import TableComponent from '../common-comp/table-component';
 import $http from '@/api';
 
 import './step2-bk-data-collection.scss';
@@ -241,6 +242,12 @@ export default defineComponent({
       parent_index_set_ids: [],
     });
 
+    const skeletonConfig = {
+      columns: 2,
+      rows: 4,
+      widths: ['50%', '50%'],
+    };
+
     // ==================== 计算属性 ====================
     /** 获取时间字段显示值 */
     const getTimeFiled = computed(() => timeIndex.value?.time_field || '--');
@@ -317,33 +324,39 @@ export default defineComponent({
             <div class='data-source-table'>
               {/* 计算平台场景：显示字段列表 */}
               {isBkdataScenario.value ? (
-                <bk-table
-                  v-bkloading={{ isLoading: tableLoading.value }}
+                <TableComponent
+                  height={400}
+                  loading={tableLoading.value}
                   data={collectionTableData.value}
-                  max-height={400}
-                >
-                  <bk-table-column
-                    label={t('字段')}
-                    prop='field_name'
-                  />
-                  <bk-table-column
-                    label={t('类型')}
-                    prop='field_type'
-                  />
-                </bk-table>
+                  skeletonConfig={skeletonConfig}
+                  columns={[
+                    {
+                      title: t('字段'),
+                      colKey: 'field_name',
+                      ellipsis: true,
+                    },
+                    {
+                      title: t('类型'),
+                      colKey: 'field_type',
+                      ellipsis: true,
+                    },
+                  ]}
+                />
               ) : (
                 /* ES场景：显示匹配到的索引列表 */
-                <bk-table
-                  v-bkloading={{ isLoading: tableLoading.value }}
+                <TableComponent
+                  height={400}
+                  loading={tableLoading.value}
                   data={currentMatchedTableIds.value}
-                  max-height={400}
-                >
-                  <bk-table-column
-                    label={t('匹配到的索引')}
-                    max-width={490}
-                    property='result_table_id'
-                  />
-                </bk-table>
+                  skeletonConfig={skeletonConfig}
+                  columns={[
+                    {
+                      title: t('匹配到的索引'),
+                      colKey: 'result_table_id',
+                      ellipsis: true,
+                    },
+                  ]}
+                />
               )}
             </div>
           </div>

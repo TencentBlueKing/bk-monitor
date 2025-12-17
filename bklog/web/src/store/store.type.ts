@@ -166,6 +166,7 @@ export type RouteParams = {
   bizId: string;
   spaceUid: string;
   format: string;
+  pid?: string[] | string;
   [BK_LOG_STORAGE.HISTORY_ID]: string;
   [BK_LOG_STORAGE.FAVORITE_ID]: string;
 };

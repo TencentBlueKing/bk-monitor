@@ -34,11 +34,6 @@ const LogCleanView = { name: 'LogCleanView', template: '<router-view></router-vi
 const LogCleanTempView = { name: 'LogCleanTempView', template: '<router-view></router-view>' };
 const LogDesensitizeView = { name: 'LogDesensitizeView', template: '<router-view></router-view>' };
 
-
-const ClientLogView = { name: 'ClientLogView', template: '<router-view></router-view>' };
-const ClientLog = () => import(/* webpackChunkName: 'client-log' */ '@/views/manage-v2/client-log/index.tsx');
-
-
 // 管理模块各组件异步声明（用于路由懒加载）
 const Manage = () => import(/* webpackChunkName: 'manage' */ '@/views/manage');
 const CollectionItem = () => import(/* webpackChunkName: 'collection' */ '@/views/manage-v2/log-collection/index.tsx');
@@ -53,6 +48,7 @@ const ManageCollection = () =>
     /* webpackChunkName: 'manage-collection' */ '@/views/manage/manage-access/log-collection/collection-item/manage-collection'
   );
 const oldAccessSteps = () => import(/* webpackChunkName: 'access-steps' */ '@/components/collection-access');
+const ClientLog = () => import(/* webpackChunkName: 'client-log' */ '@/views/manage-v2/client-log/index.tsx');
 const IndexList = () =>
   import(/* webpackChunkName: 'index-set' */ '@/views/manage/manage-access/components/index-set/list');
 const ManageIndex = () =>
@@ -90,11 +86,17 @@ const extractCreate = () =>
   import(/* webpackChunkName: 'extract-create' */ '@/views/manage-v2/log-extract/extract-task/task-create/index.tsx');
 const ExtractLinkList = () =>
   import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-list.tsx');
-const ExtractLinkCreate = () => import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-create.tsx');
-const ClusterMess = () => import(/* webpackChunkName: 'es-cluster-mess' */ '@/views/manage-v2/es-cluster/cluster-manage/index.tsx');
-const DataLinkConf = () => import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/manage-data-link/manage-data-link-conf');
-const MaskingEdit = () => import(/* webpackChunkName: 'field-masking-separate' */ '@/views/manage/field-masking-separate');
-const MaskingList = () => import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/log-clean/clean-masking/list');
+const ExtractLinkCreate = () =>
+  import(/* webpackChunkName: 'extract-link-manage' */ '@/views/manage-v2/log-extract/extract-link/link-create.tsx');
+const ClusterMess = () =>
+  import(/* webpackChunkName: 'es-cluster-mess' */ '@/views/manage-v2/es-cluster/cluster-manage/index.tsx');
+const DataLinkConf = () =>
+  import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/manage-data-link/manage-data-link-conf');
+const MaskingEdit = () =>
+  import(/* webpackChunkName: 'field-masking-separate' */ '@/views/manage/field-masking-separate');
+const MaskingList = () =>
+  import(/* webpackChunkName: 'manage-data-link-conf' */ '@/views/manage/log-clean/clean-masking/list');
+const ClientLogView = { name: 'ClientLogView', template: '<router-view></router-view>' };
 
 // 管理模块路由配置生成函数
 const getManageRoutes = () => [
@@ -103,7 +105,7 @@ const getManageRoutes = () => [
     name: 'manage',
     component: Manage,
     // 根据当前环境（外部版/内部版）自动重定向到管理页默认子页面
-    redirect: (to) => {
+    redirect: to => {
       // 外部版:跳转到“日志提取任务”
       if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL)) {
         return {
