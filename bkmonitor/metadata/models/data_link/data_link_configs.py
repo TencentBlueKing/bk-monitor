@@ -840,9 +840,9 @@ class ClusterConfig(models.Model):
 
     # 由于配置原因，namespace实际上与存储类型是绑定的，与实际的使用方无关
     KIND_TO_NAMESPACES_MAP = {
-        DataLinkKind.ELASTICSEARCH.value: BKBASE_NAMESPACE_BK_LOG,
-        DataLinkKind.VMSTORAGE.value: BKBASE_NAMESPACE_BK_MONITOR,
-        DataLinkKind.DORIS.value: BKBASE_NAMESPACE_BK_LOG,
+        DataLinkKind.ELASTICSEARCH.value: [BKBASE_NAMESPACE_BK_LOG],
+        DataLinkKind.VMSTORAGE.value: [BKBASE_NAMESPACE_BK_MONITOR],
+        DataLinkKind.DORIS.value: [BKBASE_NAMESPACE_BK_LOG],
         # Kafka集群需要同时注册到bkmonitor和bklog命名空间
         DataLinkKind.KAFKACHANNEL.value: [BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR],
     }
