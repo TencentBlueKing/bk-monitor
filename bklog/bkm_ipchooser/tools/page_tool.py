@@ -10,16 +10,24 @@ def get_pagination_data(func, params: dict, split_params=False) -> dict:
     适配page_size为-1获取CC全量数据的情况
     return: {}
     """
+    sort_field = params.get("page", {}).get("sort", "bk_host_innerip")
+
     # 判断是否全部获取
     if params.get("page", {}).get("limit", QUERY_CMDB_LIMIT) == CommonEnum.PAGE_RETURN_ALL_FLAG.value:
         # 多线程补充no_request参数
         params["no_request"] = True
-        sort = params.get("page", {}).get("sort")
+        sort = sort_field
         params.pop("page", None)
         info = batch_request(func=func, params=params, sort=sort, split_params=split_params)
-        return {"count": len(info), "info": info}
+        result = {"count": len(info), "info": info}
+    else:
+        result = pagination_query(func, params, split_params)
 
-    return pagination_query(func, params, split_params)
+    if split_params and result.get("info"):
+        sorted_info = sorted(result.get("info"), key=lambda x: x.get(sort_field, ""), reverse=False)
+        result["info"] = sorted_info
+
+    return result
 
 
 def pagination_query(func, params: dict, split_params=False):
