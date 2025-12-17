@@ -457,8 +457,7 @@ class AlertK8sTargetResource(Resource):
         # 构建目标信息结构，APM 场景下资源类型固定为 workload
         target_info: dict = {"resource_type": K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD], "target_list": []}
 
-        # 解析 APM 场景的 target 目标格式，格式为 "{app_name}:{service_name}"
-        app_name, service_name = alert.event.target.split(":", 1)
+        app_name, service_name = APMTargetType.parse_target(alert.event.target)
 
         # 获取 APM 服务关联的容器负载，构建目标对象资源列表
         entity_set: EntitySet = EntitySet(
@@ -612,8 +611,7 @@ class AlertHostTargetResource(Resource):
                 }
             ]
         """
-        # 解析 APM 场景的 target 目标格式，格式为 "{app_name}:{service_name}"
-        app_name, service_name = alert.event.target.split(":", 1)
+        app_name, service_name = APMTargetType.parse_target(alert.event.target)
 
         # 调用 HostHandler 获取 APM 应用关联的主机列表
         host_list: list[dict] = HostHandler.list_application_hosts(
@@ -643,11 +641,12 @@ class AlertHostTargetResource(Resource):
                 }
             )
             bk_host_ids.append(int(bk_host_id))
+
         # 若无有效的主机 id，则返回空列表
         if not bk_host_ids:
             return []
 
-        # 调用CMDB API 获取主机详细信息
+        # 调用 CMDB API 获取主机详细信息
         hosts: list[Host] = api.cmdb.get_host_by_id(bk_biz_id=alert.event.bk_biz_id, bk_host_ids=bk_host_ids)
         if not hosts:
             return target_hosts
