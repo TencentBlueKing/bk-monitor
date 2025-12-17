@@ -1,6 +1,11 @@
-import ContainerSvg from '@/images/container-icons/Container.svg';
-import NodeSvg from '@/images/container-icons/Node.svg';
 import { formatFileSize, random } from '@/common/util';
+import type {
+  CollectOperateType,
+  ICollectListRowData,
+  ITableRowItem,
+  ISelectItem,
+  ILabelSelectorArrayItem,
+} from './type';
 /**
  * 采集项状态
  */
@@ -307,23 +312,6 @@ export const OPERATOR_SELECT_LIST: ISelectItem[] = [
     name: window.$t('正则不匹配'),
   },
 ];
-export interface ISelectItem {
-  id: string;
-  name: string;
-  value?: string;
-}
-
-export interface ITableRowItem {
-  fieldindex: string;
-  word: string;
-  op: string;
-  tableIndex: number;
-  logic_op?: logicOpType;
-}
-
-type logicOpType = 'and' | 'or';
-
-export type btnType = 'match' | 'none' | 'separator';
 
 /** 操作符列表 */
 export const operatorSelectList: Array<ISelectItem> = [
@@ -403,7 +391,7 @@ export function formatBytes(size) {
   return formatFileSize(size, true);
 }
 
-export const getOperatorCanClick = (row, operateType) => {
+export const getOperatorCanClick = (row: ICollectListRowData, operateType: CollectOperateType) => {
   /**
    * 未完成的情况下，只能进行编辑和清洗
    */
@@ -420,8 +408,10 @@ export const getOperatorCanClick = (row, operateType) => {
   return true;
 };
 
-export const getLabelSelectorArray = selector => {
-  return Object.entries(selector).reduce((pre, [labelKey, labelVal]) => {
+export const getLabelSelectorArray = (
+  selector: Record<string, Array<Record<string, unknown>>>,
+): ILabelSelectorArrayItem[] => {
+  return Object.entries(selector).reduce<ILabelSelectorArrayItem[]>((pre, [labelKey, labelVal]) => {
     pre.push(...labelVal.map(item => ({ ...item, id: random(10), type: labelKey })));
     return pre;
   }, []);

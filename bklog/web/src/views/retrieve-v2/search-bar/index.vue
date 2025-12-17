@@ -340,18 +340,6 @@ const handleSqlRetrieve = (value) => {
   }
 };
 
-const handleSqlQueryChange = (value) => {
-  if (isGloalUsage.value) {
-    // store.commit('updateIndexItemParams', {
-    //   keyword: value,
-    // });
-
-    // inspectResponse.value.is_legal = true;
-    // setRouteParams();
-    return;
-  }
-};
-
 const handleClearBtnClick = () => {
   if (!isCopyBtnActive.value || isInputLoading.value) {
     return;
@@ -723,10 +711,10 @@ defineExpose({
     <div
       v-bkloading="{
         isLoading: isAiLoading,
-        opacity: 0.8,
+        opacity: 0.2,
         theme: 'colorful',
         size: 'mini',
-        title: $t('正在解析语句'),
+        title: $t('AI 解析中...'),
         extCls: 'v3-search-ai-loading',
       }"
       :class="[
@@ -771,7 +759,6 @@ defineExpose({
           v-model="sqlQueryValue"
           class="search-input-section"
           @retrieve="handleSqlRetrieve"
-          @change="handleSqlQueryChange"
           @text-to-query="handleTextToQuery"
         >
           <template #custom-placeholder="{ isEmptyText }">
@@ -789,7 +776,6 @@ defineExpose({
           v-if="isShowSearchTools"
           class="search-tool items"
         >
-          <slot name="search-tool" />
           <div
             v-show="!inspectResponse.is_legal"
             style="color: #ea3636"
@@ -868,6 +854,7 @@ defineExpose({
             @refresh="handleRefresh"
             @save-current-active-favorite="saveCurrentActiveFavorite"
           />
+          <slot name="search-tool" />
         </div>
         <div
           class="search-tool search-btn"
@@ -880,6 +867,10 @@ defineExpose({
           />
         </div>
       </div>
+      <div
+        v-if="isAiLoading"
+        class="ai-progress-bar"
+      ></div>
     </div>
     <template v-if="isFilterSecFocused">
       <CommonFilterSelect />
@@ -900,14 +891,16 @@ defineExpose({
 .v3-search-ai-loading {
   .bk-loading-wrapper {
     .bk-colorful.bk-size-mini {
-      width: 38px;
-      height: 10px;
+      display: none;
     }
 
     .bk-loading-title {
       margin-top: 0;
-      font-size: 12px;
-      color: #313238;
+      background-image: linear-gradient(118deg, #235DFA 0%, #E28BED 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
     }
   }
 }

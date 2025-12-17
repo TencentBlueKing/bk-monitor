@@ -72,7 +72,7 @@ def fetch_and_process_tgpa_tasks():
         existed_tasks = TGPATask.objects.filter(bk_biz_id=bk_biz_id)
         task_map = {task.task_id: task for task in existed_tasks}
         for task in task_list:
-            if task_obj := task_map.get(task["id"]):
+            if task_obj := task_map.get(task["go_svr_task_id"]):
                 # 如果文件状态发生变化，并且文件状态为上传成功，处理任务
                 if task["exe_code"] != task_obj.file_status and task["exe_code"] == TGPA_TASK_EXE_CODE_SUCCESS:
                     task_obj.process_status = TGPATaskProcessStatusEnum.PENDING.value
@@ -85,9 +85,9 @@ def fetch_and_process_tgpa_tasks():
                     task_obj.save(update_fields=["task_status", "file_status"])
             else:
                 task_obj, created = TGPATask.objects.get_or_create(
-                    id=task["id"],
+                    task_id=task["go_svr_task_id"],
                     defaults={
-                        "task_id": task["go_svr_task_id"],
+                        "id": task["id"],
                         "bk_biz_id": task["cc_id"],
                         "log_path": task["log_path"],
                         "task_status": task["status"],

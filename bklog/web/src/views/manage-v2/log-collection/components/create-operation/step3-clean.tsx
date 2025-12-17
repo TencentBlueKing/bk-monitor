@@ -368,6 +368,7 @@ export default defineComponent({
       const urlParams = {};
       isDebugLoading.value = !isRefresh;
       isValueRefresh.value = isRefresh;
+      formData.value.etl_fields = [];
       // 先置空防止接口失败显示旧数据
       formData.value.etl_params.metadata_fields = [];
       if (props.isTempField) {
@@ -811,7 +812,7 @@ export default defineComponent({
               builtInFieldsList={builtInFieldsList.value}
               data={formData.value.etl_fields || []}
               extractMethod={cleaningMode.value}
-              loading={isDebugLoading.value}
+              loading={isDebugLoading.value || basicLoading.value}
               refresh={isValueRefresh.value}
               originalTextTokenizeOnChars={defaultParticipleStr.value}
               selectEtlConfig={cleaningMode.value}

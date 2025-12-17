@@ -26,11 +26,33 @@
 
 import { computed, ref } from 'vue';
 
-// biome-ignore lint/performance/noNamespaceImport: <explanation>
 import * as authorityMap from '@/common/authority-map';
 import { projectManages } from '@/common/util';
 import useStore from '@/hooks/use-store';
 import { useRouter, useRoute } from 'vue-router/composables';
+import { getOperatorCanClick } from '../utils';
+import type {
+  CollectOperateType,
+  CollectTypeKey,
+  IAuthApplyDataParams,
+  ICheckAllowedResponse,
+  ICollectListRowData,
+  IGetApplyDataResponse,
+} from '../type';
+
+type IndexSetId = number | string;
+
+type RouteName =
+  | 'collection-item-list'
+  | 'collectStop'
+  | 'collectAdd'
+  | 'collectEdit'
+  | 'collectField'
+  | 'collectStorage'
+  | 'collectMasking'
+  | 'manage-collection'
+  | 'retrieve'
+  | string;
 
 /**
  * 采集列表的自定义 Hook
@@ -40,7 +62,7 @@ export const useCollectList = () => {
   const router = useRouter();
   const route = useRoute();
   const loadingStatus = ref(false);
-  const isAllowedCreate = ref(null);
+  const isAllowedCreate = ref<boolean | null>(null);
   const isTableLoading = ref(false);
   const spaceUid = computed(() => store.getters.spaceUid);
   const bkBizId = computed(() => store.getters.bkBizId);
@@ -65,7 +87,7 @@ export const useCollectList = () => {
    */
   const checkCreateAuth = async () => {
     try {
-      const res = await store.dispatch('checkAllowed', {
+      const res = (await store.dispatch('checkAllowed', {
         action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
         resources: [
           {
@@ -73,80 +95,92 @@ export const useCollectList = () => {
             id: spaceUid.value,
           },
         ],
-      });
-      isAllowedCreate.value = res.isAllowed;
+      })) as ICheckAllowedResponse;
+      isAllowedCreate.value = Boolean(res?.isAllowed);
     } catch (err) {
-      console.warn(err);
+      console.log(err);
       isAllowedCreate.value = false;
     }
   };
+
+  const buildSpaceCreateApplyData = (): IAuthApplyDataParams => ({
+    action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
+    resources: [{ type: 'space', id: spaceUid.value }],
+  });
+
+  const buildCollectionApplyData = (actionId: string, collectorId: IndexSetId | undefined): IAuthApplyDataParams => ({
+    action_ids: [actionId],
+    resources: [{ type: 'collection', id: collectorId ?? '' }],
+  });
+
+  const buildIndicesApplyData = (actionId: string, indexSetId: IndexSetId | undefined): IAuthApplyDataParams => ({
+    action_ids: [actionId],
+    resources: [{ type: 'indices', id: indexSetId ?? '' }],
+  });
   /**
    * 获取授权数据
    * @param paramData
    */
-  const getOptionApplyData = async paramData => {
+  const getOptionApplyData = async (paramData: IAuthApplyDataParams) => {
     try {
       isTableLoading.value = true;
-      const res = await store.dispatch('getApplyData', paramData);
-      store.commit('updateAuthDialogData', res.data);
+      const res = (await store.dispatch('getApplyData', paramData)) as IGetApplyDataResponse;
+      store.commit('updateAuthDialogData', res?.data);
     } catch (err) {
-      console.warn(err);
+      console.log(err);
     } finally {
       isTableLoading.value = false;
     }
   };
-  const getOperatorCanClick = (row, operateType) => {
-    if (operateType === 'search') {
-      return !!(row.is_active && (row.index_set_id || row.bkdata_index_set_ids.length));
-    }
-    if (['clean', 'storage', 'clone'].includes(operateType)) {
-      return !row.status || row.table_id;
-    }
-    if (['stop', 'start'].includes(operateType)) {
-      return !(!row.status || row.status === 'running' || !collectProject.value) || row.is_active !== undefined;
-    }
-    if (operateType === 'delete') {
-      return !(!row.status || row.status === 'running' || row.is_active || !collectProject.value);
-    }
-    return true;
-  };
-
-  const leaveCurrentPage = (row, operateType, typeKey, indexSetId) => {
+  /**
+   * leaveCurrentPage：根据操作类型跳转到对应页面，并拼装必要的路由参数
+   * - 这里不做权限判断（由 operateHandler 负责），只处理“是否允许跳转/如何跳转”
+   */
+  const leaveCurrentPage = (
+    row: ICollectListRowData,
+    operateType: CollectOperateType,
+    typeKey: CollectTypeKey,
+    indexSetId: IndexSetId | 'all',
+  ) => {
+    // indexSetId === 'all' 表示“全部索引集”，此时不需要透传 indexSetId
     const indexId = indexSetId !== 'all' ? indexSetId : undefined;
-    if (operateType === 'status' && (!loadingStatus.value || row.status === 'terminated')) {
-      return; // 已停用禁止操作
+
+    /**
+     * 1) 采集状态页（status）相关的前置拦截
+     * - 已停用(terminated) 禁止再次操作状态
+     * - 若 status 缺失，视为“未完成”，直接进入编辑页补齐配置
+     */
+    if (operateType === 'status') {
+      if (!loadingStatus.value || row.status === 'terminated') return;
+      if (!row.status) return operateHandler(row, 'edit', typeKey);
     }
-    if (operateType === 'status' && !row.status) {
-      return operateHandler(row, 'edit', typeKey);
-    }
-    // running、prepare 状态不能启用、停用
+
+    /**
+     * 2) 启用/停用（start/stop）前置拦截
+     * - running/prepare 状态不允许启用/停用（原逻辑用 row.status === 'running' + loadingStatus 判断）
+     * - collectProject 为 false 时（非采集项目）不允许进行启停操作
+     * - stop：容器采集项需要跳转到停用页展示状态页（collectStop）
+     *
+     * 注意：start 的“启用”实际执行逻辑在其他地方实现，这里仅保持原逻辑的拦截与跳转行为
+     */
     if (operateType === 'start' || operateType === 'stop') {
-      if (!loadingStatus.value || row.status === 'running' || !collectProject.value) {
-        return;
-      }
-      if (operateType === 'start') {
-        // 启用
-        // this.toggleCollect(row);
-      } else {
-        // 如果是容器采集项则停用页显示状态页
+      if (!loadingStatus.value || row.status === 'running' || !collectProject.value) return;
+      if (operateType === 'stop') {
         router.push({
           name: 'collectStop',
-          params: {
-            collectorId: row.collector_config_id || '',
-          },
-          query: {
-            spaceUid: spaceUid.value,
-          },
+          // vue-router 的 params/query 在类型层面更倾向于 string，这里统一做 string 化
+          params: { collectorId: String(row.collector_config_id ?? '') },
+          query: { spaceUid: String(spaceUid.value) },
         });
       }
       return;
     }
 
-    // biome-ignore lint/suspicious/noEvolvingTypes: <explanation>
-    let backRoute = null;
-    const params = {};
-    const query = {};
-    const routeMap = {
+    /**
+     * 3) 通用路由映射：操作类型 → 目标路由
+     * - 部分操作实际复用同一个页面，通过 query.step / query.type 等参数区分子步骤
+     */
+    const routeMap: Record<string, RouteName> = {
       add: 'collectAdd',
       view: 'manage-collection',
       status: 'manage-collection',
@@ -158,56 +192,85 @@ export const useCollectList = () => {
       clone: 'collectAdd',
       masking: 'collectMasking',
     };
-    if (indexId) {
-      query.indexSetId = indexId;
-    }
-    query.typeKey = typeKey;
-    const targetRoute = routeMap[operateType];
-    // 查看详情 - 如果处于未完成状态，应该跳转到编辑页面
+
+    const targetRoute = routeMap[operateType] ?? (operateType as RouteName);
+
+    // 路由参数/查询参数统一在这里构建，最后一次性 push，方便维护
+    const params: Record<string, string> = {};
+    const query: Record<string, string | undefined> = { typeKey: String(typeKey) };
+    let backRoute: string | null = null;
+
+    // 透传当前“索引集上下文”（非 all 时才传）
+    if (indexId) query.indexSetId = String(indexId);
+
+    /**
+     * 4) 查看详情（manage-collection）特殊处理
+     * - 未完成（table_id 为空）时，详情页不可用，应回到编辑补齐
+     */
     if (targetRoute === 'manage-collection' && !row.table_id) {
       return operateHandler(row, 'edit', typeKey);
     }
+
+    /**
+     * 5) collectorId 参数拼装
+     * - 这些页面都依赖 collectorId 获取/回显配置
+     */
     if (
       ['manage-collection', 'collectEdit', 'collectField', 'collectStorage', 'collectMasking'].includes(targetRoute)
     ) {
-      params.collectorId = row.collector_config_id;
-    }
-    if (operateType === 'status') {
-      query.type = 'collectionStatus';
-    }
-    if (operateType === 'search') {
-      if (!(row.index_set_id || row.bkdata_index_set_ids.length)) {
-        return;
-      }
-      params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
-    }
-    if (operateType === 'clean') {
-      query.step = 2;
-      params.collectorId = row.collector_config_id;
-      if (row.itsm_ticket_status === 'applying') {
-        return operateHandler(row, 'field', typeKey);
-      }
-      backRoute = route.name;
-    }
-    // 克隆操作需要ID进行数据回显
-    if (operateType === 'clone') {
-      params.collectorId = row.collector_config_id;
-      query.collectorId = row.collector_config_id;
-      query.type = 'clone';
-    }
-    if (operateType === 'masking') {
-      // 直接跳转到脱敏页隐藏左侧的步骤
-      query.type = 'masking';
-    }
-    if (operateType === 'edit') {
-      if (['bkdata', 'es'].includes(typeKey)) {
-        params.collectorId = row.index_set_id;
-      }
-    }
-    if (operateType === 'storage') {
-      query.step = 3;
+      params.collectorId = String(row.collector_config_id ?? '');
     }
 
+    /**
+     * 6) 不同操作的 query/params 补充
+     */
+    if (operateType === 'search') {
+      // 检索：需要 indexId（优先 index_set_id，否则取 bkdata_index_set_ids 的第一个）
+      const bkdataIds = row.bkdata_index_set_ids ?? [];
+      if (!(row.index_set_id || bkdataIds.length)) return;
+      params.indexId = String(row.index_set_id ? row.index_set_id : bkdataIds[0]);
+      // pid 用于在检索页定位父索引集（存在 indexId 时才拼）
+      query.pid = indexId ? JSON.stringify([String(indexId)]) : undefined;
+    }
+
+    if (operateType === 'clean') {
+      // 清洗：复用编辑页，通过 step=2 定位到清洗配置步骤
+      query.step = String(2);
+      params.collectorId = String(row.collector_config_id ?? '');
+      // ITSM 申请中：跳转字段配置（field）继续推进流程
+      if (row.itsm_ticket_status === 'applying') return operateHandler(row, 'field', typeKey);
+      // 回退路径：用于编辑页返回列表
+      backRoute = route.name;
+    }
+
+    if (operateType === 'storage') {
+      // 存储：复用编辑页，通过 step=3 定位到存储设置步骤
+      query.step = String(3);
+    }
+
+    if (operateType === 'clone') {
+      // 克隆：复用新建页，通过 query 回显源采集项配置
+      params.collectorId = String(row.collector_config_id ?? '');
+      query.collectorId = String(row.collector_config_id ?? '');
+      query.type = 'clone';
+    }
+
+    if (operateType === 'masking') {
+      // 脱敏：直接进入脱敏页，并隐藏左侧步骤条（通过 type=masking 控制）
+      query.type = 'masking';
+    }
+
+    if (operateType === 'status') {
+      // 状态：详情页的一个子视图标识
+      query.type = 'collectionStatus';
+    }
+
+    if (operateType === 'edit') {
+      // bkdata/es 的编辑：后端使用 index_set_id 作为 collectorId
+      if (['bkdata', 'es'].includes(typeKey)) params.collectorId = String(row.index_set_id ?? '');
+    }
+
+    // 记录当前操作对象，供目标页回显/继续编辑使用
     store.commit('collect/setCurCollect', row);
 
     router.push({
@@ -215,69 +278,66 @@ export const useCollectList = () => {
       params,
       query: {
         ...query,
-        spaceUid: store.state.spaceUid,
-        backRoute,
+        spaceUid: String(store.state.spaceUid),
+        backRoute: backRoute ?? undefined,
       },
     });
   };
 
-  const operateHandler = (row, operateType, typeKey, indexSetId = 'all') => {
-    // type: [view, status , search, edit, field, start, stop, delete]
-    const isCanClick = getOperatorCanClick(row, operateType);
-    if (!isCanClick) {
-      return;
+  const operateHandler = (
+    row: ICollectListRowData,
+    operateType: CollectOperateType,
+    typeKey: CollectTypeKey,
+    indexSetId: IndexSetId | 'all' = 'all',
+  ) => {
+    /**
+     * operateHandler：负责“是否可点击 + 权限校验（必要时拉起申请弹窗）”，通过后再进入 leaveCurrentPage 做跳转
+     * - 权限规则保持与原实现一致：
+     *   - add：用 isAllowedCreate 控制（空间创建权限）
+     *   - view：校验 VIEW_COLLECTION_AUTH
+     *   - search：校验 SEARCH_LOG_AUTH（indices 资源）
+     *   - 其他操作：校验 MANAGE_COLLECTION_AUTH（collection 资源）
+     */
+
+    // 1) 前置：不可点击直接返回（例如“未完成/运行中”限制等）
+    if (!getOperatorCanClick(row, operateType)) return;
+
+    // 2) 按操作类型做权限校验（表驱动），避免大量 if/else
+    const guards: Array<{
+      match: (_t: CollectOperateType) => boolean;
+      isAllowed: () => boolean;
+      buildApplyData: () => IAuthApplyDataParams;
+    }> = [
+      {
+        match: _t => _t === 'add',
+        isAllowed: () => Boolean(isAllowedCreate.value),
+        buildApplyData: () => buildSpaceCreateApplyData(),
+      },
+      {
+        match: _t => _t === 'view',
+        isAllowed: () => Boolean(row.permission?.[authorityMap.VIEW_COLLECTION_AUTH]),
+        buildApplyData: () => buildCollectionApplyData(authorityMap.VIEW_COLLECTION_AUTH, row.collector_config_id),
+      },
+      {
+        match: _t => _t === 'search',
+        isAllowed: () => Boolean(row.permission?.[authorityMap.SEARCH_LOG_AUTH]),
+        buildApplyData: () => buildIndicesApplyData(authorityMap.SEARCH_LOG_AUTH, row.index_set_id),
+      },
+      {
+        // 原逻辑：除 add/view/search 外，统一按“管理权限”兜底
+        match: _t => !['add', 'view', 'search'].includes(String(_t)),
+        isAllowed: () => Boolean(row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]),
+        buildApplyData: () => buildCollectionApplyData(authorityMap.MANAGE_COLLECTION_AUTH, row.collector_config_id),
+      },
+    ];
+
+    for (const guard of guards) {
+      if (!guard.match(operateType)) continue;
+      if (!guard.isAllowed()) return getOptionApplyData(guard.buildApplyData());
+      break;
     }
-    if (operateType === 'add') {
-      // 新建权限控制
-      if (!isAllowedCreate.value) {
-        return getOptionApplyData({
-          action_ids: [authorityMap.CREATE_COLLECTION_AUTH],
-          resources: [
-            {
-              type: 'space',
-              id: spaceUid.value,
-            },
-          ],
-        });
-      }
-    } else if (operateType === 'view') {
-      // 查看权限
-      if (!row.permission?.[authorityMap.VIEW_COLLECTION_AUTH]) {
-        return getOptionApplyData({
-          action_ids: [authorityMap.VIEW_COLLECTION_AUTH],
-          resources: [
-            {
-              type: 'collection',
-              id: row.collector_config_id,
-            },
-          ],
-        });
-      }
-    } else if (operateType === 'search') {
-      // 检索权限
-      if (!row.permission?.[authorityMap.SEARCH_LOG_AUTH]) {
-        return getOptionApplyData({
-          action_ids: [authorityMap.SEARCH_LOG_AUTH],
-          resources: [
-            {
-              type: 'indices',
-              id: row.index_set_id,
-            },
-          ],
-        });
-      }
-    } else if (!row.permission?.[authorityMap.MANAGE_COLLECTION_AUTH]) {
-      // 管理权限
-      return getOptionApplyData({
-        action_ids: [authorityMap.MANAGE_COLLECTION_AUTH],
-        resources: [
-          {
-            type: 'collection',
-            id: row.collector_config_id,
-          },
-        ],
-      });
-    }
+
+    // 3) 通过权限校验后，交由 leaveCurrentPage 统一处理跳转
     leaveCurrentPage(row, operateType, typeKey, indexSetId);
   };
 

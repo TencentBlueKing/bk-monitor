@@ -26,9 +26,7 @@
 
 import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, computed, type PropType } from 'vue';
 import useLocale from '@/hooks/use-locale';
-import ItemSkeleton from '@/skeleton/item-skeleton';
 import tippy, { type Instance } from 'tippy.js';
-import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue';
 import { tenantManager } from '@/views/retrieve-core/tenant-manager';
 import axios from 'axios';
 import {
@@ -49,7 +47,7 @@ import TagMore from '../common-comp/tag-more';
 import type { IListItemData } from '../../type';
 import EmptyStatus from '@/components/empty-status/index.vue';
 import './table-list.scss';
-import 'tdesign-vue/es/style/index.css';
+import TableComponent from '../common-comp/table-component';
 
 const CancelToken = axios.CancelToken;
 
@@ -200,12 +198,6 @@ export default defineComponent({
      */
     const isShowDetection = ref(false);
     const checkInfo = ref('');
-    const globalLocale = {
-      table: {
-        sortIcon: () => <i class='bk-icon icon-down-shape sort-icon' />,
-        filterIcon: () => <i class='bk-icon icon-funnel filter-icon' />,
-      },
-    };
 
     // 使用自定义 hook 管理状态
     const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId } = useCollectList();
@@ -222,10 +214,7 @@ export default defineComponent({
     const maxTableHeight = ref<number>(0);
 
     let tippyInstances: Instance[] = [];
-    let columnConfigTippyInstance: Instance | null = null;
     let collectStatusTimer: ReturnType<typeof setTimeout> | null = null;
-    const columnConfigTriggerRef = ref<HTMLElement | null>(null);
-    const columnConfigContentRef = ref<HTMLElement | null>(null);
     const searchKey = ref('');
     const IFilterValues = ref<IFilterValues>({
       created_by: [],
@@ -252,16 +241,6 @@ export default defineComponent({
     });
 
     const sortConfig = ref<ISortConfig>({});
-
-    // 列配置相关状态
-    const isShowColumnConfig = ref(false);
-    const columnConfigFields = ref([...SETTING_FIELDS]);
-    // 默认显示的列（disabled: true 的列）
-    const defaultVisibleColumns = computed(() => {
-      return columnConfigFields.value
-        .filter(field => field.disabled)
-        .map(field => FIELD_ID_TO_COL_KEY_MAP[field.id] || field.id);
-    });
     /**
      * 获取空状态类型
      * @returns 空状态类型
@@ -269,12 +248,6 @@ export default defineComponent({
     const emptyType = computed(() => {
       return hasFilterOrSearch.value ? 'search-empty' : 'empty';
     });
-    // 用户选择的可见列（初始值为所有列）
-    const visibleColumns = ref<string[]>(
-      columnConfigFields.value.map(field => FIELD_ID_TO_COL_KEY_MAP[field.id] || field.id),
-    );
-    // 临时选择的列（用于确认前）
-    const tempVisibleColumns = ref<string[]>([]);
 
     /**
      * 使用窗口高度作为后备方案计算表格高度
@@ -326,7 +299,7 @@ export default defineComponent({
           maxTableHeight.value = HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT;
           return;
         }
-        const totalListHeight = (listLen + 1) * HEIGHT_CONSTANTS.COLUMNS_HEIGHT + 4;
+        const totalListHeight = (listLen + 1) * HEIGHT_CONSTANTS.COLUMNS_HEIGHT + 6;
 
         // 如果分页数据总高度超过最大高度，使用最大高度（启用滚动）
         // 否则根据实际数据行数计算高度（避免空白区域）
@@ -628,22 +601,6 @@ export default defineComponent({
       },
     ]);
 
-    // 根据可见列过滤后的列配置
-    const columns = computed(() => {
-      // 操作列始终显示
-      const operationCol = allColumns.value.find(col => col.colKey === 'operation');
-      // 根据 visibleColumns 过滤列，但始终包含默认列和操作列
-      const filteredColumns = allColumns.value.filter(col => {
-        if (col.colKey === 'operation') return false; // 操作列单独处理
-        // 默认列始终显示
-        if (defaultVisibleColumns.value.includes(col.colKey)) return true;
-        // 其他列根据 visibleColumns 决定
-        return visibleColumns.value.includes(col.colKey);
-      });
-      // 将操作列添加到末尾
-      return operationCol ? [...filteredColumns, operationCol] : filteredColumns;
-    });
-
     /**
      * 销毁所有 tippy 实例
      * 使用 for...of 循环替代 forEach，提高性能
@@ -674,19 +631,9 @@ export default defineComponent({
         if (!val) {
           setTimeout(() => {
             initMenuPop();
-            updateFilterIconStatus();
           }, DELAY_CONSTANTS.MENU_POP_INIT);
         }
       },
-    );
-
-    // 监听过滤条件变化，更新过滤图标状态
-    watch(
-      () => conditions.value,
-      () => {
-        updateFilterIconStatus();
-      },
-      { deep: true },
     );
 
     watch(
@@ -753,60 +700,6 @@ export default defineComponent({
       }
     };
 
-    /**
-     * 初始化列配置 tippy 实例
-     */
-    const initColumnConfigTippy = () => {
-      // 确保 ref 存在且是有效的 HTMLElement
-      const trigger = columnConfigTriggerRef.value;
-      const content = columnConfigContentRef.value;
-
-      if (!trigger || !(trigger instanceof HTMLElement) || !content || !(content instanceof HTMLElement)) {
-        return;
-      }
-
-      // 销毁旧实例
-      if (columnConfigTippyInstance) {
-        try {
-          columnConfigTippyInstance.destroy();
-        } catch (error) {
-          console.log('销毁列配置 tippy 实例失败:', error);
-        }
-        columnConfigTippyInstance = null;
-      }
-
-      try {
-        columnConfigTippyInstance = tippy(trigger, {
-          trigger: 'click',
-          placement: 'bottom-end',
-          theme: 'light column-config-popover',
-          interactive: true,
-          hideOnClick: 'toggle',
-          arrow: false,
-          offset: [-52, 4],
-          appendTo: () => document.body,
-          onShow() {
-            handleOpenColumnConfig();
-          },
-          onHide() {
-            // 直接更新状态，不要调用 handleCloseColumnConfig，避免循环
-            isShowColumnConfig.value = false;
-          },
-          content() {
-            // 使用函数返回内容，确保能正确获取元素
-            const contentRef = columnConfigContentRef.value;
-            if (!contentRef || !(contentRef instanceof HTMLElement)) {
-              return document.createElement('div');
-            }
-            return contentRef as unknown as Element;
-          },
-        });
-      } catch (error) {
-        console.log('初始化列配置 tippy 实例失败:', error);
-        columnConfigTippyInstance = null;
-      }
-    };
-
     onMounted(() => {
       getCollectorFieldEnums();
       nextTick(() => {
@@ -818,21 +711,11 @@ export default defineComponent({
         calculateMaxTableHeight();
         // 监听窗口大小变化
         window.addEventListener('resize', handleWindowResize);
-        // 初始化列配置 tippy - 使用 nextTick 确保 DOM 已渲染
-        nextTick(() => {
-          initColumnConfigTippy();
-          updateFilterIconStatus();
-        });
       });
     });
 
     onBeforeUnmount(() => {
       destroyTippyInstances();
-      // 销毁列配置 tippy
-      if (columnConfigTippyInstance) {
-        columnConfigTippyInstance.destroy();
-        columnConfigTippyInstance = null;
-      }
       // 清除状态轮询定时器
       stopCollectStatusTimer();
       // 移除窗口大小变化监听
@@ -1241,7 +1124,8 @@ export default defineComponent({
      * @param type - 操作类型
      */
     const handleEditOperation = (row: ITableRowData, type: string) => {
-      operateHandler(row, type, row.log_access_type);
+      const { index_set_id: indexSetId } = props.indexSet;
+      operateHandler(row, type, row.log_access_type, indexSetId);
     };
 
     /**
@@ -1335,75 +1219,6 @@ export default defineComponent({
     };
 
     /**
-     * 打开列配置
-     */
-    const handleOpenColumnConfig = () => {
-      isShowColumnConfig.value = true;
-      // 初始化临时选择为当前可见列，确保包含默认列
-      const allCurrentColumns = [
-        ...defaultVisibleColumns.value,
-        ...visibleColumns.value.filter(key => !defaultVisibleColumns.value.includes(key)),
-      ];
-      tempVisibleColumns.value = [...allCurrentColumns];
-    };
-
-    /**
-     * 关闭列配置
-     */
-    const handleCloseColumnConfig = () => {
-      // 手动关闭 tippy（用于取消按钮点击）
-      if (columnConfigTippyInstance) {
-        columnConfigTippyInstance.hide();
-      }
-      isShowColumnConfig.value = false;
-    };
-
-    /**
-     * 处理列配置变化
-     * @param fieldId - 字段ID
-     * @param checked - 是否选中
-     */
-    const handleColumnConfigChange = (fieldId: string, checked: boolean) => {
-      const colKey = FIELD_ID_TO_COL_KEY_MAP[fieldId] || fieldId;
-      // 如果是默认列，不允许取消
-      if (!checked && defaultVisibleColumns.value.includes(colKey)) {
-        return;
-      }
-
-      if (checked) {
-        if (!tempVisibleColumns.value.includes(colKey)) {
-          tempVisibleColumns.value.push(colKey);
-        }
-      } else {
-        tempVisibleColumns.value = tempVisibleColumns.value.filter(key => key !== colKey);
-      }
-    };
-
-    /**
-     * 确认列配置
-     */
-    const handleColumnConfigConfirm = () => {
-      // 确保默认列始终包含在内
-      const finalColumns = [
-        ...defaultVisibleColumns.value,
-        ...tempVisibleColumns.value.filter(key => !defaultVisibleColumns.value.includes(key)),
-      ];
-      visibleColumns.value = finalColumns;
-      isShowColumnConfig.value = false;
-      columnConfigTippyInstance?.hide();
-    };
-
-    /**
-     * 检查列是否被选中
-     * @param fieldId - 字段ID
-     * @returns 是否选中
-     */
-    const isColumnChecked = (fieldId: string): boolean => {
-      const colKey = FIELD_ID_TO_COL_KEY_MAP[fieldId] || fieldId;
-      return tempVisibleColumns.value.includes(colKey);
-    };
-
-    /**
      * 判断是否有过滤条件或搜索关键词
      * @returns 是否有过滤条件
      */
@@ -1412,77 +1227,6 @@ export default defineComponent({
       const hasFilter = conditions.value.length > 0;
       return hasSearch || hasFilter;
     });
-
-    /**
-     * 获取当前有过滤条件的列的 colKey 列表
-     * @returns 有过滤条件的列的 colKey 数组
-     */
-    const filteredColumnKeys = computed(() => {
-      return conditions.value.map(condition => condition.key);
-    });
-
-    /**
-     * 判断是否有有效的过滤条件（value 不为空）
-     * @returns 是否有有效的过滤条件
-     */
-    const hasValidIFilterConditions = computed(() => {
-      return conditions.value.some((condition: IFilterCondition) => {
-        // 检查 value 数组是否有非空值
-        return condition.value && condition.value.length > 0 && condition.value.some(v => v !== '' && v != null);
-      });
-    });
-
-    /**
-     * 更新过滤图标的选中状态
-     */
-    const updateFilterIconStatus = () => {
-      nextTick(() => {
-        // 获取所有表头单元格
-        const headerCells = document.querySelectorAll('.v2-log-collection-table .t-table__header th');
-
-        // 获取当前可见的列配置（用于匹配 colKey）
-        const visibleColumnsConfig = columns.value;
-
-        // 创建一个映射：表头文本 -> colKey
-        const titleToColKeyMap = new Map<string, string>();
-        visibleColumnsConfig.forEach(col => {
-          if (col.title && typeof col.title === 'string') {
-            titleToColKeyMap.set(col.title, col.colKey || '');
-          }
-        });
-
-        headerCells.forEach((cell, index) => {
-          // 获取过滤图标
-          const filterIcon = cell.querySelector('.filter-icon');
-          if (!filterIcon) return;
-
-          let colKey = '';
-
-          // 方法1: 尝试通过 data-col-key 属性获取
-          const dataColKey = cell.getAttribute('data-col-key');
-          if (dataColKey) {
-            colKey = dataColKey;
-          } else {
-            // 方法2: 通过列索引获取
-            const columnConfig = visibleColumnsConfig[index];
-            if (columnConfig) {
-              colKey = columnConfig.colKey || '';
-            } else {
-              // 方法3: 通过表头文本匹配
-              const headerText = cell.querySelector('.t-table__th-cell-inner')?.textContent?.trim() || '';
-              colKey = titleToColKeyMap.get(headerText) || '';
-            }
-          }
-
-          // 如果当前列有过滤条件，添加选中样式
-          if (colKey && filteredColumnKeys.value.includes(colKey)) {
-            filterIcon.classList.add('is-filtered');
-          } else {
-            filterIcon.classList.remove('is-filtered');
-          }
-        });
-      });
-    };
 
     /**
      * 处理空状态操作
@@ -1495,15 +1239,6 @@ export default defineComponent({
       searchKey.value = '';
       reloadList();
     };
-
-    const renderEmpty = (type: string) => (
-      <div class='table-empty-content'>
-        <EmptyStatus
-          emptyType={emptyType.value}
-          on-operation={() => handleEmptyOperation(type)}
-        />
-      </div>
-    );
 
     return () => (
       <div
@@ -1548,101 +1283,23 @@ export default defineComponent({
           ref={tableMainRef}
           class='v2-log-collection-table-main'
         >
-          <div class='table-set'>
-            <div
-              ref={columnConfigTriggerRef}
-              class='column-config-trigger'
-            >
-              <i class='bk-icon icon-cog-shape'></i>
-            </div>
-            <div
-              ref={columnConfigContentRef}
-              class='column-config-dropdown'
-            >
-              <div class='column-config-title'>{t('字段显示设置')}</div>
-              <div class='column-config-list'>
-                {columnConfigFields.value.map(field => {
-                  const colKey = FIELD_ID_TO_COL_KEY_MAP[field.id] || field.id;
-                  const isDefault = field.disabled || defaultVisibleColumns.value.includes(colKey);
-                  const checked = isColumnChecked(field.id);
-                  return (
-                    <span
-                      key={field.id}
-                      class='column-config-item'
-                    >
-                      <bk-checkbox
-                        value={checked}
-                        disabled={isDefault}
-                        on-change={(val: boolean) => {
-                          if (!isDefault) {
-                            handleColumnConfigChange(field.id, val);
-                          }
-                        }}
-                      >
-                        {field.label}
-                      </bk-checkbox>
-                    </span>
-                  );
-                })}
-              </div>
-              <div class='column-config-footer'>
-                <bk-button
-                  theme='primary'
-                  size='small'
-                  on-click={handleColumnConfigConfirm}
-                >
-                  {t('确定')}
-                </bk-button>
-                <bk-button
-                  size='small'
-                  on-click={handleCloseColumnConfig}
-                >
-                  {t('取消')}
-                </bk-button>
-              </div>
-            </div>
-          </div>
-          {hasValidIFilterConditions.value && tableList.value.length === 0 && (
-            <div class='filter-empty'>{renderEmpty('clear-filter')}</div>
-          )}
-          <TConfigProvider
+          <TableComponent
             class='log-collection-table'
-            globalConfig={globalLocale}
-          >
-            {/* @ts-ignore - TTable type definition issue */}
-            <TTable
-              cellEmptyContent={'--'}
-              columns={columns.value}
-              data={tableList.value}
-              sort={sortConfig.value}
-              loading={listLoading.value}
-              loading-props={{ indicator: false }}
-              on-page-change={handlePageChange}
-              pagination={pagination.value}
-              row-key='key'
-              height={maxTableHeight.value}
-              rowHeight={32}
-              scroll={{ type: 'lazy', bufferSize: 10 }}
-              on-sort-change={sortChange}
-              on-filter-change={handleFilterChange}
-              filterValue={filterValue.value}
-              scopedSlots={{
-                loading: () => (
-                  <div class='table-skeleton-box'>
-                    <ItemSkeleton
-                      style={{ padding: '0 16px' }}
-                      columns={5}
-                      gap={'14px'}
-                      rowHeight={'28px'}
-                      rows={6}
-                      widths={['25%', '25%', '20%', '20%', '10%']}
-                    />
-                  </div>
-                ),
-                empty: renderEmpty,
-              }}
-            />
-          </TConfigProvider>
+            columns={allColumns.value}
+            data={tableList.value}
+            sortConfig={sortConfig.value}
+            loading={listLoading.value}
+            on-page-change={handlePageChange}
+            pagination={pagination.value}
+            height={maxTableHeight.value}
+            on-sort-change={sortChange}
+            on-filter-change={handleFilterChange}
+            filterValue={filterValue.value}
+            on-empty-click={handleEmptyOperation}
+            colKeyMap={FIELD_ID_TO_COL_KEY_MAP}
+            settingFields={SETTING_FIELDS}
+            emptyType={emptyType.value}
+          />
 
           {/* 一键检测弹窗 */}
           <bk-sideslider

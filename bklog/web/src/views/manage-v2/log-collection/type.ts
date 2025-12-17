@@ -4,7 +4,62 @@ export interface IListItemData {
   index_count?: number;
   icon?: string;
   unEditable?: boolean;
-  [key: string]: any;
+  [key: string]: unknown;
+}
+
+/**
+ * ========= manage-v2/log-collection 通用类型（hooks/components 复用）=========
+ */
+
+/**
+ * 卡片配置项（用于分类卡片渲染）
+ * - `renderFn/subTitle` 在 Vue JSX 中返回 VNode/JSX 均可，因此用 `unknown` 做兼容，
+ *   由具体渲染层（TSX/JSX）自行约束为 `JSX.Element`/`VNodeChild`。
+ */
+export interface ICardItem {
+  /** 卡片唯一标识 */
+  key: number | string;
+  /** 卡片标题 */
+  title: string;
+  /** 卡片内容渲染函数 */
+  renderFn: () => unknown;
+  /** 卡片副标题渲染函数（可选） */
+  subTitle?: () => unknown;
+}
+
+/** 通用请求参数结构 */
+export type IRequestParams = Record<string, unknown>;
+
+/**
+ * 通用 API 响应结构
+ * - 业务侧经常还会返回 message/code 等字段，因此保留索引签名兜底
+ */
+export interface IApiResponse<T = unknown> {
+  data?: T;
+  [key: string]: unknown;
+}
+
+/** 结果表字段信息（按页面真实使用字段收敛，其它字段通过索引签名兜底） */
+export interface IFieldInfo {
+  field_name?: string;
+  field_type?: string;
+  [key: string]: unknown;
+}
+
+/** 结果表信息响应结构（仅收敛 useOperation 里用到的 fields） */
+export interface IResultTableInfoResponse extends IApiResponse<{ fields?: IFieldInfo[]; [key: string]: unknown }> {}
+
+/** 索引组列表响应结构 */
+export interface IIndexGroupListResponse {
+  list?: unknown[];
+  total?: number;
+  [key: string]: unknown;
+}
+
+/** 带权限映射的对象结构（permission[actionId] === true/false） */
+export interface IPermissionItem {
+  permission?: Record<string, boolean | undefined>;
+  [key: string]: unknown;
 }
 
 export interface INoQuestParams {
@@ -146,3 +201,90 @@ export interface IClusterItem {
   name: string;
   is_shared?: boolean;
 }
+
+/**
+ * 采集项列表行数据（manage-v2/log-collection 列表页使用）
+ * - 字段按页面/Hook 真实使用收敛，未覆盖字段通过索引签名兜底
+ */
+export interface ICollectListPermissionMap {
+  [actionId: string]: boolean | undefined;
+}
+
+export type CollectTypeKey =
+  | 'linux'
+  | 'winevent'
+  | 'container_file'
+  | 'container_stdout'
+  | 'bkdata'
+  | 'es'
+  | 'custom_report'
+  | string;
+
+export type CollectOperateType =
+  | 'add'
+  | 'view'
+  | 'status'
+  | 'edit'
+  | 'field'
+  | 'search'
+  | 'clean'
+  | 'storage'
+  | 'clone'
+  | 'masking'
+  | 'start'
+  | 'stop'
+  | 'delete'
+  | 'one_key_check'
+  | string;
+
+export interface ICollectListRowData {
+  collector_config_id?: number | string;
+  /** index_set_id 在不同场景可能是 string/number */
+  index_set_id?: number | string;
+  /** 计算平台/第三方 ES 可能存在多个索引集 */
+  bkdata_index_set_ids?: Array<number | string>;
+  table_id?: number | string;
+  status?: string;
+  itsm_ticket_status?: string;
+  storage_cluster_id?: number;
+  log_access_type?: CollectTypeKey;
+  permission?: ICollectListPermissionMap;
+  [key: string]: unknown;
+}
+
+export interface IAuthResourceItem {
+  type: string;
+  id: string | number;
+}
+
+export interface IAuthApplyDataParams {
+  action_ids: string[];
+  resources: IAuthResourceItem[];
+}
+
+export interface ICheckAllowedResponse {
+  isAllowed?: boolean;
+  [key: string]: unknown;
+}
+
+export interface IGetApplyDataResponse<T = unknown> {
+  data?: T;
+  [key: string]: unknown;
+}
+
+export interface ITableRowItem {
+  fieldindex: string;
+  word: string;
+  op: string;
+  tableIndex: number;
+  logic_op?: logicOpType;
+}
+
+export interface ILabelSelectorArrayItem extends Record<string, unknown> {
+  id: string | number;
+  type: string;
+}
+
+type logicOpType = 'and' | 'or';
+
+export type btnType = 'match' | 'none' | 'separator';
