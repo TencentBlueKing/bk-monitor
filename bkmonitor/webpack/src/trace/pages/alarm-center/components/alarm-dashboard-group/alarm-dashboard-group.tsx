@@ -24,13 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, provide, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, provide, shallowRef, watch } from 'vue';
 
 import { random } from 'monitor-common/utils';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
 import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../components/time-range/utils';
 import AlarmMetricsDashboard from '../alarm-metrics-dashboard/alarm-metrics-dashboard';
+import ChartSkeleton from '@/components/skeleton/chart-skeleton';
 
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
@@ -62,15 +63,44 @@ export default defineComponent({
       type: Number,
       default: 2,
     },
+    /** 仪表盘配置是否正在请求加载中 */
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props) {
     /** 图表联动Id */
     const dashboardId = shallowRef(random(10));
     /** 是否立即刷新图表数据 */
     const refreshImmediate = shallowRef('');
+    /** css 变量 */
+    const cssVars = computed(() => ({
+      /** 仪表板面板每行显示的图表列数 */
+      '--dashboard-grid-col': props.gridCol,
+    }));
 
     provide('timeRange', DEFAULT_TIME_RANGE);
     provide('refreshImmediate', refreshImmediate);
+
+    /**
+     * @method createDashboardGroupSkeleton 创建仪表盘骨架屏
+     * @description 仪表盘配置通常需要请求接口数据，当请求数据时，需要显示骨架屏，当请求数据成功后，需要隐藏骨架屏
+     */
+    const createDashboardGroupSkeleton = () => {
+      return (
+        <div class='alarm-dashboard-group-skeleton'>
+          {new Array(2 * (props?.gridCol || 1)).fill(0).map((_, index) => (
+            <div
+              key={index}
+              class='alarm-dashboard-group-skeleton-item'
+            >
+              <ChartSkeleton />
+            </div>
+          ))}
+        </div>
+      );
+    };
 
     watch(
       () => props.dashboards,
@@ -81,27 +111,36 @@ export default defineComponent({
       }
     );
 
-    return { dashboardId };
+    return { dashboardId, cssVars, createDashboardGroupSkeleton };
   },
   render() {
     return (
-      <div class='alarm-dashboard-group'>
-        {this.dashboards?.map?.(dashboard => (
-          <AlarmMetricsDashboard
-            key={dashboard.id}
-            dashboardId={this.dashboardId}
-            dashboardTitle={dashboard?.title}
-            gridCol={this.gridCol}
-            panelModels={dashboard?.panels}
-            viewOptions={this.viewOptions}
-          >
-            {{
-              customBaseChart: this.$slots?.customBaseChart
-                ? renderContext => this.$slots?.customBaseChart?.(renderContext)
-                : null,
-            }}
-          </AlarmMetricsDashboard>
-        ))}
+      <div
+        style={this.cssVars}
+        class='alarm-dashboard-group'
+      >
+        {this.loading ? (
+          this.createDashboardGroupSkeleton()
+        ) : (
+          <div class='alarm-dashboard-group-main'>
+            {this.dashboards?.map?.(dashboard => (
+              <AlarmMetricsDashboard
+                key={dashboard.id}
+                dashboardId={this.dashboardId}
+                dashboardTitle={dashboard?.title}
+                gridCol={this.gridCol}
+                panelModels={dashboard?.panels}
+                viewOptions={this.viewOptions}
+              >
+                {{
+                  customBaseChart: this.$slots?.customBaseChart
+                    ? renderContext => this.$slots?.customBaseChart?.(renderContext)
+                    : null,
+                }}
+              </AlarmMetricsDashboard>
+            ))}
+          </div>
+        )}
       </div>
     );
   },

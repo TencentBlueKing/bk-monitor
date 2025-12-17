@@ -170,7 +170,7 @@ export default defineComponent({
         case ALARM_CENTER_PANEL_TAB_MAP.TRACE:
           return <PanelTrace alertId={alarmCenterDetailStore.alarmId} />;
         case ALARM_CENTER_PANEL_TAB_MAP.HOST:
-          return <PanelHost detail={alarmCenterDetailStore.alarmDetail} />;
+          return <PanelHost alertId={alarmCenterDetailStore.alarmId} />;
         case ALARM_CENTER_PANEL_TAB_MAP.CONTAINER:
           return <PanelK8s alertId={alarmCenterDetailStore.alarmId} />;
         case ALARM_CENTER_PANEL_TAB_MAP.EVENT:
