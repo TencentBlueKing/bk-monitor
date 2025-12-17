@@ -30,6 +30,7 @@ from apps.tgpa.constants import (
     TGPA_REPORT_SELECT_FIELDS,
     FEATURE_TOGGLE_TGPA_TASK,
     TGPA_BASE_DIR,
+    TGPA_REPORT_LIST_BATCH_SIZE,
 )
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.utils.thread import MultiExecuteFunc
@@ -89,7 +90,7 @@ class TGPAReportHandler:
         return " AND ".join(where_conditions)
 
     @classmethod
-    def get_file_list(cls, params):
+    def get_report_list(cls, params):
         """
         获取客户端日志上报文件列表
         """
@@ -139,7 +140,7 @@ class TGPAReportHandler:
         return {"total": total, "list": data}
 
     @classmethod
-    def iter_report_list(cls, bk_biz_id, start_time=None, end_time=None, batch_size=500):
+    def iter_report_list(cls, bk_biz_id, start_time=None, end_time=None, batch_size=TGPA_REPORT_LIST_BATCH_SIZE):
         """
         使用迭代器模式获取客户端日志上报文件列表
         """

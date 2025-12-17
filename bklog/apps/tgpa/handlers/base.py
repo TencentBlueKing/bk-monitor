@@ -175,7 +175,7 @@ class TGPAFileHandler:
                     logger.exception("Failed to delete directory %s: %s", dir_path, e)
 
 
-class TGPACollectorHandler:
+class TGPACollectorConfigHandler:
     """TGPA采集配置处理"""
 
     @staticmethod

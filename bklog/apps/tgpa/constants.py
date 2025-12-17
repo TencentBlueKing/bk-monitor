@@ -229,3 +229,4 @@ TGPA_REPORT_SELECT_FIELDS = [
     "os_type",
 ]
 TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name", "real_name", "extend_info", "manufacturer", "model", "os_version"]
+TGPA_REPORT_LIST_BATCH_SIZE = 500  # 客户端日志上报列表批量查询大小
