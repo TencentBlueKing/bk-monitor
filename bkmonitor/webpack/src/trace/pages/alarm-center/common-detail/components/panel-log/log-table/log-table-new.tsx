@@ -41,6 +41,7 @@ import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
 
 import { useTable } from './hooks/use-table';
+import LogException from './log-exception';
 
 import type { TClickMenuOpt } from './typing';
 
@@ -64,10 +65,6 @@ export default defineComponent({
     refreshKey: {
       type: String,
       default: '',
-    },
-    customColumns: {
-      type: Array,
-      default: () => [],
     },
     headerAffixedTop: {
       type: Object as PropType<TdPrimaryTableProps['headerAffixedTop']>,
@@ -261,13 +258,14 @@ export default defineComponent({
         ref='wrap'
         class='alarm-detail-log-table-new'
       >
+        {!this.loading && this.tableColumns.length && <div class='field-setting-btn'>{this.$slots.settingBtn?.()}</div>}
         {this.loading ? (
           <TableSkeleton />
-        ) : (
+        ) : this.tableData.length ? (
           <PrimaryTable
             class='panel-log-log-table'
             asyncLoading={(this.tableData.length ? customAsyncLoadingFn : false) as any}
-            columns={[...this.tableColumns, ...this.customColumns]}
+            columns={this.tableColumns}
             data={this.tableData}
             expandedRow={this.expandedRow}
             expandedRowKeys={this.expandedRowKeys}
@@ -280,6 +278,7 @@ export default defineComponent({
             rowKey={'__id__'}
             size={'small'}
             sort={this.sortInfo}
+            tableLayout='fixed'
             onExpandChange={this.handleExpandChange}
             onSortChange={this.handleSortChange}
           >
@@ -287,6 +286,8 @@ export default defineComponent({
               empty: () => <EmptyStatus type={'empty'} />,
             }}
           </PrimaryTable>
+        ) : (
+          <LogException />
         )}
       </div>
     );

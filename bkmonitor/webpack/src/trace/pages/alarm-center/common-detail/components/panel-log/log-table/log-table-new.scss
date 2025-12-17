@@ -1,12 +1,14 @@
 /* stylelint-disable selector-class-pattern */
 .alarm-detail-log-table-new {
+  position: relative;
+
   .t-table__content {
     overflow: hidden;
   }
 
   .t-table__expanded-row {
     & > td {
-      padding: 0;
+      padding: 0 !important;
 
       .t-table__row-full-element {
         padding: 0;
@@ -14,9 +16,17 @@
     }
   }
 
-  .col-td-field-setting {
-    pointer-events: none;
-    opacity: 0;
+  // .col-td-field-setting {
+  //   pointer-events: none;
+  //   opacity: 0;
+  // }
+  .field-setting-btn {
+    position: absolute;
+    top: 3px;
+    right: 0;
+    z-index: 52;
+    background: #fafbfd;
+    opacity: 1;
   }
 
   .panel-log-log-table {

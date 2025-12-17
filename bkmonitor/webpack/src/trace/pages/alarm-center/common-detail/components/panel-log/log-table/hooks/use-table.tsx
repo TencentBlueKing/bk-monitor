@@ -131,7 +131,10 @@ export const useTable = (options: TUseTableOptions) => {
   };
 
   const fieldsDataToColumns = (fields: IFieldInfo[], displayFields: string[]) => {
-    allFields.value = formatHierarchy(fields).filter(item => displayFields.includes(item.field_name)) as IFieldInfo[];
+    const formattedFields = formatHierarchy(fields);
+    allFields.value = displayFields
+      .map(fieldName => formattedFields.find(item => item.field_name === fieldName))
+      .filter((item): item is IFieldInfo => !!item);
 
     const columns: TdPrimaryTableProps['columns'] = allFields.value.map(item => ({
       colKey: item.field_name,
