@@ -41,8 +41,14 @@ class TGPATask(models.Model):
 
 
 class TGPAReport(models.Model):
-    bk_biz_id = models.IntegerField(_("业务id"))
+    bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
     last_processed_at = models.DateTimeField(_("最后处理时间"))
+    created_at = models.DateTimeField(_("创建时间"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("更新时间"), auto_now=True)
+    total_processed_count = models.IntegerField(_("累计处理数量"), default=0)
+    last_processed_count = models.IntegerField(_("最后一次处理数量"), default=0)
+    last_error_message = models.TextField(_("最后错误信息"), null=True, blank=True)
+    last_error_at = models.DateTimeField(_("最后错误时间"), null=True, blank=True)
 
     class Meta:
         verbose_name = _("客户端上报")

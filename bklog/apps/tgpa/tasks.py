@@ -161,14 +161,14 @@ def fetch_and_process_tgpa_reports():
             TGPACollectorConfigHandler.get_or_create_collector_config(bk_biz_id)
 
             now = arrow.now()
-            last_process_at = now.shift(minute=-1)  # 默认为1分钟前
+            last_process_at = now.shift(minutes=-1)  # 默认为1分钟前
             if process_record := TGPAReport.objects.filter(bk_biz_id=bk_biz_id).first():
                 # 将数据库中上次处理时间设置为当前时间
                 last_process_at = arrow.get(process_record.last_processed_at)
-                process_record.last_processed_at = now
+                process_record.last_processed_at = now.datetime
                 process_record.save(update_fields=["last_processed_at"])
             else:
-                TGPAReport.objects.create(bk_biz_id=bk_biz_id, last_processed_at=now.datetime)
+                process_record = TGPAReport.objects.create(bk_biz_id=bk_biz_id, last_processed_at=now.datetime)
 
             # 拉取文件列表并处理，如果发生异常，这批数据会被跳过
             report_list = TGPAReportHandler.iter_report_list(
@@ -176,10 +176,23 @@ def fetch_and_process_tgpa_reports():
                 start_time=int(last_process_at.timestamp() * 1000),
                 end_time=int(now.timestamp() * 1000),
             )
+            report_count = 0
             for report_info in report_list:
                 process_single_report.delay(bk_biz_id, report_info)
-        except Exception:
+                report_count += 1
+
+            # 更新处理统计信息
+            process_record.last_processed_count = report_count
+            process_record.total_processed_count += report_count
+            process_record.save(update_fields=["last_processed_count", "total_processed_count"])
+            logger.info("Successfully process report files for business %s, count: %s", bk_biz_id, report_count)
+        except Exception as e:
             logger.exception("Failed to sync tgpa report files, business id: %s", bk_biz_id)
+            # 记录错误信息
+            if process_record := TGPAReport.objects.filter(bk_biz_id=bk_biz_id).first():
+                process_record.last_error_message = str(e)
+                process_record.last_error_at = timezone.now()
+                process_record.save(update_fields=["last_error_message", "last_error_at"])
             continue
 
 

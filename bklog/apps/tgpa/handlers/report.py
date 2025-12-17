@@ -83,9 +83,9 @@ class TGPAReportHandler:
             if keyword_conditions:
                 where_conditions.append(f"({' OR '.join(keyword_conditions)})")
         if start_time:
-            where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
+            where_conditions.append(f"report_time >= '{start_time}'")
         if end_time:
-            where_conditions.append(f"dtEventTimeStamp < '{end_time}'")
+            where_conditions.append(f"report_time < '{end_time}'")
 
         return " AND ".join(where_conditions)
 
@@ -163,9 +163,8 @@ class TGPAReportHandler:
                 f"LIMIT {batch_size} OFFSET {offset}"
             )
 
-            list_result = BkDataQueryApi.query(sql=query_list_sql, is_stag=True)
+            list_result = BkDataQueryApi.query({"sql": query_list_sql, "is_stag": True})
             batch_data = list_result.get("list", [])
-
             if not batch_data:
                 break
             yield from batch_data
