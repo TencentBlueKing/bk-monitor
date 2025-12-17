@@ -193,6 +193,7 @@ def migrate_nano_log_table(
     models.ResultTableOption.objects.get_or_create(
         table_id=table_id,
         name="es_related_query_table_id",
+        value_type="string",
         bk_tenant_id=bk_tenant_id,
         defaults={"value": new_table_id},
     )

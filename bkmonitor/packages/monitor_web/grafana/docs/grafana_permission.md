@@ -25,6 +25,7 @@ initial会调用sync_permissions方法去同步grafana与iam的权限
 > sync_permissions方法的调用链如下
 
 ```
+
 sync_permissions()
     │
     ▼
