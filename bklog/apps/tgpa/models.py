@@ -41,13 +41,8 @@ class TGPATask(models.Model):
 
 
 class TGPAReport(models.Model):
-    bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
-    file_name = models.CharField(_("文件名"), max_length=512)
-    md5 = models.CharField(_("文件md5"), max_length=255)
-    report_time = models.DateTimeField(_("上报时间"))
-    process_status = models.CharField(_("处理状态"), max_length=64, default=TGPATaskProcessStatusEnum.INIT.value)
-    processed_at = models.DateTimeField(_("处理时间"), null=True)
-    error_message = models.TextField(_("错误信息"), null=True, blank=True)
+    bk_biz_id = models.IntegerField(_("业务id"))
+    last_processed_at = models.DateTimeField(_("最后处理时间"))
 
     class Meta:
         verbose_name = _("客户端上报")

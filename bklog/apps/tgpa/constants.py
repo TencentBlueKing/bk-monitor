@@ -25,7 +25,7 @@ from apps.utils import ChoicesEnum
 
 
 TGPA_BASE_DIR = "/tmp/log-search/tgpa"
-TASK_LIST_BATCH_SIZE = 200
+TASK_LIST_BATCH_SIZE = 500
 TGPA_TASK_EXE_CODE_SUCCESS = "0"  # 文件上传成功状态码
 FEATURE_TOGGLE_TGPA_TASK = "tgpa_task"
 
@@ -228,4 +228,4 @@ TGPA_REPORT_SELECT_FIELDS = [
     "os_sdk",
     "os_type",
 ]
-TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name", "file_path", "extend_info", "manufacturer", "model"]
+TGPA_REPORT_FILTER_FIELDS = ["openid", "file_name", "real_name", "extend_info", "manufacturer", "model", "os_version"]

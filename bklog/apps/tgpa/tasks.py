@@ -19,23 +19,29 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import arrow
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from celery.schedules import crontab
 from django.utils import timezone
 
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.tgpa.constants import TGPA_TASK_EXE_CODE_SUCCESS, TGPATaskProcessStatusEnum, FEATURE_TOGGLE_TGPA_TASK
 from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorHandler
+from apps.tgpa.handlers.report import TGPAReportHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
-from apps.tgpa.models import TGPATask
+from apps.tgpa.models import TGPATask, TGPAReport
+from apps.utils.lock import share_lock
 from apps.utils.log import logger
 
 
 @periodic_task(run_every=crontab(minute="*/1"), queue="tgpa_task")
+@share_lock()
 def fetch_and_process_tgpa_tasks():
     """
     定时任务，拉取任务列表，处理任务
+    使用share_lock防止多个任务并行执行
     """
     feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
     if not feature_toggle:
@@ -135,3 +141,56 @@ def clear_expired_files():
     logger.info("Begin to clear expired client log files")
     TGPAFileHandler.clear_expired_files()
     logger.info("Successfully cleared expired client log files")
+
+
+@periodic_task(run_every=crontab(minute="*/1"), queue="tgpa_task")
+@share_lock()
+def fetch_and_process_tgpa_reports():
+    """
+    定时任务，拉取客户端上报文件列表，处理文件
+    使用share_lock防止多个任务并行执行
+    """
+    feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+    if not feature_toggle:
+        return
+    bk_biz_id_list = feature_toggle.biz_id_white_list or []
+
+    for bk_biz_id in bk_biz_id_list:
+        logger.info("Begin to sync tgpa report files, business id: %s", bk_biz_id)
+        try:
+            TGPACollectorHandler.get_or_create_collector_config(bk_biz_id)
+
+            now = arrow.now()
+            last_process_at = now.shift(minute=-1)  # 默认为1分钟前
+            if process_record := TGPAReport.objects.filter(bk_biz_id=bk_biz_id).first():
+                # 将数据库中上次处理时间设置为当前时间
+                last_process_at = arrow.get(process_record.last_processed_at)
+                process_record.last_processed_at = now
+                process_record.save(update_fields=["last_processed_at"])
+            else:
+                TGPAReport.objects.create(bk_biz_id=bk_biz_id, last_processed_at=now.datetime)
+
+            # 拉取文件列表并处理，如果发生异常，这批数据会被跳过
+            report_list = TGPAReportHandler.iter_report_list(
+                bk_biz_id,
+                start_time=int(last_process_at.timestamp() * 1000),
+                end_time=int(now.timestamp() * 1000),
+            )
+            for report_info in report_list:
+                process_single_report.delay(bk_biz_id, report_info)
+        except Exception:
+            logger.exception("Failed to sync tgpa report files, business id: %s", bk_biz_id)
+            continue
+
+
+@app.task(ignore_result=True, queue="tgpa_task")
+def process_single_report(bk_biz_id: int, report_info: dict):
+    """
+    异步处理单个客户端上报文件
+    """
+    logger.info("Begin to process report file, file_name: %s", report_info.get("file_name"))
+    try:
+        TGPAReportHandler(bk_biz_id=bk_biz_id, report_info=report_info).download_and_process_file()
+        logger.info("Successfully processed report file, file_name: %s", report_info.get("file_name"))
+    except Exception:
+        logger.exception("Failed to process report file, file_name %s", report_info.get("file_name"))

@@ -19,26 +19,61 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import os
+
+from django.utils.functional import cached_property
+
 from apps.api import BkDataQueryApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.tgpa.constants import TGPA_REPORT_FILTER_FIELDS, TGPA_REPORT_SELECT_FIELDS, FEATURE_TOGGLE_TGPA_TASK
+from apps.tgpa.constants import (
+    TGPA_REPORT_FILTER_FIELDS,
+    TGPA_REPORT_SELECT_FIELDS,
+    FEATURE_TOGGLE_TGPA_TASK,
+    TGPA_BASE_DIR,
+)
+from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.utils.thread import MultiExecuteFunc
 
 
 class TGPAReportHandler:
-    def __init__(self, bk_biz_id):
-        self.bk_biz_id = bk_biz_id
+    """客户端日志上报"""
 
-    @staticmethod
-    def _build_where_clause(bk_biz_id, keyword=None):
+    def __init__(self, bk_biz_id, report_info):
+        self.bk_biz_id = bk_biz_id
+        self.report_info = report_info
+        self.file_name = self.report_info["file_name"]
+        self.temp_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "report", self.file_name, "temp")
+        self.output_dir = os.path.join(TGPA_BASE_DIR, str(self.bk_biz_id), "report", self.file_name, "output")
+
+    @cached_property
+    def meta_fields(self):
+        """
+        需要注入到日志中的元数据维度
+        """
+        return {
+            "task_id": None,
+            "task_name": None,
+            "openid": self.report_info.get("openid"),
+            "manufacturer": self.report_info.get("manufacturer"),
+            "sdk_version": self.report_info.get("os_sdk"),
+            "os_type": self.report_info.get("os_type"),
+            "os_version": self.report_info.get("os_version"),
+            "cos_file_name": self.report_info["file_name"],
+        }
+
+    def download_and_process_file(self):
+        """
+        下载并处理文件
+        """
+        file_handler = TGPAFileHandler(self.temp_dir, self.output_dir, self.meta_fields)
+        file_handler.download_and_process_file(self.file_name)
+
+    @classmethod
+    def _build_where_clause(cls, bk_biz_id, keyword=None, start_time=None, end_time=None):
         """
         构建SQL WHERE子句
-
-        :param bk_biz_id: 业务ID
-        :param keyword: 搜索关键词
-        :return: WHERE子句字符串
         """
-        where_conditions = [f"cc_id={bk_biz_id}"]
+        where_conditions = [f"cc_id=={bk_biz_id}"]
 
         if keyword:
             # 转义特殊字符防止SQL注入
@@ -46,37 +81,17 @@ class TGPAReportHandler:
             keyword_conditions = [f"{field} like '%{escaped_keyword}%'" for field in TGPA_REPORT_FILTER_FIELDS]
             if keyword_conditions:
                 where_conditions.append(f"({' OR '.join(keyword_conditions)})")
+        if start_time:
+            where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
+        if end_time:
+            where_conditions.append(f"dtEventTimeStamp < '{end_time}'")
 
         return " AND ".join(where_conditions)
 
-    @staticmethod
-    def _build_query_sqls(result_table_id, where_clause, limit, offset):
-        """
-        构建查询SQL语句
-
-        :param result_table_id: 结果表ID
-        :param where_clause: WHERE子句
-        :param limit: 每页数量
-        :param offset: 偏移量
-        :return: (count_sql, list_sql) 元组
-        """
-        count_sql = f"SELECT count(*) AS total FROM {result_table_id} WHERE {where_clause}"
-        list_sql = (
-            f"SELECT {', '.join(TGPA_REPORT_SELECT_FIELDS)} "
-            f"FROM {result_table_id} "
-            f"WHERE {where_clause} "
-            f"ORDER BY report_time DESC "
-            f"LIMIT {limit} OFFSET {offset}"
-        )
-        return count_sql, list_sql
-
-    @staticmethod
-    def get_file_list(params):
+    @classmethod
+    def get_file_list(cls, params):
         """
         获取客户端日志上报文件列表
-
-        :param params: 查询参数，包含page, pagesize, bk_biz_id, keyword(可选)
-        :return: 包含total和list的字典
         """
         # 获取配置
         feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
@@ -89,11 +104,14 @@ class TGPAReportHandler:
         offset = (params["page"] - 1) * limit
 
         # 构建SQL语句
-        where_clause = TGPAReportHandler._build_where_clause(
-            bk_biz_id=params["bk_biz_id"], keyword=params.get("keyword")
-        )
-        query_count_sql, query_list_sql = TGPAReportHandler._build_query_sqls(
-            result_table_id=result_table_id, where_clause=where_clause, limit=limit, offset=offset
+        where_clause = cls._build_where_clause(bk_biz_id=params["bk_biz_id"], keyword=params.get("keyword"))
+        query_count_sql = f"SELECT count(*) AS total FROM {result_table_id} WHERE {where_clause}"
+        query_list_sql = (
+            f"SELECT {', '.join(TGPA_REPORT_SELECT_FIELDS)} "
+            f"FROM {result_table_id} "
+            f"WHERE {where_clause} "
+            f"ORDER BY report_time DESC "
+            f"LIMIT {limit} OFFSET {offset}"
         )
 
         # 并行查询总数和列表
@@ -119,3 +137,38 @@ class TGPAReportHandler:
             item["download_url"] = f"{download_url_prefix}{item.get('file_name', '')}"
 
         return {"total": total, "list": data}
+
+    @classmethod
+    def iter_report_list(cls, bk_biz_id, start_time=None, end_time=None, batch_size=500):
+        """
+        使用迭代器模式获取客户端日志上报文件列表
+        """
+        # 获取配置
+        feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
+        feature_config = feature_toggle.feature_config
+        result_table_id = feature_config.get("tgpa_report_result_table_id")
+
+        # 构建WHERE子句
+        where_clause = cls._build_where_clause(bk_biz_id=bk_biz_id, start_time=start_time, end_time=end_time)
+
+        # 分批查询数据，直到没有数据为止
+        offset = 0
+        while True:
+            query_list_sql = (
+                f"SELECT {', '.join(TGPA_REPORT_SELECT_FIELDS)} "
+                f"FROM {result_table_id} "
+                f"WHERE {where_clause} "
+                f"ORDER BY report_time DESC "
+                f"LIMIT {batch_size} OFFSET {offset}"
+            )
+
+            list_result = BkDataQueryApi.query(sql=query_list_sql, is_stag=True)
+            batch_data = list_result.get("list", [])
+
+            if not batch_data:
+                break
+            yield from batch_data
+            if len(batch_data) < batch_size:
+                break
+
+            offset += batch_size
