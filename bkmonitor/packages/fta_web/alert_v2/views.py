@@ -26,16 +26,7 @@ class AlertV2ViewSet(_BaseAlertViewSet):
     """
 
     resource_routes = [
-        r
-        for r in _BaseAlertViewSet.resource_routes
-        if r.endpoint
-        not in [
-            "alert/detail",
-        ]
-    ] + [
-        # 重写接口( 继承 V1 版本的接口时，需要排除 )
         ResourceRoute("GET", resource.alert_v2.alert_detail, endpoint="alert/detail"),
-        # 新增接口
         ResourceRoute("GET", resource.alert_v2.alert_events, endpoint="alert/events"),
         ResourceRoute("GET", resource.alert_v2.alert_k8s_scenario_list, endpoint="alert/k8s_scenario_list"),
         ResourceRoute("GET", resource.alert_v2.alert_k8s_metric_list, endpoint="alert/k8s_metric_list"),

@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 import base64
 import json
+import logging
+import re
 from collections import OrderedDict
 from typing import Any
 
@@ -23,6 +25,8 @@ from core.drf_resource import Resource
 from metadata import models
 from metadata.models.storage import ClusterInfo
 from metadata.service.storage_details import StorageClusterDetail
+
+logger = logging.getLogger(__name__)
 
 
 class ListClusters(Resource):
@@ -181,7 +185,9 @@ class ModifyClusterInfoResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_tenant_id = TenantIdField(label="租户ID")
         cluster_id = serializers.IntegerField(required=False, label="存储集群ID", default=None)
-        cluster_name = serializers.CharField(required=False, label="存储集群名", default=None)
+        cluster_name = serializers.RegexField(
+            required=False, label="存储集群名", regex=models.ClusterInfo.CLUSTER_NAME_REGEX
+        )
         cluster_type = serializers.CharField(required=False, label="存储集群类型", default=None)
         display_name = serializers.CharField(required=False, max_length=128, label="集群显示名称", default=None)
         description = serializers.CharField(required=False, label="存储集群描述", default=None, allow_blank=True)
@@ -205,7 +211,7 @@ class ModifyClusterInfoResource(Resource):
 
         # 1. 判断是否存在cluster_id或者cluster_name
         cluster_id: int = validated_request_data.pop("cluster_id")
-        cluster_name: str = validated_request_data.pop("cluster_name")
+        cluster_name: str = validated_request_data.pop("cluster_name", None)
 
         if cluster_id is None and cluster_name is None:
             raise ValueError(_("需要至少提供集群ID或集群名"))
@@ -230,6 +236,18 @@ class ModifyClusterInfoResource(Resource):
             raise ValueError(_("找不到指定的集群配置，请确认后重试"))
         except models.ClusterInfo.MultipleObjectsReturned:
             raise ValueError(_("找到多个符合条件的集群配置，可能是不同类型的集群名相同，请提供集群类型后重试"))
+
+        # 如果集群名不符合规范，则自动修正为合法名称并记录警告日志
+        if not cluster_info.display_name:
+            cluster_info.display_name = cluster_info.cluster_name
+
+        if not re.match(models.ClusterInfo.CLUSTER_NAME_REGEX, cluster_info.cluster_name):
+            original_cluster_name = cluster_info.cluster_name
+            cluster_name = f"auto_cluster_name_{cluster_info.cluster_id}"
+            cluster_info.cluster_name = cluster_name
+            logger.warning(
+                f"cluster({cluster_info.cluster_id}) cluster_name: {original_cluster_name} is not valid, set to: {cluster_name}"
+            )
 
         # 3. 判断获取是否需要修改用户名和密码
         auth_info = validated_request_data.pop("auth_info", {})
