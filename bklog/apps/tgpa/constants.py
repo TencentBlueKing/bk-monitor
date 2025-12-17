@@ -130,12 +130,21 @@ TGPA_TASK_ETL_FIELDS = [
         "description": "os_version",
         "is_delete": False,
     },
+    {
+        "field_name": "cos_file_name",
+        "field_type": "string",
+        "is_dimension": True,
+        "is_analyzed": False,
+        "is_time": False,
+        "description": "cos_file_name",
+        "is_delete": False,
+    },
 ]
 
 TGPA_TASK_SORT_FIELDS = ["dtEventTimeStamp", "lineno"]
 TGPA_TASK_TARGET_FIELDS = ["task_id", "file"]
 
-CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "file", "lineno"]
+CLIENT_LOG_UNIQUE_FIELD_LIST = ["task_id", "file", "lineno", "cos_file_name"]
 LOG_FILE_EXPIRE_DAYS = 3
 
 
