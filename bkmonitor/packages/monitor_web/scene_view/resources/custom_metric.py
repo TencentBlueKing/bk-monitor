@@ -59,6 +59,7 @@ class GetCustomTsMetricGroups(Resource):
         # 转换数据结构
         metric_groups = []
         for scope_data in metadata_result:
+            scope_id = scope_data.get("scope_id")
             scope_name = scope_data.get("scope_name", "")
             metric_list = scope_data.get("metric_list", [])
             dimension_config = scope_data.get("dimension_config", {})
@@ -82,6 +83,7 @@ class GetCustomTsMetricGroups(Resource):
 
                 metrics.append(
                     {
+                        "field_id": metric_data.get("field_id"),
                         "metric_name": metric_data.get("metric_name", ""),
                         "alias": field_config.get("alias", ""),
                         "dimensions": dimensions,
@@ -100,6 +102,7 @@ class GetCustomTsMetricGroups(Resource):
 
             metric_groups.append(
                 {
+                    "scope_id": scope_id,
                     "name": scope_name if scope_name else str(_("未分组")),
                     "metrics": metrics,
                     "common_dimensions": common_dimensions,
