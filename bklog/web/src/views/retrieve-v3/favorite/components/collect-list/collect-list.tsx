@@ -430,7 +430,7 @@ export default defineComponent({
         },
         {
           title: t('创建时间'),
-          value: (item.created_at) || '--',
+          value: utcFormatDate(item.created_at) || '--',
           isUserAccount: false
         },
       ];
