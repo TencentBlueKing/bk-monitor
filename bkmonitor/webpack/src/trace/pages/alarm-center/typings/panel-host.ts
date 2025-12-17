@@ -24,33 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-export interface HostLevelChartParams {
-  [key: string]: unknown;
-  bk_target_cloud_id?: number | string;
-  bk_target_ip?: number | string;
-}
-
-export interface ModuleLevelChartParams {
-  [key: string]: unknown;
-  bk_inst_id?: number;
-  bk_obj_id?: string;
-}
-
-export interface TreeNodeItem {
-  alias_name?: string;
-  bk_cloud_id?: number | string;
-  bk_host_id?: number | string;
+export interface AlertHostTargetItem {
+  bk_cloud_id?: number;
+  bk_host_id?: number;
   bk_host_name?: string;
-  bk_inst_id?: number;
-  bk_inst_name?: string;
-  bk_obj_id?: string;
-  bk_obj_name?: string;
-  children?: TreeNodeItem[];
+  bk_target_ip?: string;
   display_name?: string;
-  id: number | string;
-  ip?: string;
-  name: string;
-  os_type?: string;
-  service_instance_id?: number; // 服务实例ID
-  status?: number | string;
 }

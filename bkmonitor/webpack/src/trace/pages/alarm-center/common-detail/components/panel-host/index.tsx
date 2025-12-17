@@ -23,20 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 import { storeToRefs } from 'pinia';
 
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
-import {
-  type AlarmDetail,
-  type HostLevelChartParams,
-  type ModuleLevelChartParams,
-  AlertDetailHostSelectorTypeEnum,
-} from '../../../typings';
-import PanelHostDashboard from './components/panel-host-dashboard/panel-host-dashboard';
+import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
+import { useAlertHost } from '../../../composables/use-alert-host';
+import { useHostSceneView } from '../../../composables/use-host-scene-view';
 import PanelHostSelector from './components/panel-host-selector/panel-host-selector';
 
 import './index.scss';
@@ -44,32 +40,20 @@ import './index.scss';
 export default defineComponent({
   name: 'PanelHost',
   props: {
-    detail: {
-      type: Object as PropType<AlarmDetail>,
-    },
+    /** 告警ID */
+    alertId: String as PropType<string>,
   },
   setup(props) {
-    /** 监控目标 */
-    const currentTarget = shallowRef<HostLevelChartParams | ModuleLevelChartParams>(null);
-    const {
-      /** 业务ID */
-      bizId,
-      /** 图表数据的时间间隔 */
-      interval,
-      /** 数据时间范围 */
-      timeRange,
-    } = storeToRefs(useAlarmCenterDetailStore());
-    /** 是否处于请求加载状态 */
-    const loading = shallowRef(false);
-    /** 选择器类型(主机|模块) */
-    const selectorType = computed(
-      () =>
-        // TODO: 判断逻辑待补充
-        AlertDetailHostSelectorTypeEnum.MODULE
-    );
+    const { bizId, interval, timeRange } = storeToRefs(useAlarmCenterDetailStore());
+    const { currentTarget, targetList, loading } = useAlertHost(toRef(props, 'alertId'));
+    const { hostDashboards, loading: sceneViewLoading } = useHostSceneView(bizId);
+
     /** 图表请求参数变量 */
     const viewOptions = computed(() => {
-      const target = get(currentTarget) ?? {};
+      const target = {
+        bk_target_cloud_id: get(currentTarget)?.bk_cloud_id,
+        bk_target_ip: get(currentTarget)?.bk_target_ip,
+      };
       return {
         method: 'AVG',
         interval: get(interval),
@@ -81,43 +65,13 @@ export default defineComponent({
       };
     });
 
-    watch(
-      () => props.detail,
-      () => {
-        initTarget();
-      },
-      { immediate: true }
-    );
-
-    /**
-     * @description 初始化监控目标对象 currentTarget
-     */
-    function initTarget() {
-      const target: HostLevelChartParams | ModuleLevelChartParams = {
-        bk_target_ip: '0.0.0.0',
-        bk_target_cloud_id: '0',
-      };
-      for (const item of props.detail?.dimensions ?? []) {
-        if (item.key === 'bk_host_id') {
-          target.bk_host_id = item.value;
-        }
-        if (['bk_target_ip', 'ip', 'bk_host_id'].includes(item.key)) {
-          target.bk_target_ip = item.value;
-        }
-        if (['bk_cloud_id', 'bk_target_cloud_id', 'bk_host_id'].includes(item.key)) {
-          target.bk_target_cloud_id = item.value;
-        }
-      }
-      currentTarget.value = target;
-    }
-
     /**
      * @description 跳转主机检索页面
      */
-    function handleToPerformance() {
+    const handleToPerformance = () => {
       const target = get(currentTarget);
       const ip = target?.bk_target_ip ?? '0.0.0.0';
-      const cloudId = target?.bk_target_cloud_id ?? '0';
+      const cloudId = target?.bk_cloud_id ?? '0';
       const bkHostId = target?.bk_host_id ?? 0;
       // 跳转至容器监控时的详情Id
       const detailId = bkHostId ? bkHostId : `${ip}-${cloudId}`;
@@ -125,33 +79,24 @@ export default defineComponent({
       // 模块级别 ?filter-bk_inst_id=190&filter-bk_obj_id=module
       // 主机级别 ?filter-bk_target_ip=10.0.7.4&filter-bk_target_cloud_id=0&filter-bk_host_id=8
       window.open(`${location.origin}${location.pathname}?bizId=${bizId.value}#/performance/detail/${detailId}`);
-    }
-
-    /**
-     * @description 监控目标切换
-     * @param {HostLevelChartParams | ModuleLevelChartParams} target 监控目标
-     */
-    function handleCurrentTargetChange(target: HostLevelChartParams | ModuleLevelChartParams) {
-      currentTarget.value = target;
-    }
+    };
 
     /**
      * @description 创建骨架屏 dom 元素
      */
-    function createSkeletonDom() {
+    const createSkeletonDom = () => {
       return <div class='alarm-detail-panel-host-skeleton-dom skeleton-element' />;
-    }
+    };
 
     return {
       currentTarget,
-      bizId,
+      hostDashboards,
+      targetList,
       timeRange,
-      selectorType,
       loading,
       viewOptions,
       handleToPerformance,
       createSkeletonDom,
-      handleCurrentTargetChange,
     };
   },
   render() {
@@ -161,10 +106,11 @@ export default defineComponent({
           <div class='host-selector-wrap'>
             <div class='host-selector-container'>
               <PanelHostSelector
-                class='host-selector'
                 currentTarget={this.currentTarget}
-                selectorType={this.selectorType}
-                onChange={this.handleCurrentTargetChange}
+                targetList={this.targetList}
+                onChange={target => {
+                  this.currentTarget = target;
+                }}
               />
               {/* {this.createSkeletonDom()} */}
             </div>
@@ -185,11 +131,11 @@ export default defineComponent({
           </div>
         </div>
         <div class='panel-host-chart-wrap'>
-          <PanelHostDashboard
-            bizId={this.bizId}
+          <AlarmDashboardGroup
+            dashboards={this.hostDashboards}
             timeRange={this.timeRange}
             viewOptions={this.viewOptions}
-          />
+          ></AlarmDashboardGroup>
         </div>
       </div>
     );
