@@ -288,7 +288,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
     def filter_by_options(self, items: QuerySet[Dashboard], options: dict):
         """支持按租户ID过滤"""
         org_ids = self._get_org_ids_by_options(options)
-        return items.filter(org_ids__in=org_ids)
+        return items.filter(org_id__in=org_ids)
 
     def list_instance(self, filter, page, **options):
         """
