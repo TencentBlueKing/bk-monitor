@@ -122,12 +122,8 @@ class TGPAReportHandler:
 
         # 并行查询总数和列表
         multi_execute_func = MultiExecuteFunc()
-        multi_execute_func.append(
-            result_key="count", func=BkDataQueryApi.query, params={"sql": query_count_sql, "is_stag": True}
-        )
-        multi_execute_func.append(
-            result_key="list", func=BkDataQueryApi.query, params={"sql": query_list_sql, "is_stag": True}
-        )
+        multi_execute_func.append(result_key="count", func=BkDataQueryApi.query, params={"sql": query_count_sql})
+        multi_execute_func.append(result_key="list", func=BkDataQueryApi.query, params={"sql": query_list_sql})
         multi_result = multi_execute_func.run()
 
         # 处理返回结果
@@ -168,7 +164,7 @@ class TGPAReportHandler:
                 f"LIMIT {batch_size} OFFSET {offset}"
             )
 
-            list_result = BkDataQueryApi.query({"sql": query_list_sql, "is_stag": True})
+            list_result = BkDataQueryApi.query({"sql": query_list_sql})
             batch_data = list_result.get("list", [])
             if not batch_data:
                 break
