@@ -2266,8 +2266,7 @@ class TimeSeriesMetric(models.Model):
                 item["type"] = orm_field["field_type"]
 
             if tag in dimension_config:
-                if alias := dimension_config[tag].get("alias", ""):
-                    item["description"] = alias
+                item["description"] = dimension_config[tag].get("alias", item["description"])
 
             result["tag_list"].append(item)
 
@@ -2342,8 +2341,7 @@ class TimeSeriesMetric(models.Model):
                 item["type"] = orm_field["field_type"]
 
             if tag in dimension_config:
-                if alias := dimension_config[tag].get("alias", ""):
-                    item["description"] = alias
+                item["description"] = dimension_config[tag].get("alias", item["description"])
 
             result["tag_list"].append(item)
 
