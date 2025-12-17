@@ -247,6 +247,12 @@ const getDownloadLink = {
   method: 'get',
 };
 
+// 客户端日志-获取索引集ID
+const getTaskIndexSetId = {
+  url: '/tgpa/task/index_set_id/',
+  method: 'get',
+};
+
 export {
   getStorage,
   globals,
@@ -290,4 +296,5 @@ export {
   getTaskLogList,
   createCollectionTask,
   getDownloadLink,
+  getTaskIndexSetId,
 };
