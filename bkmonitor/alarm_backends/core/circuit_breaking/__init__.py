@@ -64,7 +64,7 @@ access.data:
 
 - circuit_breaking:access.data
 ```
-	# 配置之间为 or 的关系
+	# 配置之间为 and 的关系
 	# 规则复用
 	[{
 		"key": "strategy_id",
