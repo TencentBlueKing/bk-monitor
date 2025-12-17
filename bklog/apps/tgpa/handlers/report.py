@@ -83,9 +83,9 @@ class TGPAReportHandler:
             if keyword_conditions:
                 where_conditions.append(f"({' OR '.join(keyword_conditions)})")
         if start_time:
-            where_conditions.append(f"report_time >= '{start_time}'")
+            where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
         if end_time:
-            where_conditions.append(f"report_time < '{end_time}'")
+            where_conditions.append(f"dtEventTimeStamp < '{end_time}'")
 
         return " AND ".join(where_conditions)
 
@@ -104,8 +104,13 @@ class TGPAReportHandler:
         limit = params["pagesize"]
         offset = (params["page"] - 1) * limit
 
-        # 构建SQL语句
-        where_clause = cls._build_where_clause(bk_biz_id=params["bk_biz_id"], keyword=params.get("keyword"))
+        # 构建SQL语句，这里时间范围过滤使用 dtEventTimeStamp，排序使用report_time，和TGPA保持一致
+        where_clause = cls._build_where_clause(
+            bk_biz_id=params["bk_biz_id"],
+            keyword=params.get("keyword"),
+            start_time=params.get("start_time"),
+            end_time=params.get("end_time"),
+        )
         query_count_sql = f"SELECT count(*) AS total FROM {result_table_id} WHERE {where_clause}"
         query_list_sql = (
             f"SELECT {', '.join(TGPA_REPORT_SELECT_FIELDS)} "
@@ -152,14 +157,14 @@ class TGPAReportHandler:
         # 构建WHERE子句
         where_clause = cls._build_where_clause(bk_biz_id=bk_biz_id, start_time=start_time, end_time=end_time)
 
-        # 分批查询数据，直到没有数据为止
+        # 分批查询数据，直到没有数据为止，这里排序和时间范围过滤统一使用dtEventTimeStamp（report_time并不是按照数据插入时间的顺序单调递增的）
         offset = 0
         while True:
             query_list_sql = (
                 f"SELECT {', '.join(TGPA_REPORT_SELECT_FIELDS)} "
                 f"FROM {result_table_id} "
                 f"WHERE {where_clause} "
-                f"ORDER BY report_time DESC "
+                f"ORDER BY dtEventTimeStamp DESC "
                 f"LIMIT {batch_size} OFFSET {offset}"
             )
 
