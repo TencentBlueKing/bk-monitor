@@ -876,7 +876,7 @@ class ClusterConfig(models.Model):
 
         return get_data_link_component_config(
             bk_tenant_id=self.bk_tenant_id,
-            kind=DataLinkKind.get_choice_value(self.kind),
+            kind=self.kind,
             namespace=self.namespace,
             component_name=self.name,
         )
