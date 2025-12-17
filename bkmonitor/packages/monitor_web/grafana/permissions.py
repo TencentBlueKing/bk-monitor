@@ -117,6 +117,8 @@ class DashboardPermission(BasePermission):
                     if f_org_id == org_id:
                         return None, (f_org_id, folder_id)
                 except ValueError:
+                    # 资源id无效
+                    logger.warning(f"Invalid folder resource ID format: {resource_id}")
                     pass
             return None, None
 
