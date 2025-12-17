@@ -558,7 +558,6 @@ export default defineComponent({
             }}
           >
             <bk-button
-              class='king-button'
               text
               theme='primary'
               disabled={row.status !== TaskStatus.COMPLETED}
@@ -583,8 +582,14 @@ export default defineComponent({
             }}
           >
             <bk-button
-              disabled={!props.isAllowedDownload || row.status !== TaskStatus.COMPLETED}
+              disabled={row.status !== TaskStatus.COMPLETED}
               text
+              class={[
+                {
+                  'disabled-download': !props.isAllowedDownload,
+                },
+              ]}
+              disable
               theme='primary'
               v-cursor={{
                 active: row.status === TaskStatus.COMPLETED && !props.isAllowedDownload,

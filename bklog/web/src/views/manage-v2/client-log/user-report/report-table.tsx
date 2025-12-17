@@ -26,10 +26,18 @@
 
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 
-import { getDefaultSettingSelectFiled, setDefaultSettingSelectFiled } from '@/common/util';
+import {
+  getDefaultSettingSelectFiled,
+  setDefaultSettingSelectFiled,
+  formatFileSize,
+  updateLastSelectedIndexId,
+} from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
+import * as authorityMap from '../../../../common/authority-map';
+import useStore from '@/hooks/use-store';
+import useRouter from '@/hooks/use-router';
 
 import './report-table.scss';
 
@@ -55,9 +63,20 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    isAllowedDownload: {
+      type: Boolean,
+      default: false,
+    },
+    indexSetId: {
+      type: String,
+      default: '',
+    },
   },
   emits: ['page-change', 'page-limit-change', 'search'],
   setup(props, { emit }) {
+    const store = useStore();
+    const router = useRouter();
+
     const reportTableRef = ref(null);
     const settingCacheKey = 'userReport';
 
@@ -146,6 +165,97 @@ export default defineComponent({
       default: ({ row }) => <span class='overflow-hidden-text'>{row.extend_info}</span>,
     };
 
+    // 检索任务 - 传递 openid 和 file_name 参数
+    const handleSearchTask = (row: any) => {
+      // 构建查询条件，设置 openid 和 file_name 字段
+      const additionList = [
+        {
+          field: 'openid',
+          operator: 'is',
+          value: row.openid,
+        },
+        {
+          field: 'file_name',
+          operator: 'is',
+          value: row.file_name,
+        },
+      ];
+
+      updateLastSelectedIndexId(store.state.spaceUid, props.indexSetId);
+
+      router.push({
+        name: 'retrieve',
+        params: {
+          indexId: props.indexSetId,
+        },
+        query: {
+          spaceUid: store.state.spaceUid,
+          search_mode: 'ui', // UI模式
+          addition: JSON.stringify(additionList),
+        },
+      });
+    };
+
+    // 下载文件
+    const downloadFile = async (downloadUrl: string) => {
+      console.warn('downloadUrl', downloadUrl);
+      console.warn('props.isAllowedDownload', props.isAllowedDownload);
+      if (props.isAllowedDownload) {
+        try {
+          if (downloadUrl) {
+            window.open(downloadUrl);
+          }
+        } catch (error) {
+          console.warn('下载文件失败:', error);
+        }
+      } else {
+        const paramData = {
+          action_ids: [authorityMap.DOWNLOAD_FILE_AUTH],
+          resources: [
+            {
+              type: 'space',
+              id: store.state.spaceUid,
+            },
+          ],
+        };
+        const res = await store.dispatch('getApplyData', paramData);
+        store.commit('updateState', { authDialogData: res.data });
+      }
+    };
+
+    const operateSlot = {
+      default: ({ row }: any) => (
+        <div class='log-table-operate'>
+          <span class='king-button'>
+            <bk-button
+              text
+              theme='primary'
+              on-click={() => handleSearchTask(row)}
+            >
+              {t('检索')}
+            </bk-button>
+          </span>
+          <span class='king-button'>
+            <bk-button
+              text
+              class={[
+                {
+                  'disabled-download': !props.isAllowedDownload,
+                },
+              ]}
+              theme='primary'
+              v-cursor={{
+                active: !props.isAllowedDownload,
+              }}
+              on-click={() => downloadFile(row.download_url)}
+            >
+              {t('下载文件')}
+            </bk-button>
+          </span>
+        </div>
+      ),
+    };
+
     // 监听 total 变化，更新分页配置
     watch(
       () => props.total,
@@ -215,6 +325,7 @@ export default defineComponent({
               width='100'
               label={t('文件大小')}
               prop='file_size'
+              formatter={row => formatFileSize(row.file_size)}
             />
           )}
           {checkFields('md5') && (
@@ -299,6 +410,12 @@ export default defineComponent({
               prop='os_type'
             />
           )}
+          <bk-table-column
+            label={t('操作')}
+            width='150'
+            fixed='right'
+            scopedSlots={operateSlot}
+          />
           <bk-table-column
             type='setting'
             key='setting'

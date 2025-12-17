@@ -565,7 +565,11 @@ export default defineComponent({
             )}
             {activeTab.value === TAB_TYPES.REPORT && (
               <section>
-                <UserReport onUpdate-total={handleUserReportTotalUpdate} />
+                <UserReport
+                  isAllowedDownload={isAllowedDownload.value}
+                  indexSetId={indexSetId.value}
+                  onUpdate-total={handleUserReportTotalUpdate}
+                />
               </section>
             )}
           </div>

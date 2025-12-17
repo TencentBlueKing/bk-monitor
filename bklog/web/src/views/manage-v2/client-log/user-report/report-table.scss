@@ -7,4 +7,17 @@
       white-space: nowrap;
     }
   }
+
+  .log-table-operate {
+    display: flex;
+    align-items: center;
+
+    .king-button {
+      margin-right: 16px;
+    }
+
+    .disabled-download {
+      color: #c4c6cc;
+    }
+  }
 }

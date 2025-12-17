@@ -39,6 +39,16 @@ export default defineComponent({
   components: {
     ReportTable,
   },
+  props: {
+    isAllowedDownload: {
+      type: Boolean,
+      default: false,
+    },
+    indexSetId: {
+      type: String,
+      default: '',
+    },
+  },
   emits: ['update-total'],
   setup(props, { emit }) {
     const store = useStore();
@@ -123,6 +133,11 @@ export default defineComponent({
       handleSearch('');
     };
 
+    const handleViewSDKDoc = () => {
+      const sdkDocUrl = 'https://iwiki.woa.com/p/4013039938';
+      window.open(sdkDocUrl, '_blank');
+    };
+
     // 监听搜索关键词变化，如果为空则自动搜索
     watch(
       () => searchKeyword.value,
@@ -148,20 +163,20 @@ export default defineComponent({
     return () => (
       <div class='user-report'>
         {/* Alert 提示 */}
-        <bk-alert
-          class='alert-info'
-          type='info'
-          title={t('Alert 文案占位，用于说明如果用 SDK 上报。')}
-        ></bk-alert>
+        <span onClick={handleViewSDKDoc}>
+          <bk-alert
+            class='alert-info'
+            type='info'
+            title={t('使用本功能，需要在您的项目中集成并初始化相应的软件开发工具包（SDK），点击查看。')}
+          ></bk-alert>
+        </span>
 
         {/* 操作区域 */}
-        <div class='operating-area'>
-          <bk-button
-            onClick={handleCleanConfig}
-            style={{ visibility: 'hidden' }}
-          >
-            {t('清洗配置')}
-          </bk-button>
+        <div
+          class='operating-area'
+          style={{ display: 'none' }}
+        >
+          <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button>
           <div>
             <bk-input
               value={searchKeyword.value}
@@ -181,6 +196,8 @@ export default defineComponent({
           total={tableData.value.total}
           keyword={searchKeyword.value}
           loading={isLoading.value}
+          isAllowedDownload={props.isAllowedDownload}
+          indexSetId={props.indexSetId}
           on-page-change={handlePageChange}
           on-page-limit-change={handlePageLimitChange}
           on-search={handleSearch}
