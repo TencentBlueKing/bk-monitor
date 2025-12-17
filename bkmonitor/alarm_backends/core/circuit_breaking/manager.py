@@ -137,3 +137,18 @@ class AlertBuilderCircuitBreakingManager(BaseCircuitBreakingManager):
     """
 
     module = "alert.builder"
+
+
+class AlertManagerCircuitBreakingManager(BaseCircuitBreakingManager):
+    """
+    Alert Manager 模块熔断管理器
+    alert.manager 模块同步应用熔断规则, 规则模块尝试从alert.manager获取, 如果未配置, 则复用alert.builder中的熔断规则
+    """
+
+    module = "alert.manager"
+
+    def __init__(self):
+        super().__init__()
+        if self.matcher is None:
+            self.config = CircuitBreakingCacheManager.get_config("alert.builder")
+            self.matcher = gen_circuit_breaking_matcher(self.config)

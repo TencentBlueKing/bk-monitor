@@ -35,6 +35,8 @@ specific language governing permissions and limitations under the License.
                 - 未命中qos,则set_end_status关闭告警并创建新告警
             2. 已存在的告警, is_blocked为False, 正常流程继续
             3. 新创建的告警, 正常流程继续
+    
+    - alert.manager 模块同步应用熔断规则, 规则模块尝试从alert.manager获取, 如果未配置, 则复用alert.builder中的熔断规则
 
 3. action(todo)
 	create_actions: action创建时熔断
