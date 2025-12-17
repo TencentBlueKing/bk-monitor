@@ -266,7 +266,7 @@ const handleDeleAllOptions = () => {
     .btn-del-action {
       position: absolute;
       right: 5px;
-      top: 5px;
+      top: 8px;
       cursor: pointer;
     }
   }

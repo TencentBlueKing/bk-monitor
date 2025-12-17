@@ -180,7 +180,7 @@ class EventLogsRequestSerializer(EventWithQueryConfigsSerializer):
 
 
 class EventViewConfigRequestSerializer(BaseEventRequestSerializer):
-    data_sources = serializers.ListSerializer(label="数据源列表", child=EventDataSource(), allow_empty=False)
+    data_sources = serializers.ListSerializer(label="数据源列表", child=EventDataSource(), allow_empty=True)
 
     # 不传 / 为空代表全部
     sources = serializers.ListSerializer(

@@ -724,7 +724,6 @@ DOUBLE_CHECK_SUM_STRATEGY_IDS = os.environ.get("DOUBLE_CHECK_SUM_STRATEGY_IDS", 
 # BCS 集群配置来源标签
 BCS_CLUSTER_BK_ENV_LABEL = os.environ.get("BCS_CLUSTER_BK_ENV_LABEL", "")
 
-ALARM_DISABLE_STRATEGY_RULES = []
 OPTZ_FAKE_EVENT_BIZ_IDS = []
 
 # access模块数据拉取延迟时间
@@ -1512,6 +1511,10 @@ ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化
 ENABLE_SPACE_BUILTIN_DATA_LINK = os.getenv("ENABLE_SPACE_BUILTIN_DATA_LINK", "false").lower() == "true"
+# 是否开启dataid注册时能够指定集群名称，默认关闭
+ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME = (
+    os.getenv("ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME", "false").lower() == "true"
+)
 
 # 创建 vm 链路资源所属的命名空间
 DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
