@@ -67,6 +67,7 @@ import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
+import { formatTimeZoneString } from '@/global/utils/time';
 if (pinyin.isSupported() && patcher56L.shouldPatch(pinyin.genToken)) {
   pinyin.patchDict(patcher56L);
 }
@@ -1538,6 +1539,8 @@ const store = new Vuex.Store({
           const results = (resp.data || []).map((item) => {
             item.favorites?.forEach((sub) => {
               sub.full_name = `${item.group_name}/${sub.name}`;
+              sub.created_at = formatTimeZoneString(sub.created_at, state.userMeta.time_zone);
+              sub.updated_at = formatTimeZoneString(sub.updated_at, state.userMeta.time_zone);
             });
             return item;
           });
