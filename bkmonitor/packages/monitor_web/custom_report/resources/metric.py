@@ -13,14 +13,12 @@ import time
 import re
 from collections import defaultdict
 from typing import Any
-from functools import reduce
 from dataclasses import asdict
 
 import arrow
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.db import models
-from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -55,7 +53,6 @@ from monitor_web.custom_report.serializers.metric import (
     CustomTSScopeResponseSerializer,
 )
 from monitor_web.models.custom_report import (
-    CustomTSField,
     CustomTSGroupingRule,
     CustomTSTable,
 )
@@ -365,7 +362,6 @@ class CreateCustomTimeSeries(Resource):
         return {"time_series_group_id": group_info["time_series_group_id"], "bk_data_id": group_info["bk_data_id"]}
 
 
-# TODO: 破坏性变更(需要讨论)
 class ModifyCustomTimeSeries(Resource):
     """
     修改自定义时序
@@ -408,41 +404,58 @@ class ModifyCustomTimeSeries(Resource):
         """
         更新自定义时序字段信息
         """
-        if "metric_json" not in params:
+        if not params.get("metric_json"):
             return
 
-        exists_fields = {
-            (item.name, item.type): item
-            for item in CustomTSField.objects.filter(time_series_group_id=table.time_series_group_id)
-        }
-        need_update_fields = []
-        need_create_fields = []
-        current_fields: set[tuple[str, str]] = set()
-        for field in params["metric_json"][0]["fields"]:
-            if (field["name"], field["monitor_type"]) in exists_fields:
-                field = exists_fields.get((field["name"], field["monitor_type"]))
-                field.description = field["description"]
-                field.config.update({"unit": field["unit"]})
-                need_update_fields.append(field)
+        # 组装字段信息
+        metric_map: dict[tuple[str, str], dict[str, Any]] = {}
+        dimension_map: dict[str, dict[str, Any]] = {}
+        for field_dict in params["metric_json"][0]["fields"]:
+            if field_dict["monitor_type"] == CustomTSMetricType.METRIC:
+                metric_map[(DEFAULT_FIELD_SCOPE, field_dict["name"])] = {
+                    "alias": field_dict["description"],
+                    "unit": field_dict["unit"],
+                }
             else:
-                need_create_fields.append(
-                    CustomTSField(
-                        time_series_group_id=table.time_series_group_id,
-                        type=field["monitor_type"],
-                        name=field["name"],
-                        description=field["description"],
-                        config={"unit": field["unit"]},
+                dimension_map[field_dict["name"]] = {
+                    "alias": field_dict["description"],
+                }
+
+        time_series_group_id: int = params["time_series_group_id"]
+        converter = ScopeQueryConverter(time_series_group_id)
+        scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope()
+        field_modify_service = FieldsModifyService(time_series_group_id=time_series_group_id)
+        for scope_obj in scope_objs:
+            for metric_obj in scope_obj.metric_list:
+                if metric_obj.field_scope != DEFAULT_FIELD_SCOPE:
+                    continue
+                update_config = metric_map.get((DEFAULT_FIELD_SCOPE, metric_obj.name))
+                if update_config:
+                    metric_config = asdict(metric_obj.config)
+                    metric_config.update(update_config)
+                    field_modify_service.add_metric(
+                        ModifyMetric(
+                            id=metric_obj.id, scope_id=scope_obj.id, config=ModifyMetricConfig.from_dict(metric_config)
+                        )
                     )
-                )
-
-        CustomTSField.objects.bulk_create(need_create_fields, batch_size=500)
-        CustomTSField.objects.bulk_update(need_update_fields, ["config", "description"], batch_size=500)
-
-        need_delete_fields = set(exists_fields.keys()) - current_fields
-        if need_delete_fields:
-            CustomTSField.objects.filter(time_series_group_id=table.time_series_group_id).filter(
-                reduce(lambda x, y: x | y, (Q(name=name, type=type) for name, type in need_delete_fields))
-            ).delete()
+                else:
+                    field_modify_service.delete_metric(ModifyMetric(id=metric_obj.id, scope_id=scope_obj.id))
+                metric_map[(metric_obj.field_scope, metric_obj.name)] = metric_obj
+            for dimension_name, config_obj in scope_obj.dimension_config.items():
+                update_config = dimension_map.get(dimension_name)
+                if update_config:
+                    dimension_config = asdict(config_obj)
+                    dimension_config.update(update_config)
+                    field_modify_service.add_dimension(
+                        ModifyDimension(
+                            scope_id=scope_obj.id,
+                            name=dimension_name,
+                            config=ModifyDimensionConfig.from_dict(dimension_config),
+                        )
+                    )
+                else:
+                    field_modify_service.delete_dimension(ModifyDimension(scope_id=scope_obj.id, name=dimension_name))
+        field_modify_service.apply_change()
 
     def perform_request(self, params: dict):
         bk_biz_id: int = params["bk_biz_id"]
@@ -549,7 +562,6 @@ class CustomTimeSeriesList(Resource):
         }
 
 
-# TODO: 破坏性变更(需要讨论)
 class CustomTimeSeriesDetail(Resource):
     """
     自定义时序详情
@@ -597,7 +609,7 @@ class CustomTimeSeriesDetail(Resource):
         data["access_token"] = config.token
 
         # 如果需要查询指标信息，则将指标信息写入到metric_json中
-        data["metric_json"] = [{"fields": config.get_metrics()}] if params.get("with_metrics") else []
+        data["metric_json"] = [{"fields": list(config.get_metrics().values())}] if params.get("with_metrics") else []
         # 新增查询target参数，自定义指标详情页面不需要target，默认不查询
         data["target"] = config.query_target(bk_biz_id=bk_biz_id) if params.get("with_target") else []
 

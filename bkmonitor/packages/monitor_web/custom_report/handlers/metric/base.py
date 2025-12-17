@@ -8,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import ClassVar, Any
-from dataclasses import dataclass
+from typing import ClassVar, Any, Self
+from dataclasses import dataclass, fields
 
 
 VALUE_UNSET = object()  # 用于表示未设置的参数
@@ -28,3 +28,9 @@ class BaseUnsetDTO:
             if getattr(self, local_field_name, None) is not VALUE_UNSET:
                 remote_dict[remote_field_name] = getattr(self, local_field_name, None)
         return remote_dict
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Self:
+        field_names = {field.name for field in fields(cls)}
+        create_dict: dict[str, Any] = {k: v for k, v in data.items() if k in field_names}
+        return cls(**create_dict)

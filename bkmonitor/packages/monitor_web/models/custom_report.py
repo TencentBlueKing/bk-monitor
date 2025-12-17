@@ -25,6 +25,7 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import OperateRecordModelBase
+from monitor_web.custom_report.constants import CustomTSMetricType, DEFAULT_FIELD_SCOPE
 
 
 class CustomEventGroup(OperateRecordModelBase):
@@ -141,7 +142,7 @@ class CustomTSTable(OperateRecordModelBase):
             return data_id_info["token"]
 
     # 计划移除，应该不存在这个问题了
-    def save_to_metadata(self, with_fields=False):
+    def save_to_metadata(self):
         """
         保存 metadata 信息
         """
@@ -156,39 +157,50 @@ class CustomTSTable(OperateRecordModelBase):
 
         api.metadata.modify_time_series_group(request_params)
 
-    # TODO: 破坏性变更
-    def get_metrics(self) -> dict[str, dict]:
-        """获取指标/维度信息"""
+    def get_metrics(self) -> dict[tuple[str, str, str], dict]:
+        """获取指标/维度信息
 
-        fields = []
-        field_map = {}
-        dimension_names: dict[str, str] = {
-            dimension.name: dimension.description
-            for dimension in CustomTSField.objects.filter(
-                time_series_group_id=self.time_series_group_id, type=CustomTSField.MetricType.DIMENSION
-            )
-        }
+        Returns:
+        字典，键为 (scope_name, 字段类型，字段名称) 元组，值为指标详细信息字典
+        """
 
-        for field in fields:
-            field_map[field.name] = {
-                "name": field.name,
-                "monitor_type": field.type,
-                "unit": field.config.get("unit", ""),
-                "description": field.description,
-                "type": field.type,
-                "aggregate_method": field.config.get("aggregate_method", ""),
-            }
+        dimension_alias_map: dict[tuple[str, str], str] = {}
+        field_map: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for scope_dict in self.query_time_series_scope:
+            scope_name: str = scope_dict["scope_name"]
+            for dimension_name, dimension_config in scope_dict.get("dimension_config", {}).items():
+                dimension_alias: str = dimension_config.get("alias", "")
+                dimension_alias_map[(scope_name, dimension_name)] = dimension_alias
+                field_map[(scope_name, CustomTSMetricType.DIMENSION, dimension_name)] = {
+                    "scope_name": scope_name,
+                    "name": dimension_name,
+                    "monitor_type": CustomTSMetricType.DIMENSION,
+                    "unit": "",
+                    "description": dimension_alias,
+                    "type": CustomTSMetricType.DIMENSION,
+                    "aggregate_method": "",
+                }
 
-            if field.type == CustomTSField.MetricType.METRIC:
-                field_map[field.name].update(
-                    {
-                        "dimension_list": [
-                            {"id": dimension, "name": dimension_names[dimension]}
-                            for dimension in field.config.get("dimensions", [])
-                        ],
-                        "label": field.config.get("label", []),
-                    }
-                )
+        for scope_dict in self.query_time_series_scope:
+            scope_name: str = scope_dict["scope_name"]
+            for metric_dict in scope_dict["metric_list"]:
+                metric_name: str = metric_dict["metric_name"]
+                metric_config: dict[str, Any] = metric_dict.get("field_config", {})
+                field_map[(scope_name, CustomTSMetricType.METRIC, metric_name)] = {
+                    "scope_name": scope_name,
+                    "name": metric_name,
+                    "monitor_type": CustomTSMetricType.METRIC,
+                    "unit": metric_config.get("unit", ""),
+                    "description": metric_config.get("alias", ""),
+                    "type": CustomTSMetricType.METRIC,
+                    "aggregate_method": metric_config.get("aggregate_method", ""),
+                    "dimension_list": [
+                        {"id": dimension_name, "name": dimension_alias_map.get((scope_name, dimension_name), "")}
+                        for dimension_name in metric_dict.get("tag_list", [])
+                    ],
+                    "label": [scope_name],
+                    "field_scope": metric_dict.get("field_scope", DEFAULT_FIELD_SCOPE),
+                }
         return field_map
 
     def query_target(self, bk_biz_id: int) -> list:
