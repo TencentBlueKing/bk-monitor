@@ -1305,7 +1305,7 @@ export default defineComponent({
           <bk-sideslider
             width={800}
             class='collection-report-detail'
-            efore-close={() => {
+            before-close={() => {
               isShowDetection.value = false;
             }}
             scopedSlots={{

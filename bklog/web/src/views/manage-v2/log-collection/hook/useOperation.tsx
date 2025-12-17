@@ -35,83 +35,25 @@ import useStore from '@/hooks/use-store';
 
 import $http from '@/api';
 
-/**
- * 卡片配置项类型定义
- */
-export interface ICardItem {
-  /** 卡片唯一标识 */
-  key: number | string;
-  /** 卡片标题 */
-  title: string;
-  /** 卡片内容渲染函数 */
-  renderFn: () => any;
-  /** 卡片副标题渲染函数（可选） */
-  subTitle?: () => any;
-}
-
-/**
- * API 请求参数类型
- */
-interface IRequestParams {
-  [key: string]: any;
-}
-
-/**
- * API 响应数据类型
- */
-interface IApiResponse<T = any> {
-  data?: T;
-  [key: string]: any;
-}
-
-/**
- * 字段信息类型
- */
-interface IFieldInfo {
-  field_name?: string;
-  field_type?: string;
-  [key: string]: any;
-}
-
-/**
- * 结果表信息响应类型
- */
-interface IResultTableInfoResponse {
-  data?: {
-    fields?: IFieldInfo[];
-    [key: string]: any;
-  };
-  [key: string]: any;
-}
-
-/**
- * 索引组列表响应类型
- */
-interface IIndexGroupListResponse {
-  list?: any[];
-  total?: number;
-  [key: string]: any;
-}
-
-/**
- * 权限对象类型
- */
-interface IPermissionItem {
-  permission?: {
-    [key: string]: boolean;
-  };
-  [key: string]: any;
-}
+import type {
+  IApiResponse,
+  ICardItem,
+  IFieldInfo,
+  IIndexGroupListResponse,
+  IPermissionItem,
+  IRequestParams,
+  IResultTableInfoResponse,
+} from '../type';
 
 /**
  * 数据回调函数类型
  */
-type DataCallback<T = any> = (_data: T) => void;
+type DataCallback<T = unknown> = (_data: T) => void;
 
 /**
  * 响应转换回调函数类型
  */
-type ResponseTransformCallback = (_response: IApiResponse) => any;
+type ResponseTransformCallback<T = unknown> = (_response: IApiResponse) => T;
 
 /**
  * 采集操作相关的自定义 Hook
@@ -160,27 +102,38 @@ export const useOperation = () => {
    * 选择采集项获取字段列表
    * 通过结果表ID获取对应的字段信息列表
    * @param params - 请求参数，通常包含 result_table_id 等
-   * @param isList - 是否返回完整响应对象，默认为 false（仅返回字段数组）
-   * @param callback - 可选的响应转换回调函数，用于自定义数据处理逻辑
-   * @returns 当 isList 为 true 时返回完整响应，否则返回字段数组
+   * @param isList - 是否返回完整响应对象；默认 false（仅返回 fields 数组）
+   * @param transform - 可选的响应转换函数（优先级高于 fields），用于兼容特殊结构
+   * @returns 当 isList 为 true 时返回完整响应，否则返回字段数组（或 transform 结果）
    */
-  const handleMultipleSelected = async (
+  type HandleMultipleSelected = {
+    (_params: IRequestParams, _isList: true): Promise<IResultTableInfoResponse | undefined>;
+    (
+      _params: IRequestParams,
+      _isList?: false,
+      _transform?: ResponseTransformCallback<IFieldInfo[]>,
+    ): Promise<IFieldInfo[] | undefined>;
+  };
+
+  const handleMultipleSelected = (async (
     params: IRequestParams,
     isList: boolean = false,
-    callback?: ResponseTransformCallback,
-  ): Promise<IFieldInfo[] | IApiResponse | undefined> => {
+    transform?: ResponseTransformCallback<IFieldInfo[]>,
+  ): Promise<IResultTableInfoResponse | IFieldInfo[] | undefined> => {
     try {
       tableLoading.value = true;
       const res = (await $http.request('/resultTables/info', params)) as IResultTableInfoResponse;
-      const data = callback?.(res) || res.data?.fields || [];
-      return isList ? res : data;
+      if (isList) return res;
+
+      // 兼容：有些接口返回结构可能不是标准 fields，此处允许调用方自定义转换
+      return transform?.(res) ?? res.data?.fields ?? [];
     } catch (e) {
       console.log('获取字段列表失败:', e);
       return undefined;
     } finally {
       tableLoading.value = false;
     }
-  };
+  }) as HandleMultipleSelected;
 
   /**
    * 获取索引组列表数据
@@ -225,18 +178,16 @@ export const useOperation = () => {
    * @returns 按权限排序后的数组
    */
   const sortByPermission = <T extends IPermissionItem>(data: T[]): T[] => {
-    const withPermission: T[] = [];
-    const withoutPermission: T[] = [];
+    // 稳定分组：保持原顺序不变，只是把“有权限”的整体前置
+    const [withPermission, withoutPermission] = data.reduce<[T[], T[]]>(
+      (acc, item) => {
+        acc[hasManageEsPermission(item) ? 0 : 1].push(item);
+        return acc;
+      },
+      [[], []],
+    );
 
-    for (const item of data) {
-      if (hasManageEsPermission(item)) {
-        withPermission.push(item);
-      } else {
-        withoutPermission.push(item);
-      }
-    }
-
-    return [...withPermission, ...withoutPermission];
+    return withPermission.concat(withoutPermission);
   };
 
   // ==================== 返回值 ====================
