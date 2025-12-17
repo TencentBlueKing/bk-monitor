@@ -26,11 +26,12 @@
 
 import { defineComponent, nextTick, onMounted, onUnmounted, shallowRef, useTemplateRef } from 'vue';
 
+import { debounce } from 'lodash';
 import { useI18n } from 'vue-i18n';
 
 import UseTextSegmentation from './hooks/use-text-segmentation';
 import SegmentPop from './segment-pop';
-import { isNestedField, parseTableRowData } from './utils/utils';
+import { formatDate, formatDateNanos, isNestedField, parseTableRowData } from './utils/utils';
 
 import type { EClickMenuType, IFieldInfo } from './typing';
 
@@ -90,14 +91,21 @@ export default defineComponent({
 
     onMounted(() => {
       if (props.row && props.field) {
+        let content = props.row[props.field.field_name] ?? parseTableRowData(props.row, props.field.field_name);
+        if (props.field.field_type === 'date') {
+          content = formatDate(Number(content)) || content || '--';
+        }
+        // 处理纳秒精度的UTC时间格式
+        if (props.field.field_type === 'date_nanos') {
+          content = formatDateNanos(content) || '--';
+        }
         const textSegmentation = new UseTextSegmentation({
           options: {
             field: props.field,
-            content: props.row[props.field.field_name] ?? parseTableRowData(props.row, props.field.field_name),
+            content,
             data: props.row || {},
           },
         });
-
         const fieldKeys = props.field.field_name.split('.');
         const isNestedValue = isNestedField(fieldKeys, props.row);
         wordList.value = textSegmentation.getChildNodes(isNestedValue);
@@ -105,6 +113,7 @@ export default defineComponent({
           const segmentContentEl = wrapRef.value?.querySelector('.segment-content');
           hasMore.value = segmentContentEl.getBoundingClientRect().height > 60;
         };
+        const debounceCheckHeight = debounce(checkHeight, 200);
         nextTick(() => {
           if (!intersectionObserver.value) {
             intersectionObserver.value = new IntersectionObserver(entries => {
@@ -113,7 +122,7 @@ export default defineComponent({
                   checkHeight();
                   if (!resizeObserver.value) {
                     resizeObserver.value = new ResizeObserver(() => {
-                      checkHeight();
+                      debounceCheckHeight();
                     });
                     resizeObserver.value.observe(wrapRef.value);
                   }

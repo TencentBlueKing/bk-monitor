@@ -49,6 +49,7 @@ export const updateUserFiledTableConfig = request(
   'apm_log_forward/bklog/api/v1/search/index_set/user_custom_config/'
 );
 
+import { useLogFilter } from './log-table/hooks/use-log-filter';
 import TableFieldSetting from './log-table/table-field-setting';
 import { type TClickMenuOpt, EClickMenuType } from './log-table/typing';
 import { formatHierarchy } from './log-table/utils/fields';
@@ -72,6 +73,7 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     const { getIndexSetList } = useAlarmLog(props.detail);
+    const { getFieldsOptionValuesProxy, setParams: setLogFilterParams } = useLogFilter();
     const selectLoading = shallowRef(false);
     /** 索引集列表 */
     const indexSetList = shallowRef([]);
@@ -82,6 +84,7 @@ export default defineComponent({
     const filterMode = shallowRef<EMode>(EMode.ui);
     const where = shallowRef<IWhereItem[]>([]);
     const tableRefreshKey = shallowRef(null);
+    const defaultSortList = shallowRef([]);
 
     const tableColumnsSetting = shallowRef([]);
 
@@ -134,15 +137,10 @@ export default defineComponent({
         })),
         begin: params.offset,
         ip_chooser: {},
-        host_scopes: {
-          modules: [],
-          ips: '',
-          target_nodes: [],
-          target_node_type: '',
-        },
+        host_scopes: {},
         interval: 'auto',
-        search_mode: 'ui',
-        sort_list: params?.sortList || [],
+        search_mode: filterMode.value === EMode.ui ? 'ui' : 'sql',
+        sort_list: [...(params?.sortList || []), ...defaultSortList.value],
         keyword: keyword.value,
       })
         .then(res => {
@@ -161,8 +159,16 @@ export default defineComponent({
         is_realtime: 'True',
         start_time: props.detail?.begin_time,
         end_time: props.detail.latest_time,
-      }).catch(() => null);
+      })
+        .then(res => res)
+        .catch(() => null);
+      setLogFilterParams({
+        index_set_id: selectIndexSet.value,
+        start_time: props.detail?.begin_time,
+        end_time: props.detail.latest_time,
+      });
       fieldsData.value = data;
+      defaultSortList.value = data?.default_sort_list || [];
       tableColumnsSetting.value = formatHierarchy(fieldsData.value?.fields || []).map(item => {
         return {
           id: item.field_name,
@@ -171,7 +177,9 @@ export default defineComponent({
         };
       });
       /** 优先使用user_custom_config配置，如果没有再使用display_fields配置 */
-      displayColumnFields.value = data?.user_custom_config?.displayFields || data?.display_fields || [];
+      displayColumnFields.value = data?.user_custom_config?.displayFields?.length
+        ? data.user_custom_config.displayFields
+        : data?.display_fields;
       return data;
     };
 
@@ -181,7 +189,25 @@ export default defineComponent({
     const retrievalFields = computed(() => {
       const excludesFields = ['__ext', '__module__', ' __set__', '__ipv6__'];
       const filterFn = field => field.field_type !== '__virtual__' && !excludesFields.includes(field.field_name);
-      const tempFields = fieldsData.value?.fields?.filter(filterFn) || [];
+      const tempFields = (fieldsData.value?.fields?.filter(filterFn) || [])
+        .map(item => {
+          return {
+            ...item,
+            weight: (() => {
+              if (item.is_virtual_alias_field) {
+                return 102;
+              }
+              if (item.field_name === 'log') {
+                return 100;
+              }
+              if (['text'].includes(item.field_type)) {
+                return 50;
+              }
+              return 0;
+            })(),
+          };
+        })
+        .sort((a, b) => b.weight - a.weight);
       return [
         {
           alias: t('全文'),
@@ -194,12 +220,17 @@ export default defineComponent({
               value: 'contains match phrase',
               placeholder: t('请输入搜索内容'),
             },
+            {
+              alias: t('不包含'),
+              value: 'not contains match phrase',
+              placeholder: t('请输入搜索内容'),
+            },
           ],
         },
         ...tempFields.map(item => ({
           alias: item.query_alias || item.field_name,
           name: item.field_name,
-          isEnableOptions: true,
+          isEnableOptions: item.field_type === 'keyword',
           type: item.field_type,
           methods: item?.field_operator?.map(o => ({
             alias: o.label,
@@ -227,36 +258,6 @@ export default defineComponent({
         tableRefreshKey.value = random(6);
       });
     };
-
-    const customColumns = shallowRef([
-      {
-        width: '32px',
-        minWidth: '32px',
-        fixed: 'right',
-        align: 'center',
-        resizable: false,
-        className: ({ type }) => {
-          if (type === 'th') {
-            return 'col-th-field-setting';
-          } else {
-            return 'col-td-field-setting';
-          }
-        },
-        thClassName: '__table-custom-setting-col__',
-        colKey: '__col_setting__',
-        title: () => {
-          return (
-            <TableFieldSetting
-              class='table-field-setting'
-              sourceList={tableColumnsSetting.value}
-              targetList={displayColumnFields.value}
-              onConfirm={handleDisplayColumnFieldsChange}
-            />
-          );
-        },
-        cell: () => undefined,
-      },
-    ]);
 
     /**
      * 切换索引集
@@ -308,7 +309,6 @@ export default defineComponent({
     };
 
     const handleClickMenu = (opt: TClickMenuOpt) => {
-      console.log(opt);
       if (opt.type === EClickMenuType.Link) {
         return;
       }
@@ -336,6 +336,10 @@ export default defineComponent({
           [EClickMenuType.Exclude]: 'is false',
           [EClickMenuType.Include]: 'is true',
         },
+        all: {
+          [EClickMenuType.Exclude]: 'not contains match phrase',
+          [EClickMenuType.Include]: 'contains match phrase',
+        },
       };
       for (const item of retrievalFields.value) {
         if (item.name === opt.field.field_name) {
@@ -352,13 +356,24 @@ export default defineComponent({
       if (!whereItem) {
         whereItem = {
           key: '*',
-          method: 'contains match phrase',
+          method: methodMap.all[opt.type],
           value: [opt.value],
           condition: 'and',
         };
       }
       where.value = [...where.value, whereItem];
       tableRefreshKey.value = random(8);
+    };
+
+    const handleRemoveField = (fieldName: string) => {
+      displayColumnFields.value = displayColumnFields.value.filter(item => item !== fieldName);
+    };
+
+    const handleAddField = (fieldName: string) => {
+      if (displayColumnFields.value.includes(fieldName)) {
+        return;
+      }
+      displayColumnFields.value = [...displayColumnFields.value, fieldName];
     };
 
     return {
@@ -368,11 +383,11 @@ export default defineComponent({
       selectLoading,
       keyword,
       filterMode,
-      customColumns,
       displayColumnFields,
       retrievalFields,
       fieldsData,
       where,
+      tableColumnsSetting,
       handleChangeIndexSet,
       t,
       handleGoLog,
@@ -383,6 +398,10 @@ export default defineComponent({
       getFieldsData,
       handleWhereChange,
       handleClickMenu,
+      handleRemoveField,
+      handleAddField,
+      handleDisplayColumnFieldsChange,
+      getFieldsOptionValuesProxy,
     };
   },
   render() {
@@ -412,6 +431,7 @@ export default defineComponent({
           <RetrievalFilter
             fields={this.retrievalFields}
             filterMode={this.filterMode}
+            getValueFn={this.getFieldsOptionValuesProxy}
             queryString={this.keyword}
             where={this.where}
             zIndex={4000}
@@ -422,14 +442,28 @@ export default defineComponent({
           />
         </div>
         <LogTableNew
-          customColumns={this.customColumns}
           displayFields={this.displayColumnFields}
           getFieldsData={this.getFieldsData}
           getTableData={this.getTableData}
           headerAffixedTop={this.headerAffixedTop}
           refreshKey={this.tableRefreshKey}
+          onAddField={this.handleAddField}
           onClickMenu={this.handleClickMenu}
-        />
+          onRemoveField={this.handleRemoveField}
+        >
+          {{
+            settingBtn: () => {
+              return (
+                <TableFieldSetting
+                  class='table-field-setting'
+                  sourceList={this.tableColumnsSetting}
+                  targetList={this.displayColumnFields}
+                  onConfirm={this.handleDisplayColumnFieldsChange}
+                />
+              );
+            },
+          }}
+        </LogTableNew>
       </div>
     );
   },

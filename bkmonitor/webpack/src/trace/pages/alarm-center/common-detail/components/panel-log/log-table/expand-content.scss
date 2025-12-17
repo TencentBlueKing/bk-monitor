@@ -109,6 +109,24 @@
         margin: 5px 0;
         margin-right: 18px;
 
+        .field-eye-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-right: 8px;
+          color: #4d4f56;
+
+          .icon-monitor {
+            width: 12px;
+            font-size: 13px;
+            cursor: pointer;
+          }
+
+          &:hover {
+            color: rgb(58 132 255);
+          }
+        }
+
         .col-title-field-icon {
           display: flex;
           align-items: center;

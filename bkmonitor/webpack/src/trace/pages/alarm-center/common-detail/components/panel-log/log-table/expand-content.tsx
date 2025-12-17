@@ -55,9 +55,15 @@ export default defineComponent({
       type: Array as PropType<IFieldInfo[]>,
       default: () => [],
     },
+    displayFields: {
+      type: Array as PropType<string[]>,
+      default: () => [],
+    },
   },
   emits: {
     clickMenu: (_opt: { field: IFieldInfo; type: EClickMenuType; value: string }) => true,
+    removeField: (_fieldName: string) => true,
+    addField: (_fieldName: string) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -128,12 +134,30 @@ export default defineComponent({
         <div class='kv-list-wrap'>
           {kvList.value.map((item, index) => {
             const fieldIcon = fieldTypeMap[item.field_type] || fieldTypeMap.text;
+            const isDisplay = props.displayFields.includes(item.field_name);
             return (
               <div
                 key={index}
                 class='log-item'
               >
                 <div class='field-label'>
+                  <span
+                    class='field-eye-btn'
+                    v-bk-tooltips={{
+                      content: t(isDisplay ? '隐藏' : '展示'),
+                    }}
+                  >
+                    <span
+                      class={['icon-monitor', isDisplay ? 'icon-mc-invisible' : 'icon-mc-visual']}
+                      onClick={() => {
+                        if (isDisplay) {
+                          emit('removeField', item.field_name);
+                        } else {
+                          emit('addField', item.field_name);
+                        }
+                      }}
+                    />
+                  </span>
                   <span
                     style={{
                       backgroundColor: fieldIcon.bgColor,

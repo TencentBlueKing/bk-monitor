@@ -94,7 +94,7 @@ export default defineComponent({
       event.stopPropagation();
       curValue.value = opt.value;
       if (!instance.value) {
-        instance.value = useTippy(() => document.body, {
+        instance.value = useTippy(() => document.activeElement.shadowRoot?.querySelector('#app') || document.body, {
           content: contextMenuComponent,
           placement: 'bottom',
           trigger: 'click',
