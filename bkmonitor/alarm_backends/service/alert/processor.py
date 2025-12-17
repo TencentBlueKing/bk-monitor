@@ -53,7 +53,7 @@ class BaseAlertProcessor:
             )
             dedupe_md5_list.extend(md5_list)
 
-        alert_data = [ALERT_DEDUPE_CONTENT_KEY.client.get(cache_key) for cache_key in cache_keys]
+        alert_data = ALERT_DEDUPE_CONTENT_KEY.client.mget(cache_keys) if cache_keys else []
 
         alerts = []
 
@@ -61,11 +61,11 @@ class BaseAlertProcessor:
         for index, alert in enumerate(alert_data):
             if not alert:
                 continue
-            dedupe_md5 = dedupe_md5_list[index]
             try:
                 alert = json.loads(alert)
                 alerts.append(Alert(alert))
             except Exception as e:
+                dedupe_md5 = cache_keys[index]
                 logger.warning("dedupe_md5(%s) loads alert failed: %s, origin data: %s", dedupe_md5, e, alert)
         return alerts
 
