@@ -5,12 +5,10 @@ from bkm_ipchooser import constants, types, exceptions
 from bkm_ipchooser.api import BkApi
 from bkm_ipchooser.handlers.base import BaseHandler
 from bkm_ipchooser.tools import batch_request, topo_tool
-from bkm_ipchooser.tools.batch_request import QUERY_CMDB_MODULE_LIMIT
+from bkm_ipchooser.tools.batch_request import QUERY_CMDB_MODULE_LIMIT, BK_MODULE_IDS_COUNT_ERROR
 from bkm_ipchooser.tools.page_tool import get_pagination_data
 
 logger = logging.getLogger("bkm_ipchooser")
-
-BK_MODULE_IDS_COUNT_ERROR = 5000
 
 
 class TopoHandler:
