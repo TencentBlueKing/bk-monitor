@@ -84,7 +84,7 @@ class CustomMetricReportViewSet(ResourceViewSet):
             endpoint="import_custom_time_series_fields",
         ),
         ResourceRoute(
-            "POST",
+            "GET",
             resource.custom_report.export_custom_time_series_fields,
             endpoint="export_custom_time_series_fields",
         ),
