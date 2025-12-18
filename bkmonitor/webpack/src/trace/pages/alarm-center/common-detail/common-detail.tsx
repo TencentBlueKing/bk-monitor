@@ -78,6 +78,12 @@ export default defineComponent({
     const alarmConfirmShow = shallowRef(false);
     /** 快速屏蔽弹窗 */
     const quickShieldShow = shallowRef(false);
+
+    const relatedEventsParams = shallowRef({
+      start_time: 0,
+      end_time: 0,
+    });
+
     /** 打开告警确认弹窗 */
     const handleShowAlarmConfirm = (show: boolean) => {
       if (!judgeOperateAuthority()) return;
@@ -153,10 +159,23 @@ export default defineComponent({
       mealInfo.value = value;
     };
 
+    const handleRelatedEventsTimeRange = (timeRange: string[]) => {
+      relatedEventsParams.value = {
+        start_time: Number(timeRange[0]),
+        end_time: Number(timeRange[1]),
+      };
+      currentPanel.value = ALARM_CENTER_PANEL_TAB_MAP.ALARM;
+    };
+
     const getPanelComponent = () => {
       switch (currentPanel.value) {
         case ALARM_CENTER_PANEL_TAB_MAP.VIEW:
-          return <AlarmView detail={alarmCenterDetailStore.alarmDetail} />;
+          return (
+            <AlarmView
+              detail={alarmCenterDetailStore.alarmDetail}
+              onRelatedEventsTimeRange={handleRelatedEventsTimeRange}
+            />
+          );
         case ALARM_CENTER_PANEL_TAB_MAP.LOG:
           return (
             <PanelLog
@@ -178,7 +197,12 @@ export default defineComponent({
         case 'metric':
           return <PanelMetric />;
         case ALARM_CENTER_PANEL_TAB_MAP.ALARM:
-          return <PanelAlarm detail={alarmCenterDetailStore.alarmDetail} />;
+          return (
+            <PanelAlarm
+              detail={alarmCenterDetailStore.alarmDetail}
+              params={relatedEventsParams.value}
+            />
+          );
         default:
           return null;
       }
@@ -245,6 +269,10 @@ export default defineComponent({
           active={currentPanel.value}
           type='unborder-card'
           onUpdate:active={v => {
+            relatedEventsParams.value = {
+              start_time: 0,
+              end_time: 0,
+            };
             currentPanel.value = v;
           }}
         >

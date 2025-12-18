@@ -106,7 +106,10 @@ export default defineComponent({
       default: () => null,
     },
   },
-  setup(props) {
+  emits: {
+    relatedEventsTimeRange: (_val: string[]) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
     const loadingRef = useTemplateRef('scrollRef');
 
@@ -318,7 +321,7 @@ export default defineComponent({
     const beforeCollapseChange = item => {
       const startTime = item.begin_source_timestamp;
       const endTime = item.source_timestamp;
-      console.log(startTime, endTime);
+      emit('relatedEventsTimeRange', [startTime, endTime]);
     };
 
     /**
