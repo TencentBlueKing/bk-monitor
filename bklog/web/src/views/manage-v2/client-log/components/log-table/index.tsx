@@ -26,13 +26,19 @@
 
 import { computed, defineComponent, onMounted, ref, watch } from 'vue';
 
-import { clearTableFilter, getDefaultSettingSelectFiled, setDefaultSettingSelectFiled } from '@/common/util';
+import {
+  clearTableFilter,
+  getDefaultSettingSelectFiled,
+  setDefaultSettingSelectFiled,
+  updateLastSelectedIndexId,
+} from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import * as authorityMap from '../../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
-import { BK_LOG_STORAGE } from '@/store/store.type';
+import useRouter from '@/hooks/use-router';
 import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../../constant';
 import { TaskStatus, TaskScene } from './types';
 import http from '@/api';
@@ -61,10 +67,15 @@ export default defineComponent({
       type: Array,
       default: () => [],
     },
+    indexSetId: {
+      type: String,
+      default: '',
+    },
   },
   emits: ['clear-keyword', 'clone-task', 'view-task'],
   setup(props, { emit }) {
     const store = useStore();
+    const router = useRouter();
 
     const pagination = ref({
       current: 1,
@@ -381,6 +392,32 @@ export default defineComponent({
       setDefaultSettingSelectFiled(settingCacheKey, fields);
     };
 
+    // 检索任务
+    const handleSearchTask = (row: any) => {
+      // 构建查询条件，设置task_name字段
+      const additionList = [
+        {
+          field: 'task_name',
+          operator: 'is',
+          value: row.task_name,
+        },
+      ];
+
+      updateLastSelectedIndexId(store.state.spaceUid, props.indexSetId);
+
+      router.push({
+        name: 'retrieve',
+        params: {
+          indexId: props.indexSetId,
+        },
+        query: {
+          spaceUid: store.state.spaceUid,
+          search_mode: 'ui', // UI模式
+          addition: JSON.stringify(additionList),
+        },
+      });
+    };
+
     // 计算limit
     const calculateLimitList = () => {
       const fixedHeight = 368; // 需要减去的固定高度
@@ -513,6 +550,23 @@ export default defineComponent({
     const operateSlot = {
       default: ({ row }: any) => (
         <div class='log-table-operate'>
+          <span
+            class='king-button'
+            v-bk-tooltips={{
+              content: t('任务未完成'),
+              disabled: row.status === TaskStatus.COMPLETED,
+            }}
+          >
+            <bk-button
+              class='king-button'
+              text
+              theme='primary'
+              disabled={row.status !== TaskStatus.COMPLETED}
+              on-click={() => handleSearchTask(row)}
+            >
+              {t('检索')}
+            </bk-button>
+          </span>
           <bk-button
             class='king-button'
             text
@@ -521,24 +575,25 @@ export default defineComponent({
           >
             {t('克隆')}
           </bk-button>
-          <bk-button
-            class={[
-              'king-button',
-              {
-                'disabled-download': !props.isAllowedDownload || row.status !== TaskStatus.COMPLETED,
-              },
-            ]}
-            text
-            theme='primary'
+          <span
+            class='king-button'
             v-bk-tooltips={{
               content: t('暂无下载链接，请在任务完成后点击下载'),
               disabled: row.status === TaskStatus.COMPLETED,
             }}
-            v-cursor={{ active: row.status === TaskStatus.COMPLETED && !props.isAllowedDownload }}
-            on-click={() => downloadFile(row.id, row.status)}
           >
-            {t('下载文件')}
-          </bk-button>
+            <bk-button
+              disabled={!props.isAllowedDownload || row.status !== TaskStatus.COMPLETED}
+              text
+              theme='primary'
+              v-cursor={{
+                active: row.status === TaskStatus.COMPLETED && !props.isAllowedDownload,
+              }}
+              on-click={() => downloadFile(row.id, row.status)}
+            >
+              {t('下载文件')}
+            </bk-button>
+          </span>
         </div>
       ),
     };
@@ -683,6 +738,7 @@ export default defineComponent({
           <bk-table-column
             label={t('操作')}
             width='150'
+            fixed='right'
             scopedSlots={operateSlot}
           />
           <bk-table-column

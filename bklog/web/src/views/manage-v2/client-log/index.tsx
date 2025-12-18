@@ -86,11 +86,30 @@ export default defineComponent({
     const isAllowedCreate = ref(false); // 是否允许创建
     const isAllowedDownload = ref(false); // 是否允许下载
     const isGrayRelease = ref(false); // 是否为灰度业务
+    const indexSetId = ref<string>(''); // 索引集ID
 
     // 轮询相关状态
     const timer = ref(null); // 轮询定时器
     const isShouldPollTask = ref(false); // 是否需要轮询任务
     const isComponentDestroyed = ref(false); // 组件是否已销毁
+
+    // 获取索引集ID
+    const getIndexSetId = async () => {
+      try {
+        const params = {
+          query: {
+            bk_biz_id: store.state.bkBizId,
+          },
+        };
+
+        const response = await http.request('collect/getTaskIndexSetId', params);
+        if (response.data && response.data.index_set_id) {
+          indexSetId.value = String(response.data.index_set_id);
+        }
+      } catch (error) {
+        console.warn('获取索引集ID失败:', error);
+      }
+    };
 
     // 检查是否为灰度业务
     const checkGrayReleaseAccess = () => {
@@ -110,7 +129,8 @@ export default defineComponent({
         case 'off':
           hasAccess = false;
           break;
-        case 'debug': { // 检查白名单
+        case 'debug': {
+          // 检查白名单
           const normalizedWhiteList = whiteList.map((id: any) => String(id));
           hasAccess = normalizedWhiteList.includes(String(bizId)) || normalizedWhiteList.includes(String(spaceUid));
           break;
@@ -318,6 +338,9 @@ export default defineComponent({
       if (isGrayRelease.value) {
         return;
       }
+
+      // 获取索引集ID
+      getIndexSetId();
 
       // 检查创建权限
       checkCreateAuth();
@@ -543,6 +566,7 @@ export default defineComponent({
                 total={tableData.value.total}
                 isAllowedDownload={isAllowedDownload.value}
                 data={tableData.value.list}
+                indexSetId={indexSetId.value}
                 v-bkloading={{ isLoading: isLoading.value }}
                 keyword={searchKeyword.value}
                 on-clear-keyword={handleClearKeyword}

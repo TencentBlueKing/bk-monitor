@@ -24,6 +24,7 @@ from alarm_backends.service.converge.converge_manger import ConvergeManager
 from alarm_backends.service.fta_action import BaseActionProcessor
 from bkmonitor.models.fta import ActionInstance, ConvergeInstance
 from bkmonitor.utils.send import Sender
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.action import ActionSignal, ActionStatus, ConvergeType, FailureType
 from core.drf_resource.exceptions import CustomException
 from core.errors.action import RelatedAlertNotFoundError
@@ -37,6 +38,7 @@ class ActionProcessor(BaseActionProcessor):
     def __init__(self, action_id, alerts=None):
         self.action = ActionInstance.objects.get(id=action_id)
         i18n.set_biz(self.action.bk_biz_id)
+        self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.action.bk_biz_id)
         self.alerts = alerts
         self.action_config = ActionConfigCacheManager.get_action_config_by_id(self.action.action_config_id)
         self.converge_instance = ConvergeInstance.objects.get(id=self.action.inputs["converge_id"])

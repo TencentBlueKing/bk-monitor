@@ -24,12 +24,12 @@
  * IN THE SOFTWARE.
  */
 import { defineComponent, ref, type PropType, onMounted, onUnmounted } from 'vue';
-
 import PopInstanceUtil from '../../global/pop-instance-util';
-
 import type { Props as TippyProps } from 'tippy.js';
-
 import './index.scss';
+
+// 导出theme类型
+export type BklogPopoverTheme = 'bklog-light' | 'bklog-dark' | 'bklog-basic-light' | 'bklog-basic-dark';
 
 export default defineComponent({
   props: {

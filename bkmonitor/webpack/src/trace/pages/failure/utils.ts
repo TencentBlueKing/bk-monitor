@@ -25,6 +25,8 @@
  */
 import { type ComputedRef, inject, provide } from 'vue';
 
+import type { ITraceAnalysis } from './types';
+
 export const INCIDENT_ID_KEY = 'INCIDENT_ID_KEY';
 export const useIncidentProvider = (incidentId: ComputedRef<string>) => {
   provide(INCIDENT_ID_KEY, incidentId);
@@ -54,4 +56,66 @@ export const checkOverflow = (el: HTMLElement, n = 3) => {
   const maxHeight = lineHeight * n;
 
   return el.scrollHeight > maxHeight;
+};
+
+/**
+ * trace分析表格字段配置
+ * 定义每个追踪字段的显示标签、跳转链接和查询参数生成逻辑
+ */
+export const TRACE_FIELD_CONFIG = {
+  // 跳转到trace检索-span详情页侧滑
+  span_id: {
+    url: '/trace/home',
+    label: 'Span ID',
+    query: data => getTraceQueryParams(data, 'spanDetail'),
+  },
+  // 跳转到trace检索-trace详情页侧滑
+  trace_id: {
+    url: '/trace/home',
+    label: '所属 Trace',
+    query: data => getTraceQueryParams(data, 'traceDetail'),
+  },
+  // 应用名称配置 - 跳转到APM应用详情页
+  app_name: {
+    url: '/apm/home',
+    label: '所属应用',
+    query: data => ({ app_name: data.app_name }),
+  },
+  // 服务名称配置 - 跳转到APM服务详情页
+  service_name: {
+    url: '/apm/service/',
+    label: '所属服务',
+    query: data => ({
+      'filter-app_name': data.app_name,
+      'filter-service_name': data.service_name,
+    }),
+  },
+  // 调用类型配置 - 纯展示字段，无跳转链接
+  kind: {
+    url: '',
+    label: '调用类型',
+  },
+  // 异常信息配置 - 纯展示字段，无跳转链接
+  demo_log: {
+    url: '',
+    label: '异常信息',
+  },
+};
+
+// 提取重复的查询参数生成逻辑
+const getTraceQueryParams = (data: ITraceAnalysis, type: 'spanDetail' | 'traceDetail') => {
+  const incidentQuery = {
+    type,
+    trace_id: data.trace_id,
+    span_id: data.span_id,
+  };
+
+  return {
+    app_name: data.app_name,
+    refreshInterval: '-1',
+    filterMode: 'queryString',
+    sceneMode: 'trace',
+    query: `trace_id: /(${data.trace_id})/`,
+    incident_query: encodeURIComponent(JSON.stringify(incidentQuery)),
+  };
 };

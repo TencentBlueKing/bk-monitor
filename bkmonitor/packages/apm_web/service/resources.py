@@ -993,7 +993,9 @@ class SetCodeRedefinedRuleResource(Resource):
         for item in queryset:
             name = ";".join(
                 [
-                    star_if_empty(item.callee_server),
+                    # 被调类型已通过 source 限制服务名，callee_server 设置为 "*"，
+                    # 避免部分上报缺失 callee_server 字段导致无法匹配的问题。
+                    star_if_empty("" if item.is_callee() else item.callee_server),
                     star_if_empty(item.callee_service),
                     star_if_empty(item.callee_method),
                 ]

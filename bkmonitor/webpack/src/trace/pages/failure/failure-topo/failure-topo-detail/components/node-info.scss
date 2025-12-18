@@ -19,7 +19,7 @@
       padding-bottom: 12px;
       border-bottom: 1px solid #63656e;
 
-      &_icon{
+      &_icon {
         background-color: #F55555;
 
         .icon-monitor {
@@ -30,7 +30,7 @@
 
       .header-name {
         height: 20px;
-        line-height: 20px; 
+        line-height: 20px;
         margin-right: 4px;
         overflow: hidden;
         font-size: 14px;
@@ -142,6 +142,10 @@
           color: #ff6161;
           text-overflow: ellipsis;
           white-space: nowrap;
+
+          span {
+            word-wrap: break-word;
+          }
         }
 
         .except-icon {
@@ -238,10 +242,12 @@
 
     .aggregated-edges-wrap {
       padding: 12px 16px;
+
       .edge-list-item {
         margin-bottom: 8px !important;
         background: #424447 !important;
         box-shadow: 0 2px 4px 0 #00000080 !important;
+
         &:hover {
           background: #48628f !important;
         }

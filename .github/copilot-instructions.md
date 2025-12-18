@@ -11,7 +11,7 @@ As a Copilot agent reviewing this project, prioritize the following principles:
 1.  **Clarity and Maintainability**: Code must be easy to read and understand. Follow PEP 8 (via `ruff`) and **Google Python Style Guide** principles.
 2.  **Correctness and Reliability**: Ensure algorithms are implemented correctly. Pay close attention to concurrency (`asyncio`, `threading`, `gevent`), thread safety, and data integrity.
 3.  **Performance**: Monitoring systems deal with high-throughput data. Suggest efficient data structures, batch processing, and async I/O. Use the project's established tooling (`ruff`, `pyright`) to enforce quality.
-4.  **Test Coverage**: All new logic must be accompanied by comprehensive `pytest` tests. Aim for high test coverage, especially for data processing pipelines and alerting logic.
+4.  **Test Coverage**: Encourage adding `pytest` tests for critical logic, but do not strictly enforce comprehensive coverage for all changes. 
 5.  **MANDATORY Review Acknowledgment**: This is a **REQUIRED** and **NON-NEGOTIABLE** rule. **All code reviews must be provided in Chinese.** When GitHub Copilot generates any PR review summary, it **MUST** begin with the following exact acknowledgment statement:
     > ✓ 代码评审按照 `.github/copilot-instructions.md 中定义的指南进行。`
 

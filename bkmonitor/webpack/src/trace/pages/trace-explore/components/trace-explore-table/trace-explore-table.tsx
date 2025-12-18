@@ -27,6 +27,7 @@ import {
   type PropType,
   computed,
   defineComponent,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   reactive,
@@ -38,6 +39,7 @@ import {
 
 import { type SortInfo, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { $bkPopover, Loading } from 'bkui-vue';
+import { useRoute } from 'vue-router';
 
 import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
@@ -166,6 +168,9 @@ export default defineComponent({
     sliderShow: (openMode: '' | 'span' | 'trace', activeId: string) => openMode && activeId,
   },
   setup(props, { emit }) {
+    const route = useRoute();
+    /** 标志位，用于标记是否已经处理过跳转 */
+    const hasHandledTraceRedirect = shallowRef(false);
     /** 滚动容器元素 */
     let scrollContainer: HTMLElement = null;
     /** 滚动结束后回调逻辑执行计时器  */
@@ -311,6 +316,36 @@ export default defineComponent({
         behavior: 'smooth',
       });
     };
+
+    // 通过故障页面跳转到trace检索页，自动打开trace详情侧滑
+    watch(
+      () => route.query,
+      () => {
+        if (!route.query.incident_query) {
+          // 如果没有incident_query参数，重置标志位
+          hasHandledTraceRedirect.value = false;
+          return;
+        }
+        // 如果已经处理过，直接返回
+        if (hasHandledTraceRedirect.value) {
+          return;
+        }
+        const spanInfo = JSON.parse(decodeURIComponent((route.query.incident_query as string) || '{}'));
+        if (spanInfo.trace_id) {
+          // 设置标志位，标记已经处理
+          hasHandledTraceRedirect.value = true;
+          nextTick(() => {
+            // 打开trace详情侧滑
+            handleSliderShowChange('trace', spanInfo.trace_id);
+            setTimeout(() => {
+              // 滚动到指定span位置
+              document.getElementById(spanInfo.span_id)?.scrollIntoView({ behavior: 'smooth' });
+            }, 2000);
+          });
+        }
+      },
+      { immediate: true }
+    );
 
     /**
      * @description 配置表格是否能够触发事件target

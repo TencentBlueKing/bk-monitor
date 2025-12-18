@@ -10,8 +10,11 @@ specific language governing permissions and limitations under the License.
 
 from rest_framework import serializers
 
+from api.cmdb.define import Host
+from apm_web.handlers.host_handler import HostHandler
+from apm_web.strategy.dispatch.entity import EntitySet
 from bkmonitor.documents import AlertDocument
-from constants.alert import K8STargetType, K8S_RESOURCE_TYPE, EventTargetType
+from constants.alert import APMTargetType, K8STargetType, K8S_RESOURCE_TYPE, EventTargetType
 from core.drf_resource import Resource, resource, api
 from fta_web.alert.resources import AlertDetailResource as BaseAlertDetailResource
 from monitor_web.data_explorer.event.resources import EventLogsResource
@@ -308,18 +311,21 @@ class AlertK8sScenarioListResource(Resource):
         Raises:
             list: 当目标类型不支持时返回空列表
         """
-        alert_id = validated_request_data["alert_id"]
+        alert_id: str = validated_request_data["alert_id"]
         # 根据告警ID获取告警文档对象
-        alert = AlertDocument.get(alert_id)
-        target_type = alert.event.target_type
+        alert: AlertDocument = AlertDocument.get(alert_id)
+        target_type: str = alert.event.target_type
 
         # 检查是否为支持的K8S目标类型
         if target_type in [K8STargetType.POD, K8STargetType.WORKLOAD, K8STargetType.NODE, K8STargetType.SERVICE]:
             return self.K8sTargetScenarioMap[target_type]
 
-        # TODO: 支持其他目标类型（如APM应用性能监控）
-        # 目前不支持的类型返回空列表（应该考虑抛出更明确的异常）
-        raise []
+        # 检查是否为 APM 目标类型
+        if target_type == APMTargetType.SERVICE:
+            return self.K8sTargetScenarioMap[K8STargetType.WORKLOAD]
+
+        # 目前不支持的类型返回空列表
+        return []
 
 
 class AlertK8sMetricListResource(Resource):
@@ -423,6 +429,61 @@ class AlertK8sTargetResource(Resource):
         target_info["target_list"].append(target)
         return target_info
 
+    @classmethod
+    def apm_target_list(cls, alert: AlertDocument) -> dict:
+        """
+        获取 APM 服务关联的容器负载目标信息
+
+        注：APM 场景下资源类型都为 workload。
+
+        :param alert: 告警文档对象
+        :type alert: AlertDocument
+        :return: 包含资源类型和目标对象列表的字典
+        :rtype: dict
+
+        返回示例:
+
+            {
+                "resource_type": "workload",
+                "target_list": [
+                    {
+                        "workload": "Deployment:xxx",
+                        "bcs_cluster_id": "xxx",
+                        "namespace": "xxx"
+                    }
+                ]
+            }
+        """
+        # 构建目标信息结构，APM 场景下资源类型固定为 workload
+        target_info: dict = {"resource_type": K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD], "target_list": []}
+
+        app_name, service_name = APMTargetType.parse_target(alert.event.target)
+
+        # 获取 APM 服务关联的容器负载，构建目标对象资源列表
+        entity_set: EntitySet = EntitySet(
+            bk_biz_id=alert.event.bk_biz_id,
+            app_name=app_name,
+            service_names=[service_name],
+        )
+        for workload in entity_set.get_workloads(service_name):
+            bcs_cluster_id: str = workload.get("bcs_cluster_id", "")
+            namespace: str = workload.get("namespace", "")
+            workload_kind: str = workload.get("kind", "")
+            workload_name: str = workload.get("name", "")
+
+            if not all([bcs_cluster_id, namespace, workload_kind, workload_name]):
+                continue
+
+            target_info["target_list"].append(
+                {
+                    "workload": f"{workload_kind}:{workload_name}",
+                    "bcs_cluster_id": bcs_cluster_id,
+                    "namespace": namespace,
+                }
+            )
+
+        return target_info
+
     def perform_request(self, validated_request_data):
         """
         执行K8S目标对象查询请求
@@ -435,12 +496,13 @@ class AlertK8sTargetResource(Resource):
         Returns:
             dict: K8S目标对象信息，如果不支持则返回空列表
         """
-        alert_id = validated_request_data["alert_id"]
+        alert_id: str = validated_request_data["alert_id"]
         # 根据告警ID获取告警文档对象
-        alert = AlertDocument.get(alert_id)
+        alert: AlertDocument = AlertDocument.get(alert_id)
+        target_type: str = alert.event.target_type
 
         # 检查是否为支持的K8S目标类型
-        if alert.event.target_type in [
+        if target_type in [
             K8STargetType.POD,
             K8STargetType.WORKLOAD,
             K8STargetType.NODE,
@@ -449,9 +511,12 @@ class AlertK8sTargetResource(Resource):
             target_list = self.k8s_target_list(alert)
             return target_list
 
-        # TODO: 支持其他目标类型（如APM应用性能监控）
-        # 不支持的类型返回空列表
-        return []
+        # 检查是否为 APM 目标类型
+        if target_type == APMTargetType.SERVICE:
+            return self.apm_target_list(alert)
+
+        # 不支持的类型返回空字典
+        return {}
 
 
 class AlertHostTargetResource(Resource):
@@ -479,17 +544,22 @@ class AlertHostTargetResource(Resource):
         Returns:
             dict: 主机目标对象信息，如果不支持则返回空列表
         """
-        alert_id = validated_request_data["alert_id"]
+        alert_id: str = validated_request_data["alert_id"]
         # 根据告警ID获取告警文档对象
-        alert = AlertDocument.get(alert_id)
+        alert: AlertDocument = AlertDocument.get(alert_id)
+        target_type: str = alert.event.target_type
 
         # 检查是否为主机目标类型
-        if alert.event.target_type == EventTargetType.HOST:
+        if target_type == EventTargetType.HOST:
             try:
                 target_list = self.host_target_list(alert)
             except AttributeError:
                 target_list = []
             return target_list
+
+        # 检查是否为 APM 目标类型
+        if target_type == APMTargetType.SERVICE:
+            return self.apm_host_target_list(alert)
 
         # 不支持的类型返回空列表
         return []
@@ -517,6 +587,69 @@ class AlertHostTargetResource(Resource):
         hosts = api.cmdb.get_host_by_id(bk_biz_id=alert.event.bk_biz_id, bk_host_ids=[alert.event.bk_host_id])
         if not hosts:
             return [target_info]
+
+        return cls.flat_host_info(hosts, alert)
+
+    @classmethod
+    def apm_host_target_list(cls, alert: AlertDocument) -> list[dict[str, str | int]]:
+        """
+        获取 APM 服务关联的主机目标信息
+
+        :param alert: 告警文档对象
+        :type alert: AlertDocument
+        :return: 扁平化后的主机信息列表
+        :rtype: list[dict[str, str | int]]
+
+        返回示例:
+            [
+                {
+                    "bk_host_id": 123,
+                    "bk_target_ip": "127.0.0.1",
+                    "bk_cloud_id": 123,
+                    "display_name": "xxx / k8s-node / 127.0.0.1",
+                    "bk_host_name": "xxx"
+                }
+            ]
+        """
+        app_name, service_name = APMTargetType.parse_target(alert.event.target)
+
+        # 调用 HostHandler 获取 APM 应用关联的主机列表
+        host_list: list[dict] = HostHandler.list_application_hosts(
+            bk_biz_id=alert.event.bk_biz_id,
+            app_name=app_name,
+            service_name=service_name,
+        )
+
+        # 若无关联的主机，则返回空列表
+        if not host_list:
+            return []
+
+        # 提取主机 id 列表，将字符串格式的主机 id 转换为整数
+        target_hosts: list[dict[str, str | int]] = []
+        bk_host_ids: list[int] = []
+        for host in host_list:
+            bk_host_id: str | None = host.get("bk_host_id")
+            if not bk_host_id or not str(bk_host_id).isdigit():
+                continue
+            target_hosts.append(
+                {
+                    "bk_host_id": int(bk_host_id),
+                    "bk_target_ip": host["bk_host_innerip"],
+                    "bk_cloud_id": int(host["bk_cloud_id"]),
+                    "display_name": host["bk_host_innerip"],
+                    "bk_host_name": "",
+                }
+            )
+            bk_host_ids.append(int(bk_host_id))
+
+        # 若无有效的主机 id，则返回空列表
+        if not bk_host_ids:
+            return []
+
+        # 调用 CMDB API 获取主机详细信息
+        hosts: list[Host] = api.cmdb.get_host_by_id(bk_biz_id=alert.event.bk_biz_id, bk_host_ids=bk_host_ids)
+        if not hosts:
+            return target_hosts
 
         return cls.flat_host_info(hosts, alert)
 

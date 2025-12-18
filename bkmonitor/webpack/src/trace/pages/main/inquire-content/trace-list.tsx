@@ -149,6 +149,8 @@ export default defineComponent({
     let searchCancelFn = () => {};
     const route = useRoute();
     const router = useRouter();
+    // 标志位，用于标记是否已经处理过跳转
+    const hasHandledTraceRedirect = shallowRef(false);
     const store = useTraceStore();
     const searchStore = useSearchStore();
     const statusList = [
@@ -732,16 +734,25 @@ export default defineComponent({
             selectedSpanType.value = selectedType;
             break;
         }
-        if (!route.query.incident_query) return;
+        if (!route.query.incident_query) {
+          // 如果没有incident_query参数，重置标志位
+          hasHandledTraceRedirect.value = false;
+          return;
+        }
+        // 如果已经处理过，直接返回
+        if (hasHandledTraceRedirect.value) {
+          return;
+        }
         const spanInfo = JSON.parse(decodeURIComponent((route.query.incident_query as string) || '{}'));
         if (spanInfo.trace_id !== '') {
+          // 设置标志位，标记已经处理
+          hasHandledTraceRedirect.value = true;
           // 打开trace详情侧滑
           nextTick(() => {
             isFullscreen.value = true;
             getTraceDetails(spanInfo.trace_id);
             setTimeout(() => {
               document.getElementById(spanInfo.span_id)?.scrollIntoView({ behavior: 'smooth' });
-              console.log(spanInfo, document.getElementById(spanInfo.span_id));
             }, 2000);
           });
         }

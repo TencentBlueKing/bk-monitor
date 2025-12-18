@@ -30,6 +30,7 @@ import QuickFilter from "./quick-filter";
 import useLocale from "@/hooks/use-locale";
 import EmailSubscription from "./email-subscription";
 import ClusterConfig from "./cluster-config";
+import ClusterDownload from './cluster-download';
 
 import "./index.scss";
 
@@ -40,6 +41,7 @@ export default defineComponent({
     Stratege,
     QuickFilter,
     ClusterConfig,
+    ClusterDownload,
   },
   props: {
     clusterSwitch: {
@@ -69,6 +71,10 @@ export default defineComponent({
     indexId: {
       type: String,
       require: true,
+    },
+    logTableRef: {
+      type: Object,
+      default: null,
     },
   },
   setup(props, { emit, expose }) {
@@ -155,6 +161,12 @@ export default defineComponent({
                 isClusterActive={props.isClusterActive}
               />
             )}
+            <ClusterDownload
+              style='margin-right: 8px'
+              indexId={props.indexId}
+              isClusterActive={props.isClusterActive}
+              logTableRef={props.logTableRef}
+            />
             {!isExternal && (
               <ClusterConfig
                 ref={clusterConfigRef}

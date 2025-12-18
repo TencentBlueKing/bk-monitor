@@ -279,13 +279,6 @@ ADVANCED_OPTIONS = OrderedDict(
             ),
         ),
         ("WECOM_ROBOT_CONTENT_LENGTH", slz.IntegerField(label="分级机器人内容最大长度（0表示不限制）", default=0)),
-        (
-            "ALARM_DISABLE_STRATEGY_RULES",
-            slz.JSONField(
-                label='告警后台禁用策略规则{"strategy_ids":[],"bk_biz_ids":[],"data_source_label":"","data_type_label":""}',
-                default=[],
-            ),
-        ),
         ("OPTZ_FAKE_EVENT_BIZ_IDS", slz.ListField(label="启用进程端口，ping不可达优化的业务ID列表", default=[])),
         ("ACCESS_DATA_TIME_DELAY", slz.IntegerField(label="access数据拉取延迟时间(s)", default=10)),
         ("ACCESS_LATENCY_INTERVAL_FACTOR", slz.IntegerField(label="access数据源延迟上报周期因子", default=1)),
@@ -434,6 +427,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
+        (
+            "ENABLE_DATAID_REGISTER_WITH_CLUSTER_NAME",
+            slz.BooleanField(label="是否开启dataid注册时能够指定集群名称", default=False),
+        ),
     ]
 )
 
