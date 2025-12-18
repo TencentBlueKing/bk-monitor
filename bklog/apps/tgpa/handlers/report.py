@@ -104,19 +104,28 @@ class TGPAReportHandler:
         limit = params["pagesize"]
         offset = (params["page"] - 1) * limit
 
-        # 构建SQL语句，这里时间范围过滤使用 dtEventTimeStamp，排序使用report_time，和TGPA保持一致
+        # WHERE子句，这里时间范围过滤使用 dtEventTimeStamp，排序使用report_time，和TGPA保持一致
         where_clause = cls._build_where_clause(
             bk_biz_id=params["bk_biz_id"],
             keyword=params.get("keyword"),
             start_time=params.get("start_time"),
             end_time=params.get("end_time"),
         )
+        # ORDER_BY子句
+        order_list = [{"field": "report_time", "order": "DESC"}]
+        if params.get("order_field") and params.get("order_type"):
+            if params["order_field"] == "file_size":
+                order_list.insert(0, {"field": "CAST(file_size AS INT)", "order": params["order_type"]})
+            else:
+                order_list.insert(0, {"field": params["order_field"], "order": params["order_type"]})
+        order_by_clause = ", ".join([f"{item['field']} {item['order']}" for item in order_list])
+
         query_count_sql = f"SELECT count(*) AS total FROM {result_table_id} WHERE {where_clause}"
         query_list_sql = (
             f"SELECT {', '.join(TGPA_REPORT_SELECT_FIELDS)} "
             f"FROM {result_table_id} "
             f"WHERE {where_clause} "
-            f"ORDER BY report_time DESC "
+            f"ORDER BY {order_by_clause} "
             f"LIMIT {limit} OFFSET {offset}"
         )
 

@@ -22,6 +22,8 @@ the project delivered to anyone in the future.
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
+from apps.tgpa.constants import TGPA_REPORT_ORDER_FIELDS
+
 
 class CreateTGPATaskSerializer(serializers.Serializer):
     """
@@ -76,5 +78,7 @@ class GetReportListSerializer(serializers.Serializer):
     keyword = serializers.CharField(label=_("关键字"), required=False, allow_null=True, allow_blank=True)
     start_time = serializers.IntegerField(label=_("开始时间"), required=False, allow_null=True)
     end_time = serializers.IntegerField(label=_("结束时间"), required=False, allow_null=True)
+    order_field = serializers.ChoiceField(label=_("排序字段"), required=False, choices=TGPA_REPORT_ORDER_FIELDS)
+    order_type = serializers.ChoiceField(label=_("排序类型"), required=False, choices=["ASC", "DESC"])
     page = serializers.IntegerField(label=_("页码"), default=1)
     pagesize = serializers.IntegerField(label=_("分页大小"), default=10)
