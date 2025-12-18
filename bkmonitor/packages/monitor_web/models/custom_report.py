@@ -186,6 +186,8 @@ class CustomTSTable(OperateRecordModelBase):
             for metric_dict in scope_dict["metric_list"]:
                 metric_name: str = metric_dict["metric_name"]
                 metric_config: dict[str, Any] = metric_dict.get("field_config", {})
+                if metric_config.get("disabled"):
+                    continue
                 field_map[(scope_name, CustomTSMetricType.METRIC, metric_name)] = {
                     "scope_name": scope_name,
                     "name": metric_name,
