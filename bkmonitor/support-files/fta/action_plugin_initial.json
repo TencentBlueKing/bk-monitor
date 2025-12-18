@@ -842,7 +842,7 @@
         "plugin_type": "bk_incident",
         "plugin_key": "bk_incident",
         "has_child": true,
-        "description": "分析处置平台是通过可视化的图形界面进行故障排查流程编排和执行的系统，是腾讯蓝鲸产品体系中一款轻量级的调度编排类 SaaS 产品。<a href=\\\"{plugin_url}\\\" target=\\\"_blank\\\">前往分析处置平台</a>\\\\n\\\\n* 在分析处置平台中创建一个流程\\\\n* 流程里可以添加包括智能体在内的各种原子\\\\n* 处理套餐中可以上下文传参，可以在分析处置平台流程中设置为 **全局变量**",
+        "description": "分析处置平台是通过可视化的图形界面进行故障排查流程编排和执行的系统，是腾讯蓝鲸产品体系中一款轻量级的调度编排类 SaaS 产品。<a href=\"{plugin_url}\" target=\"_blank\">前往分析处置平台</a>\\n\\n* 在分析处置平台中创建一个流程\\n* 流程里可以添加包括智能体在内的各种原子\\n* 处理套餐中可以上下文传参，可以在分析处置平台流程中设置为 **全局变量**",
         "config_schema": {
             "template": {
                 "resource_class": "GetTemplateListResource",
