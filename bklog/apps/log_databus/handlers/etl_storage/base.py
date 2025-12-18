@@ -859,8 +859,9 @@ class EtlStorage:
             pass
 
         if not table_id and FeatureToggleObject.switch("log_v4_data_link", instance.get_bk_biz_id()):
-            instance.enable_v4 = True
-            instance.save()
+            if hasattr(instance, 'enable_v4'):
+                instance.enable_v4 = True
+                instance.save()
 
         # 获取清洗配置
         collector_scenario = CollectorScenario.get_instance(collector_scenario_id=instance.collector_scenario_id)
@@ -870,8 +871,9 @@ class EtlStorage:
             sort_fields=sort_fields,
             target_fields=target_fields,
         )
+        enable_v4 = getattr(instance, 'enable_v4', False)
         result_table_config = self.get_result_table_config(fields, etl_params, built_in_config,
-                                                           es_version=es_version, enable_v4=instance.enable_v4)
+                                                           es_version=es_version, enable_v4=enable_v4)
         is_nanos = False
         for rt_field in result_table_config["field_list"]:
             if rt_field["field_name"] == "dtEventTimeStampNanos":

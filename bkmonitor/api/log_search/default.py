@@ -498,3 +498,19 @@ class GetUserRecentIndexSetResource(LogSearchAPIGWResource):
         space_uid = serializers.CharField(required=False, label="空间ID")
         username = serializers.CharField(required=True, label="用户名")
         limit = serializers.IntegerField(required=False, label="限制条数", default=10)
+
+
+class SearchIndexSetContext(LogSearchAPIGWResource):
+    """
+    查询索引集上下文
+    """
+
+    action = "/search_index_set/{index_set_id}/context/"
+    method = "POST"
+
+    def get_request_url(self, validated_request_data):
+        """
+        获取最终请求的url，也可以由子类进行重写
+        """
+        url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        return url.format(index_set_id=validated_request_data.pop("index_set_id"))
