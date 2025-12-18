@@ -156,3 +156,7 @@ class CodeRedefinedConfigRelation(ServiceBase):
                 "kind",
             ]
         ]
+
+    def is_callee(self) -> bool:
+        """判断是否为被调类型"""
+        return self.kind == "callee"

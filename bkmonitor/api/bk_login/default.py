@@ -84,11 +84,6 @@ class GetAllUserResource(BkUserApiResource):
     method = "GET"
     cache_type = CacheType.USER
 
-    class RequestSerializer(serializers.Serializer):
-        lookup_field = serializers.CharField(label="查询字段", required=False)
-        exact_lookups = serializers.CharField(label="精确查找", required=False)
-        fields = serializers.CharField(label="返回字段", required=False)  # pyright: ignore[reportAssignmentType]
-
     def perform_request(self, params):
         # 如果使用apigw，则直接返回空列表，这种情况下要求前端直接请求bk-user的接口获取用户展示信息
         if self.use_apigw():
