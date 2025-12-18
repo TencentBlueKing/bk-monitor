@@ -82,3 +82,20 @@ class GetReportListSerializer(serializers.Serializer):
     order_type = serializers.ChoiceField(label=_("排序类型"), required=False, choices=["ASC", "DESC"])
     page = serializers.IntegerField(label=_("页码"), default=1)
     pagesize = serializers.IntegerField(label=_("分页大小"), default=10)
+
+
+class SyncReportSerializer(serializers.Serializer):
+    """
+    同步客户端日志上报文件
+    """
+
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"))
+    openid = serializers.CharField(label=_("openid"), required=False, allow_null=True, allow_blank=True)
+    file_name = serializers.CharField(label=_("文件名"), required=False, allow_null=True, allow_blank=True)
+    start_time = serializers.IntegerField(label=_("开始时间"), required=False, allow_null=True)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=False, allow_null=True)
+
+    def validate(self, attrs):
+        if not attrs.get("openid") and not attrs.get("file_name"):
+            raise serializers.ValidationError(_("openid 和 file_name 不能同时为空"))
+        return attrs

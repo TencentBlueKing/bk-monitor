@@ -26,6 +26,10 @@ from apps.tgpa.constants import TGPATaskProcessStatusEnum
 
 
 class TGPATask(models.Model):
+    """
+    客户端日志捞取任务
+    """
+
     task_id = models.IntegerField(_("后台任务id"), unique=True, db_index=True)
     bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
     log_path = models.TextField(_("日志路径"), null=True, blank=True)
@@ -40,15 +44,34 @@ class TGPATask(models.Model):
         verbose_name_plural = _("TGPA任务")
 
 
-class TGPAReport(models.Model):
+class TGPAReportSyncRecord(models.Model):
+    """
+    客户端上报同步记录
+    """
+
     bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
-    last_processed_at = models.DateTimeField(_("最后处理时间"))
-    created_at = models.DateTimeField(_("创建时间"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("更新时间"), auto_now=True)
-    total_processed_count = models.IntegerField(_("累计处理数量"), default=0)
-    last_processed_count = models.IntegerField(_("最后一次处理数量"), default=0)
-    last_error_message = models.TextField(_("最后错误信息"), null=True, blank=True)
-    last_error_at = models.DateTimeField(_("最后错误时间"), null=True, blank=True)
+    openid = models.CharField(_("openid"), max_length=128, null=True, blank=True)
+    file_name = models.CharField(_("文件名"), max_length=512, null=True, blank=True)
+    created_at = models.DateTimeField(_("创建时间"), auto_now_add=True, db_index=True)
+    created_by = models.CharField(_("创建者"), max_length=32, default="")
+
+    class Meta:
+        verbose_name = _("客户端上报同步记录")
+        verbose_name_plural = _("客户端上报同步记录")
+
+
+class TGPAReport(models.Model):
+    """
+    客户端上报文件处理记录
+    """
+
+    bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
+    file_name = models.CharField(_("文件名"), max_length=512, unique=True)
+    openid = models.CharField(_("openid"), max_length=128, null=True, blank=True)
+    processed_at = models.DateTimeField(_("处理时间"), null=True)
+    process_status = models.CharField(_("处理状态"), max_length=64, default=TGPATaskProcessStatusEnum.INIT.value)
+    error_message = models.TextField(_("错误信息"), null=True, blank=True)
+    record_id = models.IntegerField(_("同步记录id"), null=True, blank=True)
 
     class Meta:
         verbose_name = _("客户端上报")

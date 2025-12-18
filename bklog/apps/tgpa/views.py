@@ -30,13 +30,16 @@ from apps.tgpa.constants import FEATURE_TOGGLE_TGPA_TASK
 from apps.tgpa.handlers.base import TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
+from apps.tgpa.models import TGPAReportSyncRecord
 from apps.tgpa.serializers import (
     CreateTGPATaskSerializer,
     GetTGPATaskListSerializer,
     GetDownloadUrlSerializer,
     GetIndexSetIdSerializer,
     GetReportListSerializer,
+    SyncReportSerializer,
 )
+from apps.tgpa.tasks import process_single_report
 from bkm_search_module.constants import list_route
 
 
@@ -108,3 +111,36 @@ class TGPAReportViewSet(APIViewSet):
         """
         params = self.params_valid(GetReportListSerializer)
         return Response(TGPAReportHandler.get_report_list(params))
+
+    @list_route(methods=["POST"], url_path="sync")
+    def sync_report(self, request, *args, **kwargs):
+        """
+        按需同步客户端日志上报文件
+        根据 openid 或 file_name 查询并同步数据
+        """
+        params = self.params_valid(SyncReportSerializer)
+        bk_biz_id = params["bk_biz_id"]
+
+        if not FeatureToggleObject.switch(FEATURE_TOGGLE_TGPA_TASK, bk_biz_id):
+            return Response({"count": 0})
+
+        report_list = TGPAReportHandler.iter_report_list(
+            bk_biz_id=bk_biz_id,
+            openid=params.get("openid"),
+            file_name=params.get("file_name"),
+            start_time=params.get("start_time"),
+            end_time=params.get("end_time"),
+        )
+        sync_record_obj = TGPAReportSyncRecord.objects.create(
+            bk_biz_id=bk_biz_id,
+            openid=params.get("openid"),
+            file_name=params.get("file_name"),
+            created_by=request.user.username,
+        )
+
+        sync_count = 0
+        for report_info in report_list:
+            process_single_report.delay(report_info, sync_record_obj.id)
+            sync_count += 1
+
+        return Response({"count": sync_count})
