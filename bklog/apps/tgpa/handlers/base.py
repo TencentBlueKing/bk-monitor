@@ -112,7 +112,7 @@ class TGPAFileHandler:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
         with (
-            open(input_path, encoding="utf-8") as input_file,
+            open(input_path, encoding="utf-8", errors="replace") as input_file,
             open(output_path, "w", encoding="utf-8") as output_file,
         ):
             for line_num, line in enumerate(input_file, 1):

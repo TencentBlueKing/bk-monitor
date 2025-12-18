@@ -33,7 +33,7 @@ from apps.utils.thread import MultiExecuteFunc
 class TGPATaskHandler:
     def __init__(self, bk_biz_id, inst_id=None, task_info=None):
         self.bk_biz_id = bk_biz_id
-        self.inst = inst_id
+        self.inst_id = inst_id
         self.task_info = task_info  # 通过接口获取到的任务信息
         # inst_id 和 task_info 不能同时为空
         if not inst_id:

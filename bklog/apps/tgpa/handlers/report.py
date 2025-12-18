@@ -116,9 +116,9 @@ class TGPAReportHandler:
         order_by_clause = "report_time DESC"
         if params.get("order_field") and params.get("order_type"):
             if params["order_field"] == "file_size":
-                order_by_clause = f"CAST(file_size AS INT) {params['order_type']}" + order_by_clause
+                order_by_clause = f"CAST(file_size AS INT) {params['order_type']}, " + order_by_clause
             else:
-                order_by_clause = f"{params['order_field']} {params['order_type']}" + order_by_clause
+                order_by_clause = f"{params['order_field']} {params['order_type']}, " + order_by_clause
 
         query_count_sql = f"SELECT count(*) AS total FROM {result_table_id} WHERE {where_clause}"
         query_list_sql = (
