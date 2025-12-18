@@ -513,5 +513,4 @@ class SearchIndexSetContext(LogSearchAPIGWResource):
         获取最终请求的url，也可以由子类进行重写
         """
         url = self.base_url.rstrip("/") + "/" + self.action.lstrip("/")
-        print(validated_request_data)
         return url.format(index_set_id=validated_request_data.pop("index_set_id"))
