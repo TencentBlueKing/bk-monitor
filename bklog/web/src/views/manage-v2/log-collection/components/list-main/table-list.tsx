@@ -503,15 +503,14 @@ export default defineComponent({
         title: t('标签'),
         colKey: 'tags',
         showTips: false,
-        cell: (h, { row }: { row: ITableRowData }) =>
-          (row.tags || []).length > 0 ? (
-            <TagMore
-              tags={row.tags}
-              title={t('标签')}
-            />
-          ) : (
-            '--'
-          ),
+        cell: (h, { row }: { row: ITableRowData }) => ((row.tags || []).length > 0 ? (
+          <TagMore
+            tags={row.tags}
+            title={t('标签')}
+          />
+        ) : (
+          '--'
+        )),
         width: 200,
       },
       {
@@ -607,12 +606,8 @@ export default defineComponent({
      */
     const destroyTippyInstances = () => {
       for (const instance of tippyInstances) {
-        try {
-          instance.hide();
-          instance.destroy();
-        } catch {
-          // 忽略销毁错误
-        }
+        instance?.hide();
+        instance?.destroy();
       }
       tippyInstances = [];
     };
