@@ -1356,58 +1356,6 @@ class TimeSeriesScope(models.Model):
             cls.objects.bulk_update(scopes_to_update, ["dimension_config"], batch_size=BULK_UPDATE_BATCH_SIZE)
 
     @classmethod
-    def _bulk_create_or_update_ts_scopes(
-        cls, group_id: int, scope_names: set, metric_group_dimensions: list | None = None
-    ):
-        def _get_create_from(name: str) -> str:
-            """根据 scope_name 判断 create_from 类型"""
-            return (
-                cls.CREATE_FROM_DEFAULT
-                if TimeSeriesGroup.get_default_scope_info(name, metric_group_dimensions)[0]
-                else cls.CREATE_FROM_DATA
-            )
-
-        # 1. 提取所有前缀并生成对应的 default 数据分组名
-        default_scope_names_to_create = set()
-        for scope_name in scope_names:
-            if cls.get_scope_name_prefix(scope_name):  # 只处理有前缀的情况（多级分组）
-                # 使用 get_default_scope_info 获取完整的默认分组名
-                _, default_scope_name = TimeSeriesGroup.get_default_scope_info(scope_name, metric_group_dimensions)
-                default_scope_names_to_create.add(default_scope_name)
-
-        # 2. 将 default 分组名合并到 scope_names 中，确保它们会被创建
-        all_scope_names = scope_names | default_scope_names_to_create
-
-        # 3. 直接获取已存在的 scope 对象
-        existing_scopes = cls.objects.filter(group_id=group_id, scope_name__in=all_scope_names)
-        existing_scope_names = {scope.scope_name for scope in existing_scopes}
-
-        # 4. 创建新的 scope（包括原始的和 default 分组）
-        new_scopes = [
-            cls(
-                group_id=group_id,
-                scope_name=name,
-                dimension_config={},
-                auto_rules=[],
-                create_from=_get_create_from(name),
-            )
-            for name in all_scope_names - existing_scope_names
-        ]
-        if new_scopes:
-            cls.objects.bulk_create(new_scopes, batch_size=BULK_CREATE_BATCH_SIZE)
-
-        # 5. 更新已存在的 scope 的 create_from 字段
-        scopes_to_update = []
-        for scope in existing_scopes:
-            new_create_from = _get_create_from(scope.scope_name)
-            if scope.create_from != new_create_from:
-                scope.create_from = new_create_from
-                scopes_to_update.append(scope)
-
-        if scopes_to_update:
-            cls.objects.bulk_update(scopes_to_update, ["create_from"], batch_size=BULK_UPDATE_BATCH_SIZE)
-
-    @classmethod
     def bulk_refresh_ts_scopes(cls, group, metric_info_list: list) -> list:
         """批量刷新 scope 并返回包含 scope_id 的指标列表
 
