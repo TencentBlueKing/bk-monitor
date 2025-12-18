@@ -256,7 +256,7 @@ export default defineComponent({
 
       if (state.bk_tenant_id) {
         const url = join(
-          (window as any).BK_PASS_API_HOST,
+          (window as any).BK_PAAS_API_HOST,
           '/api/bk-user-web/prod/api/v3/open-web/tenant/current-user/language/',
         );
         requestJson({ url, params: { language: value }, headers: { 'X-Bk-Tenant-Id': state.bk_tenant_id } }).catch(

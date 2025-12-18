@@ -205,6 +205,9 @@ export default (spaceId, bkBizId, externalMenu) => {
       nav_id: to.meta.navId,
       nav_name: to.meta?.title ?? undefined,
       external_menu: stringifyExternalMenu,
+      action: 'route_change',
+      trigger_source: to.name,
+      tab: to.query?.tab ?? undefined,
     });
   });
 

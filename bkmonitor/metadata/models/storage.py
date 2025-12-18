@@ -2080,6 +2080,7 @@ class ESStorage(models.Model, StorageResultTable):
         :param kwargs: 其他配置参数
         :return:
         """
+
         # 0. 判断是否需要使用默认集群信息
         if cluster_id is None:
             try:
@@ -2169,10 +2170,19 @@ class ESStorage(models.Model, StorageResultTable):
             table_id,
             storage_record.cluster_id,
         )
-
-        # 判断是否启用创建索引，默认是启用
-        if enable_create_index:
-            new_record.create_es_index(is_sync_db)
+        if new_record.need_create_index:  # 如果需要,则创建索引
+            logger.info(
+                "create_table: table_id->[%s] under bk_tenant_id->[%s] need_create_index", table_id, bk_tenant_id
+            )
+            try:
+                new_record.create_index_and_aliases()
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "create_table: table_id->[%s] under bk_tenant_id->[%s] create_index_and_aliases failed,error->[%s]",
+                    table_id,
+                    bk_tenant_id,
+                    e,
+                )
 
         # 针对单个结果表推送数据很快，不用异步处理
         try:

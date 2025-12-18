@@ -14,13 +14,31 @@ import logging
 import elasticsearch5
 import pytest
 from django.conf import settings
+from kubernetes.dynamic import client as dynamic_client
+from unittest.mock import patch, MagicMock
 
 from api.kubernetes.default import FetchK8sClusterListResource
+from bkm_space.api import SpaceApi
+from core.drf_resource import api
 from metadata import models
+from metadata.models import (
+    InfluxDBClusterInfo,
+    InfluxDBStorage,
+    SpaceTypeToResultTableFilterAlias,
+    Space,
+    BkBaseResultTable,
+)
+from metadata.models.influxdb_cluster import InfluxDBProxyStorage
 from metadata.models.bcs.resource import BCSClusterInfo
+from metadata.models.storage import ClusterInfo, StorageClusterRecord, ESStorage
 from metadata.task.bcs import discover_bcs_clusters, update_bcs_cluster_cloud_id_config
+from metadata.models.result_table import ResultTable
 from metadata.tests.common_utils import consul_client
 from constants.common import DEFAULT_TENANT_ID
+from metadata.utils import consul_tools
+from .conftest import MockHashConsul, MockDynamicClient
+from metadata.models.data_link.data_link import DataLink
+from bkmonitor.utils import tenant
 
 logger = logging.getLogger("metadata")
 
@@ -262,6 +280,308 @@ def test_discover_bcs_clusters(
         BCSClusterInfo.CLUSTER_STATUS_RUNNING,
         BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING,
     ]
+
+
+BCS_CLUSTER_ID = "BCS-K8S-00000"
+BK_TENANT_ID = "system"
+
+
+@pytest.fixture
+def mock_default_kwargs(monkeypatch):
+    def change_kwargs(m, targe_obj, kwargs):
+        default_kwargs = list(targe_obj.__defaults__)
+        for i, v in kwargs.items():
+            i = int(i)
+            default_kwargs[i] = v
+
+        default_kwargs = tuple(default_kwargs)
+        m.setattr(targe_obj, "__defaults__", default_kwargs)
+
+    with monkeypatch.context() as m:
+        m.setattr(settings, "BCS_API_GATEWAY_HOST", "domain_name_1")
+        m.setattr(settings, "BCS_API_GATEWAY_PORT", "8000")
+
+        change_kwargs(m, BCSClusterInfo.register_cluster.__wrapped__, {0: "domain_name_1", 1: "8000"})
+        change_kwargs(m, ResultTable.create_result_table.__wrapped__, {15: "2_business_alias"})
+
+        yield
+
+
+@pytest.fixture
+def configure_celery():
+    # 配置celery为同步执行
+    from alarm_backends.service.scheduler.app import app
+
+    app.conf.clear()
+    app.conf.task_always_eager = True
+    app.conf.task_eager_propagates = True
+
+    yield
+
+
+@pytest.fixture
+def mock_settings(monkeypatch):
+    monkeypatch.setattr(FetchK8sClusterListResource, "cache_type", None)
+    monkeypatch.setattr(settings, "BCS_CLUSTER_SOURCE", "cluster-manager")
+    monkeypatch.setattr(settings, "BCS_API_GATEWAY_TOKEN", "token")
+    monkeypatch.setattr(settings, "ENABLE_MULTI_TENANT_MODE", False)
+    # 启用influxdb存储
+    monkeypatch.setattr(settings, "ENABLE_INFLUXDB_STORAGE", True)
+    # 启用VM存储
+    monkeypatch.setattr(settings, "ENABLE_V2_VM_DATA_LINK", True)
+    # 禁用时区
+    monkeypatch.setattr(settings, "USE_TZ", False)
+
+    with patch.object(settings, "BCS_CUSTOM_EVENT_STORAGE_CLUSTER_ID", None, create=True):
+        yield
+
+
+@pytest.fixture
+def mock_funcs(monkeypatch):
+    def get_data_id(data_name, *args, **kwargs):
+        if data_name == f"bcs_{BCS_CLUSTER_ID}_k8s_metric":
+            return 100
+        elif data_name == f"bcs_{BCS_CLUSTER_ID}_k8s_event":
+            return 200
+        elif data_name == f"bcs_{BCS_CLUSTER_ID}_custom_metric":
+            return 300
+        raise ValueError("获取数据源失败")
+
+    with (
+        patch("bkmonitor.utils.tenant.get_tenant_datalink_biz_id") as mock_get_tenant_datalink_biz_id,
+        patch(
+            "metadata.models.data_source.DataSource.apply_for_data_id_from_bkdata"
+        ) as mock_apply_for_data_id_from_bkdata,
+        patch("metadata.models.data_source.DataSource.apply_for_data_id_from_gse") as mock_apply_for_data_id_from_gse,
+        patch("metadata.task.tasks.refresh_custom_report_config") as mock_refresh_custom_report_config,
+    ):
+        # mock 获取业务ID
+        mock_get_tenant_datalink_biz_id.return_value = 2
+        # mock 获取数据源
+        mock_apply_for_data_id_from_gse.side_effect = [400, 500, 600]
+
+        mock_apply_for_data_id_from_bkdata.side_effect = get_data_id
+        mock_refresh_custom_report_config.return_value = MagicMock()
+
+        # mock 同步数据库
+        monkeypatch.setattr(InfluxDBStorage, "sync_db", MagicMock())
+        monkeypatch.setattr(consul_tools, "HashConsul", MockHashConsul)
+        monkeypatch.setattr(consul_tools, "refresh_router_version", MagicMock())
+        monkeypatch.setattr(DataLink, "apply_data_link_with_retry", MagicMock())
+        monkeypatch.setattr(api.gse, "query_route", MagicMock(return_value={}))
+        monkeypatch.setattr(api.gse, "update_route", MagicMock(return_value={}))
+        monkeypatch.setattr(dynamic_client, "DynamicClient", MockDynamicClient)
+        monkeypatch.setattr(
+            api.bk_login,
+            "list_tenant",
+            MagicMock(return_value=[{"id": "system", "name": "Blueking", "status": "enabled"}]),
+        )
+
+        monkeypatch.setattr(tenant, "get_tenant_default_biz_id", MagicMock(return_value=settings.DEFAULT_BK_BIZ_ID))
+
+        space = MagicMock()
+        space.bk_tenant_id = BK_TENANT_ID
+        monkeypatch.setattr(SpaceApi, "get_space_detail", MagicMock(return_value=space))
+        monkeypatch.setattr(ESStorage, "create_es_index", MagicMock(return_value=True))
+
+        yield
+
+
+# 准备数据
+@pytest.fixture()
+def prepare_databases(monkeypatch):
+    instance_cluster_name = "default"
+    proxy_cluster_id = 1001
+
+    InfluxDBProxyStorage.objects.create(
+        proxy_cluster_id=proxy_cluster_id,
+        instance_cluster_name=instance_cluster_name,
+        service_name="influxdb_proxy",
+        is_default=True,
+    )
+
+    InfluxDBClusterInfo.objects.create(
+        host_name="test-influx-host-1", cluster_name=instance_cluster_name, host_readable=True
+    )
+
+    ClusterInfo.objects.get_or_create(
+        bk_tenant_id=BK_TENANT_ID,
+        cluster_type=ClusterInfo.TYPE_INFLUXDB,
+        cluster_name="influxdb_cluster",
+        domain_name="influxdb_cluster.example.com",
+        port=8428,
+        is_default_cluster=True,
+        cluster_id=proxy_cluster_id,
+        defaults={"description": "默认InfluxDB集群", "version": "1.0", "schema": "http"},
+    )
+
+    if not ClusterInfo.objects.filter(bk_tenant_id=BK_TENANT_ID, cluster_type=ClusterInfo.TYPE_VM).exists():
+        ClusterInfo.objects.get_or_create(
+            bk_tenant_id=BK_TENANT_ID,
+            cluster_type=ClusterInfo.TYPE_VM,
+            cluster_name="default_vm_cluster",
+            domain_name="vm.example.com",
+            port=8428,
+            is_default_cluster=True,
+            defaults={"description": "默认VM集群", "version": "1.0", "schema": "http"},
+        )
+
+    if not ClusterInfo.objects.filter(bk_tenant_id=BK_TENANT_ID, cluster_type=ClusterInfo.TYPE_ES).exists():
+        ClusterInfo.objects.get_or_create(
+            bk_tenant_id=BK_TENANT_ID,
+            cluster_type=ClusterInfo.TYPE_ES,
+            cluster_name="default_es_cluster",
+            domain_name="es.example.com",
+            port=9200,
+            is_default_cluster=True,
+            defaults={"description": "默认ES集群", "version": "7.10.0", "schema": "http"},
+        )
+
+    if not ClusterInfo.objects.filter(bk_tenant_id=BK_TENANT_ID, cluster_type=ClusterInfo.TYPE_INFLUXDB).exists():
+        ClusterInfo.objects.get_or_create(
+            bk_tenant_id=BK_TENANT_ID,
+            cluster_type=ClusterInfo.TYPE_INFLUXDB,
+            cluster_name="default_influxdb_cluster",
+            domain_name="influxdb.example.com",
+            port=8086,
+            is_default_cluster=True,
+            defaults={"description": "默认InfluxDB集群", "version": "1.8.0", "schema": "http"},
+        )
+
+    mq_cluster = ClusterInfo.objects.filter(bk_tenant_id=BK_TENANT_ID, cluster_type=ClusterInfo.TYPE_KAFKA).first()
+    if not mq_cluster:
+        mq_cluster = ClusterInfo.objects.get_or_create(
+            bk_tenant_id=BK_TENANT_ID,
+            cluster_type=ClusterInfo.TYPE_KAFKA,
+            cluster_name="default_kafka_cluster",
+            domain_name="kafka.example.com",
+            port=9092,
+            is_default_cluster=True,
+            defaults={"description": "默认Kafka集群", "version": "2.8.0", "schema": "http"},
+        )
+
+    if not ClusterInfo.objects.filter(bk_tenant_id=BK_TENANT_ID, cluster_type=ClusterInfo.TYPE_VM).exists():
+        ClusterInfo.objects.get_or_create(
+            bk_tenant_id=BK_TENANT_ID,
+            cluster_type=ClusterInfo.TYPE_VM,
+            cluster_name="default_vm_cluster",
+            domain_name="vm.example.com",
+            port=8428,
+            is_default_cluster=True,
+            defaults={"description": "默认VM集群", "version": "1.0", "schema": "http"},
+        )
+
+    changed_gse_stream_to_id = False
+    if mq_cluster.gse_stream_to_id == -1:
+        mq_cluster.gse_stream_to_id = 12132
+        mq_cluster.save()
+        changed_gse_stream_to_id = True
+
+    if not Space.objects.filter(space_type_id="bkcc", space_id="2").exists():
+        Space.objects.create(
+            bk_tenant_id=BK_TENANT_ID,
+            space_name="default_space",
+            space_id="2",
+            space_type_id="bkcc",
+        )
+
+    # 创建Kafka 集群
+    kafka_cluster = ClusterInfo.objects.filter(
+        bk_tenant_id=BK_TENANT_ID, cluster_type=ClusterInfo.TYPE_KAFKA, is_default_cluster=True
+    ).first()
+    if not kafka_cluster:
+        kafka_cluster = ClusterInfo.objects.create(
+            bk_tenant_id=BK_TENANT_ID,
+            cluster_type=ClusterInfo.TYPE_KAFKA,
+            cluster_name="default_kafka_cluster",
+            domain_name="kafka.example.com",
+            port=9092,
+            is_default_cluster=True,
+            defaults={"description": "默认Kafka集群", "version": "2.8.0", "schema": "http"},
+        )
+
+        # 将其配置为默认 Kafka 存储
+        # monkeypatch.setattr(settings, "BCS_KAFKA_STORAGE_CLUSTER_ID", kafka_cluster.cluster_id)
+    with patch.object(settings, "BCS_KAFKA_STORAGE_CLUSTER_ID", kafka_cluster.cluster_id, create=True):
+        yield
+
+    # 删除创建的库
+    InfluxDBProxyStorage.objects.filter(proxy_cluster_id=1001).delete()
+    InfluxDBClusterInfo.objects.filter(cluster_name=instance_cluster_name).delete()
+
+    # 还原配置
+    if changed_gse_stream_to_id:
+        mq_cluster.gse_stream_to_id = -1
+        mq_cluster.save()
+
+
+@pytest.fixture
+def delete_databases():
+    from metadata.models.data_source import DataSource
+    from metadata.models.storage import KafkaTopicInfo
+    from metadata.models.data_source import DataSourceOption, DataSourceResultTable
+    from metadata.models.custom_report.event import EventGroup
+    from metadata.models.custom_report.time_series import TimeSeriesGroup
+    from metadata.models.result_table import ResultTable, ResultTableField, ResultTableOption
+    from metadata.models.vm.record import AccessVMRecord
+
+    bk_data_ids = [100, 200, 300, 400, 500, 600]
+    DataSource.objects.filter(bk_data_id__in=bk_data_ids).delete()
+    KafkaTopicInfo.objects.filter(bk_data_id__in=bk_data_ids).delete()
+    DataSourceOption.objects.filter(bk_data_id__in=bk_data_ids).delete()
+
+    EventGroup.objects.filter(bk_data_id__in=bk_data_ids).delete()
+    TimeSeriesGroup.objects.filter(bk_data_id__in=bk_data_ids).delete()
+
+    rt_ids = []
+    for data_id in bk_data_ids:
+        rt_ids.append(f"bkmonitor_time_series_{data_id}.{TimeSeriesGroup.DEFAULT_MEASUREMENT}")
+        rt_ids.append(f"2_bkmonitor_event_{data_id}")
+
+    # 删除结果表
+    ResultTable.objects.filter(table_id__in=rt_ids).delete()
+    ResultTableField.objects.filter(table_id__in=rt_ids).delete()
+    ResultTableOption.objects.filter(table_id__in=rt_ids).delete()
+    DataSourceResultTable.objects.filter(bk_data_id__in=bk_data_ids).delete()
+    SpaceTypeToResultTableFilterAlias.objects.filter(table_id__in=rt_ids).delete()
+    # 删除influxdb存储
+    InfluxDBStorage.objects.filter(table_id__in=rt_ids).delete()
+    ESStorage.objects.filter(table_id__in=rt_ids).delete()
+    # 删除vm访问记录
+    AccessVMRecord.objects.filter(bk_base_data_id__in=bk_data_ids).delete()
+    StorageClusterRecord.objects.filter(table_id__in=rt_ids).delete()
+    BkBaseResultTable.objects.filter(monitor_table_id__in=rt_ids).delete()
+
+    yield
+
+
+def test_check_bcs_clusters_status(
+    monkeypatch,
+    monkeypatch_cluster_management_fetch_clusters,
+    monkeypatch_k8s_node_list_by_cluster,
+    monkeypatch_cmdb_get_info_by_ip,
+    mock_default_kwargs,
+    mock_settings,
+    mock_funcs,
+    prepare_databases,
+    delete_databases,
+    configure_celery,
+):
+    """测试周期刷新bcs集群列表 ."""
+
+    # 测试状态标记为删除
+    discover_bcs_clusters()
+
+    from metadata.management.commands.check_bcs_cluster_status import Command
+
+    command = Command()
+    # command.verbose=True  #
+    result = command.check_cluster_status("BCS-K8S-00000")
+
+    assert result
+    command.output_summary_report(result)
+    # import json
+    # print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
 
 
 def test_update_bcs_cluster_cloud_id_config(

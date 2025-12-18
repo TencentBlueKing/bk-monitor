@@ -22,7 +22,6 @@ from datetime import datetime, timedelta
 import arrow
 import pytz
 from django.conf import settings
-from django.utils.functional import cached_property
 from kafka import KafkaConsumer
 from kafka.consumer.fetcher import ConsumerRecord
 from kafka.errors import NoBrokersAvailable
@@ -48,6 +47,7 @@ from alarm_backends.service.access.data.filters import (
 from alarm_backends.service.access.data.fullers import TopoNodeFuller
 from alarm_backends.service.access.data.records import DataRecord
 from alarm_backends.service.access.priority import PriorityChecker
+from alarm_backends.core.circuit_breaking.manager import AccessDataCircuitBreakingManager
 from bkmonitor.utils.common_utils import count_md5, get_local_ip
 from bkmonitor.utils.consul import BKConsul
 from bkmonitor.utils.local import local
@@ -78,6 +78,69 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
     def post_handle(self):
         # 释放主机信息本地内存
         clear_mem_cache("host_cache")
+
+    def _check_circuit_breaking_before_pull(self) -> bool:
+        """在数据查询前检查策略级别熔断并剔除触发熔断的策略。
+
+        :return: True 表示所有策略都被熔断，需要跳过数据查询；False 表示仍有策略需要处理
+        :raises: 不会抛出异常，内部已处理所有异常情况
+        """
+        if not hasattr(self, "items"):
+            return False
+
+        circuit_breaking_manager = AccessDataCircuitBreakingManager()
+        circuit_breaking_strategies = []
+        remaining_items = []
+
+        # 检查策略组中的每个策略是否需要熔断（只检查策略ID维度）
+        for item in self.items:
+            strategy = item.strategy
+
+            # 只检查策略级别的熔断（其他维度已在任务分发模块处理）
+            if circuit_breaking_manager.is_strategy_only_circuit_breaking(
+                strategy_id=strategy.id, labels=getattr(strategy, "labels", None)
+            ):
+                circuit_breaking_strategies.append(
+                    {
+                        "strategy_id": strategy.id,
+                        "item_id": item.id,
+                    }
+                )
+            else:
+                # 未触发熔断的策略保留
+                remaining_items.append(item)
+
+        # 如果有策略触发熔断，记录日志并更新策略列表
+        if circuit_breaking_strategies:
+            strategy_group_key = getattr(self, "strategy_group_key", "unknown")
+
+            for cb_strategy in circuit_breaking_strategies:
+                logger.warning(
+                    f"[circuit breaking] [access.data] strategy({cb_strategy['strategy_id']}),"
+                    f"item({cb_strategy['item_id']}) "
+                    f"circuit breaking triggered before data pull, "
+                    f"strategy_group_key: {strategy_group_key}"
+                )
+
+            logger.info(
+                f"[circuit breaking] [access.data] circuit breaking applied before data pull: "
+                f"{len(circuit_breaking_strategies)}/{len(self.items)} strategies filtered, "
+                f"remaining: {len(remaining_items)} strategies, "
+                f"strategy_group_key: {strategy_group_key}"
+            )
+
+            # 更新策略列表，只保留未熔断的策略
+            self.items = remaining_items
+
+            # 如果所有策略都被熔断，返回True跳过数据查询
+            if not remaining_items:
+                logger.info(
+                    f"[circuit breaking] [access.data] all strategies in group {strategy_group_key} are circuit broken, "
+                    f"skipping data query"
+                )
+                return True
+
+        return False
 
     def pull(self):
         pass
@@ -249,8 +312,8 @@ class AccessDataProcess(BaseAccessDataProcess):
     def __str__(self):
         return f"{self.__class__.__name__}:strategy_group_key({self.strategy_group_key})"
 
-    @cached_property
-    def items(self) -> list[Item]:
+    def _load_items(self) -> list[Item]:
+        """加载策略项列表"""
         data = []
         records = StrategyCacheManager.get_strategy_group_detail(self.strategy_group_key)
         for strategy_id, item_ids in list(records.items()):
@@ -264,6 +327,18 @@ class AccessDataProcess(BaseAccessDataProcess):
                     data.append(item)
         data.sort(key=lambda _i: _i.strategy.id)
         return data
+
+    @property
+    def items(self) -> list[Item]:
+        """获取策略项列表，支持动态修改"""
+        if not hasattr(self, "_items") or self._items is None:
+            self._items = self._load_items()
+        return self._items
+
+    @items.setter
+    def items(self, value: list[Item]):
+        """设置策略项列表"""
+        self._items = value
 
     @staticmethod
     def get_max_local_time(records):
@@ -296,6 +371,11 @@ class AccessDataProcess(BaseAccessDataProcess):
         2. 格式化数据，增加记录ID
         """
         if not self.items:
+            return
+
+        # 熔断检查：在数据查询前进行熔断判定
+        if self._check_circuit_breaking_before_pull():
+            # 如果需要熔断，直接返回，不进行数据查询
             return
 
         now_timestamp = arrow.utcnow().timestamp
