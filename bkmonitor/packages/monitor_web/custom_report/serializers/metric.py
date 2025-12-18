@@ -134,5 +134,7 @@ class ImportExportScopeSerializer(serializers.Serializer):
     dimension_config = serializers.DictField(
         label=_("维度配置"), child=DimensionConfigResponseSerializer(), default=dict
     )
-    auto_rules = serializers.ListField(label=_("自动分组的匹配规则列表"), child=serializers.CharField(), default=list)
+    auto_rules = serializers.ListField(
+        label=_("自动分组的匹配规则列表"), child=serializers.CharField(allow_blank=True), default=list
+    )
     metric_list = serializers.ListField(label=_("关联指标"), child=MetricResponseSerializer(), default=list)
