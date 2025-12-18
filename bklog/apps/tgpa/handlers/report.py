@@ -77,11 +77,8 @@ class TGPAReportHandler:
         where_conditions = [f"cc_id={bk_biz_id}"]
 
         if keyword:
-            # 转义特殊字符防止SQL注入
-            escaped_keyword = keyword.replace("'", "''").replace("%", "\\%").replace("_", "\\_")
-            keyword_conditions = [f"{field} like '%{escaped_keyword}%'" for field in TGPA_REPORT_FILTER_FIELDS]
-            if keyword_conditions:
-                where_conditions.append(f"({' OR '.join(keyword_conditions)})")
+            keyword_conditions = [f"{field} like '%{keyword}%'" for field in TGPA_REPORT_FILTER_FIELDS]
+            where_conditions.append(f"({' OR '.join(keyword_conditions)})")
         if start_time:
             where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
         if end_time:
@@ -116,13 +113,12 @@ class TGPAReportHandler:
             end_time=params.get("end_time"),
         )
         # ORDER_BY子句
-        order_list = [{"field": "report_time", "order": "DESC"}]
+        order_by_clause = "report_time DESC"
         if params.get("order_field") and params.get("order_type"):
             if params["order_field"] == "file_size":
-                order_list.insert(0, {"field": "CAST(file_size AS INT)", "order": params["order_type"]})
+                order_by_clause = f"CAST(file_size AS INT) {params['order_type']}" + order_by_clause
             else:
-                order_list.insert(0, {"field": params["order_field"], "order": params["order_type"]})
-        order_by_clause = ", ".join([f"{item['field']} {item['order']}" for item in order_list])
+                order_by_clause = f"{params['order_field']} {params['order_type']}" + order_by_clause
 
         query_count_sql = f"SELECT count(*) AS total FROM {result_table_id} WHERE {where_clause}"
         query_list_sql = (
@@ -154,15 +150,7 @@ class TGPAReportHandler:
         return {"total": total, "list": data}
 
     @classmethod
-    def iter_report_list(
-        cls,
-        bk_biz_id,
-        openid=None,
-        file_name=None,
-        start_time=None,
-        end_time=None,
-        batch_size=TGPA_REPORT_LIST_BATCH_SIZE,
-    ):
+    def iter_report_list(cls, bk_biz_id, openid=None, file_name=None, start_time=None, end_time=None):
         """
         使用迭代器模式获取客户端日志上报文件列表
         """
@@ -170,13 +158,14 @@ class TGPAReportHandler:
         feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
         feature_config = feature_toggle.feature_config
         result_table_id = feature_config.get("tgpa_report_result_table_id")
+        batch_size = TGPA_REPORT_LIST_BATCH_SIZE
 
         # 构建WHERE子句
         where_clause = cls._build_where_clause(
             bk_biz_id=bk_biz_id, openid=openid, file_name=file_name, start_time=start_time, end_time=end_time
         )
 
-        # 分批查询数据，直到没有数据为止，这里排序和时间范围过滤统一使用dtEventTimeStamp（report_time并不是按照数据插入时间的顺序单调递增的）
+        # 分批查询数据，这里排序和时间范围过滤统一使用dtEventTimeStamp（report_time并不是按照数据插入时间的顺序单调递增的）
         offset = 0
         while True:
             query_list_sql = (
