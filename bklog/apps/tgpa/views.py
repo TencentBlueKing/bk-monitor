@@ -115,8 +115,7 @@ class TGPAReportViewSet(APIViewSet):
     @list_route(methods=["POST"], url_path="sync")
     def sync_report(self, request, *args, **kwargs):
         """
-        按需同步客户端日志上报文件
-        根据 openid 或 file_name 查询并同步数据
+        同步客户端日志上报文件
         """
         params = self.params_valid(SyncReportSerializer)
         bk_biz_id = params["bk_biz_id"]
