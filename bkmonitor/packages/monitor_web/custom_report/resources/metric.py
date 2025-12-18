@@ -425,11 +425,15 @@ class ModifyCustomTimeSeries(Resource):
         converter = ScopeQueryConverter(time_series_group_id)
         scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope()
         field_modify_service = FieldsModifyService(time_series_group_id=time_series_group_id)
+        default_scope_id: int | None = None
         for scope_obj in scope_objs:
+            if scope_obj.name == UNGROUP_SCOPE_NAME:
+                default_scope_id = scope_obj.id
+            # 更新和删除指标
             for metric_obj in scope_obj.metric_list:
                 if metric_obj.field_scope != DEFAULT_FIELD_SCOPE:
                     continue
-                update_config = metric_map.get((DEFAULT_FIELD_SCOPE, metric_obj.name))
+                update_config = metric_map.pop((DEFAULT_FIELD_SCOPE, metric_obj.name), None)
                 if update_config:
                     metric_config = asdict(metric_obj.config)
                     metric_config.update(update_config)
@@ -440,7 +444,7 @@ class ModifyCustomTimeSeries(Resource):
                     )
                 else:
                     field_modify_service.delete_metric(ModifyMetric(id=metric_obj.id, scope_id=scope_obj.id))
-                metric_map[(metric_obj.field_scope, metric_obj.name)] = metric_obj
+            # 更新和删除维度
             for dimension_name, config_obj in scope_obj.dimension_config.items():
                 update_config = dimension_map.get(dimension_name)
                 if update_config:
@@ -455,6 +459,28 @@ class ModifyCustomTimeSeries(Resource):
                     )
                 else:
                     field_modify_service.delete_dimension(ModifyDimension(scope_id=scope_obj.id, name=dimension_name))
+            # 新增维度
+            for dimension_name, config in dimension_map.items():
+                if dimension_name not in scope_obj.dimension_config:
+                    field_modify_service.add_dimension(
+                        ModifyDimension(
+                            scope_id=scope_obj.id,
+                            name=dimension_name,
+                            config=ModifyDimensionConfig.from_dict(config),
+                        )
+                    )
+
+        # 新增指标
+        if metric_map and default_scope_id:
+            for (field_scope, metric_name), metric_config in metric_map.items():
+                field_modify_service.add_metric(
+                    ModifyMetric(
+                        id=None,
+                        name=metric_name,
+                        scope_id=default_scope_id,
+                        config=ModifyMetricConfig.from_dict(metric_config),
+                    )
+                )
         field_modify_service.apply_change()
 
     def perform_request(self, params: dict):
