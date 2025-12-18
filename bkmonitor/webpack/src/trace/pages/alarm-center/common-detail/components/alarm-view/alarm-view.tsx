@@ -56,7 +56,7 @@ export default defineComponent({
   render() {
     return (
       <div class='alarm-view'>
-        <ChartWrapper />
+        <ChartWrapper detail={this.detail} />
         <div class='alarm-view-tab'>
           <Tab
             active={this.activeTab}
