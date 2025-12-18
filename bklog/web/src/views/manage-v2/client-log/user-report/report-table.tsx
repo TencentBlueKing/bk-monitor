@@ -24,20 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 
-import {
-  getDefaultSettingSelectFiled,
-  setDefaultSettingSelectFiled,
-  formatFileSize,
-  updateLastSelectedIndexId,
-} from '@/common/util';
+import { formatFileSize, updateLastSelectedIndexId } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
 import useRouter from '@/hooks/use-router';
+import { useTableSetting } from '../hooks/use-table-setting';
 
 import './report-table.scss';
 
@@ -71,6 +67,13 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    paginationConfig: {
+      type: Object,
+      default: () => ({
+        limit: 10,
+        limitList: [10, 20, 50, 100],
+      }),
+    },
   },
   emits: ['page-change', 'page-limit-change', 'search'],
   setup(props, { emit }) {
@@ -78,18 +81,17 @@ export default defineComponent({
     const router = useRouter();
 
     const reportTableRef = ref(null);
-    const settingCacheKey = 'userReport';
 
     // 分页配置
     const pagination = ref({
       current: 1,
       count: props.total,
-      limit: 10,
-      limitList: [10, 20, 50, 100],
+      limit: props.paginationConfig.limit,
+      limitList: props.paginationConfig.limitList,
     });
 
     // 表格字段配置
-    const settingFields = ref([
+    const tableFields = [
       { id: 'openid', label: 'openid', disabled: true },
       { id: 'file_name', label: t('文件名称') },
       { id: 'file_path', label: t('文件路径') },
@@ -103,24 +105,26 @@ export default defineComponent({
       { id: 'os_version', label: t('系统版本') },
       { id: 'os_sdk', label: t('SDK版本') },
       { id: 'os_type', label: t('系统类型') },
-    ]);
+    ];
 
-    // 列设置配置
-    const columnSetting = ref({
-      fields: settingFields.value,
-      selectedFields: settingFields.value.slice(0, 8), // 默认显示前8个字段
+    // 默认显示的字段ID
+    const defaultSelectedIds = [
+      'openid',
+      'file_name',
+      'file_path',
+      'file_size',
+      'md5',
+      'report_time',
+      'xid',
+      'extend_info',
+    ];
+
+    // 使用表格设置 hook
+    const { columnSetting, checkFields, handleSettingChange } = useTableSetting({
+      cacheKey: 'userReport',
+      fields: tableFields,
+      defaultSelectedIds,
     });
-
-    // 检查字段是否显示
-    const checkFields = (field: string) => {
-      return columnSetting.value.selectedFields.some(item => item.id === field);
-    };
-
-    // 设置变化处理
-    const handleSettingChange = ({ fields }) => {
-      columnSetting.value.selectedFields.splice(0, columnSetting.value.selectedFields.length, ...fields);
-      setDefaultSettingSelectFiled(settingCacheKey, fields);
-    };
 
     // 分页变化事件处理函数
     const handlePageChange = (current: number) => {
@@ -263,11 +267,6 @@ export default defineComponent({
         pagination.value.count = newTotal;
       },
     );
-
-    onMounted(() => {
-      const { selectedFields } = columnSetting.value;
-      columnSetting.value.selectedFields = getDefaultSettingSelectFiled(settingCacheKey, selectedFields);
-    });
 
     return () => (
       <div class='report-table'>

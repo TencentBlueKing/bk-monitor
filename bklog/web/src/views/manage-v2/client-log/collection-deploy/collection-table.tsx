@@ -24,29 +24,25 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 
-import {
-  clearTableFilter,
-  getDefaultSettingSelectFiled,
-  setDefaultSettingSelectFiled,
-  updateLastSelectedIndexId,
-} from '@/common/util';
+import { clearTableFilter, updateLastSelectedIndexId } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
 import { BK_LOG_STORAGE } from '@/store/store.type';
-import * as authorityMap from '../../../../../common/authority-map';
+import * as authorityMap from '../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
 import useRouter from '@/hooks/use-router';
-import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../../constant';
+import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../constant';
 import { TaskStatus, TaskScene } from './types';
+import { useTableSetting } from '../hooks/use-table-setting';
 import http from '@/api';
 
-import './index.scss';
+import './collection-table.scss';
 
 export default defineComponent({
-  name: 'LogTable',
+  name: 'CollectionTable',
   components: {
     EmptyStatus,
   },
@@ -71,6 +67,13 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    paginationConfig: {
+      type: Object,
+      default: () => ({
+        limit: 10,
+        limitList: [10, 20, 50, 100],
+      }),
+    },
   },
   emits: ['clear-keyword', 'clone-task', 'view-task'],
   setup(props, { emit }) {
@@ -80,19 +83,19 @@ export default defineComponent({
     const pagination = ref({
       current: 1,
       count: props.total,
-      limit: 10,
-      limitList: [10, 20, 50, 100],
+      limit: props.paginationConfig.limit,
+      limitList: props.paginationConfig.limitList,
     });
 
     const createdBys = ref([]); // 创建人
     const logTableRef = ref(null); // 表格引用
-    const settingCacheKey = 'clientLog'; // 设置缓存键
     const tableDataSort = ref({
       id: '',
       order: '',
     });
 
-    const settingFields = ref([
+    // 表格字段配置
+    const tableFields = [
       { id: 'task_id', label: t('任务 ID') },
       { id: 'task_name', label: t('任务名称'), disabled: true },
       { id: 'openid', label: 'openid', disabled: true },
@@ -104,11 +107,25 @@ export default defineComponent({
       { id: 'frequency', label: t('触发频率') },
       { id: 'platform', label: t('客户端类型') },
       { id: 'max_file_num', label: t('最大文件个数') },
-    ]);
+    ];
 
-    const columnSetting = ref({
-      fields: settingFields.value,
-      selectedFields: settingFields.value.slice(0, 8),
+    // 默认显示的字段ID
+    const defaultSelectedIds = [
+      'task_id',
+      'task_name',
+      'openid',
+      'status_name',
+      'scene_name',
+      'created_by',
+      'created_at',
+      'log_path',
+    ];
+
+    // 使用表格设置 hook
+    const { columnSetting, checkFields, handleSettingChange } = useTableSetting({
+      cacheKey: 'clientLog',
+      fields: tableFields,
+      defaultSelectedIds,
     });
 
     // 任务状态选项
@@ -381,17 +398,6 @@ export default defineComponent({
       }
     };
 
-    // 检查字段显示
-    const checkFields = (field: string) => {
-      return columnSetting.value.selectedFields.some(item => item.id === field);
-    };
-
-    // 设置变化处理
-    const handleSettingChange = ({ fields }) => {
-      columnSetting.value.selectedFields.splice(0, columnSetting.value.selectedFields.length, ...fields);
-      setDefaultSettingSelectFiled(settingCacheKey, fields);
-    };
-
     // 检索任务
     const handleSearchTask = (row: any) => {
       // 构建查询条件，设置task_name字段
@@ -417,35 +423,6 @@ export default defineComponent({
         },
       });
     };
-
-    // 计算limit
-    const calculateLimitList = () => {
-      const fixedHeight = 368; // 需要减去的固定高度
-      const rowHeight = 43; // 行固定高度
-
-      // 获取浏览器高度
-      const clientHeight = document.documentElement.offsetHeight;
-
-      // 计算可以显示的行数
-      const rows = Math.ceil((clientHeight - fixedHeight) / rowHeight);
-      // 根据可显示行数设置合适的limit
-      if (rows < 10) {
-        pagination.value.limit = 10;
-      } else if (rows < 20) {
-        pagination.value.limit = 20;
-      } else if (rows < 50) {
-        pagination.value.limit = 50;
-      } else {
-        pagination.value.limit = 100;
-      }
-    };
-
-    calculateLimitList();
-
-    onMounted(() => {
-      const { selectedFields } = columnSetting.value;
-      columnSetting.value.selectedFields = getDefaultSettingSelectFiled(settingCacheKey, selectedFields);
-    });
 
     // 任务名称插槽
     const nameSlot = {

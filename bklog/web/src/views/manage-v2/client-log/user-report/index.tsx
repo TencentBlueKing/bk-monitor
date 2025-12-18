@@ -48,6 +48,13 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    paginationConfig: {
+      type: Object,
+      default: () => ({
+        limit: 10,
+        limitList: [10, 20, 50, 100],
+      }),
+    },
   },
   emits: ['update-total'],
   setup(props, { emit }) {
@@ -63,7 +70,7 @@ export default defineComponent({
     // 分页状态
     const pagination = ref({
       current: 1,
-      limit: 10,
+      limit: props.paginationConfig.limit,
     });
 
     // 获取用户上报数据
@@ -198,6 +205,7 @@ export default defineComponent({
           loading={isLoading.value}
           isAllowedDownload={props.isAllowedDownload}
           indexSetId={props.indexSetId}
+          paginationConfig={props.paginationConfig}
           on-page-change={handlePageChange}
           on-page-limit-change={handlePageLimitChange}
           on-search={handleSearch}
