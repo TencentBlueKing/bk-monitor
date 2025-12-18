@@ -322,14 +322,6 @@ class AlertBuilder(BaseAlertProcessor):
             circuit_breaking_blocked = alert.check_circuit_breaking(self.circuit_breaking_manager)
 
         if circuit_breaking_blocked:
-            # 仍命中熔断规则，记录日志并直接返回，不需要检查QoS
-            alert.add_log(
-                op_type=AlertLog.OpType.ALERT_QOS,
-                event_id=int(time.time()),
-                description="告警仍触发熔断规则，继续流控",
-                time=int(time.time()),
-            )
-
             self.logger.debug(f"[circuit breaking] [alert.builder] alert({alert.id}) still blocked by circuit breaking")
             return alert
 
