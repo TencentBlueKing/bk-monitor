@@ -171,12 +171,14 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   //   this.$emit('change', currentSelectedMetricNameList);
   // }
   triggerChange() {
-    const currentSelectedGroupAndMetricNameList = this.cheeckedMap.map(item => {
-      return {
-        groupName: item.groupName,
-        metricsName: Object.keys(item.metricsCheckMap),
-      };
-    });
+    const currentSelectedGroupAndMetricNameList = this.cheeckedMap
+      .filter(item => Object.keys(item.metricsCheckMap).length)
+      .map(item => {
+        return {
+          groupName: item.groupName,
+          metricsName: Object.keys(item.metricsCheckMap),
+        };
+      });
     customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(currentSelectedGroupAndMetricNameList);
   }
 

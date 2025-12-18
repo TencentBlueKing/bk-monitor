@@ -56,6 +56,10 @@ export default class ValueTag extends tsc<IProps, IEmit> {
     return customEscalationViewStore.currentSelectedMetricList;
   }
 
+  get currentSelectedGroupAndMetricNameList() {
+    return customEscalationViewStore.currentSelectedGroupAndMetricNameList;
+  }
+
   get dimensionAliasNameMap() {
     return customEscalationViewStore.dimensionAliasNameMap;
   }
@@ -84,7 +88,7 @@ export default class ValueTag extends tsc<IProps, IEmit> {
       }
     }
 
-    const commonDimensionList: IMetrics['dimensions'] = [];
+    let commonDimensionList: IMetrics['dimensions'] = [];
     const otherDimensionList: IMetrics['dimensions'] = [];
     for (const metricsItem of this.currentSelectedMetricList) {
       for (const dimensionItem of metricsItem.dimensions) {
@@ -94,6 +98,14 @@ export default class ValueTag extends tsc<IProps, IEmit> {
         }
         otherDimensionList.push(dimensionItem);
       }
+    }
+
+    // 如果选择了不同分组下的指标，则别名不显示，使用name作用显示名称
+    if (this.currentSelectedGroupAndMetricNameList.length > 1) {
+      commonDimensionList = commonDimensionList.map(item => ({
+        ...item,
+        alias: '',
+      }));
     }
 
     const nextMetricsList: IMetrics[] = [];
