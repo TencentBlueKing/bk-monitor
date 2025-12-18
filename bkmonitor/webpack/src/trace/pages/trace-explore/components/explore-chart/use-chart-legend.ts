@@ -129,7 +129,10 @@ export const useChartLegend = (options: ShallowRef<any, any>, chartId: ShallowRe
       }
       options.value = {
         ...options.value,
-        series: seriesList.value?.filter(s => showNames.includes(s.name)),
+        series: seriesList.value.map(series => ({
+          ...series,
+          data: showNames.includes(series.name) ? series.data : [],
+        })),
       };
     };
     if (actionType === 'shift-click') {
