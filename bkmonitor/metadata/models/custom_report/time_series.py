@@ -993,11 +993,17 @@ class TimeSeriesGroup(CustomGroupBase):
             .iterator()
         ):
             orm_field_map[orm_field["field_name"]] = orm_field
+
+        # 获取对应的 scope 列表
+        scope_map = {}
+        for scope in TimeSeriesScope.objects.filter(group_id=self.time_series_group_id):
+            scope_map[scope.id] = scope
+
         # 获取过期分界线
         last = datetime.datetime.now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
         # 查找过期时间以前的数据
         for metric in TimeSeriesMetric.objects.filter(**metric_filter_params, last_modify_time__gt=last).iterator():
-            metric_info = metric.to_metric_info_with_label(self, field_map=orm_field_map)
+            metric_info = metric.to_metric_info_with_label(self, field_map=orm_field_map, scope_map=scope_map)
             # 当一个指标可能某些原因被删除时，不必再追加到结果中
             if metric_info is None:
                 continue
@@ -1016,15 +1022,22 @@ class TimeSeriesGroup(CustomGroupBase):
             .iterator()
         ):
             orm_field_map[orm_field["field_name"]] = orm_field
+
+        # 获取对应的 scope 列表
+        scope_map = {}
+        for scope in TimeSeriesScope.objects.filter(group_id=self.time_series_group_id):
+            scope_map[scope.id] = scope
+
         # 获取过期分界线
         last = datetime.datetime.now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
         time_series_metric_query = TimeSeriesMetric.objects.filter(group_id=self.time_series_group_id)
+
         # 如果是插件白名单模式，不需要判断过期时间
         if self.is_auto_discovery():
             time_series_metric_query = time_series_metric_query.filter(last_modify_time__gt=last)
         # 查找过期时间以前的数据
         for metric in time_series_metric_query.iterator():
-            metric_info = metric.to_metric_info(field_map=orm_field_map, group=self)
+            metric_info = metric.to_metric_info(field_map=orm_field_map, group=self, scope_map=scope_map)
             # 当一个指标可能某些原因被删除时，不必再追加到结果中
             if metric_info is None:
                 continue
@@ -1341,58 +1354,6 @@ class TimeSeriesScope(models.Model):
             cls.objects.bulk_create(scopes_to_create, batch_size=BULK_CREATE_BATCH_SIZE)
         if scopes_to_update:
             cls.objects.bulk_update(scopes_to_update, ["dimension_config"], batch_size=BULK_UPDATE_BATCH_SIZE)
-
-    @classmethod
-    def _bulk_create_or_update_ts_scopes(
-        cls, group_id: int, scope_names: set, metric_group_dimensions: list | None = None
-    ):
-        def _get_create_from(name: str) -> str:
-            """根据 scope_name 判断 create_from 类型"""
-            return (
-                cls.CREATE_FROM_DEFAULT
-                if TimeSeriesGroup.get_default_scope_info(name, metric_group_dimensions)[0]
-                else cls.CREATE_FROM_DATA
-            )
-
-        # 1. 提取所有前缀并生成对应的 default 数据分组名
-        default_scope_names_to_create = set()
-        for scope_name in scope_names:
-            if cls.get_scope_name_prefix(scope_name):  # 只处理有前缀的情况（多级分组）
-                # 使用 get_default_scope_info 获取完整的默认分组名
-                _, default_scope_name = TimeSeriesGroup.get_default_scope_info(scope_name, metric_group_dimensions)
-                default_scope_names_to_create.add(default_scope_name)
-
-        # 2. 将 default 分组名合并到 scope_names 中，确保它们会被创建
-        all_scope_names = scope_names | default_scope_names_to_create
-
-        # 3. 直接获取已存在的 scope 对象
-        existing_scopes = cls.objects.filter(group_id=group_id, scope_name__in=all_scope_names)
-        existing_scope_names = {scope.scope_name for scope in existing_scopes}
-
-        # 4. 创建新的 scope（包括原始的和 default 分组）
-        new_scopes = [
-            cls(
-                group_id=group_id,
-                scope_name=name,
-                dimension_config={},
-                auto_rules=[],
-                create_from=_get_create_from(name),
-            )
-            for name in all_scope_names - existing_scope_names
-        ]
-        if new_scopes:
-            cls.objects.bulk_create(new_scopes, batch_size=BULK_CREATE_BATCH_SIZE)
-
-        # 5. 更新已存在的 scope 的 create_from 字段
-        scopes_to_update = []
-        for scope in existing_scopes:
-            new_create_from = _get_create_from(scope.scope_name)
-            if scope.create_from != new_create_from:
-                scope.create_from = new_create_from
-                scopes_to_update.append(scope)
-
-        if scopes_to_update:
-            cls.objects.bulk_update(scopes_to_update, ["create_from"], batch_size=BULK_UPDATE_BATCH_SIZE)
 
     @classmethod
     def bulk_refresh_ts_scopes(cls, group, metric_info_list: list) -> list:
@@ -2184,13 +2145,8 @@ class TimeSeriesMetric(models.Model):
     def to_json(self):
         return {"field_id": self.field_id, "field_name": self.field_name, "tag_list": self.tag_list}
 
-    def to_metric_info_with_label(self, group: TimeSeriesGroup, field_map=None):
+    def to_metric_info_with_label(self, group: TimeSeriesGroup, field_map=None, scope_map=None):
         """
-        返回带标签的指标信息，包含 MetricConfigFields 中定义的扩展字段
-
-        当 field_config 和 ResultTableField 中的数据有冲突时，优先使用 field_config 中的数据
-
-        返回格式:
          {
             "field_name": "mem_usage",
             "description": "mem_usage_2",  # 优先使用 field_config["alias"]
@@ -2198,10 +2154,6 @@ class TimeSeriesMetric(models.Model):
             "type": "double",
             "label": "service-k8s",
             "use_group": "container_performance",
-            "hidden": false,  # 来自 field_config，默认 False
-            "aggregate_method": "avg",  # 来自 field_config，默认空字符串
-            "function": "sum",  # 来自 field_config，默认空字符串
-            "interval": "60s",  # 来自 field_config，默认空字符串
             "tag_list": [
                 {
                     "field_name": "test_name",
@@ -2238,34 +2190,43 @@ class TimeSeriesMetric(models.Model):
             )
             return None
 
+        # 优先使用 field_config，如果不存在才使用 orm_field
+        field_config = self.field_config or {}
         orm_field = orm_field_map[self.field_name]
         result["table_id"] = self.table_id
-        result["description"] = orm_field["description"]
-        result["unit"] = orm_field["unit"]
+        result["description"] = field_config.get("alias", orm_field["description"])
+        result["unit"] = field_config.get("unit", orm_field["unit"])
         result["type"] = orm_field["field_type"]
 
-        # 扩展 MetricConfigFields 字段，优先使用 field_config 中的数据
-        self._fill_metric_info_result(orm_field_map, result)
+        # 获取当前 metric 对应的 scope 的 dimension_config
+        dimension_config = {}
+        if scope_map and self.scope_id and self.scope_id in scope_map:
+            scope = scope_map[self.scope_id]
+            dimension_config = scope.dimension_config or {}
+
+        for tag in self.tag_list:
+            item = {"field_name": tag, "description": ""}
+            # 如果维度不存在了，则表示字段可能已经被删除了
+            if tag in orm_field_map:
+                orm_field = orm_field_map[tag]
+                item["description"] = orm_field["description"]
+                item["unit"] = orm_field["unit"]
+                item["type"] = orm_field["field_type"]
+
+            if tag in dimension_config:
+                item["description"] = dimension_config[tag].get("alias", item["description"])
+
+            result["tag_list"].append(item)
 
         return result
 
-    def to_metric_info(self, field_map=None, group=None):
+    def to_metric_info(self, field_map=None, group=None, scope_map=None):
         """
-        返回指标信息，包含 MetricConfigFields 中定义的扩展字段
-
-        当 field_config 和 ResultTableField 中的数据有冲突时，优先使用 field_config 中的数据
-
-        返回格式:
          {
             "field_name": "mem_usage",
             "description": "mem_usage_2",  # 优先使用 field_config["alias"]
             "unit": "M",  # 优先使用 field_config["unit"]
             "type": "double",
-            "is_disabled": false,
-            "hidden": false,  # 来自 field_config，默认 False
-            "aggregate_method": "avg",  # 来自 field_config，默认空字符串
-            "function": "sum",  # 来自 field_config，默认空字符串
-            "interval": "60s",  # 来自 field_config，默认空字符串
             "tag_list": [
                 {
                     "field_name": "test_name",
@@ -2302,31 +2263,21 @@ class TimeSeriesMetric(models.Model):
             )
             return None
 
+        # 优先使用 field_config，如果不存在才使用 orm_field
+        field_config = self.field_config or {}
         orm_field = orm_field_map[self.field_name]
         result["table_id"] = self.table_id
-        result["description"] = orm_field["description"]
-        result["unit"] = orm_field["unit"]
+        result["description"] = field_config.get("alias", orm_field["description"])
+        result["unit"] = field_config.get("unit", orm_field["unit"])
         result["type"] = orm_field["field_type"]
-        result["is_disabled"] = orm_field["is_disabled"]
+        result["is_disabled"] = field_config.get("disabled", orm_field["is_disabled"])
 
-        # 扩展 MetricConfigFields 字段，优先使用 field_config 中的数据
-        self._fill_metric_info_result(orm_field_map, result)
+        # 获取当前 metric 对应的 scope 的 dimension_config
+        dimension_config = {}
+        if scope_map and self.scope_id and self.scope_id in scope_map:
+            scope = scope_map[self.scope_id]
+            dimension_config = scope.dimension_config or {}
 
-        return result
-
-    def _fill_metric_info_result(self, orm_field_map, result):
-        field_config = self.field_config or {}
-        # alias 字段：优先使用 field_config 中的 alias
-        if "alias" in field_config:
-            result["description"] = field_config["alias"]
-        # unit 字段：优先使用 field_config 中的 unit
-        if "unit" in field_config:
-            result["unit"] = field_config["unit"]
-        # 添加其他 MetricConfigFields 字段
-        result["hidden"] = field_config.get("hidden", False)
-        result["aggregate_method"] = field_config.get("aggregate_method", "")
-        result["function"] = field_config.get("function", "")
-        result["interval"] = field_config.get("interval", "")
         # 遍历维度填充维度信息
         for tag in self.tag_list:
             item = {"field_name": tag, "description": ""}
@@ -2337,7 +2288,12 @@ class TimeSeriesMetric(models.Model):
                 item["unit"] = orm_field["unit"]
                 item["type"] = orm_field["field_type"]
 
+            if tag in dimension_config:
+                item["description"] = dimension_config[tag].get("alias", item["description"])
+
             result["tag_list"].append(item)
+
+        return result
 
     @classmethod
     @atomic
