@@ -61,6 +61,7 @@ def direct_query(func, params: dict, start, limit):
     """
     info = []
     total_count = 0
+    got_total_count = False
 
     query_params = copy.deepcopy(params)
 
@@ -70,7 +71,9 @@ def direct_query(func, params: dict, start, limit):
 
         response = func(query_params)
         batch_info = response.get("info", [])
-        total_count = response.get("count", 0)
+        if not got_total_count:
+            total_count = response.get("count", 0)
+            got_total_count = True
 
         if not batch_info:
             break
