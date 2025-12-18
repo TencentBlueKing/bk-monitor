@@ -116,26 +116,20 @@ class SearchIndexSetContextResource(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         index_set_id = serializers.IntegerField(required=True, label="索引集ID")
         size = serializers.IntegerField(required=False, default=50, label="获取条数")
-        zero = serializers.BooleanField(
-            required=True, label="上下文标识，true:获取日志上下文；false：仅获取日志上下文一部分"
-        )
+        zero = serializers.BooleanField(required=True, label="上下文标识")
         begin = serializers.IntegerField(
             required=True,
-            label="偏移数，如：往下滚动10条，则begin的值为10；再继续向下滚动10条，则begin等于20；反之则为对应的负数",
+            label="偏移数",
         )
         dtEventTimeStamp = serializers.CharField(required=True, label="上下文-日志时间")
-        serverIp = serializers.CharField(
-            required=True, label="上下文-日志所属IP（计算平台清洗则为ip，BCS日志则调整为容器ID-container_id）"
-        )
-        path = serializers.CharField(
-            required=False, allow_null=True, allow_blank=True, label="上下文-日志路径（BCS日志为logfile）"
-        )
-        gseIndex = serializers.CharField(required=True, label="上下文-GSE发包序号（计算平台清洗则为gseindex）")
+        serverIp = serializers.CharField(required=True, label="上下文-日志所属IP")
+        path = serializers.CharField(required=False, allow_null=True, allow_blank=True, label="上下文-日志路径")
+        gseIndex = serializers.CharField(required=True, label="上下文-GSE发包序号")
         iterationIndex = serializers.CharField(
             required=False,
             allow_null=True,
             allow_blank=True,
-            label="上下文-GSE包序号（计算平台清洗则为_iteration_idx）",
+            label="上下文-GSE包序号",
         )
 
     def perform_request(self, validated_request_data):
