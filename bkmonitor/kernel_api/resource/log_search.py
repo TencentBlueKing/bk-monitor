@@ -139,7 +139,6 @@ class SearchIndexSetContextResource(Resource):
             validated_request_data.get("bk_biz_id"),
         )
 
-        # 通过 api.log_search 调用，而不是直接实例化 APIResource
         result = api.log_search.search_index_set_context(**validated_request_data)
         return result
 
