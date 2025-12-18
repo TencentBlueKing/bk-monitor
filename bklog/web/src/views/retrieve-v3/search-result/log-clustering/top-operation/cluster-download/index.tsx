@@ -148,7 +148,7 @@ export default defineComponent({
               // 将 remark 对象数组转换为可读的字符串格式
               value = value
                 .map((remark: { create_time: string; username: string; remark: string }) => {
-                  return `[${formatDate(remark.create_time)}] ${remark.username}: ${remark.remark}`;
+                  return `[${remark.create_time}] ${remark.username}: ${remark.remark}`;
                 })
                 .join('\n');
             } else {
