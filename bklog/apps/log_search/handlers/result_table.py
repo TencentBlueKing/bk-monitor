@@ -18,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+from typing import List
 
 from apps.api import BkDataAuthApi, BkLogApi, TransferApi
 from apps.api.modules.utils import (
@@ -46,7 +47,6 @@ from apps.utils.db import array_group
 from apps.utils.local import get_request_username
 from apps.utils.thread import MultiExecuteFunc
 from bkm_space.utils import space_uid_to_bk_biz_id
-import builtins
 
 
 class ResultTableHandler(APIModel):
@@ -190,7 +190,7 @@ class ResultTableHandler(APIModel):
         )
         return index_retrieve
 
-    def adapt(self, basic_indices: builtins.list[str], append_index):
+    def adapt(self, basic_indices: List[str], append_index):
         """
         1、检查两索引字段类型是否一致；
         2、检查两索引时间字段和类型是否一致；
