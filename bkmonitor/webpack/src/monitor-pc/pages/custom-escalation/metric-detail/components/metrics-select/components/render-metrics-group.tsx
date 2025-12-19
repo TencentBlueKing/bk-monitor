@@ -171,14 +171,17 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   //   this.$emit('change', currentSelectedMetricNameList);
   // }
   triggerChange() {
-    const currentSelectedGroupAndMetricNameList = this.cheeckedMap
-      .filter(item => Object.keys(item.metricsCheckMap).length)
-      .map(item => {
-        return {
+    const currentSelectedGroupAndMetricNameList = this.cheeckedMap.reduce((acc, item) => {
+      // metricsCheckMap是否有数据存在
+      if (Object.keys(item.metricsCheckMap).length) {
+        // 有效选中，累加
+        acc.push({
           groupName: item.groupName,
           metricsName: Object.keys(item.metricsCheckMap),
-        };
-      });
+        });
+      }
+      return acc;
+    }, []);
     customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(currentSelectedGroupAndMetricNameList);
   }
 
