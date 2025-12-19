@@ -3,6 +3,7 @@ import logging
 import math
 import time
 import json
+from collections import defaultdict
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -39,6 +40,8 @@ from constants.action import (
     ActionSignal,
     IntervalNotifyMode,
     UserGroupType,
+    VoiceNoticeMode,
+    NoticeWay,
 )
 from constants.alert import EventSeverity, EventStatus, HandleStage
 from core.errors.alarm_backends import LockError
@@ -947,6 +950,56 @@ class CreateActionProcessor:
                 follow_notify_info[notice_way] = valid_receivers
             inputs["notify_info"] = notify_info
             inputs["follow_notify_info"] = follow_notify_info
+
+            voice_notice = (
+                action_config.get("execute_config", {})
+                .get("template_detail", {})
+                .get("voice_notice", VoiceNoticeMode.SERIAL)
+            )
+
+            # 设置语音通知模式
+            inputs["voice_notice_mode"] = voice_notice
+            # 如果告警组语音通知方式为并行，则获取告警组语音通知人
+            if voice_notice == VoiceNoticeMode.PARALLEL:
+                assigned_users = set()
+                voice_notice_group: list[list[str]] = []
+
+                # 语音告警组集合
+                all_voice_notice_groups: list[list[str]] = notify_info.get(
+                    NoticeWay.VOICE, []
+                ) + follow_notify_info.get(NoticeWay.VOICE, [])
+
+                for groups in all_voice_notice_groups:
+                    # 过滤掉已经在其他组中的用户
+                    unique_users = set(user for user in groups if user not in assigned_users)
+                    if not unique_users:
+                        continue
+
+                    voice_notice_group.append(list(unique_users))
+                    assigned_users.update(unique_users)
+
+                mention_users_list = notify_info.pop("wxbot_mention_users", []) + follow_notify_info.pop(
+                    "wxbot_mention_users", []
+                )
+                wxbot_mention_users = defaultdict(list)
+                for mention_users_dict in mention_users_list:
+                    for chat_id, users in mention_users_dict.items():
+                        wxbot_mention_users[chat_id].extend(users)
+                wxbot_mention_users = {chat_id: set(users) for chat_id, users in wxbot_mention_users.items()}
+
+                inputs["notice_way"] = NoticeWay.VOICE
+                inputs["notice_receiver"] = list(assigned_users)
+                inputs["voice_notice_group"] = voice_notice_group
+                inputs["mention_users"] = wxbot_mention_users
+
+                if not voice_notice_group or not voice_notice_group[0]:
+                    # 告警组没有语音通知人，语音通知改为串行
+                    inputs["voice_notice_mode"] = VoiceNoticeMode.SERIAL
+                    logger.warning(f"告警{alert.id}-告警组没有语音通知人，语音通知改为串行")
+                else:
+                    # 并行语音通知不创建子任务，直接执行
+                    is_parent_action = False
+
         try:
             # TODO: 如果有更多的处理场景，需要将二次确认的处理提到更前端
             DoubleCheckHandler(alert).handle(inputs)

@@ -52,6 +52,7 @@ from constants.action import (
     NoticeType,
     NoticeWay,
     NotifyStep,
+    VoiceNoticeMode,
 )
 
 from .utils import (
@@ -128,6 +129,8 @@ class BaseActionProcessor:
         self.notice_receivers = (
             self.notice_receivers if isinstance(self.notice_receivers, list) else [self.notice_receivers]
         )
+        self.voice_notice_mode = self.action.inputs.get("voice_notice_mode", VoiceNoticeMode.SERIAL)
+        self.voice_notice_group = self.action.inputs.get("voice_notice_group", [[]])
         self.notice_way_display = get_notice_display_mapping(self.context.get("notice_way", ""))
         self.is_finished = self.action.status in ActionStatus.END_STATUS
 
@@ -570,6 +573,8 @@ class BaseActionProcessor:
         wxbot_mention_users = notify_info.pop("wxbot_mention_users", [])
         if wxbot_mention_users:
             wxbot_mention_users = wxbot_mention_users[0]
+
+        voice_notify_sender = None
         for notice_way, notice_receivers in notify_info.items():
             try:
                 channel, notice_way = notice_way.split("|")
@@ -601,15 +606,28 @@ class BaseActionProcessor:
                     )
                 )
                 continue
-            for notice_receiver in notice_receivers:
-                # 当为电话通知的时候，直接打电话
-                notice_result[notice_way].append(
-                    notify_sender.send(
-                        notice_way,
-                        notice_receivers=notice_receiver,
+
+            voice_notify_sender = notify_sender
+
+        # 发送语音通知
+        if voice_notify_sender:
+            notice_receivers: list[list[str]] = (
+                self.voice_notice_group
+                if self.voice_notice_mode == VoiceNoticeMode.PARALLEL
+                else [self.notice_receivers]
+            )
+
+            for receiver in notice_receivers:
+                if not receiver:
+                    continue
+                notice_result[NoticeWay.VOICE].append(
+                    voice_notify_sender.send(
+                        NoticeWay.VOICE,
+                        notice_receivers=receiver,
                         action_plugin=self.action.action_plugin["plugin_type"],
                     )
                 )
+
         return {notify_step: notice_result}
 
     def no_need_notify(self, notify_step=NotifyStep.BEGIN):

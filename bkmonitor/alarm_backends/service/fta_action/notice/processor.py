@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import copy
 import json
 import logging
 import random
@@ -27,13 +28,7 @@ from alarm_backends.service.fta_action import ActionAlreadyFinishedError
 from alarm_backends.service.fta_action.common import BaseActionProcessor
 from bkmonitor.models import ActionInstance
 from bkmonitor.utils.send import Sender
-from constants.action import (
-    ActionSignal,
-    ActionStatus,
-    FailureType,
-    IntervalNotifyMode,
-    NoticeWay,
-)
+from constants.action import ActionSignal, ActionStatus, FailureType, IntervalNotifyMode, NoticeWay, VoiceNoticeMode
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("fta_action.run")
@@ -218,11 +213,35 @@ class ActionProcessor(BaseActionProcessor):
         )
 
         need_send, collect_action_id = self.need_send_notice(self.notice_way)
+        notice_results = {}
         if need_send:
-            notice_results = notify_sender.send(
-                self.notice_way,
-                notice_receivers=self.notice_receivers,
+            notice_receivers: list[list[str]] = (
+                self.voice_notice_group
+                if self.voice_notice_mode == VoiceNoticeMode.PARALLEL
+                else [self.notice_receivers]
             )
+            for receiver in notice_receivers:
+                if not receiver:
+                    continue
+
+                result = notify_sender.send(
+                    self.notice_way,
+                    notice_receivers=receiver,
+                )
+                notice_results.update(result)
+
+        elif self.voice_notice_mode == VoiceNoticeMode.PARALLEL:
+            for group in self.voice_notice_group:
+                result = {
+                    ",".join(group): {
+                        "result": False,
+                        "failure_type": FailureType.SYSTEM_ABORT,
+                        "message": _(
+                            "语音告警告被通知套餐（{}）防御收敛，防御原因：相同通知组在两分钟内同维度告警只能接收一次电话告警"
+                        ).format(collect_action_id),
+                    }
+                }
+                notice_results.update(result)
         else:
             notice_results = {
                 ",".join(self.notice_receivers): {
@@ -312,10 +331,23 @@ class ActionProcessor(BaseActionProcessor):
         }
         client = NOTICE_VOICE_COLLECT_KEY.client
 
-        labels["receiver"] = self.notice_receivers
-        collect_key = NOTICE_VOICE_COLLECT_KEY.get_key(**labels)
+        notice_receivers: list[list[str]] = (
+            self.voice_notice_group if self.voice_notice_mode == VoiceNoticeMode.PARALLEL else [self.notice_receivers]
+        )
 
-        if client.set(collect_key, self.action.es_action_id, ex=NOTICE_VOICE_COLLECT_KEY.ttl, nx=True):
+        for receiver in notice_receivers:
+            if not receiver:
+                continue
+
+            labels_temp = copy.deepcopy(labels)
+            # 排序保证顺序一致
+            receiver = sorted(receiver)
+            labels_temp["receiver"] = receiver
+            collect_key = NOTICE_VOICE_COLLECT_KEY.get_key(**labels_temp)
+
+            if not client.set(collect_key, self.action.es_action_id, ex=NOTICE_VOICE_COLLECT_KEY.ttl, nx=True):
+                break
+        else:
             return True, None
 
         collect_action_id = client.get(collect_key)
