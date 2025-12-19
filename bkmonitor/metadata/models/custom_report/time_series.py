@@ -2399,7 +2399,7 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def _batch_update_metrics(cls, metrics_to_update, scopes_dict):
-        updatable_fields = ["field_config", "label", "tag_list"]
+        updatable_fields = ["field_config", "label", "tag_list", "scope_id"]
         records_to_update = []
         scope_moves = defaultdict(list)
 
@@ -2412,6 +2412,13 @@ class TimeSeriesMetric(models.Model):
             for field in updatable_fields:
                 if field in validated_request_data:
                     setattr(metric, field, validated_request_data[field])
+
+            # 如果 field_config 中 disabled 为 true，将 scope_id 置为 0
+            field_config = validated_request_data.get("field_config") or metric.field_config or {}
+            if field_config.get("disabled", False):
+                metric.scope_id = 0
+                records_to_update.append(metric)
+                continue
 
             records_to_update.append(metric)
 
