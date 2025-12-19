@@ -16,7 +16,7 @@ from django.utils.translation import gettext_lazy as _
 from core.drf_resource import api
 
 from monitor_web.custom_report.handlers.metric.base import VALUE_UNSET, BaseUnsetDTO
-from monitor_web.custom_report.constants import ScopeCreateFrom
+from monitor_web.custom_report.constants import ScopeCreateFrom, DEFAULT_FIELD_SCOPE
 
 
 class BaseQueryConverter:
@@ -248,11 +248,13 @@ class MetricCURequestDTO(BaseUnsetDTO):
     dimensions: list[str] = field(default=VALUE_UNSET)
     config: MetricConfigRequestDTO = field(default=VALUE_UNSET)
     label: str = field(default=VALUE_UNSET)
+    field_scope: str = field(default=DEFAULT_FIELD_SCOPE)  # 创建时有效
 
     LOCAL_TO_REMOTE_MAP: ClassVar[dict[str, str]] = {
         "name": "field_name",
         "dimensions": "tag_list",
         "label": "label",
+        "field_scope": "field_scope",
     }
 
     def __post_init__(self):
@@ -264,6 +266,7 @@ class MetricCURequestDTO(BaseUnsetDTO):
     def to_request_dict(self) -> dict[str, Any]:
         metric_dict = super()._get_remote_dict()
         metric_dict["scope_id"] = self.scope.id
+        metric_dict["field_scope"] = self.field_scope
         if self.id is not None:
             metric_dict["field_id"] = self.id
         if getattr(self, "config", None) is not VALUE_UNSET:

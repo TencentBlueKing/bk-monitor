@@ -12,6 +12,7 @@ from typing import Any
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
+from monitor_web.custom_report.constants import DEFAULT_FIELD_SCOPE
 from monitor_web.models.custom_report import CustomTSTable
 
 
@@ -125,6 +126,7 @@ class MetricResponseSerializer(serializers.Serializer):
     name = serializers.CharField(label=_("指标名称"))
     dimensions = serializers.ListField(label=_("维度列表"), child=serializers.CharField(), default=list)
     config = MetricConfigResponseSerializer(label=_("指标配置"))
+    field_scope = serializers.CharField(label=_("数据分组"), default=DEFAULT_FIELD_SCOPE)
     create_time = serializers.FloatField(label=_("创建时间"))
     update_time = serializers.FloatField(label=_("更新时间"))
 

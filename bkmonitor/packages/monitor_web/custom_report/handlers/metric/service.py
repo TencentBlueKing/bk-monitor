@@ -60,11 +60,13 @@ class ModifyMetric(BaseUnsetDTO):
     config: ModifyMetricConfig = field(default=VALUE_UNSET)
     name: str = field(default=VALUE_UNSET)
     dimensions: list[str] = field(default=VALUE_UNSET)
+    field_scope: str = field(default=DEFAULT_FIELD_SCOPE)
 
     LOCAL_TO_REMOTE_MAP: ClassVar[dict[str, str]] = {
         "id": "id",
         "name": "name",
         "dimensions": "dimensions",
+        "field_scope": "field_scope",
     }
 
     def __post_init__(self):

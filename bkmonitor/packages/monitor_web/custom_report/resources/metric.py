@@ -1048,23 +1048,12 @@ class ImportCustomTimeSeriesFields(Resource):
     导入自定义时序字段信息
     """
 
-    class RequestSerializer(serializers.Serializer):
-        bk_biz_id = serializers.IntegerField(label=_("业务 ID"))
-        time_series_group_id = serializers.IntegerField(label=_("自定义时序 ID"))
+    class RequestSerializer(BaseCustomTSSerializer):
         scopes = serializers.ListField(label=_("分组列表"), child=ImportExportScopeSerializer())
 
     def perform_request(self, params: dict[str, Any]):
         return
-        bk_biz_id: int = params["bk_biz_id"]
         time_series_group_id: int = params["time_series_group_id"]
-        # 获取自定义时序表
-        ts_table = CustomTSTable.objects.get(
-            time_series_group_id=time_series_group_id,
-            bk_biz_id=bk_biz_id,
-        )
-        if not ts_table:
-            raise ValidationError(f"custom time series table not found, time_series_group_id: {time_series_group_id}")
-
         converter = ScopeQueryConverter(time_series_group_id=time_series_group_id)
 
         # 导入分组
