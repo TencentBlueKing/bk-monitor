@@ -2408,7 +2408,9 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def _batch_update_metrics(cls, metrics_to_update, scopes_dict):
-        updatable_fields = ["field_config", "label", "tag_list", "scope_id"]
+        updatable_fields = ["field_config", "label", "tag_list"]
+        # bulk_update 需要包含 scope_id，因为指标 disabled 时会更新
+        bulk_update_fields = updatable_fields + ["scope_id"]
         records_to_update = []
         scope_moves = defaultdict(list)
 
@@ -2417,12 +2419,12 @@ class TimeSeriesMetric(models.Model):
             original_tag_list = metric.tag_list or []
             original_scope_id = metric.scope_id
 
-            # 统一更新字段值（无论scope是否变化）
+            # 统一更新字段值 updatable_fields
             for field in updatable_fields:
                 if field in validated_request_data:
                     setattr(metric, field, validated_request_data[field])
 
-            # 如果 field_config 中 disabled 为 true，将 scope_id 置为 DISABLE_SCOPE_ID
+            # 如果 field_config 中 disabled 为 true，将 scope_id 置为 DISABLE_SCOPE_ID, 并跳过维度配置更新
             field_config = validated_request_data.get("field_config") or metric.field_config or {}
             if field_config.get("disabled", False):
                 metric.scope_id = cls.DISABLE_SCOPE_ID
@@ -2447,7 +2449,7 @@ class TimeSeriesMetric(models.Model):
 
         # 批量更新所有指标的字段
         if records_to_update:
-            cls.objects.bulk_update(records_to_update, updatable_fields, batch_size=BULK_UPDATE_BATCH_SIZE)
+            cls.objects.bulk_update(records_to_update, bulk_update_fields, batch_size=BULK_UPDATE_BATCH_SIZE)
 
         TimeSeriesScope.update_dimension_config_and_metrics_scope_id(scope_moves=scope_moves)
 
