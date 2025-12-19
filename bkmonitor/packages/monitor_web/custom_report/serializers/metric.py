@@ -57,7 +57,7 @@ class BaseCustomTSSerializer(serializers.Serializer):
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         bk_biz_id: int = attrs["bk_biz_id"]
         time_series_group_id: int = attrs["time_series_group_id"]
-        if not CustomTSTable.objects.filter(bk_biz_id=bk_biz_id, time_series_group_id=time_series_group_id).first():
+        if not CustomTSTable.objects.filter(bk_biz_id=bk_biz_id, time_series_group_id=time_series_group_id).exists():
             raise serializers.ValidationError(
                 _("自定义时序表不存在, bk_biz_id: {bk_biz_id}, time_series_group_id: {time_series_group_id}")
             )
