@@ -51,7 +51,7 @@ from metadata.models.space.constants import (
     SYSTEM_BASE_DATA_ETL_CONFIGS,
 )
 from metadata.utils.redis_tools import RedisTools
-from apm.models import ApmApplication
+from apm.models import ApmApplication, TraceDataSource, MetricDataSource, LogDataSource, ProfileDataSource
 from monitor_web.models.custom_report import CustomEventGroup
 
 
@@ -604,20 +604,29 @@ def get_datalink_status_by_scene(
 
         # 查询 APM 应用
         try:
-            application = ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+            application = ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name, bk_tenant_id=bk_tenant_id)
         except ApmApplication.DoesNotExist:
             raise ValueError(f"APM应用不存在: {app_name}")
 
+        # 使能开关对应的数据源模型
+        datasource_models = [
+            (application.is_enabled_trace, TraceDataSource),
+            (application.is_enabled_metric, MetricDataSource),
+            (application.is_enabled_log, LogDataSource),
+            (application.is_enabled_profiling, ProfileDataSource),
+        ]
+
         # 收集所有启用的数据源ID
         bk_data_ids = []
-        if application.is_enabled_trace and application.trace_datasource:
-            bk_data_ids.append(application.trace_datasource.bk_data_id)
-        if application.is_enabled_metric and application.metric_datasource:
-            bk_data_ids.append(application.metric_datasource.bk_data_id)
-        if application.is_enabled_log and application.log_datasource:
-            bk_data_ids.append(application.log_datasource.bk_data_id)
-        if application.is_enabled_profiling and application.profile_datasource:
-            bk_data_ids.append(application.profile_datasource.bk_data_id)
+        for is_enabled, model_class in datasource_models:
+            if is_enabled:
+                data_id = (
+                    model_class.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name)
+                    .values_list("bk_data_id", flat=True)
+                    .first()
+                )
+                if data_id:
+                    bk_data_ids.append(data_id)
 
         if not bk_data_ids:
             # 应用存在但没有启用任何数据源
@@ -652,18 +661,19 @@ def get_datalink_status_by_scene(
     elif scene == DataScene.LOG:
         # 日志场景：从 ResultTable 中查询业务下所有日志类型的结果表
         # 日志表的特征 data_label 包含 "log"
-        result_tables = ResultTable.objects.filter(
-            bk_tenant_id=bk_tenant_id,
-            table_id__startswith=f"{bk_biz_id}_",
-            data_label__icontains="log",
+        table_ids = list(
+            ResultTable.objects.filter(
+                bk_tenant_id=bk_tenant_id,
+                table_id__startswith=f"{bk_biz_id}_",
+                data_label__icontains="log",
+            ).values_list("table_id", flat=True)
         )
 
-        if not result_tables.exists():
+        if not table_ids:
             # 没有日志结果表，返回空结果
             return []
 
         # 获取这些结果表对应的数据源ID
-        table_ids = [rt.table_id for rt in result_tables]
         data_source_ids = (
             DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=table_ids)
             .values_list("bk_data_id", flat=True)
