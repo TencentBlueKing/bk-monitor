@@ -777,6 +777,15 @@ class TimeSeriesGroup(CustomGroupBase):
         if metric_group_dimensions:
             custom_group.metric_group_dimensions = metric_group_dimensions
             custom_group.save()
+        else:
+            # 如果不存在 metric_group_dimensions，则创建默认的 scope 记录
+            TimeSeriesScope.objects.create(
+                group_id=custom_group.time_series_group_id,
+                scope_name=TimeSeriesMetric.DEFAULT_DATA_SCOPE_NAME,
+                dimension_config={},
+                auto_rules=[],
+                create_from=TimeSeriesScope.CREATE_FROM_DEFAULT,
+            )
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def modify_time_series_group(
