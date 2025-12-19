@@ -14,6 +14,7 @@ import logging
 import tempfile
 import time
 import uuid
+from collections import defaultdict
 from itertools import chain
 from typing import Any
 
@@ -1547,31 +1548,37 @@ class QueryTimeSeriesScopeResource(Resource):
         return results
 
     def _build_grouped_results(self, query_set):
-        results = []
-        for scope in query_set:
-            # 根据 scope_id 从 metric 表获取所有指标配置
-            all_metrics = list(models.TimeSeriesMetric.objects.filter(group_id=scope.group_id, scope_id=scope.id))
-            metric_list = self._convert_metrics_to_list(all_metrics)
+        scopes = list(query_set)
+        if not scopes:
+            return []
 
-            results.append(
-                {
-                    "scope_id": scope.id,
-                    "group_id": scope.group_id,
-                    "scope_name": scope.scope_name,
-                    "dimension_config": scope.dimension_config or {},
-                    "auto_rules": scope.auto_rules,
-                    "metric_list": metric_list,
-                    "create_from": scope.create_from,
-                }
-            )
-        return results
+        scope_ids = [scope.id for scope in scopes]
+        all_metrics = models.TimeSeriesMetric.objects.filter(
+            group_id__in={scope.group_id for scope in scopes}, scope_id__in=scope_ids
+        )
+
+        metrics_by_scope = defaultdict(list)
+        for metric in all_metrics:
+            metrics_by_scope[(metric.group_id, metric.scope_id)].append(metric)
+
+        return [
+            {
+                "scope_id": scope.id,
+                "group_id": scope.group_id,
+                "scope_name": scope.scope_name,
+                "dimension_config": scope.dimension_config or {},
+                "auto_rules": scope.auto_rules,
+                "metric_list": self._convert_metrics_to_list(metrics_by_scope[(scope.group_id, scope.id)]),
+                "create_from": scope.create_from,
+            }
+            for scope in scopes
+        ]
 
     @staticmethod
     def _convert_metrics_to_list(metrics):
         """将指标对象列表转换为字典列表"""
-        metric_list = []
-        for metric in metrics:
-            metric_info = {
+        return [
+            {
                 "metric_name": metric.field_name,
                 "field_id": metric.field_id,
                 "field_scope": metric.field_scope,
@@ -1580,9 +1587,8 @@ class QueryTimeSeriesScopeResource(Resource):
                 "create_time": metric.create_time.timestamp() if metric.create_time else None,
                 "last_modify_time": metric.last_modify_time.timestamp() if metric.last_modify_time else None,
             }
-            metric_list.append(metric_info)
-
-        return metric_list
+            for metric in metrics
+        ]
 
 
 class QueryBCSMetricsResource(Resource):
