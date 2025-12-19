@@ -1181,15 +1181,12 @@ class TimeSeriesScope(models.Model):
             if not moved_metrics:
                 continue
 
-            # 过滤掉禁用的指标，只处理启用的指标
+            # 过滤禁用的指标：禁用的指标只更新 scope_id，不参与维度配置迁移
             enabled_metrics = [
                 metric for metric in moved_metrics if not (metric.field_config or {}).get("disabled", False)
             ]
 
-            if not enabled_metrics:
-                continue
-
-            # 1. 收集被移动指标的所有维度
+            # 1. 收集启用指标的所有维度（禁用指标不参与维度配置迁移）
             moved_dimensions = {dim for metric in enabled_metrics if metric.tag_list for dim in metric.tag_list}
 
             # 2. 构建维度配置：从源分组提取或创建空配置
@@ -1197,9 +1194,9 @@ class TimeSeriesScope(models.Model):
             moved_config = {dim: source_config.get(dim, {}) for dim in moved_dimensions}
 
             # 3. 更新指标的 scope_id
-            for metric in enabled_metrics:
+            for metric in moved_metrics:
                 metric.scope_id = sink_scope.id
-            all_metrics_to_update.extend(enabled_metrics)
+            all_metrics_to_update.extend(moved_metrics)
 
             # 4. 合并维度配置到目标分组（增量保存）
             sink_scope.dimension_config = {**(sink_scope.dimension_config or {}), **moved_config}
