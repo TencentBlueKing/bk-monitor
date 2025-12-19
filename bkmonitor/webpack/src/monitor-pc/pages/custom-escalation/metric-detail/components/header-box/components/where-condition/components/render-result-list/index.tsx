@@ -100,13 +100,17 @@ export default class ValueTag extends tsc<IProps, IEmit> {
       }
     }
 
-    // 如果选择了不同分组下的指标，则别名不显示，使用name作用显示名称
-    if (this.currentSelectedGroupAndMetricNameList.length > 1) {
-      commonDimensionList = commonDimensionList.map(item => ({
-        ...item,
-        alias: '',
-      }));
-    }
+    /**
+     * name同名，优先使用alias不为空的
+     * alias都不为空或者部分为空，保留最后一个
+     */
+    // 根据 name 分组
+    const groupedUsers = _.groupBy(commonDimensionList, 'name');
+    commonDimensionList = Object.values(groupedUsers).map((group: { alias: string; name: string }[]) => {
+      // 获取所有 alias 不为空的对象
+      const nonEmptyAliasUsers = group.filter(user => user.alias !== '');
+      return nonEmptyAliasUsers.length > 0 ? nonEmptyAliasUsers[nonEmptyAliasUsers.length - 1] : group[0];
+    });
 
     const nextMetricsList: IMetrics[] = [];
 
