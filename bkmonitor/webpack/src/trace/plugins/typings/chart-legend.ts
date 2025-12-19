@@ -29,6 +29,9 @@ export interface ILegendItem {
   avgSource?: number;
   borderColor?: string;
   color: string;
+  // 禁用图例点击事件
+  disabledLegend?: boolean;
+  extCls?: string;
   hidden?: boolean;
   max?: number | string;
   maxSource?: number;

@@ -26,7 +26,8 @@
 
 import { type ShallowRef, shallowRef, watch } from 'vue';
 
-import type { ILegendItem, LegendActionType, ValueFormatter } from './types';
+import type { ValueFormatter } from './types';
+import type { ILegendItem, LegendActionType } from '@/plugins/typings';
 
 export const useChartLegend = (options: ShallowRef<any, any>, chartId: ShallowRef<string, string>) => {
   const legendData = shallowRef([]);
@@ -51,6 +52,8 @@ export const useChartLegend = (options: ShallowRef<any, any>, chartId: ShallowRe
         avgSource: 0,
         totalSource: 0,
         metricField: seriesItem.metric_field,
+        extCls: seriesItem.extCls,
+        disabledLegend: seriesItem.disabledLegend || false,
       };
       for (const dataValue of seriesItem.data) {
         const y = dataValue.value;
@@ -119,6 +122,7 @@ export const useChartLegend = (options: ShallowRef<any, any>, chartId: ShallowRe
   }
 
   function handleSelectLegend({ actionType, item }: { actionType: LegendActionType; item: ILegendItem }) {
+    if (item.disabledLegend) return;
     if (legendData.value.length < 2) {
       return;
     }
@@ -140,7 +144,7 @@ export const useChartLegend = (options: ShallowRef<any, any>, chartId: ShallowRe
         if (l.name === item.name) {
           return {
             ...l,
-            show: !l.show,
+            show: l.disabledLegend || !l.show,
           };
         }
         return l;
@@ -149,11 +153,11 @@ export const useChartLegend = (options: ShallowRef<any, any>, chartId: ShallowRe
     } else if (actionType === 'click') {
       const hasOtherShow = legendData.value
         .filter(item => !item.hidden)
-        .some(set => set.name !== item.name && set.show);
+        .some(set => set.name !== item.name && set.show && !set.disabledLegend);
       legendData.value = legendData.value.map(l => {
         return {
           ...l,
-          show: l.name === item.name || !hasOtherShow,
+          show: l.disabledLegend || l.name === item.name || !hasOtherShow,
         };
       });
       setSeriesFilter();
