@@ -98,8 +98,11 @@ class RedirectDashboardView(ProxyView):
             return redirect(route_path + f"?orgName={org_name}&bizId={org_name}")
 
         route_path = f"#{route_path}"
-        # 透传仪表盘参数
-        params = {k: v for k, v in request.GET.items() if k.startswith("var-")}
+        # 透传仪表盘参数，包括两部分：
+        # - 自定义变量参数：以 var- 开头。
+        # - 内置参数：builtin_param_names。
+        builtin_param_names: list[str] = ["from", "to", "viewPanel"]
+        params = {k: v for k, v in request.GET.items() if k.startswith("var-") or k in builtin_param_names}
         params["bizId"] = org_name
         redirect_url = "/?{params}{route_path}"
         return redirect(redirect_url.format(params=urlencode(params), route_path=route_path))
