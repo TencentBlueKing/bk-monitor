@@ -60,7 +60,7 @@ from monitor_web.custom_report.handlers.metric.query import (
     ScopeQueryConverter,
     ScopeQueryResponseDTO,
     ScopeCURequestDTO,
-    DimensionConfigRequestDTO,
+    ScopeQueryMetricResponseDTO,
 )
 from monitor_web.custom_report.handlers.metric.service import (
     FieldsModifyService,
@@ -1052,33 +1052,74 @@ class ImportCustomTimeSeriesFields(Resource):
         scopes = serializers.ListField(label=_("分组列表"), child=ImportExportScopeSerializer())
 
     def perform_request(self, params: dict[str, Any]):
-        return
         time_series_group_id: int = params["time_series_group_id"]
         converter = ScopeQueryConverter(time_series_group_id=time_series_group_id)
+        origin_scopes = converter.query_time_series_scope()
+
+        # 构建已有数据的数据结构
+        scope_name_id_map: dict[str, int] = {}
+        metric_obj_map: dict[tuple[str, str], ScopeQueryMetricResponseDTO] = {}
+        metric_scope_id_map: dict[tuple[str, str], int] = {}
+        for scope_obj in origin_scopes:
+            scope_name_id_map[scope_obj.name] = scope_obj.id
+            for metric_obj in scope_obj.metric_list:
+                map_key = (metric_obj.field_scope, metric_obj.name)
+                metric_obj_map[map_key] = metric_obj
+                metric_scope_id_map[map_key] = scope_obj.id
 
         # 导入分组
-        origin_scopes = converter.query_time_series_scope()
-        scope_obj_by_name = {scope_obj.name: scope_obj for scope_obj in origin_scopes}
         scope_request_dto_list: list[ScopeCURequestDTO] = []
         for scope_dict in params["scopes"]:
             scope_name = scope_dict["name"]
-            scope_obj = scope_obj_by_name.get(scope_name)
-            dimension_config: dict[str, DimensionConfigRequestDTO] = {
-                dimension_name: DimensionConfigRequestDTO(**dimension_config)
-                for dimension_name, dimension_config in scope_dict["dimension_config"]
-            }
+            scope_id = scope_name_id_map.get(scope_name)
             scope_cu_obj = ScopeCURequestDTO(
-                id=scope_obj.id if scope_obj else None,
+                id=scope_id,
                 name=scope_name,
-                dimension_config=dimension_config,
-                auto_rules=scope_obj.auto_rules if scope_obj else [],
+                auto_rules=scope_dict["auto_rules"],
             )
             scope_request_dto_list.append(scope_cu_obj)
-        converter.create_or_update_time_series_scope(scope_request_dto_list)
+        create_scope_objs = converter.create_or_update_time_series_scope(scope_request_dto_list)
 
-        # 导入指标
-        update_scopes = converter.query_time_series_scope()
-        scope_obj_by_name = {scope_obj.name: scope_obj for scope_obj in update_scopes}
+        # 补充新创建的分组数据结构
+        for scope_obj in create_scope_objs:
+            scope_name_id_map[scope_obj.name] = scope_obj.id
+
+        # 字段修改
+        field_modify_service = FieldsModifyService(time_series_group_id=time_series_group_id)
+        for scope_dict in params["scopes"]:
+            scope_name = scope_dict["name"]
+            scope_id = scope_name_id_map[scope_name]
+            for metric_dict in scope_dict["metric_list"]:
+                field_scope = metric_dict["field_scope"]
+                metric_name = metric_dict["name"]
+                map_key = (field_scope, metric_name)
+                metric_obj = metric_obj_map.get(map_key)
+                modify_scope_id = scope_id
+                # 如果 field_scope 不是 default 的话不支持新建
+                if field_scope != DEFAULT_FIELD_SCOPE:
+                    if not metric_obj:
+                        continue
+                    modify_scope_id = metric_scope_id_map[map_key]
+                metric_id: int | None = metric_obj and metric_obj.id
+                field_modify_service.add_metric(
+                    ModifyMetric(
+                        id=metric_id,
+                        scope_id=modify_scope_id,
+                        config=ModifyMetricConfig.from_dict(metric_dict["config"]),
+                        name=metric_name,
+                        dimensions=metric_dict["dimensions"],
+                        field_scope=field_scope,
+                    )
+                )
+            for dimension_name, config_dict in scope_dict["dimension_config"].items():
+                field_modify_service.add_dimension(
+                    ModifyDimension(
+                        scope_id=scope_id,
+                        name=dimension_name,
+                        config=ModifyDimensionConfig.from_dict(config_dict),
+                    )
+                )
+        field_modify_service.apply_change()
 
 
 class ExportCustomTimeSeriesFields(Resource):

@@ -132,6 +132,12 @@ class MetricResponseSerializer(serializers.Serializer):
 
 
 class ImportExportScopeSerializer(serializers.Serializer):
+    class ImportExportMetricSerializer(serializers.Serializer):
+        name = serializers.CharField(label=_("指标名称"))
+        field_scope = serializers.CharField(label=_("数据分组"), default=DEFAULT_FIELD_SCOPE)
+        dimensions = serializers.ListField(label=_("维度列表"), child=serializers.CharField(), default=list)
+        config = MetricConfigResponseSerializer(label=_("指标配置"))
+
     name = serializers.CharField(label=_("分组名称"), allow_blank=True)
     dimension_config = serializers.DictField(
         label=_("维度配置"), child=DimensionConfigResponseSerializer(), default=dict
@@ -139,4 +145,4 @@ class ImportExportScopeSerializer(serializers.Serializer):
     auto_rules = serializers.ListField(
         label=_("自动分组的匹配规则列表"), child=serializers.CharField(allow_blank=True), default=list
     )
-    metric_list = serializers.ListField(label=_("关联指标"), child=MetricResponseSerializer(), default=list)
+    metric_list = serializers.ListField(label=_("关联指标"), child=ImportExportMetricSerializer(), default=list)
