@@ -56,6 +56,10 @@ export default class ValueTag extends tsc<IProps, IEmit> {
     return customEscalationViewStore.currentSelectedMetricList;
   }
 
+  get currentSelectedGroupAndMetricNameList() {
+    return customEscalationViewStore.currentSelectedGroupAndMetricNameList;
+  }
+
   get dimensionAliasNameMap() {
     return customEscalationViewStore.dimensionAliasNameMap;
   }
@@ -84,7 +88,7 @@ export default class ValueTag extends tsc<IProps, IEmit> {
       }
     }
 
-    const commonDimensionList: IMetrics['dimensions'] = [];
+    let commonDimensionList: IMetrics['dimensions'] = [];
     const otherDimensionList: IMetrics['dimensions'] = [];
     for (const metricsItem of this.currentSelectedMetricList) {
       for (const dimensionItem of metricsItem.dimensions) {
@@ -95,6 +99,18 @@ export default class ValueTag extends tsc<IProps, IEmit> {
         otherDimensionList.push(dimensionItem);
       }
     }
+
+    /**
+     * name同名，优先使用alias不为空的
+     * alias都不为空或者部分为空，保留最后一个
+     */
+    // 根据 name 分组
+    const groupedUsers = _.groupBy(commonDimensionList, 'name');
+    commonDimensionList = Object.values(groupedUsers).map((group: { alias: string; name: string }[]) => {
+      // 获取所有 alias 不为空的对象
+      const nonEmptyAliasUsers = group.filter(user => user.alias !== '');
+      return nonEmptyAliasUsers.length > 0 ? nonEmptyAliasUsers[nonEmptyAliasUsers.length - 1] : group[0];
+    });
 
     const nextMetricsList: IMetrics[] = [];
 
