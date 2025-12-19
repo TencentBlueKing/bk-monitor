@@ -1284,7 +1284,11 @@ class TimeSeriesScope(models.Model):
         scope_id_to_name = {scope.id: scope.scope_name for scope in all_scopes}
 
         existing_metric_scope_map = {
-            (metric["field_name"], metric["field_scope"]): scope_id_to_name.get(metric["scope_id"])
+            (metric["field_name"], metric["field_scope"]): (
+                None
+                if metric["scope_id"] == TimeSeriesMetric.DISABLE_SCOPE_ID
+                else scope_id_to_name.get(metric["scope_id"])
+            )
             for metric in existing_metrics
         }
 
@@ -1301,6 +1305,7 @@ class TimeSeriesScope(models.Model):
             tag_list = metric_info.get("tag_value_list") or metric_info.get("tag_list") or {}
 
             scope_name = existing_metric_scope_map.get((field_name, field_scope))
+            # 对 scope_id 为 DISABLE_SCOPE_ID 的记录（disabled 指标），需要通过 _determine_scope_name_for_new_metric 找到 scope_name
             if not scope_name:
                 scope_name, create_from_default = cls._determine_scope_name_for_new_metric(
                     field_name,
@@ -1752,6 +1757,7 @@ class TimeSeriesMetric(models.Model):
     TARGET_DIMENSION_NAME = "target"
 
     DEFAULT_DATA_SCOPE_NAME = "default"  # 默认分组
+    DISABLE_SCOPE_ID = 0  # 禁用分组的 id，实际上不存在该分组记录
 
     ORM_FIELD_NAMES = (
         "table_id",
@@ -1963,6 +1969,12 @@ class TimeSeriesMetric(models.Model):
                 is_need_update = True
                 obj.tag_list = tag_list
 
+            # 如果指标从 disabled 状态恢复，需要更新 scope_id 和清空 field_config
+            if obj.scope_id == cls.DISABLE_SCOPE_ID:
+                is_need_update = True
+                obj.scope_id = metric_info.get("scope_id")
+                obj.field_config = {}
+
             if is_need_update:
                 records.append(obj)
 
@@ -1972,7 +1984,9 @@ class TimeSeriesMetric(models.Model):
         logger.info("white list disabled metric: %s, group_id: %s", json.dumps(white_list_disabled_metric), group_id)
 
         # 批量更新指定的字段
-        cls.objects.bulk_update(records, ["last_modify_time", "tag_list"], batch_size=BULK_UPDATE_BATCH_SIZE)
+        cls.objects.bulk_update(
+            records, ["last_modify_time", "tag_list", "scope_id", "field_config"], batch_size=BULK_UPDATE_BATCH_SIZE
+        )
         return need_push_router
 
     @classmethod
@@ -2413,10 +2427,10 @@ class TimeSeriesMetric(models.Model):
                 if field in validated_request_data:
                     setattr(metric, field, validated_request_data[field])
 
-            # 如果 field_config 中 disabled 为 true，将 scope_id 置为 0
+            # 如果 field_config 中 disabled 为 true，将 scope_id 置为 DISABLE_SCOPE_ID
             field_config = validated_request_data.get("field_config") or metric.field_config or {}
             if field_config.get("disabled", False):
-                metric.scope_id = 0
+                metric.scope_id = cls.DISABLE_SCOPE_ID
                 records_to_update.append(metric)
                 continue
 
