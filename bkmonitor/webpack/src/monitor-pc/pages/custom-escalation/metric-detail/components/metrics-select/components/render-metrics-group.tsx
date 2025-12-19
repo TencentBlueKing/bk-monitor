@@ -359,7 +359,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
           >
             {groupItem.metrics.map(metricsItem => (
               <RenderMetric
-                key={metricsItem.metric_name}
+                key={`${metricsItem.field_id}-${metricsItem.metric_name}`}
                 checked={targetData?.metricsCheckMap[metricsItem.metric_name] || false}
                 data={metricsItem}
                 scopeId={groupItem.scope_id}
