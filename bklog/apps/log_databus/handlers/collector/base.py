@@ -799,7 +799,7 @@ class CollectorHandler:
 
             # 处理单独查询结果
             for table_id, response in single_response.items():
-                if response and response.get(table_id):
+                if response and isinstance(response, dict) and response.get(table_id):
                     # 单个重试成功
                     cluster_infos[table_id] = response[table_id]
 
