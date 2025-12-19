@@ -2444,7 +2444,7 @@ class TimeSeriesMetric(models.Model):
 
             # 如果 scope 发生变化或者 tag_list 发生变化，记录需要移动的指标
             if scope_changed or tag_list_changed:
-                source_scope = scopes_dict.get(original_scope_id)
+                source_scope = None if original_scope_id == cls.DISABLE_SCOPE_ID else scopes_dict.get(original_scope_id)
                 scope_moves[(source_scope, new_scope)].append(metric)
 
         # 批量更新所有指标的字段
