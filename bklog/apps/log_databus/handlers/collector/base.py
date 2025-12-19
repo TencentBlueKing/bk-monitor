@@ -725,8 +725,8 @@ class CollectorHandler:
     @caches_one_hour(key=CACHE_KEY_CLUSTER_INFO, need_deconstruction_name="result_table_list", need_md5=True)
     def bulk_cluster_infos(result_table_list: list):
         """
-        批量获取集群信息，单个失败不影响其他
-        如果分片请求失败，则拆解为单个result_table重试
+        批量获取集群信息，单个失败不影响其他，将单个失败的 result_table 进行重试
+        如果分片请求失败，则拆解为单个 result_table 重试
         @param result_table_list:
         @return:
         """
