@@ -73,6 +73,12 @@ export default defineComponent({
       limit: props.paginationConfig.limit,
     });
 
+    // 排序状态
+    const sortParams = ref({
+      order_field: '',
+      order_type: '',
+    });
+
     // 获取用户上报数据
     const fetchUserReportData = async () => {
       isLoading.value = true;
@@ -83,6 +89,10 @@ export default defineComponent({
             page: pagination.value.current,
             pagesize: pagination.value.limit,
             ...(searchKeyword.value && { keyword: searchKeyword.value }),
+            ...(sortParams.value.order_field && {
+              order_field: sortParams.value.order_field,
+              order_type: sortParams.value.order_type,
+            }),
           },
         };
 
@@ -121,24 +131,30 @@ export default defineComponent({
       fetchUserReportData();
     };
 
+    // 排序变化处理
+    const handleSortChange = (sortData: { order_field: string; order_type: string }) => {
+      sortParams.value = sortData;
+      fetchUserReportData();
+    };
+
     // 清洗配置
-    const handleCleanConfig = () => {};
+    // const handleCleanConfig = () => {};
 
     // 搜索框回车事件
-    const handleSearchEnter = (keyword: string) => {
-      handleSearch(keyword);
-    };
+    // const handleSearchEnter = (keyword: string) => {
+    //   handleSearch(keyword);
+    // };
 
     // 搜索图标点击事件
-    const handleSearchIconClick = (keyword: string) => {
-      handleSearch(keyword);
-    };
+    // const handleSearchIconClick = (keyword: string) => {
+    //   handleSearch(keyword);
+    // };
 
     // 清空搜索
-    const handleClearSearch = () => {
-      searchKeyword.value = '';
-      handleSearch('');
-    };
+    // const handleClearSearch = () => {
+    //   searchKeyword.value = '';
+    //   handleSearch('');
+    // };
 
     const handleViewSDKDoc = () => {
       const sdkDocUrl = 'https://iwiki.woa.com/p/4013039938';
@@ -179,9 +195,8 @@ export default defineComponent({
         </span>
 
         {/* 操作区域 */}
-        <div
+        {/* <div
           class='operating-area'
-          style={{ display: 'none' }}
         >
           <bk-button onClick={handleCleanConfig}>{t('清洗配置')}</bk-button>
           <div>
@@ -195,7 +210,7 @@ export default defineComponent({
               onClear={handleClearSearch}
             ></bk-input>
           </div>
-        </div>
+        </div> */}
 
         {/* 表格区域 */}
         <ReportTable
@@ -209,6 +224,7 @@ export default defineComponent({
           on-page-change={handlePageChange}
           on-page-limit-change={handlePageLimitChange}
           on-search={handleSearch}
+          on-sort-change={handleSortChange}
         />
       </div>
     );

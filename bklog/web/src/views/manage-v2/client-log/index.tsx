@@ -27,6 +27,7 @@
 import { defineComponent, onMounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
+import useRouter from '@/hooks/use-router';
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '../../../common/authority-map';
 
@@ -53,6 +54,21 @@ export default defineComponent({
   },
   setup() {
     const store = useStore();
+    const router = useRouter();
+
+    // 从路由查询参数获取初始 tab 值
+    const getInitialTab = (): TabType => {
+      const tabQuery = router.currentRoute.query.tab;
+
+      if (tabQuery === 'collect') {
+        return TAB_TYPES.COLLECT;
+      }
+      if (tabQuery === 'report') {
+        return TAB_TYPES.REPORT;
+      }
+      // 默认值
+      return TAB_TYPES.COLLECT;
+    };
 
     const tabs = ref([
       // tab配置
@@ -65,7 +81,7 @@ export default defineComponent({
         count: 0,
       },
     ]);
-    const activeTab = ref<TabType>(TAB_TYPES.COLLECT); // 激活的tab
+    const activeTab = ref<TabType>(getInitialTab()); // 激活的tab
     const isAllowedCreate = ref(false); // 是否允许创建
     const isAllowedDownload = ref(false); // 是否允许下载
     const isGrayRelease = ref(false); // 是否为灰度业务
@@ -157,6 +173,22 @@ export default defineComponent({
     // tab点击事件
     const handleTabClick = (title: TabType) => {
       activeTab.value = title;
+
+      // 更新路由查询参数
+      const currentQuery = { ...router.currentRoute.query };
+
+      // 根据 tab 类型设置查询参数
+      if (title === TAB_TYPES.COLLECT) {
+        currentQuery.tab = 'collect';
+      } else if (title === TAB_TYPES.REPORT) {
+        currentQuery.tab = 'report';
+      }
+
+      // 更新路由
+      router.replace({
+        ...router.currentRoute,
+        query: currentQuery,
+      });
     };
 
     onMounted(async () => {

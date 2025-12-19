@@ -26,17 +26,17 @@
 
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { clearTableFilter, updateLastSelectedIndexId } from '@/common/util';
+import { clearTableFilter, downFile } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
-import { BK_LOG_STORAGE } from '@/store/store.type';
 import * as authorityMap from '../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
-import useRouter from '@/hooks/use-router';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import { TRIGGER_FREQUENCY_OPTIONS, CLIENT_TYPE_OPTIONS } from '../constant';
 import { TaskStatus, TaskScene } from './types';
 import { useTableSetting } from '../hooks/use-table-setting';
+import { useSearchTask } from '../hooks/use-search-task';
 import http from '@/api';
 
 import './collection-table.scss';
@@ -78,7 +78,6 @@ export default defineComponent({
   emits: ['clear-keyword', 'clone-task', 'view-task'],
   setup(props, { emit }) {
     const store = useStore();
-    const router = useRouter();
 
     const pagination = ref({
       current: 1,
@@ -126,6 +125,11 @@ export default defineComponent({
       cacheKey: 'clientLog',
       fields: tableFields,
       defaultSelectedIds,
+    });
+
+    // 使用检索任务 Hook
+    const { searchTask } = useSearchTask({
+      indexSetId: props.indexSetId,
     });
 
     // 任务状态选项
@@ -378,7 +382,7 @@ export default defineComponent({
           const response = await http.request('collect/getDownloadLink', params);
           const downloadUrl = response.data.url;
           if (downloadUrl) {
-            window.open(downloadUrl);
+            downFile(downloadUrl);
           }
         } catch (error) {
           console.warn('获取下载链接失败:', error);
@@ -398,30 +402,16 @@ export default defineComponent({
       }
     };
 
-    // 检索任务
+    // 检索任务 - 直接传入查询条件
     const handleSearchTask = (row: any) => {
-      // 构建查询条件，设置task_name字段
-      const additionList = [
+      const conditions = [
         {
           field: 'task_name',
           operator: 'is',
           value: row.task_name,
         },
       ];
-
-      updateLastSelectedIndexId(store.state.spaceUid, props.indexSetId);
-
-      router.push({
-        name: 'retrieve',
-        params: {
-          indexId: props.indexSetId,
-        },
-        query: {
-          spaceUid: store.state.spaceUid,
-          search_mode: 'ui', // UI模式
-          addition: JSON.stringify(additionList),
-        },
-      });
+      searchTask(conditions);
     };
 
     // 任务名称插槽

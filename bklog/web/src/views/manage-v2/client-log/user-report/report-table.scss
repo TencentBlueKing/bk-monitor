@@ -1,11 +1,17 @@
 .report-table {
-  .overflow-hidden-text {
-    .cell {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      overflow-wrap: normal;
-      white-space: nowrap;
+  .bk-table-header-wrapper {
+    .filter-column {
+      .cell {
+        display: flex;
+      }
     }
+  }
+
+  .overflow-hidden-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+    white-space: nowrap;
   }
 
   .log-table-operate {

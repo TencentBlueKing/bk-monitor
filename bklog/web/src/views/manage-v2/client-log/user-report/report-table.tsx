@@ -26,14 +26,14 @@
 
 import { computed, defineComponent, ref, watch } from 'vue';
 
-import { formatFileSize, updateLastSelectedIndexId } from '@/common/util';
+import { downFile, formatFileSize } from '@/common/util';
 import EmptyStatus from '@/components/empty-status/index.vue';
 
 import { t } from '@/hooks/use-locale';
 import * as authorityMap from '../../../../common/authority-map';
 import useStore from '@/hooks/use-store';
-import useRouter from '@/hooks/use-router';
 import { useTableSetting } from '../hooks/use-table-setting';
+import { useSearchTask } from '../hooks/use-search-task';
 
 import './report-table.scss';
 
@@ -75,10 +75,9 @@ export default defineComponent({
       }),
     },
   },
-  emits: ['page-change', 'page-limit-change', 'search'],
+  emits: ['page-change', 'page-limit-change', 'search', 'sort-change'],
   setup(props, { emit }) {
     const store = useStore();
-    const router = useRouter();
 
     const reportTableRef = ref(null);
 
@@ -126,6 +125,11 @@ export default defineComponent({
       defaultSelectedIds,
     });
 
+    // 使用检索任务 Hook
+    const { searchTask } = useSearchTask({
+      indexSetId: props.indexSetId,
+    });
+
     // 分页变化事件处理函数
     const handlePageChange = (current: number) => {
       pagination.value.current = current;
@@ -151,66 +155,159 @@ export default defineComponent({
 
     // openid 插槽
     const openidSlot = {
-      default: ({ row }) => <span class='overflow-hidden-text'>{row.openid}</span>,
+      default: ({ row }) => (
+        <div
+          class='overflow-hidden-text'
+          v-bk-overflow-tips
+        >
+          {row.openid}
+        </div>
+      ),
     };
 
     // 文件名称插槽
     const fileNameSlot = {
-      default: ({ row }) => <span class='overflow-hidden-text'>{row.file_name}</span>,
+      default: ({ row }) => (
+        <div
+          class='overflow-hidden-text'
+          v-bk-overflow-tips
+        >
+          {row.file_name}
+        </div>
+      ),
     };
 
     // 文件路径插槽
     const filePathSlot = {
-      default: ({ row }) => <span class='overflow-hidden-text'>{row.file_path}</span>,
+      default: ({ row }) => (
+        <div
+          class='overflow-hidden-text'
+          v-bk-overflow-tips
+        >
+          {row.file_path}
+        </div>
+      ),
+    };
+
+    // 文件MD5插槽
+    const md5Slot = {
+      default: ({ row }) => (
+        <div
+          class='overflow-hidden-text'
+          v-bk-overflow-tips
+        >
+          {row.md5}
+        </div>
+      ),
+    };
+
+    // 设备ID插槽
+    const xidSlot = {
+      default: ({ row }) => (
+        <div
+          class='overflow-hidden-text'
+          v-bk-overflow-tips
+        >
+          {row.xid}
+        </div>
+      ),
     };
 
     // 扩展信息插槽
     const extendInfoSlot = {
-      default: ({ row }) => <span class='overflow-hidden-text'>{row.extend_info}</span>,
+      default: ({ row }) => (
+        <div
+          class='overflow-hidden-text'
+          v-bk-overflow-tips
+        >
+          {row.extend_info}
+        </div>
+      ),
     };
 
-    // 检索任务 - 传递 openid 和 file_name 参数
+    // 手机厂商插槽
+    const manufacturerSlot = {
+      default: ({ row }) => (
+        <div
+          class='overflow-hidden-text'
+          v-bk-overflow-tips
+        >
+          {row.manufacturer}
+        </div>
+      ),
+    };
+
+    // 型号插槽
+    const modelSlot = {
+      default: ({ row }) => (
+        <div
+          class='overflow-hidden-text'
+          v-bk-overflow-tips
+        >
+          {row.model}
+        </div>
+      ),
+    };
+
+    // 系统版本插槽
+    const osVersionSlot = {
+      default: ({ row }) => (
+        <div
+          class='overflow-hidden-text'
+          v-bk-overflow-tips
+        >
+          {row.os_version}
+        </div>
+      ),
+    };
+
+    // SDK版本插槽
+    const osSdkSlot = {
+      default: ({ row }) => (
+        <div
+          class='overflow-hidden-text'
+          v-bk-overflow-tips
+        >
+          {row.os_sdk}
+        </div>
+      ),
+    };
+
+    // 系统类型插槽
+    const osTypeSlot = {
+      default: ({ row }) => (
+        <div
+          class='overflow-hidden-text'
+          v-bk-overflow-tips
+        >
+          {row.os_type}
+        </div>
+      ),
+    };
+
+    // 检索任务 - 直接传入查询条件
     const handleSearchTask = (row: any) => {
-      // 构建查询条件，设置 openid 和 file_name 字段
-      const additionList = [
+      const conditions = [
         {
           field: 'openid',
           operator: 'is',
           value: row.openid,
         },
         {
-          field: 'file_name',
+          field: 'cos_file_name',
           operator: 'is',
           value: row.file_name,
         },
       ];
-
-      updateLastSelectedIndexId(store.state.spaceUid, props.indexSetId);
-
-      router.push({
-        name: 'retrieve',
-        params: {
-          indexId: props.indexSetId,
-        },
-        query: {
-          spaceUid: store.state.spaceUid,
-          search_mode: 'ui', // UI模式
-          addition: JSON.stringify(additionList),
-        },
-      });
+      searchTask(conditions);
     };
 
     // 下载文件
     const downloadFile = async (downloadUrl: string) => {
-      console.warn('downloadUrl', downloadUrl);
-      console.warn('props.isAllowedDownload', props.isAllowedDownload);
       if (props.isAllowedDownload) {
-        try {
-          if (downloadUrl) {
-            window.open(downloadUrl);
-          }
-        } catch (error) {
-          console.warn('下载文件失败:', error);
+        if (downloadUrl) {
+          const url = `${location.protocol}//${downloadUrl}`;
+          downFile(url);
         }
       } else {
         const paramData = {
@@ -225,6 +322,20 @@ export default defineComponent({
         const res = await store.dispatch('getApplyData', paramData);
         store.commit('updateState', { authDialogData: res.data });
       }
+    };
+
+    // 排序变化事件处理函数
+    const handleSortChange = (sort: any) => {
+      const { prop, order } = sort;
+
+      // 转换排序类型：descending -> DESC, ascending -> ASC
+      const orderType = order === 'descending' ? 'DESC' : 'ASC';
+
+      // 通知父组件排序变化
+      emit('sort-change', {
+        order_field: prop,
+        order_type: orderType,
+      });
     };
 
     const operateSlot = {
@@ -278,6 +389,7 @@ export default defineComponent({
           v-bkloading={{ isLoading: props.loading }}
           onPage-change={handlePageChange}
           onPage-limit-change={handlePageLimitChange}
+          onSort-change={handleSortChange}
           scopedSlots={{
             empty: () => (
               <div>
@@ -291,7 +403,7 @@ export default defineComponent({
         >
           <bk-table-column
             key='openid'
-            class-name='filter-column overflow-hidden-text'
+            class-name='filter-column'
             min-width='140'
             label='openid'
             prop='openid'
@@ -300,7 +412,7 @@ export default defineComponent({
           {checkFields('file_name') && (
             <bk-table-column
               key='file_name'
-              class-name='filter-column overflow-hidden-text'
+              class-name='filter-column'
               min-width='120'
               label={t('文件名称')}
               prop='file_name'
@@ -310,7 +422,7 @@ export default defineComponent({
           {checkFields('file_path') && (
             <bk-table-column
               key='file_path'
-              class-name='filter-column overflow-hidden-text'
+              class-name='filter-column'
               min-width='200'
               label={t('文件路径')}
               prop='file_path'
@@ -320,26 +432,28 @@ export default defineComponent({
           {checkFields('file_size') && (
             <bk-table-column
               key='file_size'
-              class-name='filter-column overflow-hidden-text'
+              class-name='filter-column'
               width='100'
               label={t('文件大小')}
               prop='file_size'
+              sortable='custom'
               formatter={row => formatFileSize(row.file_size)}
             />
           )}
           {checkFields('md5') && (
             <bk-table-column
               key='md5'
-              class-name='filter-column overflow-hidden-text'
+              class-name='filter-column'
               min-width='200'
               label={t('文件MD5')}
               prop='md5'
+              scopedSlots={md5Slot}
             />
           )}
           {checkFields('report_time') && (
             <bk-table-column
               key='report_time'
-              class-name='filter-column overflow-hidden-text'
+              class-name='filter-column'
               width='160'
               label={t('文件上传时间')}
               prop='report_time'
@@ -348,16 +462,17 @@ export default defineComponent({
           {checkFields('xid') && (
             <bk-table-column
               key='xid'
-              class-name='filter-column overflow-hidden-text'
+              class-name='filter-column'
               min-width='120'
               label={t('设备ID')}
               prop='xid'
+              scopedSlots={xidSlot}
             />
           )}
           {checkFields('extend_info') && (
             <bk-table-column
               key='extend_info'
-              class-name='filter-column overflow-hidden-text'
+              class-name='filter-column'
               min-width='120'
               label={t('扩展信息')}
               prop='extend_info'
@@ -367,46 +482,51 @@ export default defineComponent({
           {checkFields('manufacturer') && (
             <bk-table-column
               key='manufacturer'
-              class-name='filter-column overflow-hidden-text'
+              class-name='filter-column'
               width='100'
               label={t('手机厂商')}
               prop='manufacturer'
+              scopedSlots={manufacturerSlot}
             />
           )}
           {checkFields('model') && (
             <bk-table-column
               key='model'
-              class-name='filter-column overflow-hidden-text'
+              class-name='filter-column'
               width='100'
               label={t('型号')}
               prop='model'
+              scopedSlots={modelSlot}
             />
           )}
           {checkFields('os_version') && (
             <bk-table-column
               key='os_version'
-              class-name='filter-column overflow-hidden-text'
+              class-name='filter-column'
               width='100'
               label={t('系统版本')}
               prop='os_version'
+              scopedSlots={osVersionSlot}
             />
           )}
           {checkFields('os_sdk') && (
             <bk-table-column
               key='os_sdk'
-              class-name='filter-column overflow-hidden-text'
+              class-name='filter-column'
               width='100'
               label={t('SDK版本')}
               prop='os_sdk'
+              scopedSlots={osSdkSlot}
             />
           )}
           {checkFields('os_type') && (
             <bk-table-column
               key='os_type'
-              class-name='filter-column overflow-hidden-text'
+              class-name='filter-column'
               width='100'
               label={t('系统类型')}
               prop='os_type'
+              scopedSlots={osTypeSlot}
             />
           )}
           <bk-table-column
