@@ -171,12 +171,17 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
   //   this.$emit('change', currentSelectedMetricNameList);
   // }
   triggerChange() {
-    const currentSelectedGroupAndMetricNameList = this.cheeckedMap.map(item => {
-      return {
-        groupName: item.groupName,
-        metricsName: Object.keys(item.metricsCheckMap),
-      };
-    });
+    const currentSelectedGroupAndMetricNameList = this.cheeckedMap.reduce((acc, item) => {
+      // metricsCheckMap是否有数据存在
+      if (Object.keys(item.metricsCheckMap).length) {
+        // 有效选中，累加
+        acc.push({
+          groupName: item.groupName,
+          metricsName: Object.keys(item.metricsCheckMap),
+        });
+      }
+      return acc;
+    }, []);
     customEscalationViewStore.updateCurrentSelectedGroupAndMetricNameList(currentSelectedGroupAndMetricNameList);
   }
 
@@ -354,7 +359,7 @@ export default class RenderMetricsGroup extends tsc<IProps, IEmit> {
           >
             {groupItem.metrics.map(metricsItem => (
               <RenderMetric
-                key={metricsItem.metric_name}
+                key={`${metricsItem.field_id}-${metricsItem.metric_name}`}
                 checked={targetData?.metricsCheckMap[metricsItem.metric_name] || false}
                 data={metricsItem}
                 scopeId={groupItem.scope_id}

@@ -117,12 +117,14 @@ class CustomEscalationViewStore extends VuexModule {
   // }
 
   get dimensionAliasNameMap() {
-    return this.metricGroupList.reduce<Record<string, string>>((result, groupItem) => {
-      for (const metricsItem of groupItem.metrics) {
-        for (const dimensionItem of metricsItem.dimensions) {
-          Object.assign(result, {
-            [dimensionItem.name]: dimensionItem.alias,
-          });
+    return this.currentSelectedMetricList.reduce<Record<string, string>>((result, groupItem) => {
+      for (const dimensionItem of groupItem.dimensions) {
+        // 如果 alias 存在，则直接赋值；否则保持原值
+        if (dimensionItem.alias) {
+          result[dimensionItem.name] = dimensionItem.alias;
+        } else if (!(dimensionItem.name in result)) {
+          // 如果当前别名为空且之前没有赋值，则保留为空字符串
+          result[dimensionItem.name] = '';
         }
       }
       return result;
