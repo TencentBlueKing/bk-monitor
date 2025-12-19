@@ -43,7 +43,6 @@ from constants.action import (
     NoticeType,
     NoticeWay,
     UserGroupType,
-    VoiceNoticeMode,
 )
 
 logger = logging.getLogger("fta_action.run")
@@ -289,12 +288,10 @@ def need_poll(action_instance: ActionInstance):
         len(action_instance.alerts) != 1
         or (action_instance.parent_action_id > 0)
         or action_instance.inputs.get("notice_type") == ActionNoticeType.UPGRADE
-        or action_instance.inputs.get("voice_notice_mode", VoiceNoticeMode.SERIAL) == VoiceNoticeMode.PARALLEL
     ):
         # 只有单告警动作才会存在周期通知
         # 子任务也不需要创建周期通知
         # 升级的通知也不会周期通知
-        # 并行告警组语音通知也不需要周期通知
         return False
 
     try:
