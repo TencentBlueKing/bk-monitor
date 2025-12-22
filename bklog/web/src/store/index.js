@@ -193,8 +193,8 @@ const stateTpl = {
   bizIdMap: new Map(),
   aiMode: {
     active: false,
-    filterList: []
-  }
+    filterList: [],
+  },
 };
 
 const store = new Vuex.Store({
@@ -310,7 +310,9 @@ const store = new Vuex.Store({
       const searchParams = searchMode === 'sql' ? { keyword, addition: [] } : { addition: getters.originAddition, keyword: '*' };
 
       if (state.aiMode.active) {
-        searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword].filter(f => !/^\s*\*?\s*$/.test(f)).join(' AND ');
+        searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword]
+          .filter(f => !/^\s*\*?\s*$/.test(f))
+          .join(' AND ');
       }
 
       if (searchParams.keyword.replace(/\s*/, '') === '') {
@@ -1496,6 +1498,7 @@ const store = new Vuex.Store({
         start_time: formatDate(startTime),
         end_time: formatDate(endTime),
         size: payload?.size ?? 100,
+        bk_biz_id: state.bkBizId,
       };
 
       if (state.indexItem.isUnionIndex) {
