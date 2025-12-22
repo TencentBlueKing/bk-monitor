@@ -1264,72 +1264,74 @@ class TestEtl(TestCase):
         
         # Mock API响应
         mock_api.return_value = {
-            "rules_output": {
-                "value": {
-                    "level": "info",
-                    "message": "User action",
-                    "user": {"id": 12345, "profile": {"name": "test_user", "email": "test@example.com"}},
-                    "context": {"request_id": "req-123", "session_id": "sess-456"}
-                },
-                "key_index": [
-                    {
-                        "type": "key",
-                        "value": "context",
-                        "children": [
-                            {
-                                "type": "key",
-                                "value": "request_id",
-                                "field_type": "string"
-                            },
-                            {
-                                "type": "key",
-                                "value": "session_id",
-                                "field_type": "string"
-                            }
-                        ],
-                        "field_type": "dict"
+            "rules_output": [
+                {
+                    "value": {
+                        "level": "info",
+                        "message": "User action",
+                        "user": {"id": 12345, "profile": {"name": "test_user", "email": "test@example.com"}},
+                        "context": {"request_id": "req-123", "session_id": "sess-456"}
                     },
-                    {
-                        "type": "key",
-                        "value": "level",
-                        "field_type": "string"
-                    },
-                    {
-                        "type": "key",
-                        "value": "message",
-                        "field_type": "string"
-                    },
-                    {
-                        "type": "key",
-                        "value": "user",
-                        "children": [
-                            {
-                                "type": "key",
-                                "value": "id",
-                                "field_type": "long"
-                            },
-                            {
-                                "type": "key",
-                                "value": "profile",
-                                "children": [
-                                    {
-                                        "type": "key",
-                                        "value": "email",
-                                        "field_type": "string"
-                                    },
-                                    {
-                                        "type": "key",
-                                        "value": "name",
-                                        "field_type": "string"
-                                    }
-                                ],
-                                "field_type": "dict"
-                            }
-                        ],
-                        "field_type": "dict"
-                    }
-                ]
-            }
+                    "key_index": [
+                        {
+                            "type": "key",
+                            "value": "context",
+                            "children": [
+                                {
+                                    "type": "key",
+                                    "value": "request_id",
+                                    "field_type": "string"
+                                },
+                                {
+                                    "type": "key",
+                                    "value": "session_id",
+                                    "field_type": "string"
+                                }
+                            ],
+                            "field_type": "dict"
+                        },
+                        {
+                            "type": "key",
+                            "value": "level",
+                            "field_type": "string"
+                        },
+                        {
+                            "type": "key",
+                            "value": "message",
+                            "field_type": "string"
+                        },
+                        {
+                            "type": "key",
+                            "value": "user",
+                            "children": [
+                                {
+                                    "type": "key",
+                                    "value": "id",
+                                    "field_type": "long"
+                                },
+                                {
+                                    "type": "key",
+                                    "value": "profile",
+                                    "children": [
+                                        {
+                                            "type": "key",
+                                            "value": "email",
+                                            "field_type": "string"
+                                        },
+                                        {
+                                            "type": "key",
+                                            "value": "name",
+                                            "field_type": "string"
+                                        }
+                                    ],
+                                    "field_type": "dict"
+                                }
+                            ],
+                            "field_type": "dict"
+                        }
+                    ]
+                }
+            ]
         }
         
         # 创建EtlStorage实例
