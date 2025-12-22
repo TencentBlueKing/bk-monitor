@@ -158,6 +158,7 @@ class IntelligentDetectSerializer(serializers.Serializer):
         default=VisualType.NONE, choices=[VisualType.NONE, VisualType.SCORE, VisualType.BOUNDARY]
     )
     service_name = serializers.CharField(label="service环境选择", required=False, default="default")
+    gray_to_bkfara = serializers.BooleanField(label="是否迁移到bkfara", required=False, default=False)
 
 
 class TimeSeriesForecastingSerializer(serializers.Serializer):
