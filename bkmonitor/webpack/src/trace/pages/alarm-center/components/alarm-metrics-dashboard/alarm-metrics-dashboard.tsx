@@ -34,8 +34,6 @@ import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../comp
 import ChartCollapse from '../../../trace-explore/components/explore-chart/chart-collapse';
 import AlarmLazyChart from './components/alarm-lazy-chart';
 
-import type { IDataQuery } from '../../../../plugins/typings';
-
 import './alarm-metrics-dashboard.scss';
 
 export default defineComponent({
@@ -81,7 +79,7 @@ export default defineComponent({
     },
     /** 对接口请求返回数据进行处理 */
     formatterData: {
-      type: Function as PropType<(res: any, target: IDataQuery, panel: PanelModel) => any>,
+      type: Function as PropType<(val) => any>,
       default: res => res,
     },
   },
@@ -123,6 +121,7 @@ export default defineComponent({
         }
         return new PanelModel({
           ...e,
+          dashboardId: props.dashboardId,
           targets: transformTargets,
         });
       });

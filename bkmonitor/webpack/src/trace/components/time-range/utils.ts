@@ -77,6 +77,12 @@ export const handleTransformToTimestamp = (value: TimeRangeType): TimestampsType
   return timeRange.unix();
 };
 
+/** 转换成毫秒 */
+export const handleTransformToTimestampMs = (value: TimeRangeType): TimestampsType => {
+  const timeRange = new TimeRange(value);
+  return timeRange.unix().map(item => item * 1000) as TimestampsType;
+};
+
 /** 时间区间快捷选项 */
 export const shortcuts = [
   {

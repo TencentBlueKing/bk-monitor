@@ -275,8 +275,7 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
     if (!get(scene) || get(bizId) == null) {
       return;
     }
-    metricList.value = await getAlertK8sScenarioMetricList({ bizId: get(bizId), scene: get(scene) });
-    metricList.value = _mockMetricListData;
+    metricList.value = await getAlertK8sScenarioMetricList({ bizId: get(bizId), scenario: get(scene) });
   };
   watch(
     [() => get(scene), () => get(currentTarget)],
