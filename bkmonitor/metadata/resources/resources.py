@@ -1542,23 +1542,22 @@ class QueryTimeSeriesScopeResource(Resource):
             query_set = query_set.filter(id__in=scope_ids)
         if scope_name:
             query_set = query_set.filter(scope_name__icontains=scope_name)
-        results = self._build_grouped_results(query_set)
+        results = self._build_grouped_results(query_set, group_id)
 
         return results
 
     @staticmethod
-    def _build_grouped_results(query_set):
+    def _build_grouped_results(query_set, group_id):
         # 使用 values() 直接获取字典数据，避免 ORM 对象创建开销
         scopes = list(query_set.values("id", "group_id", "scope_name", "dimension_config", "auto_rules", "create_from"))
         if not scopes:
             return []
 
         scope_ids = [scope["id"] for scope in scopes]
-        group_ids = {scope["group_id"] for scope in scopes}
 
         # 使用 values() 批量查询 metrics，避免 ORM 对象转换
         all_metrics = (
-            models.TimeSeriesMetric.objects.filter(group_id__in=group_ids, scope_id__in=scope_ids)
+            models.TimeSeriesMetric.objects.filter(group_id=group_id, scope_id__in=scope_ids)
             .values(
                 "field_name",
                 "field_id",
