@@ -156,7 +156,7 @@ export default class FilterRule extends tsc<IProps> {
         },
       });
       for (const item of this.formData.filter_rules) {
-        item.valueList =          res.data.aggs_items[item.fields_name]?.map(newItem => ({
+        item.valueList = res.data.aggs_items[item.fields_name]?.map(newItem => ({
           id: newItem.toString(),
           name: newItem.toString(),
         })) ?? [];

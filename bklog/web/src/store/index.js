@@ -306,7 +306,7 @@ const store = new Vuex.Store({
       } = state.indexItem;
 
       const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
-      const searchParams =        searchMode === 'sql' ? { keyword, addition: [] } : { addition: getters.originAddition, keyword: '*' };
+      const searchParams = searchMode === 'sql' ? { keyword, addition: [] } : { addition: getters.originAddition, keyword: '*' };
 
       if (state.aiMode.active) {
         searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword]
@@ -865,9 +865,9 @@ const store = new Vuex.Store({
       const catchDisplayFields = store.state.retrieve.catchFieldCustomConfig.displayFields;
       const displayFields = catchDisplayFields.length ? catchDisplayFields : null;
       // 请求字段时 判断当前索引集是否有更改过字段 若更改过字段则使用session缓存的字段显示
-      const filterList =        (isVersion2Payload ? payload.displayFieldNames : payload || displayFields)
+      const filterList = (isVersion2Payload ? payload.displayFieldNames : payload || displayFields)
         ?? state.indexFieldInfo.display_fields;
-      const visibleFields =        filterList
+      const visibleFields = filterList
         .map((displayName) => {
           const field = state.indexFieldInfo.fields.find(field => field.field_name === displayName);
           if (field) {
