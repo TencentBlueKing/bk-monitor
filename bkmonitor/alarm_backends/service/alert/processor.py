@@ -53,7 +53,8 @@ class BaseAlertProcessor:
             )
             dedupe_md5_list.extend(md5_list)
 
-        alert_data = ALERT_DEDUPE_CONTENT_KEY.client.mget(cache_keys) if cache_keys else []
+        # 这里不能用 mget 进行优化，因为告警按 strategy_id 分组路由到不同的 redis 集群
+        alert_data = [ALERT_DEDUPE_CONTENT_KEY.client.get(cache_key) for cache_key in cache_keys]
 
         alerts = []
 

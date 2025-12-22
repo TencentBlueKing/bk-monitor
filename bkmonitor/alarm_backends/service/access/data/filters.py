@@ -17,6 +17,7 @@ from alarm_backends.core.cache.cmdb import HostManager
 from alarm_backends.core.control.item import Item
 from alarm_backends.service.access import base
 from alarm_backends.service.access.data.records import DataRecord
+from bkmonitor.utils.common_utils import safe_int
 
 logger = logging.getLogger("access.data")
 
@@ -100,7 +101,7 @@ class HostStatusFilter(base.Filter):
             host = HostManager.get(
                 bk_tenant_id=record.bk_tenant_id,
                 ip=record.dimensions["bk_target_ip"],
-                bk_cloud_id=int(record.dimensions["bk_target_cloud_id"]),
+                bk_cloud_id=safe_int(record.dimensions["bk_target_cloud_id"]),
                 using_mem=True,
             )
         else:
