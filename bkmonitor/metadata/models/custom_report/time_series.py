@@ -2414,10 +2414,7 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def _batch_update_metrics(cls, metrics_to_update, scopes_dict):
-        updatable_fields = ["field_config", "label", "tag_list"]
-        # bulk_update 需要包含 scope_id，因为指标 disabled 时会更新
-        # 同时需要包含 last_modify_time，确保配置更新时也更新时间戳
-        bulk_update_fields = updatable_fields + ["scope_id", "last_modify_time"]
+        updatable_fields = ["field_config", "label", "tag_list", "scope_id", "last_modify_time"]
         records_to_update = []
         scope_moves = defaultdict(list)
 
@@ -2428,8 +2425,7 @@ class TimeSeriesMetric(models.Model):
 
             # 统一更新字段值 updatable_fields
             for field in updatable_fields:
-                if field in validated_request_data:
-                    setattr(metric, field, validated_request_data[field])
+                setattr(metric, field, validated_request_data.get(field, getattr(metric, field)))
 
             # 更新最后修改时间
             metric.last_modify_time = tz_now()
@@ -2459,7 +2455,7 @@ class TimeSeriesMetric(models.Model):
 
         # 批量更新所有指标的字段
         if records_to_update:
-            cls.objects.bulk_update(records_to_update, bulk_update_fields, batch_size=BULK_UPDATE_BATCH_SIZE)
+            cls.objects.bulk_update(records_to_update, updatable_fields, batch_size=BULK_UPDATE_BATCH_SIZE)
 
         TimeSeriesScope.update_dimension_config_and_metrics_scope_id(scope_moves=scope_moves)
 
