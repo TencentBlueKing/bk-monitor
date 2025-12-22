@@ -1695,11 +1695,7 @@ const store = new Vuex.Store({
               operator,
               value,
             });
-            if (targetField?.is_virtual_obj_node) {
-              newSearchValue = Object.assign({ field: '*', value }, { operator: mapOperator });
-            } else {
-              newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
-            }
+            newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
           }
           if (searchMode === 'sql') {
             if (targetField?.is_virtual_obj_node) {
