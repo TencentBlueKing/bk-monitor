@@ -48,7 +48,7 @@
         >
           <!-- 容器日志显示状态页信息 -->
           <template v-if="isContainer">
-            <container-status :is-loading.sync="loading" />
+            <!-- <container-status :is-loading.sync="loading" /> 组件不存在，已注释 -->
           </template>
           <!-- 物理环境显示下发页信息 -->
           <template v-else>
@@ -303,7 +303,7 @@
 </template>
 <script>
   import rightPanel from '@/components/ip-select/right-panel';
-  import containerStatus from '@/views/manage/manage-access/log-collection/collection-item/manage-collection/components/container-status';
+  // import containerStatus from '@/views/manage/manage-access/log-collection/collection-item/manage-collection/components/container-status'; // 错误的导入路径，组件不存在
   import { mapGetters } from 'vuex';
 
   import stepResult from './step-result';
@@ -312,7 +312,7 @@
     name: 'IssuedSlider',
     components: {
       rightPanel,
-      containerStatus,
+      // containerStatus, // 组件不存在，已注释
       stepResult,
     },
     props: {
