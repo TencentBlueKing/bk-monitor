@@ -93,7 +93,7 @@ def generate_explore_url_query_params(
 
     基于查询过滤条件和告警相关字段，构建完整的 URL 查询参数字典。
 
-    :param query_filter: 查询过滤条件字典（包含 result_table_id、data_source_label 等字段）
+    :param query_filter: 查询过滤条件字典
     :param agg_condition: 告警策略配置的汇聚条件列表
     :param origin_dimensions: 原始维度信息字典
     :param dimension_fields: 维度字段列表
@@ -125,10 +125,8 @@ def generate_explore_url_query_params(
         else:
             where.append(condition)
 
-    # 将构建好的 where 条件添加到查询过滤条件中
     query_filter["where"] = where
 
-    # 计算时间范围
     offset: int = offset * 60 * 1000
 
     # 构建完整的查询参数
