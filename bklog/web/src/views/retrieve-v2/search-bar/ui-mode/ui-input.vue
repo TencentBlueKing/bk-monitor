@@ -76,8 +76,8 @@ const selectedChoiceIndex = ref(0);
 // 动态设置placeHolder
 const inputPlaceholder = computed(() => {
   if (inputValueLength.value === 0) {
-    return `${t('请输入检索内容')}, / ${t('唤起')} ...`;
-    // return `${t('请输入检索内容')}, / ${t('唤起')}，${t('Tab 切换为 AI 模式')}`;
+    // return `${t('请输入检索内容')}, / ${t('唤起')} ...`;
+    return `${t('请输入检索内容')}, / ${t('唤起')}，${t('Tab 切换为 AI 模式')}`;
   }
 
   return '';
@@ -377,6 +377,12 @@ const handleInputValueEnter = (e) => {
     const type = selectedChoiceIndex.value === 0 ? 'fulltext' : 'ai';
     choicePopInstanceUtil?.hide();
 
+    if (type === 'fulltext') {
+      handleChoiceItemClick(type);
+      selectedChoiceIndex.value = 0;
+      return;
+    }
+
     if (type === 'ai') {
       handleChoiceItemClick(type);
       selectedChoiceIndex.value = 0;
@@ -454,11 +460,16 @@ const handleInputValueChange = (e) => {
  * @param type fulltext or ai
  */
 const handleChoiceItemClick = (type) => {
+  if(!refSearchInput.value?.value) {
+    return;
+  }
+
   choicePopInstanceUtil?.hide();
   selectedChoiceIndex.value = 0; // 重置选中状态
   if (type === 'fulltext') {
     modelValue.value.push({ field: '*', operator: FulltextOperator, value: refSearchInput.value?.value, disabled: false });
     emitChange(modelValue.value);
+    refSearchInput.value.value = '';
     return;
   }
 
@@ -807,38 +818,7 @@ const handleBatchInputChange = (isShow) => {
         ref="refChoiceList"
         class="v3-bklog-search-bar-choice-list"
       >
-      <template v-if="inputValueLength === 0">
-        <div class="first-use-guide">
-          <div class="guide-header">
-            <div class="guide-text">
-              {{ t('可直接输入,进行全文检索;') }}
-            </div>
-            <div class="guide-text">
-              {{ t('或描述检索需求,使用') }}<span class="ai-search-text">{{ t('AI 搜索') }}</span>:
-            </div>
-          </div>
-          <div class="guide-prompts">
-            <div
-              class="prompt-item"
-              @click="handlePromptClick('查询近 30 分钟的错误日志')"
-            >
-              <i class="bklog-icon bklog-prompt"></i>
-              <span class="prompt-text">{{ t('查询近 30 分钟的错误日志') }}</span>
-              <i class="bklog-icon bklog-goto-bold"></i>
-            </div>
-            <div
-              class="prompt-item"
-              @click="handlePromptClick('查询今天的错误日志')"
-            >
-              <i class="bklog-icon bklog-prompt"></i>
-              <span class="prompt-text">{{ t('查询今天的错误日志') }}</span>
-              <i class="bklog-icon bklog-goto-bold"></i>
-            </div>
-          </div>
-        </div>
-      </template>
-      <template v-else>
-        <div
+      <div
           :class="[
             'v3-bklog-search-bar-choice-list-item',
             { 'is-selected': selectedChoiceIndex === 0 }
@@ -847,16 +827,6 @@ const handleBatchInputChange = (isShow) => {
         >
           {{ t('全文检索') }}
         </div>
-        <div
-          :class="[
-            'v3-bklog-search-bar-choice-list-item',
-            { 'is-selected': selectedChoiceIndex === 1 }
-          ]"
-          @click="handleChoiceItemClick('ai')"
-        >
-          {{ t('AI 搜索') }}
-        </div>
-        </template>
       </div>
       <UiInputOptions
         ref="refPopInstance"
@@ -993,79 +963,6 @@ const handleBatchInputChange = (isShow) => {
 
     &:not(:last-child) {
       border-bottom: 1px solid #f0f1f5;
-    }
-  }
-
-  .first-use-guide {
-    padding: 16px;
-    background-image: radial-gradient(circle at 50% 0%, #F5F1FF 0%, #FFFFFF 48%);
-    border-radius: 2px;
-    margin-top: -4px;
-
-    .guide-header {
-      margin-bottom: 12px;
-
-      .guide-text {
-        font-size: 12px;
-        line-height: 20px;
-        color: #4d4f56;
-        margin-bottom: 4px;
-
-        .ai-search-text {
-          display: inline-block;
-          padding: 0 4px;
-          background-image: linear-gradient(128deg, #235DFA 0%, #E28BED 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          font-weight: 500;
-        }
-      }
-    }
-
-    .guide-prompts {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-
-      .prompt-item {
-        display: flex;
-        align-items: center;
-        height: 32px;
-        padding: 0 12px;
-        background: #F0F3FA;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.2s;
-        font-size: 12px;
-        color: #4D4F56;
-
-        &:hover {
-          background: #E1E6F0;
-        }
-
-        .bklog-icon {
-          font-size: 14px;
-          color: #A3B1CC;
-
-          &.bklog-prompt {
-            margin-right: 8px;
-          }
-
-          &.bklog-goto-bold {
-            margin-left: 8px;
-          }
-        }
-
-        .prompt-text {
-          flex: 1;
-          font-size: 12px;
-          color: #313238;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-      }
     }
   }
 }

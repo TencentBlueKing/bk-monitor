@@ -35,8 +35,8 @@ const placeholderText = computed(() => {
   if (isFocused.value) {
     return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，${shortcutKey} + ENTER ${t('AI 搜索')}`;
   }
-  // return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}， ${t('Tab 切换为 AI 模式')}`;
-  return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}`;
+  return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}， ${t('Tab 切换为 AI 模式')}`;
+  // return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}`;
 });
 
 const refSqlQueryOption = ref(null);

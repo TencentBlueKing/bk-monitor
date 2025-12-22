@@ -1,10 +1,10 @@
 .sql-query-options {
   position: relative;
   width: 100%;
-  min-height: 150px;
-  max-height: 260px;
+  min-height: 100px;
+  height: 100%;
 
-  overflow: auto;
+  overflow-y: auto;
   background: #fff;
 
   &.is-loading {
@@ -75,56 +75,6 @@
     }
   }
 
-  .ai-assistant-list-item {
-    display: flex;
-    align-items: center;
-    background: rgba(243, 242, 250, 0.7);
-    position: relative;
-    padding-right: 100px;
-    cursor: pointer;
-
-    .item-img-wrapper {
-      display: inline-flex;
-      width: 32px;
-      height: 32px;
-      align-items: center;
-      justify-content: center;
-      background: #E5E2F1;
-    }
-
-    .item-text-label {
-      font-size: 12px;
-      color: #313238;
-      padding-left: 8px;
-      font-family: RobotoMono;
-    }
-
-    .item-text-value {
-      font-size: 12px;
-      padding-left: 8px;
-      color: #8474F3;
-      font-size: 12px;
-      font-family: RobotoMono;
-
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 480px;
-    }
-
-    .short-cut-icon {
-      padding: 0 4px;
-      height: 16px;
-      background: #A3B1CC;
-      border-radius: 2px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      margin-left: 8px;
-    }
-  }
-
   /* 字段 icon 样式 */
   .field-list-item.list-item {
     .item-type-icon {
@@ -144,6 +94,7 @@
 
   /* 值 icon 样式 */
   .value-list-item.list-item {
+
     /* stylelint-disable-next-line no-descending-specificity */
     .item-type-icon {
       color: #02776e;
@@ -161,6 +112,7 @@
 
   /* AND OR icon 样式 */
   .continue-list-item.list-item {
+
     /* stylelint-disable-next-line no-descending-specificity */
     .item-type-icon {
       color: #7c609e;
@@ -178,6 +130,7 @@
 
   /* : :* icon 样式 */
   .colon-list-item.list-item {
+
     /* stylelint-disable-next-line no-descending-specificity */
     .item-type-icon {
       color: #016bb4;

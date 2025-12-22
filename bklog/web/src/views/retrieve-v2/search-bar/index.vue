@@ -29,6 +29,7 @@ import RequestPool from '@/store/request-pool';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import CommonFilterSelect from './components/common-filter-select.vue';
+import AiParseResultBanner from './components/ai-parse-result-banner.vue';
 import SqlQuery from './sql-mode/sql-query';
 import UiInput from './ui-mode/ui-input';
 import { withoutValueConditionList } from './utils/const.common';
@@ -63,6 +64,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  aiQueryResult: {
+    type: Object,
+    default: () => ({}),
+  },
 });
 
 const emit = defineEmits(['refresh', 'height-change', 'search', 'mode-change', 'text-to-query']);
@@ -85,7 +90,6 @@ const inspectResponse = ref({
 const uiQueryValue = ref([]);
 const sqlQueryValue = ref('');
 const activeFavorite = ref({});
-const refPopTraget = ref(null);
 const localModeActiveIndex = ref(0);
 
 const inspectPopInstance = new PopInstanceUtil({
@@ -702,6 +706,7 @@ defineExpose({
   getValue: () => (searchMode.value === 'ui' ? uiQueryValue.value : sqlQueryValue.value),
   getRect,
 });
+
 </script>
 <template>
   <div
@@ -872,6 +877,7 @@ defineExpose({
         class="ai-progress-bar"
       ></div>
     </div>
+    <AiParseResultBanner :ai-query-result="aiQueryResult" style="border-top: 1px solid #DCDEE5;" />
     <template v-if="isFilterSecFocused">
       <CommonFilterSelect />
     </template>
