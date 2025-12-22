@@ -764,8 +764,9 @@ class CollectorHandler:
                 {"cluster_config": {"cluster_id": -1, "cluster_name": ""}, "storage_config": {"retention": 0}},
             )
             _data["storage_cluster_id"] = cluster_info["cluster_config"]["cluster_id"]
-            _data["storage_cluster_name"] = cluster_info["cluster_config"].get("display_name") or\
-                                            cluster_info["cluster_config"]["cluster_name"]
+            _data["storage_cluster_name"] = (
+                cluster_info["cluster_config"].get("display_name") or cluster_info["cluster_config"]["cluster_name"]
+            )
             _data["retention"] = cluster_info["storage_config"]["retention"]
             # table_id
             if _data.get("table_id"):
@@ -853,6 +854,9 @@ class CollectorHandler:
         @return:
         """
 
+        # 兼容平台账户
+        bk_username = getattr(instance, "__platform_username", None) or instance.get_updated_by()
+
         if etl_processor is None:
             etl_processor = instance.etl_processor
 
@@ -866,11 +870,9 @@ class CollectorHandler:
                 description=instance.description,
                 encoding=META_DATA_ENCODING,
                 bk_biz_id=instance.get_bk_biz_id(),
+                bk_username=bk_username,
             )
             return bk_data_id
-
-        # 兼容平台账户
-        bk_username = getattr(instance, "__platform_username", None) or instance.get_updated_by()
 
         # 创建 BKBase
         maintainers = {bk_username} if bk_username else {instance.updated_by, instance.created_by}
