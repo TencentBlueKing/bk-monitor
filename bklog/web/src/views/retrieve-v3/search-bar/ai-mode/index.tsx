@@ -185,11 +185,13 @@ export default defineComponent({
     };
 
     const getHoverContent = () => {
-      return <div class="ai-parsed-text-content">
-        <span>{props.aiQueryResult.queryString}</span>
-        <span onClick={handleEdit}>{t('前往编辑')}</span>
-      </div>;
-    }
+      return (
+        <div class='ai-parsed-text-content'>
+          <span>{props.aiQueryResult.queryString}</span>
+          <span onClick={handleEdit}>{t('前往编辑')}</span>
+        </div>
+      );
+    };
 
     // 手动设置焦点，避免 autofocus 警告
     onMounted(() => {
@@ -198,11 +200,11 @@ export default defineComponent({
         if (textareaRef.value && document.activeElement !== textareaRef.value) {
           // 检查是否有其他输入元素已经聚焦
           const activeElement = document.activeElement;
-          const isInputFocused = activeElement && (
-            activeElement.tagName === 'INPUT' ||
-            activeElement.tagName === 'TEXTAREA' ||
-            (activeElement instanceof HTMLElement && activeElement.isContentEditable)
-          );
+          const isInputFocused =
+            activeElement &&
+            (activeElement.tagName === 'INPUT' ||
+              activeElement.tagName === 'TEXTAREA' ||
+              (activeElement instanceof HTMLElement && activeElement.isContentEditable));
 
           // 如果没有其他输入元素聚焦，则聚焦到 textarea
           if (!isInputFocused) {
@@ -219,7 +221,7 @@ export default defineComponent({
         const popoverRef = parsedTextRef.value as any;
         popoverRef.setProps?.({
           duration: 0,
-          animation: 'none'
+          animation: 'none',
         });
         // 立即隐藏，不延迟
         popoverRef.hide?.(0);
@@ -227,15 +229,21 @@ export default defineComponent({
     });
 
     return () => (
-      <div class="v3-ai-mode-root" ref={aiModeRootRef}>
-        <div ref={containerRef} class="v3-ai-mode-container">
-          <div class="ai-mode-inner">
-            <div class="ai-input-wrapper">
-              <div class="ai-input-container">
+      <div
+        class='v3-ai-mode-root'
+        ref={aiModeRootRef}
+      >
+        <div
+          ref={containerRef}
+          class='v3-ai-mode-container'
+        >
+          <div class='ai-mode-inner'>
+            <div class='ai-input-wrapper'>
+              <div class='ai-input-container'>
                 <textarea
                   ref={textareaRef}
                   tabindex={1}
-                  class="ai-input"
+                  class='ai-input'
                   value={currentInput.value}
                   placeholder={t('输入查询内容，"帮我查询近 3 天的错误日志"，Tab 切换为普通模式')}
                   onInput={handleInput}
@@ -253,67 +261,78 @@ export default defineComponent({
               {props.aiQueryResult.queryString ? (
                 <BklogPopover
                   ref={parsedTextRef}
-                  class="ai-parsed-text"
-                  trigger="hover"
+                  class='ai-parsed-text'
+                  trigger='hover'
                   content={getHoverContent}
-                  options={{
-                    appendTo: document.body,
-                    theme: 'bklog-basic-light',
-                    arrow: false,
-                    placement: 'bottom-start',
-                    maxWidth: containerWidth.value,
-                    offset: [0, 4],
+                  options={
+                    {
+                      appendTo: document.body,
+                      theme: 'bklog-basic-light',
+                      arrow: false,
+                      placement: 'bottom-start',
+                      maxWidth: containerWidth.value,
+                      offset: [0, 4],
 
-                    popperOptions: {
-                      modifiers: [
-                        {
-                          name: 'offset',
-                          options: {
-                            offset: ({ reference }) => {
-                              // 获取 containerRef 的位置
-                              const containerRect = containerRef.value.getBoundingClientRect();
-                              const offsetY = containerRect.bottom - reference.y + 4 - reference.height;
-                              return [reference.x, offsetY];
+                      popperOptions: {
+                        modifiers: [
+                          {
+                            name: 'offset',
+                            options: {
+                              offset: ({ reference }) => {
+                                // 获取 containerRef 的位置
+                                const containerRect = containerRef.value.getBoundingClientRect();
+                                const offsetY = containerRect.bottom - reference.y + 4 - reference.height;
+                                return [reference.x, offsetY];
+                              },
                             },
                           },
-                        },
-                      ],
-                    },
-                  } as any}
+                        ],
+                      },
+                    } as any
+                  }
                 >
-                  <span class="ai-parsed-text-icon bklog-icon bklog-eye"></span>
+                  <span class='ai-parsed-text-icon bklog-icon bklog-eye'></span>
                 </BklogPopover>
               ) : null}
-              <div class="ai-mode-toggle-btn">
+              <div class='ai-mode-toggle-btn'>
                 <img
                   src={aiBluekingSvg}
-                  alt="AI模式"
+                  alt='AI模式'
                   style={{ width: '18px', height: '18px' }}
                 />
-                <span class="ai-mode-text">{t('AI 模式')}</span>
+                <span class='ai-mode-text'>{t('AI 模式')}</span>
                 <span style={shortcutKeyStyle}>
-                  <i class="bklog-icon bklog-key-tab"></i>
+                  <i class='bklog-icon bklog-key-tab'></i>
                 </span>
               </div>
-
             </div>
             {props.isAiLoading && [
-              <div class="ai-loading-info" key="loading-info">
-                <span class="ai-loading-text">{t('AI 解析中...')}</span>
+              <div
+                class='ai-loading-info'
+                key='loading-info'
+              >
+                <span class='ai-loading-text'>{t('AI 解析中...')}</span>
               </div>,
-              <div class="ai-progress-bar" key="progress-bar"></div>
+              <div
+                class='ai-progress-bar'
+                key='progress-bar'
+              ></div>,
             ]}
           </div>
-          <button class="ai-execute-btn" onClick={handleAiExecute}>
-            <i class="bklog-icon bklog-publish-fill"></i>
+          <button
+            class='ai-execute-btn'
+            onClick={handleAiExecute}
+          >
+            <i class='bklog-icon bklog-publish-fill'></i>
           </button>
         </div>
         <AiParseResultBanner
           ai-query-result={props.aiQueryResult}
           show-border={true}
-          style="border-radius: 4px; margin-top: 4px;" />
-        {
-          props.filterList.length > 0 && <div class="query-list">
+          style='border-radius: 4px; margin-top: 4px;'
+        />
+        {props.filterList.length > 0 && (
+          <div class='query-list'>
             {props.filterList.map(item => (
               <EditInput
                 key={item}
@@ -330,14 +349,13 @@ export default defineComponent({
             ))}
             {props.filterList.length > 0 && (
               <i
-                class="bklog-icon bklog-qingkong query-list-clear-all"
+                class='bklog-icon bklog-qingkong query-list-clear-all'
                 onClick={handleClearAllFilters}
               ></i>
             )}
           </div>
-        }
-
+        )}
       </div>
     );
   },
-}); 
+});

@@ -63,8 +63,9 @@ export default defineComponent({
       explain: undefined,
     });
 
-    const aiFilterList = computed<string[]>(() => (store.state.aiMode.filterList ?? [])
-      .filter(f => !/^\s*\*?\s*$/.test(f)));
+    const aiFilterList = computed<string[]>(() =>
+      (store.state.aiMode.filterList ?? []).filter(f => !/^\s*\*?\s*$/.test(f)),
+    );
 
     const { setRouteParamsByKeywordAndAddition } = useRetrieveParams();
 
@@ -109,7 +110,7 @@ export default defineComponent({
      * 当前搜索模式：'ui' | 'sql'
      */
     const currentSearchMode = computed<'ui' | 'sql'>(() =>
-      store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui'
+      store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] === 1 ? 'sql' : 'ui',
     );
     /**
      * 更新AI助手位置
@@ -129,7 +130,7 @@ export default defineComponent({
      * 用于处理搜索栏高度变化
      * @param height 搜索栏高度
      */
-    const handleHeightChange = (height) => {
+    const handleHeightChange = height => {
       if (height === searchBarHeight.value || RetrieveHelper.aiAssitantHelper.activePosition !== 'search-bar') {
         return;
       }
@@ -179,11 +180,14 @@ export default defineComponent({
           searchMode.value = 'ai';
 
           // 打点：通过Tab键切换到AI模式
-          RetrieveHelper.reportLog({
-            ai_scenario: 'tab_switch',
-            trigger_source: 'tab_key',
-            action: 'tab',
-          }, store.state);
+          RetrieveHelper.reportLog(
+            {
+              ai_scenario: 'tab_switch',
+              trigger_source: 'tab_key',
+              action: 'tab',
+            },
+            store.state,
+          );
 
           // 切换到 AI 模式后，聚焦到 AI 输入框
           nextTick(() => {
@@ -233,8 +237,8 @@ export default defineComponent({
           nextTick(() => {
             const searchBarEl = searchBarRef.value?.$el || searchBarRef.value;
             // 找到搜索框容器，点击后会自动触发 focus
-            const searchInputContainer = searchBarEl?.querySelector?.('.search-bar-container')
-              || searchBarEl?.querySelector?.('.search-input');
+            const searchInputContainer =
+              searchBarEl?.querySelector?.('.search-bar-container') || searchBarEl?.querySelector?.('.search-input');
             if (searchInputContainer) {
               searchInputContainer.click();
             }
@@ -268,11 +272,14 @@ export default defineComponent({
       e.stopImmediatePropagation();
 
       // 打点：点击AI编辑按钮打开对话框
-      RetrieveHelper.reportLog({
-        ai_scenario: 'ai_edit_dialog',
-        trigger_source: `${currentSearchMode.value}_mode`,
-        action: 'click',
-      }, store.state);
+      RetrieveHelper.reportLog(
+        {
+          ai_scenario: 'ai_edit_dialog',
+          trigger_source: `${currentSearchMode.value}_mode`,
+          action: 'click',
+        },
+        store.state,
+      );
 
       const rect = searchBarRef.value?.getRect();
       const left = rect?.left;
@@ -343,11 +350,10 @@ export default defineComponent({
           store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
 
           const { start_time, end_time } = queryParams as any;
-          setRouteParamsByKeywordAndAddition({ start_time, end_time })
-            .then(() => {
-              RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
-              store.dispatch('requestIndexSetQuery');
-            });
+          setRouteParamsByKeywordAndAddition({ start_time, end_time }).then(() => {
+            RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
+            store.dispatch('requestIndexSetQuery');
+          });
         }
       } catch (e) {
         console.error(e);
@@ -356,7 +362,7 @@ export default defineComponent({
           message: e.message,
         });
       }
-    }
+    };
 
     /**
      * 使用AI编辑
@@ -376,11 +382,14 @@ export default defineComponent({
       });
 
       // 打点：AI 自动补全（统计所有来源：UI/SQL/AI 模式）
-      RetrieveHelper.reportLog({
-        ai_scenario: 'auto_complete',
-        trigger_source: triggerSource,
-        action: 'request',
-      }, store.state);
+      RetrieveHelper.reportLog(
+        {
+          ai_scenario: 'auto_complete',
+          trigger_source: triggerSource,
+          action: 'request',
+        },
+        store.state,
+      );
 
       if (value.length === 0) {
         handleRequestResponse(null);
@@ -471,9 +480,8 @@ export default defineComponent({
                       />
                       {t('AI编辑')}
                       <span style={shortcutKeyStyle}>
-                        <i class="bklog-icon bklog-key-tab"></i>
+                        <i class='bklog-icon bklog-key-tab'></i>
                       </span>
-
                     </span>
                   );
                 }
