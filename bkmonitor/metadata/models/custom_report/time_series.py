@@ -2419,7 +2419,8 @@ class TimeSeriesMetric(models.Model):
     def _batch_update_metrics(cls, metrics_to_update, scopes_dict):
         updatable_fields = ["field_config", "label", "tag_list"]
         # bulk_update 需要包含 scope_id，因为指标 disabled 时会更新
-        bulk_update_fields = updatable_fields + ["scope_id"]
+        # 同时需要包含 last_modify_time，确保配置更新时也更新时间戳
+        bulk_update_fields = updatable_fields + ["scope_id", "last_modify_time"]
         records_to_update = []
         scope_moves = defaultdict(list)
 
@@ -2432,6 +2433,9 @@ class TimeSeriesMetric(models.Model):
             for field in updatable_fields:
                 if field in validated_request_data:
                     setattr(metric, field, validated_request_data[field])
+
+            # 更新最后修改时间
+            metric.last_modify_time = tz_now()
 
             # 如果 field_config 中 disabled 为 true，将 scope_id 置为 DISABLE_SCOPE_ID, 并跳过维度配置更新
             field_config = validated_request_data.get("field_config") or metric.field_config or {}
