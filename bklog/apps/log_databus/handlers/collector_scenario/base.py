@@ -172,7 +172,7 @@ class CollectorScenario:
                 "type_label": "log",
                 "mq_config": mq_config,
                 "option": default_option,
-                "bk_biz_id": bk_biz_id
+                "bk_biz_id": bk_biz_id,
             }
             if data_link_id:
                 data_link = DataLinkConfig.objects.filter(data_link_id=data_link_id).first()
