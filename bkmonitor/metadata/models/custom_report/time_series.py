@@ -2354,8 +2354,30 @@ class TimeSeriesMetric(models.Model):
             metric = existing_metrics_map.get(field_id) if field_id else None
 
             if metric is None:
-                # 准备创建
-                metrics_to_create.append(metric_data_copy)
+                # 检查是否有禁用的指标需要重启
+                field_name = metric_data_copy.get("field_name")
+                disabled_metric = cls.objects.filter(
+                    group_id=group_id,
+                    field_name=field_name,
+                    scope_id=cls.DISABLE_SCOPE_ID,
+                    field_config__disabled=True,
+                ).first()
+
+                if disabled_metric:
+                    # 重启禁用的指标
+                    metrics_to_update.append(
+                        (
+                            disabled_metric,
+                            {
+                                "field_config": {**(disabled_metric.field_config or {}), "disabled": False},
+                                "scope_id": metric_data_copy.get("scope_id"),
+                                "tag_list": metric_data_copy.get("tag_list"),
+                            },
+                        )
+                    )
+                else:
+                    # 准备创建
+                    metrics_to_create.append(metric_data_copy)
             else:
                 # 准备更新
                 metrics_to_update.append((metric, metric_data_copy))
@@ -2372,8 +2394,8 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def _batch_create_metrics(cls, metrics_to_create, group_id, table_id, scopes_dict):
-        # 检查字段名称冲突并获取过滤后的待创建列表
-        metrics_to_create = cls._validate_field_name_conflicts(metrics_to_create, group_id, scopes_dict)
+        # 检查字段名称冲突
+        cls._validate_field_name_conflicts(metrics_to_create)
 
         # 准备批量创建的数据
         records_to_create = []
@@ -2460,57 +2482,29 @@ class TimeSeriesMetric(models.Model):
         TimeSeriesScope.update_dimension_config_and_metrics_scope_id(scope_moves=scope_moves)
 
     @classmethod
-    def _validate_field_name_conflicts(cls, metrics_to_create, group_id, scopes_dict):
-        if not metrics_to_create or not group_id:
-            return metrics_to_create
-
-        # 构建字段名映射并验证批次内重复
-        field_name_map = {}
+    def _validate_field_name_conflicts(cls, metrics_to_create):
+        """检查字段名称冲突"""
+        # 收集所有字段名
+        field_names = []
         for metric_data in metrics_to_create:
             field_name = metric_data.get("field_name")
             if not field_name:
                 raise ValueError("创建指标时，field_name为必填项")
-            if field_name in field_name_map:
-                raise ValueError(f"同一批次内指标字段名称[{field_name}]重复，请使用其他名称")
-            field_name_map[field_name] = metric_data
+            field_names.append(field_name)
 
-        # 查询并重启禁用的指标
-        disabled_metrics = cls.objects.filter(
-            group_id=group_id,
-            field_name__in=field_name_map.keys(),
-            scope_id=cls.DISABLE_SCOPE_ID,
-            field_config__disabled=True,
-        )
+        # 检查同一批次内是否有重复的字段名
+        unique_field_names = set(field_names)
+        if len(field_names) != len(unique_field_names):
+            # 找出重复的字段名
+            seen = set()
+            batch_conflicting_names = []
+            for name in field_names:
+                if name in seen and name not in batch_conflicting_names:
+                    batch_conflicting_names.append(name)
+                seen.add(name)
+            raise ValueError(f"同一批次内指标字段名称[{', '.join(batch_conflicting_names)}]重复，请使用其他名称")
 
-        metrics_to_reactivate = []
-        for metric in disabled_metrics:
-            data = field_name_map.pop(metric.field_name)
-            metrics_to_reactivate.append(
-                (
-                    metric,
-                    {
-                        "field_config": {**(metric.field_config or {}), "disabled": False},
-                        "scope_id": data.get("scope_id"),
-                        "tag_list": data.get("tag_list"),
-                    },
-                )
-            )
-
-        if metrics_to_reactivate:
-            cls._batch_update_metrics(metrics_to_reactivate, scopes_dict)
-
-        # 检查剩余字段名冲突
-        if field_name_map:
-            conflicts = cls.objects.filter(group_id=group_id, field_name__in=field_name_map.keys()).values_list(
-                "field_name", flat=True
-            )
-            if conflicts:
-                raise ValueError(
-                    f"指标字段名称 [{', '.join(conflicts)}] 已存在于数据源 (group_id={group_id}) 中，请使用其他名称"
-                )
-
-        # 返回过滤后的待创建列表（已移除重启的指标）
-        return list(field_name_map.values())
+        # todo 检查跨批次的字段名冲突, 现在直接依赖数据库的唯一索引来保证
 
 
 class TimeSeriesTagManager(models.Manager):
