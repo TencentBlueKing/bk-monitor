@@ -4,6 +4,31 @@
   width: 100%;
   height: fit-content;
   height: 300px;
-  background: #957979;
   box-shadow: 0 0 12px 0 #00000014;
+
+  .series-view-container {
+    height: 100%;
+  }
+
+  .common-legend-item {
+    .icon-danger {
+      margin-right: 3px;
+      color: #e64545;
+    }
+
+    .circle-legend {
+      width: 8px;
+      height: 8px;
+      margin-right: 3px;
+      background-color: var(--legend-color);
+      border-radius: 50%;
+    }
+
+    .rect-legend {
+      width: 8px;
+      height: 8px;
+      margin-right: 3px;
+      background-color: var(--legend-color);
+    }
+  }
 }

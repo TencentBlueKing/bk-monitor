@@ -26,7 +26,7 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import type { ILegendItem, LegendActionType } from '../typings';
+import type { ILegendItem, LegendActionType, LegendOptions } from '../typings';
 
 import './common-legend.scss';
 
@@ -45,6 +45,13 @@ export const commonLegendProps = {
   legendData: {
     type: Array as PropType<ILegendItem[]>,
     required: true,
+  },
+  legendOptions: {
+    type: Object as PropType<LegendOptions>,
+    default: () => ({
+      disabledLegendClick: [],
+      legendIconMap: {},
+    }),
   },
 };
 export const commonLegendEmits = ['selectLegend'];
@@ -67,15 +74,21 @@ export default defineComponent({
           return (
             <div
               key={index}
-              class={['common-legend-item', legend.extCls]}
+              class='common-legend-item'
               onClick={e => this.handleLegendEvent(e, 'click', legend)}
-              // onMouseenter={e => this.handleLegendEvent(e, 'highlight', legend)}
-              // onMouseleave={e => this.handleLegendEvent(e, 'downplay', legend)}
             >
-              <span
-                style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
-                class='legend-icon'
-              />
+              {this.legendOptions.legendIconMap[legend.name] ? (
+                <div
+                  style={{ '--legend-color': legend.show ? legend.color : '#ccc' }}
+                  class={this.legendOptions.legendIconMap[legend.name]}
+                />
+              ) : (
+                <span
+                  style={{ backgroundColor: legend.show ? legend.color : '#ccc' }}
+                  class='legend-icon'
+                />
+              )}
+
               <div
                 style={{ color: legend.show ? '#63656e' : '#ccc' }}
                 class='legend-name'
