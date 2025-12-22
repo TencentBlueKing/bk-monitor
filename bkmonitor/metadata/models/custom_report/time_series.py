@@ -2495,7 +2495,6 @@ class TimeSeriesMetric(models.Model):
                         "field_config": {**(metric.field_config or {}), "disabled": False},
                         "scope_id": data.get("scope_id"),
                         "tag_list": data.get("tag_list"),
-                        "label": data.get("label"),
                     },
                 )
             )
