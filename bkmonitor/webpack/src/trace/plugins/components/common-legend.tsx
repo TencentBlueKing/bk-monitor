@@ -67,7 +67,7 @@ export default defineComponent({
           return (
             <div
               key={index}
-              class='common-legend-item'
+              class={['common-legend-item', legend.extCls]}
               onClick={e => this.handleLegendEvent(e, 'click', legend)}
               // onMouseenter={e => this.handleLegendEvent(e, 'highlight', legend)}
               // onMouseleave={e => this.handleLegendEvent(e, 'downplay', legend)}

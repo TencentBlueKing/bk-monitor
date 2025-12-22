@@ -488,6 +488,7 @@ export interface ITriggerConfig {
 export class AlarmDetail {
   readonly ack_duration: null | string;
   readonly alert_name: string;
+  readonly anomaly_timestamps: number[];
   readonly appointee: string[];
   readonly assignee: string[];
   readonly begin_time: number;

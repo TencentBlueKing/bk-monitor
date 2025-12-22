@@ -140,12 +140,121 @@ export default defineComponent({
     const formatterData = data => {
       const { graph_panel } = props.detail;
       const [{ alias }] = graph_panel.targets;
+
+      const series = data.series.map(s => ({
+        ...s,
+        alias: handleBuildLegend(alias, { ...s, tag: s.dimensions }) || s.alias,
+      }));
+
+      const datapoints = series[0]?.datapoints;
+
       return {
         ...data,
-        series: data.series.map(s => ({
-          ...s,
-          alias: handleBuildLegend(alias, { ...s, tag: s.dimensions }) || s.alias,
-        })),
+        series: [
+          ...series,
+          {
+            type: 'scatter',
+            datapoints: datapoints.map(item => {
+              const value = props.detail?.anomaly_timestamps.includes(Number(String(item[1]).slice(0, -3)))
+                ? item[0]
+                : null;
+              return [value, item[1]];
+            }),
+            alias: t('异常'),
+            symbolSize: 5,
+            color: '#E71818',
+            itemStyle: {
+              color: '#E71818',
+            },
+            tooltip: {
+              show: false,
+            },
+            disabledLegend: true,
+          },
+          {
+            type: 'line',
+            alias: t('致命告警产生'),
+            tooltip: {
+              show: false,
+            },
+            color: '#e64545',
+            lineStyle: {
+              opacity: 0,
+            },
+            markPoint: {
+              label: {
+                show: false,
+              },
+              data: [
+                {
+                  xAxis: String(props.detail.begin_time * 1000),
+                  yAxis: 'max',
+                  symbol: 'triangle',
+                  symbolSize: 18,
+                  symbolOffset: [0, -12],
+                  itemStyle: { color: '#e64545' },
+                },
+              ],
+            },
+            datapoints,
+            disabledLegend: true,
+          },
+          {
+            type: 'line',
+            alias: t('告警触发阶段'),
+            tooltip: {
+              show: false,
+            },
+            datapoints: datapoints.map(item => [null, item[1]]) || [],
+            color: '#DCDEE5',
+            markArea: {
+              silent: true,
+              itemStyle: {
+                color: 'rgba(155, 168, 194, 0.12)',
+              },
+              data: [
+                [
+                  {
+                    xAxis: String(props.detail?.first_anomaly_time * 1000),
+                  },
+                  {
+                    xAxis: String(props.detail?.begin_time * 1000),
+                  },
+                ],
+              ],
+            },
+            disabledLegend: true,
+          },
+          {
+            type: 'line',
+            alias: t('致命告警时段'),
+            tooltip: {
+              show: false,
+            },
+            datapoints: datapoints.map(item => [null, item[1]]) || [],
+            color: '#F8B4B4',
+            markArea: {
+              silent: true,
+              itemStyle: {
+                color: 'rgba(234, 54, 54, 0.12)',
+              },
+              data: [
+                [
+                  {
+                    xAxis: String(props.detail?.begin_time * 1000),
+                  },
+                  {
+                    xAxis: String(
+                      props.detail?.end_time ? props.detail?.end_time * 1000 : datapoints[datapoints.length - 1][1]
+                    ),
+                  },
+                ],
+              ],
+            },
+            disabledLegend: true,
+            z: 1,
+          },
+        ],
       };
     };
 

@@ -30,7 +30,6 @@ import { computed } from 'vue';
 
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
-import deepmerge from 'deepmerge';
 import { CancelToken } from 'monitor-api/cancel';
 import { random } from 'monitor-common/utils';
 import { arraysEqual } from 'monitor-common/utils/equal';
@@ -43,7 +42,7 @@ import { useChartTooltips } from '@/pages/trace-explore/components/explore-chart
 import type { FormatterOptions } from './monitor-charts';
 import type { EchartSeriesItem, FormatterFunc, SeriesItem } from '@/pages/trace-explore/components/explore-chart/types';
 import type { IDataQuery } from '@/plugins/typings';
-import type { IPlotBand, PanelModel } from 'monitor-ui/chart-plugins/typings';
+import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 export const useMonitorEcharts = (
   panel: MaybeRef<PanelModel>,
   chartRef: Ref<HTMLElement>,
@@ -116,6 +115,7 @@ export const useMonitorEcharts = (
     const resList = await Promise.allSettled(promiseList ?? []).finally(() => {
       loading.value = false;
     });
+    console.log(resList);
     const seriesList = [];
     for (const item of resList) {
       Array.isArray(item?.value) && item.value.length && seriesList.push(...item.value);
@@ -156,24 +156,18 @@ export const useMonitorEcharts = (
         });
       }
       const isEqual = preXData.length && arraysEqual(preXData, xData);
-      const minXTime = xData.at(0);
-      const maxXTime = xData.at(-1);
 
       if (!isEqual) {
         xAxisIndex += 1;
       }
       const unitFormatter = getValueFormat(data.unit);
       seriesData.push({
-        ...data,
         name: data.alias || data.target || '',
         data: list,
         xAxisIndex,
         type: data.type,
         stack: data.stack,
         unit: data.unit,
-        /** 区域标记 */
-        markArea: createMarkArea(data, minXTime, maxXTime),
-        markPoint: createMarkPointData(data, series),
         connectNulls: false,
         sampling: 'none',
         showAllSymbol: 'auto',
@@ -189,7 +183,8 @@ export const useMonitorEcharts = (
           datapoints: undefined,
           unitFormatter,
         },
-        z: 3,
+        z: data.z || 3,
+        ...data,
       });
       if (!isEqual) {
         xAxis.push(...createXAxis(xData, { show: xAxisIndex === 0 }));
@@ -392,7 +387,7 @@ export const useMonitorEcharts = (
         containLabel: true,
         left: 10,
         right: 10,
-        top: 10,
+        top: 30,
         bottom: 10,
         backgroundColor: 'transparent',
       },
@@ -406,110 +401,6 @@ export const useMonitorEcharts = (
         };
       }),
     };
-  };
-
-  /** 设置事件中心告警区域 */
-  const handleSetThresholdBand = (plotBands: IPlotBand[], minXTime, maxXTime) => {
-    return {
-      silent: true,
-      show: true,
-      data: plotBands.map(item => [
-        {
-          xAxis: item.from < minXTime ? String(minXTime) : String(item.from),
-          itemStyle: {
-            color: item.color || '#FFF5EC',
-            borderWidth: 1,
-            borderColor: item.borderColor || '#FFE9D5',
-            shadowColor: item.shadowColor || '#FFF5EC',
-            borderType: item.borderType || 'solid',
-            shadowBlur: 0,
-          },
-        },
-        {
-          xAxis: item.to ? (item.to > maxXTime ? String(maxXTime) : String(item.to)) : 'max',
-          itemStyle: {
-            color: item.color || '#FFF5EC',
-            borderWidth: 1,
-            borderColor: item.borderColor || '#FFE9D5',
-            shadowColor: item.shadowColor || '#FFF5EC',
-            borderType: item.borderType || 'solid',
-            shadowBlur: 0,
-          },
-        },
-      ]),
-      opacity: 0.1,
-    };
-  };
-
-  /** 创建标记区域 */
-  const createMarkArea = (item, minXTime, maxXTime) => {
-    /** 阈值区域 */
-    const thresholdsMarkArea = get(panel).options?.time_series?.markArea || {};
-    let alertMarkArea = {};
-    /** 告警区域 */
-    if (item.markTimeRange?.length) {
-      alertMarkArea = handleSetThresholdBand(item.markTimeRange.slice(), minXTime, maxXTime);
-    }
-    return deepmerge(alertMarkArea, thresholdsMarkArea);
-  };
-
-  /** 获取告警点数据 */
-  const createMarkPointData = (item, series) => {
-    let data = [];
-    /** 获取is_anomaly的告警点数据 */
-    const currentDataPoints = item.datapoints;
-    const currentDataPointsMap = new Map();
-    const currentDimensions = item.dimensions || [];
-    const getDimStr = dim => `${dim.bk_target_ip}-${dim.bk_target_cloud_id}`;
-    const currentDimStr = getDimStr(currentDimensions);
-    const currentIsAnomalyData = series.find(
-      item => item.alias === 'is_anomaly' && currentDimStr === getDimStr(item.dimensions)
-    );
-    let markPointData = [];
-    if (currentIsAnomalyData) {
-      for (const item of currentDataPoints) {
-        currentDataPointsMap.set(item[0], item[1]);
-      }
-      const currentIsAnomalyPoints = currentIsAnomalyData.datapoints;
-      markPointData = currentIsAnomalyPoints.reduce((total, cur) => {
-        const key = cur[1];
-        const val = currentDataPointsMap.get(key);
-        const isExit = currentDataPointsMap.has(key) && cur[0];
-        /** 测试条件 */
-        // const isExit = currentDataPointsMap.has(key) && val > 31.51;
-        isExit && total.push([key, val]);
-        return total;
-      }, []);
-    }
-    /** 红色告警点 */
-    data = markPointData.map(item => ({
-      itemStyle: {
-        color: '#EA3636',
-      },
-      xAxis: item[0],
-      yAxis: item[1],
-    }));
-
-    item.markPoints?.length &&
-      data.push(
-        ...item.markPoints.map(item => ({
-          xAxis: item[1] ? String(item[1]) : item[1],
-          yAxis: item[0],
-          symbolSize: 12,
-        }))
-      );
-    /** 事件中心告警开始点 */
-    const markPoint = {
-      data,
-      zlevel: 0,
-      symbol: 'circle',
-      symbolSize: 6,
-      z: 10,
-      label: {
-        show: false,
-      },
-    };
-    return markPoint;
   };
 
   watch(

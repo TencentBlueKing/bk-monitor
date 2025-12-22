@@ -79,24 +79,6 @@ export interface ILegendItem {
   totalSource?: number;
   value?: number | string;
 }
-export interface ILegendItem {
-  alias?: string;
-  avg?: number | string;
-  avgSource?: number;
-  borderColor?: string;
-  color: string;
-  hidden?: boolean;
-  max?: number | string;
-  maxSource?: number;
-  metricField?: string;
-  min?: number | string;
-  minSource?: number;
-  name: string;
-  show: boolean;
-  total?: number | string;
-  totalSource?: number;
-  value?: number | string;
-}
 export type LegendActionType = 'click' | 'downplay' | 'highlight' | 'shift-click';
 export type Series = SeriesItem[];
 
