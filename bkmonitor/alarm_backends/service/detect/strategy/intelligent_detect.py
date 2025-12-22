@@ -61,6 +61,7 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
                     ],
                 },
             },
+            "gray_to_bkfara": self.validated_config.get("gray_to_bkfara", False),
         }
 
     def gen_expr(self):
