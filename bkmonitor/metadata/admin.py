@@ -124,15 +124,26 @@ class TimeSeriesGroupAdmin(admin.ModelAdmin):
 
 
 class TimeSeriesMetricAdmin(admin.ModelAdmin):
-    list_display = ("group_id", "table_id", "field_name", "last_modify_time")
-    search_fields = ("group_id", "field_name", "last_modify_time")
-    list_filter = ("group_id", "field_name", "table_id")
+    list_display = ("group_id", "table_id", "scope_id", "field_name", "field_scope", "last_modify_time", "create_time")
+    search_fields = ("group_id", "field_name", "field_scope", "last_modify_time", "create_time")
+    list_filter = ("group_id", "field_name", "field_scope", "table_id")
+
+
+class TimeSeriesScopeAdmin(admin.ModelAdmin):
+    list_display = ("id", "group_id", "scope_name", "auto_rules", "last_modify_time")
+    search_fields = ("group_id", "scope_name")
+    list_filter = ("group_id", "scope_name")
 
 
 class ResultTableAdmin(admin.ModelAdmin):
     list_display = ("table_id", "table_name_zh", "bk_biz_id", "label", "last_modify_user", "last_modify_time")
     search_fields = ("table_id", "table_name_zh", "bk_biz_id")
     list_filter = ("bk_biz_id",)
+
+
+class ResultTableFieldAdmin(admin.ModelAdmin):
+    list_display = ("table_id", "field_name", "field_type", "tag", "description", "creator", "create_time")
+    search_fields = ("table_id", "field_name")
 
 
 class ResultTableOptionAdmin(admin.ModelAdmin):
@@ -233,6 +244,7 @@ admin.site.register(models.ESStorage, ESStorageAdmin)
 admin.site.register(models.EventGroup, EventGroupAdmin)
 admin.site.register(models.TimeSeriesGroup, TimeSeriesGroupAdmin)
 admin.site.register(models.TimeSeriesMetric, TimeSeriesMetricAdmin)
+admin.site.register(models.TimeSeriesScope, TimeSeriesScopeAdmin)
 admin.site.register(models.CustomReportSubscription, CustomReportSubscriptionAdmin)
 admin.site.register(models.PingServerSubscriptionConfig, PingServerSubscriptionConfigAdmin)
 admin.site.register(models.ClusterInfo, ClusterInfoAdmin)
@@ -243,6 +255,7 @@ admin.site.register(models.DataSourceOption, DataSourceOptionAdmin)
 admin.site.register(models.DataSourceResultTable, DataSourceResultTableAdmin)
 admin.site.register(models.InfluxDBTagInfo, InfluxdbTagAdmin)
 admin.site.register(models.ResultTable, ResultTableAdmin)
+admin.site.register(models.ResultTableField, ResultTableFieldAdmin)
 admin.site.register(models.ResultTableOption, ResultTableOptionAdmin)
 admin.site.register(models.ReplaceConfig, ReplaceConfigAdmin)
 admin.site.register(models.InfluxDBProxyStorage, InfluxDBProxyStorageAdmin)

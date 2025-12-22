@@ -416,6 +416,7 @@ class CreateTimeSeriesGroupResource(MetaDataAPIGWResource):
         is_split_measurement = serializers.BooleanField(required=False, label="是否启动自动分表逻辑", default=True)
         additional_options = serializers.DictField(required=False, label="附带创建的ResultTableOption")
         data_label = serializers.CharField(required=False, label="数据标签")
+        metric_group_dimensions = serializers.JSONField(required=False, label="指标分组的维度key配置")
 
 
 class ModifyTimeSeriesGroupResource(MetaDataAPIGWResource):
@@ -498,6 +499,93 @@ class QueryTimeSeriesGroupResource(CacheResource):
         return batch_request(
             api.metadata.single_query_time_series_group, validated_request_data, limit=500, app="metadata"
         )
+
+
+class CreateOrUpdateTimeSeriesMetricResource(MetaDataAPIGWResource):
+    """
+    批量创建或更新自定义时序指标
+    """
+
+    action = "/app/metadata/create_or_update_time_series_metric/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        class MetricSerializer(serializers.Serializer):
+            """单个指标的序列化器"""
+
+            field_id = serializers.IntegerField(required=False, label="字段ID")
+            field_name = serializers.CharField(required=False, label="指标字段名称", max_length=255)
+            field_scope = serializers.CharField(required=False, label="指标数据分组", max_length=255)
+            tag_list = serializers.ListField(
+                required=False, label="Tag列表", child=serializers.CharField(), allow_null=True
+            )
+            field_config = serializers.DictField(required=False, label="字段其他配置", allow_null=True)
+            label = serializers.CharField(required=False, label="指标监控对象", max_length=255, allow_null=True)
+            scope_id = serializers.IntegerField(required=True, label="指标分组ID")
+
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+        metrics = serializers.ListField(
+            required=True,
+            label="批量指标列表",
+            child=MetricSerializer(),
+            allow_empty=False,
+        )
+
+
+class CreateOrUpdateTimeSeriesScopeResource(MetaDataAPIGWResource):
+    """
+    批量创建或更新自定义时序指标分组
+    """
+
+    action = "/app/metadata/create_or_update_time_series_scope/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+
+        class ScopeSerializer(serializers.Serializer):
+            scope_id = serializers.IntegerField(required=False, label="指标分组ID")
+            scope_name = serializers.CharField(required=False, label="指标分组名", max_length=255)
+            dimension_config = serializers.DictField(required=False, allow_null=True, label="分组下的维度配置")
+            auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
+
+        scopes = serializers.ListField(
+            required=True, child=ScopeSerializer(), label="批量创建或更新的分组列表", min_length=1
+        )
+
+
+class DeleteTimeSeriesScopeResource(MetaDataAPIGWResource):
+    """
+    批量删除自定义时序指标分组
+    """
+
+    action = "/app/metadata/delete_time_series_scope/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+
+        class ScopeSerializer(serializers.Serializer):
+            scope_name = serializers.CharField(required=True, label="指标分组名", max_length=255)
+
+        scopes = serializers.ListField(required=True, child=ScopeSerializer(), label="批量删除的分组列表", min_length=1)
+
+
+class QueryTimeSeriesScopeResource(MetaDataAPIGWResource):
+    """
+    查询自定义时序指标分组列表
+    """
+
+    action = "/app/metadata/query_time_series_scope/"
+    method = "POST"
+    backend_cache_type = CacheType.METADATA
+
+    class RequestSerializer(serializers.Serializer):
+        group_id = serializers.IntegerField(required=True, label="自定义时序数据源ID")
+        scope_ids = serializers.ListField(
+            child=serializers.IntegerField(), required=False, label="指标分组ID列表", allow_empty=True
+        )
+        scope_name = serializers.CharField(required=False, label="指标分组名称")
 
 
 class QueryTagValuesResource(MetaDataAPIGWResource):
