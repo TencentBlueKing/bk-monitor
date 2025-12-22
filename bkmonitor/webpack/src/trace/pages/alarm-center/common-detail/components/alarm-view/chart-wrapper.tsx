@@ -33,6 +33,7 @@ import { useI18n } from 'vue-i18n';
 import MonitorCharts from './echarts/monitor-charts';
 
 import type { AlarmDetail } from '@/pages/alarm-center/typings';
+import type { LegendOptions } from '@/plugins/typings';
 
 import './chart-wrapper.scss';
 
@@ -136,6 +137,16 @@ export default defineComponent({
       return alias.replace(/\|$/g, '');
     };
 
+    const legendOptions = computed<LegendOptions>(() => ({
+      disabledLegendClick: [t('异常'), t('致命告警产生'), t('告警触发阶段'), t('致命告警时段')],
+      legendIconMap: {
+        [t('异常')]: 'circle-legend',
+        [t('致命告警产生')]: 'icon-monitor icon-danger',
+        [t('告警触发阶段')]: 'rect-legend',
+        [t('致命告警时段')]: 'rect-legend',
+      },
+    }));
+
     /** 格式化数据 */
     const formatterData = data => {
       const { graph_panel } = props.detail;
@@ -147,7 +158,7 @@ export default defineComponent({
       }));
 
       const datapoints = series[0]?.datapoints;
-
+      const max = datapoints?.reduce((prev, cur) => Math.max(prev, cur[0]), 0);
       return {
         ...data,
         series: [
@@ -169,7 +180,6 @@ export default defineComponent({
             tooltip: {
               show: false,
             },
-            disabledLegend: true,
           },
           {
             type: 'line',
@@ -181,23 +191,25 @@ export default defineComponent({
             lineStyle: {
               opacity: 0,
             },
+            yAxisIndex: 1,
             markPoint: {
+              symbol: 'circle',
+              symbolSize: 0,
               label: {
-                show: false,
+                show: true,
+                position: 'top',
+                formatter: '\ue606',
+                color: '#e64545',
+                fontSize: 18,
+                fontFamily: 'icon-monitor',
               },
               data: [
                 {
-                  xAxis: String(props.detail.begin_time * 1000),
-                  yAxis: 'max',
-                  symbol: 'triangle',
-                  symbolSize: 18,
-                  symbolOffset: [0, -12],
-                  itemStyle: { color: '#e64545' },
+                  coord: [String(props.detail.begin_time * 1000), max === 0 ? 1 : max],
                 },
               ],
             },
             datapoints,
-            disabledLegend: true,
           },
           {
             type: 'line',
@@ -223,7 +235,6 @@ export default defineComponent({
                 ],
               ],
             },
-            disabledLegend: true,
           },
           {
             type: 'line',
@@ -251,7 +262,6 @@ export default defineComponent({
                 ],
               ],
             },
-            disabledLegend: true,
             z: 1,
           },
         ],
@@ -302,18 +312,17 @@ export default defineComponent({
       // if (hasOutlierDetection.value) return <OutlierDetectionChart detail={props.detail} />;
       return (
         <div class='series-view-container'>
-          {monitorChartPanel.value && (
-            <MonitorCharts
-              formatterOptions={{
-                seriesData: formatterData,
-                params: formatterParams,
-              }}
-              panel={monitorChartPanel.value}
-              showRestore={showRestore.value}
-              onDataZoomChange={handleDataZoomChange}
-              onRestore={handleRestore}
-            />
-          )}
+          <MonitorCharts
+            formatterOptions={{
+              seriesData: formatterData,
+              params: formatterParams,
+            }}
+            legendOptions={legendOptions.value}
+            panel={monitorChartPanel.value}
+            showRestore={showRestore.value}
+            onDataZoomChange={handleDataZoomChange}
+            onRestore={handleRestore}
+          />
         </div>
       );
     };
@@ -326,6 +335,6 @@ export default defineComponent({
   },
 
   render() {
-    return <div class={['event-detail-viewinfo']}>{this.getSeriesViewComponent()}</div>;
+    return <div class={['alarm-view-chart-wrapper']}>{this.getSeriesViewComponent()}</div>;
   },
 });

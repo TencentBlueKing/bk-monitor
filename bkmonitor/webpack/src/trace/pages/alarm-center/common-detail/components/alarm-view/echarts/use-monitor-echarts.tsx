@@ -115,7 +115,6 @@ export const useMonitorEcharts = (
     const resList = await Promise.allSettled(promiseList ?? []).finally(() => {
       loading.value = false;
     });
-    console.log(resList);
     const seriesList = [];
     for (const item of resList) {
       Array.isArray(item?.value) && item.value.length && seriesList.push(...item.value);
@@ -278,10 +277,6 @@ export const useMonitorEcharts = (
       const yValueFormatter = getValueFormat(unit);
       return {
         type: 'value',
-        // boundaryGap: true,
-        // alignTicks: true,
-        // nameGap: 0,
-        // nameLocation: 'center',
         axisLine: {
           show: false,
           lineStyle: {

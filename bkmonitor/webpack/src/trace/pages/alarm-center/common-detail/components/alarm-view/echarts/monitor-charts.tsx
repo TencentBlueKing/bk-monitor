@@ -36,6 +36,7 @@ import ChartTitle from '@/plugins/components/chart-title';
 import CommonLegend from '@/plugins/components/common-legend';
 
 import type { DataZoomEvent } from '@/pages/trace-explore/components/explore-chart/types';
+import type { LegendOptions } from '@/plugins/typings';
 import type { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './monitor-charts.scss';
@@ -56,13 +57,13 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
-    formatterData: {
-      type: Function as PropType<(val) => any>,
-      default: res => res,
+    legendOptions: {
+      type: Object as PropType<LegendOptions>,
+      default: () => ({}),
     },
     formatterOptions: {
       type: Object as PropType<FormatterOptions>,
-      default: () => ({}),
+      default: () => ({ disabledLegendClick: [], legendIconMap: {} }),
     },
     params: {
       type: Object as PropType<Record<string, any>>,
@@ -95,7 +96,7 @@ export default defineComponent({
       series,
       chartRef
     );
-    const { legendData, handleSelectLegend } = useChartLegend(options, chartId);
+    const { legendData, handleSelectLegend } = useChartLegend(options, chartId, props.legendOptions);
     const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
       const xAxisData = echartOptions.xAxis[0]?.data;
       if (!xAxisData.length || xAxisData.length <= 2) return;
@@ -213,6 +214,7 @@ export default defineComponent({
 
             <CommonLegend
               legendData={this.legendData}
+              legendOptions={this.legendOptions}
               onSelectLegend={this.handleSelectLegend}
             />
           </>
