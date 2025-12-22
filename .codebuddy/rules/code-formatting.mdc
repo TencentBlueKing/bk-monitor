@@ -1,0 +1,81 @@
+---
+description: 
+alwaysApply: true
+enabled: true
+updatedAt: 2025-12-19T07:40:15.306Z
+provider: 
+---
+
+# 代码格式化规则
+
+本项目使用 **Biome** 作为主要格式化工具，配合 **ESLint** 进行代码检查。
+
+## 核心格式化规则
+
+### 缩进与空格
+- **缩进风格**: 空格 (space)
+- **缩进大小**: 2 个空格
+- **行尾**: LF (Unix 风格换行)
+- **最大行宽**: 120 字符
+- **文件末尾**: 必须有空行
+- **行尾空格**: 自动删除
+
+### 引号规则
+- **字符串**: 单引号 `'string'`
+- **JSX 属性**: 单引号 `<div attr='value' />`
+- **对象属性**: 仅在必要时使用引号
+
+### 括号与分号
+- **分号**: 必须使用 `;`
+- **尾逗号**: 全部使用 (trailing commas: all)
+- **箭头函数参数**: 单参数时省略括号 `x => x + 1`
+- **括号位置**: 不在同一行 (bracketSameLine: false)
+- **括号内空格**: 使用空格 `{ a, b }`
+
+### 代码示例
+
+```typescript
+// ✅ 正确
+const foo = 'bar';
+const obj = { a: 1, b: 2 };
+const arr = [1, 2, 3];
+const fn = x => x + 1;
+const longFn = (param1, param2) => {
+  return param1 + param2;
+};
+
+// ❌ 错误
+const foo = "bar";        // 应使用单引号
+const obj = {a:1,b:2};    // 缺少空格
+const fn = (x) => x + 1;  // 单参数不需要括号
+```
+
+### JSX/TSX 格式
+
+```tsx
+// ✅ 正确
+<Component
+  prop1='value1'
+  prop2={variable}
+  prop3={obj.property}
+/>
+
+// ❌ 错误
+<Component prop1="value1" prop2={variable} prop3={obj.property} />
+```
+
+## 生成代码时必须遵守
+
+1. 使用 **2 空格缩进**，不要使用 Tab
+2. 字符串使用 **单引号**
+3. 语句末尾 **必须加分号**
+4. 对象/数组最后一项 **必须加逗号**
+5. 单参数箭头函数 **省略括号**
+6. 行宽超过 120 字符时 **换行**
+7. 文件末尾 **保留一个空行**
+
+## 配置文件参考
+
+- `biome.json` - 主要格式化配置
+- `.editorconfig` - 编辑器通用配置
+- `eslint.config.js` - 代码检查规则

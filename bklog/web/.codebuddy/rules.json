@@ -1,0 +1,186 @@
+{
+    "version": "2.0",
+    "description": "Adaptive rule engine for autonomous front-end QA",
+    "rules": [
+        {
+            "id": "on-code-change",
+            "name": "代码变更触发测试生成",
+            "enabled": true,
+            "scope": "global",
+            "when": {
+                "event": "file-changed",
+                "patterns": [
+                    "src/views/**/*.tsx",
+                    "src/views/**/*.vue",
+                    "src/components/**/*.tsx",
+                    "src/components/**/*.vue"
+                ]
+            },
+            "do": [
+                {
+                    "action": "ai:analyze-context",
+                    "config": {
+                        "depth": 3,
+                        "includeTests": false
+                    }
+                },
+                {
+                    "action": "ai:generate-runtime-task",
+                    "config": {
+                        "minConfidence": 0.6,
+                        "maxTasks": 5
+                    }
+                },
+                {
+                    "action": "mcp:execute-runtime-task",
+                    "config": {
+                        "parallel": false,
+                        "stopOnFailure": false
+                    }
+                },
+                {
+                    "action": "promote:maybe",
+                    "config": {
+                        "autoPromote": true,
+                        "criteria": "success-and-confidence"
+                    }
+                }
+            ],
+            "weight": 1,
+            "confidence": 0.9
+        },
+        {
+            "id": "selector-fallback-evolution",
+            "name": "Selector 失败时自动学习备选方案",
+            "enabled": true,
+            "scope": "component",
+            "onFailure": "selector-not-found",
+            "learn": {
+                "action": "infer-alternative-selector",
+                "strategy": "ast-based",
+                "maxAlternatives": 3,
+                "persist": true
+            },
+            "weight": 0.4,
+            "confidence": 0.7,
+            "metadata": {
+                "description": "当 selector 找不到时，通过 AST 分析组件推断备选 selector",
+                "successCount": 0,
+                "failureCount": 0,
+                "lastUpdated": null
+            }
+        },
+        {
+            "id": "wait-time-extend",
+            "name": "超时时自动延长等待时间",
+            "enabled": true,
+            "scope": "global",
+            "onFailure": "timeout",
+            "learn": {
+                "action": "extend-timeout",
+                "strategy": "exponential-backoff",
+                "maxTimeout": 60000,
+                "persist": true
+            },
+            "weight": 0.3,
+            "confidence": 0.6,
+            "metadata": {
+                "description": "超时时逐步延长等待时间，最多到 60 秒",
+                "successCount": 0,
+                "failureCount": 0
+            }
+        },
+        {
+            "id": "route-alternative",
+            "name": "路由失败时尝试备选路径",
+            "enabled": true,
+            "scope": "route",
+            "onFailure": "navigation-failed",
+            "learn": {
+                "action": "try-alternative-route",
+                "strategy": "router-config-based",
+                "persist": true
+            },
+            "weight": 0.2,
+            "confidence": 0.5,
+            "metadata": {
+                "description": "导航失败时从路由配置推断可能的替代路径"
+            }
+        },
+        {
+            "id": "ignore-flaky-signal",
+            "name": "忽略不稳定的信号",
+            "enabled": false,
+            "scope": "signal",
+            "onFailure": "signal-not-met",
+            "learn": {
+                "action": "disable-signal",
+                "strategy": "statistical",
+                "threshold": 0.3,
+                "persist": true
+            },
+            "weight": 0.1,
+            "confidence": 0.4,
+            "metadata": {
+                "description": "如果某个 signal 失败率超过 30%，自动禁用"
+            }
+        }
+    ],
+    "learningConfig": {
+        "weightUpdate": {
+            "onSuccess": {
+                "formula": "weight + (1 - weight) * 0.15"
+            },
+            "onFailure": {
+                "formula": "weight * 0.7"
+            }
+        },
+        "confidenceUpdate": {
+            "onSuccess": "+0.1",
+            "onFailure": "-0.2"
+        },
+        "disableThreshold": {
+            "weight": 0.25,
+            "description": "低于此权重的规则将被自动禁用"
+        },
+        "conflictResolution": {
+            "strategy": "highest-score",
+            "scoreFormula": "rule.weight * rule.confidence * contextMatch"
+        }
+    },
+    "selectorStrategy": {
+        "priority": [
+            "data-testid",
+            "data-test",
+            "aria-label",
+            "role",
+            "class",
+            "id"
+        ],
+        "fallback": {
+            "enabled": true,
+            "maxDepth": 3
+        }
+    },
+    "promote": {
+        "auto": true,
+        "criteria": {
+            "taskSuccess": true,
+            "taskConfidence": {
+                "min": 0.8
+            },
+            "ruleConfidence": {
+                "min": 0.85
+            },
+            "consecutiveSuccess": {
+                "min": 3,
+                "description": "连续成功 3 次后自动 promote"
+            }
+        },
+        "output": {
+            "directory": "tests/mcp/assets",
+            "format": "runtime-task",
+            "versionControl": true
+        }
+    }
+}
