@@ -136,7 +136,7 @@ class ResultTableHandler(APIModel):
             _cluster_id = self.storage_cluster_id
 
             if self.scenario_id == Scenario.LOG:
-                # 如果未指定集群ID，则从最后一个结果表中获取（目前不允许跨集群）
+                # 如果未指定集群ID，则从最后一个结果表中获取，scenario_id为LOG时，一般只会传一个result_table_id
                 if not _cluster_id:
                     last_result_table_id = _result_table_id.split(",")[-1]
                     storage_info = TransferApi.get_result_table_storage(
