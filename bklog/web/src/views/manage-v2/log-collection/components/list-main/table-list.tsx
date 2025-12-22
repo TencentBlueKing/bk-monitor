@@ -299,7 +299,7 @@ export default defineComponent({
           maxTableHeight.value = HEIGHT_CONSTANTS.MIN_TABLE_HEIGHT;
           return;
         }
-        const totalListHeight = (listLen + 1) * HEIGHT_CONSTANTS.COLUMNS_HEIGHT + 6;
+        const totalListHeight = listLen * HEIGHT_CONSTANTS.COLUMNS_HEIGHT + 10;
 
         // 如果分页数据总高度超过最大高度，使用最大高度（启用滚动）
         // 否则根据实际数据行数计算高度（避免空白区域）

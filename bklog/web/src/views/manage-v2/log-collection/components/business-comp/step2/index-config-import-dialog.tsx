@@ -29,14 +29,11 @@ import { computed, defineComponent, ref, watch, type PropType, onBeforeUnmount }
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { bkMessage } from 'bk-magic-vue';
-import { ConfigProvider as TConfigProvider, Table as TTable } from 'tdesign-vue';
-import ItemSkeleton from '@/skeleton/item-skeleton';
-import EmptyStatus from '@/components/empty-status/index.vue';
 import axios from 'axios';
 import $http from '@/api';
+import TableComponent from '../../common-comp/table-component';
 
 import './index-config-import-dialog.scss';
-import 'tdesign-vue/es/style/index.css';
 
 const CancelToken = axios.CancelToken;
 /**
@@ -394,7 +391,7 @@ export default defineComponent({
           handleCancel();
         })
         .catch(err => {
-          console.error('获取采集器详情失败:', err);
+          console.log('获取采集器详情失败:', err);
           bkMessage({
             theme: 'error',
             message: t('获取配置信息失败，请稍后重试'),
@@ -510,15 +507,6 @@ export default defineComponent({
       changePagination();
     };
 
-    const renderEmpty = () => (
-      <div class='table-empty-content'>
-        <EmptyStatus
-          emptyType={emptyType.value}
-          on-operation={() => handleEmptyOperation()}
-        />
-      </div>
-    );
-
     onBeforeUnmount(() => {
       listInterfaceCancel.value?.();
     });
@@ -567,35 +555,16 @@ export default defineComponent({
           </div>
           <div class='content-bot'>
             <div class='content-bot-title'>{t('请选择目标索引集')}</div>
-            <TConfigProvider class='config-import-table'>
-              <TTable
-                cellEmptyContent={'--'}
-                columns={allColumns.value}
-                data={collectList.value}
-                loading={isTableLoading.value}
-                loading-props={{ indicator: false }}
-                on-page-change={handlePageChange}
-                pagination={pagination.value}
-                row-key='key'
-                rowHeight={32}
-                scroll={{ type: 'lazy', bufferSize: 10 }}
-                scopedSlots={{
-                  loading: () => (
-                    <div class='table-skeleton-box'>
-                      <ItemSkeleton
-                        style={{ padding: '0 16px' }}
-                        columns={5}
-                        gap={'14px'}
-                        rowHeight={'28px'}
-                        rows={4}
-                        widths={['20%', '20%', '20%', '20%', '20%']}
-                      />
-                    </div>
-                  ),
-                  empty: renderEmpty,
-                }}
-              />
-            </TConfigProvider>
+            <TableComponent class='config-import-table'
+              columns={allColumns.value}
+              data={collectList.value}
+              loading={isTableLoading.value}
+              on-page-change={handlePageChange}
+              pagination={pagination.value}
+              on-empty-click={handleEmptyOperation}
+              emptyType={emptyType.value}
+              height='430px'
+            />
           </div>
         </div>
         <div slot='footer'>

@@ -105,7 +105,7 @@ export default defineComponent({
 
     watch(
       () => props.value,
-      val => {
+      (val) => {
         tagList.value = [...val];
       },
       { immediate: true, deep: true },
@@ -247,7 +247,7 @@ export default defineComponent({
       newTagInput.value = (e.target as HTMLInputElement).value;
     };
     /** 下拉选中 */
-    const handleAddSortFields = value => {
+    const handleAddSortFields = (value) => {
       const options = props.selectList.find(item => item.id === value);
       tagList.value.push(options.id);
       emitChange();
@@ -311,11 +311,11 @@ export default defineComponent({
               )}
             </div>
           ))}
-          {props.addType !== 'select' &&
-            props.editable &&
-            props.showAddButton &&
-            !isAdding.value &&
-            (props.maxTags === 0 || tagList.value.length < props.maxTags) && (
+          {props.addType !== 'select'
+            && props.editable
+            && props.showAddButton
+            && !isAdding.value
+            && (props.maxTags === 0 || tagList.value.length < props.maxTags) && (
               <div
                 ref={rootRef}
                 class={{
@@ -326,7 +326,7 @@ export default defineComponent({
               >
                 <i class='bk-icon icon-plus left-icon' />
               </div>
-            )}
+          )}
           <div style='display: none'>
             <div
               ref={addPanelRef}

@@ -60,7 +60,7 @@
       line-height: 10px;
     }
     .filter-icon {
-      color: #63656e;
+      color: #acadb7;
       transition: color 0.2s;
       font-size: 13px;
       &.is-filtered {
@@ -91,7 +91,7 @@
       td {
         font-size: 12px;
         color: #4D4F56;
-        padding: 10px 10px 10px 12px;
+        padding: 8px 8px 8px 10px;
       }
     }
     .t-table__filter-pop .t-table__list-filter-input--sticky .t-table__filter-pop-content .t-table__filter-pop-content-inner .t-radio-group {
@@ -146,6 +146,9 @@
         width: 100px;
         flex: none;
       }
+      .t-input--focused {
+        box-shadow: none;
+      }
       .t-pagination__select {
         flex: 1;
         margin-left: 10px;
@@ -155,6 +158,10 @@
           &:focus {
             box-shadow: none;
           }
+        }
+        .t-input__inner {
+          font-size: 13px;
+          color: #63656e;
         }
       }
       .t-pagination__number {
@@ -177,5 +184,20 @@
   font-size: 12px !important;
   .link {
     color: #fff !important;
+  }
+}
+.t-select__dropdown.t-popup {
+  .t-select__list {
+    padding: 8px 0;
+  }
+  .t-select-option {
+    font-size: 13px;
+    color: #63656e;
+    padding: 6px 16px;
+    border-radius: 0;
+    &.t-is-selected {
+      background-color: #eaf3ff;
+      color:#3a84ff;
+    }
   }
 }
