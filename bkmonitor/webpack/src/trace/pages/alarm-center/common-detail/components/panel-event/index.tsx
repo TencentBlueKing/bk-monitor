@@ -25,7 +25,7 @@
  */
 import { type PropType, defineComponent } from 'vue';
 
-import { eventLogs } from 'monitor-api/modules/apm_event';
+import { alertEvents } from 'monitor-api/modules/alert_v2';
 import { random } from 'monitor-common/utils/utils';
 
 import EventTable from './components/event-table';
@@ -44,23 +44,19 @@ export default defineComponent({
   },
   setup(props) {
     const getData = async (params: { limit: number; offset: number; sort: string[]; where: unknown[] }) => {
-      const res = await eventLogs({
-        query_configs: [
-          {
-            data_source_label: 'apm',
-            data_type_label: 'event',
-            table: 'builtin',
-            query_string: '',
-            where: params.where,
-            group_by: ['type'],
-            filter_dict: {},
-          },
-        ],
-        app_name: 'tilapia',
-        service_name: 'example.greeter',
-        start_time: props.detail.begin_time,
-        end_time: props.detail.latest_time,
-        bk_biz_id: props.detail.bk_biz_id,
+      const res = await alertEvents({
+        // query_configs: [
+        //   {
+        //     data_source_label: 'apm',
+        //     data_type_label: 'event',
+        //     table: 'builtin',
+        //     query_string: '',
+        //     where: params.where,
+        //     group_by: ['type'],
+        //     filter_dict: {},
+        //   },
+        // ],
+        alert_id: props.detail.id,
         limit: params.limit,
         offset: params.offset,
         sort: params.sort,
@@ -79,8 +75,24 @@ export default defineComponent({
       };
     };
 
+    const handleGoEvent = () => {
+      const queryConfig = props.detail?.items?.[0]?.query_configs?.[0];
+      const serviceName = queryConfig?.agg_dimension?.service_name?.value || '';
+      const appName = queryConfig?.agg_dimension?.app_name?.value || '';
+      if (serviceName && appName) {
+        const hash = `#/apm/service?filter-service_name=${serviceName}&filter-app_name=${appName}&dashboardId=service-default-event`;
+        const url = location.href.replace(location.hash, hash);
+        window.open(url, '_blank');
+      } else {
+        const hash = '#/event-explore';
+        const url = location.href.replace(location.hash, hash);
+        window.open(url, '_blank');
+      }
+    };
+
     return {
       getData,
+      handleGoEvent,
     };
   },
   render() {
@@ -90,6 +102,7 @@ export default defineComponent({
           <EventTable
             key={this.detail.id}
             getTableData={this.getData}
+            onGoEvent={this.handleGoEvent}
           />
         ) : undefined}
       </div>

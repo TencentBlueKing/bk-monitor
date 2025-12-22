@@ -39,11 +39,12 @@ import { computed } from 'vue';
 import { useThrottleFn } from '@vueuse/core';
 import { $bkPopover, Button, Exception, Input } from 'bkui-vue';
 import { ArrowsRight, Close, Transfer } from 'bkui-vue/lib/icon';
+import { fieldTypeMap } from 'trace/pages/trace-explore/utils';
 import { useI18n } from 'vue-i18n';
 
 import FieldTypeIcon from '@/pages/trace-explore/components/field-type-icon';
 
-import type { DimensionType } from '@/pages/trace-explore/typing';
+import type { DimensionType } from 'trace/pages/trace-explore/typing';
 
 import './table-field-setting.scss';
 
@@ -136,6 +137,8 @@ export default defineComponent({
         type: 'empty',
       };
     });
+
+    const fieldTypeMapKeys = computed(() => Object.keys(fieldTypeMap));
 
     watch(
       () => popoverInstance.value,
@@ -232,7 +235,7 @@ export default defineComponent({
         componentEventDelay: 0,
         forceClickoutside: false,
         immediate: false,
-        // @ts-ignore
+        // @ts-expect-error
         onHide: () => {
           handlePopoverHide();
         },
@@ -322,7 +325,7 @@ export default defineComponent({
       draggingField.value = field;
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', field);
-      // @ts-ignore
+      // @ts-expect-error
       e.target.closest('.target-item').classList.add('dragging');
     }
 
@@ -359,7 +362,7 @@ export default defineComponent({
       const dragDom = target.closest('.target-item');
       if (dragDom) {
         dragDom?.classList.remove('dragging');
-        // @ts-ignore
+        // @ts-expect-error
         dragDom.draggable = false;
       }
       draggingField.value = '';
@@ -378,7 +381,7 @@ export default defineComponent({
      *
      */
     function dragHandleMouseOperation(e: MouseEvent, draggable) {
-      // @ts-ignore
+      // @ts-expect-error
       e.target.closest('.target-item').draggable = draggable;
     }
 
@@ -396,7 +399,7 @@ export default defineComponent({
           {selectedList.value.map((field, index) => {
             const fieldItem = sourceListMap.value[field];
             const label = fieldItem?.[props.displayKey];
-            const fieldType = fieldItem.type;
+            const fieldType = fieldTypeMapKeys.value.includes(fieldItem.type) ? fieldItem.type : 'text';
             return (
               <li
                 key={field}
@@ -445,7 +448,7 @@ export default defineComponent({
           {toBeChosenList.value.map(item => {
             const field = item[props.settingKey];
             const label = item[props.displayKey];
-            const fieldType = item.type;
+            const fieldType = fieldTypeMapKeys.value.includes(item.type) ? item.type : 'text';
             return (
               <li
                 key={field}
