@@ -2383,6 +2383,7 @@ class TimeSeriesMetric(models.Model):
                 metrics_to_update.append((metric, metric_data_copy))
 
         scopes_dict = {scope.id: scope for scope in TimeSeriesScope.objects.filter(group_id=group_id)}
+        scopes_dict[TimeSeriesMetric.DISABLE_SCOPE_ID] = None
 
         # 批量创建新指标
         if metrics_to_create:
@@ -2472,7 +2473,7 @@ class TimeSeriesMetric(models.Model):
 
             # 如果 scope 发生变化或者 tag_list 发生变化，记录需要移动的指标
             if scope_changed or tag_list_changed:
-                source_scope = None if original_scope_id == cls.DISABLE_SCOPE_ID else scopes_dict.get(original_scope_id)
+                source_scope = scopes_dict.get(original_scope_id)
                 scope_moves[(source_scope, new_scope)].append(metric)
 
         # 批量更新所有指标的字段
