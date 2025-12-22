@@ -42,7 +42,8 @@ export default defineComponent({
     const { t } = useI18n();
 
     const curValue = shallowRef('');
-
+    const instance = shallowRef(null);
+    const tipInstance = shallowRef(null);
     const handleClickMenu = (_event: MouseEvent, type: EClickMenuType) => {
       emit('clickMenu', {
         type,
@@ -51,7 +52,16 @@ export default defineComponent({
       instance.value?.hide();
     };
 
-    const instance = shallowRef(null);
+    const handleMouseEnter = (event: MouseEvent) => {
+      tipInstance.value = useTippy(() => event.target as HTMLElement, {
+        content: t('新开标签页'),
+        placement: 'top',
+        trigger: 'mouseenter',
+        theme: 'dark',
+        zIndex: 9999,
+      });
+      tipInstance.value?.show();
+    };
 
     const contextMenuComponent = {
       render: () => {
@@ -70,6 +80,19 @@ export default defineComponent({
             >
               <span class='menu-item-icon icon-monitor icon-jia' />
               <span>{t('添加到本次检索')}</span>
+
+              <span
+                class='link-btn'
+                onMouseenter={handleMouseEnter}
+              >
+                <span
+                  class='icon-monitor icon-mc-goto'
+                  onClick={(_e: MouseEvent) => {
+                    _e.stopPropagation();
+                    handleClickMenu(_e, EClickMenuType.IncludeLink);
+                  }}
+                />
+              </span>
             </div>
             <div
               class='log-cell-segment-pop-content-menu-item'
@@ -77,6 +100,18 @@ export default defineComponent({
             >
               <span class='menu-item-icon icon-monitor icon-jian' />
               <span>{t('从本次检索中排除')}</span>
+              <span
+                class='link-btn'
+                onMouseenter={handleMouseEnter}
+              >
+                <span
+                  class='icon-monitor icon-mc-goto'
+                  onClick={(_e: MouseEvent) => {
+                    _e.stopPropagation();
+                    handleClickMenu(_e, EClickMenuType.ExcludeLink);
+                  }}
+                />
+              </span>
             </div>
             <div
               class='log-cell-segment-pop-content-menu-item'
@@ -84,6 +119,18 @@ export default defineComponent({
             >
               <span class='menu-item-icon icon-monitor icon-jia' />
               <span>{t('新建检索')}</span>
+              <span
+                class='link-btn'
+                onMouseenter={handleMouseEnter}
+              >
+                <span
+                  class='icon-monitor icon-mc-goto'
+                  onClick={(_e: MouseEvent) => {
+                    _e.stopPropagation();
+                    handleClickMenu(_e, EClickMenuType.Link);
+                  }}
+                />
+              </span>
             </div>
           </div>
         );
@@ -102,6 +149,7 @@ export default defineComponent({
           hideOnClick: true,
           interactive: true,
           arrow: true,
+          zIndex: 9998,
           offset: [0, 12],
         });
       }
@@ -121,6 +169,7 @@ export default defineComponent({
 
     onUnmounted(() => {
       instance.value?.destroy?.();
+      tipInstance.value?.destroy?.();
     });
 
     return {
@@ -128,8 +177,12 @@ export default defineComponent({
     };
   },
   render() {
-    return this.$slots.default?.({
-      onClick: this.handleClick,
-    });
+    return (
+      <>
+        {this.$slots.default?.({
+          onClick: this.handleClick,
+        })}
+      </>
+    );
   },
 });

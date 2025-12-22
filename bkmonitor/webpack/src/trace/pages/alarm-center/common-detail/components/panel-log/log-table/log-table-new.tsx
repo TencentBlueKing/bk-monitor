@@ -36,6 +36,7 @@ import {
 } from 'vue';
 
 import { type TableSort, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
+import { debounce } from 'lodash';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import TableSkeleton from 'trace/components/skeleton/table-skeleton';
 import { useI18n } from 'vue-i18n';
@@ -109,6 +110,7 @@ export default defineComponent({
     const sortInfo = shallowRef(null);
     const scrollLoading = shallowRef(false);
     const observer = shallowRef<IntersectionObserver>();
+    const resizeObserver = shallowRef<ResizeObserver>();
 
     watch(
       () => props.refreshKey,
@@ -205,6 +207,14 @@ export default defineComponent({
     onMounted(() => {
       if (wrapRef.value) {
         wrapWidth.value = wrapRef.value.offsetWidth;
+        const debounceSetWrapWidth = debounce(() => {
+          wrapWidth.value = wrapRef.value.offsetWidth;
+          setWrapWidth(wrapWidth.value);
+        }, 200);
+        resizeObserver.value = new ResizeObserver(() => {
+          debounceSetWrapWidth();
+        });
+        resizeObserver.value.observe(wrapRef.value);
         setWrapWidth(wrapWidth.value);
         observer.value = new IntersectionObserver(entries => {
           for (const entry of entries) {
@@ -218,6 +228,7 @@ export default defineComponent({
 
     onUnmounted(() => {
       observer.value.disconnect();
+      resizeObserver.value.disconnect();
     });
 
     return {
@@ -258,14 +269,32 @@ export default defineComponent({
         ref='wrap'
         class='alarm-detail-log-table-new'
       >
-        {!this.loading && this.tableColumns.length && <div class='field-setting-btn'>{this.$slots.settingBtn?.()}</div>}
         {this.loading ? (
           <TableSkeleton />
         ) : this.tableData.length ? (
           <PrimaryTable
             class='panel-log-log-table'
+            columns={[
+              ...this.tableColumns,
+              {
+                width: '32px',
+                minWidth: '32px',
+                fixed: 'right',
+                align: 'center',
+                resizable: false,
+                thClassName: '__table-custom-setting-col__',
+                colKey: '__col_setting__',
+                title: () => this.$slots.settingBtn?.(),
+                cell: () => undefined,
+              },
+            ]}
+            rowspanAndColspan={({ colIndex }) => {
+              return {
+                rowspan: 1,
+                colspan: colIndex === this.tableColumns.length ? 2 : 1,
+              };
+            }}
             asyncLoading={(this.tableData.length ? customAsyncLoadingFn : false) as any}
-            columns={this.tableColumns}
             data={this.tableData}
             expandedRow={this.expandedRow}
             expandedRowKeys={this.expandedRowKeys}
@@ -273,6 +302,7 @@ export default defineComponent({
             expandOnRowClick={true}
             headerAffixedTop={this.headerAffixedTop}
             horizontalScrollAffixedBottom={this.headerAffixedTop}
+            hover={true}
             needCustomScroll={false}
             resizable={true}
             rowKey={'__id__'}

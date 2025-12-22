@@ -27,7 +27,9 @@
 export enum EClickMenuType {
   Copy = 'copy',
   Exclude = 'exclude',
+  ExcludeLink = 'excludeLink',
   Include = 'include',
+  IncludeLink = 'includeLink',
   Link = 'link',
 }
 

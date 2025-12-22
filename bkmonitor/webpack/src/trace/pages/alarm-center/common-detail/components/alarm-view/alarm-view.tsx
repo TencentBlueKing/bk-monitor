@@ -43,14 +43,21 @@ export default defineComponent({
       default: () => null,
     },
   },
-  setup() {
+  emits: {
+    relatedEventsTimeRange: (_val: string[]) => true,
+  },
+  setup(_props, { emit }) {
     const activeTab = shallowRef('dimension');
     const handleTabChange = (v: string) => {
       activeTab.value = v;
     };
+    const handleRelatedEventsTimeRange = (timeRange: string[]) => {
+      emit('relatedEventsTimeRange', timeRange);
+    };
     return {
       activeTab,
       handleTabChange,
+      handleRelatedEventsTimeRange,
     };
   },
   render() {
@@ -74,7 +81,12 @@ export default defineComponent({
           </Tab>
           <KeepAlive>
             {this.activeTab === 'dimension' && <DimensionWrapper />}
-            {this.activeTab === 'alarm_records' && <AlarmRecords detail={this.detail} />}
+            {this.activeTab === 'alarm_records' && (
+              <AlarmRecords
+                detail={this.detail}
+                onRelatedEventsTimeRange={this.handleRelatedEventsTimeRange}
+              />
+            )}
           </KeepAlive>
         </div>
       </div>

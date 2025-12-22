@@ -309,9 +309,8 @@ export default defineComponent({
     };
 
     const handleClickMenu = (opt: TClickMenuOpt) => {
-      if (opt.type === EClickMenuType.Link) {
-        return;
-      }
+      console.log(opt);
+      const preUrl = `${window.bk_log_search_url}#/retrieve/${selectIndexSet.value}?bizId=${props.detail?.bk_biz_id || (relatedBkBizId.value === -1 ? window.cc_biz_id : relatedBkBizId.value)}`;
       if (opt.type === EClickMenuType.Copy) {
         copyText(opt.value, msg => {
           Message({
@@ -331,14 +330,20 @@ export default defineComponent({
         default: {
           [EClickMenuType.Exclude]: '!=',
           [EClickMenuType.Include]: '=',
+          [EClickMenuType.ExcludeLink]: '!=',
+          [EClickMenuType.IncludeLink]: '=',
         },
         boolean: {
           [EClickMenuType.Exclude]: 'is false',
           [EClickMenuType.Include]: 'is true',
+          [EClickMenuType.ExcludeLink]: 'is false',
+          [EClickMenuType.IncludeLink]: 'is true',
         },
         all: {
           [EClickMenuType.Exclude]: 'not contains match phrase',
           [EClickMenuType.Include]: 'contains match phrase',
+          [EClickMenuType.ExcludeLink]: 'not contains match phrase',
+          [EClickMenuType.IncludeLink]: 'contains match phrase',
         },
       };
       for (const item of retrievalFields.value) {
@@ -360,6 +365,17 @@ export default defineComponent({
           value: [opt.value],
           condition: 'and',
         };
+      }
+      if ([EClickMenuType.Link, EClickMenuType.ExcludeLink, EClickMenuType.IncludeLink].includes(opt.type)) {
+        const url = `${preUrl}&addition=${JSON.stringify([
+          {
+            field: whereItem.key,
+            operator: whereItem.method,
+            value: whereItem.value,
+          },
+        ])}`;
+        window.open(url, '_blank');
+        return;
       }
       where.value = [...where.value, whereItem];
       tableRefreshKey.value = random(8);
