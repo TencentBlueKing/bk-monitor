@@ -1286,13 +1286,10 @@ class TimeSeriesScope(models.Model):
 
         # 构建 scope_id 到 scope_name 的映射（用于已有指标）
         scope_id_to_name = {scope.id: scope.scope_name for scope in all_scopes}
+        scope_id_to_name[TimeSeriesMetric.DISABLE_SCOPE_ID] = None
 
         existing_metric_scope_map = {
-            (metric["field_name"], metric["field_scope"]): (
-                None
-                if metric["scope_id"] == TimeSeriesMetric.DISABLE_SCOPE_ID
-                else scope_id_to_name.get(metric["scope_id"])
-            )
+            (metric["field_name"], metric["field_scope"]): scope_id_to_name.get(metric["scope_id"])
             for metric in existing_metrics
         }
 
