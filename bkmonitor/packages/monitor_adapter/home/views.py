@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import base64
 import json
 from urllib import parse
@@ -39,7 +39,10 @@ from constants.common import DEFAULT_TENANT_ID
 from core.errors.api import BKAPIError
 from monitor.models import GlobalConfig
 from monitor_adapter.home.alert_redirect import (
+    generate_apm_rpc_url,
+    generate_apm_trace_url,
     generate_data_retrieval_url,
+    generate_event_explore_url,
     generate_log_search_url,
 )
 from monitor_web.iam.resources import CallbackResource
@@ -84,10 +87,28 @@ def event_center_proxy(request):
         if data_retrieval_url:
             return redirect(data_retrieval_url)
 
-    if proxy_type == "log_search" and not request.is_mobile():
+    elif proxy_type == "log_search" and not request.is_mobile():
         log_search_url = generate_log_search_url(bk_biz_id, collect_id)
         if log_search_url:
             return redirect(log_search_url)
+
+    # 调用分析重定向
+    elif proxy_type == "apm_rpc" and not request.is_mobile():
+        apm_rpc_url = generate_apm_rpc_url(bk_biz_id, collect_id)
+        if apm_rpc_url:
+            return redirect(apm_rpc_url)
+
+    # Tracing 检索重定向
+    elif proxy_type == "apm_trace" and not request.is_mobile():
+        apm_trace_url = generate_apm_trace_url(bk_biz_id, collect_id)
+        if apm_trace_url:
+            return redirect(apm_trace_url)
+
+    # 事件检索重定向
+    elif proxy_type == "event_explore" and not request.is_mobile():
+        event_explore_url = generate_event_explore_url(bk_biz_id, collect_id)
+        if event_explore_url:
+            return redirect(event_explore_url)
 
     redirect_url = rio_url if request.is_mobile() else pc_url
     if batch_action:
@@ -258,13 +279,13 @@ def dispatch_external_proxy(request):
         return view_func(fake_request, **kwargs)
 
     except Resolver404:
-        logger.warning("dispatch_plugin_query: resolve view func 404 for: {}".format(url))
+        logger.warning(f"dispatch_plugin_query: resolve view func 404 for: {url}")
         return JsonResponse(
-            {"result": False, "message": "dispatch_plugin_query: resolve view func 404 for: {}".format(url)}, status=404
+            {"result": False, "message": f"dispatch_plugin_query: resolve view func 404 for: {url}"}, status=404
         )
 
     except Exception as e:
-        logger.exception("dispatch_plugin_query: exception for {}".format(e))
+        logger.exception(f"dispatch_plugin_query: exception for {e}")
         raise e
 
 
