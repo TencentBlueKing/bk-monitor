@@ -38,7 +38,7 @@ import V3AiMode from './ai-mode/index';
 import { bkMessage } from 'bk-magic-vue';
 
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import { AiQueryResult } from './types';
+import { AiQueryResult, AiQueryContent, ParseResult } from './types';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 
 import './index.scss';
@@ -55,7 +55,14 @@ export default defineComponent({
 
     const isAiLoading = ref(false);
     const searchMode = ref<'normal' | 'ai'>('normal');
-    const aiQueryResult = ref<AiQueryResult>({ startTime: '', endTime: '', queryString: '' });
+    const aiQueryResult = ref<AiQueryResult>({
+      startTime: '',
+      endTime: '',
+      queryString: '',
+      parseResult: undefined,
+      explain: undefined,
+    });
+
     const aiFilterList = computed<string[]>(() => (store.state.aiMode.filterList ?? [])
       .filter(f => !/^\s*\*?\s*$/.test(f)));
 
@@ -163,6 +170,8 @@ export default defineComponent({
 
           store.commit('updateIndexItemParams', { keyword: '' });
           aiQueryResult.value.queryString = '';
+          aiQueryResult.value.parseResult = undefined;
+          aiQueryResult.value.explain = undefined;
 
           // 更新路由参数以同步状态
           setRouteParamsByKeywordAndAddition();
@@ -212,7 +221,13 @@ export default defineComponent({
           searchMode.value = 'normal';
           store.state.aiMode.active = false;
           store.state.aiMode.filterList = [];
-          Object.assign(aiQueryResult.value, { startTime: '', endTime: '', queryString: '' });
+          Object.assign(aiQueryResult.value, {
+            startTime: undefined,
+            endTime: undefined,
+            queryString: undefined,
+            parseResult: undefined,
+            explain: undefined,
+          });
 
           // 切换到常规模式后，点击搜索框容器以触发自动 focus
           nextTick(() => {
@@ -241,7 +256,7 @@ export default defineComponent({
       RetrieveHelper.aiAssitantHelper.closeAiAssitantWithSearchBar(e);
     });
 
-    // addElementEvent(document, 'keydown', handleTabKeyPress, { capture: true });
+    addElementEvent(document, 'keydown', handleTabKeyPress, { capture: true });
 
     /**
      * 使用AI编辑
@@ -294,8 +309,18 @@ export default defineComponent({
     const handleRequestResponse = (resp?: any) => {
       const content = resp?.choices[0]?.delta?.content ?? '{}';
       try {
-        const contentObj = JSON.parse(content);
-        const { end_time: endTime, start_time: startTime, query_string: queryString = '' } = contentObj;
+        const contentObj: AiQueryContent = JSON.parse(content);
+        const {
+          end_time: endTime,
+          start_time: startTime,
+          query_string: queryString = '',
+          parse_result: parseResult,
+          explain = '',
+        } = contentObj;
+
+        aiQueryResult.value.parseResult = parseResult;
+        aiQueryResult.value.explain = explain;
+
         const queryParams = { search_mode: 'sql' };
         let needReplace = false;
         if (startTime && endTime) {
@@ -341,6 +366,14 @@ export default defineComponent({
      */
     const handleTextToQuery = (value: string, triggerSource: 'ui_mode' | 'sql_mode' | 'ai_mode' = 'ai_mode'): void => {
       isAiLoading.value = true;
+
+      Object.assign(aiQueryResult.value, {
+        queryString: '',
+        parseResult: undefined,
+        explain: undefined,
+        startTime: undefined,
+        endTime: undefined,
+      });
 
       // 打点：AI 自动补全（统计所有来源：UI/SQL/AI 模式）
       RetrieveHelper.reportLog({
@@ -421,6 +454,7 @@ export default defineComponent({
             handleTextToQuery(value, triggerSource);
           }}
           is-ai-loading={isAiLoading.value}
+          ai-query-result={aiQueryResult.value}
           {...{
             scopedSlots: {
               'search-tool': () => {
