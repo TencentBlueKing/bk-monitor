@@ -887,7 +887,7 @@ class CustomTsGroupingRuleList(Resource):
         scope_objs: list[ScopeQueryResponseDTO] = converter.query_time_series_scope()
         scope_objs = converter.filter_disabled_metric(scope_objs)
         result: list[dict[str, Any]] = [asdict(scope_obj) for scope_obj in scope_objs]
-        result.sort(key=lambda x: x["id"])
+        result.sort(key=lambda x: (x["name"] != UNGROUP_SCOPE_NAME, x["name"]))
         return result
 
 
