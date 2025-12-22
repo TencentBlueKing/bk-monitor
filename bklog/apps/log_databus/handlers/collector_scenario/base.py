@@ -172,8 +172,7 @@ class CollectorScenario:
                 "type_label": "log",
                 "mq_config": mq_config,
                 "option": default_option,
-                "bk_biz_id": bk_biz_id,
-                "operator": bk_username,
+                "bk_biz_id": bk_biz_id
             }
             if data_link_id:
                 data_link = DataLinkConfig.objects.filter(data_link_id=data_link_id).first()
@@ -186,6 +185,9 @@ class CollectorScenario:
                             "mq_cluster": data_link.kafka_cluster_id,
                         }
                     )
+
+            if bk_username:
+                params.update({"operator": bk_username})
 
             bk_data_id = TransferApi.create_data_id(params)["bk_data_id"]
             logger.info(f"[create_data_id] bk_data_id=>{bk_data_id}, params=>{params}")
@@ -214,6 +216,9 @@ class CollectorScenario:
             else:
                 params["option"].update({"is_log_cluster": False})
                 params["etl_config"] = "bk_flat_batch"
+
+            if bk_username:
+                params.update({"operator": bk_username})
 
             # 更新数据源
             TransferApi.modify_data_id(params)
