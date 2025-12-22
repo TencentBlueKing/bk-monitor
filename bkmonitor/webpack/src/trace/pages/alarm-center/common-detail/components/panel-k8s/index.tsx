@@ -48,7 +48,7 @@ export default defineComponent({
     const { timeRange, bizId } = storeToRefs(useAlarmCenterDetailStore());
     const { scene, currentTarget, sceneList, targetList, groupBy, loading } = useAlertK8s(toRef(props, 'alertId'));
     /** 需要渲染的仪表盘面板配置数组 */
-    const { dashboards } = useK8sChartPanel({
+    const { dashboards, loading: k8sDashboardLoading } = useK8sChartPanel({
       scene,
       groupBy,
       currentTarget,
@@ -75,6 +75,7 @@ export default defineComponent({
       targetList,
       groupBy,
       loading,
+      k8sDashboardLoading,
       dashboards,
       timeRange,
       handleToK8s,
@@ -132,6 +133,7 @@ export default defineComponent({
               time_shift: ' ',
             }}
             dashboards={this.dashboards}
+            loading={this.k8sDashboardLoading}
             timeRange={this.timeRange}
           >
             {{

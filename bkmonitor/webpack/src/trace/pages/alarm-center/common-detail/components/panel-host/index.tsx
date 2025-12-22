@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, shallowRef, toRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, toRef } from 'vue';
 
 import { get } from '@vueuse/core';
 import { storeToRefs } from 'pinia';
@@ -90,6 +90,7 @@ export default defineComponent({
 
     return {
       currentTarget,
+      sceneViewLoading,
       hostDashboards,
       targetList,
       timeRange,
@@ -112,7 +113,7 @@ export default defineComponent({
                   this.currentTarget = target;
                 }}
               />
-              {/* {this.createSkeletonDom()} */}
+              {this.createSkeletonDom()}
             </div>
             <div
               class='host-explore-link-btn'
@@ -127,15 +128,16 @@ export default defineComponent({
               content='该模块哈哈哈哈哈，我是一段随意的文本占位。'
               title={`${window.i18n.t('AI 分析结论')}：`}
             />
-            {/* {this.createSkeletonDom()} */}
+            {this.createSkeletonDom()}
           </div>
         </div>
         <div class='panel-host-chart-wrap'>
           <AlarmDashboardGroup
             dashboards={this.hostDashboards}
+            loading={this.sceneViewLoading}
             timeRange={this.timeRange}
             viewOptions={this.viewOptions}
-          ></AlarmDashboardGroup>
+          />
         </div>
       </div>
     );
