@@ -840,9 +840,9 @@ class ClusterConfig(models.Model):
 
     # 由于配置原因，namespace实际上与存储类型是绑定的，与实际的使用方无关
     KIND_TO_NAMESPACES_MAP = {
-        DataLinkKind.ELASTICSEARCH.value: BKBASE_NAMESPACE_BK_LOG,
-        DataLinkKind.VMSTORAGE.value: BKBASE_NAMESPACE_BK_MONITOR,
-        DataLinkKind.DORIS.value: BKBASE_NAMESPACE_BK_LOG,
+        DataLinkKind.ELASTICSEARCH.value: [BKBASE_NAMESPACE_BK_LOG],
+        DataLinkKind.VMSTORAGE.value: [BKBASE_NAMESPACE_BK_MONITOR],
+        DataLinkKind.DORIS.value: [BKBASE_NAMESPACE_BK_LOG],
         # Kafka集群需要同时注册到bkmonitor和bklog命名空间
         DataLinkKind.KAFKACHANNEL.value: [BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR],
     }
@@ -876,7 +876,7 @@ class ClusterConfig(models.Model):
 
         return get_data_link_component_config(
             bk_tenant_id=self.bk_tenant_id,
-            kind=DataLinkKind.get_choice_value(self.kind),
+            kind=self.kind,
             namespace=self.namespace,
             component_name=self.name,
         )
@@ -904,8 +904,32 @@ class ClusterConfig(models.Model):
 
         if self.kind == DataLinkKind.ELASTICSEARCH.value:
             return self.compose_es_config(cluster)
+        elif self.kind == DataLinkKind.KAFKACHANNEL.value:
+            return self.compose_kafka_config(cluster)
         else:
             raise ValueError(f"不支持的集群类型: {self.kind}")
+
+    def compose_kafka_config(self, cluster: "ClusterInfo") -> dict[str, Any]:
+        """组装Kafka集群配置"""
+        config = {
+            "kind": DataLinkKind.KAFKACHANNEL.value,
+            "metadata": {
+                "namespace": self.namespace,
+                "name": cluster.cluster_name,
+                "annotations": {"StreamToId": cluster.gse_stream_to_id},
+            },
+            "spec": {
+                "host": cluster.domain_name,
+                "port": cluster.port,
+                "streamToId": cluster.gse_stream_to_id,
+                "role": "outer",
+            },
+        }
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            config["metadata"]["tenant"] = cluster.bk_tenant_id
+
+        return config
 
     def compose_es_config(self, cluster: "ClusterInfo") -> dict[str, Any]:
         """组装ES集群配置
@@ -918,10 +942,9 @@ class ClusterConfig(models.Model):
         """
 
         config = {
-            "kind": "ElasticSearch",
+            "kind": DataLinkKind.ELASTICSEARCH.value,
             "metadata": {
-                "tenant": cluster.bk_tenant_id if settings.ENABLE_MULTI_TENANT_MODE else "default",
-                "namespace": BKBASE_NAMESPACE_BK_LOG,
+                "namespace": self.namespace,
                 "name": cluster.cluster_name,
             },
             "spec": {
@@ -931,6 +954,9 @@ class ClusterConfig(models.Model):
                 "password": cluster.password,
             },
         }
+
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            config["metadata"]["tenant"] = cluster.bk_tenant_id
 
         return config
 

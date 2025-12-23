@@ -65,6 +65,9 @@ class CircuitBreakingCacheManager(CacheManager):
         :param module: 模块名称
         :return: 熔断配置列表
         """
+        if not module:
+            return []
+
         cache_key = cls.get_cache_key(module)
         try:
             config_data = cls.cache.get(cache_key)
@@ -158,7 +161,7 @@ class CircuitBreakingCacheManager(CacheManager):
         module: str,
         strategy_sources: list[str],
         method: str = "eq",
-        condition: str = "or",
+        condition: str = "and",
         description: str | None = None,
     ) -> bool:
         """
@@ -167,7 +170,7 @@ class CircuitBreakingCacheManager(CacheManager):
         :param module: 模块名称，如 "access.data"
         :param strategy_sources: 数据源组合列表，如 ["bk_monitor:time_series", "bk_log_search:log"]
         :param method: 匹配方法，默认 "eq"
-        :param condition: 条件逻辑，默认 "or"
+        :param condition: 条件逻辑，默认 "and"
         :param description: 规则描述
         :return: 是否设置成功
         """
@@ -193,7 +196,7 @@ class CircuitBreakingCacheManager(CacheManager):
         module: str,
         bk_biz_ids: list[str],
         method: str = "eq",
-        condition: str = "or",
+        condition: str = "and",
         description: str | None = None,
     ) -> bool:
         """
@@ -202,7 +205,7 @@ class CircuitBreakingCacheManager(CacheManager):
         :param module: 模块名称，如 "access.data"
         :param bk_biz_ids: 业务ID列表，如 ["100", "200"]
         :param method: 匹配方法，默认 "eq"
-        :param condition: 条件逻辑，默认 "or"
+        :param condition: 条件逻辑，默认 "and"
         :param description: 规则描述
         :return: 是否设置成功
         """
@@ -227,7 +230,7 @@ class CircuitBreakingCacheManager(CacheManager):
         data_source_labels: list[str],
         data_type_labels: list[str] | None = None,
         method: str = "eq",
-        condition: str = "or",
+        condition: str = "and",
         description: str | None = None,
     ) -> bool:
         """
@@ -237,7 +240,7 @@ class CircuitBreakingCacheManager(CacheManager):
         :param data_source_labels: 数据源标签列表，如 ["bk_monitor", "bk_log_search"]
         :param data_type_labels: 数据类型标签列表，如 ["time_series", "log"]，可选
         :param method: 匹配方法，默认 "eq"
-        :param condition: 条件逻辑，默认 "or"
+        :param condition: 条件逻辑，默认 "and"
         :param description: 规则描述
         :return: 是否设置成功
         """
@@ -278,95 +281,44 @@ class CircuitBreakingCacheManager(CacheManager):
         return success
 
     @classmethod
-    def set_combined_circuit_breaking(
+    def set_strategy_circuit_breaking(
         cls,
         module: str,
-        bk_biz_ids: list[str] | None = None,
-        strategy_sources: list[str] | None = None,
-        data_source_labels: list[str] | None = None,
-        data_type_labels: list[str] | None = None,
+        strategy_ids: list[str | int],
         description: str | None = None,
     ) -> bool:
         """
-        快捷设置组合熔断规则（支持多种条件组合）
+        按策略ID设置熔断规则的快捷方法
 
         :param module: 模块名称，如 "access.data"
-        :param bk_biz_ids: 业务ID列表，可选
-        :param strategy_sources: 数据源组合列表，可选
-        :param data_source_labels: 数据源标签列表，可选
-        :param data_type_labels: 数据类型标签列表，可选
+        :param strategy_ids: 策略ID列表
         :param description: 规则描述
         :return: 是否设置成功
         """
-        if not any([bk_biz_ids, strategy_sources, data_source_labels, data_type_labels]):
-            logger.warning("[circuit breaking] At least one condition must be provided")
+        if not strategy_ids:
+            logger.warning("[circuit breaking] Strategy IDs must be provided")
             return False
 
-        rules = []
-        condition_parts = []
+        # 将策略ID转换为字符串列表
+        str_strategy_ids = [str(sid) for sid in strategy_ids]
 
-        # 业务ID条件
-        if bk_biz_ids:
-            rules.append(
-                {
-                    "key": "bk_biz_id",
-                    "method": "eq",
-                    "value": bk_biz_ids,
-                    "condition": "or" if len(rules) == 0 else "or",
-                }
-            )
-            condition_parts.append(f"业务ID: {', '.join(bk_biz_ids)}")
+        # 构建熔断规则
+        rule = {
+            "key": "strategy_id",
+            "method": "eq",
+            "value": str_strategy_ids,
+            "condition": "and",
+            "description": description or f"创建时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        }
 
-        # 数据源组合条件
-        if strategy_sources:
-            rules.append(
-                {
-                    "key": "strategy_source",
-                    "method": "eq",
-                    "value": strategy_sources,
-                    "condition": "or" if len(rules) == 0 else "or",
-                }
-            )
-            condition_parts.append(f"数据源组合: {', '.join(strategy_sources)}")
+        # 添加规则
+        success = cls.add_rule(module, rule)
 
-        # 数据源标签条件
-        if data_source_labels:
-            rules.append(
-                {
-                    "key": "data_source_label",
-                    "method": "eq",
-                    "value": data_source_labels,
-                    "condition": "or" if len(rules) == 0 else "or",
-                }
-            )
-            condition_parts.append(f"数据源标签: {', '.join(data_source_labels)}")
+        if success:
+            logger.info(f"[circuit breaking] Setting strategy circuit breaking for module {module}: {str_strategy_ids}")
+        else:
+            logger.error(f"[circuit breaking] Failed to set strategy circuit breaking for module {module}")
 
-        # 数据类型标签条件
-        if data_type_labels:
-            rules.append(
-                {
-                    "key": "data_type_label",
-                    "method": "eq",
-                    "value": data_type_labels,
-                    "condition": "and" if data_source_labels else ("or" if len(rules) == 0 else "or"),
-                }
-            )
-            condition_parts.append(f"数据类型标签: {', '.join(data_type_labels)}")
-
-        # 添加描述
-        final_description = description or f"组合熔断规则: {' | '.join(condition_parts)}"
-        for rule in rules:
-            if "description" not in rule:
-                rule["description"] = final_description
-
-        # 批量添加规则
-        success = True
-        for rule in rules:
-            if not cls.add_rule(module, rule):
-                success = False
-                break
-
-        logger.info(f"[circuit breaking] Setting combined circuit breaking for module {module}: {condition_parts}")
         return success
 
     @classmethod
@@ -384,7 +336,7 @@ class CircuitBreakingCacheManager(CacheManager):
 
 
 def set_strategy_source_circuit_breaking(
-    module: str, strategy_sources: list[str], method: str = "eq", condition: str = "or", description: str | None = None
+    module: str, strategy_sources: list[str], method: str = "eq", condition: str = "and", description: str | None = None
 ) -> bool:
     """
     快捷设置基于strategy_source的熔断规则（便捷函数）
@@ -392,7 +344,7 @@ def set_strategy_source_circuit_breaking(
     :param module: 模块名称，如 "access.data"
     :param strategy_sources: 数据源组合列表，如 ["bk_monitor:time_series", "bk_log_search:log"]
     :param method: 匹配方法，默认 "eq"
-    :param condition: 条件逻辑，默认 "or"
+    :param condition: 条件逻辑，默认 "and"
     :param description: 规则描述
     :return: 是否设置成功
     """
@@ -402,7 +354,7 @@ def set_strategy_source_circuit_breaking(
 
 
 def set_bk_biz_id_circuit_breaking(
-    module: str, bk_biz_ids: list[str], method: str = "eq", condition: str = "or", description: str | None = None
+    module: str, bk_biz_ids: list[str], method: str = "eq", condition: str = "and", description: str | None = None
 ) -> bool:
     """
     快捷设置基于bk_biz_id的熔断规则（便捷函数）
@@ -410,7 +362,7 @@ def set_bk_biz_id_circuit_breaking(
     :param module: 模块名称，如 "access.data"
     :param bk_biz_ids: 业务ID列表，如 ["100", "200"]
     :param method: 匹配方法，默认 "eq"
-    :param condition: 条件逻辑，默认 "or"
+    :param condition: 条件逻辑，默认 "and"
     :param description: 规则描述
     :return: 是否设置成功
     """
@@ -424,7 +376,7 @@ def set_data_source_circuit_breaking(
     data_source_labels: list[str],
     data_type_labels: list[str] | None = None,
     method: str = "eq",
-    condition: str = "or",
+    condition: str = "and",
     description: str | None = None,
 ) -> bool:
     """
@@ -434,7 +386,7 @@ def set_data_source_circuit_breaking(
     :param data_source_labels: 数据源标签列表，如 ["bk_monitor", "bk_log_search"]
     :param data_type_labels: 数据类型标签列表，如 ["time_series", "log"]，可选
     :param method: 匹配方法，默认 "eq"
-    :param condition: 条件逻辑，默认 "or"
+    :param condition: 条件逻辑，默认 "and"
     :param description: 规则描述
     :return: 是否设置成功
     """
@@ -443,28 +395,20 @@ def set_data_source_circuit_breaking(
     )
 
 
-def set_combined_circuit_breaking(
+def set_strategy_circuit_breaking(
     module: str,
-    bk_biz_ids: list[str] | None = None,
-    strategy_sources: list[str] | None = None,
-    data_source_labels: list[str] | None = None,
-    data_type_labels: list[str] | None = None,
+    strategy_ids: list[str | int],
     description: str | None = None,
 ) -> bool:
     """
-    快捷设置组合熔断规则（便捷函数）
+    按策略ID设置熔断规则的快捷方法（便捷函数）
 
     :param module: 模块名称，如 "access.data"
-    :param bk_biz_ids: 业务ID列表，可选
-    :param strategy_sources: 数据源组合列表，可选
-    :param data_source_labels: 数据源标签列表，可选
-    :param data_type_labels: 数据类型标签列表，可选
+    :param strategy_ids: 策略ID列表
     :param description: 规则描述
     :return: 是否设置成功
     """
-    return CircuitBreakingCacheManager.set_combined_circuit_breaking(
-        module, bk_biz_ids, strategy_sources, data_source_labels, data_type_labels, description
-    )
+    return CircuitBreakingCacheManager.set_strategy_circuit_breaking(module, strategy_ids, description)
 
 
 def clear(
@@ -555,39 +499,50 @@ COMMON_DATA_SOURCE_COMBINATIONS = [
 # ==================== 使用示例 ====================
 
 
-def example_usage():
-    """
-    预设快捷设置函数的使用示例
-    """
-    module = "access.data"
+example_usage = """预设快捷设置函数的使用示例:
+module = "access.data"
+module = "alert.builder"
 
-    # 示例1: 设置基于strategy_source的熔断
-    set_strategy_source_circuit_breaking(
-        module=module,
-        strategy_sources=["bk_monitor:time_series", "bk_log_search:log"],
-    )
+# 示例1: 设置基于strategy_source的熔断
+set_strategy_source_circuit_breaking(
+    module=module,
+    strategy_sources=["bk_monitor:time_series", "bk_log_search:log"],
+)
 
-    # 示例2: 设置基于bk_biz_id的熔断
-    set_bk_biz_id_circuit_breaking(
-        module=module,
-        bk_biz_ids=["100", "200"],
-    )
+# 示例2: 设置基于bk_biz_id的熔断
+set_bk_biz_id_circuit_breaking(
+    module=module,
+    bk_biz_ids=["100", "200"],
+)
 
-    # 示例3: 设置基于数据源标签的熔断
-    set_data_source_circuit_breaking(
-        module=module,
-        data_source_labels=["bk_log_search"],
-        data_type_labels=["time_series"],
-    )
+# 示例3: 设置基于数据源标签的熔断
+set_data_source_circuit_breaking(
+    module=module,
+    data_source_labels=["bk_log_search"],
+    data_type_labels=["time_series"],
+)
 
-    # 示例4: 设置组合熔断规则
-    set_combined_circuit_breaking(
-        module=module,
-        bk_biz_ids=["100"],
-        strategy_sources=["bk_monitor:time_series"],
-    )
+# 示例4: 设置策略熔断规则
+set_strategy_circuit_breaking(
+    module=module,
+    strategy_ids=[12345, 67890],
+    description="测试策略熔断",
+)
 
-    # 示例5: 清空
-    clear(
-        module=module,
-    )
+# 示例5: 组合熔断规则（AND关系）
+# 熔断业务100下的策略123
+set_bk_biz_id_circuit_breaking(module=module, bk_biz_ids=["100"])
+set_strategy_circuit_breaking(module=module, strategy_ids=[123])
+
+# 熔断业务100下的bk_monitor:time_series
+set_bk_biz_id_circuit_breaking(module=module, bk_biz_ids=["100"])
+set_strategy_source_circuit_breaking(module=module, strategy_sources=["bk_monitor:time_series"])
+
+# 示例6: 清空所有规则
+clear(module=module)
+
+# 注意：现在默认condition为"and"，多个规则之间是AND关系
+# 如果需要OR关系，可以显式指定condition="or"
+"""
+
+print(example_usage)

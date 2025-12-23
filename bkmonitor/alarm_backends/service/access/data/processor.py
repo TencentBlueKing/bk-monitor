@@ -116,14 +116,14 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
 
             for cb_strategy in circuit_breaking_strategies:
                 logger.warning(
-                    f"[circuit breaking] strategy({cb_strategy['strategy_id']}),"
+                    f"[circuit breaking] [access.data] strategy({cb_strategy['strategy_id']}),"
                     f"item({cb_strategy['item_id']}) "
                     f"circuit breaking triggered before data pull, "
                     f"strategy_group_key: {strategy_group_key}"
                 )
 
             logger.info(
-                f"[circuit breaking] Circuit breaking applied before data pull: "
+                f"[circuit breaking] [access.data] circuit breaking applied before data pull: "
                 f"{len(circuit_breaking_strategies)}/{len(self.items)} strategies filtered, "
                 f"remaining: {len(remaining_items)} strategies, "
                 f"strategy_group_key: {strategy_group_key}"
@@ -135,7 +135,7 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
             # 如果所有策略都被熔断，返回True跳过数据查询
             if not remaining_items:
                 logger.info(
-                    f"[circuit breaking] All strategies in group {strategy_group_key} are circuit broken, "
+                    f"[circuit breaking] [access.data] all strategies in group {strategy_group_key} are circuit broken, "
                     f"skipping data query"
                 )
                 return True

@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 from rest_framework import serializers
 
+from api.cmdb.define import Host
+from apm_web.handlers.host_handler import HostHandler
 from apm_web.strategy.dispatch.entity import EntitySet
 from bkmonitor.documents import AlertDocument
 from constants.alert import APMTargetType, K8STargetType, K8S_RESOURCE_TYPE, EventTargetType
@@ -455,8 +457,7 @@ class AlertK8sTargetResource(Resource):
         # 构建目标信息结构，APM 场景下资源类型固定为 workload
         target_info: dict = {"resource_type": K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD], "target_list": []}
 
-        # 解析 APM 场景的 target 目标格式，格式为 "{app_name}:{service_name}"
-        app_name, service_name = alert.event.target.split(":", 1)
+        app_name, service_name = APMTargetType.parse_target(alert.event.target)
 
         # 获取 APM 服务关联的容器负载，构建目标对象资源列表
         entity_set: EntitySet = EntitySet(
@@ -543,17 +544,22 @@ class AlertHostTargetResource(Resource):
         Returns:
             dict: 主机目标对象信息，如果不支持则返回空列表
         """
-        alert_id = validated_request_data["alert_id"]
+        alert_id: str = validated_request_data["alert_id"]
         # 根据告警ID获取告警文档对象
-        alert = AlertDocument.get(alert_id)
+        alert: AlertDocument = AlertDocument.get(alert_id)
+        target_type: str = alert.event.target_type
 
         # 检查是否为主机目标类型
-        if alert.event.target_type == EventTargetType.HOST:
+        if target_type == EventTargetType.HOST:
             try:
                 target_list = self.host_target_list(alert)
             except AttributeError:
                 target_list = []
             return target_list
+
+        # 检查是否为 APM 目标类型
+        if target_type == APMTargetType.SERVICE:
+            return self.apm_host_target_list(alert)
 
         # 不支持的类型返回空列表
         return []
@@ -581,6 +587,69 @@ class AlertHostTargetResource(Resource):
         hosts = api.cmdb.get_host_by_id(bk_biz_id=alert.event.bk_biz_id, bk_host_ids=[alert.event.bk_host_id])
         if not hosts:
             return [target_info]
+
+        return cls.flat_host_info(hosts, alert)
+
+    @classmethod
+    def apm_host_target_list(cls, alert: AlertDocument) -> list[dict[str, str | int]]:
+        """
+        获取 APM 服务关联的主机目标信息
+
+        :param alert: 告警文档对象
+        :type alert: AlertDocument
+        :return: 扁平化后的主机信息列表
+        :rtype: list[dict[str, str | int]]
+
+        返回示例:
+            [
+                {
+                    "bk_host_id": 123,
+                    "bk_target_ip": "127.0.0.1",
+                    "bk_cloud_id": 123,
+                    "display_name": "xxx / k8s-node / 127.0.0.1",
+                    "bk_host_name": "xxx"
+                }
+            ]
+        """
+        app_name, service_name = APMTargetType.parse_target(alert.event.target)
+
+        # 调用 HostHandler 获取 APM 应用关联的主机列表
+        host_list: list[dict] = HostHandler.list_application_hosts(
+            bk_biz_id=alert.event.bk_biz_id,
+            app_name=app_name,
+            service_name=service_name,
+        )
+
+        # 若无关联的主机，则返回空列表
+        if not host_list:
+            return []
+
+        # 提取主机 id 列表，将字符串格式的主机 id 转换为整数
+        target_hosts: list[dict[str, str | int]] = []
+        bk_host_ids: list[int] = []
+        for host in host_list:
+            bk_host_id: str | None = host.get("bk_host_id")
+            if not bk_host_id or not str(bk_host_id).isdigit():
+                continue
+            target_hosts.append(
+                {
+                    "bk_host_id": int(bk_host_id),
+                    "bk_target_ip": host["bk_host_innerip"],
+                    "bk_cloud_id": int(host["bk_cloud_id"]),
+                    "display_name": host["bk_host_innerip"],
+                    "bk_host_name": "",
+                }
+            )
+            bk_host_ids.append(int(bk_host_id))
+
+        # 若无有效的主机 id，则返回空列表
+        if not bk_host_ids:
+            return []
+
+        # 调用 CMDB API 获取主机详细信息
+        hosts: list[Host] = api.cmdb.get_host_by_id(bk_biz_id=alert.event.bk_biz_id, bk_host_ids=bk_host_ids)
+        if not hosts:
+            return target_hosts
 
         return cls.flat_host_info(hosts, alert)
 
