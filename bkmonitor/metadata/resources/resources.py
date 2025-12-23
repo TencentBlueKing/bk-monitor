@@ -1523,12 +1523,14 @@ class QueryTimeSeriesScopeResource(Resource):
             child=serializers.IntegerField(), required=False, label="指标分组ID列表", allow_empty=True
         )
         scope_name = serializers.CharField(required=False, label="指标分组名称")
+        include_metrics = serializers.BooleanField(required=False, default=True, label="是否返回指标数据")
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
         group_id = validated_request_data.get("group_id")
         scope_ids = validated_request_data.get("scope_ids")
         scope_name = validated_request_data.get("scope_name")
+        include_metrics = validated_request_data.get("include_metrics")
 
         if not models.TimeSeriesGroup.objects.filter(
             time_series_group_id=group_id, bk_tenant_id=bk_tenant_id, is_delete=False
@@ -1542,12 +1544,12 @@ class QueryTimeSeriesScopeResource(Resource):
             query_set = query_set.filter(id__in=scope_ids)
         if scope_name:
             query_set = query_set.filter(scope_name__icontains=scope_name)
-        results = self._build_grouped_results(query_set, group_id)
+        results = self._build_grouped_results(query_set, group_id, include_metrics)
 
         return results
 
     @staticmethod
-    def _build_grouped_results(query_set, group_id):
+    def _build_grouped_results(query_set, group_id, include_metrics):
         # 使用 values() 直接获取字典数据，避免 ORM 对象创建开销
         scopes = list(query_set.values("id", "group_id", "scope_name", "dimension_config", "auto_rules", "create_from"))
         if not scopes:
@@ -1555,37 +1557,41 @@ class QueryTimeSeriesScopeResource(Resource):
 
         scope_ids = [scope["id"] for scope in scopes]
 
-        # 使用 values() 批量查询 metrics，避免 ORM 对象转换
-        all_metrics = (
-            models.TimeSeriesMetric.objects.filter(group_id=group_id, scope_id__in=scope_ids)
-            .values(
-                "field_name",
-                "field_id",
-                "field_scope",
-                "tag_list",
-                "field_config",
-                "create_time",
-                "last_modify_time",
-                "group_id",
-                "scope_id",
-            )
-            .iterator(chunk_size=500)
-        )
-
         metrics_by_scope = defaultdict(list)
-        for metric in all_metrics:
-            key = (metric["group_id"], metric["scope_id"])
-            metrics_by_scope[key].append(
-                {
-                    "metric_name": metric["field_name"],
-                    "field_id": metric["field_id"],
-                    "field_scope": metric["field_scope"],
-                    "tag_list": metric["tag_list"],
-                    "field_config": metric["field_config"] or {},
-                    "create_time": metric["create_time"].timestamp() if metric["create_time"] else None,
-                    "last_modify_time": metric["last_modify_time"].timestamp() if metric["last_modify_time"] else None,
-                }
+        # 只有在需要返回指标数据时才查询
+        if include_metrics:
+            # 使用 values() 批量查询 metrics，避免 ORM 对象转换
+            all_metrics = (
+                models.TimeSeriesMetric.objects.filter(group_id=group_id, scope_id__in=scope_ids)
+                .values(
+                    "field_name",
+                    "field_id",
+                    "field_scope",
+                    "tag_list",
+                    "field_config",
+                    "create_time",
+                    "last_modify_time",
+                    "group_id",
+                    "scope_id",
+                )
+                .iterator(chunk_size=500)
             )
+
+            for metric in all_metrics:
+                key = (metric["group_id"], metric["scope_id"])
+                metrics_by_scope[key].append(
+                    {
+                        "metric_name": metric["field_name"],
+                        "field_id": metric["field_id"],
+                        "field_scope": metric["field_scope"],
+                        "tag_list": metric["tag_list"],
+                        "field_config": metric["field_config"] or {},
+                        "create_time": metric["create_time"].timestamp() if metric["create_time"] else None,
+                        "last_modify_time": metric["last_modify_time"].timestamp()
+                        if metric["last_modify_time"]
+                        else None,
+                    }
+                )
 
         return [
             {
