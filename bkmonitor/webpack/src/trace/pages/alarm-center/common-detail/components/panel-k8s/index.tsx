@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, toRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
+import dayjs from 'dayjs';
 import { K8sNewTabEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 import { storeToRefs } from 'pinia';
 
@@ -57,6 +58,10 @@ export default defineComponent({
       currentTarget,
       bizId,
     });
+    /** 图表执行 dataZoom 框线缩放后的时间范围 */
+    const dataZoomTimeRange = shallowRef(null);
+    /** 当前图表视图的时间范围 */
+    const viewerTimeRange = computed(() => get(dataZoomTimeRange) ?? get(timeRange));
     /** 是否能够跳转容器监控页面 */
     const canLinkTok8s = computed(() => get(currentTarget) && get(scene));
 
@@ -99,11 +104,29 @@ export default defineComponent({
     };
 
     /**
+     * @description 数据时间间隔 值改变后回调
+     * @param {[number, number]} e
+     */
+    const handleDataZoomTimeRangeChange = (e?: [number, number]) => {
+      if (!e?.[0] || !e?.[1]) {
+        dataZoomTimeRange.value = null;
+        return;
+      }
+      const startTime = dayjs.tz(e?.[0]).format('YYYY-MM-DD HH:mm:ss');
+      const endTime = dayjs.tz(e?.[1]).format('YYYY-MM-DD HH:mm:ss');
+      dataZoomTimeRange.value = startTime && endTime ? [startTime, endTime] : null;
+    };
+
+    /**
      * @description 创建骨架屏 dom 元素
      */
-    function createSkeletonDom() {
+    const createSkeletonDom = () => {
       return <div class='alarm-detail-panel-k8s-skeleton-dom skeleton-element' />;
-    }
+    };
+
+    watch([() => get(scene), () => get(currentTarget)], () => {
+      handleDataZoomTimeRangeChange();
+    });
 
     return {
       scene,
@@ -116,8 +139,11 @@ export default defineComponent({
       dashboards,
       timeRange,
       canLinkTok8s,
+      dataZoomTimeRange,
+      viewerTimeRange,
       handleToK8s,
       createSkeletonDom,
+      handleDataZoomTimeRangeChange,
     };
   },
   render() {
@@ -172,7 +198,10 @@ export default defineComponent({
             }}
             dashboards={this.dashboards}
             loading={this.k8sDashboardLoading}
-            timeRange={this.timeRange}
+            showRestore={this.dataZoomTimeRange}
+            timeRange={this.viewerTimeRange}
+            onDataZoomChange={this.handleDataZoomTimeRangeChange}
+            onRestore={this.handleDataZoomTimeRangeChange}
           >
             {{
               customBaseChart: renderContext => <K8SCustomChart {...renderContext} />,

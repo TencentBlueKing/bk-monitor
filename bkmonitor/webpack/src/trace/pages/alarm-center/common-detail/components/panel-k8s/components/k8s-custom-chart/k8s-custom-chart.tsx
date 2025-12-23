@@ -48,24 +48,33 @@ import './k8s-custom-chart.scss';
 export default defineComponent({
   name: 'K8sCustomChart',
   props: {
+    /** 面板数据配置 */
     panel: {
       type: Object as PropType<PanelModel>,
       required: true,
     },
+    /** 是否显示图表 Title 组件 */
     showTitle: {
       type: Boolean,
       default: true,
     },
+    /** 图表数据格式化函数 */
     formatterData: {
       type: Function as PropType<(val) => any>,
       default: res => res,
     },
+    /** 查询参数 */
     params: {
       type: Object as PropType<Record<string, any>>,
       default: () => ({}),
     },
+    /** 是否展示复位按钮 */
+    showRestore: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['dataZoomChange', 'durationChange'],
+  emits: ['dataZoomChange', 'durationChange', 'restore'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const chartInstance = useTemplateRef<InstanceType<typeof VueEcharts>>('echart');
@@ -94,12 +103,12 @@ export default defineComponent({
     );
     const { legendData, handleSelectLegend } = useChartLegend(options, chartId);
     const handleDataZoom = (event: DataZoomEvent, echartOptions) => {
-      if (!mouseIn.value) return;
-      const xAxisData = echartOptions.xAxis[0]?.data;
-      if (!xAxisData.length || xAxisData.length <= 2) return;
       chartInstance.value.dispatchAction({
         type: 'restore',
       });
+      if (!mouseIn.value) return;
+      const xAxisData = echartOptions.xAxis[0]?.data;
+      if (!xAxisData.length || xAxisData.length <= 2) return;
       let { startValue, endValue } = event.batch[0];
       startValue = Math.max(0, startValue);
       endValue = Math.min(endValue, xAxisData.length - 1);
@@ -116,6 +125,7 @@ export default defineComponent({
       }
       emit('dataZoomChange', [startTime, endTime]);
     };
+
     const handleMouseInChange = (v: boolean) => {
       mouseIn.value = v;
     };
@@ -245,15 +255,28 @@ export default defineComponent({
           <ChartSkeleton />
         ) : this.options ? (
           <>
-            <VueEcharts
-              ref='echart'
-              group={this.panel.dashboardId}
-              option={this.options}
-              autoresize
-              onDatazoom={e => this.handleDataZoom(e, this.options)}
-              onMouseout={() => this.handleMouseInChange(true)}
+            <div
+              class='k8s-custom-chart-container'
+              onMouseout={() => this.handleMouseInChange(false)}
               onMouseover={() => this.handleMouseInChange(true)}
-            />
+            >
+              <VueEcharts
+                ref='echart'
+                group={this.panel.dashboardId}
+                option={this.options}
+                autoresize
+                onDatazoom={e => this.handleDataZoom(e, this.options)}
+              />
+
+              {this.showRestore && (
+                <span
+                  class='chart-restore'
+                  onClick={() => this.$emit('restore')}
+                >
+                  {this.$t('复位')}
+                </span>
+              )}
+            </div>
             <CommonLegend
               legendData={this.legendData}
               onSelectLegend={this.handleSelectLegend}

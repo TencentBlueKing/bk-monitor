@@ -69,7 +69,13 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 是否展示复位按钮 */
+    showRestore: {
+      type: Boolean,
+      default: false,
+    },
   },
+  emits: ['dataZoomChange', 'durationChange', 'restore'],
   setup(props) {
     /** 图表联动Id */
     const dashboardId = shallowRef(random(10));
@@ -131,7 +137,11 @@ export default defineComponent({
                 dashboardTitle={dashboard?.title}
                 gridCol={this.gridCol}
                 panelModels={dashboard?.panels}
+                showRestore={this.showRestore}
                 viewOptions={this.viewOptions}
+                onDataZoomChange={(timeRange: [number, number]) => this.$emit('dataZoomChange', timeRange)}
+                onDurationChange={(duration: number) => this.$emit('durationChange', duration)}
+                onRestore={() => this.$emit('restore')}
               >
                 {{
                   customBaseChart: this.$slots?.customBaseChart
