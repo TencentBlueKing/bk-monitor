@@ -58,6 +58,7 @@ class TGPATaskHandler:
             "sdk_version": task_detail["sdk_version"],
             "os_type": task_detail["os_type"],
             "os_version": task_detail["os_version"],
+            "model": task_detail["model"],
             "cos_file_name": self.task_info["file_name"],
         }
 

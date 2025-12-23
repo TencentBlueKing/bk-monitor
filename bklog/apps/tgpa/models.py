@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.tgpa.constants import TGPATaskProcessStatusEnum
+from apps.tgpa.constants import TGPATaskProcessStatusEnum, TGPAReportSyncStatusEnum
 
 
 class TGPATask(models.Model):
@@ -50,8 +50,9 @@ class TGPAReportSyncRecord(models.Model):
     """
 
     bk_biz_id = models.IntegerField(_("业务id"), db_index=True)
-    openid = models.CharField(_("openid"), max_length=128, null=True, blank=True)
-    file_name = models.CharField(_("文件名"), max_length=512, null=True, blank=True)
+    openid_list = models.JSONField(_("openid列表"), null=True)
+    file_name_list = models.JSONField(_("文件名列表"), null=True)
+    status = models.CharField(_("状态"), max_length=64, default=TGPAReportSyncStatusEnum.PENDING.value)
     created_at = models.DateTimeField(_("创建时间"), auto_now_add=True, db_index=True)
     created_by = models.CharField(_("创建者"), max_length=32, default="")
 
@@ -69,7 +70,7 @@ class TGPAReport(models.Model):
     file_name = models.CharField(_("文件名"), max_length=512, unique=True)
     openid = models.CharField(_("openid"), max_length=128, null=True, blank=True)
     processed_at = models.DateTimeField(_("处理时间"), null=True)
-    process_status = models.CharField(_("处理状态"), max_length=64, default=TGPATaskProcessStatusEnum.INIT.value)
+    process_status = models.CharField(_("处理状态"), max_length=64, default=TGPAReportSyncStatusEnum.PENDING.value)
     error_message = models.TextField(_("错误信息"), null=True, blank=True)
     record_id = models.IntegerField(_("同步记录id"), null=True, blank=True)
 

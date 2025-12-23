@@ -90,8 +90,12 @@ class SyncReportSerializer(serializers.Serializer):
     """
 
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
-    openid = serializers.CharField(label=_("openid"), required=False, allow_null=True, allow_blank=True)
-    file_name = serializers.CharField(label=_("文件名"), required=False, allow_null=True, allow_blank=True)
+    openid_list = serializers.ListField(
+        label=_("openid列表"), child=serializers.CharField(), required=False, allow_null=True, allow_empty=True
+    )
+    file_name_list = serializers.ListField(
+        label=_("文件名列表"), child=serializers.CharField(), required=False, allow_null=True, allow_empty=True
+    )
     start_time = serializers.IntegerField(label=_("开始时间"), required=False, allow_null=True)
     end_time = serializers.IntegerField(label=_("结束时间"), required=False, allow_null=True)
 

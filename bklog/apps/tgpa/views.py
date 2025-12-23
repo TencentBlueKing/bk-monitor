@@ -122,25 +122,23 @@ class TGPAReportViewSet(APIViewSet):
         bk_biz_id = params["bk_biz_id"]
 
         if not FeatureToggleObject.switch(FEATURE_TOGGLE_TGPA_TASK, bk_biz_id):
-            return Response({"count": 0})
+            return Response({"record_id": None})
 
         report_list = TGPAReportHandler.iter_report_list(
             bk_biz_id=bk_biz_id,
-            openid=params.get("openid"),
-            file_name=params.get("file_name"),
+            openid_list=params.get("openid"),
+            file_name_list=params.get("file_name"),
             start_time=params.get("start_time"),
             end_time=params.get("end_time"),
         )
         sync_record_obj = TGPAReportSyncRecord.objects.create(
             bk_biz_id=bk_biz_id,
-            openid=params.get("openid"),
-            file_name=params.get("file_name"),
+            openid_list=params.get("openid_list"),
+            file_name_list=params.get("file_name_list"),
             created_by=request.user.username,
         )
 
-        sync_count = 0
         for report_info in report_list:
             process_single_report.delay(report_info, sync_record_obj.id)
-            sync_count += 1
 
-        return Response({"count": sync_count})
+        return Response({"record_id": sync_record_obj.id})

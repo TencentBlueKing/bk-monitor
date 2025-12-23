@@ -222,6 +222,22 @@ class TGPATaskProcessStatusEnum(ChoicesEnum):
     )
 
 
+class TGPAReportSyncStatusEnum(ChoicesEnum):
+    """客户端日志上报同步状态"""
+
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+    _choices_labels = (
+        (PENDING, _("未上传")),
+        (RUNNING, _("上传中")),
+        (SUCCESS, _("上传成功")),
+        (FAILED, _("上传失败")),
+    )
+
+
 TGPA_REPORT_SELECT_FIELDS = [
     "openid",
     "file_name",

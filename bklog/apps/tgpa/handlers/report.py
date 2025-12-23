@@ -59,6 +59,7 @@ class TGPAReportHandler:
             "sdk_version": self.report_info.get("os_sdk"),
             "os_type": self.report_info.get("os_type"),
             "os_version": self.report_info.get("os_version"),
+            "model": self.report_info.get("model"),
             "cos_file_name": self.report_info["file_name"],
         }
 
@@ -70,23 +71,29 @@ class TGPAReportHandler:
         file_handler.download_and_process_file(self.file_name)
 
     @classmethod
-    def _build_where_clause(cls, bk_biz_id, keyword=None, openid=None, file_name=None, start_time=None, end_time=None):
+    def _build_where_clause(
+        cls, bk_biz_id, keyword=None, openid_list=None, file_name_list=None, start_time=None, end_time=None
+    ):
         """
         构建SQL WHERE子句
         """
         where_conditions = [f"cc_id={bk_biz_id}"]
 
         if keyword:
-            keyword_conditions = [f"{field} like '%{keyword}%'" for field in TGPA_REPORT_FILTER_FIELDS]
+            # 转义特殊字符，防止SQL注入
+            escaped_keyword = keyword.replace("\\", "\\\\").replace("'", "''").replace("%", "\\%").replace("_", "\\_")
+            keyword_conditions = [f"{field} like '%{escaped_keyword}%'" for field in TGPA_REPORT_FILTER_FIELDS]
             where_conditions.append(f"({' OR '.join(keyword_conditions)})")
         if start_time:
             where_conditions.append(f"dtEventTimeStamp >= '{start_time}'")
         if end_time:
             where_conditions.append(f"dtEventTimeStamp < '{end_time}'")
-        if openid:
-            where_conditions.append(f"openid='{openid}'")
-        if file_name:
-            where_conditions.append(f"file_name='{file_name}'")
+        if openid_list:
+            openid_conditions = [f"openid='{openid}'" for openid in openid_list]
+            where_conditions.append(f"({' OR '.join(openid_conditions)})")
+        if file_name_list:
+            file_name_conditions = [f"file_name='{file_name}'" for file_name in file_name_list]
+            where_conditions.append(f"({' OR '.join(file_name_conditions)})")
 
         return " AND ".join(where_conditions)
 
@@ -150,7 +157,7 @@ class TGPAReportHandler:
         return {"total": total, "list": data}
 
     @classmethod
-    def iter_report_list(cls, bk_biz_id, openid=None, file_name=None, start_time=None, end_time=None):
+    def iter_report_list(cls, bk_biz_id, openid_list=None, file_name_list=None, start_time=None, end_time=None):
         """
         使用迭代器模式获取客户端日志上报文件列表
         """
@@ -162,7 +169,11 @@ class TGPAReportHandler:
 
         # 构建WHERE子句
         where_clause = cls._build_where_clause(
-            bk_biz_id=bk_biz_id, openid=openid, file_name=file_name, start_time=start_time, end_time=end_time
+            bk_biz_id=bk_biz_id,
+            openid_list=openid_list,
+            file_name_list=file_name_list,
+            start_time=start_time,
+            end_time=end_time,
         )
 
         # 分批查询数据，这里排序和时间范围过滤统一使用dtEventTimeStamp（report_time并不是按照数据插入时间的顺序单调递增的）
