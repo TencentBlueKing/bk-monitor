@@ -870,7 +870,6 @@ class CollectorHandler:
                 description=instance.description,
                 encoding=META_DATA_ENCODING,
                 bk_biz_id=instance.get_bk_biz_id(),
-                bk_username=bk_username,
             )
             return bk_data_id
 

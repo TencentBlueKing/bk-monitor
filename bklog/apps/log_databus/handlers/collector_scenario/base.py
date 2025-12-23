@@ -133,7 +133,6 @@ class CollectorScenario:
         option: dict = None,
         mq_config: dict = None,
         bk_biz_id=None,
-        bk_username=None,
     ):
         """
         创建或更新数据源
@@ -145,7 +144,6 @@ class CollectorScenario:
         :param mq_config: mq配置
         :param bk_biz_id: 业务id
         :param option: 附加参数 {"topic": "xxxx", "partition": 1}
-        :param bk_username: 操作用户名
         :return: bk_data_id
         """
         default_option = {
@@ -186,9 +184,6 @@ class CollectorScenario:
                         }
                     )
 
-            if bk_username:
-                params.update({"operator": bk_username})
-
             bk_data_id = TransferApi.create_data_id(params)["bk_data_id"]
             logger.info(f"[create_data_id] bk_data_id=>{bk_data_id}, params=>{params}")
         else:
@@ -216,9 +211,6 @@ class CollectorScenario:
             else:
                 params["option"].update({"is_log_cluster": False})
                 params["etl_config"] = "bk_flat_batch"
-
-            if bk_username:
-                params.update({"operator": bk_username})
 
             # 更新数据源
             TransferApi.modify_data_id(params)
