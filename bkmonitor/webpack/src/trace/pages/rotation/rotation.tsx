@@ -31,6 +31,7 @@ import { type FilterValue, type SortInfo, type TableSort, PrimaryTable } from '@
 import { Button, InfoBox, Message, Pagination, Popover, SearchSelect, Switcher, Tag } from 'bkui-vue';
 import { destroyDutyRule, listDutyRule, switchDutyRule } from 'monitor-api/modules/model';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
@@ -66,12 +67,7 @@ function getTimeStr(time: string) {
   if (time === 'null' || !time) {
     return window.i18n.t('永久');
   }
-  const date = new Date(time);
-  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()} ${
-    date.getHours() < 10 ? `${0}${date.getHours()}` : date.getHours()
-  }:${date.getMinutes() < 10 ? `${0}${date.getMinutes()}` : date.getMinutes()}:${
-    date.getSeconds() < 10 ? `${0}${date.getSeconds()}` : date.getSeconds()
-  }`;
+  return formatWithTimezone(time);
 }
 
 export default defineComponent({
@@ -144,6 +140,7 @@ export default defineComponent({
         field: EColumn.scope,
         title: t('生效时间范围'),
         minWidth: 330,
+        width: 330,
         disabled: false,
         checked: true,
         sortable: true,
@@ -151,7 +148,7 @@ export default defineComponent({
       {
         field: EColumn.enabled,
         title: t('启/停'),
-        width: 100,
+        width: 80,
         disabled: true,
         checked: true,
       },
@@ -160,6 +157,7 @@ export default defineComponent({
         title: t('操作'),
         disabled: true,
         checked: true,
+        width: 80,
       },
     ]);
     const tableData = shallowRef([]);
@@ -723,6 +721,8 @@ export default defineComponent({
                           }
                         : undefined,
                       sorter: column.sortable,
+                      width: column.width,
+                      minWidth: column.minWidth,
                     }))}
                     pagination={{
                       total: this.tablePagination.count,
