@@ -82,7 +82,13 @@ export default defineComponent({
       type: Function as PropType<(val) => any>,
       default: res => res,
     },
+    /** 是否展示复位按钮 */
+    showRestore: {
+      type: Boolean,
+      default: false,
+    },
   },
+  emits: ['dataZoomChange', 'durationChange', 'restore'],
   setup(props) {
     /** 图表实例 */
     const alarmDashboardRef = useTemplateRef<Element>('alarmDashboardRef');
@@ -147,6 +153,7 @@ export default defineComponent({
         return size > 0 ? `${Math.ceil(size)}s` : undefined;
       }
     };
+
     return {
       cssVars,
       panels,
@@ -174,7 +181,10 @@ export default defineComponent({
                 formatterData={this.formatterData}
                 panel={panel}
                 params={this.params}
-                // onDataZoomChange={this.handleDataZoomChange}
+                showRestore={this.showRestore}
+                onDataZoomChange={(timeRange: [number, number]) => this.$emit('dataZoomChange', timeRange)}
+                onDurationChange={(duration: number) => this.$emit('durationChange', duration)}
+                onRestore={() => this.$emit('restore')}
               >
                 {{
                   customBaseChart: this.$slots?.customBaseChart

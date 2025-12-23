@@ -33,7 +33,7 @@ import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
 import { random } from 'monitor-common/utils';
 import { arraysEqual } from 'monitor-common/utils/equal';
-import { COLOR_LIST } from 'monitor-ui/chart-plugins/constants/charts';
+import { COLOR_LIST_BAR } from 'monitor-ui/chart-plugins/constants/charts';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFormats';
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../../../components/time-range/utils';
@@ -560,7 +560,7 @@ export const useK8sEcharts = (
         text: '',
         show: false,
       },
-      color: COLOR_LIST,
+      color: COLOR_LIST_BAR,
       legend: {
         show: false,
       },

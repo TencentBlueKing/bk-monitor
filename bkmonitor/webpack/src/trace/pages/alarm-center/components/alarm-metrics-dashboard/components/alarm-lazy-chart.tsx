@@ -44,24 +44,33 @@ import ExploreChart from '../../../../trace-explore/components/explore-chart/exp
 export default defineComponent({
   name: 'AlarmLazyChart',
   props: {
+    /** 面板数据配置 */
     panel: {
       type: Object as PropType<PanelModel>,
       required: true,
     },
+    /** 是否显示图表 Title 组件 */
     showTitle: {
       type: Boolean,
       default: true,
     },
+    /** 图表数据格式化函数 */
     formatterData: {
       type: Function as PropType<(val) => any>,
       default: res => res,
     },
+    /** 查询参数 */
     params: {
       type: Object as PropType<Record<string, any>>,
       default: () => ({}),
     },
+    /** 是否展示复位按钮 */
+    showRestore: {
+      type: Boolean,
+      default: false,
+    },
   },
-  emits: ['dataZoomChange', 'durationChange'],
+  emits: ['dataZoomChange', 'durationChange', 'restore'],
   setup(props, { emit }) {
     /** 视口监听器实例 */
     let intersectionObserverInstance = null;
@@ -89,6 +98,66 @@ export default defineComponent({
     provide('timeRange', viewerTimeRange);
     provide('refreshImmediate', viewerRefreshImmediate);
 
+    /**
+     * @description 刷新图表相关配置，重新请求图表数据
+     */
+    const refreshChart = () => {
+      if (!isInViewport.value || !hasPanelChange.value) return;
+      viewerPanel.value = props.panel;
+      viewerParams.value = props.params;
+      viewerTimeRange.value = get(timeRange);
+      viewerRefreshImmediate.value = get(refreshImmediate);
+      hasPanelChange.value = false;
+    };
+
+    /**
+     * @description 初始化 IntersectionObserver 视口监听器实例对象
+     */
+    const setupIntersectionObserver = () => {
+      if (!intersectionObserverInstance) {
+        intersectionObserverInstance = new IntersectionObserver(entries => {
+          for (const entry of entries) {
+            isInViewport.value = entry.isIntersecting;
+            refreshChart();
+          }
+        });
+        if (chartContainerRef?.value) intersectionObserverInstance.observe(chartContainerRef?.value);
+      }
+    };
+
+    /**
+     * @description 清理 IntersectionObserver 视口监听器实例对象
+     */
+    const cleanupObserver = () => {
+      if (intersectionObserverInstance) {
+        intersectionObserverInstance.disconnect();
+        intersectionObserverInstance = null;
+      }
+    };
+
+    /**
+     * @description 数据时间间隔 值改变后回调
+     * @param {[number, number]} timeRange 缩放后的区域数据时间间隔
+     */
+    const handleDataZoomChange = (timeRange: [number, number]) => {
+      emit('dataZoomChange', timeRange);
+    };
+
+    /**
+     * @description 接口请求耗时 值改变后回调
+     * @param val 请求耗时
+     */
+    const handleDurationChange = (val: number) => {
+      emit('durationChange', val);
+    };
+
+    /**
+     * @description 缩放复位按钮触发回调
+     */
+    const handleRestore = () => {
+      emit('restore');
+    };
+
     watch([refreshImmediate, () => get(timeRange), () => props.panel, () => props.params], () => {
       hasPanelChange.value = true;
       refreshChart();
@@ -110,65 +179,12 @@ export default defineComponent({
       cleanupObserver();
     });
 
-    /**
-     * @description 初始化 IntersectionObserver 视口监听器实例对象
-     */
-    function setupIntersectionObserver() {
-      if (!intersectionObserverInstance) {
-        intersectionObserverInstance = new IntersectionObserver(entries => {
-          for (const entry of entries) {
-            isInViewport.value = entry.isIntersecting;
-            refreshChart();
-          }
-        });
-        if (chartContainerRef?.value) intersectionObserverInstance.observe(chartContainerRef?.value);
-      }
-    }
-
-    /**
-     * @description 清理 IntersectionObserver 视口监听器实例对象
-     *
-     */
-    function cleanupObserver() {
-      if (intersectionObserverInstance) {
-        intersectionObserverInstance.disconnect();
-        intersectionObserverInstance = null;
-      }
-    }
-
-    /**
-     * @description 刷新图表相关配置，重新请求图表数据
-     */
-    function refreshChart() {
-      if (!isInViewport.value || !hasPanelChange.value) return;
-      viewerPanel.value = props.panel;
-      viewerParams.value = props.params;
-      viewerTimeRange.value = get(timeRange);
-      viewerRefreshImmediate.value = get(refreshImmediate);
-      hasPanelChange.value = false;
-    }
-
-    /**
-     * @description 数据时间间隔 值改变后回调
-     * @param timeRange 缩放后的区域数据时间间隔
-     */
-    function handleDataZoomChange(timeRange: [number, number]) {
-      emit('dataZoomChange', timeRange);
-    }
-
-    /**
-     * @description 接口请求耗时 值改变后回调
-     * @param val 请求耗时
-     */
-    function handleDurationChange(val: number) {
-      emit('durationChange', val);
-    }
-
     return {
       viewerPanel,
       viewerParams,
       handleDataZoomChange,
       handleDurationChange,
+      handleRestore,
     };
   },
   render() {
@@ -176,9 +192,11 @@ export default defineComponent({
       panel: this.viewerPanel,
       params: this.viewerParams,
       showTitle: this.showTitle,
+      showRestore: this.showRestore,
+      formatterData: this.formatterData,
       onDataZoomChange: this.handleDataZoomChange,
       onDurationChange: this.handleDurationChange,
-      formatterData: this.formatterData,
+      onRestore: this.handleRestore,
     };
     return (
       <div
