@@ -73,7 +73,8 @@ export default defineComponent({
       default: () => null,
     },
   },
-  setup(props) {
+  emits: ['goEvent'],
+  setup(props, { emit }) {
     const { t } = useI18n();
     const loadingRef = useTemplateRef('scrollRef');
     const loading = shallowRef(false);
@@ -344,7 +345,9 @@ export default defineComponent({
       handleLoad();
     };
 
-    const handleGoEvent = () => {};
+    const handleGoEvent = () => {
+      emit('goEvent');
+    };
 
     const handleSourceTypeChange = (value: (typeof SourceTypeEnum)[keyof typeof SourceTypeEnum][]) => {
       console.log(value);
