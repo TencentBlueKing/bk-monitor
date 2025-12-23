@@ -2462,11 +2462,16 @@ class TimeSeriesMetric(models.Model):
 
             # 检测是否需要记录移动的指标
             scope_changed = new_scope and original_scope_id != new_scope.id
+            source_scope = scopes_dict.get(original_scope_id)
+
+            # 如果 scope 是 data 类型，不允许修改 scope_id
+            if scope_changed and source_scope.create_from == TimeSeriesScope.CREATE_FROM_DATA:
+                raise ValueError(f"数据自动创建的指标分组不允许修改，请确认后重试。分组ID: {original_scope_id}")
+
             tag_list_changed = set(original_tag_list) != set(metric.tag_list or [])
 
             # 如果 scope 发生变化或者 tag_list 发生变化，记录需要移动的指标
             if scope_changed or tag_list_changed:
-                source_scope = scopes_dict.get(original_scope_id)
                 scope_moves[(source_scope, new_scope)].append(metric)
 
         # 批量更新所有指标的字段
