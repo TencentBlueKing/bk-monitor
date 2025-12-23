@@ -5,7 +5,9 @@ $statusColors: #ea3635 #ff9c00 #699df4;
 .alarm-detail-table {
   --td-bg-color-secondarycontainer: #fafbfd;
 }
+
 .alarm-detail-loading {
+
   .bk-loading-indicator,
   .bk-loading-mask {
     z-index: 50 !important;
@@ -57,6 +59,7 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       overflow: hidden;
       // width: 50px;
     }
+
     // .tag-column,
     .tag-column-wrap {
       display: flex;
@@ -77,14 +80,6 @@ $statusColors: #ea3635 #ff9c00 #699df4;
       white-space: nowrap;
       background: #f0f1f5;
       border-radius: 2px;
-    }
-
-    .id-column {
-      display: inline-block;
-      width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
     }
 
     .time-column {
@@ -242,6 +237,47 @@ $statusColors: #ea3635 #ff9c00 #699df4;
         }
       }
     }
+
+    .id-column-wrapper {
+      display: flex;
+      align-items: center;
+
+      .id-column {
+        display: inline-block;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .new-badge {
+        min-width: 14px;
+        height: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        background-color: #F59500;
+        border-radius: 7px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        font-size: 9px;
+        margin-left: 2px;
+
+        &::after {
+          content: 'N';
+        }
+
+        &:hover {
+          padding: 0 6px;
+
+          &::after {
+            content: 'New';
+          }
+        }
+      }
+    }
+
   }
 }
 
