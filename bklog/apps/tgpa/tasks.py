@@ -24,17 +24,23 @@ from blueapps.core.celery.celery import app
 from celery.schedules import crontab
 from django.utils import timezone
 
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.tgpa.constants import TGPA_TASK_EXE_CODE_SUCCESS, TGPATaskProcessStatusEnum, FEATURE_TOGGLE_TGPA_TASK
+from apps.tgpa.handlers.base import TGPAFileHandler, TGPACollectorConfigHandler
+from apps.tgpa.handlers.report import TGPAReportHandler
 from apps.tgpa.handlers.task import TGPATaskHandler
-from apps.tgpa.models import TGPATask
+from apps.tgpa.models import TGPATask, TGPAReport
+from apps.utils.lock import share_lock
 from apps.utils.log import logger
 
 
 @periodic_task(run_every=crontab(minute="*/1"), queue="tgpa_task")
+@share_lock()
 def fetch_and_process_tgpa_tasks():
     """
     定时任务，拉取任务列表，处理任务
+    使用share_lock防止多个任务并行执行
     """
     feature_toggle = FeatureToggleObject.toggle(FEATURE_TOGGLE_TGPA_TASK)
     if not feature_toggle:
@@ -45,9 +51,12 @@ def fetch_and_process_tgpa_tasks():
         logger.info("Begin to sync client log tasks, business id: %s", bk_biz_id)
         try:
             # 确保已经创建采集配置
-            TGPATaskHandler.get_or_create_collector_config(bk_biz_id)
+            TGPACollectorConfigHandler.get_or_create_collector_config(bk_biz_id)
             # 获取任务列表，存量的任务只同步数据，不处理任务
             task_list = TGPATaskHandler.get_task_list({"cc_id": bk_biz_id})["list"]
+            # 统一将 go_svr_task_id 转换为 int 类型，确保与数据库字段类型一致
+            for task in task_list:
+                task["go_svr_task_id"] = int(task["go_svr_task_id"])
             if not TGPATask.objects.filter(bk_biz_id=bk_biz_id).exists():
                 TGPATask.objects.bulk_create(
                     [
@@ -132,5 +141,45 @@ def clear_expired_files():
     清理过期文件
     """
     logger.info("Begin to clear expired client log files")
-    TGPATaskHandler.clear_expired_files()
+    TGPAFileHandler.clear_expired_files()
     logger.info("Successfully cleared expired client log files")
+
+
+@app.task(ignore_result=True, queue="tgpa_task")
+def process_single_report(report_info: dict, record_id: int):
+    """
+    异步处理单个客户端上报文件
+    """
+    file_name = report_info["file_name"]
+    bk_biz_id = report_info["bk_biz_id"]
+    logger.info("Begin to process report file, file_name: %s", file_name)
+
+    # 创建或获取处理记录
+    report_record, created = TGPAReport.objects.get_or_create(
+        file_name=file_name,
+        defaults={
+            "bk_biz_id": bk_biz_id,
+            "record_id": record_id,
+            "openid": report_info.get("openid"),
+            "process_status": TGPATaskProcessStatusEnum.PENDING.value,
+        },
+    )
+
+    # 如果记录已存在且已成功处理，跳过
+    if not created and report_record.process_status == TGPATaskProcessStatusEnum.SUCCESS.value:
+        logger.info("Report file already processed, file_name: %s", file_name)
+        return
+
+    report_record.process_status = TGPATaskProcessStatusEnum.RUNNING.value
+    report_record.processed_at = timezone.now()
+    report_record.save(update_fields=["process_status", "processed_at"])
+    try:
+        TGPAReportHandler(bk_biz_id=bk_biz_id, report_info=report_info).download_and_process_file()
+        report_record.process_status = TGPATaskProcessStatusEnum.SUCCESS.value
+        report_record.save(update_fields=["process_status"])
+        logger.info("Successfully processed report file, file_name: %s", file_name)
+    except Exception as e:
+        logger.exception("Failed to process report file, file_name %s", file_name)
+        report_record.process_status = TGPATaskProcessStatusEnum.FAILED.value
+        report_record.error_message = str(e)
+        report_record.save(update_fields=["process_status", "error_message"])
