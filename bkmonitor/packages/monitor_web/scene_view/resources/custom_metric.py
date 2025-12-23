@@ -103,11 +103,13 @@ class GetCustomTsMetricGroups(Resource):
             metric_groups.append(
                 {
                     "scope_id": scope_id,
-                    "name": scope_name if scope_name else str(_("未分组")),
+                    "name": scope_name,
                     "metrics": metrics,
                     "common_dimensions": common_dimensions,
                 }
             )
+        # 对分组进行排序：default 在最前面，其他分组按字典顺序排序
+        metric_groups.sort(key=lambda g: (g.get("name") != "default", g.get("name", "")))
 
         return {"metric_groups": metric_groups}
 
