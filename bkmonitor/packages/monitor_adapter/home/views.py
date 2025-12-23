@@ -35,6 +35,7 @@ from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.local import local
 from common.decorators import timezone_exempt, track_site_visit
 from common.log import logger
+from constants.alert import AlertRedirectType
 from constants.common import DEFAULT_TENANT_ID
 from core.errors.api import BKAPIError
 from monitor.models import GlobalConfig
@@ -82,33 +83,24 @@ def event_center_proxy(request):
     if not (collect_id and bk_biz_id):
         return HttpResponseNotFound(_("无效的告警事件链接"))
 
-    if proxy_type == "query" and not request.is_mobile():
-        data_retrieval_url = generate_data_retrieval_url(bk_biz_id, collect_id)
-        if data_retrieval_url:
-            return redirect(data_retrieval_url)
-
-    elif proxy_type == "log_search" and not request.is_mobile():
-        log_search_url = generate_log_search_url(bk_biz_id, collect_id)
-        if log_search_url:
-            return redirect(log_search_url)
-
-    # 调用分析重定向
-    elif proxy_type == "apm_rpc" and not request.is_mobile():
-        apm_rpc_url = generate_apm_rpc_url(bk_biz_id, collect_id)
-        if apm_rpc_url:
-            return redirect(apm_rpc_url)
-
-    # Tracing 检索重定向
-    elif proxy_type == "apm_trace" and not request.is_mobile():
-        apm_trace_url = generate_apm_trace_url(bk_biz_id, collect_id)
-        if apm_trace_url:
-            return redirect(apm_trace_url)
-
-    # 事件检索重定向
-    elif proxy_type == "event_explore" and not request.is_mobile():
-        event_explore_url = generate_event_explore_url(bk_biz_id, collect_id)
-        if event_explore_url:
-            return redirect(event_explore_url)
+    if not request.is_mobile():
+        generate_url_func_map = {
+            # 指标检索
+            AlertRedirectType.QUERY.value: generate_data_retrieval_url,
+            # 日志检索
+            AlertRedirectType.LOG_SEARCH.value: generate_log_search_url,
+            # 调用分析
+            AlertRedirectType.APM_RPC.value: generate_apm_rpc_url,
+            # Tracing 检索
+            AlertRedirectType.APM_TRACE.value: generate_apm_trace_url,
+            # 事件检索
+            AlertRedirectType.EVENT_EXPLORE.value: generate_event_explore_url,
+        }
+        # 根据跳转类型获取对应的 URL 生成函数，生成跳转链接并返回重定向响应
+        if (generate_url_func := generate_url_func_map.get(proxy_type)) and (
+            explore_url := generate_url_func(bk_biz_id, collect_id)
+        ):
+            return redirect(explore_url)
 
     redirect_url = rio_url if request.is_mobile() else pc_url
     if batch_action:

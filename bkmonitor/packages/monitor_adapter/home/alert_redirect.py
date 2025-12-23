@@ -40,11 +40,15 @@ class AlertRedirectInfo:
 
 def _get_alert_redirect_info(action_id: str) -> AlertRedirectInfo | None:
     """获取告警重定向信息数据"""
-    action_instance: ActionInstanceDocument = ActionInstanceDocument.get(action_id)
-    if action_instance:
-        alert_ids: list[str] = action_instance.alert_id
+    action_instance_doc: ActionInstanceDocument = ActionInstanceDocument.get(action_id)
+    if action_instance_doc:
+        alert_ids: list[str] = action_instance_doc.alert_id
     else:
-        alert_ids: list[str] = ActionInstance.objects.get(id=str(action_id)[10:]).alerts
+        try:
+            db_action_instance: ActionInstance = ActionInstance.objects.get(id=str(action_id)[10:])
+        except ActionInstance.DoesNotExist:
+            return None
+        alert_ids: list[str] = db_action_instance.alerts
 
     if not alert_ids:
         return None
@@ -60,12 +64,11 @@ def _get_alert_redirect_info(action_id: str) -> AlertRedirectInfo | None:
     except (KeyError, IndexError, TypeError):
         return None
 
-    alart_data: dict[str, Any] = alert.origin_alarm.get("data", {})
+    alert_data: dict[str, Any] = alert.origin_alarm.get("data", {})
     # 获取原始维度信息
-    origin_dimensions: dict[str, str | None] = alart_data.get("dimensions", {})
-
+    origin_dimensions: dict[str, str | None] = alert_data.get("dimensions", {})
     # 获取告警策略配置的维度字段
-    dimension_fields: list[str] = alart_data.get("dimension_fields", [])
+    dimension_fields: list[str] = alert_data.get("dimension_fields", [])
 
     # 获取持续时间
     duration: int = alert.duration or 60
@@ -125,18 +128,14 @@ def generate_explore_url_query_params(
         else:
             where.append(condition)
 
+    # 构建并返回完整的查询参数
     query_filter["where"] = where
-
-    offset: int = offset * 60 * 1000
-
-    # 构建完整的查询参数
-    params: dict[str, Any] = {
+    offset_ms: int = offset * 60 * 1000
+    return {
         "targets": json.dumps([{"data": {"query_configs": [query_filter]}}]),
-        "from": event_time * 1000 - duration * 1000 - offset,
-        "to": event_time * 1000 + offset,
+        "from": event_time * 1000 - duration * 1000 - offset_ms,
+        "to": event_time * 1000 + offset_ms,
     }
-
-    return params
 
 
 def generate_data_retrieval_url(bk_biz_id, collect_id):
