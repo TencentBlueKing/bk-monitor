@@ -22,7 +22,6 @@ from monitor_web.custom_report.handlers.metric.query import (
     DimensionConfigRequestDTO,
     MetricQueryConverter,
     ScopeQueryResponseDTO,
-    ScopeQueryMetricResponseDTO,
     MetricCURequestDTO,
     ScopeCURequestDTO,
     MetricConfigRequestDTO,
@@ -137,46 +136,12 @@ class FieldsModifyService:
 
     @cached_property
     def _scope_obj_by_id(self) -> dict[ScopeID, ScopeQueryResponseDTO]:
-        if self._create_metrics:
-            # 创建的指标 -> 查出所有的指标 -> 校验和复用
-            scopes = self.scope_converter.query_time_series_scope()
-        else:
-            # 维度 -> 查出对应的 scope_id 的数据
-            scope_ids: set[int] = {
-                dimension_obj.scope_id for dimension_obj in chain(self._delete_dimensions, self._update_dimensions)
-            }
-            scopes = self.scope_converter.query_time_series_scope(scope_ids=list(scope_ids))
+        # 维度 -> 查出对应的 scope_id 的数据
+        scope_ids: set[int] = {
+            dimension_obj.scope_id for dimension_obj in chain(self._delete_dimensions, self._update_dimensions)
+        }
+        scopes = self.scope_converter.query_time_series_scope(scope_ids=list(scope_ids))
         return {scope_obj.id: scope_obj for scope_obj in scopes}
-
-    @cached_property
-    def _metric_obj_map(self) -> dict[tuple[str, str], ScopeQueryMetricResponseDTO]:
-        """指标对象映射
-
-        key: (field_scope, metric_name)
-        """
-        metric_map: dict[tuple[str, str], ScopeQueryMetricResponseDTO] = {}
-        for scope_obj in self._scope_obj_by_id.values():
-            for metric_obj in scope_obj.metric_list:
-                metric_map[(metric_obj.field_scope, metric_obj.name)] = metric_obj
-        return metric_map
-
-    def _merge_create_metrics(self):
-        """复用已存在的禁用指标，同时校验指标名称是否重复"""
-
-        if not self._create_metrics:
-            return
-        merged_create_metrics: list[ModifyMetric] = []
-        for metric_obj in self._create_metrics:
-            same_name_metric = self._metric_obj_map.get((DEFAULT_FIELD_SCOPE, metric_obj.name))
-            if same_name_metric:
-                if not same_name_metric.config.disabled:
-                    raise ValueError(f"指标 {metric_obj.name} 已存在，无法创建")
-                metric_obj.id = same_name_metric.id
-                metric_obj.config.disabled = False
-                self._update_metrics.append(metric_obj)
-            else:
-                merged_create_metrics.append(metric_obj)
-        self._create_metrics = merged_create_metrics
 
     def _sync_metrics(self):
         metrics: list[MetricCURequestDTO] = []
@@ -218,7 +183,6 @@ class FieldsModifyService:
         self.scope_converter.create_or_update_time_series_scope(list(scope_cu_request_by_id.values()))
 
     def apply_change(self):
-        self._merge_create_metrics()
         self._validate_dimensions()
         self._sync_metrics()
         self._sync_dimensions()
