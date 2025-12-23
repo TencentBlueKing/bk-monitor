@@ -25,6 +25,7 @@
  */
 
 import { type PropType, computed, defineComponent, provide, shallowRef, watch } from 'vue';
+import { toRef } from 'vue';
 
 import { random } from 'monitor-common/utils';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
@@ -80,7 +81,7 @@ export default defineComponent({
       '--dashboard-grid-col': props.gridCol,
     }));
 
-    provide('timeRange', DEFAULT_TIME_RANGE);
+    provide('timeRange', toRef(props, 'timeRange'));
     provide('refreshImmediate', refreshImmediate);
 
     /**

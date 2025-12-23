@@ -23,10 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, toRef } from 'vue';
+import { type PropType, computed, defineComponent, toRef } from 'vue';
 
+import { get } from '@vueuse/core';
+import { K8sNewTabEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 import { storeToRefs } from 'pinia';
 
+import { handleTransformToTimestampMs } from '../../../../../components/time-range/utils';
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
 import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
@@ -54,13 +57,47 @@ export default defineComponent({
       currentTarget,
       bizId,
     });
+    /** 是否能够跳转容器监控页面 */
+    const canLinkTok8s = computed(() => get(currentTarget) && get(scene));
+
+    /**
+     * @description: 获取跳转url
+     * @param {string} hash hash值
+     * @param {number} bizId 业务ID
+     * @return {*}
+     */
+    const commOpenUrl = (hash: string, bizId?: number) => {
+      let url = '';
+      if (process.env.NODE_ENV === 'development') {
+        url = `${process.env.proxyUrl}?bizId=${bizId || window.cc_biz_id}${hash}`;
+      } else {
+        url = location.href.replace(location.hash, hash);
+      }
+      return url;
+    };
 
     /**
      * @description 跳转容器监控页面
      */
-    const handleToK8s = v => {
-      console.log('================ v ================', v);
+    const handleToK8s = () => {
+      if (!get(canLinkTok8s)) return;
+      const url = commOpenUrl('#/k8s-new/', get(bizId));
+      const [startTime, endTime] = handleTransformToTimestampMs(get(timeRange));
+      // @ts-expect-error
+      const { bcs_cluster_id: cluster, ...target } = get(currentTarget) ?? {};
+
+      const searchParams = new URLSearchParams({
+        cluster,
+        from: String(startTime),
+        to: String(endTime),
+        scene: get(scene),
+        groupBy: JSON.stringify(get(groupBy) ? [get(groupBy)] : []),
+        activeTab: K8sNewTabEnum.CHART,
+        filterBy: JSON.stringify(Object.fromEntries(Object.entries(target).map(([key, value]) => [key, [value]]))),
+      });
+      window.open(`${url}?${searchParams.toString()}`, '_blank');
     };
+
     /**
      * @description 创建骨架屏 dom 元素
      */
@@ -78,6 +115,7 @@ export default defineComponent({
       k8sDashboardLoading,
       dashboards,
       timeRange,
+      canLinkTok8s,
       handleToK8s,
       createSkeletonDom,
     };
@@ -99,7 +137,7 @@ export default defineComponent({
               {this.createSkeletonDom()}
             </div>
             <div
-              class='k8s-link-btn'
+              class={`k8s-link-btn ${!this.canLinkTok8s ? 'disabled' : ''}`}
               onClick={this.handleToK8s}
             >
               <span class='link-text'>{window.i18n.t('容器监控')}</span>

@@ -41,8 +41,6 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { DEFAULT_TIME_RANGE } from '../../../../../components/time-range/utils';
 import ExploreChart from '../../../../trace-explore/components/explore-chart/explore-chart';
 
-import type { IDataQuery } from '../../../../../plugins/typings';
-
 export default defineComponent({
   name: 'AlarmLazyChart',
   props: {
@@ -55,7 +53,7 @@ export default defineComponent({
       default: true,
     },
     formatterData: {
-      type: Function as PropType<(res: any, target: IDataQuery, panel: PanelModel) => any>,
+      type: Function as PropType<(val) => any>,
       default: res => res,
     },
     params: {

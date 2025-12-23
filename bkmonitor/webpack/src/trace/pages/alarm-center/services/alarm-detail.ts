@@ -33,7 +33,6 @@ import {
   listAlertFeedback,
 } from 'monitor-api/modules/alert_v2';
 import { getSceneView } from 'monitor-api/modules/scene_view';
-import { type SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 import { BookMarkModel } from 'monitor-ui/chart-plugins/typings';
 
 import { type IActionDetail, ActionDetail } from '../typings/action-detail';
@@ -41,6 +40,7 @@ import { AlarmDetail } from '../typings/detail';
 
 import type { AlertHostTargetItem, AlertK8SMetricItem, AlertK8sTargetResult } from '../typings';
 import type { IAlarmDetail } from '../typings/detail';
+import type { SceneEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
 
 export const fetchAlarmDetail = (id: string): Promise<AlarmDetail | null> => {
   if (!id) return Promise.resolve(null);
@@ -140,10 +140,10 @@ export const getAlertK8sScenarioList = async (alertId: string) => {
  * @method getAlertK8sScenarioMetricList 获取场景下的指标列表
  * @description 告警详情-容器-当前选中场景下的指标列表
  * @param {number} params.bizId 业务ID
- * @param {SceneEnum} params.scene 场景
+ * @param {SceneEnum} params.scenario 场景
  * @returns {Promise<AlertK8SMetricItem[]>} 指标列表
  */
-export const getAlertK8sScenarioMetricList = async (params: { bizId: number; scene: SceneEnum }) => {
+export const getAlertK8sScenarioMetricList = async (params: { bizId: number; scenario: SceneEnum }) => {
   const data = await alertK8sMetricList<AlertK8SMetricItem[]>(params).catch(() => [] as AlertK8SMetricItem[]);
   return data.reduce((prev, curr) => {
     // show_chart 为 true 的指标才展示
