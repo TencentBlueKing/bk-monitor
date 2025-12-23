@@ -31,6 +31,7 @@ import { TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import VueDraggable from 'vuedraggable';
 
 import $http from '@/api';
+import { builtInInitHiddenList } from '@/const/index.js';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import FieldSelectConfig from '../../retrieve-v2/field-filter-comp/components/field-select-config.vue';
 import FieldFilterPopover from './field-filter-popover';
@@ -66,17 +67,8 @@ export default class FieldFilterComp extends tsc<object> {
   };
   dragVisibleFields = [];
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
-  builtInInitHiddenList = [
-    'gseIndex',
-    'iterationIndex',
-    '__dist_01',
-    '__dist_03',
-    '__dist_05',
-    '__dist_07',
-    '__dist_09',
-    '__ipv6__',
-    '__ext',
-  ];
+  // 使用动态的内置隐藏字段列表引用，确保获取最新值
+  builtInInitHiddenList = builtInInitHiddenList;
   isShowAllBuiltIn = false;
   isShowAllIndexSet = false;
 

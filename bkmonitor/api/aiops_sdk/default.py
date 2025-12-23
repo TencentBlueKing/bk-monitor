@@ -99,13 +99,24 @@ class KpiSdkResource(SdkResource):
     base_url = "http://bk-aiops-serving-kpi:8000"
 
 
-class KpiPredictResource(KpiSdkResource, SdkPredictResource):
+class BKFaraGrayMixin:
+    def get_request_url(self, validated_request_data):
+        """根据灰度参数动态选择服务地址"""
+        if validated_request_data.get("gray_to_bkfara", False):
+            base_url = "http://bk-incident-aiops-service-aiops-serving-kpi:8000"
+        else:
+            base_url = "http://bk-aiops-serving-kpi:8000"
+
+        return base_url.rstrip("/") + "/" + self.action.lstrip("/")
+
+
+class KpiPredictResource(BKFaraGrayMixin, KpiSdkResource, SdkPredictResource):
     """异常检测SDK执行时序预测逻辑."""
 
     pass
 
 
-class KpiInitDependResource(KpiSdkResource, SdkInitDependResource):
+class KpiInitDependResource(BKFaraGrayMixin, KpiSdkResource, SdkInitDependResource):
     """异常检测SDK初始化历史依赖."""
 
     pass

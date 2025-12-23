@@ -65,7 +65,8 @@ class BkLogJsonEtlStorage(EtlStorage):
         api_response = BkDataDatabusApi.databus_clean_debug(api_request)
         
         # 解析API响应
-        rules_output = api_response.get("rules_output", {})
+        rules_output_list = api_response.get("rules_output", [])
+        rules_output = rules_output_list[0] if rules_output_list else {}
         values = rules_output.get("value", {})
         key_index = rules_output.get("key_index", [])
         

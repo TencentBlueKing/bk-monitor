@@ -435,20 +435,22 @@ ETL_PREVIEW_V4_JSON_API_REQUEST = {
     "filter_rules": []
 }
 ETL_PREVIEW_V4_JSON_API_RESPONSE = {
-    "rules_output": {
-        "value": {
-            "ip": "127.0.0.1",
-            "message": "test log",
-            "level": "info",
-            "timestamp": "2023-01-01T10:00:00Z"
-        },
-        "key_index": [
-            {"type": "key", "value": "ip", "field_type": "string"},
-            {"type": "key", "value": "message", "field_type": "string"},
-            {"type": "key", "value": "level", "field_type": "string"},
-            {"type": "key", "value": "timestamp", "field_type": "string"}
-        ]
-    }
+    "rules_output": [
+        {
+            "value": {
+                "ip": "127.0.0.1",
+                "message": "test log",
+                "level": "info",
+                "timestamp": "2023-01-01T10:00:00Z"
+            },
+            "key_index": [
+                {"type": "key", "value": "ip", "field_type": "string"},
+                {"type": "key", "value": "message", "field_type": "string"},
+                {"type": "key", "value": "level", "field_type": "string"},
+                {"type": "key", "value": "timestamp", "field_type": "string"}
+            ]
+        }
+    ]
 }
 ETL_PREVIEW_V4_JSON_EXPECTED = [
     {"field_name": "ip", "value": "127.0.0.1"},
@@ -478,60 +480,62 @@ ETL_PREVIEW_V4_REGEXP_API_REQUEST = {
     "filter_rules": []
 }
 ETL_PREVIEW_V4_REGEXP_API_RESPONSE = {
-    "rules_output": {
-        "value": {
-            "remote_addr": "192.168.1.1",
-            "logdate": "25/Oct/2023:10:30:45 +0800",
-            "request_method": "GET",
-            "request_uri": "/api/test",
-            "request_version": "HTTP/1.1",
-            "status": "200",
-            "user": "admin",
-            "up_status": "ok",
-            "ms": "150",
-            "up": "192.168.1.2",
-            "rs": "1",
-            "rid": "req-123",
-            "realip": "192.168.1.3",
-            "host": "example.com",
-            "region": "us-west",
-            "service": "api",
-            "agent": "Mozilla/5.0",
-            "up_stream": "backend",
-            "upstream_response_time": "0.150",
-            "refer": "https://example.com",
-            "http_x_forwarded_for": "192.168.1.4",
-            "original_host": "api.example.com",
-            "project_id": "12345",
-            "route_tag": "prod"
-        },
-        "key_index": [
-            {"type": "key", "value": "remote_addr", "field_type": "string"},
-            {"type": "key", "value": "logdate", "field_type": "string"},
-            {"type": "key", "value": "request_method", "field_type": "string"},
-            {"type": "key", "value": "request_uri", "field_type": "string"},
-            {"type": "key", "value": "request_version", "field_type": "string"},
-            {"type": "key", "value": "status", "field_type": "string"},
-            {"type": "key", "value": "user", "field_type": "string"},
-            {"type": "key", "value": "up_status", "field_type": "string"},
-            {"type": "key", "value": "ms", "field_type": "string"},
-            {"type": "key", "value": "up", "field_type": "string"},
-            {"type": "key", "value": "rs", "field_type": "string"},
-            {"type": "key", "value": "rid", "field_type": "string"},
-            {"type": "key", "value": "realip", "field_type": "string"},
-            {"type": "key", "value": "host", "field_type": "string"},
-            {"type": "key", "value": "region", "field_type": "string"},
-            {"type": "key", "value": "service", "field_type": "string"},
-            {"type": "key", "value": "agent", "field_type": "string"},
-            {"type": "key", "value": "up_stream", "field_type": "string"},
-            {"type": "key", "value": "upstream_response_time", "field_type": "string"},
-            {"type": "key", "value": "refer", "field_type": "string"},
-            {"type": "key", "value": "http_x_forwarded_for", "field_type": "string"},
-            {"type": "key", "value": "original_host", "field_type": "string"},
-            {"type": "key", "value": "project_id", "field_type": "string"},
-            {"type": "key", "value": "route_tag", "field_type": "string"}
-        ]
-    }
+    "rules_output": [
+        {
+            "value": {
+                "remote_addr": "192.168.1.1",
+                "logdate": "25/Oct/2023:10:30:45 +0800",
+                "request_method": "GET",
+                "request_uri": "/api/test",
+                "request_version": "HTTP/1.1",
+                "status": "200",
+                "user": "admin",
+                "up_status": "ok",
+                "ms": "150",
+                "up": "192.168.1.2",
+                "rs": "1",
+                "rid": "req-123",
+                "realip": "192.168.1.3",
+                "host": "example.com",
+                "region": "us-west",
+                "service": "api",
+                "agent": "Mozilla/5.0",
+                "up_stream": "backend",
+                "upstream_response_time": "0.150",
+                "refer": "https://example.com",
+                "http_x_forwarded_for": "192.168.1.4",
+                "original_host": "api.example.com",
+                "project_id": "12345",
+                "route_tag": "prod"
+            },
+            "key_index": [
+                {"type": "key", "value": "remote_addr", "field_type": "string"},
+                {"type": "key", "value": "logdate", "field_type": "string"},
+                {"type": "key", "value": "request_method", "field_type": "string"},
+                {"type": "key", "value": "request_uri", "field_type": "string"},
+                {"type": "key", "value": "request_version", "field_type": "string"},
+                {"type": "key", "value": "status", "field_type": "string"},
+                {"type": "key", "value": "user", "field_type": "string"},
+                {"type": "key", "value": "up_status", "field_type": "string"},
+                {"type": "key", "value": "ms", "field_type": "string"},
+                {"type": "key", "value": "up", "field_type": "string"},
+                {"type": "key", "value": "rs", "field_type": "string"},
+                {"type": "key", "value": "rid", "field_type": "string"},
+                {"type": "key", "value": "realip", "field_type": "string"},
+                {"type": "key", "value": "host", "field_type": "string"},
+                {"type": "key", "value": "region", "field_type": "string"},
+                {"type": "key", "value": "service", "field_type": "string"},
+                {"type": "key", "value": "agent", "field_type": "string"},
+                {"type": "key", "value": "up_stream", "field_type": "string"},
+                {"type": "key", "value": "upstream_response_time", "field_type": "string"},
+                {"type": "key", "value": "refer", "field_type": "string"},
+                {"type": "key", "value": "http_x_forwarded_for", "field_type": "string"},
+                {"type": "key", "value": "original_host", "field_type": "string"},
+                {"type": "key", "value": "project_id", "field_type": "string"},
+                {"type": "key", "value": "route_tag", "field_type": "string"}
+            ]
+        }
+    ]
 }
 ETL_PREVIEW_V4_REGEXP_EXPECTED = [
     {"field_index": 1, "field_name": "remote_addr", "value": "192.168.1.1"},
@@ -1260,72 +1264,74 @@ class TestEtl(TestCase):
         
         # Mock API响应
         mock_api.return_value = {
-            "rules_output": {
-                "value": {
-                    "level": "info",
-                    "message": "User action",
-                    "user": {"id": 12345, "profile": {"name": "test_user", "email": "test@example.com"}},
-                    "context": {"request_id": "req-123", "session_id": "sess-456"}
-                },
-                "key_index": [
-                    {
-                        "type": "key",
-                        "value": "context",
-                        "children": [
-                            {
-                                "type": "key",
-                                "value": "request_id",
-                                "field_type": "string"
-                            },
-                            {
-                                "type": "key",
-                                "value": "session_id",
-                                "field_type": "string"
-                            }
-                        ],
-                        "field_type": "dict"
+            "rules_output": [
+                {
+                    "value": {
+                        "level": "info",
+                        "message": "User action",
+                        "user": {"id": 12345, "profile": {"name": "test_user", "email": "test@example.com"}},
+                        "context": {"request_id": "req-123", "session_id": "sess-456"}
                     },
-                    {
-                        "type": "key",
-                        "value": "level",
-                        "field_type": "string"
-                    },
-                    {
-                        "type": "key",
-                        "value": "message",
-                        "field_type": "string"
-                    },
-                    {
-                        "type": "key",
-                        "value": "user",
-                        "children": [
-                            {
-                                "type": "key",
-                                "value": "id",
-                                "field_type": "long"
-                            },
-                            {
-                                "type": "key",
-                                "value": "profile",
-                                "children": [
-                                    {
-                                        "type": "key",
-                                        "value": "email",
-                                        "field_type": "string"
-                                    },
-                                    {
-                                        "type": "key",
-                                        "value": "name",
-                                        "field_type": "string"
-                                    }
-                                ],
-                                "field_type": "dict"
-                            }
-                        ],
-                        "field_type": "dict"
-                    }
-                ]
-            }
+                    "key_index": [
+                        {
+                            "type": "key",
+                            "value": "context",
+                            "children": [
+                                {
+                                    "type": "key",
+                                    "value": "request_id",
+                                    "field_type": "string"
+                                },
+                                {
+                                    "type": "key",
+                                    "value": "session_id",
+                                    "field_type": "string"
+                                }
+                            ],
+                            "field_type": "dict"
+                        },
+                        {
+                            "type": "key",
+                            "value": "level",
+                            "field_type": "string"
+                        },
+                        {
+                            "type": "key",
+                            "value": "message",
+                            "field_type": "string"
+                        },
+                        {
+                            "type": "key",
+                            "value": "user",
+                            "children": [
+                                {
+                                    "type": "key",
+                                    "value": "id",
+                                    "field_type": "long"
+                                },
+                                {
+                                    "type": "key",
+                                    "value": "profile",
+                                    "children": [
+                                        {
+                                            "type": "key",
+                                            "value": "email",
+                                            "field_type": "string"
+                                        },
+                                        {
+                                            "type": "key",
+                                            "value": "name",
+                                            "field_type": "string"
+                                        }
+                                    ],
+                                    "field_type": "dict"
+                                }
+                            ],
+                            "field_type": "dict"
+                        }
+                    ]
+                }
+            ]
         }
         
         # 创建EtlStorage实例

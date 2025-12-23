@@ -67,6 +67,7 @@ import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from './store.type.ts';
+import { formatTimeZoneString } from '@/global/utils/time';
 if (pinyin.isSupported() && patcher56L.shouldPatch(pinyin.genToken)) {
   pinyin.patchDict(patcher56L);
 }
@@ -192,8 +193,8 @@ const stateTpl = {
   bizIdMap: new Map(),
   aiMode: {
     active: false,
-    filterList: []
-  }
+    filterList: [],
+  },
 };
 
 const store = new Vuex.Store({
@@ -309,7 +310,9 @@ const store = new Vuex.Store({
       const searchParams = searchMode === 'sql' ? { keyword, addition: [] } : { addition: getters.originAddition, keyword: '*' };
 
       if (state.aiMode.active) {
-        searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword].filter(f => !/^\s*\*?\s*$/.test(f)).join(' AND ');
+        searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword]
+          .filter(f => !/^\s*\*?\s*$/.test(f))
+          .join(' AND ');
       }
 
       if (searchParams.keyword.replace(/\s*/, '') === '') {
@@ -1495,6 +1498,7 @@ const store = new Vuex.Store({
         start_time: formatDate(startTime),
         end_time: formatDate(endTime),
         size: payload?.size ?? 100,
+        bk_biz_id: state.bkBizId,
       };
 
       if (state.indexItem.isUnionIndex) {
@@ -1538,6 +1542,8 @@ const store = new Vuex.Store({
           const results = (resp.data || []).map((item) => {
             item.favorites?.forEach((sub) => {
               sub.full_name = `${item.group_name}/${sub.name}`;
+              sub.created_at = formatTimeZoneString(sub.created_at, state.userMeta.time_zone);
+              sub.updated_at = formatTimeZoneString(sub.updated_at, state.userMeta.time_zone);
             });
             return item;
           });
@@ -1692,11 +1698,7 @@ const store = new Vuex.Store({
               operator,
               value,
             });
-            if (targetField?.is_virtual_obj_node) {
-              newSearchValue = Object.assign({ field: '*', value }, { operator: mapOperator });
-            } else {
-              newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
-            }
+            newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
           }
           if (searchMode === 'sql') {
             if (targetField?.is_virtual_obj_node) {

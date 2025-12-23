@@ -227,11 +227,16 @@ export default () => {
       return `${item.index_set_id}` === `${id}`;
     };
 
-    const commitIdexId = (idexs: string[], others = {}) => {
+    const commitIdexId = (idexs: string[], others: any = {}) => {
+      // 优先使用 store 中已有的 pid（从URL解析出来的）
+      const existingPid = store.state.indexItem.pid ?? [];
+      const items = (others as any)?.items ?? [];
+
       const [pid, ids] = idexs
         .filter(t => !!t)
         .reduce(
-          (out, cur) => {
+          (out, cur, index) => {
+            // 如果ID格式是 pid_id，使用解析出来的 pid
             if (cur.indexOf('_') > 0) {
               const [pid, id] = cur.split('_');
               out[0].push(pid);
@@ -239,12 +244,39 @@ export default () => {
               return out;
             }
 
+            // 如果ID格式只是 id，优先使用 URL 中解析的 pid
+            // unique_id 是基于树形结构生成的，可能与 URL 中的 pid 不一致
+            if (existingPid.length > index && existingPid[index] && existingPid[index] !== '#') {
+              // 优先使用 URL 中解析的 pid
+              out[0].push(existingPid[index]);
+              out[1].push(cur);
+              return out;
+            }
+
+            // 如果 URL 中没有 pid，尝试从索引集列表中查找对应的 unique_id，提取 pid
+            // 优先从传入的 items 中查找，如果没有则从 flatIndexSetList 中查找
+            let targetItem = items.find(item => `${item.index_set_id}` === `${cur}`);
+            if (!targetItem) {
+              targetItem = flatIndexSetList.value.find(item => `${item.index_set_id}` === `${cur}`);
+            }
+
+            if (targetItem?.unique_id) {
+              // 从 unique_id 中提取 pid（作为备选方案）
+              const parts = targetItem.unique_id.split('_');
+              const extractedPid = parts.length > 1 ? parts[0] : '#';
+              out[0].push(extractedPid);
+              out[1].push(cur);
+              return out;
+            }
+
+            // 如果都找不到，使用 '#'
             out[0].push('#');
             out[1].push(cur);
             return out;
           },
           [[], []],
         );
+
       store.commit('updateIndexItem', { ids, pid, ...(others ?? {}) });
     };
 
@@ -337,10 +369,6 @@ export default () => {
           if (emptyIndexSetList.length) {
             store.commit('updateIndexItem', { ids: [], items: [] });
             store.commit('updateState', { indexId: '' });
-            // store.commit('updateIndexSetQueryResult', {
-            //   is_error: true,
-            //   exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
-            // });
           }
 
           if (indexSetItems.length) {

@@ -474,7 +474,10 @@ export function formatDate(val, isTimzone = true, formatMilliseconds = false) {
       const date = dayjs.tz(timestamp);
 
       // 如果毫秒部分不为 000，展示毫秒精度的时间
-      const formatStr = formatMilliseconds && milliseconds !== 0 ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD HH:mm:ss';
+      const formatStr = formatMilliseconds && milliseconds !== 0
+        ? 'YYYY-MM-DD HH:mm:ss.SSSZZ'
+        : 'YYYY-MM-DD HH:mm:ssZZ';
+
       return date.format(formatStr);
     }
 
@@ -1141,7 +1144,7 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
             const catchWidth = catchFieldsWidthObj[item.field_name];
             width = catchWidth ?? fieldWidth;
           }
-  
+
           set(item, 'width', width);
           set(item, 'minWidth', minWidth);
         });

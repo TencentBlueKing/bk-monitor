@@ -295,7 +295,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         try:
             if converter == ConverterType.Profile:
                 c = DorisProfileConverter()
-                c.convert(r)
+                c.convert(r, agg_method, agg_interval)
             elif converter == ConverterType.Tree:
                 c = TreeConverter()
                 c.convert(r, agg_method, agg_interval)
@@ -761,6 +761,8 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             result_table_id=result_table_id,
             sample_type=validated_data["data_type"],
             converter=ConverterType.Profile,
+            agg_method=validated_data["agg_method"],
+            agg_interval=self.get_agg_interval(start, end),
         )
 
         # transfer data

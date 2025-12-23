@@ -31,6 +31,7 @@ import useLocale from '@/hooks/use-locale';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
+import useUtils from '@/hooks/use-utils';
 
 import DownloadUrl from './download-url.tsx';
 import ListBox from './list-box.tsx';
@@ -122,7 +123,8 @@ export default defineComponent({
         }, []);
         // 获取displayName
         await queryDisplayName(allIpList);
-        taskList.value = res.data.list;
+        const { formatResponseListTimeZoneString } = useUtils();
+        taskList.value = formatResponseListTimeZoneString(res.data.list || [], {}, ['created_at', 'updated_at']);
         timeout.value = res.data.timeout || 10;
         pollingTaskStatus();
       } catch (e) {

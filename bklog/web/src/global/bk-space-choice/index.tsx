@@ -172,9 +172,11 @@ export default defineComponent({
     // 使用 use-list-sort 进行文本匹配和排序
     // 匹配的字段：space_name, py_text, space_uid, bk_biz_id, space_code
     const matchKeys = ['space_name', 'py_text', 'space_uid'];
+    const hiddenMatchKeys = ['bk_biz_id'];
     const { sortList: authorizedList, updateList, updateSearchText } = useListSort(
       baseFilteredList.value,
       matchKeys,
+      hiddenMatchKeys
     );
 
     // 监听基础列表变化，更新排序列表
@@ -187,7 +189,7 @@ export default defineComponent({
       updateSearchText(newKeyword);
       // 搜索时重置选中索引
       selectedIndex.value = -1;
-      
+
       // 搜索时，如果列表滚动位置不在最顶部，则自动滚动到顶部
       if (bizListRef.value && showBizList.value) {
         await nextTick();
@@ -195,11 +197,11 @@ export default defineComponent({
         const listContainer = bizListRef.value?.$el || bizListRef.value;
         if (listContainer) {
           // 查找 RecycleScroller 的滚动容器
-          const scroller = listContainer.querySelector('.vue-recycle-scroller') 
+          const scroller = listContainer.querySelector('.vue-recycle-scroller')
             || listContainer.querySelector('.list-scroller');
 
           const scrollElement = scroller || listContainer;
-          
+
           // 检查滚动位置，如果不在顶部则滚动到顶部
           if (scrollElement.scrollTop > 0) {
             scrollElement.scrollTo({

@@ -7,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from dataclasses import dataclass
-from typing import Optional
 
 import ujson as json
 
@@ -28,12 +28,28 @@ from apm_web.profile.profileconverter import ProfileConverter
 class DorisProfileConverter(ProfileConverter):
     """Convert data in doris(pprof json) to Profile object"""
 
-    def convert(self, raw: dict) -> Optional[Profile]:
+    @classmethod
+    def _align_agg_interval(cls, t, interval):
+        return int(t / interval) * interval
+
+    def convert(self, raw: dict, agg_method=None, agg_interval=60) -> Profile | None:
         """parse single raw json data to Profile object"""
         samples_info = raw["list"]
         if not samples_info:
             return
-        self.raw_data = samples_info
+
+        if agg_method == "LAST":
+            # 只保留最后一个时间戳的所有 sample 数据
+            interval = agg_interval * 1000
+            last_snapshot = max({self._align_agg_interval(int(s["dtEventTimeStamp"]), interval) for s in samples_info})
+            samples_info = [
+                s
+                for s in samples_info
+                if self._align_agg_interval(int(s["dtEventTimeStamp"]), interval) == last_snapshot
+            ]
+            self.raw_data = samples_info
+        else:
+            self.raw_data = samples_info
 
         first_sample = samples_info[0]
         period_type, period_unit = first_sample["period_type"].split("/")

@@ -153,7 +153,7 @@
         :render-header="$renderHeader"
       >
         <template #default="props">
-          <div>{{ props.row.created_at.slice(0, 19) || '--' }}</div>
+          <div>{{ props.row.created_at || '--' }}</div>
         </template>
       </bk-table-column>
       <bk-table-column
@@ -233,6 +233,7 @@
   import { mapGetters } from 'vuex';
   import { formatBytes, requestStorageUsage } from '../../../util';
   import * as authorityMap from '../../../../../../common/authority-map';
+  import useUtils from '@/hooks/use-utils';
 
   export default {
     name: 'IndexSetList',
@@ -328,6 +329,8 @@
         query.space_uid = this.spaceUid;
         query.index_set_id_list = indexSetIDList;
         this.emptyType = this.searchParams.keyword ? 'search-empty' : 'empty';
+        const { formatResponseListTimeZoneString } = useUtils();
+
         this.$http
           .request('/indexSet/list', {
             query,
@@ -336,14 +339,14 @@
             const resList = res.data.list;
             const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
             const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
-            this.indexSetList = resList.map(item => ({
-              ...item,
-              is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
+            this.indexSetList = formatResponseListTimeZoneString(resList, (item) => ({ 
+              is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false, 
             }));
             this.pagination.count = res.data.total;
             this.loadData()
           })
-          .catch(() => {
+          .catch((err) => {
+            console.warn(err);
             this.emptyType = '500';
           })
           .finally(() => {

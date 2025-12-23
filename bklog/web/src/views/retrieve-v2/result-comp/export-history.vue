@@ -203,7 +203,7 @@
         </bk-table-column>
         <!-- 操作时间 -->
         <bk-table-column
-          width="150"
+          width="240"
           :label="$t('操作时间')"
           align="center"
           header-align="center"

@@ -24,8 +24,8 @@
  * IN THE SOFTWARE.
  */
 
-// 固定的内置字段
-export const builtInInitHiddenList = [
+// 固定的内置字段 - 内部存储数组
+const _builtInInitHiddenList = [
   'gseIndex',
   'gseindex',
   'iterationIndex',
@@ -46,3 +46,33 @@ export const builtInInitHiddenList = [
   '__unique_key__',
   '__bcs_cluster_name__',
 ];
+
+/**
+ * 获取内置隐藏字段列表（动态获取最新值）
+ * @returns {string[]} 内置隐藏字段列表
+ */
+export const getBuiltInInitHiddenList = () => {
+  return _builtInInitHiddenList;
+};
+
+/**
+ * 更新内置隐藏字段列表
+ * @param {string[]} newList - 新的字段列表
+ */
+export const updateBuiltInInitHiddenList = (newList) => {
+  if (Array.isArray(newList) && newList.length > 0) {
+    _builtInInitHiddenList.splice(0, _builtInInitHiddenList.length);
+    newList.forEach(item => {
+      if (!_builtInInitHiddenList.includes(item)) {
+        _builtInInitHiddenList.push(item);
+      }
+    });
+  }
+};
+
+/**
+ * 内置隐藏字段列表（兼容旧代码，返回响应式数组引用）
+ * 注意：为了保持响应式，请使用 getBuiltInInitHiddenList() 获取最新值
+ * 或者直接使用此数组引用（因为数组引用本身是响应式的）
+ */
+export const builtInInitHiddenList = _builtInInitHiddenList;
