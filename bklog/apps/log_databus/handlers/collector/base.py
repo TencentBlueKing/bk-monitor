@@ -725,21 +725,88 @@ class CollectorHandler:
     @caches_one_hour(key=CACHE_KEY_CLUSTER_INFO, need_deconstruction_name="result_table_list", need_md5=True)
     def bulk_cluster_infos(result_table_list: list):
         """
-        bulk_cluster_infos
+        批量获取集群信息，单个失败不影响其他
+        如果分片请求失败，则拆解为单个result_table重试
         @param result_table_list:
         @return:
         """
+
+        def get_cluster_info(result_table_str):
+            """
+            按分片获取集群信息
+            """
+            try:
+                return TransferApi.get_result_table_storage(
+                    result_table_list=result_table_str,
+                    storage_type="elasticsearch"
+                )
+            except Exception as e:
+                logger.warning(f"分片获取集群信息失败(result_tables={result_table_str}): {e}")
+                # 返回空结果，表示分片获取失败
+                return {}
+
+        # 按分片批量获取
         multi_execute_func = MultiExecuteFunc()
         table_chunk = array_chunk(result_table_list, BULK_CLUSTER_INFOS_LIMIT)
+
+        # 记录每个chunk对应的result_table列表
+        chunk_mapping = {}
         for item in table_chunk:
             rt = ",".join(item)
-            multi_execute_func.append(
-                rt, TransferApi.get_result_table_storage, {"result_table_list": rt, "storage_type": "elasticsearch"}
-            )
+            chunk_mapping[rt] = item
+            multi_execute_func.append(rt, get_cluster_info, rt)
+
         result = multi_execute_func.run()
         cluster_infos = {}
-        for _, cluster_info in result.items():  # noqa
-            cluster_infos.update(cluster_info)
+
+        # 记录需要重试的单个result_table
+        retry_tables = []
+
+        # 处理分片结果
+        for rt_key, cluster_info in result.items():
+            if cluster_info:  # 分片获取成功
+                cluster_infos.update(cluster_info)
+                # 检查分片结果是否包含所有表
+                chunk_tables = chunk_mapping.get(rt_key, [])
+                for table_id in chunk_tables:
+                    if table_id not in cluster_info:
+                        # 分片结果中缺少某个表，需要重试
+                        retry_tables.append(table_id)
+            else:
+                # 分片获取失败，记录该分片中的所有表需要重试
+                chunk_tables = chunk_mapping.get(rt_key, [])
+                retry_tables.extend(chunk_tables)
+
+        # 第二步：对需要重试的单个result_table进行获取
+        if retry_tables:
+            logger.info(f"对 {len(retry_tables)} 个表进行单个重试: {retry_tables}")
+
+            single_multi_func = MultiExecuteFunc()
+            for table_id in retry_tables:
+                single_multi_func.append(table_id, get_cluster_info, table_id)
+
+            single_result = single_multi_func.run()
+
+            # 处理单个重试结果
+            for table_id, cluster_info in single_result.items():
+                if cluster_info and table_id in cluster_info:
+                    # 单个重试成功
+                    cluster_infos[table_id] = cluster_info[table_id]
+                else:
+                    # 单个重试也失败，设置默认值
+                    cluster_infos[table_id] = {
+                        "cluster_config": {"cluster_id": -1, "cluster_name": ""},
+                        "storage_config": {"retention": 0}
+                    }
+
+        # 第三步：确保所有表都有结果
+        for table_id in result_table_list:
+            if table_id not in cluster_infos:
+                cluster_infos[table_id] = {
+                    "cluster_config": {"cluster_id": -1, "cluster_name": ""},
+                    "storage_config": {"retention": 0}
+                }
+
         return cluster_infos
 
     @classmethod
