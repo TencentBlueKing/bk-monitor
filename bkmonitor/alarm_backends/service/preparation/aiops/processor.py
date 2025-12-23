@@ -17,6 +17,7 @@ from django.conf import settings
 from alarm_backends.core.cache import key
 from alarm_backends.core.control.item import Item
 from alarm_backends.core.control.strategy import Strategy
+from alarm_backends.core.control.mixins.detect import EXTRA_CONFIG_KEYS
 from alarm_backends.core.lock.service_lock import (
     check_lock_updated,
     refresh_service_lock,
@@ -93,7 +94,7 @@ class TsDependPreparationProcess(BasePreparationProcess):
                 continue
 
             # 提取控制参数（排除 type, config, unit_prefix, level 等算法配置字段）
-            extra_config = {k: v for k, v in algorithm.items() if k not in ["type", "config", "unit_prefix", "level"]}
+            extra_config = {k: v for k, v in algorithm.get("config", {}).items() if k in EXTRA_CONFIG_KEYS}
             logger.info(f"Strategy({strategy.id}) extra_config: {extra_config}")
 
             start_time, end_time = self.generate_depend_time_range(item)
