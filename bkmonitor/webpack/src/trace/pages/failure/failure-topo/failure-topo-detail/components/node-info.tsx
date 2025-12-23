@@ -321,7 +321,7 @@ export default defineComponent({
                 >
                   <OverflowTitle
                     class='except-text'
-                    popoverOptions={{ maxWidth: 360 }}
+                    popoverOptions={{ maxWidth: 360, placement: 'top', extCls: 'except-text_popover' }}
                     type='tips'
                   >
                     <span>{node.entity.rca_trace_info.abnormal_message}</span>

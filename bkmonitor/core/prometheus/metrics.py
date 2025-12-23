@@ -1220,6 +1220,19 @@ MCP_REQUESTS_TOTAL = Counter(
     labelnames=("tool_name", "bk_biz_id", "username", "status", "permission_action"),
 )
 
+MCP_RESOURCE_REQUESTS_TOTAL = Counter(
+    name="bkmonitor_mcp_resource_requests_total",
+    documentation="MCP Resource调用统计",
+    labelnames=("resource_name", "tool_name", "bk_biz_id", "username", "status", "exception_type", "has_data"),
+)
+
+MCP_RESOURCE_REQUESTS_COST_SECONDS = Histogram(
+    name="bkmonitor_mcp_resource_requests_cost_seconds",
+    documentation="MCP Resource调用耗时统计",
+    labelnames=("resource_name", "tool_name", "bk_biz_id", "username", "status"),
+    buckets=(0.1, 0.5, 1, 3, 5, 10, 30, 60, 300, INF),
+)
+
 AI_AGENTS_REQUESTS_COST_SECONDS = Gauge(
     name="ai_agents_requests_cost_seconds",
     documentation="AI小鲸服务调用耗时统计",
