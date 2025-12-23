@@ -854,9 +854,6 @@ class CollectorHandler:
         @return:
         """
 
-        # 兼容平台账户
-        bk_username = getattr(instance, "__platform_username", None) or instance.get_updated_by()
-
         if etl_processor is None:
             etl_processor = instance.etl_processor
 
@@ -872,6 +869,9 @@ class CollectorHandler:
                 bk_biz_id=instance.get_bk_biz_id(),
             )
             return bk_data_id
+
+        # 兼容平台账户
+        bk_username = getattr(instance, "__platform_username", None) or instance.get_updated_by()
 
         # 创建 BKBase
         maintainers = {bk_username} if bk_username else {instance.updated_by, instance.created_by}
