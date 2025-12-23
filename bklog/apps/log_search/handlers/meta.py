@@ -41,7 +41,7 @@ from apps.utils import APIModel
 from apps.utils.local import get_request, get_request_tenant_id, get_request_username
 from apps.utils.log import logger
 from bkm_space.define import SpaceTypeEnum
-from bkm_space.utils import space_uid_to_bk_biz_id
+from bkm_space.utils import space_uid_to_bk_biz_id, bk_biz_id_to_space_uid
 
 
 class MetaHandler(APIModel):
@@ -49,6 +49,7 @@ class MetaHandler(APIModel):
     def get_user_spaces(
         cls,
         space_uid: str = None,
+        bk_biz_id: int = None,
         has_permission: bool = True,
         page: int = None,
         page_size: int = None,
@@ -56,6 +57,7 @@ class MetaHandler(APIModel):
         """
         获取用户空间列表
         :param space_uid: 空间uid
+        :param bk_biz_id: 业务ID
         :param has_permission: 是否过滤有权限的空间
         :param page: 页码
         :param page_size: 每页条数
@@ -63,7 +65,9 @@ class MetaHandler(APIModel):
         """
         username = get_request_username()
         bk_tenant_id = get_request_tenant_id()
-        # 获取业务列表
+        # 获取业务列表，优先级 space_uid > bk_biz_id
+        if not space_uid and bk_biz_id:
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
         spaces = Space.get_all_spaces(bk_tenant_id=bk_tenant_id, space_uid=space_uid)
         allowed_spaces = Permission(username).filter_space_list_by_action(
             ActionEnum.VIEW_BUSINESS, bk_tenant_id, spaces

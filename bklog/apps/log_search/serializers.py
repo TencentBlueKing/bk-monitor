@@ -1216,6 +1216,7 @@ class SpaceListSerializer(serializers.Serializer):
     """
 
     space_uid = serializers.CharField(label=_("空间唯一标识"), required=False)
+    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     has_permission = serializers.BooleanField(label=_("仅获取有权限的空间"), default=False)
     page = serializers.IntegerField(label=_("页数"), required=False, min_value=1)
     page_size = serializers.IntegerField(label=_("每页条数"), required=False, min_value=1)

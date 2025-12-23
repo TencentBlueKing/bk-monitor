@@ -107,6 +107,7 @@ class MetaViewSet(APIViewSet):
         return Response(
             MetaHandler.get_user_spaces(
                 space_uid=params.get("space_uid"),
+                bk_biz_id=params.get("bk_biz_id"),
                 has_permission=params.get("has_permission"),
                 page=params.get("page"),
                 page_size=params.get("page_size"),
