@@ -19,7 +19,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import gettext as _
-from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from alarm_backends.service.scheduler.app import app
 from constants.common import DEFAULT_TENANT_ID
@@ -114,6 +114,7 @@ def create_full_cmdb_level_data_flow(table_id, bk_tenant_id=DEFAULT_TENANT_ID):
 @retry(
     stop=stop_after_attempt(4),
     wait=wait_exponential(multiplier=1, min=1, max=10),
+    retry=retry_if_exception_type(models.ESStorage.DoesNotExist),  # 目前只针对预设异常进行重试
     reraise=True,  # 重试失败后，抛出原始异常
 )
 def create_es_storage_index(table_id):
