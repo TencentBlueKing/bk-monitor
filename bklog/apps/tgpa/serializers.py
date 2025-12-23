@@ -100,6 +100,6 @@ class SyncReportSerializer(serializers.Serializer):
     end_time = serializers.IntegerField(label=_("结束时间"), required=False, allow_null=True)
 
     def validate(self, attrs):
-        if not attrs.get("openid") and not attrs.get("file_name"):
-            raise serializers.ValidationError(_("openid 和 file_name 不能同时为空"))
+        if not attrs.get("openid_list") and not attrs.get("file_name_list"):
+            raise serializers.ValidationError(_("openid_list 和 file_name_list 不能同时为空"))
         return attrs

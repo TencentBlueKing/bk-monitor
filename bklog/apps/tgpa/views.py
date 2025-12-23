@@ -126,8 +126,8 @@ class TGPAReportViewSet(APIViewSet):
 
         report_list = TGPAReportHandler.iter_report_list(
             bk_biz_id=bk_biz_id,
-            openid_list=params.get("openid"),
-            file_name_list=params.get("file_name"),
+            openid_list=params.get("openid_list"),
+            file_name_list=params.get("file_name_list"),
             start_time=params.get("start_time"),
             end_time=params.get("end_time"),
         )
