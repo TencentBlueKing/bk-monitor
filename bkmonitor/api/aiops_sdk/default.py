@@ -66,6 +66,7 @@ class SdkInitDependResource(APIResource):
 
     class RequestSerializer(serializers.Serializer):
         dependency_data = serializers.ListField(child=DependencyDataSerializer())
+        serving_config = serializers.DictField(default=dict())
 
     action = "/api/aiops/init_depend/"
     method = "POST"
@@ -101,13 +102,31 @@ class KpiSdkResource(SdkResource):
 
 class BKFaraGrayMixin:
     def get_request_url(self, validated_request_data):
-        """根据灰度参数动态选择服务地址"""
-        if validated_request_data.get("gray_to_bkfara", False):
+        """根据灰度参数动态选择服务地址和 action 路径"""
+        # 从 serving_config 中获取控制参数
+        serving_config = validated_request_data.get("serving_config", {})
+        grey_to_bkfara = serving_config.get("grey_to_bkfara", False)
+        service_name = serving_config.get("service_name", "default")
+
+        if grey_to_bkfara:
             base_url = "http://bk-incident-aiops-service-aiops-serving-kpi:8000"
+            action = self.action.replace("/api/aiops/", "/aiops/serving/")
         else:
             base_url = "http://bk-aiops-serving-kpi:8000"
+            action = self.action
 
-        return base_url.rstrip("/") + "/" + self.action.lstrip("/")
+        request_url = base_url.rstrip("/") + "/" + action.lstrip("/")
+
+        # Todo: debug打印灰度参数和实际请求的URL
+        import logging
+
+        logger = logging.getLogger("detect")
+        logger.info(
+            f"[BKFaraGray] grey_to_bkfara={grey_to_bkfara}, service_name={service_name}, "
+            f"base_url={base_url}, action={action}, request_url={request_url}"
+        )
+
+        return request_url
 
 
 class KpiPredictResource(BKFaraGrayMixin, KpiSdkResource, SdkPredictResource):
