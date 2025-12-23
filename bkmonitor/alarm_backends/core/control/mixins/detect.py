@@ -72,13 +72,14 @@ class DetectMixin:
             for detect_config in algorithm_group[level]:
                 algorithm_type = detect_config["type"]
                 algorithm_unit = detect_config.get("unit_prefix", "")
+                algorithm_config = detect_config.get("config", {})
                 detector_cls = load_detector_cls(algorithm_type)
 
                 # 使用白名单方式提取控制参数
                 # 只提取 EXTRA_CONFIG_KEYS 中定义的参数
-                extra_config = {k: detect_config[k] for k in EXTRA_CONFIG_KEYS if k in detect_config}
+                extra_config = {k: algorithm_config[k] for k in EXTRA_CONFIG_KEYS if k in algorithm_config}
 
-                detector = detector_cls(detect_config["config"], algorithm_unit, extra_config=extra_config)
+                detector = detector_cls(algorithm_config, algorithm_unit, extra_config=extra_config)
 
                 # 判断算法是否需要查询历史数据
                 if hasattr(detector, "history_point_fetcher"):
